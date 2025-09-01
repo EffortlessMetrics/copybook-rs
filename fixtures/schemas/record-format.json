@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://copybook-rs.org/schemas/record-format.json",
+  "title": "COBOL Record Format Schema",
+  "description": "JSON schema for decoded COBOL record format",
+  "type": "object",
+  "patternProperties": {
+    "^[A-Z][A-Z0-9_-]*(__dup[0-9]+)?$": {
+      "description": "Field names follow COBOL conventions with duplicate disambiguation"
+    },
+    "^_filler_[0-9]+$": {
+      "description": "FILLER fields with byte offset"
+    },
+    "^__raw_b64$": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+      "description": "Base64-encoded raw record data"
+    },
+    "^__schema_id$": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Schema fingerprint"
+    },
+    "^__record_index$": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1-based record number"
+    },
+    "^__offset$": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Byte offset in file"
+    },
+    "^__length$": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Record length in bytes"
+    }
+  },
+  "additionalProperties": {
+    "oneOf": [
+      {
+        "type": "string",
+        "description": "Alphanumeric or decimal fields"
+      },
+      {
+        "type": "number",
+        "description": "Binary integer fields"
+      },
+      {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "OCCURS arrays"
+      },
+      {
+        "type": "object",
+        "description": "Group fields or nested structures"
+      }
+    ]
+  }
+}

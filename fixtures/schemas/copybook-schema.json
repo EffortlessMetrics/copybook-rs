@@ -1,0 +1,218 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://copybook-rs.org/schemas/copybook-schema.json",
+  "title": "COBOL Copybook Schema",
+  "description": "JSON schema for parsed COBOL copybook structures",
+  "type": "object",
+  "required": ["fields", "fingerprint"],
+  "properties": {
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/field"
+      }
+    },
+    "lrecl_fixed": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Fixed record length in bytes, null for variable records"
+    },
+    "tail_odo": {
+      "type": ["object", "null"],
+      "properties": {
+        "field_path": {
+          "type": "string"
+        },
+        "counter_path": {
+          "type": "string"
+        },
+        "min_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": ["field_path", "counter_path", "min_count", "max_count"]
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 fingerprint of canonical schema"
+    }
+  },
+  "definitions": {
+    "field": {
+      "type": "object",
+      "required": ["path", "kind", "offset", "len"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Dot-separated field path"
+        },
+        "kind": {
+          "$ref": "#/definitions/fieldKind"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Byte offset from record start"
+        },
+        "len": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Field length in bytes"
+        },
+        "redefines_of": {
+          "type": ["string", "null"],
+          "description": "Path of field this redefines"
+        },
+        "occurs": {
+          "$ref": "#/definitions/occurs"
+        },
+        "sync": {
+          "type": ["integer", "null"],
+          "description": "Alignment padding bytes if SYNCHRONIZED"
+        }
+      }
+    },
+    "fieldKind": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Alphanum": {
+              "type": "object",
+              "properties": {
+                "len": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": ["len"]
+            }
+          },
+          "required": ["Alphanum"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ZonedDecimal": {
+              "type": "object",
+              "properties": {
+                "digits": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 31
+                },
+                "scale": {
+                  "type": "integer",
+                  "minimum": -31,
+                  "maximum": 31
+                },
+                "signed": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["digits", "scale", "signed"]
+            }
+          },
+          "required": ["ZonedDecimal"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "BinaryInt": {
+              "type": "object",
+              "properties": {
+                "bits": {
+                  "type": "integer",
+                  "enum": [16, 32, 64]
+                },
+                "signed": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["bits", "signed"]
+            }
+          },
+          "required": ["BinaryInt"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "PackedDecimal": {
+              "type": "object",
+              "properties": {
+                "digits": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 31
+                },
+                "scale": {
+                  "type": "integer",
+                  "minimum": -31,
+                  "maximum": 31
+                },
+                "signed": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["digits", "scale", "signed"]
+            }
+          },
+          "required": ["PackedDecimal"]
+        },
+        {
+          "type": "string",
+          "enum": ["Group"]
+        }
+      ]
+    },
+    "occurs": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Fixed": {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": ["count"]
+            }
+          },
+          "required": ["Fixed"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ODO": {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "counter_path": {
+                  "type": "string"
+                }
+              },
+              "required": ["min", "max", "counter_path"]
+            }
+          },
+          "required": ["ODO"]
+        }
+      ]
+    }
+  }
+}

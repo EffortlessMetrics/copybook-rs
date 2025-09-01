@@ -1,0 +1,78 @@
+{
+  "fields": [
+    {
+      "path": "CUSTOMER-RECORD.CUSTOMER-ID",
+      "kind": {
+        "ZonedDecimal": {
+          "digits": 6,
+          "scale": 0,
+          "signed": false
+        }
+      },
+      "offset": 0,
+      "len": 6,
+      "redefines_of": null,
+      "occurs": null,
+      "sync": null
+    },
+    {
+      "path": "CUSTOMER-RECORD.CUSTOMER-NAME",
+      "kind": {
+        "Alphanum": {
+          "len": 30
+        }
+      },
+      "offset": 6,
+      "len": 30,
+      "redefines_of": null,
+      "occurs": null,
+      "sync": null
+    },
+    {
+      "path": "CUSTOMER-RECORD.ACCOUNT-BALANCE",
+      "kind": {
+        "PackedDecimal": {
+          "digits": 9,
+          "scale": 2,
+          "signed": true
+        }
+      },
+      "offset": 36,
+      "len": 5,
+      "redefines_of": null,
+      "occurs": null,
+      "sync": null
+    },
+    {
+      "path": "CUSTOMER-RECORD.LAST-ACTIVITY-DATE",
+      "kind": {
+        "ZonedDecimal": {
+          "digits": 8,
+          "scale": 0,
+          "signed": false
+        }
+      },
+      "offset": 41,
+      "len": 8,
+      "redefines_of": null,
+      "occurs": null,
+      "sync": null
+    },
+    {
+      "path": "CUSTOMER-RECORD.STATUS-CODE",
+      "kind": {
+        "Alphanum": {
+          "len": 1
+        }
+      },
+      "offset": 49,
+      "len": 1,
+      "redefines_of": null,
+      "occurs": null,
+      "sync": null
+    }
+  ],
+  "lrecl_fixed": 50,
+  "tail_odo": null,
+  "fingerprint": "placeholder_hash_will_be_computed_by_implementation"
+}

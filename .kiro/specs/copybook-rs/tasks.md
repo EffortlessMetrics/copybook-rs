@@ -1,6 +1,7 @@
 # Implementation Plan
 
-- [-] 1. Project Foundation & Workspace Setup
+- [ ] 1. Project Foundation & Workspace Setup
+
 
 
 

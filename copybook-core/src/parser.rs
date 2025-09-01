@@ -7,6 +7,10 @@ use crate::error::ErrorCode;
 use crate::{Error, Result, Schema};
 
 /// Parse a COBOL copybook text into a schema
+/// 
+/// # Errors
+/// 
+/// Returns an error if the copybook contains syntax errors or unsupported features
 pub fn parse(text: &str) -> Result<Schema> {
     // Placeholder implementation - will be implemented in task 2.1
     if text.trim().is_empty() {

@@ -7,6 +7,10 @@ use copybook_core::{Error, ErrorCode, Result};
 use std::io::{Read, Write};
 
 /// Read a single record from input
+/// 
+/// # Errors
+/// 
+/// Returns an error if the record cannot be read due to I/O errors or format issues
 pub fn read_record(
     input: &mut impl Read,
     format: RecordFormat,
@@ -32,6 +36,10 @@ pub fn read_record(
 }
 
 /// Write a single record to output
+/// 
+/// # Errors
+/// 
+/// Returns an error if the record cannot be written due to I/O errors
 pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) -> Result<()> {
     // Placeholder implementation - will be implemented in task 4
     match format {
@@ -39,7 +47,7 @@ pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) 
             output.write_all(data).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                    format!("Write error: {}", e),
+                    format!("Write error: {e}"),
                 )
             })?;
         }

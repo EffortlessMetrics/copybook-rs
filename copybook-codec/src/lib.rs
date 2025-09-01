@@ -17,18 +17,30 @@ use serde_json::Value;
 use std::io::{Read, Write};
 
 /// Decode binary data to JSON using the provided schema
+/// 
+/// # Errors
+/// 
+/// Returns an error if the data cannot be decoded according to the schema
 pub fn decode_record(_schema: &Schema, _data: &[u8], _options: &DecodeOptions) -> Result<Value> {
     // Placeholder implementation - will be implemented in later tasks
     Ok(Value::Object(serde_json::Map::new()))
 }
 
 /// Encode JSON data to binary using the provided schema
+/// 
+/// # Errors
+/// 
+/// Returns an error if the JSON data cannot be encoded according to the schema
 pub fn encode_record(_schema: &Schema, _json: &Value, _options: &EncodeOptions) -> Result<Vec<u8>> {
     // Placeholder implementation - will be implemented in later tasks
     Ok(Vec::new())
 }
 
 /// Decode a file to JSONL format
+/// 
+/// # Errors
+/// 
+/// Returns an error if the file cannot be decoded or written
 pub fn decode_file_to_jsonl(
     _schema: &Schema,
     _input: impl Read,
@@ -40,6 +52,10 @@ pub fn decode_file_to_jsonl(
 }
 
 /// Encode JSONL to binary file
+/// 
+/// # Errors
+/// 
+/// Returns an error if the JSONL cannot be encoded or written
 pub fn encode_jsonl_to_file(
     _schema: &Schema,
     _input: impl Read,
@@ -73,6 +89,7 @@ pub struct RunSummary {
 
 impl RunSummary {
     /// Create a new run summary
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -80,7 +97,9 @@ impl RunSummary {
     /// Calculate throughput based on bytes and time
     pub fn calculate_throughput(&mut self) {
         if self.processing_time_ms > 0 {
+            #[allow(clippy::cast_precision_loss)]
             let seconds = self.processing_time_ms as f64 / 1000.0;
+            #[allow(clippy::cast_precision_loss)]
             let megabytes = self.bytes_processed as f64 / (1024.0 * 1024.0);
             self.throughput_mbps = megabytes / seconds;
         }

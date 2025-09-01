@@ -9,9 +9,9 @@ resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.70"
-license = "Apache-2.0 OR MIT"
+edition = "2024"
+rust-version = "1.89"
+license = "AGPL-3.0-or-later"
 authors = ["copybook-rs contributors"]
 repository = "https://github.com/copybook-rs/copybook-rs"
 homepage = "https://github.com/copybook-rs/copybook-rs"

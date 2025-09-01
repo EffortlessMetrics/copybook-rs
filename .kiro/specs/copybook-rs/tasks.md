@@ -1,6 +1,9 @@
 # Implementation Plan
 
-- [ ] 1. Project Foundation & Workspace Setup
+- [-] 1. Project Foundation & Workspace Setup
+
+
+
   - Create Cargo workspace with crates: copybook-core, copybook-codec, copybook-cli, copybook-gen
   - Configure MSRV 1.89, edition 2024, AGPLv3
   - Set up CI/CD with cargo fmt, clippy pedantic, and deny.toml

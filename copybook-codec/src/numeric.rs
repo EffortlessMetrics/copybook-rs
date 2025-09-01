@@ -159,6 +159,31 @@ impl SmallDecimal {
 
         result
     }
+
+    /// Get the scale of this decimal
+    pub fn scale(&self) -> i16 {
+        self.scale
+    }
+
+    /// Check if this decimal is negative
+    pub fn is_negative(&self) -> bool {
+        self.negative && self.value != 0
+    }
+
+    /// Get the total number of digits in this decimal
+    pub fn total_digits(&self) -> u16 {
+        if self.value == 0 {
+            return 1;
+        }
+        
+        let mut count = 0;
+        let mut val = self.value.abs();
+        while val > 0 {
+            count += 1;
+            val /= 10;
+        }
+        count
+    }
 }
 
 /// Decode zoned decimal field
@@ -786,13 +811,13 @@ mod tests {
     fn test_zoned_decimal_blank_when_zero() {
         // EBCDIC spaces (0x40)
         let data = vec![0x40, 0x40, 0x40];
-        let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::CP037).unwrap();
-        assert_eq!(result, "0");
+        let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::CP037, true).unwrap();
+        assert_eq!(result.to_string(), "0");
 
         // ASCII spaces
         let data = vec![b' ', b' ', b' '];
-        let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::ASCII).unwrap();
-        assert_eq!(result, "0");
+        let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::ASCII, true).unwrap();
+        assert_eq!(result.to_string(), "0");
     }
 
     #[test]
@@ -800,12 +825,12 @@ mod tests {
         // Positive packed decimal: 123C (123 positive)
         let data = vec![0x12, 0x3C];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-        assert_eq!(result, "123");
+        assert_eq!(result.to_string(), "123");
 
         // Negative packed decimal: 123D (123 negative)
         let data = vec![0x12, 0x3D];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-        assert_eq!(result, "-123");
+        assert_eq!(result.to_string(), "-123");
     }
 
     #[test]

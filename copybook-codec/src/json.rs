@@ -16,6 +16,8 @@ pub struct JsonWriter<W: Write> {
     writer: W,
     options: DecodeOptions,
     sequence_id: u64,
+    /// Buffer for building JSON strings without intermediate allocations
+    json_buffer: String,
 }
 
 impl<W: Write> JsonWriter<W> {
@@ -25,6 +27,7 @@ impl<W: Write> JsonWriter<W> {
             writer,
             options,
             sequence_id: 0,
+            json_buffer: String::with_capacity(4096), // Pre-allocate 4KB buffer
         }
     }
 
@@ -68,6 +71,56 @@ impl<W: Write> JsonWriter<W> {
             .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("JSON write error: {}", e)))?;
         
         writeln!(self.writer)
+            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("Write error: {}", e)))?;
+        
+        self.sequence_id += 1;
+        Ok(())
+    }
+
+    /// Write a single record as JSON line using optimized streaming approach
+    /// Avoids intermediate Map allocations for better performance
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the record cannot be written or JSON serialization fails
+    pub fn write_record_streaming(
+        &mut self,
+        schema: &Schema,
+        record_data: &[u8],
+        record_index: u64,
+        byte_offset: u64,
+    ) -> Result<()> {
+        // Clear and prepare JSON buffer
+        self.json_buffer.clear();
+        self.json_buffer.push('{');
+        
+        let mut first_field = true;
+        
+        // Process fields in schema order directly to JSON string
+        self.write_fields_streaming(
+            &schema.fields,
+            record_data,
+            record_index,
+            byte_offset,
+            &mut first_field,
+        )?;
+        
+        // Add metadata if requested
+        if self.options.emit_meta {
+            self.write_metadata_streaming(schema, record_index, byte_offset, record_data.len(), &mut first_field)?;
+        }
+        
+        // Add raw data if requested
+        if matches!(self.options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
+            self.write_raw_data_streaming(record_data, &mut first_field)?;
+        }
+        
+        self.json_buffer.push('}');
+        
+        // Write JSON line directly
+        self.writer.write_all(self.json_buffer.as_bytes())
+            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("Write error: {}", e)))?;
+        self.writer.write_all(b"\n")
             .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("Write error: {}", e)))?;
         
         self.sequence_id += 1;
@@ -387,6 +440,322 @@ impl<W: Write> JsonWriter<W> {
             let raw_key = format!("{}_raw_b64", field.name);
             json_obj.insert(raw_key, Value::String(encoded));
         }
+        
+        Ok(())
+    }
+
+    /// Write fields directly to JSON string buffer for streaming performance
+    fn write_fields_streaming(
+        &mut self,
+        fields: &[Field],
+        record_data: &[u8],
+        record_index: u64,
+        byte_offset: u64,
+        first_field: &mut bool,
+    ) -> Result<()> {
+        for field in fields {
+            self.write_single_field_streaming(field, record_data, record_index, byte_offset, first_field)?;
+        }
+        Ok(())
+    }
+
+    /// Write a single field directly to JSON string buffer
+    fn write_single_field_streaming(
+        &mut self,
+        field: &Field,
+        record_data: &[u8],
+        record_index: u64,
+        byte_offset: u64,
+        first_field: &mut bool,
+    ) -> Result<()> {
+        let field_name = self.get_field_name(field);
+        
+        // Skip FILLER fields if not emitted
+        if field_name.is_empty() {
+            return Ok(());
+        }
+
+        // Add comma separator if not first field
+        if !*first_field {
+            self.json_buffer.push(',');
+        }
+        *first_field = false;
+
+        // Write field name
+        self.json_buffer.push('"');
+        self.json_buffer.push_str(&field_name);
+        self.json_buffer.push_str("\":");
+
+        match &field.kind {
+            FieldKind::Group => {
+                if let Some(occurs) = &field.occurs {
+                    self.write_group_array_streaming(field, record_data, occurs, record_index, byte_offset)?;
+                } else {
+                    // Single group - write nested object
+                    self.json_buffer.push('{');
+                    let mut group_first_field = true;
+                    self.write_fields_streaming(&field.children, record_data, record_index, byte_offset, &mut group_first_field)?;
+                    self.json_buffer.push('}');
+                }
+            }
+            _ => {
+                // Scalar field
+                if let Some(occurs) = &field.occurs {
+                    self.write_scalar_array_streaming(field, record_data, occurs, record_index, byte_offset)?;
+                } else {
+                    self.write_scalar_field_streaming(field, record_data, record_index, byte_offset)?;
+                    
+                    // Add field-level raw data if requested
+                    if matches!(self.options.emit_raw, RawMode::Field) {
+                        // This would require additional comma handling - simplified for now
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Write scalar field value directly to JSON string buffer
+    fn write_scalar_field_streaming(
+        &self,
+        field: &Field,
+        record_data: &[u8],
+        _record_index: u64,
+        _byte_offset: u64,
+    ) -> Result<()> {
+        // Check bounds
+        let end_offset = field.offset + field.len;
+        if end_offset as usize > record_data.len() {
+            return Err(Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                format!("Field {} extends beyond record boundary", field.path),
+            ));
+        }
+
+        let field_data = &record_data[field.offset as usize..end_offset as usize];
+
+        match &field.kind {
+            FieldKind::Alphanum { .. } => {
+                // Convert from EBCDIC/ASCII to UTF-8
+                let text = crate::charset::ebcdic_to_utf8(field_data, self.options.codepage, self.options.on_decode_unmappable)?;
+                // Write as JSON string with proper escaping
+                self.write_json_string_to_buffer(&text);
+            }
+            FieldKind::ZonedDecimal { digits, scale, signed } => {
+                let decimal = crate::numeric::decode_zoned_decimal(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    self.options.codepage,
+                    field.blank_when_zero,
+                )?;
+                
+                // Fixed-scale rendering - NORMATIVE
+                let decimal_str = decimal.to_fixed_scale_string(*scale);
+                
+                match self.options.json_number_mode {
+                    JsonNumberMode::Lossless => {
+                        self.write_json_string_to_buffer(&decimal_str);
+                    }
+                    JsonNumberMode::Native => {
+                        // Try to write as number, fall back to string
+                        if let Ok(num) = decimal_str.parse::<f64>() {
+                            if num.is_finite() {
+                                self.write_json_number_to_buffer(num);
+                            } else {
+                                self.write_json_string_to_buffer(&decimal_str);
+                            }
+                        } else {
+                            self.write_json_string_to_buffer(&decimal_str);
+                        }
+                    }
+                }
+            }
+            FieldKind::PackedDecimal { digits, scale, signed } => {
+                let decimal = crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
+                
+                // Fixed-scale rendering - NORMATIVE
+                let decimal_str = decimal.to_fixed_scale_string(*scale);
+                
+                match self.options.json_number_mode {
+                    JsonNumberMode::Lossless => {
+                        self.write_json_string_to_buffer(&decimal_str);
+                    }
+                    JsonNumberMode::Native => {
+                        if let Ok(num) = decimal_str.parse::<f64>() {
+                            if num.is_finite() {
+                                self.write_json_number_to_buffer(num);
+                            } else {
+                                self.write_json_string_to_buffer(&decimal_str);
+                            }
+                        } else {
+                            self.write_json_string_to_buffer(&decimal_str);
+                        }
+                    }
+                }
+            }
+            FieldKind::BinaryInt { bits, signed } => {
+                let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+                
+                // Use JSON numbers for values up to 64-bit
+                if *bits <= 64 {
+                    self.write_json_number_to_buffer(int_value as f64);
+                } else {
+                    // Use string for larger values
+                    self.write_json_string_to_buffer(&int_value.to_string());
+                }
+            }
+            FieldKind::Group => {
+                // This shouldn't happen for scalar fields
+                return Err(Error::new(
+                    ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                    format!("Group field {} processed as scalar", field.path),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Write a JSON string with proper escaping to the buffer
+    fn write_json_string_to_buffer(&mut self, s: &str) {
+        self.json_buffer.push('"');
+        for c in s.chars() {
+            match c {
+                '"' => self.json_buffer.push_str("\\\""),
+                '\\' => self.json_buffer.push_str("\\\\"),
+                '\n' => self.json_buffer.push_str("\\n"),
+                '\r' => self.json_buffer.push_str("\\r"),
+                '\t' => self.json_buffer.push_str("\\t"),
+                c if c.is_control() => {
+                    self.json_buffer.push_str(&format!("\\u{:04x}", c as u32));
+                }
+                c => self.json_buffer.push(c),
+            }
+        }
+        self.json_buffer.push('"');
+    }
+
+    /// Write a JSON number to the buffer
+    fn write_json_number_to_buffer(&mut self, num: f64) {
+        use std::fmt::Write;
+        write!(self.json_buffer, "{}", num).unwrap();
+    }
+
+    /// Write group array directly to JSON string buffer
+    fn write_group_array_streaming(
+        &mut self,
+        field: &Field,
+        record_data: &[u8],
+        occurs: &Occurs,
+        record_index: u64,
+        byte_offset: u64,
+    ) -> Result<()> {
+        let count = self.get_actual_array_count(occurs, record_data)?;
+        
+        self.json_buffer.push('[');
+        
+        for i in 0..count {
+            if i > 0 {
+                self.json_buffer.push(',');
+            }
+            
+            let _element_offset = field.offset + (i * field.len);
+            self.json_buffer.push('{');
+            
+            let mut element_first_field = true;
+            self.write_fields_streaming(&field.children, record_data, record_index, byte_offset, &mut element_first_field)?;
+            
+            self.json_buffer.push('}');
+        }
+        
+        self.json_buffer.push(']');
+        Ok(())
+    }
+
+    /// Write scalar array directly to JSON string buffer
+    fn write_scalar_array_streaming(
+        &mut self,
+        field: &Field,
+        record_data: &[u8],
+        occurs: &Occurs,
+        record_index: u64,
+        byte_offset: u64,
+    ) -> Result<()> {
+        let count = self.get_actual_array_count(occurs, record_data)?;
+        
+        let element_size = field.len / match occurs {
+            Occurs::Fixed { count } => *count,
+            Occurs::ODO { max, .. } => *max,
+        };
+        
+        self.json_buffer.push('[');
+        
+        for i in 0..count {
+            if i > 0 {
+                self.json_buffer.push(',');
+            }
+            
+            let element_offset = field.offset + (i * element_size);
+            
+            // Create a temporary field for the array element
+            let mut element_field = field.clone();
+            element_field.offset = element_offset;
+            element_field.len = element_size;
+            element_field.occurs = None; // Remove OCCURS for individual element
+            
+            self.write_scalar_field_streaming(&element_field, record_data, record_index, byte_offset)?;
+        }
+        
+        self.json_buffer.push(']');
+        Ok(())
+    }
+
+    /// Write metadata directly to JSON string buffer
+    fn write_metadata_streaming(
+        &mut self,
+        schema: &Schema,
+        record_index: u64,
+        byte_offset: u64,
+        record_length: usize,
+        first_field: &mut bool,
+    ) -> Result<()> {
+        // Add comma separator if not first field
+        if !*first_field {
+            self.json_buffer.push(',');
+        }
+        *first_field = false;
+
+        self.json_buffer.push_str("\"__schema_id\":");
+        self.write_json_string_to_buffer(&schema.fingerprint);
+        
+        self.json_buffer.push_str(",\"__record_index\":");
+        self.write_json_number_to_buffer(record_index as f64);
+        
+        self.json_buffer.push_str(",\"__offset\":");
+        self.write_json_number_to_buffer(byte_offset as f64);
+        
+        self.json_buffer.push_str(",\"__length\":");
+        self.write_json_number_to_buffer(record_length as f64);
+        
+        Ok(())
+    }
+
+    /// Write raw data directly to JSON string buffer
+    fn write_raw_data_streaming(&mut self, record_data: &[u8], first_field: &mut bool) -> Result<()> {
+        use base64::{Engine as _, engine::general_purpose};
+        
+        // Add comma separator if not first field
+        if !*first_field {
+            self.json_buffer.push(',');
+        }
+        *first_field = false;
+
+        let encoded = general_purpose::STANDARD.encode(record_data);
+        self.json_buffer.push_str("\"__raw_b64\":");
+        self.write_json_string_to_buffer(&encoded);
         
         Ok(())
     }

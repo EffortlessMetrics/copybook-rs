@@ -795,14 +795,90 @@ pub fn decode_zoned_decimal_with_scratch(
     blank_when_zero: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<SmallDecimal> {
-    // Clear and prepare digit buffer
+    if data.len() != digits as usize {
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            format!("Zoned decimal data length {} doesn't match digits {}", data.len(), digits),
+        ));
+    }
+
+    // Check for BLANK WHEN ZERO (all spaces) - optimized check
+    let space_byte = match codepage {
+        Codepage::ASCII => b' ',
+        _ => 0x40, // EBCDIC space
+    };
+    
+    let is_all_spaces = data.iter().all(|&b| b == space_byte);
+    if is_all_spaces {
+        if blank_when_zero {
+            warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
+            return Ok(SmallDecimal::zero(scale));
+        } else {
+            return Err(Error::new(
+                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+            ));
+        }
+    }
+
+    // Clear and prepare digit buffer for reuse
     scratch.digit_buffer.clear();
     scratch.digit_buffer.reserve(digits as usize);
-    
-    // Use the standard decode function but with optimized digit processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the decode logic to use the scratch buffer for intermediate calculations
-    decode_zoned_decimal(data, digits, scale, signed, codepage, blank_when_zero)
+
+    let sign_table = get_zoned_sign_table(codepage);
+    let mut value = 0i64;
+    let mut is_negative = false;
+
+    // Optimized digit processing using scratch buffer
+    let expected_zone = match codepage {
+        Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
+        _ => 0xF, // EBCDIC digits (0xF0-0xF9)
+    };
+
+    // Process each digit with optimized zone checking
+    for (i, &byte) in data.iter().enumerate() {
+        let zone = (byte >> 4) & 0x0F;
+        let digit = byte & 0x0F;
+
+        // Validate digit nibble
+        if digit > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                format!("Invalid digit nibble 0x{digit:X} at position {i}"),
+            ));
+        }
+
+        // Store digit in scratch buffer for potential reuse
+        scratch.digit_buffer.push(digit);
+
+        // For the last byte, check sign if field is signed
+        if i == data.len() - 1 && signed {
+            let (has_sign, negative) = sign_table[zone as usize];
+            if has_sign {
+                is_negative = negative;
+            } else {
+                return Err(Error::new(
+                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                    format!("Invalid sign zone 0x{zone:X} in last digit"),
+                ));
+            }
+        } else {
+            // For non-sign positions, validate zone
+            if zone != expected_zone {
+                return Err(Error::new(
+                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                    format!("Invalid zone 0x{zone:X} at position {i}, expected 0x{expected_zone:X}"),
+                ));
+            }
+        }
+
+        // Optimized value accumulation
+        value = value * 10 + i64::from(digit);
+    }
+
+    let mut decimal = SmallDecimal::new(value, scale, is_negative);
+    decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
+    Ok(decimal)
 }
 
 /// Optimized packed decimal decoder using scratch buffers
@@ -814,14 +890,109 @@ pub fn decode_packed_decimal_with_scratch(
     signed: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<SmallDecimal> {
-    // Clear and prepare digit buffer
+    let expected_bytes = ((digits + 1) / 2) as usize;
+    if data.len() != expected_bytes {
+        return Err(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            format!("Packed decimal data length {} doesn't match expected {} bytes for {} digits", 
+                    data.len(), expected_bytes, digits),
+        ));
+    }
+
+    if data.is_empty() {
+        return Ok(SmallDecimal::zero(scale));
+    }
+
+    // Clear and prepare digit buffer for reuse
     scratch.digit_buffer.clear();
-    scratch.digit_buffer.reserve((digits + 1) as usize / 2);
-    
-    // Use the standard decode function but with optimized nibble processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the decode logic to use the scratch buffer for intermediate calculations
-    decode_packed_decimal(data, digits, scale, signed)
+    scratch.digit_buffer.reserve(digits as usize);
+
+    let mut value = 0i64;
+    let mut digit_count = 0;
+
+    // Optimized nibble processing using scratch buffer
+    for (byte_idx, &byte) in data.iter().enumerate() {
+        let high_nibble = (byte >> 4) & 0x0F;
+        let low_nibble = byte & 0x0F;
+
+        // Process high nibble (always a digit except possibly in last byte)
+        if byte_idx == data.len() - 1 && digits % 2 == 0 {
+            // Last byte, even number of digits - high nibble is sign
+            if signed {
+                let is_negative = match high_nibble {
+                    0xC | 0xF => false, // Positive
+                    0xD => true,        // Negative
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{high_nibble:X} in packed decimal"),
+                        ));
+                    }
+                };
+                let mut decimal = SmallDecimal::new(value, scale, is_negative);
+                decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
+                return Ok(decimal);
+            }
+        } else {
+            // High nibble is a digit
+            if high_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                ));
+            }
+            scratch.digit_buffer.push(high_nibble);
+            value = value * 10 + i64::from(high_nibble);
+            digit_count += 1;
+        }
+
+        // Process low nibble
+        if byte_idx == data.len() - 1 {
+            // Last byte - low nibble is always sign
+            if signed {
+                let is_negative = match low_nibble {
+                    0xC | 0xF => false, // Positive
+                    0xD => true,        // Negative
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{low_nibble:X} in packed decimal"),
+                        ));
+                    }
+                };
+                let mut decimal = SmallDecimal::new(value, scale, is_negative);
+                decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
+                return Ok(decimal);
+            } else {
+                // Unsigned - low nibble should be 0xF
+                if low_nibble != 0xF {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                    ));
+                }
+            }
+        } else {
+            // Low nibble is a digit
+            if low_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{low_nibble:X} at byte {byte_idx}"),
+                ));
+            }
+            scratch.digit_buffer.push(low_nibble);
+            value = value * 10 + i64::from(low_nibble);
+            digit_count += 1;
+        }
+
+        if digit_count >= digits {
+            break;
+        }
+    }
+
+    // If we get here without returning, it's unsigned
+    let decimal = SmallDecimal::new(value, scale, false);
+    Ok(decimal)
 }
 
 /// Optimized zoned decimal encoder using scratch buffers

@@ -18,6 +18,10 @@
   - _Requirements: R8.7, R9.1, R9.2, R9.3_
 
 - [ ] 2. Core Parsing Infrastructure (copybook-core)
+
+
+
+
 - [x] 2.1 Lexical Analysis and Grammar Foundation
 
 
@@ -31,7 +35,11 @@
   - Implement continuation join: strip trailing/leading spaces, preserve interior whitespace - NORMATIVE
   - _Requirements: R1.1, R1.2, R1.8_
 
-- [ ] 2.2 AST Construction and Validation
+- [x] 2.2 AST Construction and Validation
+
+
+
+
   - Build hierarchical AST from tokens (levels 01-49, groups vs elements)
   - Parse USAGE clauses (DISPLAY, COMP, COMP-3, BINARY)
   - Handle REDEFINES relationships with target validation
@@ -43,7 +51,12 @@
   - Compute schema fingerprint: SHA-256 over canonical schema JSON + codepage + options
   - _Requirements: R1.1, R1.3, R1.4, R3.6, R4.1, R4.7_
 
-- [ ] 2.3 Layout Resolution Engine
+- [-] 2.3 Layout Resolution Engine
+
+
+
+
+
   - Compute field byte offsets with SYNCHRONIZED alignment (2/4/8 byte boundaries)
   - Calculate REDEFINES cluster sizes as max of all variants (deterministic)
   - Handle OCCURS fixed arrays and ODO space allocation (use max count)
@@ -55,6 +68,7 @@
   - _Requirements: R1.1, R3.1, R3.4, R4.2, R4.3, R5.1, R5.5_
 
 - [ ] 3. Data Type Codecs (copybook-codec)
+
 - [ ] 3.1 Character Encoding and EBCDIC Support
   - Implement static lookup tables for cp037, cp273, cp500, cp1047, cp1140
   - Add ASCII pass-through mode (transparent 8-bit, not Windows-1252) - NORMATIVE
@@ -88,6 +102,7 @@
   - _Requirements: R7.2, R7.3, R7.4, R7.5_
 
 - [ ] 4. Record Framing and I/O (copybook-codec)
+
 - [ ] 4.1 Fixed Record Processing
   - Implement fixed-length record reader with LRECL validation
   - Handle ODO tail records with variable length
@@ -106,6 +121,7 @@
   - _Requirements: R2.2, R9.8_
 
 - [ ] 5. JSON Processing and Determinism
+
 - [ ] 5.1 Deterministic JSON Output
   - Implement streaming JSON writer in schema order; avoid intermediate maps - NORMATIVE
   - Handle REDEFINES: emit all views in declaration order (primary then redefiners)
@@ -126,6 +142,7 @@
   - _Requirements: R7.1, R7.6, R7.7_
 
 - [ ] 6. Command Line Interface (copybook-cli)
+
 - [ ] 6.1 Core CLI Commands
   - Implement parse command with schema JSON output
   - Create inspect command with human-readable layout table
@@ -146,6 +163,7 @@
   - _Requirements: R8.5, R8.6, R8.7, R9.3, R9.4, R9.5, R9.6_
 
 - [ ] 7. Error Handling and Resilience
+
 - [ ] 7.1 Structured Error Reporting
   - Implement error context with record numbers, field paths, byte offsets
   - Add configurable error handling (strict vs lenient modes)
@@ -163,6 +181,7 @@
   - _Requirements: R4.4, R4.5, R4.6, R3.6_
 
 - [ ] 8. Performance Optimization and Streaming
+
 - [ ] 8.1 Memory Management
   - Implement streaming record processing with bounded memory
   - Add reusable scratch buffers per worker; digit SmallVec for packed/zoned
@@ -181,6 +200,7 @@
   - _Requirements: R10.1, R10.2, R10.3_
 
 - [ ] 9. Library API Implementation
+
 - [ ] 9.1 Core Library Functions
   - Implement parse_copybook with comprehensive error handling
   - Create decode_file_to_jsonl with streaming support
@@ -197,6 +217,7 @@
   - _Requirements: R11.6, R11.7_
 
 - [ ] 10. Comprehensive Testing Suite
+
 - [ ] 10.1 Unit and Integration Tests
   - Parser fixtures: fixed/free form, col-7 continuation vs literal, inline *>, edited PIC error
   - REDEFINES: shorter/equal/longer overlays; encode ambiguity; raw-preserved record
@@ -217,6 +238,7 @@
   - _Requirements: Performance and correctness validation_
 
 - [ ] 11. Documentation and Release Preparation
+
 - [ ] 11.1 User Documentation
   - Write comprehensive README with usage examples
   - Create CLI help text and man pages

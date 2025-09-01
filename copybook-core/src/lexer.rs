@@ -95,6 +95,8 @@ pub enum Token {
     #[regex(r"S?9+", priority = 3, callback = |lex| lex.slice().to_string())]
     #[regex(r"S?9\([0-9]+\)", priority = 3, callback = |lex| lex.slice().to_string())]
     #[regex(r"S?9+V9+", priority = 3, callback = |lex| lex.slice().to_string())]
+    #[regex(r"S?9\([0-9]+\)V9+", priority = 3, callback = |lex| lex.slice().to_string())]
+    #[regex(r"S?9+V9\([0-9]+\)", priority = 3, callback = |lex| lex.slice().to_string())]
     #[regex(r"S?9\([0-9]+\)V9\([0-9]+\)", priority = 3, callback = |lex| lex.slice().to_string())]
     PicClause(String),
 

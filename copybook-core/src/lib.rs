@@ -11,7 +11,7 @@ pub mod pic;
 pub mod schema;
 
 pub use error::{Error, ErrorCode, Result};
-pub use schema::{Field, FieldKind, Occurs, Schema};
+pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
 
 /// Parse a COBOL copybook into a structured schema
 /// 

@@ -17,7 +17,7 @@
   - Set up criterion benchmarks (gated by PERF=1 env var)
   - _Requirements: R8.7, R9.1, R9.2, R9.3_
 
-- [ ] 2. Core Parsing Infrastructure (copybook-core)
+- [x] 2. Core Parsing Infrastructure (copybook-core)
 
 
 
@@ -144,7 +144,7 @@
   - Implement RDW writer with proper header generation
   - _Requirements: R2.2, R9.8_
 
-- [-] 5. JSON Processing and Determinism
+- [x] 5. JSON Processing and Determinism
 
 
 
@@ -178,7 +178,7 @@
   - Add comprehensive round-trip testing with golden SHA-256 validation
   - _Requirements: R7.1, R7.6, R7.7_
 
-- [ ] 6. Command Line Interface (copybook-cli)
+- [x] 6. Command Line Interface (copybook-cli)
 
 - [x] 6.1 Core CLI Commands
 
@@ -208,7 +208,7 @@
   - Add atomic output write (tmp + rename)
   - _Requirements: R8.5, R8.6, R8.7, R9.3, R9.4, R9.5, R9.6_
 
-- [ ] 7. Error Handling and Resilience
+- [x] 7. Error Handling and Resilience
 
 - [x] 7.1 Structured Error Reporting
 
@@ -251,10 +251,7 @@
   - Optimize EBCDIC conversion with static lookup tables
   - Minimize allocations in hot codec paths
   - _Requirements: R10.1, R10.2, R10.4, R10.5, R10.6_
-- [-] 8.2 Throughput Optimization
-
-
-- [ ] 8.2 Throughput Optimization
+- [x] 8.2 Throughput Optimization
 
   - Optimize zoned and packed decimal codecs for performance
   - Implement efficient JSON streaming without intermediate maps

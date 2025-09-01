@@ -548,6 +548,18 @@ impl Parser {
                     "SIGN clauses are not supported (treated as edited PIC)",
                 ));
             }
+            Some(TokenPos { token: Token::Comp, .. }) => {
+                self.advance();
+                self.convert_to_binary_field(field)?;
+            }
+            Some(TokenPos { token: Token::Comp3, .. }) => {
+                self.advance();
+                self.convert_to_packed_field(field)?;
+            }
+            Some(TokenPos { token: Token::Binary, .. }) => {
+                self.advance();
+                self.convert_to_binary_field(field)?;
+            }
             _ => {
                 // Unknown clause - advance and continue
                 self.advance();
@@ -765,8 +777,8 @@ impl Parser {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
                 let bits = match digits {
                     1..=4 => 16,
-                    5..=9 => 32,
-                    10..=18 => 64,
+                    5..=8 => 32,
+                    9..=18 => 64,
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,

@@ -3,6 +3,27 @@
 use copybook_core::{parse_copybook, FieldKind, Occurs};
 
 #[test]
+fn test_comp3_parsing_debug() {
+    let input = "01 BALANCE PIC S9(7)V99 COMP-3.";
+    println!("Testing input: {}", input);
+    
+    let mut lexer = copybook_core::lexer::Lexer::new(input);
+    let tokens = lexer.tokenize();
+    
+    println!("Tokens:");
+    for (i, token_pos) in tokens.iter().enumerate() {
+        println!("  {}: {:?}", i, token_pos.token);
+    }
+    
+    let schema = parse_copybook(input).unwrap();
+    let field = &schema.fields[0];
+    println!("Field: name={}, kind={:?}, len={}", field.name, field.kind, field.len);
+    
+    // Should be PackedDecimal, not ZonedDecimal
+    assert!(matches!(field.kind, FieldKind::PackedDecimal { .. }));
+}
+
+#[test]
 fn test_complex_layout_resolution() {
     let copybook = r#"
 01 CUSTOMER-RECORD.

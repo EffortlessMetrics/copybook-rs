@@ -163,7 +163,12 @@
   - _Requirements: R6.1, R6.2, R6.4, R6.5, R6.6_
 
 
-- [ ] 5.2 Round-Trip Encoding Support
+- [x] 5.2 Round-Trip Encoding Support
+
+
+
+
+
 
   - Implement --use-raw mode for byte-identical round-trips
   - Add REDEFINES encode precedence: raw > single view > error - NORMATIVE

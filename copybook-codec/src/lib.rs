@@ -8,6 +8,7 @@ pub mod json;
 pub mod numeric;
 pub mod options;
 pub mod record;
+pub mod roundtrip;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
@@ -24,6 +25,7 @@ pub use record::{
     RDWRecordReader, RDWRecordWriter, RDWRecord
 };
 pub use json::{JsonWriter, JsonEncoder, OrderedJsonWriter};
+pub use roundtrip::{RoundTripConfig, RoundTripResult, RoundTripTestSuite, create_comprehensive_test_suite};
 
 use copybook_core::{Result, Schema, Error, ErrorCode};
 use serde_json::Value;

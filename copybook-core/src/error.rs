@@ -61,10 +61,16 @@ pub enum ErrorCode {
     CBKR221_RDW_UNDERFLOW,
 
     // Character Conversion Errors (CBKC*)
+    /// CBKC201: JSON write error
+    CBKC201_JSON_WRITE_ERROR,
     /// CBKC301: Invalid EBCDIC byte encountered
     CBKC301_INVALID_EBCDIC_BYTE,
 
     // Data Decode Errors (CBKD*)
+    /// CBKD101: Invalid field type for operation
+    CBKD101_INVALID_FIELD_TYPE,
+    /// CBKD301: Record too short for field
+    CBKD301_RECORD_TOO_SHORT,
     /// CBKD401: Invalid packed decimal nibble
     CBKD401_COMP3_INVALID_NIBBLE,
     /// CBKD411: Invalid zoned decimal sign
@@ -96,7 +102,10 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKS302_ODO_RAISED => "CBKS302_ODO_RAISED",
             ErrorCode::CBKR211_RDW_RESERVED_NONZERO => "CBKR211_RDW_RESERVED_NONZERO",
             ErrorCode::CBKR221_RDW_UNDERFLOW => "CBKR221_RDW_UNDERFLOW",
+            ErrorCode::CBKC201_JSON_WRITE_ERROR => "CBKC201_JSON_WRITE_ERROR",
             ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => "CBKC301_INVALID_EBCDIC_BYTE",
+            ErrorCode::CBKD101_INVALID_FIELD_TYPE => "CBKD101_INVALID_FIELD_TYPE",
+            ErrorCode::CBKD301_RECORD_TOO_SHORT => "CBKD301_RECORD_TOO_SHORT",
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE => "CBKD401_COMP3_INVALID_NIBBLE",
             ErrorCode::CBKD411_ZONED_BAD_SIGN => "CBKD411_ZONED_BAD_SIGN",
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => "CBKD412_ZONED_BLANK_IS_ZERO",

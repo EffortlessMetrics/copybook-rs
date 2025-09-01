@@ -4,6 +4,7 @@
 //! character set conversion, and record framing (fixed/RDW).
 
 pub mod charset;
+pub mod json;
 pub mod numeric;
 pub mod options;
 pub mod record;
@@ -22,8 +23,9 @@ pub use record::{
     read_record, write_record, FixedRecordReader, FixedRecordWriter, 
     RDWRecordReader, RDWRecordWriter, RDWRecord
 };
+pub use json::{JsonWriter, JsonEncoder, OrderedJsonWriter};
 
-use copybook_core::{Result, Schema};
+use copybook_core::{Result, Schema, Error, ErrorCode};
 use serde_json::Value;
 use std::io::{Read, Write};
 
@@ -32,9 +34,25 @@ use std::io::{Read, Write};
 /// # Errors
 /// 
 /// Returns an error if the data cannot be decoded according to the schema
-pub fn decode_record(_schema: &Schema, _data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // Placeholder implementation - will be implemented in later tasks
-    Ok(Value::Object(serde_json::Map::new()))
+pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
+    use crate::json::JsonWriter;
+    use std::io::Cursor;
+    
+    // Create a JSON writer with a buffer
+    let mut buffer = Vec::new();
+    let mut writer = JsonWriter::new(Cursor::new(&mut buffer), options.clone());
+    
+    // Write the record
+    writer.write_record(schema, data, 0, 0)?;
+    
+    // Parse the JSON line back to Value
+    let json_str = String::from_utf8(buffer)
+        .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("UTF-8 error: {}", e)))?;
+    
+    // Parse the first line (remove trailing newline)
+    let json_line = json_str.trim_end();
+    serde_json::from_str(json_line)
+        .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("JSON parse error: {}", e)))
 }
 
 /// Encode JSON data to binary using the provided schema
@@ -42,9 +60,9 @@ pub fn decode_record(_schema: &Schema, _data: &[u8], _options: &DecodeOptions) -
 /// # Errors
 /// 
 /// Returns an error if the JSON data cannot be encoded according to the schema
-pub fn encode_record(_schema: &Schema, _json: &Value, _options: &EncodeOptions) -> Result<Vec<u8>> {
-    // Placeholder implementation - will be implemented in later tasks
-    Ok(Vec::new())
+pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
+    let encoder = JsonEncoder::new(options.clone());
+    encoder.encode_record(schema, json)
 }
 
 /// Decode a file to JSONL format

@@ -149,7 +149,10 @@
 
 
 
-- [ ] 5.1 Deterministic JSON Output
+
+- [x] 5.1 Deterministic JSON Output
+
+
   - Implement streaming JSON writer in schema order; avoid intermediate maps - NORMATIVE
   - Handle REDEFINES: emit all views in declaration order (primary then redefiners)
   - Process OCCURS as JSON arrays with actual length only (no placeholders)
@@ -159,7 +162,9 @@
   - Writer emits by sequence ID with bounded reordering window - NORMATIVE
   - _Requirements: R6.1, R6.2, R6.4, R6.5, R6.6_
 
+
 - [ ] 5.2 Round-Trip Encoding Support
+
   - Implement --use-raw mode for byte-identical round-trips
   - Add REDEFINES encode precedence: raw > single view > error - NORMATIVE
   - Error code CBKE501_JSON_TYPE_MISMATCH with cluster path in context for ambiguity

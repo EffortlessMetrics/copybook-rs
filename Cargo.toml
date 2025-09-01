@@ -35,6 +35,10 @@ tokio = { version = "1.0", features = ["full"] }
 # Parsing dependencies
 logos = "0.14"
 
+# Crypto dependencies
+sha2 = "0.10"
+base64 = "0.22"
+
 # Testing dependencies
 proptest = "1.0"
 criterion = { version = "0.5", features = ["html_reports"] }

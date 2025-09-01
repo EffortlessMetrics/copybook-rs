@@ -180,7 +180,11 @@
 
 - [ ] 6. Command Line Interface (copybook-cli)
 
-- [ ] 6.1 Core CLI Commands
+- [x] 6.1 Core CLI Commands
+
+
+
+
   - Implement parse command with schema JSON output
   - Create inspect command with human-readable layout table
   - Build decode command with streaming JSONL output
@@ -188,7 +192,12 @@
   - Implement verify command with structural validation
   - _Requirements: R8.1, R8.2, R8.3, R8.4_
 
-- [ ] 6.2 CLI Options and Configuration
+- [x] 6.2 CLI Options and Configuration
+
+
+
+
+
   - Add codepage selection (--codepage cp037|ascii|cp273|cp500|cp1047|cp1140)
   - Implement record format options (--format fixed|rdw, explicit by default)
   - Add JSON number policy (--json-number lossless|native, default lossless)
@@ -201,7 +210,12 @@
 
 - [ ] 7. Error Handling and Resilience
 
-- [ ] 7.1 Structured Error Reporting
+- [x] 7.1 Structured Error Reporting
+
+
+
+
+
   - Implement error context with record numbers, field paths, byte offsets
   - Add configurable error handling (strict vs lenient modes)
   - Create detailed error logging with field-level context

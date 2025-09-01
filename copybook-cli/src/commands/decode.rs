@@ -4,6 +4,7 @@ use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::parse_copybook;
+use crate::utils::{atomic_write, determine_exit_code};
 use std::fs;
 use std::path::PathBuf;
 use tracing::info;
@@ -22,7 +23,7 @@ pub async fn run(
     emit_meta: bool,
     emit_raw: RawMode,
     on_decode_unmappable: UnmappablePolicy,
-    _threads: usize,
+    threads: usize,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Decoding data file: {:?}", input);
 
@@ -43,29 +44,44 @@ pub async fn run(
         strict_mode: strict,
         max_errors,
         on_decode_unmappable,
+        threads,
     };
 
-    // Open input and output files
-    let input_file = fs::File::open(&input)?;
-    let output_file = fs::File::create(&output)?;
+    // Decode file using atomic write
+    let summary = {
+        let mut result_summary = None;
+        atomic_write(&output, |output_writer| {
+            let input_file = fs::File::open(&input)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let summary = copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            result_summary = Some(summary);
+            Ok(())
+        })?;
+        result_summary.unwrap()
+    };
 
-    // Decode file
-    let summary = copybook_codec::decode_file_to_jsonl(&schema, input_file, output_file, &options)?;
-
-    // Print summary
-    println!("Decode Summary:");
-    println!("  Records processed: {}", summary.records_processed);
-    println!("  Records with errors: {}", summary.records_with_errors);
-    println!("  Warnings: {}", summary.warnings);
-    println!("  Processing time: {}ms", summary.processing_time_ms);
-    println!("  Bytes processed: {}", summary.bytes_processed);
+    // Print comprehensive summary
+    println!("=== Decode Summary ===");
+    println!("Records processed: {}", summary.records_processed);
+    println!("Records with errors: {}", summary.records_with_errors);
+    println!("Warnings: {}", summary.warnings);
+    println!("Processing time: {}ms", summary.processing_time_ms);
+    println!("Bytes processed: {}", summary.bytes_processed);
+    println!("Throughput: {:.2} MB/s", summary.throughput_mbps);
+    
+    if summary.corruption_warnings > 0 {
+        println!("Transfer corruption warnings: {}", summary.corruption_warnings);
+    }
+    
+    // Print detailed error report if available
+    if let Some(error_report) = summary.generate_error_report() {
+        println!("\n{}", error_report);
+    }
 
     info!("Decode completed successfully");
 
-    // Return appropriate exit code
-    if summary.records_with_errors > 0 {
-        Ok(1) // Warnings/errors
-    } else {
-        Ok(0) // Success
-    }
+    // Return appropriate exit code based on normative specification
+    let exit_code = determine_exit_code(summary.has_warnings(), summary.has_errors());
+    Ok(exit_code)
 }

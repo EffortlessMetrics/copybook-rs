@@ -1,7 +1,9 @@
 //! Parse command implementation
 
 use copybook_core::parse_copybook;
+use crate::utils::atomic_write;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -23,7 +25,9 @@ pub async fn run(
     // Write output
     match output {
         Some(path) => {
-            fs::write(path, json)?;
+            atomic_write(path, |writer| {
+                writer.write_all(json.as_bytes())
+            })?;
         }
         None => {
             println!("{}", json);

@@ -2,7 +2,9 @@
 
 use copybook_codec::{Codepage, RecordFormat};
 use copybook_core::parse_copybook;
+use crate::utils::atomic_write;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -37,7 +39,10 @@ pub async fn run(
             "errors": [],
             "warnings": []
         });
-        fs::write(report_path, serde_json::to_string_pretty(&report_json)?)?;
+        let report_content = serde_json::to_string_pretty(&report_json)?;
+        atomic_write(report_path, |writer| {
+            writer.write_all(report_content.as_bytes())
+        })?;
     }
 
     info!("Verify completed successfully");

@@ -238,7 +238,9 @@
 
 - [ ] 8. Performance Optimization and Streaming
 
-- [-] 8.1 Memory Management
+- [x] 8.1 Memory Management
+
+
 
 
 
@@ -249,6 +251,8 @@
   - Optimize EBCDIC conversion with static lookup tables
   - Minimize allocations in hot codec paths
   - _Requirements: R10.1, R10.2, R10.4, R10.5, R10.6_
+- [-] 8.2 Throughput Optimization
+
 
 - [ ] 8.2 Throughput Optimization
 

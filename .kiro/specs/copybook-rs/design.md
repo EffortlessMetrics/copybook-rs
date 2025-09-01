@@ -413,8 +413,18 @@ The following decisions are normative and must be implemented exactly as specifi
 
 ### 7. Grammar Rules (NORMATIVE)
 - **Fixed-form**: Only column-7 `-` is continuation; `*` at col 1 is comment; cols 1-6 and 73-80 ignored
-- **Free-form**: `*>` inline comments; leading `*` at col 1 is comment; no block comments
+- **Free-form**: Only `*>` (inline) and `*` at column 1 are comments; no other comment starts recognized
+- **Continuation join**: Strip trailing spaces on continued line and leading spaces on continuation line; do not collapse interior whitespace
 - **Edited PICs**: Fail immediately with CBKP051_UNSUPPORTED_EDITED_PIC including token and field path
+- **SIGN clauses**: SIGN LEADING/TRAILING [SEPARATE] treated as edited PIC → CBKP051_UNSUPPORTED_EDITED_PIC
+
+### 8. Additional Normative Decisions (NORMATIVE)
+- **Alphanumeric handling**: Decode preserves all spaces (no trimming); encode pads with spaces, over-length → CBKE501_JSON_TYPE_MISMATCH
+- **OCCURS nesting**: Nested fixed OCCURS allowed; ODO only at tail of containing group, not nested under another ODO
+- **Binary width mapping**: Digits → width (≤4→2B, 5-9→4B, 10-18→8B); explicit USAGE BINARY(n) accepts n ∈ {1,2,4,8}
+- **Codepage semantics**: Default cp037; ascii is transparent 8-bit with ASCII overpunch table (not Windows-1252)
+- **Exit codes**: 0=success (warnings allowed), 1=completed with errors, 2=fatal (parse failure, strict violation)
+- **Parallel determinism**: Writer emits by sequence ID with bounded reordering window; output identical for any thread count
 
 These normative decisions eliminate ambiguity and ensure consistent behavior across implementations and deployments.
 

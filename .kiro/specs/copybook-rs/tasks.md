@@ -1,15 +1,14 @@
 # Implementation Plan
 
 - [x] 1. Project Foundation & Workspace Setup
-
-
-
-
   - Create Cargo workspace with crates: copybook-core, copybook-codec, copybook-cli, copybook-gen
   - Configure MSRV 1.89, edition 2024, AGPLv3
   - Set up CI/CD with cargo fmt, clippy pedantic, and deny.toml
   - Implement error taxonomy with stable codes (CBKP*, CBKS*, CBKR*, CBKC*, CBKD*, CBKE*, CBKF*)
   - Configure tracing and run summary structures
+  - Create initial fixtures: sample copybook + data + golden JSONL/binary hashes
+  - Add JSON meta-schemas for schema validation and fingerprinting
+  - Set up criterion benchmarks (gated by PERF=1 env var)
   - _Requirements: R8.7, R9.1, R9.2, R9.3_
 
 - [ ] 2. Core Parsing Infrastructure (copybook-core)
@@ -19,6 +18,8 @@
   - Handle column-7 continuation (- indicator only), comments (* and *>), sequence areas
   - Parse PIC clauses: X(n), 9(n)[V9(m)], optional S for signed
   - Detect and reject edited PICs with CBKP051_UNSUPPORTED_EDITED_PIC
+  - Reject SIGN LEADING/TRAILING [SEPARATE] as edited PIC → CBKP051_UNSUPPORTED_EDITED_PIC - NORMATIVE
+  - Implement continuation join: strip trailing/leading spaces, preserve interior whitespace - NORMATIVE
   - _Requirements: R1.1, R1.2, R1.8_
 
 - [ ] 2.2 AST Construction and Validation
@@ -27,6 +28,7 @@
   - Handle REDEFINES relationships with target validation
   - Parse OCCURS clauses (fixed and DEPENDING ON)
   - Validate ODO constraints: driver precedes array, tail-position only, not in REDEFINES
+  - Support nested fixed OCCURS; ODO only at tail, not nested under another ODO - NORMATIVE
   - Implement duplicate sibling name disambiguation (NAME__dup2, NAME__dup3) - NORMATIVE
   - Add FILLER emission policy: _filler_<offset> when --emit-filler is set - NORMATIVE
   - Compute schema fingerprint: SHA-256 over canonical schema JSON + codepage + options
@@ -46,12 +48,13 @@
 - [ ] 3. Data Type Codecs (copybook-codec)
 - [ ] 3.1 Character Encoding and EBCDIC Support
   - Implement static lookup tables for cp037, cp273, cp500, cp1047, cp1140
-  - Add ASCII pass-through mode
+  - Add ASCII pass-through mode (transparent 8-bit, not Windows-1252) - NORMATIVE
   - Add ASCII zoned sign table in addition to EBCDIC; select by codepage at runtime - NORMATIVE
   - Implement --on-decode-unmappable=error|replace|skip (default error) - NORMATIVE
   - Replace mode uses U+FFFD and logs CBKC301_INVALID_EBCDIC_BYTE warning
   - Implement UTF-8 output for all text fields
   - Ensure binary/packed fields never undergo character conversion
+  - Alphanumeric decode: preserve all spaces (no trimming) - NORMATIVE
   - _Requirements: R2.3, R12.1, R12.2, R12.3, R12.4, R12.5, R12.6_
 
 - [ ] 3.2 Numeric Type Decoding
@@ -68,9 +71,11 @@
   - Implement zoned decimal encoder with proper sign overpunch
   - Add packed decimal encoder with correct nibble packing and sign
   - Create binary integer encoder with range validation
+  - Support binary width mapping: digits → width (≤4→2B, 5-9→4B, 10-18→8B) - NORMATIVE
+  - Accept explicit USAGE BINARY(n) for n ∈ {1,2,4,8} - NORMATIVE
   - Implement BWZ encoding policy (optional --bwz-encode flag)
   - Add encode validation: enforce scale match, reject otherwise with CBKE501_JSON_TYPE_MISMATCH - NORMATIVE
-  - Implement input string validation for numeric fields (no silent coercion)
+  - Alphanumeric encode: pad with spaces, over-length → CBKE501_JSON_TYPE_MISMATCH - NORMATIVE
   - _Requirements: R7.2, R7.3, R7.4, R7.5_
 
 - [ ] 4. Record Framing and I/O (copybook-codec)
@@ -97,8 +102,9 @@
   - Handle REDEFINES: emit all views in declaration order (primary then redefiners)
   - Process OCCURS as JSON arrays with actual length only (no placeholders)
   - Add raw byte capture (--emit-raw=record|field|record+rdw)
-  - Optional --emit-meta: append "__schema_id" and input file hash per record
+  - Optional --emit-meta: append "__schema_id", "__record_index", "__offset", "__length" per record
   - Ensure parallel processing maintains deterministic output ordering
+  - Writer emits by sequence ID with bounded reordering window - NORMATIVE
   - _Requirements: R6.1, R6.2, R6.4, R6.5, R6.6_
 
 - [ ] 5.2 Round-Trip Encoding Support

@@ -6,6 +6,14 @@ copybook-rs is a modern, memory-safe parser/codec for COBOL copybooks and fixed-
 
 The tool bridges legacy COBOL data formats with modern systems by providing deterministic, reproducible conversion of mainframe-encoded records into accessible JSON formats. This enables organizations to unlock mainframe data for analytics, system integration, and modernization efforts without requiring COBOL runtime environments.
 
+### Key Design Principles
+
+- **Deterministic Output**: Byte-identical results across runs and parallel processing
+- **Round-Trip Fidelity**: Unchanged JSON data re-encodes to identical binary
+- **Memory Safety**: No unsafe code in public API paths
+- **Streaming Architecture**: Bounded memory usage for multi-GB files
+- **Comprehensive Error Handling**: Stable error codes with structured context
+
 ## Architecture
 
 The system is designed with a modular architecture that separates concerns into distinct, testable components:
@@ -84,22 +92,25 @@ pub enum Occurs {
 #### Parser Implementation Strategy
 
 1. **Lexical Analysis**: Use `logos` crate for tokenization with support for:
-   - Fixed-form COBOL (columns 1-6 sequence, 7 indicator, 8-72 text)
-   - Free-form COBOL with comment handling
-   - Continuation line processing
+   - **Fixed-form COBOL**: Cols 1-6 sequence (ignored), col 7 indicators (* comment, - continuation, / page break), cols 8-72 text, 73-80 ignored
+   - **Free-form COBOL**: `*>` inline comments, leading `*` at col 1 as comment, no block comments
+   - **Continuation processing**: Only column-7 `-` continues lines; strip trailing/leading spaces when joining
+   - **Edited PIC detection**: Fail fast with CBKP051_UNSUPPORTED_EDITED_PIC for Z, /, , characters
 
 2. **Syntax Analysis**: Recursive descent parser that builds an AST from tokens:
-   - Level number hierarchy validation
-   - PIC clause parsing and validation
-   - USAGE clause interpretation
-   - REDEFINES relationship tracking
-   - OCCURS clause processing
+   - Level number hierarchy validation (01-49)
+   - PIC clause parsing: X(n), 9(n)[V9(m)], optional S for signed
+   - USAGE clause interpretation: DISPLAY, COMP/BINARY, COMP-3
+   - REDEFINES relationship tracking with target validation
+   - OCCURS clause processing (fixed and DEPENDING ON)
+   - VALUE/66/88 levels parsed and ignored (metadata only)
 
 3. **Layout Resolution**: Single-pass algorithm that computes:
-   - Field byte offsets with alignment
-   - REDEFINES cluster sizing (max of all variants)
-   - SYNCHRONIZED padding insertion
-   - ODO validation and space allocation
+   - Field byte offsets with SYNCHRONIZED alignment (2/4/8 byte boundaries)
+   - REDEFINES cluster sizing (max of all variants, deterministic)
+   - SYNCHRONIZED padding insertion (0x00 bytes)
+   - ODO validation: driver precedes array, tail-position only, not in REDEFINES/ODO
+   - Overflow protection: all offset/length math in u64 with explicit checks
 
 ### 2. Data Codec (copybook-codec)
 
@@ -110,24 +121,31 @@ The codec component handles the actual conversion between binary data and struct
 **EBCDIC/ASCII Conversion**:
 - Static lookup tables for supported code pages (cp037, cp273, cp500, cp1047, cp1140)
 - UTF-8 output for all text fields
-- Error handling for unmappable characters
+- Configurable unmappable character policy: `--on-decode-unmappable=error|replace|skip`
+- Replace mode uses U+FFFD and logs CBKC301_INVALID_EBCDIC_BYTE
+- Binary/packed fields never undergo character conversion
 
 **Numeric Type Handling**:
 
 *Zoned Decimal (DISPLAY)*:
 - Each digit stored as one character byte
-- Sign encoded in zone nibble of last character (C/F=+, D=-)
-- BLANK WHEN ZERO: all spaces decode to numeric zero
+- **Dual sign tables**: EBCDIC overpunch zones (C/F=+, D=-) and ASCII overpunch zones
+- Sign table selection by codepage at runtime
+- **BLANK WHEN ZERO**: all spaces decode to numeric zero with warning CBKD412_ZONED_BLANK_IS_ZERO
+- **Fixed-scale rendering**: Always render with exactly `scale` digits after decimal; scale=0 → integer form
+- **Normalization**: -0 → 0 in all output
 
 *Packed Decimal (COMP-3)*:
 - Two digits per byte, high nibble first
 - Last nibble contains sign (C/F=+, D=-)
 - Byte length = ceil((digits + 1) / 2)
+- **Strict validation**: Invalid nibbles → CBKD401_COMP3_INVALID_NIBBLE
 
 *Binary (COMP/BINARY)*:
 - Big-endian integers (IBM mainframe convention)
 - Width by PIC digits: ≤4→2B, 5-9→4B, 10-18→8B
 - Two's complement for signed values
+- **Range validation**: Overflow on encode → error
 
 #### Record Framing
 
@@ -135,12 +153,16 @@ The codec component handles the actual conversion between binary data and struct
 - Constant LRECL (Logical Record Length)
 - Back-to-back record layout
 - Length validation against schema
+- ODO tail records have variable length within fixed LRECL
 
 **RDW Records (Variable)**:
 - 4-byte Record Descriptor Word header
 - Bytes 0-1: big-endian data length (excluding RDW)
 - Bytes 2-3: reserved (expected 0x0000)
-- Corruption detection for ASCII transfer issues
+- **Reserved byte policy**: Non-zero → warning CBKR211_RDW_RESERVED_NONZERO (fatal in strict mode)
+- **ASCII transfer detection**: Heuristic for ASCII digit patterns → CBKF104_RDW_SUSPECT_ASCII
+- **Zero-length records**: Valid only when schema fixed prefix == 0; else CBKR221_RDW_UNDERFLOW
+- **Raw RDW preservation**: `--emit-raw=record+rdw` preserves reserved bytes for round-trip
 
 ### 3. CLI Interface (copybook-cli)
 
@@ -156,12 +178,24 @@ copybook encode  <schema.cpy> <in.jsonl> [options] --out out.bin
 copybook verify  <schema.cpy> <data.bin> [options] --report verify.json
 ```
 
+#### Key CLI Options
+
+- **Format**: `--format fixed|rdw` (explicit, no auto-detection by default)
+- **Codepage**: `--codepage cp037|cp273|cp500|cp1047|cp1140|ascii`
+- **JSON Numbers**: `--json-number lossless|native` (default: lossless)
+- **Error Handling**: `--strict` (default: lenient), `--max-errors N`
+- **Raw Capture**: `--emit-raw off|record|field|record+rdw`, `--use-raw`
+- **Performance**: `--threads N` (maintains deterministic ordering)
+- **Output**: `--emit-filler`, `--emit-meta` (schema fingerprint, provenance)
+- **BWZ Policy**: `--bwz-encode on|off` (default: off for determinism)
+
 #### Key Features
 
 - **Streaming I/O**: Process records one at a time to maintain bounded memory usage
-- **Parallel Processing**: Ordered pipeline with `--threads` option
-- **Error Resilience**: Configurable strict/lenient modes with detailed error reporting
-- **Progress Reporting**: Summary statistics and performance metrics
+- **Parallel Processing**: Ordered pipeline with sequence tracking for deterministic output
+- **Error Resilience**: Configurable strict/lenient modes with comprehensive error reporting
+- **Atomic Outputs**: Write to temporary files and rename on success
+- **Progress Reporting**: Summary statistics, performance metrics, and schema fingerprinting
 
 ### 4. Library API (copybook-core/codec)
 
@@ -205,20 +239,30 @@ The internal schema model captures all necessary information for deterministic e
 
 The JSON output follows strict deterministic rules:
 
-1. **Key Ordering**: Schema pre-order traversal (groups before children)
+1. **Key Ordering**: Schema pre-order traversal (groups before children, declaration order)
 2. **Numeric Representation**: 
-   - Packed/Zoned decimals as canonical strings for precision
-   - Binary integers as JSON numbers (up to 64-bit) or strings
-3. **REDEFINES Handling**: All views emitted in declaration order
-4. **Array Representation**: OCCURS as JSON arrays, ODO with actual length only
+   - **Packed/Zoned decimals**: Canonical strings with fixed scale (e.g., "123.45" for scale=2)
+   - **Binary integers**: JSON numbers (up to 64-bit) or strings for larger values
+   - **Normalization**: -0 → 0, no thousands separators
+3. **REDEFINES Handling**: All views emitted in declaration order (primary then redefiners)
+4. **Array Representation**: OCCURS as JSON arrays, ODO with actual length only (no placeholders)
+5. **FILLER Fields**: Omitted by default; `--emit-filler` includes as `_filler_<offset>`
+6. **Duplicate Names**: Siblings with same name get `NAME__dup2`, `NAME__dup3` suffixes
 
 ### Round-Trip Fidelity
 
 To ensure byte-identical round-trips, the system supports raw byte capture:
 
-- `--emit-raw=record|field`: Capture original bytes as base64
-- `--use-raw`: Use captured bytes when encoding if values match
-- Guarantees: `encode(decode(bytes)) == bytes` when JSON unchanged
+- **Raw capture modes**: `--emit-raw=off|record|field|record+rdw`
+  - `record`: Add `"__raw_b64"` for entire record (excluding RDW)
+  - `field`: Add `"__raw_b64"` siblings per scalar field
+  - `record+rdw`: Include RDW header in raw capture
+- **Raw usage**: `--use-raw` on encode uses captured bytes when values match canonical decode
+- **REDEFINES encode precedence**: 
+  1. Raw bytes (if `--use-raw` and values match)
+  2. Single non-null view
+  3. Error CBKE501_JSON_TYPE_MISMATCH (ambiguous)
+- **Guarantees**: `encode(decode(bytes)) == bytes` when JSON unchanged and raw present
 
 ## Error Handling
 
@@ -247,10 +291,15 @@ The system uses a comprehensive, stable error code taxonomy:
 
 1. **Parse Errors**: Fail fast with detailed context (line numbers, expected vs found)
 2. **Data Errors**: Configurable handling:
-   - Strict mode: Stop on first error
-   - Lenient mode: Skip bad records, continue processing
+   - **Strict mode**: Stop on first error; ODO out-of-bounds → fatal
+   - **Lenient mode**: Skip bad records, continue processing; ODO out-of-bounds → clamp with warning
+   - **Max errors**: `--max-errors N` caps lenient mode processing
    - Always report error counts and context
 3. **Structured Context**: All errors include relevant metadata (record number, field path, byte offset)
+4. **Exit Codes**: 
+   - 0: Success (warnings only)
+   - 1: Completed with errors (even if skipped in lenient mode)
+   - 2: Fatal error (unable to continue)
 
 ## Testing Strategy
 
@@ -292,10 +341,15 @@ The `copybook-gen` component creates comprehensive test suites:
 
 ### Optimization Strategies
 
-1. **Efficient Parsing**: Hand-optimized lexer with minimal backtracking
+1. **Efficient Parsing**: Hand-optimized lexer with minimal backtracking, avoid regex in hot paths
 2. **Codec Performance**: Direct byte manipulation without string intermediates
-3. **I/O Optimization**: Buffered readers with appropriate chunk sizes
-4. **Parallel Pipeline**: Ordered processing with work-stealing queues
+3. **Memory Efficiency**: 
+   - Reusable scratch buffers per worker thread
+   - SmallVec for digit buffers (≤32 bytes on stack)
+   - Streaming JSON writer (no intermediate Maps)
+4. **I/O Optimization**: Buffered readers with appropriate chunk sizes
+5. **Parallel Pipeline**: Bounded channels with sequence tracking for ordered output
+6. **Static Tables**: Pre-computed EBCDIC conversion and sign overpunch tables
 
 ### Resource Limits
 
@@ -324,4 +378,54 @@ The `copybook-gen` component creates comprehensive test suites:
 - **Corruption Detection**: Heuristics for common transfer issues
 - **Audit Trails**: Comprehensive logging and error reporting
 
+## Normative Design Decisions
+
+The following decisions are normative and must be implemented exactly as specified to ensure deterministic behavior and prevent implementation drift:
+
+### 1. Numeric Canonicalization (NORMATIVE)
+- **Fixed-scale rendering**: Zoned/packed decimals always render with exactly `scale` digits after decimal
+- **Scale=0 format**: Render as integer without decimal point
+- **Normalization**: Always convert -0 to 0 in output
+- **Encode validation**: Input strings must match field's scale exactly; reject with CBKE501_JSON_TYPE_MISMATCH
+
+### 2. REDEFINES Encode Precedence (NORMATIVE)
+1. If `--use-raw` and record-level `__raw_b64` present and values match canonical decode → emit raw bytes
+2. Else if exactly one view under the cluster is non-null → emit from that view  
+3. Else → error CBKE501_JSON_TYPE_MISMATCH (ambiguous write)
+
+### 3. ODO Strict vs Lenient Behavior (NORMATIVE)
+- **Lenient mode** (default): Clamp out-of-bounds counter to min/max with warnings CBKS301_ODO_CLIPPED/CBKS302_ODO_RAISED
+- **Strict mode** (`--strict`): Treat out-of-bounds ODO as fatal error and abort immediately
+
+### 4. RDW Raw Preservation (NORMATIVE)
+- `--emit-raw=record+rdw` captures both payload and RDW header
+- `--use-raw` preserves RDW reserved bytes verbatim when payload values match
+- Recompute length field if payload changed during round-trip
+
+### 5. Duplicate Name Disambiguation (NORMATIVE)
+- Sibling fields with identical names: suffix as `NAME__dup2`, `NAME__dup3` in declaration order
+- FILLER fields (when emitted): `_filler_<offset>` where offset is zero-padded decimal byte offset
+
+### 6. ASCII Zoned Sign Mapping (NORMATIVE)
+- Maintain separate EBCDIC and ASCII overpunch sign tables
+- Select table by `--codepage` at runtime
+- Invalid zone in either table → CBKD411_ZONED_BAD_SIGN
+
+### 7. Grammar Rules (NORMATIVE)
+- **Fixed-form**: Only column-7 `-` is continuation; `*` at col 1 is comment; cols 1-6 and 73-80 ignored
+- **Free-form**: `*>` inline comments; leading `*` at col 1 is comment; no block comments
+- **Edited PICs**: Fail immediately with CBKP051_UNSUPPORTED_EDITED_PIC including token and field path
+
+These normative decisions eliminate ambiguity and ensure consistent behavior across implementations and deployments.
+
+## Implementation Readiness
+
 This design provides a solid foundation for implementing a robust, performant, and maintainable COBOL data processing system that meets the needs of modern data engineering workflows while preserving the precision and reliability required for financial and business-critical applications.
+
+The specification is now complete with:
+- ✅ Clear architectural boundaries and component responsibilities
+- ✅ Normative decisions for all ambiguous areas
+- ✅ Comprehensive error taxonomy with stable codes
+- ✅ Performance targets with realistic optimization strategies
+- ✅ Security considerations and memory safety guarantees
+- ✅ Deterministic output guarantees for audit compliance

@@ -12,6 +12,10 @@ pub use error::{Error, ErrorCode, Result};
 pub use schema::{Field, FieldKind, Occurs, Schema};
 
 /// Parse a COBOL copybook into a structured schema
+/// 
+/// # Errors
+/// 
+/// Returns an error if the copybook contains syntax errors or unsupported features
 pub fn parse_copybook(text: &str) -> Result<Schema> {
     parser::parse(text)
 }

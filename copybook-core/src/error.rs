@@ -24,7 +24,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", self.code, self.message)?;
         if let Some(ref ctx) = self.context {
-            write!(f, " ({})", ctx)?;
+            write!(f, " ({ctx})")?;
         }
         Ok(())
     }
@@ -104,7 +104,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
         };
-        write!(f, "{}", code_str)
+        write!(f, "{code_str}")
     }
 }
 
@@ -128,16 +128,16 @@ impl fmt::Display for ErrorContext {
         let mut parts = Vec::new();
 
         if let Some(record) = self.record_index {
-            parts.push(format!("record {}", record));
+            parts.push(format!("record {record}"));
         }
         if let Some(ref path) = self.field_path {
-            parts.push(format!("field {}", path));
+            parts.push(format!("field {path}"));
         }
         if let Some(offset) = self.byte_offset {
-            parts.push(format!("offset {}", offset));
+            parts.push(format!("offset {offset}"));
         }
         if let Some(line) = self.line_number {
-            parts.push(format!("line {}", line));
+            parts.push(format!("line {line}"));
         }
         if let Some(ref details) = self.details {
             parts.push(details.clone());
@@ -158,12 +158,14 @@ impl Error {
     }
 
     /// Add context information to the error
+    #[must_use]
     pub fn with_context(mut self, context: ErrorContext) -> Self {
         self.context = Some(context);
         self
     }
 
     /// Add record context to the error
+    #[must_use]
     pub fn with_record(mut self, record_index: u64) -> Self {
         let context = self.context.get_or_insert(ErrorContext {
             record_index: None,
@@ -177,6 +179,7 @@ impl Error {
     }
 
     /// Add field path context to the error
+    #[must_use]
     pub fn with_field(mut self, field_path: impl Into<String>) -> Self {
         let context = self.context.get_or_insert(ErrorContext {
             record_index: None,
@@ -190,6 +193,7 @@ impl Error {
     }
 
     /// Add byte offset context to the error
+    #[must_use]
     pub fn with_offset(mut self, byte_offset: u64) -> Self {
         let context = self.context.get_or_insert(ErrorContext {
             record_index: None,

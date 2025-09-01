@@ -1,0 +1,47 @@
+[workspace]
+members = [
+    "copybook-core",
+    "copybook-codec", 
+    "copybook-cli",
+    "copybook-gen",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+license = "AGPL-3.0-or-later"
+authors = ["copybook-rs contributors"]
+repository = "https://github.com/copybook-rs/copybook-rs"
+homepage = "https://github.com/copybook-rs/copybook-rs"
+description = "Modern, memory-safe parser/codec for COBOL copybooks and fixed-record data"
+keywords = ["cobol", "mainframe", "etl", "parser", "codec"]
+categories = ["parsing", "encoding", "command-line-utilities"]
+
+[workspace.dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# CLI dependencies
+clap = { version = "4.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+
+# Parsing dependencies
+logos = "0.14"
+
+# Testing dependencies
+proptest = "1.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+debug = true

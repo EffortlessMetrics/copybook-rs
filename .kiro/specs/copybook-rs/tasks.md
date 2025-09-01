@@ -51,7 +51,11 @@
   - Compute schema fingerprint: SHA-256 over canonical schema JSON + codepage + options
   - _Requirements: R1.1, R1.3, R1.4, R3.6, R4.1, R4.7_
 
-- [-] 2.3 Layout Resolution Engine
+- [x] 2.3 Layout Resolution Engine
+
+
+
+
 
 
 

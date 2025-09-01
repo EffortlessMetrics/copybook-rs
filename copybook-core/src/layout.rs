@@ -74,12 +74,6 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
         resolve_field_layout(field, &mut context, None)?;
     }
     
-    // Third pass: adjust current_offset to account for REDEFINES clusters
-    for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
-        let cluster_end = cluster_start + cluster_size;
-        context.current_offset = context.current_offset.max(cluster_end);
-    }
-    
     // Validate ODO constraints
     validate_odo_constraints(&context)?;
     
@@ -142,6 +136,12 @@ fn resolve_field_layout(
     
     // Calculate field alignment and base size
     let (alignment, base_size) = calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
+    
+    // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
+    for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
+        let cluster_end = cluster_start + cluster_size;
+        context.current_offset = context.current_offset.max(cluster_end);
+    }
     
     // Apply alignment padding if needed
     let aligned_offset = apply_alignment(context.current_offset, alignment);
@@ -340,7 +340,7 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> R
         }
         FieldKind::PackedDecimal { digits, .. } => {
             // Packed decimal: ceil((digits + 1) / 2) bytes
-            let bytes = (u32::from(*digits) + 1 + 1) / 2; // ceil((digits + 1) / 2)
+            let bytes = (u32::from(*digits) + 2) / 2; // ceil((digits + 1) / 2)
             (bytes, 1u64)
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size

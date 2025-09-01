@@ -262,7 +262,12 @@
 
 - [ ] 9. Library API Implementation
 
-- [ ] 9.1 Core Library Functions
+- [x] 9.1 Core Library Functions
+
+
+
+
+
   - Implement parse_copybook with comprehensive error handling
   - Create decode_file_to_jsonl with streaming support
   - Add encode_jsonl_to_file with validation

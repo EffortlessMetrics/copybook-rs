@@ -336,7 +336,7 @@ impl<W: Write> JsonWriter<W> {
     }
 
     /// Write raw data field directly to JSON buffer
-    fn write_raw_data_streaming(&mut self, first_field: &mut bool, record_data: &[u8]) -> Result<()> {
+    fn write_raw_data_streaming(&mut self, record_data: &[u8], first_field: &mut bool) -> Result<()> {
         if !*first_field {
             self.json_buffer.push(',');
         }
@@ -347,34 +347,6 @@ impl<W: Write> JsonWriter<W> {
         self.json_buffer.push_str(&encoded);
         self.json_buffer.push('"');
 
-        Ok(())
-    }
-            &schema.fields,
-            record_data,
-            record_index,
-            byte_offset,
-            &mut first_field,
-        )?;
-        
-        // Add metadata if requested
-        if self.options.emit_meta {
-            self.write_metadata_streaming(schema, record_index, byte_offset, record_data.len(), &mut first_field)?;
-        }
-        
-        // Add raw data if requested
-        if matches!(self.options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
-            self.write_raw_data_streaming(record_data, &mut first_field)?;
-        }
-        
-        self.json_buffer.push('}');
-        
-        // Write JSON line directly
-        self.writer.write_all(self.json_buffer.as_bytes())
-            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("Write error: {}", e)))?;
-        self.writer.write_all(b"\n")
-            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("Write error: {}", e)))?;
-        
-        self.sequence_id += 1;
         Ok(())
     }
 

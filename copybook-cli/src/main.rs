@@ -48,8 +48,8 @@ enum Commands {
         /// Output JSONL file path
         #[arg(short, long)]
         output: PathBuf,
-        /// Record format
-        #[arg(long, default_value = "fixed")]
+        /// Record format (explicit, no auto-detection)
+        #[arg(long)]
         format: RecordFormat,
         /// Character encoding
         #[arg(long, default_value = "cp037")]
@@ -57,8 +57,8 @@ enum Commands {
         /// JSON number mode
         #[arg(long, default_value = "lossless")]
         json_number: JsonNumberMode,
-        /// Enable strict mode
-        #[arg(long)]
+        /// Enable strict mode (default: false for lenient mode)
+        #[arg(long, default_value = "false")]
         strict: bool,
         /// Maximum errors before stopping
         #[arg(long)]
@@ -88,8 +88,8 @@ enum Commands {
         /// Output binary file path
         #[arg(short, long)]
         output: PathBuf,
-        /// Record format
-        #[arg(long, default_value = "fixed")]
+        /// Record format (explicit, no auto-detection)
+        #[arg(long)]
         format: RecordFormat,
         /// Character encoding
         #[arg(long, default_value = "cp037")]
@@ -100,12 +100,15 @@ enum Commands {
         /// Enable BLANK WHEN ZERO encoding
         #[arg(long)]
         bwz_encode: bool,
-        /// Enable strict mode
-        #[arg(long)]
+        /// Enable strict mode (default: false for lenient mode)
+        #[arg(long, default_value = "false")]
         strict: bool,
         /// Maximum errors before stopping
         #[arg(long)]
         max_errors: Option<u64>,
+        /// Number of threads for parallel processing
+        #[arg(long, default_value = "1")]
+        threads: usize,
     },
     /// Verify data file structure
     Verify {
@@ -116,8 +119,8 @@ enum Commands {
         /// Verification report output
         #[arg(long)]
         report: Option<PathBuf>,
-        /// Record format
-        #[arg(long, default_value = "fixed")]
+        /// Record format (explicit, no auto-detection)
+        #[arg(long)]
         format: RecordFormat,
         /// Character encoding
         #[arg(long, default_value = "cp037")]
@@ -182,9 +185,10 @@ async fn main() {
             bwz_encode,
             strict,
             max_errors,
+            threads,
         } => {
             crate::commands::encode::run(
-                copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors,
+                copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors, threads,
             )
             .await
         }
@@ -215,3 +219,5 @@ mod commands {
     pub mod parse;
     pub mod verify;
 }
+
+mod utils;

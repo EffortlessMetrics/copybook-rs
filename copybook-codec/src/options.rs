@@ -23,6 +23,8 @@ pub struct DecodeOptions {
     pub max_errors: Option<u64>,
     /// Policy for unmappable characters
     pub on_decode_unmappable: UnmappablePolicy,
+    /// Number of threads for parallel processing
+    pub threads: usize,
 }
 
 /// Options for encoding operations
@@ -40,6 +42,8 @@ pub struct EncodeOptions {
     pub strict_mode: bool,
     /// Maximum errors before stopping
     pub max_errors: Option<u64>,
+    /// Number of threads for parallel processing
+    pub threads: usize,
 }
 
 /// Record format specification
@@ -114,6 +118,7 @@ impl Default for DecodeOptions {
             strict_mode: false,
             max_errors: None,
             on_decode_unmappable: UnmappablePolicy::Error,
+            threads: 1,
         }
     }
 }
@@ -127,6 +132,7 @@ impl Default for EncodeOptions {
             bwz_encode: false,
             strict_mode: false,
             max_errors: None,
+            threads: 1,
         }
     }
 }

@@ -31,6 +31,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # CLI dependencies
 clap = { version = "4.0", features = ["derive"] }
 tokio = { version = "1.0", features = ["full"] }
+tempfile = "3.0"
 
 # Parsing dependencies
 logos = "0.14"

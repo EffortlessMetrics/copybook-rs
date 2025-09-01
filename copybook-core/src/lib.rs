@@ -4,13 +4,15 @@
 //! processing, including AST construction, layout resolution, and schema validation.
 
 pub mod error;
+pub mod error_reporter;
 pub mod layout;
 pub mod lexer;
 pub mod parser;
 pub mod pic;
 pub mod schema;
 
-pub use error::{Error, ErrorCode, Result};
+pub use error::{Error, ErrorCode, ErrorContext, Result};
+pub use error_reporter::{ErrorReporter, ErrorMode, ErrorSeverity, ErrorSummary, ErrorReport};
 pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
 
 /// Parse a COBOL copybook into a structured schema

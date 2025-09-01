@@ -1109,6 +1109,7 @@ impl JsonEncoder {
             strict_mode: true,
             max_errors: None,
             on_decode_unmappable: UnmappablePolicy::Error,
+            threads: 1,
         })?;
         
         // Compare the decoded JSON with the input JSON (excluding metadata and raw fields)

@@ -144,7 +144,10 @@
   - Implement RDW writer with proper header generation
   - _Requirements: R2.2, R9.8_
 
-- [ ] 5. JSON Processing and Determinism
+- [-] 5. JSON Processing and Determinism
+
+
+
 
 - [ ] 5.1 Deterministic JSON Output
   - Implement streaming JSON writer in schema order; avoid intermediate maps - NORMATIVE

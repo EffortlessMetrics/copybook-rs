@@ -116,16 +116,25 @@
   - Alphanumeric encode: pad with spaces, over-length → CBKE501_JSON_TYPE_MISMATCH - NORMATIVE
   - _Requirements: R7.2, R7.3, R7.4, R7.5_
 
-- [ ] 4. Record Framing and I/O (copybook-codec)
+- [x] 4. Record Framing and I/O (copybook-codec)
 
-- [ ] 4.1 Fixed Record Processing
+
+
+
+
+
+- [x] 4.1 Fixed Record Processing
+
+
   - Implement fixed-length record reader with LRECL validation
   - Handle ODO tail records with variable length
   - Add record length validation against schema
   - Implement fixed record writer with proper padding
   - _Requirements: R2.1, R10.6_
 
-- [ ] 4.2 RDW Variable Record Processing
+- [x] 4.2 RDW Variable Record Processing
+
+
   - Implement RDW header parsing (4-byte big-endian length + reserved)
   - Add reserved byte validation with warning CBKR211_RDW_RESERVED_NONZERO (fatal in strict)
   - Detect ASCII transfer corruption with heuristic CBKF104_RDW_SUSPECT_ASCII

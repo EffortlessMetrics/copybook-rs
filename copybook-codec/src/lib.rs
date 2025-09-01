@@ -18,6 +18,10 @@ pub use numeric::{
     should_encode_as_blank_when_zero,
 };
 pub use charset::{ebcdic_to_utf8, utf8_to_ebcdic, get_zoned_sign_table};
+pub use record::{
+    read_record, write_record, FixedRecordReader, FixedRecordWriter, 
+    RDWRecordReader, RDWRecordWriter, RDWRecord
+};
 
 use copybook_core::{Result, Schema};
 use serde_json::Value;

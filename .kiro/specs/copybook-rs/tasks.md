@@ -223,7 +223,12 @@
   - Add transfer corruption detection and warnings
   - _Requirements: R9.1, R9.2, R9.3, R9.4, R9.7, R9.8_
 
-- [ ] 7.2 ODO and REDEFINES Error Handling
+- [x] 7.2 ODO and REDEFINES Error Handling
+
+
+
+
+
   - Escalate ODO out-of-bounds to fatal in strict mode; clamp + warn in lenient - NORMATIVE
   - Add REDEFINES ambiguity detection on encode with proper error context
   - Handle missing counter fields and invalid references
@@ -233,7 +238,10 @@
 
 - [ ] 8. Performance Optimization and Streaming
 
-- [ ] 8.1 Memory Management
+- [-] 8.1 Memory Management
+
+
+
   - Implement streaming record processing with bounded memory
   - Add reusable scratch buffers per worker; digit SmallVec for packed/zoned
   - Create bounded channel + sequence ring for ordered emission
@@ -243,6 +251,7 @@
   - _Requirements: R10.1, R10.2, R10.4, R10.5, R10.6_
 
 - [ ] 8.2 Throughput Optimization
+
   - Optimize zoned and packed decimal codecs for performance
   - Implement efficient JSON streaming without intermediate maps
   - Add buffered I/O with appropriate chunk sizes

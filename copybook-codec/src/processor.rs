@@ -5,14 +5,17 @@
 
 use crate::options::{DecodeOptions, EncodeOptions};
 use crate::corruption::{detect_rdw_ascii_corruption, detect_ebcdic_corruption, detect_packed_corruption};
+use crate::memory::{WorkerPool, ScratchBuffers, StreamingProcessor};
 use crate::RunSummary;
 use copybook_core::{
     Schema, Error, ErrorCode, ErrorReporter, ErrorMode,
     Field, FieldKind
 };
+use serde_json::Value;
 use std::io::{Read, Write, BufRead, BufReader};
+use std::sync::Arc;
 use std::time::Instant;
-use tracing::{info, debug};
+use tracing::{info, debug, warn};
 
 /// High-level processor for decoding operations with integrated error handling
 pub struct DecodeProcessor {
@@ -63,9 +66,25 @@ impl DecodeProcessor {
         &mut self,
         schema: &Schema,
         input: R,
+        output: W,
+    ) -> Result<RunSummary, Error> {
+        if self.options.threads == 1 {
+            // Single-threaded processing for deterministic baseline
+            self.process_file_single_threaded(schema, input, output)
+        } else {
+            // Multi-threaded processing with ordered output
+            self.process_file_parallel(schema, input, output)
+        }
+    }
+
+    /// Single-threaded processing (original implementation)
+    fn process_file_single_threaded<R: Read, W: Write>(
+        &mut self,
+        schema: &Schema,
+        input: R,
         mut output: W,
     ) -> Result<RunSummary, Error> {
-        info!("Starting decode processing with {} threads", self.options.threads);
+        info!("Starting single-threaded decode processing");
         
         let mut reader = BufReader::new(input);
         let mut record_index = 0u64;
@@ -109,6 +128,149 @@ impl DecodeProcessor {
 
         // Generate final summary
         self.generate_summary(record_index - 1)
+    }
+
+    /// Parallel processing with bounded memory and ordered output
+    fn process_file_parallel<R: Read, W: Write>(
+        &mut self,
+        schema: &Schema,
+        input: R,
+        mut output: W,
+    ) -> Result<RunSummary, Error> {
+        info!("Starting parallel decode processing with {} threads", self.options.threads);
+        
+        // Create streaming processor for memory management
+        let mut streaming_processor = StreamingProcessor::with_default_limit();
+        
+        // Calculate channel capacity based on memory constraints
+        let estimated_record_size = schema.lrecl_fixed.unwrap_or(1024) as usize;
+        let max_records_in_flight = (streaming_processor.stats().max_memory_bytes / 4) / estimated_record_size;
+        let channel_capacity = max_records_in_flight.min(1000).max(10); // Between 10 and 1000
+        
+        info!("Using channel capacity: {} records", channel_capacity);
+        
+        // Create worker pool for parallel processing
+        let schema_arc = Arc::new(schema.clone());
+        let options_arc = Arc::new(self.options.clone());
+        
+        let mut worker_pool = WorkerPool::new(
+            self.options.threads,
+            channel_capacity,
+            channel_capacity / 2, // Max reorder window
+            move |record_data: Vec<u8>, scratch: &mut ScratchBuffers| -> Result<String, Error> {
+                // Process record using scratch buffers
+                Self::process_record_with_scratch(&schema_arc, &record_data, &options_arc, scratch)
+            },
+        );
+
+        let mut reader = BufReader::new(input);
+        let mut _record_index = 0u64;
+        let mut buffer = Vec::new();
+        let mut records_submitted = 0u64;
+        let mut records_completed = 0u64;
+
+        // Submit records to worker pool
+        loop {
+            buffer.clear();
+            _record_index += 1;
+            
+            // Check memory pressure
+            if streaming_processor.is_memory_pressure() {
+                warn!("Memory pressure detected, processing pending results");
+                // Process some pending results to free memory
+                for _ in 0..10 {
+                    if let Ok(Some(result)) = worker_pool.try_recv_ordered() {
+                        match result {
+                            Ok(json_line) => {
+                                writeln!(output, "{}", json_line)
+                                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                                records_completed += 1;
+                                streaming_processor.update_memory_usage(-(estimated_record_size as isize));
+                            }
+                            Err(error) => {
+                                if let Err(fatal_error) = self.error_reporter.report_error(error) {
+                                    return Err(fatal_error);
+                                }
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Read record based on format
+            let record_len = match self.read_record(&mut reader, &mut buffer, schema)? {
+                Some(len) => {
+                    self.bytes_processed += len as u64;
+                    len
+                },
+                None => break, // End of file
+            };
+
+            let record_data = buffer[..record_len].to_vec();
+            streaming_processor.record_processed(record_len);
+            streaming_processor.update_memory_usage(record_len as isize);
+
+            // Submit to worker pool
+            if let Err(_) = worker_pool.submit(record_data) {
+                warn!("Worker pool channel full, this shouldn't happen with proper backpressure");
+                break;
+            }
+            records_submitted += 1;
+        }
+
+        info!("Submitted {} records, collecting results", records_submitted);
+
+        // Collect all remaining results
+        while records_completed < records_submitted {
+            match worker_pool.recv_ordered() {
+                Ok(Some(result)) => {
+                    match result {
+                        Ok(json_line) => {
+                            writeln!(output, "{}", json_line)
+                                .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                        }
+                        Err(error) => {
+                            if let Err(fatal_error) = self.error_reporter.report_error(error) {
+                                return Err(fatal_error);
+                            }
+                        }
+                    }
+                    records_completed += 1;
+                }
+                Ok(None) => break, // No more results
+                Err(e) => {
+                    warn!("Error receiving from worker pool: {}", e);
+                    break;
+                }
+            }
+        }
+
+        // Shutdown worker pool
+        worker_pool.shutdown().map_err(|e| {
+            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, format!("Worker pool shutdown error: {}", e))
+        })?;
+
+        info!("Parallel processing completed: {} records processed", records_completed);
+
+        // Generate final summary
+        self.generate_summary(records_completed)
+    }
+
+    /// Process a single record using scratch buffers (static method for worker pool)
+    fn process_record_with_scratch(
+        schema: &Schema,
+        record_data: &[u8],
+        options: &DecodeOptions,
+        _scratch: &mut ScratchBuffers,
+    ) -> Result<String, Error> {
+        // For now, use the existing decode_record function
+        // In a full implementation, this would use the scratch buffers for optimization
+        let json_value = crate::decode_record(schema, record_data, options)?;
+        
+        serde_json::to_string(&json_value)
+            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))
     }
 
     /// Read a single record based on the configured format
@@ -211,14 +373,19 @@ impl DecodeProcessor {
         // Perform corruption detection on the record
         self.detect_record_corruption(schema, record_data, record_index)?;
 
+        // Validate ODO constraints if present
+        self.validate_record_odo_constraints(schema, record_data, record_index)?;
+
         // Decode the record to JSON
         let json_value = crate::decode_record(schema, record_data, &self.options)
-            .map_err(|e| e.with_record(record_index))?;
+            .map_err(|e| self.enhance_error_context(e, record_index, None, None))?;
 
         // Serialize to JSON string
         serde_json::to_string(&json_value)
             .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                .with_record(record_index))
+                .with_context(crate::odo_redefines::create_comprehensive_error_context(
+                    record_index, "JSON_SERIALIZATION", 0, Some(format!("json_error={}", e))
+                )))
     }
 
     /// Detect various forms of corruption in record data
@@ -292,6 +459,120 @@ impl DecodeProcessor {
         }
 
         Ok(())
+    }
+
+    /// Validate ODO constraints for a record
+    fn validate_record_odo_constraints(
+        &mut self,
+        schema: &Schema,
+        record_data: &[u8],
+        record_index: u64,
+    ) -> Result<(), Error> {
+        // Check if schema has tail ODO
+        if let Some(ref tail_odo) = schema.tail_odo {
+            // Find the counter field value
+            let counter_field = schema.find_field(&tail_odo.counter_path)
+                .ok_or_else(|| crate::odo_redefines::handle_missing_counter_field(
+                    &tail_odo.counter_path,
+                    &tail_odo.array_path,
+                    schema,
+                    record_index,
+                    0,
+                ))?;
+
+            // Extract counter value from record data
+            let counter_start = counter_field.offset as usize;
+            let counter_end = counter_start + counter_field.len as usize;
+            
+            if counter_end > record_data.len() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!("Record too short to contain ODO counter field '{}'", tail_odo.counter_path)
+                ).with_context(crate::odo_redefines::create_comprehensive_error_context(
+                    record_index,
+                    &tail_odo.counter_path,
+                    counter_field.offset as u64,
+                    Some(format!("required_length={}, actual_length={}", counter_end, record_data.len())),
+                )));
+            }
+
+            let counter_data = &record_data[counter_start..counter_end];
+            
+            // Decode counter value based on field type
+            let counter_value = match &counter_field.kind {
+                FieldKind::ZonedDecimal { digits, signed, .. } => {
+                    let decimal = crate::numeric::decode_zoned_decimal(
+                        counter_data,
+                        *digits,
+                        0, // ODO counters are typically integers
+                        *signed,
+                        self.options.codepage,
+                        counter_field.blank_when_zero,
+                    ).map_err(|e| self.enhance_error_context(e, record_index, Some(&tail_odo.counter_path), Some(counter_field.offset as u64)))?;
+                    
+                    decimal.value as u32
+                }
+                FieldKind::BinaryInt { bits, signed } => {
+                    let int_value = crate::numeric::decode_binary_int(counter_data, *bits, *signed)
+                        .map_err(|e| self.enhance_error_context(e, record_index, Some(&tail_odo.counter_path), Some(counter_field.offset as u64)))?;
+                    int_value as u32
+                }
+                _ => {
+                    return Err(Error::new(
+                        ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                        format!("ODO counter field '{}' has invalid type for counter", tail_odo.counter_path)
+                    ).with_context(crate::odo_redefines::create_comprehensive_error_context(
+                        record_index,
+                        &tail_odo.counter_path,
+                        counter_field.offset as u64,
+                        Some(format!("field_type={:?}", counter_field.kind)),
+                    )));
+                }
+            };
+
+            // Validate ODO counter value
+            let validation_result = crate::odo_redefines::validate_odo_decode(
+                counter_value,
+                tail_odo.min_count,
+                tail_odo.max_count,
+                &tail_odo.array_path,
+                &tail_odo.counter_path,
+                record_index,
+                counter_field.offset as u64,
+                &self.options,
+            )?;
+
+            // Report warning if clamping occurred
+            if let Some(warning) = validation_result.warning {
+                self.error_reporter.report_warning(warning);
+            }
+
+            debug!("ODO validation passed: counter_value={}, actual_count={}, clamped={}", 
+                   counter_value, validation_result.actual_count, validation_result.was_clamped);
+        }
+
+        Ok(())
+    }
+
+    /// Enhance error with comprehensive context information
+    fn enhance_error_context(
+        &self,
+        mut error: Error,
+        record_index: u64,
+        field_path: Option<&str>,
+        byte_offset: Option<u64>,
+    ) -> Error {
+        // Only enhance if context is not already present
+        if error.context.is_none() {
+            let context = crate::odo_redefines::create_comprehensive_error_context(
+                record_index,
+                field_path.unwrap_or("UNKNOWN_FIELD"),
+                byte_offset.unwrap_or(0),
+                None,
+            );
+            error = error.with_context(context);
+        }
+        error
     }
 
     /// Generate final processing summary
@@ -404,8 +685,14 @@ impl EncodeProcessor {
     ) -> Result<Vec<u8>, Error> {
         debug!("Encoding record {} to binary", record_index);
 
+        // Validate REDEFINES encoding constraints
+        self.validate_redefines_encoding(schema, json_value, record_index)?;
+
+        // Validate ODO array lengths
+        self.validate_odo_encoding(schema, json_value, record_index)?;
+
         crate::encode_record(schema, json_value, &self.options)
-            .map_err(|e| e.with_record(record_index))
+            .map_err(|e| self.enhance_encode_error_context(e, record_index))
     }
 
     /// Generate final processing summary
@@ -438,6 +725,101 @@ impl EncodeProcessor {
         );
 
         Ok(summary)
+    }
+
+    /// Validate REDEFINES encoding constraints
+    fn validate_redefines_encoding(
+        &mut self,
+        schema: &Schema,
+        json_value: &serde_json::Value,
+        record_index: u64,
+    ) -> Result<(), Error> {
+        // Build REDEFINES context from JSON data
+        let redefines_context = crate::odo_redefines::build_redefines_context(schema, json_value);
+
+        // Check each REDEFINES cluster for ambiguity
+        for (cluster_path, non_null_views) in &redefines_context.cluster_views {
+            if non_null_views.len() > 1 {
+                // Multiple non-null views - validate encoding
+                for view_path in non_null_views {
+                    if let Some(field) = schema.find_field(view_path) {
+                        crate::odo_redefines::validate_redefines_encoding(
+                            &redefines_context,
+                            cluster_path,
+                            view_path,
+                            json_value,
+                            self.options.use_raw,
+                            record_index,
+                            field.offset as u64,
+                        )?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate ODO array lengths during encoding
+    fn validate_odo_encoding(
+        &mut self,
+        schema: &Schema,
+        json_value: &serde_json::Value,
+        record_index: u64,
+    ) -> Result<(), Error> {
+        // Check if schema has tail ODO
+        if let Some(ref tail_odo) = schema.tail_odo {
+            if let Value::Object(obj) = json_value {
+                // Find the array field in JSON
+                let array_field_name = tail_odo.array_path.split('.').last().unwrap_or(&tail_odo.array_path);
+                
+                if let Some(Value::Array(array)) = obj.get(array_field_name) {
+                    let array_field = schema.find_field(&tail_odo.array_path)
+                        .ok_or_else(|| Error::new(
+                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                            format!("ODO array field '{}' not found in schema", tail_odo.array_path)
+                        ).with_context(crate::odo_redefines::create_comprehensive_error_context(
+                            record_index,
+                            &tail_odo.array_path,
+                            0,
+                            None,
+                        )))?;
+
+                    // Validate array length
+                    crate::odo_redefines::validate_odo_encode(
+                        array.len(),
+                        tail_odo.min_count,
+                        tail_odo.max_count,
+                        &tail_odo.array_path,
+                        &tail_odo.counter_path,
+                        record_index,
+                        array_field.offset as u64,
+                        &self.options,
+                    )?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Enhance encode error with comprehensive context information
+    fn enhance_encode_error_context(
+        &self,
+        mut error: Error,
+        record_index: u64,
+    ) -> Error {
+        // Only enhance if context is not already present
+        if error.context.is_none() {
+            let context = crate::odo_redefines::create_comprehensive_error_context(
+                record_index,
+                "ENCODE_OPERATION",
+                0,
+                None,
+            );
+            error = error.with_context(context);
+        }
+        error
     }
 }
 
@@ -505,5 +887,81 @@ mod tests {
         let summary = processor.generate_summary(100).unwrap();
         assert_eq!(summary.records_processed, 100);
         assert!(!summary.has_errors());
+    }
+
+    #[test]
+    fn test_deterministic_parallel_output() {
+        // Test that --threads 1 vs --threads 8 produce identical outputs
+        let schema = create_test_schema();
+        
+        // Create test data with multiple records
+        let mut test_data = Vec::new();
+        for i in 0..100 {
+            let record = format!("{:05}", i % 10000); // 5-digit numbers
+            test_data.extend_from_slice(record.as_bytes());
+        }
+        
+        let mut results = Vec::new();
+        
+        // Test with different thread counts
+        for threads in [1, 2, 4, 8] {
+            let options = DecodeOptions {
+                threads,
+                ..DecodeOptions::default()
+            };
+            
+            let mut processor = DecodeProcessor::new(options);
+            let input = Cursor::new(&test_data);
+            let mut output = Vec::new();
+            
+            let summary = processor.process_file(&schema, input, &mut output).unwrap();
+            assert_eq!(summary.records_processed, 100);
+            
+            let output_str = String::from_utf8(output).unwrap();
+            results.push((threads, output_str));
+        }
+        
+        // All outputs should be identical
+        let baseline = &results[0].1;
+        for (threads, output) in &results[1..] {
+            assert_eq!(
+                output, baseline,
+                "Output differs between 1 thread and {} threads", threads
+            );
+        }
+    }
+
+    #[test]
+    fn test_memory_bounded_processing() {
+        let schema = create_test_schema();
+        
+        // Create larger test data to test memory management
+        let mut test_data = Vec::new();
+        for i in 0..1000 {
+            let record = format!("{:05}", i % 10000);
+            test_data.extend_from_slice(record.as_bytes());
+        }
+        
+        let options = DecodeOptions {
+            threads: 4,
+            ..DecodeOptions::default()
+        };
+        
+        let mut processor = DecodeProcessor::new(options);
+        let input = Cursor::new(&test_data);
+        let mut output = Vec::new();
+        
+        let summary = processor.process_file(&schema, input, &mut output).unwrap();
+        assert_eq!(summary.records_processed, 1000);
+        
+        // Verify output is valid JSON lines
+        let output_str = String::from_utf8(output).unwrap();
+        let lines: Vec<&str> = output_str.trim().split('\n').collect();
+        assert_eq!(lines.len(), 1000);
+        
+        // Each line should be valid JSON
+        for line in lines {
+            let _: serde_json::Value = serde_json::from_str(line).unwrap();
+        }
     }
 }

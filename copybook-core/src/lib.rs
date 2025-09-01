@@ -5,7 +5,9 @@
 
 pub mod error;
 pub mod layout;
+pub mod lexer;
 pub mod parser;
+pub mod pic;
 pub mod schema;
 
 pub use error::{Error, ErrorCode, Result};

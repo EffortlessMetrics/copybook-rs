@@ -52,6 +52,10 @@ pub struct Field {
     pub occurs: Option<Occurs>,
     /// Alignment padding bytes (if SYNCHRONIZED)
     pub sync_padding: Option<u16>,
+    /// Whether field is SYNCHRONIZED
+    pub synchronized: bool,
+    /// Whether field has BLANK WHEN ZERO
+    pub blank_when_zero: bool,
     /// Child fields (for groups)
     pub children: Vec<Field>,
 }
@@ -124,6 +128,19 @@ impl Schema {
         }
     }
 
+    /// Create a schema from a list of fields
+    #[must_use]
+    pub fn from_fields(fields: Vec<Field>) -> Self {
+        let mut schema = Self {
+            fields,
+            lrecl_fixed: None,
+            tail_odo: None,
+            fingerprint: String::new(),
+        };
+        schema.calculate_fingerprint();
+        schema
+    }
+
     /// Calculate the schema fingerprint
     pub fn calculate_fingerprint(&mut self) {
         // This will be implemented with SHA-256 over canonical JSON
@@ -166,9 +183,28 @@ impl Schema {
 }
 
 impl Field {
-    /// Create a new field
+    /// Create a new field with level and name
     #[must_use]
-    pub fn new(name: String, level: u8, kind: FieldKind) -> Self {
+    pub fn new(level: u8, name: String) -> Self {
+        Self {
+            path: name.clone(),
+            name,
+            level,
+            kind: FieldKind::Group, // Default to group, will be updated by parser
+            offset: 0,
+            len: 0,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: Vec::new(),
+        }
+    }
+
+    /// Create a new field with all parameters
+    #[must_use]
+    pub fn with_kind(level: u8, name: String, kind: FieldKind) -> Self {
         Self {
             path: name.clone(),
             name,
@@ -179,6 +215,8 @@ impl Field {
             redefines_of: None,
             occurs: None,
             sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
             children: Vec::new(),
         }
     }

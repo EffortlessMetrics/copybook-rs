@@ -254,6 +254,7 @@ dependencies = [
 name = "copybook-codec"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "copybook-core",
  "proptest",
  "serde",

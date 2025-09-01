@@ -4,12 +4,12 @@
 //! processing, including AST construction, layout resolution, and schema validation.
 
 pub mod error;
-pub mod schema;
-pub mod parser;
 pub mod layout;
+pub mod parser;
+pub mod schema;
 
-pub use error::{Error, Result};
-pub use schema::{Schema, Field, FieldKind, Occurs};
+pub use error::{Error, ErrorCode, Result};
+pub use schema::{Field, FieldKind, Occurs, Schema};
 
 /// Parse a COBOL copybook into a structured schema
 pub fn parse_copybook(text: &str) -> Result<Schema> {

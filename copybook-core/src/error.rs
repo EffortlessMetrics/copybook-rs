@@ -32,6 +32,7 @@ impl fmt::Display for Error {
 
 /// Stable error codes for programmatic error handling
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(non_camel_case_types)] // These are stable external error codes
 pub enum ErrorCode {
     // Parse Errors (CBKP*)
     /// CBKP001: General copybook syntax error
@@ -125,7 +126,7 @@ pub struct ErrorContext {
 impl fmt::Display for ErrorContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut parts = Vec::new();
-        
+
         if let Some(record) = self.record_index {
             parts.push(format!("record {}", record));
         }
@@ -141,7 +142,7 @@ impl fmt::Display for ErrorContext {
         if let Some(ref details) = self.details {
             parts.push(details.clone());
         }
-        
+
         write!(f, "{}", parts.join(", "))
     }
 }
@@ -164,7 +165,7 @@ impl Error {
 
     /// Add record context to the error
     pub fn with_record(mut self, record_index: u64) -> Self {
-        let context = self.context.get_or_insert_with(|| ErrorContext {
+        let context = self.context.get_or_insert(ErrorContext {
             record_index: None,
             field_path: None,
             byte_offset: None,
@@ -177,7 +178,7 @@ impl Error {
 
     /// Add field path context to the error
     pub fn with_field(mut self, field_path: impl Into<String>) -> Self {
-        let context = self.context.get_or_insert_with(|| ErrorContext {
+        let context = self.context.get_or_insert(ErrorContext {
             record_index: None,
             field_path: None,
             byte_offset: None,
@@ -190,7 +191,7 @@ impl Error {
 
     /// Add byte offset context to the error
     pub fn with_offset(mut self, byte_offset: u64) -> Self {
-        let context = self.context.get_or_insert_with(|| ErrorContext {
+        let context = self.context.get_or_insert(ErrorContext {
             record_index: None,
             field_path: None,
             byte_offset: None,

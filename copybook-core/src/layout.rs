@@ -3,7 +3,7 @@
 //! This module handles the computation of field byte offsets,
 //! alignment padding, and REDEFINES cluster sizing.
 
-use crate::{Schema, Field, Result};
+use crate::{Field, Result, Schema};
 
 /// Resolve field layouts and compute byte offsets
 pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
@@ -17,7 +17,7 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
 fn resolve_field_layout(field: &mut Field, base_offset: u32) -> Result<u32> {
     // Placeholder - actual layout resolution will be implemented later
     field.offset = base_offset;
-    
+
     // For now, assign basic lengths based on field type
     field.len = match &field.kind {
         crate::FieldKind::Alphanum { len } => *len,
@@ -32,6 +32,6 @@ fn resolve_field_layout(field: &mut Field, base_offset: u32) -> Result<u32> {
             child_offset - base_offset
         }
     };
-    
+
     Ok(base_offset + field.len)
 }

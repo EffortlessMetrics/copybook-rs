@@ -4,9 +4,9 @@
 //! converting mainframe data files.
 
 use clap::{Parser, Subcommand};
-use copybook_codec::{Codepage, RecordFormat, JsonNumberMode, RawMode, UnmappablePolicy};
+use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use std::path::PathBuf;
-use tracing::{info, error};
+use tracing::error;
 
 #[derive(Parser)]
 #[command(name = "copybook")]
@@ -15,7 +15,7 @@ use tracing::{info, error};
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    
+
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
@@ -128,45 +128,75 @@ enum Commands {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    
+
     // Initialize tracing
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
         .with_env_filter(format!("copybook={}", level))
         .init();
-    
+
     let result = match cli.command {
-        Commands::Parse { copybook, output } => {
-            crate::commands::parse::run(copybook, output).await
-        }
+        Commands::Parse { copybook, output } => crate::commands::parse::run(copybook, output).await,
         Commands::Inspect { copybook, codepage } => {
             crate::commands::inspect::run(copybook, codepage).await
         }
-        Commands::Decode { 
-            copybook, input, output, format, codepage, json_number,
-            strict, max_errors, emit_filler, emit_meta, emit_raw,
-            on_decode_unmappable, threads 
+        Commands::Decode {
+            copybook,
+            input,
+            output,
+            format,
+            codepage,
+            json_number,
+            strict,
+            max_errors,
+            emit_filler,
+            emit_meta,
+            emit_raw,
+            on_decode_unmappable,
+            threads,
         } => {
             crate::commands::decode::run(
-                copybook, input, output, format, codepage, json_number,
-                strict, max_errors, emit_filler, emit_meta, emit_raw,
-                on_decode_unmappable, threads
-            ).await
+                copybook,
+                input,
+                output,
+                format,
+                codepage,
+                json_number,
+                strict,
+                max_errors,
+                emit_filler,
+                emit_meta,
+                emit_raw,
+                on_decode_unmappable,
+                threads,
+            )
+            .await
         }
         Commands::Encode {
-            copybook, input, output, format, codepage, use_raw,
-            bwz_encode, strict, max_errors
+            copybook,
+            input,
+            output,
+            format,
+            codepage,
+            use_raw,
+            bwz_encode,
+            strict,
+            max_errors,
         } => {
             crate::commands::encode::run(
-                copybook, input, output, format, codepage, use_raw,
-                bwz_encode, strict, max_errors
-            ).await
+                copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors,
+            )
+            .await
         }
-        Commands::Verify { copybook, input, report, format, codepage } => {
-            crate::commands::verify::run(copybook, input, report, format, codepage).await
-        }
+        Commands::Verify {
+            copybook,
+            input,
+            report,
+            format,
+            codepage,
+        } => crate::commands::verify::run(copybook, input, report, format, codepage).await,
     };
-    
+
     match result {
         Ok(exit_code) => {
             std::process::exit(exit_code);
@@ -179,9 +209,9 @@ async fn main() {
 }
 
 mod commands {
-    pub mod parse;
-    pub mod inspect;
     pub mod decode;
     pub mod encode;
+    pub mod inspect;
+    pub mod parse;
     pub mod verify;
 }

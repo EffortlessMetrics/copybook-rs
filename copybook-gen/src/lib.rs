@@ -8,8 +8,7 @@ pub mod data;
 pub mod golden;
 
 use copybook_core::Schema;
-use rand::{Rng, SeedableRng};
-use rand::rngs::StdRng;
+// Imports will be added when functionality is implemented
 
 /// Configuration for synthetic data generation
 #[derive(Debug, Clone)]
@@ -46,10 +45,6 @@ pub fn generate_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> 
 }
 
 /// Create golden test with SHA-256 validation
-pub fn create_golden_test(
-    name: &str,
-    copybook: &str,
-    data: &[u8],
-) -> golden::GoldenTest {
+pub fn create_golden_test(name: &str, copybook: &str, data: &[u8]) -> golden::GoldenTest {
     golden::GoldenTest::new(name, copybook, data)
 }

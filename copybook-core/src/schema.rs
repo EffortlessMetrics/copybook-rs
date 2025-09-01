@@ -4,7 +4,6 @@
 //! COBOL copybook schema, including fields, types, and layout information.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// A parsed COBOL copybook schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,34 +60,34 @@ pub struct Field {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FieldKind {
     /// Alphanumeric field (PIC X)
-    Alphanum { 
+    Alphanum {
         /// Field length in characters
-        len: u32 
+        len: u32,
     },
     /// Zoned decimal field (PIC 9, display)
-    ZonedDecimal { 
+    ZonedDecimal {
         /// Total number of digits
-        digits: u16, 
+        digits: u16,
         /// Decimal places (can be negative for scaling)
-        scale: i16, 
+        scale: i16,
         /// Whether field is signed
-        signed: bool 
+        signed: bool,
     },
     /// Binary integer field (COMP/BINARY)
-    BinaryInt { 
+    BinaryInt {
         /// Number of bits (16, 32, 64)
-        bits: u16, 
+        bits: u16,
         /// Whether field is signed
-        signed: bool 
+        signed: bool,
     },
     /// Packed decimal field (COMP-3)
-    PackedDecimal { 
+    PackedDecimal {
         /// Total number of digits
-        digits: u16, 
+        digits: u16,
         /// Decimal places (can be negative for scaling)
-        scale: i16, 
+        scale: i16,
         /// Whether field is signed
-        signed: bool 
+        signed: bool,
     },
     /// Group field (contains other fields)
     Group,
@@ -98,18 +97,18 @@ pub enum FieldKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Occurs {
     /// Fixed-size array
-    Fixed { 
+    Fixed {
         /// Number of elements
-        count: u32 
+        count: u32,
     },
     /// Variable-size array (OCCURS DEPENDING ON)
-    ODO { 
+    ODO {
         /// Minimum number of elements
-        min: u32, 
+        min: u32,
         /// Maximum number of elements
-        max: u32, 
+        max: u32,
         /// Path to counter field
-        counter_path: String 
+        counter_path: String,
     },
 }
 
@@ -133,15 +132,15 @@ impl Schema {
 
     /// Find a field by path
     pub fn find_field(&self, path: &str) -> Option<&Field> {
-        self.find_field_recursive(&self.fields, path)
+        Self::find_field_recursive(&self.fields, path)
     }
 
-    fn find_field_recursive(&self, fields: &[Field], path: &str) -> Option<&Field> {
+    fn find_field_recursive<'a>(fields: &'a [Field], path: &str) -> Option<&'a Field> {
         for field in fields {
             if field.path == path {
                 return Some(field);
             }
-            if let Some(found) = self.find_field_recursive(&field.children, path) {
+            if let Some(found) = Self::find_field_recursive(&field.children, path) {
                 return Some(found);
             }
         }
@@ -151,14 +150,14 @@ impl Schema {
     /// Get all fields in a flat list (pre-order traversal)
     pub fn all_fields(&self) -> Vec<&Field> {
         let mut result = Vec::new();
-        self.collect_fields_recursive(&self.fields, &mut result);
+        Self::collect_fields_recursive(&self.fields, &mut result);
         result
     }
 
-    fn collect_fields_recursive<'a>(&self, fields: &'a [Field], result: &mut Vec<&'a Field>) {
+    fn collect_fields_recursive<'a>(fields: &'a [Field], result: &mut Vec<&'a Field>) {
         for field in fields {
             result.push(field);
-            self.collect_fields_recursive(&field.children, result);
+            Self::collect_fields_recursive(&field.children, result);
         }
     }
 }

@@ -71,9 +71,16 @@
   - Generate schema JSON with canonical field ordering
   - _Requirements: R1.1, R3.1, R3.4, R4.2, R4.3, R5.1, R5.5_
 
-- [ ] 3. Data Type Codecs (copybook-codec)
+- [x] 3. Data Type Codecs (copybook-codec)
 
-- [ ] 3.1 Character Encoding and EBCDIC Support
+
+
+
+
+
+- [x] 3.1 Character Encoding and EBCDIC Support
+
+
   - Implement static lookup tables for cp037, cp273, cp500, cp1047, cp1140
   - Add ASCII pass-through mode (transparent 8-bit, not Windows-1252) - NORMATIVE
   - Add ASCII zoned sign table in addition to EBCDIC; select by codepage at runtime - NORMATIVE
@@ -84,7 +91,9 @@
   - Alphanumeric decode: preserve all spaces (no trimming) - NORMATIVE
   - _Requirements: R2.3, R12.1, R12.2, R12.3, R12.4, R12.5, R12.6_
 
-- [ ] 3.2 Numeric Type Decoding
+- [x] 3.2 Numeric Type Decoding
+
+
   - Implement zoned decimal decoder with EBCDIC/ASCII overpunch sign tables
   - Handle BLANK WHEN ZERO: all spaces decode to 0 with warning CBKD412_ZONED_BLANK_IS_ZERO
   - Implement packed decimal (COMP-3) decoder with nibble validation
@@ -94,7 +103,9 @@
   - Implement small decimal struct for parsing/formatting without floats
   - _Requirements: R1.2, R2.4, R2.5, R2.6, R2.7_
 
-- [ ] 3.3 Numeric Type Encoding
+- [x] 3.3 Numeric Type Encoding
+
+
   - Implement zoned decimal encoder with proper sign overpunch
   - Add packed decimal encoder with correct nibble packing and sign
   - Create binary integer encoder with range validation

@@ -130,6 +130,35 @@ impl SmallDecimal {
             Ok(result)
         }
     }
+
+    /// Format as string with fixed scale (NORMATIVE)
+    /// Always render with exactly `scale` digits after decimal
+    pub fn to_fixed_scale_string(&self, scale: i16) -> String {
+        let mut result = String::new();
+        
+        if self.negative && self.value != 0 {
+            result.push('-');
+        }
+
+        if scale <= 0 {
+            // Integer format (scale=0) or scale extension
+            let scaled_value = if scale < 0 {
+                self.value * 10_i64.pow((-scale) as u32)
+            } else {
+                self.value
+            };
+            write!(result, "{scaled_value}").unwrap();
+        } else {
+            // Decimal format with exactly `scale` digits after decimal
+            let divisor = 10_i64.pow(scale as u32);
+            let integer_part = self.value / divisor;
+            let fractional_part = self.value % divisor;
+            
+            write!(result, "{integer_part}.{:0width$}", fractional_part, width = scale as usize).unwrap();
+        }
+
+        result
+    }
 }
 
 /// Decode zoned decimal field
@@ -143,7 +172,8 @@ pub fn decode_zoned_decimal(
     scale: i16,
     signed: bool,
     codepage: Codepage,
-) -> Result<String> {
+    blank_when_zero: bool,
+) -> Result<SmallDecimal> {
     if data.len() != digits as usize {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -160,8 +190,15 @@ pub fn decode_zoned_decimal(
     });
 
     if is_all_spaces {
-        warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
-        return Ok(SmallDecimal::zero(scale).to_string());
+        if blank_when_zero {
+            warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
+            return Ok(SmallDecimal::zero(scale));
+        } else {
+            return Err(Error::new(
+                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+            ));
+        }
     }
 
     let sign_table = get_zoned_sign_table(codepage);
@@ -221,7 +258,7 @@ pub fn decode_zoned_decimal(
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-    Ok(decimal.to_string())
+    Ok(decimal)
 }
 
 /// Decode packed decimal field
@@ -234,7 +271,7 @@ pub fn decode_packed_decimal(
     digits: u16,
     scale: i16,
     signed: bool,
-) -> Result<String> {
+) -> Result<SmallDecimal> {
     let expected_bytes = ((digits + 1) / 2) as usize;
     if data.len() != expected_bytes {
         return Err(Error::new(
@@ -245,7 +282,7 @@ pub fn decode_packed_decimal(
     }
 
     if data.is_empty() {
-        return Ok(SmallDecimal::zero(scale).to_string());
+        return Ok(SmallDecimal::zero(scale));
     }
 
     let mut value = 0i64;
@@ -272,7 +309,7 @@ pub fn decode_packed_decimal(
                 };
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
                 decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-                return Ok(decimal.to_string());
+                return Ok(decimal);
             }
         } else {
             // High nibble is a digit
@@ -302,7 +339,7 @@ pub fn decode_packed_decimal(
                 };
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
                 decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-                return Ok(decimal.to_string());
+                return Ok(decimal);
             } else {
                 // Unsigned - low nibble should be 0xF
                 if low_nibble != 0xF {
@@ -331,7 +368,7 @@ pub fn decode_packed_decimal(
 
     // If we get here without returning, it's unsigned
     let decimal = SmallDecimal::new(value, scale, false);
-    Ok(decimal.to_string())
+    Ok(decimal)
 }
 
 /// Decode binary integer field

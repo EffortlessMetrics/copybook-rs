@@ -5,41 +5,35 @@
 
 pub mod charset;
 pub mod numeric;
-pub mod record;
 pub mod options;
+pub mod record;
 
-pub use options::{DecodeOptions, EncodeOptions, RecordFormat, Codepage, JsonNumberMode};
+pub use options::{
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+};
 
-use copybook_core::{Schema, Result};
+use copybook_core::{Result, Schema};
 use serde_json::Value;
 use std::io::{Read, Write};
 
 /// Decode binary data to JSON using the provided schema
-pub fn decode_record(
-    schema: &Schema,
-    data: &[u8],
-    options: &DecodeOptions,
-) -> Result<Value> {
+pub fn decode_record(_schema: &Schema, _data: &[u8], _options: &DecodeOptions) -> Result<Value> {
     // Placeholder implementation - will be implemented in later tasks
     Ok(Value::Object(serde_json::Map::new()))
 }
 
 /// Encode JSON data to binary using the provided schema
-pub fn encode_record(
-    schema: &Schema,
-    json: &Value,
-    options: &EncodeOptions,
-) -> Result<Vec<u8>> {
+pub fn encode_record(_schema: &Schema, _json: &Value, _options: &EncodeOptions) -> Result<Vec<u8>> {
     // Placeholder implementation - will be implemented in later tasks
     Ok(Vec::new())
 }
 
 /// Decode a file to JSONL format
 pub fn decode_file_to_jsonl(
-    schema: &Schema,
-    input: impl Read,
-    output: impl Write,
-    options: &DecodeOptions,
+    _schema: &Schema,
+    _input: impl Read,
+    _output: impl Write,
+    _options: &DecodeOptions,
 ) -> Result<RunSummary> {
     // Placeholder implementation - will be implemented in later tasks
     Ok(RunSummary::default())
@@ -47,10 +41,10 @@ pub fn decode_file_to_jsonl(
 
 /// Encode JSONL to binary file
 pub fn encode_jsonl_to_file(
-    schema: &Schema,
-    input: impl Read,
-    output: impl Write,
-    options: &EncodeOptions,
+    _schema: &Schema,
+    _input: impl Read,
+    _output: impl Write,
+    _options: &EncodeOptions,
 ) -> Result<RunSummary> {
     // Placeholder implementation - will be implemented in later tasks
     Ok(RunSummary::default())
@@ -82,7 +76,7 @@ impl RunSummary {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Calculate throughput based on bytes and time
     pub fn calculate_throughput(&mut self) {
         if self.processing_time_ms > 0 {
@@ -91,12 +85,12 @@ impl RunSummary {
             self.throughput_mbps = megabytes / seconds;
         }
     }
-    
+
     /// Check if processing had any errors
     pub fn has_errors(&self) -> bool {
         self.records_with_errors > 0
     }
-    
+
     /// Check if processing had any warnings
     pub fn has_warnings(&self) -> bool {
         self.warnings > 0

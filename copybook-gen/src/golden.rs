@@ -1,7 +1,7 @@
 //! Golden test utilities with SHA-256 validation
 
-use sha2::{Sha256, Digest};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// A golden test case with SHA-256 validation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,7 +33,7 @@ impl GoldenTest {
     /// Create a new golden test
     pub fn new(name: &str, copybook: &str, data: &[u8]) -> Self {
         let input_hash = Self::hash_bytes(data);
-        
+
         Self {
             name: name.to_string(),
             copybook: copybook.to_string(),
@@ -46,24 +46,24 @@ impl GoldenTest {
             },
         }
     }
-    
+
     /// Calculate SHA-256 hash of bytes
     pub fn hash_bytes(data: &[u8]) -> String {
         let mut hasher = Sha256::new();
         hasher.update(data);
         format!("{:x}", hasher.finalize())
     }
-    
+
     /// Validate output against expected hash
     pub fn validate_output(&self, output: &[u8]) -> bool {
         if self.expected_output_hash.is_empty() {
             return true; // First run, no expected hash yet
         }
-        
+
         let actual_hash = Self::hash_bytes(output);
         actual_hash == self.expected_output_hash
     }
-    
+
     /// Update expected output hash
     pub fn update_expected_hash(&mut self, output: &[u8]) {
         self.expected_output_hash = Self::hash_bytes(output);

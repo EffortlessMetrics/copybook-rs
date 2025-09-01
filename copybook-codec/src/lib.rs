@@ -11,6 +11,13 @@ pub mod record;
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
+pub use numeric::{
+    SmallDecimal, decode_zoned_decimal, decode_packed_decimal, decode_binary_int,
+    encode_zoned_decimal, encode_packed_decimal, encode_binary_int, encode_alphanumeric,
+    encode_zoned_decimal_with_bwz, get_binary_width_from_digits, validate_explicit_binary_width,
+    should_encode_as_blank_when_zero,
+};
+pub use charset::{ebcdic_to_utf8, utf8_to_ebcdic, get_zoned_sign_table};
 
 use copybook_core::{Result, Schema};
 use serde_json::Value;

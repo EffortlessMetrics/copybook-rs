@@ -299,6 +299,7 @@ dependencies = [
  "copybook-core",
  "proptest",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

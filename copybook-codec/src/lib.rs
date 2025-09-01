@@ -4,9 +4,11 @@
 //! character set conversion, and record framing (fixed/RDW).
 
 pub mod charset;
+pub mod corruption;
 pub mod json;
 pub mod numeric;
 pub mod options;
+pub mod processor;
 pub mod record;
 pub mod roundtrip;
 
@@ -26,6 +28,8 @@ pub use record::{
 };
 pub use json::{JsonWriter, JsonEncoder, OrderedJsonWriter};
 pub use roundtrip::{RoundTripConfig, RoundTripResult, RoundTripTestSuite, create_comprehensive_test_suite};
+pub use corruption::{detect_rdw_ascii_corruption, detect_ebcdic_corruption, detect_packed_corruption};
+pub use processor::{DecodeProcessor, EncodeProcessor};
 
 use copybook_core::{Result, Schema, Error, ErrorCode};
 use serde_json::Value;
@@ -73,13 +77,13 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 /// 
 /// Returns an error if the file cannot be decoded or written
 pub fn decode_file_to_jsonl(
-    _schema: &Schema,
-    _input: impl Read,
-    _output: impl Write,
-    _options: &DecodeOptions,
+    schema: &Schema,
+    input: impl Read,
+    output: impl Write,
+    options: &DecodeOptions,
 ) -> Result<RunSummary> {
-    // Placeholder implementation - will be implemented in later tasks
-    Ok(RunSummary::default())
+    let mut processor = processor::DecodeProcessor::new(options.clone());
+    processor.process_file(schema, input, output)
 }
 
 /// Encode JSONL to binary file
@@ -88,13 +92,13 @@ pub fn decode_file_to_jsonl(
 /// 
 /// Returns an error if the JSONL cannot be encoded or written
 pub fn encode_jsonl_to_file(
-    _schema: &Schema,
-    _input: impl Read,
-    _output: impl Write,
-    _options: &EncodeOptions,
+    schema: &Schema,
+    input: impl Read,
+    output: impl Write,
+    options: &EncodeOptions,
 ) -> Result<RunSummary> {
-    // Placeholder implementation - will be implemented in later tasks
-    Ok(RunSummary::default())
+    let mut processor = processor::EncodeProcessor::new(options.clone());
+    processor.process_file(schema, input, output)
 }
 
 /// Summary of processing run
@@ -116,6 +120,10 @@ pub struct RunSummary {
     pub input_file_hash: Option<String>,
     /// Processing throughput (MB/s)
     pub throughput_mbps: f64,
+    /// Detailed error summary
+    pub error_summary: Option<copybook_core::ErrorSummary>,
+    /// Transfer corruption warnings detected
+    pub corruption_warnings: u64,
 }
 
 impl RunSummary {
@@ -143,6 +151,44 @@ impl RunSummary {
 
     /// Check if processing had any warnings
     pub fn has_warnings(&self) -> bool {
-        self.warnings > 0
+        self.warnings > 0 || self.corruption_warnings > 0
+    }
+
+    /// Update summary from error reporter
+    pub fn update_from_error_summary(&mut self, error_summary: &copybook_core::ErrorSummary) {
+        self.records_with_errors = error_summary.records_with_errors;
+        self.warnings = error_summary.warning_count();
+        self.corruption_warnings = error_summary.corruption_warnings;
+        self.error_summary = Some(error_summary.clone());
+    }
+
+    /// Generate detailed error report
+    pub fn generate_error_report(&self) -> Option<String> {
+        self.error_summary.as_ref().map(|summary| {
+            let mut report = String::new();
+            
+            report.push_str("=== Processing Summary ===\n");
+            report.push_str(&format!("Total records processed: {}\n", self.records_processed));
+            report.push_str(&format!("Records with errors: {}\n", self.records_with_errors));
+            report.push_str(&format!("Warnings: {}\n", self.warnings));
+            report.push_str(&format!("Processing time: {}ms\n", self.processing_time_ms));
+            report.push_str(&format!("Bytes processed: {}\n", self.bytes_processed));
+            report.push_str(&format!("Throughput: {:.2} MB/s\n", self.throughput_mbps));
+            
+            if self.corruption_warnings > 0 {
+                report.push_str(&format!("Transfer corruption warnings: {}\n", self.corruption_warnings));
+            }
+            
+            if !summary.error_codes.is_empty() {
+                report.push_str("\nError breakdown by code:\n");
+                for (code, count) in &summary.error_codes {
+                    if *count > 0 {
+                        report.push_str(&format!("  {}: {}\n", code, count));
+                    }
+                }
+            }
+            
+            report
+        })
     }
 }

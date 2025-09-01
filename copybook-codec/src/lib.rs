@@ -6,7 +6,9 @@
 pub mod charset;
 pub mod corruption;
 pub mod json;
+pub mod memory;
 pub mod numeric;
+pub mod odo_redefines;
 pub mod options;
 pub mod processor;
 pub mod record;
@@ -14,6 +16,10 @@ pub mod roundtrip;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+};
+pub use memory::{
+    DigitBuffer, ScratchBuffers, SequencedRecord, SequenceRing, SequenceRingStats,
+    WorkerPool, WorkerPoolStats, StreamingProcessor, StreamingProcessorStats,
 };
 pub use numeric::{
     SmallDecimal, decode_zoned_decimal, decode_packed_decimal, decode_binary_int,
@@ -30,6 +36,11 @@ pub use json::{JsonWriter, JsonEncoder, OrderedJsonWriter};
 pub use roundtrip::{RoundTripConfig, RoundTripResult, RoundTripTestSuite, create_comprehensive_test_suite};
 pub use corruption::{detect_rdw_ascii_corruption, detect_ebcdic_corruption, detect_packed_corruption};
 pub use processor::{DecodeProcessor, EncodeProcessor};
+pub use odo_redefines::{
+    OdoValidationResult, RedefinesContext, validate_odo_counter, validate_odo_tail_position,
+    build_redefines_context, validate_redefines_encoding, handle_missing_counter_field,
+    create_comprehensive_error_context, validate_odo_decode, validate_odo_encode,
+};
 
 use copybook_core::{Result, Schema, Error, ErrorCode};
 use serde_json::Value;

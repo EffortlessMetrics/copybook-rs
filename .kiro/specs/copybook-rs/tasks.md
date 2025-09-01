@@ -18,7 +18,10 @@
   - _Requirements: R8.7, R9.1, R9.2, R9.3_
 
 - [ ] 2. Core Parsing Infrastructure (copybook-core)
-- [ ] 2.1 Lexical Analysis and Grammar Foundation
+- [x] 2.1 Lexical Analysis and Grammar Foundation
+
+
+
   - Implement fixed-form vs free-form detection (≥70% lines with cols 7-72 content)
   - Create tokenizer using logos for COBOL tokens (levels, PIC, USAGE, keywords)
   - Handle column-7 continuation (- indicator only), comments (* and *>), sequence areas

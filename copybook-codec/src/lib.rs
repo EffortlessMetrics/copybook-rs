@@ -1,0 +1,104 @@
+//! Encoding and decoding codecs for COBOL data types
+//!
+//! This crate provides the actual encoding/decoding logic for all COBOL data types,
+//! character set conversion, and record framing (fixed/RDW).
+
+pub mod charset;
+pub mod numeric;
+pub mod record;
+pub mod options;
+
+pub use options::{DecodeOptions, EncodeOptions, RecordFormat, Codepage, JsonNumberMode};
+
+use copybook_core::{Schema, Result};
+use serde_json::Value;
+use std::io::{Read, Write};
+
+/// Decode binary data to JSON using the provided schema
+pub fn decode_record(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+) -> Result<Value> {
+    // Placeholder implementation - will be implemented in later tasks
+    Ok(Value::Object(serde_json::Map::new()))
+}
+
+/// Encode JSON data to binary using the provided schema
+pub fn encode_record(
+    schema: &Schema,
+    json: &Value,
+    options: &EncodeOptions,
+) -> Result<Vec<u8>> {
+    // Placeholder implementation - will be implemented in later tasks
+    Ok(Vec::new())
+}
+
+/// Decode a file to JSONL format
+pub fn decode_file_to_jsonl(
+    schema: &Schema,
+    input: impl Read,
+    output: impl Write,
+    options: &DecodeOptions,
+) -> Result<RunSummary> {
+    // Placeholder implementation - will be implemented in later tasks
+    Ok(RunSummary::default())
+}
+
+/// Encode JSONL to binary file
+pub fn encode_jsonl_to_file(
+    schema: &Schema,
+    input: impl Read,
+    output: impl Write,
+    options: &EncodeOptions,
+) -> Result<RunSummary> {
+    // Placeholder implementation - will be implemented in later tasks
+    Ok(RunSummary::default())
+}
+
+/// Summary of processing run
+#[derive(Debug, Default, Clone)]
+pub struct RunSummary {
+    /// Total records processed
+    pub records_processed: u64,
+    /// Number of records with errors
+    pub records_with_errors: u64,
+    /// Number of warnings generated
+    pub warnings: u64,
+    /// Processing time in milliseconds
+    pub processing_time_ms: u64,
+    /// Bytes processed
+    pub bytes_processed: u64,
+    /// Schema fingerprint used
+    pub schema_fingerprint: String,
+    /// Input file hash (for provenance)
+    pub input_file_hash: Option<String>,
+    /// Processing throughput (MB/s)
+    pub throughput_mbps: f64,
+}
+
+impl RunSummary {
+    /// Create a new run summary
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    /// Calculate throughput based on bytes and time
+    pub fn calculate_throughput(&mut self) {
+        if self.processing_time_ms > 0 {
+            let seconds = self.processing_time_ms as f64 / 1000.0;
+            let megabytes = self.bytes_processed as f64 / (1024.0 * 1024.0);
+            self.throughput_mbps = megabytes / seconds;
+        }
+    }
+    
+    /// Check if processing had any errors
+    pub fn has_errors(&self) -> bool {
+        self.records_with_errors > 0
+    }
+    
+    /// Check if processing had any warnings
+    pub fn has_warnings(&self) -> bool {
+        self.warnings > 0
+    }
+}

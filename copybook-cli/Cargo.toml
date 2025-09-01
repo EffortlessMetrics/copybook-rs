@@ -1,0 +1,28 @@
+[package]
+name = "copybook-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Command-line interface for COBOL copybook processing"
+keywords.workspace = true
+categories.workspace = true
+
+[[bin]]
+name = "copybook"
+path = "src/main.rs"
+
+[dependencies]
+copybook-core = { path = "../copybook-core" }
+copybook-codec = { path = "../copybook-codec" }
+clap.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

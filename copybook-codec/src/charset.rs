@@ -4,13 +4,13 @@
 //! for performance.
 
 use crate::options::{Codepage, UnmappablePolicy};
-use copybook_core::{Error, ErrorCode, Result};
+use copybook_core::Result;
 
 /// Convert EBCDIC bytes to UTF-8 string
 pub fn ebcdic_to_utf8(
     data: &[u8],
     codepage: Codepage,
-    policy: UnmappablePolicy,
+    _policy: UnmappablePolicy,
 ) -> Result<String> {
     // Placeholder implementation - will be implemented in task 3.1
     match codepage {
@@ -23,10 +23,7 @@ pub fn ebcdic_to_utf8(
 }
 
 /// Convert UTF-8 string to EBCDIC bytes
-pub fn utf8_to_ebcdic(
-    text: &str,
-    codepage: Codepage,
-) -> Result<Vec<u8>> {
+pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     // Placeholder implementation - will be implemented in task 3.3
     match codepage {
         Codepage::ASCII => Ok(text.as_bytes().to_vec()),

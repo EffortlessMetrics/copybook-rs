@@ -1,0 +1,24 @@
+[package]
+name = "copybook-gen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Test fixture and synthetic data generation for copybook-rs"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+copybook-core = { path = "../copybook-core" }
+copybook-codec = { path = "../copybook-codec" }
+serde.workspace = true
+serde_json.workspace = true
+rand = "0.8"
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+proptest.workspace = true

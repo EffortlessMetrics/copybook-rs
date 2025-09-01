@@ -289,7 +289,10 @@
 
 - [ ] 10. Comprehensive Testing Suite
 
-- [ ] 10.1 Unit and Integration Tests
+- [-] 10.1 Unit and Integration Tests
+
+
+
   - Parser fixtures: fixed/free form, col-7 continuation vs literal, inline *>, edited PIC error
   - REDEFINES: shorter/equal/longer overlays; encode ambiguity; raw-preserved record
   - Zoned: EBCDIC & ASCII sign zones; BWZ zeros; invalid zone; -0 normalization
@@ -301,6 +304,7 @@
   - _Requirements: All requirements need comprehensive test coverage_
 
 - [ ] 10.2 Synthetic Test Generation (copybook-gen)
+
   - Create deterministic copybook and data generators
   - Generate test cases for all field type combinations
   - Add negative test cases (invalid data, corruption scenarios)
@@ -311,6 +315,7 @@
 - [ ] 11. Documentation and Release Preparation
 
 - [ ] 11.1 User Documentation
+
   - Write comprehensive README with usage examples
   - Create CLI help text and man pages
   - Document error codes and troubleshooting guide
@@ -319,6 +324,7 @@
   - _Requirements: R8.8, usability requirements_
 
 - [ ] 11.2 Schema Documentation and Validation
+
   - Create JSON meta-schemas for copybook schema and record format
   - Add schema validation and documentation
   - Implement schema fingerprinting for provenance tracking

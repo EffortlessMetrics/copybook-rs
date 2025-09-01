@@ -28,6 +28,10 @@ thiserror = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# Memory management dependencies
+smallvec = "1.13"
+crossbeam-channel = "0.5"
+
 # CLI dependencies
 clap = { version = "4.0", features = ["derive"] }
 tokio = { version = "1.0", features = ["full"] }

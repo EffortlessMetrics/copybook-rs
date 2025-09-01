@@ -3,8 +3,9 @@
 //! This module handles the computation of field byte offsets,
 //! alignment padding, and REDEFINES cluster sizing.
 
-use crate::{error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO};
+use crate::{error, Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO};
 use std::collections::HashMap;
+use tracing::debug;
 
 /// Maximum theoretical record size (16 MiB by default)
 const MAX_RECORD_SIZE: u64 = 16 * 1024 * 1024;
@@ -364,7 +365,7 @@ fn apply_alignment(offset: u64, alignment: u64) -> u64 {
     }
 }
 
-/// Validate ODO constraints
+/// Validate ODO constraints with comprehensive error handling
 fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
     for odo in &context.odo_arrays {
         // Find counter field offset
@@ -376,23 +377,68 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
                     .map(|(_, offset)| offset)
             })
             .copied()
-            .ok_or_else(|| error!(
-                ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                "ODO counter field '{}' not found for array '{}'", odo.counter_path, odo.array_path
-            ))?;
+            .ok_or_else(|| {
+                // Create comprehensive error for missing counter field
+                Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!("ODO counter field '{}' not found for array '{}'", odo.counter_path, odo.array_path)
+                ).with_context(crate::error::ErrorContext {
+                    record_index: None,
+                    field_path: Some(odo.array_path.clone()),
+                    byte_offset: Some(odo.array_offset),
+                    line_number: None,
+                    details: Some(format!("counter_field={}, searched_paths=[{}]", 
+                                        odo.counter_path, 
+                                        context.field_paths.keys().map(|s| s.as_str()).collect::<Vec<_>>().join(", "))),
+                })
+            })?;
         
         // Validate that counter precedes array (NORMATIVE)
         if counter_offset >= odo.array_offset {
-            return Err(error!(
+            return Err(Error::new(
                 ErrorCode::CBKP021_ODO_NOT_TAIL,
-                "ODO counter '{}' must precede array '{}' in byte order", 
-                odo.counter_path, odo.array_path
-            ));
+                format!(
+                    "ODO counter '{}' (offset {}) must precede array '{}' (offset {}) in byte order", 
+                    odo.counter_path, counter_offset, odo.array_path, odo.array_offset
+                )
+            ).with_context(crate::error::ErrorContext {
+                record_index: None,
+                field_path: Some(odo.array_path.clone()),
+                byte_offset: Some(odo.array_offset),
+                line_number: None,
+                details: Some(format!("counter_offset={}, array_offset={}, min_count={}, max_count={}", 
+                                    counter_offset, odo.array_offset, odo.min_count, odo.max_count)),
+            }));
         }
         
-        // Additional validation: ODO array should be at tail position
-        // This is a simplified check - full validation would require more complex analysis
-        // For now, we assume the parser has already validated tail position
+        // Validate ODO is at tail position (comprehensive validation)
+        // Check if there are any fields after this ODO array in the same group
+        let has_fields_after = context.field_paths.iter()
+            .any(|(path, offset)| {
+                // Skip the ODO array itself and its counter
+                if path == &odo.array_path || path == &odo.counter_path {
+                    return false;
+                }
+                
+                // Check if this field comes after the ODO array
+                *offset > odo.array_offset
+            });
+        
+        if has_fields_after {
+            return Err(Error::new(
+                ErrorCode::CBKP021_ODO_NOT_TAIL,
+                format!("ODO array '{}' must be at tail position (no fields after it)", odo.array_path)
+            ).with_context(crate::error::ErrorContext {
+                record_index: None,
+                field_path: Some(odo.array_path.clone()),
+                byte_offset: Some(odo.array_offset),
+                line_number: None,
+                details: Some(format!("fields_after_odo=true, counter_field={}", odo.counter_path)),
+            }));
+        }
+        
+        debug!("ODO validation passed: array='{}', counter='{}', array_offset={}, counter_offset={}", 
+               odo.array_path, odo.counter_path, odo.array_offset, counter_offset);
     }
     
     Ok(())

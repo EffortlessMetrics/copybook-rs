@@ -5,7 +5,7 @@
 
 
   - Create Cargo workspace with crates: copybook-core, copybook-codec, copybook-cli, copybook-gen
-  - Configure MSRV 1.89, edition 2024, dual license Apache-2.0 OR MIT
+  - Configure MSRV 1.89, edition 2024, AGPLv3
   - Set up CI/CD with cargo fmt, clippy pedantic, and deny.toml
   - Implement error taxonomy with stable codes (CBKP*, CBKS*, CBKR*, CBKC*, CBKD*, CBKE*, CBKF*)
   - Configure tracing and run summary structures

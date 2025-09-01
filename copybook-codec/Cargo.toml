@@ -1,0 +1,22 @@
+[package]
+name = "copybook-codec"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Encoding and decoding codecs for COBOL data types"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+copybook-core = { path = "../copybook-core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

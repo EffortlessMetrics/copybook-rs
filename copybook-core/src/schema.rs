@@ -114,6 +114,7 @@ pub enum Occurs {
 
 impl Schema {
     /// Create a new empty schema
+    #[must_use]
     pub fn new() -> Self {
         Self {
             fields: Vec::new(),
@@ -131,6 +132,7 @@ impl Schema {
     }
 
     /// Find a field by path
+    #[must_use]
     pub fn find_field(&self, path: &str) -> Option<&Field> {
         Self::find_field_recursive(&self.fields, path)
     }
@@ -148,6 +150,7 @@ impl Schema {
     }
 
     /// Get all fields in a flat list (pre-order traversal)
+    #[must_use]
     pub fn all_fields(&self) -> Vec<&Field> {
         let mut result = Vec::new();
         Self::collect_fields_recursive(&self.fields, &mut result);
@@ -164,6 +167,7 @@ impl Schema {
 
 impl Field {
     /// Create a new field
+    #[must_use]
     pub fn new(name: String, level: u8, kind: FieldKind) -> Self {
         Self {
             path: name.clone(),
@@ -180,16 +184,19 @@ impl Field {
     }
 
     /// Check if this is a group field
+    #[must_use]
     pub fn is_group(&self) -> bool {
         matches!(self.kind, FieldKind::Group)
     }
 
     /// Check if this is a scalar (leaf) field
+    #[must_use]
     pub fn is_scalar(&self) -> bool {
         !self.is_group()
     }
 
     /// Get the effective length including any arrays
+    #[must_use]
     pub fn effective_length(&self) -> u32 {
         match &self.occurs {
             Some(Occurs::Fixed { count }) => self.len * count,

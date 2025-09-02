@@ -505,7 +505,7 @@ fn test_redefines_declaration_order() {
     
     // JSON object should maintain insertion order (declaration order)
     let keys: Vec<&str> = json_record.as_object().unwrap().keys().map(|s| s.as_str()).collect();
-    let expected_order = vec!["ORIGINAL", "THIRD-REDEFINE", "FIRST-REDEFINE", "SECOND-REDEFINE"];
+    let expected_order = ["ORIGINAL", "THIRD-REDEFINE", "FIRST-REDEFINE", "SECOND-REDEFINE"];
     
     for (i, expected_key) in expected_order.iter().enumerate() {
         assert!(keys.iter().position(|&k| k == *expected_key).unwrap() == i,

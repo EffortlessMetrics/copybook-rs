@@ -164,11 +164,7 @@ impl Schema {
         let mut schema_obj = Map::new();
 
         // Add fields in canonical order
-        let fields_json: Vec<Value> = self
-            .fields
-            .iter()
-            .map(|f| self.field_to_canonical_json(f))
-            .collect();
+        let fields_json: Vec<Value> = self.fields.iter().map(Self::field_to_canonical_json).collect();
         schema_obj.insert("fields".to_string(), Value::Array(fields_json));
 
         // Add schema-level properties
@@ -202,8 +198,7 @@ impl Schema {
     }
 
     /// Convert field to canonical JSON for fingerprinting
-    #[allow(clippy::only_used_in_recursion)]
-    fn field_to_canonical_json(&self, field: &Field) -> Value {
+    fn field_to_canonical_json(field: &Field) -> Value {
         use serde_json::{Map, Value};
 
         let mut field_obj = Map::new();
@@ -216,23 +211,9 @@ impl Schema {
         // Add field kind
         let kind_str = match &field.kind {
             FieldKind::Alphanum { len } => format!("Alphanum({})", len),
-            FieldKind::ZonedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                format!("ZonedDecimal({},{},{})", digits, scale, signed)
-            }
-            FieldKind::BinaryInt { bits, signed } => {
-                format!("BinaryInt({},{})", bits, signed)
-            }
-            FieldKind::PackedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                format!("PackedDecimal({},{},{})", digits, scale, signed)
-            }
+            FieldKind::ZonedDecimal { digits, scale, signed } => format!("ZonedDecimal({},{},{})", digits, scale, signed),
+            FieldKind::BinaryInt { bits, signed } => format!("BinaryInt({},{})", bits, signed),
+            FieldKind::PackedDecimal { digits, scale, signed } => format!("PackedDecimal({},{},{})", digits, scale, signed),
             FieldKind::Group => "Group".to_string(),
         };
         field_obj.insert("kind".to_string(), Value::String(kind_str));
@@ -245,13 +226,7 @@ impl Schema {
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
                 Occurs::Fixed { count } => format!("Fixed({})", count),
-                Occurs::ODO {
-                    min,
-                    max,
-                    counter_path,
-                } => {
-                    format!("ODO({},{},{})", min, max, counter_path)
-                }
+                Occurs::ODO { min, max, counter_path } => format!("ODO({},{},{})", min, max, counter_path),
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));
         }
@@ -266,11 +241,7 @@ impl Schema {
 
         // Add children recursively
         if !field.children.is_empty() {
-            let children_json: Vec<Value> = field
-                .children
-                .iter()
-                .map(|c| self.field_to_canonical_json(c))
-                .collect();
+            let children_json: Vec<Value> = field.children.iter().map(Self::field_to_canonical_json).collect();
             field_obj.insert("children".to_string(), Value::Array(children_json));
         }
 
@@ -296,28 +267,14 @@ impl Schema {
     }
 
     /// Find all fields that redefine the field at the given path
-    ///
-    /// This method searches the entire schema tree to locate all fields that have
-    /// a `redefines_of` attribute matching the specified path. This is particularly
-    /// useful for JSON encoding operations where REDEFINES fields need to be
-    /// identified and processed according to COBOL precedence rules.
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path of the field being redefined (e.g., "CUSTOMER.ADDRESS")
-    ///
-    /// # Returns
-    ///
-    /// A vector of field references that redefine the field at the given path.
-    /// Returns an empty vector if no redefining fields are found.
     #[must_use]
     pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field> {
         fn collect<'a>(fields: &'a [Field], target_path: &str, acc: &mut Vec<&'a Field>) {
             for f in fields {
-                if let Some(ref redef) = f.redefines_of
-                    && redef == target_path
-                {
-                    acc.push(f);
+                if let Some(ref redef) = f.redefines_of {
+                    if redef == target_path {
+                        acc.push(f);
+                    }
                 }
                 collect(&f.children, target_path, acc);
             }
@@ -327,6 +284,7 @@ impl Schema {
         collect(&self.fields, target_path, &mut result);
         result
     }
+
     /// Get all fields in a flat list (pre-order traversal)
     #[must_use]
     pub fn all_fields(&self) -> Vec<&Field> {
@@ -410,3 +368,4 @@ impl Default for Schema {
         Self::new()
     }
 }
+

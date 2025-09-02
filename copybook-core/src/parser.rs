@@ -58,20 +58,21 @@ impl Default for ParseOptions {
 struct Parser {
     tokens: Vec<TokenPos>,
     current: usize,
-    format: CobolFormat,
+    _format: CobolFormat,
     options: ParseOptions,
     /// Track field names at each level for duplicate detection
-    name_counters: std::collections::HashMap<String, u32>,
+    _name_counters: std::collections::HashMap<String, u32>,
 }
 
 impl Parser {
+    #[allow(dead_code)]
     fn new(tokens: Vec<TokenPos>, format: CobolFormat) -> Self {
         Self {
             tokens,
             current: 0,
-            format,
+            _format: format,
             options: ParseOptions::default(),
-            name_counters: std::collections::HashMap::new(),
+            _name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -79,9 +80,9 @@ impl Parser {
         Self {
             tokens,
             current: 0,
-            format,
+            _format: format,
             options,
-            name_counters: std::collections::HashMap::new(),
+            _name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -240,6 +241,7 @@ impl Parser {
     }
 
     /// Build hierarchical paths for all fields (simplified)
+    #[allow(dead_code)]
     fn build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
         // Simplified for now - paths are set in build_hierarchy
         Ok(())
@@ -332,6 +334,7 @@ impl Parser {
     }
 
     /// Collect all fields in a flat list
+    #[allow(clippy::only_used_in_recursion)]
     fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
         let mut result = Vec::new();
         for field in fields {
@@ -355,7 +358,7 @@ impl Parser {
         
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update(&[if self.options.emit_filler { 1 } else { 0 }]);
+        hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
         
         // Compute final hash
         let result = hasher.finalize();
@@ -393,6 +396,7 @@ impl Parser {
     }
 
     /// Convert field to canonical JSON for fingerprinting
+    #[allow(clippy::only_used_in_recursion)]
     fn field_to_canonical_json(&self, field: &Field) -> Value {
         use serde_json::{Map, Value};
         

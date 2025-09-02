@@ -200,18 +200,18 @@ pub enum CobolFormat {
 
 /// Lexer for COBOL copybooks
 pub struct Lexer<'a> {
-    input: &'a str,
+    _input: &'a str,
     format: CobolFormat,
     lines: Vec<ProcessedLine<'a>>,
-    current_line: usize,
-    current_pos: usize,
+    _current_line: usize,
+    _current_pos: usize,
 }
 
 /// A processed line after format-specific handling
 #[derive(Debug, Clone)]
 struct ProcessedLine<'a> {
     content: &'a str,
-    original_line: usize,
+    _original_line: usize,
     is_comment: bool,
     is_continuation: bool,
 }
@@ -221,13 +221,13 @@ impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         let format = detect_format(input);
         let lines = preprocess_lines(input, format);
-        
+
         Self {
-            input,
+            _input: input,
             format,
             lines,
-            current_line: 0,
-            current_pos: 0,
+            _current_line: 0,
+            _current_pos: 0,
         }
     }
 
@@ -369,7 +369,7 @@ fn detect_format(input: &str) -> CobolFormat {
 }
 
 /// Preprocess lines according to the detected format
-fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine> {
+fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine<'_>> {
     let mut result = Vec::new();
     
     for (line_num, line) in input.lines().enumerate() {
@@ -384,11 +384,11 @@ fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine> {
 }
 
 /// Process a fixed-form COBOL line
-fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
+fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.is_empty() {
         return ProcessedLine {
             content: "",
-            original_line: line_num,
+            _original_line: line_num,
             is_comment: false,
             is_continuation: false,
         };
@@ -398,7 +398,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
     if line.starts_with('*') {
         return ProcessedLine {
             content: line,
-            original_line: line_num,
+            _original_line: line_num,
             is_comment: true,
             is_continuation: false,
         };
@@ -417,14 +417,14 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
 
     ProcessedLine {
         content,
-        original_line: line_num,
+        _original_line: line_num,
         is_comment: false,
         is_continuation,
     }
 }
 
 /// Process a free-form COBOL line
-fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine {
+fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
     
     // Check for comment lines (* at column 1 or *> anywhere)
@@ -433,7 +433,7 @@ fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine {
     // Free-form doesn't have continuation in the same way as fixed-form
     ProcessedLine {
         content: line,
-        original_line: line_num,
+        _original_line: line_num,
         is_comment,
         is_continuation: false,
     }

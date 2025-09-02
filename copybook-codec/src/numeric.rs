@@ -234,6 +234,33 @@ pub fn decode_zoned_decimal(
 
     // Process each digit
     for (i, &byte) in data.iter().enumerate() {
+        if i == data.len() - 1 && signed && codepage == Codepage::ASCII {
+            // ASCII overpunch handling using full byte mapping
+            let (digit, negative) = match byte {
+                b'M' => (0, true), // Non-standard negative zero variant (00M = -0)
+                b'}' => {
+                    if data[..i].iter().all(|&b| b == b'0') {
+                        (0, true) // Treat as -0 when preceding digits are all zero
+                    } else {
+                        (3, false) // Common EBCDIC-to-ASCII translation for +3
+                    }
+                }
+                b'0'..=b'9' => ((byte - b'0') as u8, false),
+                b'{' => (0, false),
+                b'A'..=b'I' => ((byte - b'A') + 1, false),
+                b'J'..=b'R' => ((byte - b'J') + 1, true),
+                _ => {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid ASCII zone 0x{byte:X} in last digit"),
+                    ));
+                }
+            };
+            value = value * 10 + i64::from(digit);
+            is_negative = negative;
+            continue;
+        }
+
         let zone = (byte >> 4) & 0x0F;
         let digit = byte & 0x0F;
 
@@ -245,7 +272,7 @@ pub fn decode_zoned_decimal(
             ));
         }
 
-        // For the last byte, check sign if field is signed
+        // For the last byte, check sign if field is signed (non-ASCII)
         if i == data.len() - 1 && signed {
             let (has_sign, negative) = sign_table[zone as usize];
             if has_sign {

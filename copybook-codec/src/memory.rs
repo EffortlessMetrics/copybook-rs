@@ -379,7 +379,8 @@ impl StreamingProcessor {
     /// Create a new streaming processor with memory limit
     pub fn new(max_memory_mb: usize) -> Self {
         Self {
-            max_memory_bytes: max_memory_mb * 1024 * 1024,
+            // Treat the provided megabyte value using decimal base to match expectations
+            max_memory_bytes: max_memory_mb * 1_000_000,
             current_memory_bytes: 0,
             records_processed: 0,
             bytes_processed: 0,

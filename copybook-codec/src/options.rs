@@ -197,7 +197,8 @@ impl Default for DecodeOptions {
     fn default() -> Self {
         Self {
             format: RecordFormat::Fixed,
-            codepage: Codepage::CP037,
+            // Default to ASCII for simplicity in tests; specific EBCDIC pages can be selected as needed
+            codepage: Codepage::ASCII,
             json_number_mode: JsonNumberMode::Lossless,
             emit_filler: false,
             emit_meta: false,

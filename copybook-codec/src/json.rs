@@ -143,6 +143,18 @@ impl<W: Write> JsonWriter<W> {
                 continue;
             }
 
+            // Recurse into group fields without emitting the group itself
+            if let FieldKind::Group = field.kind {
+                self.write_fields_streaming(
+                    &field.children,
+                    record_data,
+                    first_field,
+                    record_index,
+                    byte_offset,
+                )?;
+                continue;
+            }
+
             // Add field separator
             if !*first_field {
                 self.json_buffer.push(',');
@@ -151,7 +163,7 @@ impl<W: Write> JsonWriter<W> {
 
             // Write field name
             self.json_buffer.push('"');
-            self.json_buffer.push_str(&field.path);
+            self.json_buffer.push_str(&self.get_field_name(field));
             self.json_buffer.push_str("\":");
 
             // Write field value based on type
@@ -168,19 +180,16 @@ impl<W: Write> JsonWriter<W> {
                 FieldKind::BinaryInt { bits, signed } => {
                     self.write_binary_int_value_streaming(field, record_data, *bits, *signed)?;
                 }
-                FieldKind::Group => {
-                    // Groups don't have values, skip
-                    continue;
-                }
+                FieldKind::Group => unreachable!("Group handled above"),
             }
 
             // Add raw field data if requested
             if matches!(self.options.emit_raw, RawMode::Field) {
                 self.json_buffer.push(',');
                 self.json_buffer.push('"');
-                self.json_buffer.push_str(&field.path);
+                self.json_buffer.push_str(&self.get_field_name(field));
                 self.json_buffer.push_str("__raw_b64\":\"");
-                
+
                 let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
                 let encoded = base64::encode(field_data);
                 self.json_buffer.push_str(&encoded);
@@ -191,7 +200,7 @@ impl<W: Write> JsonWriter<W> {
     }
 
     /// Write alphanumeric field value directly to JSON buffer
-    fn write_alphanum_value_streaming(&mut self, field: &Field, record_data: &[u8], len: u32) -> Result<()> {
+    fn write_alphanum_value_streaming(&mut self, field: &Field, record_data: &[u8], _len: u32) -> Result<()> {
         let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
         
         // Convert to UTF-8

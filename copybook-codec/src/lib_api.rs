@@ -8,8 +8,8 @@
 //! - encode_jsonl_to_file
 //! - RecordIterator (for programmatic access)
 
-use copybook_core::{Schema, Error, ErrorCode, Result};
-use crate::options::{DecodeOptions, EncodeOptions};
+use copybook_core::{Schema, Error, ErrorCode, Result, Field, FieldKind};
+use crate::options::{DecodeOptions, EncodeOptions, JsonNumberMode, Codepage};
 use serde_json::Value;
 use std::io::{Read, Write, BufRead, BufReader};
 use std::fmt;
@@ -162,19 +162,137 @@ impl fmt::Display for RunSummary {
 /// # Errors
 /// 
 /// Returns an error if the data cannot be decoded according to the schema
-pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // For now, return a minimal JSON object
-    // In a full implementation, this would decode all fields according to the schema
-    let mut json_obj = serde_json::Map::new();
-    
-    // Add basic metadata
-    json_obj.insert("__record_length".to_string(), Value::Number(serde_json::Number::from(data.len())));
-    json_obj.insert("__schema_fields".to_string(), Value::Number(serde_json::Number::from(schema.fields.len())));
-    
-    // Add placeholder for actual field decoding
-    json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
-    
-    Ok(Value::Object(json_obj))
+/// Decode a single record into a JSON value using the provided schema
+///
+/// This is a lightweight reference implementation that supports basic
+/// alphanumeric, zoned decimal, packed decimal, and binary integer field
+/// types. Group fields are decoded recursively. More advanced features
+/// such as OCCURS DEPENDING ON are not yet implemented.
+fn decode_record_impl(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+    warnings: &mut u64,
+) -> Result<Value> {
+    fn decode_into(
+        field: &Field,
+        data: &[u8],
+        options: &DecodeOptions,
+        warnings: &mut u64,
+        out: &mut serde_json::Map<String, Value>,
+    ) -> Result<()> {
+        match &field.kind {
+            FieldKind::Group => {
+                let mut group_obj = serde_json::Map::new();
+                for child in &field.children {
+                    decode_into(child, data, options, warnings, &mut group_obj)?;
+                }
+                if field.level <= 1 {
+                    // Flatten top-level group
+                    for (k, v) in group_obj {
+                        out.insert(k, v);
+                    }
+                } else {
+                    out.insert(field.name.clone(), Value::Object(group_obj));
+                }
+            }
+            FieldKind::Alphanum { .. } => {
+                let slice = &data[field.offset as usize..(field.offset + field.len) as usize];
+                let text = crate::charset::ebcdic_to_utf8(
+                    slice,
+                    options.codepage,
+                    options.on_decode_unmappable,
+                )?;
+                out.insert(field.name.clone(), Value::String(text));
+            }
+            FieldKind::ZonedDecimal { digits, scale, signed } => {
+                let slice = &data[field.offset as usize..(field.offset + field.len) as usize];
+                if field.blank_when_zero {
+                    let is_blank = slice.iter().all(|&b| match options.codepage {
+                        Codepage::ASCII => b == b' ',
+                        _ => b == 0x40, // EBCDIC space
+                    });
+                    if is_blank {
+                        *warnings += 1;
+                    }
+                }
+                let dec = crate::numeric::decode_zoned_decimal(
+                    slice,
+                    *digits,
+                    *scale,
+                    *signed,
+                    options.codepage,
+                    field.blank_when_zero,
+                )?;
+                let dec_str = dec.to_fixed_scale_string(*scale);
+                let value = match options.json_number_mode {
+                    JsonNumberMode::Lossless => Value::String(dec_str),
+                    JsonNumberMode::Native => {
+                        if let Ok(num) = dec_str.parse::<f64>() {
+                            serde_json::Number::from_f64(num)
+                                .map(Value::Number)
+                                .unwrap_or_else(|| Value::String(dec_str))
+                        } else {
+                            Value::String(dec_str)
+                        }
+                    }
+                };
+                out.insert(field.name.clone(), value);
+            }
+            FieldKind::PackedDecimal { digits, scale, signed } => {
+                let byte_len = ((digits + 1) / 2) as usize;
+                let slice = &data[field.offset as usize..field.offset as usize + byte_len];
+                let dec = crate::numeric::decode_packed_decimal(slice, *digits, *scale, *signed)?;
+                let dec_str = dec.to_fixed_scale_string(*scale);
+                let value = match options.json_number_mode {
+                    JsonNumberMode::Lossless => Value::String(dec_str),
+                    JsonNumberMode::Native => {
+                        if let Ok(num) = dec_str.parse::<f64>() {
+                            serde_json::Number::from_f64(num)
+                                .map(Value::Number)
+                                .unwrap_or_else(|| Value::String(dec_str))
+                        } else {
+                            Value::String(dec_str)
+                        }
+                    }
+                };
+                out.insert(field.name.clone(), value);
+            }
+            FieldKind::BinaryInt { bits, signed } => {
+                let byte_len = (*bits / 8) as usize;
+                let slice = &data[field.offset as usize..field.offset as usize + byte_len];
+                let int_val = crate::numeric::decode_binary_int(slice, *bits, *signed)?;
+                let int_str = int_val.to_string();
+                let value = match options.json_number_mode {
+                    JsonNumberMode::Lossless => Value::String(int_str),
+                    JsonNumberMode::Native => {
+                        serde_json::Number::from_f64(int_val as f64)
+                            .map(Value::Number)
+                            .unwrap_or_else(|| Value::String(int_str))
+                    }
+                };
+                out.insert(field.name.clone(), value);
+            }
+        }
+        Ok(())
+    }
+
+    let mut obj = serde_json::Map::new();
+    // Always include the raw record length for diagnostics
+    obj.insert(
+        "__record_length".to_string(),
+        Value::Number(serde_json::Number::from(data.len() as u64)),
+    );
+
+    for field in &schema.fields {
+        decode_into(field, data, options, warnings, &mut obj)?;
+    }
+    Ok(Value::Object(obj))
+}
+
+pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
+    let mut warnings = 0;
+    decode_record_impl(schema, data, options, &mut warnings)
 }
 
 /// Encode JSON data to binary using the provided schema
@@ -193,7 +311,15 @@ pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) ->
     // In a full implementation, this would encode all fields according to the schema
     
     // Calculate expected record length from schema
-    let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
+    // Determine record length either from explicit LRECL or by examining field extents
+    let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
+        schema
+            .fields
+            .iter()
+            .map(|f| f.offset + f.len)
+            .max()
+            .unwrap_or(0)
+    }) as usize;
     let mut buffer = vec![0u8; record_length];
     
     // Add some basic encoding logic
@@ -227,41 +353,62 @@ pub fn decode_file_to_jsonl(
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
     
-    let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
+    // Determine record length either from explicit LRECL or by examining field extents
+    let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
+        schema
+            .fields
+            .iter()
+            .map(|f| f.offset + f.len)
+            .max()
+            .unwrap_or(0)
+    }) as usize;
     let mut buffer = vec![0u8; record_length];
     let mut record_count = 0u64;
-    
+
     loop {
-        // Try to read a record
-        match input.read_exact(&mut buffer) {
-            Ok(()) => {
-                record_count += 1;
-                summary.bytes_processed += record_length as u64;
-                
-                // Decode the record
-                match decode_record(schema, &buffer, options) {
-                    Ok(json_value) => {
-                        // Write as JSONL
-                        serde_json::to_writer(&mut output, &json_value)
-                            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                        writeln!(output)
-                            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                    }
-                    Err(_) => {
-                        summary.records_with_errors += 1;
-                        // In lenient mode, continue processing
-                        if options.strict_mode {
-                            break;
-                        }
+        let mut read = 0;
+        while read < record_length {
+            match input.read(&mut buffer[read..record_length]) {
+                Ok(0) => {
+                    if read == 0 {
+                        break;
+                    } else {
+                        return Err(Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            format!("record truncated: expected {record_length} bytes, got {read}"),
+                        ));
                     }
                 }
+                Ok(n) => read += n,
+                Err(e) => {
+                    return Err(Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, e.to_string()));
+                }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                // End of file
-                break;
+        }
+        if read == 0 {
+            break;
+        }
+
+        record_count += 1;
+        summary.bytes_processed += record_length as u64;
+
+        match decode_record_impl(schema, &buffer, options, &mut summary.warnings) {
+            Ok(json_value) => {
+                serde_json::to_writer(&mut output, &json_value)
+                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                writeln!(output)
+                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
             }
             Err(e) => {
-                return Err(Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, e.to_string()));
+                summary.records_with_errors += 1;
+                if options.strict_mode {
+                    break;
+                }
+                let err_obj = serde_json::json!({"__error": format!("{:?}", e.code)});
+                serde_json::to_writer(&mut output, &err_obj)
+                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                writeln!(output)
+                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
             }
         }
     }

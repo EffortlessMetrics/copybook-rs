@@ -145,14 +145,14 @@ impl Schema {
     /// Calculate the schema fingerprint using SHA-256
     pub fn calculate_fingerprint(&mut self) {
         use sha2::{Digest, Sha256};
-        
+
         // Create canonical JSON representation
         let canonical_json = self.create_canonical_json();
-        
+
         // Calculate SHA-256 hash
         let mut hasher = Sha256::new();
         hasher.update(canonical_json.as_bytes());
-        
+
         let result = hasher.finalize();
         self.fingerprint = format!("{:x}", result);
     }
@@ -160,91 +160,119 @@ impl Schema {
     /// Create canonical JSON representation for fingerprinting
     fn create_canonical_json(&self) -> String {
         use serde_json::{Map, Value};
-        
+
         let mut schema_obj = Map::new();
-        
+
         // Add fields in canonical order
-        let fields_json: Vec<Value> = self.fields.iter()
-            .map(|f| self.field_to_canonical_json(f))
+        let fields_json: Vec<Value> = self
+            .fields
+            .iter()
+            .map(Self::field_to_canonical_json)
             .collect();
         schema_obj.insert("fields".to_string(), Value::Array(fields_json));
-        
+
         // Add schema-level properties
         if let Some(lrecl) = self.lrecl_fixed {
             schema_obj.insert("lrecl_fixed".to_string(), Value::Number(lrecl.into()));
         }
-        
+
         if let Some(ref tail_odo) = self.tail_odo {
             let mut tail_odo_obj = Map::new();
-            tail_odo_obj.insert("counter_path".to_string(), Value::String(tail_odo.counter_path.clone()));
-            tail_odo_obj.insert("min_count".to_string(), Value::Number(tail_odo.min_count.into()));
-            tail_odo_obj.insert("max_count".to_string(), Value::Number(tail_odo.max_count.into()));
-            tail_odo_obj.insert("array_path".to_string(), Value::String(tail_odo.array_path.clone()));
+            tail_odo_obj.insert(
+                "counter_path".to_string(),
+                Value::String(tail_odo.counter_path.clone()),
+            );
+            tail_odo_obj.insert(
+                "min_count".to_string(),
+                Value::Number(tail_odo.min_count.into()),
+            );
+            tail_odo_obj.insert(
+                "max_count".to_string(),
+                Value::Number(tail_odo.max_count.into()),
+            );
+            tail_odo_obj.insert(
+                "array_path".to_string(),
+                Value::String(tail_odo.array_path.clone()),
+            );
             schema_obj.insert("tail_odo".to_string(), Value::Object(tail_odo_obj));
         }
-        
+
         // Convert to canonical JSON string
         serde_json::to_string(&Value::Object(schema_obj)).unwrap_or_default()
     }
 
     /// Convert field to canonical JSON for fingerprinting
-    fn field_to_canonical_json(&self, field: &Field) -> Value {
+    fn field_to_canonical_json(field: &Field) -> Value {
         use serde_json::{Map, Value};
-        
+
         let mut field_obj = Map::new();
-        
+
         // Add fields in canonical order
         field_obj.insert("path".to_string(), Value::String(field.path.clone()));
         field_obj.insert("name".to_string(), Value::String(field.name.clone()));
         field_obj.insert("level".to_string(), Value::Number(field.level.into()));
-        
+
         // Add field kind
         let kind_str = match &field.kind {
             FieldKind::Alphanum { len } => format!("Alphanum({})", len),
-            FieldKind::ZonedDecimal { digits, scale, signed } => {
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 format!("ZonedDecimal({},{},{})", digits, scale, signed)
             }
             FieldKind::BinaryInt { bits, signed } => {
                 format!("BinaryInt({},{})", bits, signed)
             }
-            FieldKind::PackedDecimal { digits, scale, signed } => {
+            FieldKind::PackedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 format!("PackedDecimal({},{},{})", digits, scale, signed)
             }
             FieldKind::Group => "Group".to_string(),
         };
         field_obj.insert("kind".to_string(), Value::String(kind_str));
-        
+
         // Add optional fields
         if let Some(ref redefines) = field.redefines_of {
             field_obj.insert("redefines_of".to_string(), Value::String(redefines.clone()));
         }
-        
+
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
                 Occurs::Fixed { count } => format!("Fixed({})", count),
-                Occurs::ODO { min, max, counter_path } => {
+                Occurs::ODO {
+                    min,
+                    max,
+                    counter_path,
+                } => {
                     format!("ODO({},{},{})", min, max, counter_path)
                 }
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));
         }
-        
+
         if field.synchronized {
             field_obj.insert("synchronized".to_string(), Value::Bool(true));
         }
-        
+
         if field.blank_when_zero {
             field_obj.insert("blank_when_zero".to_string(), Value::Bool(true));
         }
-        
+
         // Add children recursively
         if !field.children.is_empty() {
-            let children_json: Vec<Value> = field.children.iter()
-                .map(|c| self.field_to_canonical_json(c))
+            let children_json: Vec<Value> = field
+                .children
+                .iter()
+                .map(Self::field_to_canonical_json)
                 .collect();
             field_obj.insert("children".to_string(), Value::Array(children_json));
         }
-        
+
         Value::Object(field_obj)
     }
 

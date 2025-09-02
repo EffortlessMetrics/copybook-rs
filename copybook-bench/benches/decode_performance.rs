@@ -251,7 +251,6 @@ fn bench_parse_copybook(c: &mut Criterion) {
     group.finish();
 }
 
-
 criterion_group!(
     benches,
     bench_decode_display_heavy,

@@ -108,8 +108,8 @@ fn generate_performance_record(schema: &Schema, _rng: &mut StdRng, record_idx: u
 }
 
 fn fill_field_data(
-    record: &mut [u8], 
-    field: &Field, 
+    record: &mut [u8],
+    field: &Field,
     rng: &mut StdRng,
     _record_idx: usize,
     edge_cases: bool,

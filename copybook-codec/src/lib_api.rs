@@ -887,7 +887,7 @@ mod tests {
 
     #[test]
     fn test_run_summary_aggregates() {
-        use copybook_core::{ErrorReporter, ErrorMode, Error, ErrorCode};
+        use copybook_core::{Error, ErrorCode, ErrorMode, ErrorReporter};
 
         let copybook_text = r#"
             01 RECORD.
@@ -897,7 +897,10 @@ mod tests {
 
         let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
         reporter.start_record(1);
-        reporter.report_warning(Error::new(ErrorCode::CBKF104_RDW_SUSPECT_ASCII, "suspect".to_string()));
+        reporter.report_warning(Error::new(
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            "suspect".to_string(),
+        ));
         reporter.start_record(2);
         let _ = reporter.report_error(
             Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, "fail".to_string()).with_record(2),

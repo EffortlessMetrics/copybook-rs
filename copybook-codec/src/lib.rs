@@ -7,6 +7,11 @@
 pub mod lib_api;
 pub mod options;
 
+// Additional modules required for full decoding implementation
+pub mod charset;
+pub mod numeric;
+pub mod memory;
+
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };

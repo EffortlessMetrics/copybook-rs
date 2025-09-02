@@ -629,14 +629,15 @@ mod tests {
         "#;
         
         let schema = parse_copybook(copybook).unwrap();
-        let opts = DecodeOptions::default();
+        let opts = DecodeOptions::default().with_emit_meta(true);
         let mut decoder = RecordDecoder::new(&schema, &opts).unwrap();
-        
+
         let data = b"1234JOHN      ";
         let json = decoder.decode_record(data).unwrap();
-        
+
         assert_eq!(json["ID"], "1234");
         assert_eq!(json["NAME"], "JOHN      ");
+        assert_eq!(json["__schema_id"], schema.fingerprint);
     }
 }
 ```

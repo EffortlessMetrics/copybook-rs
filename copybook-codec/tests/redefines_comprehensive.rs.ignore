@@ -156,9 +156,15 @@ fn test_redefines_encode_ambiguity_error() {
         "LONG-REDEFINES": null,
         "NEXT-FIELD": "Test"
     });
+<<<<<<< HEAD:copybook-codec/tests/redefines_comprehensive.rs
 
     let jsonl_data = format!("{}\n", json_data.to_string());
 
+=======
+    
+    let jsonl_data = format!("{}\n", json_data);
+    
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d:copybook-codec/tests/redefines_comprehensive.rs.ignore
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
@@ -192,9 +198,15 @@ fn test_redefines_encode_single_view_allowed() {
         "LONG-REDEFINES": null,
         "NEXT-FIELD": "12345"
     });
+<<<<<<< HEAD:copybook-codec/tests/redefines_comprehensive.rs
 
     let jsonl_data = format!("{}\n", json_data.to_string());
 
+=======
+    
+    let jsonl_data = format!("{}\n", json_data);
+    
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d:copybook-codec/tests/redefines_comprehensive.rs.ignore
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
@@ -256,9 +268,15 @@ fn test_redefines_raw_data_precedence() {
     // Modify multiple REDEFINES views (would normally be ambiguous)
     decoded_json["ORIGINAL-FIELD"] = json!("Modified Original   ");
     decoded_json["SHORT-REDEFINES"] = json!("9876543210");
+<<<<<<< HEAD:copybook-codec/tests/redefines_comprehensive.rs
 
     let jsonl_data = format!("{}\n", decoded_json.to_string());
 
+=======
+    
+    let jsonl_data = format!("{}\n", decoded_json);
+    
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d:copybook-codec/tests/redefines_comprehensive.rs.ignore
     let encode_options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,

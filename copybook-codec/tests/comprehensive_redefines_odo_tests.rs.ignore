@@ -550,6 +550,7 @@ fn test_redefines_declaration_order() {
     assert!(json_record.get("SECOND-REDEFINE").is_some());
 
     // JSON object should maintain insertion order (declaration order)
+<<<<<<< HEAD:copybook-codec/tests/comprehensive_redefines_odo_tests.rs
     let keys: Vec<&str> = json_record
         .as_object()
         .unwrap()
@@ -563,6 +564,11 @@ fn test_redefines_declaration_order() {
         "SECOND-REDEFINE",
     ];
 
+=======
+    let keys: Vec<&str> = json_record.as_object().unwrap().keys().map(|s| s.as_str()).collect();
+    let expected_order = ["ORIGINAL", "THIRD-REDEFINE", "FIRST-REDEFINE", "SECOND-REDEFINE"];
+    
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d:copybook-codec/tests/comprehensive_redefines_odo_tests.rs.ignore
     for (i, expected_key) in expected_order.iter().enumerate() {
         assert!(
             keys.iter().position(|&k| k == *expected_key).unwrap() == i,

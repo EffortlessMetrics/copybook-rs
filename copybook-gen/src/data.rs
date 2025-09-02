@@ -108,10 +108,17 @@ fn generate_performance_record(schema: &Schema, _rng: &mut StdRng, record_idx: u
 }
 
 fn fill_field_data(
+<<<<<<< HEAD
     record: &mut [u8],
     field: &Field,
     rng: &mut StdRng,
     record_idx: usize,
+=======
+    record: &mut [u8], 
+    field: &Field, 
+    rng: &mut StdRng,
+    _record_idx: usize,
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d
     edge_cases: bool,
     invalid: bool,
 ) {
@@ -174,7 +181,7 @@ fn fill_field_data(
     // Handle OCCURS
     if let Some(occurs) = &field.occurs {
         match occurs {
-            Occurs::Fixed { count } => {
+            Occurs::Fixed { count: _ } => {
                 // Fixed arrays are handled by the schema layout
             }
             Occurs::ODO {
@@ -183,7 +190,7 @@ fn fill_field_data(
                 counter_path,
             } => {
                 // For ODO, we need to set the counter field
-                if let Some(counter_field) = find_field_by_path(&field, counter_path) {
+                if let Some(counter_field) = find_field_by_path(field, counter_path) {
                     let actual_count = if edge_cases {
                         if rng.gen_bool(0.5) { *min } else { *max }
                     } else {
@@ -535,12 +542,18 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
 
 /// Generate test datasets for specific scenarios
 pub fn generate_test_datasets(_config: &GeneratorConfig) -> Vec<(String, Vec<Vec<u8>>)> {
+<<<<<<< HEAD
     let datasets = Vec::new();
 
     // This would be implemented with actual schemas once they're available
     // For now, return empty datasets
 
     datasets
+=======
+    // This would be implemented with actual schemas once they're available
+    // For now, return empty datasets
+    Vec::new()
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d
 }
 
 /// Generate corruption scenarios for negative testing

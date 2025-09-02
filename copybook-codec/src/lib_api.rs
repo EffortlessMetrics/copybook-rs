@@ -995,4 +995,3 @@ mod tests {
         assert_eq!(summary.schema_fingerprint.len(), 64);
     }
 }
->>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d

@@ -4,7 +4,7 @@ use copybook_codec::{Codepage, RecordFormat};
 use copybook_core::parse_copybook;
 use crate::utils::atomic_write;
 use std::fs;
-use std::io::Write;
+
 use std::path::PathBuf;
 use tracing::info;
 

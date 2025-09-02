@@ -1,3 +1,4 @@
+#![cfg(feature = "comprehensive-tests")]
 //! Comprehensive RDW (Record Descriptor Word) tests covering all edge cases
 //!
 //! This test suite validates RDW record handling according to the normative

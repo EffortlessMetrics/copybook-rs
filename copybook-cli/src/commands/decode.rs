@@ -70,13 +70,13 @@ pub async fn run(
     println!("Bytes processed: {}", summary.bytes_processed);
     println!("Throughput: {:.2} MB/s", summary.throughput_mbps);
     
-    if summary.corruption_warnings > 0 {
-        println!("Transfer corruption warnings: {}", summary.corruption_warnings);
+    if summary.has_warnings() {
+        println!("Warnings: {}", summary.warnings);
     }
     
-    // Print detailed error report if available
-    if let Some(error_report) = summary.generate_error_report() {
-        println!("\n{}", error_report);
+    // Print error summary if available
+    if summary.has_errors() {
+        println!("Records with errors: {}", summary.records_with_errors);
     }
 
     info!("Decode completed successfully");

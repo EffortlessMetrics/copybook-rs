@@ -22,7 +22,7 @@ fn test_odo_driver_in_redefines_rejection() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert_eq!(error.code(), ErrorCode::CBKS121_COUNTER_NOT_FOUND);
+    assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn test_odo_driver_after_array_rejection() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert_eq!(error.code(), ErrorCode::CBKS121_COUNTER_NOT_FOUND);
+    assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_odo_not_at_tail_rejection() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert_eq!(error.code(), ErrorCode::CBKP021_ODO_NOT_TAIL);
+    assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
 }
 
 #[test]
@@ -129,7 +129,7 @@ fn test_odo_strict_mode_clamp_fatal() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert!(error.message().contains("ODO") || error.message().contains("clipped"));
+    assert!(error.message.contains("ODO") || error.message.contains("clipped"));
 }
 
 #[test]
@@ -364,7 +364,7 @@ fn test_odo_array_length_out_of_bounds_encode() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert!(error.message().contains("array") || error.message().contains("length") || error.message().contains("bounds"));
+    assert!(error.message.contains("array") || error.message.contains("length") || error.message.contains("bounds"));
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn test_nested_odo_rejection() {
     
     let error = result.unwrap_err();
     // Should reject nested ODO
-    assert!(error.message().contains("ODO") || error.message().contains("nested"));
+    assert!(error.message.contains("ODO") || error.message.contains("nested"));
 }
 
 #[test]
@@ -496,10 +496,10 @@ fn test_odo_comprehensive_error_context() {
     let error = result.unwrap_err();
     
     // Verify comprehensive error context (NORMATIVE requirement)
-    let context = error.context();
+    let context = &error.context;
     assert!(context.is_some());
     
-    let ctx = context.unwrap();
+    let ctx = context.as_ref().unwrap();
     assert!(ctx.record_index.is_some()); // Should have record index
     assert!(ctx.field_path.is_some());   // Should have field path
     assert!(ctx.byte_offset.is_some());  // Should have byte offset

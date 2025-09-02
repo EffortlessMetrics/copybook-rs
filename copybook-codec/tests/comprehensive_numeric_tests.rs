@@ -4,7 +4,7 @@
 //! behavior specified in the design document, including EBCDIC/ASCII sign zones,
 //! BLANK WHEN ZERO, packed decimal validation, and binary width mapping.
 
-use copybook_core::{parse_copybook, FieldKind};
+use copybook_core::parse_copybook;
 use copybook_codec::{DecodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode, UnmappablePolicy};
 use serde_json::Value;
 use std::io::Cursor;

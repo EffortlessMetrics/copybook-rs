@@ -3,13 +3,8 @@
 //! This module provides high-level functions for generating complete test suites
 //! with all combinations of field types, edge cases, and validation scenarios.
 
-<<<<<<< HEAD
-use crate::golden::{GoldenTest, GoldenTestSuite, TestConfig};
-use crate::{CopybookTemplate, CorruptionType, DataStrategy, GeneratorConfig};
-=======
 use crate::{GeneratorConfig, CopybookTemplate, CorruptionType};
 use crate::golden::{GoldenTestSuite, GoldenTest, TestConfig};
->>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d
 use std::collections::HashMap;
 
 /// Generate a complete test matrix covering all field type combinations
@@ -203,11 +198,7 @@ pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
         crate::copybook::generate_copybook_with_template(&config, CopybookTemplate::Simple);
 
     // Test different codepages
-<<<<<<< HEAD
-    let codepages = vec!["cp037", "cp273", "cp500", "cp1047", "cp1140", "ascii"];
-=======
     let codepages = ["cp037", "cp273", "cp500", "cp1047", "cp1140", "ascii"];
->>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d
 
     for codepage in codepages {
         let test_config = TestConfig {

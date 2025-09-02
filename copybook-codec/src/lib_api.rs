@@ -162,19 +162,17 @@ impl fmt::Display for RunSummary {
 /// # Errors
 /// 
 /// Returns an error if the data cannot be decoded according to the schema
-pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // For now, return a minimal JSON object
-    // In a full implementation, this would decode all fields according to the schema
-    let mut json_obj = serde_json::Map::new();
-    
-    // Add basic metadata
-    json_obj.insert("__record_length".to_string(), Value::Number(serde_json::Number::from(data.len())));
-    json_obj.insert("__schema_fields".to_string(), Value::Number(serde_json::Number::from(schema.fields.len())));
-    
-    // Add placeholder for actual field decoding
-    json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
-    
-    Ok(Value::Object(json_obj))
+pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
+    // Use the streaming JSON writer to decode a single record into a Value
+    let mut buffer = Vec::with_capacity(1024);
+    {
+        let cursor = std::io::Cursor::new(&mut buffer);
+        let mut writer = crate::json::JsonWriter::new(cursor, options.clone());
+        writer.write_record_streaming(schema, data, 0, 0)?;
+    }
+
+    serde_json::from_slice(&buffer)
+        .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))
 }
 
 /// Encode JSON data to binary using the provided schema
@@ -221,56 +219,49 @@ pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) ->
 pub fn decode_file_to_jsonl(
     schema: &Schema,
     mut input: impl Read,
-    mut output: impl Write,
+    output: impl Write,
     options: &DecodeOptions,
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
-    
-    let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
-    let mut buffer = vec![0u8; record_length];
-    let mut record_count = 0u64;
-    
+
+    // Initialize JSON writer that owns the output
+    let mut writer = crate::json::JsonWriter::new(output, options.clone());
+
+    let lrecl = schema.lrecl_fixed.ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            "No LRECL specified for fixed format",
+        )
+    })? as usize;
+
+    let mut buffer = vec![0u8; lrecl];
+    let mut record_index = 0u64;
+    let mut byte_offset = 0u64;
+
     loop {
-        // Try to read a record
         match input.read_exact(&mut buffer) {
             Ok(()) => {
-                record_count += 1;
-                summary.bytes_processed += record_length as u64;
-                
-                // Decode the record
-                match decode_record(schema, &buffer, options) {
-                    Ok(json_value) => {
-                        // Write as JSONL
-                        serde_json::to_writer(&mut output, &json_value)
-                            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                        writeln!(output)
-                            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                    }
-                    Err(_) => {
-                        summary.records_with_errors += 1;
-                        // In lenient mode, continue processing
-                        if options.strict_mode {
-                            break;
-                        }
-                    }
-                }
+                record_index += 1;
+                summary.bytes_processed += lrecl as u64;
+                writer.write_record_streaming(schema, &buffer, record_index, byte_offset)?;
+                byte_offset += lrecl as u64;
             }
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                // End of file
-                break;
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
             Err(e) => {
                 return Err(Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, e.to_string()));
             }
         }
     }
-    
-    summary.records_processed = record_count;
+
+    summary.records_processed = record_index;
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
-    summary.schema_fingerprint = "placeholder_fingerprint".to_string();
-    
+    summary.schema_fingerprint = schema.fingerprint.clone();
+
+    // Flush writer
+    writer.finish()?;
+
     Ok(summary)
 }
 

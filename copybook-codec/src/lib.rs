@@ -3,9 +3,16 @@
 //! This crate provides the actual encoding/decoding logic for all COBOL data types,
 //! character set conversion, and record framing (fixed/RDW).
 
-// Only include working modules for task 9.1
+// Core modules
 pub mod lib_api;
 pub mod options;
+
+// Components required for decoding functionality
+pub mod charset;
+pub mod json;
+pub mod numeric;
+pub mod memory;
+pub mod iterator;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,

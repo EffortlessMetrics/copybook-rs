@@ -1,6 +1,5 @@
 //! Utility functions for CLI operations
 
-use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
@@ -44,6 +43,7 @@ where
 /// 
 /// This generates a temporary file name in the same directory as the target file
 /// with a .tmp suffix and random component.
+#[allow(dead_code)]
 pub fn temp_path_for(target: &Path) -> PathBuf {
     let mut temp_name = target.file_name()
         .unwrap_or_else(|| std::ffi::OsStr::new("output"))
@@ -66,14 +66,8 @@ pub fn temp_path_for(target: &Path) -> PathBuf {
 /// 
 /// This function implements the "warnings → 0; any errors → 1" part.
 /// Fatal errors (exit code 2) are handled at the main level when operations fail completely.
-pub fn determine_exit_code(has_warnings: bool, has_errors: bool) -> i32 {
-    if has_errors {
-        1 // Completed with errors
-    } else if has_warnings {
-        0 // Success with warnings
-    } else {
-        0 // Success
-    }
+pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
+    if has_errors { 1 } else { 0 }
 }
 
 #[cfg(test)]
@@ -104,7 +98,7 @@ mod tests {
         let target_path = temp_dir.path().join("test.txt");
         
         let result = atomic_write(&target_path, |_writer| {
-            Err(io::Error::new(io::ErrorKind::Other, "Simulated error"))
+            Err(io::Error::other("Simulated error"))
         });
         
         assert!(result.is_err());

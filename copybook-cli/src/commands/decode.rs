@@ -51,10 +51,14 @@ pub fn run(
     let summary = {
         let mut result_summary = None;
         atomic_write(&output, |output_writer| {
-            let input_file = fs::File::open(&input).map_err(|e| std::io::Error::other(e))?;
-            let summary =
-                copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
-                    .map_err(|e| std::io::Error::other(e))?;
+            let input_file = fs::File::open(&input).map_err(std::io::Error::other)?;
+            let summary = copybook_codec::decode_file_to_jsonl(
+                &schema,
+                input_file,
+                output_writer,
+                &options,
+            )
+            .map_err(std::io::Error::other)?;
             result_summary = Some(summary);
             Ok(())
         })?;

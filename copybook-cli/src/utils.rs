@@ -1,7 +1,9 @@
 //! Utility functions for CLI operations
 
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(test)]
+use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use tracing::debug;
 
@@ -43,8 +45,8 @@ where
 ///
 /// This generates a temporary file name in the same directory as the target file
 /// with a .tmp suffix and random component.
-#[allow(dead_code)]
-pub fn temp_path_for(target: &Path) -> PathBuf {
+#[cfg(test)]
+fn temp_path_for(target: &Path) -> PathBuf {
     let mut temp_name = target
         .file_name()
         .unwrap_or_else(|| std::ffi::OsStr::new("output"))
@@ -67,7 +69,7 @@ pub fn temp_path_for(target: &Path) -> PathBuf {
 /// This function implements the "warnings → 0; any errors → 1" part.
 /// Fatal errors (exit code 2) are handled at the main level when operations fail completely.
 pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
-    i32::from(has_errors)
+    if has_errors { 1 } else { 0 }
 }
 
 #[cfg(test)]

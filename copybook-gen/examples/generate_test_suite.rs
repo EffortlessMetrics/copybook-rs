@@ -4,8 +4,8 @@
 //! comprehensive test suites for validation and regression testing.
 
 use copybook_gen::{
-    CopybookTemplate, GeneratorConfig, TestSuiteBuilder, generate_complete_test_suite,
-    test_generation::calculate_suite_stats,
+    generate_complete_test_suite, test_generation::calculate_suite_stats, CopybookTemplate,
+    GeneratorConfig, TestSuiteBuilder,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -68,7 +68,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (name, copybook) in invalid_copybooks.iter().take(3) {
         println!(
-            "\nInvalid case '{name}': {}",
+            "\nInvalid case '{}': {}",
+            name,
             copybook.lines().next().unwrap_or("").trim()
         );
     }

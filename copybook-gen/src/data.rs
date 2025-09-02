@@ -177,7 +177,7 @@ fn fill_field_data(
     // Handle OCCURS
     if let Some(occurs) = &field.occurs {
         match occurs {
-            Occurs::Fixed { count: _ } => {
+            Occurs::Fixed { .. } => {
                 // Fixed arrays are handled by the schema layout
             }
             Occurs::ODO {
@@ -260,7 +260,7 @@ fn fill_zoned_field(
 
     // Generate a valid number
     let is_negative = signed && rng.gen_bool(0.3);
-    let max_value = 10_u64.pow(u32::from(digits)) - 1;
+    let max_value = 10_u64.pow(digits as u32) - 1;
 
     let value = if edge_cases && rng.gen_bool(0.3) {
         if rng.gen_bool(0.5) { 0 } else { max_value }
@@ -276,7 +276,7 @@ fn fill_zoned_field(
             break;
         }
 
-        let digit = u8::try_from(digit_char.to_digit(10).unwrap_or(0)).unwrap_or(0);
+    let digit = digit_char.to_digit(10).unwrap_or(0) as u8;
 
         if i == value_str.len() - 1 && signed {
             // Last digit carries sign
@@ -309,7 +309,7 @@ fn fill_packed_field(
     }
 
     let is_negative = signed && rng.gen_bool(0.3);
-    let max_value = 10_u64.pow(u32::from(digits)) - 1;
+    let max_value = 10_u64.pow(digits as u32) - 1;
 
     let value = if edge_cases && rng.gen_bool(0.3) {
         if rng.gen_bool(0.5) { 0 } else { max_value }

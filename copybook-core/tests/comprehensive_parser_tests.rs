@@ -376,8 +376,10 @@ fn test_filler_field_naming_normative() {
     // Check FILLER naming (offset-based)
     assert_eq!(root.children[0].name, "FIELD1");
     assert_eq!(root.children[1].name, "_filler_00000005"); // Offset 5
+    assert_eq!(root.children[1].path, "RECORD-NAME._filler_00000005");
     assert_eq!(root.children[2].name, "FIELD2");
     assert_eq!(root.children[3].name, "_filler_00000013"); // Offset 13
+    assert_eq!(root.children[3].path, "RECORD-NAME._filler_00000013");
 }
 
 #[test]
@@ -410,10 +412,13 @@ fn test_multiple_filler_fields_distinct() {
     // Check all FILLER fields have distinct names based on their offsets
     assert_eq!(root.children[0].name, "FIELD1");
     assert_eq!(root.children[1].name, "_filler_00000002"); // Offset 2
+    assert_eq!(root.children[1].path, "RECORD-NAME._filler_00000002");
     assert_eq!(root.children[2].name, "FIELD2");
     assert_eq!(root.children[3].name, "_filler_00000006"); // Offset 6
+    assert_eq!(root.children[3].path, "RECORD-NAME._filler_00000006");
     assert_eq!(root.children[4].name, "FIELD3");
     assert_eq!(root.children[5].name, "_filler_00000009"); // Offset 9
+    assert_eq!(root.children[5].path, "RECORD-NAME._filler_00000009");
 }
 
 #[test]

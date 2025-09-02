@@ -200,22 +200,18 @@ pub enum CobolFormat {
 
 /// Lexer for COBOL copybooks
 pub struct Lexer<'a> {
-    #[allow(dead_code)]
-    input: &'a str,
+    _input: &'a str,
     format: CobolFormat,
     lines: Vec<ProcessedLine<'a>>,
-    #[allow(dead_code)]
-    current_line: usize,
-    #[allow(dead_code)]
-    current_pos: usize,
+    _current_line: usize,
+    _current_pos: usize,
 }
 
 /// A processed line after format-specific handling
 #[derive(Debug, Clone)]
 struct ProcessedLine<'a> {
     content: &'a str,
-    #[allow(dead_code)]
-    original_line: usize,
+    _original_line: usize,
     is_comment: bool,
     is_continuation: bool,
 }
@@ -227,11 +223,11 @@ impl<'a> Lexer<'a> {
         let lines = preprocess_lines(input, format);
 
         Self {
-            input,
+            _input: input,
             format,
             lines,
-            current_line: 0,
-            current_pos: 0,
+            _current_line: 0,
+            _current_pos: 0,
         }
     }
 
@@ -251,12 +247,13 @@ impl<'a> Lexer<'a> {
 
         while let Some(result) = lexer.next() {
             let span = lexer.span();
-            let token = if let Ok(token) = result {
-                token
-            } else {
-                // Handle lexer errors - create an identifier token for unknown text
-                let text = &processed_text[span.clone()];
-                Token::Identifier(text.to_string())
+            let token = match result {
+                Ok(token) => token,
+                Err(_) => {
+                    // Handle lexer errors - create an identifier token for unknown text
+                    let text = &processed_text[span.clone()];
+                    Token::Identifier(text.to_string())
+                }
             };
 
             // Update line/column tracking
@@ -339,23 +336,19 @@ fn detect_format(input: &str) -> CobolFormat {
         // 2. Line has content starting exactly at column 8 (after 7 chars)
         // 3. Line is exactly 72 or 80 characters (traditional fixed-form length)
 
-        let bytes = line.as_bytes();
-        if bytes.len() >= 8 {
+        if line.len() >= 8 {
             // Check if first 6 characters are spaces/digits (sequence area)
-            let first_six = &bytes[0..6];
-            let col_7 = bytes[6];
-            let col_8_onwards = &bytes[7..];
+            let first_six = &line[0..6];
+            let col_7 = line.chars().nth(6).unwrap_or(' ');
+            let col_8_onwards = &line[7..];
 
             // Fixed-form indicators:
             // - First 6 chars are spaces or digits (sequence numbers)
             // - Column 7 is space, *, -, or /
             // - Content starts at column 8
-            if (first_six.iter().all(|&b| b.is_ascii_digit() || b == b' '))
-                && (col_7 == b' ' || col_7 == b'*' || col_7 == b'-' || col_7 == b'/')
-                && !std::str::from_utf8(col_8_onwards)
-                    .unwrap_or("")
-                    .trim()
-                    .is_empty()
+            if (first_six.chars().all(|c| c.is_ascii_digit() || c == ' '))
+                && (col_7 == ' ' || col_7 == '*' || col_7 == '-' || col_7 == '/')
+                && !col_8_onwards.trim().is_empty()
             {
                 fixed_form_indicators += 1;
             }
@@ -396,7 +389,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.is_empty() {
         return ProcessedLine {
             content: "",
-            original_line: line_num,
+            _original_line: line_num,
             is_comment: false,
             is_continuation: false,
         };
@@ -406,7 +399,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.starts_with('*') {
         return ProcessedLine {
             content: line,
-            original_line: line_num,
+            _original_line: line_num,
             is_comment: true,
             is_continuation: false,
         };
@@ -425,7 +418,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 
     ProcessedLine {
         content,
-        original_line: line_num,
+        _original_line: line_num,
         is_comment: false,
         is_continuation,
     }
@@ -435,15 +428,13 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
 
-    // Check for comment lines:
-    // - '*' at column 1 (after trim_start this is starts_with('*'))
-    // - "*>" starting the line (after optional whitespace)
-    let is_comment = trimmed.starts_with('*') || trimmed.starts_with("*>");
+    // Check for comment lines (* at column 1 or *> anywhere)
+    let is_comment = trimmed.starts_with('*') || line.contains("*>");
 
     // Free-form doesn't have continuation in the same way as fixed-form
     ProcessedLine {
         content: line,
-        original_line: line_num,
+        _original_line: line_num,
         is_comment,
         is_continuation: false,
     }
@@ -455,21 +446,21 @@ mod tests {
 
     #[test]
     fn test_format_detection_fixed() {
-        let input = r"      * This is a comment
+        let input = r#"      * This is a comment
        01  CUSTOMER-RECORD.
            05  CUSTOMER-ID     PIC X(10).
            05  CUSTOMER-NAME   PIC X(30).
-";
+"#;
         assert_eq!(detect_format(input), CobolFormat::Fixed);
     }
 
     #[test]
     fn test_format_detection_free() {
-        let input = r"*> This is a comment
+        let input = r#"*> This is a comment
 01 CUSTOMER-RECORD.
   05 CUSTOMER-ID PIC X(10).
   05 CUSTOMER-NAME PIC X(30).
-";
+"#;
         assert_eq!(detect_format(input), CobolFormat::Free);
     }
 
@@ -491,9 +482,9 @@ mod tests {
 
     #[test]
     fn test_continuation_handling() {
-        let input = r"       01  VERY-LONG-FIELD-NAME
+        let input = r#"       01  VERY-LONG-FIELD-NAME
       -        PIC X(50).
-";
+"#;
         let lexer = Lexer::new(input);
         let processed = lexer.build_processed_text();
 

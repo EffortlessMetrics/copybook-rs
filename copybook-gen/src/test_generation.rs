@@ -3,7 +3,7 @@
 //! This module provides high-level functions for generating complete test suites
 //! with all combinations of field types, edge cases, and validation scenarios.
 
-use crate::{GeneratorConfig, CopybookTemplate, DataStrategy, CorruptionType};
+use crate::{GeneratorConfig, CopybookTemplate, CorruptionType};
 use crate::golden::{GoldenTestSuite, GoldenTest, TestConfig};
 use std::collections::HashMap;
 

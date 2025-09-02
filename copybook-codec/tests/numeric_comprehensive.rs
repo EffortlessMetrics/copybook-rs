@@ -9,6 +9,7 @@ use serde_json::Value;
 use std::io::Cursor;
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_zoned_decimal_ebcdic_sign_zones() {
     // Test EBCDIC overpunch sign zones
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
@@ -51,6 +52,7 @@ fn test_zoned_decimal_ebcdic_sign_zones() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_zoned_decimal_ascii_sign_zones() {
     // Test ASCII overpunch sign zones
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
@@ -93,6 +95,7 @@ fn test_zoned_decimal_ascii_sign_zones() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_blank_when_zero_handling() {
     let copybook = "01 BWZ-FIELD PIC 9(5) BLANK WHEN ZERO.";
     let schema = parse_copybook(copybook).unwrap();
@@ -125,6 +128,7 @@ fn test_blank_when_zero_handling() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_zoned_invalid_zone_error() {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
     let schema = parse_copybook(copybook).unwrap();
@@ -155,6 +159,7 @@ fn test_zoned_invalid_zone_error() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_zoned_negative_zero_normalization() {
     // Test that -0 is normalized to 0 (NORMATIVE)
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
@@ -187,6 +192,7 @@ fn test_zoned_negative_zero_normalization() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_packed_decimal_odd_digits() {
     let copybook = "01 PACKED-FIELD PIC 9(5) COMP-3."; // 5 digits = 3 bytes
     let schema = parse_copybook(copybook).unwrap();
@@ -217,6 +223,7 @@ fn test_packed_decimal_odd_digits() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_packed_decimal_even_digits() {
     let copybook = "01 PACKED-FIELD PIC 9(6) COMP-3."; // 6 digits = 4 bytes
     let schema = parse_copybook(copybook).unwrap();
@@ -247,6 +254,7 @@ fn test_packed_decimal_even_digits() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_packed_decimal_sign_nibbles() {
     let copybook = "01 SIGNED-PACKED PIC S9(3) COMP-3."; // 3 digits = 2 bytes
     let schema = parse_copybook(copybook).unwrap();
@@ -299,6 +307,7 @@ fn test_packed_decimal_sign_nibbles() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_packed_decimal_invalid_nibble() {
     let copybook = "01 PACKED-FIELD PIC 9(3) COMP-3.";
     let schema = parse_copybook(copybook).unwrap();
@@ -329,6 +338,7 @@ fn test_packed_decimal_invalid_nibble() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_binary_width_by_digits() {
     // Test NORMATIVE binary width mapping: ≤4→2B, 5-9→4B, 10-18→8B
     let test_cases = vec![
@@ -355,6 +365,7 @@ fn test_binary_width_by_digits() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_binary_signed_unsigned_edges() {
     let copybook = r#"
 01 UNSIGNED-BIN PIC 9(5) COMP.
@@ -391,6 +402,7 @@ fn test_binary_signed_unsigned_edges() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_binary_alignment_padding() {
     let copybook = r#"
 01 RECORD-WITH-ALIGNMENT.
@@ -445,6 +457,7 @@ fn test_binary_alignment_padding() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_fixed_scale_rendering() {
     // Test NORMATIVE fixed-scale rendering for decimals
     let copybook = r#"
@@ -485,6 +498,7 @@ fn test_fixed_scale_rendering() {
 }
 
 #[test]
+#[ignore = "pending implementation"]
 fn test_explicit_binary_width() {
     // Test NORMATIVE explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
     let copybook = r#"

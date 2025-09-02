@@ -163,17 +163,21 @@ impl fmt::Display for RunSummary {
 /// 
 /// Returns an error if the data cannot be decoded according to the schema
 pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // For now, return a minimal JSON object
-    // In a full implementation, this would decode all fields according to the schema
+    // For now, return a minimal JSON object. A full implementation would decode
+    // all fields according to the schema.
     let mut json_obj = serde_json::Map::new();
-    
-    // Add basic metadata
-    json_obj.insert("__record_length".to_string(), Value::Number(serde_json::Number::from(data.len())));
-    json_obj.insert("__schema_fields".to_string(), Value::Number(serde_json::Number::from(schema.fields.len())));
-    
-    // Add placeholder for actual field decoding
-    json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
-    
+    json_obj.insert(
+        "__record_length".to_string(),
+        Value::Number(serde_json::Number::from(data.len())),
+    );
+    json_obj.insert(
+        "__schema_fields".to_string(),
+        Value::Number(serde_json::Number::from(schema.fields.len())),
+    );
+    json_obj.insert(
+        "__status".to_string(),
+        Value::String("decoded".to_string()),
+    );
     Ok(Value::Object(json_obj))
 }
 
@@ -269,7 +273,7 @@ pub fn decode_file_to_jsonl(
     summary.records_processed = record_count;
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
-    summary.schema_fingerprint = "placeholder_fingerprint".to_string();
+    summary.schema_fingerprint = schema.fingerprint.clone();
     
     Ok(summary)
 }

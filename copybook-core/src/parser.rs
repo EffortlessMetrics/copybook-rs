@@ -27,6 +27,23 @@ pub fn parse(text: &str) -> Result<Schema> {
     parser.parse_schema()
 }
 
+/// Parse a COBOL copybook text into a schema using custom options
+///
+/// # Errors
+///
+/// Returns an error if the copybook contains syntax errors or unsupported features
+pub fn parse_with_options(text: &str, options: ParseOptions) -> Result<Schema> {
+    if text.trim().is_empty() {
+        return Err(Error::new(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
+    }
+
+    let mut lexer = Lexer::new(text);
+    let tokens = lexer.tokenize();
+
+    let mut parser = Parser::with_options(tokens, lexer.format(), options);
+    parser.parse_schema()
+}
+
 /// Options for parsing behavior
 #[derive(Debug, Clone)]
 pub struct ParseOptions {
@@ -108,7 +125,11 @@ impl Parser {
         
         // Resolve field layouts and compute offsets
         crate::layout::resolve_layout(&mut schema)?;
-        
+
+        // Now that offsets are known, update any placeholder field names
+        // (notably FILLER fields) with their actual byte offsets
+        self.process_field_names(&mut schema.fields);
+
         self.calculate_schema_fingerprint(&mut schema);
         
         Ok(schema)
@@ -182,20 +203,25 @@ impl Parser {
 
     /// Process field names for duplicates and FILLER handling
     fn process_field_names(&mut self, fields: &mut [Field]) {
-        // First pass: handle FILLER fields
-        for field in fields.iter_mut() {
-            if field.name.to_uppercase() == "FILLER" {
-                if self.options.emit_filler {
-                    // Replace FILLER with _filler_<offset> (offset will be calculated later in layout resolution)
-                    // For now, use a placeholder that will be updated
-                    field.name = format!("_filler_{}", 0);
-                } else {
-                    // Keep FILLER name for now, will be filtered out in layout resolution
-                    field.name = "FILLER".to_string();
+        fn update_fillers(fields: &mut [Field], emit_filler: bool) {
+            for field in fields.iter_mut() {
+                if field.name.to_uppercase() == "FILLER" {
+                    if emit_filler {
+                        field.name = format!("_filler_{:08}", field.offset);
+                    } else {
+                        field.name = "FILLER".to_string();
+                    }
+                } else if emit_filler && field.name.starts_with("_filler_") {
+                    field.name = format!("_filler_{:08}", field.offset);
                 }
+
+                update_fillers(&mut field.children, emit_filler);
             }
         }
-        
+
+        // First pass: ensure FILLER fields use offset-based names
+        update_fillers(fields, self.options.emit_filler);
+
         // Second pass: handle duplicate names at each level
         self.process_duplicates_at_level(fields, 0);
     }
@@ -216,8 +242,10 @@ impl Parser {
         for &i in &siblings {
             let field_name = fields[i].name.clone();
             
-            // Skip FILLER fields that won't be emitted
-            if field_name == "FILLER" && !self.options.emit_filler {
+            // Skip FILLER fields
+            if (!self.options.emit_filler && field_name == "FILLER")
+                || field_name.starts_with("_filler_")
+            {
                 continue;
             }
             

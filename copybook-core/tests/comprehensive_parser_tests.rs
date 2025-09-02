@@ -3,7 +3,7 @@
 //! This test suite validates the parser's handling of various COBOL copybook formats
 //! according to the normative grammar rules specified in the design document.
 
-use copybook_core::{parse_copybook, ErrorCode, FieldKind, Occurs};
+use copybook_core::{parse_copybook, parse_with_options, ParseOptions, ErrorCode, FieldKind, Occurs};
 
 #[test]
 fn test_fixed_form_vs_free_form_detection() {
@@ -230,8 +230,9 @@ fn test_filler_field_naming_normative() {
    05 FIELD2 PIC X(5).
    05 FILLER PIC X(2).
 "#;
-    
-    let schema = parse_copybook(with_filler).unwrap();
+
+    let opts = ParseOptions { emit_filler: true, ..Default::default() };
+    let schema = parse_with_options(with_filler, opts).unwrap();
     assert_eq!(schema.fields.len(), 1);
     
     let root = &schema.fields[0];
@@ -239,9 +240,26 @@ fn test_filler_field_naming_normative() {
     
     // Check FILLER naming (offset-based)
     assert_eq!(root.children[0].name, "FIELD1");
-    assert_eq!(root.children[1].name, "_filler_5"); // Offset 5
+    assert_eq!(root.children[1].name, "_filler_00000005"); // Offset 5
     assert_eq!(root.children[2].name, "FIELD2");
-    assert_eq!(root.children[3].name, "_filler_13"); // Offset 13
+    assert_eq!(root.children[3].name, "_filler_00000013"); // Offset 13
+}
+
+#[test]
+fn test_multiple_filler_fields_distinct() {
+    let copybook = r#"
+01 RECORD.
+   05 FILLER PIC X(1).
+   05 FILLER PIC X(2).
+   05 FILLER PIC X(3).
+"#;
+
+    let opts = ParseOptions { emit_filler: true, ..Default::default() };
+    let schema = parse_with_options(copybook, opts).unwrap();
+
+    let root = &schema.fields[0];
+    let names: Vec<&str> = root.children.iter().map(|f| f.name.as_str()).collect();
+    assert_eq!(names, vec!["_filler_00000000", "_filler_00000001", "_filler_00000003"]);
 }
 
 #[test]

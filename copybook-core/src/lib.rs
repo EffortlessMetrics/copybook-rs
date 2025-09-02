@@ -14,6 +14,7 @@ pub mod schema;
 pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorReporter, ErrorMode, ErrorSeverity, ErrorSummary, ErrorReport};
 pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
+pub use parser::{ParseOptions, parse_with_options};
 
 /// Parse a COBOL copybook into a structured schema
 /// 

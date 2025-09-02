@@ -138,7 +138,7 @@ fn resolve_field_layout(
         calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
 
     // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
+    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
         let cluster_end = cluster_start + cluster_size;
         context.current_offset = context.current_offset.max(cluster_end);
     }
@@ -185,15 +185,12 @@ fn resolve_field_layout(
     let effective_size = match &field.occurs {
         Some(Occurs::Fixed { count }) => {
             // Fixed array: multiply base size by count
-            let array_size = (base_size as u64)
+            (base_size as u64)
                 .checked_mul(*count as u64)
-                .ok_or_else(|| {
-                    error!(
-                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                        "Fixed array size overflow for field '{}'", field.name
-                    )
-                })?;
-            array_size
+                .ok_or_else(|| error!(
+                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                    "Fixed array size overflow for field '{}'", field.name
+                ))?
         }
         Some(Occurs::ODO {
             min,
@@ -394,7 +391,7 @@ fn apply_alignment(offset: u64, alignment: u64) -> u64 {
     if alignment <= 1 {
         offset
     } else {
-        (offset + alignment - 1) / alignment * alignment
+        offset.div_ceil(alignment) * alignment
     }
 }
 
@@ -516,7 +513,7 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
         let mut total_size = context.current_offset;
 
         // Add the size of REDEFINES clusters (they don't advance current_offset)
-        for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
+        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
             let cluster_end = cluster_start + cluster_size;
             total_size = total_size.max(cluster_end);
         }

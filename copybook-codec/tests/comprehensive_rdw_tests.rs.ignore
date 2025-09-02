@@ -388,6 +388,7 @@ fn test_rdw_maximum_length_handling() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
 
     // Should handle maximum length (may be limited by implementation)
+<<<<<<< HEAD:copybook-codec/tests/comprehensive_rdw_tests.rs
     if result.is_ok() {
         let summary = result.unwrap();
         assert_eq!(summary.records_processed, 1);
@@ -397,6 +398,16 @@ fn test_rdw_maximum_length_handling() {
             "Maximum length test failed (acceptable): {:?}",
             result.unwrap_err()
         );
+=======
+    match result {
+        Ok(summary) => {
+            assert_eq!(summary.records_processed, 1);
+        }
+        Err(e) => {
+            // May fail due to memory or other limits, which is acceptable
+            println!("Maximum length test failed (acceptable): {:?}", e);
+        }
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d:copybook-codec/tests/comprehensive_rdw_tests.rs.ignore
     }
 }
 

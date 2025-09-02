@@ -1,6 +1,6 @@
-# PSTX Worktree Workflow Guide
+# Copybook-RS Worktree Workflow Guide
 
-This document outlines the proper worktree-based development workflow for PSTX agents and developers.
+This document outlines the proper worktree-based development workflow for copybook-rs agents and developers.
 
 ## Core Principles
 
@@ -148,4 +148,4 @@ git status  # Should show clean state vs origin/main
 git branch -vv  # Should show tracking origin/main
 ```
 
-This workflow ensures reliable, predictable, and parallel development across all PSTX worktrees.
+This workflow ensures reliable, predictable, and parallel development across all copybook-rs worktrees.

@@ -5,6 +5,7 @@ members = [
     "copybook-cli",
     "copybook-gen",
     "copybook-bench",
+    "xtask",
 ]
 resolver = "2"
 
@@ -47,6 +48,9 @@ base64 = "0.22"
 # Testing dependencies
 proptest = "1.0"
 criterion = { version = "0.5", features = ["html_reports"] }
+
+# Task automation dependencies  
+anyhow = "1.0"
 
 [profile.release]
 lto = true

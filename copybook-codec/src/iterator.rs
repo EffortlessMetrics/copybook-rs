@@ -6,7 +6,7 @@
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Schema, Error, ErrorCode, Result};
 use serde_json::Value;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{Read, BufReader};
 
 /// Iterator over records in a data file, yielding decoded JSON values
 /// 

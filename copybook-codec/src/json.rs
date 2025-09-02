@@ -100,19 +100,19 @@ impl<W: Write> JsonWriter<W> {
         self.write_fields_streaming(
             &schema.fields,
             record_data,
-            &mut first_field,
             record_index,
             byte_offset,
+            &mut first_field,
         )?;
-        
+
         // Add metadata if requested
         if self.options.emit_meta {
-            self.write_metadata_streaming(&mut first_field, schema, record_index, byte_offset, record_data.len())?;
+            self.write_metadata_streaming(schema, record_index, byte_offset, record_data.len(), &mut first_field)?;
         }
-        
+
         // Add raw data if requested
         if matches!(self.options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
-            self.write_raw_data_streaming(&mut first_field, record_data)?;
+            self.write_raw_data_streaming(record_data, &mut first_field)?;
         }
         
         self.json_buffer.push('}');
@@ -128,227 +128,6 @@ impl<W: Write> JsonWriter<W> {
         Ok(())
     }
 
-    /// Write fields directly to JSON string buffer for optimal performance
-    fn write_fields_streaming(
-        &mut self,
-        fields: &[Field],
-        record_data: &[u8],
-        first_field: &mut bool,
-        record_index: u64,
-        byte_offset: u64,
-    ) -> Result<()> {
-        for field in fields {
-            // Skip FILLER fields unless explicitly requested
-            if field.path.contains("_filler_") && !self.options.emit_filler {
-                continue;
-            }
-
-            // Add field separator
-            if !*first_field {
-                self.json_buffer.push(',');
-            }
-            *first_field = false;
-
-            // Write field name
-            self.json_buffer.push('"');
-            self.json_buffer.push_str(&field.path);
-            self.json_buffer.push_str("\":");
-
-            // Write field value based on type
-            match &field.kind {
-                FieldKind::Alphanum { len } => {
-                    self.write_alphanum_value_streaming(field, record_data, *len)?;
-                }
-                FieldKind::ZonedDecimal { digits, scale, signed } => {
-                    self.write_zoned_decimal_value_streaming(field, record_data, *digits, *scale, *signed)?;
-                }
-                FieldKind::PackedDecimal { digits, scale, signed } => {
-                    self.write_packed_decimal_value_streaming(field, record_data, *digits, *scale, *signed)?;
-                }
-                FieldKind::BinaryInt { bits, signed } => {
-                    self.write_binary_int_value_streaming(field, record_data, *bits, *signed)?;
-                }
-                FieldKind::Group => {
-                    // Groups don't have values, skip
-                    continue;
-                }
-            }
-
-            // Add raw field data if requested
-            if matches!(self.options.emit_raw, RawMode::Field) {
-                self.json_buffer.push(',');
-                self.json_buffer.push('"');
-                self.json_buffer.push_str(&field.path);
-                self.json_buffer.push_str("__raw_b64\":\"");
-                
-                let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
-                let encoded = base64::encode(field_data);
-                self.json_buffer.push_str(&encoded);
-                self.json_buffer.push('"');
-            }
-        }
-        Ok(())
-    }
-
-    /// Write alphanumeric field value directly to JSON buffer
-    fn write_alphanum_value_streaming(&mut self, field: &Field, record_data: &[u8], len: u32) -> Result<()> {
-        let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
-        
-        // Convert to UTF-8
-        let text = crate::charset::ebcdic_to_utf8(field_data, self.options.codepage)?;
-        
-        // Write as JSON string with proper escaping
-        self.json_buffer.push('"');
-        for ch in text.chars() {
-            match ch {
-                '"' => self.json_buffer.push_str("\\\""),
-                '\\' => self.json_buffer.push_str("\\\\"),
-                '\n' => self.json_buffer.push_str("\\n"),
-                '\r' => self.json_buffer.push_str("\\r"),
-                '\t' => self.json_buffer.push_str("\\t"),
-                c if c.is_control() => {
-                    self.json_buffer.push_str(&format!("\\u{:04x}", c as u32));
-                }
-                c => self.json_buffer.push(c),
-            }
-        }
-        self.json_buffer.push('"');
-        Ok(())
-    }
-
-    /// Write zoned decimal field value directly to JSON buffer
-    fn write_zoned_decimal_value_streaming(
-        &mut self,
-        field: &Field,
-        record_data: &[u8],
-        digits: u16,
-        scale: i16,
-        signed: bool,
-    ) -> Result<()> {
-        let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
-        
-        // Decode zoned decimal
-        let decimal = crate::numeric::decode_zoned_decimal(
-            field_data,
-            digits,
-            scale,
-            signed,
-            self.options.codepage,
-            false, // blank_when_zero handled elsewhere
-        )?;
-
-        // Write as JSON string with fixed scale (NORMATIVE)
-        self.json_buffer.push('"');
-        self.json_buffer.push_str(&decimal.to_string());
-        self.json_buffer.push('"');
-        Ok(())
-    }
-
-    /// Write packed decimal field value directly to JSON buffer
-    fn write_packed_decimal_value_streaming(
-        &mut self,
-        field: &Field,
-        record_data: &[u8],
-        digits: u16,
-        scale: i16,
-        signed: bool,
-    ) -> Result<()> {
-        let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
-        
-        // Decode packed decimal
-        let decimal = crate::numeric::decode_packed_decimal(field_data, digits, scale, signed)?;
-
-        // Write as JSON string with fixed scale (NORMATIVE)
-        self.json_buffer.push('"');
-        self.json_buffer.push_str(&decimal.to_string());
-        self.json_buffer.push('"');
-        Ok(())
-    }
-
-    /// Write binary integer field value directly to JSON buffer
-    fn write_binary_int_value_streaming(
-        &mut self,
-        field: &Field,
-        record_data: &[u8],
-        bits: u16,
-        signed: bool,
-    ) -> Result<()> {
-        let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
-        
-        // Decode binary integer
-        let value = crate::numeric::decode_binary_int_fast(field_data, bits, signed)?;
-
-        // Write as JSON number (up to 64-bit) or string for larger values
-        match self.options.json_number {
-            JsonNumberMode::Lossless => {
-                // Always use strings for lossless representation
-                self.json_buffer.push('"');
-                self.json_buffer.push_str(&value.to_string());
-                self.json_buffer.push('"');
-            }
-            JsonNumberMode::Native => {
-                // Use JSON numbers for values that fit in f64 without precision loss
-                if value.abs() <= (1i64 << 53) {
-                    self.json_buffer.push_str(&value.to_string());
-                } else {
-                    self.json_buffer.push('"');
-                    self.json_buffer.push_str(&value.to_string());
-                    self.json_buffer.push('"');
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Write metadata fields directly to JSON buffer
-    fn write_metadata_streaming(
-        &mut self,
-        first_field: &mut bool,
-        schema: &Schema,
-        record_index: u64,
-        byte_offset: u64,
-        record_length: usize,
-    ) -> Result<()> {
-        // Add schema fingerprint
-        if !*first_field {
-            self.json_buffer.push(',');
-        }
-        *first_field = false;
-        
-        self.json_buffer.push_str("\"__schema_id\":\"");
-        // TODO: Implement schema fingerprinting
-        self.json_buffer.push_str("placeholder_fingerprint");
-        self.json_buffer.push('"');
-
-        // Add record index
-        self.json_buffer.push_str(",\"__record_index\":");
-        self.json_buffer.push_str(&record_index.to_string());
-
-        // Add byte offset
-        self.json_buffer.push_str(",\"__offset\":");
-        self.json_buffer.push_str(&byte_offset.to_string());
-
-        // Add record length
-        self.json_buffer.push_str(",\"__length\":");
-        self.json_buffer.push_str(&record_length.to_string());
-
-        Ok(())
-    }
-
-    /// Write raw data field directly to JSON buffer
-    fn write_raw_data_streaming(&mut self, record_data: &[u8], first_field: &mut bool) -> Result<()> {
-        if !*first_field {
-            self.json_buffer.push(',');
-        }
-        *first_field = false;
-
-        self.json_buffer.push_str("\"__raw_b64\":\"");
-        let encoded = base64::encode(record_data);
-        self.json_buffer.push_str(&encoded);
-        self.json_buffer.push('"');
-
-        Ok(())
-    }
 
     /// Process fields recursively in schema order
     fn process_fields_recursive(
@@ -741,7 +520,7 @@ impl<W: Write> JsonWriter<W> {
 
     /// Write scalar field value directly to JSON string buffer
     fn write_scalar_field_streaming(
-        &self,
+        &mut self,
         field: &Field,
         record_data: &[u8],
         _record_index: u64,

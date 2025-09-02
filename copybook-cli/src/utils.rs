@@ -1,6 +1,5 @@
 //! Utility functions for CLI operations
 
-use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;

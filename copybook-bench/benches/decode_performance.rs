@@ -1,6 +1,6 @@
-use copybook_codec::{DecodeOptions, decode_record, DecodeProcessor};
+use copybook_codec::{DecodeOptions, DecodeProcessor, decode_record};
 use copybook_core::parse_copybook;
-use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main, BenchmarkId};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::hint::black_box as hint_black_box;
 use std::io::Cursor;
 
@@ -61,7 +61,10 @@ fn generate_display_heavy_data(record_count: usize) -> Vec<u8> {
     for i in 0..record_count {
         // Generate 10 fields of 50 bytes each (EBCDIC text)
         for field in 0..10 {
-            let text = format!("FIELD{:02}_{:06}_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", field, i);
+            let text = format!(
+                "FIELD{:02}_{:06}_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+                field, i
+            );
             let mut field_data = text.as_bytes().to_vec();
             field_data.resize(50, 0x40); // Pad with EBCDIC spaces
             data.extend_from_slice(&field_data);
@@ -79,11 +82,11 @@ fn generate_comp3_heavy_data(record_count: usize) -> Vec<u8> {
             let value = (i * 10 + field) % 999999999;
             // Convert to packed decimal: S9(9)V99 = 6 bytes
             let mut packed = vec![0x00; 6];
-            
+
             // Simple packed decimal encoding for benchmark
             let digits = format!("{:011}", value); // 11 digits total
             let digit_bytes: Vec<u8> = digits.bytes().map(|b| b - b'0').collect();
-            
+
             // Pack digits (2 per byte, sign in last nibble)
             for (i, chunk) in digit_bytes.chunks(2).enumerate() {
                 if i < 5 {
@@ -93,7 +96,7 @@ fn generate_comp3_heavy_data(record_count: usize) -> Vec<u8> {
                     packed[5] = (chunk[0] << 4) | 0x0C; // Positive sign
                 }
             }
-            
+
             data.extend_from_slice(&packed);
         }
     }
@@ -130,16 +133,16 @@ fn generate_binary_heavy_data(record_count: usize) -> Vec<u8> {
 fn bench_decode_display_heavy(c: &mut Criterion) {
     let schema = parse_copybook(DISPLAY_HEAVY_COPYBOOK).expect("Failed to parse copybook");
     let options = DecodeOptions::default();
-    
+
     let mut group = c.benchmark_group("decode_display_heavy");
-    
+
     // Test different record counts to measure throughput scaling
     for record_count in [100, 1000, 10000].iter() {
         let test_data = generate_display_heavy_data(*record_count);
         let record_size = 500; // 10 fields * 50 bytes each
-        
+
         group.throughput(Throughput::Bytes(test_data.len() as u64));
-        
+
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
@@ -156,7 +159,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                 })
             },
         );
-        
+
         // Benchmark streaming processor for larger datasets
         if *record_count >= 1000 {
             group.bench_with_input(
@@ -167,11 +170,8 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                         let input = Cursor::new(black_box(&test_data));
                         let mut output = Vec::new();
                         let mut processor = DecodeProcessor::new(options.clone());
-                        let _result = processor.process_file(
-                            black_box(&schema),
-                            input,
-                            &mut output,
-                        );
+                        let _result =
+                            processor.process_file(black_box(&schema), input, &mut output);
                         hint_black_box(_result);
                     })
                 },
@@ -185,16 +185,16 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
 fn bench_decode_comp3_heavy(c: &mut Criterion) {
     let schema = parse_copybook(COMP3_HEAVY_COPYBOOK).expect("Failed to parse copybook");
     let options = DecodeOptions::default();
-    
+
     let mut group = c.benchmark_group("decode_comp3_heavy");
-    
+
     // Test different record counts to measure throughput scaling
     for record_count in [100, 1000, 10000].iter() {
         let test_data = generate_comp3_heavy_data(*record_count);
         let record_size = 60; // 10 fields * 6 bytes each
-        
+
         group.throughput(Throughput::Bytes(test_data.len() as u64));
-        
+
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
@@ -211,7 +211,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                 })
             },
         );
-        
+
         // Benchmark streaming processor for larger datasets
         if *record_count >= 1000 {
             group.bench_with_input(
@@ -222,11 +222,8 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                         let input = Cursor::new(black_box(&test_data));
                         let mut output = Vec::new();
                         let mut processor = DecodeProcessor::new(options.clone());
-                        let _result = processor.process_file(
-                            black_box(&schema),
-                            input,
-                            &mut output,
-                        );
+                        let _result =
+                            processor.process_file(black_box(&schema), input, &mut output);
                         hint_black_box(_result);
                     })
                 },
@@ -240,16 +237,16 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
 fn bench_decode_binary_heavy(c: &mut Criterion) {
     let schema = parse_copybook(BINARY_HEAVY_COPYBOOK).expect("Failed to parse copybook");
     let options = DecodeOptions::default();
-    
+
     let mut group = c.benchmark_group("decode_binary_heavy");
-    
+
     // Test different record counts to measure throughput scaling
     for record_count in [100, 1000, 10000].iter() {
         let test_data = generate_binary_heavy_data(*record_count);
         let record_size = 64; // Mixed binary fields totaling 64 bytes
-        
+
         group.throughput(Throughput::Bytes(test_data.len() as u64));
-        
+
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
@@ -294,61 +291,53 @@ fn bench_parse_copybook(c: &mut Criterion) {
 fn bench_throughput_slo_validation(c: &mut Criterion) {
     // SLO validation benchmarks - ensure we meet performance targets
     let mut group = c.benchmark_group("slo_validation");
-    
+
     // Target: ≥80 MB/s for DISPLAY-heavy workloads
     let display_schema = parse_copybook(DISPLAY_HEAVY_COPYBOOK).expect("Failed to parse copybook");
     let display_data = generate_display_heavy_data(10000); // 5MB of data
     let options = DecodeOptions::default();
-    
+
     group.throughput(Throughput::Bytes(display_data.len() as u64));
     group.bench_function("display_heavy_slo_80mbps", |b| {
         b.iter(|| {
             let input = Cursor::new(black_box(&display_data));
             let mut output = Vec::new();
             let mut processor = DecodeProcessor::new(options.clone());
-            let result = processor.process_file(
-                black_box(&display_schema),
-                input,
-                &mut output,
-            );
+            let result = processor.process_file(black_box(&display_schema), input, &mut output);
             hint_black_box(result);
         })
     });
-    
+
     // Target: ≥40 MB/s for COMP-3-heavy workloads
     let comp3_schema = parse_copybook(COMP3_HEAVY_COPYBOOK).expect("Failed to parse copybook");
     let comp3_data = generate_comp3_heavy_data(10000); // 600KB of data
-    
+
     group.throughput(Throughput::Bytes(comp3_data.len() as u64));
     group.bench_function("comp3_heavy_slo_40mbps", |b| {
         b.iter(|| {
             let input = Cursor::new(black_box(&comp3_data));
             let mut output = Vec::new();
             let mut processor = DecodeProcessor::new(options.clone());
-            let result = processor.process_file(
-                black_box(&comp3_schema),
-                input,
-                &mut output,
-            );
+            let result = processor.process_file(black_box(&comp3_schema), input, &mut output);
             hint_black_box(result);
         })
     });
-    
+
     group.finish();
 }
 
 fn bench_parallel_scaling(c: &mut Criterion) {
     let schema = parse_copybook(DISPLAY_HEAVY_COPYBOOK).expect("Failed to parse copybook");
     let test_data = generate_display_heavy_data(10000);
-    
+
     let mut group = c.benchmark_group("parallel_scaling");
     group.throughput(Throughput::Bytes(test_data.len() as u64));
-    
+
     // Test scaling with different thread counts
     for thread_count in [1, 2, 4, 8].iter() {
         let mut options = DecodeOptions::default();
         options.threads = *thread_count;
-        
+
         group.bench_with_input(
             BenchmarkId::new("threads", thread_count),
             thread_count,
@@ -357,17 +346,13 @@ fn bench_parallel_scaling(c: &mut Criterion) {
                     let input = Cursor::new(black_box(&test_data));
                     let mut output = Vec::new();
                     let mut processor = DecodeProcessor::new(options.clone());
-                    let result = processor.process_file(
-                        black_box(&schema),
-                        input,
-                        &mut output,
-                    );
+                    let result = processor.process_file(black_box(&schema), input, &mut output);
                     hint_black_box(result);
                 })
             },
         );
     }
-    
+
     group.finish();
 }
 

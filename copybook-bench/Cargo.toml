@@ -11,7 +11,7 @@ description = "Performance benchmarks for copybook-rs"
 publish = false
 
 [[bench]]
-name = "decode_performance"
+name = "encode_performance"
 harness = false
 
 [dependencies]

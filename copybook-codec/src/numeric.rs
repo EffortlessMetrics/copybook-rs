@@ -1173,15 +1173,39 @@ pub fn encode_zoned_decimal_with_scratch(
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
     scratch.byte_buffer.reserve(digits as usize);
-    
-    // Convert decimal to string using scratch buffer
-    scratch.string_buffer.clear();
-    scratch.string_buffer.push_str(&decimal.to_string());
-    
-    // Use the standard encode function but with optimized digit processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
-    encode_zoned_decimal(&scratch.string_buffer, digits, decimal.scale, signed, codepage)
+
+    // Extract digits into scratch digit buffer (least significant first)
+    let mut value = decimal.value.abs();
+    for _ in 0..digits {
+        scratch.digit_buffer.push((value % 10) as u8);
+        value /= 10;
+    }
+
+    // If value still has digits, it doesn't fit
+    if value != 0 {
+        return Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!("Value too large for {} digits", digits),
+        ));
+    }
+
+    // Determine expected zone for digits
+    let expected_zone = match codepage {
+        Codepage::ASCII => 0x3,
+        _ => 0xF,
+    };
+
+    // Encode digits from most significant to least
+    for (i, digit) in scratch.digit_buffer.iter().rev().enumerate() {
+        let zone = if i == (digits as usize - 1) && signed {
+            if decimal.negative { 0xD } else { expected_zone }
+        } else {
+            expected_zone
+        };
+        scratch.byte_buffer.push((zone << 4) | *digit);
+    }
+
+    Ok(scratch.byte_buffer.clone())
 }
 
 /// Optimized packed decimal encoder using scratch buffers
@@ -1197,15 +1221,53 @@ pub fn encode_packed_decimal_with_scratch(
     scratch.byte_buffer.clear();
     let expected_bytes = ((digits + 1) / 2) as usize;
     scratch.byte_buffer.reserve(expected_bytes);
-    
-    // Convert decimal to string using scratch buffer
-    scratch.string_buffer.clear();
-    scratch.string_buffer.push_str(&decimal.to_string());
-    
-    // Use the standard encode function but with optimized nibble processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
-    encode_packed_decimal(&scratch.string_buffer, digits, decimal.scale, signed)
+
+    // Extract digits into scratch digit buffer (least significant first)
+    let mut value = decimal.value.abs();
+    for _ in 0..digits {
+        scratch.digit_buffer.push((value % 10) as u8);
+        value /= 10;
+    }
+
+    if value != 0 {
+        return Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!("Value too large for {} digits", digits),
+        ));
+    }
+
+    let mut digits_iter = scratch.digit_buffer.iter().rev();
+
+    for byte_idx in 0..expected_bytes {
+        let mut byte_val = 0u8;
+
+        // High nibble
+        if byte_idx == expected_bytes - 1 && digits % 2 == 0 {
+            // Even digits: high nibble is sign
+            byte_val |= if signed {
+                if decimal.negative { 0xD0 } else { 0xC0 }
+            } else {
+                0xF0
+            };
+        } else if let Some(&d) = digits_iter.next() {
+            byte_val |= d << 4;
+        }
+
+        // Low nibble
+        if byte_idx == expected_bytes - 1 {
+            byte_val |= if signed {
+                if decimal.negative { 0x0D } else { 0x0C }
+            } else {
+                0x0F
+            };
+        } else if let Some(&d) = digits_iter.next() {
+            byte_val |= d;
+        }
+
+        scratch.byte_buffer.push(byte_val);
+    }
+
+    Ok(scratch.byte_buffer.clone())
 }
 
 #[cfg(test)]
@@ -1297,6 +1359,66 @@ mod tests {
         
         // BWZ disabled should never trigger
         assert!(!should_encode_as_blank_when_zero("0", false));
+    }
+
+    #[test]
+    fn test_zoned_decimal_encode_with_scratch() {
+        let cases = [
+            (123, 3, false, false), // unsigned
+            (123, 3, true, false),  // signed positive
+            (123, 3, true, true),   // signed negative
+            (7, 4, true, false),    // leading zeros
+        ];
+
+        for (value, digits, signed, negative) in cases.into_iter() {
+            let decimal = SmallDecimal::new(value, 0, negative);
+            let mut scratch = ScratchBuffers::new();
+            let scratch_res = encode_zoned_decimal_with_scratch(
+                &decimal,
+                digits,
+                signed,
+                Codepage::ASCII,
+                false,
+                &mut scratch,
+            )
+            .unwrap();
+            let standard_res = encode_zoned_decimal(
+                &decimal.to_string(),
+                digits,
+                decimal.scale,
+                signed,
+                Codepage::ASCII,
+            )
+            .unwrap();
+            assert_eq!(scratch_res, standard_res);
+        }
+    }
+
+    #[test]
+    fn test_packed_decimal_encode_with_scratch() {
+        let cases = [
+            (123, 3, false, false), // unsigned
+            (123, 3, true, false),  // signed positive
+            (123, 3, true, true),   // signed negative
+            (7, 4, false, false),   // even digits unsigned
+            (7, 4, true, true),     // even digits negative
+        ];
+
+        for (value, digits, signed, negative) in cases.into_iter() {
+            let decimal = SmallDecimal::new(value, 0, negative);
+            let mut scratch = ScratchBuffers::new();
+            let scratch_res =
+                encode_packed_decimal_with_scratch(&decimal, digits, signed, &mut scratch)
+                    .unwrap();
+            let standard_res = encode_packed_decimal(
+                &decimal.to_string(),
+                digits,
+                decimal.scale,
+                signed,
+            )
+            .unwrap();
+            assert_eq!(scratch_res, standard_res);
+        }
     }
 
     #[test]

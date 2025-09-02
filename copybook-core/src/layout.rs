@@ -187,10 +187,12 @@ fn resolve_field_layout(
             // Fixed array: multiply base size by count
             (base_size as u64)
                 .checked_mul(*count as u64)
-                .ok_or_else(|| error!(
-                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                    "Fixed array size overflow for field '{}'", field.name
-                ))?
+                .ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "Fixed array size overflow for field '{}'", field.name
+                    )
+                })?
         }
         Some(Occurs::ODO {
             min,

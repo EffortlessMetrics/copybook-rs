@@ -454,8 +454,13 @@ fn test_json_number_modes() {
     for (options, mode_name) in [(&lossless_options, "lossless"), (&native_options, "native")] {
         let input = Cursor::new(test_data);
         let mut output = Vec::new();
+<<<<<<< HEAD:copybook-codec/tests/comprehensive_numeric_tests.rs
 
         let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
+=======
+        
+        let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, options);
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d:copybook-codec/tests/comprehensive_numeric_tests.rs.ignore
         assert!(result.is_ok(), "Failed for {} mode", mode_name);
 
         let output_str = String::from_utf8(output).unwrap();

@@ -3,6 +3,8 @@
 //! This module implements the parsing logic for COBOL copybooks,
 //! including lexical analysis and AST construction.
 
+#![allow(dead_code)]
+
 use crate::error::ErrorCode;
 use crate::lexer::{CobolFormat, Lexer, Token, TokenPos};
 use crate::pic::PicClause;
@@ -353,12 +355,15 @@ impl Parser {
 
     /// Collect all fields in a flat list
     fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
-        let mut result = Vec::new();
-        for field in fields {
-            result.push(field);
-            let children = self.collect_all_fields(&field.children);
-            result.extend(children);
+        fn visit<'a>(fields: &'a [Field], acc: &mut Vec<&'a Field>) {
+            for field in fields {
+                acc.push(field);
+                visit(&field.children, acc);
+            }
         }
+
+        let mut result = Vec::new();
+        visit(fields, &mut result);
         result
     }
 
@@ -375,8 +380,7 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update(&[if self.options.emit_filler { 1 } else { 0 }]);
-
+        hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
         // Compute final hash
         let result = hasher.finalize();
         schema.fingerprint = format!("{:x}", result);
@@ -427,6 +431,7 @@ impl Parser {
     }
 
     /// Convert field to canonical JSON for fingerprinting
+    #[allow(clippy::only_used_in_recursion)]
     fn field_to_canonical_json(&self, field: &Field) -> Value {
         use serde_json::{Map, Value};
 

@@ -1,8 +1,7 @@
-use copybook_codec::{DecodeOptions, DecodeProcessor, decode_record};
+use copybook_codec::{DecodeOptions, decode_record};
 use copybook_core::parse_copybook;
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::hint::black_box as hint_black_box;
-use std::io::Cursor;
 
 const SIMPLE_COPYBOOK: &str = r#"
        01  CUSTOMER-RECORD.
@@ -146,7 +145,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
-            |b, &record_count| {
+            |b, _| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
                         let _result = decode_record(
@@ -154,11 +153,12 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        let _ = hint_black_box(_result);
                     }
                 })
             },
         );
+<<<<<<< HEAD
 
         // Benchmark streaming processor for larger datasets
         if *record_count >= 1000 {
@@ -177,6 +177,8 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                 },
             );
         }
+=======
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d
     }
 
     group.finish();
@@ -198,7 +200,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
-            |b, &record_count| {
+            |b, _| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
                         let _result = decode_record(
@@ -206,11 +208,12 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        let _ = hint_black_box(_result);
                     }
                 })
             },
         );
+<<<<<<< HEAD
 
         // Benchmark streaming processor for larger datasets
         if *record_count >= 1000 {
@@ -229,6 +232,8 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                 },
             );
         }
+=======
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d
     }
 
     group.finish();
@@ -250,7 +255,7 @@ fn bench_decode_binary_heavy(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
-            |b, &record_count| {
+            |b, _| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
                         let _result = decode_record(
@@ -258,7 +263,7 @@ fn bench_decode_binary_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        let _ = hint_black_box(_result);
                     }
                 })
             },
@@ -274,20 +279,21 @@ fn bench_parse_copybook(c: &mut Criterion) {
     group.bench_function("simple_copybook", |b| {
         b.iter(|| {
             let _result = parse_copybook(black_box(SIMPLE_COPYBOOK));
-            hint_black_box(_result);
+            let _ = hint_black_box(_result);
         })
     });
 
     group.bench_function("comp3_heavy_copybook", |b| {
         b.iter(|| {
             let _result = parse_copybook(black_box(COMP3_HEAVY_COPYBOOK));
-            hint_black_box(_result);
+            let _ = hint_black_box(_result);
         })
     });
 
     group.finish();
 }
 
+<<<<<<< HEAD
 fn bench_throughput_slo_validation(c: &mut Criterion) {
     // SLO validation benchmarks - ensure we meet performance targets
     let mut group = c.benchmark_group("slo_validation");
@@ -355,15 +361,15 @@ fn bench_parallel_scaling(c: &mut Criterion) {
 
     group.finish();
 }
+=======
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d
 
 criterion_group!(
     benches,
     bench_decode_display_heavy,
     bench_decode_comp3_heavy,
     bench_decode_binary_heavy,
-    bench_parse_copybook,
-    bench_throughput_slo_validation,
-    bench_parallel_scaling
+    bench_parse_copybook
 );
 
 criterion_main!(benches);

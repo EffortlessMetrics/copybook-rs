@@ -23,6 +23,8 @@ pub struct RunSummary {
     pub records_with_errors: u64,
     /// Number of warnings generated
     pub warnings: u64,
+    /// Number of transfer corruption warnings
+    pub corruption_warnings: u64,
     /// Processing time in milliseconds
     pub processing_time_ms: u64,
     /// Total bytes processed
@@ -56,11 +58,10 @@ impl RunSummary {
     /// Calculate throughput based on bytes and time
     #[allow(clippy::cast_precision_loss)]
     pub fn calculate_throughput(&mut self) {
-        if self.processing_time_ms > 0 {
-            let seconds = self.processing_time_ms as f64 / 1000.0;
-            let megabytes = self.bytes_processed as f64 / (1024.0 * 1024.0);
-            self.throughput_mbps = megabytes / seconds;
-        }
+        let ms = self.processing_time_ms.max(1);
+        let seconds = ms as f64 / 1000.0;
+        let megabytes = self.bytes_processed as f64 / (1024.0 * 1024.0);
+        self.throughput_mbps = megabytes / seconds;
     }
 
     /// Check if processing had any errors
@@ -72,7 +73,7 @@ impl RunSummary {
     /// Check if processing had any warnings
     #[must_use]
     pub const fn has_warnings(&self) -> bool {
-        self.warnings > 0
+        self.warnings > 0 || self.corruption_warnings > 0
     }
 
     /// Check if processing was successful (no errors)
@@ -136,6 +137,7 @@ impl fmt::Display for RunSummary {
         writeln!(f, "  Records processed: {}", self.records_processed)?;
         writeln!(f, "  Records with errors: {}", self.records_with_errors)?;
         writeln!(f, "  Warnings: {}", self.warnings)?;
+        writeln!(f, "  Corruption warnings: {}", self.corruption_warnings)?;
         writeln!(f, "  Success rate: {:.1}%", self.success_rate())?;
         writeln!(
             f,
@@ -517,10 +519,10 @@ pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) ->
     let mut buffer = vec![0u8; record_length];
 
     // Add some basic encoding logic
-    if let Some(obj) = json.as_object() {
-        if obj.contains_key("__status") {
-            buffer[0] = b'E'; // Encoded marker
-        }
+    if let Some(obj) = json.as_object()
+        && obj.contains_key("__status")
+    {
+        buffer[0] = b'E'; // Encoded marker
     }
 
     Ok(buffer)
@@ -594,8 +596,13 @@ pub fn decode_file_to_jsonl(
     summary.records_processed = record_count;
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
-    summary.schema_fingerprint = "placeholder_fingerprint".to_string();
-
+    summary.schema_fingerprint = if !schema.fingerprint.is_empty() {
+        schema.fingerprint.clone()
+    } else {
+        let mut s = schema.clone();
+        s.calculate_fingerprint();
+        s.fingerprint
+    };
     Ok(summary)
 }
 
@@ -658,8 +665,13 @@ pub fn encode_jsonl_to_file(
     summary.records_processed = record_count;
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
-    summary.schema_fingerprint = "placeholder_fingerprint".to_string();
-
+    summary.schema_fingerprint = if !schema.fingerprint.is_empty() {
+        schema.fingerprint.clone()
+    } else {
+        let mut s = schema.clone();
+        s.calculate_fingerprint();
+        s.fingerprint
+    };
     Ok(summary)
 }
 
@@ -874,6 +886,7 @@ mod tests {
     }
 
     #[test]
+<<<<<<< HEAD
     fn test_zoned_decimal_basic_decode() {
         let copybook = "01 SIGNED-FIELD PIC S9(3).";
         let schema = parse_copybook(copybook).unwrap();
@@ -940,3 +953,46 @@ mod tests {
         println!("✓ Alphanum decode test passed: got '{}'", field_value);
     }
 }
+=======
+    fn test_run_summary_aggregates() {
+        use copybook_core::{ErrorReporter, ErrorMode, Error, ErrorCode};
+
+        let copybook_text = r#"
+            01 RECORD.
+               05 FIELD PIC X(5).
+        "#;
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        reporter.start_record(1);
+        reporter.report_warning(Error::new(ErrorCode::CBKF104_RDW_SUSPECT_ASCII, "suspect".to_string()));
+        reporter.start_record(2);
+        let _ = reporter.report_error(
+            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, "fail".to_string()).with_record(2),
+        );
+        reporter.start_record(3);
+
+        let err_summary = reporter.summary();
+        let error_count = reporter.error_count();
+        let mut summary = RunSummary {
+            records_processed: 3 - error_count,
+            records_with_errors: error_count,
+            warnings: reporter.warning_count(),
+            corruption_warnings: err_summary.corruption_warnings,
+            processing_time_ms: 0,
+            bytes_processed: 0,
+            schema_fingerprint: schema.fingerprint.clone(),
+            throughput_mbps: 0.0,
+            peak_memory_bytes: None,
+            threads_used: 1,
+        };
+        summary.calculate_throughput();
+
+        assert_eq!(summary.records_processed, 2);
+        assert_eq!(summary.records_with_errors, 1);
+        assert_eq!(summary.warnings, 1);
+        assert_eq!(summary.corruption_warnings, 1);
+        assert_eq!(summary.schema_fingerprint.len(), 64);
+    }
+}
+>>>>>>> 43fa6f35ce9e969ff1345e00e9de9521aea80a9d

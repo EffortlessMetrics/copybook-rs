@@ -132,15 +132,13 @@ impl ErrorReporter {
         // Return result based on decision
         if should_continue {
             Ok(())
+        } else if matches!(severity, ErrorSeverity::Error) && self.max_errors.is_some() {
+            Err(Error::new(
+                ErrorCode::CBKS141_RECORD_TOO_LARGE, // Reusing for "too many errors"
+                format!("Maximum error limit reached: {}", self.max_errors.unwrap())
+            ))
         } else {
-            if matches!(severity, ErrorSeverity::Error) && self.max_errors.is_some() {
-                Err(Error::new(
-                    ErrorCode::CBKS141_RECORD_TOO_LARGE, // Reusing for "too many errors"
-                    format!("Maximum error limit reached: {}", self.max_errors.unwrap()),
-                ))
-            } else {
-                Err(error)
-            }
+            Err(error)
         }
     }
 
@@ -343,14 +341,13 @@ impl ErrorReporter {
             .or_insert(0) += 1;
 
         // Track records with errors
-        if matches!(report.severity, ErrorSeverity::Error | ErrorSeverity::Fatal) {
-            if let Some(ref context) = report.error.context {
-                if let Some(record_index) = context.record_index {
-                    // Only count each record once
-                    if self.summary.records_with_errors < record_index {
-                        self.summary.records_with_errors = record_index;
-                    }
-                }
+        if matches!(report.severity, ErrorSeverity::Error | ErrorSeverity::Fatal)
+            && let Some(ref context) = report.error.context
+            && let Some(record_index) = context.record_index
+        {
+            // Only count each record once
+            if self.summary.records_with_errors < record_index {
+                self.summary.records_with_errors = record_index;
             }
         }
 
@@ -377,15 +374,11 @@ impl ErrorReporter {
         }
 
         // Log additional context if available and verbose
-        if self.verbose_logging {
-            if let Some(ref context) = report.error.context {
-                if context.record_index.is_some()
-                    || context.field_path.is_some()
-                    || context.byte_offset.is_some()
-                {
-                    debug!("  Context: {}", context);
-                }
-            }
+        if self.verbose_logging
+            && let Some(ref context) = report.error.context
+            && (context.record_index.is_some() || context.field_path.is_some() || context.byte_offset.is_some())
+        {
+            debug!("  Context: {}", context);
         }
     }
 

@@ -116,8 +116,8 @@ fn test_edited_pic_error_detection() {
         assert!(result.is_err(), "Should fail for: {}", edited_pic);
         
         let error = result.unwrap_err();
-        assert_eq!(error.code(), ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
-        assert!(error.message().contains("edited PIC"));
+        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+        assert!(error.message.contains("edited PIC"));
     }
 }
 
@@ -136,7 +136,7 @@ fn test_sign_clause_as_edited_pic() {
         assert!(result.is_err(), "Should fail for: {}", sign_clause);
         
         let error = result.unwrap_err();
-        assert_eq!(error.code(), ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
     }
 }
 
@@ -214,10 +214,10 @@ fn test_error_context_in_parse_errors() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    let context = error.context();
+    let context = &error.context;
     assert!(context.is_some());
     
-    let ctx = context.unwrap();
+    let ctx = context.as_ref().unwrap();
     assert!(ctx.line_number.is_some());
     assert_eq!(ctx.line_number.unwrap(), 2); // Error on line 2
 }

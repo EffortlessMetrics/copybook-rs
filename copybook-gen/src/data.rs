@@ -111,7 +111,7 @@ fn fill_field_data(
     record: &mut [u8], 
     field: &Field, 
     rng: &mut StdRng, 
-    record_idx: usize,
+    _record_idx: usize,
     edge_cases: bool,
     invalid: bool
 ) {
@@ -143,7 +143,7 @@ fn fill_field_data(
     // Handle OCCURS
     if let Some(occurs) = &field.occurs {
         match occurs {
-            Occurs::Fixed { count } => {
+            Occurs::Fixed { count: _ } => {
                 // Fixed arrays are handled by the schema layout
             }
             Occurs::ODO { min, max, counter_path } => {

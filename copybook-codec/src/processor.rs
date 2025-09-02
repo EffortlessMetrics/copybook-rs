@@ -238,37 +238,6 @@ impl DecodeProcessor {
         Ok(json_str.trim_end().to_string())
     }
 
-    /// Generate processing summary with performance metrics
-    fn generate_summary(&self, records_processed: u64) -> Result<RunSummary, Error> {
-        let processing_time_ms = self.start_time.elapsed().as_millis() as u64;
-        
-        let mut summary = RunSummary {
-            records_processed,
-            records_with_errors: 0, // TODO: Get from error_reporter
-            warnings: 0, // TODO: Get from error_reporter
-            processing_time_ms,
-            bytes_processed: self.bytes_processed,
-            schema_fingerprint: "placeholder".to_string(), // TODO: Implement fingerprinting
-            input_file_hash: None,
-            throughput_mbps: 0.0,
-            error_summary: None, // TODO: Get from error_reporter
-            corruption_warnings: 0, // TODO: Get from error_reporter
-        };
-        
-        summary.calculate_throughput();
-        
-        // Log performance metrics
-        info!(
-            "Processing complete: {} records, {:.2} MB/s throughput",
-            records_processed, summary.throughput_mbps
-        );
-        
-        // Validate SLO targets
-        self.validate_performance_slo(&summary)?;
-        
-        Ok(summary)
-    }
-
     /// Validate performance against SLO targets
     fn validate_performance_slo(&self, summary: &RunSummary) -> Result<(), Error> {
         // Only validate for significant workloads
@@ -757,12 +726,12 @@ impl DecodeProcessor {
     }
 
     /// Generate final processing summary
-    fn generate_summary(&self, total_records: u64) -> Result<RunSummary, Error> {
+    fn generate_summary(&self, records_processed: u64) -> Result<RunSummary, Error> {
         let processing_time = self.start_time.elapsed();
         let processing_time_ms = processing_time.as_millis() as u64;
 
         let mut summary = RunSummary {
-            records_processed: total_records,
+            records_processed,
             records_with_errors: 0,
             warnings: 0,
             processing_time_ms,
@@ -777,6 +746,9 @@ impl DecodeProcessor {
         // Update from error reporter
         summary.update_from_error_summary(self.error_reporter.summary());
         summary.calculate_throughput();
+
+        // Validate SLO targets
+        self.validate_performance_slo(&summary)?;
 
         info!(
             "Processing complete: {} records, {} errors, {} warnings, {:.2} MB/s",

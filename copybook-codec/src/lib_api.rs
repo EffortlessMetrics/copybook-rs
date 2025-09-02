@@ -2087,8 +2087,12 @@ pub fn decode_file_to_jsonl(
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        // End of file
-                        break;
+                        // Partial record read - treat as error instead of silent EOF
+                        // This preserves the key insight from the truncated record handling PR
+                        return Err(Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            format!("Truncated record detected: expected {} bytes but got partial read", record_length),
+                        ));
                     }
                     Err(e) => {
                         return Err(Error::new(
@@ -2197,8 +2201,9 @@ pub fn decode_file_to_jsonl(
             summary.records_processed = record_count;
         }
     }
-    summary.processing_time_ms =
-        u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
+
+    // Calculate processing metrics
+    summary.processing_time_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
     summary.schema_fingerprint = "placeholder_fingerprint".to_string();
 

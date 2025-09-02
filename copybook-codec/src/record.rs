@@ -504,8 +504,6 @@ impl<R: Read> RDWRecordReader<R> {
     /// Returns an error if zero-length record is invalid for the schema
     pub fn validate_zero_length_record(&self, schema: &Schema) -> Result<()> {
         // Zero-length records are valid only when schema fixed prefix == 0
-        // For now, we'll assume this is valid since we don't have layout calculation yet
-        // This will be properly implemented when layout resolution is available
 
         // Calculate the minimum record size based on schema
         let min_size = Self::calculate_schema_fixed_prefix(schema);
@@ -530,12 +528,57 @@ impl<R: Read> RDWRecordReader<R> {
         Ok(())
     }
 
-    /// Calculate the fixed prefix size of a schema (placeholder implementation)
-    fn calculate_schema_fixed_prefix(_schema: &Schema) -> u32 {
-        // Placeholder: This should calculate the size of fields that appear
-        // before any ODO arrays. For now, return 0 to allow zero-length records.
-        // This will be properly implemented when layout resolution is available.
-        0
+    /// Calculate the fixed prefix size of a schema
+    ///
+    /// This walks the schema to find the first field that has an ODO
+    /// (OCCURS DEPENDING ON) clause and returns its byte offset. If the
+    /// schema has no ODO arrays, the total fixed record length is returned.
+    fn calculate_schema_fixed_prefix(schema: &Schema) -> u32 {
+        use copybook_core::{Field, Occurs};
+
+        fn find_first_odo_offset(fields: &[Field], current: &mut Option<u32>) {
+            for field in fields {
+                if let Some(Occurs::ODO { .. }) = &field.occurs {
+                    let offset = field.offset;
+                    match current {
+                        Some(existing) => {
+                            if offset < *existing {
+                                *current = Some(offset);
+                            }
+                        }
+                        None => *current = Some(offset),
+                    }
+                }
+                if !field.children.is_empty() {
+                    find_first_odo_offset(&field.children, current);
+                }
+            }
+        }
+
+        let mut first_odo_offset: Option<u32> = None;
+        find_first_odo_offset(&schema.fields, &mut first_odo_offset);
+
+        if let Some(offset) = first_odo_offset {
+            offset
+        } else if let Some(lrecl) = schema.lrecl_fixed {
+            lrecl
+        } else {
+            fn find_record_end(fields: &[Field], max_end: &mut u32) {
+                for field in fields {
+                    let end = field.offset + field.len;
+                    if end > *max_end {
+                        *max_end = end;
+                    }
+                    if !field.children.is_empty() {
+                        find_record_end(&field.children, max_end);
+                    }
+                }
+            }
+
+            let mut max_end = 0;
+            find_record_end(&schema.fields, &mut max_end);
+            max_end
+        }
     }
 
     /// Detect ASCII transfer corruption heuristic
@@ -1210,6 +1253,89 @@ mod tests {
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    }
+
+    #[test]
+    fn test_zero_length_record_rejected_without_odo() {
+        use copybook_core::{Field, FieldKind};
+
+        let mut field = Field::with_kind(1, "FIELD".to_string(), FieldKind::Alphanum { len: 5 });
+        field.offset = 0;
+        field.len = 5;
+
+        let schema = Schema {
+            fields: vec![field],
+            lrecl_fixed: Some(5),
+            tail_odo: None,
+            fingerprint: String::new(),
+        };
+
+        let reader = RDWRecordReader::new(Cursor::new(Vec::new()), false);
+        let result = reader.validate_zero_length_record(&schema);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+
+        let prefix = RDWRecordReader::<Cursor<Vec<u8>>>::calculate_schema_fixed_prefix(&schema);
+        assert_eq!(prefix, 5);
+    }
+
+    #[test]
+    fn test_zero_length_record_rejected_with_odo() {
+        use copybook_core::{Field, FieldKind, Occurs, TailODO};
+
+        let mut counter = Field::with_kind(
+            5,
+            "CTR".to_string(),
+            FieldKind::BinaryInt {
+                bits: 16,
+                signed: false,
+            },
+        );
+        counter.offset = 0;
+        counter.len = 2;
+
+        let mut array = Field::with_kind(5, "ARR".to_string(), FieldKind::Alphanum { len: 1 });
+        array.offset = 2;
+        array.len = 1;
+        array.occurs = Some(Occurs::ODO {
+            min: 0,
+            max: 5,
+            counter_path: "CTR".to_string(),
+        });
+
+        let schema = Schema {
+            fields: vec![counter, array],
+            lrecl_fixed: None,
+            tail_odo: Some(TailODO {
+                counter_path: "CTR".to_string(),
+                min_count: 0,
+                max_count: 5,
+                array_path: "ARR".to_string(),
+            }),
+            fingerprint: String::new(),
+        };
+
+        let reader = RDWRecordReader::new(Cursor::new(Vec::new()), false);
+        let result = reader.validate_zero_length_record(&schema);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+
+        let prefix = RDWRecordReader::<Cursor<Vec<u8>>>::calculate_schema_fixed_prefix(&schema);
+        assert_eq!(prefix, 2);
+    }
+
+    #[test]
+    fn test_zero_length_record_allowed_for_empty_schema() {
+        let schema = Schema::new();
+        let reader = RDWRecordReader::new(Cursor::new(Vec::new()), false);
+
+        let result = reader.validate_zero_length_record(&schema);
+        assert!(result.is_ok());
+
+        let prefix = RDWRecordReader::<Cursor<Vec<u8>>>::calculate_schema_fixed_prefix(&schema);
+        assert_eq!(prefix, 0);
     }
 
     #[test]

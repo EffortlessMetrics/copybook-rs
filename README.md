@@ -4,14 +4,14 @@ A modern, memory-safe parser/codec for COBOL copybooks and fixed-record data.
 
 ## Overview
 
-copybook-rs is a Rust implementation of a COBOL copybook parser and data codec that provides deterministic, reproducible conversion of mainframe-encoded records into accessible formats like JSON. This enables organizations to unlock mainframe data for analytics, system integration, and modernization efforts without requiring COBOL runtime environments.
+copybook-rs is a Rust implementation of a COBOL copybook parser and data codec that provides deterministic, reproducible conversion of mainframe-encoded records into accessible formats like JSON. With robust field processing and comprehensive COBOL data type support, it enables organizations to unlock mainframe data for analytics, system integration, and modernization efforts without requiring COBOL runtime environments.
 
 ### Key Benefits
 
 - **Mainframe Data Liberation**: Convert legacy COBOL data formats to modern JSON without COBOL runtime
 - **ETL Integration**: Stream processing of multi-GB mainframe files with bounded memory usage
 - **Audit Compliance**: Deterministic output with byte-identical results across runs
-- **Round-Trip Fidelity**: Lossless conversion preserves original data integrity
+- **Round-Trip Fidelity**: Lossless conversion preserves original data integrity with proper COBOL field processing
 - **Production Ready**: Comprehensive error handling with stable error codes
 
 ## Features
@@ -180,6 +180,34 @@ copybook decode schema.cpy data.bin \
   --verbose  # shows throughput and memory usage
 ```
 
+## JSON Output Quality
+
+copybook-rs produces clean, properly typed JSON output with comprehensive COBOL field processing:
+
+- **Proper Field Values**: COBOL fields are decoded to their correct string or numeric representations (no unintended null values)
+- **Numeric Precision**: Zoned and packed decimals maintain precision with proper sign handling
+- **Character Conversion**: EBCDIC and ASCII character data converted to UTF-8 strings
+- **Hierarchical Structure**: Group fields create nested JSON objects matching copybook structure
+
+### Example JSON Output
+
+For a COBOL record with various field types:
+
+```json
+{
+  "CUSTOMER-ID": "00123",
+  "CUSTOMER-NAME": "JOHN DOE",
+  "ACCOUNT-BALANCE": "-1234.56",
+  "LAST-PAYMENT": "890.12",
+  "ORDER-COUNT": "3",
+  "CUSTOMER-ADDRESS": {
+    "STREET": "123 MAIN ST",
+    "CITY": "ANYTOWN",
+    "ZIP-CODE": "12345"
+  }
+}
+```
+
 ## Library API Usage
 
 ### Basic Rust Integration
@@ -220,14 +248,16 @@ println!("Processed {} records with {} errors",
 ### Streaming Record Processing
 
 ```rust
-use copybook_codec::{RecordDecoder, DecodeOptions};
+use copybook_codec::{RecordIterator, DecodeOptions, iter_records_from_file};
 
-let decoder = RecordDecoder::new(&schema, &opts)?;
+// Create iterator for processing records one at a time
+let mut iter = iter_records_from_file("data.bin", &schema, &opts)?;
 
-for record_result in decoder.decode_file("data.bin")? {
+for record_result in iter {
     match record_result {
         Ok(json_value) => {
-            // Process individual record
+            // Process individual record - now properly typed fields, not nulls
+            // Example output: {"CUSTOMER-ID": "00123", "NAME": "JOHN DOE"}
             println!("{}", serde_json::to_string(&json_value)?);
         }
         Err(e) => {
@@ -242,7 +272,10 @@ for record_result in decoder.decode_file("data.bin")? {
 ### Data Types
 - **Alphanumeric**: `PIC X(n)` - Character data with EBCDIC/ASCII conversion
 - **Zoned Decimal**: `PIC 9(n)V9(m)` - Display numeric with optional sign
+  - Supports EBCDIC zone nibbles (C/F = positive, D = negative)
+  - Supports ASCII overpunch characters (A-I = +1 to +9, } = +0, J-R = -1 to -9)
 - **Packed Decimal**: `PIC 9(n)V9(m) COMP-3` - Binary-coded decimal
+  - Enhanced sign nibble handling (0xC/0xF = positive, 0xD/0xB = negative)
 - **Binary Integer**: `PIC 9(n) COMP/BINARY` - Big-endian integers
 - **Signed Fields**: `PIC S9(n)` - Signed numeric types
 

@@ -153,7 +153,7 @@ fn test_redefines_encode_ambiguity_error() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert!(error.message().contains("ambiguous") || error.message().contains("multiple"));
+    assert!(error.message.contains("ambiguous") || error.message.contains("multiple"));
 }
 
 #[test]

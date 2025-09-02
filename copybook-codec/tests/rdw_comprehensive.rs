@@ -7,6 +7,7 @@ use copybook_core::parse_copybook;
 use copybook_codec::{DecodeOptions, EncodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode};
 use serde_json::{json, Value};
 use std::io::Cursor;
+use base64::Engine;
 
 fn create_simple_schema() -> copybook_core::Schema {
     let copybook = "01 SIMPLE-RECORD PIC X(10).";
@@ -108,7 +109,7 @@ fn test_rdw_reserved_nonzero_strict_fatal() {
     assert!(result.is_err()); // Should fail in strict mode
     
     let error = result.unwrap_err();
-    assert!(error.message().contains("reserved") || error.message().contains("RDW"));
+    assert!(error.message.contains("reserved") || error.message.contains("RDW"));
 }
 
 #[test]
@@ -199,7 +200,7 @@ fn test_rdw_suspect_ascii_heuristic() {
     } else {
         // Or might fail with ASCII corruption detection error
         let error = result.unwrap_err();
-        assert!(error.message().contains("ASCII") || error.message().contains("corruption"));
+        assert!(error.message.contains("ASCII") || error.message.contains("corruption"));
     }
 }
 
@@ -274,7 +275,7 @@ fn test_rdw_zero_length_record_invalid() {
     assert!(result.is_err()); // Should fail - zero length invalid for fixed schema
     
     let error = result.unwrap_err();
-    assert!(error.message().contains("underflow") || error.message().contains("length"));
+    assert!(error.message.contains("underflow") || error.message.contains("length"));
 }
 
 #[test]
@@ -436,7 +437,7 @@ fn test_rdw_raw_record_only_mode() {
     
     // Raw data should be just the record content (10 bytes)
     let raw_b64 = decoded_json["__raw_b64"].as_str().unwrap();
-    let raw_data = base64::decode(raw_b64).unwrap();
+    let raw_data = base64::engine::general_purpose::STANDARD.decode(raw_b64).unwrap();
     assert_eq!(raw_data, b"HELLO WRLD");
     assert_eq!(raw_data.len(), 10); // Should not include 4-byte RDW
 }

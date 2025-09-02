@@ -4,8 +4,8 @@
 //! behavior specified in the design document.
 
 use copybook_core::{parse_copybook, FieldKind};
-use copybook_codec::{DecodeOptions, EncodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode};
-use serde_json::{json, Value};
+use copybook_codec::{DecodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode};
+use serde_json::Value;
 use std::io::Cursor;
 
 #[test]
@@ -151,7 +151,7 @@ fn test_zoned_invalid_zone_error() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert!(error.message().contains("invalid") || error.message().contains("zone"));
+    assert!(error.message.contains("invalid") || error.message.contains("zone"));
 }
 
 #[test]
@@ -325,7 +325,7 @@ fn test_packed_decimal_invalid_nibble() {
     assert!(result.is_err());
     
     let error = result.unwrap_err();
-    assert!(error.message().contains("invalid") || error.message().contains("nibble"));
+    assert!(error.message.contains("invalid") || error.message.contains("nibble"));
 }
 
 #[test]

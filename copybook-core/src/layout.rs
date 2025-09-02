@@ -32,8 +32,6 @@ struct OdoInfo {
     counter_path: String,
     /// Byte offset of the array
     array_offset: u64,
-    /// Byte offset of the counter field
-    counter_offset: Option<u64>,
     /// Maximum count for space allocation
     max_count: u32,
     /// Minimum count
@@ -197,7 +195,6 @@ fn resolve_field_layout(
                 array_path: field_path.clone(),
                 counter_path: counter_path.clone(),
                 array_offset: aligned_offset,
-                counter_offset: None, // Will be resolved later
                 max_count: *max,
                 min_count: *min,
             });
@@ -481,8 +478,8 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
 /// Update FILLER field names with actual byte offsets
 fn update_filler_names(fields: &mut [Field]) {
     for field in fields {
-        if field.name.starts_with("_filler_") && field.name.ends_with('0') {
-            // Update FILLER name with actual offset
+        if field.name.starts_with("_filler_") {
+            // Update FILLER name with actual offset (8-digit zero-padded)
             field.name = format!("_filler_{:08}", field.offset);
         }
         
@@ -499,7 +496,7 @@ mod tests {
     #[test]
     fn test_simple_field_layout() {
         let mut schema = Schema::new();
-        let mut field = Field::with_kind(1, "TEST-FIELD".to_string(), FieldKind::Alphanum { len: 10 });
+        let field = Field::with_kind(1, "TEST-FIELD".to_string(), FieldKind::Alphanum { len: 10 });
         schema.fields.push(field);
         
         resolve_layout(&mut schema).unwrap();
@@ -515,7 +512,7 @@ mod tests {
         let mut schema = Schema::new();
         
         // Add a char field first to create misalignment
-        let mut char_field = Field::with_kind(1, "CHAR-FIELD".to_string(), FieldKind::Alphanum { len: 1 });
+        let char_field = Field::with_kind(1, "CHAR-FIELD".to_string(), FieldKind::Alphanum { len: 1 });
         schema.fields.push(char_field);
         
         // Add synchronized binary field
@@ -555,7 +552,7 @@ mod tests {
         let mut schema = Schema::new();
         
         // Counter field
-        let mut counter = Field::with_kind(1, "COUNTER".to_string(), FieldKind::ZonedDecimal { digits: 3, scale: 0, signed: false });
+        let counter = Field::with_kind(1, "COUNTER".to_string(), FieldKind::ZonedDecimal { digits: 3, scale: 0, signed: false });
         schema.fields.push(counter);
         
         // ODO array field
@@ -588,7 +585,7 @@ mod tests {
         let mut schema = Schema::new();
         
         // Original field
-        let mut field_a = Field::with_kind(1, "FIELD-A".to_string(), FieldKind::Alphanum { len: 10 });
+        let field_a = Field::with_kind(1, "FIELD-A".to_string(), FieldKind::Alphanum { len: 10 });
         schema.fields.push(field_a);
         
         // Shorter redefines
@@ -652,7 +649,7 @@ mod tests {
         let mut schema = Schema::new();
         
         // 7-digit packed decimal should be 4 bytes: ceil((7+1)/2) = 4
-        let mut field = Field::with_kind(1, "PACKED-FIELD".to_string(), 
+        let field = Field::with_kind(1, "PACKED-FIELD".to_string(), 
             FieldKind::PackedDecimal { digits: 7, scale: 2, signed: true });
         schema.fields.push(field);
         
@@ -674,7 +671,7 @@ mod tests {
         ];
         
         for (digits, expected_bits) in test_cases {
-            let mut field = Field::with_kind(1, format!("BINARY-{}", digits), 
+            let field = Field::with_kind(1, format!("BINARY-{}", digits), 
                 FieldKind::BinaryInt { bits: expected_bits, signed: false });
             schema.fields.push(field);
         }

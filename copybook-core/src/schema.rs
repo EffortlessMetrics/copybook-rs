@@ -188,6 +188,7 @@ impl Schema {
     }
 
     /// Convert field to canonical JSON for fingerprinting
+    #[allow(clippy::only_used_in_recursion)]
     fn field_to_canonical_json(&self, field: &Field) -> Value {
         use serde_json::{Map, Value};
         
@@ -264,6 +265,23 @@ impl Schema {
             }
         }
         None
+    }
+
+    /// Collect all fields that redefine the field at `target_path`
+    #[must_use]
+    pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field> {
+        fn collect<'a>(fields: &'a [Field], target_path: &str, acc: &mut Vec<&'a Field>) {
+            for f in fields {
+                if let Some(ref redef) = f.redefines_of && redef == target_path {
+                    acc.push(f);
+                }
+                collect(&f.children, target_path, acc);
+            }
+        }
+
+        let mut result = Vec::new();
+        collect(&self.fields, target_path, &mut result);
+        result
     }
 
     /// Get all fields in a flat list (pre-order traversal)

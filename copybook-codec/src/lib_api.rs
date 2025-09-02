@@ -163,17 +163,11 @@ impl fmt::Display for RunSummary {
 /// 
 /// Returns an error if the data cannot be decoded according to the schema
 pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // For now, return a minimal JSON object
-    // In a full implementation, this would decode all fields according to the schema
+    // Placeholder implementation - return minimal metadata
     let mut json_obj = serde_json::Map::new();
-    
-    // Add basic metadata
     json_obj.insert("__record_length".to_string(), Value::Number(serde_json::Number::from(data.len())));
     json_obj.insert("__schema_fields".to_string(), Value::Number(serde_json::Number::from(schema.fields.len())));
-    
-    // Add placeholder for actual field decoding
     json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
-    
     Ok(Value::Object(json_obj))
 }
 
@@ -197,10 +191,8 @@ pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) ->
     let mut buffer = vec![0u8; record_length];
     
     // Add some basic encoding logic
-    if let Some(obj) = json.as_object() {
-        if obj.contains_key("__status") {
-            buffer[0] = b'E'; // Encoded marker
-        }
+    if let Some(obj) = json.as_object() && obj.contains_key("__status") {
+        buffer[0] = b'E'; // Encoded marker
     }
     
     Ok(buffer)

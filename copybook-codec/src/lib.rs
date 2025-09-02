@@ -6,6 +6,9 @@
 // Only include working modules for task 9.1
 pub mod lib_api;
 pub mod options;
+pub mod charset;
+pub mod memory;
+pub mod numeric;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,

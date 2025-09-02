@@ -117,6 +117,17 @@ pub enum Occurs {
     },
 }
 
+/// Workload classification derived from schema analysis
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkloadType {
+    /// Schema contains more DISPLAY (alphanumeric/zoned) fields than COMP-3
+    DisplayHeavy,
+    /// Schema contains more COMP-3 (packed decimal) fields than DISPLAY
+    Comp3Heavy,
+    /// No predominant field type
+    Mixed,
+}
+
 impl Schema {
     /// Create a new empty schema
     #[must_use]
@@ -140,6 +151,39 @@ impl Schema {
         };
         schema.calculate_fingerprint();
         schema
+    }
+
+    /// Determine workload classification based on field types
+    #[must_use]
+    pub fn workload_type(&self) -> WorkloadType {
+        fn walk(fields: &[Field], display: &mut usize, comp3: &mut usize) {
+            for field in fields {
+                match field.kind {
+                    FieldKind::Alphanum { .. } | FieldKind::ZonedDecimal { .. } => {
+                        *display += 1;
+                    }
+                    FieldKind::PackedDecimal { .. } => {
+                        *comp3 += 1;
+                    }
+                    _ => {}
+                }
+                if !field.children.is_empty() {
+                    walk(&field.children, display, comp3);
+                }
+            }
+        }
+
+        let mut display = 0;
+        let mut comp3 = 0;
+        walk(&self.fields, &mut display, &mut comp3);
+
+        if display > comp3 {
+            WorkloadType::DisplayHeavy
+        } else if comp3 > display {
+            WorkloadType::Comp3Heavy
+        } else {
+            WorkloadType::Mixed
+        }
     }
 
     /// Calculate the schema fingerprint using SHA-256

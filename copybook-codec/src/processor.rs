@@ -8,7 +8,7 @@ use crate::corruption::{detect_rdw_ascii_corruption, detect_ebcdic_corruption, d
 use crate::memory::{WorkerPool, ScratchBuffers, StreamingProcessor};
 use crate::RunSummary;
 use copybook_core::{
-    Schema, Error, ErrorCode, ErrorReporter, ErrorMode,
+    Schema, WorkloadType, Error, ErrorCode, ErrorReporter, ErrorMode,
     Field, FieldKind
 };
 use serde_json::Value;
@@ -27,6 +27,8 @@ pub struct DecodeProcessor {
     start_time: Instant,
     /// Bytes processed counter
     bytes_processed: u64,
+    /// Workload classification for SLO validation
+    workload_type: WorkloadType,
 }
 
 /// High-level processor for encoding operations with integrated error handling
@@ -58,6 +60,7 @@ impl DecodeProcessor {
             options,
             start_time: Instant::now(),
             bytes_processed: 0,
+            workload_type: WorkloadType::Mixed,
         }
     }
 
@@ -68,6 +71,9 @@ impl DecodeProcessor {
         input: R,
         output: W,
     ) -> Result<RunSummary, Error> {
+        // Analyze schema to determine workload characteristics
+        self.workload_type = schema.workload_type();
+
         if self.options.threads == 1 {
             // Single-threaded processing for deterministic baseline
             self.process_file_single_threaded(schema, input, output)
@@ -276,36 +282,36 @@ impl DecodeProcessor {
             return Ok(()); // Skip validation for small datasets
         }
 
-        // Determine workload type based on options/schema characteristics
-        let is_display_heavy = true; // TODO: Analyze schema to determine workload type
-        let is_comp3_heavy = false;
-
-        if is_display_heavy {
-            // Target: ≥80 MB/s for DISPLAY-heavy workloads
-            if summary.throughput_mbps < 80.0 {
-                warn!(
-                    "DISPLAY-heavy throughput {:.2} MB/s below SLO target of 80 MB/s",
-                    summary.throughput_mbps
-                );
-            } else {
-                info!(
-                    "DISPLAY-heavy throughput {:.2} MB/s meets SLO target",
-                    summary.throughput_mbps
-                );
+        match self.workload_type {
+            WorkloadType::DisplayHeavy => {
+                // Target: ≥80 MB/s for DISPLAY-heavy workloads
+                if summary.throughput_mbps < 80.0 {
+                    warn!(
+                        "DISPLAY-heavy throughput {:.2} MB/s below SLO target of 80 MB/s",
+                        summary.throughput_mbps
+                    );
+                } else {
+                    info!(
+                        "DISPLAY-heavy throughput {:.2} MB/s meets SLO target",
+                        summary.throughput_mbps
+                    );
+                }
             }
-        } else if is_comp3_heavy {
-            // Target: ≥40 MB/s for COMP-3-heavy workloads
-            if summary.throughput_mbps < 40.0 {
-                warn!(
-                    "COMP-3-heavy throughput {:.2} MB/s below SLO target of 40 MB/s",
-                    summary.throughput_mbps
-                );
-            } else {
-                info!(
-                    "COMP-3-heavy throughput {:.2} MB/s meets SLO target",
-                    summary.throughput_mbps
-                );
+            WorkloadType::Comp3Heavy => {
+                // Target: ≥40 MB/s for COMP-3-heavy workloads
+                if summary.throughput_mbps < 40.0 {
+                    warn!(
+                        "COMP-3-heavy throughput {:.2} MB/s below SLO target of 40 MB/s",
+                        summary.throughput_mbps
+                    );
+                } else {
+                    info!(
+                        "COMP-3-heavy throughput {:.2} MB/s meets SLO target",
+                        summary.throughput_mbps
+                    );
+                }
             }
+            WorkloadType::Mixed => {}
         }
 
         Ok(())

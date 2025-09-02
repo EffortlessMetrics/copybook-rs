@@ -94,9 +94,6 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
         ));
     }
     
-    // Update FILLER field names with actual offsets
-    update_filler_names(&mut schema.fields);
-    
     Ok(())
 }
 
@@ -479,18 +476,6 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
 }
 
 /// Update FILLER field names with actual byte offsets
-fn update_filler_names(fields: &mut [Field]) {
-    for field in fields {
-        if field.name.starts_with("_filler_") && field.name.ends_with('0') {
-            // Update FILLER name with actual offset
-            field.name = format!("_filler_{:08}", field.offset);
-        }
-        
-        // Recursively update children
-        update_filler_names(&mut field.children);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

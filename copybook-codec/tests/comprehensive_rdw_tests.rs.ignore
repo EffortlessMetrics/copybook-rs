@@ -374,14 +374,16 @@ fn test_rdw_maximum_length_handling() {
     let mut output = Vec::new();
     
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-    
+
     // Should handle maximum length (may be limited by implementation)
-    if result.is_ok() {
-        let summary = result.unwrap();
-        assert_eq!(summary.records_processed, 1);
-    } else {
-        // May fail due to memory or other limits, which is acceptable
-        println!("Maximum length test failed (acceptable): {:?}", result.unwrap_err());
+    match result {
+        Ok(summary) => {
+            assert_eq!(summary.records_processed, 1);
+        }
+        Err(e) => {
+            // May fail due to memory or other limits, which is acceptable
+            println!("Maximum length test failed (acceptable): {:?}", e);
+        }
     }
 }
 

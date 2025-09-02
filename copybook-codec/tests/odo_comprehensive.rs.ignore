@@ -281,7 +281,7 @@ fn test_odo_encode_counter_update() {
         "ITEMS": ["ITEM1     ", "ITEM2     ", "ITEM3     "] // But array has 3 items
     });
     
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{}\n", json_data);
     
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -344,7 +344,7 @@ fn test_odo_array_length_out_of_bounds_encode() {
         "ITEMS": ["ITEM1     ", "ITEM2     ", "ITEM3     ", "ITEM4     ", "ITEM5     "] // 5 items > max 3
     });
     
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{}\n", json_data);
     
     let options = EncodeOptions {
         format: RecordFormat::Fixed,

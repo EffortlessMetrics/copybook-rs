@@ -188,6 +188,7 @@ impl Schema {
     }
 
     /// Convert field to canonical JSON for fingerprinting
+    #[allow(clippy::only_used_in_recursion)]
     fn field_to_canonical_json(&self, field: &Field) -> Value {
         use serde_json::{Map, Value};
         

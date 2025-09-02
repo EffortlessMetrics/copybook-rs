@@ -3,6 +3,8 @@
 //! This module implements tokenization for COBOL copybooks, supporting both
 //! fixed-form and free-form formats with proper continuation handling.
 
+#![allow(dead_code)]
+
 use logos::Logos;
 use std::fmt;
 
@@ -369,7 +371,7 @@ fn detect_format(input: &str) -> CobolFormat {
 }
 
 /// Preprocess lines according to the detected format
-fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine> {
+fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine<'_>> {
     let mut result = Vec::new();
     
     for (line_num, line) in input.lines().enumerate() {
@@ -384,7 +386,7 @@ fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine> {
 }
 
 /// Process a fixed-form COBOL line
-fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
+fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.is_empty() {
         return ProcessedLine {
             content: "",
@@ -424,7 +426,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
 }
 
 /// Process a free-form COBOL line
-fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine {
+fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
     
     // Check for comment lines (* at column 1 or *> anywhere)
@@ -481,7 +483,7 @@ mod tests {
         let input = r#"       01  VERY-LONG-FIELD-NAME
       -        PIC X(50).
 "#;
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         let processed = lexer.build_processed_text();
         
         // Should join the continuation properly

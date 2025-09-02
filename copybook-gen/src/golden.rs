@@ -180,7 +180,7 @@ impl GoldenTestSuite {
     /// Create a new test suite
     pub fn new(name: &str, description: &str) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
-        
+
         Self {
             name: name.to_string(),
             description: description.to_string(),
@@ -218,12 +218,12 @@ impl GoldenTestSuite {
     /// Validate all tests
     pub fn validate_all(&self) -> ValidationResult {
         let mut result = ValidationResult::new();
-        
+
         for test in &self.tests {
             // This would validate against actual output in a real implementation
             result.add_test_result(&test.name, true, None);
         }
-        
+
         result
     }
 
@@ -277,7 +277,7 @@ impl ValidationResult {
                 duration: None,
             },
         );
-        
+
         if !passed {
             self.success = false;
         }
@@ -288,7 +288,7 @@ impl ValidationResult {
         let total = self.results.len();
         let passed = self.results.values().filter(|r| r.passed).count();
         let failed = total - passed;
-        
+
         (total, passed, failed)
     }
 }
@@ -303,35 +303,32 @@ impl Default for ValidationResult {
 pub fn generate_comprehensive_suite() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "comprehensive_copybook_tests",
-        "Comprehensive test suite for copybook-rs functionality"
+        "Comprehensive test suite for copybook-rs functionality",
     );
-    
+
     // Add various test categories
     suite.metadata.tags.extend_from_slice(&[
         "comprehensive".to_string(),
         "regression".to_string(),
         "synthetic".to_string(),
     ]);
-    
+
     // This would be populated with actual tests
     // For now, return empty suite structure
-    
+
     suite
 }
 
 /// Performance test suite for throughput validation
 pub fn generate_performance_suite() -> GoldenTestSuite {
-    let mut suite = GoldenTestSuite::new(
-        "performance_tests",
-        "Performance validation test suite"
-    );
-    
+    let mut suite = GoldenTestSuite::new("performance_tests", "Performance validation test suite");
+
     suite.metadata.tags.extend_from_slice(&[
         "performance".to_string(),
         "throughput".to_string(),
         "scalability".to_string(),
     ]);
-    
+
     suite
 }
 
@@ -339,14 +336,14 @@ pub fn generate_performance_suite() -> GoldenTestSuite {
 pub fn generate_negative_test_suite() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "negative_tests",
-        "Negative test cases for error handling validation"
+        "Negative test cases for error handling validation",
     );
-    
+
     suite.metadata.tags.extend_from_slice(&[
         "negative".to_string(),
         "error_handling".to_string(),
         "corruption".to_string(),
     ]);
-    
+
     suite
 }

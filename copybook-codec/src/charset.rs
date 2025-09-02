@@ -217,22 +217,22 @@ static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
 /// ASCII zoned decimal sign mapping
 /// Maps zone nibble to (is_signed, is_negative)
 static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [
-    (true, false),  // 0x0_: positive (ASCII '0'-'9' with 0x30-0x39)
-    (true, false),  // 0x1_: positive
-    (true, false),  // 0x2_: positive
-    (true, false),  // 0x3_: positive (normal digits)
-    (true, false),  // 0x4_: positive
-    (true, false),  // 0x5_: positive
-    (true, false),  // 0x6_: positive
-    (true, false),  // 0x7_: positive
-    (false, false), // 0x8_: unsigned
-    (false, false), // 0x9_: unsigned
-    (false, false), // 0xA_: unsigned
-    (false, false), // 0xB_: unsigned
-    (false, false), // 0xC_: unsigned
-    (false, false), // 0xD_: unsigned
-    (false, false), // 0xE_: unsigned
-    (false, false), // 0xF_: unsigned
+    (true, false),  // 0x0: '{' = +0 overpunch
+    (true, false),  // 0x1: 'A' = +1 overpunch
+    (true, false),  // 0x2: 'B' = +2 overpunch
+    (true, false),  // 0x3: '}' = +3 overpunch
+    (true, false),  // 0x4: 'D' = +4 overpunch
+    (true, false),  // 0x5: 'E' = +5 overpunch
+    (true, false),  // 0x6: 'F' = +6 overpunch
+    (true, false),  // 0x7: 'G' = +7 overpunch
+    (true, true),   // 0x8: 'H' = -0 overpunch
+    (true, true),   // 0x9: 'I' = -1 overpunch
+    (true, true),   // 0xA: 'J' = -2 overpunch
+    (true, true),   // 0xB: 'K' = -3 overpunch
+    (true, true),   // 0xC: 'L' = -4 overpunch
+    (true, true),   // 0xD: 'M' = -5 overpunch
+    (true, true),   // 0xE: 'N' = -6 overpunch
+    (true, true),   // 0xF: 'O' = -7 overpunch
 ];
 
 /// Get the appropriate lookup table for the given codepage

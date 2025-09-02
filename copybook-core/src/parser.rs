@@ -16,6 +16,15 @@ use serde_json::Value;
 /// 
 /// Returns an error if the copybook contains syntax errors or unsupported features
 pub fn parse(text: &str) -> Result<Schema> {
+    parse_with_options(text, &ParseOptions::default())
+}
+
+/// Parse a COBOL copybook text into a schema with specific options
+/// 
+/// # Errors
+/// 
+/// Returns an error if the copybook contains syntax errors or unsupported features
+pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     if text.trim().is_empty() {
         return Err(Error::new(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
     }
@@ -23,7 +32,7 @@ pub fn parse(text: &str) -> Result<Schema> {
     let mut lexer = Lexer::new(text);
     let tokens = lexer.tokenize();
     
-    let mut parser = Parser::new(tokens, lexer.format());
+    let mut parser = Parser::with_options(tokens, lexer.format(), options.clone());
     parser.parse_schema()
 }
 

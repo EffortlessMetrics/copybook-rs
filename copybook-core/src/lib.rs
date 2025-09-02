@@ -13,6 +13,7 @@ pub mod schema;
 
 pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorReporter, ErrorMode, ErrorSeverity, ErrorSummary, ErrorReport};
+pub use parser::ParseOptions;
 pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
 
 /// Parse a COBOL copybook into a structured schema
@@ -22,4 +23,13 @@ pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
 /// Returns an error if the copybook contains syntax errors or unsupported features
 pub fn parse_copybook(text: &str) -> Result<Schema> {
     parser::parse(text)
+}
+
+/// Parse a COBOL copybook with specific options
+/// 
+/// # Errors
+/// 
+/// Returns an error if the copybook contains syntax errors or unsupported features
+pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
+    parser::parse_with_options(text, options)
 }

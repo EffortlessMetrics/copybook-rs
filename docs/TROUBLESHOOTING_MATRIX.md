@@ -298,7 +298,7 @@ jq -r 'select(.FIELD_NAME__raw_b64) | .FIELD_NAME__raw_b64' debug.jsonl | base64
 |-------|----------|----------|
 | File transfer corruption | ASCII digits in binary | Use binary transfer mode |
 | Wrong field type | Text data in COMP-3 field | Check copybook field types |
-| Alignment issues | Shifted data | Verify record boundaries |
+| Alignment issues | Shifted data | Verify record boundaries and SYNCHRONIZED field alignment |
 | Uninitialized data | Random nibbles | Check data source |
 
 ### CBKD411_ZONED_BAD_SIGN
@@ -453,6 +453,39 @@ diff test1.jsonl test2.jsonl
 2. Check for race conditions
 3. Verify deterministic mode
 4. Report bug if confirmed
+
+### Binary Field Alignment Issues
+
+**Symptoms:**
+- Binary fields reading incorrect values
+- Data appears shifted or corrupted
+- SYNCHRONIZED fields not working as expected
+
+**Common Causes:**
+1. **Missing SYNCHRONIZED**: Binary fields require SYNCHRONIZED for proper alignment
+2. **Platform differences**: Alignment behavior differs between compilers
+3. **Manual padding**: User-added padding conflicts with automatic alignment
+
+**Diagnosis:**
+```bash
+# Inspect field layout with alignment information
+copybook inspect schema.cpy --emit-offsets
+
+# Check for SYNCHRONIZED usage
+grep -i "SYNC\|SYNCHRONIZED" schema.cpy
+
+# Compare with and without alignment
+copybook decode schema.cpy data.bin --output aligned.jsonl
+# Remove SYNCHRONIZED from copybook and retry
+copybook decode schema-no-sync.cpy data.bin --output unaligned.jsonl
+diff aligned.jsonl unaligned.jsonl
+```
+
+**Solutions:**
+1. **Add SYNCHRONIZED**: Apply to binary fields requiring alignment
+2. **IBM compatibility**: Use copybook-rs alignment which follows IBM mainframe standards
+3. **Remove manual padding**: Let copybook-rs handle alignment automatically
+4. **Verify alignment boundaries**: 16-bit=2-byte, 32-bit=4-byte, 64-bit=8-byte boundaries
 
 ## General Troubleshooting Workflow
 

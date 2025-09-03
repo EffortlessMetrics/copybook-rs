@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use tracing::info;
 
 #[allow(clippy::too_many_arguments)]
-pub async fn run(
+pub fn run(
     copybook: PathBuf,
     input: PathBuf,
     output: PathBuf,

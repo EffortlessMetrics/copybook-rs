@@ -199,6 +199,50 @@ impl SmallDecimal {
         self.negative && self.value != 0
     }
 
+    /// Format as string with proper COBOL field width (preserving leading zeros)
+    /// This is used for zoned decimal fields to match PIC clause width
+    pub fn to_cobol_string(&self, field_digits: u16, field_scale: i16) -> String {
+        let mut result = String::new();
+
+        if self.negative && self.value != 0 {
+            result.push('-');
+        }
+
+        if field_scale <= 0 {
+            // Integer format - pad to field width with leading zeros
+            let scaled_value = if field_scale < 0 {
+                self.value * 10_i64.pow((-field_scale) as u32)
+            } else {
+                self.value
+            };
+            write!(
+                result,
+                "{:0width$}",
+                scaled_value,
+                width = field_digits as usize
+            )
+            .unwrap();
+        } else {
+            // Decimal format with exactly `field_scale` digits after decimal
+            let divisor = 10_i64.pow(field_scale as u32);
+            let integer_part = self.value / divisor;
+            let fractional_part = self.value % divisor;
+
+            let integer_digits = field_digits - field_scale as u16;
+            write!(
+                result,
+                "{:0width$}.{:0scale$}",
+                integer_part,
+                fractional_part,
+                width = integer_digits as usize,
+                scale = field_scale as usize
+            )
+            .unwrap();
+        }
+
+        result
+    }
+
     /// Get the total number of digits in this decimal
     pub fn total_digits(&self) -> u16 {
         if self.value == 0 {

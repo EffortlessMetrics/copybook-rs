@@ -4,7 +4,7 @@
 //! with all combinations of field types, edge cases, and validation scenarios.
 
 use crate::golden::{GoldenTest, GoldenTestSuite, TestConfig};
-use crate::{CopybookTemplate, CorruptionType, GeneratorConfig};
+use crate::{CopybookTemplate, CorruptionType, DataStrategy, GeneratorConfig};
 use std::collections::HashMap;
 
 /// Generate a complete test matrix covering all field type combinations
@@ -22,7 +22,7 @@ pub fn generate_field_type_matrix() -> GoldenTestSuite {
     };
 
     // Test each template type
-    let templates = [
+    let templates = vec![
         (CopybookTemplate::Simple, "simple"),
         (CopybookTemplate::WithRedefines, "redefines"),
         (CopybookTemplate::WithOccurs, "occurs"),
@@ -55,7 +55,7 @@ pub fn generate_edge_case_suite() -> GoldenTestSuite {
     };
 
     // Generate edge case tests for each template
-    let templates = [
+    let templates = vec![
         CopybookTemplate::Simple,
         CopybookTemplate::WithRedefines,
         CopybookTemplate::WithOccurs,
@@ -157,7 +157,7 @@ pub fn generate_corruption_test_cases() -> GoldenTestSuite {
     let clean_data = b"clean test data for corruption testing";
 
     // Test different corruption types
-    let corruption_types = [
+    let corruption_types = vec![
         (CorruptionType::BitFlip, "bit_flip"),
         (CorruptionType::Truncation, "truncation"),
         (CorruptionType::Padding, "padding"),
@@ -198,7 +198,7 @@ pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
         crate::copybook::generate_copybook_with_template(&config, CopybookTemplate::Simple);
 
     // Test different codepages
-    let codepages = ["cp037", "cp273", "cp500", "cp1047", "cp1140", "ascii"];
+    let codepages = vec!["cp037", "cp273", "cp500", "cp1047", "cp1140", "ascii"];
 
     for codepage in codepages {
         let test_config = TestConfig {
@@ -237,7 +237,7 @@ pub fn generate_round_trip_tests() -> GoldenTestSuite {
     };
 
     // Test round-trip with different configurations
-    let templates = [
+    let templates = vec![
         CopybookTemplate::Simple,
         CopybookTemplate::WithRedefines,
         CopybookTemplate::WithOccurs,
@@ -288,7 +288,7 @@ pub fn generate_determinism_tests() -> GoldenTestSuite {
         crate::copybook::generate_copybook_with_template(&config, CopybookTemplate::Complex);
 
     // Test single-threaded vs multi-threaded determinism
-    for threads in [1, 2, 4, 8] {
+    for threads in vec![1, 2, 4, 8] {
         let test_config = TestConfig {
             codepage: "cp037".to_string(),
             record_format: "fixed".to_string(),

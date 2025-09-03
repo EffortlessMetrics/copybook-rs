@@ -447,7 +447,10 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     let mut reverse_table = std::collections::HashMap::new();
     for (ebcdic_byte, &unicode_point) in table.iter().enumerate() {
         if let Some(ch) = char::from_u32(unicode_point) {
-            reverse_table.insert(ch, u8::try_from(ebcdic_byte).expect("enumerate produces values within u8 range"));
+            reverse_table.insert(
+                ch,
+                u8::try_from(ebcdic_byte).expect("enumerate produces values within u8 range"),
+            );
         }
     }
 

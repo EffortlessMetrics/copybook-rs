@@ -148,6 +148,17 @@ Minimum required: 120 bytes
 
 Errors in character set conversion and text processing.
 
+#### CBKC201_JSON_WRITE_ERROR
+**Description**: Error writing JSON output data
+**Severity**: Fatal
+**Context**: Record number, I/O error details
+**Resolution**: Check output file permissions or disk space
+
+```
+Error: CBKC201_JSON_WRITE_ERROR at record 75
+I/O Error: No space left on device (os error 28)
+```
+
 #### CBKC301_INVALID_EBCDIC_BYTE
 **Description**: Invalid EBCDIC byte encountered during conversion
 **Severity**: Warning (replace mode), Fatal (error mode)
@@ -199,6 +210,18 @@ Offset: 30, zone: 0x4 (expected C/D/F for EBCDIC)
 Warning: CBKD412_ZONED_BLANK_IS_ZERO at record 600
 Field: ROOT.CUSTOMER.DISCOUNT
 All spaces decoded as zero
+```
+
+#### CBKD301_RECORD_TOO_SHORT
+**Description**: Record data is shorter than required by field layout
+**Severity**: Fatal
+**Context**: Record number, field path, expected vs actual length
+**Resolution**: Check record boundaries and field offsets
+
+```
+Error: CBKD301_RECORD_TOO_SHORT at record 150
+Field: ROOT.CUSTOMER.PHONE
+Expected: 80 bytes, found: 60 bytes
 ```
 
 ### Data Encoding Errors (CBKE*)
@@ -375,7 +398,9 @@ Possible text-mode transfer corruption
 | CBKS302 | Schema | Warning | ODO raised |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
 | CBKR221 | Record | Fatal | RDW underflow |
+| CBKC201 | Charset | Fatal | JSON write error |
 | CBKC301 | Charset | Warning/Fatal | Invalid EBCDIC byte |
+| CBKD301 | Decode | Fatal | Record too short |
 | CBKD401 | Decode | Fatal/Warning | COMP-3 invalid nibble |
 | CBKD411 | Decode | Fatal/Warning | Zoned bad sign |
 | CBKD412 | Decode | Warning | Zoned blank is zero |

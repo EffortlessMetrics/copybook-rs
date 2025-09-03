@@ -109,10 +109,10 @@ impl Parser {
         }
 
         // Build hierarchical structure from flat fields
-        let hierarchical_fields = self.build_hierarchy(flat_fields)?;
+        let hierarchical_fields = self.build_hierarchy(flat_fields);
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
-        self.validate_structure(&hierarchical_fields)?;
+        Self::validate_structure(&hierarchical_fields)?;
 
         // Create schema with fingerprint
         let mut schema = Schema::from_fields(hierarchical_fields);
@@ -126,9 +126,9 @@ impl Parser {
     }
 
     /// Build hierarchical structure from flat field list
-    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Result<Vec<Field>> {
+    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Vec<Field> {
         if flat_fields.is_empty() {
-            return Ok(Vec::new());
+            return Vec::new();
         }
 
         // Handle duplicate names and FILLER fields
@@ -140,7 +140,7 @@ impl Parser {
 
         for mut field in flat_fields {
             // Set initial path
-            field.path = field.name.clone();
+            field.path.clone_from(&field.name);
 
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
@@ -188,7 +188,7 @@ impl Parser {
             }
         }
 
-        Ok(result)
+        result
     }
 
     /// Process field names for duplicates and FILLER handling
@@ -237,31 +237,30 @@ impl Parser {
             *count += 1;
 
             if *count > 1 {
-                fields[i].name = format!("{}__dup{}", field_name, count);
+                fields[i].name = format!("{field_name}__dup{count}");
             }
         }
     }
 
     /// Build hierarchical paths for all fields (simplified)
-    fn build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
+    fn build_field_paths(_fields: &mut [Field]) {
         // Simplified for now - paths are set in build_hierarchy
-        Ok(())
     }
 
     /// Validate the parsed structure
-    fn validate_structure(&self, fields: &[Field]) -> Result<()> {
+    fn validate_structure(fields: &[Field]) -> Result<()> {
         // Validate REDEFINES targets
-        self.validate_redefines(fields)?;
+        Self::validate_redefines(fields)?;
 
         // Validate ODO constraints
-        self.validate_odo_constraints(fields)?;
+        Self::validate_odo_constraints(fields)?;
 
         Ok(())
     }
 
     /// Validate REDEFINES relationships
-    fn validate_redefines(&self, fields: &[Field]) -> Result<()> {
-        let all_fields = self.collect_all_fields(fields);
+    fn validate_redefines(fields: &[Field]) -> Result<()> {
+        let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(ref target) = field.redefines_of {
@@ -286,8 +285,8 @@ impl Parser {
     }
 
     /// Validate ODO constraints
-    fn validate_odo_constraints(&self, fields: &[Field]) -> Result<()> {
-        let all_fields = self.collect_all_fields(fields);
+    fn validate_odo_constraints(fields: &[Field]) -> Result<()> {
+        let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
@@ -308,7 +307,7 @@ impl Parser {
 
                 // Validate that ODO array is at tail position
                 // This is a simplified check - full validation would require layout resolution
-                if !self.is_odo_at_tail(field, &all_fields) {
+                if !Self::is_odo_at_tail(field, &all_fields) {
                     return Err(Error::new(
                         ErrorCode::CBKP021_ODO_NOT_TAIL,
                         format!(
@@ -324,8 +323,7 @@ impl Parser {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                             format!(
-                                "ODO counter '{}' cannot be inside a REDEFINES region",
-                                counter_path
+                                "ODO counter '{counter_path}' cannot be inside a REDEFINES region"
                             ),
                         ));
                     }
@@ -333,10 +331,7 @@ impl Parser {
                     if counter.occurs.is_some() {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!(
-                                "ODO counter '{}' cannot be inside an ODO region",
-                                counter_path
-                            ),
+                            format!("ODO counter '{counter_path}' cannot be inside an ODO region"),
                         ));
                     }
                 }
@@ -347,14 +342,14 @@ impl Parser {
     }
 
     /// Check if ODO array is at tail position (simplified check)
-    fn is_odo_at_tail(&self, _odo_field: &Field, _all_fields: &[&Field]) -> bool {
+    fn is_odo_at_tail(_odo_field: &Field, _all_fields: &[&Field]) -> bool {
         // This is a simplified implementation
         // Full validation would require layout resolution to check byte positions
         true
     }
 
     /// Collect all fields in a flat list
-    fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
+    fn collect_all_fields(fields: &[Field]) -> Vec<&Field> {
         fn visit<'a>(fields: &'a [Field], acc: &mut Vec<&'a Field>) {
             for field in fields {
                 acc.push(field);

@@ -76,7 +76,7 @@ pub struct ErrorReporter {
 
 impl ErrorReporter {
     /// Create a new error reporter with the specified mode
-    pub fn new(mode: ErrorMode, max_errors: Option<u64>) -> Self {
+    #[must_use] pub fn new(mode: ErrorMode, max_errors: Option<u64>) -> Self {
         Self {
             mode,
             max_errors,
@@ -86,12 +86,18 @@ impl ErrorReporter {
     }
 
     /// Set verbose logging mode
-    pub fn with_verbose_logging(mut self, verbose: bool) -> Self {
+    #[must_use] pub fn with_verbose_logging(mut self, verbose: bool) -> Self {
         self.verbose_logging = verbose;
         self
     }
 
     /// Report an error and determine if processing should continue
+    /// 
+    /// # Errors
+    /// Returns an error if the maximum error limit has been reached or if a fatal error is encountered.
+    /// 
+    /// # Panics  
+    /// Panics if `max_errors` is `Some` but internally becomes `None` - this should not happen in normal usage.
     /// 
     /// Returns `Ok(())` if processing should continue, `Err(error)` if it should stop
     pub fn report_error(&mut self, error: Error) -> Result<(), Error> {
@@ -128,15 +134,13 @@ impl ErrorReporter {
         // Return result based on decision
         if should_continue {
             Ok(())
+        } else if matches!(severity, ErrorSeverity::Error) && self.max_errors.is_some() {
+            Err(Error::new(
+                ErrorCode::CBKS141_RECORD_TOO_LARGE, // Reusing for "too many errors"
+                format!("Maximum error limit reached: {}", self.max_errors.unwrap())
+            ))
         } else {
-            if matches!(severity, ErrorSeverity::Error) && self.max_errors.is_some() {
-                Err(Error::new(
-                    ErrorCode::CBKS141_RECORD_TOO_LARGE, // Reusing for "too many errors"
-                    format!("Maximum error limit reached: {}", self.max_errors.unwrap())
-                ))
-            } else {
-                Err(error)
-            }
+            Err(error)
         }
     }
 
@@ -166,34 +170,34 @@ impl ErrorReporter {
     }
 
     /// Get the current error summary
-    pub fn summary(&self) -> &ErrorSummary {
+    #[must_use] pub fn summary(&self) -> &ErrorSummary {
         &self.summary
     }
 
     /// Check if any errors have been reported
-    pub fn has_errors(&self) -> bool {
+    #[must_use] pub fn has_errors(&self) -> bool {
         self.summary.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0) > &0
             || self.summary.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0) > &0
     }
 
     /// Check if any warnings have been reported
-    pub fn has_warnings(&self) -> bool {
+    #[must_use] pub fn has_warnings(&self) -> bool {
         self.summary.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0) > &0
     }
 
     /// Get total error count (excluding warnings)
-    pub fn error_count(&self) -> u64 {
+    #[must_use] pub fn error_count(&self) -> u64 {
         self.summary.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0)
             + self.summary.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0)
     }
 
     /// Get total warning count
-    pub fn warning_count(&self) -> u64 {
+    #[must_use] pub fn warning_count(&self) -> u64 {
         *self.summary.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0)
     }
 
     /// Generate a detailed error report for display
-    pub fn generate_report(&self) -> String {
+    #[must_use] pub fn generate_report(&self) -> String {
         let mut report = String::new();
         
         report.push_str("=== Error Summary ===\n");
@@ -204,7 +208,7 @@ impl ErrorReporter {
             report.push_str("\nError counts by severity:\n");
             for (severity, count) in &self.summary.error_counts {
                 if *count > 0 {
-                    report.push_str(&format!("  {:?}: {}\n", severity, count));
+                    report.push_str(&format!("  {severity:?}: {count}\n"));
                 }
             }
         }
@@ -213,7 +217,7 @@ impl ErrorReporter {
             report.push_str("\nError counts by code:\n");
             for (code, count) in &self.summary.error_codes {
                 if *count > 0 {
-                    report.push_str(&format!("  {}: {}\n", code, count));
+                    report.push_str(&format!("  {code}: {count}\n"));
                 }
             }
         }
@@ -295,16 +299,14 @@ impl ErrorReporter {
         *self.summary.error_codes.entry(report.error.code).or_insert(0) += 1;
 
         // Track records with errors
-        if matches!(report.severity, ErrorSeverity::Error | ErrorSeverity::Fatal) {
-            if let Some(ref context) = report.error.context {
-                if let Some(record_index) = context.record_index {
+        if matches!(report.severity, ErrorSeverity::Error | ErrorSeverity::Fatal)
+            && let Some(ref context) = report.error.context
+                && let Some(record_index) = context.record_index {
                     // Only count each record once
                     if self.summary.records_with_errors < record_index {
                         self.summary.records_with_errors = record_index;
                     }
                 }
-            }
-        }
 
         // Track first and last errors
         if self.summary.first_error.is_none() {
@@ -329,13 +331,11 @@ impl ErrorReporter {
         }
 
         // Log additional context if available and verbose
-        if self.verbose_logging {
-            if let Some(ref context) = report.error.context {
-                if context.record_index.is_some() || context.field_path.is_some() || context.byte_offset.is_some() {
+        if self.verbose_logging
+            && let Some(ref context) = report.error.context
+                && (context.record_index.is_some() || context.field_path.is_some() || context.byte_offset.is_some()) {
                     debug!("  Context: {}", context);
                 }
-            }
-        }
     }
 
     /// Check if error indicates transfer corruption
@@ -360,24 +360,24 @@ impl fmt::Display for ErrorSeverity {
 
 impl ErrorSummary {
     /// Check if processing had any errors
-    pub fn has_errors(&self) -> bool {
+    #[must_use] pub fn has_errors(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0) > &0
             || self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0) > &0
     }
 
     /// Check if processing had any warnings
-    pub fn has_warnings(&self) -> bool {
+    #[must_use] pub fn has_warnings(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0) > &0
     }
 
     /// Get total error count (excluding warnings)
-    pub fn error_count(&self) -> u64 {
+    #[must_use] pub fn error_count(&self) -> u64 {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0)
             + self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0)
     }
 
     /// Get total warning count
-    pub fn warning_count(&self) -> u64 {
+    #[must_use] pub fn warning_count(&self) -> u64 {
         *self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0)
     }
 }

@@ -58,13 +58,16 @@ impl Default for ParseOptions {
 struct Parser {
     tokens: Vec<TokenPos>,
     current: usize,
+    #[allow(dead_code)]
     format: CobolFormat,
     options: ParseOptions,
     /// Track field names at each level for duplicate detection
+    #[allow(dead_code)]
     name_counters: std::collections::HashMap<String, u32>,
 }
 
 impl Parser {
+    #[allow(dead_code)]
     fn new(tokens: Vec<TokenPos>, format: CobolFormat) -> Self {
         Self {
             tokens,
@@ -234,12 +237,13 @@ impl Parser {
             *count += 1;
             
             if *count > 1 {
-                fields[i].name = format!("{}__dup{}", field_name, count);
+                fields[i].name = format!("{field_name}__dup{count}");
             }
         }
     }
 
     /// Build hierarchical paths for all fields (simplified)
+    #[allow(dead_code)]
     fn build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
         // Simplified for now - paths are set in build_hierarchy
         Ok(())
@@ -307,14 +311,14 @@ impl Parser {
                     if counter.redefines_of.is_some() {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!("ODO counter '{}' cannot be inside a REDEFINES region", counter_path),
+                            format!("ODO counter '{counter_path}' cannot be inside a REDEFINES region"),
                         ));
                     }
                     
                     if counter.occurs.is_some() {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!("ODO counter '{}' cannot be inside an ODO region", counter_path),
+                            format!("ODO counter '{counter_path}' cannot be inside an ODO region"),
                         ));
                     }
                 }
@@ -355,11 +359,11 @@ impl Parser {
         
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update(&[if self.options.emit_filler { 1 } else { 0 }]);
+        hasher.update([u8::from(self.options.emit_filler)]);
         
         // Compute final hash
         let result = hasher.finalize();
-        schema.fingerprint = format!("{:x}", result);
+        schema.fingerprint = format!("{result:x}");
     }
 
     /// Create canonical JSON representation of schema for fingerprinting
@@ -405,15 +409,15 @@ impl Parser {
         
         // Add field kind
         let kind_str = match &field.kind {
-            FieldKind::Alphanum { len } => format!("Alphanum({})", len),
+            FieldKind::Alphanum { len } => format!("Alphanum({len})"),
             FieldKind::ZonedDecimal { digits, scale, signed } => {
-                format!("ZonedDecimal({},{},{})", digits, scale, signed)
+                format!("ZonedDecimal({digits},{scale},{signed})")
             }
             FieldKind::BinaryInt { bits, signed } => {
-                format!("BinaryInt({},{})", bits, signed)
+                format!("BinaryInt({bits},{signed})")
             }
             FieldKind::PackedDecimal { digits, scale, signed } => {
-                format!("PackedDecimal({},{},{})", digits, scale, signed)
+                format!("PackedDecimal({digits},{scale},{signed})")
             }
             FieldKind::Group => "Group".to_string(),
         };
@@ -426,9 +430,9 @@ impl Parser {
         
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
-                Occurs::Fixed { count } => format!("Fixed({})", count),
+                Occurs::Fixed { count } => format!("Fixed({count})"),
                 Occurs::ODO { min, max, counter_path } => {
-                    format!("ODO({},{},{})", min, max, counter_path)
+                    format!("ODO({min},{max},{counter_path})")
                 }
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));
@@ -490,7 +494,7 @@ impl Parser {
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
-                    format!("Expected field name after level {}", level),
+                    format!("Expected field name after level {level}"),
                 ));
             }
         };
@@ -591,7 +595,7 @@ impl Parser {
             Some(TokenPos { token: Token::EditedPic(pic), .. }) => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("Edited PIC not supported: {}", pic),
+                    format!("Edited PIC not supported: {pic}"),
                 ));
             }
             Some(TokenPos { token: Token::Identifier(id), .. }) => {
@@ -622,7 +626,7 @@ impl Parser {
         let pic = PicClause::parse(&pic_str)?;
         
         field.kind = match pic.kind {
-            crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum { len: pic.digits as u32 },
+            crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum { len: u32::from(pic.digits) },
             crate::pic::PicKind::NumericDisplay => FieldKind::ZonedDecimal {
                 digits: pic.digits,
                 scale: pic.scale,
@@ -791,7 +795,7 @@ impl Parser {
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("Binary field with {} digits not supported", digits),
+                            format!("Binary field with {digits} digits not supported"),
                         ));
                     }
                 };
@@ -854,9 +858,8 @@ impl Parser {
     fn is_keyword(&self) -> bool {
         matches!(
             self.current_token().map(|t| &t.token),
-            Some(Token::Pic) | Some(Token::Usage) | Some(Token::Redefines) |
-            Some(Token::Occurs) | Some(Token::Synchronized) | Some(Token::Value) |
-            Some(Token::Blank) | Some(Token::Sign)
+            Some(Token::Pic | Token::Usage | Token::Redefines | Token::Occurs |
+Token::Synchronized | Token::Value | Token::Blank | Token::Sign)
         )
     }
 

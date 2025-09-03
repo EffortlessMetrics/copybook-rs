@@ -15,7 +15,7 @@ const MAX_RECORD_SIZE: u64 = 16 * 1024 * 1024;
 struct LayoutContext {
     /// Current byte offset (using u64 for overflow protection)
     current_offset: u64,
-    /// REDEFINES clusters: target_path -> (cluster_start_offset, cluster_max_size)
+    /// REDEFINES clusters: `target_path` -> (`cluster_start_offset`, `cluster_max_size`)
     redefines_clusters: HashMap<String, (u64, u64)>,
     /// Track ODO arrays for tail validation
     odo_arrays: Vec<OdoInfo>,
@@ -137,7 +137,7 @@ fn resolve_field_layout(
     let (alignment, base_size) = calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
     
     // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
+    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
         let cluster_end = cluster_start + cluster_size;
         context.current_offset = context.current_offset.max(cluster_end);
     }
@@ -162,9 +162,9 @@ fn resolve_field_layout(
         // This field is a REDEFINES target, update cluster info
         let new_cluster_start = if cluster_start == 0 { aligned_offset } else { cluster_start };
         let field_effective_size = match &field.occurs {
-            Some(Occurs::Fixed { count }) => (base_size as u64) * (*count as u64),
-            Some(Occurs::ODO { max, .. }) => (base_size as u64) * (*max as u64),
-            None => base_size as u64,
+            Some(Occurs::Fixed { count }) => u64::from(base_size) * u64::from(*count),
+            Some(Occurs::ODO { max, .. }) => u64::from(base_size) * u64::from(*max),
+            None => u64::from(base_size),
         };
         context.redefines_clusters.insert(cluster_key, (new_cluster_start, current_max.max(field_effective_size)));
     }
@@ -173,18 +173,18 @@ fn resolve_field_layout(
     let effective_size = match &field.occurs {
         Some(Occurs::Fixed { count }) => {
             // Fixed array: multiply base size by count
-            let array_size = (base_size as u64)
-                .checked_mul(*count as u64)
+            
+            u64::from(base_size)
+                .checked_mul(u64::from(*count))
                 .ok_or_else(|| error!(
                     ErrorCode::CBKS141_RECORD_TOO_LARGE,
                     "Fixed array size overflow for field '{}'", field.name
-                ))?;
-            array_size
+                ))?
         }
         Some(Occurs::ODO { min, max, counter_path }) => {
             // ODO array: use maximum count for space allocation
-            let array_size = (base_size as u64)
-                .checked_mul(*max as u64)
+            let array_size = u64::from(base_size)
+                .checked_mul(u64::from(*max))
                 .ok_or_else(|| error!(
                     ErrorCode::CBKS141_RECORD_TOO_LARGE,
                     "ODO array size overflow for field '{}'", field.name
@@ -201,7 +201,7 @@ fn resolve_field_layout(
             
             array_size
         }
-        None => base_size as u64,
+        None => u64::from(base_size),
     };
     
     // Handle group fields recursively
@@ -241,7 +241,7 @@ fn resolve_redefines_field(
         .or_else(|| {
             // Try to find by field name if full path not found
             context.field_paths.iter()
-                .find(|(path, _)| path.ends_with(&format!(".{}", target)) || path == &target)
+                .find(|(path, _)| path.ends_with(&format!(".{target}")) || path == &target)
                 .map(|(_, offset)| offset)
         })
         .copied()
@@ -264,20 +264,20 @@ fn resolve_redefines_field(
     // Calculate effective size including arrays
     let effective_size = match &field.occurs {
         Some(Occurs::Fixed { count }) => {
-            (base_size as u64).checked_mul(*count as u64)
+            u64::from(base_size).checked_mul(u64::from(*count))
                 .ok_or_else(|| error!(
                     ErrorCode::CBKS141_RECORD_TOO_LARGE,
                     "REDEFINES array size overflow for field '{}'", field.name
                 ))?
         }
         Some(Occurs::ODO { max, .. }) => {
-            (base_size as u64).checked_mul(*max as u64)
+            u64::from(base_size).checked_mul(u64::from(*max))
                 .ok_or_else(|| error!(
                     ErrorCode::CBKS141_RECORD_TOO_LARGE,
                     "REDEFINES ODO array size overflow for field '{}'", field.name
                 ))?
         }
-        None => base_size as u64,
+        None => u64::from(base_size),
     };
     
     // Handle group fields recursively
@@ -333,12 +333,12 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> R
         FieldKind::ZonedDecimal { digits, .. } => (u32::from(*digits), 1u64),
         FieldKind::BinaryInt { bits, .. } => {
             let bytes = u32::from(*bits) / 8;
-            let alignment = if synchronized { bytes as u64 } else { 1u64 };
+            let alignment = if synchronized { u64::from(bytes) } else { 1u64 };
             (bytes, alignment)
         }
         FieldKind::PackedDecimal { digits, .. } => {
             // Packed decimal: ceil((digits + 1) / 2) bytes
-            let bytes = (u32::from(*digits) + 2) / 2; // ceil((digits + 1) / 2)
+            let bytes = u32::midpoint(u32::from(*digits), 2); // ceil((digits + 1) / 2)
             (bytes, 1u64)
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size
@@ -358,7 +358,7 @@ fn apply_alignment(offset: u64, alignment: u64) -> u64 {
     if alignment <= 1 {
         offset
     } else {
-        (offset + alignment - 1) / alignment * alignment
+        offset.div_ceil(alignment) * alignment
     }
 }
 
@@ -386,7 +386,7 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
                     line_number: None,
                     details: Some(format!("counter_field={}, searched_paths=[{}]", 
                                         odo.counter_path, 
-                                        context.field_paths.keys().map(|s| s.as_str()).collect::<Vec<_>>().join(", "))),
+                                        context.field_paths.keys().map(std::string::String::as_str).collect::<Vec<_>>().join(", "))),
                 })
             })?;
         
@@ -451,7 +451,7 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
         let mut total_size = context.current_offset;
         
         // Add the size of REDEFINES clusters (they don't advance current_offset)
-        for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
+        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
             let cluster_end = cluster_start + cluster_size;
             total_size = total_size.max(cluster_end);
         }

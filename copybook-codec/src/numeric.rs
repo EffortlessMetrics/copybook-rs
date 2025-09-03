@@ -23,8 +23,8 @@ pub struct SmallDecimal {
 }
 
 impl SmallDecimal {
-    /// Create a new SmallDecimal
-    pub fn new(value: i64, scale: i16, negative: bool) -> Self {
+    /// Create a new `SmallDecimal`
+    #[must_use] pub fn new(value: i64, scale: i16, negative: bool) -> Self {
         Self {
             value,
             scale,
@@ -33,7 +33,7 @@ impl SmallDecimal {
     }
 
     /// Create a zero value with the given scale
-    pub fn zero(scale: i16) -> Self {
+    #[must_use] pub fn zero(scale: i16) -> Self {
         Self {
             value: 0,
             scale,
@@ -50,7 +50,7 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
-    pub fn to_string(&self) -> String {
+    #[must_use] pub fn to_string(&self) -> String {
         let mut result = String::new();
         
         if self.negative && self.value != 0 {
@@ -134,7 +134,7 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
-    pub fn to_fixed_scale_string(&self, scale: i16) -> String {
+    #[must_use] pub fn to_fixed_scale_string(&self, scale: i16) -> String {
         let mut result = String::new();
         
         if self.negative && self.value != 0 {
@@ -162,17 +162,17 @@ impl SmallDecimal {
     }
 
     /// Get the scale of this decimal
-    pub fn scale(&self) -> i16 {
+    #[must_use] pub fn scale(&self) -> i16 {
         self.scale
     }
 
     /// Check if this decimal is negative
-    pub fn is_negative(&self) -> bool {
+    #[must_use] pub fn is_negative(&self) -> bool {
         self.negative && self.value != 0
     }
 
     /// Get the total number of digits in this decimal
-    pub fn total_digits(&self) -> u16 {
+    #[must_use] pub fn total_digits(&self) -> u16 {
         if self.value == 0 {
             return 1;
         }
@@ -192,7 +192,7 @@ impl SmallDecimal {
 /// # Errors
 /// 
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 pub fn decode_zoned_decimal(
     data: &[u8],
     digits: u16,
@@ -220,12 +220,11 @@ pub fn decode_zoned_decimal(
         if blank_when_zero {
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     let sign_table = get_zoned_sign_table(codepage);
@@ -293,14 +292,14 @@ pub fn decode_zoned_decimal(
 /// # Errors
 /// 
 /// Returns an error if the packed decimal data contains invalid nibbles.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 pub fn decode_packed_decimal(
     data: &[u8],
     digits: u16,
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
-    let expected_bytes = ((digits + 1) / 2) as usize;
+    let expected_bytes = digits.div_ceil(2) as usize;
     if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -368,14 +367,13 @@ pub fn decode_packed_decimal(
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
                 decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
                 return Ok(decimal);
-            } else {
-                // Unsigned - low nibble should be 0xF
-                if low_nibble != 0xF {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                    ));
-                }
+            }
+            // Unsigned - low nibble should be 0xF
+            if low_nibble != 0xF {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                ));
             }
         } else {
             // Low nibble is a digit
@@ -424,9 +422,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u16::from_be_bytes([data[0], data[1]]);
             if signed {
-                Ok(i16::from_be_bytes([data[0], data[1]]) as i64)
+                Ok(i64::from(i16::from_be_bytes([data[0], data[1]])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         32 => {
@@ -438,9 +436,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
             if signed {
-                Ok(i32::from_be_bytes([data[0], data[1], data[2], data[3]]) as i64)
+                Ok(i64::from(i32::from_be_bytes([data[0], data[1], data[2], data[3]])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         64 => {
@@ -499,7 +497,7 @@ pub fn encode_zoned_decimal(
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
@@ -561,11 +559,11 @@ pub fn encode_packed_decimal(
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
-    let expected_bytes = ((digits + 1) / 2) as usize;
+    let expected_bytes = digits.div_ceil(2) as usize;
     let mut result = Vec::with_capacity(expected_bytes);
     let digit_bytes = digit_str.as_bytes();
 
@@ -621,7 +619,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
     match bits {
         16 => {
             if signed {
-                if value < i16::MIN as i64 || value > i16::MAX as i64 {
+                if value < i64::from(i16::MIN) || value > i64::from(i16::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 16-bit integer"),
@@ -629,7 +627,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
                 }
                 Ok((value as i16).to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u16::MAX as i64 {
+                if value < 0 || value > i64::from(u16::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 16-bit integer"),
@@ -640,7 +638,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
         }
         32 => {
             if signed {
-                if value < i32::MIN as i64 || value > i32::MAX as i64 {
+                if value < i64::from(i32::MIN) || value > i64::from(i32::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 32-bit integer"),
@@ -648,7 +646,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
                 }
                 Ok((value as i32).to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u32::MAX as i64 {
+                if value < 0 || value > i64::from(u32::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 32-bit integer"),
@@ -707,7 +705,7 @@ pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> 
 /// Apply BLANK WHEN ZERO encoding policy
 /// 
 /// Returns true if the value should be encoded as spaces instead of zeros
-pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
+#[must_use] pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
     if !bwz_encode {
         return false;
     }
@@ -759,7 +757,7 @@ pub fn encode_zoned_decimal_with_bwz(
 /// Get binary width mapping based on PIC digits (NORMATIVE)
 /// 
 /// Maps digits to width: ≤4→2B, 5-9→4B, 10-18→8B
-pub fn get_binary_width_from_digits(digits: u16) -> u16 {
+#[must_use] pub fn get_binary_width_from_digits(digits: u16) -> u16 {
     match digits {
         1..=4 => 16,   // 2 bytes
         5..=9 => 32,   // 4 bytes
@@ -813,12 +811,11 @@ pub fn decode_zoned_decimal_with_scratch(
         if blank_when_zero {
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     // Clear and prepare digit buffer for reuse
@@ -890,7 +887,7 @@ pub fn decode_packed_decimal_with_scratch(
     signed: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<SmallDecimal> {
-    let expected_bytes = ((digits + 1) / 2) as usize;
+    let expected_bytes = digits.div_ceil(2) as usize;
     if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -1007,13 +1004,11 @@ pub fn decode_packed_decimal_with_scratch(
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
                         return Ok(decimal);
-                    } else {
-                        if low_nibble != 0xF {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                            ));
-                        }
+                    } else if low_nibble != 0xF {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                        ));
                     }
                 } else {
                     if low_nibble > 9 {
@@ -1083,13 +1078,11 @@ pub fn decode_packed_decimal_with_scratch(
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
                         return Ok(decimal);
-                    } else {
-                        if low_nibble != 0xF {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                            ));
-                        }
+                    } else if low_nibble != 0xF {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                        ));
                     }
                 } else {
                     if low_nibble > 9 {
@@ -1122,18 +1115,18 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
             // 16-bit integer - most common case
             let bytes = [data[0], data[1]];
             if signed {
-                Ok(i16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i16::from_be_bytes(bytes)))
             } else {
-                Ok(u16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u16::from_be_bytes(bytes)))
             }
         }
         (32, 4) => {
             // 32-bit integer - common case
             let bytes = [data[0], data[1], data[2], data[3]];
             if signed {
-                Ok(i32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i32::from_be_bytes(bytes)))
             } else {
-                Ok(u32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u32::from_be_bytes(bytes)))
             }
         }
         (64, 8) => {
@@ -1185,7 +1178,7 @@ pub fn encode_zoned_decimal_with_scratch(
     if value != 0 {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
@@ -1219,7 +1212,7 @@ pub fn encode_packed_decimal_with_scratch(
     // Clear and prepare buffers
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
-    let expected_bytes = ((digits + 1) / 2) as usize;
+    let expected_bytes = digits.div_ceil(2) as usize;
     scratch.byte_buffer.reserve(expected_bytes);
 
     // Extract digits into scratch digit buffer (least significant first)
@@ -1232,7 +1225,7 @@ pub fn encode_packed_decimal_with_scratch(
     if value != 0 {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 

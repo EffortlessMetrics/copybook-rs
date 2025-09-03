@@ -1,12 +1,12 @@
 //! Core library API implementation for task 9.1
 //!
 //! This module provides the main library functions required by R11:
-//! - parse_copybook (already exists in copybook-core)
-//! - decode_record
-//! - encode_record
-//! - decode_file_to_jsonl
-//! - encode_jsonl_to_file
-//! - RecordIterator (for programmatic access)
+//! - `parse_copybook` (already exists in copybook-core)
+//! - `decode_record`
+//! - `encode_record`
+//! - `decode_file_to_jsonl`
+//! - `encode_jsonl_to_file`
+//! - `RecordIterator` (for programmatic access)
 
 use crate::options::{DecodeOptions, EncodeOptions};
 use copybook_core::{Error, ErrorCode, Result, Schema};
@@ -688,6 +688,9 @@ pub struct RecordIterator<R: Read> {
 
 impl<R: Read> RecordIterator<R> {
     /// Create a new record iterator
+    ///
+    /// # Errors
+    /// Returns an error if the schema is invalid or contains unsupported features.
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
         let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
 
@@ -754,6 +757,9 @@ impl<R: Read> Iterator for RecordIterator<R> {
 }
 
 /// Convenience function to create a record iterator from a file path
+///
+/// # Errors
+/// Returns an error if the file cannot be opened or if the schema is invalid.
 pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
     file_path: P,
     schema: &Schema,
@@ -766,6 +772,9 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 }
 
 /// Convenience function to create a record iterator from any readable source
+///
+/// # Errors
+/// Returns an error if the schema is invalid or contains unsupported features.
 pub fn iter_records<R: Read>(
     reader: R,
     schema: &Schema,

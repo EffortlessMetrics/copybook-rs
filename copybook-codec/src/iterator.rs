@@ -130,6 +130,10 @@ impl<R: Read> RecordIterator<R> {
     /// * `Ok(Some(bytes))` - The raw record bytes
     /// * `Ok(None)` - End of file reached
     /// * `Err(error)` - An error occurred while reading
+    ///
+    /// # Errors
+    /// Returns an error if there is an I/O error reading from the underlying stream,
+    /// if record length is invalid, or if record format is malformed.
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
         if self.eof_reached {
             return Ok(None);
@@ -162,16 +166,15 @@ impl<R: Read> RecordIterator<R> {
                             // True EOF - no more data
                             self.eof_reached = true;
                             return Ok(None);
-                        } else {
-                            // Partial record - this is an error
-                            return Err(Error::new(
-                                ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                                format!(
-                                    "Incomplete record: expected {} bytes but only got {} bytes",
-                                    lrecl, total_read
-                                ),
-                            ));
                         }
+                        // Partial record - this is an error
+                        return Err(Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            format!(
+                                "Incomplete record: expected {} bytes but only got {} bytes",
+                                lrecl, total_read
+                            ),
+                        ));
                     }
 
                     total_read += bytes_read;

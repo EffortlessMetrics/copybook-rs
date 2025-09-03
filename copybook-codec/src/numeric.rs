@@ -259,12 +259,11 @@ pub fn decode_zoned_decimal(
         if blank_when_zero {
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     let sign_table = get_zoned_sign_table(codepage);
@@ -497,32 +496,30 @@ pub fn decode_packed_decimal(
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
                 decimal.normalize();
                 return Ok(decimal);
-            } else {
-                if low != 0xF && low != 0xC {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low:X}, expected 0xF or 0xC"),
-                    ));
-                }
-                return Ok(SmallDecimal::new(value, scale, false));
             }
-        } else {
-            if high > 9 {
+            if low != 0xF && low != 0xC {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{high:X} at byte {idx}"),
+                    format!("Invalid unsigned sign nibble 0x{low:X}, expected 0xF or 0xC"),
                 ));
             }
-            value = value * 10 + i64::from(high);
-
-            if low > 9 {
-                return Err(Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{low:X} at byte {idx}"),
-                ));
-            }
-            value = value * 10 + i64::from(low);
+            return Ok(SmallDecimal::new(value, scale, false));
         }
+        if high > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid digit nibble 0x{high:X} at byte {idx}"),
+            ));
+        }
+        value = value * 10 + i64::from(high);
+
+        if low > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid digit nibble 0x{low:X} at byte {idx}"),
+            ));
+        }
+        value = value * 10 + i64::from(low);
     }
 
     // Unsigned zero case
@@ -845,6 +842,7 @@ pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> 
 /// Apply BLANK WHEN ZERO encoding policy
 ///
 /// Returns true if the value should be encoded as spaces instead of zeros
+#[must_use]
 pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
     if !bwz_encode {
         return false;
@@ -897,18 +895,21 @@ pub fn encode_zoned_decimal_with_bwz(
 /// Get binary width mapping based on PIC digits (NORMATIVE)
 ///
 /// Maps digits to width: ≤4→2B, 5-9→4B, 10-18→8B
+#[must_use]
 pub fn get_binary_width_from_digits(digits: u16) -> u16 {
     match digits {
         1..=4 => 16,   // 2 bytes
         5..=9 => 32,   // 4 bytes
-        10..=18 => 64, // 8 bytes
-        _ => 64,       // Default to 8 bytes for larger values
+        _ => 64,       // 8 bytes for 10+ digits
     }
 }
 
 /// Validate explicit USAGE BINARY(n) width (NORMATIVE)
 ///
 /// Accept explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
+///
+/// # Errors
+/// Returns an error if the width is not one of the supported values (1, 2, 4, or 8 bytes).
 pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
     match width_bytes {
         1 => Ok(8),  // 1 byte = 8 bits
@@ -924,6 +925,10 @@ pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
 
 /// Optimized zoned decimal decoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the zoned decimal data is invalid, contains invalid signs,
+/// or has malformed digit characters.
 pub fn decode_zoned_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -955,12 +960,11 @@ pub fn decode_zoned_decimal_with_scratch(
         if blank_when_zero {
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     // Clear and prepare digit buffer for reuse
@@ -1027,6 +1031,10 @@ pub fn decode_zoned_decimal_with_scratch(
 
 /// Optimized packed decimal decoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the packed decimal data contains invalid nibbles,
+/// invalid sign values, or malformed structure.
 pub fn decode_packed_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -1038,6 +1046,11 @@ pub fn decode_packed_decimal_with_scratch(
 }
 
 /// Fast binary integer decoder with optimized paths for common widths
+/// Fast binary integer decoder for common bit widths
+///
+/// # Errors
+/// Returns an error if the data length doesn't match the expected bit width,
+/// or if unsigned values exceed i64::MAX.
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     // Optimized paths for common binary widths
     match (bits, data.len()) {
@@ -1045,18 +1058,18 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
             // 16-bit integer - most common case
             let bytes = [data[0], data[1]];
             if signed {
-                Ok(i16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i16::from_be_bytes(bytes)))
             } else {
-                Ok(u16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u16::from_be_bytes(bytes)))
             }
         }
         (32, 4) => {
             // 32-bit integer - common case
             let bytes = [data[0], data[1], data[2], data[3]];
             if signed {
-                Ok(i32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i32::from_be_bytes(bytes)))
             } else {
-                Ok(u32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u32::from_be_bytes(bytes)))
             }
         }
         (64, 8) => {
@@ -1068,13 +1081,10 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
                 Ok(i64::from_be_bytes(bytes))
             } else {
                 let value = u64::from_be_bytes(bytes);
-                if value > i64::MAX as u64 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
-                    ));
-                }
-                Ok(value as i64)
+                value.try_into().map_err(|_| Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
+                ))
             }
         }
         _ => {
@@ -1086,6 +1096,10 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
 
 /// Optimized zoned decimal encoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the decimal value is too large for the specified digit count
+/// or if encoding parameters are invalid.
 pub fn encode_zoned_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,
@@ -1117,6 +1131,10 @@ pub fn encode_zoned_decimal_with_scratch(
 
 /// Optimized packed decimal encoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the decimal value is too large for the specified digit count
+/// or if encoding parameters are invalid.
 pub fn encode_packed_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,

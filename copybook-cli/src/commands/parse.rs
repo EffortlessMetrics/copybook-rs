@@ -28,7 +28,7 @@ pub async fn run(
             atomic_write(path, |writer| writer.write_all(json.as_bytes()))?;
         }
         None => {
-            println!("{}", json);
+            println!("{json}");
         }
     }
 

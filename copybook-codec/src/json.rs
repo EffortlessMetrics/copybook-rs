@@ -76,14 +76,14 @@ impl<W: Write> JsonWriter<W> {
         serde_json::to_writer(&mut self.writer, &json_value).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("JSON write error: {}", e),
+                format!("JSON write error: {e}"),
             )
         })?;
 
         writeln!(self.writer).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("Write error: {}", e),
+                format!("Write error: {e}"),
             )
         })?;
 
@@ -143,14 +143,14 @@ impl<W: Write> JsonWriter<W> {
             .map_err(|e| {
                 Error::new(
                     ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                    format!("Write error: {}", e),
+                    format!("Write error: {e}"),
                 )
             })?;
 
         writeln!(self.writer).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("Write error: {}", e),
+                format!("Write error: {e}"),
             )
         })?;
 
@@ -711,7 +711,7 @@ impl<W: Write> JsonWriter<W> {
                 format!("_filler_{:08}", field.offset)
             } else {
                 // Skip FILLER fields by default
-                return String::new();
+                String::new()
             }
         } else {
             // Use field name as-is (duplicate disambiguation handled during parsing)
@@ -777,7 +777,7 @@ impl<W: Write> JsonWriter<W> {
         self.writer.flush().map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("Flush error: {}", e),
+                format!("Flush error: {e}"),
             )
         })?;
         Ok(self.writer)
@@ -791,7 +791,7 @@ pub struct JsonEncoder {
 
 impl JsonEncoder {
     /// Create a new JSON encoder
-    pub fn new(options: crate::options::EncodeOptions) -> Self {
+    #[must_use] pub fn new(options: crate::options::EncodeOptions) -> Self {
         Self { options }
     }
 
@@ -816,14 +816,13 @@ impl JsonEncoder {
         }
 
         // Handle --use-raw mode for byte-identical round-trips
-        if self.options.use_raw {
-            if let Some(raw_data) = self.extract_raw_data(json)? {
+        if self.options.use_raw
+            && let Some(raw_data) = self.extract_raw_data(json)? {
                 // Verify that decoded values match the JSON values
                 if self.verify_raw_data_matches(schema, &raw_data, json)? {
                     return Ok(raw_data);
                 }
             }
-        }
 
         // Trim to actual record size if variable length
         if let Some(tail_odo) = &schema.tail_odo {
@@ -911,10 +910,8 @@ impl JsonEncoder {
                 // Scalar field
                 if let Some(occurs) = &field.occurs {
                     self.encode_scalar_array(field, json_obj, record_data, occurs)?;
-                } else {
-                    if let Some(field_value) = json_obj.get(&field_name) {
-                        self.encode_scalar_field(field, field_value, record_data)?;
-                    }
+                } else if let Some(field_value) = json_obj.get(&field_name) {
+                    self.encode_scalar_field(field, field_value, record_data)?;
                 }
             }
         }
@@ -995,8 +992,7 @@ impl JsonEncoder {
                 Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                     format!(
-                        "Ambiguous REDEFINES encoding: multiple non-null views for cluster '{}'",
-                        cluster_path
+                        "Ambiguous REDEFINES encoding: multiple non-null views for cluster '{cluster_path}'"
                     ),
                 )
                 .with_field(cluster_path)
@@ -1024,21 +1020,19 @@ impl JsonEncoder {
 
         // Add the primary field if it has a value in JSON
         let primary_name = self.get_field_name(primary_field);
-        if !primary_name.is_empty() {
-            if let Some(value) = json_obj.get(&primary_name) {
+        if !primary_name.is_empty()
+            && let Some(value) = json_obj.get(&primary_name) {
                 cluster_views.push((primary_field, value));
             }
-        }
 
         // Find all fields that redefine the primary field
         let redefining_fields = self.find_redefining_fields(primary_field)?;
         for redefining_field in redefining_fields {
             let redefining_name = self.get_field_name(redefining_field);
-            if !redefining_name.is_empty() {
-                if let Some(value) = json_obj.get(&redefining_name) {
+            if !redefining_name.is_empty()
+                && let Some(value) = json_obj.get(&redefining_name) {
                     cluster_views.push((redefining_field, value));
                 }
-            }
         }
 
         Ok(cluster_views)
@@ -1132,8 +1126,7 @@ impl JsonEncoder {
                     return Err(Error::new(
                         ErrorCode::CBKE521_ARRAY_LEN_OOB,
                         format!(
-                            "Array length {} doesn't match fixed OCCURS count {}",
-                            actual_len, count
+                            "Array length {actual_len} doesn't match fixed OCCURS count {count}"
                         ),
                     ));
                 }
@@ -1143,8 +1136,7 @@ impl JsonEncoder {
                     return Err(Error::new(
                         ErrorCode::CBKE521_ARRAY_LEN_OOB,
                         format!(
-                            "Array length {} is outside ODO range {}-{}",
-                            actual_len, min, max
+                            "Array length {actual_len} is outside ODO range {min}-{max}"
                         ),
                     ));
                 }
@@ -1175,15 +1167,15 @@ impl JsonEncoder {
                     count.to_string()
                 } else {
                     // Handle scaled values
-                    let scale_factor = 10_i32.pow((*scale).abs() as u32);
+                    let scale_factor = 10_i32.pow((*scale).unsigned_abs() as u32);
                     if *scale > 0 {
                         format!(
                             "{:.1$}",
                             f64::from(count) / f64::from(scale_factor),
-                            *scale as usize
+                            (*scale).unsigned_abs() as usize
                         )
                     } else {
-                        (count * scale_factor as u32).to_string()
+                        (count.saturating_mul(scale_factor.unsigned_abs())).to_string()
                     }
                 };
 
@@ -1210,15 +1202,15 @@ impl JsonEncoder {
                     count.to_string()
                 } else {
                     // Handle scaled values
-                    let scale_factor = 10_i32.pow((*scale).abs() as u32);
+                    let scale_factor = 10_i32.pow((*scale).unsigned_abs() as u32);
                     if *scale > 0 {
                         format!(
                             "{:.1$}",
                             f64::from(count) / f64::from(scale_factor),
-                            *scale as usize
+                            (*scale).unsigned_abs() as usize
                         )
                     } else {
-                        (count * scale_factor as u32).to_string()
+                        (count.saturating_mul(scale_factor.unsigned_abs())).to_string()
                     }
                 };
 
@@ -1244,8 +1236,7 @@ impl JsonEncoder {
                 return Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                     format!(
-                        "ODO counter field '{}' has invalid type for numeric value",
-                        counter_path
+                        "ODO counter field '{counter_path}' has invalid type for numeric value"
                     ),
                 )
                 .with_field(counter_path.to_string()));
@@ -1477,7 +1468,7 @@ impl JsonEncoder {
         let decimal = crate::numeric::SmallDecimal::from_str(s, scale).map_err(|_| {
             Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!("Invalid decimal string '{}' for field {}", s, field_path),
+                format!("Invalid decimal string '{s}' for field {field_path}"),
             )
             .with_field(field_path.to_string())
         })?;
@@ -1487,8 +1478,7 @@ impl JsonEncoder {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                 format!(
-                    "Negative value '{}' not allowed for unsigned field {}",
-                    s, field_path
+                    "Negative value '{s}' not allowed for unsigned field {field_path}"
                 ),
             )
             .with_field(field_path.to_string()));
@@ -1543,20 +1533,20 @@ impl JsonEncoder {
                 _ => {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid bit width {} for binary field {}", bits, field_path),
+                        format!("Invalid bit width {bits} for binary field {field_path}"),
                     )
                     .with_field(field_path.to_string()));
                 }
             }
         } else {
             match bits {
-                16 => (0, u16::MAX as i64),
-                32 => (0, u32::MAX as i64),
+                16 => (0, i64::from(u16::MAX)),
+                32 => (0, i64::from(u32::MAX)),
                 64 => (0, i64::MAX), // Can't represent full u64 range in i64
                 _ => {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid bit width {} for binary field {}", bits, field_path),
+                        format!("Invalid bit width {bits} for binary field {field_path}"),
                     )
                     .with_field(field_path.to_string()));
                 }
@@ -1594,18 +1584,17 @@ impl JsonEncoder {
 
     /// Extract raw data from JSON record
     fn extract_raw_data(&self, json: &Value) -> Result<Option<Vec<u8>>> {
-        if let Value::Object(obj) = json {
-            if let Some(Value::String(raw_b64)) = obj.get("__raw_b64") {
+        if let Value::Object(obj) = json
+            && let Some(Value::String(raw_b64)) = obj.get("__raw_b64") {
                 use base64::{Engine as _, engine::general_purpose};
                 let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                     Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid base64 raw data: {}", e),
+                        format!("Invalid base64 raw data: {e}"),
                     )
                 })?;
                 return Ok(Some(raw_data));
             }
-        }
         Ok(None)
     }
 
@@ -1621,7 +1610,7 @@ impl JsonEncoder {
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 field raw data: {}", e),
+                    format!("Invalid base64 field raw data: {e}"),
                 )
             })?;
             return Ok(Some(raw_data));
@@ -1707,7 +1696,7 @@ impl JsonEncoder {
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 raw data: {}", e),
+                    format!("Invalid base64 raw data: {e}"),
                 )
             })?;
             return Ok(Some(raw_data));
@@ -1747,7 +1736,7 @@ impl JsonEncoder {
         // For now, return an error
         Err(Error::new(
             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!("Field lookup not implemented: {}", _path),
+            format!("Field lookup not implemented: {_path}"),
         ))
     }
 

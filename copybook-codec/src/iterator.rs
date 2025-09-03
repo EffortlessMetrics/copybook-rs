@@ -156,7 +156,7 @@ impl<R: Read> RecordIterator<R> {
                             .map_err(|e| {
                                 Error::new(
                                     ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                                    format!("Failed to read fixed record: {}", e),
+                                    format!("Failed to read fixed record: {e}"),
                                 )
                             })?;
 
@@ -171,8 +171,7 @@ impl<R: Read> RecordIterator<R> {
                         return Err(Error::new(
                             ErrorCode::CBKD301_RECORD_TOO_SHORT,
                             format!(
-                                "Incomplete record: expected {} bytes but only got {} bytes",
-                                lrecl, total_read
+                                "Incomplete record: expected {lrecl} bytes but only got {total_read} bytes"
                             ),
                         ));
                     }
@@ -196,7 +195,7 @@ impl<R: Read> RecordIterator<R> {
                     Err(e) => {
                         return Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW header: {}", e),
+                            format!("Failed to read RDW header: {e}"),
                         ));
                     }
                 }
@@ -214,7 +213,7 @@ impl<R: Read> RecordIterator<R> {
                     Err(e) => {
                         return Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW payload: {}", e),
+                            format!("Failed to read RDW payload: {e}"),
                         ));
                     }
                 }

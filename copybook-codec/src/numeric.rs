@@ -25,7 +25,7 @@ pub struct SmallDecimal {
 }
 
 impl SmallDecimal {
-    /// Create a new SmallDecimal
+    /// Create a new `SmallDecimal`
     pub fn new(value: i64, scale: i16, negative: bool) -> Self {
         Self {
             value,
@@ -62,14 +62,14 @@ impl SmallDecimal {
         if self.scale <= 0 {
             // Integer format (scale=0) or scale extension
             let scaled_value = if self.scale < 0 {
-                self.value * 10_i64.pow((-self.scale) as u32)
+                self.value * 10_i64.pow(u32::try_from(-self.scale).expect("Negative scale fits in u32"))
             } else {
                 self.value
             };
             write!(result, "{scaled_value}").unwrap();
         } else {
             // Decimal format with exactly `scale` digits after decimal
-            let divisor = 10_i64.pow(self.scale as u32);
+            let divisor = 10_i64.pow(u32::try_from(self.scale).expect("Scale fits in u32"));
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
 
@@ -77,7 +77,7 @@ impl SmallDecimal {
                 result,
                 "{integer_part}.{:0width$}",
                 fractional_part,
-                width = self.scale as usize
+                width = usize::try_from(self.scale).expect("Scale fits in usize")
             )
             .unwrap();
         }
@@ -100,7 +100,7 @@ impl SmallDecimal {
             let fractional_part = &s[dot_pos + 1..];
 
             // Validate scale matches exactly (NORMATIVE)
-            if fractional_part.len() != expected_scale as usize {
+            if fractional_part.len() != usize::try_from(expected_scale).expect("Scale fits in usize") {
                 return Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                     format!(
@@ -124,7 +124,7 @@ impl SmallDecimal {
                 )
             })?;
 
-            let divisor = 10_i64.pow(expected_scale as u32);
+            let divisor = 10_i64.pow(u32::try_from(expected_scale).expect("Expected scale fits in u32"));
             let total_value = integer_value * divisor + fractional_value;
 
             let mut result = Self::new(total_value, expected_scale, negative);
@@ -166,14 +166,14 @@ impl SmallDecimal {
         if scale <= 0 {
             // Integer format (scale=0) or scale extension
             let scaled_value = if scale < 0 {
-                self.value * 10_i64.pow((-scale) as u32)
+                self.value * 10_i64.pow(u32::try_from(-scale).expect("Negative scale fits in u32"))
             } else {
                 self.value
             };
             write!(result, "{scaled_value}").unwrap();
         } else {
             // Decimal format with exactly `scale` digits after decimal
-            let divisor = 10_i64.pow(scale as u32);
+            let divisor = 10_i64.pow(u32::try_from(scale).expect("Scale fits in u32"));
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
 
@@ -181,7 +181,7 @@ impl SmallDecimal {
                 result,
                 "{integer_part}.{:0width$}",
                 fractional_part,
-                width = scale as usize
+                width = usize::try_from(scale).expect("Scale fits in usize")
             )
             .unwrap();
         }
@@ -211,7 +211,7 @@ impl SmallDecimal {
         if field_scale <= 0 {
             // Integer format - pad to field width with leading zeros
             let scaled_value = if field_scale < 0 {
-                self.value * 10_i64.pow((-field_scale) as u32)
+                self.value * 10_i64.pow(u32::try_from(-field_scale).expect("Negative field scale fits in u32"))
             } else {
                 self.value
             };
@@ -224,18 +224,18 @@ impl SmallDecimal {
             .unwrap();
         } else {
             // Decimal format with exactly `field_scale` digits after decimal
-            let divisor = 10_i64.pow(field_scale as u32);
+            let divisor = 10_i64.pow(u32::try_from(field_scale).expect("Field scale fits in u32"));
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
 
-            let integer_digits = field_digits - field_scale as u16;
+            let integer_digits = field_digits - u16::try_from(field_scale).expect("Field scale fits in u16");
             write!(
                 result,
                 "{:0width$}.{:0scale$}",
                 integer_part,
                 fractional_part,
                 width = integer_digits as usize,
-                scale = field_scale as usize
+                scale = usize::try_from(field_scale).expect("Field scale fits in usize")
             )
             .unwrap();
         }
@@ -259,7 +259,7 @@ impl SmallDecimal {
     }
 }
 
-/// Implement Display trait for SmallDecimal
+/// Implement Display trait for `SmallDecimal`
 impl Display for SmallDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.format_to_string())
@@ -271,7 +271,7 @@ impl Display for SmallDecimal {
 /// # Errors
 ///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 pub fn decode_zoned_decimal(
     data: &[u8],
     digits: u16,
@@ -479,13 +479,14 @@ pub fn decode_zoned_decimal(
 /// # Errors
 ///
 /// Returns an error if the packed decimal data contains invalid nibbles.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 pub fn decode_packed_decimal(
     data: &[u8],
     digits: u16,
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
+    #[allow(clippy::manual_midpoint)] // More clear than midpoint for packed decimal calculation
     let expected_bytes = (digits as usize + 2) / 2;
     if data.len() != expected_bytes {
         return Err(Error::new(
@@ -599,9 +600,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u16::from_be_bytes([data[0], data[1]]);
             if signed {
-                Ok(i16::from_be_bytes([data[0], data[1]]) as i64)
+                Ok(i64::from(i16::from_be_bytes([data[0], data[1]])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         32 => {
@@ -613,9 +614,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
             if signed {
-                Ok(i32::from_be_bytes([data[0], data[1], data[2], data[3]]) as i64)
+                Ok(i64::from(i32::from_be_bytes([data[0], data[1], data[2], data[3]])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         64 => {
@@ -636,13 +637,13 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             } else {
                 // For unsigned 64-bit, we need to be careful about overflow
                 let value = u64::from_be_bytes(bytes);
-                if value > i64::MAX as u64 {
+                if value > u64::try_from(i64::MAX).expect("i64::MAX fits in u64") {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                         format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
                     ));
                 }
-                Ok(value as i64)
+                Ok(i64::try_from(value).expect("Value already validated to fit in i64"))
             }
         }
         _ => Err(Error::new(
@@ -796,40 +797,40 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
     match bits {
         16 => {
             if signed {
-                if value < i16::MIN as i64 || value > i16::MAX as i64 {
+                if value < i64::from(i16::MIN) || value > i64::from(i16::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 16-bit integer"),
                     ));
                 }
-                Ok((value as i16).to_be_bytes().to_vec())
+                Ok(i16::try_from(value).expect("Value already validated to be in i16 range").to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u16::MAX as i64 {
+                if value < 0 || value > i64::from(u16::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 16-bit integer"),
                     ));
                 }
-                Ok((value as u16).to_be_bytes().to_vec())
+                Ok(u16::try_from(value).expect("Value already validated to be in u16 range").to_be_bytes().to_vec())
             }
         }
         32 => {
             if signed {
-                if value < i32::MIN as i64 || value > i32::MAX as i64 {
+                if value < i64::from(i32::MIN) || value > i64::from(i32::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 32-bit integer"),
                     ));
                 }
-                Ok((value as i32).to_be_bytes().to_vec())
+                Ok(i32::try_from(value).expect("Value already validated to be in i32 range").to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u32::MAX as i64 {
+                if value < 0 || value > i64::from(u32::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 32-bit integer"),
                     ));
                 }
-                Ok((value as u32).to_be_bytes().to_vec())
+                Ok(u32::try_from(value).expect("Value already validated to be in u32 range").to_be_bytes().to_vec())
             }
         }
         64 => {
@@ -842,7 +843,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
                         format!("Value {value} cannot be negative for unsigned 64-bit integer"),
                     ));
                 }
-                Ok((value as u64).to_be_bytes().to_vec())
+                Ok(u64::try_from(value).expect("Value already validated to be non-negative").to_be_bytes().to_vec())
             }
         }
         _ => Err(Error::new(
@@ -1085,18 +1086,18 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
             // 16-bit integer - most common case
             let bytes = [data[0], data[1]];
             if signed {
-                Ok(i16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i16::from_be_bytes(bytes)))
             } else {
-                Ok(u16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u16::from_be_bytes(bytes)))
             }
         }
         (32, 4) => {
             // 32-bit integer - common case
             let bytes = [data[0], data[1], data[2], data[3]];
             if signed {
-                Ok(i32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i32::from_be_bytes(bytes)))
             } else {
-                Ok(u32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u32::from_be_bytes(bytes)))
             }
         }
         (64, 8) => {
@@ -1108,13 +1109,13 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
                 Ok(i64::from_be_bytes(bytes))
             } else {
                 let value = u64::from_be_bytes(bytes);
-                if value > i64::MAX as u64 {
+                if value > u64::try_from(i64::MAX).expect("i64::MAX fits in u64") {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                         format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
                     ));
                 }
-                Ok(value as i64)
+                Ok(i64::try_from(value).expect("Value already validated to fit in i64"))
             }
         }
         _ => {

@@ -19,12 +19,12 @@ pub enum DataStrategy {
 }
 
 /// Generate synthetic binary data for a schema
-pub fn generate_synthetic_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> {
+#[must_use] pub fn generate_synthetic_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> {
     generate_data_with_strategy(schema, config, DataStrategy::Normal)
 }
 
 /// Generate data with specific strategy
-pub fn generate_data_with_strategy(
+#[must_use] pub fn generate_data_with_strategy(
     schema: &Schema,
     config: &GeneratorConfig,
     strategy: DataStrategy,
@@ -183,7 +183,7 @@ fn fill_field_data(
                 counter_path,
             } => {
                 // For ODO, we need to set the counter field
-                if let Some(counter_field) = find_field_by_path(&field, counter_path) {
+                if let Some(counter_field) = find_field_by_path(field, counter_path) {
                     let actual_count = if edge_cases {
                         if rng.gen_bool(0.5) { *min } else { *max }
                     } else {
@@ -534,17 +534,17 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
 }
 
 /// Generate test datasets for specific scenarios
-pub fn generate_test_datasets(_config: &GeneratorConfig) -> Vec<(String, Vec<Vec<u8>>)> {
-    let datasets = Vec::new();
+#[must_use] pub fn generate_test_datasets(_config: &GeneratorConfig) -> Vec<(String, Vec<Vec<u8>>)> {
+    
 
     // This would be implemented with actual schemas once they're available
     // For now, return empty datasets
 
-    datasets
+    Vec::new()
 }
 
 /// Generate corruption scenarios for negative testing
-pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
+#[must_use] pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
     let mut corrupted = clean_data.to_vec();
 
     match corruption_type {

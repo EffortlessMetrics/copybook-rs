@@ -58,8 +58,8 @@ bench:
     fi
     cargo bench -p copybook-bench
 
-# Quick CI checks (build, test, lint)
-ci-quick:
+# Quick CI checks (build, test, lint) - legacy version
+ci-quick-legacy:
     just build
     just test
     just lint

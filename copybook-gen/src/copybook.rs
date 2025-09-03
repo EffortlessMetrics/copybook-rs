@@ -36,12 +36,12 @@ pub enum CopybookTemplate {
 }
 
 /// Generate a synthetic COBOL copybook
-pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
+#[must_use] pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
     generate_copybook_with_template(config, CopybookTemplate::Simple)
 }
 
 /// Generate copybook with specific template
-pub fn generate_copybook_with_template(
+#[must_use] pub fn generate_copybook_with_template(
     config: &GeneratorConfig,
     template: CopybookTemplate,
 ) -> String {
@@ -59,7 +59,7 @@ pub fn generate_copybook_with_template(
     }
 }
 
-fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> String {
+#[allow(clippy::too_many_lines)] fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> String {
     let mut copybook = String::new();
     copybook.push_str("      * Generated synthetic copybook - Simple\n");
     copybook.push_str("       01  RECORD-ROOT.\n");
@@ -449,28 +449,38 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
 }
 
 /// Generate negative test copybooks (invalid syntax)
-pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
+#[must_use] pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
     let _rng = StdRng::seed_from_u64(config.seed);
+    
     vec![
+        // Invalid level numbers
         (
             "invalid_level".to_string(),
             "       00  INVALID-LEVEL PIC X(10).\n".to_string(),
         ),
+
+        // Invalid PIC clauses
         (
             "invalid_pic".to_string(),
             "       01  ROOT.\n           05  BAD-PIC PIC Z(10).\n".to_string(),
         ),
+
+        // REDEFINES target not found
         (
             "redefines_missing".to_string(),
-            "       01  ROOT.\n           05  FIELD1 PIC X(10).\n           05  FIELD2 REDEFINES MISSING PIC 9(10).\n".to_string(),
+            "       01  ROOT.\n           05  FIELD1 PIC X(10).\n           05  FIELD2 REDEFINES MISSING PIC 9(10).\n".to_string()
         ),
+
+        // ODO not at tail
         (
             "odo_not_tail".to_string(),
-            "       01  ROOT.\n           05  COUNT PIC 9(3) COMP.\n           05  ARRAY OCCURS 1 TO 10 DEPENDING ON COUNT PIC X(5).\n           05  TRAILER PIC X(10).\n".to_string(),
+            "       01  ROOT.\n           05  COUNT PIC 9(3) COMP.\n           05  ARRAY OCCURS 1 TO 10 DEPENDING ON COUNT PIC X(5).\n           05  TRAILER PIC X(10).\n".to_string()
         ),
+
+        // ODO counter in REDEFINES
         (
             "odo_counter_in_redefines".to_string(),
-            "       01  ROOT.\n           05  BASE PIC X(10).\n           05  REDEF REDEFINES BASE.\n               10  COUNT PIC 9(3) COMP.\n               10  FILLER PIC X(7).\n           05  ARRAY OCCURS 1 TO 5 DEPENDING ON COUNT PIC X(5).\n".to_string(),
+            "       01  ROOT.\n           05  BASE PIC X(10).\n           05  REDEF REDEFINES BASE.\n               10  COUNT PIC 9(3) COMP.\n               10  FILLER PIC X(7).\n           05  ARRAY OCCURS 1 TO 5 DEPENDING ON COUNT PIC X(5).\n".to_string()
         ),
     ]
 }

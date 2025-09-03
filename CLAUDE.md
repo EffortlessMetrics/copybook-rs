@@ -42,7 +42,7 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Code formatting
 cargo fmt --all
 
-# Validation pipeline (comprehensive quality checks - 93 tests passing)
+# Validation pipeline (comprehensive quality checks - 118 tests passing)
 cargo build --workspace --release && \
 cargo test --workspace && \
 cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
@@ -77,8 +77,9 @@ copybook [SUBCOMMAND]
 ### Error Handling
 Uses structured error taxonomy with stable error codes:
 - Parse errors: `CBKP*` (copybook syntax, unsupported features)
-- Data errors: `CBKD*` (invalid packed decimal, zoned decimal signs)
-- Encoding errors: `CBKE*` (JSON type mismatches, array bounds)
+- Schema validation: `CBKS*` (ODO counter validation, record size limits)
+- Data errors: `CBKD*` (invalid packed decimal, zoned decimal signs, field type mismatches)
+- Encoding errors: `CBKE*` (JSON type mismatches, array bounds, REDEFINES ambiguity)
 
 ### Performance Features
 - Streaming I/O with bounded memory usage for multi-GB files
@@ -87,12 +88,14 @@ Uses structured error taxonomy with stable error codes:
 - Achieved throughput: 17.25+ GiB/s for DISPLAY data (target: ≥80 MB/s), 51.6+ MiB/s for COMP-3 data (target: ≥40 MB/s)
 
 ### Parser Stability
-- Infinite loop prevention through unexpected token skipping
+- Infinite loop prevention through unexpected token skipping and recursion depth limits
 - Robust error handling for malformed copybook structures
-- Memory-safe field hierarchy traversal
-- Enhanced error reporting with comprehensive context
+- Memory-safe field hierarchy traversal with comprehensive ODO/REDEFINES validation
+- Enhanced error reporting with comprehensive context (record index, field path, byte offset)
+- Strict/lenient mode support for ODO counter validation with warning/clamping behavior
 - Idiomatic Rust patterns for improved reliability (div_ceil, is_empty, range contains)
-- Clippy pedantic compliance for additional safety checks
+- Clippy pedantic compliance for additional safety checks (140+ violations resolved)
+- Binary field alignment following IBM mainframe SYNCHRONIZED standards
 
 ## Requirements
 

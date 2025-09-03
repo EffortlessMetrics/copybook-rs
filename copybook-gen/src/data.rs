@@ -1,7 +1,7 @@
 //! Synthetic data generation
 
 use crate::GeneratorConfig;
-use copybook_core::{Schema, Field, FieldKind, Occurs};
+use copybook_core::{Field, FieldKind, Occurs, Schema};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -25,9 +25,9 @@ pub fn generate_synthetic_data(schema: &Schema, config: &GeneratorConfig) -> Vec
 
 /// Generate data with specific strategy
 pub fn generate_data_with_strategy(
-    schema: &Schema, 
-    config: &GeneratorConfig, 
-    strategy: DataStrategy
+    schema: &Schema,
+    config: &GeneratorConfig,
+    strategy: DataStrategy,
 ) -> Vec<Vec<u8>> {
     let mut rng = StdRng::seed_from_u64(config.seed);
     let mut records = Vec::new();
@@ -48,62 +48,62 @@ pub fn generate_data_with_strategy(
 fn generate_normal_record(schema: &Schema, rng: &mut StdRng, record_idx: usize) -> Vec<u8> {
     let record_len = schema.lrecl_fixed.unwrap_or(1000) as usize;
     let mut record = vec![0x40; record_len]; // EBCDIC spaces
-    
+
     // Fill fields with appropriate data
     for field in &schema.fields {
         if field.redefines_of.is_some() {
             continue; // Skip REDEFINES fields - data comes from base field
         }
-        
+
         fill_field_data(&mut record, field, rng, record_idx, false, false);
     }
-    
+
     record
 }
 
 fn generate_edge_case_record(schema: &Schema, rng: &mut StdRng, record_idx: usize) -> Vec<u8> {
     let record_len = schema.lrecl_fixed.unwrap_or(1000) as usize;
     let mut record = vec![0x40; record_len]; // EBCDIC spaces
-    
+
     for field in &schema.fields {
         if field.redefines_of.is_some() {
             continue;
         }
-        
+
         fill_field_data(&mut record, field, rng, record_idx, true, false);
     }
-    
+
     record
 }
 
 fn generate_invalid_record(schema: &Schema, rng: &mut StdRng, record_idx: usize) -> Vec<u8> {
     let record_len = schema.lrecl_fixed.unwrap_or(1000) as usize;
     let mut record = vec![0x40; record_len]; // EBCDIC spaces
-    
+
     for field in &schema.fields {
         if field.redefines_of.is_some() {
             continue;
         }
-        
+
         fill_field_data(&mut record, field, rng, record_idx, false, true);
     }
-    
+
     record
 }
 
 fn generate_performance_record(schema: &Schema, _rng: &mut StdRng, record_idx: usize) -> Vec<u8> {
     let record_len = schema.lrecl_fixed.unwrap_or(1000) as usize;
     let mut record = vec![0x40; record_len]; // EBCDIC spaces
-    
+
     // Use predictable patterns for performance testing
     for field in &schema.fields {
         if field.redefines_of.is_some() {
             continue;
         }
-        
+
         fill_performance_field_data(&mut record, field, record_idx);
     }
-    
+
     record
 }
 
@@ -113,48 +113,83 @@ fn fill_field_data(
     rng: &mut StdRng,
     _record_idx: usize,
     edge_cases: bool,
-    invalid: bool
+    invalid: bool,
 ) {
     let start = field.offset as usize;
     let end = start + field.len as usize;
-    
+
     if end > record.len() {
         return; // Field extends beyond record
     }
-    
+
     match &field.kind {
         FieldKind::Alphanum { len } => {
             fill_alphanum_field(&mut record[start..end], *len, rng, edge_cases, invalid);
         }
-        FieldKind::ZonedDecimal { digits, scale, signed } => {
-            fill_zoned_field(&mut record[start..end], *digits, *scale, *signed, rng, edge_cases, invalid);
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            fill_zoned_field(
+                &mut record[start..end],
+                *digits,
+                *scale,
+                *signed,
+                rng,
+                edge_cases,
+                invalid,
+            );
         }
-        FieldKind::PackedDecimal { digits, scale, signed } => {
-            fill_packed_field(&mut record[start..end], *digits, *scale, *signed, rng, edge_cases, invalid);
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            fill_packed_field(
+                &mut record[start..end],
+                *digits,
+                *scale,
+                *signed,
+                rng,
+                edge_cases,
+                invalid,
+            );
         }
         FieldKind::BinaryInt { bits, signed } => {
-            fill_binary_field(&mut record[start..end], *bits, *signed, rng, edge_cases, invalid);
+            fill_binary_field(
+                &mut record[start..end],
+                *bits,
+                *signed,
+                rng,
+                edge_cases,
+                invalid,
+            );
         }
         FieldKind::Group => {
             // Groups are filled by their child fields
         }
     }
-    
+
     // Handle OCCURS
     if let Some(occurs) = &field.occurs {
         match occurs {
             Occurs::Fixed { count: _ } => {
                 // Fixed arrays are handled by the schema layout
             }
-            Occurs::ODO { min, max, counter_path } => {
+            Occurs::ODO {
+                min,
+                max,
+                counter_path,
+            } => {
                 // For ODO, we need to set the counter field
-                if let Some(counter_field) = find_field_by_path(&field, counter_path) {
+                if let Some(counter_field) = find_field_by_path(field, counter_path) {
                     let actual_count = if edge_cases {
                         if rng.gen_bool(0.5) { *min } else { *max }
                     } else {
                         rng.gen_range(*min..=*max)
                     };
-                    
+
                     // Set counter field value
                     set_counter_field_value(record, counter_field, actual_count);
                 }
@@ -163,7 +198,13 @@ fn fill_field_data(
     }
 }
 
-fn fill_alphanum_field(data: &mut [u8], _len: u32, rng: &mut StdRng, edge_cases: bool, invalid: bool) {
+fn fill_alphanum_field(
+    data: &mut [u8],
+    _len: u32,
+    rng: &mut StdRng,
+    edge_cases: bool,
+    invalid: bool,
+) {
     if invalid && rng.gen_bool(0.3) {
         // Invalid: use control characters or invalid EBCDIC
         for byte in data.iter_mut() {
@@ -171,12 +212,12 @@ fn fill_alphanum_field(data: &mut [u8], _len: u32, rng: &mut StdRng, edge_cases:
         }
         return;
     }
-    
+
     if edge_cases && rng.gen_bool(0.3) {
         // Edge case: all spaces (already initialized)
         return;
     }
-    
+
     // Generate random text
     let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
     for byte in data.iter_mut() {
@@ -190,13 +231,13 @@ fn fill_alphanum_field(data: &mut [u8], _len: u32, rng: &mut StdRng, edge_cases:
 }
 
 fn fill_zoned_field(
-    data: &mut [u8], 
-    digits: u16, 
-    _scale: i16, 
-    signed: bool, 
-    rng: &mut StdRng, 
-    edge_cases: bool, 
-    invalid: bool
+    data: &mut [u8],
+    digits: u16,
+    _scale: i16,
+    signed: bool,
+    rng: &mut StdRng,
+    edge_cases: bool,
+    invalid: bool,
 ) {
     if invalid && rng.gen_bool(0.3) {
         // Invalid: bad zone nibbles
@@ -205,7 +246,7 @@ fn fill_zoned_field(
         }
         return;
     }
-    
+
     if edge_cases && rng.gen_bool(0.2) {
         // BLANK WHEN ZERO case - all spaces
         for byte in data.iter_mut() {
@@ -213,27 +254,27 @@ fn fill_zoned_field(
         }
         return;
     }
-    
+
     // Generate a valid number
     let is_negative = signed && rng.gen_bool(0.3);
     let max_value = 10_u64.pow(digits as u32) - 1;
-    
+
     let value = if edge_cases && rng.gen_bool(0.3) {
         if rng.gen_bool(0.5) { 0 } else { max_value }
     } else {
         rng.gen_range(0..=max_value)
     };
-    
+
     // Format as zoned decimal
     let value_str = format!("{:0width$}", value, width = digits as usize);
-    
+
     for (i, digit_char) in value_str.chars().enumerate() {
         if i >= data.len() {
             break;
         }
-        
+
         let digit = digit_char.to_digit(10).unwrap_or(0) as u8;
-        
+
         if i == value_str.len() - 1 && signed {
             // Last digit carries sign
             data[i] = if is_negative {
@@ -248,13 +289,13 @@ fn fill_zoned_field(
 }
 
 fn fill_packed_field(
-    data: &mut [u8], 
-    digits: u16, 
-    _scale: i16, 
-    signed: bool, 
-    rng: &mut StdRng, 
-    edge_cases: bool, 
-    invalid: bool
+    data: &mut [u8],
+    digits: u16,
+    _scale: i16,
+    signed: bool,
+    rng: &mut StdRng,
+    edge_cases: bool,
+    invalid: bool,
 ) {
     if invalid && rng.gen_bool(0.3) {
         // Invalid: bad nibbles
@@ -263,34 +304,34 @@ fn fill_packed_field(
         }
         return;
     }
-    
+
     let is_negative = signed && rng.gen_bool(0.3);
     let max_value = 10_u64.pow(digits as u32) - 1;
-    
+
     let value = if edge_cases && rng.gen_bool(0.3) {
         if rng.gen_bool(0.5) { 0 } else { max_value }
     } else {
         rng.gen_range(0..=max_value)
     };
-    
+
     // Pack the decimal
     let value_str = format!("{:0width$}", value, width = digits as usize);
     let mut nibbles = Vec::new();
-    
+
     for digit_char in value_str.chars() {
         nibbles.push(digit_char.to_digit(10).unwrap_or(0) as u8);
     }
-    
+
     // Add sign nibble
     let sign_nibble = if is_negative { 0xD } else { 0xC };
     nibbles.push(sign_nibble);
-    
+
     // Pack nibbles into bytes
     for (i, chunk) in nibbles.chunks(2).enumerate() {
         if i >= data.len() {
             break;
         }
-        
+
         let high = chunk[0];
         let low = chunk.get(1).copied().unwrap_or(0);
         data[i] = (high << 4) | low;
@@ -298,12 +339,12 @@ fn fill_packed_field(
 }
 
 fn fill_binary_field(
-    data: &mut [u8], 
-    bits: u16, 
-    signed: bool, 
-    rng: &mut StdRng, 
-    edge_cases: bool, 
-    invalid: bool
+    data: &mut [u8],
+    bits: u16,
+    signed: bool,
+    rng: &mut StdRng,
+    edge_cases: bool,
+    invalid: bool,
 ) {
     if invalid {
         // For binary, invalid data is just random bytes
@@ -312,20 +353,20 @@ fn fill_binary_field(
         }
         return;
     }
-    
+
     let byte_len = data.len();
     let max_value = if signed {
         (1u64 << (bits - 1)) - 1
     } else {
         (1u64 << bits) - 1
     };
-    
+
     let value = if edge_cases && rng.gen_bool(0.3) {
         if rng.gen_bool(0.5) { 0 } else { max_value }
     } else {
         rng.gen_range(0..=max_value)
     };
-    
+
     let is_negative = signed && rng.gen_bool(0.3) && value > 0;
     let final_value = if is_negative {
         // Two's complement
@@ -333,11 +374,11 @@ fn fill_binary_field(
     } else {
         value
     };
-    
+
     // Store as big-endian
     let bytes = final_value.to_be_bytes();
     let start_idx = 8 - byte_len;
-    
+
     for (i, &byte) in bytes[start_idx..].iter().enumerate() {
         if i < data.len() {
             data[i] = byte;
@@ -348,17 +389,17 @@ fn fill_binary_field(
 fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usize) {
     let start = field.offset as usize;
     let end = start + field.len as usize;
-    
+
     if end > record.len() {
         return;
     }
-    
+
     match &field.kind {
         FieldKind::Alphanum { .. } => {
             // Predictable text pattern
             let pattern = format!("REC{:06}", record_idx);
             let pattern_bytes = pattern.as_bytes();
-            
+
             for (i, byte) in record[start..end].iter_mut().enumerate() {
                 if i < pattern_bytes.len() {
                     *byte = ascii_to_ebcdic_approx(pattern_bytes[i]);
@@ -371,7 +412,7 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
             // Predictable numeric pattern
             let value = (record_idx % (10_usize.pow(*digits as u32))) as u64;
             let value_str = format!("{:0width$}", value, width = *digits as usize);
-            
+
             for (i, digit_char) in value_str.chars().enumerate() {
                 if i >= (end - start) {
                     break;
@@ -385,12 +426,12 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
             let value = (record_idx % (10_usize.pow(*digits as u32))) as u64;
             let value_str = format!("{:0width$}", value, width = *digits as usize);
             let mut nibbles = Vec::new();
-            
+
             for digit_char in value_str.chars() {
                 nibbles.push(digit_char.to_digit(10).unwrap_or(0) as u8);
             }
             nibbles.push(0xC); // Positive sign
-            
+
             for (i, chunk) in nibbles.chunks(2).enumerate() {
                 if start + i >= end {
                     break;
@@ -407,7 +448,7 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
             let bytes = value.to_be_bytes();
             let byte_len = end - start;
             let start_idx = 8 - byte_len;
-            
+
             for (i, &byte) in bytes[start_idx..].iter().enumerate() {
                 if i < byte_len {
                     record[start + i] = byte;
@@ -441,17 +482,17 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
     // Set the counter field value based on its type
     let start = field.offset as usize;
     let end = start + field.len as usize;
-    
+
     if end > record.len() {
         return;
     }
-    
+
     match &field.kind {
         FieldKind::BinaryInt { .. } => {
             let bytes = (value as u64).to_be_bytes();
             let byte_len = end - start;
             let start_idx = 8 - byte_len;
-            
+
             for (i, &byte) in bytes[start_idx..].iter().enumerate() {
                 if i < byte_len {
                     record[start + i] = byte;
@@ -471,12 +512,12 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
         FieldKind::PackedDecimal { digits, .. } => {
             let value_str = format!("{:0width$}", value, width = *digits as usize);
             let mut nibbles = Vec::new();
-            
+
             for digit_char in value_str.chars() {
                 nibbles.push(digit_char.to_digit(10).unwrap_or(0) as u8);
             }
             nibbles.push(0xC); // Positive sign
-            
+
             for (i, chunk) in nibbles.chunks(2).enumerate() {
                 if start + i >= end {
                     break;
@@ -494,18 +535,15 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
 
 /// Generate test datasets for specific scenarios
 pub fn generate_test_datasets(_config: &GeneratorConfig) -> Vec<(String, Vec<Vec<u8>>)> {
-    let datasets = Vec::new();
-    
     // This would be implemented with actual schemas once they're available
     // For now, return empty datasets
-    
-    datasets
+    Vec::new()
 }
 
 /// Generate corruption scenarios for negative testing
 pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
     let mut corrupted = clean_data.to_vec();
-    
+
     match corruption_type {
         CorruptionType::BitFlip => {
             // Flip random bits
@@ -533,7 +571,7 @@ pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionTyp
             }
         }
     }
-    
+
     corrupted
 }
 

@@ -88,6 +88,10 @@ impl SmallDecimal {
     }
 
     /// Parse from string with validation
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the string cannot be parsed as a decimal number
     pub fn from_str(s: &str, expected_scale: i16) -> Result<Self> {
         let s = s.trim();
         if s.is_empty() {
@@ -230,6 +234,7 @@ impl Display for SmallDecimal {
 ///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+#[allow(clippy::too_many_lines)]
 pub fn decode_zoned_decimal(
     data: &[u8],
     digits: u16,
@@ -392,22 +397,14 @@ pub fn decode_zoned_decimal(
                 // Adjust final digit if ASCII overpunch
                 if codepage == Codepage::ASCII {
                     digit = match zone {
-                        0x0 => 0, // '{' overpunch
-                        0x1 => 1, // 'A' overpunch
-                        0x2 => 2, // 'B' overpunch
-                        0x3 => 3, // '}' overpunch
-                        0x4 => 4, // 'D' overpunch
-                        0x5 => 5, // 'E' overpunch
-                        0x6 => 6, // 'F' overpunch
-                        0x7 => 7, // 'G' overpunch
-                        0x8 => 0, // 'H' overpunch
-                        0x9 => 1, // 'I' overpunch
-                        0xA => 2, // 'J' overpunch
-                        0xB => 3, // 'K' overpunch
-                        0xC => 4, // 'L' overpunch
-                        0xD => 5, // 'M' overpunch
-                        0xE => 6, // 'N' overpunch
-                        0xF => 7, // 'O' overpunch
+                        0x0 | 0x8 => 0, // '{' or 'H' overpunch
+                        0x1 | 0x9 => 1, // 'A' or 'I' overpunch
+                        0x2 | 0xA => 2, // 'B' or 'J' overpunch
+                        0x3 | 0xB => 3, // '}' or 'K' overpunch
+                        0x4 | 0xC => 4, // 'D' or 'L' overpunch
+                        0x5 | 0xD => 5, // 'E' or 'M' overpunch
+                        0x6 | 0xE => 6, // 'F' or 'N' overpunch
+                        0x7 | 0xF => 7, // 'G' or 'O' overpunch
                         _ => {
                             return Err(Error::new(
                                 ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -594,13 +591,12 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             } else {
                 // For unsigned 64-bit, we need to be careful about overflow
                 let value = u64::from_be_bytes(bytes);
-                if value > i64::MAX as u64 {
-                    return Err(Error::new(
+                i64::try_from(value).map_err(|_| {
+                    Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                         format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
-                    ));
-                }
-                Ok(value as i64)
+                    )
+                })
             }
         }
         _ => Err(Error::new(

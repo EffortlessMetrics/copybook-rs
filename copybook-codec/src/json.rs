@@ -513,7 +513,9 @@ impl<W: Write> JsonWriter<W> {
         let mut array = Vec::new();
 
         for i in 0..count {
-            let _element_offset = field.offset + (i * field.len);
+            // Element offset calculation - currently unused but preserved for debugging
+            #[allow(unused_variables)]
+            let element_offset = field.offset + (i * field.len);
             let mut element_obj = Map::new();
 
             // Process children for this array element
@@ -858,12 +860,12 @@ impl JsonEncoder {
     /// Calculate actual record size for variable-length records
     fn calculate_actual_record_size(
         &self,
-        _schema: &Schema,
+        schema: &Schema,
         _json: &Value,
         _tail_odo: &copybook_core::TailODO,
     ) -> Result<usize> {
         // For now, return maximum size - ODO support will be implemented later
-        self.calculate_max_record_size(_schema)
+        self.calculate_max_record_size(schema)
     }
 
     /// Encode fields recursively
@@ -1057,14 +1059,24 @@ impl JsonEncoder {
 
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
-                self.update_odo_counter(counter_path, array.len() as u32, json_obj, record_data)?;
+                self.update_odo_counter(counter_path, u32::try_from(array.len()).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                        format!("Array length {} exceeds maximum u32 value", array.len()),
+                    )
+                })?, json_obj, record_data)?;
             }
 
             // Encode each array element
             let element_size = field.len / self.get_occurs_max_count(occurs);
             for (i, element) in array.iter().enumerate() {
                 if let Value::Object(element_obj) = element {
-                    let element_offset = field.offset + (i as u32 * element_size);
+                    let element_offset = field.offset + (u32::try_from(i).map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                            format!("Array index {i} exceeds maximum u32 value"),
+                        )
+                    })? * element_size);
 
                     // Create a temporary field for the array element
                     let mut element_field = field.clone();
@@ -1100,13 +1112,23 @@ impl JsonEncoder {
 
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
-                self.update_odo_counter(counter_path, array.len() as u32, json_obj, record_data)?;
+                self.update_odo_counter(counter_path, u32::try_from(array.len()).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                        format!("Array length {} exceeds maximum u32 value", array.len()),
+                    )
+                })?, json_obj, record_data)?;
             }
 
             // Encode each array element
             let element_size = field.len / self.get_occurs_max_count(occurs);
             for (i, element) in array.iter().enumerate() {
-                let element_offset = field.offset + (i as u32 * element_size);
+                let element_offset = field.offset + (u32::try_from(i).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                        format!("Array index {i} exceeds maximum u32 value"),
+                    )
+                })? * element_size);
 
                 // Create a temporary field for the array element
                 let mut element_field = field.clone();
@@ -1278,172 +1300,217 @@ impl JsonEncoder {
 
         match &field.kind {
             FieldKind::Alphanum { len: _ } => {
-                if let Value::String(text) = value {
-                    // Validate string length doesn't exceed field capacity
-                    if text.len() > field.len as usize {
-                        return Err(Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            format!("String length {} exceeds field capacity {} for alphanumeric field {}", 
-                                text.len(), field.len, field.path),
-                        ).with_field(field.path.clone()));
-                    }
-
-                    let encoded = crate::numeric::encode_alphanumeric(
-                        text,
-                        field.len as usize,
-                        self.options.codepage,
-                    )?;
-                    field_data.copy_from_slice(&encoded);
-                } else {
-                    return Err(Error::new(
-                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!(
-                            "Expected string for alphanumeric field {}, got {}",
-                            field.path,
-                            self.value_type_name(value)
-                        ),
-                    )
-                    .with_field(field.path.clone()));
-                }
+                self.encode_alphanumeric_field(field, value, field_data)
             }
             FieldKind::ZonedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                let value_str = match value {
-                    Value::String(s) => {
-                        // Validate that the string represents a valid decimal number
-                        self.validate_decimal_string(s, *digits, *scale, *signed, &field.path)?;
-                        s.clone()
-                    }
-                    Value::Number(n) => {
-                        let s = n.to_string();
-                        self.validate_decimal_string(&s, *digits, *scale, *signed, &field.path)?;
-                        s
-                    }
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            format!(
-                                "Expected string or number for zoned decimal field {}, got {}",
-                                field.path,
-                                self.value_type_name(value)
-                            ),
-                        )
-                        .with_field(field.path.clone()));
-                    }
-                };
-
-                let encoded = if field.blank_when_zero && self.options.bwz_encode {
-                    crate::numeric::encode_zoned_decimal_with_bwz(
-                        &value_str,
-                        *digits,
-                        *scale,
-                        *signed,
-                        self.options.codepage,
-                        self.options.bwz_encode,
-                    )?
-                } else {
-                    crate::numeric::encode_zoned_decimal(
-                        &value_str,
-                        *digits,
-                        *scale,
-                        *signed,
-                        self.options.codepage,
-                    )?
-                };
-                field_data.copy_from_slice(&encoded);
+                self.encode_zoned_decimal_field(field, value, field_data, *digits, *scale, *signed)
             }
             FieldKind::PackedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                let value_str = match value {
-                    Value::String(s) => {
-                        self.validate_decimal_string(s, *digits, *scale, *signed, &field.path)?;
-                        s.clone()
-                    }
-                    Value::Number(n) => {
-                        let s = n.to_string();
-                        self.validate_decimal_string(&s, *digits, *scale, *signed, &field.path)?;
-                        s
-                    }
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            format!(
-                                "Expected string or number for packed decimal field {}, got {}",
-                                field.path,
-                                self.value_type_name(value)
-                            ),
-                        )
-                        .with_field(field.path.clone()));
-                    }
-                };
-
-                let encoded =
-                    crate::numeric::encode_packed_decimal(&value_str, *digits, *scale, *signed)?;
-                field_data.copy_from_slice(&encoded);
+                self.encode_packed_decimal_field(field, value, field_data, *digits, *scale, *signed)
             }
             FieldKind::BinaryInt { bits, signed } => {
-                let int_value = match value {
-                    Value::Number(n) => {
-                        if *signed {
-                            n.as_i64().ok_or_else(|| {
-                                Error::new(
-                                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                    format!(
-                                        "Invalid signed integer for field {}: number out of range",
-                                        field.path
-                                    ),
-                                )
-                                .with_field(field.path.clone())
-                            })?
-                        } else {
-                            n.as_u64().ok_or_else(|| Error::new(
-                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                format!("Invalid unsigned integer for field {}: number out of range", field.path),
-                            ).with_field(field.path.clone()))? as i64
-                        }
-                    }
-                    Value::String(s) => s.parse::<i64>().map_err(|_| {
-                        Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            format!("Invalid integer string '{}' for field {}", s, field.path),
-                        )
-                        .with_field(field.path.clone())
-                    })?,
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            format!(
-                                "Expected number or string for binary integer field {}, got {}",
-                                field.path,
-                                self.value_type_name(value)
-                            ),
-                        )
-                        .with_field(field.path.clone()));
-                    }
-                };
-
-                // Validate integer range for the field width
-                self.validate_integer_range(int_value, *bits, *signed, &field.path)?;
-
-                let encoded = crate::numeric::encode_binary_int(int_value, *bits, *signed)?;
-                field_data.copy_from_slice(&encoded);
+                self.encode_binary_int_field(field, value, field_data, *bits, *signed)
             }
             FieldKind::Group => {
-                return Err(Error::new(
+                Err(Error::new(
                     ErrorCode::CBKD101_INVALID_FIELD_TYPE,
                     format!("Group field {} processed as scalar", field.path),
                 )
-                .with_field(field.path.clone()));
+                .with_field(field.path.clone()))
             }
         }
+    }
 
+    /// Encode alphanumeric field
+    fn encode_alphanumeric_field(
+        &self,
+        field: &Field,
+        value: &Value,
+        field_data: &mut [u8],
+    ) -> Result<()> {
+        if let Value::String(text) = value {
+            // Validate string length doesn't exceed field capacity
+            if text.len() > field.len as usize {
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!("String length {} exceeds field capacity {} for alphanumeric field {}", 
+                        text.len(), field.len, field.path),
+                ).with_field(field.path.clone()));
+            }
+
+            let encoded = crate::numeric::encode_alphanumeric(
+                text,
+                field.len as usize,
+                self.options.codepage,
+            )?;
+            field_data.copy_from_slice(&encoded);
+        } else {
+            return Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!(
+                    "Expected string for alphanumeric field {}, got {}",
+                    field.path,
+                    self.value_type_name(value)
+                ),
+            )
+            .with_field(field.path.clone()));
+        }
         Ok(())
+    }
+
+    /// Encode zoned decimal field
+    fn encode_zoned_decimal_field(
+        &self,
+        field: &Field,
+        value: &Value,
+        field_data: &mut [u8],
+        digits: u16,
+        scale: i16,
+        signed: bool,
+    ) -> Result<()> {
+        let value_str = self.extract_decimal_string(value, digits, scale, signed, &field.path)?;
+
+        let encoded = if field.blank_when_zero && self.options.bwz_encode {
+            crate::numeric::encode_zoned_decimal_with_bwz(
+                &value_str,
+                digits,
+                scale,
+                signed,
+                self.options.codepage,
+                self.options.bwz_encode,
+            )?
+        } else {
+            crate::numeric::encode_zoned_decimal(
+                &value_str,
+                digits,
+                scale,
+                signed,
+                self.options.codepage,
+            )?
+        };
+        field_data.copy_from_slice(&encoded);
+        Ok(())
+    }
+
+    /// Encode packed decimal field
+    fn encode_packed_decimal_field(
+        &self,
+        field: &Field,
+        value: &Value,
+        field_data: &mut [u8],
+        digits: u16,
+        scale: i16,
+        signed: bool,
+    ) -> Result<()> {
+        let value_str = self.extract_decimal_string(value, digits, scale, signed, &field.path)?;
+        let encoded = crate::numeric::encode_packed_decimal(&value_str, digits, scale, signed)?;
+        field_data.copy_from_slice(&encoded);
+        Ok(())
+    }
+
+    /// Encode binary integer field
+    fn encode_binary_int_field(
+        &self,
+        field: &Field,
+        value: &Value,
+        field_data: &mut [u8],
+        bits: u16,
+        signed: bool,
+    ) -> Result<()> {
+        let int_value = match value {
+            Value::Number(n) => {
+                if signed {
+                    n.as_i64().ok_or_else(|| {
+                        Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!(
+                                "Invalid signed integer for field {}: number out of range",
+                                field.path
+                            ),
+                        )
+                        .with_field(field.path.clone())
+                    })?
+                } else {
+                    let unsigned_val = n.as_u64().ok_or_else(|| Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        format!("Invalid unsigned integer for field {}: number out of range", field.path),
+                    ).with_field(field.path.clone()))?;
+                    i64::try_from(unsigned_val).map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!("Unsigned integer value {unsigned_val} exceeds i64::MAX for field {}", field.path),
+                        )
+                        .with_field(field.path.clone())
+                    })?
+                }
+            }
+            Value::String(s) => s.parse::<i64>().map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!("Invalid integer string '{}' for field {}", s, field.path),
+                )
+                .with_field(field.path.clone())
+            })?,
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "Expected number or string for binary integer field {}, got {}",
+                        field.path,
+                        self.value_type_name(value)
+                    ),
+                )
+                .with_field(field.path.clone()));
+            }
+        };
+
+        // Validate integer range for the field width
+        self.validate_integer_range(int_value, bits, signed, &field.path)?;
+
+        let encoded = crate::numeric::encode_binary_int(int_value, bits, signed)?;
+        field_data.copy_from_slice(&encoded);
+        Ok(())
+    }
+
+    /// Extract and validate decimal string from JSON value
+    fn extract_decimal_string(
+        &self,
+        value: &Value,
+        digits: u16,
+        scale: i16,
+        signed: bool,
+        field_path: &str,
+    ) -> Result<String> {
+        match value {
+            Value::String(s) => {
+                self.validate_decimal_string(s, digits, scale, signed, field_path)?;
+                Ok(s.clone())
+            }
+            Value::Number(n) => {
+                let s = n.to_string();
+                self.validate_decimal_string(&s, digits, scale, signed, field_path)?;
+                Ok(s)
+            }
+            _ => {
+                Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "Expected string or number for decimal field {}, got {}",
+                        field_path,
+                        self.value_type_name(value)
+                    ),
+                )
+                .with_field(field_path.to_string()))
+            }
+        }
     }
 
     /// Get a human-readable name for a JSON value type
@@ -1651,6 +1718,7 @@ impl JsonEncoder {
     }
 
     /// Compare two JSON values for equality, ignoring metadata and raw fields
+    #[allow(clippy::only_used_in_recursion)]
     fn compare_json_values(&self, decoded: &Value, original: &Value) -> Result<bool> {
         match (decoded, original) {
             (Value::Object(decoded_obj), Value::Object(original_obj)) => {
@@ -1734,12 +1802,12 @@ impl JsonEncoder {
     }
 
     /// Find a field by path in the schema (placeholder - needs schema access)
-    fn find_field_by_path_in_schema(&self, _path: &str) -> Result<&Field> {
+    fn find_field_by_path_in_schema(&self, path: &str) -> Result<&Field> {
         // This is a placeholder - we need access to the full schema to implement this properly
         // For now, return an error
         Err(Error::new(
             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!("Field lookup not implemented: {_path}"),
+            format!("Field lookup not implemented: {path}"),
         ))
     }
 

@@ -248,7 +248,7 @@ impl DecodeProcessor {
             warnings: 0, // TODO: Get from error_reporter
             processing_time_ms,
             bytes_processed: self.bytes_processed,
-            schema_fingerprint: "placeholder".to_string(), // TODO: Implement fingerprinting
+            schema_fingerprint: String::new(), // TODO: Implement fingerprinting
             input_file_hash: None,
             throughput_mbps: 0.0,
             error_summary: None, // TODO: Get from error_reporter

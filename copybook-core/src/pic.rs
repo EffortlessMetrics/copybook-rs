@@ -167,7 +167,7 @@ impl PicClause {
             ));
         }
 
-        if digits > 38 {
+        if kind == PicKind::NumericDisplay && digits > 38 {
             return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
                 format!("PIC clause too long: {} digits (max 38)", digits),

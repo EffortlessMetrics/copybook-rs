@@ -331,15 +331,32 @@ impl Parser {
         true
     }
 
-    /// Collect all fields in a flat list
+    /// Collect all fields in a flat list with recursion depth limit
     fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
+        const MAX_DEPTH: u8 = 100; // Reasonable limit for COBOL hierarchy depth
         let mut result = Vec::new();
+        self.collect_all_fields_with_depth(fields, &mut result, 0, MAX_DEPTH);
+        result
+    }
+
+    /// Collect all fields recursively with depth limit
+    fn collect_all_fields_with_depth<'a>(
+        &self,
+        fields: &'a [Field],
+        result: &mut Vec<&'a Field>,
+        current_depth: u8,
+        max_depth: u8,
+    ) {
+        if current_depth >= max_depth {
+            return; // Prevent infinite recursion
+        }
+
         for field in fields {
             result.push(field);
-            let children = self.collect_all_fields(&field.children);
-            result.extend(children);
+            if !field.children.is_empty() {
+                self.collect_all_fields_with_depth(&field.children, result, current_depth + 1, max_depth);
+            }
         }
-        result
     }
 
     /// Calculate schema fingerprint using SHA-256
@@ -559,7 +576,7 @@ impl Parser {
             }
             Some(TokenPos { token: Token::Comp, .. }) => {
                 self.advance();
-                self.convert_to_binary_field(field)?;
+                self.convert_to_binary_field_with_width(field)?;
             }
             Some(TokenPos { token: Token::Comp3, .. }) => {
                 self.advance();
@@ -567,7 +584,7 @@ impl Parser {
             }
             Some(TokenPos { token: Token::Binary, .. }) => {
                 self.advance();
-                self.convert_to_binary_field(field)?;
+                self.convert_to_binary_field_with_width(field)?;
             }
             _ => {
                 // Unknown clause - advance and continue
@@ -648,7 +665,7 @@ impl Parser {
             }
             Some(TokenPos { token: Token::Comp, .. }) => {
                 self.advance();
-                self.convert_to_binary_field(field)?;
+                self.convert_to_binary_field_with_width(field)?;
             }
             Some(TokenPos { token: Token::Comp3, .. }) => {
                 self.advance();
@@ -656,7 +673,7 @@ impl Parser {
             }
             Some(TokenPos { token: Token::Binary, .. }) => {
                 self.advance();
-                self.convert_to_binary_field(field)?;
+                self.convert_to_binary_field_with_width(field)?;
             }
             _ => {
                 return Err(Error::new(
@@ -780,14 +797,88 @@ impl Parser {
         Ok(())
     }
 
-    /// Convert numeric field to binary
+    /// Convert numeric field to binary with optional explicit width
+    fn convert_to_binary_field_with_width(&mut self, field: &mut Field) -> Result<()> {
+        // Check for explicit width specification like BINARY(1), BINARY(2), etc.
+        let explicit_bits = if self.check(&Token::LeftParen) {
+            self.advance(); // consume '('
+            
+            let bits = match self.current_token() {
+                Some(TokenPos { token: Token::Number(n), .. }) => {
+                    let bytes = *n;
+                    self.advance();
+                    match bytes {
+                        1 => 8,
+                        2 => 16, 
+                        4 => 32,
+                        8 => 64,
+                        _ => {
+                            return Err(Error::new(
+                                ErrorCode::CBKP001_SYNTAX,
+                                format!("Invalid binary width: {}. Only 1, 2, 4, 8 are supported", bytes),
+                            ));
+                        }
+                    }
+                }
+                _ => {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Expected number after BINARY(",
+                    ));
+                }
+            };
+            
+            if !self.consume(&Token::RightParen) {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Expected ')' after binary width",
+                ));
+            }
+            
+            Some(bits)
+        } else {
+            None
+        };
+
+        match &field.kind {
+            FieldKind::ZonedDecimal { digits, signed, .. } => {
+                let bits = if let Some(explicit) = explicit_bits {
+                    explicit
+                } else {
+                    // Traditional logic based on digits
+                    match digits {
+                        1..=4 => 16,
+                        5..=9 => 32,
+                        10..=18 => 64,
+                        _ => {
+                            return Err(Error::new(
+                                ErrorCode::CBKP001_SYNTAX,
+                                format!("Binary field with {} digits not supported", digits),
+                            ));
+                        }
+                    }
+                };
+                
+                field.kind = FieldKind::BinaryInt { bits, signed: *signed };
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "USAGE COMP/BINARY can only be applied to numeric fields",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Convert numeric field to binary (legacy version)
     fn convert_to_binary_field(&mut self, field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
                 let bits = match digits {
                     1..=4 => 16,
-                    5..=8 => 32,
-                    9..=18 => 64,
+                    5..=9 => 32,
+                    10..=18 => 64,
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,

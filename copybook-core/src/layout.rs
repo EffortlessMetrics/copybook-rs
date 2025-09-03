@@ -148,7 +148,8 @@ fn resolve_field_layout(
     let padding_bytes = aligned_offset - context.current_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
+        field.sync_padding =
+            Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
     }
 
     field.offset = u32::try_from(aligned_offset).expect("aligned offset should fit in u32");
@@ -200,12 +201,14 @@ fn resolve_field_layout(
             counter_path,
         }) => {
             // ODO array: use maximum count for space allocation
-            let array_size = u64::from(base_size).checked_mul(u64::from(*max)).ok_or_else(|| {
-                error!(
-                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                    "ODO array size overflow for field '{}'", field.name
-                )
-            })?;
+            let array_size = u64::from(base_size)
+                .checked_mul(u64::from(*max))
+                .ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "ODO array size overflow for field '{}'", field.name
+                    )
+                })?;
 
             // Record ODO information for validation
             context.odo_arrays.push(OdoInfo {
@@ -280,32 +283,32 @@ fn resolve_redefines_field(
     let padding_bytes = aligned_offset - target_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
+        field.sync_padding =
+            Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
     }
 
     field.offset = u32::try_from(aligned_offset).expect("aligned offset should fit in u32");
 
     // Calculate effective size including arrays
-    let effective_size =
-        match &field.occurs {
-            Some(Occurs::Fixed { count }) => u64::from(base_size)
-                .checked_mul(u64::from(*count))
-                .ok_or_else(|| {
-                    error!(
-                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                        "REDEFINES array size overflow for field '{}'", field.name
-                    )
-                })?,
-            Some(Occurs::ODO { max, .. }) => {
-                u64::from(base_size).checked_mul(u64::from(*max)).ok_or_else(|| {
-                    error!(
-                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                        "REDEFINES ODO array size overflow for field '{}'", field.name
-                    )
-                })?
-            }
-            None => u64::from(base_size),
-        };
+    let effective_size = match &field.occurs {
+        Some(Occurs::Fixed { count }) => u64::from(base_size)
+            .checked_mul(u64::from(*count))
+            .ok_or_else(|| {
+                error!(
+                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                    "REDEFINES array size overflow for field '{}'", field.name
+                )
+            })?,
+        Some(Occurs::ODO { max, .. }) => u64::from(base_size)
+            .checked_mul(u64::from(*max))
+            .ok_or_else(|| {
+                error!(
+                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                    "REDEFINES ODO array size overflow for field '{}'", field.name
+                )
+            })?,
+        None => u64::from(base_size),
+    };
 
     // Handle group fields recursively
     if matches!(field.kind, FieldKind::Group) {
@@ -779,9 +782,9 @@ mod tests {
 
         // Test different binary widths (IBM mainframe standards)
         let test_cases = vec![
-            (4, 16),  // 1-4 digits → 2 bytes (16 bits)
-            (5, 32),  // 5-8 digits → 4 bytes (32 bits)
-            (9, 64),  // 9-18 digits → 8 bytes (64 bits)
+            (4, 16), // 1-4 digits → 2 bytes (16 bits)
+            (5, 32), // 5-8 digits → 4 bytes (32 bits)
+            (9, 64), // 9-18 digits → 8 bytes (64 bits)
         ];
 
         for (digits, expected_bits) in test_cases {

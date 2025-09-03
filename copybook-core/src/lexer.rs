@@ -145,7 +145,7 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::Level(n) => write!(f, "{:02}", n),
+            Token::Level(n) => write!(f, "{n:02}"),
             Token::Level66 => write!(f, "66"),
             Token::Level77 => write!(f, "77"),
             Token::Level88 => write!(f, "88"),
@@ -169,15 +169,13 @@ impl fmt::Display for Token {
             Token::Blank => write!(f, "BLANK"),
             Token::When => write!(f, "WHEN"),
             Token::Zero => write!(f, "ZERO"),
-            Token::PicClause(s) => write!(f, "{}", s),
-            Token::EditedPic(s) => write!(f, "{}", s),
-            Token::Identifier(s) => write!(f, "{}", s),
-            Token::Number(n) => write!(f, "{}", n),
-            Token::StringLiteral(s) => write!(f, "\"{}\"", s),
+            Token::PicClause(s) | Token::EditedPic(s) | Token::Identifier(s) => write!(f, "{s}"),
+            Token::Number(n) => write!(f, "{n}"),
+            Token::StringLiteral(s) => write!(f, "\"{s}\""),
             Token::Period => write!(f, "."),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
-            Token::InlineComment(s) => write!(f, "*> {}", s),
+            Token::InlineComment(s) => write!(f, "*> {s}"),
             Token::Newline => write!(f, "\\n"),
             Token::Eof => write!(f, "EOF"),
         }
@@ -220,6 +218,7 @@ struct ProcessedLine<'a> {
 
 impl<'a> Lexer<'a> {
     /// Create a new lexer for the given input
+    #[must_use]
     pub fn new(input: &'a str) -> Self {
         let format = detect_format(input);
         let lines = preprocess_lines(input, format);
@@ -234,6 +233,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Get the detected format
+    #[must_use]
     pub fn format(&self) -> CobolFormat {
         self.format
     }
@@ -249,13 +249,12 @@ impl<'a> Lexer<'a> {
 
         while let Some(result) = lexer.next() {
             let span = lexer.span();
-            let token = match result {
-                Ok(token) => token,
-                Err(_) => {
-                    // Handle lexer errors - create an identifier token for unknown text
-                    let text = &processed_text[span.clone()];
-                    Token::Identifier(text.to_string())
-                }
+            let token = if let Ok(token) = result {
+                token
+            } else {
+                // Handle lexer errors - create an identifier token for unknown text
+                let text = &processed_text[span.clone()];
+                Token::Identifier(text.to_string())
             };
 
             // Update line/column tracking

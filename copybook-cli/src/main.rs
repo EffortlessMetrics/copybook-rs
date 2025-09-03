@@ -11,6 +11,8 @@
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::collapsible_else_if)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::redundant_closure)]
 //! converting mainframe data files.
 
 use clap::{Parser, Subcommand};
@@ -138,8 +140,7 @@ enum Commands {
     },
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let cli = Cli::parse();
 
     // Initialize tracing
@@ -149,9 +150,9 @@ async fn main() {
         .init();
 
     let result = match cli.command {
-        Commands::Parse { copybook, output } => crate::commands::parse::run(copybook, output).await,
+        Commands::Parse { copybook, output } => crate::commands::parse::run(copybook, output),
         Commands::Inspect { copybook, codepage } => {
-            crate::commands::inspect::run(copybook, codepage).await
+            crate::commands::inspect::run(copybook, codepage)
         }
         Commands::Decode {
             copybook,
@@ -183,7 +184,6 @@ async fn main() {
                 on_decode_unmappable,
                 threads,
             )
-            .await
         }
         Commands::Encode {
             copybook,
@@ -201,7 +201,6 @@ async fn main() {
                 copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors,
                 threads,
             )
-            .await
         }
         Commands::Verify {
             copybook,
@@ -209,7 +208,7 @@ async fn main() {
             report,
             format,
             codepage,
-        } => crate::commands::verify::run(copybook, input, report, format, codepage).await,
+        } => crate::commands::verify::run(copybook, input, report, format, codepage),
     };
 
     match result {

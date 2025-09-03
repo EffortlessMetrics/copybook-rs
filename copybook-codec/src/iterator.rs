@@ -134,7 +134,12 @@ impl<R: Read> RecordIterator<R> {
     /// # Errors
     /// Returns an error if there is an I/O error reading from the underlying stream,
     /// if record length is invalid, or if record format is malformed.
+    ///
+    /// # Panics
+    /// 
+    /// Panics if the schema does not have a fixed LRECL when using Fixed record format.
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
+        use std::io::Read;
         if self.eof_reached {
             return Ok(None);
         }
@@ -145,8 +150,6 @@ impl<R: Read> RecordIterator<R> {
             RecordFormat::Fixed => {
                 let lrecl = self.schema.lrecl_fixed.unwrap() as usize;
                 self.buffer.resize(lrecl, 0);
-
-                use std::io::Read;
                 let mut total_read = 0;
 
                 while total_read < lrecl {

@@ -4,6 +4,8 @@
 //! following the normative requirements for field ordering, numeric representation,
 //! and REDEFINES handling.
 
+#![allow(clippy::unused_self, clippy::unnecessary_wraps, clippy::missing_errors_doc)]
+
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use base64::prelude::*;
@@ -267,6 +269,7 @@ impl<W: Write> JsonWriter<W> {
                 '\r' => self.json_buffer.push_str("\\r"),
                 '\t' => self.json_buffer.push_str("\\t"),
                 c if c.is_control() => {
+                    #[allow(clippy::format_push_string)]
                     self.json_buffer.push_str(&format!("\\u{:04x}", c as u32));
                 }
                 c => self.json_buffer.push(c),
@@ -1167,7 +1170,7 @@ impl JsonEncoder {
                     count.to_string()
                 } else {
                     // Handle scaled values
-                    let scale_factor = 10_i32.pow((*scale).unsigned_abs() as u32);
+                    let scale_factor = 10_i32.pow(u32::from((*scale).unsigned_abs()));
                     if *scale > 0 {
                         format!(
                             "{:.1$}",
@@ -1202,7 +1205,7 @@ impl JsonEncoder {
                     count.to_string()
                 } else {
                     // Handle scaled values
-                    let scale_factor = 10_i32.pow((*scale).unsigned_abs() as u32);
+                    let scale_factor = 10_i32.pow(u32::from((*scale).unsigned_abs()));
                     if *scale > 0 {
                         format!(
                             "{:.1$}",

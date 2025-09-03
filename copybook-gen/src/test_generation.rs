@@ -34,7 +34,7 @@ pub fn generate_field_type_matrix() -> GoldenTestSuite {
 
     for (template, name) in templates {
         let copybook = crate::copybook::generate_copybook_with_template(&config, template);
-        let mut test = GoldenTest::new(&format!("field_matrix_{}", name), &copybook, &[]);
+        let mut test = GoldenTest::new(&format!("field_matrix_{name}"), &copybook, &[]);
         test.add_tag("field_types");
         test.add_tag(name);
         suite.add_test(test);
@@ -134,7 +134,7 @@ pub fn generate_negative_test_cases() -> GoldenTestSuite {
     // Invalid copybook syntax tests
     let invalid_copybooks = crate::copybook::generate_invalid_copybook(&config);
     for (name, copybook) in invalid_copybooks {
-        let mut test = GoldenTest::new(&format!("invalid_{}", name), &copybook, &[]);
+        let mut test = GoldenTest::new(&format!("invalid_{name}"), &copybook, &[]);
         test.add_tag("negative");
         test.add_tag("invalid_syntax");
         test.add_tag("parse_error");
@@ -172,7 +172,7 @@ pub fn generate_corruption_test_cases() -> GoldenTestSuite {
     for (corruption_type, name) in corruption_types {
         let corrupted_data = crate::data::generate_corrupted_data(clean_data, corruption_type);
         let mut test = GoldenTest::new(
-            &format!("corruption_{}", name),
+            &format!("corruption_{name}"),
             &clean_copybook,
             &corrupted_data,
         );
@@ -215,7 +215,7 @@ pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
         };
 
         let mut test = GoldenTest::new_with_config(
-            &format!("codepage_{}", codepage),
+            &format!("codepage_{codepage}"),
             &copybook,
             &[],
             test_config,
@@ -305,14 +305,14 @@ pub fn generate_determinism_tests() -> GoldenTestSuite {
         };
 
         let mut test = GoldenTest::new_with_config(
-            &format!("determinism_{}threads", threads),
+            &format!("determinism_{threads}threads"),
             &copybook,
             &[],
             test_config,
         );
         test.add_tag("determinism");
         test.add_tag("parallel");
-        test.add_tag(&format!("threads_{}", threads));
+        test.add_tag(&format!("threads_{threads}"));
         suite.add_test(test);
     }
 

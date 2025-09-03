@@ -69,7 +69,7 @@ impl GoldenTest {
             expected_outputs: HashMap::new(),
             metadata: GoldenTestMetadata {
                 created_at: chrono::Utc::now().to_rfc3339(),
-                description: format!("Golden test: {}", name),
+                description: format!("Golden test: {name}"),
                 tags: vec!["synthetic".to_string()],
                 config: TestConfig::default(),
             },
@@ -88,7 +88,7 @@ impl GoldenTest {
             expected_outputs: HashMap::new(),
             metadata: GoldenTestMetadata {
                 created_at: chrono::Utc::now().to_rfc3339(),
-                description: format!("Golden test: {}", name),
+                description: format!("Golden test: {name}"),
                 tags: vec!["synthetic".to_string()],
                 config,
             },

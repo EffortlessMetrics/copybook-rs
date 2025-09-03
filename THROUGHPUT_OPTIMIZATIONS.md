@@ -85,8 +85,14 @@ writer.write_all(self.json_buffer.as_bytes())?;
 
 ### Benchmark Suite
 
-The comprehensive benchmark suite in `copybook-bench/benches/decode_performance.rs` includes:
+The comprehensive benchmark suite in `copybook-bench` includes multiple test categories:
 
+#### encode_performance.rs
+- **Numeric Encoding Benchmarks**: Zoned and packed decimal encoding with scratch buffer optimizations
+- **Memory Allocation Analysis**: Comparison of standard vs optimized implementations
+- **Performance Regression Testing**: Automated detection of encoding performance changes
+
+#### decode_performance.rs.bak (archived)
 - **Workload-Specific Tests**: Separate benchmarks for DISPLAY-heavy, COMP-3-heavy, and binary-heavy workloads
 - **Scaling Tests**: Performance measurement across different record counts (100, 1K, 10K records)
 - **Parallel Scaling**: Thread scaling validation (1, 2, 4, 8 threads)
@@ -105,15 +111,17 @@ The comprehensive benchmark suite in `copybook-bench/benches/decode_performance.
 # Run all benchmarks
 cargo bench --package copybook-bench
 
-# Run only SLO validation
-cargo bench --package copybook-bench slo_validation
+# Run specific benchmark suites
+cargo bench --package copybook-bench -- encode_performance
 
-# Run with performance environment variable
+# Run with performance environment variable (legacy)
 PERF=1 cargo bench --package copybook-bench
 
 # Generate performance report
 cargo bench --package copybook-bench -- --output-format html
 ```
+
+For detailed benchmark usage instructions, see [docs/PERFORMANCE_BENCHMARKS.md](docs/PERFORMANCE_BENCHMARKS.md).
 
 ## 5. Memory Management Optimizations
 

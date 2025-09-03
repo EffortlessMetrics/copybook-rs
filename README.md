@@ -302,6 +302,45 @@ See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference.
 - Parallel processing with deterministic output
 - Zero-copy operations where possible
 - Static lookup tables for EBCDIC conversion
+- Scratch buffer reuse for memory efficiency
+- Optimized numeric codecs with fast paths
+
+### Performance Benchmarks
+
+The `copybook-bench` crate provides comprehensive performance testing and validation:
+
+#### Benchmark Suites
+
+- **encode_performance**: Numeric encoding benchmarks comparing standard vs optimized implementations
+- **decode_performance**: Comprehensive decoding benchmarks for DISPLAY, COMP-3, and binary data types
+- **slo_validation**: Service Level Objective validation ensuring performance targets are met
+
+#### Running Benchmarks
+
+```bash
+# Run all performance benchmarks
+cargo bench --package copybook-bench
+
+# Run specific benchmark categories
+cargo bench --package copybook-bench -- encode_performance
+cargo bench --package copybook-bench -- decode_performance
+
+# Run SLO validation tests
+cargo bench --package copybook-bench -- slo_validation
+
+# Generate detailed HTML reports
+cargo bench --package copybook-bench -- --output-format html
+```
+
+#### Benchmark Results
+
+The optimization work in PR #2 introduced scratch buffer reuse and optimized numeric codecs, providing significant performance improvements:
+
+- **Numeric Encoding**: Optimized implementations using scratch buffers
+- **Memory Efficiency**: Reduced allocations through buffer reuse patterns
+- **Throughput Validation**: Automated testing ensures performance targets are consistently met
+
+For detailed performance analysis, see [THROUGHPUT_OPTIMIZATIONS.md](THROUGHPUT_OPTIMIZATIONS.md).
 
 ## Development
 
@@ -328,7 +367,20 @@ cargo test --workspace
 # Run with coverage
 cargo test --workspace -- --nocapture
 
-# Run performance benchmarks (requires PERF=1)
+# Run performance benchmarks
+cargo bench --package copybook-bench
+
+# Run specific benchmark suites
+cargo bench --package copybook-bench -- encode_performance
+cargo bench --package copybook-bench -- decode_performance
+
+# Run SLO validation benchmarks
+cargo bench --package copybook-bench -- slo_validation
+
+# Generate HTML performance report
+cargo bench --package copybook-bench -- --output-format html
+
+# Legacy benchmark command (requires PERF=1)
 PERF=1 cargo bench
 
 # Run clippy

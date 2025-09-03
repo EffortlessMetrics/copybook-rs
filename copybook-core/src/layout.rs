@@ -126,7 +126,7 @@ fn resolve_field_layout(
     } else {
         field.name.clone()
     };
-    field.path = field_path.clone();
+    field.path.clone_from(&field_path);
 
     // Handle REDEFINES fields
     if let Some(target) = field.redefines_of.clone() {
@@ -135,10 +135,10 @@ fn resolve_field_layout(
 
     // Calculate field alignment and base size
     let (alignment, base_size) =
-        calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
+        calculate_field_size_and_alignment(&field.kind, field.synchronized);
 
     // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
+    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
         let cluster_end = cluster_start + cluster_size;
         context.current_offset = context.current_offset.max(cluster_end);
     }
@@ -148,10 +148,10 @@ fn resolve_field_layout(
     let padding_bytes = aligned_offset - context.current_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(padding_bytes as u16);
+        field.sync_padding = Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
     }
 
-    field.offset = aligned_offset as u32;
+    field.offset = u32::try_from(aligned_offset).expect("aligned offset should fit in u32");
     context.current_offset = aligned_offset;
 
     // Record field path and offset
@@ -171,9 +171,9 @@ fn resolve_field_layout(
             cluster_start
         };
         let field_effective_size = match &field.occurs {
-            Some(Occurs::Fixed { count }) => (base_size as u64) * (*count as u64),
-            Some(Occurs::ODO { max, .. }) => (base_size as u64) * (*max as u64),
-            None => base_size as u64,
+            Some(Occurs::Fixed { count }) => u64::from(base_size) * u64::from(*count),
+            Some(Occurs::ODO { max, .. }) => u64::from(base_size) * u64::from(*max),
+            None => u64::from(base_size),
         };
         context.redefines_clusters.insert(
             cluster_key,
@@ -185,15 +185,14 @@ fn resolve_field_layout(
     let effective_size = match &field.occurs {
         Some(Occurs::Fixed { count }) => {
             // Fixed array: multiply base size by count
-            let array_size = (base_size as u64)
-                .checked_mul(*count as u64)
+            u64::from(base_size)
+                .checked_mul(u64::from(*count))
                 .ok_or_else(|| {
                     error!(
                         ErrorCode::CBKS141_RECORD_TOO_LARGE,
                         "Fixed array size overflow for field '{}'", field.name
                     )
-                })?;
-            array_size
+                })?
         }
         Some(Occurs::ODO {
             min,
@@ -201,7 +200,7 @@ fn resolve_field_layout(
             counter_path,
         }) => {
             // ODO array: use maximum count for space allocation
-            let array_size = (base_size as u64).checked_mul(*max as u64).ok_or_else(|| {
+            let array_size = u64::from(base_size).checked_mul(u64::from(*max)).ok_or_else(|| {
                 error!(
                     ErrorCode::CBKS141_RECORD_TOO_LARGE,
                     "ODO array size overflow for field '{}'", field.name
@@ -219,7 +218,7 @@ fn resolve_field_layout(
 
             array_size
         }
-        None => base_size as u64,
+        None => u64::from(base_size),
     };
 
     // Handle group fields recursively
@@ -232,7 +231,7 @@ fn resolve_field_layout(
             group_size = group_size.max(child_end_offset - group_start_offset);
         }
 
-        field.len = group_size as u32;
+        field.len = u32::try_from(group_size).expect("group size should fit in u32");
         let final_offset = group_start_offset + group_size;
         context.current_offset = final_offset;
 
@@ -276,21 +275,21 @@ fn resolve_redefines_field(
 
     // Calculate field size and alignment (NORMATIVE: alignment applied before cluster max selection)
     let (alignment, base_size) =
-        calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
+        calculate_field_size_and_alignment(&field.kind, field.synchronized);
     let aligned_offset = apply_alignment(target_offset, alignment);
     let padding_bytes = aligned_offset - target_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(padding_bytes as u16);
+        field.sync_padding = Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
     }
 
-    field.offset = aligned_offset as u32;
+    field.offset = u32::try_from(aligned_offset).expect("aligned offset should fit in u32");
 
     // Calculate effective size including arrays
     let effective_size =
         match &field.occurs {
-            Some(Occurs::Fixed { count }) => (base_size as u64)
-                .checked_mul(*count as u64)
+            Some(Occurs::Fixed { count }) => u64::from(base_size)
+                .checked_mul(u64::from(*count))
                 .ok_or_else(|| {
                     error!(
                         ErrorCode::CBKS141_RECORD_TOO_LARGE,
@@ -298,14 +297,14 @@ fn resolve_redefines_field(
                     )
                 })?,
             Some(Occurs::ODO { max, .. }) => {
-                (base_size as u64).checked_mul(*max as u64).ok_or_else(|| {
+                u64::from(base_size).checked_mul(u64::from(*max)).ok_or_else(|| {
                     error!(
                         ErrorCode::CBKS141_RECORD_TOO_LARGE,
                         "REDEFINES ODO array size overflow for field '{}'", field.name
                     )
                 })?
             }
-            None => base_size as u64,
+            None => u64::from(base_size),
         };
 
     // Handle group fields recursively
@@ -319,7 +318,7 @@ fn resolve_redefines_field(
             group_size = group_size.max(child_end_offset - aligned_offset);
         }
 
-        field.len = group_size as u32;
+        field.len = u32::try_from(group_size).expect("group size should fit in u32");
         context.current_offset = saved_offset; // Restore offset (REDEFINES doesn't advance)
 
         // Update cluster size
@@ -363,18 +362,18 @@ fn resolve_redefines_field(
 }
 
 /// Calculate field size and alignment requirements
-fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> Result<(u64, u32)> {
+fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (u64, u32) {
     let (size, natural_alignment) = match kind {
         FieldKind::Alphanum { len } => (*len, 1u64),
         FieldKind::ZonedDecimal { digits, .. } => (u32::from(*digits), 1u64),
         FieldKind::BinaryInt { bits, .. } => {
             let bytes = u32::from(*bits) / 8;
-            let alignment = if synchronized { bytes as u64 } else { 1u64 };
+            let alignment = if synchronized { u64::from(bytes) } else { 1u64 };
             (bytes, alignment)
         }
         FieldKind::PackedDecimal { digits, .. } => {
             // Packed decimal: ceil((digits + 1) / 2) bytes
-            let bytes = (u32::from(*digits) + 2) / 2; // ceil((digits + 1) / 2)
+            let bytes = (u32::from(*digits) + 1).div_ceil(2); // ceil((digits + 1) / 2)
             (bytes, 1u64)
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size
@@ -386,7 +385,7 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> R
         1u64
     };
 
-    Ok((alignment, size))
+    (alignment, size)
 }
 
 /// Apply alignment to an offset
@@ -394,7 +393,7 @@ fn apply_alignment(offset: u64, alignment: u64) -> u64 {
     if alignment <= 1 {
         offset
     } else {
-        (offset + alignment - 1) / alignment * alignment
+        offset.div_ceil(alignment) * alignment
     }
 }
 
@@ -437,7 +436,7 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
                         context
                             .field_paths
                             .keys()
-                            .map(|s| s.as_str())
+                            .map(std::string::String::as_str)
                             .collect::<Vec<_>>()
                             .join(", ")
                     )),
@@ -516,12 +515,12 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
         let mut total_size = context.current_offset;
 
         // Add the size of REDEFINES clusters (they don't advance current_offset)
-        for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
+        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
             let cluster_end = cluster_start + cluster_size;
             total_size = total_size.max(cluster_end);
         }
 
-        schema.lrecl_fixed = Some(total_size as u32);
+        schema.lrecl_fixed = u32::try_from(total_size).ok();
     }
 }
 
@@ -778,11 +777,11 @@ mod tests {
     fn test_binary_width_mapping() {
         let mut schema = Schema::new();
 
-        // Test different binary widths
+        // Test different binary widths (IBM mainframe standards)
         let test_cases = vec![
-            (4, 16),  // ≤4 digits → 2 bytes (16 bits)
-            (9, 32),  // 5-9 digits → 4 bytes (32 bits)
-            (18, 64), // 10-18 digits → 8 bytes (64 bits)
+            (4, 16),  // 1-4 digits → 2 bytes (16 bits)
+            (5, 32),  // 5-8 digits → 4 bytes (32 bits)
+            (9, 64),  // 9-18 digits → 8 bytes (64 bits)
         ];
 
         for (digits, expected_bits) in test_cases {

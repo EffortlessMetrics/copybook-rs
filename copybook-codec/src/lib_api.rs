@@ -1,7 +1,7 @@
 //! Core library API implementation for task 9.1
 //!
 //! This module provides the main library functions required by R11:
-//! - parse_copybook (already exists in copybook-core)
+//! - `parse_copybook` (already exists in copybook-core)
 //! - decode_record
 //! - encode_record
 //! - decode_file_to_jsonl

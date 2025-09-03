@@ -60,20 +60,20 @@ impl Default for ParseOptions {
 struct Parser {
     tokens: Vec<TokenPos>,
     current: usize,
-    format: CobolFormat,
+    _format: CobolFormat,
     options: ParseOptions,
     /// Track field names at each level for duplicate detection
-    name_counters: std::collections::HashMap<String, u32>,
+    _name_counters: std::collections::HashMap<String, u32>,
 }
 
 impl Parser {
-    fn new(tokens: Vec<TokenPos>, format: CobolFormat) -> Self {
+    fn _new(tokens: Vec<TokenPos>, format: CobolFormat) -> Self {
         Self {
             tokens,
             current: 0,
-            format,
+            _format: format,
             options: ParseOptions::default(),
-            name_counters: std::collections::HashMap::new(),
+            _name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -81,9 +81,9 @@ impl Parser {
         Self {
             tokens,
             current: 0,
-            format,
+            _format: format,
             options,
-            name_counters: std::collections::HashMap::new(),
+            _name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -243,8 +243,10 @@ impl Parser {
     }
 
     /// Build hierarchical paths for all fields (simplified)
-    fn build_field_paths(_fields: &mut [Field]) {
+    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
+    fn _build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
         // Simplified for now - paths are set in build_hierarchy
+        Ok(())
     }
 
     /// Validate the parsed structure

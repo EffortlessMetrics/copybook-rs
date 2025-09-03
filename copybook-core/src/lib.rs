@@ -32,7 +32,7 @@ pub mod schema;
 pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, ErrorSummary};
 pub use parser::ParseOptions;
-pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
+pub use schema::{Field, FieldKind, Occurs, Schema, TailODO, WorkloadType};
 
 /// Parse a COBOL copybook into a structured schema
 ///

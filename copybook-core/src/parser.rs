@@ -110,7 +110,7 @@ impl Parser {
         }
 
         // Build hierarchical structure from flat fields
-        let hierarchical_fields = self.build_hierarchy(flat_fields)?;
+        let hierarchical_fields = self.build_hierarchy(flat_fields);
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
         self.validate_structure(&hierarchical_fields)?;
@@ -127,9 +127,9 @@ impl Parser {
     }
 
     /// Build hierarchical structure from flat field list
-    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Result<Vec<Field>> {
+    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Vec<Field> {
         if flat_fields.is_empty() {
-            return Ok(Vec::new());
+            return Vec::new();
         }
 
         // Handle duplicate names and FILLER fields
@@ -141,7 +141,7 @@ impl Parser {
 
         for mut field in flat_fields {
             // Set initial path
-            field.path = field.name.clone();
+            field.path.clone_from(&field.name);
 
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
@@ -189,7 +189,7 @@ impl Parser {
             }
         }
 
-        Ok(result)
+        result
     }
 
     /// Process field names for duplicates and FILLER handling
@@ -245,9 +245,8 @@ impl Parser {
 
     /// Build hierarchical paths for all fields (simplified)
     #[allow(dead_code)]
-    fn build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
+    fn build_field_paths(_fields: &mut [Field]) {
         // Simplified for now - paths are set in build_hierarchy
-        Ok(())
     }
 
     /// Validate the parsed structure
@@ -310,7 +309,7 @@ impl Parser {
 
                 // Validate that ODO array is at tail position
                 // This is a simplified check - full validation would require layout resolution
-                if !self.is_odo_at_tail(field, &all_fields) {
+                if !Self::is_odo_at_tail(field, &all_fields) {
                     return Err(Error::new(
                         ErrorCode::CBKP021_ODO_NOT_TAIL,
                         format!(
@@ -349,7 +348,7 @@ impl Parser {
     }
 
     /// Check if ODO array is at tail position (simplified check)
-    fn is_odo_at_tail(&self, _odo_field: &Field, _all_fields: &[&Field]) -> bool {
+    fn is_odo_at_tail(_odo_field: &Field, _all_fields: &[&Field]) -> bool {
         // This is a simplified implementation
         // Full validation would require layout resolution to check byte positions
         true
@@ -364,6 +363,7 @@ impl Parser {
     }
 
     /// Collect all fields recursively with depth limit
+    #[allow(clippy::only_used_in_recursion)]
     fn collect_all_fields_with_depth<'a>(
         &self,
         fields: &'a [Field],
@@ -401,7 +401,7 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update(&[if self.options.emit_filler { 1 } else { 0 }]);
+        hasher.update([u8::from(self.options.emit_filler)]);
 
         // Compute final hash
         let result = hasher.finalize();
@@ -453,6 +453,7 @@ impl Parser {
     }
 
     /// Convert field to canonical JSON for fingerprinting
+    #[allow(clippy::only_used_in_recursion)]
     fn field_to_canonical_json(&self, field: &Field) -> Value {
         use serde_json::{Map, Value};
 
@@ -988,11 +989,11 @@ impl Parser {
                 let bits = if let Some(explicit) = explicit_bits {
                     explicit
                 } else {
-                    // Traditional logic based on digits
+                    // Traditional logic based on digits (IBM mainframe standards)
                     match digits {
-                        1..=4 => 16,
-                        5..=9 => 32,
-                        10..=18 => 64,
+                        1..=4 => 16,   // 1-4 digits: 2 bytes (16-bit)
+                        5..=8 => 32,   // 5-8 digits: 4 bytes (32-bit)
+                        9..=18 => 64,  // 9-18 digits: 8 bytes (64-bit)
                         _ => {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
@@ -1023,9 +1024,9 @@ impl Parser {
         match &field.kind {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
                 let bits = match digits {
-                    1..=4 => 16,
-                    5..=9 => 32,
-                    10..=18 => 64,
+                    1..=4 => 16,   // 1-4 digits: 2 bytes (16-bit)
+                    5..=8 => 32,   // 5-8 digits: 4 bytes (32-bit)
+                    9..=18 => 64,  // 9-18 digits: 8 bytes (64-bit)
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,

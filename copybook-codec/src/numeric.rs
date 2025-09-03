@@ -303,12 +303,11 @@ pub fn decode_zoned_decimal(
         if blank_when_zero {
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     let sign_table = get_zoned_sign_table(codepage);
@@ -541,32 +540,30 @@ pub fn decode_packed_decimal(
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
                 decimal.normalize();
                 return Ok(decimal);
-            } else {
-                if low != 0xF && low != 0xC {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low:X}, expected 0xF or 0xC"),
-                    ));
-                }
-                return Ok(SmallDecimal::new(value, scale, false));
             }
-        } else {
-            if high > 9 {
+            if low != 0xF && low != 0xC {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{high:X} at byte {idx}"),
+                    format!("Invalid unsigned sign nibble 0x{low:X}, expected 0xF or 0xC"),
                 ));
             }
-            value = value * 10 + i64::from(high);
-
-            if low > 9 {
-                return Err(Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{low:X} at byte {idx}"),
-                ));
-            }
-            value = value * 10 + i64::from(low);
+            return Ok(SmallDecimal::new(value, scale, false));
         }
+        if high > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid digit nibble 0x{high:X} at byte {idx}"),
+            ));
+        }
+        value = value * 10 + i64::from(high);
+
+        if low > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid digit nibble 0x{low:X} at byte {idx}"),
+            ));
+        }
+        value = value * 10 + i64::from(low);
     }
 
     // Unsigned zero case
@@ -999,12 +996,11 @@ pub fn decode_zoned_decimal_with_scratch(
         if blank_when_zero {
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     // Clear and prepare digit buffer for reuse

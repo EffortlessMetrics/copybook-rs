@@ -25,7 +25,7 @@ pub fn run(copybook: PathBuf, output: Option<PathBuf>) -> Result<i32, Box<dyn st
             atomic_write(path, |writer| writer.write_all(json.as_bytes()))?;
         }
         None => {
-            println!("{}", json);
+            println!("{json}");
         }
     }
 

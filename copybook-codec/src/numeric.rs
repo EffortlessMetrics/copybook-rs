@@ -3,6 +3,8 @@
 //! This module implements encoding and decoding for zoned decimal,
 //! packed decimal, and binary integer types.
 
+#![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+
 use crate::charset::get_zoned_sign_table;
 use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
@@ -35,6 +37,7 @@ impl SmallDecimal {
     }
 
     /// Create a zero value with the given scale
+    #[must_use]
     pub fn zero(scale: i16) -> Self {
         Self {
             value: 0,
@@ -87,6 +90,10 @@ impl SmallDecimal {
     }
 
     /// Parse from string with validation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the string cannot be parsed as a decimal number
     pub fn from_str(s: &str, expected_scale: i16) -> Result<Self> {
         let s = s.trim();
         if s.is_empty() {
@@ -160,6 +167,7 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
+    #[must_use]
     pub fn to_fixed_scale_string(&self, scale: i16) -> String {
         let mut result = String::new();
 
@@ -194,11 +202,13 @@ impl SmallDecimal {
     }
 
     /// Get the scale of this decimal
+    #[must_use]
     pub fn scale(&self) -> i16 {
         self.scale
     }
 
     /// Check if this decimal is negative
+    #[must_use]
     pub fn is_negative(&self) -> bool {
         self.negative && self.value != 0
     }
@@ -251,6 +261,7 @@ impl SmallDecimal {
     }
 
     /// Get the total number of digits in this decimal
+    #[must_use]
     pub fn total_digits(&self) -> u16 {
         if self.value == 0 {
             return 1;
@@ -441,22 +452,14 @@ pub fn decode_zoned_decimal(
                 // Adjust final digit if ASCII overpunch
                 if codepage == Codepage::ASCII {
                     digit = match zone {
-                        0x0 => 0, // '{' overpunch
-                        0x1 => 1, // 'A' overpunch
-                        0x2 => 2, // 'B' overpunch
-                        0x3 => 3, // '}' overpunch
-                        0x4 => 4, // 'D' overpunch
-                        0x5 => 5, // 'E' overpunch
-                        0x6 => 6, // 'F' overpunch
-                        0x7 => 7, // 'G' overpunch
-                        0x8 => 0, // 'H' overpunch
-                        0x9 => 1, // 'I' overpunch
-                        0xA => 2, // 'J' overpunch
-                        0xB => 3, // 'K' overpunch
-                        0xC => 4, // 'L' overpunch
-                        0xD => 5, // 'M' overpunch
-                        0xE => 6, // 'N' overpunch
-                        0xF => 7, // 'O' overpunch
+                        0x0 | 0x8 => 0, // '{' or 'H' overpunch
+                        0x1 | 0x9 => 1, // 'A' or 'I' overpunch
+                        0x2 | 0xA => 2, // 'B' or 'J' overpunch
+                        0x3 | 0xB => 3, // '}' or 'K' overpunch
+                        0x4 | 0xC => 4, // 'D' or 'L' overpunch
+                        0x5 | 0xD => 5, // 'E' or 'M' overpunch
+                        0x6 | 0xE => 6, // 'F' or 'N' overpunch
+                        0x7 | 0xF => 7, // 'G' or 'O' overpunch
                         _ => {
                             return Err(Error::new(
                                 ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -684,7 +687,7 @@ pub fn encode_zoned_decimal(
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
@@ -746,7 +749,7 @@ pub fn encode_packed_decimal(
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
@@ -911,6 +914,7 @@ pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> 
 /// Apply BLANK WHEN ZERO encoding policy
 ///
 /// Returns true if the value should be encoded as spaces instead of zeros
+#[must_use]
 pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
     if !bwz_encode {
         return false;
@@ -963,18 +967,21 @@ pub fn encode_zoned_decimal_with_bwz(
 /// Get binary width mapping based on PIC digits (NORMATIVE)
 ///
 /// Maps digits to width: ≤4→2B, 5-9→4B, 10-18→8B
+#[must_use]
 pub fn get_binary_width_from_digits(digits: u16) -> u16 {
     match digits {
-        1..=4 => 16,   // 2 bytes
-        5..=9 => 32,   // 4 bytes
-        10..=18 => 64, // 8 bytes
-        _ => 64,       // Default to 8 bytes for larger values
+        1..=4 => 16, // 2 bytes
+        5..=9 => 32, // 4 bytes
+        _ => 64,     // 8 bytes for 10+ digits
     }
 }
 
 /// Validate explicit USAGE BINARY(n) width (NORMATIVE)
 ///
 /// Accept explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
+///
+/// # Errors
+/// Returns an error if the width is not one of the supported values (1, 2, 4, or 8 bytes).
 pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
     match width_bytes {
         1 => Ok(8),  // 1 byte = 8 bits
@@ -990,6 +997,10 @@ pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
 
 /// Optimized zoned decimal decoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the zoned decimal data is invalid, contains invalid signs,
+/// or has malformed digit characters.
 pub fn decode_zoned_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -1092,6 +1103,10 @@ pub fn decode_zoned_decimal_with_scratch(
 
 /// Optimized packed decimal decoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the packed decimal data contains invalid nibbles,
+/// invalid sign values, or malformed structure.
 pub fn decode_packed_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -1103,6 +1118,11 @@ pub fn decode_packed_decimal_with_scratch(
 }
 
 /// Fast binary integer decoder with optimized paths for common widths
+/// Fast binary integer decoder for common bit widths
+///
+/// # Errors
+/// Returns an error if the data length doesn't match the expected bit width,
+/// or if unsigned values exceed `i64::MAX`.
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     // Optimized paths for common binary widths
     match (bits, data.len()) {
@@ -1151,6 +1171,10 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
 
 /// Optimized zoned decimal encoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the decimal value is too large for the specified digit count
+/// or if encoding parameters are invalid.
 pub fn encode_zoned_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,
@@ -1182,6 +1206,10 @@ pub fn encode_zoned_decimal_with_scratch(
 
 /// Optimized packed decimal encoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error if the decimal value is too large for the specified digit count
+/// or if encoding parameters are invalid.
 pub fn encode_packed_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,

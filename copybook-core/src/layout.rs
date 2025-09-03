@@ -15,7 +15,7 @@ const MAX_RECORD_SIZE: u64 = 16 * 1024 * 1024;
 struct LayoutContext {
     /// Current byte offset (using u64 for overflow protection)
     current_offset: u64,
-    /// REDEFINES clusters: target_path -> (cluster_start_offset, cluster_max_size)
+    /// REDEFINES clusters: `target_path` -> (`cluster_start_offset`, `cluster_max_size`)
     redefines_clusters: HashMap<String, (u64, u64)>,
     /// Track ODO arrays for tail validation
     odo_arrays: Vec<OdoInfo>,

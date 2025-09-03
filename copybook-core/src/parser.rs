@@ -380,10 +380,10 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
+        hasher.update([u8::from(self.options.emit_filler)]);
         // Compute final hash
         let result = hasher.finalize();
-        schema.fingerprint = format!("{:x}", result);
+        schema.fingerprint = format!("{result:x}");
     }
 
     /// Create canonical JSON representation of schema for fingerprinting
@@ -444,23 +444,23 @@ impl Parser {
 
         // Add field kind
         let kind_str = match &field.kind {
-            FieldKind::Alphanum { len } => format!("Alphanum({})", len),
+            FieldKind::Alphanum { len } => format!("Alphanum({len})"),
             FieldKind::ZonedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                format!("ZonedDecimal({},{},{})", digits, scale, signed)
+                format!("ZonedDecimal({digits},{scale},{signed})")
             }
             FieldKind::BinaryInt { bits, signed } => {
-                format!("BinaryInt({},{})", bits, signed)
+                format!("BinaryInt({bits},{signed})")
             }
             FieldKind::PackedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                format!("PackedDecimal({},{},{})", digits, scale, signed)
+                format!("PackedDecimal({digits},{scale},{signed})")
             }
             FieldKind::Group => "Group".to_string(),
         };
@@ -473,13 +473,13 @@ impl Parser {
 
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
-                Occurs::Fixed { count } => format!("Fixed({})", count),
+                Occurs::Fixed { count } => format!("Fixed({count})"),
                 Occurs::ODO {
                     min,
                     max,
                     counter_path,
                 } => {
-                    format!("ODO({},{},{})", min, max, counter_path)
+                    format!("ODO({min},{max},{counter_path})")
                 }
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));
@@ -542,7 +542,13 @@ impl Parser {
                 self.skip_to_period();
                 return Ok(None);
             }
-            _ => return Ok(None),
+            _ => {
+                // Skip unexpected token to avoid infinite loop
+                if !self.is_at_end() {
+                    self.advance();
+                }
+                return Ok(None);
+            }
         };
 
         // Get field name
@@ -558,7 +564,7 @@ impl Parser {
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
-                    format!("Expected field name after level {}", level),
+                    format!("Expected field name after level {level}"),
                 ));
             }
         };
@@ -629,7 +635,7 @@ impl Parser {
                 ..
             }) => {
                 // Skip VALUE clauses (metadata only)
-                self.skip_value_clause()?;
+                self.skip_value_clause();
             }
             Some(TokenPos {
                 token: Token::Blank,
@@ -658,7 +664,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.convert_to_packed_field(field)?;
+                Self::convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -695,7 +701,7 @@ impl Parser {
             }) => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("Edited PIC not supported: {}", pic),
+                    format!("Edited PIC not supported: {pic}"),
                 ));
             }
             Some(TokenPos {
@@ -730,7 +736,7 @@ impl Parser {
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {
-                len: pic.digits as u32,
+                len: u32::from(pic.digits),
             },
             crate::pic::PicKind::NumericDisplay => FieldKind::ZonedDecimal {
                 digits: pic.digits,
@@ -769,7 +775,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.convert_to_packed_field(field)?;
+                Self::convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -895,7 +901,7 @@ impl Parser {
     }
 
     /// Skip VALUE clause (not needed for layout)
-    fn skip_value_clause(&mut self) -> Result<()> {
+    fn skip_value_clause(&mut self) {
         self.advance(); // consume VALUE
 
         // Skip until we find a keyword or period
@@ -905,8 +911,6 @@ impl Parser {
             }
             self.advance();
         }
-
-        Ok(())
     }
 
     /// Convert numeric field to binary with optional explicit width
@@ -931,8 +935,7 @@ impl Parser {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
                                 format!(
-                                    "Invalid binary width: {}. Only 1, 2, 4, 8 are supported",
-                                    bytes
+                                    "Invalid binary width: {bytes}. Only 1, 2, 4, 8 are supported"
                                 ),
                             ));
                         }
@@ -971,7 +974,7 @@ impl Parser {
                         _ => {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
-                                format!("Binary field with {} digits not supported", digits),
+                                format!("Binary field with {digits} digits not supported"),
                             ));
                         }
                     }
@@ -993,7 +996,7 @@ impl Parser {
     }
 
     /// Convert numeric field to binary (legacy version)
-    fn convert_to_binary_field(&mut self, field: &mut Field) -> Result<()> {
+    fn convert_to_binary_field(field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
                 let bits = match digits {
@@ -1003,7 +1006,7 @@ impl Parser {
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("Binary field with {} digits not supported", digits),
+                            format!("Binary field with {digits} digits not supported"),
                         ));
                     }
                 };
@@ -1024,7 +1027,7 @@ impl Parser {
     }
 
     /// Convert numeric field to packed decimal
-    fn convert_to_packed_field(&mut self, field: &mut Field) -> Result<()> {
+    fn convert_to_packed_field(field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal {
                 digits,
@@ -1073,14 +1076,16 @@ impl Parser {
     fn is_keyword(&self) -> bool {
         matches!(
             self.current_token().map(|t| &t.token),
-            Some(Token::Pic)
-                | Some(Token::Usage)
-                | Some(Token::Redefines)
-                | Some(Token::Occurs)
-                | Some(Token::Synchronized)
-                | Some(Token::Value)
-                | Some(Token::Blank)
-                | Some(Token::Sign)
+            Some(
+                Token::Pic
+                    | Token::Usage
+                    | Token::Redefines
+                    | Token::Occurs
+                    | Token::Synchronized
+                    | Token::Value
+                    | Token::Blank
+                    | Token::Sign
+            )
         )
     }
 

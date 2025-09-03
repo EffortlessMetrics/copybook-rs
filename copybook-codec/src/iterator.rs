@@ -136,7 +136,7 @@ impl<R: Read> RecordIterator<R> {
     /// if record length is invalid, or if record format is malformed.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics if the schema does not have a fixed LRECL when using Fixed record format.
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
         use std::io::Read;

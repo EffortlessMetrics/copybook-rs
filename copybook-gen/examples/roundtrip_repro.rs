@@ -3,8 +3,8 @@ use std::io::Write;
 
 use copybook_core::parse_copybook;
 use copybook_gen::{
-    data::{generate_data_with_strategy, DataStrategy},
     GeneratorConfig,
+    data::{DataStrategy, generate_data_with_strategy},
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,7 +33,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         file.write_all(&record)?;
     }
 
-    println!("Successfully generated {} records to {}", config.record_count, output_path);
+    println!(
+        "Successfully generated {} records to {}",
+        config.record_count, output_path
+    );
 
     Ok(())
 }

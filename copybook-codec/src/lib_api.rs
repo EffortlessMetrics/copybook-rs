@@ -151,7 +151,7 @@ impl fmt::Display for RunSummary {
             writeln!(
                 f,
                 "  Peak memory: {:.2} MB",
-                f64::from(peak_memory.min(u32::MAX as u64) as u32) / (1024.0 * 1024.0)
+                f64::from(u32::try_from(peak_memory.min(u64::from(u32::MAX))).unwrap_or(u32::MAX)) / (1024.0 * 1024.0)
             )?;
         }
         if !self.schema_fingerprint.is_empty() {
@@ -189,6 +189,7 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 }
 
 /// Decode a single field from binary data
+#[allow(clippy::only_used_in_recursion)]
 fn decode_field(
     field: &copybook_core::Field,
     data: &[u8],
@@ -248,6 +249,7 @@ fn decode_field(
 }
 
 /// Simple zoned decimal decoder for basic functionality
+#[allow(clippy::too_many_lines)]
 fn decode_zoned_decimal_simple(
     data: &[u8],
     _digits: u16,

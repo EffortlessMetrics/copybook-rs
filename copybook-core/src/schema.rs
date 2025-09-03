@@ -117,17 +117,6 @@ pub enum Occurs {
     },
 }
 
-/// Workload classification derived from schema analysis
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WorkloadType {
-    /// Schema contains more DISPLAY (alphanumeric/zoned) fields than COMP-3
-    DisplayHeavy,
-    /// Schema contains more COMP-3 (packed decimal) fields than DISPLAY
-    Comp3Heavy,
-    /// No predominant field type
-    Mixed,
-}
-
 impl Schema {
     /// Create a new empty schema
     #[must_use]
@@ -153,37 +142,6 @@ impl Schema {
         schema
     }
 
-    /// Determine workload classification based on field types
-    #[must_use]
-    pub fn workload_type(&self) -> WorkloadType {
-        fn walk(fields: &[Field], display: &mut usize, comp3: &mut usize) {
-            for field in fields {
-                match field.kind {
-                    FieldKind::Alphanum { .. } | FieldKind::ZonedDecimal { .. } => {
-                        *display += 1;
-                    }
-                    FieldKind::PackedDecimal { .. } => {
-                        *comp3 += 1;
-                    }
-                    _ => {}
-                }
-                if !field.children.is_empty() {
-                    walk(&field.children, display, comp3);
-                }
-            }
-        }
-
-        let mut display = 0;
-        let mut comp3 = 0;
-        walk(&self.fields, &mut display, &mut comp3);
-
-        match display.cmp(&comp3) {
-            std::cmp::Ordering::Greater => WorkloadType::DisplayHeavy,
-            std::cmp::Ordering::Less => WorkloadType::Comp3Heavy,
-            std::cmp::Ordering::Equal => WorkloadType::Mixed,
-        }
-    }
-
     /// Calculate the schema fingerprint using SHA-256
     pub fn calculate_fingerprint(&mut self) {
         use sha2::{Digest, Sha256};
@@ -196,7 +154,7 @@ impl Schema {
         hasher.update(canonical_json.as_bytes());
 
         let result = hasher.finalize();
-        self.fingerprint = format!("{result:x}");
+        self.fingerprint = format!("{:x}", result);
     }
 
     /// Create canonical JSON representation for fingerprinting
@@ -257,23 +215,23 @@ impl Schema {
 
         // Add field kind
         let kind_str = match &field.kind {
-            FieldKind::Alphanum { len } => format!("Alphanum({len})"),
+            FieldKind::Alphanum { len } => format!("Alphanum({})", len),
             FieldKind::ZonedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                format!("ZonedDecimal({digits},{scale},{signed})")
+                format!("ZonedDecimal({},{},{})", digits, scale, signed)
             }
             FieldKind::BinaryInt { bits, signed } => {
-                format!("BinaryInt({bits},{signed})")
+                format!("BinaryInt({},{})", bits, signed)
             }
             FieldKind::PackedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                format!("PackedDecimal({digits},{scale},{signed})")
+                format!("PackedDecimal({},{},{})", digits, scale, signed)
             }
             FieldKind::Group => "Group".to_string(),
         };
@@ -286,13 +244,13 @@ impl Schema {
 
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
-                Occurs::Fixed { count } => format!("Fixed({count})"),
+                Occurs::Fixed { count } => format!("Fixed({})", count),
                 Occurs::ODO {
                     min,
                     max,
                     counter_path,
                 } => {
-                    format!("ODO({min},{max},{counter_path})")
+                    format!("ODO({},{},{})", min, max, counter_path)
                 }
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));

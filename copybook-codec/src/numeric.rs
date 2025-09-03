@@ -7,7 +7,7 @@ use crate::charset::get_zoned_sign_table;
 use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 use tracing::warn;
 
 /// Small decimal structure for parsing/formatting without floats
@@ -50,7 +50,7 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
-    pub fn to_string(&self) -> String {
+    fn format_to_string(&self) -> String {
         let mut result = String::new();
 
         if self.negative && self.value != 0 {
@@ -213,6 +213,13 @@ impl SmallDecimal {
     }
 }
 
+/// Implement Display trait for SmallDecimal
+impl Display for SmallDecimal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.format_to_string())
+    }
+}
+
 /// Decode zoned decimal field with comprehensive error context
 ///
 /// # Errors
@@ -263,7 +270,7 @@ pub fn decode_zoned_decimal(
     if codepage == Codepage::ASCII {
         // Special-case negative zero represented by "M" in last position
         if signed
-            && data.len() > 0
+            && !data.is_empty()
             && data[..data.len() - 1].iter().all(|&b| b == b'0')
             && data[data.len() - 1] == b'M'
         {
@@ -317,7 +324,7 @@ pub fn decode_zoned_decimal(
                 }
                 value = value * 10 + i64::from(digit);
             } else {
-                if byte < b'0' || byte > b'9' {
+                if !byte.is_ascii_digit() {
                     return Err(Error::new(
                         ErrorCode::CBKD411_ZONED_BAD_SIGN,
                         format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
@@ -690,7 +697,7 @@ pub fn encode_packed_decimal(
         ));
     }
 
-    let expected_bytes = ((digits + 1) / 2) as usize;
+    let expected_bytes = digits.div_ceil(2) as usize;
     let mut result = Vec::with_capacity(expected_bytes);
     let digit_bytes = digit_str.as_bytes();
 
@@ -1117,7 +1124,7 @@ pub fn encode_packed_decimal_with_scratch(
     // Clear and prepare buffers
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
-    let expected_bytes = ((digits + 1) / 2) as usize;
+    let expected_bytes = digits.div_ceil(2) as usize;
     scratch.byte_buffer.reserve(expected_bytes);
 
     // Convert decimal to string using scratch buffer

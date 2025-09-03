@@ -177,10 +177,9 @@ impl<T> SequenceRing<T> {
                     if let Some((_, record)) = self.reorder_buffer.pop_first() {
                         debug!("Emitting remaining buffered record during shutdown");
                         return Ok(Some(record));
-                    } else {
-                        debug!("Channel closed, no more records");
-                        return Ok(None);
                     }
+                    debug!("Channel closed, no more records");
+                    return Ok(None);
                 }
             }
         }

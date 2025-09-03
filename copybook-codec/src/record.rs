@@ -363,12 +363,11 @@ impl<R: Read> RDWRecordReader<R> {
 
                     if self.strict_mode {
                         return Err(error);
-                    } else {
-                        warn!(
-                            "RDW reserved bytes non-zero (record {}): {:04X}",
-                            self.record_count, reserved
-                        );
                     }
+                    warn!(
+                        "RDW reserved bytes non-zero (record {}): {:04X}",
+                        self.record_count, reserved
+                    );
                 }
 
                 // Check for ASCII transfer corruption heuristic

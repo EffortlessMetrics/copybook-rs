@@ -77,6 +77,11 @@ Uses structured error taxonomy with stable error codes:
 - Zero-copy operations where possible
 - Target throughput: ≥80 MB/s for DISPLAY data, ≥40 MB/s for COMP-3 data
 
+### Parser Stability
+- Infinite loop prevention through unexpected token skipping
+- Robust error handling for malformed copybook structures
+- Memory-safe field hierarchy traversal
+
 ## Requirements
 
 - Rust 1.89+ (MSRV)

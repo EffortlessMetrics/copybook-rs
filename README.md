@@ -24,6 +24,7 @@ copybook-rs is a Rust implementation of a COBOL copybook parser and data codec t
 - **COBOL Feature Support**: REDEFINES, OCCURS DEPENDING ON, SYNCHRONIZED, packed/zoned decimals
 - **Character Encoding**: Full EBCDIC support (CP037, CP273, CP500, CP1047, CP1140) and ASCII
 - **Performance**: ≥80 MB/s throughput for DISPLAY-heavy data, ≥40 MB/s for COMP-3-heavy
+- **Parser Stability**: Infinite loop prevention with robust error handling
 
 ## Architecture
 

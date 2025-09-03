@@ -3,6 +3,8 @@
 //! This module implements encoding and decoding for zoned decimal,
 //! packed decimal, and binary integer types.
 
+#![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+
 use crate::charset::get_zoned_sign_table;
 use crate::memory::ScratchBuffers;
 use crate::options::Codepage;

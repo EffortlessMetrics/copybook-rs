@@ -21,7 +21,7 @@ copybook-rs is a Rust implementation of a COBOL copybook parser and data codec t
 - **Memory Safety**: No unsafe code in public API paths
 - **Streaming Architecture**: Bounded memory usage for multi-GB files
 - **Comprehensive Error Handling**: Stable error codes with structured context
-- **COBOL Feature Support**: REDEFINES, OCCURS DEPENDING ON, SYNCHRONIZED, packed/zoned decimals
+- **COBOL Feature Support**: REDEFINES, OCCURS DEPENDING ON, SYNCHRONIZED (IBM mainframe alignment standards), packed/zoned decimals
 - **Character Encoding**: Full EBCDIC support (CP037, CP273, CP500, CP1047, CP1140) and ASCII
 - **High Performance**: 17.25+ GiB/s throughput for DISPLAY-heavy data, 51.6+ MiB/s for COMP-3-heavy
 - **Parser Stability**: Infinite loop prevention with robust error handling
@@ -302,7 +302,23 @@ copybook decode schema.cpy comp3-data.bin \
 copybook decode schema.cpy binary-data.bin \
   --json-number native \  # integers can use JSON numbers
   --output binary-data.jsonl
+
+# Handle SYNCHRONIZED binary fields with automatic alignment
+copybook decode schema.cpy aligned-binary-data.bin \
+  --codepage cp037 \
+  --json-number native \
+  --output aligned-data.jsonl
 ```
+
+### Binary Field Alignment (SYNCHRONIZED)
+
+copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary fields:
+
+- **16-bit binary fields**: Aligned to 2-byte boundaries
+- **32-bit binary fields**: Aligned to 4-byte boundaries  
+- **64-bit binary fields**: Aligned to 8-byte boundaries
+- **Padding insertion**: Automatic insertion of alignment padding bytes (0x00) when SYNCHRONIZED is specified
+- **Cross-platform consistency**: Alignment behavior matches IBM COBOL compilers across platforms
 
 ## Supported COBOL Features
 
@@ -321,7 +337,7 @@ copybook decode schema.cpy binary-data.bin \
 - **Level Numbers**: 01-49 hierarchical grouping
 - **REDEFINES**: Multiple views over same storage area
 - **OCCURS**: Fixed arrays and variable arrays (OCCURS DEPENDING ON)
-- **SYNCHRONIZED**: Field alignment on natural boundaries
+- **SYNCHRONIZED**: Field alignment on natural boundaries following IBM mainframe standards (2/4/8-byte boundaries for binary fields)
 - **BLANK WHEN ZERO**: Special handling for zero values
 
 ### Record Formats
@@ -342,16 +358,25 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 
 ### Parse Errors (CBKP*)
 - `CBKP001_SYNTAX`: Copybook syntax errors
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+
+### Schema Validation Errors (CBKS*)
+- `CBKS121_COUNTER_NOT_FOUND`: ODO counter field not found
+- `CBKS141_RECORD_TOO_LARGE`: Record size exceeds maximum limit
+- `CBKS301_ODO_CLIPPED`: ODO counter exceeds maximum (strict: fatal, lenient: warning with clamping)
+- `CBKS302_ODO_RAISED`: ODO counter below minimum (strict: fatal, lenient: warning with clamping)
 
 ### Data Errors (CBKD*)
+- `CBKD101_INVALID_FIELD_TYPE`: Invalid field type for operation
+- `CBKD301_RECORD_TOO_SHORT`: Record too short for field
 - `CBKD401_COMP3_INVALID_NIBBLE`: Invalid packed decimal data
 - `CBKD411_ZONED_BAD_SIGN`: Invalid zoned decimal sign
 - `CBKD412_ZONED_BLANK_IS_ZERO`: BLANK WHEN ZERO field decoded as zero
 
 ### Encoding Errors (CBKE*)
-- `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type
+- `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type or REDEFINES ambiguity
 - `CBKE521_ARRAY_LEN_OOB`: Array length out of bounds
 
 See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference and [REPORT.md](REPORT.md) for detailed project status and performance analysis.

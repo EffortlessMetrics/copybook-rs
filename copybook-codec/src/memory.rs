@@ -139,16 +139,17 @@ impl<T> SequenceRing<T> {
             }
 
             // Receive next record from channel
-            match self.receiver.recv() {
-                Ok(sequenced_record) => {
-                    let SequencedRecord { sequence_id, data } = sequenced_record;
+            if let Ok(sequenced_record) = self.receiver.recv() {
+                let SequencedRecord { sequence_id, data } = sequenced_record;
 
-                    if sequence_id == self.next_sequence_id {
+                match sequence_id.cmp(&self.next_sequence_id) {
+                    std::cmp::Ordering::Equal => {
                         // This is the next expected record
                         self.next_sequence_id += 1;
                         debug!("Emitting record {} directly", sequence_id);
                         return Ok(Some(data));
-                    } else if sequence_id > self.next_sequence_id {
+                    }
+                    std::cmp::Ordering::Greater => {
                         // Future record - buffer it
                         debug!(
                             "Buffering out-of-order record {} (expecting {})",
@@ -164,7 +165,8 @@ impl<T> SequenceRing<T> {
                                 self.max_window_size
                             );
                         }
-                    } else {
+                    }
+                    std::cmp::Ordering::Less => {
                         // Past record - this shouldn't happen with proper sequencing
                         warn!(
                             "Received past record {} (expecting {}), ignoring",
@@ -172,16 +174,14 @@ impl<T> SequenceRing<T> {
                         );
                     }
                 }
-                Err(crossbeam_channel::RecvError) => {
-                    // Channel closed - emit any remaining buffered records
-                    if let Some((_, record)) = self.reorder_buffer.pop_first() {
-                        debug!("Emitting remaining buffered record during shutdown");
-                        return Ok(Some(record));
-                    } else {
-                        debug!("Channel closed, no more records");
-                        return Ok(None);
-                    }
+            } else {
+                // Channel closed - emit any remaining buffered records
+                if let Some((_, record)) = self.reorder_buffer.pop_first() {
+                    debug!("Emitting remaining buffered record during shutdown");
+                    return Ok(Some(record));
                 }
+                debug!("Channel closed, no more records");
+                return Ok(None);
             }
         }
     }
@@ -199,17 +199,21 @@ impl<T> SequenceRing<T> {
             Ok(sequenced_record) => {
                 let SequencedRecord { sequence_id, data } = sequenced_record;
 
-                if sequence_id == self.next_sequence_id {
-                    self.next_sequence_id += 1;
-                    Ok(Some(data))
-                } else if sequence_id > self.next_sequence_id {
-                    // Buffer future record and return empty
-                    self.reorder_buffer.insert(sequence_id, data);
-                    Err(crossbeam_channel::TryRecvError::Empty)
-                } else {
-                    // Past record - ignore and try again
-                    warn!("Received past record {}, ignoring", sequence_id);
-                    Err(crossbeam_channel::TryRecvError::Empty)
+                match sequence_id.cmp(&self.next_sequence_id) {
+                    std::cmp::Ordering::Equal => {
+                        self.next_sequence_id += 1;
+                        Ok(Some(data))
+                    }
+                    std::cmp::Ordering::Greater => {
+                        // Buffer future record and return empty
+                        self.reorder_buffer.insert(sequence_id, data);
+                        Err(crossbeam_channel::TryRecvError::Empty)
+                    }
+                    std::cmp::Ordering::Less => {
+                        // Past record - ignore and try again
+                        warn!("Received past record {}, ignoring", sequence_id);
+                        Err(crossbeam_channel::TryRecvError::Empty)
+                    }
                 }
             }
             Err(e) => Err(e),
@@ -421,11 +425,11 @@ impl StreamingProcessor {
         if bytes_delta >= 0 {
             self.current_memory_bytes = self
                 .current_memory_bytes
-                .saturating_add(bytes_delta as usize);
+                .saturating_add(usize::try_from(bytes_delta).expect("Non-negative isize fits in usize"));
         } else {
             self.current_memory_bytes = self
                 .current_memory_bytes
-                .saturating_sub((-bytes_delta) as usize);
+                .saturating_sub(usize::try_from(-bytes_delta).expect("Negated negative isize is positive"));
         }
     }
 

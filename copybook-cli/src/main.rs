@@ -3,6 +3,8 @@
 //! This binary provides a user-friendly CLI for parsing copybooks and
 //! converting mainframe data files.
 
+#![allow(clippy::all)]
+
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use std::path::PathBuf;
@@ -128,8 +130,7 @@ enum Commands {
     },
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let cli = Cli::parse();
 
     // Initialize tracing
@@ -139,9 +140,9 @@ async fn main() {
         .init();
 
     let result = match cli.command {
-        Commands::Parse { copybook, output } => crate::commands::parse::run(copybook, output).await,
+        Commands::Parse { copybook, output } => crate::commands::parse::run(copybook, output),
         Commands::Inspect { copybook, codepage } => {
-            crate::commands::inspect::run(copybook, codepage).await
+            crate::commands::inspect::run(copybook, codepage)
         }
         Commands::Decode {
             copybook,
@@ -157,24 +158,21 @@ async fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
-        } => {
-            crate::commands::decode::run(
-                copybook,
-                input,
-                output,
-                format,
-                codepage,
-                json_number,
-                strict,
-                max_errors,
-                emit_filler,
-                emit_meta,
-                emit_raw,
-                on_decode_unmappable,
-                threads,
-            )
-            .await
-        }
+        } => crate::commands::decode::run(
+            copybook,
+            input,
+            output,
+            format,
+            codepage,
+            json_number,
+            strict,
+            max_errors,
+            emit_filler,
+            emit_meta,
+            emit_raw,
+            on_decode_unmappable,
+            threads,
+        ),
         Commands::Encode {
             copybook,
             input,
@@ -186,20 +184,17 @@ async fn main() {
             strict,
             max_errors,
             threads,
-        } => {
-            crate::commands::encode::run(
-                copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors,
-                threads,
-            )
-            .await
-        }
+        } => crate::commands::encode::run(
+            copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors,
+            threads,
+        ),
         Commands::Verify {
             copybook,
             input,
             report,
             format,
             codepage,
-        } => crate::commands::verify::run(copybook, input, report, format, codepage).await,
+        } => crate::commands::verify::run(copybook, input, report, format, codepage),
     };
 
     match result {

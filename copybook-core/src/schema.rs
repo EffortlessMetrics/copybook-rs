@@ -177,12 +177,10 @@ impl Schema {
         let mut comp3 = 0;
         walk(&self.fields, &mut display, &mut comp3);
 
-        if display > comp3 {
-            WorkloadType::DisplayHeavy
-        } else if comp3 > display {
-            WorkloadType::Comp3Heavy
-        } else {
-            WorkloadType::Mixed
+        match display.cmp(&comp3) {
+            std::cmp::Ordering::Greater => WorkloadType::DisplayHeavy,
+            std::cmp::Ordering::Less => WorkloadType::Comp3Heavy,
+            std::cmp::Ordering::Equal => WorkloadType::Mixed,
         }
     }
 

@@ -243,6 +243,7 @@ impl Parser {
     }
 
     /// Build hierarchical paths for all fields (simplified)
+    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn _build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
         // Simplified for now - paths are set in build_hierarchy
         Ok(())

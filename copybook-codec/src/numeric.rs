@@ -4,6 +4,7 @@
 //! packed decimal, and binary integer types.
 
 use crate::charset::get_zoned_sign_table;
+use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::Write;
@@ -51,7 +52,7 @@ impl SmallDecimal {
     /// Always render with exactly `scale` digits after decimal
     pub fn to_string(&self) -> String {
         let mut result = String::new();
-        
+
         if self.negative && self.value != 0 {
             result.push('-');
         }
@@ -69,8 +70,14 @@ impl SmallDecimal {
             let divisor = 10_i64.pow(self.scale as u32);
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
-            
-            write!(result, "{integer_part}.{:0width$}", fractional_part, width = self.scale as usize).unwrap();
+
+            write!(
+                result,
+                "{integer_part}.{:0width$}",
+                fractional_part,
+                width = self.scale as usize
+            )
+            .unwrap();
         }
 
         result
@@ -89,21 +96,30 @@ impl SmallDecimal {
         if let Some(dot_pos) = s.find('.') {
             let integer_part = &s[..dot_pos];
             let fractional_part = &s[dot_pos + 1..];
-            
+
             // Validate scale matches exactly (NORMATIVE)
             if fractional_part.len() != expected_scale as usize {
                 return Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Scale mismatch: expected {expected_scale} decimal places, got {}", fractional_part.len()),
+                    format!(
+                        "Scale mismatch: expected {expected_scale} decimal places, got {}",
+                        fractional_part.len()
+                    ),
                 ));
             }
 
             let integer_value: i64 = integer_part.parse().map_err(|_| {
-                Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "Invalid integer part")
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "Invalid integer part",
+                )
             })?;
-            
+
             let fractional_value: i64 = fractional_part.parse().map_err(|_| {
-                Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "Invalid fractional part")
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "Invalid fractional part",
+                )
             })?;
 
             let divisor = 10_i64.pow(expected_scale as u32);
@@ -117,12 +133,17 @@ impl SmallDecimal {
             if expected_scale != 0 {
                 return Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Scale mismatch: expected {expected_scale} decimal places, got integer"),
+                    format!(
+                        "Scale mismatch: expected {expected_scale} decimal places, got integer"
+                    ),
                 ));
             }
 
             let value: i64 = s.parse().map_err(|_| {
-                Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "Invalid integer value")
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "Invalid integer value",
+                )
             })?;
 
             let mut result = Self::new(value, expected_scale, negative);
@@ -135,7 +156,7 @@ impl SmallDecimal {
     /// Always render with exactly `scale` digits after decimal
     pub fn to_fixed_scale_string(&self, scale: i16) -> String {
         let mut result = String::new();
-        
+
         if self.negative && self.value != 0 {
             result.push('-');
         }
@@ -153,8 +174,14 @@ impl SmallDecimal {
             let divisor = 10_i64.pow(scale as u32);
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
-            
-            write!(result, "{integer_part}.{:0width$}", fractional_part, width = scale as usize).unwrap();
+
+            write!(
+                result,
+                "{integer_part}.{:0width$}",
+                fractional_part,
+                width = scale as usize
+            )
+            .unwrap();
         }
 
         result
@@ -175,7 +202,7 @@ impl SmallDecimal {
         if self.value == 0 {
             return 1;
         }
-        
+
         let mut count = 0;
         let mut val = self.value.abs();
         while val > 0 {
@@ -187,9 +214,9 @@ impl SmallDecimal {
 }
 
 /// Decode zoned decimal field with comprehensive error context
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
 /// All errors include proper context information (record_index, field_path, byte_offset).
 pub fn decode_zoned_decimal(
@@ -203,7 +230,11 @@ pub fn decode_zoned_decimal(
     if data.len() != digits as usize {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
-            format!("Zoned decimal data length {} doesn't match digits {}", data.len(), digits),
+            format!(
+                "Zoned decimal data length {} doesn't match digits {}",
+                data.len(),
+                digits
+            ),
         ));
     }
 
@@ -307,7 +338,7 @@ pub fn decode_zoned_decimal(
 
     for (i, &byte) in data.iter().enumerate() {
         let zone = (byte >> 4) & 0x0F;
-        let digit = byte & 0x0F;
+        let mut digit = byte & 0x0F;
 
         if digit > 9 {
             return Err(Error::new(
@@ -351,26 +382,28 @@ pub fn decode_zoned_decimal(
                 // Adjust final digit if ASCII overpunch
                 if codepage == Codepage::ASCII {
                     digit = match zone {
-                        0x0 => 0,  // '{' overpunch
-                        0x1 => 1,  // 'A' overpunch
-                        0x2 => 2,  // 'B' overpunch
-                        0x3 => 3,  // '}' overpunch
-                        0x4 => 4,  // 'D' overpunch
-                        0x5 => 5,  // 'E' overpunch
-                        0x6 => 6,  // 'F' overpunch
-                        0x7 => 7,  // 'G' overpunch
-                        0x8 => 0,  // 'H' overpunch
-                        0x9 => 1,  // 'I' overpunch
-                        0xA => 2,  // 'J' overpunch
-                        0xB => 3,  // 'K' overpunch
-                        0xC => 4,  // 'L' overpunch
-                        0xD => 5,  // 'M' overpunch
-                        0xE => 6,  // 'N' overpunch
-                        0xF => 7,  // 'O' overpunch
-                        _ => return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Unexpected ASCII overpunch zone 0x{zone:X}"),
-                        )),
+                        0x0 => 0, // '{' overpunch
+                        0x1 => 1, // 'A' overpunch
+                        0x2 => 2, // 'B' overpunch
+                        0x3 => 3, // '}' overpunch
+                        0x4 => 4, // 'D' overpunch
+                        0x5 => 5, // 'E' overpunch
+                        0x6 => 6, // 'F' overpunch
+                        0x7 => 7, // 'G' overpunch
+                        0x8 => 0, // 'H' overpunch
+                        0x9 => 1, // 'I' overpunch
+                        0xA => 2, // 'J' overpunch
+                        0xB => 3, // 'K' overpunch
+                        0xC => 4, // 'L' overpunch
+                        0xD => 5, // 'M' overpunch
+                        0xE => 6, // 'N' overpunch
+                        0xF => 7, // 'O' overpunch
+                        _ => {
+                            return Err(Error::new(
+                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                                format!("Unexpected ASCII overpunch zone 0x{zone:X}"),
+                            ));
+                        }
                     };
                 }
             } else {
@@ -390,9 +423,9 @@ pub fn decode_zoned_decimal(
 }
 
 /// Decode packed decimal field with comprehensive error context
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the packed decimal data contains invalid nibbles.
 /// All errors include proper context information (record_index, field_path, byte_offset).
 pub fn decode_packed_decimal(
@@ -407,7 +440,9 @@ pub fn decode_packed_decimal(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
             format!(
                 "Packed decimal data length {} doesn't match expected {} bytes for {} digits",
-                data.len(), expected_bytes, digits
+                data.len(),
+                expected_bytes,
+                digits
             ),
         ));
     }
@@ -486,17 +521,21 @@ pub fn decode_packed_decimal(
 }
 
 /// Decode binary integer field
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the binary data is invalid or the field size is unsupported
 pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     let expected_bytes = (bits / 8) as usize;
     if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, // Reusing error code for binary validation
-            format!("Binary data length {} doesn't match expected {} bytes for {} bits", 
-                    data.len(), expected_bytes, bits),
+            format!(
+                "Binary data length {} doesn't match expected {} bytes for {} bits",
+                data.len(),
+                expected_bytes,
+                bits
+            ),
         ));
     }
 
@@ -564,9 +603,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
 }
 
 /// Encode zoned decimal field
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters
 pub fn encode_zoned_decimal(
     value: &str,
@@ -577,11 +616,11 @@ pub fn encode_zoned_decimal(
 ) -> Result<Vec<u8>> {
     // Parse the input value with scale validation (NORMATIVE)
     let decimal = SmallDecimal::from_str(value, scale)?;
-    
+
     // Convert to string representation of digits
     let abs_value = decimal.value.abs();
     let digit_str = format!("{:0width$}", abs_value, width = digits as usize);
-    
+
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -609,14 +648,14 @@ pub fn encode_zoned_decimal(
             } else {
                 match codepage {
                     Codepage::ASCII => 0x3, // ASCII positive (0x30-0x39)
-                    _ => 0xF, // EBCDIC positive (0xF0-0xF9)
+                    _ => 0xF,               // EBCDIC positive (0xF0-0xF9)
                 }
             }
         } else {
             // Regular digit
             match codepage {
                 Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
-                _ => 0xF, // EBCDIC digits (0xF0-0xF9)
+                _ => 0xF,               // EBCDIC digits (0xF0-0xF9)
             }
         };
 
@@ -627,9 +666,9 @@ pub fn encode_zoned_decimal(
 }
 
 /// Encode packed decimal field
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the value cannot be encoded as a packed decimal with the specified parameters
 pub fn encode_packed_decimal(
     value: &str,
@@ -639,11 +678,11 @@ pub fn encode_packed_decimal(
 ) -> Result<Vec<u8>> {
     // Parse the input value with scale validation (NORMATIVE)
     let decimal = SmallDecimal::from_str(value, scale)?;
-    
+
     // Convert to string representation of digits
     let abs_value = decimal.value.abs();
     let digit_str = format!("{:0width$}", abs_value, width = digits as usize);
-    
+
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -699,9 +738,9 @@ pub fn encode_packed_decimal(
 }
 
 /// Encode binary integer field
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the value is out of range for the specified bit width
 pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>> {
     match bits {
@@ -764,18 +803,22 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
 }
 
 /// Encode alphanumeric field with space padding
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the text is too long for the field
 pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> Result<Vec<u8>> {
     // Convert UTF-8 to target encoding
     let encoded_bytes = crate::charset::utf8_to_ebcdic(text, codepage)?;
-    
+
     if encoded_bytes.len() > field_len {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Text length {} exceeds field length {}", encoded_bytes.len(), field_len),
+            format!(
+                "Text length {} exceeds field length {}",
+                encoded_bytes.len(),
+                field_len
+            ),
         ));
     }
 
@@ -785,42 +828,42 @@ pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> 
         Codepage::ASCII => b' ',
         _ => 0x40, // EBCDIC space
     };
-    
+
     result.resize(field_len, space_byte);
     Ok(result)
 }
 
 /// Apply BLANK WHEN ZERO encoding policy
-/// 
+///
 /// Returns true if the value should be encoded as spaces instead of zeros
 pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
     if !bwz_encode {
         return false;
     }
-    
+
     // Check if value is zero (with any scale)
     let trimmed = value.trim();
     if trimmed.is_empty() || trimmed == "0" {
         return true;
     }
-    
+
     // Check for decimal zero (0.00, 0.000, etc.)
     if let Some(dot_pos) = trimmed.find('.') {
         let integer_part = &trimmed[..dot_pos];
         let fractional_part = &trimmed[dot_pos + 1..];
-        
+
         if integer_part == "0" && fractional_part.chars().all(|c| c == '0') {
             return true;
         }
     }
-    
+
     false
 }
 
 /// Encode zoned decimal with BWZ policy
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the value cannot be encoded
 pub fn encode_zoned_decimal_with_bwz(
     value: &str,
@@ -838,12 +881,12 @@ pub fn encode_zoned_decimal_with_bwz(
         };
         return Ok(vec![space_byte; digits as usize]);
     }
-    
+
     encode_zoned_decimal(value, digits, scale, signed, codepage)
 }
 
 /// Get binary width mapping based on PIC digits (NORMATIVE)
-/// 
+///
 /// Maps digits to width: ≤4→2B, 5-9→4B, 10-18→8B
 pub fn get_binary_width_from_digits(digits: u16) -> u16 {
     match digits {
@@ -855,14 +898,14 @@ pub fn get_binary_width_from_digits(digits: u16) -> u16 {
 }
 
 /// Validate explicit USAGE BINARY(n) width (NORMATIVE)
-/// 
+///
 /// Accept explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
 pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
     match width_bytes {
-        1 => Ok(8),   // 1 byte = 8 bits
-        2 => Ok(16),  // 2 bytes = 16 bits
-        4 => Ok(32),  // 4 bytes = 32 bits
-        8 => Ok(64),  // 8 bytes = 64 bits
+        1 => Ok(8),  // 1 byte = 8 bits
+        2 => Ok(16), // 2 bytes = 16 bits
+        4 => Ok(32), // 4 bytes = 32 bits
+        8 => Ok(64), // 8 bytes = 64 bits
         _ => Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
             format!("Invalid explicit binary width: {width_bytes} bytes. Must be 1, 2, 4, or 8"),
@@ -884,7 +927,11 @@ pub fn decode_zoned_decimal_with_scratch(
     if data.len() != digits as usize {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
-            format!("Zoned decimal data length {} doesn't match digits {}", data.len(), digits),
+            format!(
+                "Zoned decimal data length {} doesn't match digits {}",
+                data.len(),
+                digits
+            ),
         ));
     }
 
@@ -893,7 +940,7 @@ pub fn decode_zoned_decimal_with_scratch(
         Codepage::ASCII => b' ',
         _ => 0x40, // EBCDIC space
     };
-    
+
     let is_all_spaces = data.iter().all(|&b| b == space_byte);
     if is_all_spaces {
         if blank_when_zero {
@@ -918,7 +965,7 @@ pub fn decode_zoned_decimal_with_scratch(
     // Optimized digit processing using scratch buffer
     let expected_zone = match codepage {
         Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
-        _ => 0xF, // EBCDIC digits (0xF0-0xF9)
+        _ => 0xF,               // EBCDIC digits (0xF0-0xF9)
     };
 
     // Process each digit with optimized zone checking
@@ -953,7 +1000,9 @@ pub fn decode_zoned_decimal_with_scratch(
             if zone != expected_zone {
                 return Err(Error::new(
                     ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid zone 0x{zone:X} at position {i}, expected 0x{expected_zone:X}"),
+                    format!(
+                        "Invalid zone 0x{zone:X} at position {i}, expected 0x{expected_zone:X}"
+                    ),
                 ));
             }
         }
@@ -1003,7 +1052,9 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
         }
         (64, 8) => {
             // 64-bit integer
-            let bytes = [data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]];
+            let bytes = [
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+            ];
             if signed {
                 Ok(i64::from_be_bytes(bytes))
             } else {
@@ -1038,15 +1089,21 @@ pub fn encode_zoned_decimal_with_scratch(
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
     scratch.byte_buffer.reserve(digits as usize);
-    
+
     // Convert decimal to string using scratch buffer
     scratch.string_buffer.clear();
     scratch.string_buffer.push_str(&decimal.to_string());
-    
+
     // Use the standard encode function but with optimized digit processing
     // This is a placeholder for now - the actual optimization would involve
     // rewriting the encode logic to use the scratch buffers
-    encode_zoned_decimal(&scratch.string_buffer, digits, decimal.scale, signed, codepage)
+    encode_zoned_decimal(
+        &scratch.string_buffer,
+        digits,
+        decimal.scale,
+        signed,
+        codepage,
+    )
 }
 
 /// Optimized packed decimal encoder using scratch buffers
@@ -1062,11 +1119,11 @@ pub fn encode_packed_decimal_with_scratch(
     scratch.byte_buffer.clear();
     let expected_bytes = ((digits + 1) / 2) as usize;
     scratch.byte_buffer.reserve(expected_bytes);
-    
+
     // Convert decimal to string using scratch buffer
     scratch.string_buffer.clear();
     scratch.string_buffer.push_str(&decimal.to_string());
-    
+
     // Use the standard encode function but with optimized nibble processing
     // This is a placeholder for now - the actual optimization would involve
     // rewriting the encode logic to use the scratch buffers
@@ -1155,11 +1212,11 @@ mod tests {
         assert!(should_encode_as_blank_when_zero("0", true));
         assert!(should_encode_as_blank_when_zero("0.00", true));
         assert!(should_encode_as_blank_when_zero("0.000", true));
-        
+
         // Non-zero values should not trigger BWZ
         assert!(!should_encode_as_blank_when_zero("1", true));
         assert!(!should_encode_as_blank_when_zero("0.01", true));
-        
+
         // BWZ disabled should never trigger
         assert!(!should_encode_as_blank_when_zero("0", false));
     }
@@ -1167,10 +1224,10 @@ mod tests {
     #[test]
     fn test_binary_width_mapping() {
         // Test digit-to-width mapping (NORMATIVE)
-        assert_eq!(get_binary_width_from_digits(1), 16);  // ≤4 → 2B
-        assert_eq!(get_binary_width_from_digits(4), 16);  // ≤4 → 2B
-        assert_eq!(get_binary_width_from_digits(5), 32);  // 5-9 → 4B
-        assert_eq!(get_binary_width_from_digits(9), 32);  // 5-9 → 4B
+        assert_eq!(get_binary_width_from_digits(1), 16); // ≤4 → 2B
+        assert_eq!(get_binary_width_from_digits(4), 16); // ≤4 → 2B
+        assert_eq!(get_binary_width_from_digits(5), 32); // 5-9 → 4B
+        assert_eq!(get_binary_width_from_digits(9), 32); // 5-9 → 4B
         assert_eq!(get_binary_width_from_digits(10), 64); // 10-18 → 8B
         assert_eq!(get_binary_width_from_digits(18), 64); // 10-18 → 8B
     }
@@ -1182,7 +1239,7 @@ mod tests {
         assert_eq!(validate_explicit_binary_width(2).unwrap(), 16);
         assert_eq!(validate_explicit_binary_width(4).unwrap(), 32);
         assert_eq!(validate_explicit_binary_width(8).unwrap(), 64);
-        
+
         // Invalid explicit widths
         assert!(validate_explicit_binary_width(3).is_err());
         assert!(validate_explicit_binary_width(16).is_err());
@@ -1191,15 +1248,18 @@ mod tests {
     #[test]
     fn test_zoned_decimal_with_bwz() {
         // BWZ enabled with zero value should return spaces
-        let result = encode_zoned_decimal_with_bwz("0", 3, 0, false, Codepage::ASCII, true).unwrap();
+        let result =
+            encode_zoned_decimal_with_bwz("0", 3, 0, false, Codepage::ASCII, true).unwrap();
         assert_eq!(result, vec![b' ', b' ', b' ']);
 
         // BWZ disabled with zero value should return normal encoding
-        let result = encode_zoned_decimal_with_bwz("0", 3, 0, false, Codepage::ASCII, false).unwrap();
+        let result =
+            encode_zoned_decimal_with_bwz("0", 3, 0, false, Codepage::ASCII, false).unwrap();
         assert_eq!(result, vec![0x30, 0x30, 0x30]); // ASCII "000"
 
         // Non-zero value should return normal encoding regardless of BWZ
-        let result = encode_zoned_decimal_with_bwz("123", 3, 0, false, Codepage::ASCII, true).unwrap();
+        let result =
+            encode_zoned_decimal_with_bwz("123", 3, 0, false, Codepage::ASCII, true).unwrap();
         assert_eq!(result, vec![0x31, 0x32, 0x33]); // ASCII "123"
     }
 }

@@ -353,34 +353,8 @@ impl Parser {
         true
     }
 
-    /// Collect all fields in a flat list with recursion depth limit
+    /// Collect all fields in a flat list
     fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
-<<<<<<< HEAD
-        const MAX_DEPTH: u8 = 100; // Reasonable limit for COBOL hierarchy depth
-        let mut result = Vec::new();
-        self.collect_all_fields_with_depth(fields, &mut result, 0, MAX_DEPTH);
-        result
-    }
-
-    /// Collect all fields recursively with depth limit
-    fn collect_all_fields_with_depth<'a>(
-        &self,
-        fields: &'a [Field],
-        result: &mut Vec<&'a Field>,
-        current_depth: u8,
-        max_depth: u8,
-    ) {
-        if current_depth >= max_depth {
-            return; // Prevent infinite recursion
-        }
-
-        for field in fields {
-            result.push(field);
-            if !field.children.is_empty() {
-                self.collect_all_fields_with_depth(&field.children, result, current_depth + 1, max_depth);
-            }
-        }
-=======
         fn visit<'a>(fields: &'a [Field], acc: &mut Vec<&'a Field>) {
             for field in fields {
                 acc.push(field);
@@ -391,7 +365,6 @@ impl Parser {
         let mut result = Vec::new();
         visit(fields, &mut result);
         result
->>>>>>> origin/main
     }
 
     /// Calculate schema fingerprint using SHA-256
@@ -941,20 +914,26 @@ impl Parser {
         // Check for explicit width specification like BINARY(1), BINARY(2), etc.
         let explicit_bits = if self.check(&Token::LeftParen) {
             self.advance(); // consume '('
-            
+
             let bits = match self.current_token() {
-                Some(TokenPos { token: Token::Number(n), .. }) => {
+                Some(TokenPos {
+                    token: Token::Number(n),
+                    ..
+                }) => {
                     let bytes = *n;
                     self.advance();
                     match bytes {
                         1 => 8,
-                        2 => 16, 
+                        2 => 16,
                         4 => 32,
                         8 => 64,
                         _ => {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
-                                format!("Invalid binary width: {}. Only 1, 2, 4, 8 are supported", bytes),
+                                format!(
+                                    "Invalid binary width: {}. Only 1, 2, 4, 8 are supported",
+                                    bytes
+                                ),
                             ));
                         }
                     }
@@ -966,14 +945,14 @@ impl Parser {
                     ));
                 }
             };
-            
+
             if !self.consume(&Token::RightParen) {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected ')' after binary width",
                 ));
             }
-            
+
             Some(bits)
         } else {
             None
@@ -997,8 +976,11 @@ impl Parser {
                         }
                     }
                 };
-                
-                field.kind = FieldKind::BinaryInt { bits, signed: *signed };
+
+                field.kind = FieldKind::BinaryInt {
+                    bits,
+                    signed: *signed,
+                };
             }
             _ => {
                 return Err(Error::new(

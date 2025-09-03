@@ -162,7 +162,7 @@ impl ErrorReporter {
         };
 
         // Check for transfer corruption patterns
-        if self.is_corruption_warning(&report.error) {
+        if Self::is_corruption_warning(&report.error) {
             self.summary.corruption_warnings += 1;
             report
                 .metadata
@@ -359,14 +359,13 @@ impl ErrorReporter {
             .or_insert(0) += 1;
 
         // Track records with errors
-        if matches!(report.severity, ErrorSeverity::Error | ErrorSeverity::Fatal) {
-            if let Some(ref context) = report.error.context {
-                if let Some(record_index) = context.record_index {
-                    // Only count each record once
-                    if self.summary.records_with_errors < record_index {
-                        self.summary.records_with_errors = record_index;
-                    }
-                }
+        if matches!(report.severity, ErrorSeverity::Error | ErrorSeverity::Fatal)
+            && let Some(ref context) = report.error.context
+            && let Some(record_index) = context.record_index
+        {
+            // Only count each record once
+            if self.summary.records_with_errors < record_index {
+                self.summary.records_with_errors = record_index;
             }
         }
 
@@ -393,20 +392,18 @@ impl ErrorReporter {
         }
 
         // Log additional context if available and verbose
-        if self.verbose_logging {
-            if let Some(ref context) = report.error.context {
-                if context.record_index.is_some()
-                    || context.field_path.is_some()
-                    || context.byte_offset.is_some()
-                {
-                    debug!("  Context: {}", context);
-                }
-            }
+        if self.verbose_logging
+            && let Some(ref context) = report.error.context
+            && (context.record_index.is_some()
+                || context.field_path.is_some()
+                || context.byte_offset.is_some())
+        {
+            debug!("  Context: {}", context);
         }
     }
 
     /// Check if error indicates transfer corruption
-    fn is_corruption_warning(&self, error: &Error) -> bool {
+    fn is_corruption_warning(error: &Error) -> bool {
         matches!(
             error.code,
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII | ErrorCode::CBKC301_INVALID_EBCDIC_BYTE

@@ -4,11 +4,15 @@
 //! following the normative requirements for field ordering, numeric representation,
 //! and REDEFINES handling.
 
-#![allow(clippy::unused_self, clippy::unnecessary_wraps, clippy::missing_errors_doc)]
+#![allow(
+    clippy::unused_self,
+    clippy::unnecessary_wraps,
+    clippy::missing_errors_doc
+)]
 
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
-use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use base64::prelude::*;
+use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::io::Write;
@@ -796,7 +800,8 @@ pub struct JsonEncoder {
 
 impl JsonEncoder {
     /// Create a new JSON encoder
-    #[must_use] pub fn new(options: crate::options::EncodeOptions) -> Self {
+    #[must_use]
+    pub fn new(options: crate::options::EncodeOptions) -> Self {
         Self { options }
     }
 
@@ -822,12 +827,13 @@ impl JsonEncoder {
 
         // Handle --use-raw mode for byte-identical round-trips
         if self.options.use_raw
-            && let Some(raw_data) = self.extract_raw_data(json)? {
-                // Verify that decoded values match the JSON values
-                if self.verify_raw_data_matches(schema, &raw_data, json)? {
-                    return Ok(raw_data);
-                }
+            && let Some(raw_data) = self.extract_raw_data(json)?
+        {
+            // Verify that decoded values match the JSON values
+            if self.verify_raw_data_matches(schema, &raw_data, json)? {
+                return Ok(raw_data);
             }
+        }
 
         // Trim to actual record size if variable length
         if let Some(tail_odo) = &schema.tail_odo {
@@ -1026,18 +1032,20 @@ impl JsonEncoder {
         // Add the primary field if it has a value in JSON
         let primary_name = self.get_field_name(primary_field);
         if !primary_name.is_empty()
-            && let Some(value) = json_obj.get(&primary_name) {
-                cluster_views.push((primary_field, value));
-            }
+            && let Some(value) = json_obj.get(&primary_name)
+        {
+            cluster_views.push((primary_field, value));
+        }
 
         // Find all fields that redefine the primary field
         let redefining_fields = self.find_redefining_fields(primary_field)?;
         for redefining_field in redefining_fields {
             let redefining_name = self.get_field_name(redefining_field);
             if !redefining_name.is_empty()
-                && let Some(value) = json_obj.get(&redefining_name) {
-                    cluster_views.push((redefining_field, value));
-                }
+                && let Some(value) = json_obj.get(&redefining_name)
+            {
+                cluster_views.push((redefining_field, value));
+            }
         }
 
         Ok(cluster_views)
@@ -1059,24 +1067,30 @@ impl JsonEncoder {
 
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
-                self.update_odo_counter(counter_path, u32::try_from(array.len()).map_err(|_| {
-                    Error::new(
-                        ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                        format!("Array length {} exceeds maximum u32 value", array.len()),
-                    )
-                })?, json_obj, record_data)?;
+                self.update_odo_counter(
+                    counter_path,
+                    u32::try_from(array.len()).map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                            format!("Array length {} exceeds maximum u32 value", array.len()),
+                        )
+                    })?,
+                    json_obj,
+                    record_data,
+                )?;
             }
 
             // Encode each array element
             let element_size = field.len / self.get_occurs_max_count(occurs);
             for (i, element) in array.iter().enumerate() {
                 if let Value::Object(element_obj) = element {
-                    let element_offset = field.offset + (u32::try_from(i).map_err(|_| {
-                        Error::new(
-                            ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                            format!("Array index {i} exceeds maximum u32 value"),
-                        )
-                    })? * element_size);
+                    let element_offset = field.offset
+                        + (u32::try_from(i).map_err(|_| {
+                            Error::new(
+                                ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                                format!("Array index {i} exceeds maximum u32 value"),
+                            )
+                        })? * element_size);
 
                     // Create a temporary field for the array element
                     let mut element_field = field.clone();
@@ -1112,23 +1126,29 @@ impl JsonEncoder {
 
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
-                self.update_odo_counter(counter_path, u32::try_from(array.len()).map_err(|_| {
-                    Error::new(
-                        ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                        format!("Array length {} exceeds maximum u32 value", array.len()),
-                    )
-                })?, json_obj, record_data)?;
+                self.update_odo_counter(
+                    counter_path,
+                    u32::try_from(array.len()).map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                            format!("Array length {} exceeds maximum u32 value", array.len()),
+                        )
+                    })?,
+                    json_obj,
+                    record_data,
+                )?;
             }
 
             // Encode each array element
             let element_size = field.len / self.get_occurs_max_count(occurs);
             for (i, element) in array.iter().enumerate() {
-                let element_offset = field.offset + (u32::try_from(i).map_err(|_| {
-                    Error::new(
-                        ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                        format!("Array index {i} exceeds maximum u32 value"),
-                    )
-                })? * element_size);
+                let element_offset = field.offset
+                    + (u32::try_from(i).map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                            format!("Array index {i} exceeds maximum u32 value"),
+                        )
+                    })? * element_size);
 
                 // Create a temporary field for the array element
                 let mut element_field = field.clone();
@@ -1160,9 +1180,7 @@ impl JsonEncoder {
                 if actual_len < *min as usize || actual_len > *max as usize {
                     return Err(Error::new(
                         ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                        format!(
-                            "Array length {actual_len} is outside ODO range {min}-{max}"
-                        ),
+                        format!("Array length {actual_len} is outside ODO range {min}-{max}"),
                     ));
                 }
             }
@@ -1319,13 +1337,11 @@ impl JsonEncoder {
             FieldKind::BinaryInt { bits, signed } => {
                 self.encode_binary_int_field(field, value, field_data, *bits, *signed)
             }
-            FieldKind::Group => {
-                Err(Error::new(
-                    ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                    format!("Group field {} processed as scalar", field.path),
-                )
-                .with_field(field.path.clone()))
-            }
+            FieldKind::Group => Err(Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!("Group field {} processed as scalar", field.path),
+            )
+            .with_field(field.path.clone())),
         }
     }
 
@@ -1341,9 +1357,14 @@ impl JsonEncoder {
             if text.len() > field.len as usize {
                 return Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("String length {} exceeds field capacity {} for alphanumeric field {}", 
-                        text.len(), field.len, field.path),
-                ).with_field(field.path.clone()));
+                    format!(
+                        "String length {} exceeds field capacity {} for alphanumeric field {}",
+                        text.len(),
+                        field.len,
+                        field.path
+                    ),
+                )
+                .with_field(field.path.clone()));
             }
 
             let encoded = crate::numeric::encode_alphanumeric(
@@ -1439,10 +1460,16 @@ impl JsonEncoder {
                         .with_field(field.path.clone())
                     })?
                 } else {
-                    let unsigned_val = n.as_u64().ok_or_else(|| Error::new(
-                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid unsigned integer for field {}: number out of range", field.path),
-                    ).with_field(field.path.clone()))?;
+                    let unsigned_val = n.as_u64().ok_or_else(|| {
+                        Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!(
+                                "Invalid unsigned integer for field {}: number out of range",
+                                field.path
+                            ),
+                        )
+                        .with_field(field.path.clone())
+                    })?;
                     i64::try_from(unsigned_val).map_err(|_| {
                         Error::new(
                             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -1499,17 +1526,15 @@ impl JsonEncoder {
                 self.validate_decimal_string(&s, digits, scale, signed, field_path)?;
                 Ok(s)
             }
-            _ => {
-                Err(Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!(
-                        "Expected string or number for decimal field {}, got {}",
-                        field_path,
-                        self.value_type_name(value)
-                    ),
-                )
-                .with_field(field_path.to_string()))
-            }
+            _ => Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!(
+                    "Expected string or number for decimal field {}, got {}",
+                    field_path,
+                    self.value_type_name(value)
+                ),
+            )
+            .with_field(field_path.to_string())),
         }
     }
 
@@ -1547,9 +1572,7 @@ impl JsonEncoder {
         if !signed && decimal.is_negative() {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!(
-                    "Negative value '{s}' not allowed for unsigned field {field_path}"
-                ),
+                format!("Negative value '{s}' not allowed for unsigned field {field_path}"),
             )
             .with_field(field_path.to_string()));
         }
@@ -1655,16 +1678,17 @@ impl JsonEncoder {
     /// Extract raw data from JSON record
     fn extract_raw_data(&self, json: &Value) -> Result<Option<Vec<u8>>> {
         if let Value::Object(obj) = json
-            && let Some(Value::String(raw_b64)) = obj.get("__raw_b64") {
-                use base64::{Engine as _, engine::general_purpose};
-                let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
-                    Error::new(
-                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid base64 raw data: {e}"),
-                    )
-                })?;
-                return Ok(Some(raw_data));
-            }
+            && let Some(Value::String(raw_b64)) = obj.get("__raw_b64")
+        {
+            use base64::{Engine as _, engine::general_purpose};
+            let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!("Invalid base64 raw data: {e}"),
+                )
+            })?;
+            return Ok(Some(raw_data));
+        }
         Ok(None)
     }
 

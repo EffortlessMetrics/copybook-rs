@@ -151,7 +151,8 @@ impl fmt::Display for RunSummary {
             writeln!(
                 f,
                 "  Peak memory: {:.2} MB",
-                f64::from(u32::try_from(peak_memory.min(u64::from(u32::MAX))).unwrap_or(u32::MAX)) / (1024.0 * 1024.0)
+                f64::from(u32::try_from(peak_memory.min(u64::from(u32::MAX))).unwrap_or(u32::MAX))
+                    / (1024.0 * 1024.0)
             )?;
         }
         if !self.schema_fingerprint.is_empty() {
@@ -196,7 +197,7 @@ fn decode_field(
     options: &DecodeOptions,
 ) -> Result<Value> {
     use copybook_core::FieldKind;
-    
+
     // Check bounds
     let field_start = field.offset as usize;
     let field_end = field_start + field.len as usize;
@@ -221,7 +222,9 @@ fn decode_field(
             signed,
         } => {
             // Simple zoned decimal decoding
-            Ok(decode_zoned_decimal_simple(field_data, *digits, *scale, *signed))
+            Ok(decode_zoned_decimal_simple(
+                field_data, *digits, *scale, *signed,
+            ))
         }
         FieldKind::PackedDecimal {
             digits,
@@ -229,7 +232,9 @@ fn decode_field(
             signed,
         } => {
             // Simple packed decimal decoding
-            Ok(decode_packed_decimal_simple(field_data, *digits, *scale, *signed))
+            Ok(decode_packed_decimal_simple(
+                field_data, *digits, *scale, *signed,
+            ))
         }
         FieldKind::BinaryInt { bits, signed } => {
             // Simple binary integer decoding
@@ -250,12 +255,7 @@ fn decode_field(
 
 /// Simple zoned decimal decoder for basic functionality
 #[allow(clippy::too_many_lines)]
-fn decode_zoned_decimal_simple(
-    data: &[u8],
-    _digits: u16,
-    _scale: i16,
-    signed: bool,
-) -> Value {
+fn decode_zoned_decimal_simple(data: &[u8], _digits: u16, _scale: i16, signed: bool) -> Value {
     if data.is_empty() {
         return Value::String("0".to_string());
     }
@@ -387,12 +387,7 @@ fn decode_zoned_decimal_simple(
 }
 
 /// Simple packed decimal decoder for basic functionality
-fn decode_packed_decimal_simple(
-    data: &[u8],
-    _digits: u16,
-    _scale: i16,
-    signed: bool,
-) -> Value {
+fn decode_packed_decimal_simple(data: &[u8], _digits: u16, _scale: i16, signed: bool) -> Value {
     if data.is_empty() {
         return Value::String("0".to_string());
     }
@@ -592,7 +587,8 @@ pub fn decode_file_to_jsonl(
     }
 
     summary.records_processed = record_count.saturating_sub(summary.records_with_errors);
-    summary.processing_time_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
+    summary.processing_time_ms =
+        u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
     summary.schema_fingerprint = if schema.fingerprint.is_empty() {
         let mut s = schema.clone();
@@ -658,7 +654,8 @@ pub fn encode_jsonl_to_file(
     }
 
     summary.records_processed = record_count.saturating_sub(summary.records_with_errors);
-    summary.processing_time_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
+    summary.processing_time_ms =
+        u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
     summary.schema_fingerprint = if schema.fingerprint.is_empty() {
         let mut s = schema.clone();

@@ -36,12 +36,14 @@ pub enum CopybookTemplate {
 }
 
 /// Generate a synthetic COBOL copybook
-#[must_use] pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
+#[must_use]
+pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
     generate_copybook_with_template(config, CopybookTemplate::Simple)
 }
 
 /// Generate copybook with specific template
-#[must_use] pub fn generate_copybook_with_template(
+#[must_use]
+pub fn generate_copybook_with_template(
     config: &GeneratorConfig,
     template: CopybookTemplate,
 ) -> String {
@@ -82,9 +84,7 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                 } else {
                     rng.gen_range(1..=50)
                 };
-                copybook.push_str(&format!(
-                    "           05  ALPHA-{i:02}     PIC X({len}).\n"
-                ));
+                copybook.push_str(&format!("           05  ALPHA-{i:02}     PIC X({len}).\n"));
             }
             1 => {
                 // Zoned decimal
@@ -383,9 +383,7 @@ fn generate_display_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig)
                 copybook.push_str(&format!("           05  NUM-{i:02}        PIC 9(10).\n"));
             }
             2 => {
-                copybook.push_str(&format!(
-                    "           05  DECIMAL-{i:02}    PIC 9(8)V99.\n"
-                ));
+                copybook.push_str(&format!("           05  DECIMAL-{i:02}    PIC 9(8)V99.\n"));
             }
             3 => {
                 copybook.push_str(&format!("           05  SIGNED-{i:02}     PIC S9(9).\n"));
@@ -434,7 +432,8 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
 }
 
 /// Generate negative test copybooks (invalid syntax)
-#[must_use] pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
+#[must_use]
+pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
     let _rng = StdRng::seed_from_u64(config.seed);
     vec![
         (

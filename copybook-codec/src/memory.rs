@@ -5,8 +5,8 @@
 
 use crossbeam_channel::{Receiver, Sender, bounded};
 use smallvec::SmallVec;
-use std::collections::BTreeMap;
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::thread;
 use tracing::{debug, warn};
@@ -29,7 +29,8 @@ pub struct ScratchBuffers {
 
 impl ScratchBuffers {
     /// Create new scratch buffers with reasonable initial capacity
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             digit_buffer: SmallVec::new(),
             byte_buffer: Vec::with_capacity(1024), // 1KB initial capacity
@@ -107,7 +108,8 @@ impl<T> SequenceRing<T> {
     /// # Arguments
     /// * `channel_capacity` - Maximum number of records in flight
     /// * `max_window_size` - Maximum reordering window size
-    #[must_use] pub fn new(channel_capacity: usize, max_window_size: usize) -> Self {
+    #[must_use]
+    pub fn new(channel_capacity: usize, max_window_size: usize) -> Self {
         let (sender, receiver) = bounded(channel_capacity);
 
         Self {
@@ -121,16 +123,17 @@ impl<T> SequenceRing<T> {
     }
 
     /// Get a sender for workers to submit processed records
-    #[must_use] pub fn sender(&self) -> Sender<SequencedRecord<T>> {
+    #[must_use]
+    pub fn sender(&self) -> Sender<SequencedRecord<T>> {
         self.sender.clone()
     }
 
     /// Receive the next record in sequence order
     /// Blocks until the next expected record is available
     /// Receive records in sequence order
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the channel is disconnected
     pub fn recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::RecvError> {
         loop {
@@ -193,9 +196,9 @@ impl<T> SequenceRing<T> {
     }
 
     /// Try to receive the next record without blocking
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the channel is disconnected or would block
     pub fn try_recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::TryRecvError> {
         // Check if we have the next expected record in the reorder buffer
@@ -231,7 +234,8 @@ impl<T> SequenceRing<T> {
     }
 
     /// Get statistics about the sequence ring
-    #[must_use] pub fn stats(&self) -> SequenceRingStats {
+    #[must_use]
+    pub fn stats(&self) -> SequenceRingStats {
         SequenceRingStats {
             next_sequence_id: self.next_sequence_id,
             reorder_buffer_size: self.reorder_buffer.len(),
@@ -340,9 +344,9 @@ where
     }
 
     /// Submit input for processing
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the worker channel is disconnected
     pub fn submit(
         &mut self,
@@ -355,9 +359,9 @@ where
 
     /// Receive the next processed result in order
     /// Receive processed records in sequence order
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the channel is disconnected
     pub fn recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::RecvError> {
         self.output_ring.recv_ordered()
@@ -365,9 +369,9 @@ where
 
     /// Try to receive the next processed result without blocking
     /// Try to receive processed records in sequence order (non-blocking)
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the channel is disconnected or would block
     pub fn try_recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::TryRecvError> {
         self.output_ring.try_recv_ordered()
@@ -375,9 +379,9 @@ where
 
     /// Close the input channel and wait for all workers to finish
     /// Shutdown the worker pool and wait for all workers to finish
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if any worker thread panicked
     pub fn shutdown(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Close input channel
@@ -394,7 +398,8 @@ where
     }
 
     /// Get statistics about the worker pool
-    #[must_use] pub fn stats(&self) -> WorkerPoolStats {
+    #[must_use]
+    pub fn stats(&self) -> WorkerPoolStats {
         WorkerPoolStats {
             num_workers: self.worker_handles.len(),
             next_input_sequence: self.next_input_sequence,
@@ -430,7 +435,8 @@ pub struct StreamingProcessor {
 
 impl StreamingProcessor {
     /// Create a new streaming processor with memory limit
-    #[must_use] pub fn new(max_memory_mb: usize) -> Self {
+    #[must_use]
+    pub fn new(max_memory_mb: usize) -> Self {
         Self {
             max_memory_bytes: max_memory_mb * 1024 * 1024,
             current_memory_bytes: 0,
@@ -440,12 +446,14 @@ impl StreamingProcessor {
     }
 
     /// Create with default 256 MiB limit
-    #[must_use] pub fn with_default_limit() -> Self {
+    #[must_use]
+    pub fn with_default_limit() -> Self {
         Self::new(256)
     }
 
     /// Check if we're approaching memory limit
-    #[must_use] pub fn is_memory_pressure(&self) -> bool {
+    #[must_use]
+    pub fn is_memory_pressure(&self) -> bool {
         self.current_memory_bytes > (self.max_memory_bytes * 80 / 100) // 80% threshold
     }
 
@@ -469,7 +477,8 @@ impl StreamingProcessor {
     }
 
     /// Get processing statistics
-    #[must_use] pub fn stats(&self) -> StreamingProcessorStats {
+    #[must_use]
+    pub fn stats(&self) -> StreamingProcessorStats {
         StreamingProcessorStats {
             max_memory_bytes: self.max_memory_bytes,
             current_memory_bytes: self.current_memory_bytes,

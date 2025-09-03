@@ -333,7 +333,8 @@ fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {
 }
 
 /// Get the appropriate zoned sign table for the given codepage
-#[must_use] pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
+#[must_use]
+pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
     match codepage {
         Codepage::ASCII => &ASCII_ZONED_SIGNS,
         _ => &EBCDIC_ZONED_SIGNS,

@@ -12,7 +12,7 @@ use tracing::warn;
 
 /// Small decimal structure for parsing/formatting without floats
 /// This avoids floating-point precision issues for financial data.
-/// 
+///
 /// Implements Display trait for convenient string representation and debugging.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmallDecimal {

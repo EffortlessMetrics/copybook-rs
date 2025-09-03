@@ -1,4 +1,4 @@
-use copybook_core::{parse_copybook, WorkloadType};
+use copybook_core::{WorkloadType, parse_copybook};
 
 #[test]
 fn classify_display_heavy_schema() {

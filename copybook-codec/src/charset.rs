@@ -279,7 +279,7 @@ static CP1140_TO_UNICODE: [u32; 256] = [
 // These map the zone nibble (high 4 bits) to sign information
 
 /// EBCDIC zoned decimal sign mapping
-/// Maps zone nibble to (is_signed, is_negative)
+/// Maps zone nibble to (`is_signed`, `is_negative`)
 static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
     (false, false), // 0x0_: unsigned
     (false, false), // 0x1_: unsigned
@@ -300,7 +300,7 @@ static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
 ];
 
 /// ASCII zoned decimal sign mapping
-/// Maps zone nibble to (is_signed, is_negative)
+/// Maps zone nibble to (`is_signed`, `is_negative`)
 static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [
     (true, false), // 0x0: '{' = +0 overpunch
     (true, false), // 0x1: 'A' = +1 overpunch
@@ -447,7 +447,7 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     let mut reverse_table = std::collections::HashMap::new();
     for (ebcdic_byte, &unicode_point) in table.iter().enumerate() {
         if let Some(ch) = char::from_u32(unicode_point) {
-            reverse_table.insert(ch, ebcdic_byte as u8);
+            reverse_table.insert(ch, u8::try_from(ebcdic_byte).expect("enumerate produces values within u8 range"));
         }
     }
 

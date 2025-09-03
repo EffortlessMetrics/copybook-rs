@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
-pub async fn run(
+pub fn run(
     copybook: PathBuf,
     input: PathBuf,
     report: Option<PathBuf>,
@@ -25,7 +25,7 @@ pub async fn run(
 
     // Placeholder verification logic
     println!("Verification Summary:");
-    println!("  File: {:?}", input);
+    println!("  File: {}", input.display());
     println!("  Format: {:?}", format);
     println!("  Codepage: {:?}", codepage);
     println!("  Status: PLACEHOLDER - Not yet implemented");

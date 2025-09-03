@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
-pub async fn run(copybook: PathBuf, codepage: Codepage) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn run(copybook: PathBuf, codepage: Codepage) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Inspecting copybook: {:?}", copybook);
 
     // Read copybook file

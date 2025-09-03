@@ -15,7 +15,7 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 The project maintains comprehensive test coverage across all functional areas:
 
 ### Test Results Summary
-- **Total Tests**: 93 unit and integration tests across all crates
+- **Total Tests**: 118 unit and integration tests across all crates
 - **Test Status**: All tests passing (100% success rate)
 - **Coverage Areas**:
   - COBOL copybook parsing with complex syntax validation

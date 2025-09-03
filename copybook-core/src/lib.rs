@@ -3,6 +3,16 @@
 //! This crate provides the fundamental types and parsing logic for COBOL copybook
 //! processing, including AST construction, layout resolution, and schema validation.
 //!
+
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::collapsible_else_if)]
 //! ## Key Features
 //!
 //! ### Enhanced COBOL Support
@@ -30,23 +40,23 @@ pub mod pic;
 pub mod schema;
 
 pub use error::{Error, ErrorCode, ErrorContext, Result};
-pub use error_reporter::{ErrorReporter, ErrorMode, ErrorSeverity, ErrorSummary, ErrorReport};
+pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, ErrorSummary};
 pub use parser::ParseOptions;
 pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
 
 /// Parse a COBOL copybook into a structured schema
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the copybook contains syntax errors or unsupported features
 pub fn parse_copybook(text: &str) -> Result<Schema> {
     parser::parse(text)
 }
 
 /// Parse a COBOL copybook with specific options
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the copybook contains syntax errors or unsupported features
 pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     parser::parse_with_options(text, options)

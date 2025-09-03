@@ -3,7 +3,7 @@
 //! This module handles the computation of field byte offsets,
 //! alignment padding, and REDEFINES cluster sizing.
 
-use crate::{error, Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO};
+use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error};
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -50,38 +50,38 @@ impl LayoutContext {
 }
 
 /// Resolve field layouts and compute byte offsets
-/// 
+///
 /// This function implements the complete layout resolution algorithm including:
 /// - Field byte offset calculation with SYNCHRONIZED alignment
 /// - REDEFINES cluster sizing (max of all variants)
 /// - OCCURS fixed arrays and ODO space allocation
 /// - Alignment padding insertion and tracking
 /// - Overflow protection with u64 arithmetic
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the layout cannot be resolved due to invalid field configurations
 /// or if the theoretical maximum record size exceeds the limit.
 pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
     let mut context = LayoutContext::new();
-    
+
     // First pass: collect all REDEFINES relationships
     collect_redefines_info(&schema.fields, &mut context);
-    
+
     // Second pass: resolve all field layouts and collect information
     for field in &mut schema.fields {
         resolve_field_layout(field, &mut context, None)?;
     }
-    
+
     // Validate ODO constraints
     validate_odo_constraints(&context)?;
-    
+
     // Calculate fixed record length if all fields are fixed
     calculate_fixed_record_length(schema, &context);
-    
+
     // Detect and set tail ODO information
     detect_tail_odo(schema, &context);
-    
+
     // Check for record size overflow
     if context.current_offset > MAX_RECORD_SIZE {
         return Err(error!(
@@ -91,10 +91,10 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
             MAX_RECORD_SIZE
         ));
     }
-    
+
     // Update FILLER field names with actual offsets
     update_filler_names(&mut schema.fields);
-    
+
     Ok(())
 }
 
@@ -108,7 +108,7 @@ fn collect_redefines_info(fields: &[Field], context: &mut LayoutContext) {
                 context.redefines_clusters.insert(target.clone(), (0, 0));
             }
         }
-        
+
         // Recursively process children
         collect_redefines_info(&field.children, context);
     }
@@ -127,69 +127,87 @@ fn resolve_field_layout(
         field.name.clone()
     };
     field.path = field_path.clone();
-    
+
     // Handle REDEFINES fields
     if let Some(target) = field.redefines_of.clone() {
         return resolve_redefines_field(field, context, &target, &field_path);
     }
-    
+
     // Calculate field alignment and base size
-    let (alignment, base_size) = calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
-    
+    let (alignment, base_size) =
+        calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
+
     // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
     for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
         let cluster_end = cluster_start + cluster_size;
         context.current_offset = context.current_offset.max(cluster_end);
     }
-    
+
     // Apply alignment padding if needed
     let aligned_offset = apply_alignment(context.current_offset, alignment);
     let padding_bytes = aligned_offset - context.current_offset;
-    
+
     if padding_bytes > 0 {
         field.sync_padding = Some(padding_bytes as u16);
     }
-    
+
     field.offset = aligned_offset as u32;
     context.current_offset = aligned_offset;
-    
+
     // Record field path and offset
-    context.field_paths.insert(field_path.clone(), aligned_offset);
-    
+    context
+        .field_paths
+        .insert(field_path.clone(), aligned_offset);
+
     // If this field is a REDEFINES target, update the cluster
     let cluster_key = field.name.clone();
-    if let Some((cluster_start, current_max)) = context.redefines_clusters.get(&cluster_key).copied() {
+    if let Some((cluster_start, current_max)) =
+        context.redefines_clusters.get(&cluster_key).copied()
+    {
         // This field is a REDEFINES target, update cluster info
-        let new_cluster_start = if cluster_start == 0 { aligned_offset } else { cluster_start };
+        let new_cluster_start = if cluster_start == 0 {
+            aligned_offset
+        } else {
+            cluster_start
+        };
         let field_effective_size = match &field.occurs {
             Some(Occurs::Fixed { count }) => (base_size as u64) * (*count as u64),
             Some(Occurs::ODO { max, .. }) => (base_size as u64) * (*max as u64),
             None => base_size as u64,
         };
-        context.redefines_clusters.insert(cluster_key, (new_cluster_start, current_max.max(field_effective_size)));
+        context.redefines_clusters.insert(
+            cluster_key,
+            (new_cluster_start, current_max.max(field_effective_size)),
+        );
     }
-    
+
     // Calculate effective field size including arrays
     let effective_size = match &field.occurs {
         Some(Occurs::Fixed { count }) => {
             // Fixed array: multiply base size by count
             let array_size = (base_size as u64)
                 .checked_mul(*count as u64)
-                .ok_or_else(|| error!(
-                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                    "Fixed array size overflow for field '{}'", field.name
-                ))?;
+                .ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "Fixed array size overflow for field '{}'", field.name
+                    )
+                })?;
             array_size
         }
-        Some(Occurs::ODO { min, max, counter_path }) => {
+        Some(Occurs::ODO {
+            min,
+            max,
+            counter_path,
+        }) => {
             // ODO array: use maximum count for space allocation
-            let array_size = (base_size as u64)
-                .checked_mul(*max as u64)
-                .ok_or_else(|| error!(
+            let array_size = (base_size as u64).checked_mul(*max as u64).ok_or_else(|| {
+                error!(
                     ErrorCode::CBKS141_RECORD_TOO_LARGE,
                     "ODO array size overflow for field '{}'", field.name
-                ))?;
-            
+                )
+            })?;
+
             // Record ODO information for validation
             context.odo_arrays.push(OdoInfo {
                 array_path: field_path.clone(),
@@ -198,33 +216,33 @@ fn resolve_field_layout(
                 max_count: *max,
                 min_count: *min,
             });
-            
+
             array_size
         }
         None => base_size as u64,
     };
-    
+
     // Handle group fields recursively
     if matches!(field.kind, FieldKind::Group) {
         let mut group_size = 0u64;
         let group_start_offset = context.current_offset;
-        
+
         for child in &mut field.children {
             let child_end_offset = resolve_field_layout(child, context, Some(&field_path))?;
             group_size = group_size.max(child_end_offset - group_start_offset);
         }
-        
+
         field.len = group_size as u32;
         let final_offset = group_start_offset + group_size;
         context.current_offset = final_offset;
-        
+
         Ok(final_offset)
     } else {
         // Scalar field
         field.len = base_size;
         let final_offset = context.current_offset + effective_size;
         context.current_offset = final_offset;
-        
+
         Ok(final_offset)
     }
 }
@@ -237,91 +255,109 @@ fn resolve_redefines_field(
     field_path: &str,
 ) -> Result<u64> {
     // Find the target field offset
-    let target_offset = context.field_paths.get(target)
+    let target_offset = context
+        .field_paths
+        .get(target)
         .or_else(|| {
             // Try to find by field name if full path not found
-            context.field_paths.iter()
+            context
+                .field_paths
+                .iter()
                 .find(|(path, _)| path.ends_with(&format!(".{}", target)) || path == &target)
                 .map(|(_, offset)| offset)
         })
         .copied()
-        .ok_or_else(|| error!(
-            ErrorCode::CBKP001_SYNTAX,
-            "REDEFINES target '{}' not found for field '{}'", target, field.name
-        ))?;
-    
+        .ok_or_else(|| {
+            error!(
+                ErrorCode::CBKP001_SYNTAX,
+                "REDEFINES target '{}' not found for field '{}'", target, field.name
+            )
+        })?;
+
     // Calculate field size and alignment (NORMATIVE: alignment applied before cluster max selection)
-    let (alignment, base_size) = calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
+    let (alignment, base_size) =
+        calculate_field_size_and_alignment(&field.kind, field.synchronized)?;
     let aligned_offset = apply_alignment(target_offset, alignment);
     let padding_bytes = aligned_offset - target_offset;
-    
+
     if padding_bytes > 0 {
         field.sync_padding = Some(padding_bytes as u16);
     }
-    
+
     field.offset = aligned_offset as u32;
-    
+
     // Calculate effective size including arrays
-    let effective_size = match &field.occurs {
-        Some(Occurs::Fixed { count }) => {
-            (base_size as u64).checked_mul(*count as u64)
-                .ok_or_else(|| error!(
-                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                    "REDEFINES array size overflow for field '{}'", field.name
-                ))?
-        }
-        Some(Occurs::ODO { max, .. }) => {
-            (base_size as u64).checked_mul(*max as u64)
-                .ok_or_else(|| error!(
-                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                    "REDEFINES ODO array size overflow for field '{}'", field.name
-                ))?
-        }
-        None => base_size as u64,
-    };
-    
+    let effective_size =
+        match &field.occurs {
+            Some(Occurs::Fixed { count }) => (base_size as u64)
+                .checked_mul(*count as u64)
+                .ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "REDEFINES array size overflow for field '{}'", field.name
+                    )
+                })?,
+            Some(Occurs::ODO { max, .. }) => {
+                (base_size as u64).checked_mul(*max as u64).ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "REDEFINES ODO array size overflow for field '{}'", field.name
+                    )
+                })?
+            }
+            None => base_size as u64,
+        };
+
     // Handle group fields recursively
     if matches!(field.kind, FieldKind::Group) {
         let mut group_size = 0u64;
         let saved_offset = context.current_offset;
         context.current_offset = aligned_offset;
-        
+
         for child in &mut field.children {
             let child_end_offset = resolve_field_layout(child, context, Some(field_path))?;
             group_size = group_size.max(child_end_offset - aligned_offset);
         }
-        
+
         field.len = group_size as u32;
         context.current_offset = saved_offset; // Restore offset (REDEFINES doesn't advance)
-        
+
         // Update cluster size
         let cluster_key = target.to_string();
-        let (cluster_start, current_max) = context.redefines_clusters
+        let (cluster_start, current_max) = context
+            .redefines_clusters
             .get(&cluster_key)
             .copied()
             .unwrap_or((target_offset, 0));
-        
+
         let new_max = current_max.max(group_size);
-        context.redefines_clusters.insert(cluster_key, (cluster_start, new_max));
-        
+        context
+            .redefines_clusters
+            .insert(cluster_key, (cluster_start, new_max));
+
         Ok(aligned_offset + group_size)
     } else {
         // Scalar field
         field.len = base_size;
-        
+
         // Update cluster size (NORMATIVE: deterministic max selection)
         let cluster_key = target.to_string();
-        let (cluster_start, current_max) = context.redefines_clusters
+        let (cluster_start, current_max) = context
+            .redefines_clusters
             .get(&cluster_key)
             .copied()
             .unwrap_or((target_offset, 0u64));
-        
+
         let new_max = current_max.max(effective_size);
-        context.redefines_clusters.insert(cluster_key, (cluster_start, new_max));
-        
+        context
+            .redefines_clusters
+            .insert(cluster_key, (cluster_start, new_max));
+
         // Record field path
-        context.field_paths.insert(field_path.to_string(), aligned_offset);
-        
+        context
+            .field_paths
+            .insert(field_path.to_string(), aligned_offset);
+
         Ok(aligned_offset + effective_size)
     }
 }
@@ -343,13 +379,13 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> R
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size
     };
-    
+
     let alignment = if synchronized && natural_alignment > 1 {
         natural_alignment
     } else {
         1u64
     };
-    
+
     Ok((alignment, size))
 }
 
@@ -366,11 +402,18 @@ fn apply_alignment(offset: u64, alignment: u64) -> u64 {
 fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
     for odo in &context.odo_arrays {
         // Find counter field offset
-        let counter_offset = context.field_paths.get(&odo.counter_path)
+        let counter_offset = context
+            .field_paths
+            .get(&odo.counter_path)
             .or_else(|| {
                 // Try to find by field name if full path not found
-                context.field_paths.iter()
-                    .find(|(path, _)| path.ends_with(&format!(".{}", odo.counter_path)) || path == &&odo.counter_path)
+                context
+                    .field_paths
+                    .iter()
+                    .find(|(path, _)| {
+                        path.ends_with(&format!(".{}", odo.counter_path))
+                            || path == &&odo.counter_path
+                    })
                     .map(|(_, offset)| offset)
             })
             .copied()
@@ -378,18 +421,29 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
                 // Create comprehensive error for missing counter field
                 Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!("ODO counter field '{}' not found for array '{}'", odo.counter_path, odo.array_path)
-                ).with_context(crate::error::ErrorContext {
+                    format!(
+                        "ODO counter field '{}' not found for array '{}'",
+                        odo.counter_path, odo.array_path
+                    ),
+                )
+                .with_context(crate::error::ErrorContext {
                     record_index: None,
                     field_path: Some(odo.array_path.clone()),
                     byte_offset: Some(odo.array_offset),
                     line_number: None,
-                    details: Some(format!("counter_field={}, searched_paths=[{}]", 
-                                        odo.counter_path, 
-                                        context.field_paths.keys().map(|s| s.as_str()).collect::<Vec<_>>().join(", "))),
+                    details: Some(format!(
+                        "counter_field={}, searched_paths=[{}]",
+                        odo.counter_path,
+                        context
+                            .field_paths
+                            .keys()
+                            .map(|s| s.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )),
                 })
             })?;
-        
+
         // Validate that counter precedes array (NORMATIVE)
         if counter_offset >= odo.array_offset {
             return Err(Error::new(
@@ -407,55 +461,66 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
                                     counter_offset, odo.array_offset, odo.min_count, odo.max_count)),
             }));
         }
-        
+
         // Validate ODO is at tail position (comprehensive validation)
         // Check if there are any fields after this ODO array in the same group
-        let has_fields_after = context.field_paths.iter()
-            .any(|(path, offset)| {
-                // Skip the ODO array itself and its counter
-                if path == &odo.array_path || path == &odo.counter_path {
-                    return false;
-                }
-                
-                // Check if this field comes after the ODO array
-                *offset > odo.array_offset
-            });
-        
+        let has_fields_after = context.field_paths.iter().any(|(path, offset)| {
+            // Skip the ODO array itself and its counter
+            if path == &odo.array_path || path == &odo.counter_path {
+                return false;
+            }
+
+            // Check if this field comes after the ODO array
+            *offset > odo.array_offset
+        });
+
         if has_fields_after {
             return Err(Error::new(
                 ErrorCode::CBKP021_ODO_NOT_TAIL,
-                format!("ODO array '{}' must be at tail position (no fields after it)", odo.array_path)
-            ).with_context(crate::error::ErrorContext {
+                format!(
+                    "ODO array '{}' must be at tail position (no fields after it)",
+                    odo.array_path
+                ),
+            )
+            .with_context(crate::error::ErrorContext {
                 record_index: None,
                 field_path: Some(odo.array_path.clone()),
                 byte_offset: Some(odo.array_offset),
                 line_number: None,
-                details: Some(format!("fields_after_odo=true, counter_field={}", odo.counter_path)),
+                details: Some(format!(
+                    "fields_after_odo=true, counter_field={}",
+                    odo.counter_path
+                )),
             }));
         }
-        
-        debug!("ODO validation passed: array='{}', counter='{}', array_offset={}, counter_offset={}", 
-               odo.array_path, odo.counter_path, odo.array_offset, counter_offset);
+
+        debug!(
+            "ODO validation passed: array='{}', counter='{}', array_offset={}, counter_offset={}",
+            odo.array_path, odo.counter_path, odo.array_offset, counter_offset
+        );
     }
-    
+
     Ok(())
 }
 
 /// Calculate fixed record length if applicable
 fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
     // Check if all fields are fixed (no ODO arrays)
-    let has_odo = context.odo_arrays.iter().any(|odo| odo.max_count > odo.min_count);
-    
+    let has_odo = context
+        .odo_arrays
+        .iter()
+        .any(|odo| odo.max_count > odo.min_count);
+
     if !has_odo {
         // Calculate total size including REDEFINES clusters
         let mut total_size = context.current_offset;
-        
+
         // Add the size of REDEFINES clusters (they don't advance current_offset)
         for (_, (cluster_start, cluster_size)) in &context.redefines_clusters {
             let cluster_end = cluster_start + cluster_size;
             total_size = total_size.max(cluster_end);
         }
-        
+
         schema.lrecl_fixed = Some(total_size as u32);
     }
 }
@@ -463,9 +528,7 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
 /// Detect and set tail ODO information
 fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
     // Find the ODO array with the highest offset (tail position)
-    if let Some(tail_odo) = context.odo_arrays.iter()
-        .max_by_key(|odo| odo.array_offset) {
-        
+    if let Some(tail_odo) = context.odo_arrays.iter().max_by_key(|odo| odo.array_offset) {
         schema.tail_odo = Some(TailODO {
             counter_path: tail_odo.counter_path.clone(),
             min_count: tail_odo.min_count,
@@ -482,7 +545,7 @@ fn update_filler_names(fields: &mut [Field]) {
             // Update FILLER name with actual offset (8-digit zero-padded)
             field.name = format!("_filler_{:08}", field.offset);
         }
-        
+
         // Recursively update children
         update_filler_names(&mut field.children);
     }
@@ -498,9 +561,9 @@ mod tests {
         let mut schema = Schema::new();
         let field = Field::with_kind(1, "TEST-FIELD".to_string(), FieldKind::Alphanum { len: 10 });
         schema.fields.push(field);
-        
+
         resolve_layout(&mut schema).unwrap();
-        
+
         let field = &schema.fields[0];
         assert_eq!(field.offset, 0);
         assert_eq!(field.len, 10);
@@ -510,22 +573,30 @@ mod tests {
     #[test]
     fn test_binary_field_alignment() {
         let mut schema = Schema::new();
-        
+
         // Add a char field first to create misalignment
-        let char_field = Field::with_kind(1, "CHAR-FIELD".to_string(), FieldKind::Alphanum { len: 1 });
+        let char_field =
+            Field::with_kind(1, "CHAR-FIELD".to_string(), FieldKind::Alphanum { len: 1 });
         schema.fields.push(char_field);
-        
+
         // Add synchronized binary field
-        let mut binary_field = Field::with_kind(1, "BINARY-FIELD".to_string(), FieldKind::BinaryInt { bits: 32, signed: false });
+        let mut binary_field = Field::with_kind(
+            1,
+            "BINARY-FIELD".to_string(),
+            FieldKind::BinaryInt {
+                bits: 32,
+                signed: false,
+            },
+        );
         binary_field.synchronized = true;
         schema.fields.push(binary_field);
-        
+
         resolve_layout(&mut schema).unwrap();
-        
+
         let char_field = &schema.fields[0];
         assert_eq!(char_field.offset, 0);
         assert_eq!(char_field.len, 1);
-        
+
         let binary_field = &schema.fields[1];
         assert_eq!(binary_field.offset, 4); // Aligned to 4-byte boundary
         assert_eq!(binary_field.len, 4);
@@ -535,12 +606,13 @@ mod tests {
     #[test]
     fn test_occurs_fixed_array() {
         let mut schema = Schema::new();
-        let mut field = Field::with_kind(1, "ARRAY-FIELD".to_string(), FieldKind::Alphanum { len: 5 });
+        let mut field =
+            Field::with_kind(1, "ARRAY-FIELD".to_string(), FieldKind::Alphanum { len: 5 });
         field.occurs = Some(Occurs::Fixed { count: 10 });
         schema.fields.push(field);
-        
+
         resolve_layout(&mut schema).unwrap();
-        
+
         let field = &schema.fields[0];
         assert_eq!(field.offset, 0);
         assert_eq!(field.len, 5); // Base field size
@@ -550,32 +622,48 @@ mod tests {
     #[test]
     fn test_odo_array() {
         let mut schema = Schema::new();
-        
+
         // Counter field
-        let counter = Field::with_kind(1, "COUNTER".to_string(), FieldKind::ZonedDecimal { digits: 3, scale: 0, signed: false });
+        let counter = Field::with_kind(
+            1,
+            "COUNTER".to_string(),
+            FieldKind::ZonedDecimal {
+                digits: 3,
+                scale: 0,
+                signed: false,
+            },
+        );
         schema.fields.push(counter);
-        
+
         // ODO array field
-        let mut array_field = Field::with_kind(1, "ARRAY-FIELD".to_string(), FieldKind::Alphanum { len: 10 });
-        array_field.occurs = Some(Occurs::ODO { min: 0, max: 5, counter_path: "COUNTER".to_string() });
+        let mut array_field = Field::with_kind(
+            1,
+            "ARRAY-FIELD".to_string(),
+            FieldKind::Alphanum { len: 10 },
+        );
+        array_field.occurs = Some(Occurs::ODO {
+            min: 0,
+            max: 5,
+            counter_path: "COUNTER".to_string(),
+        });
         schema.fields.push(array_field);
-        
+
         resolve_layout(&mut schema).unwrap();
-        
+
         let counter = &schema.fields[0];
         assert_eq!(counter.offset, 0);
         assert_eq!(counter.len, 3);
-        
+
         let array_field = &schema.fields[1];
         assert_eq!(array_field.offset, 3);
         assert_eq!(array_field.len, 10); // Base field size
-        
+
         // Should have tail ODO info
         assert!(schema.tail_odo.is_some());
         let tail_odo = schema.tail_odo.as_ref().unwrap();
         assert_eq!(tail_odo.counter_path, "COUNTER");
         assert_eq!(tail_odo.max_count, 5);
-        
+
         // Should not have fixed LRECL due to ODO
         assert!(schema.lrecl_fixed.is_none());
     }
@@ -583,35 +671,37 @@ mod tests {
     #[test]
     fn test_redefines_cluster_sizing() {
         let mut schema = Schema::new();
-        
+
         // Original field
         let field_a = Field::with_kind(1, "FIELD-A".to_string(), FieldKind::Alphanum { len: 10 });
         schema.fields.push(field_a);
-        
+
         // Shorter redefines
-        let mut field_b = Field::with_kind(1, "FIELD-B".to_string(), FieldKind::Alphanum { len: 5 });
+        let mut field_b =
+            Field::with_kind(1, "FIELD-B".to_string(), FieldKind::Alphanum { len: 5 });
         field_b.redefines_of = Some("FIELD-A".to_string());
         schema.fields.push(field_b);
-        
+
         // Longer redefines
-        let mut field_c = Field::with_kind(1, "FIELD-C".to_string(), FieldKind::Alphanum { len: 15 });
+        let mut field_c =
+            Field::with_kind(1, "FIELD-C".to_string(), FieldKind::Alphanum { len: 15 });
         field_c.redefines_of = Some("FIELD-A".to_string());
         schema.fields.push(field_c);
-        
+
         resolve_layout(&mut schema).unwrap();
-        
+
         let field_a = &schema.fields[0];
         assert_eq!(field_a.offset, 0);
         assert_eq!(field_a.len, 10);
-        
+
         let field_b = &schema.fields[1];
         assert_eq!(field_b.offset, 0); // Same offset as FIELD-A
         assert_eq!(field_b.len, 5);
-        
+
         let field_c = &schema.fields[2];
         assert_eq!(field_c.offset, 0); // Same offset as FIELD-A
         assert_eq!(field_c.len, 15);
-        
+
         // Total record size should be based on largest variant (15)
         assert_eq!(schema.lrecl_fixed, Some(15));
     }
@@ -619,42 +709,67 @@ mod tests {
     #[test]
     fn test_record_size_overflow() {
         let mut schema = Schema::new();
-        
+
         // Create a field that would cause overflow
-        let mut huge_field = Field::with_kind(1, "HUGE-FIELD".to_string(), FieldKind::Alphanum { len: u32::MAX });
+        let mut huge_field = Field::with_kind(
+            1,
+            "HUGE-FIELD".to_string(),
+            FieldKind::Alphanum { len: u32::MAX },
+        );
         huge_field.occurs = Some(Occurs::Fixed { count: 1000 });
         schema.fields.push(huge_field);
-        
+
         let result = resolve_layout(&mut schema);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKS141_RECORD_TOO_LARGE));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKS141_RECORD_TOO_LARGE
+        ));
     }
 
     #[test]
     fn test_odo_counter_validation() {
         let mut schema = Schema::new();
-        
+
         // ODO array without counter field
-        let mut array_field = Field::with_kind(1, "ARRAY-FIELD".to_string(), FieldKind::Alphanum { len: 10 });
-        array_field.occurs = Some(Occurs::ODO { min: 0, max: 5, counter_path: "NONEXISTENT".to_string() });
+        let mut array_field = Field::with_kind(
+            1,
+            "ARRAY-FIELD".to_string(),
+            FieldKind::Alphanum { len: 10 },
+        );
+        array_field.occurs = Some(Occurs::ODO {
+            min: 0,
+            max: 5,
+            counter_path: "NONEXISTENT".to_string(),
+        });
         schema.fields.push(array_field);
-        
+
         let result = resolve_layout(&mut schema);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKS121_COUNTER_NOT_FOUND));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND
+        ));
     }
 
     #[test]
     fn test_packed_decimal_size() {
         let mut schema = Schema::new();
-        
+
         // 7-digit packed decimal should be 4 bytes: ceil((7+1)/2) = 4
-        let field = Field::with_kind(1, "PACKED-FIELD".to_string(), 
-            FieldKind::PackedDecimal { digits: 7, scale: 2, signed: true });
+        let field = Field::with_kind(
+            1,
+            "PACKED-FIELD".to_string(),
+            FieldKind::PackedDecimal {
+                digits: 7,
+                scale: 2,
+                signed: true,
+            },
+        );
         schema.fields.push(field);
-        
+
         resolve_layout(&mut schema).unwrap();
-        
+
         let field = &schema.fields[0];
         assert_eq!(field.len, 4);
     }
@@ -662,22 +777,28 @@ mod tests {
     #[test]
     fn test_binary_width_mapping() {
         let mut schema = Schema::new();
-        
+
         // Test different binary widths
         let test_cases = vec![
-            (4, 16),   // ≤4 digits → 2 bytes (16 bits)
-            (9, 32),   // 5-9 digits → 4 bytes (32 bits)
-            (18, 64),  // 10-18 digits → 8 bytes (64 bits)
+            (4, 16),  // ≤4 digits → 2 bytes (16 bits)
+            (9, 32),  // 5-9 digits → 4 bytes (32 bits)
+            (18, 64), // 10-18 digits → 8 bytes (64 bits)
         ];
-        
+
         for (digits, expected_bits) in test_cases {
-            let field = Field::with_kind(1, format!("BINARY-{}", digits), 
-                FieldKind::BinaryInt { bits: expected_bits, signed: false });
+            let field = Field::with_kind(
+                1,
+                format!("BINARY-{}", digits),
+                FieldKind::BinaryInt {
+                    bits: expected_bits,
+                    signed: false,
+                },
+            );
             schema.fields.push(field);
         }
-        
+
         resolve_layout(&mut schema).unwrap();
-        
+
         assert_eq!(schema.fields[0].len, 2); // 16 bits = 2 bytes
         assert_eq!(schema.fields[1].len, 4); // 32 bits = 4 bytes
         assert_eq!(schema.fields[2].len, 8); // 64 bits = 8 bytes

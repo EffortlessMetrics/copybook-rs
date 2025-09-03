@@ -59,10 +59,11 @@ copybook [SUBCOMMAND]
 
 ### Key Data Types
 - `Schema`: Top-level parsed copybook structure from copybook-core
-- `Field`/`FieldKind`: Individual copybook field definitions with COBOL semantics
+- `Field`/`FieldKind`: Individual copybook field definitions with COBOL semantics (now with proper JSON field processing)
 - `DecodeOptions`/`EncodeOptions`: Configuration for codec operations
 - `RecordFormat`: Fixed-length vs RDW (Record Descriptor Word) formats
 - `Codepage`: EBCDIC character encoding variants (CP037, CP273, CP500, CP1047, CP1140)
+- `RunSummary`: Processing statistics and performance metrics
 
 ### Error Handling
 Uses structured error taxonomy with stable error codes:

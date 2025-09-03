@@ -28,7 +28,7 @@ pub struct ScratchBuffers {
 
 impl ScratchBuffers {
     /// Create new scratch buffers with reasonable initial capacity
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             digit_buffer: SmallVec::new(),
             byte_buffer: Vec::with_capacity(1024), // 1KB initial capacity
@@ -106,7 +106,7 @@ impl<T> SequenceRing<T> {
     /// # Arguments
     /// * `channel_capacity` - Maximum number of records in flight
     /// * `max_window_size` - Maximum reordering window size
-    pub fn new(channel_capacity: usize, max_window_size: usize) -> Self {
+    #[must_use] pub fn new(channel_capacity: usize, max_window_size: usize) -> Self {
         let (sender, receiver) = bounded(channel_capacity);
 
         Self {
@@ -120,7 +120,7 @@ impl<T> SequenceRing<T> {
     }
 
     /// Get a sender for workers to submit processed records
-    pub fn sender(&self) -> Sender<SequencedRecord<T>> {
+    #[must_use] pub fn sender(&self) -> Sender<SequencedRecord<T>> {
         self.sender.clone()
     }
 
@@ -139,48 +139,45 @@ impl<T> SequenceRing<T> {
             }
 
             // Receive next record from channel
-            match self.receiver.recv() {
-                Ok(sequenced_record) => {
-                    let SequencedRecord { sequence_id, data } = sequenced_record;
+            if let Ok(sequenced_record) = self.receiver.recv() {
+                let SequencedRecord { sequence_id, data } = sequenced_record;
 
-                    if sequence_id == self.next_sequence_id {
-                        // This is the next expected record
-                        self.next_sequence_id += 1;
-                        debug!("Emitting record {} directly", sequence_id);
-                        return Ok(Some(data));
-                    } else if sequence_id > self.next_sequence_id {
-                        // Future record - buffer it
-                        debug!(
-                            "Buffering out-of-order record {} (expecting {})",
-                            sequence_id, self.next_sequence_id
-                        );
-                        self.reorder_buffer.insert(sequence_id, data);
+                if sequence_id == self.next_sequence_id {
+                    // This is the next expected record
+                    self.next_sequence_id += 1;
+                    debug!("Emitting record {} directly", sequence_id);
+                    return Ok(Some(data));
+                } else if sequence_id > self.next_sequence_id {
+                    // Future record - buffer it
+                    debug!(
+                        "Buffering out-of-order record {} (expecting {})",
+                        sequence_id, self.next_sequence_id
+                    );
+                    self.reorder_buffer.insert(sequence_id, data);
 
-                        // Check reorder buffer size
-                        if self.reorder_buffer.len() > self.max_window_size {
-                            warn!(
-                                "Reorder buffer size ({}) exceeds maximum ({}), potential memory issue",
-                                self.reorder_buffer.len(),
-                                self.max_window_size
-                            );
-                        }
-                    } else {
-                        // Past record - this shouldn't happen with proper sequencing
+                    // Check reorder buffer size
+                    if self.reorder_buffer.len() > self.max_window_size {
                         warn!(
-                            "Received past record {} (expecting {}), ignoring",
-                            sequence_id, self.next_sequence_id
+                            "Reorder buffer size ({}) exceeds maximum ({}), potential memory issue",
+                            self.reorder_buffer.len(),
+                            self.max_window_size
                         );
                     }
+                } else {
+                    // Past record - this shouldn't happen with proper sequencing
+                    warn!(
+                        "Received past record {} (expecting {}), ignoring",
+                        sequence_id, self.next_sequence_id
+                    );
                 }
-                Err(crossbeam_channel::RecvError) => {
-                    // Channel closed - emit any remaining buffered records
-                    if let Some((_, record)) = self.reorder_buffer.pop_first() {
-                        debug!("Emitting remaining buffered record during shutdown");
-                        return Ok(Some(record));
-                    }
-                    debug!("Channel closed, no more records");
-                    return Ok(None);
+            } else {
+                // Channel closed - emit any remaining buffered records
+                if let Some((_, record)) = self.reorder_buffer.pop_first() {
+                    debug!("Emitting remaining buffered record during shutdown");
+                    return Ok(Some(record));
                 }
+                debug!("Channel closed, no more records");
+                return Ok(None);
             }
         }
     }
@@ -216,7 +213,7 @@ impl<T> SequenceRing<T> {
     }
 
     /// Get statistics about the sequence ring
-    pub fn stats(&self) -> SequenceRingStats {
+    #[must_use] pub fn stats(&self) -> SequenceRingStats {
         SequenceRingStats {
             next_sequence_id: self.next_sequence_id,
             reorder_buffer_size: self.reorder_buffer.len(),
@@ -360,7 +357,7 @@ where
     }
 
     /// Get statistics about the worker pool
-    pub fn stats(&self) -> WorkerPoolStats {
+    #[must_use] pub fn stats(&self) -> WorkerPoolStats {
         WorkerPoolStats {
             num_workers: self.worker_handles.len(),
             next_input_sequence: self.next_input_sequence,
@@ -396,7 +393,7 @@ pub struct StreamingProcessor {
 
 impl StreamingProcessor {
     /// Create a new streaming processor with memory limit
-    pub fn new(max_memory_mb: usize) -> Self {
+    #[must_use] pub fn new(max_memory_mb: usize) -> Self {
         Self {
             max_memory_bytes: max_memory_mb * 1024 * 1024,
             current_memory_bytes: 0,
@@ -406,12 +403,12 @@ impl StreamingProcessor {
     }
 
     /// Create with default 256 MiB limit
-    pub fn with_default_limit() -> Self {
+    #[must_use] pub fn with_default_limit() -> Self {
         Self::new(256)
     }
 
     /// Check if we're approaching memory limit
-    pub fn is_memory_pressure(&self) -> bool {
+    #[must_use] pub fn is_memory_pressure(&self) -> bool {
         self.current_memory_bytes > (self.max_memory_bytes * 80 / 100) // 80% threshold
     }
 
@@ -435,7 +432,7 @@ impl StreamingProcessor {
     }
 
     /// Get processing statistics
-    pub fn stats(&self) -> StreamingProcessorStats {
+    #[must_use] pub fn stats(&self) -> StreamingProcessorStats {
         StreamingProcessorStats {
             max_memory_bytes: self.max_memory_bytes,
             current_memory_bytes: self.current_memory_bytes,

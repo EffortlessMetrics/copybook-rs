@@ -25,8 +25,8 @@ pub struct SmallDecimal {
 }
 
 impl SmallDecimal {
-    /// Create a new SmallDecimal
-    pub fn new(value: i64, scale: i16, negative: bool) -> Self {
+    /// Create a new `SmallDecimal`
+    #[must_use] pub fn new(value: i64, scale: i16, negative: bool) -> Self {
         Self {
             value,
             scale,
@@ -35,7 +35,7 @@ impl SmallDecimal {
     }
 
     /// Create a zero value with the given scale
-    pub fn zero(scale: i16) -> Self {
+    #[must_use] pub fn zero(scale: i16) -> Self {
         Self {
             value: 0,
             scale,
@@ -156,7 +156,7 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
-    pub fn to_fixed_scale_string(&self, scale: i16) -> String {
+    #[must_use] pub fn to_fixed_scale_string(&self, scale: i16) -> String {
         let mut result = String::new();
 
         if self.negative && self.value != 0 {
@@ -190,17 +190,17 @@ impl SmallDecimal {
     }
 
     /// Get the scale of this decimal
-    pub fn scale(&self) -> i16 {
+    #[must_use] pub fn scale(&self) -> i16 {
         self.scale
     }
 
     /// Check if this decimal is negative
-    pub fn is_negative(&self) -> bool {
+    #[must_use] pub fn is_negative(&self) -> bool {
         self.negative && self.value != 0
     }
 
     /// Get the total number of digits in this decimal
-    pub fn total_digits(&self) -> u16 {
+    #[must_use] pub fn total_digits(&self) -> u16 {
         if self.value == 0 {
             return 1;
         }
@@ -215,7 +215,7 @@ impl SmallDecimal {
     }
 }
 
-/// Implement Display trait for SmallDecimal
+/// Implement Display trait for `SmallDecimal`
 impl Display for SmallDecimal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.format_to_string())
@@ -227,7 +227,7 @@ impl Display for SmallDecimal {
 /// # Errors
 ///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 pub fn decode_zoned_decimal(
     data: &[u8],
     digits: u16,
@@ -435,14 +435,14 @@ pub fn decode_zoned_decimal(
 /// # Errors
 ///
 /// Returns an error if the packed decimal data contains invalid nibbles.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 pub fn decode_packed_decimal(
     data: &[u8],
     digits: u16,
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
-    let expected_bytes = (digits as usize + 2) / 2;
+    let expected_bytes = usize::midpoint(digits as usize, 2);
     if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -555,9 +555,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u16::from_be_bytes([data[0], data[1]]);
             if signed {
-                Ok(i16::from_be_bytes([data[0], data[1]]) as i64)
+                Ok(i64::from(i16::from_be_bytes([data[0], data[1]])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         32 => {
@@ -569,9 +569,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
             if signed {
-                Ok(i32::from_be_bytes([data[0], data[1], data[2], data[3]]) as i64)
+                Ok(i64::from(i32::from_be_bytes([data[0], data[1], data[2], data[3]])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         64 => {
@@ -630,7 +630,7 @@ pub fn encode_zoned_decimal(
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
@@ -692,7 +692,7 @@ pub fn encode_packed_decimal(
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
@@ -752,7 +752,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
     match bits {
         16 => {
             if signed {
-                if value < i16::MIN as i64 || value > i16::MAX as i64 {
+                if value < i64::from(i16::MIN) || value > i64::from(i16::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 16-bit integer"),
@@ -760,7 +760,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
                 }
                 Ok((value as i16).to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u16::MAX as i64 {
+                if value < 0 || value > i64::from(u16::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 16-bit integer"),
@@ -771,7 +771,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
         }
         32 => {
             if signed {
-                if value < i32::MIN as i64 || value > i32::MAX as i64 {
+                if value < i64::from(i32::MIN) || value > i64::from(i32::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 32-bit integer"),
@@ -779,7 +779,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
                 }
                 Ok((value as i32).to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u32::MAX as i64 {
+                if value < 0 || value > i64::from(u32::MAX) {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 32-bit integer"),
@@ -1050,7 +1050,7 @@ pub fn decode_packed_decimal_with_scratch(
 ///
 /// # Errors
 /// Returns an error if the data length doesn't match the expected bit width,
-/// or if unsigned values exceed i64::MAX.
+/// or if unsigned values exceed `i64::MAX`.
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     // Optimized paths for common binary widths
     match (bits, data.len()) {

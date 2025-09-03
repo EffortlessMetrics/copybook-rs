@@ -6,6 +6,7 @@
 use crossbeam_channel::{Receiver, Sender, bounded};
 use smallvec::SmallVec;
 use std::collections::BTreeMap;
+use std::cmp::Ordering;
 use std::sync::Arc;
 use std::thread;
 use tracing::{debug, warn};
@@ -126,6 +127,11 @@ impl<T> SequenceRing<T> {
 
     /// Receive the next record in sequence order
     /// Blocks until the next expected record is available
+    /// Receive records in sequence order
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the channel is disconnected
     pub fn recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::RecvError> {
         loop {
             // Check if we have the next expected record in the reorder buffer
@@ -142,33 +148,37 @@ impl<T> SequenceRing<T> {
             if let Ok(sequenced_record) = self.receiver.recv() {
                 let SequencedRecord { sequence_id, data } = sequenced_record;
 
-                if sequence_id == self.next_sequence_id {
-                    // This is the next expected record
-                    self.next_sequence_id += 1;
-                    debug!("Emitting record {} directly", sequence_id);
-                    return Ok(Some(data));
-                } else if sequence_id > self.next_sequence_id {
-                    // Future record - buffer it
-                    debug!(
-                        "Buffering out-of-order record {} (expecting {})",
-                        sequence_id, self.next_sequence_id
-                    );
-                    self.reorder_buffer.insert(sequence_id, data);
+                match sequence_id.cmp(&self.next_sequence_id) {
+                    Ordering::Equal => {
+                        // This is the next expected record
+                        self.next_sequence_id += 1;
+                        debug!("Emitting record {} directly", sequence_id);
+                        return Ok(Some(data));
+                    }
+                    Ordering::Greater => {
+                        // Future record - buffer it
+                        debug!(
+                            "Buffering out-of-order record {} (expecting {})",
+                            sequence_id, self.next_sequence_id
+                        );
+                        self.reorder_buffer.insert(sequence_id, data);
 
-                    // Check reorder buffer size
-                    if self.reorder_buffer.len() > self.max_window_size {
+                        // Check reorder buffer size
+                        if self.reorder_buffer.len() > self.max_window_size {
+                            warn!(
+                                "Reorder buffer size ({}) exceeds maximum ({}), potential memory issue",
+                                self.reorder_buffer.len(),
+                                self.max_window_size
+                            );
+                        }
+                    }
+                    Ordering::Less => {
+                        // Past record - this shouldn't happen with proper sequencing
                         warn!(
-                            "Reorder buffer size ({}) exceeds maximum ({}), potential memory issue",
-                            self.reorder_buffer.len(),
-                            self.max_window_size
+                            "Received past record {} (expecting {}), ignoring",
+                            sequence_id, self.next_sequence_id
                         );
                     }
-                } else {
-                    // Past record - this shouldn't happen with proper sequencing
-                    warn!(
-                        "Received past record {} (expecting {}), ignoring",
-                        sequence_id, self.next_sequence_id
-                    );
                 }
             } else {
                 // Channel closed - emit any remaining buffered records
@@ -183,6 +193,10 @@ impl<T> SequenceRing<T> {
     }
 
     /// Try to receive the next record without blocking
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the channel is disconnected or would block
     pub fn try_recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::TryRecvError> {
         // Check if we have the next expected record in the reorder buffer
         if let Some(record) = self.reorder_buffer.remove(&self.next_sequence_id) {
@@ -195,17 +209,21 @@ impl<T> SequenceRing<T> {
             Ok(sequenced_record) => {
                 let SequencedRecord { sequence_id, data } = sequenced_record;
 
-                if sequence_id == self.next_sequence_id {
-                    self.next_sequence_id += 1;
-                    Ok(Some(data))
-                } else if sequence_id > self.next_sequence_id {
-                    // Buffer future record and return empty
-                    self.reorder_buffer.insert(sequence_id, data);
-                    Err(crossbeam_channel::TryRecvError::Empty)
-                } else {
-                    // Past record - ignore and try again
-                    warn!("Received past record {}, ignoring", sequence_id);
-                    Err(crossbeam_channel::TryRecvError::Empty)
+                match sequence_id.cmp(&self.next_sequence_id) {
+                    Ordering::Equal => {
+                        self.next_sequence_id += 1;
+                        Ok(Some(data))
+                    }
+                    Ordering::Greater => {
+                        // Buffer future record and return empty
+                        self.reorder_buffer.insert(sequence_id, data);
+                        Err(crossbeam_channel::TryRecvError::Empty)
+                    }
+                    Ordering::Less => {
+                        // Past record - ignore and try again
+                        warn!("Received past record {}, ignoring", sequence_id);
+                        Err(crossbeam_channel::TryRecvError::Empty)
+                    }
                 }
             }
             Err(e) => Err(e),
@@ -321,7 +339,11 @@ where
         }
     }
 
-    /// Submit work to the pool
+    /// Submit input for processing
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the worker channel is disconnected
     pub fn submit(
         &mut self,
         input: Input,
@@ -332,16 +354,31 @@ where
     }
 
     /// Receive the next processed result in order
+    /// Receive processed records in sequence order
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the channel is disconnected
     pub fn recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::RecvError> {
         self.output_ring.recv_ordered()
     }
 
     /// Try to receive the next processed result without blocking
+    /// Try to receive processed records in sequence order (non-blocking)
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the channel is disconnected or would block
     pub fn try_recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::TryRecvError> {
         self.output_ring.try_recv_ordered()
     }
 
     /// Close the input channel and wait for all workers to finish
+    /// Shutdown the worker pool and wait for all workers to finish
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if any worker thread panicked
     pub fn shutdown(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Close input channel
         drop(self.input_sender);
@@ -417,11 +454,11 @@ impl StreamingProcessor {
         if bytes_delta >= 0 {
             self.current_memory_bytes = self
                 .current_memory_bytes
-                .saturating_add(bytes_delta as usize);
+                .saturating_add(bytes_delta.unsigned_abs());
         } else {
             self.current_memory_bytes = self
                 .current_memory_bytes
-                .saturating_sub((-bytes_delta) as usize);
+                .saturating_sub(bytes_delta.unsigned_abs());
         }
     }
 

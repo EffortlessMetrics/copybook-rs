@@ -251,8 +251,8 @@ impl<'a> Lexer<'a> {
 
         while let Some(result) = lexer.next() {
             let span = lexer.span();
-            let token = if let Ok(token) = result { 
-                token 
+            let token = if let Ok(token) = result {
+                token
             } else {
                 // Handle lexer errors - create an identifier token for unknown text
                 let text = &processed_text[span.clone()];

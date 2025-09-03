@@ -149,13 +149,13 @@ impl<R: Read> FixedRecordReader<R> {
         }
 
         // If schema has a fixed LRECL, validate against it
-        if let Some(schema_lrecl) = schema.lrecl_fixed {
-            if self.lrecl != schema_lrecl {
-                warn!(
-                    "LRECL mismatch: reader configured for {}, schema expects {}",
-                    self.lrecl, schema_lrecl
-                );
-            }
+        if let Some(schema_lrecl) = schema.lrecl_fixed
+            && self.lrecl != schema_lrecl
+        {
+            warn!(
+                "LRECL mismatch: reader configured for {}, schema expects {}",
+                self.lrecl, schema_lrecl
+            );
         }
 
         // For ODO tail records, the actual record might be shorter than LRECL
@@ -338,7 +338,7 @@ impl<R: Read> RDWRecordReader<R> {
         match self.input.read_exact(&mut rdw_header) {
             Ok(()) => {
                 // Parse RDW header
-                let length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as u32;
+                let length = u32::from(u16::from_be_bytes([rdw_header[0], rdw_header[1]]));
                 let reserved = u16::from_be_bytes([rdw_header[2], rdw_header[3]]);
 
                 self.record_count += 1;
@@ -371,7 +371,7 @@ impl<R: Read> RDWRecordReader<R> {
                 }
 
                 // Check for ASCII transfer corruption heuristic
-                if Self::is_suspect_ascii_corruption(&rdw_header) {
+                if Self::is_suspect_ascii_corruption(rdw_header) {
                     warn!(
                         "RDW appears to be ASCII-corrupted (record {}): {:02X} {:02X} {:02X} {:02X}",
                         self.record_count,
@@ -491,7 +491,7 @@ impl<R: Read> RDWRecordReader<R> {
     }
 
     /// Detect ASCII transfer corruption heuristic
-    fn is_suspect_ascii_corruption(rdw_header: &[u8; 4]) -> bool {
+    fn is_suspect_ascii_corruption(rdw_header: [u8; 4]) -> bool {
         // Heuristic: if the length bytes look like ASCII digits, it might be corrupted
         // ASCII digits are 0x30-0x39
         let length_bytes = [rdw_header[0], rdw_header[1]];
@@ -600,7 +600,7 @@ impl<W: Write> RDWRecordWriter<W> {
         }
 
         // Create RDW header
-        let length_bytes = (length as u16).to_be_bytes();
+        let length_bytes = u16::try_from(length).expect("RDW length should fit in u16").to_be_bytes();
         let reserved_bytes = preserve_reserved.unwrap_or(0).to_be_bytes();
         let header = [
             length_bytes[0],
@@ -651,7 +651,7 @@ impl RDWRecord {
     /// Create a new RDW record from payload
     #[must_use]
     pub fn new(payload: Vec<u8>) -> Self {
-        let length = payload.len().min(u16::MAX as usize) as u16;
+        let length = u16::try_from(payload.len().min(u16::MAX as usize)).expect("payload length should fit in u16");
         let length_bytes = length.to_be_bytes();
         let header = [length_bytes[0], length_bytes[1], 0, 0]; // Reserved bytes are zero
 
@@ -661,7 +661,7 @@ impl RDWRecord {
     /// Create a new RDW record with preserved reserved bytes
     #[must_use]
     pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
-        let length = payload.len().min(u16::MAX as usize) as u16;
+        let length = u16::try_from(payload.len().min(u16::MAX as usize)).expect("payload length should fit in u16");
         let length_bytes = length.to_be_bytes();
         let reserved_bytes = reserved.to_be_bytes();
         let header = [
@@ -688,7 +688,7 @@ impl RDWRecord {
 
     /// Update the length field to match the payload size
     pub fn recompute_length(&mut self) {
-        let length = self.payload.len().min(u16::MAX as usize) as u16;
+        let length = u16::try_from(self.payload.len().min(u16::MAX as usize)).expect("payload length should fit in u16");
         let length_bytes = length.to_be_bytes();
         self.header[0] = length_bytes[0];
         self.header[1] = length_bytes[1];
@@ -1091,12 +1091,12 @@ mod tests {
         // In this case, the length bytes are 0, 8 which are not ASCII digits, so no warning
         // Let's test the actual detection logic separately
         assert!(
-            !RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption(&[
+            !RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption([
                 0, 8, b'3', b'4'
             ])
         );
         assert!(
-            RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption(&[
+            RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption([
                 b'1', b'2', 0, 0
             ])
         );

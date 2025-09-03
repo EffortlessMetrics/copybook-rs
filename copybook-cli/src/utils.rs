@@ -113,13 +113,13 @@ mod tests {
 
     fn temp_path_for(target: &Path) -> PathBuf {
         let mut temp_path = target.to_path_buf();
-        temp_path.set_file_name(
-            format!("{}.tmp", 
-                target.file_name()
-                    .unwrap_or_else(|| std::ffi::OsStr::new(""))
-                    .to_string_lossy()
-            )
-        );
+        temp_path.set_file_name(format!(
+            "{}.tmp",
+            target
+                .file_name()
+                .unwrap_or_else(|| std::ffi::OsStr::new(""))
+                .to_string_lossy()
+        ));
         temp_path
     }
 

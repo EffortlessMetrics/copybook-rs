@@ -1,10 +1,10 @@
 //! Decode command implementation
 
+use crate::utils::{atomic_write, determine_exit_code};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::parse_copybook;
-use crate::utils::{atomic_write, determine_exit_code};
 use std::fs;
 use std::path::PathBuf;
 use tracing::info;
@@ -53,8 +53,9 @@ pub async fn run(
         atomic_write(&output, |output_writer| {
             let input_file = fs::File::open(&input)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            let summary = copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let summary =
+                copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             result_summary = Some(summary);
             Ok(())
         })?;
@@ -69,11 +70,11 @@ pub async fn run(
     println!("Processing time: {}ms", summary.processing_time_ms);
     println!("Bytes processed: {}", summary.bytes_processed);
     println!("Throughput: {:.2} MB/s", summary.throughput_mbps);
-    
+
     if summary.has_warnings() {
         println!("Warnings: {}", summary.warnings);
     }
-    
+
     // Print error summary if available
     if summary.has_errors() {
         println!("Records with errors: {}", summary.records_with_errors);

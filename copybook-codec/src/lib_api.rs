@@ -868,12 +868,13 @@ mod tests {
         let options = EncodeOptions::default();
 
         let mut json_obj = serde_json::Map::new();
-        json_obj.insert("__status".to_string(), Value::String("test".to_string()));
+        json_obj.insert("ID".to_string(), Value::String("123".to_string()));
+        json_obj.insert("NAME".to_string(), Value::String("ALICE".to_string()));
         let json = Value::Object(json_obj);
 
         let result = encode_record(&schema, &json, &options).unwrap();
         assert!(!result.is_empty());
-        assert_eq!(result[0], b'E'); // Encoded marker
+        assert_eq!(result.len(), 8); // 3 bytes for ID + 5 bytes for NAME
     }
 
     #[test]

@@ -101,6 +101,18 @@ mod tests {
         assert_eq!(determine_exit_code(true, true), 1);   // Both warnings and errors
     }
 
+    fn temp_path_for(target: &Path) -> PathBuf {
+        let mut temp_path = target.to_path_buf();
+        temp_path.set_file_name(
+            format!("{}.tmp", 
+                target.file_name()
+                    .unwrap_or_else(|| std::ffi::OsStr::new(""))
+                    .to_string_lossy()
+            )
+        );
+        temp_path
+    }
+
     #[test]
     fn test_temp_path_for() {
         let target = Path::new("/path/to/output.jsonl");

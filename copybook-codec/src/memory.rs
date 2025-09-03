@@ -5,7 +5,6 @@
 
 use crossbeam_channel::{Receiver, Sender, bounded};
 use smallvec::SmallVec;
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::thread;

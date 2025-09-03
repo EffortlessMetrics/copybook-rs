@@ -2,11 +2,11 @@
 //!
 //! This module provides the main library functions required by R11:
 //! - `parse_copybook` (already exists in copybook-core)
-//! - decode_record
-//! - encode_record
-//! - decode_file_to_jsonl
-//! - encode_jsonl_to_file
-//! - RecordIterator (for programmatic access)
+//! - `decode_record`
+//! - `encode_record`
+//! - `decode_file_to_jsonl`
+//! - `encode_jsonl_to_file`
+//! - `RecordIterator` (for programmatic access)
 
 use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use crate::record::{FixedRecordReader, RDWRecordReader};
@@ -147,11 +147,9 @@ impl fmt::Display for RunSummary {
         writeln!(f, "  Throughput: {:.2} MB/s", self.throughput_mbps)?;
         writeln!(f, "  Threads used: {}", self.threads_used)?;
         if let Some(peak_memory) = self.peak_memory_bytes {
-            writeln!(
-                f,
-                "  Peak memory: {:.2} MB",
-                peak_memory as f64 / (1024.0 * 1024.0)
-            )?;
+            #[allow(clippy::cast_precision_loss)]
+            let peak_memory_mb = peak_memory as f64 / (1024.0 * 1024.0);
+            writeln!(f, "  Peak memory: {:.2} MB", peak_memory_mb)?;
         }
         if !self.schema_fingerprint.is_empty() {
             writeln!(f, "  Schema fingerprint: {}", self.schema_fingerprint)?;
@@ -217,10 +215,10 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
                 match options.json_number_mode {
                     crate::options::JsonNumberMode::Lossless => Ok(Value::String(dec_str)),
                     crate::options::JsonNumberMode::Native => {
-                        if let Ok(num) = dec_str.parse::<f64>() {
-                            if let Some(n) = serde_json::Number::from_f64(num) {
-                                return Ok(Value::Number(n));
-                            }
+                        if let Ok(num) = dec_str.parse::<f64>()
+                            && let Some(n) = serde_json::Number::from_f64(num)
+                        {
+                            return Ok(Value::Number(n));
                         }
                         Ok(Value::String(dec_str))
                     }
@@ -237,10 +235,10 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
                 match options.json_number_mode {
                     crate::options::JsonNumberMode::Lossless => Ok(Value::String(dec_str)),
                     crate::options::JsonNumberMode::Native => {
-                        if let Ok(num) = dec_str.parse::<f64>() {
-                            if let Some(n) = serde_json::Number::from_f64(num) {
-                                return Ok(Value::Number(n));
-                            }
+                        if let Ok(num) = dec_str.parse::<f64>()
+                            && let Some(n) = serde_json::Number::from_f64(num)
+                        {
+                            return Ok(Value::Number(n));
                         }
                         Ok(Value::String(dec_str))
                     }
@@ -277,7 +275,10 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
             }
 
             let key = if field.name.eq_ignore_ascii_case("FILLER") {
-                format!("_filler_{:08}", field.offset + delta as u32)
+                format!(
+                    "_filler_{:08}",
+                    field.offset + u32::try_from(delta).expect("delta should fit in u32")
+                )
             } else {
                 field.name.clone()
             };
@@ -446,21 +447,20 @@ fn count_bwz_warnings(fields: &[Field], data: &[u8], options: &DecodeOptions, de
 /// Returns an error if the JSON data cannot be encoded according to the schema
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
     // Handle raw mode for round-trip encoding
-    if options.use_raw {
-        if let Some(raw_value) = json.get("__raw") {
-            if let Some(raw_str) = raw_value.as_str() {
-                // Decode base64-encoded raw data
-                use base64::Engine;
-                return base64::engine::general_purpose::STANDARD
-                    .decode(raw_str)
-                    .map_err(|e| {
-                        Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            format!("Failed to decode raw data: {e}"),
-                        )
-                    });
-            }
-        }
+    if options.use_raw
+        && let Some(raw_value) = json.get("__raw")
+        && let Some(raw_str) = raw_value.as_str()
+    {
+        // Decode base64-encoded raw data
+        use base64::Engine;
+        return base64::engine::general_purpose::STANDARD
+            .decode(raw_str)
+            .map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!("Failed to decode raw data: {e}"),
+                )
+            });
     }
 
     // Basic field-by-field encoding for non-raw mode

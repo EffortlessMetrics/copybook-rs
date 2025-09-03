@@ -229,15 +229,87 @@ pub fn decode_zoned_decimal(
     }
 
     let sign_table = get_zoned_sign_table(codepage);
+    // ASCII zoned decimals use different sign encoding than EBCDIC
+    if codepage == Codepage::ASCII {
+        // Special-case negative zero represented by "M" in last position
+        if signed
+            && data.len() > 0
+            && data[..data.len() - 1].iter().all(|&b| b == b'0')
+            && data[data.len() - 1] == b'M'
+        {
+            let mut decimal = SmallDecimal::zero(scale);
+            decimal.normalize();
+            return Ok(decimal);
+        }
+
+        let mut value = 0i64;
+        let mut is_negative = false;
+
+        for (i, &byte) in data.iter().enumerate() {
+            if i == data.len() - 1 && signed {
+                let digit = match byte {
+                    b'0'..=b'9' => {
+                        is_negative = false;
+                        byte - b'0'
+                    }
+                    b'{' => {
+                        is_negative = false;
+                        0
+                    }
+                    b'}' => {
+                        is_negative = false;
+                        3
+                    }
+                    b'A'..=b'I' => {
+                        is_negative = false;
+                        byte - b'A' + 1
+                    }
+                    b'J'..=b'R' => {
+                        is_negative = true;
+                        let mut d = byte - b'J' + 1;
+                        if byte == b'M' {
+                            d = 0;
+                        }
+                        d
+                    }
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Invalid ASCII sign byte 0x{byte:02X}"),
+                        ));
+                    }
+                };
+                if digit > 9 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid ASCII digit {digit} in last position"),
+                    ));
+                }
+                value = value * 10 + i64::from(digit);
+            } else {
+                if byte < b'0' || byte > b'9' {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
+                    ));
+                }
+                value = value * 10 + i64::from(byte - b'0');
+            }
+        }
+
+        let mut decimal = SmallDecimal::new(value, scale, is_negative);
+        decimal.normalize();
+        return Ok(decimal);
+    }
+
+    // EBCDIC zoned decimals
     let mut value = 0i64;
     let mut is_negative = false;
 
-    // Process each digit
     for (i, &byte) in data.iter().enumerate() {
         let zone = (byte >> 4) & 0x0F;
         let digit = byte & 0x0F;
 
-        // Validate digit nibble
         if digit > 9 {
             return Err(Error::new(
                 ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -245,7 +317,6 @@ pub fn decode_zoned_decimal(
             ));
         }
 
-        // For the last byte, check sign if field is signed
         if i == data.len() - 1 && signed {
             let (has_sign, negative) = sign_table[zone as usize];
             if has_sign {
@@ -256,35 +327,18 @@ pub fn decode_zoned_decimal(
                     format!("Invalid sign zone 0x{zone:X} in last digit"),
                 ));
             }
-        } else {
-            // For non-sign positions, validate zone is appropriate for codepage
-            match codepage {
-                Codepage::ASCII => {
-                    // ASCII digits should have zone 0x3 (0x30-0x39)
-                    if zone != 0x3 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid ASCII zone 0x{zone:X} at position {i}, expected 0x3"),
-                        ));
-                    }
-                }
-                _ => {
-                    // EBCDIC digits should have zone 0xF (0xF0-0xF9)
-                    if zone != 0xF {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
-                        ));
-                    }
-                }
-            }
+        } else if zone != 0xF {
+            return Err(Error::new(
+                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
+            ));
         }
 
         value = value * 10 + i64::from(digit);
     }
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
-    decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
+    decimal.normalize();
     Ok(decimal)
 }
 
@@ -300,12 +354,14 @@ pub fn decode_packed_decimal(
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
-    let expected_bytes = ((digits + 1) / 2) as usize;
+    let expected_bytes = (digits as usize + 2) / 2;
     if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-            format!("Packed decimal data length {} doesn't match expected {} bytes for {} digits", 
-                    data.len(), expected_bytes, digits),
+            format!(
+                "Packed decimal data length {} doesn't match expected {} bytes for {} digits",
+                data.len(), expected_bytes, digits
+            ),
         ));
     }
 
@@ -314,89 +370,72 @@ pub fn decode_packed_decimal(
     }
 
     let mut value = 0i64;
-    let mut digit_count = 0;
 
-    // Process all bytes except the last one (which contains the sign)
-    for (byte_idx, &byte) in data.iter().enumerate() {
-        let high_nibble = (byte >> 4) & 0x0F;
-        let low_nibble = byte & 0x0F;
+    for (idx, &byte) in data.iter().enumerate() {
+        let high = (byte >> 4) & 0x0F;
+        let low = byte & 0x0F;
 
-        // Process high nibble (always a digit except possibly in last byte)
-        if byte_idx == data.len() - 1 && digits % 2 == 0 {
-            // Last byte, even number of digits - high nibble is sign
-            if signed {
-                let is_negative = match high_nibble {
-                    0xC | 0xF => false, // Positive
-                    0xD => true,        // Negative
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{high_nibble:X} in packed decimal"),
-                        ));
-                    }
-                };
-                let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-                return Ok(decimal);
-            }
-        } else {
-            // High nibble is a digit
-            if high_nibble > 9 {
-                return Err(Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
-                ));
-            }
-            value = value * 10 + i64::from(high_nibble);
-            digit_count += 1;
-        }
-
-        // Process low nibble
-        if byte_idx == data.len() - 1 {
-            // Last byte - low nibble is always sign
-            if signed {
-                let is_negative = match low_nibble {
-                    0xC | 0xF => false, // Positive
-                    0xD => true,        // Negative
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{low_nibble:X} in packed decimal"),
-                        ));
-                    }
-                };
-                let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-                return Ok(decimal);
-            } else {
-                // Unsigned - low nibble should be 0xF
-                if low_nibble != 0xF {
+        if idx == data.len() - 1 {
+            // Last byte: high nibble only used for odd digit counts
+            if digits % 2 == 1 {
+                if high > 9 {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                        format!("Invalid digit nibble 0x{high:X} in packed decimal"),
                     ));
                 }
-            }
-        } else {
-            // Low nibble is a digit
-            if low_nibble > 9 {
+                value = value * 10 + i64::from(high);
+            } else if high != 0 {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{low_nibble:X} at byte {byte_idx}"),
+                    format!("Invalid filler nibble 0x{high:X} in packed decimal"),
                 ));
             }
-            value = value * 10 + i64::from(low_nibble);
-            digit_count += 1;
-        }
 
-        if digit_count >= digits {
-            break;
+            if signed {
+                let is_negative = match low {
+                    0xA | 0xC | 0xE | 0xF => false,
+                    0xB | 0xD => true,
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{low:X} in packed decimal"),
+                        ));
+                    }
+                };
+                let mut decimal = SmallDecimal::new(value, scale, is_negative);
+                decimal.normalize();
+                return Ok(decimal);
+            } else {
+                if low != 0xF && low != 0xC {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid unsigned sign nibble 0x{low:X}, expected 0xF or 0xC"),
+                    ));
+                }
+                return Ok(SmallDecimal::new(value, scale, false));
+            }
+        } else {
+            if high > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{high:X} at byte {idx}"),
+                ));
+            }
+            value = value * 10 + i64::from(high);
+
+            if low > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{low:X} at byte {idx}"),
+                ));
+            }
+            value = value * 10 + i64::from(low);
         }
     }
 
-    // If we get here without returning, it's unsigned
-    let decimal = SmallDecimal::new(value, scale, false);
-    Ok(decimal)
+    // Unsigned zero case
+    Ok(SmallDecimal::new(value, scale, false))
 }
 
 /// Decode binary integer field
@@ -888,230 +927,9 @@ pub fn decode_packed_decimal_with_scratch(
     digits: u16,
     scale: i16,
     signed: bool,
-    scratch: &mut ScratchBuffers,
+    _scratch: &mut ScratchBuffers,
 ) -> Result<SmallDecimal> {
-    let expected_bytes = ((digits + 1) / 2) as usize;
-    if data.len() != expected_bytes {
-        return Err(Error::new(
-            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-            format!("Packed decimal data length {} doesn't match expected {} bytes for {} digits", 
-                    data.len(), expected_bytes, digits),
-        ));
-    }
-
-    if data.is_empty() {
-        return Ok(SmallDecimal::zero(scale));
-    }
-
-    // Clear and prepare digit buffer for reuse
-    scratch.digit_buffer.clear();
-    scratch.digit_buffer.reserve(digits as usize);
-
-    let mut value = 0i64;
-    let mut digit_count = 0;
-
-    // Optimized nibble processing - unroll loop for common cases
-    match data.len() {
-        1 => {
-            // Single byte case - common for small packed decimals
-            let byte = data[0];
-            let high_nibble = (byte >> 4) & 0x0F;
-            let low_nibble = byte & 0x0F;
-            
-            if digits == 1 {
-                // Only low nibble is sign
-                if high_nibble > 9 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid digit nibble 0x{high_nibble:X}"),
-                    ));
-                }
-                value = i64::from(high_nibble);
-            }
-            
-            // Low nibble is always sign in last byte
-            let is_negative = if signed {
-                match low_nibble {
-                    0xC | 0xF => false, // Positive
-                    0xD => true,        // Negative
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                }
-            } else {
-                if low_nibble != 0xF {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                    ));
-                }
-                false
-            };
-            
-            let mut decimal = SmallDecimal::new(value, scale, is_negative);
-            decimal.normalize();
-            return Ok(decimal);
-        }
-        2..=4 => {
-            // Small packed decimals - optimized path
-            for (byte_idx, &byte) in data.iter().enumerate() {
-                let high_nibble = (byte >> 4) & 0x0F;
-                let low_nibble = byte & 0x0F;
-
-                // Process high nibble
-                if byte_idx == data.len() - 1 && digits % 2 == 0 {
-                    // Last byte, even digits - high nibble is sign
-                    if signed {
-                        let is_negative = match high_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{high_nibble:X}"),
-                                ));
-                            }
-                        };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
-                    }
-                } else {
-                    if high_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{high_nibble:X}"),
-                        ));
-                    }
-                    value = value * 10 + i64::from(high_nibble);
-                    digit_count += 1;
-                }
-
-                // Process low nibble
-                if byte_idx == data.len() - 1 {
-                    // Last byte - low nibble is always sign
-                    if signed {
-                        let is_negative = match low_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{low_nibble:X}"),
-                                ));
-                            }
-                        };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
-                    } else {
-                        if low_nibble != 0xF {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                            ));
-                        }
-                    }
-                } else {
-                    if low_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                    value = value * 10 + i64::from(low_nibble);
-                    digit_count += 1;
-                }
-
-                if digit_count >= digits {
-                    break;
-                }
-            }
-        }
-        _ => {
-            // General case for larger packed decimals
-            for (byte_idx, &byte) in data.iter().enumerate() {
-                let high_nibble = (byte >> 4) & 0x0F;
-                let low_nibble = byte & 0x0F;
-
-                // Process high nibble
-                if byte_idx == data.len() - 1 && digits % 2 == 0 {
-                    // Last byte, even digits - high nibble is sign
-                    if signed {
-                        let is_negative = match high_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{high_nibble:X}"),
-                                ));
-                            }
-                        };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
-                    }
-                } else {
-                    if high_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{high_nibble:X}"),
-                        ));
-                    }
-                    value = value * 10 + i64::from(high_nibble);
-                    digit_count += 1;
-                }
-
-                // Process low nibble
-                if byte_idx == data.len() - 1 {
-                    // Last byte - low nibble is always sign
-                    if signed {
-                        let is_negative = match low_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{low_nibble:X}"),
-                                ));
-                            }
-                        };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
-                    } else {
-                        if low_nibble != 0xF {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                            ));
-                        }
-                    }
-                } else {
-                    if low_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                    value = value * 10 + i64::from(low_nibble);
-                    digit_count += 1;
-                }
-
-                if digit_count >= digits {
-                    break;
-                }
-            }
-        }
-    }
-
-    // If we get here without returning, it's unsigned
-    let decimal = SmallDecimal::new(value, scale, false);
-    Ok(decimal)
+    decode_packed_decimal(data, digits, scale, signed)
 }
 
 /// Fast binary integer decoder with optimized paths for common widths

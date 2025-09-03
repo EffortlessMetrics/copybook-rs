@@ -317,7 +317,7 @@ impl<W: Write> JsonWriter<W> {
         
         self.json_buffer.push_str("\"__schema_id\":\"");
         // TODO: Implement schema fingerprinting
-        self.json_buffer.push_str("placeholder_fingerprint");
+        self.json_buffer.push_str(&schema.fingerprint);
         self.json_buffer.push('"');
 
         // Add record index

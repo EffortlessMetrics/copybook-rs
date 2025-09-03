@@ -509,7 +509,7 @@ mod tests {
         assert!(!processor.is_memory_pressure());
         
         // Simulate memory usage
-        processor.update_memory_usage(800 * 1024); // 800 KB
+        processor.update_memory_usage(900 * 1024); // 900 KB
         assert!(processor.is_memory_pressure()); // Should be over 80% threshold
         
         // Record processing

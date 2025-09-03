@@ -374,7 +374,7 @@ fn detect_format(input: &str) -> CobolFormat {
 }
 
 /// Preprocess lines according to the detected format
-fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine> {
+fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine<'_>> {
     let mut result = Vec::new();
 
     for (line_num, line) in input.lines().enumerate() {
@@ -389,7 +389,7 @@ fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine> {
 }
 
 /// Process a fixed-form COBOL line
-fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
+fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.is_empty() {
         return ProcessedLine {
             content: "",
@@ -429,7 +429,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
 }
 
 /// Process a free-form COBOL line
-fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine {
+fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
 
     // Check for comment lines (* at column 1 or *> anywhere)

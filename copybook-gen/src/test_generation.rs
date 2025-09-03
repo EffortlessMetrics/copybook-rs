@@ -4,7 +4,7 @@
 //! with all combinations of field types, edge cases, and validation scenarios.
 
 use crate::golden::{GoldenTest, GoldenTestSuite, TestConfig};
-use crate::{CopybookTemplate, CorruptionType, DataStrategy, GeneratorConfig};
+use crate::{CopybookTemplate, CorruptionType, GeneratorConfig};
 use std::collections::HashMap;
 
 /// Generate a complete test matrix covering all field type combinations

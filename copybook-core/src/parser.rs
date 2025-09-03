@@ -3,8 +3,6 @@
 //! This module implements the parsing logic for COBOL copybooks,
 //! including lexical analysis and AST construction.
 
-#![allow(dead_code)]
-
 use crate::error::ErrorCode;
 use crate::lexer::{CobolFormat, Lexer, Token, TokenPos};
 use crate::pic::PicClause;
@@ -60,20 +58,23 @@ impl Default for ParseOptions {
 struct Parser {
     tokens: Vec<TokenPos>,
     current: usize,
-    _format: CobolFormat,
+    #[allow(dead_code)]
+    format: CobolFormat,
     options: ParseOptions,
     /// Track field names at each level for duplicate detection
-    _name_counters: std::collections::HashMap<String, u32>,
+    #[allow(dead_code)]
+    name_counters: std::collections::HashMap<String, u32>,
 }
 
 impl Parser {
-    fn _new(tokens: Vec<TokenPos>, format: CobolFormat) -> Self {
+    #[allow(dead_code)]
+    fn new(tokens: Vec<TokenPos>, format: CobolFormat) -> Self {
         Self {
             tokens,
             current: 0,
-            _format: format,
+            format,
             options: ParseOptions::default(),
-            _name_counters: std::collections::HashMap::new(),
+            name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -81,9 +82,9 @@ impl Parser {
         Self {
             tokens,
             current: 0,
-            _format: format,
+            format,
             options,
-            _name_counters: std::collections::HashMap::new(),
+            name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -109,10 +110,10 @@ impl Parser {
         }
 
         // Build hierarchical structure from flat fields
-        let hierarchical_fields = self.build_hierarchy(flat_fields);
+        let hierarchical_fields = self.build_hierarchy(flat_fields)?;
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
-        Self::validate_structure(&hierarchical_fields)?;
+        self.validate_structure(&hierarchical_fields)?;
 
         // Create schema with fingerprint
         let mut schema = Schema::from_fields(hierarchical_fields);
@@ -126,9 +127,9 @@ impl Parser {
     }
 
     /// Build hierarchical structure from flat field list
-    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Vec<Field> {
+    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Result<Vec<Field>> {
         if flat_fields.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         // Handle duplicate names and FILLER fields
@@ -140,7 +141,7 @@ impl Parser {
 
         for mut field in flat_fields {
             // Set initial path
-            field.path.clone_from(&field.name);
+            field.path = field.name.clone();
 
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
@@ -188,7 +189,7 @@ impl Parser {
             }
         }
 
-        result
+        Ok(result)
     }
 
     /// Process field names for duplicates and FILLER handling
@@ -237,32 +238,32 @@ impl Parser {
             *count += 1;
 
             if *count > 1 {
-                fields[i].name = format!("{field_name}__dup{count}");
+                fields[i].name = format!("{}__dup{}", field_name, count);
             }
         }
     }
 
     /// Build hierarchical paths for all fields (simplified)
-    #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
-    fn _build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
+    #[allow(dead_code)]
+    fn build_field_paths(&mut self, _fields: &mut [Field]) -> Result<()> {
         // Simplified for now - paths are set in build_hierarchy
         Ok(())
     }
 
     /// Validate the parsed structure
-    fn validate_structure(fields: &[Field]) -> Result<()> {
+    fn validate_structure(&self, fields: &[Field]) -> Result<()> {
         // Validate REDEFINES targets
-        Self::validate_redefines(fields)?;
+        self.validate_redefines(fields)?;
 
         // Validate ODO constraints
-        Self::validate_odo_constraints(fields)?;
+        self.validate_odo_constraints(fields)?;
 
         Ok(())
     }
 
     /// Validate REDEFINES relationships
-    fn validate_redefines(fields: &[Field]) -> Result<()> {
-        let all_fields = Self::collect_all_fields(fields);
+    fn validate_redefines(&self, fields: &[Field]) -> Result<()> {
+        let all_fields = self.collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(ref target) = field.redefines_of {
@@ -287,8 +288,8 @@ impl Parser {
     }
 
     /// Validate ODO constraints
-    fn validate_odo_constraints(fields: &[Field]) -> Result<()> {
-        let all_fields = Self::collect_all_fields(fields);
+    fn validate_odo_constraints(&self, fields: &[Field]) -> Result<()> {
+        let all_fields = self.collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
@@ -309,7 +310,7 @@ impl Parser {
 
                 // Validate that ODO array is at tail position
                 // This is a simplified check - full validation would require layout resolution
-                if !Self::is_odo_at_tail(field, &all_fields) {
+                if !self.is_odo_at_tail(field, &all_fields) {
                     return Err(Error::new(
                         ErrorCode::CBKP021_ODO_NOT_TAIL,
                         format!(
@@ -325,7 +326,8 @@ impl Parser {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                             format!(
-                                "ODO counter '{counter_path}' cannot be inside a REDEFINES region"
+                                "ODO counter '{}' cannot be inside a REDEFINES region",
+                                counter_path
                             ),
                         ));
                     }
@@ -333,7 +335,10 @@ impl Parser {
                     if counter.occurs.is_some() {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!("ODO counter '{counter_path}' cannot be inside an ODO region"),
+                            format!(
+                                "ODO counter '{}' cannot be inside an ODO region",
+                                counter_path
+                            ),
                         ));
                     }
                 }
@@ -344,24 +349,43 @@ impl Parser {
     }
 
     /// Check if ODO array is at tail position (simplified check)
-    fn is_odo_at_tail(_odo_field: &Field, _all_fields: &[&Field]) -> bool {
+    fn is_odo_at_tail(&self, _odo_field: &Field, _all_fields: &[&Field]) -> bool {
         // This is a simplified implementation
         // Full validation would require layout resolution to check byte positions
         true
     }
 
-    /// Collect all fields in a flat list
-    fn collect_all_fields(fields: &[Field]) -> Vec<&Field> {
-        fn visit<'a>(fields: &'a [Field], acc: &mut Vec<&'a Field>) {
-            for field in fields {
-                acc.push(field);
-                visit(&field.children, acc);
-            }
+    /// Collect all fields in a flat list with recursion depth limit
+    fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
+        const MAX_DEPTH: u8 = 100; // Reasonable limit for COBOL hierarchy depth
+        let mut result = Vec::new();
+        self.collect_all_fields_with_depth(fields, &mut result, 0, MAX_DEPTH);
+        result
+    }
+
+    /// Collect all fields recursively with depth limit
+    fn collect_all_fields_with_depth<'a>(
+        &self,
+        fields: &'a [Field],
+        result: &mut Vec<&'a Field>,
+        current_depth: u8,
+        max_depth: u8,
+    ) {
+        if current_depth >= max_depth {
+            return; // Prevent infinite recursion
         }
 
-        let mut result = Vec::new();
-        visit(fields, &mut result);
-        result
+        for field in fields {
+            result.push(field);
+            if !field.children.is_empty() {
+                self.collect_all_fields_with_depth(
+                    &field.children,
+                    result,
+                    current_depth + 1,
+                    max_depth,
+                );
+            }
+        }
     }
 
     /// Calculate schema fingerprint using SHA-256
@@ -377,10 +401,11 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update([u8::from(self.options.emit_filler)]);
+        hasher.update(&[if self.options.emit_filler { 1 } else { 0 }]);
+
         // Compute final hash
         let result = hasher.finalize();
-        schema.fingerprint = format!("{result:x}");
+        schema.fingerprint = format!("{:x}", result);
     }
 
     /// Create canonical JSON representation of schema for fingerprinting
@@ -428,7 +453,6 @@ impl Parser {
     }
 
     /// Convert field to canonical JSON for fingerprinting
-    #[allow(clippy::only_used_in_recursion)]
     fn field_to_canonical_json(&self, field: &Field) -> Value {
         use serde_json::{Map, Value};
 
@@ -441,23 +465,23 @@ impl Parser {
 
         // Add field kind
         let kind_str = match &field.kind {
-            FieldKind::Alphanum { len } => format!("Alphanum({len})"),
+            FieldKind::Alphanum { len } => format!("Alphanum({})", len),
             FieldKind::ZonedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                format!("ZonedDecimal({digits},{scale},{signed})")
+                format!("ZonedDecimal({},{},{})", digits, scale, signed)
             }
             FieldKind::BinaryInt { bits, signed } => {
-                format!("BinaryInt({bits},{signed})")
+                format!("BinaryInt({},{})", bits, signed)
             }
             FieldKind::PackedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                format!("PackedDecimal({digits},{scale},{signed})")
+                format!("PackedDecimal({},{},{})", digits, scale, signed)
             }
             FieldKind::Group => "Group".to_string(),
         };
@@ -470,13 +494,13 @@ impl Parser {
 
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
-                Occurs::Fixed { count } => format!("Fixed({count})"),
+                Occurs::Fixed { count } => format!("Fixed({})", count),
                 Occurs::ODO {
                     min,
                     max,
                     counter_path,
                 } => {
-                    format!("ODO({min},{max},{counter_path})")
+                    format!("ODO({},{},{})", min, max, counter_path)
                 }
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));
@@ -540,7 +564,7 @@ impl Parser {
                 return Ok(None);
             }
             _ => {
-                // Skip unexpected token to avoid infinite loop
+                // Skip unexpected tokens to prevent infinite loops
                 if !self.is_at_end() {
                     self.advance();
                 }
@@ -561,7 +585,7 @@ impl Parser {
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
-                    format!("Expected field name after level {level}"),
+                    format!("Expected field name after level {}", level),
                 ));
             }
         };
@@ -632,7 +656,7 @@ impl Parser {
                 ..
             }) => {
                 // Skip VALUE clauses (metadata only)
-                self.skip_value_clause();
+                self.skip_value_clause()?;
             }
             Some(TokenPos {
                 token: Token::Blank,
@@ -661,7 +685,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                Self::convert_to_packed_field(field)?;
+                self.convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -698,7 +722,7 @@ impl Parser {
             }) => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("Edited PIC not supported: {pic}"),
+                    format!("Edited PIC not supported: {}", pic),
                 ));
             }
             Some(TokenPos {
@@ -733,7 +757,7 @@ impl Parser {
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {
-                len: u32::from(pic.digits),
+                len: pic.digits as u32,
             },
             crate::pic::PicKind::NumericDisplay => FieldKind::ZonedDecimal {
                 digits: pic.digits,
@@ -772,7 +796,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                Self::convert_to_packed_field(field)?;
+                self.convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -898,7 +922,7 @@ impl Parser {
     }
 
     /// Skip VALUE clause (not needed for layout)
-    fn skip_value_clause(&mut self) {
+    fn skip_value_clause(&mut self) -> Result<()> {
         self.advance(); // consume VALUE
 
         // Skip until we find a keyword or period
@@ -908,6 +932,8 @@ impl Parser {
             }
             self.advance();
         }
+
+        Ok(())
     }
 
     /// Convert numeric field to binary with optional explicit width
@@ -932,7 +958,8 @@ impl Parser {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
                                 format!(
-                                    "Invalid binary width: {bytes}. Only 1, 2, 4, 8 are supported"
+                                    "Invalid binary width: {}. Only 1, 2, 4, 8 are supported",
+                                    bytes
                                 ),
                             ));
                         }
@@ -971,7 +998,7 @@ impl Parser {
                         _ => {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
-                                format!("Binary field with {digits} digits not supported"),
+                                format!("Binary field with {} digits not supported", digits),
                             ));
                         }
                     }
@@ -993,7 +1020,8 @@ impl Parser {
     }
 
     /// Convert numeric field to binary (legacy version)
-    fn convert_to_binary_field(field: &mut Field) -> Result<()> {
+    #[allow(dead_code)]
+    fn convert_to_binary_field(&mut self, field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
                 let bits = match digits {
@@ -1003,7 +1031,7 @@ impl Parser {
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("Binary field with {digits} digits not supported"),
+                            format!("Binary field with {} digits not supported", digits),
                         ));
                     }
                 };
@@ -1024,7 +1052,7 @@ impl Parser {
     }
 
     /// Convert numeric field to packed decimal
-    fn convert_to_packed_field(field: &mut Field) -> Result<()> {
+    fn convert_to_packed_field(&mut self, field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal {
                 digits,

@@ -51,10 +51,11 @@ pub async fn run(
     let summary = {
         let mut result_summary = None;
         atomic_write(&output, |output_writer| {
-            let input_file = fs::File::open(&input).map_err(std::io::Error::other)?;
+            let input_file = fs::File::open(&input)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             let summary =
                 copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
-                    .map_err(std::io::Error::other)?;
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             result_summary = Some(summary);
             Ok(())
         })?;

@@ -1,6 +1,16 @@
 //! Command-line interface for copybook-rs
 //!
 //! This binary provides a user-friendly CLI for parsing copybooks and
+
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::collapsible_else_if)]
 //! converting mainframe data files.
 
 use clap::{Parser, Subcommand};

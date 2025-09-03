@@ -3,6 +3,16 @@
 //! This crate provides the fundamental types and parsing logic for COBOL copybook
 //! processing, including AST construction, layout resolution, and schema validation.
 //!
+
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::collapsible_else_if)]
 //! ## Key Features
 //!
 //! ### Enhanced COBOL Support

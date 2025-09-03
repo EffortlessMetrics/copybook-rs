@@ -58,7 +58,8 @@ impl Default for TestConfig {
 
 impl GoldenTest {
     /// Create a new golden test
-    #[must_use] pub fn new(name: &str, copybook: &str, data: &[u8]) -> Self {
+    #[must_use]
+    pub fn new(name: &str, copybook: &str, data: &[u8]) -> Self {
         let input_hash = Self::hash_bytes(data);
 
         Self {
@@ -76,7 +77,8 @@ impl GoldenTest {
     }
 
     /// Create a golden test with specific configuration
-    #[must_use] pub fn new_with_config(name: &str, copybook: &str, data: &[u8], config: TestConfig) -> Self {
+    #[must_use]
+    pub fn new_with_config(name: &str, copybook: &str, data: &[u8], config: TestConfig) -> Self {
         let input_hash = Self::hash_bytes(data);
 
         Self {
@@ -94,19 +96,22 @@ impl GoldenTest {
     }
 
     /// Calculate SHA-256 hash of bytes
-    #[must_use] pub fn hash_bytes(data: &[u8]) -> String {
+    #[must_use]
+    pub fn hash_bytes(data: &[u8]) -> String {
         let mut hasher = Sha256::new();
         hasher.update(data);
         format!("{:x}", hasher.finalize())
     }
 
     /// Calculate SHA-256 hash of string
-    #[must_use] pub fn hash_string(data: &str) -> String {
+    #[must_use]
+    pub fn hash_string(data: &str) -> String {
         Self::hash_bytes(data.as_bytes())
     }
 
     /// Validate output against expected hash
-    #[must_use] pub fn validate_output(&self, output_type: &str, output: &[u8]) -> bool {
+    #[must_use]
+    pub fn validate_output(&self, output_type: &str, output: &[u8]) -> bool {
         if let Some(expected_hash) = self.expected_outputs.get(output_type) {
             let actual_hash = Self::hash_bytes(output);
             actual_hash == *expected_hash
@@ -116,7 +121,8 @@ impl GoldenTest {
     }
 
     /// Validate string output against expected hash
-    #[must_use] pub fn validate_string_output(&self, output_type: &str, output: &str) -> bool {
+    #[must_use]
+    pub fn validate_string_output(&self, output_type: &str, output: &str) -> bool {
         if let Some(expected_hash) = self.expected_outputs.get(output_type) {
             let actual_hash = Self::hash_string(output);
             actual_hash == *expected_hash
@@ -145,7 +151,8 @@ impl GoldenTest {
     }
 
     /// Check if test has a specific tag
-    #[must_use] pub fn has_tag(&self, tag: &str) -> bool {
+    #[must_use]
+    pub fn has_tag(&self, tag: &str) -> bool {
         self.metadata.tags.contains(&tag.to_string())
     }
 }
@@ -178,7 +185,8 @@ pub struct SuiteMetadata {
 
 impl GoldenTestSuite {
     /// Create a new test suite
-    #[must_use] pub fn new(name: &str, description: &str) -> Self {
+    #[must_use]
+    pub fn new(name: &str, description: &str) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
 
         Self {
@@ -201,7 +209,8 @@ impl GoldenTestSuite {
     }
 
     /// Find a test by name
-    #[must_use] pub fn find_test(&self, name: &str) -> Option<&GoldenTest> {
+    #[must_use]
+    pub fn find_test(&self, name: &str) -> Option<&GoldenTest> {
         self.tests.iter().find(|t| t.name == name)
     }
 
@@ -211,12 +220,14 @@ impl GoldenTestSuite {
     }
 
     /// Get tests by tag
-    #[must_use] pub fn tests_by_tag(&self, tag: &str) -> Vec<&GoldenTest> {
+    #[must_use]
+    pub fn tests_by_tag(&self, tag: &str) -> Vec<&GoldenTest> {
         self.tests.iter().filter(|t| t.has_tag(tag)).collect()
     }
 
     /// Validate all tests
-    #[must_use] pub fn validate_all(&self) -> ValidationResult {
+    #[must_use]
+    pub fn validate_all(&self) -> ValidationResult {
         let mut result = ValidationResult::new();
 
         for test in &self.tests {
@@ -260,7 +271,8 @@ pub struct TestResult {
 
 impl ValidationResult {
     /// Create a new validation result
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             results: HashMap::new(),
             success: true,
@@ -284,7 +296,8 @@ impl ValidationResult {
     }
 
     /// Get summary statistics
-    #[must_use] pub fn summary(&self) -> (usize, usize, usize) {
+    #[must_use]
+    pub fn summary(&self) -> (usize, usize, usize) {
         let total = self.results.len();
         let passed = self.results.values().filter(|r| r.passed).count();
         let failed = total - passed;
@@ -300,7 +313,8 @@ impl Default for ValidationResult {
 }
 
 /// Generate comprehensive golden test suite
-#[must_use] pub fn generate_comprehensive_suite() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_comprehensive_suite() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "comprehensive_copybook_tests",
         "Comprehensive test suite for copybook-rs functionality",
@@ -320,7 +334,8 @@ impl Default for ValidationResult {
 }
 
 /// Performance test suite for throughput validation
-#[must_use] pub fn generate_performance_suite() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_performance_suite() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new("performance_tests", "Performance validation test suite");
 
     suite.metadata.tags.extend_from_slice(&[
@@ -333,7 +348,8 @@ impl Default for ValidationResult {
 }
 
 /// Negative test suite for error handling validation
-#[must_use] pub fn generate_negative_test_suite() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_negative_test_suite() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "negative_tests",
         "Negative test cases for error handling validation",

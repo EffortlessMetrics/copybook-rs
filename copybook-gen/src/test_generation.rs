@@ -8,7 +8,8 @@ use crate::{CopybookTemplate, CorruptionType, GeneratorConfig};
 use std::collections::HashMap;
 
 /// Generate a complete test matrix covering all field type combinations
-#[must_use] pub fn generate_field_type_matrix() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_field_type_matrix() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "field_type_matrix",
         "Comprehensive test matrix for all field type combinations",
@@ -43,7 +44,8 @@ use std::collections::HashMap;
 }
 
 /// Generate edge case test suite
-#[must_use] pub fn generate_edge_case_suite() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_edge_case_suite() -> GoldenTestSuite {
     let mut suite =
         GoldenTestSuite::new("edge_cases", "Edge case test suite for boundary conditions");
 
@@ -75,7 +77,8 @@ use std::collections::HashMap;
 }
 
 /// Generate performance test datasets
-#[must_use] pub fn generate_performance_datasets() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_performance_datasets() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "performance_datasets",
         "Performance test datasets for throughput validation",
@@ -114,7 +117,8 @@ use std::collections::HashMap;
 }
 
 /// Generate negative test cases
-#[must_use] pub fn generate_negative_test_cases() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_negative_test_cases() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "negative_tests",
         "Negative test cases for error handling validation",
@@ -141,7 +145,8 @@ use std::collections::HashMap;
 }
 
 /// Generate corruption test cases
-#[must_use] pub fn generate_corruption_test_cases() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_corruption_test_cases() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new("corruption_tests", "Data corruption test cases");
 
     let config = GeneratorConfig {
@@ -181,7 +186,8 @@ use std::collections::HashMap;
 }
 
 /// Generate codepage test matrix
-#[must_use] pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "codepage_matrix",
         "Test matrix for different codepage configurations",
@@ -223,7 +229,8 @@ use std::collections::HashMap;
 }
 
 /// Generate round-trip fidelity tests
-#[must_use] pub fn generate_round_trip_tests() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_round_trip_tests() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "round_trip_fidelity",
         "Round-trip fidelity validation tests",
@@ -271,7 +278,8 @@ use std::collections::HashMap;
 }
 
 /// Generate determinism validation tests
-#[must_use] pub fn generate_determinism_tests() -> GoldenTestSuite {
+#[must_use]
+pub fn generate_determinism_tests() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "determinism_validation",
         "Deterministic output validation tests",
@@ -312,7 +320,8 @@ use std::collections::HashMap;
 }
 
 /// Generate the complete comprehensive test suite
-#[must_use] pub fn generate_complete_test_suite() -> Vec<GoldenTestSuite> {
+#[must_use]
+pub fn generate_complete_test_suite() -> Vec<GoldenTestSuite> {
     vec![
         generate_field_type_matrix(),
         generate_edge_case_suite(),
@@ -334,7 +343,8 @@ pub struct TestSuiteStats {
 }
 
 /// Calculate statistics for test suites
-#[must_use] pub fn calculate_suite_stats(suites: &[GoldenTestSuite]) -> TestSuiteStats {
+#[must_use]
+pub fn calculate_suite_stats(suites: &[GoldenTestSuite]) -> TestSuiteStats {
     let mut stats = TestSuiteStats {
         total_suites: suites.len(),
         total_tests: 0,

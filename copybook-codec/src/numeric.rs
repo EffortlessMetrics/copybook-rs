@@ -28,7 +28,8 @@ pub struct SmallDecimal {
 
 impl SmallDecimal {
     /// Create a new `SmallDecimal`
-    #[must_use] pub fn new(value: i64, scale: i16, negative: bool) -> Self {
+    #[must_use]
+    pub fn new(value: i64, scale: i16, negative: bool) -> Self {
         Self {
             value,
             scale,
@@ -37,7 +38,8 @@ impl SmallDecimal {
     }
 
     /// Create a zero value with the given scale
-    #[must_use] pub fn zero(scale: i16) -> Self {
+    #[must_use]
+    pub fn zero(scale: i16) -> Self {
         Self {
             value: 0,
             scale,
@@ -88,9 +90,9 @@ impl SmallDecimal {
     }
 
     /// Parse from string with validation
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the string cannot be parsed as a decimal number
     pub fn from_str(s: &str, expected_scale: i16) -> Result<Self> {
         let s = s.trim();
@@ -162,7 +164,8 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
-    #[must_use] pub fn to_fixed_scale_string(&self, scale: i16) -> String {
+    #[must_use]
+    pub fn to_fixed_scale_string(&self, scale: i16) -> String {
         let mut result = String::new();
 
         if self.negative && self.value != 0 {
@@ -196,17 +199,20 @@ impl SmallDecimal {
     }
 
     /// Get the scale of this decimal
-    #[must_use] pub fn scale(&self) -> i16 {
+    #[must_use]
+    pub fn scale(&self) -> i16 {
         self.scale
     }
 
     /// Check if this decimal is negative
-    #[must_use] pub fn is_negative(&self) -> bool {
+    #[must_use]
+    pub fn is_negative(&self) -> bool {
         self.negative && self.value != 0
     }
 
     /// Get the total number of digits in this decimal
-    #[must_use] pub fn total_digits(&self) -> u16 {
+    #[must_use]
+    pub fn total_digits(&self) -> u16 {
         if self.value == 0 {
             return 1;
         }
@@ -568,7 +574,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
             if signed {
-                Ok(i64::from(i32::from_be_bytes([data[0], data[1], data[2], data[3]])))
+                Ok(i64::from(i32::from_be_bytes([
+                    data[0], data[1], data[2], data[3],
+                ])))
             } else {
                 Ok(i64::from(value))
             }
@@ -896,9 +904,9 @@ pub fn encode_zoned_decimal_with_bwz(
 #[must_use]
 pub fn get_binary_width_from_digits(digits: u16) -> u16 {
     match digits {
-        1..=4 => 16,   // 2 bytes
-        5..=9 => 32,   // 4 bytes
-        _ => 64,       // 8 bytes for 10+ digits
+        1..=4 => 16, // 2 bytes
+        5..=9 => 32, // 4 bytes
+        _ => 64,     // 8 bytes for 10+ digits
     }
 }
 
@@ -1079,10 +1087,12 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
                 Ok(i64::from_be_bytes(bytes))
             } else {
                 let value = u64::from_be_bytes(bytes);
-                value.try_into().map_err(|_| Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
-                ))
+                value.try_into().map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
+                    )
+                })
             }
         }
         _ => {

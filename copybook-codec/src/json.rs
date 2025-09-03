@@ -112,7 +112,7 @@ impl<W: Write> JsonWriter<W> {
         
         // Add raw data if requested
         if matches!(self.options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
-            self.write_raw_data_streaming(&mut first_field, record_data)?;
+            self.write_raw_data_streaming(record_data, &mut first_field)?;
         }
         
         self.json_buffer.push('}');
@@ -195,7 +195,7 @@ impl<W: Write> JsonWriter<W> {
         let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
         
         // Convert to UTF-8
-        let text = crate::charset::ebcdic_to_utf8(field_data, self.options.codepage)?;
+        let text = crate::charset::ebcdic_to_utf8(field_data, self.options.codepage, crate::options::UnmappablePolicy::Error)?;
         
         // Write as JSON string with proper escaping
         self.json_buffer.push('"');
@@ -279,7 +279,7 @@ impl<W: Write> JsonWriter<W> {
         let value = crate::numeric::decode_binary_int_fast(field_data, bits, signed)?;
 
         // Write as JSON number (up to 64-bit) or string for larger values
-        match self.options.json_number {
+        match self.options.json_number_mode {
             JsonNumberMode::Lossless => {
                 // Always use strings for lossless representation
                 self.json_buffer.push('"');
@@ -741,7 +741,7 @@ impl<W: Write> JsonWriter<W> {
 
     /// Write scalar field value directly to JSON string buffer
     fn write_scalar_field_streaming(
-        &self,
+        &mut self,
         field: &Field,
         record_data: &[u8],
         _record_index: u64,

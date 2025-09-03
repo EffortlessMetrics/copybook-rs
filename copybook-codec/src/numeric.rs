@@ -4,7 +4,6 @@
 //! packed decimal, and binary integer types.
 
 use crate::charset::get_zoned_sign_table;
-use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::Write;
@@ -317,21 +316,69 @@ pub fn decode_zoned_decimal(
             ));
         }
 
+        // Validate digit for current zone
+        if codepage == Codepage::ASCII {
+            let expected_zone = if i == data.len() - 1 && signed {
+                // Sign zones are allowed on last digit
+                // Will be validated by sign table
+                true
+            } else {
+                // Non-sign digits must be in standard zone 0x3
+                zone == 0x3
+            };
+
+            if !expected_zone {
+                return Err(Error::new(
+                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                    format!("Invalid ASCII zone 0x{zone:X} at position {i}"),
+                ));
+            }
+        } else {
+            // EBCDIC digits should have zone 0xF (0xF0-0xF9)
+            if zone != 0xF && !(i == data.len() - 1 && signed) {
+                return Err(Error::new(
+                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                    format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
+                ));
+            }
+        }
+
+        // For the last byte with signed field, handle sign zone
         if i == data.len() - 1 && signed {
             let (has_sign, negative) = sign_table[zone as usize];
             if has_sign {
                 is_negative = negative;
+                // Adjust final digit if ASCII overpunch
+                if codepage == Codepage::ASCII {
+                    digit = match zone {
+                        0x0 => 0,  // '{' overpunch
+                        0x1 => 1,  // 'A' overpunch
+                        0x2 => 2,  // 'B' overpunch
+                        0x3 => 3,  // '}' overpunch
+                        0x4 => 4,  // 'D' overpunch
+                        0x5 => 5,  // 'E' overpunch
+                        0x6 => 6,  // 'F' overpunch
+                        0x7 => 7,  // 'G' overpunch
+                        0x8 => 0,  // 'H' overpunch
+                        0x9 => 1,  // 'I' overpunch
+                        0xA => 2,  // 'J' overpunch
+                        0xB => 3,  // 'K' overpunch
+                        0xC => 4,  // 'L' overpunch
+                        0xD => 5,  // 'M' overpunch
+                        0xE => 6,  // 'N' overpunch
+                        0xF => 7,  // 'O' overpunch
+                        _ => return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Unexpected ASCII overpunch zone 0x{zone:X}"),
+                        )),
+                    };
+                }
             } else {
                 return Err(Error::new(
                     ErrorCode::CBKD411_ZONED_BAD_SIGN,
                     format!("Invalid sign zone 0x{zone:X} in last digit"),
                 ));
             }
-        } else if zone != 0xF {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
-            ));
         }
 
         value = value * 10 + i64::from(digit);

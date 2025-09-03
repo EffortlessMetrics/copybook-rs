@@ -151,7 +151,7 @@ impl fmt::Display for RunSummary {
             writeln!(
                 f,
                 "  Peak memory: {:.2} MB",
-                peak_memory as f64 / (1024.0 * 1024.0)
+                f64::from(peak_memory.min(u32::MAX as u64) as u32) / (1024.0 * 1024.0)
             )?;
         }
         if !self.schema_fingerprint.is_empty() {
@@ -192,8 +192,10 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 fn decode_field(
     field: &copybook_core::Field,
     data: &[u8],
-    _options: &DecodeOptions,
+    options: &DecodeOptions,
 ) -> Result<Value> {
+    use copybook_core::FieldKind;
+    
     // Check bounds
     let field_start = field.offset as usize;
     let field_end = field_start + field.len as usize;
@@ -206,8 +208,6 @@ fn decode_field(
     }
 
     let field_data = &data[field_start..field_end];
-
-    use copybook_core::FieldKind;
     match &field.kind {
         FieldKind::Alphanum { .. } => {
             // Simple ASCII conversion for now
@@ -220,7 +220,7 @@ fn decode_field(
             signed,
         } => {
             // Simple zoned decimal decoding
-            decode_zoned_decimal_simple(field_data, *digits, *scale, *signed)
+            Ok(decode_zoned_decimal_simple(field_data, *digits, *scale, *signed))
         }
         FieldKind::PackedDecimal {
             digits,
@@ -228,17 +228,17 @@ fn decode_field(
             signed,
         } => {
             // Simple packed decimal decoding
-            decode_packed_decimal_simple(field_data, *digits, *scale, *signed)
+            Ok(decode_packed_decimal_simple(field_data, *digits, *scale, *signed))
         }
         FieldKind::BinaryInt { bits, signed } => {
             // Simple binary integer decoding
-            decode_binary_int_simple(field_data, *bits, *signed)
+            Ok(decode_binary_int_simple(field_data, *bits, *signed))
         }
         FieldKind::Group => {
             // For groups, recursively decode children
             let mut group_obj = serde_json::Map::new();
             for child_field in &field.children {
-                if let Ok(child_value) = decode_field(child_field, data, _options) {
+                if let Ok(child_value) = decode_field(child_field, data, options) {
                     group_obj.insert(child_field.name.clone(), child_value);
                 }
             }
@@ -253,9 +253,9 @@ fn decode_zoned_decimal_simple(
     _digits: u16,
     _scale: i16,
     signed: bool,
-) -> Result<Value> {
+) -> Value {
     if data.is_empty() {
-        return Ok(Value::String("0".to_string()));
+        return Value::String("0".to_string());
     }
 
     // Basic zoned decimal: digits in zones, sign in last byte for signed fields
@@ -280,18 +280,15 @@ fn decode_zoned_decimal_simple(
         // Handle ASCII overpunch characters (for ASCII codepage)
         match last_byte {
             // Positive ASCII overpunch: A-I = +1 to +9, } = +0 (but that's wrong, should be +3)
-            b'}' => {
+            b'}' | b'C' => {
                 result.push('3');
-            } // } = +3
+            } // } = +3, C = +3
             b'A' => {
                 result.push('1');
             } // A = +1
             b'B' => {
                 result.push('2');
             } // B = +2
-            b'C' => {
-                result.push('3');
-            } // C = +3
             b'D' => {
                 result.push('4');
             } // D = +4
@@ -379,12 +376,12 @@ fn decode_zoned_decimal_simple(
     let final_result = if trimmed.is_empty() { "0" } else { trimmed };
 
     let final_string = if is_negative && final_result != "0" {
-        format!("-{}", final_result)
+        format!("-{final_result}")
     } else {
         final_result.to_string()
     };
 
-    Ok(Value::String(final_string))
+    Value::String(final_string)
 }
 
 /// Simple packed decimal decoder for basic functionality
@@ -393,9 +390,9 @@ fn decode_packed_decimal_simple(
     _digits: u16,
     _scale: i16,
     signed: bool,
-) -> Result<Value> {
+) -> Value {
     if data.is_empty() {
-        return Ok(Value::String("0".to_string()));
+        return Value::String("0".to_string());
     }
 
     let mut result = String::new();
@@ -436,18 +433,18 @@ fn decode_packed_decimal_simple(
     let final_result = if trimmed.is_empty() { "0" } else { trimmed };
 
     let final_string = if is_negative && final_result != "0" {
-        format!("-{}", final_result)
+        format!("-{final_result}")
     } else {
         final_result.to_string()
     };
 
-    Ok(Value::String(final_string))
+    Value::String(final_string)
 }
 
 /// Simple binary integer decoder for basic functionality
-fn decode_binary_int_simple(data: &[u8], bits: u16, signed: bool) -> Result<Value> {
+fn decode_binary_int_simple(data: &[u8], bits: u16, signed: bool) -> Value {
     if data.is_empty() {
-        return Ok(Value::String("0".to_string()));
+        return Value::String("0".to_string());
     }
 
     match bits {
@@ -455,26 +452,26 @@ fn decode_binary_int_simple(data: &[u8], bits: u16, signed: bool) -> Result<Valu
             if data.len() >= 2 {
                 let value = u16::from_be_bytes([data[0], data[1]]);
                 let result = if signed {
-                    (value as i16).to_string()
+                    i16::try_from(value).map_or_else(|_| "0".to_string(), |v| v.to_string())
                 } else {
                     value.to_string()
                 };
-                Ok(Value::String(result))
+                Value::String(result)
             } else {
-                Ok(Value::String("0".to_string()))
+                Value::String("0".to_string())
             }
         }
         32 => {
             if data.len() >= 4 {
                 let value = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
                 let result = if signed {
-                    (value as i32).to_string()
+                    i32::try_from(value).map_or_else(|_| "0".to_string(), |v| v.to_string())
                 } else {
                     value.to_string()
                 };
-                Ok(Value::String(result))
+                Value::String(result)
             } else {
-                Ok(Value::String("0".to_string()))
+                Value::String("0".to_string())
             }
         }
         64 => {
@@ -483,18 +480,18 @@ fn decode_binary_int_simple(data: &[u8], bits: u16, signed: bool) -> Result<Valu
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 let result = if signed {
-                    (value as i64).to_string()
+                    i64::try_from(value).map_or_else(|_| "0".to_string(), |v| v.to_string())
                 } else {
                     value.to_string()
                 };
-                Ok(Value::String(result))
+                Value::String(result)
             } else {
-                Ok(Value::String("0".to_string()))
+                Value::String("0".to_string())
             }
         }
         _ => {
             // Unsupported bit width, return 0
-            Ok(Value::String("0".to_string()))
+            Value::String("0".to_string())
         }
     }
 }
@@ -593,14 +590,14 @@ pub fn decode_file_to_jsonl(
     }
 
     summary.records_processed = record_count.saturating_sub(summary.records_with_errors);
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
+    summary.processing_time_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
-    summary.schema_fingerprint = if !schema.fingerprint.is_empty() {
-        schema.fingerprint.clone()
-    } else {
+    summary.schema_fingerprint = if schema.fingerprint.is_empty() {
         let mut s = schema.clone();
         s.calculate_fingerprint();
         s.fingerprint
+    } else {
+        schema.fingerprint.clone()
     };
     Ok(summary)
 }
@@ -644,32 +641,29 @@ pub fn encode_jsonl_to_file(
             .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
 
         // Encode to binary
-        match encode_record(schema, &json_value, options) {
-            Ok(binary_data) => {
-                output
-                    .write_all(&binary_data)
-                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                summary.bytes_processed += binary_data.len() as u64;
-            }
-            Err(_) => {
-                summary.records_with_errors += 1;
-                // In lenient mode, continue processing
-                if options.strict_mode {
-                    break;
-                }
+        if let Ok(binary_data) = encode_record(schema, &json_value, options) {
+            output
+                .write_all(&binary_data)
+                .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+            summary.bytes_processed += binary_data.len() as u64;
+        } else {
+            summary.records_with_errors += 1;
+            // In lenient mode, continue processing
+            if options.strict_mode {
+                break;
             }
         }
     }
 
     summary.records_processed = record_count.saturating_sub(summary.records_with_errors);
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
+    summary.processing_time_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
-    summary.schema_fingerprint = if !schema.fingerprint.is_empty() {
-        schema.fingerprint.clone()
-    } else {
+    summary.schema_fingerprint = if schema.fingerprint.is_empty() {
         let mut s = schema.clone();
         s.calculate_fingerprint();
         s.fingerprint
+    } else {
+        schema.fingerprint.clone()
     };
     Ok(summary)
 }

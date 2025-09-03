@@ -279,7 +279,7 @@ static CP1140_TO_UNICODE: [u32; 256] = [
 // These map the zone nibble (high 4 bits) to sign information
 
 /// EBCDIC zoned decimal sign mapping
-/// Maps zone nibble to (is_signed, is_negative)
+/// Maps zone nibble to (`is_signed`, `is_negative`)
 static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
     (false, false), // 0x0_: unsigned
     (false, false), // 0x1_: unsigned
@@ -300,7 +300,7 @@ static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
 ];
 
 /// ASCII zoned decimal sign mapping
-/// Maps zone nibble to (is_signed, is_negative)
+/// Maps zone nibble to (`is_signed`, `is_negative`)
 static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [
     (true, false), // 0x0: '{' = +0 overpunch
     (true, false), // 0x1: 'A' = +1 overpunch
@@ -333,7 +333,7 @@ fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {
 }
 
 /// Get the appropriate zoned sign table for the given codepage
-pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
+#[must_use] pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
     match codepage {
         Codepage::ASCII => &ASCII_ZONED_SIGNS,
         _ => &EBCDIC_ZONED_SIGNS,

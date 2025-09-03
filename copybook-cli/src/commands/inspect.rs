@@ -18,7 +18,7 @@ pub async fn run(copybook: PathBuf, codepage: Codepage) -> Result<i32, Box<dyn s
     // Display human-readable layout
     println!("Copybook Layout");
     println!("===============");
-    println!("Codepage: {:?}", codepage);
+    println!("Codepage: {codepage:?}");
     println!("Fixed LRECL: {:?}", schema.lrecl_fixed);
     println!();
 
@@ -30,16 +30,16 @@ pub async fn run(copybook: PathBuf, codepage: Codepage) -> Result<i32, Box<dyn s
 
     for field in schema.all_fields() {
         let type_str = match &field.kind {
-            copybook_core::FieldKind::Alphanum { len } => format!("X({})", len),
+            copybook_core::FieldKind::Alphanum { len } => format!("X({len})"),
             copybook_core::FieldKind::ZonedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
                 if *signed {
-                    format!("S9({})V9({})", digits, scale)
+                    format!("S9({digits})V9({scale})")
                 } else {
-                    format!("9({})V9({})", digits, scale)
+                    format!("9({digits})V9({scale})")
                 }
             }
             copybook_core::FieldKind::BinaryInt { bits, signed } => {
@@ -51,9 +51,9 @@ pub async fn run(copybook: PathBuf, codepage: Codepage) -> Result<i32, Box<dyn s
                 signed,
             } => {
                 if *signed {
-                    format!("S9({})V9({}) COMP-3", digits, scale)
+                    format!("S9({digits})V9({scale}) COMP-3")
                 } else {
-                    format!("9({})V9({}) COMP-3", digits, scale)
+                    format!("9({digits})V9({scale}) COMP-3")
                 }
             }
             copybook_core::FieldKind::Group => "GROUP".to_string(),
@@ -61,13 +61,13 @@ pub async fn run(copybook: PathBuf, codepage: Codepage) -> Result<i32, Box<dyn s
 
         let details = if let Some(ref occurs) = field.occurs {
             match occurs {
-                copybook_core::Occurs::Fixed { count } => format!("OCCURS {}", count),
+                copybook_core::Occurs::Fixed { count } => format!("OCCURS {count}"),
                 copybook_core::Occurs::ODO {
                     min,
                     max,
                     counter_path,
                 } => {
-                    format!("ODO {}-{} ({})", min, max, counter_path)
+                    format!("ODO {min}-{max} ({counter_path})")
                 }
             }
         } else {

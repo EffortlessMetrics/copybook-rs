@@ -19,12 +19,12 @@ pub enum DataStrategy {
 }
 
 /// Generate synthetic binary data for a schema
-pub fn generate_synthetic_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> {
+#[must_use] pub fn generate_synthetic_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> {
     generate_data_with_strategy(schema, config, DataStrategy::Normal)
 }
 
 /// Generate data with specific strategy
-pub fn generate_data_with_strategy(
+#[must_use] pub fn generate_data_with_strategy(
     schema: &Schema,
     config: &GeneratorConfig,
     strategy: DataStrategy,
@@ -257,7 +257,7 @@ fn fill_zoned_field(
 
     // Generate a valid number
     let is_negative = signed && rng.gen_bool(0.3);
-    let max_value = 10_u64.pow(digits as u32) - 1;
+    let max_value = 10_u64.pow(u32::from(digits)) - 1;
 
     let value = if edge_cases && rng.gen_bool(0.3) {
         if rng.gen_bool(0.5) { 0 } else { max_value }
@@ -306,7 +306,7 @@ fn fill_packed_field(
     }
 
     let is_negative = signed && rng.gen_bool(0.3);
-    let max_value = 10_u64.pow(digits as u32) - 1;
+    let max_value = 10_u64.pow(u32::from(digits)) - 1;
 
     let value = if edge_cases && rng.gen_bool(0.3) {
         if rng.gen_bool(0.5) { 0 } else { max_value }
@@ -397,7 +397,7 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
     match &field.kind {
         FieldKind::Alphanum { .. } => {
             // Predictable text pattern
-            let pattern = format!("REC{:06}", record_idx);
+            let pattern = format!("REC{record_idx:06}");
             let pattern_bytes = pattern.as_bytes();
 
             for (i, byte) in record[start..end].iter_mut().enumerate() {
@@ -410,7 +410,7 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
         }
         FieldKind::ZonedDecimal { digits, .. } => {
             // Predictable numeric pattern
-            let value = (record_idx % (10_usize.pow(*digits as u32))) as u64;
+            let value = (record_idx % (10_usize.pow(u32::from(*digits)))) as u64;
             let value_str = format!("{:0width$}", value, width = *digits as usize);
 
             for (i, digit_char) in value_str.chars().enumerate() {
@@ -423,7 +423,7 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
         }
         FieldKind::PackedDecimal { digits, .. } => {
             // Predictable packed pattern
-            let value = (record_idx % (10_usize.pow(*digits as u32))) as u64;
+            let value = (record_idx % (10_usize.pow(u32::from(*digits)))) as u64;
             let value_str = format!("{:0width$}", value, width = *digits as usize);
             let mut nibbles = Vec::new();
 
@@ -489,7 +489,7 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
 
     match &field.kind {
         FieldKind::BinaryInt { .. } => {
-            let bytes = (value as u64).to_be_bytes();
+            let bytes = u64::from(value).to_be_bytes();
             let byte_len = end - start;
             let start_idx = 8 - byte_len;
 
@@ -534,14 +534,14 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
 }
 
 /// Generate test datasets for specific scenarios
-pub fn generate_test_datasets(_config: &GeneratorConfig) -> Vec<(String, Vec<Vec<u8>>)> {
+#[must_use] pub fn generate_test_datasets(_config: &GeneratorConfig) -> Vec<(String, Vec<Vec<u8>>)> {
     // This would be implemented with actual schemas once they're available
     // For now, return empty datasets
     Vec::new()
 }
 
 /// Generate corruption scenarios for negative testing
-pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
+#[must_use] pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
     let mut corrupted = clean_data.to_vec();
 
     match corruption_type {

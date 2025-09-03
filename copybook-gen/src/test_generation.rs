@@ -8,7 +8,7 @@ use crate::{CopybookTemplate, CorruptionType, GeneratorConfig};
 use std::collections::HashMap;
 
 /// Generate a complete test matrix covering all field type combinations
-pub fn generate_field_type_matrix() -> GoldenTestSuite {
+#[must_use] pub fn generate_field_type_matrix() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "field_type_matrix",
         "Comprehensive test matrix for all field type combinations",
@@ -33,7 +33,7 @@ pub fn generate_field_type_matrix() -> GoldenTestSuite {
 
     for (template, name) in templates {
         let copybook = crate::copybook::generate_copybook_with_template(&config, template);
-        let mut test = GoldenTest::new(&format!("field_matrix_{}", name), &copybook, &[]);
+        let mut test = GoldenTest::new(&format!("field_matrix_{name}"), &copybook, &[]);
         test.add_tag("field_types");
         test.add_tag(name);
         suite.add_test(test);
@@ -43,7 +43,7 @@ pub fn generate_field_type_matrix() -> GoldenTestSuite {
 }
 
 /// Generate edge case test suite
-pub fn generate_edge_case_suite() -> GoldenTestSuite {
+#[must_use] pub fn generate_edge_case_suite() -> GoldenTestSuite {
     let mut suite =
         GoldenTestSuite::new("edge_cases", "Edge case test suite for boundary conditions");
 
@@ -75,7 +75,7 @@ pub fn generate_edge_case_suite() -> GoldenTestSuite {
 }
 
 /// Generate performance test datasets
-pub fn generate_performance_datasets() -> GoldenTestSuite {
+#[must_use] pub fn generate_performance_datasets() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "performance_datasets",
         "Performance test datasets for throughput validation",
@@ -114,7 +114,7 @@ pub fn generate_performance_datasets() -> GoldenTestSuite {
 }
 
 /// Generate negative test cases
-pub fn generate_negative_test_cases() -> GoldenTestSuite {
+#[must_use] pub fn generate_negative_test_cases() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "negative_tests",
         "Negative test cases for error handling validation",
@@ -130,7 +130,7 @@ pub fn generate_negative_test_cases() -> GoldenTestSuite {
     // Invalid copybook syntax tests
     let invalid_copybooks = crate::copybook::generate_invalid_copybook(&config);
     for (name, copybook) in invalid_copybooks {
-        let mut test = GoldenTest::new(&format!("invalid_{}", name), &copybook, &[]);
+        let mut test = GoldenTest::new(&format!("invalid_{name}"), &copybook, &[]);
         test.add_tag("negative");
         test.add_tag("invalid_syntax");
         test.add_tag("parse_error");
@@ -141,7 +141,7 @@ pub fn generate_negative_test_cases() -> GoldenTestSuite {
 }
 
 /// Generate corruption test cases
-pub fn generate_corruption_test_cases() -> GoldenTestSuite {
+#[must_use] pub fn generate_corruption_test_cases() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new("corruption_tests", "Data corruption test cases");
 
     let config = GeneratorConfig {
@@ -167,7 +167,7 @@ pub fn generate_corruption_test_cases() -> GoldenTestSuite {
     for (corruption_type, name) in corruption_types {
         let corrupted_data = crate::data::generate_corrupted_data(clean_data, corruption_type);
         let mut test = GoldenTest::new(
-            &format!("corruption_{}", name),
+            &format!("corruption_{name}"),
             &clean_copybook,
             &corrupted_data,
         );
@@ -181,7 +181,7 @@ pub fn generate_corruption_test_cases() -> GoldenTestSuite {
 }
 
 /// Generate codepage test matrix
-pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
+#[must_use] pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "codepage_matrix",
         "Test matrix for different codepage configurations",
@@ -209,7 +209,7 @@ pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
         };
 
         let mut test = GoldenTest::new_with_config(
-            &format!("codepage_{}", codepage),
+            &format!("codepage_{codepage}"),
             &copybook,
             &[],
             test_config,
@@ -223,7 +223,7 @@ pub fn generate_codepage_test_matrix() -> GoldenTestSuite {
 }
 
 /// Generate round-trip fidelity tests
-pub fn generate_round_trip_tests() -> GoldenTestSuite {
+#[must_use] pub fn generate_round_trip_tests() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "round_trip_fidelity",
         "Round-trip fidelity validation tests",
@@ -271,7 +271,7 @@ pub fn generate_round_trip_tests() -> GoldenTestSuite {
 }
 
 /// Generate determinism validation tests
-pub fn generate_determinism_tests() -> GoldenTestSuite {
+#[must_use] pub fn generate_determinism_tests() -> GoldenTestSuite {
     let mut suite = GoldenTestSuite::new(
         "determinism_validation",
         "Deterministic output validation tests",
@@ -297,14 +297,14 @@ pub fn generate_determinism_tests() -> GoldenTestSuite {
         };
 
         let mut test = GoldenTest::new_with_config(
-            &format!("determinism_{}threads", threads),
+            &format!("determinism_{threads}threads"),
             &copybook,
             &[],
             test_config,
         );
         test.add_tag("determinism");
         test.add_tag("parallel");
-        test.add_tag(&format!("threads_{}", threads));
+        test.add_tag(&format!("threads_{threads}"));
         suite.add_test(test);
     }
 
@@ -312,7 +312,7 @@ pub fn generate_determinism_tests() -> GoldenTestSuite {
 }
 
 /// Generate the complete comprehensive test suite
-pub fn generate_complete_test_suite() -> Vec<GoldenTestSuite> {
+#[must_use] pub fn generate_complete_test_suite() -> Vec<GoldenTestSuite> {
     vec![
         generate_field_type_matrix(),
         generate_edge_case_suite(),
@@ -334,7 +334,7 @@ pub struct TestSuiteStats {
 }
 
 /// Calculate statistics for test suites
-pub fn calculate_suite_stats(suites: &[GoldenTestSuite]) -> TestSuiteStats {
+#[must_use] pub fn calculate_suite_stats(suites: &[GoldenTestSuite]) -> TestSuiteStats {
     let mut stats = TestSuiteStats {
         total_suites: suites.len(),
         total_tests: 0,

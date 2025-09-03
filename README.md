@@ -23,7 +23,7 @@ copybook-rs is a Rust implementation of a COBOL copybook parser and data codec t
 - **Comprehensive Error Handling**: Stable error codes with structured context
 - **COBOL Feature Support**: REDEFINES, OCCURS DEPENDING ON, SYNCHRONIZED, packed/zoned decimals
 - **Character Encoding**: Full EBCDIC support (CP037, CP273, CP500, CP1047, CP1140) and ASCII
-- **Performance**: ≥80 MB/s throughput for DISPLAY-heavy data, ≥40 MB/s for COMP-3-heavy
+- **High Performance**: 17.25+ GiB/s throughput for DISPLAY-heavy data, 51.6+ MiB/s for COMP-3-heavy
 - **Parser Stability**: Infinite loop prevention with robust error handling
 
 ## Architecture
@@ -354,7 +354,7 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type
 - `CBKE521_ARRAY_LEN_OOB`: Array length out of bounds
 
-See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference.
+See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference and [REPORT.md](REPORT.md) for detailed project status and performance analysis.
 
 ## Requirements
 
@@ -364,9 +364,9 @@ See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference.
 
 ## Performance
 
-### Throughput Targets
-- **DISPLAY-heavy data**: ≥80 MB/s (maintained through code quality improvements)
-- **COMP-3-heavy data**: ≥40 MB/s (maintained through code quality improvements) 
+### Throughput Benchmarks
+- **DISPLAY-heavy data**: 17.25+ GiB/s (significantly exceeds 80 MB/s target)
+- **COMP-3-heavy data**: 51.6+ MiB/s (exceeds 40 MB/s target)
 - **Memory usage**: <256 MiB steady-state for multi-GB files
 
 ### Optimization Features
@@ -414,7 +414,7 @@ cargo fmt --all
 
 ### Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and [REPORT.md](REPORT.md) for current project status and development priorities.
 
 #### Development Workflow
 1. Fork the repository

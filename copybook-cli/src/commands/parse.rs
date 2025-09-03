@@ -30,7 +30,7 @@ pub async fn run(
             })?;
         }
         None => {
-            println!("{}", json);
+            println!("{json}");
         }
     }
 

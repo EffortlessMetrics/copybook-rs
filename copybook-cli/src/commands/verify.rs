@@ -25,9 +25,9 @@ pub async fn run(
 
     // Placeholder verification logic
     println!("Verification Summary:");
-    println!("  File: {:?}", input);
-    println!("  Format: {:?}", format);
-    println!("  Codepage: {:?}", codepage);
+    println!("  File: {input:?}");
+    println!("  Format: {format:?}");
+    println!("  Codepage: {codepage:?}");
     println!("  Status: PLACEHOLDER - Not yet implemented");
 
     if let Some(report_path) = report {

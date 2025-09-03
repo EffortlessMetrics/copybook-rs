@@ -36,7 +36,7 @@ impl PicClause {
         if is_edited_pic(pic_str) {
             return Err(Error::new(
                 ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                format!("Edited PIC clause not supported: {}", pic_str),
+                format!("Edited PIC clause not supported: {pic_str}"),
             ));
         }
 
@@ -44,7 +44,7 @@ impl PicClause {
         if pic_str.contains("SIGN") {
             return Err(Error::new(
                 ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                format!("SIGN clause treated as edited PIC: {}", pic_str),
+                format!("SIGN clause treated as edited PIC: {pic_str}"),
             ));
         }
 
@@ -67,7 +67,7 @@ impl PicClause {
                     if kind.is_some() && kind != Some(PicKind::Alphanumeric) {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("Mixed PIC types not allowed: {}", pic_str),
+                            format!("Mixed PIC types not allowed: {pic_str}"),
                         ));
                     }
                     kind = Some(PicKind::Alphanumeric);
@@ -77,7 +77,7 @@ impl PicClause {
                     if kind.is_some() && kind != Some(PicKind::NumericDisplay) {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("Mixed PIC types not allowed: {}", pic_str),
+                            format!("Mixed PIC types not allowed: {pic_str}"),
                         ));
                     }
                     kind = Some(PicKind::NumericDisplay);
@@ -90,13 +90,13 @@ impl PicClause {
                     if found_v {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("Multiple V positions not allowed: {}", pic_str),
+                            format!("Multiple V positions not allowed: {pic_str}"),
                         ));
                     }
                     if kind != Some(PicKind::NumericDisplay) {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("V only allowed in numeric PIC: {}", pic_str),
+                            format!("V only allowed in numeric PIC: {pic_str}"),
                         ));
                     }
                     found_v = true;
@@ -114,7 +114,7 @@ impl PicClause {
                         } else {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
-                                format!("Invalid repetition count: {}", pic_str),
+                                format!("Invalid repetition count: {pic_str}"),
                             ));
                         }
                     }
@@ -122,7 +122,7 @@ impl PicClause {
                     let count: u16 = count_str.parse().map_err(|_| {
                         Error::new(
                             ErrorCode::CBKP001_SYNTAX,
-                            format!("Invalid repetition count: {}", count_str),
+                            format!("Invalid repetition count: {count_str}"),
                         )
                     })?;
                     
@@ -141,12 +141,11 @@ impl PicClause {
                 }
                 ' ' | '\t' => {
                     // Skip whitespace
-                    continue;
                 }
                 _ => {
                     return Err(Error::new(
                         ErrorCode::CBKP001_SYNTAX,
-                        format!("Invalid character in PIC clause: {}", ch),
+                        format!("Invalid character in PIC clause: {ch}"),
                     ));
                 }
             }
@@ -170,7 +169,7 @@ impl PicClause {
         if digits > 38 {
             return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                format!("PIC clause too long: {} digits (max 38)", digits),
+                format!("PIC clause too long: {digits} digits (max 38)"),
             ));
         }
 
@@ -191,10 +190,10 @@ impl PicClause {
     }
 
     /// Get the byte length of this field when stored
-    pub fn byte_length(&self) -> u32 {
+    #[must_use] pub fn byte_length(&self) -> u32 {
         match self.kind {
-            PicKind::Alphanumeric => self.digits as u32,
-            PicKind::NumericDisplay => self.digits as u32,
+            PicKind::Alphanumeric => u32::from(self.digits),
+            PicKind::NumericDisplay => u32::from(self.digits),
             PicKind::Edited => 0, // Should never reach here
         }
     }
@@ -207,7 +206,7 @@ impl fmt::Display for PicClause {
         match self.kind {
             PicKind::Alphanumeric => {
                 if self.digits == 1 {
-                    write!(f, "{}X", sign_prefix)
+                    write!(f, "{sign_prefix}X")
                 } else {
                     write!(f, "{}X({})", sign_prefix, self.digits)
                 }
@@ -215,18 +214,18 @@ impl fmt::Display for PicClause {
             PicKind::NumericDisplay => {
                 if self.scale == 0 {
                     if self.digits == 1 {
-                        write!(f, "{}9", sign_prefix)
+                        write!(f, "{sign_prefix}9")
                     } else {
                         write!(f, "{}9({})", sign_prefix, self.digits)
                     }
                 } else {
                     let integer_digits = self.digits - self.scale as u16;
                     if integer_digits == 1 && self.scale == 1 {
-                        write!(f, "{}9V9", sign_prefix)
+                        write!(f, "{sign_prefix}9V9")
                     } else if integer_digits == 1 {
                         write!(f, "{}9V9({})", sign_prefix, self.scale)
                     } else if self.scale == 1 {
-                        write!(f, "{}9({})V9", sign_prefix, integer_digits)
+                        write!(f, "{sign_prefix}9({integer_digits})V9")
                     } else {
                         write!(f, "{}9({})V9({})", sign_prefix, integer_digits, self.scale)
                     }

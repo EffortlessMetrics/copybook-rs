@@ -44,9 +44,9 @@ pub async fn run(
         let mut result_summary = None;
         atomic_write(&output, |output_writer| {
             let input_file = fs::File::open(&input)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(|e| std::io::Error::other(e))?;
             let summary = copybook_codec::encode_jsonl_to_file(&schema, input_file, output_writer, &options)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(|e| std::io::Error::other(e))?;
             result_summary = Some(summary);
             Ok(())
         })?;

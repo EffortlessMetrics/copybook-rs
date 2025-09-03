@@ -1,12 +1,12 @@
 //! Core library API implementation for task 9.1
 //!
 //! This module provides the main library functions required by R11:
-//! - parse_copybook (already exists in copybook-core)
-//! - decode_record 
-//! - encode_record
-//! - decode_file_to_jsonl
-//! - encode_jsonl_to_file
-//! - RecordIterator (for programmatic access)
+//! - `parse_copybook` (already exists in copybook-core)
+//! - `decode_record` 
+//! - `encode_record`
+//! - `decode_file_to_jsonl`
+//! - `encode_jsonl_to_file`
+//! - `RecordIterator` (for programmatic access)
 
 use copybook_core::{Schema, Error, ErrorCode, Result};
 use crate::options::{DecodeOptions, EncodeOptions};
@@ -197,11 +197,10 @@ pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) ->
     let mut buffer = vec![0u8; record_length];
     
     // Add some basic encoding logic
-    if let Some(obj) = json.as_object() {
-        if obj.contains_key("__status") {
+    if let Some(obj) = json.as_object()
+        && obj.contains_key("__status") {
             buffer[0] = b'E'; // Encoded marker
         }
-    }
     
     Ok(buffer)
 }
@@ -239,20 +238,17 @@ pub fn decode_file_to_jsonl(
                 summary.bytes_processed += record_length as u64;
                 
                 // Decode the record
-                match decode_record(schema, &buffer, options) {
-                    Ok(json_value) => {
-                        // Write as JSONL
-                        serde_json::to_writer(&mut output, &json_value)
-                            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                        writeln!(output)
-                            .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                    }
-                    Err(_) => {
-                        summary.records_with_errors += 1;
-                        // In lenient mode, continue processing
-                        if options.strict_mode {
-                            break;
-                        }
+                if let Ok(json_value) = decode_record(schema, &buffer, options) {
+                    // Write as JSONL
+                    serde_json::to_writer(&mut output, &json_value)
+                        .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                    writeln!(output)
+                        .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                } else {
+                    summary.records_with_errors += 1;
+                    // In lenient mode, continue processing
+                    if options.strict_mode {
+                        break;
                     }
                 }
             }
@@ -312,18 +308,15 @@ pub fn encode_jsonl_to_file(
             .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
         
         // Encode to binary
-        match encode_record(schema, &json_value, options) {
-            Ok(binary_data) => {
-                output.write_all(&binary_data)
-                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                summary.bytes_processed += binary_data.len() as u64;
-            }
-            Err(_) => {
-                summary.records_with_errors += 1;
-                // In lenient mode, continue processing
-                if options.strict_mode {
-                    break;
-                }
+        if let Ok(binary_data) = encode_record(schema, &json_value, options) {
+            output.write_all(&binary_data)
+                .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+            summary.bytes_processed += binary_data.len() as u64;
+        } else {
+            summary.records_with_errors += 1;
+            // In lenient mode, continue processing
+            if options.strict_mode {
+                break;
             }
         }
     }

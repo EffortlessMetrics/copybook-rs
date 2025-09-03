@@ -36,12 +36,12 @@ pub enum CopybookTemplate {
 }
 
 /// Generate a synthetic COBOL copybook
-pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
+#[must_use] pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
     generate_copybook_with_template(config, CopybookTemplate::Simple)
 }
 
 /// Generate copybook with specific template
-pub fn generate_copybook_with_template(config: &GeneratorConfig, template: CopybookTemplate) -> String {
+#[must_use] pub fn generate_copybook_with_template(config: &GeneratorConfig, template: CopybookTemplate) -> String {
     let mut rng = StdRng::seed_from_u64(config.seed);
     
     match template {
@@ -76,8 +76,7 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     rng.gen_range(1..=50)
                 };
                 copybook.push_str(&format!(
-                    "           05  ALPHA-{:02}     PIC X({}).\n",
-                    i, len
+                    "           05  ALPHA-{i:02}     PIC X({len}).\n"
                 ));
             }
             1 => {
@@ -100,17 +99,14 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     } else {
                         format!("9({})V9({})", digits - scale, scale)
                     }
+                } else if signed {
+                    format!("S9({digits})")
                 } else {
-                    if signed {
-                        format!("S9({})", digits)
-                    } else {
-                        format!("9({})", digits)
-                    }
+                    format!("9({digits})")
                 };
                 
                 copybook.push_str(&format!(
-                    "           05  ZONED-{:02}     PIC {}.\n",
-                    i, pic
+                    "           05  ZONED-{i:02}     PIC {pic}.\n"
                 ));
             }
             2 => {
@@ -123,14 +119,13 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                 let signed = rng.gen_bool(0.5);
                 
                 let pic = if signed {
-                    format!("S9({}) COMP", digits)
+                    format!("S9({digits}) COMP")
                 } else {
-                    format!("9({}) COMP", digits)
+                    format!("9({digits}) COMP")
                 };
                 
                 copybook.push_str(&format!(
-                    "           05  BINARY-{:02}    PIC {}.\n",
-                    i, pic
+                    "           05  BINARY-{i:02}    PIC {pic}.\n"
                 ));
             }
             3 => {
@@ -153,24 +148,20 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     } else {
                         format!("9({})V9({}) COMP-3", digits - scale, scale)
                     }
+                } else if signed {
+                    format!("S9({digits}) COMP-3")
                 } else {
-                    if signed {
-                        format!("S9({}) COMP-3", digits)
-                    } else {
-                        format!("9({}) COMP-3", digits)
-                    }
+                    format!("9({digits}) COMP-3")
                 };
                 
                 copybook.push_str(&format!(
-                    "           05  PACKED-{:02}    PIC {}.\n",
-                    i, pic
+                    "           05  PACKED-{i:02}    PIC {pic}.\n"
                 ));
             }
             4 => {
                 // Group with sub-fields
                 copybook.push_str(&format!(
-                    "           05  GROUP-{:02}.\n",
-                    i
+                    "           05  GROUP-{i:02}.\n"
                 ));
                 
                 let sub_count = rng.gen_range(2..=4);
@@ -180,22 +171,19 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                         0 => {
                             let len = rng.gen_range(5..=20);
                             copybook.push_str(&format!(
-                                "               10  SUB-{}-{}   PIC X({}).\n",
-                                i, j, len
+                                "               10  SUB-{i}-{j}   PIC X({len}).\n"
                             ));
                         }
                         1 => {
                             let digits = rng.gen_range(3..=7);
                             copybook.push_str(&format!(
-                                "               10  NUM-{}-{}   PIC 9({}).\n",
-                                i, j, digits
+                                "               10  NUM-{i}-{j}   PIC 9({digits}).\n"
                             ));
                         }
                         2 => {
                             let digits = rng.gen_range(3..=7);
                             copybook.push_str(&format!(
-                                "               10  PKD-{}-{}   PIC 9({}) COMP-3.\n",
-                                i, j, digits
+                                "               10  PKD-{i}-{j}   PIC 9({digits}) COMP-3.\n"
                             ));
                         }
                         _ => unreachable!(),
@@ -255,15 +243,13 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     };
     
     copybook.push_str(&format!(
-        "           05  SIMPLE-ARRAY    OCCURS {} TIMES PIC X(10).\n",
-        array_size
+        "           05  SIMPLE-ARRAY    OCCURS {array_size} TIMES PIC X(10).\n"
     ));
     
     // OCCURS with group
     let group_size = rng.gen_range(3..=10);
     copybook.push_str(&format!(
-        "           05  GROUP-ARRAY     OCCURS {} TIMES.\n",
-        group_size
+        "           05  GROUP-ARRAY     OCCURS {group_size} TIMES.\n"
     ));
     copybook.push_str("               10  ITEM-ID     PIC 9(5).\n");
     copybook.push_str("               10  ITEM-NAME   PIC X(20).\n");
@@ -273,12 +259,10 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     let outer_size = rng.gen_range(2..=5);
     let inner_size = rng.gen_range(3..=8);
     copybook.push_str(&format!(
-        "           05  NESTED-ARRAY    OCCURS {} TIMES.\n",
-        outer_size
+        "           05  NESTED-ARRAY    OCCURS {outer_size} TIMES.\n"
     ));
     copybook.push_str(&format!(
-        "               10  INNER-ARRAY OCCURS {} TIMES PIC 9(4) COMP.\n",
-        inner_size
+        "               10  INNER-ARRAY OCCURS {inner_size} TIMES PIC 9(4) COMP.\n"
     ));
     
     copybook
@@ -299,8 +283,7 @@ fn generate_odo_copybook(rng: &mut StdRng, _config: &GeneratorConfig) -> String 
     copybook.push_str("               10  TIMESTAMP   PIC X(20).\n");
     
     copybook.push_str(&format!(
-        "           05  VARIABLE-ITEMS  OCCURS {} TO {} TIMES\n",
-        min_count, max_count
+        "           05  VARIABLE-ITEMS  OCCURS {min_count} TO {max_count} TIMES\n"
     ));
     copybook.push_str("                               DEPENDING ON ITEM-COUNT.\n");
     copybook.push_str("               10  ITEM-CODE   PIC X(8).\n");
@@ -363,8 +346,7 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     // OCCURS section with SYNCHRONIZED
     let array_size = rng.gen_range(5..=15);
     copybook.push_str(&format!(
-        "           05  DETAIL-ITEMS    OCCURS {} TIMES.\n",
-        array_size
+        "           05  DETAIL-ITEMS    OCCURS {array_size} TIMES.\n"
     ));
     copybook.push_str("               10  ITEM-SEQ    PIC 9(3) COMP SYNCHRONIZED.\n");
     copybook.push_str("               10  ITEM-TYPE   PIC X(2).\n");
@@ -376,8 +358,7 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
         let max_notes = rng.gen_range(10..=30);
         copybook.push_str("           05  NOTE-COUNT      PIC 9(3) COMP.\n");
         copybook.push_str(&format!(
-            "           05  NOTES           OCCURS 0 TO {} TIMES\n",
-            max_notes
+            "           05  NOTES           OCCURS 0 TO {max_notes} TIMES\n"
         ));
         copybook.push_str("                               DEPENDING ON NOTE-COUNT.\n");
         copybook.push_str("               10  NOTE-TEXT   PIC X(80).\n");
@@ -398,26 +379,22 @@ fn generate_display_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig)
         match field_type {
             0 => {
                 copybook.push_str(&format!(
-                    "           05  TEXT-{:02}       PIC X(20).\n",
-                    i
+                    "           05  TEXT-{i:02}       PIC X(20).\n"
                 ));
             }
             1 => {
                 copybook.push_str(&format!(
-                    "           05  NUM-{:02}        PIC 9(10).\n",
-                    i
+                    "           05  NUM-{i:02}        PIC 9(10).\n"
                 ));
             }
             2 => {
                 copybook.push_str(&format!(
-                    "           05  DECIMAL-{:02}    PIC 9(8)V99.\n",
-                    i
+                    "           05  DECIMAL-{i:02}    PIC 9(8)V99.\n"
                 ));
             }
             3 => {
                 copybook.push_str(&format!(
-                    "           05  SIGNED-{:02}     PIC S9(9).\n",
-                    i
+                    "           05  SIGNED-{i:02}     PIC S9(9).\n"
                 ));
             }
             _ => unreachable!(),
@@ -438,20 +415,17 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
         match field_type {
             0 => {
                 copybook.push_str(&format!(
-                    "           05  PACKED-{:02}     PIC 9(7) COMP-3.\n",
-                    i
+                    "           05  PACKED-{i:02}     PIC 9(7) COMP-3.\n"
                 ));
             }
             1 => {
                 copybook.push_str(&format!(
-                    "           05  DECIMAL-{:02}    PIC 9(9)V99 COMP-3.\n",
-                    i
+                    "           05  DECIMAL-{i:02}    PIC 9(9)V99 COMP-3.\n"
                 ));
             }
             2 => {
                 copybook.push_str(&format!(
-                    "           05  SIGNED-{:02}     PIC S9(11)V99 COMP-3.\n",
-                    i
+                    "           05  SIGNED-{i:02}     PIC S9(11)V99 COMP-3.\n"
                 ));
             }
             _ => unreachable!(),
@@ -461,8 +435,7 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
     // Add some text fields for mixed workload
     for i in 1..=10 {
         copybook.push_str(&format!(
-            "           05  TEXT-{:02}       PIC X(15).\n",
-            i
+            "           05  TEXT-{i:02}       PIC X(15).\n"
         ));
     }
     
@@ -470,7 +443,7 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
 }
 
 /// Generate negative test copybooks (invalid syntax)
-pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
+#[must_use] pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
     let _rng = StdRng::seed_from_u64(config.seed);
     let mut invalid_cases = Vec::new();
     

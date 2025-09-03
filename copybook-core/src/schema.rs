@@ -154,7 +154,7 @@ impl Schema {
         hasher.update(canonical_json.as_bytes());
         
         let result = hasher.finalize();
-        self.fingerprint = format!("{:x}", result);
+        self.fingerprint = format!("{result:x}");
     }
 
     /// Create canonical JSON representation for fingerprinting
@@ -200,15 +200,15 @@ impl Schema {
         
         // Add field kind
         let kind_str = match &field.kind {
-            FieldKind::Alphanum { len } => format!("Alphanum({})", len),
+            FieldKind::Alphanum { len } => format!("Alphanum({len})"),
             FieldKind::ZonedDecimal { digits, scale, signed } => {
-                format!("ZonedDecimal({},{},{})", digits, scale, signed)
+                format!("ZonedDecimal({digits},{scale},{signed})")
             }
             FieldKind::BinaryInt { bits, signed } => {
-                format!("BinaryInt({},{})", bits, signed)
+                format!("BinaryInt({bits},{signed})")
             }
             FieldKind::PackedDecimal { digits, scale, signed } => {
-                format!("PackedDecimal({},{},{})", digits, scale, signed)
+                format!("PackedDecimal({digits},{scale},{signed})")
             }
             FieldKind::Group => "Group".to_string(),
         };
@@ -221,9 +221,9 @@ impl Schema {
         
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
-                Occurs::Fixed { count } => format!("Fixed({})", count),
+                Occurs::Fixed { count } => format!("Fixed({count})"),
                 Occurs::ODO { min, max, counter_path } => {
-                    format!("ODO({},{},{})", min, max, counter_path)
+                    format!("ODO({min},{max},{counter_path})")
                 }
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));

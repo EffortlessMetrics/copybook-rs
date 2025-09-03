@@ -34,11 +34,17 @@ cargo test --workspace
 # Run performance benchmarks (requires PERF=1)
 PERF=1 cargo bench
 
-# Linting
+# Linting (pedantic clippy compliance enforced)
 cargo clippy --workspace -- -D warnings -W clippy::pedantic
 
 # Code formatting
 cargo fmt --all
+
+# Validation pipeline (comprehensive quality checks)
+cargo build --workspace --release && \
+cargo test --workspace && \
+cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
+cargo fmt --all --check
 ```
 
 ### CLI Usage
@@ -60,6 +66,7 @@ copybook [SUBCOMMAND]
 ### Key Data Types
 - `Schema`: Top-level parsed copybook structure from copybook-core
 - `Field`/`FieldKind`: Individual copybook field definitions with COBOL semantics (now with proper JSON field processing)
+- `SmallDecimal`: Decimal type with Display trait implementation for improved debugging and formatting
 - `DecodeOptions`/`EncodeOptions`: Configuration for codec operations
 - `RecordFormat`: Fixed-length vs RDW (Record Descriptor Word) formats
 - `Codepage`: EBCDIC character encoding variants (CP037, CP273, CP500, CP1047, CP1140)
@@ -81,6 +88,9 @@ Uses structured error taxonomy with stable error codes:
 - Infinite loop prevention through unexpected token skipping
 - Robust error handling for malformed copybook structures
 - Memory-safe field hierarchy traversal
+- Enhanced error reporting with comprehensive context
+- Idiomatic Rust patterns for improved reliability (div_ceil, is_empty, range contains)
+- Clippy pedantic compliance for additional safety checks
 
 ## Requirements
 

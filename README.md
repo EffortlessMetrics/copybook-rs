@@ -276,6 +276,8 @@ for record_result in iter {
 
 ## Numeric Data Type Examples
 
+copybook-rs provides comprehensive numeric data type handling with proper precision preservation and improved formatting support. The SmallDecimal type now implements the Display trait for improved debugging and string representation.
+
 ### Zoned Decimal Processing
 ```bash
 # Decode EBCDIC zoned decimals with sign zones (C=+, D=-)
@@ -363,8 +365,8 @@ See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference.
 ## Performance
 
 ### Throughput Targets
-- **DISPLAY-heavy data**: ≥80 MB/s
-- **COMP-3-heavy data**: ≥40 MB/s
+- **DISPLAY-heavy data**: ≥80 MB/s (maintained through code quality improvements)
+- **COMP-3-heavy data**: ≥40 MB/s (maintained through code quality improvements) 
 - **Memory usage**: <256 MiB steady-state for multi-GB files
 
 ### Optimization Features
@@ -372,6 +374,8 @@ See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference.
 - Parallel processing with deterministic output
 - Zero-copy operations where possible
 - Static lookup tables for EBCDIC conversion
+- Idiomatic Rust patterns for improved performance (div_ceil, is_empty, range contains)
+- Clippy pedantic compliance for performance and safety optimizations
 
 ## Development
 
@@ -420,10 +424,12 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 5. Submit a pull request
 
 #### Code Standards
-- Follow Rust conventions and idioms
+- Follow Rust conventions and idioms with clippy pedantic compliance
 - Add comprehensive tests for new features
 - Update documentation for API changes
 - Maintain MSRV compatibility (Rust 1.89)
+- Use idiomatic Rust patterns (div_ceil, is_empty, range contains)
+- Implement Display trait for user-facing types where appropriate
 
 ## License
 

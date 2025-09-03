@@ -35,8 +35,8 @@ pub mod options;
 
 // Additional modules required for full decoding implementation
 pub mod charset;
-pub mod numeric;
 pub mod memory;
+pub mod numeric;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
@@ -49,8 +49,8 @@ pub use lib_api::{
 };
 
 // Export numeric processing components
-pub use numeric::SmallDecimal;
 pub use charset::{ebcdic_to_utf8, utf8_to_ebcdic};
+pub use numeric::SmallDecimal;
 
 // Additional numeric functions can be re-enabled as needed
 // pub use numeric::{

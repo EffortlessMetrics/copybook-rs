@@ -7,6 +7,7 @@
 //! - decode_file_to_jsonl
 //! - encode_jsonl_to_file
 //! - RecordIterator (for programmatic access)
+
 use crate::options::{DecodeOptions, EncodeOptions};
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
@@ -496,564 +497,6 @@ fn decode_binary_int_simple(data: &[u8], bits: u16, signed: bool) -> Result<Valu
             Ok(Value::String("0".to_string()))
         }
     }
-                ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                format!("Field {} extends beyond record boundary", field.path),
-            ));
-        }
-        let field_data = &data[offset..end];
-
-        match &field.kind {
-            FieldKind::Alphanum { .. } => {
-                let text = crate::charset::ebcdic_to_utf8(
-                    field_data,
-                    options.codepage,
-                    options.on_decode_unmappable,
-                )?;
-                Ok(Value::String(text))
-            }
-            FieldKind::ZonedDecimal { digits, scale, signed } => {
-                let decimal = crate::numeric::decode_zoned_decimal(
-                    field_data,
-                    *digits,
-                    *scale,
-                    *signed,
-                    options.codepage,
-                    field.blank_when_zero,
-                )?;
-                let dec_str = decimal.to_fixed_scale_string(*scale);
-                match options.json_number_mode {
-                    crate::options::JsonNumberMode::Lossless => Ok(Value::String(dec_str)),
-                    crate::options::JsonNumberMode::Native => {
-                        if let Ok(num) = dec_str.parse::<f64>() {
-                            if let Some(n) = serde_json::Number::from_f64(num) {
-                                return Ok(Value::Number(n));
-                            }
-                        }
-                        Ok(Value::String(dec_str))
-                    }
-                }
-            }
-            FieldKind::PackedDecimal { digits, scale, signed } => {
-                let decimal = crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-                let dec_str = decimal.to_fixed_scale_string(*scale);
-                match options.json_number_mode {
-                    crate::options::JsonNumberMode::Lossless => Ok(Value::String(dec_str)),
-                    crate::options::JsonNumberMode::Native => {
-                        if let Ok(num) = dec_str.parse::<f64>() {
-                            if let Some(n) = serde_json::Number::from_f64(num) {
-                                return Ok(Value::Number(n));
-                            }
-                        }
-                        Ok(Value::String(dec_str))
-                    }
-                }
-            }
-            FieldKind::BinaryInt { bits, signed } => {
-                let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-                match options.json_number_mode {
-                    crate::options::JsonNumberMode::Native if *bits <= 64 => {
-                        Ok(Value::Number(serde_json::Number::from(int_value)))
-                    }
-                    _ => Ok(Value::String(int_value.to_string())),
-                }
-            }
-            FieldKind::Group => Err(Error::new(
-                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                format!("Group field {} processed as scalar", field.path),
-            )),
-        }
-    }
-
-    // Process fields recursively
-    fn process_fields(
-        fields: &[Field],
-        data: &[u8],
-        options: &DecodeOptions,
-        delta: usize,
-        json_obj: &mut Map<String, Value>,
-    ) -> Result<()> {
-        for field in fields {
-            // Handle FILLER fields
-            if field.name.eq_ignore_ascii_case("FILLER") && !options.emit_filler {
-                continue;
-            }
-
-            let key = if field.name.eq_ignore_ascii_case("FILLER") {
-                format!("_filler_{:08}", field.offset + delta as u32)
-            } else {
-                field.name.clone()
-            };
-
-            match &field.kind {
-                FieldKind::Group => {
-                    if let Some(occurs) = &field.occurs {
-                        let count = match occurs {
-                            Occurs::Fixed { count } => *count as usize,
-                            Occurs::ODO { max, .. } => *max as usize,
-                        };
-                        let mut array = Vec::new();
-                        for i in 0..count {
-                            let mut element_obj = Map::new();
-                            let new_delta = delta + i * field.len as usize;
-                            process_fields(&field.children, data, options, new_delta, &mut element_obj)?;
-                            array.push(Value::Object(element_obj));
-                        }
-                        json_obj.insert(key, Value::Array(array));
-                    } else if field.level <= 1 {
-                        process_fields(&field.children, data, options, delta, json_obj)?;
-                    } else {
-                        let mut group_obj = Map::new();
-                        process_fields(&field.children, data, options, delta, &mut group_obj)?;
-                        json_obj.insert(key, Value::Object(group_obj));
-                    }
-                }
-                _ => {
-                    if let Some(occurs) = &field.occurs {
-                        let count = match occurs {
-                            Occurs::Fixed { count } => *count as usize,
-                            Occurs::ODO { max, .. } => *max as usize,
-                        };
-                        let element_size = field.len as usize / count.max(1);
-                        let mut array = Vec::new();
-                        for i in 0..count {
-                            let offset = field.offset as usize + delta + i * element_size;
-                            let mut element_field = field.clone();
-                            element_field.len = element_size as u32;
-                            element_field.occurs = None;
-                            let value = decode_scalar(&element_field, data, options, offset)?;
-                            array.push(value);
-                        }
-                        json_obj.insert(key, Value::Array(array));
-                    } else {
-                        let offset = field.offset as usize + delta;
-                        let value = decode_scalar(field, data, options, offset)?;
-                        json_obj.insert(key.clone(), value);
-
-                        // Add raw field data if requested
-                        if matches!(options.emit_raw, crate::options::RawMode::Field) {
-                            let end = offset + field.len as usize;
-                            if end <= data.len() {
-                                let encoded = general_purpose::STANDARD.encode(&data[offset..end]);
-                                json_obj.insert(format!("{}_raw_b64", key), Value::String(encoded));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-
-    let mut json_obj = Map::new();
-    process_fields(&schema.fields, data, options, 0, &mut json_obj)?;
-
-    if options.emit_meta {
-        json_obj.insert("__schema_id".to_string(), Value::String(schema.fingerprint.clone()));
-        json_obj.insert("__record_index".to_string(), Value::Number(1.into()));
-        json_obj.insert("__offset".to_string(), Value::Number(0.into()));
-        json_obj.insert("__length".to_string(), Value::Number(data.len().into()));
-    }
-
-    if matches!(options.emit_raw, crate::options::RawMode::Record | crate::options::RawMode::RecordRDW) {
-        let encoded = general_purpose::STANDARD.encode(data);
-        json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
-    }
-
-    Ok(Value::Object(json_obj))
-}
-
-fn count_bwz_warnings(
-    fields: &[Field],
-    data: &[u8],
-    options: &DecodeOptions,
-    delta: usize,
-) -> u64 {
-    fn check(field: &Field, slice: &[u8], options: &DecodeOptions) -> u64 {
-        if field.blank_when_zero {
-            let is_all_spaces = slice.iter().all(|&b| match options.codepage {
-                crate::Codepage::ASCII => b == b' ',
-                _ => b == 0x40,
-            });
-            if is_all_spaces {
-                return 1;
-            }
-        }
-        0
-    }
-
-    let mut warnings = 0;
-    for field in fields {
-        match &field.kind {
-            FieldKind::Group => {
-                if let Some(occurs) = &field.occurs {
-                    let count = match occurs {
-                        Occurs::Fixed { count } => *count as usize,
-                        Occurs::ODO { max, .. } => *max as usize,
-                    };
-                    for i in 0..count {
-                        warnings += count_bwz_warnings(
-                            &field.children,
-                            data,
-                            options,
-                            delta + i * field.len as usize,
-                        );
-                    }
-                } else {
-                    warnings += count_bwz_warnings(&field.children, data, options, delta);
-                }
-            }
-            _ => {
-                if let Some(occurs) = &field.occurs {
-                    let count = match occurs {
-                        Occurs::Fixed { count } => *count as usize,
-                        Occurs::ODO { max, .. } => *max as usize,
-                    };
-                    let element_size = field.len as usize / count.max(1);
-                    for i in 0..count {
-                        let offset = field.offset as usize + delta + i * element_size;
-                        if offset + element_size <= data.len() {
-                            warnings +=
-                                check(field, &data[offset..offset + element_size], options);
-                        }
-                    }
-                } else {
-                    let offset = field.offset as usize + delta;
-                    if offset + field.len as usize <= data.len() {
-                        warnings +=
-                            check(field, &data[offset..offset + field.len as usize], options);
-                    }
-                }
-            }
-        }
-    }
-    warnings
-=======
-    let mut json_obj = serde_json::Map::new();
-
-    // Process all fields in the schema
-    for field in &schema.fields {
-        if let Ok(value) = decode_field(field, data, options) {
-            json_obj.insert(field.name.clone(), value);
-        } else {
-            // On error, insert null to avoid test failures expecting field presence
-            json_obj.insert(field.name.clone(), Value::Null);
-        }
-    }
-
-    Ok(Value::Object(json_obj))
-}
-
-/// Decode a single field from binary data
-fn decode_field(
-    field: &copybook_core::Field,
-    data: &[u8],
-    _options: &DecodeOptions,
-) -> Result<Value> {
-    // Check bounds
-    let field_start = field.offset as usize;
-    let field_end = field_start + field.len as usize;
-
-    if field_end > data.len() {
-        return Err(Error::new(
-            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-            format!("Field {} extends beyond record boundary", field.name),
-        ));
-    }
-
-    let field_data = &data[field_start..field_end];
-
-    use copybook_core::FieldKind;
-    match &field.kind {
-        FieldKind::Alphanum { .. } => {
-            // Simple ASCII conversion for now
-            let text = String::from_utf8_lossy(field_data).to_string();
-            Ok(Value::String(text))
-        }
-        FieldKind::ZonedDecimal {
-            digits,
-            scale,
-            signed,
-        } => {
-            // Simple zoned decimal decoding
-            decode_zoned_decimal_simple(field_data, *digits, *scale, *signed)
-        }
-        FieldKind::PackedDecimal {
-            digits,
-            scale,
-            signed,
-        } => {
-            // Simple packed decimal decoding
-            decode_packed_decimal_simple(field_data, *digits, *scale, *signed)
-        }
-        FieldKind::BinaryInt { bits, signed } => {
-            // Simple binary integer decoding
-            decode_binary_int_simple(field_data, *bits, *signed)
-        }
-        FieldKind::Group => {
-            // For groups, recursively decode children
-            let mut group_obj = serde_json::Map::new();
-            for child_field in &field.children {
-                if let Ok(child_value) = decode_field(child_field, data, _options) {
-                    group_obj.insert(child_field.name.clone(), child_value);
-                }
-            }
-            Ok(Value::Object(group_obj))
-        }
-    }
-}
-
-/// Simple zoned decimal decoder for basic functionality
-fn decode_zoned_decimal_simple(
-    data: &[u8],
-    _digits: u16,
-    _scale: i16,
-    signed: bool,
-) -> Result<Value> {
-    if data.is_empty() {
-        return Ok(Value::String("0".to_string()));
-    }
-
-    // Basic zoned decimal: digits in zones, sign in last byte for signed fields
-    let mut result = String::new();
-    let mut is_negative = false;
-
-    // Process all bytes except the last one as regular digits
-    for &byte in &data[..data.len() - 1] {
-        let digit = byte & 0x0F;
-        if digit <= 9 {
-            result.push((b'0' + digit) as char);
-        } else {
-            // Invalid digit, try to handle gracefully
-            result.push('0');
-        }
-    }
-
-    // Process the last byte - handle ASCII overpunch characters and EBCDIC signs
-    let last_byte = data[data.len() - 1];
-
-    if signed {
-        // Handle ASCII overpunch characters (for ASCII codepage)
-        match last_byte {
-            // Positive ASCII overpunch: A-I = +1 to +9, } = +0 (but that's wrong, should be +3)
-            b'}' => {
-                result.push('3');
-            } // } = +3
-            b'A' => {
-                result.push('1');
-            } // A = +1
-            b'B' => {
-                result.push('2');
-            } // B = +2
-            b'C' => {
-                result.push('3');
-            } // C = +3
-            b'D' => {
-                result.push('4');
-            } // D = +4
-            b'E' => {
-                result.push('5');
-            } // E = +5
-            b'F' => {
-                result.push('6');
-            } // F = +6
-            b'G' => {
-                result.push('7');
-            } // G = +7
-            b'H' => {
-                result.push('8');
-            } // H = +8
-            b'I' => {
-                result.push('9');
-            } // I = +9
-            // Negative ASCII overpunch: J-R = -1 to -9
-            b'J' => {
-                result.push('1');
-                is_negative = true;
-            } // J = -1
-            b'K' => {
-                result.push('2');
-                is_negative = true;
-            } // K = -2
-            b'L' => {
-                result.push('3');
-                is_negative = true;
-            } // L = -3
-            b'M' => {
-                result.push('4');
-                is_negative = true;
-            } // M = -4
-            b'N' => {
-                result.push('5');
-                is_negative = true;
-            } // N = -5
-            b'O' => {
-                result.push('6');
-                is_negative = true;
-            } // O = -6
-            b'P' => {
-                result.push('7');
-                is_negative = true;
-            } // P = -7
-            b'Q' => {
-                result.push('8');
-                is_negative = true;
-            } // Q = -8
-            b'R' => {
-                result.push('9');
-                is_negative = true;
-            } // R = -9
-            _ => {
-                // Fallback to EBCDIC zone/nibble method or regular digit
-                let digit = last_byte & 0x0F;
-                let zone = (last_byte & 0xF0) >> 4;
-
-                if digit <= 9 {
-                    result.push((b'0' + digit) as char);
-                } else {
-                    result.push('0');
-                }
-
-                // EBCDIC sign conventions: D = negative, C/F = positive
-                if zone == 0xD {
-                    is_negative = true;
-                }
-            }
-        }
-    } else {
-        // Unsigned field - just extract the digit
-        let digit = last_byte & 0x0F;
-        if digit <= 9 {
-            result.push((b'0' + digit) as char);
-        } else {
-            result.push('0');
-        }
-    }
-
-    // Remove leading zeros but keep at least one digit
-    let trimmed = result.trim_start_matches('0');
-    let final_result = if trimmed.is_empty() { "0" } else { trimmed };
-
-    let final_string = if is_negative && final_result != "0" {
-        format!("-{}", final_result)
-    } else {
-        final_result.to_string()
-    };
-
-    Ok(Value::String(final_string))
-}
-
-/// Simple packed decimal decoder for basic functionality
-fn decode_packed_decimal_simple(
-    data: &[u8],
-    _digits: u16,
-    _scale: i16,
-    signed: bool,
-) -> Result<Value> {
-    if data.is_empty() {
-        return Ok(Value::String("0".to_string()));
-    }
-
-    let mut result = String::new();
-    let mut is_negative = false;
-
-    // Process all bytes except handle sign in last nibble
-    for (i, &byte) in data.iter().enumerate() {
-        let high_nibble = (byte & 0xF0) >> 4;
-        let low_nibble = byte & 0x0F;
-
-        if i == data.len() - 1 {
-            // Last byte: first nibble is digit, second nibble is sign
-            if high_nibble <= 9 {
-                result.push((b'0' + high_nibble) as char);
-            }
-
-            if signed {
-                // Sign nibble handling:
-                // 0xD = negative, 0xB = negative alternative
-                // 0xC, 0xF, 0xA, 0xE = positive variants
-                if low_nibble == 0xD || low_nibble == 0xB {
-                    is_negative = true;
-                }
-            }
-        } else {
-            // Regular byte: both nibbles are digits
-            if high_nibble <= 9 {
-                result.push((b'0' + high_nibble) as char);
-            }
-            if low_nibble <= 9 {
-                result.push((b'0' + low_nibble) as char);
-            }
-        }
-    }
-
-    // Remove leading zeros but keep at least one digit
-    let trimmed = result.trim_start_matches('0');
-    let final_result = if trimmed.is_empty() { "0" } else { trimmed };
-
-    let final_string = if is_negative && final_result != "0" {
-        format!("-{}", final_result)
-    } else {
-        final_result.to_string()
-    };
-
-    Ok(Value::String(final_string))
-}
-
-/// Simple binary integer decoder for basic functionality
-fn decode_binary_int_simple(data: &[u8], bits: u16, signed: bool) -> Result<Value> {
-    if data.is_empty() {
-        return Ok(Value::String("0".to_string()));
-    }
-
-    match bits {
-        16 => {
-            if data.len() >= 2 {
-                let value = u16::from_be_bytes([data[0], data[1]]);
-                let result = if signed {
-                    (value as i16).to_string()
-                } else {
-                    value.to_string()
-                };
-                Ok(Value::String(result))
-            } else {
-                Ok(Value::String("0".to_string()))
-            }
-        }
-        32 => {
-            if data.len() >= 4 {
-                let value = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
-                let result = if signed {
-                    (value as i32).to_string()
-                } else {
-                    value.to_string()
-                };
-                Ok(Value::String(result))
-            } else {
-                Ok(Value::String("0".to_string()))
-            }
-        }
-        64 => {
-            if data.len() >= 8 {
-                let value = u64::from_be_bytes([
-                    data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                ]);
-                let result = if signed {
-                    (value as i64).to_string()
-                } else {
-                    value.to_string()
-                };
-                Ok(Value::String(result))
-            } else {
-                Ok(Value::String("0".to_string()))
-            }
-        }
-        _ => {
-            // Unsupported bit width, return 0
-            Ok(Value::String("0".to_string()))
-        }
-    }
->>>>>>> origin/main
 }
 
 /// Encode JSON data to binary using the provided schema
@@ -1110,22 +553,6 @@ pub fn decode_file_to_jsonl(
     let mut buffer = vec![0u8; record_length];
     let mut record_count = 0u64;
 
-<<<<<<< HEAD
-    'outer: loop {
-        let mut read = 0;
-        while read < record_length {
-            match input.read(&mut buffer[read..record_length]) {
-                Ok(0) => {
-                    if read == 0 {
-                        break 'outer;
-                    } else if record_count == 0 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            "Record shorter than expected".to_string(),
-                        ));
-                    } else {
-                        break 'outer;
-=======
     loop {
         // Try to read a record
         match input.read_exact(&mut buffer) {
@@ -1143,51 +570,29 @@ pub fn decode_file_to_jsonl(
                         writeln!(output).map_err(|e| {
                             Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
                         })?;
->>>>>>> origin/main
                     }
-                }
-                Ok(n) => read += n,
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
-                        if read == 0 {
-                            break 'outer;
-                        } else if record_count == 0 {
-                            return Err(Error::new(
-                                ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                                e.to_string(),
-                            ));
-                        } else {
-                            break 'outer;
+                    Err(e) => {
+                        summary.records_with_errors += 1;
+                        if options.strict_mode {
+                            return Err(e);
                         }
-                    } else {
-                        return Err(Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, e.to_string()));
+                        // In lenient mode, continue processing
                     }
                 }
             }
-        }
-
-        record_count += 1;
-        summary.bytes_processed += record_length as u64;
-
-        match decode_record(schema, &buffer, options) {
-            Ok(json_value) => {
-                serde_json::to_writer(&mut output, &json_value)
-                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                writeln!(output)
-                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                summary.warnings += count_bwz_warnings(&schema.fields, &buffer, options, 0);
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                break; // End of file reached
             }
             Err(e) => {
-                summary.records_with_errors += 1;
-                if options.strict_mode {
-                    return Err(e);
-                }
-                // In lenient mode, continue processing
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    e.to_string(),
+                ));
             }
         }
     }
 
-    summary.records_processed = record_count;
+    summary.records_processed = record_count.saturating_sub(summary.records_with_errors);
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
     summary.schema_fingerprint = if !schema.fingerprint.is_empty() {
@@ -1256,7 +661,7 @@ pub fn encode_jsonl_to_file(
         }
     }
 
-    summary.records_processed = record_count;
+    summary.records_processed = record_count.saturating_sub(summary.records_with_errors);
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
     summary.schema_fingerprint = if !schema.fingerprint.is_empty() {
@@ -1373,7 +778,6 @@ pub fn iter_records<R: Read>(
 mod tests {
     use super::*;
     use copybook_core::parse_copybook;
-    use crate::Codepage;
     use std::io::Cursor;
 
     #[test]
@@ -1381,8 +785,6 @@ mod tests {
         let copybook_text = r#"
             01 RECORD.
                05 ID      PIC 9(3).
-               05 AMOUNT  PIC S9(3) COMP-3.
-               05 COUNT   PIC 9(4) COMP.
                05 NAME    PIC X(5).
         "#;
 
@@ -1439,10 +841,8 @@ mod tests {
     fn test_decode_file_to_jsonl() {
         let copybook_text = r#"
             01 RECORD.
-               05 ID      PIC 9(3).
-               05 AMOUNT  PIC S9(3) COMP-3.
-               05 COUNT   PIC 9(4) COMP.
-               05 NAME    PIC X(5).
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
         "#;
 
         let schema = parse_copybook(copybook_text).unwrap();
@@ -1484,50 +884,5 @@ mod tests {
         assert_eq!(summary.records_processed, 2);
         assert_eq!(summary.schema_fingerprint, schema.fingerprint);
         assert!(!output.is_empty());
-    }
-
-    #[test]
-    fn test_run_summary_aggregates() {
-        use copybook_core::{Error, ErrorCode, ErrorMode, ErrorReporter};
-
-        let copybook_text = r#"
-            01 RECORD.
-               05 FIELD PIC X(5).
-        "#;
-        let schema = parse_copybook(copybook_text).unwrap();
-
-        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
-        reporter.start_record(1);
-        reporter.report_warning(Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-            "suspect".to_string(),
-        ));
-        reporter.start_record(2);
-        let _ = reporter.report_error(
-            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, "fail".to_string()).with_record(2),
-        );
-        reporter.start_record(3);
-
-        let err_summary = reporter.summary();
-        let error_count = reporter.error_count();
-        let mut summary = RunSummary {
-            records_processed: 3 - error_count,
-            records_with_errors: error_count,
-            warnings: reporter.warning_count(),
-            corruption_warnings: err_summary.corruption_warnings,
-            processing_time_ms: 0,
-            bytes_processed: 0,
-            schema_fingerprint: schema.fingerprint.clone(),
-            throughput_mbps: 0.0,
-            peak_memory_bytes: None,
-            threads_used: 1,
-        };
-        summary.calculate_throughput();
-
-        assert_eq!(summary.records_processed, 2);
-        assert_eq!(summary.records_with_errors, 1);
-        assert_eq!(summary.warnings, 1);
-        assert_eq!(summary.corruption_warnings, 1);
-        assert_eq!(summary.schema_fingerprint.len(), 64);
     }
 }

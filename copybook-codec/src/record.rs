@@ -600,7 +600,9 @@ impl<W: Write> RDWRecordWriter<W> {
         }
 
         // Create RDW header
-        let length_bytes = u16::try_from(length).expect("RDW length should fit in u16").to_be_bytes();
+        let length_bytes = u16::try_from(length)
+            .expect("RDW length should fit in u16")
+            .to_be_bytes();
         let reserved_bytes = preserve_reserved.unwrap_or(0).to_be_bytes();
         let header = [
             length_bytes[0],
@@ -651,7 +653,8 @@ impl RDWRecord {
     /// Create a new RDW record from payload
     #[must_use]
     pub fn new(payload: Vec<u8>) -> Self {
-        let length = u16::try_from(payload.len().min(u16::MAX as usize)).expect("payload length should fit in u16");
+        let length = u16::try_from(payload.len().min(u16::MAX as usize))
+            .expect("payload length should fit in u16");
         let length_bytes = length.to_be_bytes();
         let header = [length_bytes[0], length_bytes[1], 0, 0]; // Reserved bytes are zero
 
@@ -661,7 +664,8 @@ impl RDWRecord {
     /// Create a new RDW record with preserved reserved bytes
     #[must_use]
     pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
-        let length = u16::try_from(payload.len().min(u16::MAX as usize)).expect("payload length should fit in u16");
+        let length = u16::try_from(payload.len().min(u16::MAX as usize))
+            .expect("payload length should fit in u16");
         let length_bytes = length.to_be_bytes();
         let reserved_bytes = reserved.to_be_bytes();
         let header = [
@@ -688,7 +692,8 @@ impl RDWRecord {
 
     /// Update the length field to match the payload size
     pub fn recompute_length(&mut self) {
-        let length = u16::try_from(self.payload.len().min(u16::MAX as usize)).expect("payload length should fit in u16");
+        let length = u16::try_from(self.payload.len().min(u16::MAX as usize))
+            .expect("payload length should fit in u16");
         let length_bytes = length.to_be_bytes();
         self.header[0] = length_bytes[0];
         self.header[1] = length_bytes[1];

@@ -323,7 +323,12 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
                         for i in 0..count {
                             let offset = field.offset as usize + delta + i * element_size;
                             let mut element_field = field.clone();
-                            element_field.len = element_size as u32;
+                            element_field.len = u32::try_from(element_size).map_err(|_| {
+                                Error::new(
+                                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                                    "Array element size too large".to_string(),
+                                )
+                            })?;
                             element_field.occurs = None;
                             let value = decode_scalar(&element_field, data, options, offset)?;
                             array.push(value);
@@ -472,7 +477,12 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
         let payload = encode_fields_to_payload(schema, json, options)?;
 
         // Create RDW header: length (2 bytes) + reserved (2 bytes)
-        let length = payload.len() as u16;
+        let length = u16::try_from(payload.len()).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                "RDW payload too large".to_string(),
+            )
+        })?;
         result.extend_from_slice(&length.to_be_bytes());
         result.extend_from_slice(&[0, 0]); // Reserved bytes
         result.extend_from_slice(&payload);
@@ -570,7 +580,12 @@ fn encode_field_recursive(
             }
             copybook_core::FieldKind::BinaryInt { signed, .. } => {
                 if let Some(num_value) = value.as_i64() {
-                    let bits = (field.len * 8) as u16;
+                    let bits = u16::try_from(field.len * 8).map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            "Field bit size too large".to_string(),
+                        )
+                    })?;
                     let encoded = crate::numeric::encode_binary_int(num_value, bits, *signed)?;
                     let copy_len = encoded.len().min(field_bytes.len());
                     field_bytes[..copy_len].copy_from_slice(&encoded[..copy_len]);
@@ -666,9 +681,10 @@ pub fn decode_file_to_jsonl(
         }
     }
 
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
+    summary.processing_time_ms =
+        u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
-    summary.schema_fingerprint = schema.fingerprint.clone();
+    summary.schema_fingerprint.clone_from(&schema.fingerprint);
 
     Ok(summary)
 }
@@ -712,27 +728,25 @@ pub fn encode_jsonl_to_file(
             .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
 
         // Encode to binary
-        match encode_record(schema, &json_value, options) {
-            Ok(binary_data) => {
-                output
-                    .write_all(&binary_data)
-                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                summary.bytes_processed += binary_data.len() as u64;
-            }
-            Err(_) => {
-                summary.records_with_errors += 1;
-                // In lenient mode, continue processing
-                if options.strict_mode {
-                    break;
-                }
+        if let Ok(binary_data) = encode_record(schema, &json_value, options) {
+            output
+                .write_all(&binary_data)
+                .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+            summary.bytes_processed += u64::try_from(binary_data.len()).unwrap_or(0);
+        } else {
+            summary.records_with_errors += 1;
+            // In lenient mode, continue processing
+            if options.strict_mode {
+                break;
             }
         }
     }
 
     summary.records_processed = record_count;
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
+    summary.processing_time_ms =
+        u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
-    summary.schema_fingerprint = schema.fingerprint.clone();
+    summary.schema_fingerprint.clone_from(&schema.fingerprint);
 
     Ok(summary)
 }

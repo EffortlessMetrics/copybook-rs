@@ -26,15 +26,14 @@
 //! - **Context Information**: Field paths, record positions, and data context
 //! - **Lenient Processing**: Configurable error limits and warning handling
 
+// Core modules
 pub mod lib_api;
 pub mod options;
-// Temporarily comment out problematic modules to focus on core decode_record fix
-// pub mod numeric;
-// pub mod charset;
-// pub mod json;
 
-// Additional modules required for full decoding implementation
+// Components required for decoding functionality
 pub mod charset;
+pub mod iterator;
+pub mod json;
 pub mod memory;
 pub mod numeric;
 

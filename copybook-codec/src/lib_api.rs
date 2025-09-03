@@ -8,7 +8,7 @@
 //! - encode_jsonl_to_file
 //! - RecordIterator (for programmatic access)
 
-use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, Codepage};
+use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use crate::record::{FixedRecordReader, RDWRecordReader};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::Value;
@@ -451,12 +451,14 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             if let Some(raw_str) = raw_value.as_str() {
                 // Decode base64-encoded raw data
                 use base64::Engine;
-                return base64::engine::general_purpose::STANDARD.decode(raw_str).map_err(|e| {
-                    Error::new(
-                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Failed to decode raw data: {e}"),
-                    )
-                });
+                return base64::engine::general_purpose::STANDARD
+                    .decode(raw_str)
+                    .map_err(|e| {
+                        Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!("Failed to decode raw data: {e}"),
+                        )
+                    });
             }
         }
     }
@@ -468,7 +470,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     if options.format == RecordFormat::RDW {
         // For RDW records, we need to encode the payload first, then add RDW header
         let payload = encode_fields_to_payload(schema, json, options)?;
-        
+
         // Create RDW header: length (2 bytes) + reserved (2 bytes)
         let length = payload.len() as u16;
         result.extend_from_slice(&length.to_be_bytes());
@@ -483,20 +485,24 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 }
 
 /// Encode JSON fields to payload bytes
-fn encode_fields_to_payload(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
+fn encode_fields_to_payload(
+    schema: &Schema,
+    json: &Value,
+    options: &EncodeOptions,
+) -> Result<Vec<u8>> {
     let mut result = Vec::new();
-    
+
     if let Some(obj) = json.as_object() {
         for field in &schema.fields {
             encode_field_recursive(field, obj, &mut result, options)?;
         }
     }
-    
+
     // Pad to schema LRECL if specified
     if let Some(lrecl) = schema.lrecl_fixed {
         result.resize(lrecl as usize, 0);
     }
-    
+
     Ok(result)
 }
 
@@ -512,10 +518,10 @@ fn encode_field_recursive(
     if result.len() < field_end {
         result.resize(field_end, 0);
     }
-    
+
     let field_start = field.offset as usize;
     let field_bytes = &mut result[field_start..field_end];
-    
+
     if let Some(value) = json_obj.get(&field.name) {
         match &field.kind {
             copybook_core::FieldKind::Alphanum { .. } => {
@@ -533,18 +539,31 @@ fn encode_field_recursive(
                     }
                 }
             }
-            copybook_core::FieldKind::ZonedDecimal { digits, scale, signed } => {
+            copybook_core::FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 if let Some(text) = value.as_str() {
                     let encoded = crate::numeric::encode_zoned_decimal(
-                        text, *digits, *scale, *signed, options.codepage
+                        text,
+                        *digits,
+                        *scale,
+                        *signed,
+                        options.codepage,
                     )?;
                     let copy_len = encoded.len().min(field_bytes.len());
                     field_bytes[..copy_len].copy_from_slice(&encoded[..copy_len]);
                 }
             }
-            copybook_core::FieldKind::PackedDecimal { digits, scale, signed } => {
+            copybook_core::FieldKind::PackedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 if let Some(text) = value.as_str() {
-                    let encoded = crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
+                    let encoded =
+                        crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
                     let copy_len = encoded.len().min(field_bytes.len());
                     field_bytes[..copy_len].copy_from_slice(&encoded[..copy_len]);
                 }
@@ -563,7 +582,7 @@ fn encode_field_recursive(
             }
         }
     }
-    
+
     Ok(())
 }
 

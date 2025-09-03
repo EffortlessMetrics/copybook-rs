@@ -656,7 +656,7 @@ impl Parser {
                 ..
             }) => {
                 // Skip VALUE clauses (metadata only)
-                self.skip_value_clause()?;
+                self.skip_value_clause();
             }
             Some(TokenPos {
                 token: Token::Blank,
@@ -685,7 +685,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.convert_to_packed_field(field)?;
+                Self::convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -757,7 +757,7 @@ impl Parser {
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {
-                len: pic.digits as u32,
+                len: u32::from(pic.digits),
             },
             crate::pic::PicKind::NumericDisplay => FieldKind::ZonedDecimal {
                 digits: pic.digits,
@@ -796,7 +796,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.convert_to_packed_field(field)?;
+                Self::convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -922,7 +922,7 @@ impl Parser {
     }
 
     /// Skip VALUE clause (not needed for layout)
-    fn skip_value_clause(&mut self) -> Result<()> {
+    fn skip_value_clause(&mut self) {
         self.advance(); // consume VALUE
 
         // Skip until we find a keyword or period
@@ -932,8 +932,6 @@ impl Parser {
             }
             self.advance();
         }
-
-        Ok(())
     }
 
     /// Convert numeric field to binary with optional explicit width
@@ -1021,7 +1019,7 @@ impl Parser {
 
     /// Convert numeric field to binary (legacy version)
     #[allow(dead_code)]
-    fn convert_to_binary_field(&mut self, field: &mut Field) -> Result<()> {
+    fn convert_to_binary_field(field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
                 let bits = match digits {
@@ -1052,7 +1050,7 @@ impl Parser {
     }
 
     /// Convert numeric field to packed decimal
-    fn convert_to_packed_field(&mut self, field: &mut Field) -> Result<()> {
+    fn convert_to_packed_field(field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal {
                 digits,

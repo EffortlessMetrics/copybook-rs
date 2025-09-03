@@ -153,11 +153,11 @@ copybook decode schema.cpy data.bin \
 
 # Control JSON number representation
 copybook decode schema.cpy data.bin \
-  --json-number lossless \  # strings for decimals (default)
+  --json-number lossless \  # strings for decimals (default, preserves precision)
   --output data.jsonl
 
 copybook decode schema.cpy data.bin \
-  --json-number native \    # JSON numbers where possible
+  --json-number native \    # JSON numbers where possible (integers, small decimals)
   --output data.jsonl
 
 # BLANK WHEN ZERO encoding policy
@@ -186,7 +186,10 @@ copybook decode schema.cpy data.bin \
 
 ```rust
 use copybook_core::parse_copybook;
-use copybook_codec::{decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat};
+use copybook_codec::{
+    decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat, 
+    JsonNumberMode, RawMode, UnmappablePolicy
+};
 use std::path::Path;
 
 // Parse copybook
@@ -197,11 +200,14 @@ let schema = parse_copybook(&copybook_text)?;
 let opts = DecodeOptions {
     codepage: Codepage::Cp037,
     format: RecordFormat::Fixed,
-    strict: false,
+    json_number_mode: JsonNumberMode::Lossless, // Preserve decimal precision
+    strict_mode: false,
     max_errors: Some(100),
     emit_filler: false,
     emit_meta: true,
-    ..Default::default()
+    emit_raw: RawMode::Off,
+    on_decode_unmappable: UnmappablePolicy::Error,
+    threads: 1,
 };
 
 // Decode to JSONL
@@ -222,29 +228,59 @@ println!("Processed {} records with {} errors",
 ```rust
 use copybook_codec::{RecordDecoder, DecodeOptions};
 
-let decoder = RecordDecoder::new(&schema, &opts)?;
+// Stream processing with comprehensive numeric handling
+let records = copybook_codec::iter_records_from_file(&schema, "data.bin", &opts)?;
 
-for record_result in decoder.decode_file("data.bin")? {
+for (record_idx, record_result) in records.enumerate() {
     match record_result {
         Ok(json_value) => {
-            // Process individual record
-            println!("{}", serde_json::to_string(&json_value)?);
+            // Process individual record with preserved numeric precision
+            println!("Record {}: {}", record_idx, serde_json::to_string(&json_value)?);
         }
         Err(e) => {
-            eprintln!("Record error: {}", e);
+            eprintln!("Record {} error: {}", record_idx, e);
         }
     }
 }
+```
+
+## Numeric Data Type Examples
+
+### Zoned Decimal Processing
+```bash
+# Decode EBCDIC zoned decimals with sign zones (C=+, D=-)
+copybook decode schema.cpy mainframe-data.bin \
+  --codepage cp037 \
+  --json-number lossless \
+  --output financial-data.jsonl
+```
+
+### Packed Decimal (COMP-3) Processing
+```bash
+# Decode packed decimal fields with nibble signs
+copybook decode schema.cpy comp3-data.bin \
+  --codepage cp037 \
+  --json-number lossless \
+  --output packed-data.jsonl
+```
+
+### Binary Integer Processing
+```bash
+# Process binary integers with explicit widths
+copybook decode schema.cpy binary-data.bin \
+  --json-number native \  # integers can use JSON numbers
+  --output binary-data.jsonl
 ```
 
 ## Supported COBOL Features
 
 ### Data Types
 - **Alphanumeric**: `PIC X(n)` - Character data with EBCDIC/ASCII conversion
-- **Zoned Decimal**: `PIC 9(n)V9(m)` - Display numeric with optional sign
-- **Packed Decimal**: `PIC 9(n)V9(m) COMP-3` - Binary-coded decimal
-- **Binary Integer**: `PIC 9(n) COMP/BINARY` - Big-endian integers
-- **Signed Fields**: `PIC S9(n)` - Signed numeric types
+- **Zoned Decimal**: `PIC 9(n)V9(m)`, `PIC S9(n)V9(m)` - Display numeric with EBCDIC/ASCII sign zones
+- **Packed Decimal**: `PIC 9(n)V9(m) COMP-3`, `PIC S9(n)V9(m) COMP-3` - Binary-coded decimal with nibble signs
+- **Binary Integer**: `PIC 9(n) COMP/BINARY`, `PIC S9(n) COMP/BINARY` - Big-endian integers (1-8 bytes)
+- **Explicit Binary Width**: `PIC 9(n) BINARY(w)` - Binary integers with explicit byte width (1, 2, 4, 8)
+- **Signed Fields**: Full support for signed zoned, packed, and binary types with proper sign handling
 
 ### Structure Features
 - **Level Numbers**: 01-49 hierarchical grouping
@@ -259,10 +295,11 @@ for record_result in decoder.decode_file("data.bin")? {
 - **ODO Support**: Variable arrays at tail position only
 
 ### Limitations
-- **Unsupported**: COMP-1, COMP-2, edited PIC clauses (Z, /, comma)
+- **Unsupported**: COMP-1 (single-precision float), COMP-2 (double-precision float)
+- **Unsupported**: Edited PIC clauses (Z, /, comma, $, CR, DB)
 - **Unsupported**: SIGN LEADING/TRAILING SEPARATE
-- **Unsupported**: Nested ODO arrays
-- **Unsupported**: 66-level and 88-level items (parsed but ignored)
+- **Unsupported**: Nested ODO arrays (ODO within ODO)
+- **Unsupported**: 66-level (RENAMES) and 88-level (condition names) items
 
 ## Error Handling
 

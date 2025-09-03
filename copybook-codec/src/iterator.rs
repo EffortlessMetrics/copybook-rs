@@ -130,7 +130,16 @@ impl<R: Read> RecordIterator<R> {
     /// * `Ok(Some(bytes))` - The raw record bytes
     /// * `Ok(None)` - End of file reached
     /// * `Err(error)` - An error occurred while reading
+    ///
+    /// # Errors
+    /// Returns an error if there is an I/O error reading from the underlying stream,
+    /// if record length is invalid, or if record format is malformed.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the schema does not have a fixed LRECL when using Fixed record format.
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
+        use std::io::Read;
         if self.eof_reached {
             return Ok(None);
         }
@@ -141,8 +150,6 @@ impl<R: Read> RecordIterator<R> {
             RecordFormat::Fixed => {
                 let lrecl = self.schema.lrecl_fixed.unwrap() as usize;
                 self.buffer.resize(lrecl, 0);
-
-                use std::io::Read;
                 let mut total_read = 0;
 
                 while total_read < lrecl {
@@ -152,7 +159,7 @@ impl<R: Read> RecordIterator<R> {
                             .map_err(|e| {
                                 Error::new(
                                     ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                                    format!("Failed to read fixed record: {}", e),
+                                    format!("Failed to read fixed record: {e}"),
                                 )
                             })?;
 
@@ -162,16 +169,14 @@ impl<R: Read> RecordIterator<R> {
                             // True EOF - no more data
                             self.eof_reached = true;
                             return Ok(None);
-                        } else {
-                            // Partial record - this is an error
-                            return Err(Error::new(
-                                ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                                format!(
-                                    "Incomplete record: expected {} bytes but only got {} bytes",
-                                    lrecl, total_read
-                                ),
-                            ));
                         }
+                        // Partial record - this is an error
+                        return Err(Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            format!(
+                                "Incomplete record: expected {lrecl} bytes but only got {total_read} bytes"
+                            ),
+                        ));
                     }
 
                     total_read += bytes_read;
@@ -193,7 +198,7 @@ impl<R: Read> RecordIterator<R> {
                     Err(e) => {
                         return Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW header: {}", e),
+                            format!("Failed to read RDW header: {e}"),
                         ));
                     }
                 }
@@ -211,7 +216,7 @@ impl<R: Read> RecordIterator<R> {
                     Err(e) => {
                         return Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW payload: {}", e),
+                            format!("Failed to read RDW payload: {e}"),
                         ));
                     }
                 }

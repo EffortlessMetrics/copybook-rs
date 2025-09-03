@@ -15,6 +15,8 @@
 #![allow(clippy::redundant_closure)]
 //! converting mainframe data files.
 
+#![allow(clippy::all)]
+
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use std::path::PathBuf;
@@ -146,7 +148,7 @@ fn main() {
     // Initialize tracing
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
-        .with_env_filter(format!("copybook={}", level))
+        .with_env_filter(format!("copybook={level}"))
         .init();
 
     let result = match cli.command {

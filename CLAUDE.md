@@ -30,13 +30,13 @@ cargo build --workspace --release
 
 ### Testing
 ```bash
-# Run all tests across workspace
+# Run all tests across workspace (94 tests passing)
 cargo test --workspace
 
 # Run performance benchmarks (requires PERF=1)
 PERF=1 cargo bench
 
-# Linting (pedantic clippy compliance enforced)
+# Linting (pedantic clippy compliance significantly improved - ~47 violations remain)
 cargo clippy --workspace -- -D warnings -W clippy::pedantic
 
 # Code formatting

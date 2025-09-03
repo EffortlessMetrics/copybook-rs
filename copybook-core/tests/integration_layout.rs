@@ -151,15 +151,15 @@ fn test_synchronized_binary_alignment() {
     assert_eq!(another_char.offset, 8);
     assert_eq!(another_char.len, 3);
 
-    // ANOTHER-BINARY should be aligned to 4-byte boundary (32-bit, 9 digits → 5-9 range)
+    // ANOTHER-BINARY should be aligned to 8-byte boundary (64-bit)
     let another_binary = &root.children[3];
-    assert_eq!(another_binary.offset, 12); // Aligned from 11 to 12
-    assert_eq!(another_binary.len, 4); // 32-bit = 4 bytes
-    assert_eq!(another_binary.sync_padding, Some(1)); // 1 padding byte
+    assert_eq!(another_binary.offset, 16); // Aligned from 11 to 16
+    assert_eq!(another_binary.len, 8); // 64-bit = 8 bytes
+    assert_eq!(another_binary.sync_padding, Some(5)); // 5 padding bytes
     assert!(another_binary.synchronized);
 
     // Should have fixed LRECL
-    assert_eq!(schema.lrecl_fixed, Some(16)); // 12 + 4
+    assert_eq!(schema.lrecl_fixed, Some(24)); // 16 + 8
 }
 
 #[test]

@@ -342,16 +342,25 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 
 ### Parse Errors (CBKP*)
 - `CBKP001_SYNTAX`: Copybook syntax errors
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+
+### Schema Validation Errors (CBKS*)
+- `CBKS121_COUNTER_NOT_FOUND`: ODO counter field not found
+- `CBKS141_RECORD_TOO_LARGE`: Record size exceeds maximum limit
+- `CBKS301_ODO_CLIPPED`: ODO counter exceeds maximum (strict: fatal, lenient: warning with clamping)
+- `CBKS302_ODO_RAISED`: ODO counter below minimum (strict: fatal, lenient: warning with clamping)
 
 ### Data Errors (CBKD*)
+- `CBKD101_INVALID_FIELD_TYPE`: Invalid field type for operation
+- `CBKD301_RECORD_TOO_SHORT`: Record too short for field
 - `CBKD401_COMP3_INVALID_NIBBLE`: Invalid packed decimal data
 - `CBKD411_ZONED_BAD_SIGN`: Invalid zoned decimal sign
 - `CBKD412_ZONED_BLANK_IS_ZERO`: BLANK WHEN ZERO field decoded as zero
 
 ### Encoding Errors (CBKE*)
-- `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type
+- `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type or REDEFINES ambiguity
 - `CBKE521_ARRAY_LEN_OOB`: Array length out of bounds
 
 See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference.

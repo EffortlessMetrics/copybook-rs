@@ -3,8 +3,6 @@
 //! This module implements tokenization for COBOL copybooks, supporting both
 //! fixed-form and free-form formats with proper continuation handling.
 
-#![allow(dead_code)]
-
 use logos::Logos;
 use std::fmt;
 
@@ -145,7 +143,7 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::Level(n) => write!(f, "{n:02}"),
+            Token::Level(n) => write!(f, "{:02}", n),
             Token::Level66 => write!(f, "66"),
             Token::Level77 => write!(f, "77"),
             Token::Level88 => write!(f, "88"),
@@ -169,13 +167,15 @@ impl fmt::Display for Token {
             Token::Blank => write!(f, "BLANK"),
             Token::When => write!(f, "WHEN"),
             Token::Zero => write!(f, "ZERO"),
-            Token::PicClause(s) | Token::EditedPic(s) | Token::Identifier(s) => write!(f, "{s}"),
-            Token::Number(n) => write!(f, "{n}"),
-            Token::StringLiteral(s) => write!(f, "\"{s}\""),
+            Token::PicClause(s) => write!(f, "{}", s),
+            Token::EditedPic(s) => write!(f, "{}", s),
+            Token::Identifier(s) => write!(f, "{}", s),
+            Token::Number(n) => write!(f, "{}", n),
+            Token::StringLiteral(s) => write!(f, "\"{}\"", s),
             Token::Period => write!(f, "."),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
-            Token::InlineComment(s) => write!(f, "*> {s}"),
+            Token::InlineComment(s) => write!(f, "*> {}", s),
             Token::Newline => write!(f, "\\n"),
             Token::Eof => write!(f, "EOF"),
         }
@@ -200,40 +200,42 @@ pub enum CobolFormat {
 
 /// Lexer for COBOL copybooks
 pub struct Lexer<'a> {
-    _input: &'a str,
+    #[allow(dead_code)]
+    input: &'a str,
     format: CobolFormat,
     lines: Vec<ProcessedLine<'a>>,
-    _current_line: usize,
-    _current_pos: usize,
+    #[allow(dead_code)]
+    current_line: usize,
+    #[allow(dead_code)]
+    current_pos: usize,
 }
 
 /// A processed line after format-specific handling
 #[derive(Debug, Clone)]
 struct ProcessedLine<'a> {
     content: &'a str,
-    _original_line: usize,
+    #[allow(dead_code)]
+    original_line: usize,
     is_comment: bool,
     is_continuation: bool,
 }
 
 impl<'a> Lexer<'a> {
     /// Create a new lexer for the given input
-    #[must_use]
     pub fn new(input: &'a str) -> Self {
         let format = detect_format(input);
         let lines = preprocess_lines(input, format);
 
         Self {
-            _input: input,
+            input,
             format,
             lines,
-            _current_line: 0,
-            _current_pos: 0,
+            current_line: 0,
+            current_pos: 0,
         }
     }
 
     /// Get the detected format
-    #[must_use]
     pub fn format(&self) -> CobolFormat {
         self.format
     }
@@ -249,12 +251,13 @@ impl<'a> Lexer<'a> {
 
         while let Some(result) = lexer.next() {
             let span = lexer.span();
-            let token = if let Ok(token) = result {
-                token
-            } else {
-                // Handle lexer errors - create an identifier token for unknown text
-                let text = &processed_text[span.clone()];
-                Token::Identifier(text.to_string())
+            let token = match result {
+                Ok(token) => token,
+                Err(_) => {
+                    // Handle lexer errors - create an identifier token for unknown text
+                    let text = &processed_text[span.clone()];
+                    Token::Identifier(text.to_string())
+                }
             };
 
             // Update line/column tracking
@@ -371,7 +374,7 @@ fn detect_format(input: &str) -> CobolFormat {
 }
 
 /// Preprocess lines according to the detected format
-fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine<'_>> {
+fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine> {
     let mut result = Vec::new();
 
     for (line_num, line) in input.lines().enumerate() {
@@ -386,11 +389,11 @@ fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine<'_>> 
 }
 
 /// Process a fixed-form COBOL line
-fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
+fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine {
     if line.is_empty() {
         return ProcessedLine {
             content: "",
-            _original_line: line_num,
+            original_line: line_num,
             is_comment: false,
             is_continuation: false,
         };
@@ -400,7 +403,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.starts_with('*') {
         return ProcessedLine {
             content: line,
-            _original_line: line_num,
+            original_line: line_num,
             is_comment: true,
             is_continuation: false,
         };
@@ -419,14 +422,14 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 
     ProcessedLine {
         content,
-        _original_line: line_num,
+        original_line: line_num,
         is_comment: false,
         is_continuation,
     }
 }
 
 /// Process a free-form COBOL line
-fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
+fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine {
     let trimmed = line.trim_start();
 
     // Check for comment lines (* at column 1 or *> anywhere)
@@ -435,7 +438,7 @@ fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     // Free-form doesn't have continuation in the same way as fixed-form
     ProcessedLine {
         content: line,
-        _original_line: line_num,
+        original_line: line_num,
         is_comment,
         is_continuation: false,
     }
@@ -486,7 +489,7 @@ mod tests {
         let input = r#"       01  VERY-LONG-FIELD-NAME
       -        PIC X(50).
 "#;
-        let lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input);
         let processed = lexer.build_processed_text();
 
         // Should join the continuation properly

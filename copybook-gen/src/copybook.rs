@@ -36,12 +36,14 @@ pub enum CopybookTemplate {
 }
 
 /// Generate a synthetic COBOL copybook
-#[must_use] pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
+#[must_use]
+pub fn generate_synthetic_copybook(config: &GeneratorConfig) -> String {
     generate_copybook_with_template(config, CopybookTemplate::Simple)
 }
 
 /// Generate copybook with specific template
-#[must_use] pub fn generate_copybook_with_template(
+#[must_use]
+pub fn generate_copybook_with_template(
     config: &GeneratorConfig,
     template: CopybookTemplate,
 ) -> String {
@@ -59,7 +61,8 @@ pub enum CopybookTemplate {
     }
 }
 
-#[allow(clippy::too_many_lines)] fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> String {
+#[allow(clippy::too_many_lines)]
+fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> String {
     let mut copybook = String::new();
     copybook.push_str("      * Generated synthetic copybook - Simple\n");
     copybook.push_str("       01  RECORD-ROOT.\n");
@@ -449,9 +452,10 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
 }
 
 /// Generate negative test copybooks (invalid syntax)
-#[must_use] pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
+#[must_use]
+pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
     let _rng = StdRng::seed_from_u64(config.seed);
-    
+
     vec![
         // Invalid level numbers
         (

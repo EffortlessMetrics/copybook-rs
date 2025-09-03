@@ -6,6 +6,7 @@
 
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
+use base64::prelude::*;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::io::Write;
@@ -163,8 +164,8 @@ impl<W: Write> JsonWriter<W> {
         fields: &[Field],
         record_data: &[u8],
         first_field: &mut bool,
-        record_index: u64,
-        byte_offset: u64,
+        _record_index: u64,
+        _byte_offset: u64,
     ) -> Result<()> {
         for field in fields {
             // Skip FILLER fields unless explicitly requested
@@ -232,7 +233,7 @@ impl<W: Write> JsonWriter<W> {
 
                 let field_data =
                     &record_data[field.offset as usize..(field.offset + field.len) as usize];
-                let encoded = base64::encode(field_data);
+                let encoded = BASE64_STANDARD.encode(field_data);
                 self.json_buffer.push_str(&encoded);
                 self.json_buffer.push('"');
             }
@@ -245,7 +246,7 @@ impl<W: Write> JsonWriter<W> {
         &mut self,
         field: &Field,
         record_data: &[u8],
-        len: u32,
+        _len: u32,
     ) -> Result<()> {
         let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
 
@@ -406,7 +407,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__raw_b64\":\"");
-        let encoded = base64::encode(record_data);
+        let encoded = BASE64_STANDARD.encode(record_data);
         self.json_buffer.push_str(&encoded);
         self.json_buffer.push('"');
 
@@ -769,6 +770,9 @@ impl<W: Write> JsonWriter<W> {
     }
 
     /// Finish writing and flush
+    ///
+    /// # Errors
+    /// Returns an error if the underlying writer cannot be flushed.
     pub fn finish(mut self) -> Result<W> {
         self.writer.flush().map_err(|e| {
             Error::new(
@@ -996,7 +1000,7 @@ impl JsonEncoder {
                     ),
                 )
                 .with_field(cluster_path)
-                .with_offset(field.offset as u64))
+                .with_offset(u64::from(field.offset)))
             }
         }
     }
@@ -1175,7 +1179,7 @@ impl JsonEncoder {
                     if *scale > 0 {
                         format!(
                             "{:.1$}",
-                            count as f64 / scale_factor as f64,
+                            f64::from(count) / f64::from(scale_factor),
                             *scale as usize
                         )
                     } else {
@@ -1210,7 +1214,7 @@ impl JsonEncoder {
                     if *scale > 0 {
                         format!(
                             "{:.1$}",
-                            count as f64 / scale_factor as f64,
+                            f64::from(count) / f64::from(scale_factor),
                             *scale as usize
                         )
                     } else {
@@ -1228,7 +1232,7 @@ impl JsonEncoder {
                 }
             }
             FieldKind::BinaryInt { bits, signed } => {
-                let encoded = crate::numeric::encode_binary_int(count as i64, *bits, *signed)?;
+                let encoded = crate::numeric::encode_binary_int(i64::from(count), *bits, *signed)?;
 
                 let end_offset = (counter_field.offset + counter_field.len) as usize;
                 if end_offset <= record_data.len() {
@@ -1273,7 +1277,7 @@ impl JsonEncoder {
                 format!("Field {} extends beyond record boundary", field.path),
             )
             .with_field(field.path.clone())
-            .with_offset(field.offset as u64));
+            .with_offset(u64::from(field.offset)));
         }
 
         let field_data = &mut record_data[field.offset as usize..end_offset];
@@ -1533,8 +1537,8 @@ impl JsonEncoder {
     ) -> Result<()> {
         let (min_val, max_val) = if signed {
             match bits {
-                16 => (i16::MIN as i64, i16::MAX as i64),
-                32 => (i32::MIN as i64, i32::MAX as i64),
+                16 => (i64::from(i16::MIN), i64::from(i16::MAX)),
+                32 => (i64::from(i32::MIN), i64::from(i32::MAX)),
                 64 => (i64::MIN, i64::MAX),
                 _ => {
                     return Err(Error::new(
@@ -1792,6 +1796,9 @@ impl<W: Write> OrderedJsonWriter<W> {
     }
 
     /// Finish writing and return the inner writer
+    ///
+    /// # Errors
+    /// Returns an error if the inner writer cannot be finished.
     pub fn finish(self) -> Result<W> {
         self.inner.finish()
     }

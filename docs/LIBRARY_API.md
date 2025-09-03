@@ -99,7 +99,8 @@ pub struct Field {
 - `len` - Field length in bytes
 - `redefines_of` - Path of redefined field (if applicable)
 - `occurs` - Array information (if applicable)
-- `sync` - Alignment padding bytes (if SYNCHRONIZED)
+- `sync_padding` - Alignment padding bytes (if SYNCHRONIZED) following IBM mainframe standards
+- `synchronized` - Boolean flag indicating if field uses SYNCHRONIZED alignment
 
 ### FieldKind
 

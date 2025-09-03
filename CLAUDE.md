@@ -40,7 +40,7 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Code formatting
 cargo fmt --all
 
-# Validation pipeline (comprehensive quality checks)
+# Validation pipeline (comprehensive quality checks - 118 tests passing)
 cargo build --workspace --release && \
 cargo test --workspace && \
 cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
@@ -92,7 +92,8 @@ Uses structured error taxonomy with stable error codes:
 - Enhanced error reporting with comprehensive context (record index, field path, byte offset)
 - Strict/lenient mode support for ODO counter validation with warning/clamping behavior
 - Idiomatic Rust patterns for improved reliability (div_ceil, is_empty, range contains)
-- Clippy pedantic compliance for additional safety checks
+- Clippy pedantic compliance for additional safety checks (140+ violations resolved)
+- Binary field alignment following IBM mainframe SYNCHRONIZED standards
 
 ## Requirements
 

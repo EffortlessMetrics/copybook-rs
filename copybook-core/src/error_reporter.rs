@@ -76,6 +76,7 @@ pub struct ErrorReporter {
 
 impl ErrorReporter {
     /// Create a new error reporter with the specified mode
+    #[must_use]
     pub fn new(mode: ErrorMode, max_errors: Option<u64>) -> Self {
         Self {
             mode,
@@ -86,6 +87,7 @@ impl ErrorReporter {
     }
 
     /// Set verbose logging mode
+    #[must_use]
     pub fn with_verbose_logging(mut self, verbose: bool) -> Self {
         self.verbose_logging = verbose;
         self
@@ -94,6 +96,18 @@ impl ErrorReporter {
     /// Report an error and determine if processing should continue
     ///
     /// Returns `Ok(())` if processing should continue, `Err(error)` if it should stop
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The error severity is `Fatal`
+    /// - The error severity is `Error` and mode is `Strict`
+    /// - The error severity is `Error` and the maximum error limit has been reached
+    ///
+    /// # Panics
+    ///
+    /// Panics if `max_errors` is `Some` but the internal logic incorrectly assumes it's always `Some`
+    /// when reaching the maximum error limit check. This should not happen in normal usage.
     pub fn report_error(&mut self, error: Error) -> Result<(), Error> {
         let severity = self.determine_severity(&error);
         let report = ErrorReport {
@@ -170,11 +184,13 @@ impl ErrorReporter {
     }
 
     /// Get the current error summary
+    #[must_use]
     pub fn summary(&self) -> &ErrorSummary {
         &self.summary
     }
 
     /// Check if any errors have been reported
+    #[must_use]
     pub fn has_errors(&self) -> bool {
         self.summary
             .error_counts
@@ -190,6 +206,7 @@ impl ErrorReporter {
     }
 
     /// Check if any warnings have been reported
+    #[must_use]
     pub fn has_warnings(&self) -> bool {
         self.summary
             .error_counts
@@ -199,6 +216,7 @@ impl ErrorReporter {
     }
 
     /// Get total error count (excluding warnings)
+    #[must_use]
     pub fn error_count(&self) -> u64 {
         self.summary
             .error_counts
@@ -212,6 +230,7 @@ impl ErrorReporter {
     }
 
     /// Get total warning count
+    #[must_use]
     pub fn warning_count(&self) -> u64 {
         *self
             .summary
@@ -221,24 +240,30 @@ impl ErrorReporter {
     }
 
     /// Generate a detailed error report for display
+    #[must_use]
     pub fn generate_report(&self) -> String {
+        use std::fmt::Write;
         let mut report = String::new();
 
         report.push_str("=== Error Summary ===\n");
-        report.push_str(&format!(
-            "Total records processed: {}\n",
+        writeln!(
+            report,
+            "Total records processed: {}",
             self.summary.total_records
-        ));
-        report.push_str(&format!(
-            "Records with errors: {}\n",
+        )
+        .unwrap();
+        writeln!(
+            report,
+            "Records with errors: {}",
             self.summary.records_with_errors
-        ));
+        )
+        .unwrap();
 
         if !self.summary.error_counts.is_empty() {
             report.push_str("\nError counts by severity:\n");
             for (severity, count) in &self.summary.error_counts {
                 if *count > 0 {
-                    report.push_str(&format!("  {:?}: {}\n", severity, count));
+                    writeln!(report, "  {severity:?}: {count}").unwrap();
                 }
             }
         }
@@ -247,20 +272,22 @@ impl ErrorReporter {
             report.push_str("\nError counts by code:\n");
             for (code, count) in &self.summary.error_codes {
                 if *count > 0 {
-                    report.push_str(&format!("  {}: {}\n", code, count));
+                    writeln!(report, "  {code}: {count}").unwrap();
                 }
             }
         }
 
         if self.summary.corruption_warnings > 0 {
-            report.push_str(&format!(
-                "\nTransfer corruption warnings: {}\n",
+            writeln!(
+                report,
+                "\nTransfer corruption warnings: {}",
                 self.summary.corruption_warnings
-            ));
+            )
+            .unwrap();
         }
 
         if let Some(ref first_error) = self.summary.first_error {
-            report.push_str(&format!("\nFirst error: {}\n", first_error.error));
+            writeln!(report, "\nFirst error: {}", first_error.error).unwrap();
         }
 
         report
@@ -269,19 +296,20 @@ impl ErrorReporter {
     /// Determine error severity based on error code
     fn determine_severity(&self, error: &Error) -> ErrorSeverity {
         match error.code {
-            // Parse errors are typically fatal
+            // Parse errors and schema errors are typically fatal
             ErrorCode::CBKP001_SYNTAX
             | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
             | ErrorCode::CBKP021_ODO_NOT_TAIL
-            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
+            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+            | ErrorCode::CBKS121_COUNTER_NOT_FOUND
+            | ErrorCode::CBKS141_RECORD_TOO_LARGE
+            // JSON write errors are typically fatal
+            | ErrorCode::CBKC201_JSON_WRITE_ERROR => ErrorSeverity::Fatal,
 
-            // Schema errors can be fatal or errors depending on context
-            ErrorCode::CBKS121_COUNTER_NOT_FOUND | ErrorCode::CBKS141_RECORD_TOO_LARGE => {
-                ErrorSeverity::Fatal
-            }
-
-            // ODO clipping is a warning in lenient mode, error in strict mode
-            ErrorCode::CBKS301_ODO_CLIPPED | ErrorCode::CBKS302_ODO_RAISED => {
+            // ODO clipping and RDW reserved warnings are mode-dependent
+            ErrorCode::CBKS301_ODO_CLIPPED
+            | ErrorCode::CBKS302_ODO_RAISED
+            | ErrorCode::CBKR211_RDW_RESERVED_NONZERO => {
                 if self.mode == ErrorMode::Strict {
                     ErrorSeverity::Fatal
                 } else {
@@ -289,27 +317,17 @@ impl ErrorReporter {
                 }
             }
 
-            // Record format warnings
-            ErrorCode::CBKR211_RDW_RESERVED_NONZERO => {
-                if self.mode == ErrorMode::Strict {
-                    ErrorSeverity::Fatal
-                } else {
-                    ErrorSeverity::Warning
-                }
-            }
-            ErrorCode::CBKR221_RDW_UNDERFLOW => ErrorSeverity::Error,
-
-            // Character conversion warnings
-            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => ErrorSeverity::Warning,
-
-            // Data decode errors
-            ErrorCode::CBKD101_INVALID_FIELD_TYPE
+            // Data decode errors and record format errors
+            ErrorCode::CBKR221_RDW_UNDERFLOW
+            | ErrorCode::CBKD101_INVALID_FIELD_TYPE
             | ErrorCode::CBKD301_RECORD_TOO_SHORT
             | ErrorCode::CBKD401_COMP3_INVALID_NIBBLE
             | ErrorCode::CBKD411_ZONED_BAD_SIGN => ErrorSeverity::Error,
 
-            // BLANK WHEN ZERO is informational
-            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => ErrorSeverity::Warning,
+            // Warnings for character conversion and blank when zero
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE | ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => {
+                ErrorSeverity::Warning
+            }
 
             // Encode errors
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE521_ARRAY_LEN_OOB => {
@@ -318,9 +336,6 @@ impl ErrorReporter {
 
             // Transfer corruption warnings
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
-
-            // JSON write errors are typically fatal
-            ErrorCode::CBKC201_JSON_WRITE_ERROR => ErrorSeverity::Fatal,
         }
     }
 
@@ -406,23 +421,27 @@ impl fmt::Display for ErrorSeverity {
 
 impl ErrorSummary {
     /// Check if processing had any errors
+    #[must_use]
     pub fn has_errors(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0) > &0
             || self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0) > &0
     }
 
     /// Check if processing had any warnings
+    #[must_use]
     pub fn has_warnings(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0) > &0
     }
 
     /// Get total error count (excluding warnings)
+    #[must_use]
     pub fn error_count(&self) -> u64 {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0)
             + self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0)
     }
 
     /// Get total warning count
+    #[must_use]
     pub fn warning_count(&self) -> u64 {
         *self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0)
     }

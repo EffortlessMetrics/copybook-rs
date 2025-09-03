@@ -132,7 +132,7 @@ fn run_fixtures(regenerate: bool) -> anyhow::Result<()> {
 }
 
 fn run_validate(path: &str) -> anyhow::Result<()> {
-    println!("🔍 Validating copybook: {}", path);
+    println!("🔍 Validating copybook: {path}");
 
     run_command(
         "cargo",
@@ -173,7 +173,7 @@ fn run_command(cmd: &str, args: &[&str]) -> anyhow::Result<()> {
     let status = Command::new(cmd).args(args).status()?;
 
     if !status.success() {
-        anyhow::bail!("Command failed: {} {}", cmd, args.join(" "));
+        anyhow::bail!("Command failed: {cmd} {}", args.join(" "));
     }
 
     Ok(())

@@ -1014,7 +1014,7 @@ impl JsonEncoder {
 
         // Process fields in schema order
         if let Value::Object(obj) = json {
-            self.encode_fields_recursive(&schema.fields, obj, &mut record_data)?;
+            self.encode_fields_recursive(schema, &schema.fields, obj, &mut record_data)?;
         } else {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -1074,12 +1074,13 @@ impl JsonEncoder {
     /// Encode fields recursively
     fn encode_fields_recursive(
         &self,
+        schema: &Schema,
         fields: &[Field],
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
     ) -> Result<()> {
         for field in fields {
-            self.encode_single_field(field, json_obj, record_data)?;
+            self.encode_single_field(schema, field, json_obj, record_data)?;
         }
         Ok(())
     }
@@ -1087,6 +1088,7 @@ impl JsonEncoder {
     /// Encode a single field
     fn encode_single_field(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1100,24 +1102,24 @@ impl JsonEncoder {
 
         // Handle REDEFINES: implement precedence rules (NORMATIVE)
         if field.redefines_of.is_some() {
-            return self.encode_redefines_field(field, json_obj, record_data);
+            return self.encode_redefines_field(schema, field, json_obj, record_data);
         }
 
         match &field.kind {
             FieldKind::Group => {
                 if let Some(occurs) = &field.occurs {
-                    self.encode_group_array(field, json_obj, record_data, occurs)?;
+                    self.encode_group_array(schema, field, json_obj, record_data, occurs)?;
                 } else {
                     // Single group - process children
                     if let Some(Value::Object(group_obj)) = json_obj.get(&field_name) {
-                        self.encode_fields_recursive(&field.children, group_obj, record_data)?;
+                        self.encode_fields_recursive(schema, &field.children, group_obj, record_data)?;
                     }
                 }
             }
             _ => {
                 // Scalar field
                 if let Some(occurs) = &field.occurs {
-                    self.encode_scalar_array(field, json_obj, record_data, occurs)?;
+                    self.encode_scalar_array(schema, field, json_obj, record_data, occurs)?;
                 } else {
                     if let Some(field_value) = json_obj.get(&field_name) {
                         self.encode_scalar_field(field, field_value, record_data)?;
@@ -1132,6 +1134,7 @@ impl JsonEncoder {
     /// Encode REDEFINES field with precedence rules (NORMATIVE)
     fn encode_redefines_field(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1191,7 +1194,7 @@ impl JsonEncoder {
                 let (view_field, view_value) = non_null_views[0];
                 let mut temp_obj = Map::new();
                 temp_obj.insert(view_field.name.clone(), (*view_value).clone());
-                self.encode_single_field(view_field, &temp_obj, record_data)
+                self.encode_single_field(schema, view_field, &temp_obj, record_data)
             }
             _ => {
                 // Multiple non-null views - ambiguous (NORMATIVE)
@@ -1246,6 +1249,7 @@ impl JsonEncoder {
     /// Encode group array
     fn encode_group_array(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1259,7 +1263,7 @@ impl JsonEncoder {
             
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
-                self.update_odo_counter(counter_path, array.len() as u32, json_obj, record_data)?;
+                self.update_odo_counter(schema, counter_path, array.len() as u32, json_obj, record_data)?;
             }
 
             // Encode each array element
@@ -1274,7 +1278,7 @@ impl JsonEncoder {
                     element_field.len = element_size;
                     element_field.occurs = None;
                     
-                    self.encode_fields_recursive(&element_field.children, element_obj, record_data)?;
+                    self.encode_fields_recursive(schema, &element_field.children, element_obj, record_data)?;
                 }
             }
         }
@@ -1285,6 +1289,7 @@ impl JsonEncoder {
     /// Encode scalar array
     fn encode_scalar_array(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1298,7 +1303,7 @@ impl JsonEncoder {
             
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
-                self.update_odo_counter(counter_path, array.len() as u32, json_obj, record_data)?;
+                self.update_odo_counter(schema, counter_path, array.len() as u32, json_obj, record_data)?;
             }
 
             // Encode each array element
@@ -1345,13 +1350,14 @@ impl JsonEncoder {
     /// Update ODO counter field
     fn update_odo_counter(
         &self,
+        schema: &Schema,
         counter_path: &str,
         count: u32,
         _json_obj: &Map<String, Value>,
         record_data: &mut [u8],
     ) -> Result<()> {
         // Find the counter field in the schema
-        let counter_field = self.find_field_by_path_in_schema(counter_path)?;
+        let counter_field = self.find_field_by_path_in_schema(schema, counter_path)?;
         
         // Encode the count value into the counter field
         match &counter_field.kind {
@@ -1779,14 +1785,36 @@ impl JsonEncoder {
         }
     }
 
-    /// Find a field by path in the schema (placeholder - needs schema access)
-    fn find_field_by_path_in_schema(&self, _path: &str) -> Result<&Field> {
-        // This is a placeholder - we need access to the full schema to implement this properly
-        // For now, return an error
+    /// Find a field by path in the schema
+    fn find_field_by_path_in_schema(&self, schema: &Schema, path: &str) -> Result<&Field> {
+        // Search through all fields recursively
+        for field in &schema.fields {
+            if let Some(found) = self.find_field_by_path_recursive(field, path) {
+                return Ok(found);
+            }
+        }
+        
         Err(Error::new(
             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!("Field lookup not implemented: {}", _path),
+            format!("Field not found in schema: {}", path),
         ))
+    }
+    
+    /// Recursively search for a field by path
+    fn find_field_by_path_recursive<'a>(&self, field: &'a Field, path: &str) -> Option<&'a Field> {
+        // Check if this field matches the path
+        if field.path == path || field.name == path {
+            return Some(field);
+        }
+        
+        // Search children recursively
+        for child in &field.children {
+            if let Some(found) = self.find_field_by_path_recursive(child, path) {
+                return Some(found);
+            }
+        }
+        
+        None
     }
 
     /// Find all fields that redefine the given field (placeholder)

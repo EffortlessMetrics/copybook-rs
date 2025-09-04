@@ -351,13 +351,22 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
         }
     }
     
-    // Simple encoding for basic functionality - extract field values and pack them
+    // Enhanced encoding with ODO support
     let mut encoded_data = Vec::new();
     
     if let Some(obj) = json.as_object() {
-        // Simple field extraction and encoding
+        // First pass: collect ODO updates needed
+        let mut odo_updates = std::collections::HashMap::new();
+        collect_odo_updates(schema, &schema.fields, obj, &mut odo_updates);
+        
+        // Debug output (remove in production)
+        // eprintln!("DEBUG: Schema fields: {:?}", schema.fields.iter().map(|f| &f.name).collect::<Vec<_>>());
+        // eprintln!("DEBUG: JSON object keys: {:?}", obj.keys().collect::<Vec<_>>());
+        // eprintln!("DEBUG: ODO updates found: {:?}", odo_updates);
+        
+        // Second pass: encode fields with ODO counter updates applied
         for field in &schema.fields {
-            encode_field_simple(field, obj, &mut encoded_data)?;
+            encode_field_with_odo(field, obj, &mut encoded_data, &odo_updates)?;
         }
     }
     
@@ -373,6 +382,119 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     }
     
     Ok(encoded_data)
+}
+
+/// Collect ODO counter updates needed (recursive search through all fields)
+fn collect_odo_updates(
+    _schema: &copybook_core::Schema, 
+    fields: &[copybook_core::Field], 
+    obj: &serde_json::Map<String, Value>, 
+    odo_updates: &mut std::collections::HashMap<String, u32>
+) {
+    for field in fields {
+        // eprintln!("DEBUG: Checking field '{}' for ODO", field.name);
+        
+        if let Some(ref occurs) = field.occurs {
+            if let copybook_core::Occurs::ODO { counter_path, .. } = occurs {
+                // eprintln!("DEBUG: Found ODO field '{}' with counter_path '{}'", field.name, counter_path);
+                // Check if this field has an array in JSON (search in flat JSON structure)
+                if let Some(Value::Array(array)) = obj.get(&field.name) {
+                    // eprintln!("DEBUG: Found array for ODO field '{}' with {} elements", field.name, array.len());
+                    odo_updates.insert(counter_path.clone(), array.len() as u32);
+                }
+            }
+        }
+        
+        // Always recurse into child fields, using the same flattened JSON object
+        if !field.children.is_empty() {
+            // eprintln!("DEBUG: Recursing into children of field '{}'", field.name);
+            collect_odo_updates(_schema, &field.children, obj, odo_updates);
+        }
+    }
+}
+
+/// Enhanced field encoding with ODO counter support
+fn encode_field_with_odo(
+    field: &copybook_core::Field, 
+    obj: &serde_json::Map<String, Value>, 
+    buffer: &mut Vec<u8>, 
+    odo_updates: &std::collections::HashMap<String, u32>
+) -> Result<()> {
+    // eprintln!("DEBUG: Processing field '{}' (len: {}, has_children: {})", field.name, field.len, !field.children.is_empty());
+    
+    // If this is a group field (has children), process children recursively
+    if !field.children.is_empty() {
+        for child in &field.children {
+            encode_field_with_odo(child, obj, buffer, odo_updates)?;
+        }
+        return Ok(());
+    }
+    
+    // Check if this field has array data (ODO or fixed array)
+    if let Some(Value::Array(array)) = obj.get(&field.name) {
+        // eprintln!("DEBUG: Encoding array field '{}' with {} elements", field.name, array.len());
+        
+        // For arrays, each element has the field size (field.len is per element)
+        let element_size = field.len as usize;
+        
+        for (i, element) in array.iter().enumerate() {
+            // eprintln!("DEBUG: Encoding array element {} of {}: {:?}", i + 1, array.len(), element);
+            match element {
+                Value::String(s) => {
+                    let mut field_data = s.as_bytes().to_vec();
+                    field_data.resize(element_size, b' '); // Pad with spaces
+                    buffer.extend_from_slice(&field_data[..element_size]); // Truncate if needed
+                }
+                _ => {
+                    // For non-string array elements, fill with spaces
+                    buffer.extend(vec![b' '; element_size]);
+                }
+            }
+        }
+        return Ok(());
+    }
+    
+    // This is a leaf field - encode it as a single value
+    let field_value = if odo_updates.contains_key(&field.path) || odo_updates.contains_key(&field.name) {
+        // This is an ODO counter field - use the updated count
+        let counter_value = odo_updates.get(&field.path)
+            .or_else(|| odo_updates.get(&field.name))
+            .unwrap_or(&0);
+        
+        // eprintln!("DEBUG: Updating ODO counter '{}' (path: '{}') to value {}", field.name, field.path, counter_value);
+        Value::String(format!("{:0width$}", counter_value, width = field.len as usize))
+    } else {
+        // Use original value from JSON
+        let orig_value = obj.get(&field.name).cloned().unwrap_or(Value::Null);
+        // eprintln!("DEBUG: Encoding field '{}' (path: '{}') with original value: {:?}", field.name, field.path, orig_value);
+        orig_value
+    };
+    
+    // Use the original simple encoding logic
+    match field_value {
+        Value::String(s) => {
+            // Simple string encoding - pad or truncate to field size
+            let field_size = field.len as usize;
+            let mut field_data = s.as_bytes().to_vec();
+            field_data.resize(field_size, b' '); // Pad with spaces
+            buffer.extend_from_slice(&field_data[..field_size]); // Truncate if needed
+        }
+        Value::Number(n) => {
+            // Simple numeric encoding - convert to string and pad
+            let s = n.to_string();
+            let field_size = field.len as usize;
+            let mut field_data = s.as_bytes().to_vec();
+            field_data.resize(field_size, b'0'); // Pad with zeros
+            buffer.extend_from_slice(&field_data[..field_size]);
+        }
+        _ => {
+            // Default: encode as empty field
+            let field_size = field.len as usize;
+            buffer.extend(vec![b' '; field_size]);
+        }
+    }
+    
+    Ok(())
 }
 
 /// Simple field encoding for basic functionality

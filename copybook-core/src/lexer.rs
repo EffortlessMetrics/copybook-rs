@@ -59,6 +59,9 @@ pub enum Token {
     #[token("TIMES", ignore(case))]
     Times,
 
+    #[token("TO", ignore(case))]
+    To,
+
     #[token("SYNCHRONIZED", ignore(case))]
     #[token("SYNC", ignore(case))]
     Synchronized,
@@ -158,6 +161,7 @@ impl fmt::Display for Token {
             Token::Depending => write!(f, "DEPENDING"),
             Token::On => write!(f, "ON"),
             Token::Times => write!(f, "TIMES"),
+            Token::To => write!(f, "TO"),
             Token::Synchronized => write!(f, "SYNCHRONIZED"),
             Token::Value => write!(f, "VALUE"),
             Token::Sign => write!(f, "SIGN"),

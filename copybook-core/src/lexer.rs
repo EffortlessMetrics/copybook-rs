@@ -449,21 +449,21 @@ mod tests {
 
     #[test]
     fn test_format_detection_fixed() {
-        let input = r#"      * This is a comment
+        let input = r"      * This is a comment
        01  CUSTOMER-RECORD.
            05  CUSTOMER-ID     PIC X(10).
            05  CUSTOMER-NAME   PIC X(30).
-"#;
+";
         assert_eq!(detect_format(input), CobolFormat::Fixed);
     }
 
     #[test]
     fn test_format_detection_free() {
-        let input = r#"*> This is a comment
+        let input = r"*> This is a comment
 01 CUSTOMER-RECORD.
   05 CUSTOMER-ID PIC X(10).
   05 CUSTOMER-NAME PIC X(30).
-"#;
+";
         assert_eq!(detect_format(input), CobolFormat::Free);
     }
 
@@ -485,9 +485,9 @@ mod tests {
 
     #[test]
     fn test_continuation_handling() {
-        let input = r#"       01  VERY-LONG-FIELD-NAME
+        let input = r"       01  VERY-LONG-FIELD-NAME
       -        PIC X(50).
-"#;
+";
         let lexer = Lexer::new(input);
         let processed = lexer.build_processed_text();
 

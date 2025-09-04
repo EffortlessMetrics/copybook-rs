@@ -30,13 +30,16 @@ cargo build --workspace --release
 
 ### Testing
 ```bash
-# Run all tests across workspace (94 tests passing)
+# Run all tests across workspace (118 tests passing)
 cargo test --workspace
 
-# Run performance benchmarks (requires PERF=1)
+# Run performance benchmarks
+cargo bench --package copybook-bench
+
+# Run with performance environment variable
 PERF=1 cargo bench
 
-# Linting (pedantic clippy compliance significantly improved - ~47 violations remain)
+# Linting (clippy pedantic compliance - major violations resolved)
 cargo clippy --workspace -- -D warnings -W clippy::pedantic
 
 # Code formatting
@@ -47,6 +50,23 @@ cargo build --workspace --release && \
 cargo test --workspace && \
 cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
 cargo fmt --all --check
+```
+
+### Performance Benchmarks
+
+```bash
+# Run all benchmarks in copybook-bench
+cargo bench --package copybook-bench
+
+# Run specific benchmark suites
+cargo bench --package copybook-bench -- encode_performance
+cargo bench --package copybook-bench -- decode_performance
+
+# Run SLO validation benchmarks
+cargo bench --package copybook-bench -- slo_validation
+
+# Generate HTML performance report
+cargo bench --package copybook-bench -- --output-format html
 ```
 
 ### CLI Usage
@@ -69,10 +89,17 @@ copybook [SUBCOMMAND]
 - `Schema`: Top-level parsed copybook structure from copybook-core
 - `Field`/`FieldKind`: Individual copybook field definitions with COBOL semantics (now with proper JSON field processing)
 - `SmallDecimal`: Decimal type with Display trait implementation for improved debugging and formatting
+- `ScratchBuffers`: Reusable memory buffers for performance optimization
 - `DecodeOptions`/`EncodeOptions`: Configuration for codec operations
 - `RecordFormat`: Fixed-length vs RDW (Record Descriptor Word) formats
 - `Codepage`: EBCDIC character encoding variants (CP037, CP273, CP500, CP1047, CP1140)
 - `RunSummary`: Processing statistics and performance metrics
+
+### Performance Optimization Features
+- **Scratch Buffer Optimization**: Reusable memory buffers minimize allocations in hot paths
+- **Optimized Numeric Codecs**: Fast paths for zoned/packed decimal and binary integer processing
+- **Memory Management**: `ScratchBuffers` with `DigitBuffer` (SmallVec), byte buffers, and string buffers
+- **Benchmark Infrastructure**: Comprehensive performance testing in `copybook-bench` crate with proper result handling
 
 ### Error Handling
 Uses structured error taxonomy with stable error codes:
@@ -102,3 +129,30 @@ Uses structured error taxonomy with stable error codes:
 - Rust 1.89+ (MSRV)
 - Edition 2024
 - Uses workspace dependencies for consistent versions across crates
+
+## Performance Benchmarks
+
+The `copybook-bench` crate provides comprehensive performance testing:
+
+### Benchmark Suites
+- **encode_performance**: Encoding benchmarks for numeric types with scratch buffer optimizations
+- **decode_performance**: Comprehensive decoding benchmarks for different data types
+- **SLO Validation**: Service Level Objective validation for throughput targets
+
+### Running Benchmarks
+```bash
+# Run all benchmarks
+cargo bench --package copybook-bench
+
+# View benchmark results with throughput measurements
+cargo bench --package copybook-bench -- --verbose
+
+# Compare standard vs optimized implementations
+cargo bench --package copybook-bench -- encode_performance
+```
+
+### Performance Targets
+- **DISPLAY-heavy workloads**: ≥80 MB/s throughput
+- **COMP-3-heavy workloads**: ≥40 MB/s throughput
+- **Memory usage**: <256 MiB steady-state for multi-GB files
+- **Deterministic output**: Identical results across thread counts

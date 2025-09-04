@@ -427,7 +427,10 @@ cargo test --workspace
 # Run with coverage
 cargo test --workspace -- --nocapture
 
-# Run performance benchmarks (requires PERF=1)
+# Run performance benchmarks
+cargo bench --package copybook-bench
+
+# Run with performance environment variable
 PERF=1 cargo bench
 
 # Run clippy

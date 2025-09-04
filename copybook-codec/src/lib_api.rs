@@ -181,10 +181,7 @@ pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> 
         "__schema_fields".to_string(),
         Value::Number(serde_json::Number::from(schema.fields.len())),
     );
-    json_obj.insert(
-        "__status".to_string(),
-        Value::String("decoded".to_string()),
-    );
+    json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
     Ok(Value::Object(json_obj))
 }
 
@@ -494,8 +491,8 @@ pub fn decode_file_to_jsonl(
     summary.processing_time_ms =
         u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
-    summary.schema_fingerprint = schema.fingerprint.clone();
-    
+    summary.schema_fingerprint.clone_from(&schema.fingerprint);
+
     Ok(summary)
 }
 

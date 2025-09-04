@@ -152,9 +152,9 @@ fn main() {
         .init();
 
     let result = match cli.command {
-        Commands::Parse { copybook, output } => crate::commands::parse::run(copybook, output),
+        Commands::Parse { copybook, output } => crate::commands::parse::run(&copybook, output),
         Commands::Inspect { copybook, codepage } => {
-            crate::commands::inspect::run(copybook, codepage)
+            crate::commands::inspect::run(&copybook, codepage)
         }
         Commands::Decode {
             copybook,
@@ -171,9 +171,9 @@ fn main() {
             on_decode_unmappable,
             threads,
         } => crate::commands::decode::run(
-            copybook,
-            input,
-            output,
+            &copybook,
+            &input,
+            &output,
             format,
             codepage,
             json_number,
@@ -197,7 +197,7 @@ fn main() {
             max_errors,
             threads,
         } => crate::commands::encode::run(
-            copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors,
+            &copybook, &input, &output, format, codepage, use_raw, bwz_encode, strict, max_errors,
             threads,
         ),
         Commands::Verify {
@@ -206,7 +206,7 @@ fn main() {
             report,
             format,
             codepage,
-        } => crate::commands::verify::run(copybook, input, report, format, codepage),
+        } => crate::commands::verify::run(&copybook, &input, report, format, codepage),
     };
 
     match result {

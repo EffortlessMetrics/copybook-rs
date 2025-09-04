@@ -240,11 +240,24 @@ impl GoldenTestSuite {
     }
 
     /// Export suite to JSON
+    ///
+    /// # Errors
+    /// Returns `serde_json::Error` if the serialization fails due to:
+    /// - JSON serialization constraints
+    /// - Memory allocation failures
+    /// - Invalid UTF-8 sequences in string fields
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
 
     /// Import suite from JSON
+    ///
+    /// # Errors
+    /// Returns `serde_json::Error` if the deserialization fails due to:
+    /// - Invalid JSON syntax in the input string
+    /// - JSON structure that doesn't match the expected schema
+    /// - Missing required fields or invalid field types
+    /// - UTF-8 encoding issues
     pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json)
     }

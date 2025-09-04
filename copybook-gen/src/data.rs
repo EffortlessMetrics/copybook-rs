@@ -275,7 +275,7 @@ fn fill_zoned_field(
             break;
         }
 
-        let digit = digit_char.to_digit(10).unwrap_or(0) as u8;
+        let digit = u8::try_from(digit_char.to_digit(10).unwrap_or(0)).unwrap_or(0);
 
         if i == value_str.len() - 1 && signed {
             // Last digit carries sign
@@ -321,7 +321,7 @@ fn fill_packed_field(
     let mut nibbles = Vec::new();
 
     for digit_char in value_str.chars() {
-        nibbles.push(digit_char.to_digit(10).unwrap_or(0) as u8);
+        nibbles.push(u8::try_from(digit_char.to_digit(10).unwrap_or(0)).unwrap_or(0));
     }
 
     // Add sign nibble
@@ -419,7 +419,7 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
                 if i >= (end - start) {
                     break;
                 }
-                let digit = digit_char.to_digit(10).unwrap_or(0) as u8;
+                let digit = u8::try_from(digit_char.to_digit(10).unwrap_or(0)).unwrap_or(0);
                 record[start + i] = 0xF0 | digit;
             }
         }
@@ -430,7 +430,7 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
             let mut nibbles = Vec::new();
 
             for digit_char in value_str.chars() {
-                nibbles.push(digit_char.to_digit(10).unwrap_or(0) as u8);
+                nibbles.push(u8::try_from(digit_char.to_digit(10).unwrap_or(0)).unwrap_or(0));
             }
             nibbles.push(0xC); // Positive sign
 
@@ -466,11 +466,10 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
 fn ascii_to_ebcdic_approx(ascii: u8) -> u8 {
     // Simplified ASCII to EBCDIC conversion for common characters
     match ascii {
-        b' ' => 0x40,
         b'0'..=b'9' => 0xF0 + (ascii - b'0'),
         b'A'..=b'Z' => 0xC1 + (ascii - b'A'),
         b'a'..=b'z' => 0x81 + (ascii - b'a'),
-        _ => 0x40, // Default to space
+        _ => 0x40, // Default to space (includes b' ')
     }
 }
 
@@ -507,7 +506,7 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
                 if i >= (end - start) {
                     break;
                 }
-                let digit = digit_char.to_digit(10).unwrap_or(0) as u8;
+                let digit = u8::try_from(digit_char.to_digit(10).unwrap_or(0)).unwrap_or(0);
                 record[start + i] = 0xF0 | digit;
             }
         }
@@ -516,7 +515,7 @@ fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {
             let mut nibbles = Vec::new();
 
             for digit_char in value_str.chars() {
-                nibbles.push(digit_char.to_digit(10).unwrap_or(0) as u8);
+                nibbles.push(u8::try_from(digit_char.to_digit(10).unwrap_or(0)).unwrap_or(0));
             }
             nibbles.push(0xC); // Positive sign
 

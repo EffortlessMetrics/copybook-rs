@@ -11,9 +11,9 @@ use tracing::info;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
-    copybook: PathBuf,
-    input: PathBuf,
-    output: PathBuf,
+    copybook: &PathBuf,
+    input: &PathBuf,
+    output: &PathBuf,
     format: RecordFormat,
     codepage: Codepage,
     json_number: JsonNumberMode,

@@ -4,11 +4,11 @@
 //! character set conversion, and record framing (fixed/RDW).
 
 // Only include working modules for task 9.1
-pub mod lib_api;
-pub mod options;
 pub mod charset;
+pub mod lib_api;
 pub mod memory;
 pub mod numeric;
+pub mod options;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
@@ -16,8 +16,8 @@ pub use options::{
 
 // Export the core library API functions (task 9.1)
 pub use lib_api::{
-    decode_record, encode_record, decode_file_to_jsonl, encode_jsonl_to_file,
-    RunSummary, RecordIterator, iter_records_from_file, iter_records
+    RecordIterator, RunSummary, decode_file_to_jsonl, decode_record, encode_jsonl_to_file,
+    encode_record, iter_records, iter_records_from_file,
 };
 
 // Export other modules (commented out due to compilation issues)
@@ -34,7 +34,7 @@ pub use numeric::{
 };
 pub use charset::{ebcdic_to_utf8, utf8_to_ebcdic, get_zoned_sign_table};
 pub use record::{
-    read_record, write_record, FixedRecordReader, FixedRecordWriter, 
+    read_record, write_record, FixedRecordReader, FixedRecordWriter,
     RDWRecordReader, RDWRecordWriter, RDWRecord
 };
 pub use json::{JsonWriter, JsonEncoder, OrderedJsonWriter};

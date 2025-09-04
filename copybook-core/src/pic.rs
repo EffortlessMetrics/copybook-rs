@@ -29,9 +29,20 @@ pub enum PicKind {
 
 impl PicClause {
     /// Parse a PIC clause string
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The PIC string contains unsupported edited patterns (`CBKP051_UNSUPPORTED_EDITED_PIC`)
+    /// - The PIC string format is invalid or cannot be parsed (`CBKP001_SYNTAX`)
+    ///
+    /// # Panics
+    ///
+    /// May panic if the repeat count parsing fails in unexpected ways due to malformed input
+    #[allow(clippy::too_many_lines)]
     pub fn parse(pic_str: &str) -> Result<Self> {
         let pic_str = pic_str.trim();
-        
+
         // Check for edited PIC patterns first
         if is_edited_pic(pic_str) {
             return Err(Error::new(
@@ -118,25 +129,25 @@ impl PicClause {
                             ));
                         }
                     }
-                    
+
                     let count: u16 = count_str.parse().map_err(|_| {
                         Error::new(
                             ErrorCode::CBKP001_SYNTAX,
                             format!("Invalid repetition count: {count_str}"),
                         )
                     })?;
-                    
+
                     if count == 0 {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
                             "Repetition count cannot be zero".to_string(),
                         ));
                     }
-                    
+
                     // Subtract 1 because we already counted the character before '('
                     digits = digits.saturating_sub(1) + count;
                     if found_v {
-                        scale = scale.saturating_sub(1) + count as i16;
+                        scale = scale.saturating_sub(1) + i16::try_from(count).unwrap_or(i16::MAX);
                     }
                 }
                 ' ' | '\t' => {
@@ -151,12 +162,8 @@ impl PicClause {
             }
         }
 
-        let kind = kind.ok_or_else(|| {
-            Error::new(
-                ErrorCode::CBKP001_SYNTAX,
-                "Empty PIC clause".to_string(),
-            )
-        })?;
+        let kind = kind
+            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Empty PIC clause".to_string()))?;
 
         // Validate constraints
         if digits == 0 {
@@ -190,10 +197,10 @@ impl PicClause {
     }
 
     /// Get the byte length of this field when stored
-    #[must_use] pub fn byte_length(&self) -> u32 {
+    #[must_use]
+    pub fn byte_length(&self) -> u32 {
         match self.kind {
-            PicKind::Alphanumeric => u32::from(self.digits),
-            PicKind::NumericDisplay => u32::from(self.digits),
+            PicKind::Alphanumeric | PicKind::NumericDisplay => u32::from(self.digits),
             PicKind::Edited => 0, // Should never reach here
         }
     }
@@ -202,7 +209,7 @@ impl PicClause {
 impl fmt::Display for PicClause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sign_prefix = if self.signed { "S" } else { "" };
-        
+
         match self.kind {
             PicKind::Alphanumeric => {
                 if self.digits == 1 {
@@ -219,7 +226,9 @@ impl fmt::Display for PicClause {
                         write!(f, "{}9({})", sign_prefix, self.digits)
                     }
                 } else {
-                    let integer_digits = self.digits - self.scale as u16;
+                    let integer_digits = self
+                        .digits
+                        .saturating_sub(u16::try_from(self.scale).unwrap_or(0));
                     if integer_digits == 1 && self.scale == 1 {
                         write!(f, "{sign_prefix}9V9")
                     } else if integer_digits == 1 {
@@ -240,15 +249,18 @@ impl fmt::Display for PicClause {
 fn is_edited_pic(pic_str: &str) -> bool {
     // Edited PIC characters: Z, /, comma, $, +, -, *, CR, DB, etc.
     let edited_chars = ['Z', 'z', '/', ',', '$', '+', '-', '*'];
-    
+
     for ch in pic_str.chars() {
         if edited_chars.contains(&ch) {
             return true;
         }
     }
-    
+
     // Check for multi-character edited symbols
-    pic_str.contains("CR") || pic_str.contains("DB") || pic_str.contains("cr") || pic_str.contains("db")
+    pic_str.contains("CR")
+        || pic_str.contains("DB")
+        || pic_str.contains("cr")
+        || pic_str.contains("db")
 }
 
 #[cfg(test)]
@@ -287,35 +299,50 @@ mod tests {
     fn test_edited_pic_rejection() {
         let result = PicClause::parse("ZZ,ZZZ.99");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+        ));
     }
 
     #[test]
     fn test_sign_clause_rejection() {
         let result = PicClause::parse("S9(5) SIGN LEADING");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+        ));
     }
 
     #[test]
     fn test_mixed_types_error() {
         let result = PicClause::parse("X9");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP001_SYNTAX
+        ));
     }
 
     #[test]
     fn test_signed_alphanumeric_error() {
         let result = PicClause::parse("SX(10)");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP001_SYNTAX
+        ));
     }
 
     #[test]
     fn test_pic_display() {
         assert_eq!(PicClause::parse("X(10)").unwrap().to_string(), "X(10)");
         assert_eq!(PicClause::parse("9(5)").unwrap().to_string(), "9(5)");
-        assert_eq!(PicClause::parse("S9(7)V99").unwrap().to_string(), "S9(7)V9(2)");
+        assert_eq!(
+            PicClause::parse("S9(7)V99").unwrap().to_string(),
+            "S9(7)V9(2)"
+        );
         assert_eq!(PicClause::parse("9V9").unwrap().to_string(), "9V9");
     }
 }

@@ -120,6 +120,15 @@ fn resolve_field_layout(
     context: &mut LayoutContext,
     parent_path: Option<&str>,
 ) -> Result<u64> {
+    resolve_field_layout_inner(field, context, parent_path, false)
+}
+
+fn resolve_field_layout_inner(
+    field: &mut Field,
+    context: &mut LayoutContext,
+    parent_path: Option<&str>,
+    inside_redefines_group: bool,
+) -> Result<u64> {
     // Build full field path
     let field_path = if let Some(parent) = parent_path {
         format!("{}.{}", parent, field.name)
@@ -138,9 +147,12 @@ fn resolve_field_layout(
         calculate_field_size_and_alignment(&field.kind, field.synchronized);
 
     // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
-        let cluster_end = cluster_start + cluster_size;
-        context.current_offset = context.current_offset.max(cluster_end);
+    // BUT skip this if we're inside a REDEFINES group (children should start from group offset)
+    if !inside_redefines_group {
+        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
+            let cluster_end = cluster_start + cluster_size;
+            context.current_offset = context.current_offset.max(cluster_end);
+        }
     }
 
     // Apply alignment padding if needed
@@ -230,7 +242,7 @@ fn resolve_field_layout(
         let group_start_offset = context.current_offset;
 
         for child in &mut field.children {
-            let child_end_offset = resolve_field_layout(child, context, Some(&field_path))?;
+            let child_end_offset = resolve_field_layout_inner(child, context, Some(&field_path), inside_redefines_group)?;
             group_size = group_size.max(child_end_offset - group_start_offset);
         }
 
@@ -313,13 +325,15 @@ fn resolve_redefines_field(
     if matches!(field.kind, FieldKind::Group) {
         let mut group_size = 0u64;
         let saved_offset = context.current_offset;
+        
+        // For REDEFINES groups, children are laid out sequentially starting from the target offset
         context.current_offset = aligned_offset;
-
+        
         for child in &mut field.children {
-            let child_end_offset = resolve_field_layout(child, context, Some(field_path))?;
-            group_size = group_size.max(child_end_offset - aligned_offset);
+            let child_end_offset = resolve_field_layout_inner(child, context, Some(field_path), true)?;
+            let child_size = child_end_offset - aligned_offset;
+            group_size = group_size.max(child_size);
         }
-
         field.len = u32::try_from(group_size).unwrap_or(u32::MAX);
         context.current_offset = saved_offset; // Restore offset (REDEFINES doesn't advance)
 
@@ -705,6 +719,30 @@ mod tests {
 
         // Total record size should be based on largest variant (15)
         assert_eq!(schema.lrecl_fixed, Some(15));
+    }
+
+    #[test]  
+    fn test_simple_redefines_layout() {
+        let copybook = r#"
+01 REDEFINES-RECORD.
+   05 ORIGINAL-FIELD PIC X(8).
+   05 STRUCTURED-VIEW REDEFINES ORIGINAL-FIELD.
+      10 PART1 PIC X(4).
+      10 PART2 PIC X(4).
+"#;
+
+        let schema = crate::parse_copybook(copybook).unwrap();
+        
+        // LRECL should be 8, not more
+        assert_eq!(schema.lrecl_fixed, Some(8));
+        
+        // Check that STRUCTURED-VIEW is 8 bytes
+        let structured_view = schema.fields.iter().find(|f| f.name == "STRUCTURED-VIEW").unwrap();
+        assert_eq!(structured_view.len, 8);
+        
+        // Check children offsets  
+        assert_eq!(structured_view.children[0].offset, 0);
+        assert_eq!(structured_view.children[1].offset, 4);
     }
 
     #[test]

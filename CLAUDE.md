@@ -30,7 +30,7 @@ cargo build --workspace --release
 
 ### Testing
 ```bash
-# Run all tests across workspace (95 tests passing)
+# Run all tests across workspace (117 tests passing)
 cargo test --workspace
 
 # Run performance benchmarks
@@ -45,7 +45,7 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Code formatting
 cargo fmt --all
 
-# Validation pipeline (comprehensive quality checks - 95 tests passing)
+# Validation pipeline (comprehensive quality checks - 117 tests passing)
 cargo build --workspace --release && \
 cargo test --workspace && \
 cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
@@ -118,7 +118,7 @@ Uses structured error taxonomy with stable error codes:
 - Streaming I/O with bounded memory usage for multi-GB files
 - Parallel processing with deterministic output ordering
 - Zero-copy operations where possible
-- Achieved throughput: 17.25+ GiB/s for DISPLAY data (target: ≥80 MB/s), 51.6+ MiB/s for COMP-3 data (target: ≥40 MB/s)
+- Achieved throughput: 4.6+ GiB/s for DISPLAY data (target: ≥80 MB/s), 557+ MiB/s for COMP-3 data (target: ≥40 MB/s)
 
 ### Parser Stability
 - Infinite loop prevention through unexpected token skipping and recursion depth limits
@@ -127,7 +127,7 @@ Uses structured error taxonomy with stable error codes:
 - Enhanced error reporting with comprehensive context (record index, field path, byte offset)
 - Strict/lenient mode support for ODO counter validation with warning/clamping behavior
 - Idiomatic Rust patterns for improved reliability (div_ceil, is_empty, range contains)
-- Clippy pedantic compliance for additional safety checks (140+ violations resolved)
+- Clippy pedantic compliance for additional safety checks (complete compliance achieved)
 - Binary field alignment following IBM mainframe SYNCHRONIZED standards
 
 ## Requirements

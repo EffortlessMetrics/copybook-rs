@@ -131,6 +131,7 @@ impl RunSummary {
 }
 
 impl fmt::Display for RunSummary {
+    #[allow(clippy::cast_precision_loss)] // Memory size formatting precision loss is acceptable
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Processing Summary:")?;
         writeln!(f, "  Records processed: {}", self.records_processed)?;
@@ -170,24 +171,112 @@ impl fmt::Display for RunSummary {
 /// # Errors
 ///
 /// Returns an error if the data cannot be decoded according to the schema
-pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // For now, return a minimal JSON object
-    // In a full implementation, this would decode all fields according to the schema
-    let mut json_obj = serde_json::Map::new();
+// Recursively decode fields from the hierarchy
+fn decode_fields_recursive(
+    fields: &[copybook_core::Field],
+    data: &[u8], 
+    json_obj: &mut serde_json::Map<String, Value>,
+    options: &DecodeOptions,
+) -> Result<()> {
+    use copybook_core::FieldKind;
+    
+    for field in fields {
+        // Skip FILLER fields unless explicitly requested
+        if field.path.contains("_filler_") && !options.emit_filler {
+            continue;
+        }
+        
+        if let FieldKind::Group = &field.kind {
+            // For groups, recursively process children
+            decode_fields_recursive(&field.children, data, json_obj, options)?;
+        } else {
+            // For leaf fields, decode the value
+            let field_start = field.offset as usize;
+            let field_end = field_start + field.len as usize;
+            
+            if field_end > data.len() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!("Field {} extends beyond record boundary", field.path),
+                ));
+            }
+            
+            let field_data = &data[field_start..field_end];
+            
+            // Decode field based on type
+            let field_value = match &field.kind {
+                FieldKind::Alphanum { len: _ } => {
+                    // Decode alphanumeric field - preserve exact field content (NORMATIVE)
+                    let text = if options.codepage == crate::Codepage::ASCII {
+                        String::from_utf8_lossy(field_data).to_string()
+                    } else {
+                        crate::charset::ebcdic_to_utf8(
+                            field_data, 
+                            options.codepage, 
+                            options.on_decode_unmappable
+                        )?
+                    };
+                    Value::String(text)
+                }
+                FieldKind::ZonedDecimal { digits, scale, signed } => {
+                    // Decode zoned decimal
+                    let decimal = crate::numeric::decode_zoned_decimal(
+                        field_data,
+                        *digits,
+                        *scale,
+                        *signed,
+                        options.codepage,
+                        false, // blank_when_zero handled elsewhere
+                    )?;
+                    Value::String(decimal.to_string())
+                }
+                FieldKind::PackedDecimal { digits, scale, signed } => {
+                    // Decode packed decimal
+                    let decimal = crate::numeric::decode_packed_decimal(
+                        field_data,
+                        *digits,
+                        *scale,
+                        *signed,
+                    )?;
+                    Value::String(decimal.to_string())
+                }
+                FieldKind::BinaryInt { bits, signed } => {
+                    // Decode binary integer
+                    let int_value = crate::numeric::decode_binary_int_fast(field_data, *bits, *signed)?;
+                    match options.json_number_mode {
+                        crate::JsonNumberMode::Lossless => {
+                            Value::String(int_value.to_string())
+                        }
+                        crate::JsonNumberMode::Native => {
+                            if int_value.abs() <= (1i64 << 53) {
+                                Value::Number(serde_json::Number::from(int_value))
+                            } else {
+                                Value::String(int_value.to_string())
+                            }
+                        }
+                    }
+                }
+                FieldKind::Group => unreachable!(), // Already handled above
+            };
+            
+            // Use leaf field name (last part after last dot) for better compatibility
+            let field_name = field.path.split('.').next_back().unwrap_or(&field.path).to_string();
+            json_obj.insert(field_name, field_value);
+        }
+    }
+    Ok(())
+}
 
-    // Add basic metadata
-    json_obj.insert(
-        "__record_length".to_string(),
-        Value::Number(serde_json::Number::from(data.len())),
-    );
-    json_obj.insert(
-        "__schema_fields".to_string(),
-        Value::Number(serde_json::Number::from(schema.fields.len())),
-    );
-
-    // Add placeholder for actual field decoding
-    json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
-
+/// Decode a record from binary data using the provided schema
+///
+/// # Errors
+///
+/// Returns an error if the data cannot be decoded according to the schema
+pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
+    use serde_json::Map;
+    
+    let mut json_obj = Map::new();
+    decode_fields_recursive(&schema.fields, data, &mut json_obj, options)?;
     Ok(Value::Object(json_obj))
 }
 
@@ -220,6 +309,27 @@ pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) ->
     Ok(buffer)
 }
 
+/// Calculate record length from field definitions
+///
+/// This function recursively walks through all fields and computes
+/// the total record length based on field offsets and lengths.
+fn calculate_record_length_from_fields(fields: &[copybook_core::Field]) -> usize {
+    fn max_field_end(fields: &[copybook_core::Field]) -> u32 {
+        let mut max_end = 0u32;
+        for field in fields {
+            let field_end = field.offset + field.len;
+            max_end = max_end.max(field_end);
+            // Recursively check children
+            if !field.children.is_empty() {
+                let child_end = max_field_end(&field.children);
+                max_end = max_end.max(child_end);
+            }
+        }
+        max_end
+    }
+    max_field_end(fields) as usize
+}
+
 /// Decode a file to JSONL format
 ///
 /// # Arguments
@@ -241,7 +351,10 @@ pub fn decode_file_to_jsonl(
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
 
-    let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
+    // Calculate actual record length from schema fields if lrecl_fixed is not set
+    let record_length = schema.lrecl_fixed
+        .map(|len| len as usize)
+        .unwrap_or_else(|| calculate_record_length_from_fields(&schema.fields));
     let mut buffer = vec![0u8; record_length];
     let mut record_count = 0u64;
 
@@ -253,19 +366,22 @@ pub fn decode_file_to_jsonl(
                 summary.bytes_processed += record_length as u64;
 
                 // Decode the record
-                if let Ok(json_value) = decode_record(schema, &buffer, options) {
-                    // Write as JSONL
-                    serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                        Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                    })?;
-                    writeln!(output).map_err(|e| {
-                        Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                    })?;
-                } else {
-                    summary.records_with_errors += 1;
-                    // In lenient mode, continue processing
-                    if options.strict_mode {
-                        break;
+                match decode_record(schema, &buffer, options) {
+                    Ok(json_value) => {
+                        // Write as JSONL
+                        serde_json::to_writer(&mut output, &json_value).map_err(|e| {
+                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                        })?;
+                        writeln!(output).map_err(|e| {
+                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                        })?;
+                    }
+                    Err(decode_error) => {
+                        summary.records_with_errors += 1;
+                        // In lenient mode, continue processing
+                        if options.strict_mode {
+                            return Err(decode_error);
+                        }
                     }
                 }
             }
@@ -283,7 +399,7 @@ pub fn decode_file_to_jsonl(
     }
 
     summary.records_processed = record_count;
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
+    summary.processing_time_ms = start_time.elapsed().as_millis().min(u64::MAX as u128) as u64;
     summary.calculate_throughput();
     summary.schema_fingerprint = "placeholder_fingerprint".to_string();
 
@@ -344,7 +460,7 @@ pub fn encode_jsonl_to_file(
     }
 
     summary.records_processed = record_count;
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
+    summary.processing_time_ms = start_time.elapsed().as_millis().min(u64::MAX as u128) as u64;
     summary.calculate_throughput();
     summary.schema_fingerprint = "placeholder_fingerprint".to_string();
 
@@ -457,6 +573,7 @@ mod tests {
     use copybook_core::parse_copybook;
     use std::io::Cursor;
 
+
     #[test]
     fn test_decode_record() {
         let copybook_text = r#"
@@ -466,12 +583,16 @@ mod tests {
         "#;
 
         let schema = parse_copybook(copybook_text).unwrap();
-        let options = DecodeOptions::default();
-        let data = b"001ALICE";
+        let mut options = DecodeOptions::default();
+        options.codepage = crate::Codepage::ASCII; // Use ASCII for test data
+        let data = b"123ALICE";
 
         let result = decode_record(&schema, data, &options).unwrap();
         assert!(result.is_object());
-        assert!(result.get("__record_length").is_some());
+        
+        // Should decode actual field values (use leaf field names)
+        assert_eq!(result.get("ID").unwrap(), "123");
+        assert_eq!(result.get("NAME").unwrap(), "ALICE");
     }
 
     #[test]
@@ -523,10 +644,11 @@ mod tests {
         "#;
 
         let schema = parse_copybook(copybook_text).unwrap();
-        let options = DecodeOptions::default();
+        let mut options = DecodeOptions::default();
+        options.codepage = crate::Codepage::ASCII; // Use ASCII for test data
 
-        // Create test input
-        let input_data = vec![0u8; 16]; // Two 8-byte records
+        // Create test input with valid ASCII data
+        let input_data = b"123ALICE789CAROL"; // Two 8-byte records with valid data
         let input = Cursor::new(input_data);
 
         // Create output buffer

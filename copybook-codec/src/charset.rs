@@ -299,17 +299,18 @@ static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
     (true, false),  // 0xF_: positive (default)
 ];
 
-/// ASCII zoned decimal sign mapping
+/// ASCII zoned decimal sign mapping with comprehensive overpunch support
 /// Maps zone nibble to (`is_signed`, `is_negative`)
+/// ASCII overpunch: A-I = positive 1-9, J-R = negative 1-9, } = positive 0, { = negative 0
 static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [
     (true, false),  // 0x0_: positive (ASCII '0'-'9' with 0x30-0x39)
     (true, false),  // 0x1_: positive
     (true, false),  // 0x2_: positive
-    (true, false),  // 0x3_: positive (normal digits)
-    (true, false),  // 0x4_: positive
-    (true, false),  // 0x5_: positive
+    (true, false),  // 0x3_: positive (normal digits '0'-'9')
+    (true, false),  // 0x4_: positive (A-I = 0x41-0x49 positive overpunch)
+    (true, true),   // 0x5_: negative (J-R = 0x4A-0x52 negative overpunch)
     (true, false),  // 0x6_: positive
-    (true, false),  // 0x7_: positive
+    (true, false),  // 0x7_: positive (} = 0x7D positive 0, { = 0x7B negative 0)
     (false, false), // 0x8_: unsigned
     (false, false), // 0x9_: unsigned
     (false, false), // 0xA_: unsigned
@@ -448,6 +449,7 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     let mut reverse_table = std::collections::HashMap::new();
     for (ebcdic_byte, &unicode_point) in table.iter().enumerate() {
         if let Some(ch) = char::from_u32(unicode_point) {
+            #[allow(clippy::cast_possible_truncation)] // ebcdic_byte is always 0-255 from enumerate()
             reverse_table.insert(ch, ebcdic_byte as u8);
         }
     }

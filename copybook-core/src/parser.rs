@@ -321,7 +321,7 @@ impl Parser {
 
                 // Validate that counter is not inside REDEFINES or ODO region
                 if let Some(counter) = counter_field {
-                    if counter.redefines_of.is_some() {
+                    if counter.redefines_of.is_some() || Self::is_field_inside_redefines(counter, &all_fields) {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                             format!(
@@ -341,6 +341,28 @@ impl Parser {
         }
 
         Ok(())
+    }
+
+    /// Check if a field is inside a REDEFINES group by examining its path
+    fn is_field_inside_redefines(field: &Field, all_fields: &[&Field]) -> bool {
+        // Check if any ancestor field in the path has redefines_of set
+        let field_path = &field.path;
+        
+        // Find all potential parent paths by progressively removing segments
+        let path_parts: Vec<&str> = field_path.split('.').collect();
+        
+        for i in 1..path_parts.len() {
+            let parent_path = path_parts[0..i].join(".");
+            
+            // Find the parent field
+            if let Some(parent_field) = all_fields.iter().find(|f| f.path == parent_path) {
+                if parent_field.redefines_of.is_some() {
+                    return true;
+                }
+            }
+        }
+        
+        false
     }
 
     /// Check if ODO array is at tail position (simplified check)
@@ -807,14 +829,23 @@ impl Parser {
 
     /// Parse OCCURS clause
     fn parse_occurs_clause(&mut self, field: &mut Field) -> Result<()> {
-        let count = match self.current_token() {
+        // Parse first number (could be Number or Level token due to lexer priorities)
+        let first_number = match self.current_token() {
             Some(TokenPos {
                 token: Token::Number(n),
                 ..
             }) => {
-                let count = *n;
+                let n = *n;
                 self.advance();
-                count
+                n
+            }
+            Some(TokenPos {
+                token: Token::Level(n),
+                ..
+            }) => {
+                let n = u32::from(*n);
+                self.advance();
+                n
             }
             _ => {
                 return Err(Error::new(
@@ -824,7 +855,45 @@ impl Parser {
             }
         };
 
-        // Skip optional TIMES keyword first
+        // Check for TO keyword to distinguish between:
+        // OCCURS n TIMES [DEPENDING ON counter] 
+        // OCCURS min TO max TIMES [DEPENDING ON counter]
+        let (min, max) = if self.check(&Token::To) {
+            self.advance(); // consume TO
+            
+            // Parse second number (could be Number or Level token due to lexer priorities)
+            let second_number = match self.current_token() {
+                Some(TokenPos {
+                    token: Token::Number(n),
+                    ..
+                }) => {
+                    let n = *n;
+                    self.advance();
+                    n
+                }
+                Some(TokenPos {
+                    token: Token::Level(n),
+                    ..
+                }) => {
+                    let n = u32::from(*n);
+                    self.advance();
+                    n
+                }
+                _ => {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Expected number after TO",
+                    ));
+                }
+            };
+            
+            (first_number, second_number)
+        } else {
+            // Single number syntax - treat as max with min=0 for ODO or count for Fixed
+            (0, first_number)
+        };
+
+        // Skip optional TIMES keyword
         if self.check(&Token::Times) {
             self.advance();
         }
@@ -857,12 +926,13 @@ impl Parser {
             };
 
             field.occurs = Some(Occurs::ODO {
-                min: 0, // Will be validated later
-                max: count,
+                min,
+                max,
                 counter_path: counter_field,
             });
         } else {
-            field.occurs = Some(Occurs::Fixed { count });
+            // Fixed occurs - use max as count (min is ignored for fixed arrays)
+            field.occurs = Some(Occurs::Fixed { count: max });
         }
 
         Ok(())

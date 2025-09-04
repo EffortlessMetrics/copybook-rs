@@ -99,7 +99,8 @@ pub struct Field {
 - `len` - Field length in bytes
 - `redefines_of` - Path of redefined field (if applicable)
 - `occurs` - Array information (if applicable)
-- `sync` - Alignment padding bytes (if SYNCHRONIZED)
+- `sync_padding` - Alignment padding bytes (if SYNCHRONIZED) following IBM mainframe standards
+- `synchronized` - Boolean flag indicating if field uses SYNCHRONIZED alignment
 
 ### FieldKind
 
@@ -629,14 +630,15 @@ mod tests {
         "#;
         
         let schema = parse_copybook(copybook).unwrap();
-        let opts = DecodeOptions::default();
+        let opts = DecodeOptions::default().with_emit_meta(true);
         let mut decoder = RecordDecoder::new(&schema, &opts).unwrap();
-        
+
         let data = b"1234JOHN      ";
         let json = decoder.decode_record(data).unwrap();
-        
+
         assert_eq!(json["ID"], "1234");
         assert_eq!(json["NAME"], "JOHN      ");
+        assert_eq!(json["__schema_id"], schema.fingerprint);
     }
 }
 ```

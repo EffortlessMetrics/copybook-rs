@@ -1,16 +1,13 @@
 //! Parse command implementation
 
-use copybook_core::parse_copybook;
 use crate::utils::atomic_write;
+use copybook_core::parse_copybook;
 use std::fs;
 
 use std::path::PathBuf;
 use tracing::info;
 
-pub async fn run(
-    copybook: PathBuf,
-    output: Option<PathBuf>,
-) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn run(copybook: &PathBuf, output: Option<PathBuf>) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Parsing copybook: {:?}", copybook);
 
     // Read copybook file
@@ -25,12 +22,10 @@ pub async fn run(
     // Write output
     match output {
         Some(path) => {
-            atomic_write(path, |writer| {
-                writer.write_all(json.as_bytes())
-            })?;
+            atomic_write(path, |writer| writer.write_all(json.as_bytes()))?;
         }
         None => {
-            println!("{}", json);
+            println!("{json}");
         }
     }
 

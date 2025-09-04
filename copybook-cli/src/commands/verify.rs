@@ -1,16 +1,16 @@
 //! Verify command implementation
 
+use crate::utils::atomic_write;
 use copybook_codec::{Codepage, RecordFormat};
 use copybook_core::parse_copybook;
-use crate::utils::atomic_write;
 use std::fs;
 
 use std::path::PathBuf;
 use tracing::info;
 
-pub async fn run(
-    copybook: PathBuf,
-    input: PathBuf,
+pub fn run(
+    copybook: &PathBuf,
+    input: &PathBuf,
     report: Option<PathBuf>,
     format: RecordFormat,
     codepage: Codepage,
@@ -25,7 +25,7 @@ pub async fn run(
 
     // Placeholder verification logic
     println!("Verification Summary:");
-    println!("  File: {:?}", input);
+    println!("  File: {}", input.display());
     println!("  Format: {:?}", format);
     println!("  Codepage: {:?}", codepage);
     println!("  Status: PLACEHOLDER - Not yet implemented");

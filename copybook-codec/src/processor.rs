@@ -8,7 +8,7 @@ use crate::corruption::{detect_rdw_ascii_corruption, detect_ebcdic_corruption, d
 use crate::memory::{WorkerPool, ScratchBuffers, StreamingProcessor};
 use crate::RunSummary;
 use copybook_core::{
-    Schema, Error, ErrorCode, ErrorReporter, ErrorMode,
+    Schema, WorkloadType, Error, ErrorCode, ErrorReporter, ErrorMode,
     Field, FieldKind
 };
 use serde_json::Value;
@@ -27,6 +27,8 @@ pub struct DecodeProcessor {
     start_time: Instant,
     /// Bytes processed counter
     bytes_processed: u64,
+    /// Workload classification for SLO validation
+    workload_type: WorkloadType,
 }
 
 /// High-level processor for encoding operations with integrated error handling
@@ -58,6 +60,7 @@ impl DecodeProcessor {
             options,
             start_time: Instant::now(),
             bytes_processed: 0,
+            workload_type: WorkloadType::Mixed,
         }
     }
 
@@ -68,6 +71,9 @@ impl DecodeProcessor {
         input: R,
         output: W,
     ) -> Result<RunSummary, Error> {
+        // Analyze schema to determine workload characteristics
+        self.workload_type = schema.workload_type();
+
         if self.options.threads == 1 {
             // Single-threaded processing for deterministic baseline
             self.process_file_single_threaded(schema, input, output)
@@ -127,7 +133,7 @@ impl DecodeProcessor {
         }
 
         // Generate final summary
-        self.generate_summary(record_index - 1)
+        self.generate_summary(schema, record_index - 1)
     }
 
     /// Optimized record reading with appropriate chunk sizes
@@ -239,16 +245,28 @@ impl DecodeProcessor {
     }
 
     /// Generate processing summary with performance metrics
-    fn generate_summary(&self, records_processed: u64) -> Result<RunSummary, Error> {
+    fn generate_summary(&self, schema: &Schema, records_processed: u64) -> Result<RunSummary, Error> {
         let processing_time_ms = self.start_time.elapsed().as_millis() as u64;
         
+        let error_summary = self.error_reporter.summary();
+        let records_with_errors = self.error_reporter.error_count();
+        let processed_ok = records_processed.saturating_sub(records_with_errors);
+        
+        let fingerprint = if !schema.fingerprint.is_empty() {
+            schema.fingerprint.clone()
+        } else {
+            let mut s = schema.clone();
+            s.calculate_fingerprint();
+            s.fingerprint
+        };
+        
         let mut summary = RunSummary {
-            records_processed,
-            records_with_errors: 0, // TODO: Get from error_reporter
-            warnings: 0, // TODO: Get from error_reporter
+            records_processed: processed_ok,
+            records_with_errors,
+            warnings: self.error_reporter.warning_count()
             processing_time_ms,
             bytes_processed: self.bytes_processed,
-            schema_fingerprint: "placeholder".to_string(), // TODO: Implement fingerprinting
+            schema_fingerprint: String::new(), // TODO: Implement fingerprinting
             input_file_hash: None,
             throughput_mbps: 0.0,
             error_summary: None, // TODO: Get from error_reporter
@@ -276,41 +294,40 @@ impl DecodeProcessor {
             return Ok(()); // Skip validation for small datasets
         }
 
-        // Determine workload type based on options/schema characteristics
-        let is_display_heavy = true; // TODO: Analyze schema to determine workload type
-        let is_comp3_heavy = false;
-
-        if is_display_heavy {
-            // Target: ≥80 MB/s for DISPLAY-heavy workloads
-            if summary.throughput_mbps < 80.0 {
-                warn!(
-                    "DISPLAY-heavy throughput {:.2} MB/s below SLO target of 80 MB/s",
-                    summary.throughput_mbps
-                );
-            } else {
-                info!(
-                    "DISPLAY-heavy throughput {:.2} MB/s meets SLO target",
-                    summary.throughput_mbps
-                );
+        match self.workload_type {
+            WorkloadType::DisplayHeavy => {
+                // Target: ≥80 MB/s for DISPLAY-heavy workloads
+                if summary.throughput_mbps < 80.0 {
+                    warn!(
+                        "DISPLAY-heavy throughput {:.2} MB/s below SLO target of 80 MB/s",
+                        summary.throughput_mbps
+                    );
+                } else {
+                    info!(
+                        "DISPLAY-heavy throughput {:.2} MB/s meets SLO target",
+                        summary.throughput_mbps
+                    );
+                }
             }
-        } else if is_comp3_heavy {
-            // Target: ≥40 MB/s for COMP-3-heavy workloads
-            if summary.throughput_mbps < 40.0 {
-                warn!(
-                    "COMP-3-heavy throughput {:.2} MB/s below SLO target of 40 MB/s",
-                    summary.throughput_mbps
-                );
-            } else {
-                info!(
-                    "COMP-3-heavy throughput {:.2} MB/s meets SLO target",
-                    summary.throughput_mbps
-                );
+            WorkloadType::Comp3Heavy => {
+                // Target: ≥40 MB/s for COMP-3-heavy workloads
+                if summary.throughput_mbps < 40.0 {
+                    warn!(
+                        "COMP-3-heavy throughput {:.2} MB/s below SLO target of 40 MB/s",
+                        summary.throughput_mbps
+                    );
+                } else {
+                    info!(
+                        "COMP-3-heavy throughput {:.2} MB/s meets SLO target",
+                        summary.throughput_mbps
+                    );
+                }
             }
+            WorkloadType::Mixed => {}
         }
 
         Ok(())
     }
-
     /// Parallel processing with bounded memory and ordered output
     fn process_file_parallel<R: Read, W: Write>(
         &mut self,
@@ -436,7 +453,7 @@ impl DecodeProcessor {
         info!("Parallel processing completed: {} records processed", records_completed);
 
         // Generate final summary
-        self.generate_summary(records_completed)
+        self.generate_summary(schema, records_completed)
     }
 
     /// Process a single record using scratch buffers (static method for worker pool)
@@ -757,30 +774,39 @@ impl DecodeProcessor {
     }
 
     /// Generate final processing summary
-    fn generate_summary(&self, total_records: u64) -> Result<RunSummary, Error> {
-        let processing_time = self.start_time.elapsed();
-        let processing_time_ms = processing_time.as_millis() as u64;
+    fn generate_summary(&self, schema: &Schema, total_records: u64) -> Result<RunSummary, Error> {
+        let processing_time_ms = self.start_time.elapsed().as_millis() as u64;
 
-        let mut summary = RunSummary {
-            records_processed: total_records,
-            records_with_errors: 0,
-            warnings: 0,
-            processing_time_ms,
-            bytes_processed: self.bytes_processed,
-            schema_fingerprint: String::new(), // TODO: Implement schema fingerprinting
-            input_file_hash: None,
-            throughput_mbps: 0.0,
-            error_summary: None,
-            corruption_warnings: 0,
+        let error_summary = self.error_reporter.summary();
+        let records_with_errors = self.error_reporter.error_count();
+        let processed_ok = total_records.saturating_sub(records_with_errors);
+
+        let fingerprint = if !schema.fingerprint.is_empty() {
+            schema.fingerprint.clone()
+        } else {
+            let mut s = schema.clone();
+            s.calculate_fingerprint();
+            s.fingerprint
         };
 
-        // Update from error reporter
-        summary.update_from_error_summary(self.error_reporter.summary());
+        let mut summary = RunSummary {
+            records_processed: processed_ok,
+            records_with_errors,
+            warnings: self.error_reporter.warning_count(),
+            corruption_warnings: error_summary.corruption_warnings,
+            processing_time_ms,
+            bytes_processed: self.bytes_processed,
+            schema_fingerprint: fingerprint,
+            throughput_mbps: 0.0,
+            peak_memory_bytes: None,
+            threads_used: self.options.threads,
+        };
+
         summary.calculate_throughput();
 
         info!(
             "Processing complete: {} records, {} errors, {} warnings, {:.2} MB/s",
-            summary.records_processed,
+            total_records,
             summary.records_with_errors,
             summary.warnings,
             summary.throughput_mbps
@@ -854,7 +880,7 @@ impl EncodeProcessor {
             }
         }
 
-        self.generate_summary(record_index)
+        self.generate_summary(schema, record_index)
     }
 
     /// Process a single JSON record to binary
@@ -877,29 +903,39 @@ impl EncodeProcessor {
     }
 
     /// Generate final processing summary
-    fn generate_summary(&self, total_records: u64) -> Result<RunSummary, Error> {
-        let processing_time = self.start_time.elapsed();
-        let processing_time_ms = processing_time.as_millis() as u64;
+    fn generate_summary(&self, schema: &Schema, total_records: u64) -> Result<RunSummary, Error> {
+        let processing_time_ms = self.start_time.elapsed().as_millis() as u64;
 
-        let mut summary = RunSummary {
-            records_processed: total_records,
-            records_with_errors: 0,
-            warnings: 0,
-            processing_time_ms,
-            bytes_processed: self.bytes_processed,
-            schema_fingerprint: String::new(), // TODO: Implement schema fingerprinting
-            input_file_hash: None,
-            throughput_mbps: 0.0,
-            error_summary: None,
-            corruption_warnings: 0,
+        let error_summary = self.error_reporter.summary();
+        let records_with_errors = self.error_reporter.error_count();
+        let processed_ok = total_records.saturating_sub(records_with_errors);
+
+        let fingerprint = if !schema.fingerprint.is_empty() {
+            schema.fingerprint.clone()
+        } else {
+            let mut s = schema.clone();
+            s.calculate_fingerprint();
+            s.fingerprint
         };
 
-        summary.update_from_error_summary(self.error_reporter.summary());
+        let mut summary = RunSummary {
+            records_processed: processed_ok,
+            records_with_errors,
+            warnings: self.error_reporter.warning_count(),
+            corruption_warnings: error_summary.corruption_warnings,
+            processing_time_ms,
+            bytes_processed: self.bytes_processed,
+            schema_fingerprint: fingerprint,
+            throughput_mbps: 0.0,
+            peak_memory_bytes: None,
+            threads_used: self.options.threads,
+        };
+
         summary.calculate_throughput();
 
         info!(
             "Encoding complete: {} records, {} errors, {} warnings, {:.2} MB/s",
-            summary.records_processed,
+            total_records,
             summary.records_with_errors,
             summary.warnings,
             summary.throughput_mbps
@@ -1064,8 +1100,9 @@ mod tests {
     fn test_error_summary_generation() {
         let options = DecodeOptions::default();
         let processor = DecodeProcessor::new(options);
-        
-        let summary = processor.generate_summary(100).unwrap();
+        let schema = create_test_schema();
+
+        let summary = processor.generate_summary(&schema, 100).unwrap();
         assert_eq!(summary.records_processed, 100);
         assert!(!summary.has_errors());
     }

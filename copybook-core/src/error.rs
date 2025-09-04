@@ -55,10 +55,18 @@ pub enum ErrorCode {
     CBKS302_ODO_RAISED,
 
     // Record Errors (CBKR*)
+    /// CBKR101: Fixed record format error
+    CBKR101_FIXED_RECORD_ERROR,
+    /// CBKR201: RDW record read error
+    CBKR201_RDW_READ_ERROR,
     /// CBKR211: RDW reserved bytes are non-zero
     CBKR211_RDW_RESERVED_NONZERO,
     /// CBKR221: RDW length underflow
     CBKR221_RDW_UNDERFLOW,
+    /// CBKR222: RDW length overflow (exceeds maximum)
+    CBKR222_RDW_OVERFLOW,
+    /// CBKR231: RDW format corruption detected
+    CBKR231_RDW_FORMAT_CORRUPTION,
 
     // Character Conversion Errors (CBKC*)
     /// CBKC201: JSON write error
@@ -100,8 +108,12 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKS141_RECORD_TOO_LARGE => "CBKS141_RECORD_TOO_LARGE",
             ErrorCode::CBKS301_ODO_CLIPPED => "CBKS301_ODO_CLIPPED",
             ErrorCode::CBKS302_ODO_RAISED => "CBKS302_ODO_RAISED",
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR => "CBKR101_FIXED_RECORD_ERROR",
+            ErrorCode::CBKR201_RDW_READ_ERROR => "CBKR201_RDW_READ_ERROR",
             ErrorCode::CBKR211_RDW_RESERVED_NONZERO => "CBKR211_RDW_RESERVED_NONZERO",
             ErrorCode::CBKR221_RDW_UNDERFLOW => "CBKR221_RDW_UNDERFLOW",
+            ErrorCode::CBKR222_RDW_OVERFLOW => "CBKR222_RDW_OVERFLOW",
+            ErrorCode::CBKR231_RDW_FORMAT_CORRUPTION => "CBKR231_RDW_FORMAT_CORRUPTION",
             ErrorCode::CBKC201_JSON_WRITE_ERROR => "CBKC201_JSON_WRITE_ERROR",
             ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => "CBKC301_INVALID_EBCDIC_BYTE",
             ErrorCode::CBKD101_INVALID_FIELD_TYPE => "CBKD101_INVALID_FIELD_TYPE",

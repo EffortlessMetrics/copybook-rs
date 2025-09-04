@@ -310,7 +310,11 @@ impl ErrorReporter {
                 }
             }
             // Data decode errors and encode errors
-            ErrorCode::CBKR221_RDW_UNDERFLOW
+            ErrorCode::CBKR101_FIXED_RECORD_ERROR
+            | ErrorCode::CBKR201_RDW_READ_ERROR
+            | ErrorCode::CBKR221_RDW_UNDERFLOW
+            | ErrorCode::CBKR222_RDW_OVERFLOW
+            | ErrorCode::CBKR231_RDW_FORMAT_CORRUPTION
             | ErrorCode::CBKD101_INVALID_FIELD_TYPE
             | ErrorCode::CBKD301_RECORD_TOO_SHORT
             | ErrorCode::CBKD401_COMP3_INVALID_NIBBLE

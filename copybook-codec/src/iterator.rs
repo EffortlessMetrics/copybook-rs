@@ -312,11 +312,11 @@ mod tests {
 
     #[test]
     fn test_record_iterator_basic() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
 
@@ -336,11 +336,11 @@ mod tests {
 
     #[test]
     fn test_record_iterator_rdw() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
 
@@ -368,11 +368,11 @@ mod tests {
 
     #[test]
     fn test_raw_record_reading() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
 
@@ -395,11 +395,11 @@ mod tests {
 
     #[test]
     fn test_iterator_error_handling() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
 

@@ -869,13 +869,13 @@ mod tests {
 
     #[test]
     fn test_decode_record() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID      PIC 9(3).
                05 AMOUNT  PIC S9(3) COMP-3.
                05 COUNT   PIC 9(4) COMP.
                05 NAME    PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = DecodeOptions::new()
@@ -900,11 +900,11 @@ mod tests {
 
     #[test]
     fn test_encode_record() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = EncodeOptions::default();
@@ -921,11 +921,11 @@ mod tests {
 
     #[test]
     fn test_record_iterator() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = DecodeOptions::default();
@@ -941,13 +941,13 @@ mod tests {
 
     #[test]
     fn test_decode_file_to_jsonl() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID      PIC 9(3).
                05 AMOUNT  PIC S9(3) COMP-3.
                05 COUNT   PIC 9(4) COMP.
                05 NAME    PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = DecodeOptions::new().with_codepage(Codepage::ASCII);
@@ -975,11 +975,11 @@ mod tests {
 
     #[test]
     fn test_encode_jsonl_to_file() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = EncodeOptions::default();

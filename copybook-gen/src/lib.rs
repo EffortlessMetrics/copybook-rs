@@ -12,7 +12,7 @@ use copybook_core::Schema;
 
 // Re-export key types
 pub use copybook::{CopybookTemplate, FieldType};
-pub use data::{DataStrategy, CorruptionType};
+pub use data::{CorruptionType, DataStrategy};
 pub use golden::{GoldenTest, GoldenTestSuite, TestConfig, ValidationResult};
 pub use test_generation::{TestSuiteStats, generate_complete_test_suite};
 
@@ -41,66 +41,80 @@ impl Default for GeneratorConfig {
 }
 
 /// Generate synthetic copybook text
-#[must_use] pub fn generate_copybook(config: &GeneratorConfig) -> String {
+#[must_use]
+pub fn generate_copybook(config: &GeneratorConfig) -> String {
     copybook::generate_synthetic_copybook(config)
 }
 
 /// Generate copybook with specific template
-#[must_use] pub fn generate_copybook_with_template(config: &GeneratorConfig, template: CopybookTemplate) -> String {
+#[must_use]
+pub fn generate_copybook_with_template(
+    config: &GeneratorConfig,
+    template: CopybookTemplate,
+) -> String {
     copybook::generate_copybook_with_template(config, template)
 }
 
 /// Generate synthetic data for a schema
-#[must_use] pub fn generate_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> {
+#[must_use]
+pub fn generate_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> {
     data::generate_synthetic_data(schema, config)
 }
 
 /// Generate data with specific strategy
-#[must_use] pub fn generate_data_with_strategy(
-    schema: &Schema, 
-    config: &GeneratorConfig, 
-    strategy: DataStrategy
+#[must_use]
+pub fn generate_data_with_strategy(
+    schema: &Schema,
+    config: &GeneratorConfig,
+    strategy: DataStrategy,
 ) -> Vec<Vec<u8>> {
     data::generate_data_with_strategy(schema, config, strategy)
 }
 
 /// Create golden test with SHA-256 validation
-#[must_use] pub fn create_golden_test(name: &str, copybook: &str, data: &[u8]) -> golden::GoldenTest {
+#[must_use]
+pub fn create_golden_test(name: &str, copybook: &str, data: &[u8]) -> golden::GoldenTest {
     golden::GoldenTest::new(name, copybook, data)
 }
 
 /// Create golden test with specific configuration
-#[must_use] pub fn create_golden_test_with_config(
-    name: &str, 
-    copybook: &str, 
-    data: &[u8], 
-    config: TestConfig
+#[must_use]
+pub fn create_golden_test_with_config(
+    name: &str,
+    copybook: &str,
+    data: &[u8],
+    config: TestConfig,
 ) -> golden::GoldenTest {
     golden::GoldenTest::new_with_config(name, copybook, data, config)
 }
 
 /// Generate comprehensive test suite
-#[must_use] pub fn generate_comprehensive_test_suite() -> golden::GoldenTestSuite {
+#[must_use]
+pub fn generate_comprehensive_test_suite() -> golden::GoldenTestSuite {
     golden::generate_comprehensive_suite()
 }
 
 /// Generate performance test suite
-#[must_use] pub fn generate_performance_test_suite() -> golden::GoldenTestSuite {
+#[must_use]
+pub fn generate_performance_test_suite() -> golden::GoldenTestSuite {
     golden::generate_performance_suite()
 }
 
 /// Generate negative test suite
-#[must_use] pub fn generate_negative_test_suite() -> golden::GoldenTestSuite {
+#[must_use]
+pub fn generate_negative_test_suite() -> golden::GoldenTestSuite {
     golden::generate_negative_test_suite()
 }
 
 /// Generate invalid copybooks for negative testing
-#[must_use] pub fn generate_invalid_copybooks(config: &GeneratorConfig) -> Vec<(String, String)> {
+#[must_use]
+pub fn generate_invalid_copybooks(config: &GeneratorConfig) -> Vec<(String, String)> {
     copybook::generate_invalid_copybook(config)
 }
 
 /// Generate corrupted data for negative testing
-#[must_use] pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
+#[must_use]
+pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
     data::generate_corrupted_data(clean_data, corruption_type)
 }
 
@@ -112,7 +126,8 @@ pub struct TestSuiteBuilder {
 
 impl TestSuiteBuilder {
     /// Create a new test suite builder
-    #[must_use] pub fn new(name: &str, description: &str) -> Self {
+    #[must_use]
+    pub fn new(name: &str, description: &str) -> Self {
         Self {
             suite: golden::GoldenTestSuite::new(name, description),
             config: GeneratorConfig::default(),
@@ -120,13 +135,15 @@ impl TestSuiteBuilder {
     }
 
     /// Set the generator configuration
-    #[must_use] pub fn with_config(mut self, config: GeneratorConfig) -> Self {
+    #[must_use]
+    pub fn with_config(mut self, config: GeneratorConfig) -> Self {
         self.config = config;
         self
     }
 
     /// Add a simple test case
-    #[must_use] pub fn add_simple_test(mut self, name: &str) -> Self {
+    #[must_use]
+    pub fn add_simple_test(mut self, name: &str) -> Self {
         let copybook = generate_copybook_with_template(&self.config, CopybookTemplate::Simple);
         let test = golden::GoldenTest::new(name, &copybook, &[]);
         self.suite.add_test(test);
@@ -134,15 +151,18 @@ impl TestSuiteBuilder {
     }
 
     /// Add a REDEFINES test case
-    #[must_use] pub fn add_redefines_test(mut self, name: &str) -> Self {
-        let copybook = generate_copybook_with_template(&self.config, CopybookTemplate::WithRedefines);
+    #[must_use]
+    pub fn add_redefines_test(mut self, name: &str) -> Self {
+        let copybook =
+            generate_copybook_with_template(&self.config, CopybookTemplate::WithRedefines);
         let test = golden::GoldenTest::new(name, &copybook, &[]);
         self.suite.add_test(test);
         self
     }
 
     /// Add an ODO test case
-    #[must_use] pub fn add_odo_test(mut self, name: &str) -> Self {
+    #[must_use]
+    pub fn add_odo_test(mut self, name: &str) -> Self {
         let copybook = generate_copybook_with_template(&self.config, CopybookTemplate::WithODO);
         let test = golden::GoldenTest::new(name, &copybook, &[]);
         self.suite.add_test(test);
@@ -150,7 +170,8 @@ impl TestSuiteBuilder {
     }
 
     /// Add a performance test case
-    #[must_use] pub fn add_performance_test(mut self, name: &str, template: CopybookTemplate) -> Self {
+    #[must_use]
+    pub fn add_performance_test(mut self, name: &str, template: CopybookTemplate) -> Self {
         let copybook = generate_copybook_with_template(&self.config, template);
         let mut test = golden::GoldenTest::new(name, &copybook, &[]);
         test.add_tag("performance");
@@ -159,7 +180,8 @@ impl TestSuiteBuilder {
     }
 
     /// Add a negative test case
-    #[must_use] pub fn add_negative_test(mut self, name: &str, copybook: String) -> Self {
+    #[must_use]
+    pub fn add_negative_test(mut self, name: &str, copybook: String) -> Self {
         let mut test = golden::GoldenTest::new(name, &copybook, &[]);
         test.add_tag("negative");
         test.add_tag("invalid");
@@ -168,7 +190,8 @@ impl TestSuiteBuilder {
     }
 
     /// Build the test suite
-    #[must_use] pub fn build(self) -> golden::GoldenTestSuite {
+    #[must_use]
+    pub fn build(self) -> golden::GoldenTestSuite {
         self.suite
     }
 }
@@ -181,7 +204,7 @@ mod tests {
     fn test_generate_simple_copybook() {
         let config = GeneratorConfig::default();
         let copybook = generate_copybook(&config);
-        
+
         assert!(copybook.contains("01  RECORD-ROOT"));
         assert!(copybook.contains("PIC"));
     }
@@ -189,16 +212,16 @@ mod tests {
     #[test]
     fn test_generate_copybook_templates() {
         let config = GeneratorConfig::default();
-        
+
         let simple = generate_copybook_with_template(&config, CopybookTemplate::Simple);
         assert!(simple.contains("Simple"));
-        
+
         let redefines = generate_copybook_with_template(&config, CopybookTemplate::WithRedefines);
         assert!(redefines.contains("REDEFINES"));
-        
+
         let occurs = generate_copybook_with_template(&config, CopybookTemplate::WithOccurs);
         assert!(occurs.contains("OCCURS"));
-        
+
         let odo = generate_copybook_with_template(&config, CopybookTemplate::WithODO);
         assert!(odo.contains("DEPENDING ON"));
     }
@@ -207,16 +230,24 @@ mod tests {
     fn test_generate_invalid_copybooks() {
         let config = GeneratorConfig::default();
         let invalid_cases = generate_invalid_copybooks(&config);
-        
+
         assert!(!invalid_cases.is_empty());
-        assert!(invalid_cases.iter().any(|(name, _)| name == "invalid_level"));
-        assert!(invalid_cases.iter().any(|(name, _)| name == "redefines_missing"));
+        assert!(
+            invalid_cases
+                .iter()
+                .any(|(name, _)| name == "invalid_level")
+        );
+        assert!(
+            invalid_cases
+                .iter()
+                .any(|(name, _)| name == "redefines_missing")
+        );
     }
 
     #[test]
     fn test_golden_test_creation() {
         let test = create_golden_test("test1", "01 ROOT PIC X(10).", b"test data");
-        
+
         assert_eq!(test.name, "test1");
         assert!(test.copybook.contains("ROOT"));
         assert!(!test.input_hash.is_empty());
@@ -229,7 +260,7 @@ mod tests {
             .add_redefines_test("redefines_test")
             .add_odo_test("odo_test")
             .build();
-        
+
         assert_eq!(suite.name, "test_suite");
         assert_eq!(suite.tests.len(), 3);
         assert!(suite.find_test("simple_test").is_some());
@@ -239,12 +270,18 @@ mod tests {
 
     #[test]
     fn test_deterministic_generation() {
-        let config1 = GeneratorConfig { seed: 123, ..Default::default() };
-        let config2 = GeneratorConfig { seed: 123, ..Default::default() };
-        
+        let config1 = GeneratorConfig {
+            seed: 123,
+            ..Default::default()
+        };
+        let config2 = GeneratorConfig {
+            seed: 123,
+            ..Default::default()
+        };
+
         let copybook1 = generate_copybook(&config1);
         let copybook2 = generate_copybook(&config2);
-        
+
         assert_eq!(copybook1, copybook2);
     }
 }

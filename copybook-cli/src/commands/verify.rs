@@ -1,8 +1,8 @@
 //! Verify command implementation
 
+use crate::utils::atomic_write;
 use copybook_codec::{Codepage, RecordFormat};
 use copybook_core::parse_copybook;
-use crate::utils::atomic_write;
 use std::fs;
 
 use std::path::PathBuf;

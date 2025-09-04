@@ -195,7 +195,7 @@ impl TestSuiteBuilder {
     /// Add a negative test case
     #[must_use]
     pub fn add_negative_test(mut self, name: &str, copybook: &str) -> Self {
-        let mut test = golden::GoldenTest::new(name, &copybook, &[]);
+        let mut test = golden::GoldenTest::new(name, copybook, &[]);
         test.add_tag("negative");
         test.add_tag("invalid");
         self.suite.add_test(test);

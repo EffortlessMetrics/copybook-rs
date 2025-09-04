@@ -8,7 +8,7 @@
 //! - `encode_jsonl_to_file`
 //! - `RecordIterator` (for programmatic access)
 
-use crate::options::{DecodeOptions, EncodeOptions};
+use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, RawMode};
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
 use std::fmt;
@@ -128,6 +128,17 @@ impl RunSummary {
     pub fn set_peak_memory_bytes(&mut self, bytes: u64) {
         self.peak_memory_bytes = Some(bytes);
     }
+
+    /// Update run summary from error reporter summary
+    pub fn update_from_error_summary(&mut self, error_summary: &copybook_core::ErrorSummary) {
+        use copybook_core::ErrorSeverity;
+        
+        // Count warnings from error severity
+        self.warnings = error_summary.error_counts.get(&ErrorSeverity::Warning).copied().unwrap_or(0);
+        
+        // Count records with errors
+        self.records_with_errors = error_summary.records_with_errors;
+    }
 }
 
 impl fmt::Display for RunSummary {
@@ -172,13 +183,30 @@ impl fmt::Display for RunSummary {
 ///
 /// Returns an error if the data cannot be decoded according to the schema
 // Recursively decode fields from the hierarchy
+/// Result carrying both successful data and any warnings generated
+struct DecodeResult {
+    warnings: Vec<copybook_core::Error>,
+}
+
+impl DecodeResult {
+    fn new() -> Self {
+        Self { warnings: Vec::new() }
+    }
+    
+    fn add_warnings(&mut self, mut warnings: Vec<copybook_core::Error>) {
+        self.warnings.append(&mut warnings);
+    }
+}
+
 fn decode_fields_recursive(
     fields: &[copybook_core::Field],
     data: &[u8], 
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
-) -> Result<()> {
+) -> Result<DecodeResult> {
     use copybook_core::FieldKind;
+    
+    let mut result = DecodeResult::new();
     
     for field in fields {
         // Skip FILLER fields unless explicitly requested
@@ -188,7 +216,8 @@ fn decode_fields_recursive(
         
         if let FieldKind::Group = &field.kind {
             // For groups, recursively process children
-            decode_fields_recursive(&field.children, data, json_obj, options)?;
+            let child_result = decode_fields_recursive(&field.children, data, json_obj, options)?;
+            result.add_warnings(child_result.warnings);
         } else {
             // For leaf fields, decode the value
             let field_start = field.offset as usize;
@@ -220,25 +249,29 @@ fn decode_fields_recursive(
                 }
                 FieldKind::ZonedDecimal { digits, scale, signed } => {
                     // Decode zoned decimal
-                    let decimal = crate::numeric::decode_zoned_decimal(
+                    let numeric_result = crate::numeric::decode_zoned_decimal(
                         field_data,
                         *digits,
                         *scale,
                         *signed,
                         options.codepage,
-                        false, // blank_when_zero handled elsewhere
+                        field.blank_when_zero,
                     )?;
-                    Value::String(decimal.to_string())
+                    // Collect warnings from numeric result
+                    result.add_warnings(numeric_result.warnings);
+                    Value::String(numeric_result.value.to_string())
                 }
                 FieldKind::PackedDecimal { digits, scale, signed } => {
                     // Decode packed decimal
-                    let decimal = crate::numeric::decode_packed_decimal(
+                    let numeric_result = crate::numeric::decode_packed_decimal(
                         field_data,
                         *digits,
                         *scale,
                         *signed,
                     )?;
-                    Value::String(decimal.to_string())
+                    // Collect warnings from numeric result
+                    result.add_warnings(numeric_result.warnings);
+                    Value::String(numeric_result.value.to_string())
                 }
                 FieldKind::BinaryInt { bits, signed } => {
                     // Decode binary integer
@@ -264,7 +297,7 @@ fn decode_fields_recursive(
             json_obj.insert(field_name, field_value);
         }
     }
-    Ok(())
+    Ok(result)
 }
 
 /// Decode a record from binary data using the provided schema
@@ -276,7 +309,8 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
     use serde_json::Map;
     
     let mut json_obj = Map::new();
-    decode_fields_recursive(&schema.fields, data, &mut json_obj, options)?;
+    let _decode_result = decode_fields_recursive(&schema.fields, data, &mut json_obj, options)?;
+    // TODO: Return warnings somehow - for now just ignore them in this function
     Ok(Value::Object(json_obj))
 }
 
@@ -291,22 +325,84 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 /// # Errors
 ///
 /// Returns an error if the JSON data cannot be encoded according to the schema
-pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) -> Result<Vec<u8>> {
-    // For now, return a minimal binary representation
-    // In a full implementation, this would encode all fields according to the schema
-
-    // Calculate expected record length from schema
-    let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
-    let mut buffer = vec![0u8; record_length];
-
-    // Add some basic encoding logic
-    if let Some(obj) = json.as_object()
-        && obj.contains_key("__status")
-    {
-        buffer[0] = b'E'; // Encoded marker
+pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
+    // Handle RDW format with raw data preservation
+    if options.format == RecordFormat::RDW && options.use_raw {
+        if let Some(Value::String(raw_b64)) = json.get("__raw_b64") {
+            use base64::prelude::*;
+            if let Ok(raw_data) = BASE64_STANDARD.decode(raw_b64) {
+                // If the raw data looks like it has an RDW header, use it directly
+                if raw_data.len() >= 4 {
+                    let claimed_length = u16::from_be_bytes([raw_data[0], raw_data[1]]) as usize;
+                    if claimed_length == raw_data.len() - 4 {
+                        return Ok(raw_data);
+                    }
+                }
+            }
+        }
     }
+    
+    // Simple encoding for basic functionality - extract field values and pack them
+    let mut encoded_data = Vec::new();
+    
+    if let Some(obj) = json.as_object() {
+        // Simple field extraction and encoding
+        for field in &schema.fields {
+            encode_field_simple(field, obj, &mut encoded_data)?;
+        }
+    }
+    
+    // Handle RDW format wrapping if needed
+    if options.format == RecordFormat::RDW {
+        use crate::record::RDWRecord;
+        
+        let rdw_record = RDWRecord::new(encoded_data);
+        let mut full_data = Vec::with_capacity(4 + rdw_record.payload.len());
+        full_data.extend_from_slice(&rdw_record.header_bytes());
+        full_data.extend_from_slice(&rdw_record.payload);
+        return Ok(full_data);
+    }
+    
+    Ok(encoded_data)
+}
 
-    Ok(buffer)
+/// Simple field encoding for basic functionality
+fn encode_field_simple(field: &copybook_core::Field, obj: &serde_json::Map<String, Value>, buffer: &mut Vec<u8>) -> Result<()> {
+    if let Some(value) = obj.get(&field.name) {
+        match value {
+            Value::String(s) => {
+                // Simple string encoding - pad or truncate to field size
+                let field_size = field.len as usize;
+                let mut field_data = s.as_bytes().to_vec();
+                field_data.resize(field_size, b' '); // Pad with spaces
+                buffer.extend_from_slice(&field_data[..field_size]); // Truncate if needed
+            }
+            Value::Number(n) => {
+                // Simple numeric encoding - convert to string and pad
+                let s = n.to_string();
+                let field_size = field.len as usize;
+                let mut field_data = s.as_bytes().to_vec();
+                field_data.resize(field_size, b'0'); // Pad with zeros
+                buffer.extend_from_slice(&field_data[..field_size]);
+            }
+            _ => {
+                // Default: encode as empty field
+                let field_size = field.len as usize;
+                buffer.extend(vec![b' '; field_size]);
+            }
+        }
+    } else {
+        // Field not found: encode as empty
+        let field_size = field.len as usize;
+        buffer.extend(vec![b' '; field_size]);
+    }
+    
+    // Handle child fields recursively
+    for child in &field.children {
+        encode_field_simple(child, obj, buffer)?;
+    }
+    
+    Ok(())
 }
 
 /// Calculate record length from field definitions
@@ -344,66 +440,181 @@ fn calculate_record_length_from_fields(fields: &[copybook_core::Field]) -> usize
 /// Returns an error if the file cannot be decoded or written
 pub fn decode_file_to_jsonl(
     schema: &Schema,
-    mut input: impl Read,
+    input: impl Read,
     mut output: impl Write,
     options: &DecodeOptions,
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
 
-    // Calculate actual record length from schema fields if lrecl_fixed is not set
-    let record_length = schema.lrecl_fixed
-        .map(|len| len as usize)
-        .unwrap_or_else(|| calculate_record_length_from_fields(&schema.fields));
-    let mut buffer = vec![0u8; record_length];
+    match options.format {
+        RecordFormat::Fixed => {
+            decode_fixed_file_to_jsonl(schema, input, &mut output, options, &mut summary)
+        }
+        RecordFormat::RDW => {
+            decode_rdw_file_to_jsonl(schema, input, &mut output, options, &mut summary)
+        }
+    }?;
+
+    // Calculate final timing and throughput
+    let processing_time = start_time.elapsed();
+    summary.processing_time_ms = processing_time.as_millis() as u64;
+    
+    if summary.processing_time_ms > 0 {
+        summary.throughput_mbps = (summary.bytes_processed as f64 / 1_048_576.0) 
+            / (summary.processing_time_ms as f64 / 1000.0);
+    }
+    
+    summary.schema_fingerprint = format!("{:x}", calculate_schema_hash(schema));
+    summary.threads_used = 1; // Single-threaded for now
+    
+    Ok(summary)
+}
+
+fn decode_fixed_file_to_jsonl(
+    schema: &Schema,
+    input: impl Read,
+    output: &mut impl Write,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    use crate::record::{FixedRecordReader};
+    
+    let mut reader = FixedRecordReader::new(input, schema.lrecl_fixed)?;
     let mut record_count = 0u64;
 
     loop {
-        // Try to read a record
-        match input.read_exact(&mut buffer) {
-            Ok(()) => {
+        match reader.read_record()? {
+            Some(record_data) => {
                 record_count += 1;
-                summary.bytes_processed += record_length as u64;
+                summary.bytes_processed += record_data.len() as u64;
+
+                // Validate record length against schema
+                reader.validate_record_length(schema, &record_data)?;
 
                 // Decode the record
-                match decode_record(schema, &buffer, options) {
-                    Ok(json_value) => {
-                        // Write as JSONL
-                        serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                        })?;
-                        writeln!(output).map_err(|e| {
-                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                        })?;
-                    }
-                    Err(decode_error) => {
-                        summary.records_with_errors += 1;
-                        // In lenient mode, continue processing
-                        if options.strict_mode {
-                            return Err(decode_error);
-                        }
-                    }
-                }
+                decode_and_write_record(schema, &record_data, output, options, summary, None)?;
             }
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                // End of file
-                break;
-            }
-            Err(e) => {
-                return Err(Error::new(
-                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                    e.to_string(),
-                ));
-            }
+            None => break, // EOF
         }
     }
-
+    
     summary.records_processed = record_count;
-    summary.processing_time_ms = start_time.elapsed().as_millis().min(u64::MAX as u128) as u64;
-    summary.calculate_throughput();
-    summary.schema_fingerprint = "placeholder_fingerprint".to_string();
+    Ok(())
+}
 
-    Ok(summary)
+fn decode_rdw_file_to_jsonl(
+    schema: &Schema,
+    input: impl Read,
+    output: &mut impl Write,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    use crate::record::{RDWRecordReader, RDWParsingMode};
+    
+    let parsing_mode = if options.strict_mode {
+        RDWParsingMode::Strict
+    } else {
+        RDWParsingMode::Lenient  
+    };
+    
+    let mut reader = RDWRecordReader::new_with_mode(input, parsing_mode);
+    
+    // For RDW records, don't set a strict maximum based on schema fixed length
+    // RDW records are variable-length by definition
+    // Only set a reasonable maximum to prevent memory exhaustion
+    reader.set_max_record_length(1024 * 1024); // 1MB max record size
+    
+    loop {
+        match reader.read_record()? {
+            Some(rdw_record) => {
+                summary.bytes_processed += (4 + rdw_record.payload.len()) as u64; // RDW header + payload
+                
+                // Validate zero-length records if applicable
+                if rdw_record.payload.is_empty() {
+                    reader.validate_zero_length_record(schema)?;
+                }
+                
+                // Validate record length against schema
+                reader.validate_record_length_against_schema(schema, rdw_record.length() as u32)?;
+
+                // Decode the record payload with optional RDW header for raw preservation
+                let full_rdw_data = if options.emit_raw == RawMode::RecordRDW {
+                    let mut full_data = Vec::with_capacity(4 + rdw_record.payload.len());
+                    full_data.extend_from_slice(&rdw_record.header_bytes());
+                    full_data.extend_from_slice(&rdw_record.payload);
+                    Some(full_data)
+                } else {
+                    None
+                };
+                
+                decode_and_write_record(schema, &rdw_record.payload, output, options, summary, full_rdw_data.as_deref())?;
+            }
+            None => break, // EOF
+        }
+    }
+    
+    summary.records_processed = reader.record_count();
+    Ok(())
+}
+
+fn decode_and_write_record(
+    schema: &Schema,
+    record_data: &[u8],
+    output: &mut impl Write,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+    rdw_raw_data: Option<&[u8]>,
+) -> Result<()> {
+    // Decode the record directly to collect warnings
+    use serde_json::Map;
+    let mut json_obj = Map::new();
+    match decode_fields_recursive(&schema.fields, record_data, &mut json_obj, options) {
+        Ok(decode_result) => {
+            // Count warnings
+            summary.warnings += decode_result.warnings.len() as u64;
+            
+            // Add raw data if requested
+            if let Some(raw_data) = rdw_raw_data {
+                if options.emit_raw == RawMode::RecordRDW {
+                    use base64::prelude::*;
+                    let encoded = BASE64_STANDARD.encode(raw_data);
+                    json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
+                }
+            } else if options.emit_raw == RawMode::Record {
+                use base64::prelude::*;
+                let encoded = BASE64_STANDARD.encode(record_data);
+                json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
+            }
+            
+            // Write as JSONL
+            let json_value = Value::Object(json_obj);
+            serde_json::to_writer(&mut *output, &json_value).map_err(|e| {
+                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+            })?;
+            writeln!(&mut *output).map_err(|e| {
+                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+            })?;
+            
+            Ok(())
+        }
+        Err(decode_error) => {
+            summary.records_with_errors += 1;
+            // In lenient mode, continue processing
+            if options.strict_mode {
+                return Err(decode_error);
+            }
+            // Log error and continue in lenient mode
+            eprintln!("Warning: Record decode error: {}", decode_error);
+            Ok(())
+        }
+    }
+}
+
+/// Calculate a simple hash of the schema for fingerprinting
+fn calculate_schema_hash(_schema: &Schema) -> u64 {
+    // Simple placeholder hash since Schema doesn't implement Hash
+    0xDEADBEEF
 }
 
 /// Encode JSONL to binary file
@@ -607,12 +818,18 @@ mod tests {
         let options = EncodeOptions::default();
 
         let mut json_obj = serde_json::Map::new();
-        json_obj.insert("__status".to_string(), Value::String("test".to_string()));
+        json_obj.insert("ID".to_string(), Value::String("123".to_string()));
+        json_obj.insert("NAME".to_string(), Value::String("ALICE".to_string()));
         let json = Value::Object(json_obj);
 
         let result = encode_record(&schema, &json, &options).unwrap();
         assert!(!result.is_empty());
-        assert_eq!(result[0], b'E'); // Encoded marker
+        
+        // Verify basic encoding functionality
+        assert!(result.len() > 0);
+        let result_str = String::from_utf8_lossy(&result);
+        assert!(result_str.contains("123"), "ID value should be present");
+        assert!(result_str.contains("ALICE"), "NAME value should be present");
     }
 
     #[test]

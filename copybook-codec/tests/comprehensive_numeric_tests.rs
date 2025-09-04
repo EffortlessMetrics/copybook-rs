@@ -299,14 +299,19 @@ fn test_fixed_scale_rendering_normative() {
    05 SCALE-0 PIC 9(5) COMP-3.
    05 SCALE-2 PIC 9(5)V99 COMP-3.
    05 SCALE-4 PIC 9(3)V9999 COMP-3.
-   05 NEGATIVE-SCALE PIC 9(3)V99 COMP-3.
+   05 NEGATIVE-SCALE PIC S9(3)V99 COMP-3.
 "#;
 
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false);
 
-    // Test data representing: 12345, 123.45, 1.2345, -12.34
-    let test_data = b"\x01\x23\x45\x0C\x01\x23\x45\x0C\x12\x34\x50\x0C\x01\x23\x4D";
+    // Test data representing: 12345, 12345.00, 1.2345, -12.34  
+    // SCALE-0: 12345 = \x12\x34\x5C (3 bytes)
+    // SCALE-2: 1234500 with scale 2 = 12345.00 = \x12\x34\x50\x0C (4 bytes) 
+    // SCALE-4: 12345 with scale 4 = 1.2345 = \x00\x12\x34\x5C (4 bytes)
+    // NEGATIVE-SCALE: -1234 with scale 2 = -12.34 = \x01\x23\x4D (3 bytes)
+    // Total: 3 + 4 + 4 + 3 = 14 bytes
+    let test_data = b"\x12\x34\x5C\x12\x34\x50\x0C\x00\x12\x34\x5C\x01\x23\x4D";
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 

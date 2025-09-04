@@ -8,7 +8,32 @@ use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::Write;
-use tracing::warn;
+
+/// Result type that can carry warnings along with the successful result
+#[derive(Debug)]
+pub struct NumericResult<T> {
+    /// The successful result value
+    pub value: T,
+    /// Any warnings generated during processing
+    pub warnings: Vec<Error>,
+}
+
+impl<T> NumericResult<T> {
+    /// Create a new result with no warnings
+    pub fn new(value: T) -> Self {
+        Self { value, warnings: Vec::new() }
+    }
+    
+    /// Create a new result with a warning
+    pub fn with_warning(value: T, warning: Error) -> Self {
+        Self { value, warnings: vec![warning] }
+    }
+    
+    /// Check if this result has warnings
+    pub fn has_warnings(&self) -> bool {
+        !self.warnings.is_empty()
+    }
+}
 
 /// Decode ASCII overpunch character to digit and sign
 /// ASCII overpunch mapping based on test expectations:
@@ -276,7 +301,7 @@ pub fn decode_zoned_decimal(
     signed: bool,
     codepage: Codepage,
     blank_when_zero: bool,
-) -> Result<SmallDecimal> {
+) -> Result<NumericResult<SmallDecimal>> {
     if data.len() != digits as usize {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -298,8 +323,8 @@ pub fn decode_zoned_decimal(
 
     if is_all_spaces {
         if blank_when_zero {
-            warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
-            return Ok(SmallDecimal::zero(scale));
+            let warning = Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "Zoned field is blank, decoding as zero");
+            return Ok(NumericResult::with_warning(SmallDecimal::zero(scale), warning));
         }
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -324,7 +349,7 @@ pub fn decode_zoned_decimal(
             // Skip normal digit processing for overpunch - value is already updated
             let mut decimal = SmallDecimal::new(value, scale, is_negative);
             decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-            return Ok(decimal);
+            return Ok(NumericResult::new(decimal));
         }
 
         let zone = (byte >> 4) & 0x0F;
@@ -378,7 +403,7 @@ pub fn decode_zoned_decimal(
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-    Ok(decimal)
+    Ok(NumericResult::new(decimal))
 }
 
 /// Decode packed decimal field with comprehensive error context
@@ -392,7 +417,7 @@ pub fn decode_packed_decimal(
     digits: u16,
     scale: i16,
     signed: bool,
-) -> Result<SmallDecimal> {
+) -> Result<NumericResult<SmallDecimal>> {
     let min_expected_bytes = (digits + 1).div_ceil(2) as usize;  // +1 for sign nibble
     if data.len() < min_expected_bytes {
         return Err(Error::new(
@@ -410,7 +435,7 @@ pub fn decode_packed_decimal(
     let data = &data[..min_expected_bytes];
 
     if data.is_empty() {
-        return Ok(SmallDecimal::zero(scale));
+        return Ok(NumericResult::new(SmallDecimal::zero(scale)));
     }
 
     let mut value = 0i64;
@@ -437,7 +462,7 @@ pub fn decode_packed_decimal(
                 };
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
                 decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-                return Ok(decimal);
+                return Ok(NumericResult::new(decimal));
             } else {
                 // Unsigned even digits - high nibble should be valid positive sign
                 if !matches!(high_nibble, 0xC | 0xF | 0xA | 0xE) {
@@ -455,7 +480,7 @@ pub fn decode_packed_decimal(
                 }
                 value = value * 10 + i64::from(low_nibble);
                 let decimal = SmallDecimal::new(value, scale, false);
-                return Ok(decimal);
+                return Ok(NumericResult::new(decimal));
             }
         }
         
@@ -487,7 +512,7 @@ pub fn decode_packed_decimal(
                 };
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
                 decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-                return Ok(decimal);
+                return Ok(NumericResult::new(decimal));
             }
             // Unsigned - low nibble should be valid positive sign
             if !matches!(low_nibble, 0xC | 0xF | 0xA | 0xE) {
@@ -515,7 +540,7 @@ pub fn decode_packed_decimal(
 
     // If we get here without returning, it's unsigned
     let decimal = SmallDecimal::new(value, scale, false);
-    Ok(decimal)
+    Ok(NumericResult::new(decimal))
 }
 
 /// Decode binary integer field
@@ -925,7 +950,7 @@ pub fn decode_zoned_decimal_with_scratch(
     codepage: Codepage,
     blank_when_zero: bool,
     scratch: &mut ScratchBuffers,
-) -> Result<SmallDecimal> {
+) -> Result<NumericResult<SmallDecimal>> {
     if data.len() != digits as usize {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -946,8 +971,8 @@ pub fn decode_zoned_decimal_with_scratch(
     let is_all_spaces = data.iter().all(|&b| b == space_byte);
     if is_all_spaces {
         if blank_when_zero {
-            warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
-            return Ok(SmallDecimal::zero(scale));
+            let warning = Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "Zoned field is blank, decoding as zero");
+            return Ok(NumericResult::with_warning(SmallDecimal::zero(scale), warning));
         }
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -1014,7 +1039,7 @@ pub fn decode_zoned_decimal_with_scratch(
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-    Ok(decimal)
+    Ok(NumericResult::new(decimal))
 }
 
 /// Optimized packed decimal decoder using scratch buffers
@@ -1025,7 +1050,7 @@ pub fn decode_packed_decimal_with_scratch(
     scale: i16,
     signed: bool,
     scratch: &mut ScratchBuffers,
-) -> Result<SmallDecimal> {
+) -> Result<NumericResult<SmallDecimal>> {
     let expected_bytes = digits.div_ceil(2) as usize;
     if data.len() != expected_bytes {
         return Err(Error::new(
@@ -1040,7 +1065,7 @@ pub fn decode_packed_decimal_with_scratch(
     }
 
     if data.is_empty() {
-        return Ok(SmallDecimal::zero(scale));
+        return Ok(NumericResult::new(SmallDecimal::zero(scale)));
     }
 
     // Clear and prepare digit buffer for reuse
@@ -1093,7 +1118,7 @@ pub fn decode_packed_decimal_with_scratch(
 
             let mut decimal = SmallDecimal::new(value, scale, is_negative);
             decimal.normalize();
-            return Ok(decimal);
+            return Ok(NumericResult::new(decimal));
         }
         2..=4 => {
             // Small packed decimals - optimized path
@@ -1117,7 +1142,7 @@ pub fn decode_packed_decimal_with_scratch(
                         };
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(NumericResult::new(decimal));
                     }
                 } else {
                     if high_nibble > 9 {
@@ -1146,7 +1171,7 @@ pub fn decode_packed_decimal_with_scratch(
                         };
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(NumericResult::new(decimal));
                     } else if !matches!(low_nibble, 0xC | 0xF | 0xA | 0xE) {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -1191,7 +1216,7 @@ pub fn decode_packed_decimal_with_scratch(
                         };
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(NumericResult::new(decimal));
                     }
                 } else {
                     if high_nibble > 9 {
@@ -1220,7 +1245,7 @@ pub fn decode_packed_decimal_with_scratch(
                         };
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(NumericResult::new(decimal));
                     } else if !matches!(low_nibble, 0xC | 0xF | 0xA | 0xE) {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -1247,7 +1272,7 @@ pub fn decode_packed_decimal_with_scratch(
 
     // If we get here without returning, it's unsigned
     let decimal = SmallDecimal::new(value, scale, false);
-    Ok(decimal)
+    Ok(NumericResult::new(decimal))
 }
 
 /// Fast binary integer decoder with optimized paths for common widths
@@ -1439,12 +1464,12 @@ mod tests {
         // EBCDIC spaces (0x40)
         let data = vec![0x40, 0x40, 0x40];
         let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::CP037, true).unwrap();
-        assert_eq!(result.to_string(), "0");
+        assert_eq!(result.value.to_string(), "0");
 
         // ASCII spaces
         let data = vec![b' ', b' ', b' '];
         let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::ASCII, true).unwrap();
-        assert_eq!(result.to_string(), "0");
+        assert_eq!(result.value.to_string(), "0");
     }
 
     #[test]
@@ -1452,12 +1477,12 @@ mod tests {
         // Positive packed decimal: 123C (123 positive)
         let data = vec![0x12, 0x3C];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-        assert_eq!(result.to_string(), "123");
+        assert_eq!(result.value.to_string(), "123");
 
         // Negative packed decimal: 123D (123 negative)
         let data = vec![0x12, 0x3D];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-        assert_eq!(result.to_string(), "-123");
+        assert_eq!(result.value.to_string(), "-123");
     }
 
     #[test]
@@ -1609,12 +1634,12 @@ mod tests {
         // Test the full zoned decimal decode with ASCII overpunch
         let data = b"12}"; // Should decode to 123 positive
         let result = decode_zoned_decimal(data, 3, 0, true, Codepage::ASCII, false).unwrap();
-        assert_eq!(result.to_string(), "123");
-        assert_eq!(result.is_negative(), false);
+        assert_eq!(result.value.to_string(), "123");
+        assert_eq!(result.value.is_negative(), false);
 
         let data = b"12L"; // Should decode to -123
         let result = decode_zoned_decimal(data, 3, 0, true, Codepage::ASCII, false).unwrap();
-        assert_eq!(result.to_string(), "-123");
-        assert_eq!(result.is_negative(), true);
+        assert_eq!(result.value.to_string(), "-123");
+        assert_eq!(result.value.is_negative(), true);
     }
 }

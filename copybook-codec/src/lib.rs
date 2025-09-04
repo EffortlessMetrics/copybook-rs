@@ -9,6 +9,7 @@ pub mod lib_api;
 pub mod memory;
 pub mod numeric;
 pub mod options;
+pub mod record;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,

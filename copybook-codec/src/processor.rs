@@ -173,17 +173,17 @@ impl DecodeProcessor {
                     ));
                 }
                 
-                // Prepare buffer for record data
-                buffer.resize(record_length + 4, 0); // Include RDW header
-                buffer[0..4].copy_from_slice(&rdw_header);
+                // For RDW records, we only want the payload data in the buffer
+                // The RDW header is metadata and should not be passed to field decoders
+                buffer.resize(record_length, 0);
                 
                 // Read record payload
                 if record_length > 0 {
-                    reader.read_exact(&mut buffer[4..4 + record_length])
+                    reader.read_exact(buffer)
                         .map_err(|e| Error::new(ErrorCode::CBKR201_RDW_READ_ERROR, e.to_string()))?;
                 }
                 
-                Ok(Some(record_length + 4))
+                Ok(Some(record_length))
             }
         }
     }
@@ -249,10 +249,9 @@ impl DecodeProcessor {
             processing_time_ms,
             bytes_processed: self.bytes_processed,
             schema_fingerprint: "placeholder".to_string(), // TODO: Implement fingerprinting
-            input_file_hash: None,
             throughput_mbps: 0.0,
-            error_summary: None, // TODO: Get from error_reporter
-            corruption_warnings: 0, // TODO: Get from error_reporter
+            peak_memory_bytes: None,
+            threads_used: 1, // Simple processor uses 1 thread
         };
         
         summary.calculate_throughput();
@@ -768,10 +767,9 @@ impl DecodeProcessor {
             processing_time_ms,
             bytes_processed: self.bytes_processed,
             schema_fingerprint: String::new(), // TODO: Implement schema fingerprinting
-            input_file_hash: None,
             throughput_mbps: 0.0,
-            error_summary: None,
-            corruption_warnings: 0,
+            peak_memory_bytes: None,
+            threads_used: self.options.threads,
         };
 
         // Update from error reporter
@@ -888,10 +886,9 @@ impl EncodeProcessor {
             processing_time_ms,
             bytes_processed: self.bytes_processed,
             schema_fingerprint: String::new(), // TODO: Implement schema fingerprinting
-            input_file_hash: None,
             throughput_mbps: 0.0,
-            error_summary: None,
-            corruption_warnings: 0,
+            peak_memory_bytes: None,
+            threads_used: self.options.threads,
         };
 
         summary.update_from_error_summary(self.error_reporter.summary());

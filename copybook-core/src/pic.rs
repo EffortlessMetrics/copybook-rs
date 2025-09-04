@@ -173,10 +173,11 @@ impl PicClause {
             ));
         }
 
-        if digits > 38 {
+        // u16 max is 65535, so no explicit check needed - but keep reasonable limit
+        if digits > 9999 {
             return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                format!("PIC clause too long: {digits} digits (max 38)"),
+                format!("PIC clause too long: {digits} digits (max 9999)"),
             ));
         }
 

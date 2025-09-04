@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use tracing::info;
 
 pub fn run(
-    copybook: PathBuf,
-    input: PathBuf,
+    copybook: &PathBuf,
+    input: &PathBuf,
     report: Option<PathBuf>,
     format: RecordFormat,
     codepage: Codepage,

@@ -121,6 +121,28 @@ Counter value: 0, raised to minimum: 1
 
 Errors in record framing and I/O processing.
 
+#### CBKR101_FIXED_RECORD_ERROR
+**Description**: Error processing fixed-length record
+**Severity**: Fatal
+**Context**: Record number, error details
+**Resolution**: Check record format and data integrity
+
+```
+Error: CBKR101_FIXED_RECORD_ERROR at record 75
+Fixed-length record processing failed
+```
+
+#### CBKR201_RDW_READ_ERROR
+**Description**: Error reading Record Descriptor Word (RDW) header
+**Severity**: Fatal
+**Context**: Record number, I/O error details
+**Resolution**: Check file integrity and record format
+
+```
+Error: CBKR201_RDW_READ_ERROR at record 100
+Failed to read RDW header: Unexpected end of file
+```
+
 #### CBKR211_RDW_RESERVED_NONZERO
 **Description**: RDW reserved bytes are non-zero
 **Severity**: Warning (lenient), Fatal (strict)
@@ -210,6 +232,18 @@ Offset: 30, zone: 0x4 (expected C/D/F for EBCDIC)
 Warning: CBKD412_ZONED_BLANK_IS_ZERO at record 600
 Field: ROOT.CUSTOMER.DISCOUNT
 All spaces decoded as zero
+```
+
+#### CBKD101_INVALID_FIELD_TYPE
+**Description**: Invalid field type encountered during processing
+**Severity**: Fatal
+**Context**: Record number, field path, field type
+**Resolution**: Check schema definition and field type compatibility
+
+```
+Error: CBKD101_INVALID_FIELD_TYPE at record 50
+Field: ROOT.CUSTOMER.ID
+Type: Unknown field type
 ```
 
 #### CBKD301_RECORD_TOO_SHORT
@@ -396,10 +430,13 @@ Possible text-mode transfer corruption
 | CBKS141 | Schema | Fatal | Record too large |
 | CBKS301 | Schema | Warning | ODO clipped |
 | CBKS302 | Schema | Warning | ODO raised |
+| CBKR101 | Record | Fatal | Fixed record error |
+| CBKR201 | Record | Fatal | RDW read error |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
 | CBKR221 | Record | Fatal | RDW underflow |
 | CBKC201 | Charset | Fatal | JSON write error |
 | CBKC301 | Charset | Warning/Fatal | Invalid EBCDIC byte |
+| CBKD101 | Decode | Fatal | Invalid field type |
 | CBKD301 | Decode | Fatal | Record too short |
 | CBKD401 | Decode | Fatal/Warning | COMP-3 invalid nibble |
 | CBKD411 | Decode | Fatal/Warning | Zoned bad sign |

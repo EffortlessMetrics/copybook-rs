@@ -262,6 +262,7 @@ impl<W: Write> JsonWriter<W> {
             self.options.codepage,
             crate::options::UnmappablePolicy::Error,
         )?;
+>>>>>>> origin/main
 
         // Write as JSON string with proper escaping
         self.json_buffer.push('"');
@@ -402,6 +403,7 @@ impl<W: Write> JsonWriter<W> {
         Ok(())
     }
 
+>>>>>>> origin/main
     /// Write raw data field directly to JSON buffer
     fn write_raw_data_streaming(
         &mut self,
@@ -752,7 +754,7 @@ impl<W: Write> JsonWriter<W> {
 
     /// Add raw record data
     fn add_raw_data(&self, json_obj: &mut Map<String, Value>, record_data: &[u8]) -> Result<()> {
-        use base64::{Engine as _, engine::general_purpose};
+        use base64::{engine::general_purpose, Engine as _};
         let encoded = general_purpose::STANDARD.encode(record_data);
         json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
         Ok(())
@@ -765,8 +767,6 @@ impl<W: Write> JsonWriter<W> {
         field: &Field,
         record_data: &[u8],
     ) -> Result<()> {
-        use base64::{Engine as _, engine::general_purpose};
-
         let end_offset = field.offset + field.len;
         if end_offset as usize <= record_data.len() {
             let field_data = &record_data[field.offset as usize..end_offset as usize];
@@ -775,6 +775,383 @@ impl<W: Write> JsonWriter<W> {
             json_obj.insert(raw_key, Value::String(encoded));
         }
 
+        Ok(())
+    }
+
+    /// Write fields directly to JSON string buffer for streaming performance
+    fn write_fields_streaming(
+        &mut self,
+        fields: &[Field],
+        record_data: &[u8],
+        record_index: u64,
+        byte_offset: u64,
+        first_field: &mut bool,
+    ) -> Result<()> {
+        for field in fields {
+            self.write_single_field_streaming(
+                field,
+                record_data,
+                record_index,
+                byte_offset,
+                first_field,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Write a single field directly to JSON string buffer
+    fn write_single_field_streaming(
+        &mut self,
+        field: &Field,
+        record_data: &[u8],
+        record_index: u64,
+        byte_offset: u64,
+        first_field: &mut bool,
+    ) -> Result<()> {
+        let field_name = self.get_field_name(field);
+
+        // Skip FILLER fields if not emitted
+        if field_name.is_empty() {
+            return Ok(());
+        }
+
+        // Add comma separator if not first field
+        if !*first_field {
+            self.json_buffer.push(',');
+        }
+        *first_field = false;
+
+        // Write field name
+        self.json_buffer.push('"');
+        self.json_buffer.push_str(&field_name);
+        self.json_buffer.push_str("\":");
+
+        match &field.kind {
+            FieldKind::Group => {
+                if let Some(occurs) = &field.occurs {
+                    self.write_group_array_streaming(
+                        field,
+                        record_data,
+                        occurs,
+                        record_index,
+                        byte_offset,
+                    )?;
+                } else {
+                    // Single group - write nested object
+                    self.json_buffer.push('{');
+                    let mut group_first_field = true;
+                    self.write_fields_streaming(
+                        &field.children,
+                        record_data,
+                        record_index,
+                        byte_offset,
+                        &mut group_first_field,
+                    )?;
+                    self.json_buffer.push('}');
+                }
+            }
+            _ => {
+                // Scalar field
+                if let Some(occurs) = &field.occurs {
+                    self.write_scalar_array_streaming(
+                        field,
+                        record_data,
+                        occurs,
+                        record_index,
+                        byte_offset,
+                    )?;
+                } else {
+                    self.write_scalar_field_streaming(
+                        field,
+                        record_data,
+                        record_index,
+                        byte_offset,
+                    )?;
+
+                    // Add field-level raw data if requested
+                    if matches!(self.options.emit_raw, RawMode::Field) {
+                        // This would require additional comma handling - simplified for now
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Write scalar field value directly to JSON string buffer
+    fn write_scalar_field_streaming(
+        &self,
+        field: &Field,
+        record_data: &[u8],
+        _record_index: u64,
+        _byte_offset: u64,
+    ) -> Result<()> {
+        // Check bounds
+        let end_offset = field.offset + field.len;
+        if end_offset as usize > record_data.len() {
+            return Err(Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                format!("Field {} extends beyond record boundary", field.path),
+            ));
+        }
+
+        let field_data = &record_data[field.offset as usize..end_offset as usize];
+
+        match &field.kind {
+            FieldKind::Alphanum { .. } => {
+                // Convert from EBCDIC/ASCII to UTF-8
+                let text = crate::charset::ebcdic_to_utf8(
+                    field_data,
+                    self.options.codepage,
+                    self.options.on_decode_unmappable,
+                )?;
+                // Write as JSON string with proper escaping
+                self.write_json_string_to_buffer(&text);
+            }
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
+                let decimal = crate::numeric::decode_zoned_decimal(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    self.options.codepage,
+                    field.blank_when_zero,
+                )?;
+
+                // Fixed-scale rendering - NORMATIVE
+                let decimal_str = decimal.to_fixed_scale_string(*scale);
+
+                match self.options.json_number_mode {
+                    JsonNumberMode::Lossless => {
+                        self.write_json_string_to_buffer(&decimal_str);
+                    }
+                    JsonNumberMode::Native => {
+                        // Try to write as number, fall back to string
+                        if let Ok(num) = decimal_str.parse::<f64>() {
+                            if num.is_finite() {
+                                self.write_json_number_to_buffer(num);
+                            } else {
+                                self.write_json_string_to_buffer(&decimal_str);
+                            }
+                        } else {
+                            self.write_json_string_to_buffer(&decimal_str);
+                        }
+                    }
+                }
+            }
+            FieldKind::PackedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
+                let decimal =
+                    crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
+
+                // Fixed-scale rendering - NORMATIVE
+                let decimal_str = decimal.to_fixed_scale_string(*scale);
+
+                match self.options.json_number_mode {
+                    JsonNumberMode::Lossless => {
+                        self.write_json_string_to_buffer(&decimal_str);
+                    }
+                    JsonNumberMode::Native => {
+                        if let Ok(num) = decimal_str.parse::<f64>() {
+                            if num.is_finite() {
+                                self.write_json_number_to_buffer(num);
+                            } else {
+                                self.write_json_string_to_buffer(&decimal_str);
+                            }
+                        } else {
+                            self.write_json_string_to_buffer(&decimal_str);
+                        }
+                    }
+                }
+            }
+            FieldKind::BinaryInt { bits, signed } => {
+                let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+
+                // Use JSON numbers for values up to 64-bit
+                if *bits <= 64 {
+                    self.write_json_number_to_buffer(int_value as f64);
+                } else {
+                    // Use string for larger values
+                    self.write_json_string_to_buffer(&int_value.to_string());
+                }
+            }
+            FieldKind::Group => {
+                // This shouldn't happen for scalar fields
+                return Err(Error::new(
+                    ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                    format!("Group field {} processed as scalar", field.path),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Write a JSON string with proper escaping to the buffer
+    fn write_json_string_to_buffer(&mut self, s: &str) {
+        self.json_buffer.push('"');
+        for c in s.chars() {
+            match c {
+                '"' => self.json_buffer.push_str("\\\""),
+                '\\' => self.json_buffer.push_str("\\\\"),
+                '\n' => self.json_buffer.push_str("\\n"),
+                '\r' => self.json_buffer.push_str("\\r"),
+                '\t' => self.json_buffer.push_str("\\t"),
+                c if c.is_control() => {
+                    self.json_buffer.push_str(&format!("\\u{:04x}", c as u32));
+                }
+                c => self.json_buffer.push(c),
+            }
+        }
+        self.json_buffer.push('"');
+    }
+
+    /// Write a JSON number to the buffer
+    fn write_json_number_to_buffer(&mut self, num: f64) {
+        use std::fmt::Write;
+        write!(self.json_buffer, "{}", num).unwrap();
+    }
+
+    /// Write group array directly to JSON string buffer
+    fn write_group_array_streaming(
+        &mut self,
+        field: &Field,
+        record_data: &[u8],
+        occurs: &Occurs,
+        record_index: u64,
+        byte_offset: u64,
+    ) -> Result<()> {
+        let count = self.get_actual_array_count(occurs, record_data)?;
+
+        self.json_buffer.push('[');
+
+        for i in 0..count {
+            if i > 0 {
+                self.json_buffer.push(',');
+            }
+
+            let _element_offset = field.offset + (i * field.len);
+            self.json_buffer.push('{');
+
+            let mut element_first_field = true;
+            self.write_fields_streaming(
+                &field.children,
+                record_data,
+                record_index,
+                byte_offset,
+                &mut element_first_field,
+            )?;
+
+            self.json_buffer.push('}');
+        }
+
+        self.json_buffer.push(']');
+        Ok(())
+    }
+
+    /// Write scalar array directly to JSON string buffer
+    fn write_scalar_array_streaming(
+        &mut self,
+        field: &Field,
+        record_data: &[u8],
+        occurs: &Occurs,
+        record_index: u64,
+        byte_offset: u64,
+    ) -> Result<()> {
+        let count = self.get_actual_array_count(occurs, record_data)?;
+
+        let element_size = field.len
+            / match occurs {
+                Occurs::Fixed { count } => *count,
+                Occurs::ODO { max, .. } => *max,
+            };
+
+        self.json_buffer.push('[');
+
+        for i in 0..count {
+            if i > 0 {
+                self.json_buffer.push(',');
+            }
+
+            let element_offset = field.offset + (i * element_size);
+
+            // Create a temporary field for the array element
+            let mut element_field = field.clone();
+            element_field.offset = element_offset;
+            element_field.len = element_size;
+            element_field.occurs = None; // Remove OCCURS for individual element
+
+            self.write_scalar_field_streaming(
+                &element_field,
+                record_data,
+                record_index,
+                byte_offset,
+            )?;
+        }
+
+        self.json_buffer.push(']');
+        Ok(())
+    }
+
+    /// Write metadata directly to JSON string buffer
+    fn write_record_metadata(
+        &mut self,
+        schema_fingerprint: &str,
+        record_index: u64,
+        byte_offset: u64,
+        record_length: usize,
+        first_field: &mut bool,
+    ) -> Result<()> {
+        // Add comma separator if not first field
+        if !*first_field {
+            self.json_buffer.push(',');
+        }
+        *first_field = false;
+
+        self.json_buffer.push_str("\"__schema_id\":");
+        self.write_json_string_to_buffer(schema_fingerprint);
+
+        self.json_buffer.push_str(",\"__record_index\":");
+        self.write_json_number_to_buffer(record_index as f64);
+
+        self.json_buffer.push_str(",\"__offset\":");
+        self.write_json_number_to_buffer(byte_offset as f64);
+
+        self.json_buffer.push_str(",\"__length\":");
+        self.write_json_number_to_buffer(record_length as f64);
+
+        Ok(())
+    }
+
+    /// Write raw data directly to JSON string buffer
+    fn write_raw_data_streaming(
+        &mut self,
+        record_data: &[u8],
+        first_field: &mut bool,
+    ) -> Result<()> {
+        use base64::{engine::general_purpose, Engine as _};
+
+        // Add comma separator if not first field
+        if !*first_field {
+            self.json_buffer.push(',');
+        }
+        *first_field = false;
+
+        let encoded = general_purpose::STANDARD.encode(record_data);
+        self.json_buffer.push_str("\"__raw_b64\":");
+        self.write_json_string_to_buffer(&encoded);
+
+=======
+
+>>>>>>> origin/main
         Ok(())
     }
 
@@ -1007,7 +1384,7 @@ impl JsonEncoder {
                     ),
                 )
                 .with_field(cluster_path)
-                .with_offset(u64::from(field.offset)))
+                .with_offset(field.offset as u64))
             }
         }
     }
@@ -1087,10 +1464,11 @@ impl JsonEncoder {
                     let element_offset = field.offset
                         + (u32::try_from(i).map_err(|_| {
                             Error::new(
-                                ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                                format!("Array index {i} exceeds maximum u32 value"),
+                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                                "Array index overflow".to_string(),
                             )
-                        })? * element_size);
+                        })?
+                            * element_size);
 
                     // Create a temporary field for the array element
                     let mut element_field = field.clone();
@@ -1145,10 +1523,11 @@ impl JsonEncoder {
                 let element_offset = field.offset
                     + (u32::try_from(i).map_err(|_| {
                         Error::new(
-                            ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                            format!("Array index {i} exceeds maximum u32 value"),
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            "Array index overflow".to_string(),
                         )
-                    })? * element_size);
+                    })?
+                        * element_size);
 
                 // Create a temporary field for the array element
                 let mut element_field = field.clone();
@@ -1180,7 +1559,9 @@ impl JsonEncoder {
                 if actual_len < *min as usize || actual_len > *max as usize {
                     return Err(Error::new(
                         ErrorCode::CBKE521_ARRAY_LEN_OOB,
-                        format!("Array length {actual_len} is outside ODO range {min}-{max}"),
+                        format!(
+                            "Array length {actual_len} is outside ODO range {min}-{max}"
+                        ),
                     ));
                 }
             }
@@ -1318,30 +1699,169 @@ impl JsonEncoder {
 
         match &field.kind {
             FieldKind::Alphanum { len: _ } => {
-                self.encode_alphanumeric_field(field, value, field_data)
+                if let Value::String(text) = value {
+                    // Validate string length doesn't exceed field capacity
+                    if text.len() > field.len as usize {
+                        return Err(Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!("String length {} exceeds field capacity {} for alphanumeric field {}", 
+                                text.len(), field.len, field.path),
+                        ).with_field(field.path.clone()));
+                    }
+
+                    let encoded = crate::numeric::encode_alphanumeric(
+                        text,
+                        field.len as usize,
+                        self.options.codepage,
+                    )?;
+                    field_data.copy_from_slice(&encoded);
+                } else {
+                    return Err(Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        format!(
+                            "Expected string for alphanumeric field {}, got {}",
+                            field.path,
+                            self.value_type_name(value)
+                        ),
+                    )
+                    .with_field(field.path.clone()));
+                }
             }
             FieldKind::ZonedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                self.encode_zoned_decimal_field(field, value, field_data, *digits, *scale, *signed)
+                let value_str = match value {
+                    Value::String(s) => {
+                        // Validate that the string represents a valid decimal number
+                        self.validate_decimal_string(s, *digits, *scale, *signed, &field.path)?;
+                        s.clone()
+                    }
+                    Value::Number(n) => {
+                        let s = n.to_string();
+                        self.validate_decimal_string(&s, *digits, *scale, *signed, &field.path)?;
+                        s
+                    }
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!(
+                                "Expected string or number for zoned decimal field {}, got {}",
+                                field.path,
+                                self.value_type_name(value)
+                            ),
+                        )
+                        .with_field(field.path.clone()));
+                    }
+                };
+
+                let encoded = if field.blank_when_zero && self.options.bwz_encode {
+                    crate::numeric::encode_zoned_decimal_with_bwz(
+                        &value_str,
+                        *digits,
+                        *scale,
+                        *signed,
+                        self.options.codepage,
+                        self.options.bwz_encode,
+                    )?
+                } else {
+                    crate::numeric::encode_zoned_decimal(
+                        &value_str,
+                        *digits,
+                        *scale,
+                        *signed,
+                        self.options.codepage,
+                    )?
+                };
+                field_data.copy_from_slice(&encoded);
             }
             FieldKind::PackedDecimal {
                 digits,
                 scale,
                 signed,
             } => {
-                self.encode_packed_decimal_field(field, value, field_data, *digits, *scale, *signed)
+                let value_str = match value {
+                    Value::String(s) => {
+                        self.validate_decimal_string(s, *digits, *scale, *signed, &field.path)?;
+                        s.clone()
+                    }
+                    Value::Number(n) => {
+                        let s = n.to_string();
+                        self.validate_decimal_string(&s, *digits, *scale, *signed, &field.path)?;
+                        s
+                    }
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!(
+                                "Expected string or number for packed decimal field {}, got {}",
+                                field.path,
+                                self.value_type_name(value)
+                            ),
+                        )
+                        .with_field(field.path.clone()));
+                    }
+                };
+
+                let encoded =
+                    crate::numeric::encode_packed_decimal(&value_str, *digits, *scale, *signed)?;
+                field_data.copy_from_slice(&encoded);
             }
             FieldKind::BinaryInt { bits, signed } => {
-                self.encode_binary_int_field(field, value, field_data, *bits, *signed)
+                let int_value = match value {
+                    Value::Number(n) => {
+                        if *signed {
+                            n.as_i64().ok_or_else(|| {
+                                Error::new(
+                                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                                    format!(
+                                        "Invalid signed integer for field {}: number out of range",
+                                        field.path
+                                    ),
+                                )
+                                .with_field(field.path.clone())
+                            })?
+                        } else {
+                            n.as_u64().ok_or_else(|| Error::new(
+                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                                format!("Invalid unsigned integer for field {}: number out of range", field.path),
+                            ).with_field(field.path.clone()))? as i64
+                        }
+                    }
+                    Value::String(s) => s.parse::<i64>().map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!("Invalid integer string '{}' for field {}", s, field.path),
+                        )
+                        .with_field(field.path.clone())
+                    })?,
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!(
+                                "Expected number or string for binary integer field {}, got {}",
+                                field.path,
+                                self.value_type_name(value)
+                            ),
+                        )
+                        .with_field(field.path.clone()));
+                    }
+                };
+
+                // Validate integer range for the field width
+                self.validate_integer_range(int_value, *bits, *signed, &field.path)?;
+
+                let encoded = crate::numeric::encode_binary_int(int_value, *bits, *signed)?;
+                field_data.copy_from_slice(&encoded);
             }
-            FieldKind::Group => Err(Error::new(
-                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                format!("Group field {} processed as scalar", field.path),
-            )
-            .with_field(field.path.clone())),
+            FieldKind::Group => {
+                return Err(Error::new(
+                    ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                    format!("Group field {} processed as scalar", field.path),
+                )
+                .with_field(field.path.clone()));
+            }
         }
     }
 
@@ -1572,7 +2092,9 @@ impl JsonEncoder {
         if !signed && decimal.is_negative() {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!("Negative value '{s}' not allowed for unsigned field {field_path}"),
+                format!(
+                    "Negative value '{s}' not allowed for unsigned field {field_path}"
+                ),
             )
             .with_field(field_path.to_string()));
         }
@@ -1628,7 +2150,7 @@ impl JsonEncoder {
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Invalid bit width {bits} for binary field {field_path}"),
                     )
-                    .with_field(field_path.to_string()));
+                    .with_field(field_path.to_string()))
                 }
             }
         } else {
@@ -1641,7 +2163,7 @@ impl JsonEncoder {
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Invalid bit width {bits} for binary field {field_path}"),
                     )
-                    .with_field(field_path.to_string()));
+                    .with_field(field_path.to_string()))
                 }
             }
         };
@@ -1677,17 +2199,17 @@ impl JsonEncoder {
 
     /// Extract raw data from JSON record
     fn extract_raw_data(&self, json: &Value) -> Result<Option<Vec<u8>>> {
-        if let Value::Object(obj) = json
-            && let Some(Value::String(raw_b64)) = obj.get("__raw_b64")
-        {
-            use base64::{Engine as _, engine::general_purpose};
-            let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
-                Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 raw data: {e}"),
-                )
-            })?;
-            return Ok(Some(raw_data));
+        if let Value::Object(obj) = json {
+            if let Some(Value::String(raw_b64)) = obj.get("__raw_b64") {
+                use base64::{engine::general_purpose, Engine as _};
+                let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        format!("Invalid base64 raw data: {e}"),
+                    )
+                })?;
+                return Ok(Some(raw_data));
+            }
         }
         Ok(None)
     }
@@ -1700,7 +2222,7 @@ impl JsonEncoder {
     ) -> Result<Option<Vec<u8>>> {
         let raw_key = format!("{}_raw_b64", field.name);
         if let Some(Value::String(raw_b64)) = json_obj.get(&raw_key) {
-            use base64::{Engine as _, engine::general_purpose};
+            use base64::{engine::general_purpose, Engine as _};
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -1787,7 +2309,7 @@ impl JsonEncoder {
         json_obj: &Map<String, Value>,
     ) -> Result<Option<Vec<u8>>> {
         if let Some(Value::String(raw_b64)) = json_obj.get("__raw_b64") {
-            use base64::{Engine as _, engine::general_purpose};
+            use base64::{engine::general_purpose, Engine as _};
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,

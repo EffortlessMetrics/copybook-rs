@@ -201,7 +201,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                         let mut processor = DecodeProcessor::new(options.clone());
                         let _result =
                             processor.process_file(black_box(&schema), input, &mut output);
-                        hint_black_box(_result);
+                        let _ = hint_black_box(_result);
                     })
                 },
             );
@@ -253,7 +253,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                         let mut processor = DecodeProcessor::new(options.clone());
                         let _result =
                             processor.process_file(black_box(&schema), input, &mut output);
-                        hint_black_box(_result);
+                        let _ = hint_black_box(_result);
                     })
                 },
             );
@@ -333,7 +333,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
             let mut output = Vec::new();
             let mut processor = DecodeProcessor::new(options.clone());
             let result = processor.process_file(black_box(&display_schema), input, &mut output);
-            hint_black_box(result);
+            let _ = hint_black_box(result);
         })
     });
 
@@ -348,7 +348,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
             let mut output = Vec::new();
             let mut processor = DecodeProcessor::new(options.clone());
             let result = processor.process_file(black_box(&comp3_schema), input, &mut output);
-            hint_black_box(result);
+            let _ = hint_black_box(result);
         })
     });
 
@@ -376,7 +376,7 @@ fn bench_parallel_scaling(c: &mut Criterion) {
                     let mut output = Vec::new();
                     let mut processor = DecodeProcessor::new(options.clone());
                     let result = processor.process_file(black_box(&schema), input, &mut output);
-                    hint_black_box(result);
+                    let _ = hint_black_box(result);
                 })
             },
         );

@@ -72,8 +72,7 @@ Comprehensive support for mainframe data formats:
 ## Known Limitations and Technical Debt
 
 ### Deprecated Dependencies
-- `base64::encode` function usage (2 instances in copybook-codec)
-- Should migrate to Engine::encode API for future compatibility
+- None currently identified; legacy `base64::encode` usage has been removed.
 
 ### Unsupported COBOL Features
 - COMP-1/COMP-2 floating-point types (by design - rare in practice)

@@ -33,16 +33,16 @@ impl DecodeProcessor {
     }
 }
 
-const SIMPLE_COPYBOOK: &str = r#"
+const SIMPLE_COPYBOOK: &str = r"
        01  CUSTOMER-RECORD.
            05  CUSTOMER-ID         PIC 9(6).
            05  CUSTOMER-NAME       PIC X(30).
            05  ACCOUNT-BALANCE     PIC S9(7)V99 COMP-3.
            05  LAST-ACTIVITY-DATE  PIC 9(8).
            05  STATUS-CODE         PIC X(1).
-"#;
+";
 
-const DISPLAY_HEAVY_COPYBOOK: &str = r#"
+const DISPLAY_HEAVY_COPYBOOK: &str = r"
        01  TEXT-RECORD.
            05  FIELD-01            PIC X(50).
            05  FIELD-02            PIC X(50).
@@ -54,9 +54,9 @@ const DISPLAY_HEAVY_COPYBOOK: &str = r#"
            05  FIELD-08            PIC X(50).
            05  FIELD-09            PIC X(50).
            05  FIELD-10            PIC X(50).
-"#;
+";
 
-const COMP3_HEAVY_COPYBOOK: &str = r#"
+const COMP3_HEAVY_COPYBOOK: &str = r"
        01  NUMERIC-RECORD.
            05  FIELD-01            PIC S9(9)V99 COMP-3.
            05  FIELD-02            PIC S9(9)V99 COMP-3.
@@ -68,9 +68,9 @@ const COMP3_HEAVY_COPYBOOK: &str = r#"
            05  FIELD-08            PIC S9(9)V99 COMP-3.
            05  FIELD-09            PIC S9(9)V99 COMP-3.
            05  FIELD-10            PIC S9(9)V99 COMP-3.
-"#;
+";
 
-const BINARY_HEAVY_COPYBOOK: &str = r#"
+const BINARY_HEAVY_COPYBOOK: &str = r"
        01  BINARY-RECORD.
            05  FIELD-01            PIC S9(4) COMP.
            05  FIELD-02            PIC S9(9) COMP.
@@ -82,7 +82,7 @@ const BINARY_HEAVY_COPYBOOK: &str = r#"
            05  FIELD-08            PIC S9(9) COMP.
            05  FIELD-09            PIC S9(18) COMP.
            05  FIELD-10            PIC S9(4) COMP.
-"#;
+";
 
 fn generate_display_heavy_data(record_count: usize) -> Vec<u8> {
     // Generate DISPLAY-heavy test data (500 bytes per record)

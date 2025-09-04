@@ -355,11 +355,10 @@ impl Parser {
             let parent_path = path_parts[0..i].join(".");
             
             // Find the parent field
-            if let Some(parent_field) = all_fields.iter().find(|f| f.path == parent_path) {
-                if parent_field.redefines_of.is_some() {
+            if let Some(parent_field) = all_fields.iter().find(|f| f.path == parent_path)
+                && parent_field.redefines_of.is_some() {
                     return true;
                 }
-            }
         }
         
         false

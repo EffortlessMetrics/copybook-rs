@@ -90,6 +90,7 @@ fn test_redefines_decode_all_views() {
 "#;
 
     let schema = parse_copybook(copybook).unwrap();
+    
     let options = create_test_decode_options(false);
 
     let test_data = b"12345678"; // 8 bytes of data
@@ -277,6 +278,14 @@ fn test_odo_counter_in_redefines_error() {
 "#;
 
     let result = parse_copybook(invalid_counter_in_redefines);
+    println!("Parse result: {:?}", result);
+    if let Ok(schema) = &result {
+        let all_fields = schema.all_fields();
+        println!("All fields:");
+        for field in all_fields {
+            println!("  Field: {} (path: {}), redefines_of: {:?}", field.name, field.path, field.redefines_of);
+        }
+    }
     assert!(result.is_err());
     let error = result.unwrap_err();
     assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);

@@ -259,7 +259,16 @@ fn decode_fields_recursive(
                     )?;
                     // Collect warnings from numeric result
                     result.add_warnings(numeric_result.warnings);
-                    Value::String(numeric_result.value.to_string())
+                    
+                    // Format with proper padding for integer fields (scale = 0)
+                    let formatted_value = if *scale == 0 && !field.blank_when_zero && !*signed {
+                        // Unsigned integer field without blank-when-zero - preserve leading zeros as per PIC specification
+                        format!("{:0width$}", numeric_result.value.value, width = *digits as usize)
+                    } else {
+                        // Signed field, decimal field, or blank-when-zero field - use the SmallDecimal display format
+                        numeric_result.value.to_string()
+                    };
+                    Value::String(formatted_value)
                 }
                 FieldKind::PackedDecimal { digits, scale, signed } => {
                     // Decode packed decimal
@@ -529,6 +538,17 @@ fn decode_rdw_file_to_jsonl(
         match reader.read_record()? {
             Some(rdw_record) => {
                 summary.bytes_processed += (4 + rdw_record.payload.len()) as u64; // RDW header + payload
+                
+                // Check for RDW warnings and collect them
+                let metadata = rdw_record.get_metadata();
+                if metadata.has_non_zero_reserved && !options.strict_mode {
+                    // In lenient mode, non-zero reserved bytes generate a warning
+                    summary.warnings += 1;
+                }
+                if metadata.suspect_ascii_corruption {
+                    // ASCII corruption is always a concern
+                    summary.warnings += 1;
+                }
                 
                 // Validate zero-length records if applicable
                 if rdw_record.payload.is_empty() {

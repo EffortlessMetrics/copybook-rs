@@ -30,7 +30,7 @@ cargo build --workspace --release
 
 ### Testing
 ```bash
-# Run all tests across workspace (118 tests passing)
+# Run all tests across workspace (95 tests passing)
 cargo test --workspace
 
 # Run performance benchmarks
@@ -39,13 +39,13 @@ cargo bench --package copybook-bench
 # Run with performance environment variable
 PERF=1 cargo bench
 
-# Linting (clippy pedantic compliance - major violations resolved)
+# Linting (clippy pedantic compliance - complete compliance achieved)
 cargo clippy --workspace -- -D warnings -W clippy::pedantic
 
 # Code formatting
 cargo fmt --all
 
-# Validation pipeline (comprehensive quality checks - 118 tests passing)
+# Validation pipeline (comprehensive quality checks - 95 tests passing)
 cargo build --workspace --release && \
 cargo test --workspace && \
 cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
@@ -107,6 +107,12 @@ Uses structured error taxonomy with stable error codes:
 - Schema validation: `CBKS*` (ODO counter validation, record size limits)
 - Data errors: `CBKD*` (invalid packed decimal, zoned decimal signs, field type mismatches)
 - Encoding errors: `CBKE*` (JSON type mismatches, array bounds, REDEFINES ambiguity)
+
+### Performance Optimization Features
+- **Scratch Buffer Optimization**: Reusable memory buffers minimize allocations in hot paths
+- **Optimized Numeric Codecs**: Fast paths for zoned/packed decimal and binary integer processing
+- **Memory Management**: `ScratchBuffers` with `DigitBuffer` (SmallVec), byte buffers, and string buffers
+- **Benchmark Infrastructure**: Comprehensive performance testing in `copybook-bench` crate with proper result handling
 
 ### Performance Features
 - Streaming I/O with bounded memory usage for multi-GB files

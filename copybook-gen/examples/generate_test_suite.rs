@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nTest breakdown by tag:");
     for (tag, count) in &stats.tests_by_tag {
-        println!("  {}: {} tests", tag, count);
+        println!("  {tag}: {count} tests");
     }
 
     // Example: Create a custom test suite

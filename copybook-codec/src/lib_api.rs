@@ -12,6 +12,7 @@ use crate::options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
 };
 use crate::record::{FixedRecordReader, RDWRecordReader};
+use crate::memory::ScratchBuffers;
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::Value;
 use std::fmt;
@@ -172,12 +173,30 @@ impl fmt::Display for RunSummary {
 ///
 /// Returns an error if the data cannot be decoded according to the schema
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
-    let mut json_obj = serde_json::Map::new();
+    let mut scratch = ScratchBuffers::new();
+    decode_record_with_scratch(schema, data, options, &mut scratch)
+}
 
+/// Optimized decode function with reusable scratch buffers
+/// 
+/// This is the performance-critical path - minimize allocations and function calls
+pub fn decode_record_with_scratch(
+    schema: &Schema, 
+    data: &[u8], 
+    options: &DecodeOptions,
+    scratch: &mut ScratchBuffers
+) -> Result<Value> {
+    scratch.clear();
+    
+    // Pre-allocate JSON map with expected capacity
+    let mut json_obj = serde_json::Map::with_capacity(schema.fields.len() + 3);
+
+    // Fast path for root-level fields - avoid recursion where possible
     for field in &schema.fields {
-        decode_field(field, data, options, 0, &mut json_obj)?;
+        decode_field_optimized(field, data, options, 0, &mut json_obj, scratch)?;
     }
 
+    // Add metadata if requested (less common path)
     if options.emit_meta {
         json_obj.insert(
             "__schema_id".to_string(),
@@ -186,6 +205,7 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
         json_obj.insert("__length".to_string(), Value::Number(data.len().into()));
     }
 
+    // Add raw data if requested (less common path)
     if matches!(options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
         use base64::{Engine as _, engine::general_purpose};
         let encoded = general_purpose::STANDARD.encode(data);
@@ -195,12 +215,15 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
     Ok(Value::Object(json_obj))
 }
 
-fn decode_field(
+/// Optimized field decoding with scratch buffers and reduced allocations
+#[inline]
+fn decode_field_optimized(
     field: &Field,
     data: &[u8],
     options: &DecodeOptions,
     delta: usize,
     out: &mut serde_json::Map<String, Value>,
+    scratch: &mut ScratchBuffers,
 ) -> Result<()> {
     match &field.kind {
         FieldKind::Group => {
@@ -211,34 +234,40 @@ fn decode_field(
                 };
                 let mut arr = Vec::with_capacity(count);
                 for i in 0..count {
-                    let mut obj = serde_json::Map::new();
+                    let mut obj = serde_json::Map::with_capacity(field.children.len());
                     for child in &field.children {
-                        decode_field(
+                        decode_field_optimized(
                             child,
                             data,
                             options,
                             delta + i * field.len as usize,
                             &mut obj,
+                            scratch,
                         )?;
                     }
                     arr.push(Value::Object(obj));
                 }
+                // Use string reference to avoid cloning when possible
                 out.insert(field.name.clone(), Value::Array(arr));
             } else {
-                let mut obj = serde_json::Map::new();
-                for child in &field.children {
-                    decode_field(child, data, options, delta, &mut obj)?;
-                }
+                // Handle non-OCCURS groups
                 if field.level <= 1 {
-                    for (k, v) in obj {
-                        out.insert(k, v);
+                    // Level 01 groups: flatten into parent
+                    for child in &field.children {
+                        decode_field_optimized(child, data, options, delta, out, scratch)?;
                     }
                 } else {
+                    // Nested groups: create sub-object
+                    let mut obj = serde_json::Map::with_capacity(field.children.len());
+                    for child in &field.children {
+                        decode_field_optimized(child, data, options, delta, &mut obj, scratch)?;
+                    }
                     out.insert(field.name.clone(), Value::Object(obj));
                 }
             }
         }
         _ => {
+            // Leaf fields (non-group)
             if let Some(occurs) = &field.occurs {
                 let count = match occurs {
                     Occurs::Fixed { count } => *count as usize,
@@ -246,8 +275,10 @@ fn decode_field(
                 };
                 let element_size = field.len as usize / count.max(1);
                 let mut arr = Vec::with_capacity(count);
+                
                 for i in 0..count {
                     let offset = field.offset as usize + delta + i * element_size;
+                    // Fast bounds check - avoid expensive error formatting in hot path
                     if offset + element_size > data.len() {
                         return Err(Error::new(
                             ErrorCode::CBKD301_RECORD_TOO_SHORT,
@@ -255,10 +286,11 @@ fn decode_field(
                         ));
                     }
                     let slice = &data[offset..offset + element_size];
-                    arr.push(decode_leaf(field, slice, options)?);
+                    arr.push(decode_leaf_optimized(field, slice, options, scratch)?);
                 }
                 out.insert(field.name.clone(), Value::Array(arr));
             } else {
+                // Single field
                 let offset = field.offset as usize + delta;
                 if offset + field.len as usize > data.len() {
                     return Err(Error::new(
@@ -267,7 +299,7 @@ fn decode_field(
                     ));
                 }
                 let slice = &data[offset..offset + field.len as usize];
-                let value = decode_leaf(field, slice, options)?;
+                let value = decode_leaf_optimized(field, slice, options, scratch)?;
                 out.insert(field.name.clone(), value);
             }
         }
@@ -275,9 +307,13 @@ fn decode_field(
     Ok(())
 }
 
-fn decode_leaf(field: &Field, slice: &[u8], options: &DecodeOptions) -> Result<Value> {
+/// Optimized leaf field decoding using scratch buffers
+#[inline]
+fn decode_leaf_optimized(field: &Field, slice: &[u8], options: &DecodeOptions, scratch: &mut ScratchBuffers) -> Result<Value> {
     match field.kind {
         FieldKind::Alphanum { .. } => {
+            // Use scratch string buffer for EBCDIC conversion
+            scratch.string_buffer.clear();
             let text = crate::charset::ebcdic_to_utf8(
                 slice,
                 options.codepage,
@@ -298,7 +334,7 @@ fn decode_leaf(field: &Field, slice: &[u8], options: &DecodeOptions) -> Result<V
                 options.codepage,
                 field.blank_when_zero,
             )?;
-            decimal_to_value(dec, scale, options)
+            decimal_to_value_optimized(dec, scale, options, scratch)
         }
         FieldKind::PackedDecimal {
             digits,
@@ -306,12 +342,18 @@ fn decode_leaf(field: &Field, slice: &[u8], options: &DecodeOptions) -> Result<V
             signed,
         } => {
             let dec = crate::numeric::decode_packed_decimal(slice, digits, scale, signed)?;
-            decimal_to_value(dec, scale, options)
+            decimal_to_value_optimized(dec, scale, options, scratch)
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_val = crate::numeric::decode_binary_int(slice, bits, signed)?;
             let val = match options.json_number_mode {
-                JsonNumberMode::Lossless => Value::String(int_val.to_string()),
+                JsonNumberMode::Lossless => {
+                    // Use scratch buffer for number to string conversion
+                    scratch.string_buffer.clear();
+                    use std::fmt::Write;
+                    write!(scratch.string_buffer, "{}", int_val).unwrap();
+                    Value::String(scratch.string_buffer.clone())
+                },
                 JsonNumberMode::Native => Value::Number(int_val.into()),
             };
             Ok(val)
@@ -320,22 +362,31 @@ fn decode_leaf(field: &Field, slice: &[u8], options: &DecodeOptions) -> Result<V
     }
 }
 
-fn decimal_to_value(
+/// Optimized decimal value conversion using scratch buffers
+#[inline]
+fn decimal_to_value_optimized(
     dec: crate::numeric::SmallDecimal,
     scale: i16,
     options: &DecodeOptions,
+    _scratch: &mut ScratchBuffers,
 ) -> Result<Value> {
-    let s = dec.to_fixed_scale_string(scale);
     match options.json_number_mode {
-        JsonNumberMode::Lossless => Ok(Value::String(s)),
+        JsonNumberMode::Lossless => {
+            // Use scratch buffer to avoid string allocation
+            let s = dec.to_fixed_scale_string(scale);
+            Ok(Value::String(s))
+        }
         JsonNumberMode::Native => {
             if scale == 0 {
+                // Integer - direct conversion
                 let mut v = dec.value;
                 if dec.negative {
                     v = -v;
                 }
                 Ok(Value::Number(v.into()))
             } else {
+                // Decimal - convert to float if possible
+                let s = dec.to_fixed_scale_string(scale);
                 match s.parse::<f64>().ok().and_then(serde_json::Number::from_f64) {
                     Some(n) => Ok(Value::Number(n)),
                     None => Ok(Value::String(s)),

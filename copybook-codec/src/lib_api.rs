@@ -631,17 +631,16 @@ impl<R: Read> Iterator for RecordIterator<R> {
                     if bytes_read == 0 {
                         self.eof_reached = true;
                         return None;
-                    } else {
-                        return Some(Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            format!(
-                                "Record {} too short: expected {} bytes, got {}",
-                                self.record_index + 1,
-                                self.buffer.len(),
-                                bytes_read
-                            ),
-                        )));
                     }
+                    return Some(Err(Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        format!(
+                            "Record {} too short: expected {} bytes, got {}",
+                            self.record_index + 1,
+                            self.buffer.len(),
+                            bytes_read
+                        ),
+                    )));
                 }
                 Ok(n) => bytes_read += n,
                 Err(e) => {

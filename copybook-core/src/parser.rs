@@ -8,7 +8,6 @@ use crate::lexer::{CobolFormat, Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema};
 use crate::{Error, Result};
-use serde_json::Value;
 
 /// Parse a COBOL copybook text into a schema
 ///
@@ -58,33 +57,24 @@ impl Default for ParseOptions {
 struct Parser {
     tokens: Vec<TokenPos>,
     current: usize,
-    #[allow(dead_code)]
-    format: CobolFormat,
     options: ParseOptions,
-    /// Track field names at each level for duplicate detection
-    #[allow(dead_code)]
-    name_counters: std::collections::HashMap<String, u32>,
 }
 
 impl Parser {
     #[allow(dead_code)]
-    fn new(tokens: Vec<TokenPos>, format: CobolFormat) -> Self {
+    fn new(tokens: Vec<TokenPos>, _format: CobolFormat) -> Self {
         Self {
             tokens,
             current: 0,
-            format,
             options: ParseOptions::default(),
-            name_counters: std::collections::HashMap::new(),
         }
     }
 
-    fn with_options(tokens: Vec<TokenPos>, format: CobolFormat, options: ParseOptions) -> Self {
+    fn with_options(tokens: Vec<TokenPos>, _format: CobolFormat, options: ParseOptions) -> Self {
         Self {
             tokens,
             current: 0,
-            format,
             options,
-            name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -241,12 +231,6 @@ impl Parser {
                 fields[i].name = format!("{}__dup{}", field_name, count);
             }
         }
-    }
-
-    /// Build hierarchical paths for all fields (simplified)
-    #[allow(dead_code)]
-    fn build_field_paths(_fields: &mut [Field]) {
-        // Simplified for now - paths are set in build_hierarchy
     }
 
     /// Validate the parsed structure
@@ -454,7 +438,7 @@ impl Parser {
 
     /// Convert field to canonical JSON for fingerprinting
     #[allow(clippy::only_used_in_recursion)]
-    fn field_to_canonical_json(&self, field: &Field) -> Value {
+    fn field_to_canonical_json(&self, field: &Field) -> serde_json::Value {
         use serde_json::{Map, Value};
 
         let mut field_obj = Map::new();

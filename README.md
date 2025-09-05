@@ -31,11 +31,11 @@ copybook-rs is a Rust implementation of a COBOL copybook parser and data codec t
 
 The project is organized as a Cargo workspace with the following crates:
 
-- **copybook-core**: Core parsing and schema types for COBOL copybooks
-- **copybook-codec**: Encoding and decoding codecs for COBOL data types
-- **copybook-cli**: Command-line interface for copybook processing
-- **copybook-gen**: Test fixture and synthetic data generation
-- **copybook-bench**: Performance benchmarks and testing
+- **copybook-core**: Core parsing and schema types for COBOL copybooks (lexer, parser, AST, layout resolution)
+- **copybook-codec**: Encoding/decoding codecs for COBOL data types, character conversion, record framing
+- **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify)
+- **copybook-gen**: Test fixture and synthetic data generation utilities
+- **copybook-bench**: Performance benchmarks and testing harness
 
 ## Quick Start
 
@@ -71,6 +71,12 @@ copybook encode customer.cpy customer-data.jsonl \
   --output customer-data-new.bin \
   --format fixed \
   --codepage cp037
+
+# Verify data file integrity against schema
+copybook verify customer.cpy customer-data.bin \
+  --format fixed \
+  --codepage cp037 \
+  --report validation-report.json
 ```
 
 ## Detailed Usage Examples
@@ -182,6 +188,40 @@ copybook decode schema.cpy data.bin \
   --verbose  # shows throughput and memory usage
 ```
 
+### Data Validation and Verification
+
+The `verify` command validates data files against copybook schemas without generating output files, making it ideal for data quality audits and integrity checks.
+
+```bash
+# Basic verification - check data file structure
+copybook verify schema.cpy data.bin \
+  --format fixed \
+  --codepage cp037
+
+# Generate detailed JSON verification report
+copybook verify schema.cpy data.bin \
+  --format fixed \
+  --codepage cp037 \
+  --report validation-report.json
+
+# Verify RDW format data
+copybook verify schema.cpy data.bin \
+  --format rdw \
+  --codepage cp1047
+
+# Verify multiple files with different formats
+copybook verify schema.cpy fixed-data.bin --format fixed --report fixed-report.json
+copybook verify schema.cpy rdw-data.bin --format rdw --report rdw-report.json
+```
+
+#### Verification Features
+
+- **Record-Level Validation**: Detects truncated records, invalid numeric formats, and field type mismatches
+- **Comprehensive Error Reporting**: Provides error codes, record indices, field paths, and byte offsets
+- **JSON Report Generation**: Machine-readable reports for integration with data quality pipelines
+- **Exit Code Compliance**: Returns 0 for valid files, 1 for validation errors, 2 for fatal errors
+- **Performance Optimized**: Validation-only processing without JSON conversion overhead
+
 ## JSON Output Quality
 
 copybook-rs produces clean, properly typed JSON output with comprehensive COBOL field processing:
@@ -280,12 +320,54 @@ for record_result in iter {
 }
 ```
 
+<<<<<<< HEAD
+### Data Verification API
+
+```rust
+use copybook_codec::{iter_records_from_file, DecodeOptions, RecordFormat, Codepage};
+use copybook_core::{parse_copybook, Error};
+
+// Parse copybook
+let copybook_text = std::fs::read_to_string("customer.cpy")?;
+let schema = parse_copybook(&copybook_text)?;
+
+// Configure verification options (no output needed)
+let opts = DecodeOptions::new()
+    .with_format(RecordFormat::Fixed)
+    .with_codepage(Codepage::Cp037);
+
+// Collect validation errors without generating output
+let mut errors: Vec<Error> = Vec::new();
+let mut iter = iter_records_from_file("data.bin", &schema, &opts)?;
+
+while let Some(result) = iter.next() {
+    if let Err(e) = result {
+        let idx = iter.current_record_index();
+        errors.push(e.with_record(idx));
+    }
+}
+
+println!("Validation complete: {} errors found in {} records", 
+         errors.len(), iter.current_record_index());
+
+// Process errors for reporting
+for error in errors {
+    if let Some(ctx) = &error.context {
+        println!("Record {}: {} - {}", 
+                 ctx.record_index.unwrap_or(0),
+                 error.code, 
+                 error.message);
+    }
+}
+```
+=======
 #### Enhanced RecordIterator API
 
 - **LRECL Requirement**: Fixed-format processing now requires `schema.lrecl_fixed` to be set for proper truncation detection
 - **Fail-Fast Validation**: RecordIterator constructor validates LRECL availability early
 - **Enhanced Error Messages**: Precise byte counts and record indexing for truncation errors
 - **Performance Optimized**: 4-23% performance improvements with enhanced validation
+>>>>>>> origin/main
 
 ## Numeric Data Type Examples
 

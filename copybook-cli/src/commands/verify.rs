@@ -1,8 +1,8 @@
 //! Verify command implementation
 
 use crate::utils::{atomic_write, determine_exit_code};
-use copybook_codec::{iter_records_from_file, Codepage, DecodeOptions, RecordFormat};
-use copybook_core::{parse_copybook, Error, ErrorCode};
+use copybook_codec::{Codepage, DecodeOptions, RecordFormat, iter_records_from_file};
+use copybook_core::{Error, ErrorCode, parse_copybook};
 use std::{fs, path::PathBuf};
 use tracing::info;
 
@@ -93,7 +93,9 @@ pub fn run(
         });
 
         let report_content = serde_json::to_vec_pretty(&report_json)?;
-        atomic_write(report_path, |writer| std::io::Write::write_all(writer, &report_content))?;
+        atomic_write(report_path, |writer| {
+            std::io::Write::write_all(writer, &report_content)
+        })?;
     }
 
     info!("Verify completed successfully");

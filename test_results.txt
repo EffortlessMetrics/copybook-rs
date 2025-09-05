@@ -1,0 +1,103 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (target/debug/deps/copybook_bench-d2aa36e3f7313b68)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/copybook-6fa8fda7ef6a93fa)
+
+running 3 tests
+test utils::tests::test_determine_exit_code ... ok
+test utils::tests::test_atomic_write_failure_leaves_no_file ... ok
+test utils::tests::test_atomic_write_success ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/copybook_codec-d86d96a51446ef89)
+
+running 23 tests
+test iterator::tests::test_record_iterator_basic ... ok
+test iterator::tests::test_record_iterator_rdw ... ok
+test iterator::tests::test_iterator_error_handling ... ok
+test memory::tests::test_scratch_buffers ... ok
+test memory::tests::test_streaming_processor ... ok
+test lib_api::tests::test_decode_record ... ok
+test iterator::tests::test_raw_record_reading ... ok
+test lib_api::tests::test_encode_jsonl_to_file ... ok
+test lib_api::tests::test_decode_file_to_jsonl ... ok
+test numeric::tests::test_alphanumeric_encoding ... ok
+test numeric::tests::test_binary_width_mapping ... ok
+test memory::tests::test_sequence_ring_ordered ... ok
+test numeric::tests::test_bwz_policy ... ok
+test numeric::tests::test_explicit_binary_width_validation ... ok
+test numeric::tests::test_packed_decimal_signs ... ok
+test numeric::tests::test_small_decimal_formatting ... ok
+test numeric::tests::test_small_decimal_normalization ... ok
+test numeric::tests::test_zoned_decimal_blank_when_zero ... ok
+test numeric::tests::test_zoned_decimal_with_bwz ... ok
+test memory::tests::test_worker_pool ... ok
+test lib_api::tests::test_encode_record ... ok
+test numeric::tests::test_binary_int_big_endian ... ok
+test memory::tests::test_deterministic_ordering ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/comprehensive_numeric_tests.rs (target/debug/deps/comprehensive_numeric_tests-dc0a45340ab89ae8)
+
+running 15 tests
+test test_alphanumeric_handling_normative ... ok
+test test_binary_signed_unsigned_edges ... ok
+test test_codepage_specific_behavior ... ok
+test test_blank_when_zero_comprehensive ... FAILED
+test test_json_number_modes ... ok
+test test_invalid_data_error_handling ... ok
+test test_packed_decimal_sign_nibbles_comprehensive ... ok
+test test_record_length_validation ... FAILED
+test test_fixed_scale_rendering_normative ... FAILED
+test test_packed_decimal_comprehensive ... ok
+test test_zoned_decimal_ascii_sign_zones_comprehensive ... ok
+test test_lenient_mode_error_handling ... ok
+test test_zoned_negative_zero_normalization ... FAILED
+test test_zoned_decimal_ebcdic_sign_zones_comprehensive ... ok
+test test_throughput_measurement ... ok
+
+failures:
+
+---- test_blank_when_zero_comprehensive stdout ----
+
+thread 'test_blank_when_zero_comprehensive' panicked at copybook-codec/tests/comprehensive_numeric_tests.rs:150:5:
+assertion `left == right` failed
+  left: String("00000")
+ right: "0"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_record_length_validation stdout ----
+
+thread 'test_record_length_validation' panicked at copybook-codec/tests/comprehensive_numeric_tests.rs:487:5:
+Should fail with record too short
+
+---- test_fixed_scale_rendering_normative stdout ----
+
+thread 'test_fixed_scale_rendering_normative' panicked at copybook-codec/tests/comprehensive_numeric_tests.rs:320:5:
+assertion `left == right` failed
+  left: String("001.2345")
+ right: "1.2345"
+
+---- test_zoned_negative_zero_normalization stdout ----
+
+thread 'test_zoned_negative_zero_normalization' panicked at copybook-codec/tests/comprehensive_numeric_tests.rs:183:5:
+assertion `left == right` failed
+  left: String("000")
+ right: "0"
+
+
+failures:
+    test_blank_when_zero_comprehensive
+    test_fixed_scale_rendering_normative
+    test_record_length_validation
+    test_zoned_negative_zero_normalization
+
+test result: FAILED. 11 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p copybook-codec --test comprehensive_numeric_tests`

@@ -267,7 +267,8 @@ fn test_valid_pic_clauses_comprehensive() {
                     scale: s2,
                     signed: sg2,
                 },
-            ) | (
+            )
+            | (
                 FieldKind::PackedDecimal {
                     digits: d1,
                     scale: s1,

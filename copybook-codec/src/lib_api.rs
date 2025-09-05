@@ -10,7 +10,7 @@
 
 use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use crate::record::{FixedRecordReader, RDWRecordReader};
-use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
+use copybook_core::{Error, ErrorCode, ErrorSummary, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::Value;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -30,12 +30,18 @@ pub struct RunSummary {
     pub bytes_processed: u64,
     /// Schema fingerprint used for processing
     pub schema_fingerprint: String,
+    /// Hash of input file (for integrity verification)
+    pub input_file_hash: Option<String>,
     /// Processing throughput in MB/s
     pub throughput_mbps: f64,
     /// Peak memory usage in bytes (if available)
     pub peak_memory_bytes: Option<u64>,
     /// Number of threads used for processing
     pub threads_used: usize,
+    /// Detailed error summary with counts by code and severity
+    pub error_summary: Option<ErrorSummary>,
+    /// Number of corruption warnings detected
+    pub corruption_warnings: u64,
 }
 
 impl RunSummary {

@@ -296,6 +296,32 @@ impl Schema {
     }
 
     /// Find all fields that redefine the field at the given path
+    ///
+    /// This method searches the entire schema tree to locate all fields that have
+    /// a `redefines_of` attribute matching the specified path. This is particularly
+    /// useful for JSON encoding operations where REDEFINES fields need to be
+    /// identified and processed according to COBOL precedence rules.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path of the field being redefined (e.g., "CUSTOMER.ADDRESS")
+    ///
+    /// # Returns
+    ///
+    /// A vector of field references that redefine the field at the given path.
+    /// Returns an empty vector if no redefining fields are found.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use copybook_core::schema::Schema;
+    /// # let schema = Schema { fields: vec![], record_length: 0, fingerprint: "".to_string() };
+    /// // Find all fields that redefine "CUSTOMER-RECORD.NAME"
+    /// let redefining_fields = schema.find_redefining_fields("CUSTOMER-RECORD.NAME");
+    /// for field in &redefining_fields {
+    ///     println!("Field {} redefines CUSTOMER-RECORD.NAME", field.name);
+    /// }
+    /// ```
     #[must_use]
     pub fn find_redefining_fields(&self, path: &str) -> Vec<&Field> {
         let mut result = Vec::new();

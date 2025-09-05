@@ -1,4 +1,5 @@
-use copybook_core::{Field, FieldKind, Result, Schema};
+#![allow(clippy::cast_precision_loss)]
+use copybook_core::{Field, FieldKind, Schema};
 
 struct DummyWriter {
     json_buffer: String,
@@ -18,7 +19,7 @@ impl DummyWriter {
         byte_offset: u64,
         record_length: usize,
         first_field: &mut bool,
-    ) -> Result<()> {
+    ) {
         if !*first_field {
             self.json_buffer.push(',');
         }
@@ -35,8 +36,6 @@ impl DummyWriter {
 
         self.json_buffer.push_str(",\"__length\":");
         self.write_json_number_to_buffer(record_length as f64);
-
-        Ok(())
     }
 
     fn write_json_string_to_buffer(&mut self, s: &str) {
@@ -49,7 +48,8 @@ impl DummyWriter {
                 '\r' => self.json_buffer.push_str("\\r"),
                 '\t' => self.json_buffer.push_str("\\t"),
                 c if c.is_control() => {
-                    self.json_buffer.push_str(&format!("\\u{:04x}", c as u32));
+                    use std::fmt::Write;
+                    let _ = write!(self.json_buffer, "\\u{:04x}", c as u32);
                 }
                 c => self.json_buffer.push(c),
             }
@@ -59,7 +59,7 @@ impl DummyWriter {
 
     fn write_json_number_to_buffer(&mut self, num: f64) {
         use std::fmt::Write;
-        let _ = write!(self.json_buffer, "{}", num);
+        let _ = write!(self.json_buffer, "{num}");
     }
 }
 
@@ -83,9 +83,7 @@ fn test_streaming_metadata_fingerprint_matches_schema() {
 
     let mut writer = DummyWriter::new();
     let mut first = true;
-    writer
-        .write_record_metadata(schema.fingerprint.as_str(), 0, 0, 0, &mut first)
-        .unwrap();
+    writer.write_record_metadata(schema.fingerprint.as_str(), 0, 0, 0, &mut first);
 
     let json_str = format!("{{{}}}", writer.json_buffer);
     let value: serde_json::Value = serde_json::from_str(&json_str).unwrap();

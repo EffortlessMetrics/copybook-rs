@@ -53,7 +53,7 @@ fn generate_comp3_heavy_data(record_count: usize) -> Vec<u8> {
     let mut data = Vec::new();
     for i in 0..record_count {
         for field in 0..10 {
-            let value = (i * 10 + field) % 999999999;
+            let value = (i * 10 + field) % 999_999_999;
             let mut packed = vec![0x00; 6];
             
             let digits = format!("{:011}", value);

@@ -31,7 +31,7 @@ pub enum ErrorSeverity {
 }
 
 /// Detailed error report with context and metadata
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ErrorReport {
     /// The underlying error
     pub error: Error,
@@ -44,7 +44,7 @@ pub struct ErrorReport {
 }
 
 /// Comprehensive error statistics and summary
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ErrorSummary {
     /// Total number of errors by severity
     pub error_counts: HashMap<ErrorSeverity, u64>,

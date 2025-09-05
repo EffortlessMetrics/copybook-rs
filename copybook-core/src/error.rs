@@ -10,7 +10,7 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Main error type for copybook operations
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub struct Error {
     /// Stable error code for programmatic handling
     pub code: ErrorCode,
@@ -118,7 +118,7 @@ impl fmt::Display for ErrorCode {
 }
 
 /// Context information for errors
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ErrorContext {
     /// Record number (1-based) where error occurred
     pub record_index: Option<u64>,

@@ -355,13 +355,7 @@ impl Parser {
 
     /// Collect all fields in a flat list
     fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
-        let mut result = Vec::new();
-        for field in fields {
-            result.push(field);
-            let children = self.collect_all_fields(&field.children);
-            result.extend(children);
-        }
-        result
+        collect_all_fields_recursive(fields)
     }
 
     /// Calculate schema fingerprint using SHA-256
@@ -377,7 +371,7 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update(&[if self.options.emit_filler { 1 } else { 0 }]);
+        hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
 
         // Compute final hash
         let result = hasher.finalize();
@@ -495,7 +489,7 @@ impl Parser {
             let children_json: Vec<Value> = field
                 .children
                 .iter()
-                .map(|c| self.field_to_canonical_json(c))
+                .map(field_to_canonical_json_recursive)
                 .collect();
             field_obj.insert("children".to_string(), Value::Array(children_json));
         }
@@ -1038,6 +1032,75 @@ impl Parser {
             false
         }
     }
+}
+
+/// Collect all fields recursively
+fn collect_all_fields_recursive(fields: &[Field]) -> Vec<&Field> {
+    let mut result = Vec::new();
+    for field in fields {
+        result.push(field);
+        let children = collect_all_fields_recursive(&field.children);
+        result.extend(children);
+    }
+    result
+}
+
+/// Convert field to canonical JSON for fingerprinting (recursive standalone version)
+fn field_to_canonical_json_recursive(field: &Field) -> serde_json::Value {
+    use serde_json::{Map, Value};
+    
+    let mut field_obj = Map::new();
+
+    // Add fields in canonical order
+    field_obj.insert("path".to_string(), Value::String(field.path.clone()));
+    field_obj.insert("name".to_string(), Value::String(field.name.clone()));
+    field_obj.insert("level".to_string(), Value::Number(field.level.into()));
+
+    // Add field kind
+    let kind_str = match &field.kind {
+        FieldKind::Alphanum { len } => format!("Alphanum({})", len),
+        FieldKind::ZonedDecimal { digits, scale, signed } => {
+            format!("ZonedDecimal({}, {}, {})", digits, scale, signed)
+        }
+        FieldKind::PackedDecimal { digits, scale, signed } => {
+            format!("PackedDecimal({}, {}, {})", digits, scale, signed)
+        }
+        FieldKind::BinaryInt { bits, signed } => {
+            format!("BinaryInt({}, {})", bits, signed)
+        }
+        FieldKind::Group => "Group".to_string(),
+    };
+    field_obj.insert("kind".to_string(), Value::String(kind_str));
+
+    // Add optional attributes
+    field_obj.insert("synchronized".to_string(), Value::Bool(field.synchronized));
+    field_obj.insert("blank_when_zero".to_string(), Value::Bool(field.blank_when_zero));
+
+    if let Some(ref redefines) = field.redefines_of {
+        field_obj.insert("redefines_of".to_string(), Value::String(redefines.clone()));
+    }
+
+    if let Some(ref occurs) = field.occurs {
+        let occurs_str = match occurs {
+            Occurs::Fixed { count } => format!("Fixed({})", count),
+            Occurs::ODO { min, max, counter_path } => {
+                format!("ODO({}, {}, {})", min, max, counter_path)
+            }
+        };
+        field_obj.insert("occurs".to_string(), Value::String(occurs_str));
+    }
+
+    // Add children recursively
+    if !field.children.is_empty() {
+        let children_json: Vec<Value> = field
+            .children
+            .iter()
+            .map(field_to_canonical_json_recursive)
+            .collect();
+        field_obj.insert("children".to_string(), Value::Array(children_json));
+    }
+
+    Value::Object(field_obj)
 }
 
 #[cfg(test)]

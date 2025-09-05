@@ -1,7 +1,7 @@
 //! Utility functions for CLI operations
 
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tempfile::NamedTempFile;
 use tracing::debug;
 
@@ -39,23 +39,6 @@ where
     Ok(())
 }
 
-/// Create a temporary file path for atomic operations
-///
-/// This generates a temporary file name in the same directory as the target file
-/// with a .tmp suffix and random component.
-pub fn temp_path_for(target: &Path) -> PathBuf {
-    let mut temp_name = target
-        .file_name()
-        .unwrap_or_else(|| std::ffi::OsStr::new("output"))
-        .to_os_string();
-    temp_name.push(".tmp");
-
-    if let Some(parent) = target.parent() {
-        parent.join(temp_name)
-    } else {
-        PathBuf::from(temp_name)
-    }
-}
 
 /// Determine exit code based on processing results
 ///
@@ -117,14 +100,4 @@ mod tests {
         assert_eq!(determine_exit_code(true, true), 1); // Both warnings and errors
     }
 
-    #[test]
-    fn test_temp_path_for() {
-        let target = Path::new("/path/to/output.jsonl");
-        let temp = temp_path_for(target);
-        assert_eq!(temp, Path::new("/path/to/output.jsonl.tmp"));
-
-        let target = Path::new("output.jsonl");
-        let temp = temp_path_for(target);
-        assert_eq!(temp, Path::new("output.jsonl.tmp"));
-    }
 }

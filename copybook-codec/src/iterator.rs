@@ -6,7 +6,10 @@
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Schema, Error, ErrorCode, Result};
 use serde_json::Value;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{Read, BufReader};
+
+/// Record data with optional RDW context
+type RecordWithContext = (Vec<u8>, Option<[u8; 4]>);
 
 /// Iterator over records in a data file, yielding decoded JSON values
 /// 
@@ -139,22 +142,40 @@ impl<R: Read> RecordIterator<R> {
                 let lrecl = self.schema.lrecl_fixed.unwrap() as usize;
                 self.buffer.resize(lrecl, 0);
                 
-                match self.reader.read_exact(&mut self.buffer) {
-                    Ok(()) => {
-                        self.record_index += 1;
-                        Some(self.buffer.clone())
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        self.eof_reached = true;
-                        return Ok(None);
-                    }
-                    Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            format!("Failed to read fixed record: {}", e)
-                        ));
+                // Use read() to handle EOF vs partial reads properly
+                use std::io::Read;
+                let mut bytes_read = 0;
+                
+                while bytes_read < lrecl {
+                    match self.reader.read(&mut self.buffer[bytes_read..]) {
+                        Ok(0) => {
+                            // EOF reached
+                            if bytes_read == 0 {
+                                // Clean EOF - no data read at all
+                                self.eof_reached = true;
+                                return Ok(None);
+                            } else {
+                                // Incomplete record - some data read but not enough
+                                return Err(Error::new(
+                                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                                    format!("Incomplete fixed record: expected {} bytes, got {} bytes", lrecl, bytes_read)
+                                ));
+                            }
+                        }
+                        Ok(n) => {
+                            bytes_read += n;
+                        }
+                        Err(e) => {
+                            return Err(Error::new(
+                                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                                format!("Failed to read fixed record: {}", e)
+                            ));
+                        }
                     }
                 }
+                
+                self.record_index += 1;
+                Some(self.buffer.clone())
             }
             RecordFormat::RDW => {
                 // Read RDW header
@@ -173,11 +194,35 @@ impl<R: Read> RecordIterator<R> {
                     }
                 }
                 
-                // Parse length
-                let length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as usize;
+                // Parse length (includes 4-byte RDW header)
+                let total_length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as usize;
+                let reserved_bytes = u16::from_be_bytes([rdw_header[2], rdw_header[3]]);
+                
+                if total_length < 4 {
+                    return Err(Error::new(
+                        ErrorCode::CBKR221_RDW_UNDERFLOW,
+                        format!("Invalid RDW length: {} (minimum 4)", total_length)
+                    ));
+                }
+                
+                // Check reserved bytes
+                if reserved_bytes != 0 {
+                    if self.options.strict_mode {
+                        return Err(Error::new(
+                            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+                            format!("RDW reserved bytes must be zero, found: 0x{:04X}", reserved_bytes)
+                        ));
+                    } else {
+                        // In lenient mode, we'd need to increment a warning counter
+                        // For now, just continue - warning handling would need to be added to RunSummary
+                    }
+                }
+                
+                // Payload length = total length - 4 byte header
+                let payload_length = total_length - 4;
                 
                 // Read payload
-                self.buffer.resize(length, 0);
+                self.buffer.resize(payload_length, 0);
                 match self.reader.read_exact(&mut self.buffer) {
                     Ok(()) => {
                         self.record_index += 1;
@@ -200,19 +245,117 @@ impl<R: Read> RecordIterator<R> {
     /// 
     /// This is the main method used by the Iterator implementation.
     /// It reads and decodes the next record in one operation.
-    fn decode_next_record(&mut self) -> Result<Option<Value>> {
-        match self.read_raw_record()? {
-            Some(record_bytes) => {
-                let json_value = crate::decode_record(&self.schema, &record_bytes, &self.options)?;
-                Ok(Some(json_value))
+    fn decode_next_record(&mut self) -> Result<Option<(Value, u64)>> {
+        match self.read_raw_record_with_context()? {
+            Some((record_bytes, rdw_header)) => {
+                let (json_value, warnings) = crate::decode_record_with_rdw(&self.schema, &record_bytes, rdw_header.as_ref(), &self.options)?;
+                Ok(Some((json_value, warnings)))
             }
+            None => Ok(None),
+        }
+    }
+
+    /// Read raw record with RDW context if applicable
+    fn read_raw_record_with_context(&mut self) -> Result<Option<RecordWithContext>> {
+        if self.eof_reached {
+            return Ok(None);
+        }
+
+        self.buffer.clear();
+        
+        let (record_data, rdw_header) = match self.options.format {
+            RecordFormat::Fixed => {
+                let lrecl = self.schema.lrecl_fixed.unwrap() as usize;
+                self.buffer.resize(lrecl, 0);
+                match self.reader.read_exact(&mut self.buffer) {
+                    Ok(()) => {
+                        self.record_index += 1;
+                        (Some(self.buffer.clone()), None)
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        self.eof_reached = true;
+                        (None, None)
+                    }
+                    Err(e) => {
+                        return Err(Error::new(
+                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            format!("Failed to read fixed record: {}", e)
+                        ));
+                    }
+                }
+            },
+            RecordFormat::RDW => {
+                // Read RDW header
+                let mut rdw_header = [0u8; 4];
+                match self.reader.read_exact(&mut rdw_header) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        self.eof_reached = true;
+                        return Ok(None);
+                    }
+                    Err(e) => {
+                        return Err(Error::new(
+                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            format!("Failed to read RDW header: {}", e)
+                        ));
+                    }
+                }
+                
+                // Parse length (includes 4-byte RDW header)
+                let total_length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as usize;
+                let reserved_bytes = u16::from_be_bytes([rdw_header[2], rdw_header[3]]);
+                
+                if total_length < 4 {
+                    return Err(Error::new(
+                        ErrorCode::CBKR221_RDW_UNDERFLOW,
+                        format!("Invalid RDW length: {}", total_length)
+                    ));
+                }
+                
+                // Check for suspected ASCII data (heuristic)
+                // ASCII digits "0123456789" are 0x30-0x39, space is 0x20
+                let is_ascii_pattern = rdw_header.iter().all(|&b| {
+                    (0x30..=0x39).contains(&b) || b == 0x20 || (0x41..=0x5A).contains(&b) || (0x61..=0x7A).contains(&b)
+                });
+                
+                if is_ascii_pattern || total_length > 32760 {
+                    // Suspect ASCII data or unreasonably large record - this is a serious error
+                    return Err(Error::new(
+                        ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                        format!("Suspected ASCII corruption in RDW header: length={}, reserved=0x{:04X}", 
+                                total_length, reserved_bytes)
+                    ));
+                }
+                
+                // Payload length = total length - 4 byte header
+                let payload_length = total_length - 4;
+                
+                // Read payload
+                self.buffer.resize(payload_length, 0);
+                match self.reader.read_exact(&mut self.buffer) {
+                    Ok(()) => {
+                        self.record_index += 1;
+                        (Some(self.buffer.clone()), Some(rdw_header))
+                    }
+                    Err(e) => {
+                        return Err(Error::new(
+                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            format!("Failed to read RDW payload: {}", e)
+                        ));
+                    }
+                }
+            }
+        };
+
+        match record_data {
+            Some(data) => Ok(Some((data, rdw_header))),
             None => Ok(None),
         }
     }
 }
 
 impl<R: Read> Iterator for RecordIterator<R> {
-    type Item = Result<Value>;
+    type Item = Result<(Value, u64)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.eof_reached {
@@ -220,7 +363,7 @@ impl<R: Read> Iterator for RecordIterator<R> {
         }
 
         match self.decode_next_record() {
-            Ok(Some(value)) => Some(Ok(value)),
+            Ok(Some(value_and_warnings)) => Some(Ok(value_and_warnings)),
             Ok(None) => {
                 self.eof_reached = true;
                 None
@@ -294,8 +437,10 @@ mod tests {
         let test_data = b"001ALICE002BOB  ";
         let cursor = Cursor::new(test_data);
         
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::Fixed;
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
         
         let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
         
@@ -326,8 +471,10 @@ mod tests {
         
         let cursor = Cursor::new(test_data);
         
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::RDW;
+        let options = DecodeOptions {
+            format: RecordFormat::RDW,
+            ..DecodeOptions::default()
+        };
         
         let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
         
@@ -349,8 +496,10 @@ mod tests {
         let test_data = b"001ALICE";
         let cursor = Cursor::new(test_data);
         
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::Fixed;
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
         
         let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
         
@@ -377,8 +526,10 @@ mod tests {
         let test_data = b"001A";
         let cursor = Cursor::new(test_data);
         
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::Fixed;
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
         
         let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
         

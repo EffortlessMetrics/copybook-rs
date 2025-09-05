@@ -5,6 +5,7 @@
 
 // Core modules
 pub mod charset;
+pub mod iterator;
 pub mod lib_api;
 pub mod memory;
 pub mod numeric;
@@ -16,9 +17,12 @@ pub use options::{
 
 // Export the core library API functions (task 9.1)
 pub use lib_api::{
-    RecordIterator, RunSummary, decode_file_to_jsonl, decode_record, encode_jsonl_to_file,
-    encode_record, iter_records, iter_records_from_file,
+    RunSummary, decode_file_to_jsonl, decode_record, decode_record_with_rdw, encode_jsonl_to_file,
+    encode_record,
 };
+
+// Export RecordIterator from iterator module (handles RDW properly)
+pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
 
 // Export other modules (commented out due to compilation issues)
 /*

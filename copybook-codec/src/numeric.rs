@@ -50,6 +50,7 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         let mut result = String::new();
 
@@ -155,6 +156,13 @@ impl SmallDecimal {
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
     pub fn to_fixed_scale_string(&self, scale: i16) -> String {
+        self.to_cobol_string(None, scale)
+    }
+
+    /// Format as COBOL string with proper field width and scale
+    /// For PIC 9(5)V99: digits=7, scale=2 -> "00123.45"
+    /// For PIC 9(2): digits=2, scale=0 -> "03" 
+    pub fn to_cobol_string(&self, digits: Option<u16>, scale: i16) -> String {
         let mut result = String::new();
 
         if self.negative && self.value != 0 {
@@ -168,20 +176,37 @@ impl SmallDecimal {
             } else {
                 self.value
             };
-            write!(result, "{scaled_value}").unwrap();
+            if let Some(total_digits) = digits {
+                // Format with leading zeros to match COBOL PIC specification
+                write!(result, "{:0width$}", scaled_value, width = total_digits as usize).unwrap();
+            } else {
+                write!(result, "{scaled_value}").unwrap();
+            }
         } else {
             // Decimal format with exactly `scale` digits after decimal
             let divisor = 10_i64.pow(scale as u32);
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
-
-            write!(
-                result,
-                "{integer_part}.{:0width$}",
-                fractional_part,
-                width = scale as usize
-            )
-            .unwrap();
+            if let Some(total_digits) = digits {
+                let integer_width = total_digits.saturating_sub(scale as u16) as usize;
+                write!(
+                    result,
+                    "{:0width$}.{:0scale_width$}",
+                    integer_part,
+                    fractional_part,
+                    width = integer_width,
+                    scale_width = scale as usize
+                )
+                .unwrap();
+            } else {
+                write!(
+                    result,
+                    "{integer_part}.{:0width$}",
+                    fractional_part,
+                    width = scale as usize
+                )
+                .unwrap();
+            }
         }
 
         result
@@ -275,7 +300,7 @@ pub fn decode_zoned_decimal(
                         (3, false) // Common EBCDIC-to-ASCII translation for +3
                     }
                 }
-                b'0'..=b'9' => ((byte - b'0') as u8, false),
+                b'0'..=b'9' => ((byte - b'0'), false),
                 b'{' => (0, false),
                 b'A'..=b'I' => ((byte - b'A') + 1, false),
                 b'J'..=b'R' => ((byte - b'J') + 1, true),
@@ -1090,15 +1115,13 @@ pub fn decode_packed_decimal_with_scratch(
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
                         return Ok(decimal);
-                    } else {
-                        if low_nibble != 0xF && low_nibble != 0xC {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!(
-                                    "Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF or 0xC"
-                                ),
-                            ));
-                        }
+                    } else if low_nibble != 0xF && low_nibble != 0xC {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!(
+                                "Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF or 0xC"
+                            ),
+                        ));
                     }
                 } else {
                     if low_nibble > 9 {
@@ -1168,15 +1191,13 @@ pub fn decode_packed_decimal_with_scratch(
                         let mut decimal = SmallDecimal::new(value, scale, is_negative);
                         decimal.normalize();
                         return Ok(decimal);
-                    } else {
-                        if low_nibble != 0xF && low_nibble != 0xC {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!(
-                                    "Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF or 0xC"
-                                ),
-                            ));
-                        }
+                    } else if low_nibble != 0xF && low_nibble != 0xC {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!(
+                                "Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF or 0xC"
+                            ),
+                        ));
                     }
                 } else {
                     if low_nibble > 9 {

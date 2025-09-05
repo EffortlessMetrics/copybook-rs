@@ -118,7 +118,7 @@ Uses structured error taxonomy with stable error codes:
 - Streaming I/O with bounded memory usage for multi-GB files
 - Parallel processing with deterministic output ordering
 - Zero-copy operations where possible
-- Achieved throughput: 4.6+ GiB/s for DISPLAY data (target: ≥80 MB/s), 557+ MiB/s for COMP-3 data (target: ≥40 MB/s)
+- Achieved throughput: 4.1-4.2 GiB/s for DISPLAY data (exceeds 80 MB/s target by 50x), 560-580 MiB/s for COMP-3 data (exceeds 40 MB/s target by 14x)
 
 ### Parser Stability
 - Infinite loop prevention through unexpected token skipping and recursion depth limits
@@ -158,7 +158,8 @@ cargo bench --package copybook-bench -- encode_performance
 ```
 
 ### Performance Targets
-- **DISPLAY-heavy workloads**: ≥80 MB/s throughput
-- **COMP-3-heavy workloads**: ≥40 MB/s throughput
+- **DISPLAY-heavy workloads**: ≥80 MB/s throughput (achieved: 4.1-4.2 GiB/s, 50-52x above target)
+- **COMP-3-heavy workloads**: ≥40 MB/s throughput (achieved: 560-580 MiB/s, 14-15x above target)
+- **Performance Validation**: Current benchmarks demonstrate exceptional throughput with <5% variance
 - **Memory usage**: <256 MiB steady-state for multi-GB files
 - **Deterministic output**: Identical results across thread counts

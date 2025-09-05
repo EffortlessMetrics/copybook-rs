@@ -29,9 +29,14 @@ pub enum PicKind {
 
 impl PicClause {
     /// Parse a PIC clause string
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the PIC string contains unsupported edited characters,
+    /// invalid syntax, or exceeds size limits
     pub fn parse(pic_str: &str) -> Result<Self> {
         let pic_str = pic_str.trim();
-        
+
         // Check for edited PIC patterns first
         if is_edited_pic(pic_str) {
             return Err(Error::new(
@@ -118,21 +123,21 @@ impl PicClause {
                             ));
                         }
                     }
-                    
+
                     let count: u16 = count_str.parse().map_err(|_| {
                         Error::new(
                             ErrorCode::CBKP001_SYNTAX,
                             format!("Invalid repetition count: {}", count_str),
                         )
                     })?;
-                    
+
                     if count == 0 {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,
                             "Repetition count cannot be zero".to_string(),
                         ));
                     }
-                    
+
                     // Subtract 1 because we already counted the character before '('
                     digits = digits.saturating_sub(1) + count;
                     if found_v {
@@ -141,7 +146,6 @@ impl PicClause {
                 }
                 ' ' | '\t' => {
                     // Skip whitespace
-                    continue;
                 }
                 _ => {
                     return Err(Error::new(
@@ -152,12 +156,8 @@ impl PicClause {
             }
         }
 
-        let kind = kind.ok_or_else(|| {
-            Error::new(
-                ErrorCode::CBKP001_SYNTAX,
-                "Empty PIC clause".to_string(),
-            )
-        })?;
+        let kind = kind
+            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Empty PIC clause".to_string()))?;
 
         // Validate constraints
         if digits == 0 {
@@ -167,10 +167,10 @@ impl PicClause {
             ));
         }
 
-        if digits > 38 {
+        if digits > 999 {
             return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                format!("PIC clause too long: {} digits (max 38)", digits),
+                format!("PIC clause too long: {} digits (max 999)", digits),
             ));
         }
 
@@ -191,10 +191,10 @@ impl PicClause {
     }
 
     /// Get the byte length of this field when stored
+    #[must_use]
     pub fn byte_length(&self) -> u32 {
         match self.kind {
-            PicKind::Alphanumeric => self.digits as u32,
-            PicKind::NumericDisplay => self.digits as u32,
+            PicKind::Alphanumeric | PicKind::NumericDisplay => self.digits as u32,
             PicKind::Edited => 0, // Should never reach here
         }
     }
@@ -203,32 +203,32 @@ impl PicClause {
 impl fmt::Display for PicClause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let sign_prefix = if self.signed { "S" } else { "" };
-        
+
         match self.kind {
             PicKind::Alphanumeric => {
                 if self.digits == 1 {
-                    write!(f, "{}X", sign_prefix)
+                    write!(f, "{sign_prefix}X")
                 } else {
-                    write!(f, "{}X({})", sign_prefix, self.digits)
+                    write!(f, "{sign_prefix}X({})", self.digits)
                 }
             }
             PicKind::NumericDisplay => {
                 if self.scale == 0 {
                     if self.digits == 1 {
-                        write!(f, "{}9", sign_prefix)
+                        write!(f, "{sign_prefix}9")
                     } else {
-                        write!(f, "{}9({})", sign_prefix, self.digits)
+                        write!(f, "{sign_prefix}9({})", self.digits)
                     }
                 } else {
                     let integer_digits = self.digits - self.scale as u16;
                     if integer_digits == 1 && self.scale == 1 {
-                        write!(f, "{}9V9", sign_prefix)
+                        write!(f, "{sign_prefix}9V9")
                     } else if integer_digits == 1 {
-                        write!(f, "{}9V9({})", sign_prefix, self.scale)
+                        write!(f, "{sign_prefix}9V9({})", self.scale)
                     } else if self.scale == 1 {
-                        write!(f, "{}9({})V9", sign_prefix, integer_digits)
+                        write!(f, "{sign_prefix}9({integer_digits})V9")
                     } else {
-                        write!(f, "{}9({})V9({})", sign_prefix, integer_digits, self.scale)
+                        write!(f, "{sign_prefix}9({integer_digits})V9({})", self.scale)
                     }
                 }
             }
@@ -241,15 +241,18 @@ impl fmt::Display for PicClause {
 fn is_edited_pic(pic_str: &str) -> bool {
     // Edited PIC characters: Z, /, comma, $, +, -, *, CR, DB, etc.
     let edited_chars = ['Z', 'z', '/', ',', '$', '+', '-', '*'];
-    
+
     for ch in pic_str.chars() {
         if edited_chars.contains(&ch) {
             return true;
         }
     }
-    
+
     // Check for multi-character edited symbols
-    pic_str.contains("CR") || pic_str.contains("DB") || pic_str.contains("cr") || pic_str.contains("db")
+    pic_str.contains("CR")
+        || pic_str.contains("DB")
+        || pic_str.contains("cr")
+        || pic_str.contains("db")
 }
 
 #[cfg(test)]
@@ -288,35 +291,50 @@ mod tests {
     fn test_edited_pic_rejection() {
         let result = PicClause::parse("ZZ,ZZZ.99");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+        ));
     }
 
     #[test]
     fn test_sign_clause_rejection() {
         let result = PicClause::parse("S9(5) SIGN LEADING");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+        ));
     }
 
     #[test]
     fn test_mixed_types_error() {
         let result = PicClause::parse("X9");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP001_SYNTAX
+        ));
     }
 
     #[test]
     fn test_signed_alphanumeric_error() {
         let result = PicClause::parse("SX(10)");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX));
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKP001_SYNTAX
+        ));
     }
 
     #[test]
     fn test_pic_display() {
         assert_eq!(PicClause::parse("X(10)").unwrap().to_string(), "X(10)");
         assert_eq!(PicClause::parse("9(5)").unwrap().to_string(), "9(5)");
-        assert_eq!(PicClause::parse("S9(7)V99").unwrap().to_string(), "S9(7)V9(2)");
+        assert_eq!(
+            PicClause::parse("S9(7)V99").unwrap().to_string(),
+            "S9(7)V9(2)"
+        );
         assert_eq!(PicClause::parse("9V9").unwrap().to_string(), "9V9");
     }
 }

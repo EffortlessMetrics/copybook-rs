@@ -2,17 +2,17 @@
 //!
 //! This module provides the main library functions required by R11:
 //! - parse_copybook (already exists in copybook-core)
-//! - decode_record 
+//! - decode_record
 //! - encode_record
 //! - decode_file_to_jsonl
 //! - encode_jsonl_to_file
 //! - RecordIterator (for programmatic access)
 
-use copybook_core::{Schema, Error, ErrorCode, Result, Field, FieldKind};
-use crate::options::{DecodeOptions, EncodeOptions, JsonNumberMode, Codepage};
+use crate::options::{Codepage, DecodeOptions, EncodeOptions, JsonNumberMode};
+use copybook_core::{Error, ErrorCode, Field, FieldKind, Result, Schema};
 use serde_json::Value;
-use std::io::{Read, Write, BufRead, BufReader};
 use std::fmt;
+use std::io::{BufRead, BufReader, Read, Write};
 
 /// Summary of processing run with comprehensive statistics
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -137,12 +137,20 @@ impl fmt::Display for RunSummary {
         writeln!(f, "  Records with errors: {}", self.records_with_errors)?;
         writeln!(f, "  Warnings: {}", self.warnings)?;
         writeln!(f, "  Success rate: {:.1}%", self.success_rate())?;
-        writeln!(f, "  Processing time: {:.2}s", self.processing_time_seconds())?;
+        writeln!(
+            f,
+            "  Processing time: {:.2}s",
+            self.processing_time_seconds()
+        )?;
         writeln!(f, "  Bytes processed: {:.2} MB", self.bytes_processed_mb())?;
         writeln!(f, "  Throughput: {:.2} MB/s", self.throughput_mbps)?;
         writeln!(f, "  Threads used: {}", self.threads_used)?;
         if let Some(peak_memory) = self.peak_memory_bytes {
-            writeln!(f, "  Peak memory: {:.2} MB", peak_memory as f64 / (1024.0 * 1024.0))?;
+            writeln!(
+                f,
+                "  Peak memory: {:.2} MB",
+                peak_memory as f64 / (1024.0 * 1024.0)
+            )?;
         }
         if !self.schema_fingerprint.is_empty() {
             writeln!(f, "  Schema fingerprint: {}", self.schema_fingerprint)?;
@@ -152,15 +160,15 @@ impl fmt::Display for RunSummary {
 }
 
 /// Decode a single record from binary data to JSON
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `schema` - The parsed copybook schema
 /// * `data` - The binary record data
 /// * `options` - Decoding options
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the data cannot be decoded according to the schema
 /// Decode a single record into a JSON value using the provided schema
 ///
@@ -205,7 +213,11 @@ fn decode_record_impl(
                 )?;
                 out.insert(field.name.clone(), Value::String(text));
             }
-            FieldKind::ZonedDecimal { digits, scale, signed } => {
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 let slice = &data[field.offset as usize..(field.offset + field.len) as usize];
                 if field.blank_when_zero {
                     let is_blank = slice.iter().all(|&b| match options.codepage {
@@ -239,8 +251,12 @@ fn decode_record_impl(
                 };
                 out.insert(field.name.clone(), value);
             }
-            FieldKind::PackedDecimal { digits, scale, signed } => {
-                let byte_len = ((digits + 1) / 2) as usize;
+            FieldKind::PackedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
+                let byte_len = (*digits as usize + 2) / 2;
                 let slice = &data[field.offset as usize..field.offset as usize + byte_len];
                 let dec = crate::numeric::decode_packed_decimal(slice, *digits, *scale, *signed)?;
                 let dec_str = dec.to_fixed_scale_string(*scale);
@@ -265,11 +281,9 @@ fn decode_record_impl(
                 let int_str = int_val.to_string();
                 let value = match options.json_number_mode {
                     JsonNumberMode::Lossless => Value::String(int_str),
-                    JsonNumberMode::Native => {
-                        serde_json::Number::from_f64(int_val as f64)
-                            .map(Value::Number)
-                            .unwrap_or_else(|| Value::String(int_str))
-                    }
+                    JsonNumberMode::Native => serde_json::Number::from_f64(int_val as f64)
+                        .map(Value::Number)
+                        .unwrap_or_else(|| Value::String(int_str)),
                 };
                 out.insert(field.name.clone(), value);
             }
@@ -296,20 +310,20 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 }
 
 /// Encode JSON data to binary using the provided schema
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `schema` - The parsed copybook schema
 /// * `json` - The JSON data to encode
 /// * `options` - Encoding options
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the JSON data cannot be encoded according to the schema
 pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) -> Result<Vec<u8>> {
     // For now, return a minimal binary representation
     // In a full implementation, this would encode all fields according to the schema
-    
+
     // Calculate expected record length from schema
     // Determine record length either from explicit LRECL or by examining field extents
     let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
@@ -321,28 +335,28 @@ pub fn encode_record(schema: &Schema, json: &Value, _options: &EncodeOptions) ->
             .unwrap_or(0)
     }) as usize;
     let mut buffer = vec![0u8; record_length];
-    
+
     // Add some basic encoding logic
     if let Some(obj) = json.as_object() {
         if obj.contains_key("__status") {
             buffer[0] = b'E'; // Encoded marker
         }
     }
-    
+
     Ok(buffer)
 }
 
 /// Decode a file to JSONL format
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `schema` - The parsed copybook schema
 /// * `input` - Input stream to read from
 /// * `output` - Output stream to write to
 /// * `options` - Decoding options
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the file cannot be decoded or written
 pub fn decode_file_to_jsonl(
     schema: &Schema,
@@ -352,7 +366,7 @@ pub fn decode_file_to_jsonl(
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
-    
+
     // Determine record length either from explicit LRECL or by examining field extents
     let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
         schema
@@ -381,7 +395,10 @@ pub fn decode_file_to_jsonl(
                 }
                 Ok(n) => read += n,
                 Err(e) => {
-                    return Err(Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, e.to_string()));
+                    return Err(Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        e.to_string(),
+                    ));
                 }
             }
         }
@@ -402,9 +419,10 @@ pub fn decode_file_to_jsonl(
             Err(e) => {
                 summary.records_with_errors += 1;
                 if options.strict_mode {
-                    break;
+                    return Err(e);
                 }
-                let err_obj = serde_json::json!({"__error": format!("{:?}", e.code)});
+                let err_obj =
+                    serde_json::json!({"__error": format!("{:?}", e.code), "__message": e.message});
                 serde_json::to_writer(&mut output, &err_obj)
                     .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
                 writeln!(output)
@@ -412,26 +430,26 @@ pub fn decode_file_to_jsonl(
             }
         }
     }
-    
+
     summary.records_processed = record_count;
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
     summary.schema_fingerprint = "placeholder_fingerprint".to_string();
-    
+
     Ok(summary)
 }
 
 /// Encode JSONL to binary file
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `schema` - The parsed copybook schema
 /// * `input` - Input stream to read JSONL from
 /// * `output` - Output stream to write binary to
 /// * `options` - Encoding options
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the JSONL cannot be encoded or written
 pub fn encode_jsonl_to_file(
     schema: &Schema,
@@ -441,27 +459,29 @@ pub fn encode_jsonl_to_file(
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
-    
+
     let reader = BufReader::new(input);
     let mut record_count = 0u64;
-    
+
     for line in reader.lines() {
-        let line = line.map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-        
+        let line =
+            line.map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+
         if line.trim().is_empty() {
             continue;
         }
-        
+
         record_count += 1;
-        
+
         // Parse JSON
         let json_value: Value = serde_json::from_str(&line)
             .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
-        
+
         // Encode to binary
         match encode_record(schema, &json_value, options) {
             Ok(binary_data) => {
-                output.write_all(&binary_data)
+                output
+                    .write_all(&binary_data)
                     .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
                 summary.bytes_processed += binary_data.len() as u64;
             }
@@ -474,17 +494,17 @@ pub fn encode_jsonl_to_file(
             }
         }
     }
-    
+
     summary.records_processed = record_count;
     summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
     summary.calculate_throughput();
     summary.schema_fingerprint = "placeholder_fingerprint".to_string();
-    
+
     Ok(summary)
 }
 
 /// Simple record iterator for programmatic access
-/// 
+///
 /// This provides streaming access to decoded records without loading entire files into memory.
 pub struct RecordIterator<R: Read> {
     reader: R,
@@ -499,7 +519,7 @@ impl<R: Read> RecordIterator<R> {
     /// Create a new record iterator
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
         let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
-        
+
         Ok(Self {
             reader,
             schema: schema.clone(),
@@ -509,22 +529,22 @@ impl<R: Read> RecordIterator<R> {
             buffer: vec![0u8; record_length],
         })
     }
-    
+
     /// Get the current record index (1-based)
     pub fn current_record_index(&self) -> u64 {
         self.record_index
     }
-    
+
     /// Check if the iterator has reached EOF
     pub fn is_eof(&self) -> bool {
         self.eof_reached
     }
-    
+
     /// Get a reference to the schema
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
-    
+
     /// Get a reference to the options
     pub fn options(&self) -> &DecodeOptions {
         &self.options
@@ -533,17 +553,17 @@ impl<R: Read> RecordIterator<R> {
 
 impl<R: Read> Iterator for RecordIterator<R> {
     type Item = Result<Value>;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.eof_reached {
             return None;
         }
-        
+
         // Try to read a record
         match self.reader.read_exact(&mut self.buffer) {
             Ok(()) => {
                 self.record_index += 1;
-                
+
                 // Decode the record
                 match decode_record(&self.schema, &self.buffer, &self.options) {
                     Ok(json_value) => Some(Ok(json_value)),
@@ -554,9 +574,10 @@ impl<R: Read> Iterator for RecordIterator<R> {
                 self.eof_reached = true;
                 None
             }
-            Err(e) => {
-                Some(Err(Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, e.to_string())))
-            }
+            Err(e) => Some(Err(Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                e.to_string(),
+            ))),
         }
     }
 }
@@ -569,7 +590,7 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 ) -> Result<RecordIterator<std::fs::File>> {
     let file = std::fs::File::open(file_path)
         .map_err(|e| Error::new(ErrorCode::CBKF104_RDW_SUSPECT_ASCII, e.to_string()))?;
-    
+
     RecordIterator::new(file, schema, options)
 }
 
@@ -595,11 +616,11 @@ mod tests {
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         "#;
-        
+
         let schema = parse_copybook(copybook_text).unwrap();
         let options = DecodeOptions::default();
         let data = b"001ALICE";
-        
+
         let result = decode_record(&schema, data, &options).unwrap();
         assert!(result.is_object());
         assert!(result.get("__record_length").is_some());
@@ -612,14 +633,14 @@ mod tests {
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         "#;
-        
+
         let schema = parse_copybook(copybook_text).unwrap();
         let options = EncodeOptions::default();
-        
+
         let mut json_obj = serde_json::Map::new();
         json_obj.insert("__status".to_string(), Value::String("test".to_string()));
         let json = Value::Object(json_obj);
-        
+
         let result = encode_record(&schema, &json, &options).unwrap();
         assert!(!result.is_empty());
         assert_eq!(result[0], b'E'); // Encoded marker
@@ -632,14 +653,14 @@ mod tests {
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         "#;
-        
+
         let schema = parse_copybook(copybook_text).unwrap();
         let options = DecodeOptions::default();
-        
+
         // Create test data
         let test_data = vec![0u8; 16]; // Two 8-byte records
         let cursor = Cursor::new(test_data);
-        
+
         let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
         assert_eq!(iterator.current_record_index(), 0);
         assert!(!iterator.is_eof());
@@ -652,17 +673,17 @@ mod tests {
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         "#;
-        
+
         let schema = parse_copybook(copybook_text).unwrap();
         let options = DecodeOptions::default();
-        
+
         // Create test input
         let input_data = vec![0u8; 16]; // Two 8-byte records
         let input = Cursor::new(input_data);
-        
+
         // Create output buffer
         let mut output = Vec::new();
-        
+
         let summary = decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
         assert!(summary.records_processed > 0);
         assert!(!output.is_empty());
@@ -675,18 +696,18 @@ mod tests {
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         "#;
-        
+
         let schema = parse_copybook(copybook_text).unwrap();
         let options = EncodeOptions::default();
-        
+
         // Create test JSONL input
         let jsonl_data = r#"{"__status":"test"}
 {"__status":"test2"}"#;
         let input = Cursor::new(jsonl_data.as_bytes());
-        
+
         // Create output buffer
         let mut output = Vec::new();
-        
+
         let summary = encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
         assert_eq!(summary.records_processed, 2);
         assert!(!output.is_empty());

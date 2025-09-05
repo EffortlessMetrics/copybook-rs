@@ -205,11 +205,12 @@ impl DecodeProcessor {
         let mut json_buffer = Vec::with_capacity(4096);
         let mut json_writer = crate::json::JsonWriter::new(
             std::io::Cursor::new(&mut json_buffer),
+            schema.clone(),
             self.options.clone(),
         );
-        
+
         // Write record using streaming approach
-        json_writer.write_record_streaming(schema, record_data, record_index, 0)?;
+        json_writer.write_record_streaming(record_data, record_index, 0)?;
         
         // Convert to string (remove trailing newline)
         let json_str = String::from_utf8(json_buffer)
@@ -231,11 +232,12 @@ impl DecodeProcessor {
         // Use streaming JSON writer with scratch buffers
         let mut json_writer = crate::json::JsonWriter::new(
             std::io::Cursor::new(&mut scratch.byte_buffer),
+            (**schema).clone(),
             (**options).clone(),
         );
-        
+
         // Write record using streaming approach
-        json_writer.write_record_streaming(schema, record_data, 0, 0)?;
+        json_writer.write_record_streaming(record_data, 0, 0)?;
         
         // Convert to string (remove trailing newline)
         let json_str = String::from_utf8(scratch.byte_buffer.clone())

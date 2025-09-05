@@ -364,8 +364,10 @@ fn bench_parallel_scaling(c: &mut Criterion) {
 
     // Test scaling with different thread counts
     for thread_count in [1, 2, 4, 8].iter() {
-        let mut options = DecodeOptions::default();
-        options.threads = *thread_count;
+        let options = DecodeOptions {
+            threads: *thread_count,
+            ..Default::default()
+        };
 
         group.bench_with_input(
             BenchmarkId::new("threads", thread_count),

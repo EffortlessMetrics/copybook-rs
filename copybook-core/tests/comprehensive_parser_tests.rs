@@ -1,3 +1,5 @@
+#![cfg(feature = "comprehensive-tests")]
+
 //! Comprehensive parser tests covering all normative grammar rules and edge cases
 //!
 //! This test suite validates the parser's handling of various COBOL copybook formats

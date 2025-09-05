@@ -162,6 +162,7 @@ fn test_sign_clause_as_edited_pic_normative() {
 
 #[test]
 #[ignore = "pending parser features"]
+#[allow(clippy::too_many_lines)]
 fn test_valid_pic_clauses_comprehensive() {
     // These should parse successfully
     let valid_pics = vec![
@@ -246,9 +247,7 @@ fn test_valid_pic_clauses_comprehensive() {
         let result = parse_copybook(copybook);
         assert!(
             result.is_ok(),
-            "Should succeed for {}: {}",
-            description,
-            copybook
+            "Should succeed for {description}: {copybook}"
         );
 
         let schema = result.unwrap();
@@ -264,6 +263,17 @@ fn test_valid_pic_clauses_comprehensive() {
                     signed: sg1,
                 },
                 FieldKind::ZonedDecimal {
+                    digits: d2,
+                    scale: s2,
+                    signed: sg2,
+                },
+            ) | (
+                FieldKind::PackedDecimal {
+                    digits: d1,
+                    scale: s1,
+                    signed: sg1,
+                },
+                FieldKind::PackedDecimal {
                     digits: d2,
                     scale: s2,
                     signed: sg2,
@@ -285,22 +295,6 @@ fn test_valid_pic_clauses_comprehensive() {
             ) => {
                 assert_eq!(b1, b2);
                 assert_eq!(s1, s2);
-            }
-            (
-                FieldKind::PackedDecimal {
-                    digits: d1,
-                    scale: s1,
-                    signed: sg1,
-                },
-                FieldKind::PackedDecimal {
-                    digits: d2,
-                    scale: s2,
-                    signed: sg2,
-                },
-            ) => {
-                assert_eq!(d1, d2);
-                assert_eq!(s1, s2);
-                assert_eq!(sg1, sg2);
             }
             _ => panic!(
                 "Field kind mismatch for {}: expected {:?}, got {:?}",
@@ -674,12 +668,12 @@ fn test_binary_width_mapping_normative() {
         let schema = parse_copybook(copybook).unwrap();
         let field = &schema.fields[0];
 
-        assert_eq!(field.len, expected_len, "Length mismatch for: {}", copybook);
+        assert_eq!(field.len, expected_len, "Length mismatch for: {copybook}");
 
         if let FieldKind::BinaryInt { bits, .. } = &field.kind {
-            assert_eq!(*bits, expected_bits, "Bit width mismatch for: {}", copybook);
+            assert_eq!(*bits, expected_bits, "Bit width mismatch for: {copybook}");
         } else {
-            panic!("Expected BinaryInt for: {}", copybook);
+            panic!("Expected BinaryInt for: {copybook}");
         }
     }
 }
@@ -712,7 +706,7 @@ fn test_explicit_binary_width_normative() {
         if let FieldKind::BinaryInt { bits, .. } = &root.children[i].kind {
             assert_eq!(*bits, *expected_bits);
         } else {
-            panic!("Expected BinaryInt for child {}", i);
+            panic!("Expected BinaryInt for child {i}");
         }
     }
 }

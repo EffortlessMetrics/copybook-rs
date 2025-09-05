@@ -16,6 +16,7 @@
 //! - **Numeric Types**: Zoned decimal (DISPLAY), packed decimal (COMP-3), binary integers (COMP/BINARY)
 //! - **Character Conversion**: EBCDIC and ASCII codepage support with proper sign zone handling
 //! - **JSON Integration**: Configurable number representation (Lossless strings vs Native JSON numbers)
+//! - **REDEFINES Support**: Full schema-aware JSON encoding with proper REDEFINES field resolution
 //! - **Record Framing**: Fixed-length and variable-length (RDW) record processing
 //! - **Performance**: Streaming I/O with parallel processing and deterministic output
 //!
@@ -30,6 +31,12 @@
 //! ### JSON Number Modes
 //! - **Lossless Mode**: Decimals as strings to preserve exact precision (default)
 //! - **Native Mode**: Use JSON numbers where possible (integers, small decimals)
+//!
+//! ### Enhanced JSON Encoding
+//! - **Schema-Aware Encoding**: Full schema context threaded through encoding pipeline
+//! - **REDEFINES Resolution**: Automatic discovery and processing of redefining fields
+//! - **Field Path Resolution**: Support for ODO counter updates and field lookups by path
+//! - **Compilation Safety**: Resolved critical compilation issues in JsonEncoder methods
 //!
 //! ### Error Handling
 //! - **Structured Errors**: CBKD* codes for data decode errors, CBKE* for encode errors

@@ -190,6 +190,8 @@ copybook-rs produces clean, properly typed JSON output with comprehensive COBOL 
 - **Numeric Precision**: Zoned and packed decimals maintain precision with proper sign handling
 - **Character Conversion**: EBCDIC and ASCII character data converted to UTF-8 strings
 - **Hierarchical Structure**: Group fields create nested JSON objects matching copybook structure
+- **REDEFINES Support**: Enhanced JSON encoding with proper REDEFINES field resolution and precedence rules
+- **Schema-Aware Processing**: Full schema context enables advanced field lookups and ODO counter management
 
 ### Example JSON Output
 

@@ -36,7 +36,7 @@
 //! - **Schema-Aware Encoding**: Full schema context threaded through encoding pipeline
 //! - **REDEFINES Resolution**: Automatic discovery and processing of redefining fields
 //! - **Field Path Resolution**: Support for ODO counter updates and field lookups by path
-//! - **Compilation Safety**: Resolved critical compilation issues in JsonEncoder methods
+//! - **Compilation Safety**: Resolved critical compilation issues in `JsonEncoder` methods
 //!
 //! ### Error Handling
 //! - **Structured Errors**: CBKD* codes for data decode errors, CBKE* for encode errors

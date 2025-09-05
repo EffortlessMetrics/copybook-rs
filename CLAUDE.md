@@ -78,6 +78,35 @@ cargo run --bin copybook-cli -- [SUBCOMMAND]
 copybook [SUBCOMMAND]
 ```
 
+### CLI Subcommands
+
+#### Verify Command
+```bash
+# Verify data file against copybook schema
+cargo run --bin copybook-cli -- verify --format fixed --codepage cp037 copybook.cpy data.bin
+
+# Generate detailed JSON verification report
+cargo run --bin copybook-cli -- verify --format fixed --codepage cp037 --report report.json copybook.cpy data.bin
+
+# Verify RDW format data
+cargo run --bin copybook-cli -- verify --format rdw --codepage cp1047 copybook.cpy data.bin
+```
+
+#### Other Commands
+```bash
+# Parse copybook to schema JSON
+cargo run --bin copybook-cli -- parse copybook.cpy
+
+# Inspect copybook layout
+cargo run --bin copybook-cli -- inspect copybook.cpy
+
+# Decode binary data to JSONL
+cargo run --bin copybook-cli -- decode --format fixed --codepage cp037 copybook.cpy data.bin output.jsonl
+
+# Encode JSONL to binary data
+cargo run --bin copybook-cli -- encode --format fixed --codepage cp037 copybook.cpy input.jsonl output.bin
+```
+
 ## Architecture Notes
 
 ### Core Processing Flow
@@ -85,10 +114,19 @@ copybook [SUBCOMMAND]
 2. **copybook-codec** uses Schema to encode/decode binary data records with full schema context
 3. **copybook-cli** orchestrates the pipeline with user-friendly commands
 
+<<<<<<< HEAD
+### CLI Command Processing Pipeline
+- **parse**: copybook-core only - parses copybook and outputs schema JSON
+- **inspect**: copybook-core + display formatting - human-readable schema layout
+- **decode**: core → codec → JSON output - full decoding pipeline with error handling
+- **encode**: core → codec → binary output - full encoding pipeline with validation
+- **verify**: core → codec (decode-only) → validation reporting - data integrity validation without output generation
+=======
 **Recent Improvements (PR #25)**:
 - Fixed critical compilation errors in JsonEncoder methods
 - Added schema parameter threading throughout encoding pipeline for full REDEFINES support
 - Implemented `Schema::find_redefining_fields` for proper COBOL precedence rules
+>>>>>>> origin/main
 
 ### Key Data Types
 - `Schema`: Top-level parsed copybook structure from copybook-core with enhanced field lookup methods (including `find_redefining_fields`)

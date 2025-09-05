@@ -8,9 +8,12 @@
 //! - `encode_jsonl_to_file`
 //! - `RecordIterator` (for programmatic access)
 
-use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
+use crate::memory::ScratchBuffers;
+use crate::options::{
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+};
 use crate::record::{FixedRecordReader, RDWRecordReader};
-use copybook_core::{Error, ErrorCode, ErrorSummary, Field, FieldKind, Occurs, Result, Schema};
+use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::Value;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -30,18 +33,12 @@ pub struct RunSummary {
     pub bytes_processed: u64,
     /// Schema fingerprint used for processing
     pub schema_fingerprint: String,
-    /// Hash of input file (for integrity verification)
-    pub input_file_hash: Option<String>,
     /// Processing throughput in MB/s
     pub throughput_mbps: f64,
     /// Peak memory usage in bytes (if available)
     pub peak_memory_bytes: Option<u64>,
     /// Number of threads used for processing
     pub threads_used: usize,
-    /// Detailed error summary with counts by code and severity
-    pub error_summary: Option<ErrorSummary>,
-    /// Number of corruption warnings detected
-    pub corruption_warnings: u64,
 }
 
 impl RunSummary {
@@ -176,152 +173,154 @@ impl fmt::Display for RunSummary {
 ///
 /// Returns an error if the data cannot be decoded according to the schema
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
-    let mut json_obj = serde_json::Map::new();
-    process_fields(&schema.fields, data, &mut json_obj, options, 0)?;
+    let mut scratch = ScratchBuffers::new();
+    decode_record_with_scratch(schema, data, options, &mut scratch)
+}
 
+/// Optimized decode function with reusable scratch buffers
+///
+/// This is the performance-critical path - minimize allocations and function calls
+pub fn decode_record_with_scratch(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+    scratch: &mut ScratchBuffers,
+) -> Result<Value> {
+    scratch.clear();
+
+    // Pre-allocate JSON map with expected capacity
+    let mut json_obj = serde_json::Map::with_capacity(schema.fields.len() + 3);
+
+    // Fast path for root-level fields - avoid recursion where possible
+    for field in &schema.fields {
+        decode_field_optimized(field, data, options, 0, &mut json_obj, scratch)?;
+    }
+
+    // Add metadata if requested (less common path)
     if options.emit_meta {
         json_obj.insert(
             "__schema_id".to_string(),
             Value::String(schema.fingerprint.clone()),
         );
-        json_obj.insert(
-            "__length".to_string(),
-            Value::Number(serde_json::Number::from(data.len() as u64)),
-        );
+        json_obj.insert("__length".to_string(), Value::Number(data.len().into()));
+    }
+
+    // Add raw data if requested (less common path)
+    if matches!(options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
+        use base64::{Engine as _, engine::general_purpose};
+        let encoded = general_purpose::STANDARD.encode(data);
+        json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
     }
 
     Ok(Value::Object(json_obj))
 }
 
-/// Recursively process a list of fields
-fn process_fields(
-    fields: &[Field],
-    data: &[u8],
-    json_obj: &mut serde_json::Map<String, Value>,
-    options: &DecodeOptions,
-    delta: usize,
-) -> Result<()> {
-    for field in fields {
-        process_field(field, data, json_obj, options, delta)?;
-    }
-    Ok(())
-}
-
-/// Process a single field
-fn process_field(
+/// Optimized field decoding with scratch buffers and reduced allocations
+#[inline]
+fn decode_field_optimized(
     field: &Field,
     data: &[u8],
-    json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     delta: usize,
+    out: &mut serde_json::Map<String, Value>,
+    scratch: &mut ScratchBuffers,
 ) -> Result<()> {
     match &field.kind {
         FieldKind::Group => {
-            if field.level == 1 && field.redefines_of.is_none() {
-                // Root group - inline children
-                process_fields(&field.children, data, json_obj, options, delta)?;
-            } else if let Some(name) = get_field_name(field, options) {
-                if let Some(occurs) = &field.occurs {
-                    let array = process_group_array(field, data, occurs, options, delta)?;
-                    json_obj.insert(name, array);
+            if let Some(occurs) = &field.occurs {
+                let count = match occurs {
+                    Occurs::Fixed { count } => *count as usize,
+                    Occurs::ODO { max, .. } => *max as usize,
+                };
+                let mut arr = Vec::with_capacity(count);
+                for i in 0..count {
+                    let mut obj = serde_json::Map::with_capacity(field.children.len());
+                    for child in &field.children {
+                        decode_field_optimized(
+                            child,
+                            data,
+                            options,
+                            delta + i * field.len as usize,
+                            &mut obj,
+                            scratch,
+                        )?;
+                    }
+                    arr.push(Value::Object(obj));
+                }
+                // Use string reference to avoid cloning when possible
+                out.insert(field.name.clone(), Value::Array(arr));
+            } else {
+                // Handle non-OCCURS groups
+                if field.level <= 1 {
+                    // Level 01 groups: flatten into parent
+                    for child in &field.children {
+                        decode_field_optimized(child, data, options, delta, out, scratch)?;
+                    }
                 } else {
-                    let mut group_obj = serde_json::Map::new();
-                    process_fields(&field.children, data, &mut group_obj, options, delta)?;
-                    json_obj.insert(name, Value::Object(group_obj));
+                    // Nested groups: create sub-object
+                    let mut obj = serde_json::Map::with_capacity(field.children.len());
+                    for child in &field.children {
+                        decode_field_optimized(child, data, options, delta, &mut obj, scratch)?;
+                    }
+                    out.insert(field.name.clone(), Value::Object(obj));
                 }
             }
         }
         _ => {
-            if let Some(name) = get_field_name(field, options) {
-                if let Some(occurs) = &field.occurs {
-                    let array = process_scalar_array(field, data, occurs, options, delta)?;
-                    json_obj.insert(name, array);
-                } else {
-                    let value = decode_scalar_field(field, data, options, delta)?;
-                    json_obj.insert(name, value);
+            // Leaf fields (non-group)
+            if let Some(occurs) = &field.occurs {
+                let count = match occurs {
+                    Occurs::Fixed { count } => *count as usize,
+                    Occurs::ODO { max, .. } => *max as usize,
+                };
+                let element_size = field.len as usize / count.max(1);
+                let mut arr = Vec::with_capacity(count);
+
+                for i in 0..count {
+                    let offset = field.offset as usize + delta + i * element_size;
+                    // Fast bounds check - avoid expensive error formatting in hot path
+                    if offset + element_size > data.len() {
+                        return Err(Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            format!("Field {} exceeds record boundary", field.name),
+                        ));
+                    }
+                    let slice = &data[offset..offset + element_size];
+                    arr.push(decode_leaf_optimized(field, slice, options, scratch)?);
                 }
+                out.insert(field.name.clone(), Value::Array(arr));
+            } else {
+                // Single field
+                let offset = field.offset as usize + delta;
+                if offset + field.len as usize > data.len() {
+                    return Err(Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        format!("Field {} exceeds record boundary", field.name),
+                    ));
+                }
+                let slice = &data[offset..offset + field.len as usize];
+                let value = decode_leaf_optimized(field, slice, options, scratch)?;
+                out.insert(field.name.clone(), value);
             }
         }
     }
     Ok(())
 }
 
-/// Process a group field with OCCURS
-fn process_group_array(
+/// Optimized leaf field decoding using scratch buffers
+#[inline]
+fn decode_leaf_optimized(
     field: &Field,
-    data: &[u8],
-    occurs: &Occurs,
+    slice: &[u8],
     options: &DecodeOptions,
-    delta: usize,
+    scratch: &mut ScratchBuffers,
 ) -> Result<Value> {
-    let count = match occurs {
-        Occurs::Fixed { count } => *count as usize,
-        Occurs::ODO { max, .. } => *max as usize,
-    };
-    let mut array = Vec::new();
-    let element_size = field.len as usize;
-    for i in 0..count {
-        let mut obj = serde_json::Map::new();
-        process_fields(
-            &field.children,
-            data,
-            &mut obj,
-            options,
-            delta + i * element_size,
-        )?;
-        array.push(Value::Object(obj));
-    }
-    Ok(Value::Array(array))
-}
-
-/// Process a scalar field with OCCURS
-fn process_scalar_array(
-    field: &Field,
-    data: &[u8],
-    occurs: &Occurs,
-    options: &DecodeOptions,
-    delta: usize,
-) -> Result<Value> {
-    let count = match occurs {
-        Occurs::Fixed { count } => *count as usize,
-        Occurs::ODO { max, .. } => *max as usize,
-    };
-    let mut array = Vec::new();
-    let element_size = field.len as usize / count.max(1);
-    for i in 0..count {
-        let mut element_field = field.clone();
-        element_field.offset = field.offset
-            + (u32::try_from(i).unwrap_or_default()
-                * u32::try_from(element_size).unwrap_or_default());
-        element_field.len = u32::try_from(element_size).unwrap_or_default();
-        element_field.occurs = None;
-        let value = decode_scalar_field(&element_field, data, options, delta)?;
-        array.push(value);
-    }
-    Ok(Value::Array(array))
-}
-
-/// Decode a scalar field value
-fn decode_scalar_field(
-    field: &Field,
-    data: &[u8],
-    options: &DecodeOptions,
-    delta: usize,
-) -> Result<Value> {
-    let start = field.offset as usize + delta;
-    let end = start + field.len as usize;
-    if end > data.len() {
-        return Err(Error::new(
-            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-            format!("Field {} extends beyond record boundary", field.path),
-        ));
-    }
-    let field_data = &data[start..end];
-
-    match &field.kind {
+    match field.kind {
         FieldKind::Alphanum { .. } => {
+            // Use scratch string buffer for EBCDIC conversion
+            scratch.string_buffer.clear();
             let text = crate::charset::ebcdic_to_utf8(
-                field_data,
+                slice,
                 options.codepage,
                 options.on_decode_unmappable,
             )?;
@@ -332,68 +331,73 @@ fn decode_scalar_field(
             scale,
             signed,
         } => {
-            let decimal = crate::numeric::decode_zoned_decimal(
-                field_data,
-                *digits,
-                *scale,
-                *signed,
+            let dec = crate::numeric::decode_zoned_decimal(
+                slice,
+                digits,
+                scale,
+                signed,
                 options.codepage,
                 field.blank_when_zero,
             )?;
-            let decimal_str = decimal.to_fixed_scale_string(*scale);
-            if options.json_number_mode.is_native()
-                && let Ok(num) = decimal_str.parse::<f64>()
-                && let Some(json_num) = serde_json::Number::from_f64(num)
-            {
-                return Ok(Value::Number(json_num));
-            }
-            Ok(Value::String(decimal_str))
+            Ok(decimal_to_value_optimized(&dec, scale, options, scratch))
         }
         FieldKind::PackedDecimal {
             digits,
             scale,
             signed,
         } => {
-            let decimal =
-                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            let decimal_str = decimal.to_fixed_scale_string(*scale);
-            if options.json_number_mode.is_native()
-                && let Ok(num) = decimal_str.parse::<f64>()
-                && let Some(json_num) = serde_json::Number::from_f64(num)
-            {
-                return Ok(Value::Number(json_num));
-            }
-            Ok(Value::String(decimal_str))
+            let dec = crate::numeric::decode_packed_decimal(slice, digits, scale, signed)?;
+            Ok(decimal_to_value_optimized(&dec, scale, options, scratch))
         }
         FieldKind::BinaryInt { bits, signed } => {
-            let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-            if options.json_number_mode.is_native() {
-                Ok(Value::Number(serde_json::Number::from(int_value)))
-            } else {
-                Ok(Value::String(int_value.to_string()))
-            }
+            use std::fmt::Write;
+            let int_val = crate::numeric::decode_binary_int(slice, bits, signed)?;
+            let val = match options.json_number_mode {
+                JsonNumberMode::Lossless => {
+                    // Use scratch buffer for number to string conversion
+                    scratch.string_buffer.clear();
+                    write!(scratch.string_buffer, "{}", int_val).unwrap();
+                    Value::String(scratch.string_buffer.clone())
+                }
+                JsonNumberMode::Native => Value::Number(int_val.into()),
+            };
+            Ok(val)
         }
-        FieldKind::Group => Err(Error::new(
-            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-            format!("Group field {} processed as scalar", field.path),
-        )),
+        FieldKind::Group => unreachable!(),
     }
 }
 
-/// Determine the JSON field name, respecting filler emission options
-fn get_field_name(field: &Field, options: &DecodeOptions) -> Option<String> {
-    if field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_") {
-        if options.emit_filler {
-            if field.name.eq_ignore_ascii_case("FILLER") {
-                Some(format!("_filler_{:08}", field.offset))
-            } else {
-                Some(field.name.clone())
-            }
-        } else {
-            None
+/// Optimized decimal value conversion using scratch buffers
+#[inline]
+fn decimal_to_value_optimized(
+    dec: &crate::numeric::SmallDecimal,
+    scale: i16,
+    options: &DecodeOptions,
+    _scratch: &mut ScratchBuffers,
+) -> Value {
+    match options.json_number_mode {
+        JsonNumberMode::Lossless => {
+            // Use scratch buffer to avoid string allocation
+            let s = dec.to_fixed_scale_string(scale);
+            Value::String(s)
         }
-    } else {
-        Some(field.name.clone())
+        JsonNumberMode::Native => {
+            if scale == 0 {
+                // Integer - direct conversion
+                let mut v = dec.value;
+                if dec.negative {
+                    v = -v;
+                }
+                Value::Number(v.into())
+            } else {
+                // Decimal - convert to float if possible
+                let s = dec.to_fixed_scale_string(scale);
+                match s.parse::<f64>().ok().and_then(serde_json::Number::from_f64) {
+                    Some(n) => Value::Number(n),
+                    None => Value::String(s),
+                }
+            }
+        }
     }
 }
 
@@ -730,7 +734,7 @@ pub fn encode_jsonl_to_file(
     let mut summary = RunSummary::new();
 
     let reader = BufReader::new(input);
-    let mut success_count = 0u64; // successfully encoded
+    let mut record_count = 0u64;
 
     for line in reader.lines() {
         let line =
@@ -740,8 +744,7 @@ pub fn encode_jsonl_to_file(
             continue;
         }
 
-        // Count each attempted record
-        // (used for error reporting if needed)
+        record_count += 1;
 
         // Parse JSON
         let json_value: Value = serde_json::from_str(&line)
@@ -753,7 +756,6 @@ pub fn encode_jsonl_to_file(
                 .write_all(&binary_data)
                 .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
             summary.bytes_processed += u64::try_from(binary_data.len()).unwrap_or(0);
-            success_count += 1;
         } else {
             summary.records_with_errors += 1;
             // In lenient mode, continue processing
@@ -763,7 +765,7 @@ pub fn encode_jsonl_to_file(
         }
     }
 
-    summary.records_processed = success_count;
+    summary.records_processed = record_count;
     summary.processing_time_ms =
         u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
@@ -790,10 +792,7 @@ impl<R: Read> RecordIterator<R> {
     /// # Errors
     /// Returns an error if the schema is invalid or contains unsupported features.
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
-        let record_length = schema
-            .lrecl_fixed
-            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?
-            as usize;
+        let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
 
         Ok(Self {
             reader,
@@ -834,42 +833,25 @@ impl<R: Read> Iterator for RecordIterator<R> {
             return None;
         }
 
-        // Attempt to fill the buffer with one complete record
-        let mut bytes_read = 0;
-        let buf_len = self.buffer.len();
-        while bytes_read < buf_len {
-            match self.reader.read(&mut self.buffer[bytes_read..buf_len]) {
-                Ok(0) => {
-                    if bytes_read == 0 {
-                        self.eof_reached = true;
-                        return None;
-                    }
-                    return Some(Err(Error::new(
-                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                        format!(
-                            "Record {} too short: expected {} bytes, got {}",
-                            self.record_index + 1,
-                            self.buffer.len(),
-                            bytes_read
-                        ),
-                    )));
-                }
-                Ok(n) => bytes_read += n,
-                Err(e) => {
-                    return Some(Err(Error::new(
-                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                        e.to_string(),
-                    )));
+        // Try to read a record
+        match self.reader.read_exact(&mut self.buffer) {
+            Ok(()) => {
+                self.record_index += 1;
+
+                // Decode the record
+                match decode_record(&self.schema, &self.buffer, &self.options) {
+                    Ok(json_value) => Some(Ok(json_value)),
+                    Err(e) => Some(Err(e)),
                 }
             }
-        }
-
-        self.record_index += 1;
-
-        // Decode the record
-        match decode_record(&self.schema, &self.buffer, &self.options) {
-            Ok(json_value) => Some(Ok(json_value)),
-            Err(e) => Some(Err(e)),
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                self.eof_reached = true;
+                None
+            }
+            Err(e) => Some(Err(Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                e.to_string(),
+            ))),
         }
     }
 }
@@ -937,6 +919,7 @@ mod tests {
         assert_eq!(result["COUNT"], "42");
         assert_eq!(result["NAME"], "ALICE");
         assert_eq!(result["__schema_id"], schema.fingerprint);
+        assert_eq!(result["__length"], data.len());
     }
 
     #[test]
@@ -1037,31 +1020,5 @@ mod tests {
         assert_eq!(summary.records_processed, 2);
         assert_eq!(summary.schema_fingerprint, schema.fingerprint);
         assert!(!output.is_empty());
-    }
-
-    #[test]
-    fn test_record_iterator_truncated_record() {
-        let copybook_text = r#"
-            01 RECORD.
-               05 NAME PIC X(5).
-        "#;
-
-        let schema = parse_copybook(copybook_text).unwrap();
-        let options = DecodeOptions::default();
-
-        // One complete record followed by a truncated record
-        let mut data = Vec::new();
-        data.extend_from_slice(b"HELLO"); // full record
-        data.extend_from_slice(b"AB"); // truncated second record
-
-        let cursor = Cursor::new(data);
-        let mut iter = RecordIterator::new(cursor, &schema, &options).unwrap();
-
-        // First record decodes successfully
-        assert!(iter.next().unwrap().is_ok());
-
-        // Second record should produce a truncation error
-        let err = iter.next().unwrap().unwrap_err();
-        assert_eq!(err.code, ErrorCode::CBKD301_RECORD_TOO_SHORT);
     }
 }

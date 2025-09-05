@@ -281,27 +281,18 @@ impl DecodeProcessor {
 
         let records_with_errors = self.error_reporter.error_count();
         let processed_ok = records_processed.saturating_sub(records_with_errors);
-
-        // Determine schema fingerprint using existing utilities
-        let schema_fingerprint = if !schema.fingerprint.is_empty() {
-            schema.fingerprint.clone()
-        } else {
-            let mut s = schema.clone();
-            s.calculate_fingerprint();
-            s.fingerprint
-        };
-
+        
+        let fingerprint = schema.fingerprint.clone();
         let mut summary = RunSummary {
             records_processed: processed_ok,
             records_with_errors,
             warnings: self.error_reporter.warning_count(),
             processing_time_ms,
             bytes_processed: self.bytes_processed,
-            schema_fingerprint,
-            input_file_hash: None,
+            schema_fingerprint: fingerprint,
             throughput_mbps: 0.0,
-            error_summary: Some(error_summary),
-            corruption_warnings,
+            peak_memory_bytes: None,
+            threads_used: 1,
         };
 
         summary.calculate_throughput();
@@ -874,19 +865,12 @@ impl DecodeProcessor {
         let records_with_errors = self.error_reporter.error_count();
         let processed_ok = total_records.saturating_sub(records_with_errors);
 
-        let fingerprint = if !schema.fingerprint.is_empty() {
-            schema.fingerprint.clone()
-        } else {
-            let mut s = schema.clone();
-            s.calculate_fingerprint();
-            s.fingerprint
-        };
+        let fingerprint = schema.fingerprint.clone();
 
         let mut summary = RunSummary {
             records_processed: processed_ok,
             records_with_errors,
             warnings: self.error_reporter.warning_count(),
-            corruption_warnings: error_summary.corruption_warnings,
             processing_time_ms,
             bytes_processed: self.bytes_processed,
             schema_fingerprint: fingerprint,
@@ -1006,19 +990,12 @@ impl EncodeProcessor {
         let records_with_errors = self.error_reporter.error_count();
         let processed_ok = total_records.saturating_sub(records_with_errors);
 
-        let fingerprint = if !schema.fingerprint.is_empty() {
-            schema.fingerprint.clone()
-        } else {
-            let mut s = schema.clone();
-            s.calculate_fingerprint();
-            s.fingerprint
-        };
+        let fingerprint = schema.fingerprint.clone();
 
         let mut summary = RunSummary {
             records_processed: processed_ok,
             records_with_errors,
             warnings: self.error_reporter.warning_count(),
-            corruption_warnings: error_summary.corruption_warnings,
             processing_time_ms,
             bytes_processed: self.bytes_processed,
             schema_fingerprint: fingerprint,

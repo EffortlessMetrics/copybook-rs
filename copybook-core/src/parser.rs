@@ -72,9 +72,9 @@ impl Parser {
         Self {
             tokens,
             current: 0,
-            _format: format,
+            format,
             options: ParseOptions::default(),
-            _name_counters: std::collections::HashMap::new(),
+            name_counters: std::collections::HashMap::new(),
         }
     }
 
@@ -82,9 +82,9 @@ impl Parser {
         Self {
             tokens,
             current: 0,
-            _format: format,
+            format,
             options,
-            _name_counters: std::collections::HashMap::new(),
+            name_counters: std::collections::HashMap::new(),
         }
     }
 

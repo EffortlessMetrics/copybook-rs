@@ -518,7 +518,7 @@ pub fn encode_jsonl_to_file(
     let mut summary = RunSummary::new();
 
     let reader = BufReader::new(input);
-    let mut record_count = 0u64;
+    let mut success_count = 0u64; // successfully encoded
 
     for line in reader.lines() {
         let line =
@@ -528,7 +528,8 @@ pub fn encode_jsonl_to_file(
             continue;
         }
 
-        record_count += 1;
+        // Count each attempted record
+        // (used for error reporting if needed)
 
         // Parse JSON
         let json_value: Value = serde_json::from_str(&line)
@@ -540,6 +541,7 @@ pub fn encode_jsonl_to_file(
                 .write_all(&binary_data)
                 .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
             summary.bytes_processed += u64::try_from(binary_data.len()).unwrap_or(0);
+            success_count += 1;
         } else {
             summary.records_with_errors += 1;
             // In lenient mode, continue processing
@@ -549,7 +551,7 @@ pub fn encode_jsonl_to_file(
         }
     }
 
-    summary.records_processed = record_count;
+    summary.records_processed = success_count;
     summary.processing_time_ms =
         u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     summary.calculate_throughput();
@@ -576,7 +578,10 @@ impl<R: Read> RecordIterator<R> {
     /// # Errors
     /// Returns an error if the schema is invalid or contains unsupported features.
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
-        let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
+        let record_length = schema
+            .lrecl_fixed
+            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?
+            as usize;
 
         Ok(Self {
             reader,
@@ -617,25 +622,42 @@ impl<R: Read> Iterator for RecordIterator<R> {
             return None;
         }
 
-        // Try to read a record
-        match self.reader.read_exact(&mut self.buffer) {
-            Ok(()) => {
-                self.record_index += 1;
-
-                // Decode the record
-                match decode_record(&self.schema, &self.buffer, &self.options) {
-                    Ok(json_value) => Some(Ok(json_value)),
-                    Err(e) => Some(Err(e)),
+        // Attempt to fill the buffer with one complete record
+        let mut bytes_read = 0;
+        let buf_len = self.buffer.len();
+        while bytes_read < buf_len {
+            match self.reader.read(&mut self.buffer[bytes_read..buf_len]) {
+                Ok(0) => {
+                    if bytes_read == 0 {
+                        self.eof_reached = true;
+                        return None;
+                    }
+                    return Some(Err(Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        format!(
+                            "Record {} too short: expected {} bytes, got {}",
+                            self.record_index + 1,
+                            self.buffer.len(),
+                            bytes_read
+                        ),
+                    )));
+                }
+                Ok(n) => bytes_read += n,
+                Err(e) => {
+                    return Some(Err(Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        e.to_string(),
+                    )));
                 }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                self.eof_reached = true;
-                None
-            }
-            Err(e) => Some(Err(Error::new(
-                ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                e.to_string(),
-            ))),
+        }
+
+        self.record_index += 1;
+
+        // Decode the record
+        match decode_record(&self.schema, &self.buffer, &self.options) {
+            Ok(json_value) => Some(Ok(json_value)),
+            Err(e) => Some(Err(e)),
         }
     }
 }
@@ -808,5 +830,31 @@ mod tests {
         assert_eq!(summary.records_processed, 2);
         assert_eq!(summary.schema_fingerprint, schema.fingerprint);
         assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_record_iterator_truncated_record() {
+        let copybook_text = r#"
+            01 RECORD.
+               05 NAME PIC X(5).
+        "#;
+
+        let schema = parse_copybook(copybook_text).unwrap();
+        let options = DecodeOptions::default();
+
+        // One complete record followed by a truncated record
+        let mut data = Vec::new();
+        data.extend_from_slice(b"HELLO"); // full record
+        data.extend_from_slice(b"AB"); // truncated second record
+
+        let cursor = Cursor::new(data);
+        let mut iter = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // First record decodes successfully
+        assert!(iter.next().unwrap().is_ok());
+
+        // Second record should produce a truncation error
+        let err = iter.next().unwrap().unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKD301_RECORD_TOO_SHORT);
     }
 }

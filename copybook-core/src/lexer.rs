@@ -339,19 +339,23 @@ fn detect_format(input: &str) -> CobolFormat {
         // 2. Line has content starting exactly at column 8 (after 7 chars)
         // 3. Line is exactly 72 or 80 characters (traditional fixed-form length)
 
-        if line.len() >= 8 {
+        let bytes = line.as_bytes();
+        if bytes.len() >= 8 {
             // Check if first 6 characters are spaces/digits (sequence area)
-            let first_six = &line[0..6];
-            let col_7 = line.chars().nth(6).unwrap_or(' ');
-            let col_8_onwards = &line[7..];
+            let first_six = &bytes[0..6];
+            let col_7 = bytes[6];
+            let col_8_onwards = &bytes[7..];
 
             // Fixed-form indicators:
             // - First 6 chars are spaces or digits (sequence numbers)
             // - Column 7 is space, *, -, or /
             // - Content starts at column 8
-            if (first_six.chars().all(|c| c.is_ascii_digit() || c == ' '))
-                && (col_7 == ' ' || col_7 == '*' || col_7 == '-' || col_7 == '/')
-                && !col_8_onwards.trim().is_empty()
+            if (first_six.iter().all(|&b| b.is_ascii_digit() || b == b' '))
+                && (col_7 == b' ' || col_7 == b'*' || col_7 == b'-' || col_7 == b'/')
+                && !std::str::from_utf8(col_8_onwards)
+                    .unwrap_or("")
+                    .trim()
+                    .is_empty()
             {
                 fixed_form_indicators += 1;
             }
@@ -431,8 +435,10 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
 
-    // Check for comment lines (* at column 1 or *> anywhere)
-    let is_comment = trimmed.starts_with('*') || line.contains("*>");
+    // Check for comment lines:
+    // - '*' at column 1 (after trim_start this is starts_with('*'))
+    // - "*>" starting the line (after optional whitespace)
+    let is_comment = trimmed.starts_with('*') || trimmed.starts_with("*>");
 
     // Free-form doesn't have continuation in the same way as fixed-form
     ProcessedLine {

@@ -218,10 +218,11 @@ struct ProcessedLine<'a> {
 
 impl<'a> Lexer<'a> {
     /// Create a new lexer for the given input
+    #[must_use]
     pub fn new(input: &'a str) -> Self {
         let format = detect_format(input);
         let lines = preprocess_lines(input, format);
-        
+
         Self {
             _input: input,
             format,
@@ -232,6 +233,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Get the detected format
+    #[must_use]
     pub fn format(&self) -> CobolFormat {
         self.format
     }
@@ -240,11 +242,11 @@ impl<'a> Lexer<'a> {
     pub fn tokenize(&mut self) -> Vec<TokenPos> {
         let mut tokens = Vec::new();
         let processed_text = self.build_processed_text();
-        
+
         let mut lexer = Token::lexer(&processed_text);
         let mut line = 1;
         let mut column = 1;
-        
+
         while let Some(result) = lexer.next() {
             let span = lexer.span();
             let token = match result {
@@ -290,7 +292,7 @@ impl<'a> Lexer<'a> {
 
         while i < self.lines.len() {
             let line = &self.lines[i];
-            
+
             if line.is_comment {
                 i += 1;
                 continue;
@@ -335,24 +337,25 @@ fn detect_format(input: &str) -> CobolFormat {
         // 1. Line starts with 6+ spaces followed by content (sequence area)
         // 2. Line has content starting exactly at column 8 (after 7 chars)
         // 3. Line is exactly 72 or 80 characters (traditional fixed-form length)
-        
+
         if line.len() >= 8 {
             // Check if first 6 characters are spaces/digits (sequence area)
             let first_six = &line[0..6];
             let col_7 = line.chars().nth(6).unwrap_or(' ');
             let col_8_onwards = &line[7..];
-            
+
             // Fixed-form indicators:
             // - First 6 chars are spaces or digits (sequence numbers)
             // - Column 7 is space, *, -, or /
             // - Content starts at column 8
-            if (first_six.chars().all(|c| c.is_ascii_digit() || c == ' ')) &&
-               (col_7 == ' ' || col_7 == '*' || col_7 == '-' || col_7 == '/') &&
-               !col_8_onwards.trim().is_empty() {
+            if (first_six.chars().all(|c| c.is_ascii_digit() || c == ' '))
+                && (col_7 == ' ' || col_7 == '*' || col_7 == '-' || col_7 == '/')
+                && !col_8_onwards.trim().is_empty()
+            {
                 fixed_form_indicators += 1;
             }
         }
-        
+
         // Also check for traditional fixed-form line lengths
         if line.len() == 72 || line.len() == 80 {
             fixed_form_indicators += 1;
@@ -371,7 +374,7 @@ fn detect_format(input: &str) -> CobolFormat {
 /// Preprocess lines according to the detected format
 fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine<'_>> {
     let mut result = Vec::new();
-    
+
     for (line_num, line) in input.lines().enumerate() {
         let processed = match format {
             CobolFormat::Fixed => process_fixed_form_line(line, line_num + 1),
@@ -426,10 +429,10 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 /// Process a free-form COBOL line
 fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
-    
+
     // Check for comment lines (* at column 1 or *> anywhere)
     let is_comment = trimmed.starts_with('*') || line.contains("*>");
-    
+
     // Free-form doesn't have continuation in the same way as fixed-form
     ProcessedLine {
         content: line,
@@ -468,9 +471,12 @@ mod tests {
         let input = "01 CUSTOMER-ID PIC X(10).";
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize();
-        
+
         assert_eq!(tokens[0].token, Token::Level(1));
-        assert_eq!(tokens[1].token, Token::Identifier("CUSTOMER-ID".to_string()));
+        assert_eq!(
+            tokens[1].token,
+            Token::Identifier("CUSTOMER-ID".to_string())
+        );
         assert_eq!(tokens[2].token, Token::Pic);
         assert_eq!(tokens[3].token, Token::PicClause("X(10)".to_string()));
         assert_eq!(tokens[4].token, Token::Period);
@@ -483,7 +489,7 @@ mod tests {
 "#;
         let lexer = Lexer::new(input);
         let processed = lexer.build_processed_text();
-        
+
         // Should join the continuation properly
         assert!(processed.contains("VERY-LONG-FIELD-NAME PIC X(50)"));
     }
@@ -493,9 +499,11 @@ mod tests {
         let input = "01 AMOUNT PIC ZZ,ZZZ.99.";
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize();
-        
+
         // Should detect edited PIC
-        let pic_token = tokens.iter().find(|t| matches!(t.token, Token::EditedPic(_)));
+        let pic_token = tokens
+            .iter()
+            .find(|t| matches!(t.token, Token::EditedPic(_)));
         assert!(pic_token.is_some());
     }
 }

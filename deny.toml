@@ -13,15 +13,7 @@ targets = [
 db-path = "~/.cargo/advisory-db"
 # The url(s) of the advisory databases to use
 db-urls = ["https://github.com/rustsec/advisory-db"]
-# The lint level for security vulnerabilities
-vulnerability = "deny"
-# The lint level for unmaintained crates
-unmaintained = "warn"
-# The lint level for crates that have been yanked from their source registry
-yanked = "warn"
-# The lint level for crates with security notices
-notice = "warn"
-# A list of advisory IDs to ignore
+# List of advisory IDs to ignore
 ignore = [
     # Add any specific advisories to ignore here
 ]
@@ -39,19 +31,12 @@ allow = [
     "ISC",
     "Unicode-DFS-2016",
     "AGPL-3.0-or-later",
+    "Unicode-3.0",
 ]
 # List of explicitly disallowed licenses
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-1.0",
+exceptions = [
+    # Add any exceptions here
 ]
-# Lint level for when multiple versions of the same license are detected
-copyleft = "warn"
-# Blanket approval or denial for OSI-approved or FSF Free/Libre licenses
-allow-osi-fsf-free = "neither"
-# Lint level used when no license is detected
-default = "deny"
 
 [bans]
 # Lint level for when multiple versions of the same crate are detected

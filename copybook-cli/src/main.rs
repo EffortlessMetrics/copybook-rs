@@ -188,7 +188,8 @@ async fn main() {
             threads,
         } => {
             crate::commands::encode::run(
-                copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors, threads,
+                copybook, input, output, format, codepage, use_raw, bwz_encode, strict, max_errors,
+                threads,
             )
             .await
         }

@@ -1316,14 +1316,17 @@ mod tests {
 
         // Check ODO field
         let odo_field = &schema.fields[1];
+        assert!(
+            matches!(&odo_field.occurs, Some(Occurs::ODO { .. })),
+            "Expected ODO occurs, got {:?}",
+            odo_field.occurs
+        );
         if let Some(Occurs::ODO {
             max, counter_path, ..
         }) = &odo_field.occurs
         {
             assert_eq!(*max, 5);
             assert_eq!(counter_path, "COUNTER");
-        } else {
-            panic!("Expected ODO occurs, got {:?}", odo_field.occurs);
         }
     }
 

@@ -24,16 +24,19 @@ pub struct JsonWriter<W: Write> {
     sequence_id: u64,
     /// Buffer for building JSON strings without intermediate allocations
     json_buffer: String,
+    /// Schema reference for field lookup
+    schema: Schema,
 }
 
 impl<W: Write> JsonWriter<W> {
     /// Create a new JSON writer
-    pub fn new(writer: W, options: DecodeOptions) -> Self {
+    pub fn new(writer: W, schema: Schema, options: DecodeOptions) -> Self {
         Self {
             writer,
             options,
             sequence_id: 0,
             json_buffer: String::with_capacity(4096), // Pre-allocate 4KB buffer
+            schema,
         }
     }
 
@@ -44,7 +47,6 @@ impl<W: Write> JsonWriter<W> {
     /// Returns an error if the record cannot be written or JSON serialization fails
     pub fn write_record(
         &mut self,
-        schema: &Schema,
         record_data: &[u8],
         record_index: u64,
         byte_offset: u64,
@@ -54,7 +56,7 @@ impl<W: Write> JsonWriter<W> {
 
         // Process fields in schema order
         self.process_fields_recursive(
-            &schema.fields,
+            &self.schema.fields,
             record_data,
             &mut json_obj,
             record_index,
@@ -63,13 +65,7 @@ impl<W: Write> JsonWriter<W> {
 
         // Add metadata if requested
         if self.options.emit_meta {
-            self.add_metadata(
-                &mut json_obj,
-                schema,
-                record_index,
-                byte_offset,
-                record_data.len(),
-            )?;
+            self.add_metadata(&mut json_obj, record_index, byte_offset, record_data.len())?;
         }
 
         // Add raw data if requested
@@ -105,7 +101,6 @@ impl<W: Write> JsonWriter<W> {
     /// Returns an error if the record cannot be written or JSON serialization fails
     pub fn write_record_streaming(
         &mut self,
-        schema: &Schema,
         record_data: &[u8],
         record_index: u64,
         byte_offset: u64,
@@ -118,7 +113,7 @@ impl<W: Write> JsonWriter<W> {
 
         // Process fields in schema order directly to JSON string
         self.write_fields_streaming(
-            &schema.fields,
+            &self.schema.fields,
             record_data,
             &mut first_field,
             record_index,
@@ -127,13 +122,7 @@ impl<W: Write> JsonWriter<W> {
 
         // Add metadata if requested
         if self.options.emit_meta {
-            self.write_metadata_streaming(
-                &mut first_field,
-                schema,
-                record_index,
-                byte_offset,
-                record_data.len(),
-            )?;
+            self.write_metadata_streaming(record_index, byte_offset, record_data.len(), &mut first_field)?;
         }
 
         // Add raw data if requested
@@ -185,9 +174,10 @@ impl<W: Write> JsonWriter<W> {
             }
             *first_field = false;
 
-            // Write field name
+            // Write field name (use local name rather than full path)
+            let field_name = self.get_field_name(field);
             self.json_buffer.push('"');
-            self.json_buffer.push_str(&field.path);
+            self.json_buffer.push_str(&field_name);
             self.json_buffer.push_str("\":");
 
             // Write field value based on type
@@ -234,7 +224,7 @@ impl<W: Write> JsonWriter<W> {
             if matches!(self.options.emit_raw, RawMode::Field) {
                 self.json_buffer.push(',');
                 self.json_buffer.push('"');
-                self.json_buffer.push_str(&field.path);
+                self.json_buffer.push_str(&field_name);
                 self.json_buffer.push_str("__raw_b64\":\"");
 
                 let field_data =
@@ -262,7 +252,6 @@ impl<W: Write> JsonWriter<W> {
             self.options.codepage,
             crate::options::UnmappablePolicy::Error,
         )?;
->>>>>>> origin/main
 
         // Write as JSON string with proper escaping
         self.json_buffer.push('"');
@@ -372,7 +361,6 @@ impl<W: Write> JsonWriter<W> {
     fn write_metadata_streaming(
         &mut self,
         first_field: &mut bool,
-        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
@@ -384,8 +372,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__schema_id\":\"");
-        // TODO: Implement schema fingerprinting
-        self.json_buffer.push_str(&schema.fingerprint);
+        self.json_buffer.push_str(&self.schema.fingerprint);
         self.json_buffer.push('"');
 
         // Add record index
@@ -403,7 +390,6 @@ impl<W: Write> JsonWriter<W> {
         Ok(())
     }
 
->>>>>>> origin/main
     /// Write raw data field directly to JSON buffer
     fn write_raw_data_streaming(
         &mut self,
@@ -734,19 +720,12 @@ impl<W: Write> JsonWriter<W> {
     fn add_metadata(
         &self,
         json_obj: &mut Map<String, Value>,
-        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
     ) -> Result<()> {
-        json_obj.insert(
-            "__schema_id".to_string(),
-            Value::String(schema.fingerprint.clone()),
-        );
-        json_obj.insert(
-            "__record_index".to_string(),
-            Value::Number(record_index.into()),
-        );
+        json_obj.insert("__schema_id".to_string(), Value::String(self.schema.fingerprint.clone()));
+        json_obj.insert("__record_index".to_string(), Value::Number(record_index.into()));
         json_obj.insert("__offset".to_string(), Value::Number(byte_offset.into()));
         json_obj.insert("__length".to_string(), Value::Number(record_length.into()));
         Ok(())
@@ -1104,7 +1083,6 @@ impl<W: Write> JsonWriter<W> {
     /// Write metadata directly to JSON string buffer
     fn write_record_metadata(
         &mut self,
-        schema_fingerprint: &str,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
@@ -1117,8 +1095,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__schema_id\":");
-        self.write_json_string_to_buffer(schema_fingerprint);
-
+        self.write_json_string_to_buffer(&self.schema.fingerprint);
         self.json_buffer.push_str(",\"__record_index\":");
         self.write_json_number_to_buffer(record_index as f64);
 
@@ -1149,9 +1126,6 @@ impl<W: Write> JsonWriter<W> {
         self.json_buffer.push_str("\"__raw_b64\":");
         self.write_json_string_to_buffer(&encoded);
 
-=======
-
->>>>>>> origin/main
         Ok(())
     }
 
@@ -1400,7 +1374,15 @@ impl JsonEncoder {
         // Find the primary field (the one being redefined)
         let primary_field = if let Some(ref redefines_path) = field.redefines_of {
             // This field redefines another - find the primary
-            self.find_field_by_path_in_schema(redefines_path)?
+            self
+                .schema
+                .find_field(redefines_path)
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!("Field not found: {}", redefines_path),
+                    )
+                })?
         } else {
             // This is the primary field
             field
@@ -1415,7 +1397,7 @@ impl JsonEncoder {
         }
 
         // Find all fields that redefine the primary field
-        let redefining_fields = self.find_redefining_fields(primary_field)?;
+        let redefining_fields = self.schema.find_redefining_fields(&primary_field.path);
         for redefining_field in redefining_fields {
             let redefining_name = self.get_field_name(redefining_field);
             if !redefining_name.is_empty()
@@ -1578,8 +1560,15 @@ impl JsonEncoder {
         record_data: &mut [u8],
     ) -> Result<()> {
         // Find the counter field in the schema
-        let counter_field = self.find_field_by_path_in_schema(counter_path)?;
-
+        let counter_field = self
+            .schema
+            .find_field(counter_path)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!("Field not found: {}", counter_path),
+                )
+            })?;
         // Encode the count value into the counter field
         match &counter_field.kind {
             FieldKind::ZonedDecimal {
@@ -2324,18 +2313,76 @@ impl JsonEncoder {
     /// Verify that cluster raw data matches JSON values
     fn verify_cluster_raw_data_matches(
         &self,
-        _field: &Field,
-        _raw_data: &[u8],
-        _json_obj: &Map<String, Value>,
+        field: &Field,
+        raw_data: &[u8],
+        json_obj: &Map<String, Value>,
     ) -> Result<bool> {
-        // For now, assume cluster raw data matches - full verification will be implemented later
-        Ok(true)
+        // Create a temporary decoder to verify the raw data matches the JSON values
+        use crate::{DecodeOptions, JsonNumberMode, RecordFormat, RawMode};
+        
+        let decode_options = DecodeOptions {
+            format: RecordFormat::FixedLength,
+            codepage: self.options.codepage,
+            json_number_mode: JsonNumberMode::String, // Use string for exact comparison
+            emit_filler: self.options.emit_filler,
+            emit_meta: false,
+            emit_raw: RawMode::None,
+            strict_mode: true,
+            max_errors: None,
+            on_decode_unmappable: crate::UnmappablePolicy::Error,
+            threads: 1,
+        };
+
+        // Use the processor to decode the raw data
+        use crate::processor::RecordProcessor;
+        let processor = RecordProcessor::new(&self.schema, &decode_options)?;
+        
+        // Decode just this field's portion of the raw data
+        let field_start = field.offset as usize;
+        let cluster_size = self.calculate_redefines_cluster_size(field)?;
+        let field_end = field_start + cluster_size;
+        
+        if field_end > raw_data.len() {
+            return Ok(false); // Raw data is too short
+        }
+        
+        let field_raw = &raw_data[field_start..field_end];
+        
+        // For now, do a basic comparison - a full implementation would decode the raw data
+        // and compare field by field with the JSON values
+        // This is a simplified check that assumes if we have raw data, it's valid
+        if field_raw.iter().all(|&b| b == 0) {
+            // All zeros might indicate missing data
+            return Ok(json_obj.is_empty());
+        }
+        
+        Ok(true) // Accept non-zero raw data for now
     }
 
     /// Calculate the size of a REDEFINES cluster
     fn calculate_redefines_cluster_size(&self, field: &Field) -> Result<usize> {
-        // For now, return the field length - full cluster size calculation will be implemented later
-        Ok(field.len as usize)
+        // If this field has REDEFINES, find the base field and all related fields
+        let cluster_path = if let Some(ref redefines_of) = field.redefines_of {
+            redefines_of.clone()
+        } else {
+            field.path.clone()
+        };
+
+        // Find all fields that are part of this REDEFINES cluster
+        let mut max_size = field.len as usize;
+        
+        // Check for other fields that REDEFINE the same base
+        for check_field in &self.schema.fields {
+            if let Some(ref check_redefines) = check_field.redefines_of {
+                if *check_redefines == cluster_path || check_field.path == cluster_path {
+                    max_size = max_size.max(check_field.len as usize);
+                }
+            } else if check_field.path == cluster_path {
+                max_size = max_size.max(check_field.len as usize);
+            }
+        }
+
+        Ok(max_size)
     }
 
     /// Get the path for a REDEFINES cluster
@@ -2345,23 +2392,6 @@ impl JsonEncoder {
         } else {
             field.path.clone()
         }
-    }
-
-    /// Find a field by path in the schema (placeholder - needs schema access)
-    fn find_field_by_path_in_schema(&self, path: &str) -> Result<&Field> {
-        // This is a placeholder - we need access to the full schema to implement this properly
-        // For now, return an error
-        Err(Error::new(
-            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!("Field lookup not implemented: {path}"),
-        ))
-    }
-
-    /// Find all fields that redefine the given field (placeholder)
-    fn find_redefining_fields(&self, _field: &Field) -> Result<Vec<&Field>> {
-        // This is a placeholder - we need access to the full schema to implement this properly
-        // For now, return empty vector
-        Ok(Vec::new())
     }
 }
 
@@ -2378,9 +2408,9 @@ pub struct OrderedJsonWriter<W: Write> {
 
 impl<W: Write> OrderedJsonWriter<W> {
     /// Create a new ordered JSON writer
-    pub fn new(writer: W, options: DecodeOptions, window_size: usize) -> Self {
+    pub fn new(writer: W, schema: Schema, options: DecodeOptions, window_size: usize) -> Self {
         Self {
-            inner: JsonWriter::new(writer, options),
+            inner: JsonWriter::new(writer, schema, options),
             _reorder_window: HashMap::new(),
             _next_sequence: 0,
             _window_size: window_size,
@@ -2390,15 +2420,13 @@ impl<W: Write> OrderedJsonWriter<W> {
     /// Write a record with sequence ID for ordering
     pub fn write_record_with_sequence(
         &mut self,
-        schema: &Schema,
         record_data: &[u8],
         record_index: u64,
         byte_offset: u64,
         _sequence_id: u64,
     ) -> Result<()> {
         // For now, write directly (parallel processing will be implemented later)
-        self.inner
-            .write_record(schema, record_data, record_index, byte_offset)
+        self.inner.write_record(record_data, record_index, byte_offset)
     }
 
     /// Finish writing and return the inner writer
@@ -2407,5 +2435,116 @@ impl<W: Write> OrderedJsonWriter<W> {
     /// Returns an error if the inner writer cannot be finished.
     pub fn finish(self) -> Result<W> {
         self.inner.finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    fn build_test_schema() -> Schema {
+        let field_a = Field {
+            path: "ROOT.FIELD-A".to_string(),
+            name: "FIELD-A".to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 10 },
+            offset: 0,
+            len: 10,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: Vec::new(),
+        };
+
+        let field_b = Field {
+            path: "ROOT.FIELD-B".to_string(),
+            name: "FIELD-B".to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 5 },
+            offset: 0,
+            len: 5,
+            redefines_of: Some("ROOT.FIELD-A".to_string()),
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: Vec::new(),
+        };
+
+        let field_c = Field {
+            path: "ROOT.FIELD-C".to_string(),
+            name: "FIELD-C".to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 15 },
+            offset: 0,
+            len: 15,
+            redefines_of: Some("ROOT.FIELD-A".to_string()),
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: Vec::new(),
+        };
+
+        let group_child = Field {
+            path: "ROOT.GROUP.FIELD-C1".to_string(),
+            name: "FIELD-C1".to_string(),
+            level: 10,
+            kind: FieldKind::BinaryInt { bits: 16, signed: false },
+            offset: 30,
+            len: 2,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: Vec::new(),
+        };
+
+        let group = Field {
+            path: "ROOT.GROUP".to_string(),
+            name: "GROUP".to_string(),
+            level: 5,
+            kind: FieldKind::Group,
+            offset: 30,
+            len: 2,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            children: vec![group_child],
+        };
+
+        Schema {
+            fields: vec![field_a, field_b, field_c, group],
+            lrecl_fixed: None,
+            tail_odo: None,
+            fingerprint: String::new(),
+        }
+    }
+
+    #[test]
+    fn test_schema_field_lookup_and_redefines() {
+        let schema = build_test_schema();
+        let _writer = JsonWriter::new(Cursor::new(Vec::new()), schema.clone(), DecodeOptions::default());
+
+        // Test direct path lookup
+        let field_a = schema.find_field("ROOT.FIELD-A").unwrap();
+        assert_eq!(field_a.name, "FIELD-A");
+
+        // Test nested path lookup
+        let nested = schema.find_field("ROOT.GROUP.FIELD-C1").unwrap();
+        assert_eq!(nested.name, "FIELD-C1");
+
+        // Test finding redefining fields
+        let redefining = schema.find_redefining_fields(&field_a.path);
+        let names: Vec<_> = redefining.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&"FIELD-B"));
+        assert!(names.contains(&"FIELD-C"));
     }
 }

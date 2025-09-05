@@ -20,19 +20,6 @@ pub fn run(
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Verifying data file: {:?}", input);
 
-<<<<<<< HEAD
-    // Read and parse copybook
-    let copybook_text = fs::read_to_string(copybook)?;
-    let schema = parse_copybook(&copybook_text)?;
-
-    // Configure decode options
-    let options = DecodeOptions::new()
-        .with_format(format)
-        .with_codepage(codepage);
-
-    // Collect errors
-    let mut errors: Vec<Error> = Vec::new();
-=======
     // Read copybook file
     let copybook_text = fs::read_to_string(copybook)?;
 
@@ -44,30 +31,16 @@ pub fn run(
         .with_format(format)
         .with_codepage(codepage);
 
-    // Iterate through records, collecting errors
+    // Collect errors
     let mut errors: Vec<Error> = Vec::new();
-    let mut records: u64 = 0;
 
+    // RDW format validation
     if format == RecordFormat::RDW && schema.lrecl_fixed.is_some() {
         errors.push(Error::new(
             ErrorCode::CBKR221_RDW_UNDERFLOW,
             "RDW format specified but schema uses fixed-length records",
         ));
-    } else {
-        let mut iter = iter_records_from_file(input, &schema, &options)?;
-        while let Some(result) = iter.next() {
-            records += 1;
-            if let Err(e) = result {
-                errors.push(e.with_record(records));
-            }
-        }
     }
-
-    println!("=== Verify Summary ===");
-    println!("Records processed: {}", records);
-    println!("Records with errors: {}", errors.len());
-    println!("Warnings: 0");
->>>>>>> origin/main
 
     // Basic file-level validation for fixed records
     if format == RecordFormat::Fixed {
@@ -109,35 +82,13 @@ pub fn run(
         let errors_json: Vec<_> = errors
             .iter()
             .map(|e| {
-<<<<<<< HEAD
-                let mut obj = json!({
-=======
                 let mut obj = serde_json::json!({
->>>>>>> origin/main
                     "code": format!("{}", e.code),
                     "message": e.message,
                 });
                 if let Some(ctx) = &e.context {
                     let mut ctx_map = serde_json::Map::new();
                     if let Some(r) = ctx.record_index {
-<<<<<<< HEAD
-                        ctx_map.insert("record".into(), json!(r));
-                    }
-                    if let Some(f) = &ctx.field_path {
-                        ctx_map.insert("field".into(), json!(f));
-                    }
-                    if let Some(b) = ctx.byte_offset {
-                        ctx_map.insert("byte".into(), json!(b));
-                    }
-                    if let Some(l) = ctx.line_number {
-                        ctx_map.insert("line".into(), json!(l));
-                    }
-                    if let Some(d) = &ctx.details {
-                        ctx_map.insert("details".into(), json!(d));
-                    }
-                    if let Some(obj_map) = obj.as_object_mut() {
-                        obj_map.insert("context".into(), serde_json::Value::Object(ctx_map));
-=======
                         ctx_map.insert("record".to_string(), serde_json::json!(r));
                     }
                     if let Some(f) = &ctx.field_path {
@@ -154,64 +105,63 @@ pub fn run(
                     }
                     if let Some(obj_map) = obj.as_object_mut() {
                         obj_map.insert("context".to_string(), serde_json::Value::Object(ctx_map));
->>>>>>> origin/main
                     }
                 }
                 obj
             })
             .collect();
 
-<<<<<<< HEAD
-        let report_json = json!({
-            "file": input,
-            "format": format,
-            "codepage": codepage,
-=======
         let report_json = serde_json::json!({
             "file": input,
             "format": format,
             "codepage": codepage,
-            "records": records,
->>>>>>> origin/main
+            "records": iter.current_record_index(),
             "errors": errors_json,
             "warnings": Vec::<serde_json::Value>::new(),
         });
 
-<<<<<<< HEAD
-        let content = serde_json::to_string_pretty(&report_json)?;
-        atomic_write(report_path, |writer| writer.write_all(content.as_bytes()))?;
-    }
-
-    let exit_code = determine_exit_code(false, !errors.is_empty());
-    info!("Verify completed: {} errors", errors.len());
-=======
         let report_content = serde_json::to_vec_pretty(&report_json)?;
         atomic_write(report_path, |writer| {
             std::io::Write::write_all(writer, &report_content)
         })?;
     }
 
-    info!("Verify completed successfully");
+    info!("Verify completed: {} errors", errors.len());
     let exit_code = determine_exit_code(false, !errors.is_empty());
->>>>>>> origin/main
     Ok(exit_code)
 }
 
 #[cfg(test)]
 mod tests {
-<<<<<<< HEAD
-    use std::fs;
-    
-    use serde_json::json;
-    use tempfile::tempdir;
-    
+    use super::*;
     use copybook_codec::{EncodeOptions, encode_record};
     use copybook_core::parse_copybook;
-    
-    use super::*;
+    use serde_json::json;
+    use std::fs;
+    use tempfile::tempdir;
 
     fn sample_copybook() -> &'static str {
         "01 RECORD.\n   05 FIELD-A PIC X(5).\n   05 FIELD-B PIC X(5)."
+    }
+
+    #[test]
+    fn test_verify_success() {
+        let dir = tempdir().unwrap();
+        let copybook_path = dir.path().join("schema.cpy");
+        let data_path = dir.path().join("data.bin");
+
+        fs::write(&copybook_path, "01 RECORD.\n   05 FIELD1 PIC X(3).\n").unwrap();
+        fs::write(&data_path, b"ABC").unwrap();
+
+        let code = run(
+            &copybook_path,
+            &data_path,
+            None,
+            RecordFormat::Fixed,
+            Codepage::ASCII,
+        )
+        .unwrap();
+        assert_eq!(code, 0);
     }
 
     #[test]
@@ -234,30 +184,10 @@ mod tests {
             &copybook_path,
             &data_path,
             Some(report_path.clone()),
-=======
-    use super::*;
-    use std::fs;
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_verify_success() {
-        let dir = tempdir().unwrap();
-        let copybook_path = dir.path().join("schema.cpy");
-        let data_path = dir.path().join("data.bin");
-
-        fs::write(&copybook_path, "01 RECORD.\n   05 FIELD1 PIC X(3).\n").unwrap();
-        fs::write(&data_path, b"ABC").unwrap();
-
-        let code = run(
-            &copybook_path,
-            &data_path,
-            None,
->>>>>>> origin/main
             RecordFormat::Fixed,
             Codepage::ASCII,
         )
         .unwrap();
-<<<<<<< HEAD
 
         assert_eq!(exit, 0);
         let report: serde_json::Value =
@@ -289,9 +219,7 @@ mod tests {
         assert_eq!(exit, 1);
         let report: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(report_path).unwrap()).unwrap();
-        assert!(report["errors"].as_array().unwrap().len() > 0);
-=======
-        assert_eq!(code, 0);
+        assert!(!report["errors"].as_array().unwrap().is_empty());
     }
 
     #[test]
@@ -313,6 +241,5 @@ mod tests {
         )
         .unwrap();
         assert_eq!(code, 1);
->>>>>>> origin/main
     }
 }

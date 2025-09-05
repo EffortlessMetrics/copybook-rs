@@ -169,20 +169,226 @@ impl fmt::Display for RunSummary {
 /// # Errors
 ///
 /// Returns an error if the data cannot be decoded according to the schema
-pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // For now, return a minimal JSON object. A full implementation would decode
-    // all fields according to the schema.
+pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
     let mut json_obj = serde_json::Map::new();
-    json_obj.insert(
-        "__record_length".to_string(),
-        Value::Number(serde_json::Number::from(data.len())),
-    );
-    json_obj.insert(
-        "__schema_fields".to_string(),
-        Value::Number(serde_json::Number::from(schema.fields.len())),
-    );
-    json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
+    process_fields(&schema.fields, data, &mut json_obj, options, 0)?;
+
+    if options.emit_meta {
+        json_obj.insert(
+            "__schema_id".to_string(),
+            Value::String(schema.fingerprint.clone()),
+        );
+        json_obj.insert(
+            "__length".to_string(),
+            Value::Number(serde_json::Number::from(data.len() as u64)),
+        );
+    }
+
     Ok(Value::Object(json_obj))
+}
+
+/// Recursively process a list of fields
+fn process_fields(
+    fields: &[Field],
+    data: &[u8],
+    json_obj: &mut serde_json::Map<String, Value>,
+    options: &DecodeOptions,
+    delta: usize,
+) -> Result<()> {
+    for field in fields {
+        process_field(field, data, json_obj, options, delta)?;
+    }
+    Ok(())
+}
+
+/// Process a single field
+fn process_field(
+    field: &Field,
+    data: &[u8],
+    json_obj: &mut serde_json::Map<String, Value>,
+    options: &DecodeOptions,
+    delta: usize,
+) -> Result<()> {
+    match &field.kind {
+        FieldKind::Group => {
+            if field.level == 1 && field.redefines_of.is_none() {
+                // Root group - inline children
+                process_fields(&field.children, data, json_obj, options, delta)?;
+            } else if let Some(name) = get_field_name(field, options) {
+                if let Some(occurs) = &field.occurs {
+                    let array = process_group_array(field, data, occurs, options, delta)?;
+                    json_obj.insert(name, array);
+                } else {
+                    let mut group_obj = serde_json::Map::new();
+                    process_fields(&field.children, data, &mut group_obj, options, delta)?;
+                    json_obj.insert(name, Value::Object(group_obj));
+                }
+            }
+        }
+        _ => {
+            if let Some(name) = get_field_name(field, options) {
+                if let Some(occurs) = &field.occurs {
+                    let array = process_scalar_array(field, data, occurs, options, delta)?;
+                    json_obj.insert(name, array);
+                } else {
+                    let value = decode_scalar_field(field, data, options, delta)?;
+                    json_obj.insert(name, value);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Process a group field with OCCURS
+fn process_group_array(
+    field: &Field,
+    data: &[u8],
+    occurs: &Occurs,
+    options: &DecodeOptions,
+    delta: usize,
+) -> Result<Value> {
+    let count = match occurs {
+        Occurs::Fixed { count } => *count as usize,
+        Occurs::ODO { max, .. } => *max as usize,
+    };
+    let mut array = Vec::new();
+    let element_size = field.len as usize;
+    for i in 0..count {
+        let mut obj = serde_json::Map::new();
+        process_fields(
+            &field.children,
+            data,
+            &mut obj,
+            options,
+            delta + i * element_size,
+        )?;
+        array.push(Value::Object(obj));
+    }
+    Ok(Value::Array(array))
+}
+
+/// Process a scalar field with OCCURS
+fn process_scalar_array(
+    field: &Field,
+    data: &[u8],
+    occurs: &Occurs,
+    options: &DecodeOptions,
+    delta: usize,
+) -> Result<Value> {
+    let count = match occurs {
+        Occurs::Fixed { count } => *count as usize,
+        Occurs::ODO { max, .. } => *max as usize,
+    };
+    let mut array = Vec::new();
+    let element_size = field.len as usize / count.max(1);
+    for i in 0..count {
+        let mut element_field = field.clone();
+        element_field.offset = field.offset + (i as u32 * element_size as u32);
+        element_field.len = element_size as u32;
+        element_field.occurs = None;
+        let value = decode_scalar_field(&element_field, data, options, delta)?;
+        array.push(value);
+    }
+    Ok(Value::Array(array))
+}
+
+/// Decode a scalar field value
+fn decode_scalar_field(
+    field: &Field,
+    data: &[u8],
+    options: &DecodeOptions,
+    delta: usize,
+) -> Result<Value> {
+    let start = field.offset as usize + delta;
+    let end = start + field.len as usize;
+    if end > data.len() {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!("Field {} extends beyond record boundary", field.path),
+        ));
+    }
+    let field_data = &data[start..end];
+
+    match &field.kind {
+        FieldKind::Alphanum { .. } => {
+            let text = crate::charset::ebcdic_to_utf8(
+                field_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            Ok(Value::String(text))
+        }
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal = crate::numeric::decode_zoned_decimal(
+                field_data,
+                *digits,
+                *scale,
+                *signed,
+                options.codepage,
+                field.blank_when_zero,
+            )?;
+            let decimal_str = decimal.to_fixed_scale_string(*scale);
+            if options.json_number_mode.is_native() {
+                if let Ok(num) = decimal_str.parse::<f64>() {
+                    if let Some(json_num) = serde_json::Number::from_f64(num) {
+                        return Ok(Value::Number(json_num));
+                    }
+                }
+            }
+            Ok(Value::String(decimal_str))
+        }
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal =
+                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
+            let decimal_str = decimal.to_fixed_scale_string(*scale);
+            if options.json_number_mode.is_native() {
+                if let Ok(num) = decimal_str.parse::<f64>() {
+                    if let Some(json_num) = serde_json::Number::from_f64(num) {
+                        return Ok(Value::Number(json_num));
+                    }
+                }
+            }
+            Ok(Value::String(decimal_str))
+        }
+        FieldKind::BinaryInt { bits, signed } => {
+            let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+            if options.json_number_mode.is_native() {
+                Ok(Value::Number(serde_json::Number::from(int_value)))
+            } else {
+                Ok(Value::String(int_value.to_string()))
+            }
+        }
+        FieldKind::Group => Err(Error::new(
+            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+            format!("Group field {} processed as scalar", field.path),
+        )),
+    }
+}
+
+/// Determine the JSON field name, respecting filler emission options
+fn get_field_name(field: &Field, options: &DecodeOptions) -> Option<String> {
+    if field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_") {
+        if options.emit_filler {
+            if field.name.eq_ignore_ascii_case("FILLER") {
+                Some(format!("_filler_{:08}", field.offset))
+            } else {
+                Some(field.name.clone())
+            }
+        } else {
+            None
+        }
+    } else {
+        Some(field.name.clone())
+    }
 }
 
 fn count_bwz_warnings(fields: &[Field], data: &[u8], options: &DecodeOptions, delta: usize) -> u64 {
@@ -720,16 +926,11 @@ mod tests {
         data.extend_from_slice(b"ALICE"); // NAME
 
         let result = decode_record(&schema, &data, &options).unwrap();
-        // Note: decode_record is a stub implementation for now
-        assert_eq!(result["__record_length"], data.len());
-        assert_eq!(result["__schema_fields"], schema.fields.len());
-        assert_eq!(result["__status"], "decoded");
-        // Full field decoding would be implemented later
-        // assert_eq!(result["ID"], "123");
-        // assert_eq!(result["AMOUNT"], "123");
-        // assert_eq!(result["COUNT"], "42");
-        // assert_eq!(result["NAME"], "ALICE");
-        // assert_eq!(result["__schema_id"], schema.fingerprint);
+        assert_eq!(result["ID"], "123");
+        assert_eq!(result["AMOUNT"], "123");
+        assert_eq!(result["COUNT"], "42");
+        assert_eq!(result["NAME"], "ALICE");
+        assert_eq!(result["__schema_id"], schema.fingerprint);
     }
 
     #[test]

@@ -295,6 +295,25 @@ impl Schema {
         None
     }
 
+    /// Find all fields that redefine the field at the given path
+    #[must_use]
+    pub fn find_redefining_fields(&self, path: &str) -> Vec<&Field> {
+        let mut result = Vec::new();
+        Self::collect_redefining_fields(&self.fields, path, &mut result);
+        result
+    }
+
+    fn collect_redefining_fields<'a>(fields: &'a [Field], path: &str, result: &mut Vec<&'a Field>) {
+        for field in fields {
+            if let Some(ref redefines_of) = field.redefines_of
+                && redefines_of == path
+            {
+                result.push(field);
+            }
+            Self::collect_redefining_fields(&field.children, path, result);
+        }
+    }
+
     /// Get all fields in a flat list (pre-order traversal)
     #[must_use]
     pub fn all_fields(&self) -> Vec<&Field> {

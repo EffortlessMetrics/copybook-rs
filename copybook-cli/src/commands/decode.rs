@@ -10,10 +10,10 @@ use std::path::PathBuf;
 use tracing::info;
 
 #[allow(clippy::too_many_arguments)]
-pub async fn run(
-    copybook: PathBuf,
-    input: PathBuf,
-    output: PathBuf,
+pub fn run(
+    copybook: &PathBuf,
+    input: &PathBuf,
+    output: &PathBuf,
     format: RecordFormat,
     codepage: Codepage,
     json_number: JsonNumberMode,
@@ -51,10 +51,10 @@ pub async fn run(
     let summary = {
         let mut result_summary = None;
         atomic_write(&output, |output_writer| {
-            let input_file = fs::File::open(&input)?;
+            let input_file = fs::File::open(&input).map_err(|e| std::io::Error::other(e))?;
             let summary =
                 copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
-                    .map_err(std::io::Error::other)?;
+                    .map_err(|e| std::io::Error::other(e))?;
             result_summary = Some(summary);
             Ok(())
         })?;

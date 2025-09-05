@@ -45,7 +45,7 @@ where
 ///
 /// This generates a temporary file name in the same directory as the target file
 /// with a .tmp suffix and random component.
-#[cfg(test)]
+#[allow(dead_code)]
 pub fn temp_path_for(target: &Path) -> PathBuf {
     let mut temp_name = target
         .file_name()
@@ -59,7 +59,6 @@ pub fn temp_path_for(target: &Path) -> PathBuf {
         PathBuf::from(temp_name)
     }
 }
-
 /// Determine exit code based on processing results
 ///
 /// According to the normative specification:
@@ -70,11 +69,7 @@ pub fn temp_path_for(target: &Path) -> PathBuf {
 /// This function implements the "warnings → 0; any errors → 1" part.
 /// Fatal errors (exit code 2) are handled at the main level when operations fail completely.
 pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
-    if has_errors {
-        1
-    } else {
-        0
-    }
+    i32::from(has_errors)
 }
 
 #[cfg(test)]
@@ -103,7 +98,7 @@ mod tests {
         let target_path = temp_dir.path().join("test.txt");
 
         let result = atomic_write(&target_path, |_writer| {
-            Err(io::Error::new(io::ErrorKind::Other, "Simulated error"))
+            Err(io::Error::other("Simulated error"))
         });
 
         assert!(result.is_err());

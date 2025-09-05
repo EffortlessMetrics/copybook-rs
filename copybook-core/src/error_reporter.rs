@@ -6,7 +6,7 @@
 use crate::error::{Error, ErrorCode};
 use std::collections::HashMap;
 use std::fmt;
-use tracing::{error, warn, debug};
+use tracing::{debug, error, warn};
 
 /// Error handling mode configuration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,6 +76,7 @@ pub struct ErrorReporter {
 
 impl ErrorReporter {
     /// Create a new error reporter with the specified mode
+    #[must_use]
     pub fn new(mode: ErrorMode, max_errors: Option<u64>) -> Self {
         Self {
             mode,
@@ -86,14 +87,23 @@ impl ErrorReporter {
     }
 
     /// Set verbose logging mode
+    #[must_use]
     pub fn with_verbose_logging(mut self, verbose: bool) -> Self {
         self.verbose_logging = verbose;
         self
     }
 
     /// Report an error and determine if processing should continue
-    /// 
+    ///
     /// Returns `Ok(())` if processing should continue, `Err(error)` if it should stop
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the maximum error limit has been reached or the error is critical
+    ///
+    /// # Panics
+    ///
+    /// Panics if `max_errors` is set but somehow becomes None during processing (should not happen)
     pub fn report_error(&mut self, error: Error) -> Result<(), Error> {
         let severity = self.determine_severity(&error);
         let report = ErrorReport {
@@ -110,7 +120,11 @@ impl ErrorReporter {
                 if self.mode == ErrorMode::Strict {
                     false
                 } else if let Some(max) = self.max_errors {
-                    let current_error_count = self.summary.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0);
+                    let current_error_count = self
+                        .summary
+                        .error_counts
+                        .get(&ErrorSeverity::Error)
+                        .unwrap_or(&0);
                     *current_error_count < max
                 } else {
                     true
@@ -131,7 +145,7 @@ impl ErrorReporter {
         } else if matches!(severity, ErrorSeverity::Error) && self.max_errors.is_some() {
             Err(Error::new(
                 ErrorCode::CBKS141_RECORD_TOO_LARGE, // Reusing for "too many errors"
-                format!("Maximum error limit reached: {}", self.max_errors.unwrap())
+                format!("Maximum error limit reached: {}", self.max_errors.unwrap()),
             ))
         } else {
             Err(error)
@@ -148,9 +162,11 @@ impl ErrorReporter {
         };
 
         // Check for transfer corruption patterns
-        if self.is_corruption_warning(&report.error) {
+        if Self::is_corruption_warning(&report.error) {
             self.summary.corruption_warnings += 1;
-            report.metadata.insert("corruption_type".to_string(), "transfer".to_string());
+            report
+                .metadata
+                .insert("corruption_type".to_string(), "transfer".to_string());
         }
 
         self.update_statistics(&report);
@@ -164,40 +180,77 @@ impl ErrorReporter {
     }
 
     /// Get the current error summary
+    #[must_use]
     pub fn summary(&self) -> &ErrorSummary {
         &self.summary
     }
 
     /// Check if any errors have been reported
+    #[must_use]
     pub fn has_errors(&self) -> bool {
-        self.summary.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0) > &0
-            || self.summary.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0) > &0
+        self.summary
+            .error_counts
+            .get(&ErrorSeverity::Error)
+            .unwrap_or(&0)
+            > &0
+            || self
+                .summary
+                .error_counts
+                .get(&ErrorSeverity::Fatal)
+                .unwrap_or(&0)
+                > &0
     }
 
     /// Check if any warnings have been reported
+    #[must_use]
     pub fn has_warnings(&self) -> bool {
-        self.summary.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0) > &0
+        self.summary
+            .error_counts
+            .get(&ErrorSeverity::Warning)
+            .unwrap_or(&0)
+            > &0
     }
 
     /// Get total error count (excluding warnings)
+    #[must_use]
     pub fn error_count(&self) -> u64 {
-        self.summary.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0)
-            + self.summary.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0)
+        self.summary
+            .error_counts
+            .get(&ErrorSeverity::Error)
+            .unwrap_or(&0)
+            + self
+                .summary
+                .error_counts
+                .get(&ErrorSeverity::Fatal)
+                .unwrap_or(&0)
     }
 
     /// Get total warning count
+    #[must_use]
     pub fn warning_count(&self) -> u64 {
-        *self.summary.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0)
+        *self
+            .summary
+            .error_counts
+            .get(&ErrorSeverity::Warning)
+            .unwrap_or(&0)
     }
 
     /// Generate a detailed error report for display
+    #[must_use]
+    #[allow(clippy::format_push_string, clippy::uninlined_format_args)]
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        
+
         report.push_str("=== Error Summary ===\n");
-        report.push_str(&format!("Total records processed: {}\n", self.summary.total_records));
-        report.push_str(&format!("Records with errors: {}\n", self.summary.records_with_errors));
-        
+        report.push_str(&format!(
+            "Total records processed: {}\n",
+            self.summary.total_records
+        ));
+        report.push_str(&format!(
+            "Records with errors: {}\n",
+            self.summary.records_with_errors
+        ));
+
         if !self.summary.error_counts.is_empty() {
             report.push_str("\nError counts by severity:\n");
             for (severity, count) in &self.summary.error_counts {
@@ -217,7 +270,10 @@ impl ErrorReporter {
         }
 
         if self.summary.corruption_warnings > 0 {
-            report.push_str(&format!("\nTransfer corruption warnings: {}\n", self.summary.corruption_warnings));
+            report.push_str(&format!(
+                "\nTransfer corruption warnings: {}\n",
+                self.summary.corruption_warnings
+            ));
         }
 
         if let Some(ref first_error) = self.summary.first_error {
@@ -228,6 +284,7 @@ impl ErrorReporter {
     }
 
     /// Determine error severity based on error code
+    #[allow(clippy::match_same_arms)]
     fn determine_severity(&self, error: &Error) -> ErrorSeverity {
         match error.code {
             // Parse errors are typically fatal
@@ -237,12 +294,12 @@ impl ErrorReporter {
             | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
 
             // Schema errors can be fatal or errors depending on context
-            ErrorCode::CBKS121_COUNTER_NOT_FOUND
-            | ErrorCode::CBKS141_RECORD_TOO_LARGE => ErrorSeverity::Fatal,
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND | ErrorCode::CBKS141_RECORD_TOO_LARGE => {
+                ErrorSeverity::Fatal
+            }
 
             // ODO clipping is a warning in lenient mode, error in strict mode
-            ErrorCode::CBKS301_ODO_CLIPPED
-            | ErrorCode::CBKS302_ODO_RAISED => {
+            ErrorCode::CBKS301_ODO_CLIPPED | ErrorCode::CBKS302_ODO_RAISED => {
                 if self.mode == ErrorMode::Strict {
                     ErrorSeverity::Fatal
                 } else {
@@ -273,8 +330,9 @@ impl ErrorReporter {
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => ErrorSeverity::Warning,
 
             // Encode errors
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH
-            | ErrorCode::CBKE521_ARRAY_LEN_OOB => ErrorSeverity::Error,
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE521_ARRAY_LEN_OOB => {
+                ErrorSeverity::Error
+            }
 
             // Transfer corruption warnings
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
@@ -287,19 +345,28 @@ impl ErrorReporter {
     /// Update error statistics
     fn update_statistics(&mut self, report: &ErrorReport) {
         // Update severity counts
-        *self.summary.error_counts.entry(report.severity).or_insert(0) += 1;
-        
+        *self
+            .summary
+            .error_counts
+            .entry(report.severity)
+            .or_insert(0) += 1;
+
         // Update error code counts
-        *self.summary.error_codes.entry(report.error.code).or_insert(0) += 1;
+        *self
+            .summary
+            .error_codes
+            .entry(report.error.code)
+            .or_insert(0) += 1;
 
         // Track records with errors
         if matches!(report.severity, ErrorSeverity::Error | ErrorSeverity::Fatal)
             && let Some(ref context) = report.error.context
             && let Some(record_index) = context.record_index
-            && self.summary.records_with_errors < record_index
         {
             // Only count each record once
-            self.summary.records_with_errors = record_index;
+            if self.summary.records_with_errors < record_index {
+                self.summary.records_with_errors = record_index;
+            }
         }
 
         // Track first and last errors
@@ -336,10 +403,10 @@ impl ErrorReporter {
     }
 
     /// Check if error indicates transfer corruption
-    fn is_corruption_warning(&self, error: &Error) -> bool {
-        matches!(error.code, 
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII |
-            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE
+    fn is_corruption_warning(error: &Error) -> bool {
+        matches!(
+            error.code,
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII | ErrorCode::CBKC301_INVALID_EBCDIC_BYTE
         )
     }
 }
@@ -387,7 +454,7 @@ mod tests {
     #[test]
     fn test_error_reporter_strict_mode() {
         let mut reporter = ErrorReporter::new(ErrorMode::Strict, None);
-        
+
         let error = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "Invalid nibble")
             .with_record(1)
             .with_field("CUSTOMER.ID")
@@ -403,7 +470,7 @@ mod tests {
     #[test]
     fn test_error_reporter_lenient_mode() {
         let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
-        
+
         let error = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "Invalid nibble")
             .with_record(1)
             .with_field("CUSTOMER.ID")
@@ -419,11 +486,11 @@ mod tests {
     #[test]
     fn test_max_errors_limit() {
         let mut reporter = ErrorReporter::new(ErrorMode::Lenient, Some(1));
-        
+
         // First error should be OK
         let error1 = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "Error 1");
         assert!(reporter.report_error(error1).is_ok());
-        
+
         // Second error should stop processing (we've reached the limit)
         let error2 = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Error 2");
         assert!(reporter.report_error(error2).is_err());
@@ -432,10 +499,10 @@ mod tests {
     #[test]
     fn test_warning_reporting() {
         let mut reporter = ErrorReporter::new(ErrorMode::Strict, None);
-        
+
         let warning = Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "Blank field");
         reporter.report_warning(warning);
-        
+
         assert!(!reporter.has_errors());
         assert!(reporter.has_warnings());
         assert_eq!(reporter.warning_count(), 1);
@@ -444,22 +511,25 @@ mod tests {
     #[test]
     fn test_corruption_detection() {
         let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
-        
-        let corruption_error = Error::new(ErrorCode::CBKF104_RDW_SUSPECT_ASCII, "ASCII corruption detected");
+
+        let corruption_error = Error::new(
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            "ASCII corruption detected",
+        );
         reporter.report_warning(corruption_error);
-        
+
         assert_eq!(reporter.summary().corruption_warnings, 1);
     }
 
     #[test]
     fn test_error_summary_generation() {
         let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
-        
+
         reporter.start_record(1);
-        let error = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "Test error")
-            .with_record(1);
+        let error =
+            Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "Test error").with_record(1);
         let _ = reporter.report_error(error);
-        
+
         let report = reporter.generate_report();
         assert!(report.contains("Total records processed: 1"));
         assert!(report.contains("CBKD401_COMP3_INVALID_NIBBLE: 1"));

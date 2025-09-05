@@ -295,7 +295,21 @@ impl Schema {
         None
     }
 
-    /// Collect all fields that redefine the field at `target_path`
+    /// Find all fields that redefine the field at the given path
+    ///
+    /// This method searches the entire schema tree to locate all fields that have
+    /// a `redefines_of` attribute matching the specified path. This is particularly
+    /// useful for JSON encoding operations where REDEFINES fields need to be
+    /// identified and processed according to COBOL precedence rules.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path of the field being redefined (e.g., "CUSTOMER.ADDRESS")
+    ///
+    /// # Returns
+    ///
+    /// A vector of field references that redefine the field at the given path.
+    /// Returns an empty vector if no redefining fields are found.
     #[must_use]
     pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field> {
         fn collect<'a>(fields: &'a [Field], target_path: &str, acc: &mut Vec<&'a Field>) {
@@ -313,7 +327,6 @@ impl Schema {
         collect(&self.fields, target_path, &mut result);
         result
     }
-
     /// Get all fields in a flat list (pre-order traversal)
     #[must_use]
     pub fn all_fields(&self) -> Vec<&Field> {

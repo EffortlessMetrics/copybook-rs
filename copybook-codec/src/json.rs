@@ -1168,7 +1168,7 @@ impl JsonEncoder {
 
         // Process fields in schema order
         if let Value::Object(obj) = json {
-            self.encode_fields_recursive(&schema.fields, obj, &mut record_data)?;
+            self.encode_fields_recursive(schema, &schema.fields, obj, &mut record_data)?;
         } else {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -1228,12 +1228,13 @@ impl JsonEncoder {
     /// Encode fields recursively
     fn encode_fields_recursive(
         &self,
+        schema: &Schema,
         fields: &[Field],
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
     ) -> Result<()> {
         for field in fields {
-            self.encode_single_field(field, json_obj, record_data)?;
+            self.encode_single_field(schema, field, json_obj, record_data)?;
         }
         Ok(())
     }
@@ -1241,6 +1242,7 @@ impl JsonEncoder {
     /// Encode a single field
     fn encode_single_field(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1254,24 +1256,29 @@ impl JsonEncoder {
 
         // Handle REDEFINES: implement precedence rules (NORMATIVE)
         if field.redefines_of.is_some() {
-            return self.encode_redefines_field(field, json_obj, record_data);
+            return self.encode_redefines_field(schema, field, json_obj, record_data);
         }
 
         match &field.kind {
             FieldKind::Group => {
                 if let Some(occurs) = &field.occurs {
-                    self.encode_group_array(field, json_obj, record_data, occurs)?;
+                    self.encode_group_array(schema, field, json_obj, record_data, occurs)?;
                 } else {
                     // Single group - process children
                     if let Some(Value::Object(group_obj)) = json_obj.get(&field_name) {
-                        self.encode_fields_recursive(&field.children, group_obj, record_data)?;
+                        self.encode_fields_recursive(
+                            schema,
+                            &field.children,
+                            group_obj,
+                            record_data,
+                        )?;
                     }
                 }
             }
             _ => {
                 // Scalar field
                 if let Some(occurs) = &field.occurs {
-                    self.encode_scalar_array(field, json_obj, record_data, occurs)?;
+                    self.encode_scalar_array(schema, field, json_obj, record_data, occurs)?;
                 } else if let Some(field_value) = json_obj.get(&field_name) {
                     self.encode_scalar_field(field, field_value, record_data)?;
                 }
@@ -1284,6 +1291,7 @@ impl JsonEncoder {
     /// Encode REDEFINES field with precedence rules (NORMATIVE)
     fn encode_redefines_field(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1325,7 +1333,7 @@ impl JsonEncoder {
         }
 
         // Step 2: Find all views in the REDEFINES cluster
-        let cluster_views = self.find_redefines_cluster_views(field, json_obj)?;
+        let cluster_views = self.find_redefines_cluster_views(schema, field, json_obj)?;
         let non_null_views: Vec<_> = cluster_views
             .iter()
             .filter(|(_, value)| !value.is_null())
@@ -1346,7 +1354,7 @@ impl JsonEncoder {
                 let (view_field, view_value) = non_null_views[0];
                 let mut temp_obj = Map::new();
                 temp_obj.insert(view_field.name.clone(), (*view_value).clone());
-                self.encode_single_field(view_field, &temp_obj, record_data)
+                self.encode_single_field(schema, view_field, &temp_obj, record_data)
             }
             _ => {
                 // Multiple non-null views - ambiguous (NORMATIVE)
@@ -1366,6 +1374,7 @@ impl JsonEncoder {
     /// Find all views in a REDEFINES cluster
     fn find_redefines_cluster_views<'a>(
         &'a self,
+        schema: &'a Schema,
         field: &'a Field,
         json_obj: &'a Map<String, Value>,
     ) -> Result<Vec<(&'a Field, &'a Value)>> {
@@ -1413,6 +1422,7 @@ impl JsonEncoder {
     /// Encode group array
     fn encode_group_array(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1427,6 +1437,7 @@ impl JsonEncoder {
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
                 self.update_odo_counter(
+                    schema,
                     counter_path,
                     u32::try_from(array.len()).map_err(|_| {
                         Error::new(
@@ -1459,6 +1470,7 @@ impl JsonEncoder {
                     element_field.occurs = None;
 
                     self.encode_fields_recursive(
+                        schema,
                         &element_field.children,
                         element_obj,
                         record_data,
@@ -1473,6 +1485,7 @@ impl JsonEncoder {
     /// Encode scalar array
     fn encode_scalar_array(
         &self,
+        schema: &Schema,
         field: &Field,
         json_obj: &Map<String, Value>,
         record_data: &mut [u8],
@@ -1487,6 +1500,7 @@ impl JsonEncoder {
             // Update ODO counter if needed
             if let Occurs::ODO { counter_path, .. } = occurs {
                 self.update_odo_counter(
+                    schema,
                     counter_path,
                     u32::try_from(array.len()).map_err(|_| {
                         Error::new(
@@ -1554,6 +1568,7 @@ impl JsonEncoder {
     /// Update ODO counter field
     fn update_odo_counter(
         &self,
+        schema: &Schema,
         counter_path: &str,
         count: u32,
         _json_obj: &Map<String, Value>,

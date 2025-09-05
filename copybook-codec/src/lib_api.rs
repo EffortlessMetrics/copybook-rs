@@ -8,7 +8,9 @@
 //! - `encode_jsonl_to_file`
 //! - `RecordIterator` (for programmatic access)
 
-use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
+use crate::options::{
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+};
 use crate::record::{FixedRecordReader, RDWRecordReader};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::Value;
@@ -169,20 +171,178 @@ impl fmt::Display for RunSummary {
 /// # Errors
 ///
 /// Returns an error if the data cannot be decoded according to the schema
-pub fn decode_record(schema: &Schema, data: &[u8], _options: &DecodeOptions) -> Result<Value> {
-    // For now, return a minimal JSON object. A full implementation would decode
-    // all fields according to the schema.
+pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
     let mut json_obj = serde_json::Map::new();
-    json_obj.insert(
-        "__record_length".to_string(),
-        Value::Number(serde_json::Number::from(data.len())),
-    );
-    json_obj.insert(
-        "__schema_fields".to_string(),
-        Value::Number(serde_json::Number::from(schema.fields.len())),
-    );
-    json_obj.insert("__status".to_string(), Value::String("decoded".to_string()));
+
+    for field in &schema.fields {
+        decode_field(field, data, options, 0, &mut json_obj)?;
+    }
+
+    if options.emit_meta {
+        json_obj.insert(
+            "__schema_id".to_string(),
+            Value::String(schema.fingerprint.clone()),
+        );
+        json_obj.insert("__length".to_string(), Value::Number(data.len().into()));
+    }
+
+    if matches!(options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
+        use base64::{Engine as _, engine::general_purpose};
+        let encoded = general_purpose::STANDARD.encode(data);
+        json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
+    }
+
     Ok(Value::Object(json_obj))
+}
+
+fn decode_field(
+    field: &Field,
+    data: &[u8],
+    options: &DecodeOptions,
+    delta: usize,
+    out: &mut serde_json::Map<String, Value>,
+) -> Result<()> {
+    match &field.kind {
+        FieldKind::Group => {
+            if let Some(occurs) = &field.occurs {
+                let count = match occurs {
+                    Occurs::Fixed { count } => *count as usize,
+                    Occurs::ODO { max, .. } => *max as usize,
+                };
+                let mut arr = Vec::with_capacity(count);
+                for i in 0..count {
+                    let mut obj = serde_json::Map::new();
+                    for child in &field.children {
+                        decode_field(
+                            child,
+                            data,
+                            options,
+                            delta + i * field.len as usize,
+                            &mut obj,
+                        )?;
+                    }
+                    arr.push(Value::Object(obj));
+                }
+                out.insert(field.name.clone(), Value::Array(arr));
+            } else {
+                let mut obj = serde_json::Map::new();
+                for child in &field.children {
+                    decode_field(child, data, options, delta, &mut obj)?;
+                }
+                if field.level <= 1 {
+                    for (k, v) in obj {
+                        out.insert(k, v);
+                    }
+                } else {
+                    out.insert(field.name.clone(), Value::Object(obj));
+                }
+            }
+        }
+        _ => {
+            if let Some(occurs) = &field.occurs {
+                let count = match occurs {
+                    Occurs::Fixed { count } => *count as usize,
+                    Occurs::ODO { max, .. } => *max as usize,
+                };
+                let element_size = field.len as usize / count.max(1);
+                let mut arr = Vec::with_capacity(count);
+                for i in 0..count {
+                    let offset = field.offset as usize + delta + i * element_size;
+                    if offset + element_size > data.len() {
+                        return Err(Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            format!("Field {} exceeds record boundary", field.name),
+                        ));
+                    }
+                    let slice = &data[offset..offset + element_size];
+                    arr.push(decode_leaf(field, slice, options)?);
+                }
+                out.insert(field.name.clone(), Value::Array(arr));
+            } else {
+                let offset = field.offset as usize + delta;
+                if offset + field.len as usize > data.len() {
+                    return Err(Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        format!("Field {} exceeds record boundary", field.name),
+                    ));
+                }
+                let slice = &data[offset..offset + field.len as usize];
+                let value = decode_leaf(field, slice, options)?;
+                out.insert(field.name.clone(), value);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn decode_leaf(field: &Field, slice: &[u8], options: &DecodeOptions) -> Result<Value> {
+    match field.kind {
+        FieldKind::Alphanum { .. } => {
+            let text = crate::charset::ebcdic_to_utf8(
+                slice,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            Ok(Value::String(text))
+        }
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let dec = crate::numeric::decode_zoned_decimal(
+                slice,
+                digits,
+                scale,
+                signed,
+                options.codepage,
+                field.blank_when_zero,
+            )?;
+            decimal_to_value(dec, scale, options)
+        }
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let dec = crate::numeric::decode_packed_decimal(slice, digits, scale, signed)?;
+            decimal_to_value(dec, scale, options)
+        }
+        FieldKind::BinaryInt { bits, signed } => {
+            let int_val = crate::numeric::decode_binary_int(slice, bits, signed)?;
+            let val = match options.json_number_mode {
+                JsonNumberMode::Lossless => Value::String(int_val.to_string()),
+                JsonNumberMode::Native => Value::Number(int_val.into()),
+            };
+            Ok(val)
+        }
+        FieldKind::Group => unreachable!(),
+    }
+}
+
+fn decimal_to_value(
+    dec: crate::numeric::SmallDecimal,
+    scale: i16,
+    options: &DecodeOptions,
+) -> Result<Value> {
+    let s = dec.to_fixed_scale_string(scale);
+    match options.json_number_mode {
+        JsonNumberMode::Lossless => Ok(Value::String(s)),
+        JsonNumberMode::Native => {
+            if scale == 0 {
+                let mut v = dec.value;
+                if dec.negative {
+                    v = -v;
+                }
+                Ok(Value::Number(v.into()))
+            } else {
+                match s.parse::<f64>().ok().and_then(serde_json::Number::from_f64) {
+                    Some(n) => Ok(Value::Number(n)),
+                    None => Ok(Value::String(s)),
+                }
+            }
+        }
+    }
 }
 
 fn count_bwz_warnings(fields: &[Field], data: &[u8], options: &DecodeOptions, delta: usize) -> u64 {
@@ -698,16 +858,12 @@ mod tests {
         data.extend_from_slice(b"ALICE"); // NAME
 
         let result = decode_record(&schema, &data, &options).unwrap();
-        // Note: decode_record is a stub implementation for now
-        assert_eq!(result["__record_length"], data.len());
-        assert_eq!(result["__schema_fields"], schema.fields.len());
-        assert_eq!(result["__status"], "decoded");
-        // Full field decoding would be implemented later
-        // assert_eq!(result["ID"], "123");
-        // assert_eq!(result["AMOUNT"], "123");
-        // assert_eq!(result["COUNT"], "42");
-        // assert_eq!(result["NAME"], "ALICE");
-        // assert_eq!(result["__schema_id"], schema.fingerprint);
+        assert_eq!(result["ID"], "123");
+        assert_eq!(result["AMOUNT"], "123");
+        assert_eq!(result["COUNT"], "42");
+        assert_eq!(result["NAME"], "ALICE");
+        assert_eq!(result["__schema_id"], schema.fingerprint);
+        assert_eq!(result["__length"], data.len());
     }
 
     #[test]

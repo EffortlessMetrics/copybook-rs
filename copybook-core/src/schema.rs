@@ -300,7 +300,9 @@ impl Schema {
     pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field> {
         fn collect<'a>(fields: &'a [Field], target_path: &str, acc: &mut Vec<&'a Field>) {
             for f in fields {
-                if let Some(ref redef) = f.redefines_of && redef == target_path {
+                if let Some(ref redef) = f.redefines_of
+                    && redef == target_path
+                {
                     acc.push(f);
                 }
                 collect(&f.children, target_path, acc);

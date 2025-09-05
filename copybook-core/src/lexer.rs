@@ -227,11 +227,11 @@ impl<'a> Lexer<'a> {
         let lines = preprocess_lines(input, format);
 
         Self {
-            _input: input,
+            input,
             format,
             lines,
-            _current_line: 0,
-            _current_pos: 0,
+            current_line: 0,
+            current_pos: 0,
         }
     }
 
@@ -392,7 +392,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.is_empty() {
         return ProcessedLine {
             content: "",
-            _original_line: line_num,
+            original_line: line_num,
             is_comment: false,
             is_continuation: false,
         };
@@ -402,7 +402,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     if line.starts_with('*') {
         return ProcessedLine {
             content: line,
-            _original_line: line_num,
+            original_line: line_num,
             is_comment: true,
             is_continuation: false,
         };
@@ -421,7 +421,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 
     ProcessedLine {
         content,
-        _original_line: line_num,
+        original_line: line_num,
         is_comment: false,
         is_continuation,
     }
@@ -437,7 +437,7 @@ fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     // Free-form doesn't have continuation in the same way as fixed-form
     ProcessedLine {
         content: line,
-        _original_line: line_num,
+        original_line: line_num,
         is_comment,
         is_continuation: false,
     }

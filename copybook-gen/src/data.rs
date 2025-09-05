@@ -57,7 +57,7 @@ fn generate_normal_record(schema: &Schema, rng: &mut StdRng, record_idx: usize) 
             continue; // Skip REDEFINES fields - data comes from base field
         }
 
-        fill_field_data(&mut record, field, rng, record_idx, false, false);
+        fill_field_data(&mut record, field, schema, rng, record_idx, false, false);
     }
 
     record
@@ -72,7 +72,7 @@ fn generate_edge_case_record(schema: &Schema, rng: &mut StdRng, record_idx: usiz
             continue;
         }
 
-        fill_field_data(&mut record, field, rng, record_idx, true, false);
+        fill_field_data(&mut record, field, schema, rng, record_idx, true, false);
     }
 
     record
@@ -87,7 +87,7 @@ fn generate_invalid_record(schema: &Schema, rng: &mut StdRng, record_idx: usize)
             continue;
         }
 
-        fill_field_data(&mut record, field, rng, record_idx, false, true);
+        fill_field_data(&mut record, field, schema, rng, record_idx, false, true);
     }
 
     record
@@ -112,6 +112,7 @@ fn generate_performance_record(schema: &Schema, _rng: &mut StdRng, record_idx: u
 fn fill_field_data(
     record: &mut [u8],
     field: &Field,
+    schema: &Schema,
     rng: &mut StdRng,
     _record_idx: usize,
     edge_cases: bool,
@@ -185,7 +186,7 @@ fn fill_field_data(
                 counter_path,
             } => {
                 // For ODO, we need to set the counter field
-                if let Some(counter_field) = find_field_by_path(field, counter_path) {
+                if let Some(counter_field) = find_field_by_path(schema, field, counter_path) {
                     let actual_count = if edge_cases {
                         if rng.gen_bool(0.5) { *min } else { *max }
                     } else {
@@ -473,10 +474,9 @@ fn ascii_to_ebcdic_approx(ascii: u8) -> u8 {
     }
 }
 
-fn find_field_by_path<'a>(_field: &'a Field, _path: &'a str) -> Option<&'a Field> {
-    // This is a simplified implementation
-    // In practice, we'd need to search the schema
-    None
+fn find_field_by_path<'a>(schema: &'a Schema, _field: &'a Field, path: &str) -> Option<&'a Field> {
+    // Use the schema's find_field method which properly resolves field paths
+    schema.find_field(path)
 }
 
 fn set_counter_field_value(record: &mut [u8], field: &Field, value: u32) {

@@ -1,9 +1,7 @@
 //! Utility functions for CLI operations
 
 use std::io::{self, Write};
-use std::path::Path;
-#[cfg(test)]
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 use tracing::debug;
 

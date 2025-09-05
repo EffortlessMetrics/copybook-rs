@@ -1294,7 +1294,7 @@ mod tests {
         // 32-bit big-endian: 0x01234567 = 19088743
         let data = vec![0x01, 0x23, 0x45, 0x67];
         let result = decode_binary_int(&data, 32, false).unwrap();
-        assert_eq!(result, 19088743);
+        assert_eq!(result, 19_088_743);
     }
 
     #[test]

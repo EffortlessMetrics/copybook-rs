@@ -138,7 +138,7 @@ fn resolve_field_layout(
         calculate_field_size_and_alignment(&field.kind, field.synchronized);
 
     // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
+    for &(cluster_start, cluster_size) in context.redefines_clusters.values() {
         let cluster_end = cluster_start + cluster_size;
         context.current_offset = context.current_offset.max(cluster_end);
     }
@@ -518,7 +518,7 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
         let mut total_size = context.current_offset;
 
         // Add the size of REDEFINES clusters (they don't advance current_offset)
-        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
+        for &(cluster_start, cluster_size) in context.redefines_clusters.values() {
             let cluster_end = cluster_start + cluster_size;
             total_size = total_size.max(cluster_end);
         }

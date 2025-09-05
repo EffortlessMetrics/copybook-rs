@@ -25,3 +25,7 @@ crossbeam-channel.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+
+[features]
+default = []
+comprehensive-tests = []

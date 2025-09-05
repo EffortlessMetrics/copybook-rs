@@ -5,7 +5,7 @@ use copybook_core::{FieldKind, Occurs, parse_copybook};
 #[test]
 fn test_comp3_parsing_debug() {
     let input = "01 BALANCE PIC S9(7)V99 COMP-3.";
-    println!("Testing input: {}", input);
+    println!("Testing input: {input}");
 
     let mut lexer = copybook_core::lexer::Lexer::new(input);
     let tokens = lexer.tokenize();
@@ -28,7 +28,7 @@ fn test_comp3_parsing_debug() {
 
 #[test]
 fn test_complex_layout_resolution() {
-    let copybook = r#"
+    let copybook = r"
 01 CUSTOMER-RECORD.
    05 CUSTOMER-ID PIC X(10).
    05 CUSTOMER-NAME.
@@ -36,8 +36,8 @@ fn test_complex_layout_resolution() {
       10 LAST-NAME PIC X(30).
    05 BALANCE PIC S9(7)V99 COMP-3.
    05 ACCOUNT-COUNT PIC 9(3).
-   05 ACCOUNTS PIC X(15) OCCURS 5 TIMES DEPENDING ON ACCOUNT-COUNT.
-"#;
+    05 ACCOUNTS PIC X(15) OCCURS 5 TIMES DEPENDING ON ACCOUNT-COUNT.
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -120,13 +120,13 @@ fn test_complex_layout_resolution() {
 
 #[test]
 fn test_synchronized_binary_alignment() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-WITH-ALIGNMENT.
    05 CHAR-FIELD PIC X(1).
    05 BINARY-FIELD PIC 9(5) USAGE COMP SYNCHRONIZED.
    05 ANOTHER-CHAR PIC X(3).
-   05 ANOTHER-BINARY PIC 9(9) USAGE COMP SYNCHRONIZED.
-"#;
+    05 ANOTHER-BINARY PIC 9(9) USAGE COMP SYNCHRONIZED.
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -164,12 +164,12 @@ fn test_synchronized_binary_alignment() {
 
 #[test]
 fn test_redefines_with_different_sizes() {
-    let copybook = r#"
+    let copybook = r"
 01 ORIGINAL-FIELD PIC X(20).
 01 SHORT-REDEFINES REDEFINES ORIGINAL-FIELD PIC 9(10).
 01 LONG-REDEFINES REDEFINES ORIGINAL-FIELD PIC X(30).
 01 NEXT-FIELD PIC X(5).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 

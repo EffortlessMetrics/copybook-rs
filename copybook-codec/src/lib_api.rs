@@ -290,7 +290,9 @@ fn process_scalar_array(
     let element_size = field.len as usize / count.max(1);
     for i in 0..count {
         let mut element_field = field.clone();
-        element_field.offset = field.offset + (u32::try_from(i).unwrap_or_default() * u32::try_from(element_size).unwrap_or_default());
+        element_field.offset = field.offset
+            + (u32::try_from(i).unwrap_or_default()
+                * u32::try_from(element_size).unwrap_or_default());
         element_field.len = u32::try_from(element_size).unwrap_or_default();
         element_field.occurs = None;
         let value = decode_scalar_field(&element_field, data, options, delta)?;
@@ -341,7 +343,8 @@ fn decode_scalar_field(
             let decimal_str = decimal.to_fixed_scale_string(*scale);
             if options.json_number_mode.is_native()
                 && let Ok(num) = decimal_str.parse::<f64>()
-                && let Some(json_num) = serde_json::Number::from_f64(num) {
+                && let Some(json_num) = serde_json::Number::from_f64(num)
+            {
                 return Ok(Value::Number(json_num));
             }
             Ok(Value::String(decimal_str))
@@ -356,7 +359,8 @@ fn decode_scalar_field(
             let decimal_str = decimal.to_fixed_scale_string(*scale);
             if options.json_number_mode.is_native()
                 && let Ok(num) = decimal_str.parse::<f64>()
-                && let Some(json_num) = serde_json::Number::from_f64(num) {
+                && let Some(json_num) = serde_json::Number::from_f64(num)
+            {
                 return Ok(Value::Number(json_num));
             }
             Ok(Value::String(decimal_str))

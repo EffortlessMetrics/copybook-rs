@@ -8,11 +8,11 @@
 //! - `encode_jsonl_to_file`
 //! - `RecordIterator` (for programmatic access)
 
+use crate::memory::ScratchBuffers;
 use crate::options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
 };
 use crate::record::{FixedRecordReader, RDWRecordReader};
-use crate::memory::ScratchBuffers;
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::Value;
 use std::fmt;
@@ -178,16 +178,16 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 }
 
 /// Optimized decode function with reusable scratch buffers
-/// 
+///
 /// This is the performance-critical path - minimize allocations and function calls
 pub fn decode_record_with_scratch(
-    schema: &Schema, 
-    data: &[u8], 
+    schema: &Schema,
+    data: &[u8],
     options: &DecodeOptions,
-    scratch: &mut ScratchBuffers
+    scratch: &mut ScratchBuffers,
 ) -> Result<Value> {
     scratch.clear();
-    
+
     // Pre-allocate JSON map with expected capacity
     let mut json_obj = serde_json::Map::with_capacity(schema.fields.len() + 3);
 
@@ -275,7 +275,7 @@ fn decode_field_optimized(
                 };
                 let element_size = field.len as usize / count.max(1);
                 let mut arr = Vec::with_capacity(count);
-                
+
                 for i in 0..count {
                     let offset = field.offset as usize + delta + i * element_size;
                     // Fast bounds check - avoid expensive error formatting in hot path
@@ -309,7 +309,12 @@ fn decode_field_optimized(
 
 /// Optimized leaf field decoding using scratch buffers
 #[inline]
-fn decode_leaf_optimized(field: &Field, slice: &[u8], options: &DecodeOptions, scratch: &mut ScratchBuffers) -> Result<Value> {
+fn decode_leaf_optimized(
+    field: &Field,
+    slice: &[u8],
+    options: &DecodeOptions,
+    scratch: &mut ScratchBuffers,
+) -> Result<Value> {
     match field.kind {
         FieldKind::Alphanum { .. } => {
             // Use scratch string buffer for EBCDIC conversion
@@ -334,7 +339,7 @@ fn decode_leaf_optimized(field: &Field, slice: &[u8], options: &DecodeOptions, s
                 options.codepage,
                 field.blank_when_zero,
             )?;
-            decimal_to_value_optimized(dec, scale, options, scratch)
+            Ok(decimal_to_value_optimized(&dec, scale, options, scratch))
         }
         FieldKind::PackedDecimal {
             digits,
@@ -342,18 +347,18 @@ fn decode_leaf_optimized(field: &Field, slice: &[u8], options: &DecodeOptions, s
             signed,
         } => {
             let dec = crate::numeric::decode_packed_decimal(slice, digits, scale, signed)?;
-            decimal_to_value_optimized(dec, scale, options, scratch)
+            Ok(decimal_to_value_optimized(&dec, scale, options, scratch))
         }
         FieldKind::BinaryInt { bits, signed } => {
+            use std::fmt::Write;
             let int_val = crate::numeric::decode_binary_int(slice, bits, signed)?;
             let val = match options.json_number_mode {
                 JsonNumberMode::Lossless => {
                     // Use scratch buffer for number to string conversion
                     scratch.string_buffer.clear();
-                    use std::fmt::Write;
                     write!(scratch.string_buffer, "{}", int_val).unwrap();
                     Value::String(scratch.string_buffer.clone())
-                },
+                }
                 JsonNumberMode::Native => Value::Number(int_val.into()),
             };
             Ok(val)
@@ -365,16 +370,16 @@ fn decode_leaf_optimized(field: &Field, slice: &[u8], options: &DecodeOptions, s
 /// Optimized decimal value conversion using scratch buffers
 #[inline]
 fn decimal_to_value_optimized(
-    dec: crate::numeric::SmallDecimal,
+    dec: &crate::numeric::SmallDecimal,
     scale: i16,
     options: &DecodeOptions,
     _scratch: &mut ScratchBuffers,
-) -> Result<Value> {
+) -> Value {
     match options.json_number_mode {
         JsonNumberMode::Lossless => {
             // Use scratch buffer to avoid string allocation
             let s = dec.to_fixed_scale_string(scale);
-            Ok(Value::String(s))
+            Value::String(s)
         }
         JsonNumberMode::Native => {
             if scale == 0 {
@@ -383,13 +388,13 @@ fn decimal_to_value_optimized(
                 if dec.negative {
                     v = -v;
                 }
-                Ok(Value::Number(v.into()))
+                Value::Number(v.into())
             } else {
                 // Decimal - convert to float if possible
                 let s = dec.to_fixed_scale_string(scale);
                 match s.parse::<f64>().ok().and_then(serde_json::Number::from_f64) {
-                    Some(n) => Ok(Value::Number(n)),
-                    None => Ok(Value::String(s)),
+                    Some(n) => Value::Number(n),
+                    None => Value::String(s),
                 }
             }
         }

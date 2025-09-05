@@ -167,8 +167,8 @@ fn test_redefines_with_different_sizes() {
     let copybook = r"
 01 ORIGINAL-FIELD PIC X(20).
 01 SHORT-REDEFINES REDEFINES ORIGINAL-FIELD PIC 9(10).
-    01 LONG-REDEFINES REDEFINES ORIGINAL-FIELD PIC X(30).
-    01 NEXT-FIELD PIC X(5).
+01 LONG-REDEFINES REDEFINES ORIGINAL-FIELD PIC X(30).
+01 NEXT-FIELD PIC X(5).
 ";
 
     let schema = parse_copybook(copybook).unwrap();

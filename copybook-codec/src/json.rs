@@ -433,6 +433,13 @@ impl<W: Write> JsonWriter<W> {
         record_index: u64,
         byte_offset: u64,
     ) -> Result<()> {
+        // Skip FILLER fields unless explicitly requested
+        if (field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_"))
+            && !self.options.emit_filler
+        {
+            return Ok(());
+        }
+
         // Handle REDEFINES: emit all views in declaration order
         if field.redefines_of.is_some() {
             // This is a redefining field - process it normally
@@ -701,11 +708,15 @@ impl<W: Write> JsonWriter<W> {
 
     /// Get field name with duplicate disambiguation
     fn get_field_name(&self, field: &Field) -> String {
-        // Handle FILLER fields
-        if field.name.eq_ignore_ascii_case("FILLER") {
+        // Handle FILLER fields (original or offset-based)
+        if field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_") {
             if self.options.emit_filler {
-                // _filler_<offset> - NORMATIVE
-                format!("_filler_{:08}", field.offset)
+                if field.name.eq_ignore_ascii_case("FILLER") {
+                    // _filler_<offset> - NORMATIVE
+                    format!("_filler_{:08}", field.offset)
+                } else {
+                    field.name.clone()
+                }
             } else {
                 // Skip FILLER fields by default
                 String::new()

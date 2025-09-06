@@ -25,6 +25,21 @@ fn create_test_decode_options(strict: bool) -> DecodeOptions {
     }
 }
 
+fn create_rdw_decode_options(strict: bool) -> DecodeOptions {
+    DecodeOptions {
+        format: RecordFormat::RDW,
+        codepage: Codepage::ASCII,
+        json_number_mode: JsonNumberMode::Lossless,
+        emit_filler: false,
+        emit_meta: false,
+        emit_raw: RawMode::Off,
+        strict_mode: strict,
+        max_errors: None,
+        on_decode_unmappable: UnmappablePolicy::Error,
+        threads: 1,
+    }
+}
+
 fn create_test_encode_options(strict: bool) -> EncodeOptions {
     EncodeOptions {
         format: RecordFormat::Fixed,
@@ -293,10 +308,11 @@ fn test_odo_decode_clamp_vs_strict() {
     let schema = parse_copybook(copybook).unwrap();
 
     // Test lenient mode: clamp out-of-bounds counter
-    let lenient_options = create_test_decode_options(false);
+    let lenient_options = create_rdw_decode_options(false);
 
     // Counter = 99 (exceeds max of 5)
-    let test_data = b"99ABCDEFGHIJKLMNO"; // Counter + 5 array elements
+    // RDW header: length=17, reserved=0, followed by payload
+    let test_data = b"\x00\x11\x00\x0099ABCDEFGHIJKLMNO"; // Counter + 5 array elements
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -317,7 +333,7 @@ fn test_odo_decode_clamp_vs_strict() {
     assert_eq!(array.len(), 5);
 
     // Test strict mode: error on out-of-bounds
-    let strict_options = create_test_decode_options(true);
+    let strict_options = create_rdw_decode_options(true);
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -366,10 +382,11 @@ fn test_odo_payload_length_correctness() {
 "#;
 
     let schema = parse_copybook(copybook).unwrap();
-    let options = create_test_decode_options(false);
+    let options = create_rdw_decode_options(false);
 
     // Test with counter = 3, should read exactly 3 elements
-    let test_data = b"03ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // Counter + more data than needed
+    // RDW header: length=14 (2 bytes counter + 12 bytes for 3 elements), reserved=0, followed by payload
+    let test_data = b"\x00\x0E\x00\x0003ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // RDW + Counter + 3x4-byte elements
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -497,10 +514,11 @@ fn test_odo_minimum_counter_handling() {
 "#;
 
     let schema = parse_copybook(copybook).unwrap();
-    let options = create_test_decode_options(false); // Lenient mode
+    let options = create_rdw_decode_options(false); // Lenient mode
 
     // Test with counter below minimum (should clamp to minimum)
-    let test_data = b"01ABCDEFGHIJKLMNOPQR"; // Counter = 1, min = 3
+    // RDW header: length=8 (2 bytes counter + 6 bytes for 3 elements), reserved=0, followed by payload
+    let test_data = b"\x00\x08\x00\x0001ABCDEF"; // RDW + Counter = 1, min = 3 → read 3x2-byte elements
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -556,7 +574,7 @@ fn test_redefines_declaration_order() {
         .keys()
         .map(|s| s.as_str())
         .collect();
-    let expected_order = vec![
+    let expected_order = [
         "ORIGINAL",
         "THIRD-REDEFINE",
         "FIRST-REDEFINE",

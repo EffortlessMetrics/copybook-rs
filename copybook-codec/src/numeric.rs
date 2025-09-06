@@ -161,7 +161,7 @@ impl SmallDecimal {
 
     /// Format as COBOL string with proper field width and scale
     /// For PIC 9(5)V99: digits=7, scale=2 -> "00123.45"
-    /// For PIC 9(2): digits=2, scale=0 -> "03" 
+    /// For PIC 9(2): digits=2, scale=0 -> "03"
     pub fn to_cobol_string(&self, digits: Option<u16>, scale: i16) -> String {
         let mut result = String::new();
 
@@ -178,7 +178,13 @@ impl SmallDecimal {
             };
             if let Some(total_digits) = digits {
                 // Format with leading zeros to match COBOL PIC specification
-                write!(result, "{:0width$}", scaled_value, width = total_digits as usize).unwrap();
+                write!(
+                    result,
+                    "{:0width$}",
+                    scaled_value,
+                    width = total_digits as usize
+                )
+                .unwrap();
             } else {
                 write!(result, "{scaled_value}").unwrap();
             }

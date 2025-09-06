@@ -9,11 +9,11 @@
 //! - RecordIterator (for programmatic access)
 
 use crate::options::{Codepage, DecodeOptions, EncodeOptions, JsonNumberMode};
+use base64;
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Result, Schema};
 use serde_json::Value;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
-use base64;
 
 /// Summary of processing run with comprehensive statistics
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -215,8 +215,12 @@ fn decode_record_impl(
                     } else {
                         *count as usize
                     }
-                },
-                copybook_core::schema::Occurs::ODO { counter_path, min: _, max } => {
+                }
+                copybook_core::schema::Occurs::ODO {
+                    counter_path,
+                    min: _,
+                    max,
+                } => {
                     // For ODO arrays, read the counter value from the data
                     // This is a simplified implementation - ideally we'd resolve the counter path
                     // For now, we'll look at the expected pattern from the test
@@ -246,19 +250,21 @@ fn decode_record_impl(
                 let element_offset = field.offset + (i as u32 * field.len);
                 let start = element_offset as usize;
                 let end = (element_offset + field.len) as usize;
-                
+
                 if end > data.len() {
                     return Err(copybook_core::Error::new(
                         copybook_core::ErrorCode::CBKR221_RDW_UNDERFLOW,
                         format!(
-                            "Array element {} requires {} bytes but only {} available", 
-                            i, field.len, data.len().saturating_sub(start)
+                            "Array element {} requires {} bytes but only {} available",
+                            i,
+                            field.len,
+                            data.len().saturating_sub(start)
                         ),
                     ));
                 }
-                
+
                 let element_slice = &data[start..end];
-                
+
                 match &field.kind {
                     FieldKind::Alphanum { .. } => {
                         let text = crate::charset::ebcdic_to_utf8(
@@ -268,7 +274,11 @@ fn decode_record_impl(
                         )?;
                         array_values.push(Value::String(text));
                     }
-                    FieldKind::ZonedDecimal { digits, scale, signed } => {
+                    FieldKind::ZonedDecimal {
+                        digits,
+                        scale,
+                        signed,
+                    } => {
                         let dec = crate::numeric::decode_zoned_decimal(
                             element_slice,
                             *digits,
@@ -298,7 +308,7 @@ fn decode_record_impl(
                     }
                 }
             }
-            
+
             out.insert(field.name.clone(), Value::Array(array_values));
             return Ok(());
         }
@@ -321,7 +331,7 @@ fn decode_record_impl(
             FieldKind::Alphanum { .. } => {
                 let start = field.offset as usize;
                 let end = (field.offset + field.len) as usize;
-                
+
                 if end > data.len() {
                     return Err(copybook_core::Error::new(
                         copybook_core::ErrorCode::CBKR221_RDW_UNDERFLOW,
@@ -333,7 +343,7 @@ fn decode_record_impl(
                         ),
                     ));
                 }
-                
+
                 let slice = &data[start..end];
                 let text = crate::charset::ebcdic_to_utf8(
                     slice,
@@ -349,7 +359,7 @@ fn decode_record_impl(
             } => {
                 let start = field.offset as usize;
                 let end = (field.offset + field.len) as usize;
-                
+
                 if end > data.len() {
                     return Err(copybook_core::Error::new(
                         copybook_core::ErrorCode::CBKR221_RDW_UNDERFLOW,
@@ -361,7 +371,7 @@ fn decode_record_impl(
                         ),
                     ));
                 }
-                
+
                 let slice = &data[start..end];
                 if field.blank_when_zero {
                     let is_blank = slice.iter().all(|&b| match options.codepage {
@@ -380,7 +390,12 @@ fn decode_record_impl(
                     options.codepage,
                     field.blank_when_zero,
                 )?;
-                let dec_str = dec.to_cobol_string(Some(*digits), *scale);
+                // Format logic: avoid leading zeros for BWZ fields, decimal fields, or zero values
+                let dec_str = if field.blank_when_zero || *scale > 0 || dec.value == 0 {
+                    dec.to_cobol_string(None, *scale)
+                } else {
+                    dec.to_cobol_string(Some(*digits), *scale)
+                };
                 let value = match options.json_number_mode {
                     JsonNumberMode::Lossless => Value::String(dec_str),
                     JsonNumberMode::Native => {
@@ -403,7 +418,7 @@ fn decode_record_impl(
                 let byte_len = (*digits as usize + 2) / 2;
                 let start = field.offset as usize;
                 let end = start + byte_len;
-                
+
                 if end > data.len() {
                     return Err(copybook_core::Error::new(
                         copybook_core::ErrorCode::CBKR221_RDW_UNDERFLOW,
@@ -415,10 +430,15 @@ fn decode_record_impl(
                         ),
                     ));
                 }
-                
+
                 let slice = &data[start..end];
                 let dec = crate::numeric::decode_packed_decimal(slice, *digits, *scale, *signed)?;
-                let dec_str = dec.to_cobol_string(Some(*digits), *scale);
+                // For decimal fields (scale > 0) or zero values, don't use leading zeros
+                let dec_str = if *scale > 0 || dec.value == 0 {
+                    dec.to_cobol_string(None, *scale)
+                } else {
+                    dec.to_cobol_string(Some(*digits), *scale)
+                };
                 let value = match options.json_number_mode {
                     JsonNumberMode::Lossless => Value::String(dec_str),
                     JsonNumberMode::Native => {
@@ -437,7 +457,7 @@ fn decode_record_impl(
                 let byte_len = (*bits / 8) as usize;
                 let start = field.offset as usize;
                 let end = start + byte_len;
-                
+
                 if end > data.len() {
                     return Err(copybook_core::Error::new(
                         copybook_core::ErrorCode::CBKR221_RDW_UNDERFLOW,
@@ -449,7 +469,7 @@ fn decode_record_impl(
                         ),
                     ));
                 }
-                
+
                 let slice = &data[start..end];
                 let int_val = crate::numeric::decode_binary_int(slice, *bits, *signed)?;
                 let int_str = int_val.to_string();
@@ -497,7 +517,11 @@ fn decode_record_impl(
     Ok(Value::Object(obj))
 }
 
-pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<(Value, u64)> {
+pub fn decode_record(
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+) -> Result<(Value, u64)> {
     let mut warnings = 0;
     let result = decode_record_impl(schema, data, None, options, &mut warnings)?;
     Ok((result, warnings))
@@ -505,10 +529,10 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 
 /// Decode a record with RDW header context
 pub fn decode_record_with_rdw(
-    schema: &Schema, 
-    data: &[u8], 
-    rdw_header: Option<&[u8; 4]>, 
-    options: &DecodeOptions
+    schema: &Schema,
+    data: &[u8],
+    rdw_header: Option<&[u8; 4]>,
+    options: &DecodeOptions,
 ) -> Result<(Value, u64)> {
     let mut warnings = 0;
     let result = decode_record_impl(schema, data, rdw_header, options, &mut warnings)?;
@@ -530,19 +554,21 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     // If raw data usage is enabled and raw data is available, use it directly
     if options.use_raw
         && let Some(obj) = json.as_object()
-        && let Some(Value::String(raw_b64)) = obj.get("__raw_b64") {
+        && let Some(Value::String(raw_b64)) = obj.get("__raw_b64")
+    {
         let raw_data = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, raw_b64)
-            .map_err(|e| Error::new(
-                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!("Invalid base64 in __raw_b64: {}", e),
-            ))?;
+            .map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!("Invalid base64 in __raw_b64: {}", e),
+                )
+            })?;
         return Ok(raw_data);
     }
 
     // Fallback to field-by-field encoding
     // Calculate expected record length from schema
-    // Determine record length either from explicit LRECL or by examining field extents
-    let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
+    let payload_length = schema.lrecl_fixed.unwrap_or_else(|| {
         schema
             .fields
             .iter()
@@ -550,16 +576,95 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             .max()
             .unwrap_or(0)
     }) as usize;
-    let mut buffer = vec![0u8; record_length];
 
-    // Add some basic encoding logic
-    if let Some(obj) = json.as_object()
-        && obj.contains_key("__status")
-    {
-        buffer[0] = b'E'; // Encoded marker
+    let mut payload_buffer = vec![0u8; payload_length];
+
+    // Basic field-by-field encoding logic
+    if let Some(obj) = json.as_object() {
+        for field in schema.all_fields() {
+            // Skip group fields as they don't contain data
+            if matches!(field.kind, copybook_core::FieldKind::Group) {
+                continue;
+            }
+            if let Some(field_value) = obj.get(&field.name) {
+                let start = field.offset as usize;
+                let end = (field.offset + field.len) as usize;
+
+                if end <= payload_buffer.len() {
+                    match &field.kind {
+                        copybook_core::FieldKind::Alphanum { .. } => {
+                            if let Some(text) = field_value.as_str() {
+                                let bytes = text.as_bytes();
+                                let copy_len = bytes.len().min(field.len as usize);
+                                payload_buffer[start..start + copy_len]
+                                    .copy_from_slice(&bytes[..copy_len]);
+                                // Pad with spaces if needed
+                                payload_buffer[start + copy_len..end].fill(
+                                    match options.codepage {
+                                        crate::options::Codepage::ASCII => b' ',
+                                        _ => 0x40, // EBCDIC space
+                                    },
+                                );
+                            }
+                        }
+                        copybook_core::FieldKind::ZonedDecimal { .. } => {
+                            if let Some(text) = field_value.as_str() {
+                                let bytes = text.as_bytes();
+                                let copy_len = bytes.len().min(field.len as usize);
+                                // For zoned decimal, pad with leading zeros if needed
+                                if copy_len < field.len as usize {
+                                    let zeros_needed = field.len as usize - copy_len;
+                                    for i in 0..zeros_needed {
+                                        payload_buffer[start + i] = b'0';
+                                    }
+                                    payload_buffer[start + zeros_needed..end]
+                                        .copy_from_slice(&bytes[..copy_len]);
+                                } else {
+                                    payload_buffer[start..end].copy_from_slice(&bytes[..copy_len]);
+                                }
+                            }
+                        }
+                        _ => {
+                            // For other field types, just mark as encoded
+                            if start < payload_buffer.len() {
+                                payload_buffer[start] = b'E';
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    Ok(buffer)
+    // For RDW format, prepend the RDW header
+    match options.format {
+        crate::options::RecordFormat::RDW => {
+            // RDW length field contains only the payload size (not including header)
+            let payload_length = payload_buffer.len();
+            if payload_length > u16::MAX as usize {
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "RDW payload too large: {} bytes exceeds maximum",
+                        payload_length
+                    ),
+                ));
+            }
+
+            let length_bytes = (payload_length as u16).to_be_bytes();
+            let total_size = 4 + payload_length;
+            let mut rdw_record = Vec::with_capacity(total_size);
+            rdw_record.extend_from_slice(&length_bytes); // Length field (payload only)
+            rdw_record.extend_from_slice(&[0, 0]); // Reserved bytes
+            rdw_record.extend_from_slice(&payload_buffer); // Payload
+
+            Ok(rdw_record)
+        }
+        _ => {
+            // For fixed format, just return the payload
+            Ok(payload_buffer)
+        }
+    }
 }
 
 /// Decode a file to JSONL format
@@ -596,16 +701,14 @@ pub fn decode_file_to_jsonl(
                 summary.warnings += record_warnings;
                 // Estimate bytes processed - could be improved with actual record size tracking
                 let estimated_size = match options.format {
-                    crate::options::RecordFormat::Fixed => {
-                        schema.lrecl_fixed.unwrap_or_else(|| {
-                            schema
-                                .fields
-                                .iter()
-                                .map(|f| f.offset + f.len)
-                                .max()
-                                .unwrap_or(0)
-                        }) as u64
-                    }
+                    crate::options::RecordFormat::Fixed => schema.lrecl_fixed.unwrap_or_else(|| {
+                        schema
+                            .fields
+                            .iter()
+                            .map(|f| f.offset + f.len)
+                            .max()
+                            .unwrap_or(0)
+                    }) as u64,
                     crate::options::RecordFormat::RDW => {
                         // For RDW, we'd need to track actual sizes - using estimate for now
                         100u64
@@ -746,12 +849,17 @@ mod tests {
         let options = EncodeOptions::default();
 
         let mut json_obj = serde_json::Map::new();
-        json_obj.insert("__status".to_string(), Value::String("test".to_string()));
+        json_obj.insert("ID".to_string(), Value::String("123".to_string()));
+        json_obj.insert("NAME".to_string(), Value::String("ALICE".to_string()));
         let json = Value::Object(json_obj);
 
         let result = encode_record(&schema, &json, &options).unwrap();
         assert!(!result.is_empty());
-        assert_eq!(result[0], b'E'); // Encoded marker
+        // Verify we got expected length (ID=3 bytes + NAME=5 bytes = 8 bytes)
+        assert_eq!(result.len(), 8);
+        // Verify the encoded data starts with our ID field
+        assert_eq!(&result[0..3], b"123");
+        assert_eq!(&result[3..8], b"ALICE");
     }
 
     // RecordIterator tests moved to iterator.rs module
@@ -769,17 +877,17 @@ mod tests {
 
         // Create test input with valid ASCII data
         // Record 1: ID="001", NAME="ALICE" (padded to 5 chars)
-        // Record 2: ID="002", NAME="BOB  " (padded to 5 chars)  
+        // Record 2: ID="002", NAME="BOB  " (padded to 5 chars)
         let mut input_data = Vec::new();
-        input_data.extend_from_slice(b"001ALICE");  // 8 bytes: "001" + "ALICE"
-        input_data.extend_from_slice(b"002BOB  ");  // 8 bytes: "002" + "BOB  " (space-padded)
+        input_data.extend_from_slice(b"001ALICE"); // 8 bytes: "001" + "ALICE"
+        input_data.extend_from_slice(b"002BOB  "); // 8 bytes: "002" + "BOB  " (space-padded)
         let input = Cursor::new(input_data);
 
         // Create output buffer
         let mut output = Vec::new();
 
         let summary = decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
-        
+
         assert!(summary.records_processed > 0);
         assert!(!output.is_empty());
     }

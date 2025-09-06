@@ -364,7 +364,7 @@ fn test_lenient_mode_error_handling() {
 
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     // In lenient mode, should continue processing despite errors
-    assert!(result.is_ok() || result.unwrap().has_errors());
+    assert!(result.is_ok() || result.as_ref().is_ok_and(|s| s.has_errors()));
 }
 
 #[test]
@@ -459,7 +459,7 @@ fn test_json_number_modes() {
         let input = Cursor::new(test_data);
         let mut output = Vec::new();
 
-        let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
+        let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, options);
         assert!(result.is_ok(), "Failed for {} mode", mode_name);
 
         let output_str = String::from_utf8(output).unwrap();

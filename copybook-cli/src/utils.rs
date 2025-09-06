@@ -39,7 +39,6 @@ where
     Ok(())
 }
 
-
 /// Determine exit code based on processing results
 ///
 /// According to the normative specification:
@@ -49,13 +48,11 @@ where
 ///
 /// This function implements the "warnings → 0; any errors → 1" part.
 /// Fatal errors (exit code 2) are handled at the main level when operations fail completely.
-pub fn determine_exit_code(has_warnings: bool, has_errors: bool) -> i32 {
+pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
     if has_errors {
         1 // Completed with errors
-    } else if has_warnings {
-        0 // Success with warnings
     } else {
-        0 // Success
+        0 // Success (with or without warnings)
     }
 }
 
@@ -85,7 +82,7 @@ mod tests {
         let target_path = temp_dir.path().join("test.txt");
 
         let result = atomic_write(&target_path, |_writer| {
-            Err(io::Error::new(io::ErrorKind::Other, "Simulated error"))
+            Err(io::Error::other("Simulated error"))
         });
 
         assert!(result.is_err());
@@ -99,5 +96,4 @@ mod tests {
         assert_eq!(determine_exit_code(false, true), 1); // Errors only
         assert_eq!(determine_exit_code(true, true), 1); // Both warnings and errors
     }
-
 }

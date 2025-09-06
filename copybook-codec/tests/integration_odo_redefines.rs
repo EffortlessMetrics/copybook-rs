@@ -123,7 +123,7 @@ fn test_redefines_encode_error_context() {
         "NUMERIC-VIEW": "1234567890"
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{}\n", json_data);
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -168,7 +168,7 @@ fn test_missing_counter_field_error() {
         "ITEMS": ["ITEM1", "ITEM2", "ITEM3"]
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{}\n", json_data);
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,

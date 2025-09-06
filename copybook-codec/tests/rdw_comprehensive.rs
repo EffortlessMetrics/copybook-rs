@@ -148,7 +148,7 @@ fn test_rdw_raw_preservation_with_reserved() {
     assert!(decoded_json.get("__raw_b64").is_some());
 
     // Now encode back with raw usage
-    let jsonl_data = format!("{}\n", decoded_json.to_string());
+    let jsonl_data = format!("{}\n", decoded_json);
 
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
@@ -197,8 +197,7 @@ fn test_rdw_suspect_ascii_heuristic() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
 
     // This might succeed or fail depending on implementation, but should detect ASCII pattern
-    if result.is_ok() {
-        let summary = result.unwrap();
+    if let Ok(summary) = result {
         // Should have warning about suspect ASCII corruption
         assert!(summary.has_warnings());
     } else {
@@ -313,7 +312,7 @@ fn test_rdw_length_recomputation_on_encode() {
     // Modify the data (change length)
     decoded_json["SIMPLE-RECORD"] = json!("MODIFIED  "); // Still 10 bytes
 
-    let jsonl_data = format!("{}\n", decoded_json.to_string());
+    let jsonl_data = format!("{}\n", decoded_json);
 
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,

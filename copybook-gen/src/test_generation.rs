@@ -55,7 +55,7 @@ pub fn generate_edge_case_suite() -> GoldenTestSuite {
     };
 
     // Generate edge case tests for each template
-    let templates = vec![
+    let templates = [
         CopybookTemplate::Simple,
         CopybookTemplate::WithRedefines,
         CopybookTemplate::WithOccurs,
@@ -237,7 +237,7 @@ pub fn generate_round_trip_tests() -> GoldenTestSuite {
     };
 
     // Test round-trip with different configurations
-    let templates = vec![
+    let templates = [
         CopybookTemplate::Simple,
         CopybookTemplate::WithRedefines,
         CopybookTemplate::WithOccurs,
@@ -288,7 +288,7 @@ pub fn generate_determinism_tests() -> GoldenTestSuite {
         crate::copybook::generate_copybook_with_template(&config, CopybookTemplate::Complex);
 
     // Test single-threaded vs multi-threaded determinism
-    for threads in vec![1, 2, 4, 8] {
+    for threads in [1, 2, 4, 8] {
         let test_config = TestConfig {
             codepage: "cp037".to_string(),
             record_format: "fixed".to_string(),

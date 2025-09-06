@@ -291,10 +291,18 @@ fn schema_field_to_canonical_json_recursive(field: &Field) -> serde_json::Value 
     // Add field kind
     let kind_str = match &field.kind {
         FieldKind::Alphanum { len } => format!("Alphanum({})", len),
-        FieldKind::ZonedDecimal { digits, scale, signed } => {
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
             format!("ZonedDecimal({}, {}, {})", digits, scale, signed)
         }
-        FieldKind::PackedDecimal { digits, scale, signed } => {
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
             format!("PackedDecimal({}, {}, {})", digits, scale, signed)
         }
         FieldKind::BinaryInt { bits, signed } => {
@@ -306,7 +314,10 @@ fn schema_field_to_canonical_json_recursive(field: &Field) -> serde_json::Value 
 
     // Add optional attributes
     field_obj.insert("synchronized".to_string(), Value::Bool(field.synchronized));
-    field_obj.insert("blank_when_zero".to_string(), Value::Bool(field.blank_when_zero));
+    field_obj.insert(
+        "blank_when_zero".to_string(),
+        Value::Bool(field.blank_when_zero),
+    );
 
     if let Some(ref redefines) = field.redefines_of {
         field_obj.insert("redefines_of".to_string(), Value::String(redefines.clone()));
@@ -315,7 +326,11 @@ fn schema_field_to_canonical_json_recursive(field: &Field) -> serde_json::Value 
     if let Some(ref occurs) = field.occurs {
         let occurs_str = match occurs {
             Occurs::Fixed { count } => format!("Fixed({})", count),
-            Occurs::ODO { min, max, counter_path } => {
+            Occurs::ODO {
+                min,
+                max,
+                counter_path,
+            } => {
                 format!("ODO({}, {}, {})", min, max, counter_path)
             }
         };

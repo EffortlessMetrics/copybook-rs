@@ -3,7 +3,7 @@
 //! This module handles the computation of field byte offsets,
 //! alignment padding, and REDEFINES cluster sizing.
 
-use crate::{error, Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO};
+use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error};
 use std::collections::HashMap;
 use tracing::debug;
 

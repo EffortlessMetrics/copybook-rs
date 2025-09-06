@@ -4,8 +4,8 @@
 //! comprehensive test suites for validation and regression testing.
 
 use copybook_gen::{
-    generate_complete_test_suite, test_generation::calculate_suite_stats, CopybookTemplate,
-    GeneratorConfig, TestSuiteBuilder,
+    CopybookTemplate, GeneratorConfig, TestSuiteBuilder, generate_complete_test_suite,
+    test_generation::calculate_suite_stats,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

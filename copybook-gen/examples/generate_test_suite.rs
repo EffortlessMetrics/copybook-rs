@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nTest breakdown by tag:");
     for (tag, count) in &stats.tests_by_tag {
-        println!("  {}: {} tests", tag, count);
+        println!("  {tag}: {count} tests");
     }
 
     // Example: Create a custom test suite
@@ -68,8 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (name, copybook) in invalid_copybooks.iter().take(3) {
         println!(
-            "\nInvalid case '{}': {}",
-            name,
+            "\nInvalid case '{name}': {}",
             copybook.lines().next().unwrap_or("").trim()
         );
     }

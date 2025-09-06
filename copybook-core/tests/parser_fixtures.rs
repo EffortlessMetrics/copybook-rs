@@ -1,4 +1,5 @@
 #![cfg(feature = "comprehensive-tests")]
+#![allow(clippy::uninlined_format_args)]
 
 //! Parser fixture tests for fixed/free form, continuation, comments, and edited PIC errors
 //!

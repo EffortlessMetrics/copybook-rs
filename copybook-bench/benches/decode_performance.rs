@@ -105,7 +105,7 @@ fn generate_comp3_heavy_data(record_count: usize) -> Vec<u8> {
     for i in 0..record_count {
         // Generate 10 packed decimal fields of 6 bytes each
         for field in 0..10 {
-            let value = (i * 10 + field) % 999999999;
+            let value = (i * 10 + field) % 999_999_999;
             // Convert to packed decimal: S9(9)V99 = 6 bytes
             let mut packed = vec![0x00; 6];
 

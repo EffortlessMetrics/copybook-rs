@@ -108,10 +108,10 @@ impl Parser {
         }
 
         // Build hierarchical structure from flat fields
-        let hierarchical_fields = self.build_hierarchy(flat_fields)?;
+        let mut hierarchical_fields = self.build_hierarchy(flat_fields)?;
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
-        self.validate_structure(&hierarchical_fields)?;
+        self.validate_structure(&mut hierarchical_fields)?;
 
         // Create schema with fingerprint
         let mut schema = Schema::from_fields(hierarchical_fields);
@@ -249,7 +249,10 @@ impl Parser {
     }
 
     /// Validate the parsed structure
-    fn validate_structure(&self, fields: &[Field]) -> Result<()> {
+    fn validate_structure(&mut self, fields: &mut [Field]) -> Result<()> {
+        // Propagate REDEFINES status to child fields
+        self.propagate_redefines_status(fields);
+
         // Validate REDEFINES targets
         self.validate_redefines(fields)?;
 
@@ -257,6 +260,24 @@ impl Parser {
         self.validate_odo_constraints(fields)?;
 
         Ok(())
+    }
+
+    /// Propagate REDEFINES status to all descendant fields
+    fn propagate_redefines_status(&self, fields: &mut [Field]) {
+        fn propagate_recursive(fields: &mut [Field], parent_redefines: Option<&str>) {
+            for field in fields {
+                // If this field doesn't have its own REDEFINES and parent has one, inherit it
+                if field.redefines_of.is_none() && parent_redefines.is_some() {
+                    field.redefines_of = parent_redefines.map(|s| s.to_string());
+                }
+
+                // Recursively propagate to children, using this field's redefines status
+                let child_parent_redefines = field.redefines_of.as_deref().or(parent_redefines);
+                propagate_recursive(&mut field.children, child_parent_redefines);
+            }
+        }
+
+        propagate_recursive(fields, None);
     }
 
     /// Validate REDEFINES relationships
@@ -296,7 +317,26 @@ impl Parser {
                     .iter()
                     .find(|f| f.name == *counter_path || f.path == *counter_path);
 
-                if counter_field.is_none() {
+                if let Some(_counter) = counter_field {
+                    // Counter field must precede the ODO array in declaration order
+                    // Find the indices of both fields to check ordering
+                    let counter_index = all_fields
+                        .iter()
+                        .position(|f| f.name == *counter_path || f.path == *counter_path);
+                    let array_index = all_fields.iter().position(|f| std::ptr::eq(f, field));
+
+                    if let (Some(c_idx), Some(a_idx)) = (counter_index, array_index)
+                        && c_idx >= a_idx
+                    {
+                        return Err(Error::new(
+                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                            format!(
+                                "ODO counter field '{}' must precede array '{}' in declaration order",
+                                counter_path, field.name
+                            ),
+                        ));
+                    }
+                } else {
                     return Err(Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                         format!(
@@ -318,27 +358,31 @@ impl Parser {
                     ));
                 }
 
-                // Validate that counter is not inside REDEFINES or ODO region
-                if let Some(counter) = counter_field {
-                    if counter.redefines_of.is_some() {
-                        return Err(Error::new(
-                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!(
-                                "ODO counter '{}' cannot be inside a REDEFINES region",
-                                counter_path
-                            ),
-                        ));
-                    }
+                // Re-find the counter field for additional validation
+                let counter = all_fields
+                    .iter()
+                    .find(|f| f.name == *counter_path || f.path == *counter_path)
+                    .expect("Counter field must exist at this point");
 
-                    if counter.occurs.is_some() {
-                        return Err(Error::new(
-                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!(
-                                "ODO counter '{}' cannot be inside an ODO region",
-                                counter_path
-                            ),
-                        ));
-                    }
+                // Validate that counter is not inside REDEFINES or ODO region
+                if counter.redefines_of.is_some() {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' cannot be inside a REDEFINES region",
+                            counter_path
+                        ),
+                    ));
+                }
+
+                if counter.occurs.is_some() {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' cannot be inside an ODO region",
+                            counter_path
+                        ),
+                    ));
                 }
             }
         }
@@ -804,14 +848,96 @@ impl Parser {
 
     /// Parse OCCURS clause
     fn parse_occurs_clause(&mut self, field: &mut Field) -> Result<()> {
-        let count = match self.current_token() {
+        let (min, max) = match self.current_token() {
             Some(TokenPos {
                 token: Token::Number(n),
                 ..
             }) => {
-                let count = *n;
+                let first_count = *n;
                 self.advance();
-                count
+
+                // Check for "TO max" pattern
+                if self.check(&Token::To) {
+                    self.advance(); // consume TO
+                    match self.current_token() {
+                        Some(TokenPos {
+                            token: Token::Number(max_count),
+                            ..
+                        }) => {
+                            let max_count = *max_count;
+                            self.advance();
+                            (first_count, max_count)
+                        }
+                        Some(TokenPos {
+                            token: Token::Level(max_count),
+                            ..
+                        }) => {
+                            let max_count = *max_count as u32;
+                            self.advance();
+                            (first_count, max_count)
+                        }
+                        current => {
+                            let token_desc = current
+                                .map(|t| format!("{:?}", t.token))
+                                .unwrap_or_else(|| "EOF".to_string());
+                            return Err(Error::new(
+                                ErrorCode::CBKP001_SYNTAX,
+                                format!(
+                                    "Expected number after TO in OCCURS clause, found: {}",
+                                    token_desc
+                                ),
+                            ));
+                        }
+                    }
+                } else {
+                    // Single count - use it as both min and max
+                    (first_count, first_count)
+                }
+            }
+            Some(TokenPos {
+                token: Token::Level(n),
+                ..
+            }) => {
+                let first_count = *n as u32;
+                self.advance();
+
+                // Check for "TO max" pattern
+                if self.check(&Token::To) {
+                    self.advance(); // consume TO
+                    match self.current_token() {
+                        Some(TokenPos {
+                            token: Token::Number(max_count),
+                            ..
+                        }) => {
+                            let max_count = *max_count;
+                            self.advance();
+                            (first_count, max_count)
+                        }
+                        Some(TokenPos {
+                            token: Token::Level(max_count),
+                            ..
+                        }) => {
+                            let max_count = *max_count as u32;
+                            self.advance();
+                            (first_count, max_count)
+                        }
+                        current => {
+                            let token_desc = current
+                                .map(|t| format!("{:?}", t.token))
+                                .unwrap_or_else(|| "EOF".to_string());
+                            return Err(Error::new(
+                                ErrorCode::CBKP001_SYNTAX,
+                                format!(
+                                    "Expected number after TO in OCCURS clause, found: {}",
+                                    token_desc
+                                ),
+                            ));
+                        }
+                    }
+                } else {
+                    // Single count - use it as both min and max
+                    (first_count, first_count)
+                }
             }
             _ => {
                 return Err(Error::new(
@@ -821,7 +947,7 @@ impl Parser {
             }
         };
 
-        // Skip optional TIMES keyword first
+        // Check for optional TIMES keyword first
         if self.check(&Token::Times) {
             self.advance();
         }
@@ -853,13 +979,28 @@ impl Parser {
                 }
             };
 
+            // Check for optional TIMES keyword after DEPENDING ON clause
+            if self.check(&Token::Times) {
+                self.advance();
+            }
+
             field.occurs = Some(Occurs::ODO {
-                min: 0, // Will be validated later
-                max: count,
+                min,
+                max,
                 counter_path: counter_field,
             });
         } else {
-            field.occurs = Some(Occurs::Fixed { count });
+            // For non-ODO cases, if min != max we have a problem
+            if min != max {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    format!(
+                        "Range syntax ({} TO {}) requires DEPENDING ON clause",
+                        min, max
+                    ),
+                ));
+            }
+            field.occurs = Some(Occurs::Fixed { count: min });
         }
 
         Ok(())
@@ -1048,7 +1189,7 @@ fn collect_all_fields_recursive(fields: &[Field]) -> Vec<&Field> {
 /// Convert field to canonical JSON for fingerprinting (recursive standalone version)
 fn field_to_canonical_json_recursive(field: &Field) -> serde_json::Value {
     use serde_json::{Map, Value};
-    
+
     let mut field_obj = Map::new();
 
     // Add fields in canonical order
@@ -1059,10 +1200,18 @@ fn field_to_canonical_json_recursive(field: &Field) -> serde_json::Value {
     // Add field kind
     let kind_str = match &field.kind {
         FieldKind::Alphanum { len } => format!("Alphanum({})", len),
-        FieldKind::ZonedDecimal { digits, scale, signed } => {
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
             format!("ZonedDecimal({}, {}, {})", digits, scale, signed)
         }
-        FieldKind::PackedDecimal { digits, scale, signed } => {
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
             format!("PackedDecimal({}, {}, {})", digits, scale, signed)
         }
         FieldKind::BinaryInt { bits, signed } => {
@@ -1074,7 +1223,10 @@ fn field_to_canonical_json_recursive(field: &Field) -> serde_json::Value {
 
     // Add optional attributes
     field_obj.insert("synchronized".to_string(), Value::Bool(field.synchronized));
-    field_obj.insert("blank_when_zero".to_string(), Value::Bool(field.blank_when_zero));
+    field_obj.insert(
+        "blank_when_zero".to_string(),
+        Value::Bool(field.blank_when_zero),
+    );
 
     if let Some(ref redefines) = field.redefines_of {
         field_obj.insert("redefines_of".to_string(), Value::String(redefines.clone()));
@@ -1083,7 +1235,11 @@ fn field_to_canonical_json_recursive(field: &Field) -> serde_json::Value {
     if let Some(ref occurs) = field.occurs {
         let occurs_str = match occurs {
             Occurs::Fixed { count } => format!("Fixed({})", count),
-            Occurs::ODO { min, max, counter_path } => {
+            Occurs::ODO {
+                min,
+                max,
+                counter_path,
+            } => {
                 format!("ODO({}, {}, {})", min, max, counter_path)
             }
         };

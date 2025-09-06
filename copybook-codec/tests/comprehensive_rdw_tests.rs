@@ -175,7 +175,7 @@ fn test_rdw_suspect_ascii_heuristic() {
     let mut output = Vec::new();
 
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-    
+
     // Should detect and warn about suspected ASCII corruption
     if let Ok(summary) = result {
         assert!(
@@ -275,7 +275,7 @@ fn test_rdw_with_odo_variable_length() {
     let schema = parse_copybook(copybook).unwrap();
     let options = create_rdw_decode_options(RawMode::Off, false);
 
-    // RDW record with ODO: counter=3, so 3 array elements  
+    // RDW record with ODO: counter=3, so 3 array elements
     // Total payload: 2 (counter) + 9 (3 * 3 bytes) = 11 bytes
     // Total length: 4 (header) + 11 (payload) = 15 bytes
     let rdw_odo_data = b"\x00\x0F\x00\x0003ABCDEFGHI";
@@ -292,7 +292,10 @@ fn test_rdw_with_odo_variable_length() {
     let array = if let Some(arr) = json_record["VARIABLE-ARRAY"].as_array() {
         arr
     } else {
-        panic!("VARIABLE-ARRAY is not an array, it is: {:?}", json_record["VARIABLE-ARRAY"]);
+        panic!(
+            "VARIABLE-ARRAY is not an array, it is: {:?}",
+            json_record["VARIABLE-ARRAY"]
+        );
     };
     assert_eq!(array.len(), 3);
     assert_eq!(array[0], "ABC");
@@ -329,7 +332,7 @@ fn test_rdw_encoding_round_trip() {
     let copybook = "01 ROUND-TRIP-RECORD PIC X(12).";
     let schema = parse_copybook(copybook).unwrap();
 
-    // Original RDW data - length=16 (4 header + 12 payload)  
+    // Original RDW data - length=16 (4 header + 12 payload)
     let original_data = b"\x00\x10\x00\x00HELLO-WORLD!";
 
     // Decode
@@ -391,8 +394,7 @@ fn test_rdw_maximum_length_handling() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
 
     // Should handle maximum length (may be limited by implementation)
-    if result.is_ok() {
-        let summary = result.unwrap();
+    if let Ok(summary) = result {
         assert_eq!(summary.records_processed, 1);
     } else {
         // May fail due to memory or other limits, which is acceptable

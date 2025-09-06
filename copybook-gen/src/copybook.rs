@@ -68,19 +68,19 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     let field_count = if config.include_edge_cases { 20 } else { 10 };
 
     for i in 1..=field_count {
-        let field_type = rng.gen_range(0..5);
+        let field_type = rng.random_range(0..5);
         match field_type {
             0 => {
                 // Alphanumeric field
-                let len = if config.include_edge_cases && rng.gen_bool(0.2) {
+                let len = if config.include_edge_cases && rng.random_bool(0.2) {
                     // Edge cases: very small or large
-                    if rng.gen_bool(0.5) {
+                    if rng.random_bool(0.5) {
                         1
                     } else {
-                        rng.gen_range(100..=200)
+                        rng.random_range(100..=200)
                     }
                 } else {
-                    rng.gen_range(1..=50)
+                    rng.random_range(1..=50)
                 };
                 copybook.push_str(&format!(
                     "           05  ALPHA-{:02}     PIC X({}).\n",
@@ -89,17 +89,17 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
             }
             1 => {
                 // Zoned decimal
-                let digits = if config.include_edge_cases && rng.gen_bool(0.2) {
-                    rng.gen_range(15..=18) // Large numbers
+                let digits = if config.include_edge_cases && rng.random_bool(0.2) {
+                    rng.random_range(15..=18) // Large numbers
                 } else {
-                    rng.gen_range(1..=9)
+                    rng.random_range(1..=9)
                 };
-                let scale = if rng.gen_bool(0.3) {
-                    rng.gen_range(0..=4)
+                let scale = if rng.random_bool(0.3) {
+                    rng.random_range(0..=4)
                 } else {
                     0
                 };
-                let signed = rng.gen_bool(0.5);
+                let signed = rng.random_bool(0.5);
 
                 let pic = if scale > 0 {
                     if signed {
@@ -107,24 +107,22 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     } else {
                         format!("9({})V9({})", digits - scale, scale)
                     }
+                } else if signed {
+                    format!("S9({})", digits)
                 } else {
-                    if signed {
-                        format!("S9({})", digits)
-                    } else {
-                        format!("9({})", digits)
-                    }
+                    format!("9({})", digits)
                 };
 
                 copybook.push_str(&format!("           05  ZONED-{:02}     PIC {}.\n", i, pic));
             }
             2 => {
                 // Binary field
-                let digits = if config.include_edge_cases && rng.gen_bool(0.2) {
-                    rng.gen_range(15..=18) // Large binary
+                let digits = if config.include_edge_cases && rng.random_bool(0.2) {
+                    rng.random_range(15..=18) // Large binary
                 } else {
-                    rng.gen_range(1..=9)
+                    rng.random_range(1..=9)
                 };
-                let signed = rng.gen_bool(0.5);
+                let signed = rng.random_bool(0.5);
 
                 let pic = if signed {
                     format!("S9({}) COMP", digits)
@@ -136,17 +134,17 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
             }
             3 => {
                 // Packed decimal
-                let digits = if config.include_edge_cases && rng.gen_bool(0.2) {
-                    rng.gen_range(15..=18) // Large packed
+                let digits = if config.include_edge_cases && rng.random_bool(0.2) {
+                    rng.random_range(15..=18) // Large packed
                 } else {
-                    rng.gen_range(1..=9)
+                    rng.random_range(1..=9)
                 };
-                let scale = if rng.gen_bool(0.3) {
-                    rng.gen_range(0..=4)
+                let scale = if rng.random_bool(0.3) {
+                    rng.random_range(0..=4)
                 } else {
                     0
                 };
-                let signed = rng.gen_bool(0.5);
+                let signed = rng.random_bool(0.5);
 
                 let pic = if scale > 0 {
                     if signed {
@@ -154,12 +152,10 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     } else {
                         format!("9({})V9({}) COMP-3", digits - scale, scale)
                     }
+                } else if signed {
+                    format!("S9({}) COMP-3", digits)
                 } else {
-                    if signed {
-                        format!("S9({}) COMP-3", digits)
-                    } else {
-                        format!("9({}) COMP-3", digits)
-                    }
+                    format!("9({}) COMP-3", digits)
                 };
 
                 copybook.push_str(&format!("           05  PACKED-{:02}    PIC {}.\n", i, pic));
@@ -168,26 +164,26 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                 // Group with sub-fields
                 copybook.push_str(&format!("           05  GROUP-{:02}.\n", i));
 
-                let sub_count = rng.gen_range(2..=4);
+                let sub_count = rng.random_range(2..=4);
                 for j in 1..=sub_count {
-                    let sub_type = rng.gen_range(0..3);
+                    let sub_type = rng.random_range(0..3);
                     match sub_type {
                         0 => {
-                            let len = rng.gen_range(5..=20);
+                            let len = rng.random_range(5..=20);
                             copybook.push_str(&format!(
                                 "               10  SUB-{}-{}   PIC X({}).\n",
                                 i, j, len
                             ));
                         }
                         1 => {
-                            let digits = rng.gen_range(3..=7);
+                            let digits = rng.random_range(3..=7);
                             copybook.push_str(&format!(
                                 "               10  NUM-{}-{}   PIC 9({}).\n",
                                 i, j, digits
                             ));
                         }
                         2 => {
-                            let digits = rng.gen_range(3..=7);
+                            let digits = rng.random_range(3..=7);
                             copybook.push_str(&format!(
                                 "               10  PKD-{}-{}   PIC 9({}) COMP-3.\n",
                                 i, j, digits
@@ -243,10 +239,10 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     copybook.push_str("       01  RECORD-ROOT.\n");
 
     // Simple OCCURS
-    let array_size = if config.include_edge_cases && rng.gen_bool(0.3) {
-        rng.gen_range(100..=500) // Large arrays
+    let array_size = if config.include_edge_cases && rng.random_bool(0.3) {
+        rng.random_range(100..=500) // Large arrays
     } else {
-        rng.gen_range(5..=20)
+        rng.random_range(5..=20)
     };
 
     copybook.push_str(&format!(
@@ -255,7 +251,7 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     ));
 
     // OCCURS with group
-    let group_size = rng.gen_range(3..=10);
+    let group_size = rng.random_range(3..=10);
     copybook.push_str(&format!(
         "           05  GROUP-ARRAY     OCCURS {} TIMES.\n",
         group_size
@@ -265,8 +261,8 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     copybook.push_str("               10  ITEM-VALUE  PIC 9(7)V99 COMP-3.\n");
 
     // Nested OCCURS
-    let outer_size = rng.gen_range(2..=5);
-    let inner_size = rng.gen_range(3..=8);
+    let outer_size = rng.random_range(2..=5);
+    let inner_size = rng.random_range(3..=8);
     copybook.push_str(&format!(
         "           05  NESTED-ARRAY    OCCURS {} TIMES.\n",
         outer_size
@@ -285,8 +281,8 @@ fn generate_odo_copybook(rng: &mut StdRng, _config: &GeneratorConfig) -> String 
     copybook.push_str("       01  RECORD-ROOT.\n");
 
     // ODO at record tail
-    let max_count = rng.gen_range(10..=50);
-    let min_count = rng.gen_range(1..=5);
+    let max_count = rng.random_range(10..=50);
+    let min_count = rng.random_range(1..=5);
 
     copybook.push_str("           05  HEADER-DATA.\n");
     copybook.push_str("               10  RECORD-TYPE PIC X(4).\n");
@@ -356,7 +352,7 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     copybook.push_str("               10  FILLER      PIC X(35).\n");
 
     // OCCURS section with SYNCHRONIZED
-    let array_size = rng.gen_range(5..=15);
+    let array_size = rng.random_range(5..=15);
     copybook.push_str(&format!(
         "           05  DETAIL-ITEMS    OCCURS {} TIMES.\n",
         array_size
@@ -367,8 +363,8 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     copybook.push_str("               10  ITEM-FLAGS  PIC X(8).\n");
 
     // Tail ODO if edge cases enabled
-    if config.include_edge_cases && rng.gen_bool(0.5) {
-        let max_notes = rng.gen_range(10..=30);
+    if config.include_edge_cases && rng.random_bool(0.5) {
+        let max_notes = rng.random_range(10..=30);
         copybook.push_str("           05  NOTE-COUNT      PIC 9(3) COMP.\n");
         copybook.push_str(&format!(
             "           05  NOTES           OCCURS 0 TO {} TIMES\n",
@@ -455,37 +451,35 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
 /// Generate negative test copybooks (invalid syntax)
 pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
     let _rng = StdRng::seed_from_u64(config.seed);
-    let mut invalid_cases = Vec::new();
+    vec![
+        // Invalid level numbers
+        (
+            "invalid_level".to_string(),
+            "       00  INVALID-LEVEL PIC X(10).\n".to_string(),
+        ),
 
-    // Invalid level numbers
-    invalid_cases.push((
-        "invalid_level".to_string(),
-        "       00  INVALID-LEVEL PIC X(10).\n".to_string(),
-    ));
+        // Invalid PIC clauses
+        (
+            "invalid_pic".to_string(),
+            "       01  ROOT.\n           05  BAD-PIC PIC Z(10).\n".to_string(),
+        ),
 
-    // Invalid PIC clauses
-    invalid_cases.push((
-        "invalid_pic".to_string(),
-        "       01  ROOT.\n           05  BAD-PIC PIC Z(10).\n".to_string(),
-    ));
+        // REDEFINES target not found
+        (
+            "redefines_missing".to_string(),
+            "       01  ROOT.\n           05  FIELD1 PIC X(10).\n           05  FIELD2 REDEFINES MISSING PIC 9(10).\n".to_string()
+        ),
 
-    // REDEFINES target not found
-    invalid_cases.push((
-        "redefines_missing".to_string(),
-        "       01  ROOT.\n           05  FIELD1 PIC X(10).\n           05  FIELD2 REDEFINES MISSING PIC 9(10).\n".to_string()
-    ));
+        // ODO not at tail
+        (
+            "odo_not_tail".to_string(),
+            "       01  ROOT.\n           05  COUNT PIC 9(3) COMP.\n           05  ARRAY OCCURS 1 TO 10 DEPENDING ON COUNT PIC X(5).\n           05  TRAILER PIC X(10).\n".to_string()
+        ),
 
-    // ODO not at tail
-    invalid_cases.push((
-        "odo_not_tail".to_string(),
-        "       01  ROOT.\n           05  COUNT PIC 9(3) COMP.\n           05  ARRAY OCCURS 1 TO 10 DEPENDING ON COUNT PIC X(5).\n           05  TRAILER PIC X(10).\n".to_string()
-    ));
-
-    // ODO counter in REDEFINES
-    invalid_cases.push((
-        "odo_counter_in_redefines".to_string(),
-        "       01  ROOT.\n           05  BASE PIC X(10).\n           05  REDEF REDEFINES BASE.\n               10  COUNT PIC 9(3) COMP.\n               10  FILLER PIC X(7).\n           05  ARRAY OCCURS 1 TO 5 DEPENDING ON COUNT PIC X(5).\n".to_string()
-    ));
-
-    invalid_cases
+        // ODO counter in REDEFINES
+        (
+            "odo_counter_in_redefines".to_string(),
+            "       01  ROOT.\n           05  BASE PIC X(10).\n           05  REDEF REDEFINES BASE.\n               10  COUNT PIC 9(3) COMP.\n               10  FILLER PIC X(7).\n           05  ARRAY OCCURS 1 TO 5 DEPENDING ON COUNT PIC X(5).\n".to_string()
+        ),
+    ]
 }

@@ -534,6 +534,9 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
             max_count: tail_odo.max_count,
             array_path: tail_odo.array_path.clone(),
         });
+
+        // ODO arrays make record length variable, so clear fixed LRECL
+        schema.lrecl_fixed = None;
     }
 }
 

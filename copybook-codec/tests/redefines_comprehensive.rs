@@ -157,7 +157,7 @@ fn test_redefines_encode_ambiguity_error() {
         "NEXT-FIELD": "Test"
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{}\n", json_data);
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -193,7 +193,7 @@ fn test_redefines_encode_single_view_allowed() {
         "NEXT-FIELD": "12345"
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{}\n", json_data);
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -257,7 +257,7 @@ fn test_redefines_raw_data_precedence() {
     decoded_json["ORIGINAL-FIELD"] = json!("Modified Original   ");
     decoded_json["SHORT-REDEFINES"] = json!("9876543210");
 
-    let jsonl_data = format!("{}\n", decoded_json.to_string());
+    let jsonl_data = format!("{}\n", decoded_json);
 
     let encode_options = EncodeOptions {
         format: RecordFormat::Fixed,

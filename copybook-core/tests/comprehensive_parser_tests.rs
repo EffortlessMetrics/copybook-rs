@@ -1,4 +1,5 @@
 #![cfg(feature = "comprehensive-tests")]
+#![allow(clippy::needless_raw_string_hashes, clippy::uninlined_format_args)]
 
 //! Comprehensive parser tests covering all normative grammar rules and edge cases
 //!

@@ -33,7 +33,6 @@ fn create_test_schema() -> Schema {
 }
 
 #[test]
-#[ignore = "pending implementation"]
 fn test_deterministic_parallel_decode() {
     // Test that --threads 1 vs --threads 4 produce identical outputs
     let schema = create_test_schema();
@@ -78,13 +77,12 @@ fn test_deterministic_parallel_decode() {
     for (threads, output) in &results[1..] {
         assert_eq!(
             output, baseline,
-            "Output differs between 1 thread and {} threads",
-            threads
+            "Output differs between 1 thread and {threads} threads",
         );
     }
 
     // Verify output is valid JSON lines
-    let lines: Vec<&str> = baseline.trim().split('\n').collect();
+    let lines: Vec<&str> = baseline.lines().collect();
     assert_eq!(lines.len(), 50);
 
     // Each line should be valid JSON
@@ -94,7 +92,6 @@ fn test_deterministic_parallel_decode() {
 }
 
 #[test]
-#[ignore = "pending implementation"]
 fn test_memory_bounded_processing() {
     let schema = create_test_schema();
 
@@ -127,7 +124,7 @@ fn test_memory_bounded_processing() {
 
     // Verify output is valid JSON lines
     let output_str = String::from_utf8(output).unwrap();
-    let lines: Vec<&str> = output_str.trim().split('\n').collect();
+    let lines: Vec<&str> = output_str.lines().collect();
     assert_eq!(lines.len(), 200);
 
     // Each line should be valid JSON
@@ -135,7 +132,7 @@ fn test_memory_bounded_processing() {
         let _: serde_json::Value = serde_json::from_str(line).unwrap();
     }
 
-    // Verify throughput is reasonable (allow 0.0 for very fast operations)
-    assert!(summary.throughput_mbps >= 0.0);
+    // Ensure throughput calculation produced a finite value
+    assert!(summary.throughput_mbps.is_finite());
     println!("Throughput: {:.2} MB/s", summary.throughput_mbps);
 }

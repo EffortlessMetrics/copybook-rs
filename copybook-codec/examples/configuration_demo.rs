@@ -1,11 +1,6 @@
 //! Demonstration of the configuration and options API
 //!
-#![allow(
-    clippy::too_many_lines,
-    clippy::cast_precision_loss,
-    clippy::uninlined_format_args
-)]
-//! This example shows how to use the `DecodeOptions`, `EncodeOptions`, and `RunSummary`
+//! This example shows how to use the DecodeOptions, EncodeOptions, and RunSummary
 //! types to configure and monitor copybook processing operations.
 
 use copybook_codec::{
@@ -148,5 +143,5 @@ fn main() {
 
     // Demonstrate Display formatting
     println!("\nFormatted Summary:");
-    println!("{summary}");
+    println!("{}", summary);
 }

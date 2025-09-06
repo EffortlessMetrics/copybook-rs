@@ -1,21 +1,7 @@
 //! Command-line interface for copybook-rs
 //!
 //! This binary provides a user-friendly CLI for parsing copybooks and
-
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::format_push_string)]
-#![allow(clippy::uninlined_format_args)]
-#![allow(clippy::match_same_arms)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::too_many_lines)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::collapsible_else_if)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::redundant_closure)]
 //! converting mainframe data files.
-
-#![allow(clippy::all)]
 
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
@@ -148,7 +134,7 @@ fn main() {
     // Initialize tracing
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
-        .with_env_filter(format!("copybook={level}"))
+        .with_env_filter(format!("copybook={}", level))
         .init();
 
     let result = match cli.command {
@@ -170,21 +156,23 @@ fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
-        } => crate::commands::decode::run(
-            &copybook,
-            &input,
-            &output,
-            format,
-            codepage,
-            json_number,
-            strict,
-            max_errors,
-            emit_filler,
-            emit_meta,
-            emit_raw,
-            on_decode_unmappable,
-            threads,
-        ),
+        } => {
+            crate::commands::decode::run(
+                &copybook,
+                &input,
+                &output,
+                format,
+                codepage,
+                json_number,
+                strict,
+                max_errors,
+                emit_filler,
+                emit_meta,
+                emit_raw,
+                on_decode_unmappable,
+                threads,
+            )
+        }
         Commands::Encode {
             copybook,
             input,
@@ -196,17 +184,23 @@ fn main() {
             strict,
             max_errors,
             threads,
-        } => crate::commands::encode::run(
-            &copybook, &input, &output, format, codepage, use_raw, bwz_encode, strict, max_errors,
-            threads,
-        ),
+        } => {
+            crate::commands::encode::run(
+                &copybook, &input, &output, format, codepage, use_raw, bwz_encode, strict, max_errors,
+                threads,
+            )
+        }
         Commands::Verify {
             copybook,
             input,
             report,
             format,
             codepage,
-        } => crate::commands::verify::run(&copybook, &input, report, format, codepage),
+        } => {
+            tokio::runtime::Runtime::new().unwrap().block_on(async {
+                crate::commands::verify::run(copybook, input, report, format, codepage).await
+            })
+        }
     };
 
     match result {

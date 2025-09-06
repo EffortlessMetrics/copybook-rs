@@ -2,11 +2,11 @@
 //!
 //! This module handles fixed-length and RDW variable-length record processing.
 
-use crate::options::RawMode;
 use crate::options::RecordFormat;
-use copybook_core::error::ErrorContext;
 use copybook_core::{Error, ErrorCode, Result, Schema};
-use std::io::{ErrorKind, Read, Write};
+use copybook_core::error::ErrorContext;
+use std::io::{Read, Write, ErrorKind};
+use crate::options::RawMode;
 use tracing::{debug, warn};
 
 /// Fixed record reader for processing fixed-length records
@@ -19,18 +19,19 @@ pub struct FixedRecordReader<R: Read> {
 
 impl<R: Read> FixedRecordReader<R> {
     /// Create a new fixed record reader
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if LRECL is not provided or is zero
     pub fn new(input: R, lrecl: Option<u32>) -> Result<Self> {
-        let lrecl = lrecl
-            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
-
+        let lrecl = lrecl.ok_or_else(|| {
+            Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL")
+        })?;
+        
         if lrecl == 0 {
             return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                "LRECL must be greater than zero",
+                "LRECL must be greater than zero"
             ));
         }
 
@@ -42,9 +43,9 @@ impl<R: Read> FixedRecordReader<R> {
     }
 
     /// Read the next record
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the record cannot be read due to I/O errors
     pub fn read_record(&mut self) -> Result<Option<Vec<u8>>> {
         // Try to read one byte first to check for EOF
@@ -54,27 +55,20 @@ impl<R: Read> FixedRecordReader<R> {
                 // We got the first byte, now read the rest
                 let mut buffer = vec![0u8; self.lrecl as usize];
                 buffer[0] = first_byte[0];
-
+                
                 if self.lrecl > 1 {
                     match self.input.read_exact(&mut buffer[1..]) {
                         Ok(()) => {
                             self.record_count += 1;
-                            debug!(
-                                "Read fixed record {} of {} bytes",
-                                self.record_count, self.lrecl
-                            );
+                            debug!("Read fixed record {} of {} bytes", self.record_count, self.lrecl);
                             Ok(Some(buffer))
                         }
                         Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
                             // Partial record - this is an error
                             Err(Error::new(
                                 ErrorCode::CBKR221_RDW_UNDERFLOW,
-                                format!(
-                                    "Incomplete record at end of file: expected {} bytes",
-                                    self.lrecl
-                                ),
-                            )
-                            .with_context(ErrorContext {
+                                format!("Incomplete record at end of file: expected {} bytes", self.lrecl)
+                            ).with_context(ErrorContext {
                                 record_index: Some(self.record_count + 1),
                                 field_path: None,
                                 byte_offset: None,
@@ -82,25 +76,23 @@ impl<R: Read> FixedRecordReader<R> {
                                 details: Some("File ends with partial record".to_string()),
                             }))
                         }
-                        Err(e) => Err(Error::new(
-                            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                            format!("I/O error reading record: {e}"),
-                        )
-                        .with_context(ErrorContext {
-                            record_index: Some(self.record_count + 1),
-                            field_path: None,
-                            byte_offset: None,
-                            line_number: None,
-                            details: None,
-                        })),
+                        Err(e) => {
+                            Err(Error::new(
+                                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                                format!("I/O error reading record: {e}")
+                            ).with_context(ErrorContext {
+                                record_index: Some(self.record_count + 1),
+                                field_path: None,
+                                byte_offset: None,
+                                line_number: None,
+                                details: None,
+                            }))
+                        }
                     }
                 } else {
                     // LRECL is 1, we already have the complete record
                     self.record_count += 1;
-                    debug!(
-                        "Read fixed record {} of {} bytes",
-                        self.record_count, self.lrecl
-                    );
+                    debug!("Read fixed record {} of {} bytes", self.record_count, self.lrecl);
                     Ok(Some(buffer))
                 }
             }
@@ -109,37 +101,33 @@ impl<R: Read> FixedRecordReader<R> {
                 debug!("Reached EOF after {} records", self.record_count);
                 Ok(None)
             }
-            Err(e) => Err(Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error reading record: {e}"),
-            )
-            .with_context(ErrorContext {
-                record_index: Some(self.record_count + 1),
-                field_path: None,
-                byte_offset: None,
-                line_number: None,
-                details: None,
-            })),
+            Err(e) => {
+                Err(Error::new(
+                    ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                    format!("I/O error reading record: {e}")
+                ).with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: None,
+                    line_number: None,
+                    details: None,
+                }))
+            }
         }
     }
 
     /// Validate record length against schema
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the record length doesn't match schema expectations
     pub fn validate_record_length(&self, schema: &Schema, record_data: &[u8]) -> Result<()> {
         // For fixed records, the data length should match LRECL
         if record_data.len() != self.lrecl as usize {
             return Err(Error::new(
                 ErrorCode::CBKR221_RDW_UNDERFLOW,
-                format!(
-                    "Record length mismatch: expected {}, got {}",
-                    self.lrecl,
-                    record_data.len()
-                ),
-            )
-            .with_context(ErrorContext {
+                format!("Record length mismatch: expected {}, got {}", self.lrecl, record_data.len())
+            ).with_context(ErrorContext {
                 record_index: Some(self.record_count),
                 field_path: None,
                 byte_offset: None,
@@ -189,18 +177,19 @@ pub struct FixedRecordWriter<W: Write> {
 
 impl<W: Write> FixedRecordWriter<W> {
     /// Create a new fixed record writer
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if LRECL is not provided or is zero
     pub fn new(output: W, lrecl: Option<u32>) -> Result<Self> {
-        let lrecl = lrecl
-            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
-
+        let lrecl = lrecl.ok_or_else(|| {
+            Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL")
+        })?;
+        
         if lrecl == 0 {
             return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                "LRECL must be greater than zero",
+                "LRECL must be greater than zero"
             ));
         }
 
@@ -212,9 +201,9 @@ impl<W: Write> FixedRecordWriter<W> {
     }
 
     /// Write a record with proper padding
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the record cannot be written due to I/O errors
     pub fn write_record(&mut self, data: &[u8]) -> Result<()> {
         let data_len = data.len();
@@ -223,12 +212,8 @@ impl<W: Write> FixedRecordWriter<W> {
         if data_len > lrecl {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!(
-                    "Record too long: {} bytes exceeds LRECL of {}",
-                    data_len, lrecl
-                ),
-            )
-            .with_context(ErrorContext {
+                format!("Record too long: {} bytes exceeds LRECL of {}", data_len, lrecl)
+            ).with_context(ErrorContext {
                 record_index: Some(self.record_count + 1),
                 field_path: None,
                 byte_offset: None,
@@ -241,9 +226,8 @@ impl<W: Write> FixedRecordWriter<W> {
         self.output.write_all(data).map_err(|e| {
             Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error writing record: {e}"),
-            )
-            .with_context(ErrorContext {
+                format!("I/O error writing record: {e}")
+            ).with_context(ErrorContext {
                 record_index: Some(self.record_count + 1),
                 field_path: None,
                 byte_offset: None,
@@ -258,9 +242,8 @@ impl<W: Write> FixedRecordWriter<W> {
             self.output.write_all(&padding).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                    format!("I/O error writing padding: {e}"),
-                )
-                .with_context(ErrorContext {
+                    format!("I/O error writing padding: {e}")
+                ).with_context(ErrorContext {
                     record_index: Some(self.record_count + 1),
                     field_path: None,
                     byte_offset: Some(data_len as u64),
@@ -271,27 +254,22 @@ impl<W: Write> FixedRecordWriter<W> {
         }
 
         self.record_count += 1;
-        debug!(
-            "Wrote fixed record {} of {} bytes (data: {}, padding: {})",
-            self.record_count,
-            lrecl,
-            data_len,
-            lrecl - data_len
-        );
+        debug!("Wrote fixed record {} of {} bytes (data: {}, padding: {})", 
+               self.record_count, lrecl, data_len, lrecl - data_len);
 
         Ok(())
     }
 
     /// Flush the output
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the flush operation fails
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error flushing output: {e}"),
+                format!("I/O error flushing output: {e}")
             )
         })
     }
@@ -309,12 +287,22 @@ impl<W: Write> FixedRecordWriter<W> {
     }
 }
 
+/// RDW processing warnings and information
+#[derive(Debug, Clone, Default)]
+pub struct RDWWarnings {
+    /// Number of reserved byte warnings
+    pub reserved_nonzero_warnings: u64,
+    /// Number of suspected ASCII corruption warnings  
+    pub suspect_ascii_warnings: u64,
+}
+
 /// RDW (Record Descriptor Word) record reader for processing variable-length records
 #[derive(Debug)]
 pub struct RDWRecordReader<R: Read> {
     input: R,
     record_count: u64,
     strict_mode: bool,
+    warnings: RDWWarnings,
 }
 
 impl<R: Read> RDWRecordReader<R> {
@@ -324,13 +312,14 @@ impl<R: Read> RDWRecordReader<R> {
             input,
             record_count: 0,
             strict_mode,
+            warnings: RDWWarnings::default(),
         }
     }
 
     /// Read the next RDW record
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the record cannot be read due to I/O errors or format issues
     pub fn read_record(&mut self) -> Result<Option<RDWRecord>> {
         // Read the 4-byte RDW header
@@ -338,22 +327,19 @@ impl<R: Read> RDWRecordReader<R> {
         match self.input.read_exact(&mut rdw_header) {
             Ok(()) => {
                 // Parse RDW header
-                let length = u32::from(u16::from_be_bytes([rdw_header[0], rdw_header[1]]));
+                let length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as u32;
                 let reserved = u16::from_be_bytes([rdw_header[2], rdw_header[3]]);
 
                 self.record_count += 1;
-                debug!(
-                    "Read RDW header for record {}: length={}, reserved={:04X}",
-                    self.record_count, length, reserved
-                );
+                debug!("Read RDW header for record {}: length={}, reserved={:04X}", 
+                       self.record_count, length, reserved);
 
                 // Validate reserved bytes
                 if reserved != 0 {
                     let error = Error::new(
                         ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
-                        format!("RDW reserved bytes are non-zero: {:04X}", reserved),
-                    )
-                    .with_context(ErrorContext {
+                        format!("RDW reserved bytes are non-zero: {:04X}", reserved)
+                    ).with_context(ErrorContext {
                         record_index: Some(self.record_count),
                         field_path: None,
                         byte_offset: Some(2), // Reserved bytes are at offset 2-3
@@ -363,23 +349,32 @@ impl<R: Read> RDWRecordReader<R> {
 
                     if self.strict_mode {
                         return Err(error);
+                    } else {
+                        warn!("RDW reserved bytes non-zero (record {}): {:04X}", self.record_count, reserved);
+                        self.warnings.reserved_nonzero_warnings += 1;
                     }
-                    warn!(
-                        "RDW reserved bytes non-zero (record {}): {:04X}",
-                        self.record_count, reserved
-                    );
                 }
 
                 // Check for ASCII transfer corruption heuristic
-                if Self::is_suspect_ascii_corruption(rdw_header) {
-                    warn!(
-                        "RDW appears to be ASCII-corrupted (record {}): {:02X} {:02X} {:02X} {:02X}",
-                        self.record_count,
-                        rdw_header[0],
-                        rdw_header[1],
-                        rdw_header[2],
-                        rdw_header[3]
-                    );
+                if Self::is_suspect_ascii_corruption(&rdw_header) {
+                    warn!("RDW appears to be ASCII-corrupted (record {}): {:02X} {:02X} {:02X} {:02X}", 
+                          self.record_count, rdw_header[0], rdw_header[1], rdw_header[2], rdw_header[3]);
+                    
+                    // If the resulting length is unrealistically large (> 8KB), treat as corruption error
+                    if length > 8192 {
+                        return Err(Error::new(
+                            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                            format!("RDW length {} suggests ASCII corruption", length)
+                        ).with_context(ErrorContext {
+                            record_index: Some(self.record_count),
+                            field_path: None,
+                            byte_offset: Some(0), // Length bytes are at offset 0-1
+                            line_number: None,
+                            details: Some(format!("Length bytes: {:02X} {:02X} (ASCII digits?)", rdw_header[0], rdw_header[1])),
+                        }));
+                    } else {
+                        self.warnings.suspect_ascii_warnings += 1;
+                    }
                 }
 
                 // Handle zero-length records
@@ -395,10 +390,7 @@ impl<R: Read> RDWRecordReader<R> {
                 let mut payload = vec![0u8; length as usize];
                 match self.input.read_exact(&mut payload) {
                     Ok(()) => {
-                        debug!(
-                            "Read RDW record {} payload: {} bytes",
-                            self.record_count, length
-                        );
+                        debug!("Read RDW record {} payload: {} bytes", self.record_count, length);
                         Ok(Some(RDWRecord {
                             header: rdw_header,
                             payload,
@@ -407,9 +399,8 @@ impl<R: Read> RDWRecordReader<R> {
                     Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
                         Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Incomplete RDW record payload: expected {} bytes", length),
-                        )
-                        .with_context(ErrorContext {
+                            format!("Incomplete RDW record payload: expected {} bytes", length)
+                        ).with_context(ErrorContext {
                             record_index: Some(self.record_count),
                             field_path: None,
                             byte_offset: Some(4), // Payload starts after 4-byte header
@@ -417,60 +408,72 @@ impl<R: Read> RDWRecordReader<R> {
                             details: Some("File ends with incomplete RDW payload".to_string()),
                         }))
                     }
-                    Err(e) => Err(Error::new(
-                        ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                        format!("I/O error reading RDW payload: {e}"),
-                    )
-                    .with_context(ErrorContext {
-                        record_index: Some(self.record_count),
-                        field_path: None,
-                        byte_offset: Some(4),
-                        line_number: None,
-                        details: None,
-                    })),
+                    Err(e) => {
+                        Err(Error::new(
+                            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                            format!("I/O error reading RDW payload: {e}")
+                        ).with_context(ErrorContext {
+                            record_index: Some(self.record_count),
+                            field_path: None,
+                            byte_offset: Some(4),
+                            line_number: None,
+                            details: None,
+                        }))
+                    }
                 }
             }
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                // True EOF - no more data
-                debug!("Reached EOF after {} RDW records", self.record_count);
-                Ok(None)
+                // In strict mode, incomplete header at the start is an error
+                if self.strict_mode && self.record_count == 0 {
+                    Err(Error::new(
+                        ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                        "File contains incomplete RDW header".to_string()
+                    ).with_context(ErrorContext {
+                        record_index: Some(1),
+                        field_path: None,
+                        byte_offset: Some(0),
+                        line_number: None,
+                        details: Some("Expected 4-byte RDW header but file is too short".to_string()),
+                    }))
+                } else {
+                    // True EOF - no more data
+                    debug!("Reached EOF after {} RDW records", self.record_count);
+                    Ok(None)
+                }
             }
-            Err(e) => Err(Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error reading RDW header: {e}"),
-            )
-            .with_context(ErrorContext {
-                record_index: Some(self.record_count + 1),
-                field_path: None,
-                byte_offset: None,
-                line_number: None,
-                details: None,
-            })),
+            Err(e) => {
+                Err(Error::new(
+                    ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                    format!("I/O error reading RDW header: {e}")
+                ).with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: None,
+                    line_number: None,
+                    details: None,
+                }))
+            }
         }
     }
 
     /// Validate zero-length record against schema
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if zero-length record is invalid for the schema
     pub fn validate_zero_length_record(&self, schema: &Schema) -> Result<()> {
         // Zero-length records are valid only when schema fixed prefix == 0
         // For now, we'll assume this is valid since we don't have layout calculation yet
         // This will be properly implemented when layout resolution is available
-
+        
         // Calculate the minimum record size based on schema
         let min_size = Self::calculate_schema_fixed_prefix(schema);
-
+        
         if min_size > 0 {
             return Err(Error::new(
                 ErrorCode::CBKR221_RDW_UNDERFLOW,
-                format!(
-                    "Zero-length RDW record invalid: schema requires minimum {} bytes",
-                    min_size
-                ),
-            )
-            .with_context(ErrorContext {
+                format!("Zero-length RDW record invalid: schema requires minimum {} bytes", min_size)
+            ).with_context(ErrorContext {
                 record_index: Some(self.record_count),
                 field_path: None,
                 byte_offset: None,
@@ -491,11 +494,11 @@ impl<R: Read> RDWRecordReader<R> {
     }
 
     /// Detect ASCII transfer corruption heuristic
-    fn is_suspect_ascii_corruption(rdw_header: [u8; 4]) -> bool {
+    fn is_suspect_ascii_corruption(rdw_header: &[u8; 4]) -> bool {
         // Heuristic: if the length bytes look like ASCII digits, it might be corrupted
         // ASCII digits are 0x30-0x39
         let length_bytes = [rdw_header[0], rdw_header[1]];
-
+        
         // Check if both length bytes are ASCII digits
         length_bytes.iter().all(|&b| (0x30..=0x39).contains(&b))
     }
@@ -504,6 +507,18 @@ impl<R: Read> RDWRecordReader<R> {
     #[must_use]
     pub fn record_count(&self) -> u64 {
         self.record_count
+    }
+
+    /// Get the accumulated warnings
+    #[must_use]
+    pub fn warnings(&self) -> &RDWWarnings {
+        &self.warnings
+    }
+
+    /// Get total warning count  
+    #[must_use]
+    pub fn warning_count(&self) -> u64 {
+        self.warnings.reserved_nonzero_warnings + self.warnings.suspect_ascii_warnings
     }
 }
 
@@ -524,18 +539,17 @@ impl<W: Write> RDWRecordWriter<W> {
     }
 
     /// Write an RDW record
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the record cannot be written due to I/O errors
     pub fn write_record(&mut self, record: &RDWRecord) -> Result<()> {
         // Write the RDW header
         self.output.write_all(&record.header).map_err(|e| {
             Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error writing RDW header: {e}"),
-            )
-            .with_context(ErrorContext {
+                format!("I/O error writing RDW header: {e}")
+            ).with_context(ErrorContext {
                 record_index: Some(self.record_count + 1),
                 field_path: None,
                 byte_offset: None,
@@ -548,9 +562,8 @@ impl<W: Write> RDWRecordWriter<W> {
         self.output.write_all(&record.payload).map_err(|e| {
             Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error writing RDW payload: {e}"),
-            )
-            .with_context(ErrorContext {
+                format!("I/O error writing RDW payload: {e}")
+            ).with_context(ErrorContext {
                 record_index: Some(self.record_count + 1),
                 field_path: None,
                 byte_offset: Some(4),
@@ -560,37 +573,25 @@ impl<W: Write> RDWRecordWriter<W> {
         })?;
 
         self.record_count += 1;
-        debug!(
-            "Wrote RDW record {} with {} byte payload",
-            self.record_count,
-            record.payload.len()
-        );
+        debug!("Wrote RDW record {} with {} byte payload", 
+               self.record_count, record.payload.len());
 
         Ok(())
     }
 
     /// Write a record from payload data, generating the RDW header
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the record cannot be written due to I/O errors
-    pub fn write_record_from_payload(
-        &mut self,
-        payload: &[u8],
-        preserve_reserved: Option<u16>,
-    ) -> Result<()> {
+    pub fn write_record_from_payload(&mut self, payload: &[u8], preserve_reserved: Option<u16>) -> Result<()> {
         let length = payload.len();
-
+        
         if length > u16::MAX as usize {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!(
-                    "RDW payload too large: {} bytes exceeds maximum of {}",
-                    length,
-                    u16::MAX
-                ),
-            )
-            .with_context(ErrorContext {
+                format!("RDW payload too large: {} bytes exceeds maximum of {}", length, u16::MAX)
+            ).with_context(ErrorContext {
                 record_index: Some(self.record_count + 1),
                 field_path: None,
                 byte_offset: None,
@@ -600,16 +601,9 @@ impl<W: Write> RDWRecordWriter<W> {
         }
 
         // Create RDW header
-        let length_bytes = u16::try_from(length)
-            .expect("RDW length should fit in u16")
-            .to_be_bytes();
+        let length_bytes = (length as u16).to_be_bytes();
         let reserved_bytes = preserve_reserved.unwrap_or(0).to_be_bytes();
-        let header = [
-            length_bytes[0],
-            length_bytes[1],
-            reserved_bytes[0],
-            reserved_bytes[1],
-        ];
+        let header = [length_bytes[0], length_bytes[1], reserved_bytes[0], reserved_bytes[1]];
 
         let record = RDWRecord {
             header,
@@ -620,15 +614,15 @@ impl<W: Write> RDWRecordWriter<W> {
     }
 
     /// Flush the output
-    ///
+    /// 
     /// # Errors
-    ///
+    /// 
     /// Returns an error if the flush operation fails
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error flushing output: {e}"),
+                format!("I/O error flushing output: {e}")
             )
         })
     }
@@ -653,28 +647,21 @@ impl RDWRecord {
     /// Create a new RDW record from payload
     #[must_use]
     pub fn new(payload: Vec<u8>) -> Self {
-        let length = u16::try_from(payload.len().min(u16::MAX as usize))
-            .expect("payload length should fit in u16");
+        let length = payload.len().min(u16::MAX as usize) as u16;
         let length_bytes = length.to_be_bytes();
         let header = [length_bytes[0], length_bytes[1], 0, 0]; // Reserved bytes are zero
-
+        
         Self { header, payload }
     }
 
     /// Create a new RDW record with preserved reserved bytes
     #[must_use]
     pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
-        let length = u16::try_from(payload.len().min(u16::MAX as usize))
-            .expect("payload length should fit in u16");
+        let length = payload.len().min(u16::MAX as usize) as u16;
         let length_bytes = length.to_be_bytes();
         let reserved_bytes = reserved.to_be_bytes();
-        let header = [
-            length_bytes[0],
-            length_bytes[1],
-            reserved_bytes[0],
-            reserved_bytes[1],
-        ];
-
+        let header = [length_bytes[0], length_bytes[1], reserved_bytes[0], reserved_bytes[1]];
+        
         Self { header, payload }
     }
 
@@ -692,8 +679,7 @@ impl RDWRecord {
 
     /// Update the length field to match the payload size
     pub fn recompute_length(&mut self) {
-        let length = u16::try_from(self.payload.len().min(u16::MAX as usize))
-            .expect("payload length should fit in u16");
+        let length = self.payload.len().min(u16::MAX as usize) as u16;
         let length_bytes = length.to_be_bytes();
         self.header[0] = length_bytes[0];
         self.header[1] = length_bytes[1];
@@ -713,15 +699,15 @@ impl RDWRecord {
     pub fn get_data_for_raw_mode(&self, raw_mode: RawMode) -> Vec<u8> {
         match raw_mode {
             RawMode::RecordRDW => self.as_bytes(), // Include RDW header
-            _ => self.payload.clone(),             // Just payload
+            _ => self.payload.clone(), // Just payload
         }
     }
 }
 
 /// Read a single record from input (legacy interface)
-///
+/// 
 /// # Errors
-///
+/// 
 /// Returns an error if the record cannot be read due to I/O errors or format issues
 pub fn read_record(
     input: &mut impl Read,
@@ -744,9 +730,9 @@ pub fn read_record(
 }
 
 /// Write a single record to output (legacy interface)
-///
+/// 
 /// # Errors
-///
+/// 
 /// Returns an error if the record cannot be written due to I/O errors
 pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) -> Result<()> {
     match format {
@@ -777,17 +763,17 @@ mod tests {
     fn test_fixed_record_reader_basic() {
         let data = b"ABCD1234EFGH5678";
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
-
+        
         // Read first record
         let record1 = reader.read_record().unwrap().unwrap();
         assert_eq!(record1, b"ABCD1234");
         assert_eq!(reader.record_count(), 1);
-
+        
         // Read second record
         let record2 = reader.read_record().unwrap().unwrap();
         assert_eq!(record2, b"EFGH5678");
         assert_eq!(reader.record_count(), 2);
-
+        
         // EOF
         let record3 = reader.read_record().unwrap();
         assert!(record3.is_none());
@@ -797,7 +783,7 @@ mod tests {
     fn test_fixed_record_reader_partial_record() {
         let data = b"ABCD123"; // 7 bytes, but LRECL is 8
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
-
+        
         // Should get an error for incomplete record
         let result = reader.read_record();
         assert!(result.is_err());
@@ -827,17 +813,17 @@ mod tests {
     fn test_fixed_record_writer_basic() {
         let mut output = Vec::new();
         let mut writer = FixedRecordWriter::new(&mut output, Some(8)).unwrap();
-
+        
         // Write first record (exact length)
         writer.write_record(b"ABCD1234").unwrap();
         assert_eq!(writer.record_count(), 1);
-
+        
         // Write second record (shorter, should be padded)
         writer.write_record(b"XYZ").unwrap();
         assert_eq!(writer.record_count(), 2);
-
+        
         writer.flush().unwrap();
-
+        
         // Check output
         assert_eq!(output, b"ABCD1234XYZ\x00\x00\x00\x00\x00");
     }
@@ -846,7 +832,7 @@ mod tests {
     fn test_fixed_record_writer_too_long() {
         let mut output = Vec::new();
         let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
-
+        
         // Try to write record longer than LRECL
         let result = writer.write_record(b"ABCDEFGH");
         assert!(result.is_err());
@@ -877,7 +863,7 @@ mod tests {
         let data = b"ABCD1234";
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
         let record = reader.read_record().unwrap().unwrap();
-
+        
         let schema = Schema::new();
         let result = reader.validate_record_length(&schema, &record);
         assert!(result.is_ok());
@@ -888,7 +874,7 @@ mod tests {
         let data = b"ABCD1234";
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
         let _record = reader.read_record().unwrap().unwrap();
-
+        
         let schema = Schema::new();
         // Simulate wrong length record
         let wrong_record = b"ABC";
@@ -901,9 +887,7 @@ mod tests {
     #[test]
     fn test_legacy_read_record_fixed() {
         let mut data = Cursor::new(b"ABCD1234");
-        let record = read_record(&mut data, RecordFormat::Fixed, Some(8))
-            .unwrap()
-            .unwrap();
+        let record = read_record(&mut data, RecordFormat::Fixed, Some(8)).unwrap().unwrap();
         assert_eq!(record, b"ABCD1234");
     }
 
@@ -927,10 +911,10 @@ mod tests {
     fn test_legacy_write_record_rdw() {
         let mut output = Vec::new();
         write_record(&mut output, b"test", RecordFormat::RDW).unwrap();
-
+        
         // Should have 4-byte header + 4-byte payload
         assert_eq!(output.len(), 8);
-
+        
         // Check RDW header: length=4, reserved=0
         assert_eq!(output[0..2], [0, 4]); // Big-endian length
         assert_eq!(output[2..4], [0, 0]); // Reserved bytes
@@ -971,11 +955,11 @@ mod tests {
     #[test]
     fn test_rdw_record_get_data_for_raw_mode() {
         let record = RDWRecord::new(b"test".to_vec());
-
+        
         // Record+RDW mode includes header
         let with_header = record.get_data_for_raw_mode(RawMode::RecordRDW);
         assert_eq!(with_header, vec![0, 4, 0, 0, b't', b'e', b's', b't']);
-
+        
         // Other modes just return payload
         let payload_only = record.get_data_for_raw_mode(RawMode::Record);
         assert_eq!(payload_only, b"test");
@@ -986,7 +970,7 @@ mod tests {
         // Create test data: RDW header (length=5, reserved=0) + payload "hello"
         let data = vec![0, 5, 0, 0, b'h', b'e', b'l', b'l', b'o'];
         let mut reader = RDWRecordReader::new(Cursor::new(data), false);
-
+        
         let record = reader.read_record().unwrap().unwrap();
         assert_eq!(record.length(), 5);
         assert_eq!(record.reserved(), 0);
@@ -998,21 +982,21 @@ mod tests {
     fn test_rdw_reader_multiple_records() {
         // Two records: "hi" (length=2) and "bye" (length=3)
         let data = vec![
-            0, 2, 0, 0, b'h', b'i', // First record
-            0, 3, 0, 0, b'b', b'y', b'e', // Second record
+            0, 2, 0, 0, b'h', b'i',           // First record
+            0, 3, 0, 0, b'b', b'y', b'e'      // Second record
         ];
         let mut reader = RDWRecordReader::new(Cursor::new(data), false);
-
+        
         // Read first record
         let record1 = reader.read_record().unwrap().unwrap();
         assert_eq!(record1.payload, b"hi");
         assert_eq!(reader.record_count(), 1);
-
+        
         // Read second record
         let record2 = reader.read_record().unwrap().unwrap();
         assert_eq!(record2.payload, b"bye");
         assert_eq!(reader.record_count(), 2);
-
+        
         // EOF
         let record3 = reader.read_record().unwrap();
         assert!(record3.is_none());
@@ -1023,7 +1007,7 @@ mod tests {
         // Zero-length record
         let data = vec![0, 0, 0, 0]; // Length=0, reserved=0, no payload
         let mut reader = RDWRecordReader::new(Cursor::new(data), false);
-
+        
         let record = reader.read_record().unwrap().unwrap();
         assert_eq!(record.length(), 0);
         assert_eq!(record.payload.len(), 0);
@@ -1034,7 +1018,7 @@ mod tests {
         // Record with non-zero reserved bytes
         let data = vec![0, 4, 0x12, 0x34, b't', b'e', b's', b't'];
         let mut reader = RDWRecordReader::new(Cursor::new(data), false); // Lenient mode
-
+        
         let record = reader.read_record().unwrap().unwrap();
         assert_eq!(record.reserved(), 0x1234);
         assert_eq!(record.payload, b"test");
@@ -1045,7 +1029,7 @@ mod tests {
         // Record with non-zero reserved bytes in strict mode
         let data = vec![0, 4, 0x12, 0x34, b't', b'e', b's', b't'];
         let mut reader = RDWRecordReader::new(Cursor::new(data), true); // Strict mode
-
+        
         let result = reader.read_record();
         assert!(result.is_err());
         let error = result.unwrap_err();
@@ -1057,7 +1041,7 @@ mod tests {
         // Incomplete RDW header (only 2 bytes)
         let data = vec![0, 4];
         let mut reader = RDWRecordReader::new(Cursor::new(data), false);
-
+        
         let result = reader.read_record();
         assert!(result.is_ok());
         assert!(result.unwrap().is_none()); // Should be EOF
@@ -1068,7 +1052,7 @@ mod tests {
         // Complete header but incomplete payload
         let data = vec![0, 5, 0, 0, b'h', b'i']; // Says length=5 but only 2 payload bytes
         let mut reader = RDWRecordReader::new(Cursor::new(data), false);
-
+        
         let result = reader.read_record();
         assert!(result.is_err());
         let error = result.unwrap_err();
@@ -1081,40 +1065,30 @@ mod tests {
         // Use '0' '4' which gives length 0x3034 = 12340, still too large for our test data
         // Let's use a smaller example: '0' '8' = 0x3038 = 12344, still too large
         // Better: use bytes that look like ASCII but give a reasonable length
-        let data = vec![
-            0, 8, b'3', b'4', b't', b'e', b's', b't', b'x', b'x', b'x', b'x',
-        ];
+        let data = vec![0, 8, b'3', b'4', b't', b'e', b's', b't', b'x', b'x', b'x', b'x'];
         let mut reader = RDWRecordReader::new(Cursor::new(data), false);
-
+        
         // Should read the record successfully (length=8, reserved=0x3334)
         let record = reader.read_record().unwrap().unwrap();
         assert_eq!(record.length(), 8);
         assert_eq!(record.reserved(), 0x3334); // '3' '4' as big-endian
         assert_eq!(record.payload, b"testxxxx");
-
+        
         // The ASCII corruption detection is based on the length bytes being ASCII digits
         // In this case, the length bytes are 0, 8 which are not ASCII digits, so no warning
         // Let's test the actual detection logic separately
-        assert!(
-            !RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption([
-                0, 8, b'3', b'4'
-            ])
-        );
-        assert!(
-            RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption([
-                b'1', b'2', 0, 0
-            ])
-        );
+        assert!(!RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption(&[0, 8, b'3', b'4']));
+        assert!(RDWRecordReader::<std::io::Cursor<Vec<u8>>>::is_suspect_ascii_corruption(&[b'1', b'2', 0, 0]));
     }
 
     #[test]
     fn test_rdw_writer_basic() {
         let mut output = Vec::new();
         let mut writer = RDWRecordWriter::new(&mut output);
-
+        
         let record = RDWRecord::new(b"test".to_vec());
         writer.write_record(&record).unwrap();
-
+        
         assert_eq!(writer.record_count(), 1);
         assert_eq!(output, vec![0, 4, 0, 0, b't', b'e', b's', b't']);
     }
@@ -1123,9 +1097,9 @@ mod tests {
     fn test_rdw_writer_from_payload() {
         let mut output = Vec::new();
         let mut writer = RDWRecordWriter::new(&mut output);
-
+        
         writer.write_record_from_payload(b"hello", None).unwrap();
-
+        
         assert_eq!(writer.record_count(), 1);
         assert_eq!(output, vec![0, 5, 0, 0, b'h', b'e', b'l', b'l', b'o']);
     }
@@ -1134,11 +1108,9 @@ mod tests {
     fn test_rdw_writer_preserve_reserved() {
         let mut output = Vec::new();
         let mut writer = RDWRecordWriter::new(&mut output);
-
-        writer
-            .write_record_from_payload(b"test", Some(0x1234))
-            .unwrap();
-
+        
+        writer.write_record_from_payload(b"test", Some(0x1234)).unwrap();
+        
         assert_eq!(output, vec![0, 4, 0x12, 0x34, b't', b'e', b's', b't']);
     }
 
@@ -1146,11 +1118,11 @@ mod tests {
     fn test_rdw_writer_payload_too_large() {
         let mut output = Vec::new();
         let mut writer = RDWRecordWriter::new(&mut output);
-
+        
         // Create payload larger than u16::MAX
         let large_payload = vec![0u8; (u16::MAX as usize) + 1];
         let result = writer.write_record_from_payload(&large_payload, None);
-
+        
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
@@ -1160,10 +1132,8 @@ mod tests {
     fn test_legacy_read_record_rdw() {
         let data = vec![0, 4, 0, 0, b't', b'e', b's', b't'];
         let mut cursor = Cursor::new(data);
-
-        let record = read_record(&mut cursor, RecordFormat::RDW, None)
-            .unwrap()
-            .unwrap();
+        
+        let record = read_record(&mut cursor, RecordFormat::RDW, None).unwrap().unwrap();
         assert_eq!(record, b"test"); // Should return just the payload
     }
 }

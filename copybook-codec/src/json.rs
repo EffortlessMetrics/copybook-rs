@@ -627,11 +627,14 @@ impl<W: Write> JsonWriter<W> {
                 )?;
 
                 // Fixed-scale rendering - NORMATIVE
-                let decimal_str = decimal.to_fixed_scale_string(*scale);
-
                 match self.options.json_number_mode {
-                    JsonNumberMode::Lossless => Ok(Value::String(decimal_str)),
+                    JsonNumberMode::Lossless => {
+                        // In lossless mode, preserve original field width for integers (scale=0)
+                        let decimal_str = decimal.to_fixed_scale_string_with_width(*scale, *digits);
+                        Ok(Value::String(decimal_str))
+                    },
                     JsonNumberMode::Native => {
+                        let decimal_str = decimal.to_fixed_scale_string(*scale);
                         // Try to parse as JSON number, fall back to string for precision
                         if let Ok(num) = decimal_str.parse::<f64>() {
                             if num.is_finite() {

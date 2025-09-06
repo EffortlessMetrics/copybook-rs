@@ -2,18 +2,13 @@
 //!
 //! This module implements the parsing logic for COBOL copybooks,
 //! including lexical analysis and AST construction.
-//!
-//! ## Comments
-//!
-//! In both free and fixed forms, COBOL-2002 inline comments `*>` are supported
-//! and stripped (outside string literals). Disable via `ParseOptions { allow_inline_comments: false }`
-//! for strict legacy parsing.
 
 use crate::error::ErrorCode;
 use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema};
 use crate::{Error, Result};
+use serde_json::Value;
 
 /// Parse a COBOL copybook text into a schema
 ///
@@ -34,8 +29,7 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
         return Err(Error::new(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
     }
 
-    let tokens = Lexer::new_with_options(text, options).tokenize();
-
+    let tokens = Lexer::new(text).tokenize();
     let mut parser = Parser::with_options(tokens, options.clone());
     parser.parse_schema()
 }
@@ -47,10 +41,6 @@ pub struct ParseOptions {
     pub emit_filler: bool,
     /// Codepage for fingerprint calculation
     pub codepage: String,
-    /// Enforce strict validation (ODO bounds/order, REDEFINES ambiguity as errors)
-    pub strict: bool,
-    /// Whether to allow inline comments (*>) - COBOL-2002 feature
-    pub allow_inline_comments: bool,
 }
 
 impl Default for ParseOptions {
@@ -58,8 +48,6 @@ impl Default for ParseOptions {
         Self {
             emit_filler: false,
             codepage: "cp037".to_string(),
-            strict: false,
-            allow_inline_comments: true,
         }
     }
 }
@@ -71,15 +59,6 @@ struct Parser {
     options: ParseOptions,
 }
 
-/// Phase for field name processing
-#[derive(Clone, Copy)]
-enum NameResolutionPhase {
-    /// Initial processing before layout resolution
-    Initial,
-    /// Final processing after layout resolution
-    Final,
-}
-
 impl Parser {
     fn with_options(tokens: Vec<TokenPos>, options: ParseOptions) -> Self {
         Self {
@@ -89,53 +68,10 @@ impl Parser {
         }
     }
 
-    /// Create an error with line/column context from current token
-    fn err_here(&self, code: ErrorCode, msg: impl Into<String>) -> Error {
-        let mut error = Error::new(code, msg.into());
-        if let Some(tok) = self.current_token() {
-            error.context = Some(crate::error::ErrorContext {
-                record_index: None,
-                field_path: None,
-                byte_offset: None,
-                line_number: Some(tok.line.try_into().unwrap_or(u32::MAX)),
-                details: None,
-            });
-        }
-        error
-    }
-
-    /// Check if a token is ignorable (can be skipped)
-    #[inline]
-    fn is_ignorable(&self, tok: &Token) -> bool {
-        matches!(tok, Token::Newline)
-            || (self.options.allow_inline_comments && matches!(tok, Token::InlineComment(_)))
-    }
-
-    /// Consume the tail of the current line after a terminator
-    fn consume_line_tail(&mut self, line_no: usize) -> Result<()> {
-        while let Some(tok) = self.current_token() {
-            if tok.line == line_no {
-                // Check for inline comments and handle based on options
-                if let Token::InlineComment(_) = &tok.token
-                    && !self.options.allow_inline_comments
-                {
-                    return Err(self.err_here(
-                        ErrorCode::CBKP001_SYNTAX,
-                        "Inline comments (*>) are not allowed in strict mode",
-                    ));
-                }
-                self.advance();
-            } else {
-                break;
-            }
-        }
-        Ok(())
-    }
-
     /// Parse the complete schema
     fn parse_schema(&mut self) -> Result<Schema> {
         // Skip any leading comments or empty lines
-        self.skip_comments_and_newlines()?;
+        self.skip_comments_and_newlines();
 
         // Parse all field definitions into a flat list first
         let mut flat_fields = Vec::new();
@@ -143,21 +79,21 @@ impl Parser {
             if let Some(field) = self.parse_field()? {
                 flat_fields.push(field);
             }
-            self.skip_comments_and_newlines()?;
+            self.skip_comments_and_newlines();
         }
 
         if flat_fields.is_empty() {
-            return Err(self.err_here(
+            return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
                 "No valid field definitions found",
             ));
         }
 
         // Build hierarchical structure from flat fields
-        let hierarchical_fields = self.build_hierarchy(flat_fields);
+        let hierarchical_fields = self.build_hierarchy(flat_fields)?;
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
-        Self::validate_structure(&hierarchical_fields)?;
+        self.validate_structure(&hierarchical_fields)?;
 
         // Create schema with fingerprint
         let mut schema = Schema::from_fields(hierarchical_fields);
@@ -165,25 +101,19 @@ impl Parser {
         // Resolve field layouts and compute offsets
         crate::layout::resolve_layout(&mut schema)?;
 
-        // Validate ODO position constraints now that offsets are available
-        Self::validate_odo_positions(&schema.fields)?;
-
-        // Finalize field names now that layout offsets are known
-        self.process_field_names(&mut schema.fields, NameResolutionPhase::Final);
-
         self.calculate_schema_fingerprint(&mut schema);
 
         Ok(schema)
     }
 
     /// Build hierarchical structure from flat field list
-    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Vec<Field> {
+    fn build_hierarchy(&mut self, mut flat_fields: Vec<Field>) -> Result<Vec<Field>> {
         if flat_fields.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
-        // Handle duplicate names before building hierarchy
-        self.process_field_names(&mut flat_fields, NameResolutionPhase::Initial);
+        // Handle duplicate names and FILLER fields
+        self.process_field_names(&mut flat_fields);
 
         // Build hierarchical structure using a stack-based approach
         let mut stack: Vec<Field> = Vec::new();
@@ -191,7 +121,7 @@ impl Parser {
 
         for mut field in flat_fields {
             // Set initial path
-            field.path.clone_from(&field.name);
+            field.path = field.name.clone();
 
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
@@ -239,43 +169,31 @@ impl Parser {
             }
         }
 
-        result
+        Ok(result)
     }
 
-    /// Process field names for duplicates (initial) or finalize FILLER names after layout
-    fn process_field_names(&mut self, fields: &mut [Field], phase: NameResolutionPhase) {
-        match phase {
-            NameResolutionPhase::Initial => {
-                // Handle duplicate names at each level (skip FILLER fields)
-                Self::process_duplicates_at_level(fields, 0);
-            }
-            NameResolutionPhase::Final => {
-                self.finalize_filler_names(fields, None);
-            }
-        }
-    }
-
-    /// Recursively rename FILLER fields with computed offsets and update paths
-    fn finalize_filler_names(&self, fields: &mut [Field], parent_path: Option<&str>) {
+    /// Process field names for duplicates and FILLER handling
+    fn process_field_names(&mut self, fields: &mut [Field]) {
+        // First pass: handle FILLER fields
         for field in fields.iter_mut() {
-            if field.name.eq_ignore_ascii_case("FILLER") && self.options.emit_filler {
-                field.name = format!("_filler_{:08}", field.offset);
+            if field.name.to_uppercase() == "FILLER" {
+                if self.options.emit_filler {
+                    // Replace FILLER with _filler_<offset> (offset will be calculated later in layout resolution)
+                    // For now, use a placeholder that will be updated
+                    field.name = format!("_filler_{}", 0);
+                } else {
+                    // Keep FILLER name for now, will be filtered out in layout resolution
+                    field.name = "FILLER".to_string();
+                }
             }
-
-            // Update path based on possibly updated name
-            field.path = if let Some(parent) = parent_path {
-                format!("{}.{}", parent, field.name)
-            } else {
-                field.name.clone()
-            };
-
-            let current_path = field.path.clone();
-            self.finalize_filler_names(&mut field.children, Some(&current_path));
         }
+
+        // Second pass: handle duplicate names at each level
+        self.process_duplicates_at_level(fields, 0);
     }
 
     /// Process duplicate names recursively by level
-    fn process_duplicates_at_level(fields: &mut [Field], parent_level: u8) {
+    fn process_duplicates_at_level(&mut self, fields: &mut [Field], parent_level: u8) {
         let mut name_counts: std::collections::HashMap<String, u32> =
             std::collections::HashMap::new();
         let mut siblings = Vec::new();
@@ -291,8 +209,8 @@ impl Parser {
         for &i in &siblings {
             let field_name = fields[i].name.clone();
 
-            // Skip FILLER fields (they will be renamed with offsets later)
-            if field_name.eq_ignore_ascii_case("FILLER") {
+            // Skip FILLER fields that won't be emitted
+            if field_name == "FILLER" && !self.options.emit_filler {
                 continue;
             }
 
@@ -306,18 +224,18 @@ impl Parser {
     }
 
     /// Validate the parsed structure
-    fn validate_structure(fields: &[Field]) -> Result<()> {
+    fn validate_structure(&self, fields: &[Field]) -> Result<()> {
         // Validate REDEFINES targets
-        Self::validate_redefines(fields)?;
+        self.validate_redefines(fields)?;
 
         // Validate ODO constraints
-        Self::validate_odo_constraints(fields)?;
+        self.validate_odo_constraints(fields)?;
 
         Ok(())
     }
 
     /// Validate REDEFINES relationships
-    fn validate_redefines(fields: &[Field]) -> Result<()> {
+    fn validate_redefines(&self, fields: &[Field]) -> Result<()> {
         let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
@@ -343,7 +261,7 @@ impl Parser {
     }
 
     /// Validate ODO constraints
-    fn validate_odo_constraints(fields: &[Field]) -> Result<()> {
+    fn validate_odo_constraints(&self, fields: &[Field]) -> Result<()> {
         let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
@@ -363,21 +281,21 @@ impl Parser {
                     ));
                 }
 
+                // Validate that ODO array is at tail position
+                // This is a simplified check - full validation would require layout resolution
+                if !self.is_odo_at_tail(field, &all_fields) {
+                    return Err(Error::new(
+                        ErrorCode::CBKP021_ODO_NOT_TAIL,
+                        format!(
+                            "ODO array '{}' must be at tail position of its containing group",
+                            field.name
+                        ),
+                    ));
+                }
+
                 // Validate that counter is not inside REDEFINES or ODO region
                 if let Some(counter) = counter_field {
-                    // Check if counter itself redefines something
                     if counter.redefines_of.is_some() {
-                        return Err(Error::new(
-                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!(
-                                "ODO counter '{}' cannot be inside a REDEFINES region",
-                                counter_path
-                            ),
-                        ));
-                    }
-
-                    // Check if counter is inside a REDEFINES group by examining path components
-                    if Self::is_counter_inside_redefines(&counter.path, &all_fields) {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                             format!(
@@ -404,7 +322,7 @@ impl Parser {
     }
 
     /// Check if ODO array is at tail position (simplified check)
-    fn is_odo_at_tail(_odo_field: &Field, _all_fields: &[&Field]) -> bool {
+    fn is_odo_at_tail(&self, _odo_field: &Field, _all_fields: &[&Field]) -> bool {
         // This is a simplified implementation
         // Full validation would require layout resolution to check byte positions
         true
@@ -413,75 +331,12 @@ impl Parser {
     /// Collect all fields in a flat list
     fn collect_all_fields(fields: &[Field]) -> Vec<&Field> {
         let mut result = Vec::new();
-        Self::collect_all_fields_recursive(fields, &mut result);
-        result
-    }
-
-    /// Collect all fields recursively
-    fn collect_all_fields_recursive<'a>(fields: &'a [Field], result: &mut Vec<&'a Field>) {
         for field in fields {
             result.push(field);
-            Self::collect_all_fields_recursive(&field.children, result);
+            let children = Self::collect_all_fields(&field.children);
+            result.extend(children);
         }
-    }
-
-    /// Check if counter field is inside a REDEFINES group by examining its path
-    fn is_counter_inside_redefines(counter_path: &str, all_fields: &[&Field]) -> bool {
-        // Extract path components to check each parent level
-        let path_parts: Vec<&str> = counter_path.split('.').collect();
-
-        // Build parent paths and check if any is a REDEFINES field
-        for i in 1..path_parts.len() {
-            let parent_path = path_parts[0..i].join(".");
-
-            // Check if this parent path corresponds to a REDEFINES field
-            if let Some(parent_field) = all_fields.iter().find(|f| f.path == parent_path)
-                && parent_field.redefines_of.is_some()
-            {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// Validate ODO position constraints (after layout resolution when offsets are available)
-    fn validate_odo_positions(fields: &[Field]) -> Result<()> {
-        let all_fields = Self::collect_all_fields(fields);
-
-        for field in &all_fields {
-            if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
-                // Find the counter field
-                let counter_field = all_fields
-                    .iter()
-                    .find(|f| f.name == *counter_path || f.path == *counter_path);
-
-                // Check that counter precedes the ODO array in byte order
-                if let Some(counter) = counter_field
-                    && counter.offset >= field.offset
-                {
-                    return Err(Error::new(
-                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                        format!(
-                            "ODO counter '{}' must precede array '{}' in byte order (counter at offset {}, array at offset {})",
-                            counter_path, field.name, counter.offset, field.offset
-                        ),
-                    ));
-                }
-
-                // Validate that ODO array is at tail position
-                if !Self::is_odo_at_tail(field, &all_fields) {
-                    return Err(Error::new(
-                        ErrorCode::CBKP021_ODO_NOT_TAIL,
-                        format!(
-                            "ODO array '{}' must be at tail position of its containing group",
-                            field.name
-                        ),
-                    ));
-                }
-            }
-        }
-        Ok(())
+        result
     }
 
     /// Calculate schema fingerprint using SHA-256
@@ -497,7 +352,7 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update([u8::from(self.options.emit_filler)]);
+        hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
 
         // Compute final hash
         let result = hasher.finalize();
@@ -549,7 +404,7 @@ impl Parser {
     }
 
     /// Convert field to canonical JSON for fingerprinting
-    fn field_to_canonical_json(field: &Field) -> serde_json::Value {
+    fn field_to_canonical_json(field: &Field) -> Value {
         use serde_json::{Map, Value};
 
         let mut field_obj = Map::new();
@@ -636,23 +491,6 @@ impl Parser {
                 level
             }
             Some(TokenPos {
-                token: Token::Number(n),
-                column,
-                ..
-            }) => {
-                // Check for invalid level numbers that appear to be at beginning of line
-                if *n >= 10 && *n <= 99 && *column <= 2 {
-                    return Err(
-                        self.err_here(ErrorCode::CBKP001_SYNTAX, format!("Invalid level {}", n))
-                    );
-                }
-                // Skip unexpected tokens to prevent infinite loops
-                if !self.is_at_end() {
-                    self.advance();
-                }
-                return Ok(None);
-            }
-            Some(TokenPos {
                 token: Token::Level66,
                 ..
             }) => {
@@ -676,53 +514,29 @@ impl Parser {
                 self.skip_to_period();
                 return Ok(None);
             }
-            _ => {
-                // Skip unexpected tokens to prevent infinite loops
-                if !self.is_at_end() {
-                    self.advance();
-                }
-                return Ok(None);
-            }
+            _ => return Ok(None),
         };
 
-        // Get field name - handle multiple identifiers for continuation
-        let mut name_parts = Vec::new();
-
-        // Get first identifier
-        match self.current_token() {
+        // Get field name
+        let mut name = match self.current_token() {
             Some(TokenPos {
                 token: Token::Identifier(name),
                 ..
             }) => {
-                name_parts.push(name.clone());
+                let name = name.clone();
                 self.advance();
+                name
             }
             _ => {
-                return Err(self.err_here(
+                return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
                     format!("Expected field name after level {}", level),
                 ));
             }
-        }
-
-        // Check for additional identifiers (continuation case)
-        while let Some(TokenPos {
-            token: Token::Identifier(next_name),
-            ..
-        }) = self.current_token()
-        {
-            // Stop if we hit a reserved keyword that starts a clause
-            if Self::is_field_clause_keyword(next_name) {
-                break;
-            }
-            name_parts.push(next_name.clone());
-            self.advance();
-        }
-
-        let mut name = name_parts.join(" ");
+        };
 
         // Handle FILLER fields
-        if name.eq_ignore_ascii_case("FILLER") && !self.options.emit_filler {
+        if name.to_uppercase() == "FILLER" && !self.options.emit_filler {
             // For now, keep FILLER name - it will be processed later
             name = "FILLER".to_string();
         }
@@ -735,16 +549,8 @@ impl Parser {
         }
 
         // Expect period to end field definition
-        if let Some(TokenPos {
-            token: Token::Period,
-            line: term_line,
-            ..
-        }) = self.current_token().cloned()
-        {
-            self.advance(); // consume the terminator
-            self.consume_line_tail(term_line)?; // drop any junk on the same physical line
-        } else {
-            return Err(self.err_here(
+        if !self.consume(&Token::Period) {
+            return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
                 format!("Expected period after field definition for {}", field.name),
             ));
@@ -795,7 +601,7 @@ impl Parser {
                 ..
             }) => {
                 // Skip VALUE clauses (metadata only)
-                self.skip_value_clause();
+                self.skip_value_clause()?;
             }
             Some(TokenPos {
                 token: Token::Blank,
@@ -824,7 +630,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                Self::convert_to_packed_field(field)?;
+                self.convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -846,10 +652,7 @@ impl Parser {
         // Collect PIC clause tokens - might be split across multiple tokens
         let mut pic_parts = Vec::new();
 
-        // Track whether we got a complete PIC clause from lexer
-        let mut got_complete_pic = false;
-
-        // First token should be a PIC clause, identifier, or number
+        // First token should be a PIC clause or identifier
         match self.current_token() {
             Some(TokenPos {
                 token: Token::PicClause(pic),
@@ -857,7 +660,6 @@ impl Parser {
             }) => {
                 pic_parts.push(pic.clone());
                 self.advance();
-                got_complete_pic = true; // We have a complete PIC, don't collect more
             }
             Some(TokenPos {
                 token: Token::EditedPic(pic),
@@ -865,7 +667,7 @@ impl Parser {
             }) => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("edited PIC not supported: {}", pic),
+                    format!("Edited PIC not supported: {}", pic),
                 ));
             }
             Some(TokenPos {
@@ -876,84 +678,20 @@ impl Parser {
                 pic_parts.push(id.clone());
                 self.advance();
             }
-            Some(TokenPos {
-                token: Token::Number(n),
-                ..
-            }) => {
-                // Numbers can start PIC clauses (like 999.99CR)
-                pic_parts.push(n.to_string());
-                self.advance();
-            }
             _ => {
-                return Err(self.err_here(
+                return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected PIC clause after PIC keyword",
                 ));
             }
         }
 
-        // Check if next tokens are also part of PIC (like V99, periods, numbers, CR, DB, etc.)
-        // Only do this if we didn't get a complete PIC clause from the lexer
-        while !got_complete_pic && let Some(token) = self.current_token() {
+        // Check if next token is also part of PIC (like V99 after S9(7))
+        while let Some(token) = self.current_token() {
             match &token.token {
-                Token::Identifier(id) => {
-                    // Continue if it looks like part of a PIC clause
-                    if id.starts_with('V')
-                        || id.starts_with('v')
-                        || id == "CR"
-                        || id == "DB"
-                        || id == "cr"
-                        || id == "db"
-                        || id
-                            .chars()
-                            .all(|c| c.is_ascii_alphabetic() && "ZBCRDBVvZzBbCcRrDd".contains(c))
-                    {
-                        pic_parts.push(id.clone());
-                        self.advance();
-                    } else {
-                        break;
-                    }
-                }
-                Token::Number(n) => {
-                    // Numbers can be part of PIC clauses
-                    pic_parts.push(n.to_string());
+                Token::Identifier(id) if id.starts_with('V') || id.starts_with('v') => {
+                    pic_parts.push(id.clone());
                     self.advance();
-                }
-                Token::EditedPic(pic) => {
-                    // EditedPic tokens can be part of larger PIC clauses
-                    pic_parts.push(pic.clone());
-                    self.advance();
-                }
-                Token::Period => {
-                    // Look ahead to see if this period is part of the PIC (like in 999.99)
-                    // But don't consume the final period that ends the field definition
-                    if let Some(next_token) = self.peek_token(1) {
-                        match &next_token.token {
-                            Token::Number(_) => {
-                                // Only include the period if the next number is on the same line
-                                // This prevents consuming sequence area numbers
-                                if token.line == next_token.line {
-                                    pic_parts.push(".".to_string());
-                                    self.advance();
-                                } else {
-                                    break;
-                                }
-                            }
-                            Token::EditedPic(_) => {
-                                pic_parts.push(".".to_string());
-                                self.advance();
-                            }
-                            Token::Identifier(id)
-                                if id == "CR" || id == "DB" || id == "cr" || id == "db" =>
-                            {
-                                pic_parts.push(".".to_string());
-                                self.advance();
-                            }
-                            _ => break,
-                        }
-                    } else {
-                        break;
-                    }
                 }
                 _ => break,
             }
@@ -964,7 +702,7 @@ impl Parser {
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {
-                len: u32::from(pic.digits),
+                len: pic.digits as u32,
             },
             crate::pic::PicKind::NumericDisplay => FieldKind::ZonedDecimal {
                 digits: pic.digits,
@@ -974,7 +712,7 @@ impl Parser {
             crate::pic::PicKind::Edited => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    "edited PIC should have been caught earlier",
+                    "Edited PIC should have been caught earlier",
                 ));
             }
         };
@@ -1003,7 +741,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                Self::convert_to_packed_field(field)?;
+                self.convert_to_packed_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Binary,
@@ -1013,7 +751,7 @@ impl Parser {
                 self.convert_to_binary_field(field)?;
             }
             _ => {
-                return Err(self.err_here(
+                return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected USAGE type after USAGE keyword",
                 ));
@@ -1034,7 +772,7 @@ impl Parser {
                 name
             }
             _ => {
-                return Err(self.err_here(
+                return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected field name after REDEFINES",
                 ));
@@ -1047,21 +785,12 @@ impl Parser {
 
     /// Parse OCCURS clause
     fn parse_occurs_clause(&mut self, field: &mut Field) -> Result<()> {
-        let first_number = match self.current_token() {
+        let count = match self.current_token() {
             Some(TokenPos {
                 token: Token::Number(n),
                 ..
             }) => {
                 let count = *n;
-                self.advance();
-                count
-            }
-            Some(TokenPos {
-                token: Token::Level(level),
-                ..
-            }) => {
-                // Level tokens can also be valid numbers in OCCURS context
-                let count = u32::from(*level);
                 self.advance();
                 count
             }
@@ -1071,39 +800,6 @@ impl Parser {
                     "Expected number after OCCURS",
                 ));
             }
-        };
-
-        // Check for 'TO max' pattern (for ODO ranges like "OCCURS 1 TO 5")
-        let (min_count, max_count) = if self.check(&Token::To) {
-            self.advance(); // consume TO
-            let second_number = match self.current_token() {
-                Some(TokenPos {
-                    token: Token::Number(n),
-                    ..
-                }) => {
-                    let count = *n;
-                    self.advance();
-                    count
-                }
-                Some(TokenPos {
-                    token: Token::Level(level),
-                    ..
-                }) => {
-                    // Level tokens can also be valid numbers in OCCURS context
-                    let count = u32::from(*level);
-                    self.advance();
-                    count
-                }
-                _ => {
-                    return Err(Error::new(
-                        ErrorCode::CBKP001_SYNTAX,
-                        "Expected number after TO in OCCURS clause",
-                    ));
-                }
-            };
-            (first_number, second_number) // min TO max
-        } else {
-            (0, first_number) // Just a single number, treat as max with min=0
         };
 
         // Skip optional TIMES keyword first
@@ -1139,12 +835,12 @@ impl Parser {
             };
 
             field.occurs = Some(Occurs::ODO {
-                min: min_count,
-                max: max_count,
+                min: 0, // Will be validated later
+                max: count,
                 counter_path: counter_field,
             });
         } else {
-            field.occurs = Some(Occurs::Fixed { count: max_count });
+            field.occurs = Some(Occurs::Fixed { count });
         }
 
         Ok(())
@@ -1171,7 +867,7 @@ impl Parser {
     }
 
     /// Skip VALUE clause (not needed for layout)
-    fn skip_value_clause(&mut self) {
+    fn skip_value_clause(&mut self) -> Result<()> {
         self.advance(); // consume VALUE
 
         // Skip until we find a keyword or period
@@ -1181,73 +877,23 @@ impl Parser {
             }
             self.advance();
         }
+
+        Ok(())
     }
 
-    /// Convert numeric field to binary with optional explicit width
-    fn convert_to_binary_field_with_width(&mut self, field: &mut Field) -> Result<()> {
-        // Check for explicit width specification like BINARY(1), BINARY(2), etc.
-        let explicit_bits = if self.check(&Token::LeftParen) {
-            self.advance(); // consume '('
-
-            let bits = match self.current_token() {
-                Some(TokenPos {
-                    token: Token::Number(n),
-                    ..
-                }) => {
-                    let bytes = *n;
-                    self.advance();
-                    match bytes {
-                        1 => 8,
-                        2 => 16,
-                        4 => 32,
-                        8 => 64,
-                        _ => {
-                            return Err(Error::new(
-                                ErrorCode::CBKP001_SYNTAX,
-                                format!(
-                                    "Invalid binary width: {}. Only 1, 2, 4, 8 are supported",
-                                    bytes
-                                ),
-                            ));
-                        }
-                    }
-                }
-                _ => {
-                    return Err(Error::new(
-                        ErrorCode::CBKP001_SYNTAX,
-                        "Expected number after BINARY(",
-                    ));
-                }
-            };
-
-            if !self.consume(&Token::RightParen) {
-                return Err(Error::new(
-                    ErrorCode::CBKP001_SYNTAX,
-                    "Expected ')' after binary width",
-                ));
-            }
-
-            Some(bits)
-        } else {
-            None
-        };
-
+    /// Convert numeric field to binary
+    fn convert_to_binary_field(&mut self, field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
-                let bits = if let Some(explicit) = explicit_bits {
-                    explicit
-                } else {
-                    // Traditional logic based on digits (IBM mainframe standards)
-                    match digits {
-                        1..=4 => 16,   // 1-4 digits: 2 bytes (16-bit)
-                        5..=9 => 32,   // 5-9 digits: 4 bytes (32-bit)
-                        10..=18 => 64, // 10-18 digits: 8 bytes (64-bit)
-                        _ => {
-                            return Err(Error::new(
-                                ErrorCode::CBKP001_SYNTAX,
-                                format!("Binary field with {} digits not supported", digits),
-                            ));
-                        }
+                let bits = match digits {
+                    1..=4 => 16,
+                    5..=9 => 32,
+                    10..=18 => 64,
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKP001_SYNTAX,
+                            format!("Binary field with {} digits not supported", digits),
+                        ));
                     }
                 };
 
@@ -1263,17 +909,11 @@ impl Parser {
                 ));
             }
         }
-
         Ok(())
     }
 
-    /// Convert numeric field to binary (wrapper around explicit width handler)
-    fn convert_to_binary_field(&mut self, field: &mut Field) -> Result<()> {
-        self.convert_to_binary_field_with_width(field)
-    }
-
     /// Convert numeric field to packed decimal
-    fn convert_to_packed_field(field: &mut Field) -> Result<()> {
+    fn convert_to_packed_field(&mut self, field: &mut Field) -> Result<()> {
         match &field.kind {
             FieldKind::ZonedDecimal {
                 digits,
@@ -1306,86 +946,30 @@ impl Parser {
         }
     }
 
-    /// Check if an identifier is a field clause keyword
-    fn is_field_clause_keyword(name: &str) -> bool {
-        const FIELD_CLAUSE_KEYWORDS: &[&str] = &[
-            "PIC",
-            "PICTURE",
-            "USAGE",
-            "COMP",
-            "COMPUTATIONAL",
-            "COMP-3",
-            "COMPUTATIONAL-3",
-            "BINARY",
-            "REDEFINES",
-            "OCCURS",
-            "DEPENDING",
-            "ON",
-            "TO",
-            "TIMES",
-            "SYNCHRONIZED",
-            "SYNC",
-            "VALUE",
-            "SIGN",
-            "LEADING",
-            "TRAILING",
-            "SEPARATE",
-            "BLANK",
-            "WHEN",
-            "ZERO",
-            "ZEROS",
-            "ZEROES",
-            "DISPLAY",
-        ];
-
-        FIELD_CLAUSE_KEYWORDS
-            .iter()
-            .any(|&keyword| name.eq_ignore_ascii_case(keyword))
-    }
-
     /// Skip comments and newlines
-    fn skip_comments_and_newlines(&mut self) -> Result<()> {
+    fn skip_comments_and_newlines(&mut self) {
         while let Some(token) = self.current_token() {
-            if self.is_ignorable(&token.token) {
-                self.advance();
-            } else if let Token::InlineComment(_) = &token.token {
-                // Handle the case where inline comments are not allowed
-                return Err(self.err_here(
-                    ErrorCode::CBKP001_SYNTAX,
-                    "Inline comments (*>) are not allowed in strict mode",
-                ));
-            } else {
-                break;
+            match &token.token {
+                Token::InlineComment(_) | Token::Newline => {
+                    self.advance();
+                }
+                _ => break,
             }
         }
-        Ok(())
     }
 
     /// Check if current token is a keyword
     fn is_keyword(&self) -> bool {
         matches!(
             self.current_token().map(|t| &t.token),
-            Some(
-                Token::Pic
-                    | Token::Usage
-                    | Token::Redefines
-                    | Token::Occurs
-                    | Token::Synchronized
-                    | Token::Value
-                    | Token::Blank
-                    | Token::Sign
-            )
+            Some(Token::Pic | Token::Usage | Token::Redefines | Token::Occurs |
+                 Token::Synchronized | Token::Value | Token::Blank | Token::Sign)
         )
     }
 
     /// Get current token
     fn current_token(&self) -> Option<&TokenPos> {
         self.tokens.get(self.current)
-    }
-
-    /// Peek at a token at offset from current position
-    fn peek_token(&self, offset: usize) -> Option<&TokenPos> {
-        self.tokens.get(self.current + offset)
     }
 
     /// Advance to next token
@@ -1443,11 +1027,25 @@ mod tests {
     fn test_numeric_field_parsing() {
         let input = "01 AMOUNT PIC S9(7)V99.";
 
+        // Debug: test tokenization
+        let mut lexer = crate::lexer::Lexer::new(input);
+        let tokens = lexer.tokenize();
+        for (i, token) in tokens.iter().enumerate() {
+            println!("Token {}: {:?}", i, token.token);
+        }
+
+        // Debug: test PIC parsing directly
+        let pic_result = crate::pic::PicClause::parse("S9(7)V99");
+        println!("PIC parse result: {:?}", pic_result);
+
         let schema = parse(input).unwrap();
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];
         assert_eq!(field.name, "AMOUNT");
+
+        // Debug print the actual field kind
+        println!("Field kind: {:?}", field.kind);
 
         assert!(matches!(
             field.kind,
@@ -1487,10 +1085,10 @@ mod tests {
 
     #[test]
     fn test_redefines_parsing() {
-        let input = r"
+        let input = r#"
 01 FIELD-A PIC X(10).
 01 FIELD-B REDEFINES FIELD-A PIC 9(10).
-";
+"#;
         let schema = parse(input).unwrap();
 
         assert_eq!(schema.fields.len(), 2);
@@ -1538,11 +1136,11 @@ mod tests {
 
     #[test]
     fn test_duplicate_name_handling() {
-        let input = r"
+        let input = r#"
 01 RECORD-A.
    05 FIELD-NAME PIC X(10).
    05 FIELD-NAME PIC 9(5).
-";
+"#;
         let schema = parse(input).unwrap();
 
         // Should have one root field with hierarchical structure
@@ -1559,10 +1157,10 @@ mod tests {
 
     #[test]
     fn test_odo_validation() {
-        let input = r"
+        let input = r#"
 01 COUNTER PIC 9(3).
 01 ARRAY-FIELD PIC X(10) OCCURS 5 TIMES DEPENDING ON COUNTER.
-";
+"#;
         let result = parse(input);
 
         // Should succeed with valid ODO structure
@@ -1578,15 +1176,17 @@ mod tests {
         {
             assert_eq!(*max, 5);
             assert_eq!(counter_path, "COUNTER");
+        } else {
+            panic!("Expected ODO occurs, got {:?}", odo_field.occurs);
         }
     }
 
     #[test]
     fn test_redefines_validation() {
-        let input = r"
+        let input = r#"
 01 FIELD-A PIC X(10).
 01 FIELD-B REDEFINES FIELD-A PIC 9(10).
-";
+"#;
         let result = parse(input);
 
         // Should succeed with valid REDEFINES
@@ -1600,7 +1200,7 @@ mod tests {
 
     #[test]
     fn test_hierarchical_structure() {
-        let input = r"
+        let input = r#"
 01 CUSTOMER-RECORD.
    05 CUSTOMER-ID PIC X(10).
    05 CUSTOMER-NAME.
@@ -1609,7 +1209,7 @@ mod tests {
    05 CUSTOMER-ADDRESS.
       10 STREET PIC X(38).
       10 CITY PIC X(30).
-";
+"#;
         let schema = parse(input).unwrap();
 
         // Should have one root field
@@ -1661,10 +1261,10 @@ mod tests {
 
     #[test]
     fn test_invalid_redefines_target() {
-        let input = r"
+        let input = r#"
 01 FIELD-A PIC X(10).
 01 FIELD-B REDEFINES NONEXISTENT PIC 9(10).
-";
+"#;
         let result = parse(input);
 
         // Should fail with invalid REDEFINES target
@@ -1694,173 +1294,5 @@ mod tests {
         let field = &schema.fields[0];
         assert!(field.synchronized);
         assert!(matches!(field.kind, FieldKind::BinaryInt { .. }));
-    }
-
-    #[test]
-    fn test_inline_comment_inside_string_is_literal() {
-        let input = r#"       01 REC.
-           05 NAME PIC X(30) VALUE "Hi *> not a comment".
-        "#;
-        // The main test is that this parses successfully without treating *> as a comment
-        let schema = parse(input).unwrap();
-        assert_eq!(schema.fields.len(), 1);
-        let root = &schema.fields[0];
-        assert_eq!(root.name, "REC");
-        assert_eq!(root.children.len(), 1);
-        assert_eq!(root.children[0].name, "NAME");
-        assert!(matches!(
-            root.children[0].kind,
-            FieldKind::Alphanum { len: 30 }
-        ));
-    }
-
-    #[test]
-    fn test_continuation_when_next_line_begins_with_dash_does_not_double_hyphen() {
-        let input = r#"       01 VERY-LONG-FIELD-NAME-
-      - -AND-MORE-TEXT PIC X(5).
-"#;
-
-        let schema = parse(input).unwrap();
-        assert_eq!(schema.fields.len(), 1);
-        let field = &schema.fields[0];
-        // When first line ends with '-' and continuation starts with '-',
-        // one hyphen should be removed to avoid duplication
-        assert_eq!(field.name, "VERY-LONG-FIELD-NAME-AND-MORE-TEXT");
-    }
-
-    #[test]
-    fn test_inline_comments_rejected_when_disabled() {
-        // Use free-form format to ensure inline comment processing
-        let input = r#"01 CUSTOMER-ID PIC X(10). *> This should be rejected"#;
-        let options = ParseOptions {
-            allow_inline_comments: false,
-            ..ParseOptions::default()
-        };
-        let result = parse_with_options(input, &options);
-
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
-        assert!(
-            error
-                .message
-                .contains("Inline comments (*>) are not allowed in strict mode")
-        );
-    }
-
-    #[test]
-    fn test_inline_comments_allowed_when_enabled() {
-        let input = r#"01 CUSTOMER-ID PIC X(10). *> This should be allowed
-        "#;
-        let options = ParseOptions {
-            allow_inline_comments: true,
-            ..ParseOptions::default()
-        };
-        let result = parse_with_options(input, &options);
-
-        assert!(result.is_ok());
-        let schema = result.unwrap();
-        assert_eq!(schema.fields.len(), 1);
-        assert_eq!(schema.fields[0].name, "CUSTOMER-ID");
-    }
-
-    #[test]
-    fn test_period_then_inline_comment_is_ignored() {
-        let src = r#"
-       01 REC.
-       05 A PIC X(5). *> ignore me
-       05 B PIC X(5).
-    "#;
-        let s = parse(src).unwrap();
-        assert_eq!(s.fields.len(), 1);
-        assert_eq!(s.fields[0].children.len(), 2);
-        assert_eq!(s.fields[0].children[0].name, "A");
-        assert_eq!(s.fields[0].children[1].name, "B");
-    }
-
-    #[test]
-    fn test_inline_comment_at_col8_fixed() {
-        let src = "       *> comment only line\n       01 REC.\n";
-        assert!(parse(src).is_ok());
-        let schema = parse(src).unwrap();
-        assert_eq!(schema.fields.len(), 1);
-        assert_eq!(schema.fields[0].name, "REC");
-    }
-
-    #[test]
-    fn test_multi_hyphen_continuation_mixed() {
-        let src = r#"
-       01 VERY-LONG-FIELD-
-      - -NAME-THAT-
-      - -CONTINUES PIC X(3).
-    "#;
-        let s = parse(src).unwrap();
-        assert_eq!(s.fields.len(), 1);
-        assert_eq!(s.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-CONTINUES");
-    }
-
-    #[test]
-    fn test_ci_strict_comments_mode() {
-        // This test is specifically for CI to validate strict comments mode
-        if std::env::var("COPYBOOK_TEST_STRICT_COMMENTS").is_ok() {
-            // When the CI environment variable is set, run tests that verify
-            // inline comments are properly rejected in strict mode
-            let test_cases = vec![
-                r#"01 CUSTOMER-ID PIC X(10). *> This should be rejected"#,
-                r#"01 REC.
-           05 NAME PIC X(30). *> end-of-line comment
-        "#,
-                r#"       01 REC.
-           05 A PIC X(5). *> ignore me
-           05 B PIC X(5).
-        "#,
-            ];
-
-            for (i, input) in test_cases.iter().enumerate() {
-                let options = ParseOptions {
-                    allow_inline_comments: false,
-                    ..ParseOptions::default()
-                };
-                let result = parse_with_options(input, &options);
-                assert!(
-                    result.is_err(),
-                    "Test case {} should fail in strict comments mode: {}",
-                    i,
-                    input
-                );
-                if let Err(error) = result {
-                    assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
-                    assert!(
-                        error
-                            .message
-                            .contains("Inline comments (*>) are not allowed in strict mode"),
-                        "Expected strict mode error message, got: {}",
-                        error.message
-                    );
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_quoted_literal_with_inline_comment_syntax() {
-        // Test that *> inside quoted literals remains literal and doesn't trigger comment parsing
-        let src = r#"
-       01 REC.
-       05 A PIC X(20) VALUE "TEXT *> not a comment". *> real comment
-    "#;
-
-        let schema = parse(src).unwrap();
-        assert_eq!(schema.fields.len(), 1);
-        assert_eq!(schema.fields[0].name, "REC");
-        assert_eq!(schema.fields[0].children.len(), 1);
-        assert_eq!(schema.fields[0].children[0].name, "A");
-
-        // The key test: parsing should succeed and the literal content is preserved
-        // The *> inside the quoted string should not be treated as a comment
-        assert!(matches!(
-            schema.fields[0].children[0].kind,
-            FieldKind::Alphanum { len: 20 }
-        ));
     }
 }

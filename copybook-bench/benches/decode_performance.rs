@@ -1,4 +1,4 @@
-use copybook_codec::{DecodeOptions, decode_file_to_jsonl, decode_record};
+use copybook_codec::{DecodeOptions, decode_record, decode_file_to_jsonl};
 use copybook_core::parse_copybook;
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::hint::black_box as hint_black_box;
@@ -169,8 +169,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                     b.iter(|| {
                         let input = Cursor::new(black_box(&test_data));
                         let mut output = Vec::new();
-                        let _result =
-                            decode_file_to_jsonl(black_box(&schema), input, &mut output, &options);
+                        let _result = decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
                         hint_black_box(_result);
                     })
                 },
@@ -220,8 +219,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                     b.iter(|| {
                         let input = Cursor::new(black_box(&test_data));
                         let mut output = Vec::new();
-                        let _result =
-                            decode_file_to_jsonl(black_box(&schema), input, &mut output, &options);
+                        let _result = decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
                         hint_black_box(_result);
                     })
                 },
@@ -300,8 +298,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
         b.iter(|| {
             let input = Cursor::new(black_box(&display_data));
             let mut output = Vec::new();
-            let result =
-                decode_file_to_jsonl(black_box(&display_schema), input, &mut output, &options);
+            let result = decode_file_to_jsonl(black_box(&display_schema), input, &mut output, black_box(&options));
             hint_black_box(result);
         })
     });
@@ -315,8 +312,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
         b.iter(|| {
             let input = Cursor::new(black_box(&comp3_data));
             let mut output = Vec::new();
-            let result =
-                decode_file_to_jsonl(black_box(&comp3_schema), input, &mut output, &options);
+            let result = decode_file_to_jsonl(black_box(&comp3_schema), input, &mut output, black_box(&options));
             hint_black_box(result);
         })
     });
@@ -343,8 +339,7 @@ fn bench_parallel_scaling(c: &mut Criterion) {
                 b.iter(|| {
                     let input = Cursor::new(black_box(&test_data));
                     let mut output = Vec::new();
-                    let result =
-                        decode_file_to_jsonl(black_box(&schema), input, &mut output, &options);
+                    let result = decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
                     hint_black_box(result);
                 })
             },

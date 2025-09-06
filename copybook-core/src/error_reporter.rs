@@ -31,7 +31,7 @@ pub enum ErrorSeverity {
 }
 
 /// Detailed error report with context and metadata
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct ErrorReport {
     /// The underlying error
     pub error: Error,
@@ -44,7 +44,7 @@ pub struct ErrorReport {
 }
 
 /// Comprehensive error statistics and summary
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default)]
 pub struct ErrorSummary {
     /// Total number of errors by severity
     pub error_counts: HashMap<ErrorSeverity, u64>,
@@ -99,11 +99,13 @@ impl ErrorReporter {
     ///
     /// # Errors
     ///
-    /// Returns an error if the maximum error limit has been reached or the error is critical
+    /// Returns an error if the maximum error limit is reached or if processing
+    /// should stop due to error severity and mode settings.
     ///
     /// # Panics
     ///
-    /// Panics if `max_errors` is set but somehow becomes None during processing (should not happen)
+    /// Panics if `max_errors` is configured but becomes `None` during processing,
+    /// which should never happen in normal operation.
     pub fn report_error(&mut self, error: Error) -> Result<(), Error> {
         let severity = self.determine_severity(&error);
         let report = ErrorReport {
@@ -162,7 +164,7 @@ impl ErrorReporter {
         };
 
         // Check for transfer corruption patterns
-        if Self::is_corruption_warning(&report.error) {
+        if self.is_corruption_warning(&report.error) {
             self.summary.corruption_warnings += 1;
             report
                 .metadata
@@ -202,7 +204,6 @@ impl ErrorReporter {
     }
 
     /// Check if any warnings have been reported
-    #[must_use]
     pub fn has_warnings(&self) -> bool {
         self.summary
             .error_counts
@@ -212,7 +213,6 @@ impl ErrorReporter {
     }
 
     /// Get total error count (excluding warnings)
-    #[must_use]
     pub fn error_count(&self) -> u64 {
         self.summary
             .error_counts
@@ -226,7 +226,6 @@ impl ErrorReporter {
     }
 
     /// Get total warning count
-    #[must_use]
     pub fn warning_count(&self) -> u64 {
         *self
             .summary
@@ -236,8 +235,6 @@ impl ErrorReporter {
     }
 
     /// Generate a detailed error report for display
-    #[must_use]
-    #[allow(clippy::format_push_string, clippy::uninlined_format_args)]
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
 
@@ -284,7 +281,6 @@ impl ErrorReporter {
     }
 
     /// Determine error severity based on error code
-    #[allow(clippy::match_same_arms)]
     fn determine_severity(&self, error: &Error) -> ErrorSeverity {
         match error.code {
             // Parse errors are typically fatal
@@ -330,11 +326,9 @@ impl ErrorReporter {
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => ErrorSeverity::Warning,
 
             // Encode errors
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH
-            | ErrorCode::CBKE505_SCALE_MISMATCH
-            | ErrorCode::CBKE510_NUMERIC_OVERFLOW
-            | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION
-            | ErrorCode::CBKE521_ARRAY_LEN_OOB => ErrorSeverity::Error,
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE521_ARRAY_LEN_OOB => {
+                ErrorSeverity::Error
+            }
 
             // Transfer corruption warnings
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
@@ -405,7 +399,7 @@ impl ErrorReporter {
     }
 
     /// Check if error indicates transfer corruption
-    fn is_corruption_warning(error: &Error) -> bool {
+    fn is_corruption_warning(&self, error: &Error) -> bool {
         matches!(
             error.code,
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII | ErrorCode::CBKC301_INVALID_EBCDIC_BYTE

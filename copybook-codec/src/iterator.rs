@@ -173,7 +173,7 @@ impl<R: Read> RecordIterator<R> {
                     }
                 }
                 
-                // Parse length
+                // Parse length (payload bytes only)
                 let length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as usize;
                 
                 // Read payload

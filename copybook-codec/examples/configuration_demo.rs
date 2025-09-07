@@ -41,7 +41,10 @@ fn main() {
         decode_opts.json_number_mode,
         decode_opts.json_number_mode.description()
     );
-    println!("  Emit Filler: {} (when true, FILLER fields appear as _filler_00000XXX)", decode_opts.emit_filler);
+    println!(
+        "  Emit Filler: {} (when true, FILLER fields appear as _filler_00000XXX)",
+        decode_opts.emit_filler
+    );
     println!("  Emit Meta: {}", decode_opts.emit_meta);
     println!("  Emit Raw: {}", decode_opts.emit_raw);
     println!("  Strict Mode: {}", decode_opts.strict_mode);

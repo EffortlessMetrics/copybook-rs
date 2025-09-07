@@ -1,0 +1,183 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test utils::tests::test_determine_exit_code ... ok
+test utils::tests::test_temp_path_for ... ok
+test utils::tests::test_atomic_write_failure_leaves_no_file ... ok
+test utils::tests::test_atomic_write_success ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 52 tests
+test lib_api::tests::test_decode_record ... ok
+test lib_api::tests::test_encode_record ... ok
+test lib_api::tests::test_encode_jsonl_to_file ... ok
+test memory::tests::test_scratch_buffers ... ok
+test memory::tests::test_sequence_ring_ordered ... ok
+test memory::tests::test_streaming_processor ... ok
+test lib_api::tests::test_decode_file_to_jsonl ... ok
+test numeric::tests::test_alphanumeric_encoding ... ok
+test numeric::tests::test_binary_width_mapping ... ok
+test numeric::tests::test_binary_int_big_endian ... ok
+test numeric::tests::test_packed_decimal_signs ... ok
+test numeric::tests::test_bwz_policy ... ok
+test numeric::tests::test_explicit_binary_width_validation ... ok
+test numeric::tests::test_small_decimal_formatting ... ok
+test numeric::tests::test_small_decimal_normalization ... ok
+test numeric::tests::test_zoned_decimal_blank_when_zero ... ok
+test memory::tests::test_worker_pool ... ok
+test record::tests::test_fixed_record_reader_no_lrecl ... ok
+test lib_api::tests::test_record_iterator ... ok
+test record::tests::test_fixed_record_reader_basic ... ok
+test record::tests::test_fixed_record_reader_partial_record ... ok
+test record::tests::test_fixed_record_reader_zero_lrecl ... ok
+test record::tests::test_fixed_record_writer_basic ... ok
+test record::tests::test_fixed_record_writer_no_lrecl ... ok
+test record::tests::test_fixed_record_writer_zero_lrecl ... ok
+test record::tests::test_legacy_read_record_fixed ... ok
+test record::tests::test_legacy_read_record_rdw ... ok
+test record::tests::test_legacy_write_record_fixed ... ok
+test record::tests::test_legacy_write_record_rdw ... ok
+test record::tests::test_legacy_read_record_rdw_invalid_header ... ok
+test record::tests::test_fixed_record_writer_too_long ... ok
+test record::tests::test_rdw_reader_basic ... ok
+test record::tests::test_rdw_reader_incomplete_payload ... ok
+test numeric::tests::test_zoned_decimal_with_bwz ... ok
+test record::tests::test_rdw_reader_incomplete_header ... ok
+test memory::tests::test_deterministic_ordering ... ok
+test record::tests::test_rdw_reader_ascii_corruption_detection ... ok
+test record::tests::test_rdw_record_as_bytes ... ok
+test record::tests::test_rdw_record_get_data_for_raw_mode ... ok
+test record::tests::test_rdw_reader_reserved_nonzero_lenient ... ok
+test record::tests::test_rdw_record_new ... ok
+test record::tests::test_rdw_record_recompute_length ... ok
+test record::tests::test_rdw_record_with_reserved ... ok
+test record::tests::test_rdw_reader_multiple_records ... ok
+test record::tests::test_rdw_writer_basic ... ok
+test record::tests::test_rdw_writer_from_payload ... ok
+test record::tests::test_rdw_reader_zero_length ... ok
+test record::tests::test_rdw_reader_reserved_nonzero_strict ... ok
+test record::tests::test_rdw_writer_preserve_reserved ... ok
+test record::tests::test_rdw_writer_payload_too_large ... ok
+test record::tests::test_validate_record_length ... ok
+test record::tests::test_validate_record_length_mismatch ... ok
+
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 15 tests
+test test_codepage_specific_behavior ... ok
+test test_alphanumeric_handling_normative ... ok
+test test_blank_when_zero_comprehensive ... ok
+test test_invalid_data_error_handling ... ok
+test test_fixed_scale_rendering_normative ... ok
+test test_lenient_mode_error_handling ... ok
+test test_packed_decimal_sign_nibbles_comprehensive ... ok
+test test_binary_signed_unsigned_edges ... ok
+test test_record_length_validation ... ok
+test test_packed_decimal_comprehensive ... ok
+test test_json_number_modes ... ok
+test test_zoned_decimal_ascii_sign_zones_comprehensive ... ok
+test test_zoned_negative_zero_normalization ... ok
+test test_zoned_decimal_ebcdic_sign_zones_comprehensive ... ok
+test test_throughput_measurement ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 15 tests
+test test_rdw_basic_parsing ... ok
+test test_rdw_empty_file_handling ... ok
+test test_rdw_big_endian_length ... ok
+test test_rdw_error_context ... ok
+test test_rdw_multiple_records ... ok
+test test_rdw_maximum_length_handling ... ok
+test test_rdw_partial_read_handling ... ok
+test test_rdw_length_recomputation ... ok
+test test_rdw_encoding_round_trip ... ok
+test test_rdw_raw_preservation_normative ... ok
+test test_rdw_reserved_bytes_nonzero_warning ... ok
+test test_rdw_suspect_ascii_heuristic ... ok
+test test_rdw_underflow_error ... ok
+test test_rdw_zero_length_record ... ok
+test test_rdw_with_odo_variable_length ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 16 tests
+test test_odo_counter_in_redefines_error ... ok
+test test_comprehensive_error_context ... ok
+test test_nested_fixed_occurs_allowed ... ok
+test test_odo_driver_precedes_array ... ok
+test test_odo_encode_counter_update ... ok
+test test_odo_decode_clamp_vs_strict ... ok
+test test_odo_minimum_counter_handling ... ok
+test test_odo_not_nested_under_odo ... ok
+test test_odo_tail_position_validation ... ok
+test test_odo_payload_length_correctness ... ok
+test test_redefines_cluster_sizing ... ok
+test test_redefines_encode_precedence_normative ... ok
+test test_redefines_declaration_order ... ok
+test test_redefines_raw_preserved_record ... ok
+test test_redefines_decode_all_views ... ok
+test test_redefines_shorter_equal_longer_overlays ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test test_deterministic_parallel_decode ... ok
+test test_memory_bounded_processing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test test_comprehensive_error_context ... FAILED
+test test_redefines_encode_error_context ... FAILED
+test test_missing_counter_field_error ... FAILED
+test test_odo_redefines_integration ... FAILED
+
+failures:
+
+---- test_comprehensive_error_context stdout ----
+
+thread 'test_comprehensive_error_context' panicked at copybook-codec/tests/integration_odo_redefines.rs:94:5:
+assertion failed: result.is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_redefines_encode_error_context stdout ----
+
+thread 'test_redefines_encode_error_context' panicked at copybook-codec/tests/integration_odo_redefines.rs:142:5:
+assertion failed: result.is_err()
+
+---- test_missing_counter_field_error stdout ----
+
+thread 'test_missing_counter_field_error' panicked at copybook-codec/tests/integration_odo_redefines.rs:187:5:
+assertion failed: result.is_err()
+
+---- test_odo_redefines_integration stdout ----
+
+thread 'test_odo_redefines_integration' panicked at copybook-codec/tests/integration_odo_redefines.rs:51:82:
+called `Result::unwrap()` on an `Err` value: Error("EOF while parsing a value", line: 1, column: 0)
+
+
+failures:
+    test_comprehensive_error_context
+    test_missing_counter_field_error
+    test_odo_redefines_integration
+    test_redefines_encode_error_context
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

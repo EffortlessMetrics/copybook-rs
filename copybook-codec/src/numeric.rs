@@ -204,7 +204,7 @@ impl SmallDecimal {
     /// Format with fixed scale and minimum width (for lossless JSON output)
     pub fn to_fixed_scale_string_with_width(&self, scale: i16, min_width: u16) -> String {
         let mut result = String::new();
-        
+
         if self.negative && self.value != 0 {
             result.push('-');
         }
@@ -216,10 +216,16 @@ impl SmallDecimal {
             } else {
                 self.value
             };
-            
+
             // For scale=0 (integers), preserve the original field width with leading zeros
             if scale == 0 {
-                write!(result, "{:0width$}", scaled_value, width = min_width as usize).unwrap();
+                write!(
+                    result,
+                    "{:0width$}",
+                    scaled_value,
+                    width = min_width as usize
+                )
+                .unwrap();
             } else {
                 write!(result, "{scaled_value}").unwrap();
             }
@@ -228,7 +234,13 @@ impl SmallDecimal {
             let divisor = 10_i64.pow(scale as u32);
             let integer_part = self.value / divisor;
             let fractional_part = (self.value % divisor).abs();
-            write!(result, "{integer_part}.{:0width$}", fractional_part, width = scale as usize).unwrap();
+            write!(
+                result,
+                "{integer_part}.{:0width$}",
+                fractional_part,
+                width = scale as usize
+            )
+            .unwrap();
         }
 
         result

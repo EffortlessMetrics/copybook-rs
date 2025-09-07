@@ -1,0 +1,129 @@
+{
+  "fields": [
+    {
+      "path": "ORDER-TEST-RECORD",
+      "name": "ORDER-TEST-RECORD",
+      "level": 1,
+      "kind": "Group",
+      "offset": 0,
+      "len": 16,
+      "redefines_of": null,
+      "occurs": null,
+      "sync_padding": null,
+      "synchronized": false,
+      "blank_when_zero": false,
+      "children": [
+        {
+          "path": "ORDER-TEST-RECORD.ORIGINAL",
+          "name": "ORIGINAL",
+          "level": 5,
+          "kind": {
+            "Alphanum": {
+              "len": 8
+            }
+          },
+          "offset": 0,
+          "len": 8,
+          "redefines_of": null,
+          "occurs": null,
+          "sync_padding": null,
+          "synchronized": false,
+          "blank_when_zero": false,
+          "children": []
+        },
+        {
+          "path": "ORDER-TEST-RECORD.THIRD-REDEFINE",
+          "name": "THIRD-REDEFINE",
+          "level": 5,
+          "kind": {
+            "ZonedDecimal": {
+              "digits": 8,
+              "scale": 0,
+              "signed": false
+            }
+          },
+          "offset": 0,
+          "len": 8,
+          "redefines_of": "ORIGINAL",
+          "occurs": null,
+          "sync_padding": null,
+          "synchronized": false,
+          "blank_when_zero": false,
+          "children": []
+        },
+        {
+          "path": "ORDER-TEST-RECORD.FIRST-REDEFINE",
+          "name": "FIRST-REDEFINE",
+          "level": 5,
+          "kind": "Group",
+          "offset": 0,
+          "len": 16,
+          "redefines_of": "ORIGINAL",
+          "occurs": null,
+          "sync_padding": null,
+          "synchronized": false,
+          "blank_when_zero": false,
+          "children": [
+            {
+              "path": "ORDER-TEST-RECORD.FIRST-REDEFINE.PART-A",
+              "name": "PART-A",
+              "level": 10,
+              "kind": {
+                "Alphanum": {
+                  "len": 4
+                }
+              },
+              "offset": 8,
+              "len": 4,
+              "redefines_of": null,
+              "occurs": null,
+              "sync_padding": null,
+              "synchronized": false,
+              "blank_when_zero": false,
+              "children": []
+            },
+            {
+              "path": "ORDER-TEST-RECORD.FIRST-REDEFINE.PART-B",
+              "name": "PART-B",
+              "level": 10,
+              "kind": {
+                "Alphanum": {
+                  "len": 4
+                }
+              },
+              "offset": 12,
+              "len": 4,
+              "redefines_of": null,
+              "occurs": null,
+              "sync_padding": null,
+              "synchronized": false,
+              "blank_when_zero": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "path": "ORDER-TEST-RECORD.SECOND-REDEFINE",
+          "name": "SECOND-REDEFINE",
+          "level": 5,
+          "kind": {
+            "Alphanum": {
+              "len": 8
+            }
+          },
+          "offset": 0,
+          "len": 8,
+          "redefines_of": "ORIGINAL",
+          "occurs": null,
+          "sync_padding": null,
+          "synchronized": false,
+          "blank_when_zero": false,
+          "children": []
+        }
+      ]
+    }
+  ],
+  "lrecl_fixed": 16,
+  "tail_odo": null,
+  "fingerprint": "990147e067454a8ef765d01b14d6fd7d7b40e9445336280520282b5fd05877fd"
+}

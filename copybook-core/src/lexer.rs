@@ -251,13 +251,12 @@ impl<'a> Lexer<'a> {
 
         while let Some(result) = lexer.next() {
             let span = lexer.span();
-            let token = match result {
-                Ok(token) => token,
-                Err(_) => {
-                    // Handle lexer errors - create an identifier token for unknown text
-                    let text = &processed_text[span.clone()];
-                    Token::Identifier(text.to_string())
-                }
+            let token = if let Ok(token) = result {
+                token
+            } else {
+                // Handle lexer errors - create an identifier token for unknown text
+                let text = &processed_text[span.clone()];
+                Token::Identifier(text.to_string())
             };
 
             // Update line/column tracking

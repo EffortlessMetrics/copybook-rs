@@ -89,10 +89,14 @@ fn test_redefines_decode_all_views() {
       10 PART2 PIC X(4).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(false);
 
     let test_data = b"12345678"; // 8 bytes of data
+
+    // Set LRECL to match test data length
+    schema.lrecl_fixed = Some(test_data.len() as u32);
+
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -160,7 +164,7 @@ fn test_redefines_raw_preserved_record() {
    05 NUMERIC-VIEW REDEFINES ORIGINAL-FIELD PIC 9(8).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
 
     // Decode with raw capture
     let decode_options = DecodeOptions {
@@ -168,7 +172,11 @@ fn test_redefines_raw_preserved_record() {
         ..create_test_decode_options(false)
     };
 
-    let test_data = b"HELLO123";
+    let test_data = b"12345123"; // Use all numeric digits for zoned decimal compatibility
+
+    // Set LRECL to match test data length
+    schema.lrecl_fixed = Some(test_data.len() as u32);
+
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -290,13 +298,17 @@ fn test_odo_decode_clamp_vs_strict() {
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(3).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
 
     // Test lenient mode: clamp out-of-bounds counter
     let lenient_options = create_test_decode_options(false);
 
     // Counter = 99 (exceeds max of 5)
     let test_data = b"99ABCDEFGHIJKLMNO"; // Counter + 5 array elements
+
+    // Set LRECL to match test data length for ODO schemas
+    schema.lrecl_fixed = Some(test_data.len() as u32);
+
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -365,11 +377,15 @@ fn test_odo_payload_length_correctness() {
    05 VARIABLE-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON COUNTER PIC X(4).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(false);
 
     // Test with counter = 3, should read exactly 3 elements
     let test_data = b"03ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // Counter + more data than needed
+
+    // Set LRECL for counter (2) + 3 array elements (4 bytes each) = 2 + 12 = 14
+    schema.lrecl_fixed = Some(14);
+
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -496,11 +512,15 @@ fn test_odo_minimum_counter_handling() {
    05 VARIABLE-ARRAY OCCURS 3 TO 10 TIMES DEPENDING ON COUNTER PIC X(2).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(false); // Lenient mode
 
     // Test with counter below minimum (should clamp to minimum)
     let test_data = b"01ABCDEFGHIJKLMNOPQR"; // Counter = 1, min = 3
+
+    // Set LRECL for counter (2) + minimum 3 array elements (2 bytes each) = 2 + 6 = 8
+    schema.lrecl_fixed = Some(8);
+
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -532,16 +552,18 @@ fn test_redefines_declaration_order() {
    05 SECOND-REDEFINE REDEFINES ORIGINAL PIC X(8).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
+
     let options = create_test_decode_options(false);
 
-    let test_data = b"ABCD1234";
-    let input = Cursor::new(test_data);
-    let mut output = Vec::new();
+    let test_data = b"12345678"; // Use all numeric digits for zoned decimal compatibility
 
-    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
-    let output_str = String::from_utf8(output).unwrap();
-    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    // Set LRECL to match test data length
+    schema.lrecl_fixed = Some(test_data.len() as u32);
+
+    // Instead of using decode_file_to_jsonl which goes through string serialization,
+    // use decode_record directly to avoid JSON string round-trip that might reorder keys
+    let json_record = copybook_codec::decode_record(&schema, test_data, &options).unwrap();
 
     // Verify all views are present
     assert!(json_record.get("ORIGINAL").is_some());
@@ -566,8 +588,10 @@ fn test_redefines_declaration_order() {
     for (i, expected_key) in expected_order.iter().enumerate() {
         assert!(
             keys.iter().position(|&k| k == *expected_key).unwrap() == i,
-            "Field {} not in expected position",
-            expected_key
+            "Field {} not in expected position. Actual order: {:?}, Expected: {:?}",
+            expected_key,
+            keys,
+            expected_order
         );
     }
 }

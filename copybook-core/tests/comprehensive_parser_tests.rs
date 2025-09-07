@@ -1,6 +1,3 @@
-#![cfg(feature = "comprehensive-tests")]
-#![allow(clippy::needless_raw_string_hashes, clippy::uninlined_format_args)]
-
 //! Comprehensive parser tests covering all normative grammar rules and edge cases
 //!
 //! This test suite validates the parser's handling of various COBOL copybook formats
@@ -11,7 +8,6 @@ use copybook_core::{
 };
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_fixed_form_vs_free_form_detection() {
     // Fixed-form: ≥70% lines with cols 7-72 content
     let fixed_form = r#"      * This is a comment
@@ -38,7 +34,6 @@ fn test_fixed_form_vs_free_form_detection() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_column_7_continuation_normative() {
     // NORMATIVE: Only column-7 '-' is continuation
     let with_continuation = r#"       01 VERY-LONG-FIELD-NAME-THAT-NEEDS-
@@ -71,7 +66,6 @@ fn test_column_7_continuation_normative() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_comment_handling_normative() {
     // NORMATIVE: '*' at col 1 is comment in fixed-form
     let fixed_comments = r#"* This is a comment
@@ -97,7 +91,6 @@ fn test_comment_handling_normative() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_edited_pic_error_normative() {
     // NORMATIVE: Edited PICs should fail with CBKP051_UNSUPPORTED_EDITED_PIC
     let edited_pics = vec![
@@ -131,7 +124,6 @@ fn test_edited_pic_error_normative() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_sign_clause_as_edited_pic_normative() {
     // NORMATIVE: SIGN LEADING/TRAILING [SEPARATE] treated as edited PIC
     let sign_clauses = vec![
@@ -162,8 +154,6 @@ fn test_sign_clause_as_edited_pic_normative() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
-#[allow(clippy::too_many_lines)]
 fn test_valid_pic_clauses_comprehensive() {
     // These should parse successfully
     let valid_pics = vec![
@@ -248,7 +238,9 @@ fn test_valid_pic_clauses_comprehensive() {
         let result = parse_copybook(copybook);
         assert!(
             result.is_ok(),
-            "Should succeed for {description}: {copybook}"
+            "Should succeed for {}: {}",
+            description,
+            copybook
         );
 
         let schema = result.unwrap();
@@ -264,18 +256,6 @@ fn test_valid_pic_clauses_comprehensive() {
                     signed: sg1,
                 },
                 FieldKind::ZonedDecimal {
-                    digits: d2,
-                    scale: s2,
-                    signed: sg2,
-                },
-            )
-            | (
-                FieldKind::PackedDecimal {
-                    digits: d1,
-                    scale: s1,
-                    signed: sg1,
-                },
-                FieldKind::PackedDecimal {
                     digits: d2,
                     scale: s2,
                     signed: sg2,
@@ -298,6 +278,22 @@ fn test_valid_pic_clauses_comprehensive() {
                 assert_eq!(b1, b2);
                 assert_eq!(s1, s2);
             }
+            (
+                FieldKind::PackedDecimal {
+                    digits: d1,
+                    scale: s1,
+                    signed: sg1,
+                },
+                FieldKind::PackedDecimal {
+                    digits: d2,
+                    scale: s2,
+                    signed: sg2,
+                },
+            ) => {
+                assert_eq!(d1, d2);
+                assert_eq!(s1, s2);
+                assert_eq!(sg1, sg2);
+            }
             _ => panic!(
                 "Field kind mismatch for {}: expected {:?}, got {:?}",
                 description, expected_kind, schema.fields[0].kind
@@ -307,7 +303,6 @@ fn test_valid_pic_clauses_comprehensive() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_sequence_area_ignored_normative() {
     // NORMATIVE: Cols 1-6 and 73-80 ignored in fixed-form
     let with_sequence = r#"123456 01 RECORD-NAME.                                          12345678
@@ -322,7 +317,6 @@ fn test_sequence_area_ignored_normative() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_duplicate_name_disambiguation_normative() {
     // NORMATIVE: Sibling fields with identical names get __dup2, __dup3 suffixes
     let with_duplicates = r#"
@@ -349,7 +343,6 @@ fn test_duplicate_name_disambiguation_normative() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_filler_field_naming_normative() {
     // NORMATIVE: FILLER fields get _filler_<offset> names when emitted
     let with_filler = r#"
@@ -376,12 +369,13 @@ fn test_filler_field_naming_normative() {
     // Check FILLER naming (offset-based)
     assert_eq!(root.children[0].name, "FIELD1");
     assert_eq!(root.children[1].name, "_filler_00000005"); // Offset 5
+    assert_eq!(root.children[1].path, "RECORD-NAME._filler_00000005");
     assert_eq!(root.children[2].name, "FIELD2");
     assert_eq!(root.children[3].name, "_filler_00000013"); // Offset 13
+    assert_eq!(root.children[3].path, "RECORD-NAME._filler_00000013");
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_multiple_filler_fields_distinct() {
     // Test that multiple FILLER fields get unique names based on their offsets
     let with_multiple_fillers = r#"
@@ -410,14 +404,16 @@ fn test_multiple_filler_fields_distinct() {
     // Check all FILLER fields have distinct names based on their offsets
     assert_eq!(root.children[0].name, "FIELD1");
     assert_eq!(root.children[1].name, "_filler_00000002"); // Offset 2
+    assert_eq!(root.children[1].path, "RECORD-NAME._filler_00000002");
     assert_eq!(root.children[2].name, "FIELD2");
     assert_eq!(root.children[3].name, "_filler_00000006"); // Offset 6
+    assert_eq!(root.children[3].path, "RECORD-NAME._filler_00000006");
     assert_eq!(root.children[4].name, "FIELD3");
     assert_eq!(root.children[5].name, "_filler_00000009"); // Offset 9
+    assert_eq!(root.children[5].path, "RECORD-NAME._filler_00000009");
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_occurs_fixed_arrays() {
     let copybook = r#"
 01 RECORD-WITH-ARRAYS.
@@ -457,7 +453,6 @@ fn test_occurs_fixed_arrays() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_odo_validation_normative() {
     // NORMATIVE: ODO only at tail, not nested under another ODO
     let valid_odo = r#"
@@ -512,7 +507,6 @@ fn test_odo_validation_normative() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_redefines_validation() {
     let valid_redefines = r#"
 01 RECORD-WITH-REDEFINES.
@@ -558,7 +552,6 @@ fn test_redefines_validation() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_synchronized_alignment() {
     let copybook = r#"
 01 RECORD-WITH-SYNC.
@@ -598,7 +591,6 @@ fn test_synchronized_alignment() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_error_context_with_line_numbers() {
     // Test that parse errors include proper line numbers and context
     let invalid_syntax = r#"01 RECORD-NAME.
@@ -619,7 +611,6 @@ fn test_error_context_with_line_numbers() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_continuation_across_multiple_lines() {
     // Test continuation across multiple lines
     let multi_continuation = r#"       01 VERY-LONG-FIELD-NAME-THAT-SPANS-
@@ -636,7 +627,6 @@ fn test_continuation_across_multiple_lines() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_empty_lines_and_whitespace() {
     // Test handling of empty lines and whitespace-only lines
     let with_empty_lines = r#"
@@ -654,7 +644,6 @@ fn test_empty_lines_and_whitespace() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_binary_width_mapping_normative() {
     // Test NORMATIVE binary width mapping: ≤4→2B, 5-9→4B, 10-18→8B
     let test_cases = vec![
@@ -670,18 +659,17 @@ fn test_binary_width_mapping_normative() {
         let schema = parse_copybook(copybook).unwrap();
         let field = &schema.fields[0];
 
-        assert_eq!(field.len, expected_len, "Length mismatch for: {copybook}");
+        assert_eq!(field.len, expected_len, "Length mismatch for: {}", copybook);
 
         if let FieldKind::BinaryInt { bits, .. } = &field.kind {
-            assert_eq!(*bits, expected_bits, "Bit width mismatch for: {copybook}");
+            assert_eq!(*bits, expected_bits, "Bit width mismatch for: {}", copybook);
         } else {
-            panic!("Expected BinaryInt for: {copybook}");
+            panic!("Expected BinaryInt for: {}", copybook);
         }
     }
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_explicit_binary_width_normative() {
     // Test NORMATIVE explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
     let copybook = r#"
@@ -708,13 +696,12 @@ fn test_explicit_binary_width_normative() {
         if let FieldKind::BinaryInt { bits, .. } = &root.children[i].kind {
             assert_eq!(*bits, *expected_bits);
         } else {
-            panic!("Expected BinaryInt for child {i}");
+            panic!("Expected BinaryInt for child {}", i);
         }
     }
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_blank_when_zero_parsing() {
     let copybook = r#"
 01 RECORD-WITH-BWZ.
@@ -733,7 +720,6 @@ fn test_blank_when_zero_parsing() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_schema_fingerprinting() {
     let copybook = r#"
 01 RECORD-FOR-FINGERPRINT.

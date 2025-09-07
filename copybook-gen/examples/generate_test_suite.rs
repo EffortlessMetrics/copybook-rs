@@ -68,7 +68,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (name, copybook) in invalid_copybooks.iter().take(3) {
         println!(
-            "\nInvalid case '{name}': {}",
+            "\nInvalid case '{}': {}",
+            name,
             copybook.lines().next().unwrap_or("").trim()
         );
     }

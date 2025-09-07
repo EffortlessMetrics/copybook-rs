@@ -167,7 +167,7 @@ impl Schema {
         let fields_json: Vec<Value> = self
             .fields
             .iter()
-            .map(|f| self.field_to_canonical_json(f))
+            .map(Self::field_to_canonical_json)
             .collect();
         schema_obj.insert("fields".to_string(), Value::Array(fields_json));
 
@@ -202,8 +202,7 @@ impl Schema {
     }
 
     /// Convert field to canonical JSON for fingerprinting
-    #[allow(clippy::only_used_in_recursion)]
-    fn field_to_canonical_json(&self, field: &Field) -> Value {
+    fn field_to_canonical_json(field: &Field) -> Value {
         use serde_json::{Map, Value};
 
         let mut field_obj = Map::new();
@@ -269,7 +268,7 @@ impl Schema {
             let children_json: Vec<Value> = field
                 .children
                 .iter()
-                .map(|c| self.field_to_canonical_json(c))
+                .map(Self::field_to_canonical_json)
                 .collect();
             field_obj.insert("children".to_string(), Value::Array(children_json));
         }
@@ -296,20 +295,6 @@ impl Schema {
     }
 
     /// Find all fields that redefine the field at the given path
-    ///
-    /// This method searches the entire schema tree to locate all fields that have
-    /// a `redefines_of` attribute matching the specified path. This is particularly
-    /// useful for JSON encoding operations where REDEFINES fields need to be
-    /// identified and processed according to COBOL precedence rules.
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path of the field being redefined (e.g., "CUSTOMER.ADDRESS")
-    ///
-    /// # Returns
-    ///
-    /// A vector of field references that redefine the field at the given path.
-    /// Returns an empty vector if no redefining fields are found.
     #[must_use]
     pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field> {
         fn collect<'a>(fields: &'a [Field], target_path: &str, acc: &mut Vec<&'a Field>) {
@@ -327,6 +312,7 @@ impl Schema {
         collect(&self.fields, target_path, &mut result);
         result
     }
+
     /// Get all fields in a flat list (pre-order traversal)
     #[must_use]
     pub fn all_fields(&self) -> Vec<&Field> {

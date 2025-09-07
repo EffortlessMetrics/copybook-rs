@@ -30,7 +30,7 @@ cargo build --workspace --release
 
 ### Testing
 ```bash
-# Run all tests across workspace (117 tests passing)
+# Run all tests across workspace (127 tests passing)
 cargo test --workspace
 
 # Run performance benchmarks
@@ -45,7 +45,7 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Code formatting
 cargo fmt --all
 
-# Validation pipeline (comprehensive quality checks - 117 tests passing)
+# Validation pipeline (comprehensive quality checks - 127 tests passing)
 cargo build --workspace --release && \
 cargo test --workspace && \
 cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
@@ -244,6 +244,8 @@ println!("{}", serde_json::to_string_pretty(&json_value)?);
 - **Two-Phase Resolution**: Parser uses initial phase for duplicate detection, final phase for FILLER renaming after layout resolution
 - **Path Consistency**: Field paths automatically updated after FILLER renaming to maintain schema integrity
 - **JSON Output Reliability**: Consistent FILLER field names across parsing sessions with identical schema layout
+- **Performance Impact**: Minimal overhead with byte-offset computation during layout resolution phase
+- **Compatibility**: Works correctly with ODO, REDEFINES, and RDW record formats
 
 ### Key Data Types
 - `Schema`: Top-level parsed copybook structure from copybook-core with enhanced field lookup methods (including `find_redefining_fields`)

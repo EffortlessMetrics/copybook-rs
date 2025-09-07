@@ -15,7 +15,7 @@ fn create_test_decode_options(codepage: Codepage, strict: bool) -> DecodeOptions
     DecodeOptions {
         format: RecordFormat::Fixed,
         codepage,
-        json_number_mode: JsonNumberMode::Lossless,
+        json_number_mode: JsonNumberMode::Native,
         emit_filler: false,
         emit_meta: false,
         emit_raw: RawMode::Off,

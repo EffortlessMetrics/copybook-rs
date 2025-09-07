@@ -149,7 +149,7 @@ copybook decode schema.cpy data.bin \
 ### Advanced Options
 
 ```bash
-# Include FILLER fields in output
+# Include FILLER fields in output (named by byte offset: _filler_00000XXX)
 copybook decode schema.cpy data.bin \
   --emit-filler \
   --output data.jsonl
@@ -277,7 +277,7 @@ let opts = DecodeOptions {
     json_number_mode: JsonNumberMode::Lossless, // Preserve decimal precision
     strict_mode: false,
     max_errors: Some(100),
-    emit_filler: false,
+    emit_filler: false, // When true, FILLER fields named as _filler_00000XXX (by byte offset)
     emit_meta: true,
     emit_raw: RawMode::Off,
     on_decode_unmappable: UnmappablePolicy::Error,

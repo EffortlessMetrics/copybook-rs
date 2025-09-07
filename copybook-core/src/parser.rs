@@ -819,7 +819,7 @@ impl Parser {
 
     /// Parse OCCURS clause
     fn parse_occurs_clause(&mut self, field: &mut Field) -> Result<()> {
-        let count = match self.current_token() {
+        let first_number = match self.current_token() {
             Some(TokenPos {
                 token: Token::Number(n),
                 ..
@@ -834,6 +834,30 @@ impl Parser {
                     "Expected number after OCCURS",
                 ));
             }
+        };
+
+        // Check for 'TO max' pattern (for ODO ranges like "OCCURS 1 TO 5")
+        let (min_count, max_count) = if self.check(&Token::To) {
+            self.advance(); // consume TO
+            let second_number = match self.current_token() {
+                Some(TokenPos {
+                    token: Token::Number(n),
+                    ..
+                }) => {
+                    let count = *n;
+                    self.advance();
+                    count
+                }
+                _ => {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Expected number after TO in OCCURS clause",
+                    ));
+                }
+            };
+            (first_number, second_number) // min TO max
+        } else {
+            (0, first_number) // Just a single number, treat as max with min=0
         };
 
         // Skip optional TIMES keyword first
@@ -869,12 +893,12 @@ impl Parser {
             };
 
             field.occurs = Some(Occurs::ODO {
-                min: 0, // Will be validated later
-                max: count,
+                min: min_count,
+                max: max_count,
                 counter_path: counter_field,
             });
         } else {
-            field.occurs = Some(Occurs::Fixed { count });
+            field.occurs = Some(Occurs::Fixed { count: max_count });
         }
 
         Ok(())

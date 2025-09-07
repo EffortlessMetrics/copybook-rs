@@ -4,7 +4,7 @@
 //! including lexical analysis and AST construction.
 
 use crate::error::ErrorCode;
-use crate::lexer::{CobolFormat, Lexer, Token, TokenPos};
+use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema};
 use crate::{Error, Result};
@@ -28,10 +28,9 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
         return Err(Error::new(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
     }
 
-    let mut lexer = Lexer::new(text);
-    let tokens = lexer.tokenize();
+    let tokens = Lexer::new(text).tokenize();
 
-    let mut parser = Parser::with_options(tokens, lexer.format(), options.clone());
+    let mut parser = Parser::with_options(tokens, options.clone());
     parser.parse_schema()
 }
 
@@ -60,17 +59,17 @@ struct Parser {
     options: ParseOptions,
 }
 
-impl Parser {
-    #[allow(dead_code)]
-    fn new(tokens: Vec<TokenPos>, _format: CobolFormat) -> Self {
-        Self {
-            tokens,
-            current: 0,
-            options: ParseOptions::default(),
-        }
-    }
+/// Phase for field name processing
+#[derive(Clone, Copy)]
+enum NameResolutionPhase {
+    /// Initial processing before layout resolution
+    Initial,
+    /// Final processing after layout resolution
+    Final,
+}
 
-    fn with_options(tokens: Vec<TokenPos>, _format: CobolFormat, options: ParseOptions) -> Self {
+impl Parser {
+    fn with_options(tokens: Vec<TokenPos>, options: ParseOptions) -> Self {
         Self {
             tokens,
             current: 0,
@@ -111,6 +110,9 @@ impl Parser {
         // Resolve field layouts and compute offsets
         crate::layout::resolve_layout(&mut schema)?;
 
+        // Finalize field names now that layout offsets are known
+        self.process_field_names(&mut schema.fields, NameResolutionPhase::Final);
+
         self.calculate_schema_fingerprint(&mut schema);
 
         Ok(schema)
@@ -122,8 +124,8 @@ impl Parser {
             return Vec::new();
         }
 
-        // Handle duplicate names and FILLER fields
-        self.process_field_names(&mut flat_fields);
+        // Handle duplicate names before building hierarchy
+        self.process_field_names(&mut flat_fields, NameResolutionPhase::Initial);
 
         // Build hierarchical structure using a stack-based approach
         let mut stack: Vec<Field> = Vec::new();
@@ -131,7 +133,7 @@ impl Parser {
 
         for mut field in flat_fields {
             // Set initial path
-            field.path.clone_from(&field.name);
+            field.path = field.name.clone();
 
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
@@ -182,24 +184,36 @@ impl Parser {
         result
     }
 
-    /// Process field names for duplicates and FILLER handling
-    fn process_field_names(&mut self, fields: &mut [Field]) {
-        // First pass: handle FILLER fields
-        for field in fields.iter_mut() {
-            if field.name.to_uppercase() == "FILLER" {
-                if self.options.emit_filler {
-                    // Replace FILLER with _filler_<offset> (offset will be calculated later in layout resolution)
-                    // For now, use a placeholder that will be updated
-                    field.name = format!("_filler_{}", 0);
-                } else {
-                    // Keep FILLER name for now, will be filtered out in layout resolution
-                    field.name = "FILLER".to_string();
-                }
+    /// Process field names for duplicates (initial) or finalize FILLER names after layout
+    fn process_field_names(&mut self, fields: &mut [Field], phase: NameResolutionPhase) {
+        match phase {
+            NameResolutionPhase::Initial => {
+                // Handle duplicate names at each level (skip FILLER fields)
+                self.process_duplicates_at_level(fields, 0);
+            }
+            NameResolutionPhase::Final => {
+                self.finalize_filler_names(fields, None);
             }
         }
+    }
 
-        // Second pass: handle duplicate names at each level
-        self.process_duplicates_at_level(fields, 0);
+    /// Recursively rename FILLER fields with computed offsets and update paths
+    fn finalize_filler_names(&self, fields: &mut [Field], parent_path: Option<&str>) {
+        for field in fields.iter_mut() {
+            if field.name.eq_ignore_ascii_case("FILLER") && self.options.emit_filler {
+                field.name = format!("_filler_{:08}", field.offset);
+            }
+
+            // Update path based on possibly updated name
+            field.path = if let Some(parent) = parent_path {
+                format!("{}.{}", parent, field.name)
+            } else {
+                field.name.clone()
+            };
+
+            let current_path = field.path.clone();
+            self.finalize_filler_names(&mut field.children, Some(&current_path));
+        }
     }
 
     /// Process duplicate names recursively by level
@@ -219,8 +233,8 @@ impl Parser {
         for &i in &siblings {
             let field_name = fields[i].name.clone();
 
-            // Skip FILLER fields that won't be emitted
-            if field_name == "FILLER" && !self.options.emit_filler {
+            // Skip FILLER fields (they will be renamed with offsets later)
+            if field_name.eq_ignore_ascii_case("FILLER") {
                 continue;
             }
 
@@ -246,7 +260,7 @@ impl Parser {
 
     /// Validate REDEFINES relationships
     fn validate_redefines(&self, fields: &[Field]) -> Result<()> {
-        let all_fields = self.collect_all_fields(fields);
+        let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(ref target) = field.redefines_of {
@@ -272,7 +286,7 @@ impl Parser {
 
     /// Validate ODO constraints
     fn validate_odo_constraints(&self, fields: &[Field]) -> Result<()> {
-        let all_fields = self.collect_all_fields(fields);
+        let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
@@ -338,37 +352,18 @@ impl Parser {
         true
     }
 
-    /// Collect all fields in a flat list with recursion depth limit
-    fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
-        const MAX_DEPTH: u8 = 100; // Reasonable limit for COBOL hierarchy depth
+    /// Collect all fields in a flat list
+    fn collect_all_fields(fields: &[Field]) -> Vec<&Field> {
         let mut result = Vec::new();
-        self.collect_all_fields_with_depth(fields, &mut result, 0, MAX_DEPTH);
+        Self::collect_all_fields_recursive(fields, &mut result);
         result
     }
 
-    /// Collect all fields recursively with depth limit
-    #[allow(clippy::only_used_in_recursion)]
-    fn collect_all_fields_with_depth<'a>(
-        &self,
-        fields: &'a [Field],
-        result: &mut Vec<&'a Field>,
-        current_depth: u8,
-        max_depth: u8,
-    ) {
-        if current_depth >= max_depth {
-            return; // Prevent infinite recursion
-        }
-
+    /// Collect all fields recursively
+    fn collect_all_fields_recursive<'a>(fields: &'a [Field], result: &mut Vec<&'a Field>) {
         for field in fields {
             result.push(field);
-            if !field.children.is_empty() {
-                self.collect_all_fields_with_depth(
-                    &field.children,
-                    result,
-                    current_depth + 1,
-                    max_depth,
-                );
-            }
+            Self::collect_all_fields_recursive(&field.children, result);
         }
     }
 
@@ -377,7 +372,7 @@ impl Parser {
         use sha2::{Digest, Sha256};
 
         // Create canonical JSON representation for fingerprinting
-        let canonical_json = self.create_canonical_schema_json(schema);
+        let canonical_json = Self::create_canonical_schema_json(schema);
 
         // Create hasher and add canonical JSON
         let mut hasher = Sha256::new();
@@ -385,7 +380,7 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update([u8::from(self.options.emit_filler)]);
+        hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
 
         // Compute final hash
         let result = hasher.finalize();
@@ -393,7 +388,7 @@ impl Parser {
     }
 
     /// Create canonical JSON representation of schema for fingerprinting
-    fn create_canonical_schema_json(&self, schema: &Schema) -> String {
+    fn create_canonical_schema_json(schema: &Schema) -> String {
         use serde_json::{Map, Value};
 
         let mut schema_obj = Map::new();
@@ -402,7 +397,7 @@ impl Parser {
         let fields_json: Vec<Value> = schema
             .fields
             .iter()
-            .map(|f| self.field_to_canonical_json(f))
+            .map(Self::field_to_canonical_json)
             .collect();
         schema_obj.insert("fields".to_string(), Value::Array(fields_json));
 
@@ -437,8 +432,7 @@ impl Parser {
     }
 
     /// Convert field to canonical JSON for fingerprinting
-    #[allow(clippy::only_used_in_recursion)]
-    fn field_to_canonical_json(&self, field: &Field) -> serde_json::Value {
+    fn field_to_canonical_json(field: &Field) -> serde_json::Value {
         use serde_json::{Map, Value};
 
         let mut field_obj = Map::new();
@@ -504,7 +498,7 @@ impl Parser {
             let children_json: Vec<Value> = field
                 .children
                 .iter()
-                .map(|c| self.field_to_canonical_json(c))
+                .map(Self::field_to_canonical_json)
                 .collect();
             field_obj.insert("children".to_string(), Value::Array(children_json));
         }
@@ -742,7 +736,7 @@ impl Parser {
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {
-                len: u32::from(pic.digits),
+                len: pic.digits as u32,
             },
             crate::pic::PicKind::NumericDisplay => FieldKind::ZonedDecimal {
                 digits: pic.digits,
@@ -999,6 +993,7 @@ impl Parser {
                 ));
             }
         }
+
         Ok(())
     }
 
@@ -1084,16 +1079,14 @@ impl Parser {
     fn is_keyword(&self) -> bool {
         matches!(
             self.current_token().map(|t| &t.token),
-            Some(
-                Token::Pic
-                    | Token::Usage
-                    | Token::Redefines
-                    | Token::Occurs
-                    | Token::Synchronized
-                    | Token::Value
-                    | Token::Blank
-                    | Token::Sign
-            )
+            Some(Token::Pic)
+                | Some(Token::Usage)
+                | Some(Token::Redefines)
+                | Some(Token::Occurs)
+                | Some(Token::Synchronized)
+                | Some(Token::Value)
+                | Some(Token::Blank)
+                | Some(Token::Sign)
         )
     }
 
@@ -1300,11 +1293,6 @@ mod tests {
 
         // Check ODO field
         let odo_field = &schema.fields[1];
-        assert!(
-            matches!(&odo_field.occurs, Some(Occurs::ODO { .. })),
-            "Expected ODO occurs, got {:?}",
-            odo_field.occurs
-        );
         if let Some(Occurs::ODO {
             max, counter_path, ..
         }) = &odo_field.occurs

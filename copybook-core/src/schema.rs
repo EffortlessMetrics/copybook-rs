@@ -164,7 +164,11 @@ impl Schema {
         let mut schema_obj = Map::new();
 
         // Add fields in canonical order
-        let fields_json: Vec<Value> = self.fields.iter().map(Self::field_to_canonical_json).collect();
+        let fields_json: Vec<Value> = self
+            .fields
+            .iter()
+            .map(Self::field_to_canonical_json)
+            .collect();
         schema_obj.insert("fields".to_string(), Value::Array(fields_json));
 
         // Add schema-level properties
@@ -211,9 +215,23 @@ impl Schema {
         // Add field kind
         let kind_str = match &field.kind {
             FieldKind::Alphanum { len } => format!("Alphanum({})", len),
-            FieldKind::ZonedDecimal { digits, scale, signed } => format!("ZonedDecimal({},{},{})", digits, scale, signed),
-            FieldKind::BinaryInt { bits, signed } => format!("BinaryInt({},{})", bits, signed),
-            FieldKind::PackedDecimal { digits, scale, signed } => format!("PackedDecimal({},{},{})", digits, scale, signed),
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
+                format!("ZonedDecimal({},{},{})", digits, scale, signed)
+            }
+            FieldKind::BinaryInt { bits, signed } => {
+                format!("BinaryInt({},{})", bits, signed)
+            }
+            FieldKind::PackedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
+                format!("PackedDecimal({},{},{})", digits, scale, signed)
+            }
             FieldKind::Group => "Group".to_string(),
         };
         field_obj.insert("kind".to_string(), Value::String(kind_str));
@@ -226,7 +244,13 @@ impl Schema {
         if let Some(ref occurs) = field.occurs {
             let occurs_str = match occurs {
                 Occurs::Fixed { count } => format!("Fixed({})", count),
-                Occurs::ODO { min, max, counter_path } => format!("ODO({},{},{})", min, max, counter_path),
+                Occurs::ODO {
+                    min,
+                    max,
+                    counter_path,
+                } => {
+                    format!("ODO({},{},{})", min, max, counter_path)
+                }
             };
             field_obj.insert("occurs".to_string(), Value::String(occurs_str));
         }
@@ -241,7 +265,11 @@ impl Schema {
 
         // Add children recursively
         if !field.children.is_empty() {
-            let children_json: Vec<Value> = field.children.iter().map(Self::field_to_canonical_json).collect();
+            let children_json: Vec<Value> = field
+                .children
+                .iter()
+                .map(Self::field_to_canonical_json)
+                .collect();
             field_obj.insert("children".to_string(), Value::Array(children_json));
         }
 

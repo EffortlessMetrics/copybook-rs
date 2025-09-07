@@ -276,7 +276,7 @@ fn fill_zoned_field(
             break;
         }
 
-    let digit = digit_char.to_digit(10).unwrap_or(0) as u8;
+        let digit = digit_char.to_digit(10).unwrap_or(0) as u8;
 
         if i == value_str.len() - 1 && signed {
             // Last digit carries sign

@@ -171,7 +171,11 @@ pub fn generate_corruption_test_cases() -> GoldenTestSuite {
 
     for (corruption_type, name) in corruption_types {
         let corrupted_data = crate::data::generate_corrupted_data(clean_data, corruption_type);
-    let mut test = GoldenTest::new(&format!("corruption_{}", name), &clean_copybook, &corrupted_data);
+        let mut test = GoldenTest::new(
+            &format!("corruption_{}", name),
+            &clean_copybook,
+            &corrupted_data,
+        );
         test.add_tag("corruption");
         test.add_tag("negative");
         test.add_tag(name);

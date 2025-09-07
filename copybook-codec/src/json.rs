@@ -65,7 +65,13 @@ impl<W: Write> JsonWriter<W> {
 
         // Add metadata if requested
         if self.options.emit_meta {
-            self.add_metadata(&mut json_obj, record_index, byte_offset, record_data.len())?;
+            self.add_metadata(
+                &mut json_obj,
+                schema,
+                record_index,
+                byte_offset,
+                record_data.len(),
+            )?;
         }
 
         // Add raw data if requested
@@ -122,7 +128,13 @@ impl<W: Write> JsonWriter<W> {
 
         // Add metadata if requested
         if self.options.emit_meta {
-            self.write_metadata_streaming(&mut first_field, record_index, byte_offset, record_data.len())?;
+            self.write_metadata_streaming(
+                &mut first_field,
+                schema,
+                record_index,
+                byte_offset,
+                record_data.len(),
+            )?;
         }
 
         // Add raw data if requested
@@ -226,8 +238,8 @@ impl<W: Write> JsonWriter<W> {
             if matches!(self.options.emit_raw, RawMode::Field) {
                 self.json_buffer.push(',');
                 self.json_buffer.push('"');
-                self.json_buffer.push_str(&field_name);
-                self.json_buffer.push_str("__raw_b64":" );
+                self.json_buffer.push_str(&field.path);
+                self.json_buffer.push_str("__raw_b64\":\"");
 
                 let field_data =
                     &record_data[field.offset as usize..(field.offset + field.len) as usize];
@@ -359,6 +371,7 @@ impl<W: Write> JsonWriter<W> {
     fn write_metadata_streaming(
         &mut self,
         first_field: &mut bool,
+        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
@@ -370,7 +383,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__schema_id\":\"");
-        self.json_buffer.push_str(&self.schema.fingerprint);
+        self.json_buffer.push_str(&schema.fingerprint);
         self.json_buffer.push('"');
 
         // Add record index
@@ -437,7 +450,6 @@ impl<W: Write> JsonWriter<W> {
         {
             return Ok(());
         }
-
         // Handle REDEFINES: emit all views in declaration order
         if field.redefines_of.is_some() {
             // This is a redefining field - process it normally
@@ -731,12 +743,19 @@ impl<W: Write> JsonWriter<W> {
     fn add_metadata(
         &self,
         json_obj: &mut Map<String, Value>,
+        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
     ) -> Result<()> {
-        json_obj.insert("__schema_id".to_string(), Value::String(self.schema.fingerprint.clone()));
-        json_obj.insert("__record_index".to_string(), Value::Number(record_index.into()));
+        json_obj.insert(
+            "__schema_id".to_string(),
+            Value::String(schema.fingerprint.clone()),
+        );
+        json_obj.insert(
+            "__record_index".to_string(),
+            Value::Number(record_index.into()),
+        );
         json_obj.insert("__offset".to_string(), Value::Number(byte_offset.into()));
         json_obj.insert("__length".to_string(), Value::Number(record_length.into()));
         Ok(())
@@ -1093,6 +1112,7 @@ impl<W: Write> JsonWriter<W> {
     /// Write metadata directly to JSON string buffer
     fn write_record_metadata(
         &mut self,
+        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
@@ -1105,7 +1125,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__schema_id\":");
-        self.write_json_string_to_buffer(&self.schema.fingerprint);
+        self.write_json_string_to_buffer(&schema.fingerprint);
         self.json_buffer.push_str(",\"__record_index\":");
         self.write_json_number_to_buffer(record_index as f64);
 
@@ -1370,7 +1390,7 @@ impl JsonEncoder {
                 Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                     format!(
-                        "Ambiguous REDEFINES encoding: multiple non-null views for cluster '{}',",
+                        "Ambiguous REDEFINES encoding: multiple non-null views for cluster '{}'",
                         cluster_path
                     ),
                 )
@@ -1572,8 +1592,7 @@ impl JsonEncoder {
         record_data: &mut [u8],
     ) -> Result<()> {
         // Find the counter field in the schema
-        let counter_field = self
-            .schema
+        let counter_field = schema
             .find_field(counter_path)
             .ok_or_else(|| {
                 Error::new(
@@ -1660,7 +1679,10 @@ impl JsonEncoder {
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("ODO counter field '{}' has invalid type for numeric value", counter_path),
+                    format!(
+                        "ODO counter field '{}' has invalid type for numeric value",
+                        counter_path
+                    ),
                 )
                 .with_field(counter_path.to_string()));
             }
@@ -1854,6 +1876,13 @@ impl JsonEncoder {
                 let encoded = crate::numeric::encode_binary_int(int_value, bits, signed)?;
                 field_data.copy_from_slice(&encoded);
                 Ok(())
+            }
+            FieldKind::Group => {
+                return Err(Error::new(
+                    ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                    format!("Group field {} processed as scalar", field.path),
+                )
+                .with_field(field.path.clone()));
             }
         }
     }
@@ -2390,7 +2419,8 @@ impl<W: Write> OrderedJsonWriter<W> {
         _sequence_id: u64,
     ) -> Result<()> {
         // For now, write directly (parallel processing will be implemented later)
-        self.inner.write_record(record_data, record_index, byte_offset)
+        self.inner
+            .write_record(schema, record_data, record_index, byte_offset)
     }
 
     /// Finish writing and return the inner writer
@@ -2480,7 +2510,7 @@ mod tests {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
-            children: vec![group_child],
+            children: Vec::new(),
         };
 
         Schema {

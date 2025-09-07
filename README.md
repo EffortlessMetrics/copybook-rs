@@ -150,6 +150,7 @@ copybook decode schema.cpy data.bin \
 
 ```bash
 # Include FILLER fields in output (named by byte offset: _filler_00000XXX)
+# FILLER fields use consistent byte-offset naming across parsing sessions
 copybook decode schema.cpy data.bin \
   --emit-filler \
   --output data.jsonl
@@ -277,7 +278,7 @@ let opts = DecodeOptions {
     json_number_mode: JsonNumberMode::Lossless, // Preserve decimal precision
     strict_mode: false,
     max_errors: Some(100),
-    emit_filler: false, // When true, FILLER fields named as _filler_00000XXX (by byte offset)
+    emit_filler: false, // When true, FILLER fields named as _filler_00000XXX (by computed byte offset)
     emit_meta: true,
     emit_raw: RawMode::Off,
     on_decode_unmappable: UnmappablePolicy::Error,
@@ -566,7 +567,7 @@ We welcome contributions! Please see [REPORT.md](REPORT.md) for current project 
 
 #### Code Standards
 - Follow Rust conventions and idioms with complete clippy pedantic compliance
-- Add comprehensive tests for new features (117 tests passing)
+- Add comprehensive tests for new features (127 tests passing)
 - Update documentation for API changes
 - Maintain MSRV compatibility (Rust 1.89)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)

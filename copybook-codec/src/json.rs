@@ -484,7 +484,9 @@ impl<W: Write> JsonWriter<W> {
             }
             _ => {
                 // Scalar field
+                println!("Processing field: {}, has_occurs: {}", field.name, field.occurs.is_some());
                 if let Some(occurs) = &field.occurs {
+                    println!("Processing as array with occurs: {:?}", occurs);
                     let array_value = self.process_scalar_array(
                         field,
                         record_data,
@@ -494,6 +496,7 @@ impl<W: Write> JsonWriter<W> {
                     )?;
                     json_obj.insert(self.get_field_name(field), array_value);
                 } else {
+                    println!("Processing as single scalar field");
                     let field_value =
                         self.decode_scalar_field(field, record_data, record_index, byte_offset)?;
                     json_obj.insert(self.get_field_name(field), field_value);
@@ -586,10 +589,13 @@ impl<W: Write> JsonWriter<W> {
                 max,
                 counter_path,
             } => {
-                // Find counter field and read its value
-                // For now, return max count - this will be implemented when ODO support is added
+                // TODO: Implement proper ODO counter reading
+                // For now, this is causing the issue - need to actually read the counter field
+                println!("ODO: counter_path={}, min={}, max={}", counter_path, min, max);
                 let _ = (min, counter_path, record_data);
-                Ok(*max)
+                let result = *max;
+                println!("ODO: returning count={}", result);
+                Ok(result)
             }
         }
     }

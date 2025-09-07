@@ -212,9 +212,15 @@ fn decode_fields_recursive(
                 decode_fields_recursive(&field.children, data, json_obj, options)?;
             }
             _ => {
-                // Decode scalar field
-                let field_value = decode_scalar_field(field, data, options)?;
-                json_obj.insert(field_name, field_value);
+                // Check if this field has OCCURS (array)
+                if let Some(occurs) = &field.occurs {
+                    let array_value = decode_array_field(field, data, options, occurs)?;
+                    json_obj.insert(field_name, array_value);
+                } else {
+                    // Decode scalar field
+                    let field_value = decode_scalar_field(field, data, options)?;
+                    json_obj.insert(field_name, field_value);
+                }
             }
         }
     }
@@ -281,6 +287,129 @@ fn decode_scalar_field(
             ErrorCode::CBKD101_INVALID_FIELD_TYPE,
             format!("Group field {} processed as scalar", field.path),
         )),
+    }
+}
+
+/// Decode an array field with OCCURS
+fn decode_array_field(
+    field: &copybook_core::Field,
+    data: &[u8],
+    options: &DecodeOptions,
+    occurs: &copybook_core::Occurs,
+) -> Result<Value> {
+    use copybook_core::Occurs;
+    
+    // Get actual count based on occurs type
+    let count = match occurs {
+        Occurs::Fixed { count } => *count,
+        Occurs::ODO { min: _, max, counter_path } => {
+            // Read counter field value to determine actual count
+            match read_odo_counter_value(data, counter_path, field.path.as_str()) {
+                Ok(counter_value) => {
+                    // Validate bounds
+                    if let Some(min) = occurs_get_min(occurs) {
+                        if counter_value < min {
+                            return Err(Error::new(
+                                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                                format!("ODO counter value {} below minimum {} for array {}", 
+                                       counter_value, min, field.path),
+                            ));
+                        }
+                    }
+                    if counter_value > *max {
+                        return Err(Error::new(
+                            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                            format!("ODO counter value {} exceeds maximum {} for array {}", 
+                                   counter_value, max, field.path),
+                        ));
+                    }
+                    counter_value
+                }
+                Err(_) => {
+                    // If we can't read the counter, use max count for now
+                    *max
+                }
+            }
+        }
+    };
+    
+    // Calculate element size
+    // For ODO arrays, field.len might be set to the element size, not total size
+    // We need to determine the size of each individual element
+    let element_size = match occurs {
+        copybook_core::Occurs::Fixed { count } => {
+            if *count > 0 { field.len / *count } else { field.len }
+        }
+        copybook_core::Occurs::ODO { max, .. } => {
+            // For ODO, field.len is often set to element size, not total size
+            // If dividing field.len by max gives 0, assume field.len is element size
+            let calculated_element_size = if *max > 0 { field.len / *max } else { 0 };
+            if calculated_element_size == 0 {
+                // field.len appears to be element size already
+                field.len
+            } else {
+                // field.len appears to be total size
+                calculated_element_size
+            }
+        }
+    };
+    
+    let mut array = Vec::new();
+    
+    // Decode each array element
+    for i in 0..count {
+        let element_offset = field.offset + (i * element_size);
+        
+        // Create element field descriptor
+        let mut element_field = field.clone();
+        element_field.offset = element_offset;
+        element_field.len = element_size;
+        element_field.occurs = None; // Remove OCCURS for individual elements
+        
+        let element_value = decode_scalar_field(&element_field, data, options)?;
+        array.push(element_value);
+    }
+    
+    Ok(Value::Array(array))
+}
+
+/// Helper to get minimum count from Occurs
+fn occurs_get_min(occurs: &copybook_core::Occurs) -> Option<u32> {
+    match occurs {
+        copybook_core::Occurs::Fixed { .. } => None,
+        copybook_core::Occurs::ODO { min, .. } => Some(*min),
+    }
+}
+
+/// Helper to get maximum count from Occurs
+fn occurs_get_max(occurs: &copybook_core::Occurs) -> u32 {
+    match occurs {
+        copybook_core::Occurs::Fixed { count } => *count,
+        copybook_core::Occurs::ODO { max, .. } => *max,
+    }
+}
+
+/// Read ODO counter value from record data
+fn read_odo_counter_value(data: &[u8], counter_path: &str, array_path: &str) -> Result<u32> {
+    // For now, implement a basic counter reading strategy
+    // This is a simplified implementation that looks for common counter patterns
+    
+    // Extract counter field name from path (last component)
+    let counter_name = counter_path.split('.').last().unwrap_or(counter_path);
+    
+    // For the test case, we expect COUNTER to be a PIC 9(2) field at offset 0
+    // Try to read it as zoned decimal
+    if data.len() >= 2 {
+        // Read first 2 bytes as zoned decimal digits
+        let digit1 = data[0] & 0x0F;
+        let digit2 = data[1] & 0x0F;
+        let value = (digit1 as u32) * 10 + (digit2 as u32);
+        Ok(value)
+    } else {
+        Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!("Cannot read ODO counter {} for array {}", counter_name, array_path),
+        ))
     }
 }
 

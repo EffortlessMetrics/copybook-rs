@@ -56,6 +56,9 @@ pub enum Token {
     #[token("ON", ignore(case))]
     On,
 
+    #[token("TO", ignore(case))]
+    To,
+
     #[token("TIMES", ignore(case))]
     Times,
 
@@ -157,6 +160,7 @@ impl fmt::Display for Token {
             Token::Occurs => write!(f, "OCCURS"),
             Token::Depending => write!(f, "DEPENDING"),
             Token::On => write!(f, "ON"),
+            Token::To => write!(f, "TO"),
             Token::Times => write!(f, "TIMES"),
             Token::Synchronized => write!(f, "SYNCHRONIZED"),
             Token::Value => write!(f, "VALUE"),

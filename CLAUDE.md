@@ -30,7 +30,7 @@ cargo build --workspace --release
 
 ### Testing
 ```bash
-# Run all tests across workspace (117 tests passing)
+# Run all tests across workspace (127 tests passing)
 cargo test --workspace
 
 # Run performance benchmarks
@@ -45,7 +45,7 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Code formatting
 cargo fmt --all
 
-# Validation pipeline (comprehensive quality checks - 117 tests passing)
+# Validation pipeline (comprehensive quality checks - 127 tests passing)
 cargo build --workspace --release && \
 cargo test --workspace && \
 cargo clippy --workspace -- -D warnings -W clippy::pedantic && \
@@ -109,6 +109,13 @@ cargo run --bin copybook-cli -- decode large-file.cpy multi-gb-data.bin \
   --codepage cp037 \
   --json-number lossless \
   --threads 8
+
+# Decode with FILLER fields included (named by byte offset: _filler_00000XXX)
+cargo run --bin copybook-cli -- decode copybook.cpy data.bin \
+  --output data-with-fillers.jsonl \
+  --format fixed \
+  --codepage cp037 \
+  --emit-filler
 ```
 
 #### Other Commands
@@ -198,7 +205,7 @@ let options = DecodeOptions::new()
     .with_codepage(Codepage::CP037)
     .with_json_number_mode(JsonNumberMode::Lossless)  // Preserve decimal precision
     .with_emit_meta(true)                            // Include schema metadata
-    .with_emit_filler(false);                        // Exclude FILLER fields
+    .with_emit_filler(false);                        // Exclude FILLER fields (named _filler_00000XXX by byte offset)
 
 // 3. Decode record with complete field processing
 let record_data = std::fs::read("customer-record.bin")?;
@@ -232,9 +239,19 @@ println!("{}", serde_json::to_string_pretty(&json_value)?);
 - Implemented performance optimizations with reusable scratch buffers
 - Enhanced schema parameter threading throughout encoding pipeline for full REDEFINES support
 
+**Recent Improvements (FILLER Field Naming)**:
+- **Byte-Offset Naming**: FILLER fields now named using computed byte offsets (`_filler_00000XXX`) instead of sequential numbering
+- **Two-Phase Resolution**: Parser uses initial phase for duplicate detection, final phase for FILLER renaming after layout resolution
+- **Path Consistency**: Field paths automatically updated after FILLER renaming to maintain schema integrity
+- **JSON Output Reliability**: Consistent FILLER field names across parsing sessions with identical schema layout
+- **Performance Impact**: Minimal overhead with byte-offset computation during layout resolution phase
+- **Compatibility**: Works correctly with ODO, REDEFINES, and RDW record formats
+
 ### Key Data Types
 - `Schema`: Top-level parsed copybook structure from copybook-core with enhanced field lookup methods (including `find_redefining_fields`)
 - `Field`/`FieldKind`: Individual copybook field definitions with COBOL semantics and complete JSON field processing
+  - **FILLER Field Naming**: FILLER fields are automatically named using byte offsets (e.g., `_filler_00000005`) for consistent JSON output
+  - **Field Path Resolution**: Enhanced path resolution supports the new offset-based FILLER naming scheme
 - `SmallDecimal`: Decimal type with Display trait implementation for improved debugging and formatting
 - `ScratchBuffers`: Reusable memory buffers for performance optimization in `decode_record_with_scratch()`
 - `DecodeOptions`/`EncodeOptions`: Configuration for codec operations including JSON number modes and metadata emission

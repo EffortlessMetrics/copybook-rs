@@ -156,23 +156,21 @@ fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
-        } => {
-            crate::commands::decode::run(
-                &copybook,
-                &input,
-                &output,
-                format,
-                codepage,
-                json_number,
-                strict,
-                max_errors,
-                emit_filler,
-                emit_meta,
-                emit_raw,
-                on_decode_unmappable,
-                threads,
-            )
-        }
+        } => crate::commands::decode::run(
+            &copybook,
+            &input,
+            &output,
+            format,
+            codepage,
+            json_number,
+            strict,
+            max_errors,
+            emit_filler,
+            emit_meta,
+            emit_raw,
+            on_decode_unmappable,
+            threads,
+        ),
         Commands::Encode {
             copybook,
             input,
@@ -184,23 +182,19 @@ fn main() {
             strict,
             max_errors,
             threads,
-        } => {
-            crate::commands::encode::run(
-                &copybook, &input, &output, format, codepage, use_raw, bwz_encode, strict, max_errors,
-                threads,
-            )
-        }
+        } => crate::commands::encode::run(
+            &copybook, &input, &output, format, codepage, use_raw, bwz_encode, strict, max_errors,
+            threads,
+        ),
         Commands::Verify {
             copybook,
             input,
             report,
             format,
             codepage,
-        } => {
-            tokio::runtime::Runtime::new().unwrap().block_on(async {
-                crate::commands::verify::run(copybook, input, report, format, codepage).await
-            })
-        }
+        } => tokio::runtime::Runtime::new().unwrap().block_on(async {
+            crate::commands::verify::run(copybook, input, report, format, codepage).await
+        }),
     };
 
     match result {

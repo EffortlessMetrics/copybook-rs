@@ -102,13 +102,16 @@ impl Parser {
         let hierarchical_fields = self.build_hierarchy(flat_fields);
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
-        self.validate_structure(&hierarchical_fields)?;
+        Self::validate_structure(&hierarchical_fields)?;
 
         // Create schema with fingerprint
         let mut schema = Schema::from_fields(hierarchical_fields);
 
         // Resolve field layouts and compute offsets
         crate::layout::resolve_layout(&mut schema)?;
+
+        // Validate ODO position constraints now that offsets are available
+        Self::validate_odo_positions(&schema.fields)?;
 
         // Finalize field names now that layout offsets are known
         self.process_field_names(&mut schema.fields, NameResolutionPhase::Final);
@@ -133,7 +136,7 @@ impl Parser {
 
         for mut field in flat_fields {
             // Set initial path
-            field.path = field.name.clone();
+            field.path.clone_from(&field.name);
 
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
@@ -189,7 +192,7 @@ impl Parser {
         match phase {
             NameResolutionPhase::Initial => {
                 // Handle duplicate names at each level (skip FILLER fields)
-                self.process_duplicates_at_level(fields, 0);
+                Self::process_duplicates_at_level(fields, 0);
             }
             NameResolutionPhase::Final => {
                 self.finalize_filler_names(fields, None);
@@ -217,7 +220,7 @@ impl Parser {
     }
 
     /// Process duplicate names recursively by level
-    fn process_duplicates_at_level(&mut self, fields: &mut [Field], parent_level: u8) {
+    fn process_duplicates_at_level(fields: &mut [Field], parent_level: u8) {
         let mut name_counts: std::collections::HashMap<String, u32> =
             std::collections::HashMap::new();
         let mut siblings = Vec::new();
@@ -248,18 +251,18 @@ impl Parser {
     }
 
     /// Validate the parsed structure
-    fn validate_structure(&self, fields: &[Field]) -> Result<()> {
+    fn validate_structure(fields: &[Field]) -> Result<()> {
         // Validate REDEFINES targets
-        self.validate_redefines(fields)?;
+        Self::validate_redefines(fields)?;
 
         // Validate ODO constraints
-        self.validate_odo_constraints(fields)?;
+        Self::validate_odo_constraints(fields)?;
 
         Ok(())
     }
 
     /// Validate REDEFINES relationships
-    fn validate_redefines(&self, fields: &[Field]) -> Result<()> {
+    fn validate_redefines(fields: &[Field]) -> Result<()> {
         let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
@@ -285,7 +288,7 @@ impl Parser {
     }
 
     /// Validate ODO constraints
-    fn validate_odo_constraints(&self, fields: &[Field]) -> Result<()> {
+    fn validate_odo_constraints(fields: &[Field]) -> Result<()> {
         let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
@@ -305,21 +308,21 @@ impl Parser {
                     ));
                 }
 
-                // Validate that ODO array is at tail position
-                // This is a simplified check - full validation would require layout resolution
-                if !Self::is_odo_at_tail(field, &all_fields) {
-                    return Err(Error::new(
-                        ErrorCode::CBKP021_ODO_NOT_TAIL,
-                        format!(
-                            "ODO array '{}' must be at tail position of its containing group",
-                            field.name
-                        ),
-                    ));
-                }
-
                 // Validate that counter is not inside REDEFINES or ODO region
                 if let Some(counter) = counter_field {
+                    // Check if counter itself redefines something
                     if counter.redefines_of.is_some() {
+                        return Err(Error::new(
+                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                            format!(
+                                "ODO counter '{}' cannot be inside a REDEFINES region",
+                                counter_path
+                            ),
+                        ));
+                    }
+
+                    // Check if counter is inside a REDEFINES group by examining path components
+                    if Self::is_counter_inside_redefines(&counter.path, &all_fields) {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                             format!(
@@ -367,6 +370,65 @@ impl Parser {
         }
     }
 
+    /// Check if counter field is inside a REDEFINES group by examining its path
+    fn is_counter_inside_redefines(counter_path: &str, all_fields: &[&Field]) -> bool {
+        // Extract path components to check each parent level
+        let path_parts: Vec<&str> = counter_path.split('.').collect();
+
+        // Build parent paths and check if any is a REDEFINES field
+        for i in 1..path_parts.len() {
+            let parent_path = path_parts[0..i].join(".");
+
+            // Check if this parent path corresponds to a REDEFINES field
+            if let Some(parent_field) = all_fields.iter().find(|f| f.path == parent_path)
+                && parent_field.redefines_of.is_some()
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Validate ODO position constraints (after layout resolution when offsets are available)
+    fn validate_odo_positions(fields: &[Field]) -> Result<()> {
+        let all_fields = Self::collect_all_fields(fields);
+
+        for field in &all_fields {
+            if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
+                // Find the counter field
+                let counter_field = all_fields
+                    .iter()
+                    .find(|f| f.name == *counter_path || f.path == *counter_path);
+
+                // Check that counter precedes the ODO array in byte order
+                if let Some(counter) = counter_field
+                    && counter.offset >= field.offset
+                {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' must precede array '{}' in byte order (counter at offset {}, array at offset {})",
+                            counter_path, field.name, counter.offset, field.offset
+                        ),
+                    ));
+                }
+
+                // Validate that ODO array is at tail position
+                if !Self::is_odo_at_tail(field, &all_fields) {
+                    return Err(Error::new(
+                        ErrorCode::CBKP021_ODO_NOT_TAIL,
+                        format!(
+                            "ODO array '{}' must be at tail position of its containing group",
+                            field.name
+                        ),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Calculate schema fingerprint using SHA-256
     fn calculate_schema_fingerprint(&self, schema: &mut Schema) {
         use sha2::{Digest, Sha256};
@@ -380,7 +442,7 @@ impl Parser {
 
         // Add codepage and options
         hasher.update(self.options.codepage.as_bytes());
-        hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
+        hasher.update([u8::from(self.options.emit_filler)]);
 
         // Compute final hash
         let result = hasher.finalize();
@@ -736,7 +798,7 @@ impl Parser {
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {
-                len: pic.digits as u32,
+                len: u32::from(pic.digits),
             },
             crate::pic::PicKind::NumericDisplay => FieldKind::ZonedDecimal {
                 digits: pic.digits,
@@ -828,6 +890,15 @@ impl Parser {
                 self.advance();
                 count
             }
+            Some(TokenPos {
+                token: Token::Level(level),
+                ..
+            }) => {
+                // Level tokens can also be valid numbers in OCCURS context
+                let count = u32::from(*level);
+                self.advance();
+                count
+            }
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
@@ -845,6 +916,15 @@ impl Parser {
                     ..
                 }) => {
                     let count = *n;
+                    self.advance();
+                    count
+                }
+                Some(TokenPos {
+                    token: Token::Level(level),
+                    ..
+                }) => {
+                    // Level tokens can also be valid numbers in OCCURS context
+                    let count = u32::from(*level);
                     self.advance();
                     count
                 }
@@ -1103,14 +1183,16 @@ impl Parser {
     fn is_keyword(&self) -> bool {
         matches!(
             self.current_token().map(|t| &t.token),
-            Some(Token::Pic)
-                | Some(Token::Usage)
-                | Some(Token::Redefines)
-                | Some(Token::Occurs)
-                | Some(Token::Synchronized)
-                | Some(Token::Value)
-                | Some(Token::Blank)
-                | Some(Token::Sign)
+            Some(
+                Token::Pic
+                    | Token::Usage
+                    | Token::Redefines
+                    | Token::Occurs
+                    | Token::Synchronized
+                    | Token::Value
+                    | Token::Blank
+                    | Token::Sign
+            )
         )
     }
 

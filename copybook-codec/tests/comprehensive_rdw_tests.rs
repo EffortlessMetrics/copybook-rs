@@ -140,28 +140,90 @@ fn test_rdw_length_recomputation() {
     // Original data with length=8
     let original_rdw = b"\x00\x08\x00\x00ORIGINAL";
     let input = Cursor::new(original_rdw);
+
+    println!(
+        "DEBUG: Starting decode_file_to_jsonl with schema: {}",
+        copybook
+    );
+    println!("DEBUG: Original RDW input: {:?}", original_rdw);
+
+    // Prepare output with newline-terminated JSONL
     let mut output = Vec::new();
 
-    let decode_options = create_rdw_decode_options(RawMode::RecordRDW, false);
-    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &decode_options).unwrap();
+    let mut decode_options = create_rdw_decode_options(RawMode::RecordRDW, false);
+    decode_options.threads = 1; // Ensure single-threaded for consistent testing
 
-    let output_str = String::from_utf8(output).unwrap();
-    let mut json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    // Decode with direct error checking
+    let decode_result =
+        copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &decode_options);
+
+    match &decode_result {
+        Ok(summary) => {
+            println!(
+                "DEBUG: Decode successful, records processed: {}",
+                summary.records_processed
+            );
+        }
+        Err(e) => {
+            println!("DEBUG: Decode failed: {:?}", e);
+            panic!("Test failed during decode");
+        }
+    }
+    let summary = decode_result.unwrap();
+
+    // Debug output diagnostics
+    let output_str = String::from_utf8(output).expect("Failed to convert output to UTF-8");
+
+    println!("DEBUG: Summary: {:?}", summary);
+    println!("DEBUG: Output string: {}", output_str);
+
+    // Validate that a single record was processed
+    assert_eq!(
+        summary.records_processed, 1,
+        "Exactly one record should be processed"
+    );
+    assert!(!output_str.is_empty(), "Output should not be empty");
+
+    let json_record: Value = serde_json::from_str(output_str.trim()).expect("Failed to parse JSON");
+
+    // Verify original record content
+    assert_eq!(
+        json_record["VARIABLE-RECORD"], "ORIGINAL",
+        "Original record should match input"
+    );
 
     // Modify the payload to different length
-    json_record["VARIABLE-RECORD"] = json!("MODIFIED-LONGER-DATA");
+    let mut modified_record = json_record.clone();
+    modified_record["VARIABLE-RECORD"] = json!("MODIFIED-LONGER-DATA");
 
     // Encode with raw usage
     let encode_options = create_rdw_encode_options(true, false);
-    let result = copybook_codec::encode_record(&schema, &json_record, &encode_options);
-    assert!(result.is_ok());
+    let result = copybook_codec::encode_record(&schema, &modified_record, &encode_options);
+
+    assert!(result.is_ok(), "Encoding failed");
 
     let encoded_data = result.unwrap();
 
+    // Detailed length computation diagnostics
+    println!("DEBUG: Encoded Data: {:?}", encoded_data);
+    println!("DEBUG: Encoded Data Length: {}", encoded_data.len());
+
     // Length should be recomputed (20 bytes for new payload)
-    assert_eq!(&encoded_data[0..2], b"\x00\x14"); // Length = 20 (0x14)
-    assert_eq!(&encoded_data[2..4], b"\x00\x00"); // Reserved bytes preserved
-    assert_eq!(&encoded_data[4..24], b"MODIFIED-LONGER-DATA"); // New payload
+    assert_eq!(
+        &encoded_data[0..2],
+        b"\x00\x14",
+        "RDW length should be 0x14 (20 bytes)"
+    ); // Length = 20 (0x14)
+    assert_eq!(
+        &encoded_data[2..4],
+        b"\x00\x00",
+        "Reserved bytes should be preserved"
+    ); // Reserved bytes preserved
+    assert_eq!(
+        &encoded_data[4..24],
+        b"MODIFIED-LONGER-DATA",
+        "Payload should match modified data"
+    ); // New payload
 }
 
 #[test]
@@ -393,10 +455,7 @@ fn test_rdw_maximum_length_handling() {
         assert_eq!(summary.records_processed, 1);
     } else {
         // May fail due to memory or other limits, which is acceptable
-        println!(
-            "Test failed (acceptable): {:?}",
-            result.unwrap_err()
-        );
+        println!("Test failed (acceptable): {:?}", result.unwrap_err());
     }
 }
 

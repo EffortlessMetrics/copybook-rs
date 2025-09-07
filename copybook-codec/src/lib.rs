@@ -25,7 +25,7 @@
 //! - **Schema-Aware Encoding**: Full schema context threaded through encoding pipeline
 //! - **REDEFINES Resolution**: Automatic discovery and processing of redefining fields
 //! - **Field Path Resolution**: Support for ODO counter updates and field lookups by path
-//! - **FILLER Field Handling**: Enhanced detection supports both byte-offset naming (_filler_00000XXX) and legacy FILLER names
+//! - **FILLER Field Handling**: Enhanced detection supports both byte-offset naming (`_filler_00000XXX`) and legacy FILLER names
 //! - **Compilation Safety**: Resolved critical compilation issues in `JsonEncoder` methods
 //!
 //! ### Error Handling

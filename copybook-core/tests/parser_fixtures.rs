@@ -1,6 +1,3 @@
-#![cfg(feature = "comprehensive-tests")]
-#![allow(clippy::uninlined_format_args)]
-
 //! Parser fixture tests for fixed/free form, continuation, comments, and edited PIC errors
 //!
 //! This test suite validates the parser's handling of various COBOL copybook formats
@@ -9,14 +6,13 @@
 use copybook_core::{ErrorCode, parse_copybook};
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_fixed_form_detection() {
     // Fixed-form: ≥70% lines with cols 7-72 content
-    let fixed_form = r"      * This is a comment
+    let fixed_form = r#"      * This is a comment
        01 CUSTOMER-RECORD.
           05 CUSTOMER-ID PIC X(10).
           05 BALANCE PIC S9(7)V99 COMP-3.
-";
+"#;
 
     let schema = parse_copybook(fixed_form).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -25,13 +21,12 @@ fn test_fixed_form_detection() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_free_form_detection() {
     // Free-form: inline *> comments, no column restrictions
-    let free_form = r"01 CUSTOMER-RECORD. *> Root record
+    let free_form = r#"01 CUSTOMER-RECORD. *> Root record
 05 CUSTOMER-ID PIC X(10). *> Customer identifier
 05 BALANCE PIC S9(7)V99 COMP-3. *> Account balance
-";
+"#;
 
     let schema = parse_copybook(free_form).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -40,12 +35,11 @@ fn test_free_form_detection() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_column_7_continuation() {
     // NORMATIVE: Only column-7 '-' is continuation
-    let with_continuation = r"       01 VERY-LONG-FIELD-NAME-THAT-NEEDS-
+    let with_continuation = r#"       01 VERY-LONG-FIELD-NAME-THAT-NEEDS-
       -    CONTINUATION PIC X(20).
-";
+"#;
 
     let schema = parse_copybook(with_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -56,12 +50,11 @@ fn test_column_7_continuation() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_continuation_whitespace_handling() {
     // NORMATIVE: Strip trailing/leading spaces, preserve interior whitespace
-    let with_spaces = r"       01 FIELD-WITH-SPACES   
+    let with_spaces = r#"       01 FIELD-WITH-SPACES   
       -      AND-MORE-SPACES PIC X(10).
-";
+"#;
 
     let schema = parse_copybook(with_spaces).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -69,11 +62,10 @@ fn test_continuation_whitespace_handling() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_literal_dash_not_continuation() {
     // Dash not in column 7 should be treated as literal
-    let literal_dash = r"       01 FIELD-WITH-DASH PIC X(10).
-";
+    let literal_dash = r#"       01 FIELD-WITH-DASH PIC X(10).
+"#;
 
     let schema = parse_copybook(literal_dash).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -81,14 +73,13 @@ fn test_literal_dash_not_continuation() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_fixed_form_comments() {
     // NORMATIVE: '*' at col 1 is comment in fixed-form
-    let with_comments = r"* This is a comment
+    let with_comments = r#"* This is a comment
        01 RECORD-NAME.
 * Another comment
           05 FIELD-NAME PIC X(10).
-";
+"#;
 
     let schema = parse_copybook(with_comments).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -97,12 +88,11 @@ fn test_fixed_form_comments() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_inline_comment_handling() {
     // NORMATIVE: '*>' inline comments in free-form
-    let with_inline = r"01 RECORD-NAME. *> This is an inline comment
+    let with_inline = r#"01 RECORD-NAME. *> This is an inline comment
    05 FIELD-NAME PIC X(10). *> Another inline comment
-";
+"#;
 
     let schema = parse_copybook(with_inline).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -111,7 +101,6 @@ fn test_inline_comment_handling() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_edited_pic_error_detection() {
     // NORMATIVE: Edited PICs should fail with CBKP051_UNSUPPORTED_EDITED_PIC
     let edited_pics = vec![
@@ -136,7 +125,6 @@ fn test_edited_pic_error_detection() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_sign_clause_as_edited_pic() {
     // NORMATIVE: SIGN LEADING/TRAILING [SEPARATE] treated as edited PIC
     let sign_clauses = vec![
@@ -156,7 +144,6 @@ fn test_sign_clause_as_edited_pic() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_valid_pic_clauses() {
     // These should parse successfully
     let valid_pics = vec![
@@ -183,12 +170,11 @@ fn test_valid_pic_clauses() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_sequence_area_ignored() {
     // NORMATIVE: Cols 1-6 and 73-80 ignored in fixed-form
-    let with_sequence = r"123456 01 RECORD-NAME.                                          12345678
+    let with_sequence = r#"123456 01 RECORD-NAME.                                          12345678
 123456    05 FIELD-NAME PIC X(10).                                   12345678
-";
+"#;
 
     let schema = parse_copybook(with_sequence).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -198,13 +184,12 @@ fn test_sequence_area_ignored() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_page_break_handling() {
     // Column 7 '/' should be treated as page break (ignored)
-    let with_page_break = r"       01 RECORD-NAME.
+    let with_page_break = r#"       01 RECORD-NAME.
       /
           05 FIELD-NAME PIC X(10).
-";
+"#;
 
     let schema = parse_copybook(with_page_break).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -213,13 +198,12 @@ fn test_page_break_handling() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_mixed_comment_styles_error() {
     // Should handle mixed comment styles gracefully
-    let mixed_comments = r"* Fixed-form comment
+    let mixed_comments = r#"* Fixed-form comment
 01 RECORD-NAME. *> Free-form comment
    05 FIELD-NAME PIC X(10).
-";
+"#;
 
     // This should parse successfully - both comment styles are valid
     let schema = parse_copybook(mixed_comments).unwrap();
@@ -227,13 +211,12 @@ fn test_mixed_comment_styles_error() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_error_context_in_parse_errors() {
     // Test that parse errors include proper line numbers and context
-    let invalid_syntax = r"01 RECORD-NAME.
+    let invalid_syntax = r#"01 RECORD-NAME.
    05 INVALID-LEVEL-99 PIC X(10).
    05 FIELD-NAME PIC X(10).
-";
+"#;
 
     let result = parse_copybook(invalid_syntax);
     assert!(result.is_err());
@@ -248,13 +231,12 @@ fn test_error_context_in_parse_errors() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_continuation_across_multiple_lines() {
     // Test continuation across multiple lines
-    let multi_continuation = r"       01 VERY-LONG-FIELD-NAME-THAT-SPANS-
+    let multi_continuation = r#"       01 VERY-LONG-FIELD-NAME-THAT-SPANS-
       -    MULTIPLE-LINES-AND-CONTINUES-
       -    EVEN-MORE PIC X(50).
-";
+"#;
 
     let schema = parse_copybook(multi_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -265,16 +247,15 @@ fn test_continuation_across_multiple_lines() {
 }
 
 #[test]
-#[ignore = "pending parser features"]
 fn test_empty_lines_and_whitespace() {
     // Test handling of empty lines and whitespace-only lines
-    let with_empty_lines = r"
+    let with_empty_lines = r#"
 
        01 RECORD-NAME.
 
           05 FIELD-NAME PIC X(10).
 
-";
+"#;
 
     let schema = parse_copybook(with_empty_lines).unwrap();
     assert_eq!(schema.fields.len(), 1);

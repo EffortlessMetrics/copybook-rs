@@ -4,7 +4,7 @@
 //! including lexical analysis and AST construction.
 
 use crate::error::ErrorCode;
-use crate::lexer::{CobolFormat, Lexer, Token, TokenPos};
+use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema};
 use crate::{Error, Result};
@@ -28,10 +28,9 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
         return Err(Error::new(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
     }
 
-    let mut lexer = Lexer::new(text);
-    let tokens = lexer.tokenize();
+    let tokens = Lexer::new(text).tokenize();
 
-    let mut parser = Parser::with_options(tokens, lexer.format(), options.clone());
+    let mut parser = Parser::with_options(tokens, options.clone());
     parser.parse_schema()
 }
 
@@ -60,17 +59,17 @@ struct Parser {
     options: ParseOptions,
 }
 
-impl Parser {
-    #[allow(dead_code)]
-    fn new(tokens: Vec<TokenPos>, _format: CobolFormat) -> Self {
-        Self {
-            tokens,
-            current: 0,
-            options: ParseOptions::default(),
-        }
-    }
+/// Phase for field name processing
+#[derive(Clone, Copy)]
+enum NameResolutionPhase {
+    /// Initial processing before layout resolution
+    Initial,
+    /// Final processing after layout resolution
+    Final,
+}
 
-    fn with_options(tokens: Vec<TokenPos>, _format: CobolFormat, options: ParseOptions) -> Self {
+impl Parser {
+    fn with_options(tokens: Vec<TokenPos>, options: ParseOptions) -> Self {
         Self {
             tokens,
             current: 0,
@@ -103,13 +102,19 @@ impl Parser {
         let hierarchical_fields = self.build_hierarchy(flat_fields);
 
         // Validate the structure (REDEFINES targets, ODO constraints, etc.)
-        self.validate_structure(&hierarchical_fields)?;
+        Self::validate_structure(&hierarchical_fields)?;
 
         // Create schema with fingerprint
         let mut schema = Schema::from_fields(hierarchical_fields);
 
         // Resolve field layouts and compute offsets
         crate::layout::resolve_layout(&mut schema)?;
+
+        // Validate ODO position constraints now that offsets are available
+        Self::validate_odo_positions(&schema.fields)?;
+
+        // Finalize field names now that layout offsets are known
+        self.process_field_names(&mut schema.fields, NameResolutionPhase::Final);
 
         self.calculate_schema_fingerprint(&mut schema);
 
@@ -122,8 +127,8 @@ impl Parser {
             return Vec::new();
         }
 
-        // Handle duplicate names and FILLER fields
-        self.process_field_names(&mut flat_fields);
+        // Handle duplicate names before building hierarchy
+        self.process_field_names(&mut flat_fields, NameResolutionPhase::Initial);
 
         // Build hierarchical structure using a stack-based approach
         let mut stack: Vec<Field> = Vec::new();
@@ -182,28 +187,40 @@ impl Parser {
         result
     }
 
-    /// Process field names for duplicates and FILLER handling
-    fn process_field_names(&mut self, fields: &mut [Field]) {
-        // First pass: handle FILLER fields
-        for field in fields.iter_mut() {
-            if field.name.to_uppercase() == "FILLER" {
-                if self.options.emit_filler {
-                    // Replace FILLER with _filler_<offset> (offset will be calculated later in layout resolution)
-                    // For now, use a placeholder that will be updated
-                    field.name = format!("_filler_{}", 0);
-                } else {
-                    // Keep FILLER name for now, will be filtered out in layout resolution
-                    field.name = "FILLER".to_string();
-                }
+    /// Process field names for duplicates (initial) or finalize FILLER names after layout
+    fn process_field_names(&mut self, fields: &mut [Field], phase: NameResolutionPhase) {
+        match phase {
+            NameResolutionPhase::Initial => {
+                // Handle duplicate names at each level (skip FILLER fields)
+                Self::process_duplicates_at_level(fields, 0);
+            }
+            NameResolutionPhase::Final => {
+                self.finalize_filler_names(fields, None);
             }
         }
+    }
 
-        // Second pass: handle duplicate names at each level
-        self.process_duplicates_at_level(fields, 0);
+    /// Recursively rename FILLER fields with computed offsets and update paths
+    fn finalize_filler_names(&self, fields: &mut [Field], parent_path: Option<&str>) {
+        for field in fields.iter_mut() {
+            if field.name.eq_ignore_ascii_case("FILLER") && self.options.emit_filler {
+                field.name = format!("_filler_{:08}", field.offset);
+            }
+
+            // Update path based on possibly updated name
+            field.path = if let Some(parent) = parent_path {
+                format!("{}.{}", parent, field.name)
+            } else {
+                field.name.clone()
+            };
+
+            let current_path = field.path.clone();
+            self.finalize_filler_names(&mut field.children, Some(&current_path));
+        }
     }
 
     /// Process duplicate names recursively by level
-    fn process_duplicates_at_level(&mut self, fields: &mut [Field], parent_level: u8) {
+    fn process_duplicates_at_level(fields: &mut [Field], parent_level: u8) {
         let mut name_counts: std::collections::HashMap<String, u32> =
             std::collections::HashMap::new();
         let mut siblings = Vec::new();
@@ -219,8 +236,8 @@ impl Parser {
         for &i in &siblings {
             let field_name = fields[i].name.clone();
 
-            // Skip FILLER fields that won't be emitted
-            if field_name == "FILLER" && !self.options.emit_filler {
+            // Skip FILLER fields (they will be renamed with offsets later)
+            if field_name.eq_ignore_ascii_case("FILLER") {
                 continue;
             }
 
@@ -234,19 +251,19 @@ impl Parser {
     }
 
     /// Validate the parsed structure
-    fn validate_structure(&self, fields: &[Field]) -> Result<()> {
+    fn validate_structure(fields: &[Field]) -> Result<()> {
         // Validate REDEFINES targets
-        self.validate_redefines(fields)?;
+        Self::validate_redefines(fields)?;
 
         // Validate ODO constraints
-        self.validate_odo_constraints(fields)?;
+        Self::validate_odo_constraints(fields)?;
 
         Ok(())
     }
 
     /// Validate REDEFINES relationships
-    fn validate_redefines(&self, fields: &[Field]) -> Result<()> {
-        let all_fields = self.collect_all_fields(fields);
+    fn validate_redefines(fields: &[Field]) -> Result<()> {
+        let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(ref target) = field.redefines_of {
@@ -271,8 +288,8 @@ impl Parser {
     }
 
     /// Validate ODO constraints
-    fn validate_odo_constraints(&self, fields: &[Field]) -> Result<()> {
-        let all_fields = self.collect_all_fields(fields);
+    fn validate_odo_constraints(fields: &[Field]) -> Result<()> {
+        let all_fields = Self::collect_all_fields(fields);
 
         for field in &all_fields {
             if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
@@ -291,21 +308,21 @@ impl Parser {
                     ));
                 }
 
-                // Validate that ODO array is at tail position
-                // This is a simplified check - full validation would require layout resolution
-                if !Self::is_odo_at_tail(field, &all_fields) {
-                    return Err(Error::new(
-                        ErrorCode::CBKP021_ODO_NOT_TAIL,
-                        format!(
-                            "ODO array '{}' must be at tail position of its containing group",
-                            field.name
-                        ),
-                    ));
-                }
-
                 // Validate that counter is not inside REDEFINES or ODO region
                 if let Some(counter) = counter_field {
+                    // Check if counter itself redefines something
                     if counter.redefines_of.is_some() {
+                        return Err(Error::new(
+                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                            format!(
+                                "ODO counter '{}' cannot be inside a REDEFINES region",
+                                counter_path
+                            ),
+                        ));
+                    }
+
+                    // Check if counter is inside a REDEFINES group by examining path components
+                    if Self::is_counter_inside_redefines(&counter.path, &all_fields) {
                         return Err(Error::new(
                             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                             format!(
@@ -338,38 +355,78 @@ impl Parser {
         true
     }
 
-    /// Collect all fields in a flat list with recursion depth limit
-    fn collect_all_fields<'a>(&self, fields: &'a [Field]) -> Vec<&'a Field> {
-        const MAX_DEPTH: u8 = 100; // Reasonable limit for COBOL hierarchy depth
+    /// Collect all fields in a flat list
+    fn collect_all_fields(fields: &[Field]) -> Vec<&Field> {
         let mut result = Vec::new();
-        self.collect_all_fields_with_depth(fields, &mut result, 0, MAX_DEPTH);
+        Self::collect_all_fields_recursive(fields, &mut result);
         result
     }
 
-    /// Collect all fields recursively with depth limit
-    #[allow(clippy::only_used_in_recursion)]
-    fn collect_all_fields_with_depth<'a>(
-        &self,
-        fields: &'a [Field],
-        result: &mut Vec<&'a Field>,
-        current_depth: u8,
-        max_depth: u8,
-    ) {
-        if current_depth >= max_depth {
-            return; // Prevent infinite recursion
-        }
-
+    /// Collect all fields recursively
+    fn collect_all_fields_recursive<'a>(fields: &'a [Field], result: &mut Vec<&'a Field>) {
         for field in fields {
             result.push(field);
-            if !field.children.is_empty() {
-                self.collect_all_fields_with_depth(
-                    &field.children,
-                    result,
-                    current_depth + 1,
-                    max_depth,
-                );
+            Self::collect_all_fields_recursive(&field.children, result);
+        }
+    }
+
+    /// Check if counter field is inside a REDEFINES group by examining its path
+    fn is_counter_inside_redefines(counter_path: &str, all_fields: &[&Field]) -> bool {
+        // Extract path components to check each parent level
+        let path_parts: Vec<&str> = counter_path.split('.').collect();
+
+        // Build parent paths and check if any is a REDEFINES field
+        for i in 1..path_parts.len() {
+            let parent_path = path_parts[0..i].join(".");
+
+            // Check if this parent path corresponds to a REDEFINES field
+            if let Some(parent_field) = all_fields.iter().find(|f| f.path == parent_path)
+                && parent_field.redefines_of.is_some()
+            {
+                return true;
             }
         }
+
+        false
+    }
+
+    /// Validate ODO position constraints (after layout resolution when offsets are available)
+    fn validate_odo_positions(fields: &[Field]) -> Result<()> {
+        let all_fields = Self::collect_all_fields(fields);
+
+        for field in &all_fields {
+            if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
+                // Find the counter field
+                let counter_field = all_fields
+                    .iter()
+                    .find(|f| f.name == *counter_path || f.path == *counter_path);
+
+                // Check that counter precedes the ODO array in byte order
+                if let Some(counter) = counter_field
+                    && counter.offset >= field.offset
+                {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' must precede array '{}' in byte order (counter at offset {}, array at offset {})",
+                            counter_path, field.name, counter.offset, field.offset
+                        ),
+                    ));
+                }
+
+                // Validate that ODO array is at tail position
+                if !Self::is_odo_at_tail(field, &all_fields) {
+                    return Err(Error::new(
+                        ErrorCode::CBKP021_ODO_NOT_TAIL,
+                        format!(
+                            "ODO array '{}' must be at tail position of its containing group",
+                            field.name
+                        ),
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Calculate schema fingerprint using SHA-256
@@ -377,7 +434,7 @@ impl Parser {
         use sha2::{Digest, Sha256};
 
         // Create canonical JSON representation for fingerprinting
-        let canonical_json = self.create_canonical_schema_json(schema);
+        let canonical_json = Self::create_canonical_schema_json(schema);
 
         // Create hasher and add canonical JSON
         let mut hasher = Sha256::new();
@@ -393,7 +450,7 @@ impl Parser {
     }
 
     /// Create canonical JSON representation of schema for fingerprinting
-    fn create_canonical_schema_json(&self, schema: &Schema) -> String {
+    fn create_canonical_schema_json(schema: &Schema) -> String {
         use serde_json::{Map, Value};
 
         let mut schema_obj = Map::new();
@@ -402,7 +459,7 @@ impl Parser {
         let fields_json: Vec<Value> = schema
             .fields
             .iter()
-            .map(|f| self.field_to_canonical_json(f))
+            .map(Self::field_to_canonical_json)
             .collect();
         schema_obj.insert("fields".to_string(), Value::Array(fields_json));
 
@@ -437,8 +494,7 @@ impl Parser {
     }
 
     /// Convert field to canonical JSON for fingerprinting
-    #[allow(clippy::only_used_in_recursion)]
-    fn field_to_canonical_json(&self, field: &Field) -> serde_json::Value {
+    fn field_to_canonical_json(field: &Field) -> serde_json::Value {
         use serde_json::{Map, Value};
 
         let mut field_obj = Map::new();
@@ -504,7 +560,7 @@ impl Parser {
             let children_json: Vec<Value> = field
                 .children
                 .iter()
-                .map(|c| self.field_to_canonical_json(c))
+                .map(Self::field_to_canonical_json)
                 .collect();
             field_obj.insert("children".to_string(), Value::Array(children_json));
         }
@@ -825,12 +881,21 @@ impl Parser {
 
     /// Parse OCCURS clause
     fn parse_occurs_clause(&mut self, field: &mut Field) -> Result<()> {
-        let count = match self.current_token() {
+        let first_number = match self.current_token() {
             Some(TokenPos {
                 token: Token::Number(n),
                 ..
             }) => {
                 let count = *n;
+                self.advance();
+                count
+            }
+            Some(TokenPos {
+                token: Token::Level(level),
+                ..
+            }) => {
+                // Level tokens can also be valid numbers in OCCURS context
+                let count = u32::from(*level);
                 self.advance();
                 count
             }
@@ -840,6 +905,39 @@ impl Parser {
                     "Expected number after OCCURS",
                 ));
             }
+        };
+
+        // Check for 'TO max' pattern (for ODO ranges like "OCCURS 1 TO 5")
+        let (min_count, max_count) = if self.check(&Token::To) {
+            self.advance(); // consume TO
+            let second_number = match self.current_token() {
+                Some(TokenPos {
+                    token: Token::Number(n),
+                    ..
+                }) => {
+                    let count = *n;
+                    self.advance();
+                    count
+                }
+                Some(TokenPos {
+                    token: Token::Level(level),
+                    ..
+                }) => {
+                    // Level tokens can also be valid numbers in OCCURS context
+                    let count = u32::from(*level);
+                    self.advance();
+                    count
+                }
+                _ => {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Expected number after TO in OCCURS clause",
+                    ));
+                }
+            };
+            (first_number, second_number) // min TO max
+        } else {
+            (0, first_number) // Just a single number, treat as max with min=0
         };
 
         // Skip optional TIMES keyword first
@@ -875,12 +973,12 @@ impl Parser {
             };
 
             field.occurs = Some(Occurs::ODO {
-                min: 0, // Will be validated later
-                max: count,
+                min: min_count,
+                max: max_count,
                 counter_path: counter_field,
             });
         } else {
-            field.occurs = Some(Occurs::Fixed { count });
+            field.occurs = Some(Occurs::Fixed { count: max_count });
         }
 
         Ok(())
@@ -999,6 +1097,7 @@ impl Parser {
                 ));
             }
         }
+
         Ok(())
     }
 
@@ -1300,11 +1399,6 @@ mod tests {
 
         // Check ODO field
         let odo_field = &schema.fields[1];
-        assert!(
-            matches!(&odo_field.occurs, Some(Occurs::ODO { .. })),
-            "Expected ODO occurs, got {:?}",
-            odo_field.occurs
-        );
         if let Some(Occurs::ODO {
             max, counter_path, ..
         }) = &odo_field.occurs

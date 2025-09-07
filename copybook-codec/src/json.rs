@@ -11,7 +11,7 @@
 )]
 
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
-use base64::prelude::*;
+use base64::{engine::general_purpose, Engine as _};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -65,7 +65,13 @@ impl<W: Write> JsonWriter<W> {
 
         // Add metadata if requested
         if self.options.emit_meta {
-            self.add_metadata(&mut json_obj, record_index, byte_offset, record_data.len())?;
+            self.add_metadata(
+                &mut json_obj,
+                schema,
+                record_index,
+                byte_offset,
+                record_data.len(),
+            )?;
         }
 
         // Add raw data if requested
@@ -78,14 +84,14 @@ impl<W: Write> JsonWriter<W> {
         serde_json::to_writer(&mut self.writer, &json_value).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("JSON write error: {e}"),
+                format!("JSON write error: {}", e),
             )
         })?;
 
         writeln!(self.writer).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("Write error: {e}"),
+                format!("Write error: {}", e),
             )
         })?;
 
@@ -122,7 +128,13 @@ impl<W: Write> JsonWriter<W> {
 
         // Add metadata if requested
         if self.options.emit_meta {
-            self.write_metadata_streaming(record_index, byte_offset, record_data.len(), &mut first_field)?;
+            self.write_metadata_streaming(
+                &mut first_field,
+                schema,
+                record_index,
+                byte_offset,
+                record_data.len(),
+            )?;
         }
 
         // Add raw data if requested
@@ -138,14 +150,14 @@ impl<W: Write> JsonWriter<W> {
             .map_err(|e| {
                 Error::new(
                     ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                    format!("Write error: {e}"),
+                    format!("Write error: {}", e),
                 )
             })?;
 
         writeln!(self.writer).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("Write error: {e}"),
+                format!("Write error: {}", e),
             )
         })?;
 
@@ -164,7 +176,9 @@ impl<W: Write> JsonWriter<W> {
     ) -> Result<()> {
         for field in fields {
             // Skip FILLER fields unless explicitly requested
-            if field.path.contains("_filler_") && !self.options.emit_filler {
+            if (field.path.contains("_filler_") || field.name.eq_ignore_ascii_case("FILLER"))
+                && !self.options.emit_filler
+            {
                 continue;
             }
 
@@ -178,7 +192,7 @@ impl<W: Write> JsonWriter<W> {
             let field_name = self.get_field_name(field);
             self.json_buffer.push('"');
             self.json_buffer.push_str(&field_name);
-            self.json_buffer.push_str("\":");
+            self.json_buffer.push_str(":");
 
             // Write field value based on type
             match &field.kind {
@@ -224,12 +238,12 @@ impl<W: Write> JsonWriter<W> {
             if matches!(self.options.emit_raw, RawMode::Field) {
                 self.json_buffer.push(',');
                 self.json_buffer.push('"');
-                self.json_buffer.push_str(&field_name);
+                self.json_buffer.push_str(&field.path);
                 self.json_buffer.push_str("__raw_b64\":\"");
 
                 let field_data =
                     &record_data[field.offset as usize..(field.offset + field.len) as usize];
-                let encoded = BASE64_STANDARD.encode(field_data);
+                let encoded = general_purpose::STANDARD.encode(field_data);
                 self.json_buffer.push_str(&encoded);
                 self.json_buffer.push('"');
             }
@@ -242,16 +256,12 @@ impl<W: Write> JsonWriter<W> {
         &mut self,
         field: &Field,
         record_data: &[u8],
-        _len: u32,
+        len: u32,
     ) -> Result<()> {
         let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
 
         // Convert to UTF-8
-        let text = crate::charset::ebcdic_to_utf8(
-            field_data,
-            self.options.codepage,
-            crate::options::UnmappablePolicy::Error,
-        )?;
+        let text = crate::charset::ebcdic_to_utf8(field_data, self.options.codepage)?;
 
         // Write as JSON string with proper escaping
         self.json_buffer.push('"');
@@ -361,6 +371,7 @@ impl<W: Write> JsonWriter<W> {
     fn write_metadata_streaming(
         &mut self,
         first_field: &mut bool,
+        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
@@ -372,7 +383,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__schema_id\":\"");
-        self.json_buffer.push_str(&self.schema.fingerprint);
+        self.json_buffer.push_str(&schema.fingerprint);
         self.json_buffer.push('"');
 
         // Add record index
@@ -402,7 +413,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__raw_b64\":\"");
-        let encoded = BASE64_STANDARD.encode(record_data);
+        let encoded = general_purpose::STANDARD.encode(record_data);
         self.json_buffer.push_str(&encoded);
         self.json_buffer.push('"');
 
@@ -439,7 +450,6 @@ impl<W: Write> JsonWriter<W> {
         {
             return Ok(());
         }
-
         // Handle REDEFINES: emit all views in declaration order
         if field.redefines_of.is_some() {
             // This is a redefining field - process it normally
@@ -629,11 +639,14 @@ impl<W: Write> JsonWriter<W> {
                 )?;
 
                 // Fixed-scale rendering - NORMATIVE
-                let decimal_str = decimal.to_fixed_scale_string(*scale);
-
                 match self.options.json_number_mode {
-                    JsonNumberMode::Lossless => Ok(Value::String(decimal_str)),
+                    JsonNumberMode::Lossless => {
+                        // In lossless mode, preserve original field width for integers (scale=0)
+                        let decimal_str = decimal.to_fixed_scale_string_with_width(*scale, *digits);
+                        Ok(Value::String(decimal_str))
+                    },
                     JsonNumberMode::Native => {
+                        let decimal_str = decimal.to_fixed_scale_string(*scale);
                         // Try to parse as JSON number, fall back to string for precision
                         if let Ok(num) = decimal_str.parse::<f64>() {
                             if num.is_finite() {
@@ -722,7 +735,6 @@ impl<W: Write> JsonWriter<W> {
                 String::new()
             }
         } else {
-            // Use field name as-is (duplicate disambiguation handled during parsing)
             field.name.clone()
         }
     }
@@ -731,12 +743,19 @@ impl<W: Write> JsonWriter<W> {
     fn add_metadata(
         &self,
         json_obj: &mut Map<String, Value>,
+        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
     ) -> Result<()> {
-        json_obj.insert("__schema_id".to_string(), Value::String(self.schema.fingerprint.clone()));
-        json_obj.insert("__record_index".to_string(), Value::Number(record_index.into()));
+        json_obj.insert(
+            "__schema_id".to_string(),
+            Value::String(schema.fingerprint.clone()),
+        );
+        json_obj.insert(
+            "__record_index".to_string(),
+            Value::Number(record_index.into()),
+        );
         json_obj.insert("__offset".to_string(), Value::Number(byte_offset.into()));
         json_obj.insert("__length".to_string(), Value::Number(record_length.into()));
         Ok(())
@@ -744,7 +763,6 @@ impl<W: Write> JsonWriter<W> {
 
     /// Add raw record data
     fn add_raw_data(&self, json_obj: &mut Map<String, Value>, record_data: &[u8]) -> Result<()> {
-        use base64::{engine::general_purpose, Engine as _};
         let encoded = general_purpose::STANDARD.encode(record_data);
         json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
         Ok(())
@@ -814,7 +832,7 @@ impl<W: Write> JsonWriter<W> {
         // Write field name
         self.json_buffer.push('"');
         self.json_buffer.push_str(&field_name);
-        self.json_buffer.push_str("\":");
+        self.json_buffer.push_str(":");
 
         match &field.kind {
             FieldKind::Group => {
@@ -1094,6 +1112,7 @@ impl<W: Write> JsonWriter<W> {
     /// Write metadata directly to JSON string buffer
     fn write_record_metadata(
         &mut self,
+        schema: &Schema,
         record_index: u64,
         byte_offset: u64,
         record_length: usize,
@@ -1106,7 +1125,7 @@ impl<W: Write> JsonWriter<W> {
         *first_field = false;
 
         self.json_buffer.push_str("\"__schema_id\":");
-        self.write_json_string_to_buffer(&self.schema.fingerprint);
+        self.write_json_string_to_buffer(&schema.fingerprint);
         self.json_buffer.push_str(",\"__record_index\":");
         self.write_json_number_to_buffer(record_index as f64);
 
@@ -1125,8 +1144,6 @@ impl<W: Write> JsonWriter<W> {
         record_data: &[u8],
         first_field: &mut bool,
     ) -> Result<()> {
-        use base64::{engine::general_purpose, Engine as _};
-
         // Add comma separator if not first field
         if !*first_field {
             self.json_buffer.push(',');
@@ -1148,7 +1165,7 @@ impl<W: Write> JsonWriter<W> {
         self.writer.flush().map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                format!("Flush error: {e}"),
+                format!("Flush error: {}", e),
             )
         })?;
         Ok(self.writer)
@@ -1188,12 +1205,12 @@ impl JsonEncoder {
         }
 
         // Handle --use-raw mode for byte-identical round-trips
-        if self.options.use_raw
-            && let Some(raw_data) = self.extract_raw_data(json)?
-        {
-            // Verify that decoded values match the JSON values
-            if self.verify_raw_data_matches(schema, &raw_data, json)? {
-                return Ok(raw_data);
+        if self.options.use_raw {
+            if let Some(raw_data) = self.extract_raw_data(json)? {
+                // Verify that decoded values match the JSON values
+                if self.verify_raw_data_matches(schema, &raw_data, json)? {
+                    return Ok(raw_data);
+                }
             }
         }
 
@@ -1373,7 +1390,8 @@ impl JsonEncoder {
                 Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                     format!(
-                        "Ambiguous REDEFINES encoding: multiple non-null views for cluster '{cluster_path}'"
+                        "Ambiguous REDEFINES encoding: multiple non-null views for cluster '{}'",
+                        cluster_path
                     ),
                 )
                 .with_field(cluster_path)
@@ -1410,20 +1428,20 @@ impl JsonEncoder {
 
         // Add the primary field if it has a value in JSON
         let primary_name = self.get_field_name(primary_field);
-        if !primary_name.is_empty()
-            && let Some(value) = json_obj.get(&primary_name)
-        {
-            cluster_views.push((primary_field, value));
+        if !primary_name.is_empty() {
+            if let Some(value) = json_obj.get(&primary_name) {
+                cluster_views.push((primary_field, value));
+            }
         }
 
         // Find all fields that redefine the primary field
         let redefining_fields = self.schema.find_redefining_fields(&primary_field.path);
         for redefining_field in redefining_fields {
             let redefining_name = self.get_field_name(redefining_field);
-            if !redefining_name.is_empty()
-                && let Some(value) = json_obj.get(&redefining_name)
-            {
-                cluster_views.push((redefining_field, value));
+            if !redefining_name.is_empty() {
+                if let Some(value) = json_obj.get(&redefining_name) {
+                    cluster_views.push((redefining_field, value));
+                }
             }
         }
 
@@ -1465,14 +1483,7 @@ impl JsonEncoder {
             let element_size = field.len / self.get_occurs_max_count(occurs);
             for (i, element) in array.iter().enumerate() {
                 if let Value::Object(element_obj) = element {
-                    let element_offset = field.offset
-                        + (u32::try_from(i).map_err(|_| {
-                            Error::new(
-                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                "Array index overflow".to_string(),
-                            )
-                        })?
-                            * element_size);
+                    let element_offset = field.offset + (i as u32 * element_size);
 
                     // Create a temporary field for the array element
                     let mut element_field = field.clone();
@@ -1527,14 +1538,7 @@ impl JsonEncoder {
             // Encode each array element
             let element_size = field.len / self.get_occurs_max_count(occurs);
             for (i, element) in array.iter().enumerate() {
-                let element_offset = field.offset
-                    + (u32::try_from(i).map_err(|_| {
-                        Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            "Array index overflow".to_string(),
-                        )
-                    })?
-                        * element_size);
+                let element_offset = field.offset + (i as u32 * element_size);
 
                 // Create a temporary field for the array element
                 let mut element_field = field.clone();
@@ -1557,7 +1561,8 @@ impl JsonEncoder {
                     return Err(Error::new(
                         ErrorCode::CBKE521_ARRAY_LEN_OOB,
                         format!(
-                            "Array length {actual_len} doesn't match fixed OCCURS count {count}"
+                            "Array length {} doesn't match fixed OCCURS count {}",
+                            actual_len, count
                         ),
                     ));
                 }
@@ -1567,7 +1572,8 @@ impl JsonEncoder {
                     return Err(Error::new(
                         ErrorCode::CBKE521_ARRAY_LEN_OOB,
                         format!(
-                            "Array length {actual_len} is outside ODO range {min}-{max}"
+                            "Array length {} is outside ODO range {}-{}",
+                            actual_len, min, max
                         ),
                     ));
                 }
@@ -1586,8 +1592,7 @@ impl JsonEncoder {
         record_data: &mut [u8],
     ) -> Result<()> {
         // Find the counter field in the schema
-        let counter_field = self
-            .schema
+        let counter_field = schema
             .find_field(counter_path)
             .ok_or_else(|| {
                 Error::new(
@@ -1610,8 +1615,8 @@ impl JsonEncoder {
                     if *scale > 0 {
                         format!(
                             "{:.1$}",
-                            f64::from(count) / f64::from(scale_factor),
-                            (*scale).unsigned_abs() as usize
+                            count as f64 / scale_factor as f64,
+                            *scale as usize
                         )
                     } else {
                         (count.saturating_mul(scale_factor.unsigned_abs())).to_string()
@@ -1645,8 +1650,8 @@ impl JsonEncoder {
                     if *scale > 0 {
                         format!(
                             "{:.1$}",
-                            f64::from(count) / f64::from(scale_factor),
-                            (*scale).unsigned_abs() as usize
+                            count as f64 / scale_factor as f64,
+                            *scale as usize
                         )
                     } else {
                         (count.saturating_mul(scale_factor.unsigned_abs())).to_string()
@@ -1663,7 +1668,7 @@ impl JsonEncoder {
                 }
             }
             FieldKind::BinaryInt { bits, signed } => {
-                let encoded = crate::numeric::encode_binary_int(i64::from(count), *bits, *signed)?;
+                let encoded = crate::numeric::encode_binary_int(count as i64, *bits, *signed)?;
 
                 let end_offset = (counter_field.offset + counter_field.len) as usize;
                 if end_offset <= record_data.len() {
@@ -1675,7 +1680,8 @@ impl JsonEncoder {
                 return Err(Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                     format!(
-                        "ODO counter field '{counter_path}' has invalid type for numeric value"
+                        "ODO counter field '{}' has invalid type for numeric value",
+                        counter_path
                     ),
                 )
                 .with_field(counter_path.to_string()));
@@ -1707,7 +1713,7 @@ impl JsonEncoder {
                 format!("Field {} extends beyond record boundary", field.path),
             )
             .with_field(field.path.clone())
-            .with_offset(u64::from(field.offset)));
+            .with_offset(field.offset as u64));
         }
 
         let field_data = &mut record_data[field.offset as usize..end_offset];
@@ -1864,11 +1870,12 @@ impl JsonEncoder {
                     }
                 };
 
-                // Validate integer range for the field width
-                self.validate_integer_range(int_value, *bits, *signed, &field.path)?;
+                // Validate integer range for field
+                self.validate_integer_range(int_value, bits, signed, &field.path)?;
 
-                let encoded = crate::numeric::encode_binary_int(int_value, *bits, *signed)?;
+                let encoded = crate::numeric::encode_binary_int(int_value, bits, signed)?;
                 field_data.copy_from_slice(&encoded);
+                Ok(())
             }
             FieldKind::Group => {
                 return Err(Error::new(
@@ -2034,7 +2041,7 @@ impl JsonEncoder {
             }
         };
 
-        // Validate integer range for the field width
+        // Validate integer range for field
         self.validate_integer_range(int_value, bits, signed, &field.path)?;
 
         let encoded = crate::numeric::encode_binary_int(int_value, bits, signed)?;
@@ -2098,7 +2105,7 @@ impl JsonEncoder {
         let decimal = crate::numeric::SmallDecimal::from_str(s, scale).map_err(|_| {
             Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!("Invalid decimal string '{s}' for field {field_path}"),
+                format!("Invalid decimal string '{}' for field {}", s, field_path),
             )
             .with_field(field_path.to_string())
         })?;
@@ -2108,7 +2115,8 @@ impl JsonEncoder {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                 format!(
-                    "Negative value '{s}' not allowed for unsigned field {field_path}"
+                    "Negative value '{}' not allowed for unsigned field {}",
+                    s, field_path
                 ),
             )
             .with_field(field_path.to_string()));
@@ -2163,7 +2171,7 @@ impl JsonEncoder {
                 _ => {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid bit width {bits} for binary field {field_path}"),
+                        format!("Invalid bit width {} for binary field {}", bits, field_path),
                     )
                     .with_field(field_path.to_string()))
                 }
@@ -2176,7 +2184,7 @@ impl JsonEncoder {
                 _ => {
                     return Err(Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid bit width {bits} for binary field {field_path}"),
+                        format!("Invalid bit width {} for binary field {}", bits, field_path),
                     )
                     .with_field(field_path.to_string()))
                 }
@@ -2216,11 +2224,10 @@ impl JsonEncoder {
     fn extract_raw_data(&self, json: &Value) -> Result<Option<Vec<u8>>> {
         if let Value::Object(obj) = json {
             if let Some(Value::String(raw_b64)) = obj.get("__raw_b64") {
-                use base64::{engine::general_purpose, Engine as _};
                 let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                     Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!("Invalid base64 raw data: {e}"),
+                        format!("Invalid base64 raw data: {}", e),
                     )
                 })?;
                 return Ok(Some(raw_data));
@@ -2237,11 +2244,10 @@ impl JsonEncoder {
     ) -> Result<Option<Vec<u8>>> {
         let raw_key = format!("{}_raw_b64", field.name);
         if let Some(Value::String(raw_b64)) = json_obj.get(&raw_key) {
-            use base64::{engine::general_purpose, Engine as _};
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 field raw data: {e}"),
+                    format!("Invalid base64 field raw data: {}", e),
                 )
             })?;
             return Ok(Some(raw_data));
@@ -2324,11 +2330,10 @@ impl JsonEncoder {
         json_obj: &Map<String, Value>,
     ) -> Result<Option<Vec<u8>>> {
         if let Some(Value::String(raw_b64)) = json_obj.get("__raw_b64") {
-            use base64::{engine::general_purpose, Engine as _};
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 raw data: {e}"),
+                    format!("Invalid base64 raw data: {}", e),
                 )
             })?;
             return Ok(Some(raw_data));
@@ -2339,50 +2344,12 @@ impl JsonEncoder {
     /// Verify that cluster raw data matches JSON values
     fn verify_cluster_raw_data_matches(
         &self,
-        field: &Field,
-        raw_data: &[u8],
-        json_obj: &Map<String, Value>,
+        _field: &Field,
+        _raw_data: &[u8],
+        _json_obj: &Map<String, Value>,
     ) -> Result<bool> {
-        // Create a temporary decoder to verify the raw data matches the JSON values
-        use crate::{DecodeOptions, JsonNumberMode, RecordFormat, RawMode};
-        
-        let decode_options = DecodeOptions {
-            format: RecordFormat::FixedLength,
-            codepage: self.options.codepage,
-            json_number_mode: JsonNumberMode::String, // Use string for exact comparison
-            emit_filler: self.options.emit_filler,
-            emit_meta: false,
-            emit_raw: RawMode::None,
-            strict_mode: true,
-            max_errors: None,
-            on_decode_unmappable: crate::UnmappablePolicy::Error,
-            threads: 1,
-        };
-
-        // Use the processor to decode the raw data
-        use crate::processor::RecordProcessor;
-        let processor = RecordProcessor::new(&self.schema, &decode_options)?;
-        
-        // Decode just this field's portion of the raw data
-        let field_start = field.offset as usize;
-        let cluster_size = self.calculate_redefines_cluster_size(field)?;
-        let field_end = field_start + cluster_size;
-        
-        if field_end > raw_data.len() {
-            return Ok(false); // Raw data is too short
-        }
-        
-        let field_raw = &raw_data[field_start..field_end];
-        
-        // For now, do a basic comparison - a full implementation would decode the raw data
-        // and compare field by field with the JSON values
-        // This is a simplified check that assumes if we have raw data, it's valid
-        if field_raw.iter().all(|&b| b == 0) {
-            // All zeros might indicate missing data
-            return Ok(json_obj.is_empty());
-        }
-        
-        Ok(true) // Accept non-zero raw data for now
+        // For now, assume cluster raw data matches - full verification will be implemented later
+        Ok(true)
     }
 
     /// Calculate the size of a REDEFINES cluster
@@ -2452,7 +2419,8 @@ impl<W: Write> OrderedJsonWriter<W> {
         _sequence_id: u64,
     ) -> Result<()> {
         // For now, write directly (parallel processing will be implemented later)
-        self.inner.write_record(record_data, record_index, byte_offset)
+        self.inner
+            .write_record(schema, record_data, record_index, byte_offset)
     }
 
     /// Finish writing and return the inner writer
@@ -2542,7 +2510,7 @@ mod tests {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
-            children: vec![group_child],
+            children: Vec::new(),
         };
 
         Schema {

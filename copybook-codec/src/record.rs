@@ -309,12 +309,22 @@ impl<W: Write> FixedRecordWriter<W> {
     }
 }
 
+/// RDW processing warnings and information
+#[derive(Debug, Clone, Default)]
+pub struct RDWWarnings {
+    /// Number of reserved byte warnings
+    pub reserved_nonzero_warnings: u64,
+    /// Number of suspected ASCII corruption warnings  
+    pub suspect_ascii_warnings: u64,
+}
+
 /// RDW (Record Descriptor Word) record reader for processing variable-length records
 #[derive(Debug)]
 pub struct RDWRecordReader<R: Read> {
     input: R,
     record_count: u64,
     strict_mode: bool,
+    warnings: RDWWarnings,
 }
 
 impl<R: Read> RDWRecordReader<R> {
@@ -324,6 +334,7 @@ impl<R: Read> RDWRecordReader<R> {
             input,
             record_count: 0,
             strict_mode,
+            warnings: RDWWarnings::default(),
         }
     }
 
@@ -368,6 +379,7 @@ impl<R: Read> RDWRecordReader<R> {
                         "RDW reserved bytes non-zero (record {}): {:04X}",
                         self.record_count, reserved
                     );
+                    self.warnings.reserved_nonzero_warnings += 1;
                 }
 
                 // Check for ASCII transfer corruption heuristic
@@ -380,6 +392,25 @@ impl<R: Read> RDWRecordReader<R> {
                         rdw_header[2],
                         rdw_header[3]
                     );
+
+                    // If the resulting length is unrealistically large (> 8KB), treat as corruption error
+                    if length > 8192 {
+                        return Err(Error::new(
+                            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                            format!("RDW length {} suggests ASCII corruption", length),
+                        )
+                        .with_context(ErrorContext {
+                            record_index: Some(self.record_count),
+                            field_path: None,
+                            byte_offset: Some(0), // Length bytes are at offset 0-1
+                            line_number: None,
+                            details: Some(format!(
+                                "Length bytes: {:02X} {:02X} (ASCII digits?)",
+                                rdw_header[0], rdw_header[1]
+                            )),
+                        }));
+                    }
+                    self.warnings.suspect_ascii_warnings += 1;
                 }
 
                 // Handle zero-length records
@@ -431,9 +462,26 @@ impl<R: Read> RDWRecordReader<R> {
                 }
             }
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                // True EOF - no more data
-                debug!("Reached EOF after {} RDW records", self.record_count);
-                Ok(None)
+                // In strict mode, incomplete header at the start is an error
+                if self.strict_mode && self.record_count == 0 {
+                    Err(Error::new(
+                        ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                        "File contains incomplete RDW header".to_string(),
+                    )
+                    .with_context(ErrorContext {
+                        record_index: Some(1),
+                        field_path: None,
+                        byte_offset: Some(0),
+                        line_number: None,
+                        details: Some(
+                            "Expected 4-byte RDW header but file is too short".to_string(),
+                        ),
+                    }))
+                } else {
+                    // True EOF - no more data
+                    debug!("Reached EOF after {} RDW records", self.record_count);
+                    Ok(None)
+                }
             }
             Err(e) => Err(Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
@@ -504,6 +552,18 @@ impl<R: Read> RDWRecordReader<R> {
     #[must_use]
     pub fn record_count(&self) -> u64 {
         self.record_count
+    }
+
+    /// Get the accumulated warnings
+    #[must_use]
+    pub fn warnings(&self) -> &RDWWarnings {
+        &self.warnings
+    }
+
+    /// Get total warning count  
+    #[must_use]
+    pub fn warning_count(&self) -> u64 {
+        self.warnings.reserved_nonzero_warnings + self.warnings.suspect_ascii_warnings
     }
 }
 
@@ -600,9 +660,7 @@ impl<W: Write> RDWRecordWriter<W> {
         }
 
         // Create RDW header
-        let length_bytes = u16::try_from(length)
-            .expect("RDW length should fit in u16")
-            .to_be_bytes();
+        let length_bytes = u16::try_from(length).unwrap_or(u16::MAX).to_be_bytes();
         let reserved_bytes = preserve_reserved.unwrap_or(0).to_be_bytes();
         let header = [
             length_bytes[0],
@@ -653,8 +711,7 @@ impl RDWRecord {
     /// Create a new RDW record from payload
     #[must_use]
     pub fn new(payload: Vec<u8>) -> Self {
-        let length = u16::try_from(payload.len().min(u16::MAX as usize))
-            .expect("payload length should fit in u16");
+        let length = u16::try_from(payload.len().min(usize::from(u16::MAX))).unwrap_or(u16::MAX);
         let length_bytes = length.to_be_bytes();
         let header = [length_bytes[0], length_bytes[1], 0, 0]; // Reserved bytes are zero
 
@@ -664,8 +721,7 @@ impl RDWRecord {
     /// Create a new RDW record with preserved reserved bytes
     #[must_use]
     pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
-        let length = u16::try_from(payload.len().min(u16::MAX as usize))
-            .expect("payload length should fit in u16");
+        let length = u16::try_from(payload.len().min(usize::from(u16::MAX))).unwrap_or(u16::MAX);
         let length_bytes = length.to_be_bytes();
         let reserved_bytes = reserved.to_be_bytes();
         let header = [
@@ -692,8 +748,8 @@ impl RDWRecord {
 
     /// Update the length field to match the payload size
     pub fn recompute_length(&mut self) {
-        let length = u16::try_from(self.payload.len().min(u16::MAX as usize))
-            .expect("payload length should fit in u16");
+        let length =
+            u16::try_from(self.payload.len().min(usize::from(u16::MAX))).unwrap_or(u16::MAX);
         let length_bytes = length.to_be_bytes();
         self.header[0] = length_bytes[0];
         self.header[1] = length_bytes[1];

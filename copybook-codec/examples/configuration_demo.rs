@@ -1,11 +1,6 @@
 //! Demonstration of the configuration and options API
 //!
-#![allow(
-    clippy::too_many_lines,
-    clippy::cast_precision_loss,
-    clippy::uninlined_format_args
-)]
-//! This example shows how to use the `DecodeOptions`, `EncodeOptions`, and `RunSummary`
+//! This example shows how to use the DecodeOptions, EncodeOptions, and RunSummary
 //! types to configure and monitor copybook processing operations.
 
 use copybook_codec::{
@@ -22,7 +17,7 @@ fn main() {
         .with_format(RecordFormat::RDW)
         .with_codepage(Codepage::CP037)
         .with_json_number_mode(JsonNumberMode::Lossless)
-        .with_emit_filler(true)
+        .with_emit_filler(true) // FILLER fields named as _filler_00000XXX (by byte offset)
         .with_emit_meta(true)
         .with_emit_raw(RawMode::Record)
         .with_strict_mode(false)
@@ -46,7 +41,10 @@ fn main() {
         decode_opts.json_number_mode,
         decode_opts.json_number_mode.description()
     );
-    println!("  Emit Filler: {}", decode_opts.emit_filler);
+    println!(
+        "  Emit Filler: {} (when true, FILLER fields appear as _filler_00000XXX)",
+        decode_opts.emit_filler
+    );
     println!("  Emit Meta: {}", decode_opts.emit_meta);
     println!("  Emit Raw: {}", decode_opts.emit_raw);
     println!("  Strict Mode: {}", decode_opts.strict_mode);
@@ -148,5 +146,5 @@ fn main() {
 
     // Demonstrate Display formatting
     println!("\nFormatted Summary:");
-    println!("{summary}");
+    println!("{}", summary);
 }

@@ -92,9 +92,6 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
         ));
     }
 
-    // Update FILLER field names with actual offsets
-    update_filler_names(&mut schema.fields);
-
     Ok(())
 }
 
@@ -138,7 +135,7 @@ fn resolve_field_layout(
         calculate_field_size_and_alignment(&field.kind, field.synchronized);
 
     // Before calculating offset, ensure current_offset accounts for any completed REDEFINES clusters
-    for &(cluster_start, cluster_size) in context.redefines_clusters.values() {
+    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
         let cluster_end = cluster_start + cluster_size;
         context.current_offset = context.current_offset.max(cluster_end);
     }
@@ -148,11 +145,10 @@ fn resolve_field_layout(
     let padding_bytes = aligned_offset - context.current_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding =
-            Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
+        field.sync_padding = Some(u16::try_from(padding_bytes).unwrap_or(u16::MAX));
     }
 
-    field.offset = u32::try_from(aligned_offset).expect("aligned offset should fit in u32");
+    field.offset = u32::try_from(aligned_offset).unwrap_or(u32::MAX);
     context.current_offset = aligned_offset;
 
     // Record field path and offset
@@ -201,7 +197,7 @@ fn resolve_field_layout(
             counter_path,
         }) => {
             // ODO array: use maximum count for space allocation
-            let array_size = u64::from(base_size)
+            let size = u64::from(base_size)
                 .checked_mul(u64::from(*max))
                 .ok_or_else(|| {
                     error!(
@@ -219,7 +215,7 @@ fn resolve_field_layout(
                 min_count: *min,
             });
 
-            array_size
+            size
         }
         None => u64::from(base_size),
     };
@@ -234,7 +230,7 @@ fn resolve_field_layout(
             group_size = group_size.max(child_end_offset - group_start_offset);
         }
 
-        field.len = u32::try_from(group_size).expect("group size should fit in u32");
+        field.len = u32::try_from(group_size).unwrap_or(u32::MAX);
         let final_offset = group_start_offset + group_size;
         context.current_offset = final_offset;
 
@@ -283,11 +279,10 @@ fn resolve_redefines_field(
     let padding_bytes = aligned_offset - target_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding =
-            Some(u16::try_from(padding_bytes).expect("padding bytes should fit in u16"));
+        field.sync_padding = Some(u16::try_from(padding_bytes).unwrap_or(u16::MAX));
     }
 
-    field.offset = u32::try_from(aligned_offset).expect("aligned offset should fit in u32");
+    field.offset = u32::try_from(aligned_offset).unwrap_or(u32::MAX);
 
     // Calculate effective size including arrays
     let effective_size = match &field.occurs {
@@ -321,7 +316,7 @@ fn resolve_redefines_field(
             group_size = group_size.max(child_end_offset - aligned_offset);
         }
 
-        field.len = u32::try_from(group_size).expect("group size should fit in u32");
+        field.len = u32::try_from(group_size).unwrap_or(u32::MAX);
         context.current_offset = saved_offset; // Restore offset (REDEFINES doesn't advance)
 
         // Update cluster size
@@ -376,7 +371,8 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (
         }
         FieldKind::PackedDecimal { digits, .. } => {
             // Packed decimal: ceil((digits + 1) / 2) bytes
-            let bytes = (u32::from(*digits) + 1).div_ceil(2); // ceil((digits + 1) / 2)
+            #[allow(clippy::manual_midpoint)] // This is ceiling division, not midpoint
+            let bytes = (u32::from(*digits) + 2) / 2; // ceil((digits + 1) / 2)
             (bytes, 1u64)
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size
@@ -449,7 +445,7 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
         // Validate that counter precedes array (NORMATIVE)
         if counter_offset >= odo.array_offset {
             return Err(Error::new(
-                ErrorCode::CBKP021_ODO_NOT_TAIL,
+                ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                 format!(
                     "ODO counter '{}' (offset {}) must precede array '{}' (offset {}) in byte order", 
                     odo.counter_path, counter_offset, odo.array_path, odo.array_offset
@@ -518,12 +514,12 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
         let mut total_size = context.current_offset;
 
         // Add the size of REDEFINES clusters (they don't advance current_offset)
-        for &(cluster_start, cluster_size) in context.redefines_clusters.values() {
+        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
             let cluster_end = cluster_start + cluster_size;
             total_size = total_size.max(cluster_end);
         }
 
-        schema.lrecl_fixed = u32::try_from(total_size).ok();
+        schema.lrecl_fixed = Some(u32::try_from(total_size).unwrap_or(u32::MAX));
     }
 }
 
@@ -537,19 +533,6 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
             max_count: tail_odo.max_count,
             array_path: tail_odo.array_path.clone(),
         });
-    }
-}
-
-/// Update FILLER field names with actual byte offsets
-fn update_filler_names(fields: &mut [Field]) {
-    for field in fields {
-        if field.name.starts_with("_filler_") {
-            // Update FILLER name with actual offset (8-digit zero-padded)
-            field.name = format!("_filler_{:08}", field.offset);
-        }
-
-        // Recursively update children
-        update_filler_names(&mut field.children);
     }
 }
 
@@ -780,11 +763,11 @@ mod tests {
     fn test_binary_width_mapping() {
         let mut schema = Schema::new();
 
-        // Test different binary widths (IBM mainframe standards)
+        // Test different binary widths
         let test_cases = vec![
-            (4, 16), // 1-4 digits → 2 bytes (16 bits)
-            (5, 32), // 5-8 digits → 4 bytes (32 bits)
-            (9, 64), // 9-18 digits → 8 bytes (64 bits)
+            (4, 16),  // ≤4 digits → 2 bytes (16 bits)
+            (9, 32),  // 5-9 digits → 4 bytes (32 bits)
+            (18, 64), // 10-18 digits → 8 bytes (64 bits)
         ];
 
         for (digits, expected_bits) in test_cases {

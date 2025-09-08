@@ -817,7 +817,7 @@ impl Parser {
                 token: Token::Comp, ..
             }) => {
                 self.advance();
-                self.convert_to_binary_field_with_width(field)?;
+                self.convert_to_binary_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Comp3,
@@ -831,7 +831,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.convert_to_binary_field_with_width(field)?;
+                self.convert_to_binary_field(field)?;
             }
             _ => {
                 // Unknown clause - advance and continue
@@ -996,7 +996,7 @@ impl Parser {
                 token: Token::Comp, ..
             }) => {
                 self.advance();
-                self.convert_to_binary_field_with_width(field)?;
+                self.convert_to_binary_field(field)?;
             }
             Some(TokenPos {
                 token: Token::Comp3,
@@ -1010,7 +1010,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.convert_to_binary_field_with_width(field)?;
+                self.convert_to_binary_field(field)?;
             }
             _ => {
                 return Err(self.err_here(
@@ -1267,36 +1267,9 @@ impl Parser {
         Ok(())
     }
 
-    /// Convert numeric field to binary (legacy version)
-    #[allow(dead_code)]
-    fn convert_to_binary_field(field: &mut Field) -> Result<()> {
-        match &field.kind {
-            FieldKind::ZonedDecimal { digits, signed, .. } => {
-                let bits = match digits {
-                    1..=4 => 16,   // 1-4 digits: 2 bytes (16-bit)
-                    5..=9 => 32,   // 5-9 digits: 4 bytes (32-bit)
-                    10..=18 => 64, // 10-18 digits: 8 bytes (64-bit)
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKP001_SYNTAX,
-                            format!("Binary field with {} digits not supported", digits),
-                        ));
-                    }
-                };
-
-                field.kind = FieldKind::BinaryInt {
-                    bits,
-                    signed: *signed,
-                };
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorCode::CBKP001_SYNTAX,
-                    "USAGE COMP/BINARY can only be applied to numeric fields",
-                ));
-            }
-        }
-        Ok(())
+    /// Convert numeric field to binary (wrapper around explicit width handler)
+    fn convert_to_binary_field(&mut self, field: &mut Field) -> Result<()> {
+        self.convert_to_binary_field_with_width(field)
     }
 
     /// Convert numeric field to packed decimal

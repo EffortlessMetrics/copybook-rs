@@ -583,12 +583,7 @@ fn decode_array_field(
             counter_path,
         } => {
             // Read counter field value to determine actual count using schema
-            match read_odo_counter_value_from_schema(
-                data,
-                counter_path,
-                field.path.as_str(),
-                schema,
-            ) {
+            match read_odo_counter_value(data, counter_path, field.path.as_str(), schema) {
                 Ok(counter_value) => {
                     let mut clamped_value = counter_value;
 
@@ -1042,23 +1037,19 @@ fn find_actual_field_offset(field: &copybook_core::Field, _data: &[u8]) -> usize
     }
 }
 
-/// Legacy function for backward compatibility - now delegates to schema-based version
-#[allow(dead_code)]
-fn read_odo_counter_value(data: &[u8], counter_path: &str, array_path: &str) -> Result<u32> {
-    // This is now a legacy function that assumes simple zoned decimal format
-    // Extract counter field name from path (last component)
-    let _counter_name = counter_path.split('.').next_back().unwrap_or(counter_path);
-
-    // Try to read as zoned decimal - this is the old hardcoded behavior
-    decode_zoned_decimal_to_u32(data).map_err(|_| {
-        Error::new(
-            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-            format!(
-                "Cannot read ODO counter in legacy mode for array {}",
-                array_path
-            ),
-        )
-    })
+/// Read an ODO counter value by delegating to the schema-aware implementation
+///
+/// This wrapper exists for backwards compatibility with older callers that
+/// previously only handled zoned decimal counters. It now supports packed and
+/// binary counters by leveraging [`read_odo_counter_value_from_schema`].
+fn read_odo_counter_value(
+    data: &[u8],
+    counter_path: &str,
+    array_path: &str,
+    schema: &Schema,
+) -> Result<u32> {
+    read_odo_counter_value_from_schema(data, counter_path, array_path, schema)
+}
 }
 
 /// Basic zoned decimal decoding

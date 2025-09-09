@@ -48,7 +48,7 @@ fn test_redefines_shorter_equal_longer_overlays() {
    05 LONGER-REDEFINE REDEFINES ORIGINAL-FIELD PIC X(15).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).expect("failed to parse copybook");
     let root = &schema.fields[0];
     assert_eq!(root.children.len(), 4);
 
@@ -89,7 +89,7 @@ fn test_redefines_decode_all_views() {
       10 PART2 PIC X(4).
 "#;
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).expect("failed to parse copybook");
     let options = create_test_decode_options(false);
 
     let test_data = b"12345678"; // 8 bytes of data
@@ -100,9 +100,11 @@ fn test_redefines_decode_all_views() {
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
-    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
-    let output_str = String::from_utf8(output).unwrap();
-    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options)
+        .expect("decode failed");
+    let output_str = String::from_utf8(output).expect("output not utf8");
+    let json_record: Value =
+        serde_json::from_str(output_str.trim()).expect("output not valid json");
 
     // All views should be present in declaration order
     assert!(json_record.get("ORIGINAL-FIELD").is_some());
@@ -110,7 +112,9 @@ fn test_redefines_decode_all_views() {
     assert!(json_record.get("STRUCTURED-VIEW").is_some());
 
     // Structured view should have its children
-    let structured = json_record.get("STRUCTURED-VIEW").unwrap();
+    let structured = json_record
+        .get("STRUCTURED-VIEW")
+        .expect("structured view missing");
     assert!(structured.get("PART1").is_some());
     assert!(structured.get("PART2").is_some());
 }
@@ -124,7 +128,7 @@ fn test_redefines_encode_precedence_normative() {
    05 NUMERIC-VIEW REDEFINES ORIGINAL-FIELD PIC 9(8).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).expect("failed to parse copybook");
     let options = create_test_encode_options(true); // Strict mode
 
     // Test single non-null view (should succeed)
@@ -164,7 +168,7 @@ fn test_redefines_raw_preserved_record() {
    05 NUMERIC-VIEW REDEFINES ORIGINAL-FIELD PIC 9(8).
 "#;
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).expect("failed to parse copybook");
 
     // Decode with raw capture
     let decode_options = DecodeOptions {
@@ -180,9 +184,11 @@ fn test_redefines_raw_preserved_record() {
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
-    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &decode_options).unwrap();
-    let output_str = String::from_utf8(output).unwrap();
-    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &decode_options)
+        .expect("decode failed");
+    let output_str = String::from_utf8(output).expect("output not utf8");
+    let json_record: Value =
+        serde_json::from_str(output_str.trim()).expect("output not valid json");
 
     // Should have raw data captured
     assert!(json_record.get("__raw_b64").is_some());
@@ -196,7 +202,7 @@ fn test_redefines_raw_preserved_record() {
     let result = copybook_codec::encode_record(&schema, &json_record, &encode_options);
     assert!(result.is_ok(), "Should succeed with raw data");
 
-    let encoded_data = result.unwrap();
+    let encoded_data = result.expect("encoding failed");
     assert_eq!(encoded_data, test_data, "Should produce identical bytes");
 }
 
@@ -209,7 +215,7 @@ fn test_odo_driver_precedes_array() {
    05 VARIABLE-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON COUNTER PIC X(5).
 "#;
 
-    let schema = parse_copybook(valid_odo).unwrap();
+    let schema = parse_copybook(valid_odo).expect("failed to parse copybook");
     let root = &schema.fields[0];
     assert_eq!(root.children.len(), 2);
 
@@ -238,7 +244,7 @@ fn test_odo_driver_precedes_array() {
 
     let result = parse_copybook(invalid_odo);
     assert!(result.is_err());
-    let error = result.unwrap_err();
+    let error = result.expect_err("expected counter not found error");
     assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
 }
 
@@ -254,7 +260,7 @@ fn test_odo_tail_position_validation() {
 
     let result = parse_copybook(invalid_odo_not_tail);
     assert!(result.is_err());
-    let error = result.unwrap_err();
+    let error = result.expect_err("expected tail position error");
     assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
 
     // Valid: ODO at tail
@@ -265,7 +271,7 @@ fn test_odo_tail_position_validation() {
    05 VARIABLE-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON COUNTER PIC X(3).
 "#;
 
-    let schema = parse_copybook(valid_odo_tail).unwrap();
+    let schema = parse_copybook(valid_odo_tail).expect("failed to parse copybook");
     assert_eq!(schema.fields[0].children.len(), 3);
 
     let array = &schema.fields[0].children[2];
@@ -286,7 +292,7 @@ fn test_odo_counter_in_redefines_error() {
 
     let result = parse_copybook(invalid_counter_in_redefines);
     assert!(result.is_err());
-    let error = result.unwrap_err();
+    let error = result.expect_err("expected counter not found");
     assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
 }
 
@@ -298,7 +304,7 @@ fn test_odo_decode_clamp_vs_strict() {
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(3).
 "#;
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).expect("failed to parse copybook");
 
     // Test lenient mode: clamp out-of-bounds counter
     let lenient_options = create_test_decode_options(false);
@@ -312,20 +318,20 @@ fn test_odo_decode_clamp_vs_strict() {
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
-    let summary =
-        copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &lenient_options)
-            .unwrap();
+    let summary = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &lenient_options)
+        .expect("decode failed");
     assert!(summary.has_warnings(), "Should have ODO clipped warning");
 
-    let output_str = String::from_utf8(output).unwrap();
-    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    let output_str = String::from_utf8(output).expect("output not utf8");
+    let json_record: Value =
+        serde_json::from_str(output_str.trim()).expect("output not valid json");
 
     // Should clamp to maximum (5 elements)
     let array = json_record
         .get("VARIABLE-ARRAY")
-        .unwrap()
+        .expect("VARIABLE-ARRAY missing")
         .as_array()
-        .unwrap();
+        .expect("VARIABLE-ARRAY not array");
     assert_eq!(array.len(), 5);
 
     // Test strict mode: error on out-of-bounds
@@ -348,7 +354,7 @@ fn test_odo_encode_counter_update() {
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(3).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).expect("failed to parse copybook");
     let options = create_test_encode_options(false);
 
     // Test encoding with array length different from counter
@@ -360,7 +366,7 @@ fn test_odo_encode_counter_update() {
     let result = copybook_codec::encode_record(&schema, &json_data, &options);
     assert!(result.is_ok(), "Should succeed and update counter");
 
-    let encoded_data = result.unwrap();
+    let encoded_data = result.expect("encoding failed");
 
     // Counter should be updated to match array length (3)
     assert_eq!(&encoded_data[0..2], b"03"); // Counter updated to 03
@@ -377,7 +383,7 @@ fn test_odo_payload_length_correctness() {
    05 VARIABLE-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON COUNTER PIC X(4).
 "#;
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).expect("failed to parse copybook");
     let options = create_test_decode_options(false);
 
     // Test with counter = 3, should read exactly 3 elements
@@ -389,15 +395,17 @@ fn test_odo_payload_length_correctness() {
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
-    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
-    let output_str = String::from_utf8(output).unwrap();
-    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options)
+        .expect("decode failed");
+    let output_str = String::from_utf8(output).expect("output not utf8");
+    let json_record: Value =
+        serde_json::from_str(output_str.trim()).expect("output not valid json");
 
     let array = json_record
         .get("VARIABLE-ARRAY")
-        .unwrap()
+        .expect("VARIABLE-ARRAY missing")
         .as_array()
-        .unwrap();
+        .expect("VARIABLE-ARRAY not array");
     assert_eq!(array.len(), 3);
     assert_eq!(array[0], "ABCD");
     assert_eq!(array[1], "EFGH");
@@ -416,7 +424,7 @@ fn test_nested_fixed_occurs_allowed() {
       10 SCALAR-FIELD PIC 9(3).
 "#;
 
-    let schema = parse_copybook(nested_occurs).unwrap();
+    let schema = parse_copybook(nested_occurs).expect("failed to parse copybook");
     let root = &schema.fields[0];
     assert_eq!(root.children.len(), 1);
 
@@ -450,7 +458,7 @@ fn test_odo_not_nested_under_odo() {
 
     let result = parse_copybook(invalid_nested_odo);
     assert!(result.is_err());
-    let error = result.unwrap_err();
+    let error = result.expect_err("expected ODO nesting error");
     assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
 }
 
@@ -467,7 +475,7 @@ fn test_comprehensive_error_context() {
     let result = parse_copybook(invalid_copybook);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
+    let error = result.expect_err("expected counter not found");
     assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
 
     // Should have context information
@@ -489,7 +497,7 @@ fn test_redefines_cluster_sizing() {
    05 NEXT-FIELD PIC X(2).
 "#;
 
-    let schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).expect("failed to parse copybook");
     let root = &schema.fields[0];
 
     // Find the next field after the redefines cluster
@@ -497,7 +505,7 @@ fn test_redefines_cluster_sizing() {
         .children
         .iter()
         .find(|f| f.name == "NEXT-FIELD")
-        .unwrap();
+        .expect("NEXT-FIELD not found");
 
     // Next field should start after the longest redefine (10 bytes)
     let original_offset = root.children[0].offset;
@@ -512,7 +520,7 @@ fn test_odo_minimum_counter_handling() {
    05 VARIABLE-ARRAY OCCURS 3 TO 10 TIMES DEPENDING ON COUNTER PIC X(2).
 "#;
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).expect("failed to parse copybook");
     let options = create_test_decode_options(false); // Lenient mode
 
     // Test with counter below minimum (should clamp to minimum)
@@ -524,18 +532,19 @@ fn test_odo_minimum_counter_handling() {
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
-    let summary =
-        copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
+    let summary = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options)
+        .expect("decode failed");
     assert!(summary.has_warnings(), "Should have ODO raised warning");
 
-    let output_str = String::from_utf8(output).unwrap();
-    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    let output_str = String::from_utf8(output).expect("output not utf8");
+    let json_record: Value =
+        serde_json::from_str(output_str.trim()).expect("output not valid json");
 
     let array = json_record
         .get("VARIABLE-ARRAY")
-        .unwrap()
+        .expect("VARIABLE-ARRAY missing")
         .as_array()
-        .unwrap();
+        .expect("VARIABLE-ARRAY not array");
     assert_eq!(array.len(), 3); // Should be clamped to minimum
 }
 
@@ -552,7 +561,7 @@ fn test_redefines_declaration_order() {
    05 SECOND-REDEFINE REDEFINES ORIGINAL PIC X(8).
 "#;
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).expect("failed to parse copybook");
 
     let options = create_test_decode_options(false);
 
@@ -563,7 +572,8 @@ fn test_redefines_declaration_order() {
 
     // Instead of using decode_file_to_jsonl which goes through string serialization,
     // use decode_record directly to avoid JSON string round-trip that might reorder keys
-    let json_record = copybook_codec::decode_record(&schema, test_data, &options).unwrap();
+    let json_record =
+        copybook_codec::decode_record(&schema, test_data, &options).expect("decode failed");
 
     // Verify all views are present
     assert!(json_record.get("ORIGINAL").is_some());
@@ -574,7 +584,7 @@ fn test_redefines_declaration_order() {
     // JSON object should maintain insertion order (declaration order)
     let keys: Vec<&str> = json_record
         .as_object()
-        .unwrap()
+        .expect("expected JSON object")
         .keys()
         .map(|s| s.as_str())
         .collect();
@@ -587,7 +597,10 @@ fn test_redefines_declaration_order() {
 
     for (i, expected_key) in expected_order.iter().enumerate() {
         assert!(
-            keys.iter().position(|&k| k == *expected_key).unwrap() == i,
+            keys.iter()
+                .position(|&k| k == *expected_key)
+                .expect("key not found")
+                == i,
             "Field {} not in expected position. Actual order: {:?}, Expected: {:?}",
             expected_key,
             keys,

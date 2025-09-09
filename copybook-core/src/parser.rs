@@ -141,7 +141,9 @@ impl Parser {
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
                 if top.level >= field.level {
-                    let mut completed_field = stack.pop().unwrap();
+                    let mut completed_field = stack
+                        .pop()
+                        .expect("field stack should not be empty when popping");
 
                     // If this field has children, make it a group
                     if !completed_field.children.is_empty() {
@@ -1243,7 +1245,7 @@ mod tests {
     #[test]
     fn test_simple_field_parsing() {
         let input = "01 CUSTOMER-ID PIC X(10).";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];
@@ -1267,7 +1269,7 @@ mod tests {
         let pic_result = crate::pic::PicClause::parse("S9(7)V99");
         println!("PIC parse result: {:?}", pic_result);
 
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];
@@ -1289,7 +1291,7 @@ mod tests {
     #[test]
     fn test_binary_field_parsing() {
         let input = "01 COUNT PIC 9(5) USAGE COMP.";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];
@@ -1305,7 +1307,7 @@ mod tests {
     #[test]
     fn test_occurs_parsing() {
         let input = "01 ARRAY-FIELD PIC X(10) OCCURS 5 TIMES.";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];
@@ -1318,7 +1320,7 @@ mod tests {
 01 FIELD-A PIC X(10).
 01 FIELD-B REDEFINES FIELD-A PIC 9(10).
 ";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 2);
         let field_b = &schema.fields[1];
@@ -1332,7 +1334,9 @@ mod tests {
 
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result
+                .expect_err("expected edited pic error")
+                .code,
             ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
         ));
     }
@@ -1344,7 +1348,9 @@ mod tests {
 
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result
+                .expect_err("expected edited pic error")
+                .code,
             ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
         ));
     }
@@ -1352,14 +1358,14 @@ mod tests {
     #[test]
     fn test_schema_fingerprint() {
         let input = "01 CUSTOMER-ID PIC X(10).";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         // Should have a non-empty fingerprint
         assert!(!schema.fingerprint.is_empty());
         assert_ne!(schema.fingerprint, "placeholder");
 
         // Same input should produce same fingerprint
-        let schema2 = parse(input).unwrap();
+        let schema2 = parse(input).expect("failed to parse copybook");
         assert_eq!(schema.fingerprint, schema2.fingerprint);
     }
 
@@ -1370,7 +1376,7 @@ mod tests {
    05 FIELD-NAME PIC X(10).
    05 FIELD-NAME PIC 9(5).
 ";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         // Should have one root field with hierarchical structure
         assert_eq!(schema.fields.len(), 1);
@@ -1394,7 +1400,7 @@ mod tests {
 
         // Should succeed with valid ODO structure
         assert!(result.is_ok());
-        let schema = result.unwrap();
+        let schema = result.expect("parse should succeed");
         assert_eq!(schema.fields.len(), 2);
 
         // Check ODO field
@@ -1418,7 +1424,7 @@ mod tests {
 
         // Should succeed with valid REDEFINES
         assert!(result.is_ok());
-        let schema = result.unwrap();
+        let schema = result.expect("parse should succeed");
         assert_eq!(schema.fields.len(), 2);
 
         let field_b = &schema.fields[1];
@@ -1437,7 +1443,7 @@ mod tests {
       10 STREET PIC X(38).
       10 CITY PIC X(30).
 ";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         // Should have one root field
         assert_eq!(schema.fields.len(), 1);
@@ -1470,19 +1476,19 @@ mod tests {
     #[test]
     fn test_sha256_fingerprint() {
         let input = "01 CUSTOMER-ID PIC X(10).";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         // Should have a SHA-256 fingerprint (64 hex characters)
         assert_eq!(schema.fingerprint.len(), 64);
         assert!(schema.fingerprint.chars().all(|c| c.is_ascii_hexdigit()));
 
         // Same input should produce same fingerprint
-        let schema2 = parse(input).unwrap();
+        let schema2 = parse(input).expect("failed to parse copybook");
         assert_eq!(schema.fingerprint, schema2.fingerprint);
 
         // Different input should produce different fingerprint
         let input2 = "01 CUSTOMER-ID PIC X(20).";
-        let schema3 = parse(input2).unwrap();
+        let schema3 = parse(input2).expect("failed to parse copybook");
         assert_ne!(schema.fingerprint, schema3.fingerprint);
     }
 
@@ -1497,7 +1503,9 @@ mod tests {
         // Should fail with invalid REDEFINES target
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result
+                .expect_err("expected syntax error")
+                .code,
             ErrorCode::CBKP001_SYNTAX
         ));
     }
@@ -1505,7 +1513,7 @@ mod tests {
     #[test]
     fn test_blank_when_zero() {
         let input = "01 AMOUNT PIC 9(5) BLANK WHEN ZERO.";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];
@@ -1515,7 +1523,7 @@ mod tests {
     #[test]
     fn test_synchronized_field() {
         let input = "01 BINARY-FIELD PIC 9(5) USAGE COMP SYNCHRONIZED.";
-        let schema = parse(input).unwrap();
+        let schema = parse(input).expect("failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];

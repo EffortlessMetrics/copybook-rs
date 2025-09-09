@@ -5,7 +5,7 @@
 use crate::options::RawMode;
 use crate::options::RecordFormat;
 use copybook_core::error::ErrorContext;
-use copybook_core::{Error, ErrorCode, Result, Schema};
+use copybook_core::{Error, ErrorCode, Field, Occurs, Result, Schema};
 use std::io::{ErrorKind, Read, Write};
 use tracing::{debug, warn};
 
@@ -530,12 +530,49 @@ impl<R: Read> RDWRecordReader<R> {
         Ok(())
     }
 
-    /// Calculate the fixed prefix size of a schema (placeholder implementation)
-    fn calculate_schema_fixed_prefix(_schema: &Schema) -> u32 {
-        // Placeholder: This should calculate the size of fields that appear
-        // before any ODO arrays. For now, return 0 to allow zero-length records.
-        // This will be properly implemented when layout resolution is available.
-        0
+    /// Calculate the fixed prefix size of a schema
+    ///
+    /// The fixed prefix is the number of bytes that are guaranteed to be present
+    /// in every record. For schemas without ODO arrays this is simply the total
+    /// length of the record. For schemas with ODO arrays, this is the offset of
+    /// the first ODO array.
+    fn calculate_schema_fixed_prefix(schema: &Schema) -> u32 {
+        /// Walk fields to find the earliest ODO array and track the largest
+        /// fixed field end offset encountered before any ODO array.
+        fn traverse(fields: &[Field], first_odo: &mut Option<u32>, max_fixed: &mut u32) {
+            for field in fields {
+                if let Some(Occurs::ODO { .. }) = &field.occurs {
+                    match first_odo {
+                        Some(current) => {
+                            if field.offset < *current {
+                                *current = field.offset;
+                            }
+                        }
+                        None => *first_odo = Some(field.offset),
+                    }
+                    // ODO arrays themselves are variable length; skip their children
+                    continue;
+                }
+
+                let end = field.offset.saturating_add(field.len);
+                if end > *max_fixed {
+                    *max_fixed = end;
+                }
+
+                if !field.children.is_empty() {
+                    traverse(&field.children, first_odo, max_fixed);
+                }
+            }
+        }
+
+        let mut first_odo = None;
+        let mut max_fixed = 0;
+        traverse(&schema.fields, &mut first_odo, &mut max_fixed);
+
+        match first_odo {
+            Some(offset) => offset,
+            None => max_fixed,
+        }
     }
 
     /// Detect ASCII transfer corruption heuristic
@@ -826,7 +863,7 @@ pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use copybook_core::Schema;
+    use copybook_core::{ErrorCode, Schema, parse_copybook};
     use std::io::Cursor;
 
     #[test]
@@ -1083,6 +1120,23 @@ mod tests {
         let record = reader.read_record().unwrap().unwrap();
         assert_eq!(record.length(), 0);
         assert_eq!(record.payload.len(), 0);
+    }
+
+    #[test]
+    fn test_zero_length_record_validation() {
+        // Create a zero-length RDW record
+        let data = vec![0, 0, 0, 0];
+        let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+        let _record = reader.read_record().unwrap().unwrap();
+
+        // Schema requires at least 3 bytes
+        let copybook = "01 TEST.\n   05 FIELD PIC X(3).\n";
+        let schema = parse_copybook(copybook).unwrap();
+
+        let result = reader.validate_zero_length_record(&schema);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
     }
 
     #[test]

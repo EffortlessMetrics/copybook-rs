@@ -1094,7 +1094,7 @@ fn decode_zoned_decimal_basic(
                     // Invalid digit byte
                     return Err(Error::new(
                         ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                        format!("Invalid digit byte 0x{:02X} ('{}')", byte, byte as char),
+                        format!("invalid digit byte 0x{:02X} ('{}')", byte, byte as char),
                     ));
                 }
             }
@@ -1120,7 +1120,7 @@ fn decode_zoned_decimal_basic(
         JsonNumberMode::Lossless => {
             // In lossless mode, preserve the original field width for integers
             if is_negative {
-                // For negative numbers, format with leading zeros after the minus sign
+                // For negative numbers, remove the sign if the value is zero (NORMATIVE)
                 let trimmed = digits.trim_start_matches('0');
                 let abs_result = if trimmed.is_empty() { "0" } else { trimmed };
                 if abs_result == "0" {
@@ -1129,7 +1129,7 @@ fn decode_zoned_decimal_basic(
                 } else {
                     format!(
                         "-{:0width$}",
-                        abs_result.parse::<u64>().unwrap_or(0),
+                        trimmed.parse::<u64>().unwrap_or(0),
                         width = field_width.saturating_sub(1)
                     )
                 }
@@ -1185,10 +1185,10 @@ fn decode_packed_decimal_basic(
             if high_nibble <= 9 {
                 all_digits.push_str(&high_nibble.to_string());
             } else if high_nibble != 0 {
-                // Invalid digit nibble (not 0-9)
+                // invalid digit nibble (not 0-9)
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid packed decimal digit nibble: 0x{:X}", high_nibble),
+                    format!("invalid packed decimal digit nibble: 0x{:X}", high_nibble),
                 ));
             }
 
@@ -1199,7 +1199,7 @@ fn decode_packed_decimal_basic(
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid packed decimal sign nibble: 0x{:X}", low_nibble),
+                            format!("invalid packed decimal sign nibble: 0x{:X}", low_nibble),
                         ));
                     }
                 }
@@ -1211,7 +1211,7 @@ fn decode_packed_decimal_basic(
             } else {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid packed decimal digit nibble: 0x{:X}", high_nibble),
+                    format!("invalid packed decimal digit nibble: 0x{:X}", high_nibble),
                 ));
             }
             if low_nibble <= 9 {
@@ -1219,7 +1219,7 @@ fn decode_packed_decimal_basic(
             } else {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid packed decimal digit nibble: 0x{:X}", low_nibble),
+                    format!("invalid packed decimal digit nibble: 0x{:X}", low_nibble),
                 ));
             }
         }
@@ -2078,6 +2078,7 @@ pub fn decode_file_to_jsonl(
                             {
                                 summary.warnings += warnings_num;
                             }
+<<<<<<< HEAD
 
                             // Write as JSONL
                             serde_json::to_writer(&mut output, &json_value).map_err(|e| {
@@ -2091,6 +2092,13 @@ pub fn decode_file_to_jsonl(
                             // In lenient mode, continue processing
                             if options.strict_mode {
                                 break;
+=======
+                            Err(e) => {
+                                summary.records_with_errors += 1;
+                                if options.strict_mode {
+                                    return Err(e);
+                                }
+>>>>>>> 266b169 (Fix numeric codec tests and error reporting)
                             }
                         }
                     }
@@ -2156,6 +2164,7 @@ pub fn decode_file_to_jsonl(
                             {
                                 summary.warnings += warnings_num;
                             }
+<<<<<<< HEAD
 
                             // Add raw data if requested
                             if matches!(
@@ -2186,6 +2195,13 @@ pub fn decode_file_to_jsonl(
                             // In lenient mode, continue processing
                             if options.strict_mode {
                                 break;
+=======
+                            Err(e) => {
+                                summary.records_with_errors += 1;
+                                if options.strict_mode {
+                                    return Err(e);
+                                }
+>>>>>>> 266b169 (Fix numeric codec tests and error reporting)
                             }
                         }
                     }

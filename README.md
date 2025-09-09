@@ -554,6 +554,10 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 cargo fmt --all
 ```
 
+### Dependency and Security Scanning
+
+The project employs [`cargo-deny`](https://embarkstudios.github.io/cargo-deny/) for license and advisory checks and [`cargo audit`](https://github.com/RustSec/rustsec/tree/main/cargo-audit) for vulnerability scanning. These checks run automatically in CI, and Dependabot keeps Rust crates and GitHub Actions dependencies up to date.
+
 ### Contributing
 
 We welcome contributions! Please see [REPORT.md](REPORT.md) for current project status and development priorities.

@@ -56,32 +56,36 @@ impl SmallDecimal {
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
     fn format_to_string(&self) -> String {
+        // Ensure we never render a negative zero.
+        let mut normalized = self.clone();
+        normalized.normalize();
+
         let mut result = String::new();
 
-        if self.negative && self.value != 0 {
+        if normalized.negative {
             result.push('-');
         }
 
-        if self.scale <= 0 {
+        if normalized.scale <= 0 {
             // Integer format (scale=0) or scale extension
-            let scaled_value = if self.scale < 0 {
-                self.value
-                    * 10_i64.pow(u32::try_from(-self.scale).expect("Negative scale fits in u32"))
+            let scaled_value = if normalized.scale < 0 {
+                normalized.value
+                    * 10_i64.pow(u32::try_from(-normalized.scale).expect("Negative scale fits in u32"))
             } else {
-                self.value
+                normalized.value
             };
             write!(result, "{scaled_value}").unwrap();
         } else {
             // Decimal format with exactly `scale` digits after decimal
-            let divisor = 10_i64.pow(u32::try_from(self.scale).expect("Scale fits in u32"));
-            let integer_part = self.value / divisor;
-            let fractional_part = self.value % divisor;
+            let divisor = 10_i64.pow(u32::try_from(normalized.scale).expect("Scale fits in u32"));
+            let integer_part = normalized.value / divisor;
+            let fractional_part = normalized.value % divisor;
 
             write!(
                 result,
                 "{integer_part}.{:0width$}",
                 fractional_part,
-                width = usize::try_from(self.scale).expect("Scale fits in usize")
+                width = usize::try_from(normalized.scale).expect("Scale fits in usize")
             )
             .unwrap();
         }
@@ -169,25 +173,29 @@ impl SmallDecimal {
     /// Always render with exactly `scale` digits after decimal
     #[must_use]
     pub fn to_fixed_scale_string(&self, scale: i16) -> String {
+        // Normalize first to avoid rendering "-0" when the value is zero.
+        let mut normalized = self.clone();
+        normalized.normalize();
+
         let mut result = String::new();
 
-        if self.negative && self.value != 0 {
+        if normalized.negative {
             result.push('-');
         }
 
         if scale <= 0 {
             // Integer format (scale=0) or scale extension
             let scaled_value = if scale < 0 {
-                self.value * 10_i64.pow(u32::try_from(-scale).expect("Negative scale fits in u32"))
+                normalized.value * 10_i64.pow(u32::try_from(-scale).expect("Negative scale fits in u32"))
             } else {
-                self.value
+                normalized.value
             };
             write!(result, "{scaled_value}").unwrap();
         } else {
             // Decimal format with exactly `scale` digits after decimal
             let divisor = 10_i64.pow(u32::try_from(scale).expect("Scale fits in u32"));
-            let integer_part = self.value / divisor;
-            let fractional_part = self.value % divisor;
+            let integer_part = normalized.value / divisor;
+            let fractional_part = normalized.value % divisor;
 
             write!(
                 result,
@@ -203,18 +211,22 @@ impl SmallDecimal {
 
     /// Format with fixed scale and minimum width (for lossless JSON output)
     pub fn to_fixed_scale_string_with_width(&self, scale: i16, min_width: u16) -> String {
+        // Normalize to ensure we never output a negative zero representation.
+        let mut normalized = self.clone();
+        normalized.normalize();
+
         let mut result = String::new();
 
-        if self.negative && self.value != 0 {
+        if normalized.negative {
             result.push('-');
         }
 
         if scale <= 0 {
             // Integer format (scale=0) or scale extension - preserve width for integers
             let scaled_value = if scale < 0 {
-                self.value * 10_i64.pow((-scale) as u32)
+                normalized.value * 10_i64.pow((-scale) as u32)
             } else {
-                self.value
+                normalized.value
             };
 
             // For scale=0 (integers), preserve the original field width with leading zeros
@@ -232,8 +244,8 @@ impl SmallDecimal {
         } else {
             // Decimal format with exactly `scale` digits after decimal
             let divisor = 10_i64.pow(scale as u32);
-            let integer_part = self.value / divisor;
-            let fractional_part = (self.value % divisor).abs();
+            let integer_part = normalized.value / divisor;
+            let fractional_part = (normalized.value % divisor).abs();
             write!(
                 result,
                 "{integer_part}.{:0width$}",

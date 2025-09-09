@@ -1143,7 +1143,7 @@ fn decode_zoned_decimal_basic(
                 let trimmed = digits.trim_start_matches('0');
                 let abs_result = if trimmed.is_empty() { "0" } else { trimmed };
                 if abs_result == "0" {
-                    format!("{:0width$}", 0, width = field_width)
+                    "0".to_string()
                 } else {
                     format!(
                         "-{:0width$}",

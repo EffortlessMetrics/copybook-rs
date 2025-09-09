@@ -105,7 +105,7 @@ fn test_redefines_decode_all_views() {
     let schema = create_redefines_schema();
 
     // Create test data: 30 bytes (to fill the longest REDEFINES) + 5 bytes for NEXT-FIELD
-    let test_data = b"HELLO WORLD 1234567890     12345";
+    let test_data = b"1234567890HELLOWORLD          12345";
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -138,9 +138,9 @@ fn test_redefines_decode_all_views() {
     assert!(json_record.get("NEXT-FIELD").is_some());
 
     // Verify content
-    assert_eq!(json_record["ORIGINAL-FIELD"], "HELLO WORLD 12345678");
-    assert_eq!(json_record["EQUAL-REDEFINES"], "HELLO WORLD 12345678");
-    assert_eq!(json_record["LONG-REDEFINES"], "HELLO WORLD 1234567890     ");
+    assert_eq!(json_record["ORIGINAL-FIELD"], "1234567890HELLOWORLD");
+    assert_eq!(json_record["EQUAL-REDEFINES"], "1234567890HELLOWORLD");
+    assert_eq!(json_record["LONG-REDEFINES"], "1234567890HELLOWORLD          ");
     assert_eq!(json_record["NEXT-FIELD"], "12345");
 }
 
@@ -224,7 +224,7 @@ fn test_redefines_raw_data_precedence() {
     let schema = create_redefines_schema();
 
     // First, decode with raw capture to get baseline
-    let test_data = b"HELLO WORLD 1234567890     12345";
+    let test_data = b"1234567890HELLOWORLD          12345";
 
     let decode_options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -288,7 +288,7 @@ fn test_redefines_raw_data_precedence() {
 fn test_redefines_round_trip_preservation() {
     let schema = create_redefines_schema();
 
-    let original_data = b"ORIGINAL DATA 123456789012345";
+    let original_data = b"1234567890ORIGINALDATA        12345";
 
     // Decode with raw capture
     let decode_options = DecodeOptions {

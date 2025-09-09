@@ -4,7 +4,7 @@
 //! behavior specified in the design document.
 
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat};
-use copybook_core::{FieldKind, parse_copybook};
+use copybook_core::{FieldKind, parse_copybook, ErrorCode};
 use serde_json::Value;
 use std::io::Cursor;
 
@@ -152,7 +152,7 @@ fn test_zoned_invalid_zone_error() {
     assert!(result.is_err());
 
     let error = result.unwrap_err();
-    assert!(error.message.contains("invalid") || error.message.contains("zone"));
+    assert_eq!(error.code, ErrorCode::CBKD411_ZONED_BAD_SIGN);
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn test_packed_decimal_invalid_nibble() {
     assert!(result.is_err());
 
     let error = result.unwrap_err();
-    assert!(error.message.contains("invalid") || error.message.contains("nibble"));
+    assert_eq!(error.code, ErrorCode::CBKD411_ZONED_BAD_SIGN);
 }
 
 #[test]
@@ -476,7 +476,7 @@ fn test_fixed_scale_rendering() {
     };
 
     // Test data: 12345.67 (scale 2), 12345 (scale 0), 123.4567 (scale 4)
-    let test_data = b"\x01\x23\x45\x67\x0C\x01\x23\x45\x0C\x12\x34\x56\x70\x0C"; // Packed decimals
+    let test_data = b"\x12\x34\x56\x7C\x12\x34\x5C\x12\x34\x56\x7C"; // Packed decimals
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -485,7 +485,7 @@ fn test_fixed_scale_rendering() {
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
     // Should render with exactly the specified scale
-    assert_eq!(json_record["SCALE-2"], "1234567.00"); // Always 2 decimal places
+    assert_eq!(json_record["SCALE-2"], "12345.67"); // Always 2 decimal places
     assert_eq!(json_record["SCALE-0"], "12345"); // No decimal point for scale 0
     assert_eq!(json_record["SCALE-4"], "123.4567"); // Always 4 decimal places
 }

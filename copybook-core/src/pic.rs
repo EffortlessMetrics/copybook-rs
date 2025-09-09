@@ -128,7 +128,11 @@ impl PicClause {
                             break;
                         }
                         if ch.is_ascii_digit() {
-                            count_str.push(chars.next().unwrap());
+                            count_str.push(
+                                chars
+                                    .next()
+                                    .expect("iterator advanced after peek revealed a digit"),
+                            );
                         } else {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
@@ -274,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_alphanumeric_pic() {
-        let pic = PicClause::parse("X(10)").unwrap();
+        let pic = PicClause::parse("X(10)").expect("parse failed");
         assert_eq!(pic.kind, PicKind::Alphanumeric);
         assert!(!pic.signed);
         assert_eq!(pic.digits, 10);
@@ -284,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_numeric_display_pic() {
-        let pic = PicClause::parse("9(5)").unwrap();
+        let pic = PicClause::parse("9(5)").expect("parse failed");
         assert_eq!(pic.kind, PicKind::NumericDisplay);
         assert!(!pic.signed);
         assert_eq!(pic.digits, 5);
@@ -293,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_signed_numeric_pic() {
-        let pic = PicClause::parse("S9(7)V99").unwrap();
+        let pic = PicClause::parse("S9(7)V99").expect("parse failed");
         assert_eq!(pic.kind, PicKind::NumericDisplay);
         assert!(pic.signed);
         assert_eq!(pic.digits, 9);
@@ -305,7 +309,7 @@ mod tests {
         let result = PicClause::parse("ZZ,ZZZ.99");
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result.expect_err("expected invalid pic error").code,
             ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
         ));
     }
@@ -315,7 +319,7 @@ mod tests {
         let result = PicClause::parse("S9(5) SIGN LEADING");
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result.expect_err("expected invalid pic error").code,
             ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
         ));
     }
@@ -325,7 +329,7 @@ mod tests {
         let result = PicClause::parse("X9");
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result.expect_err("expected invalid pic error").code,
             ErrorCode::CBKP001_SYNTAX
         ));
     }
@@ -335,19 +339,19 @@ mod tests {
         let result = PicClause::parse("SX(10)");
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result.expect_err("expected invalid pic error").code,
             ErrorCode::CBKP001_SYNTAX
         ));
     }
 
     #[test]
     fn test_pic_display() {
-        assert_eq!(PicClause::parse("X(10)").unwrap().to_string(), "X(10)");
-        assert_eq!(PicClause::parse("9(5)").unwrap().to_string(), "9(5)");
+        assert_eq!(PicClause::parse("X(10)").expect("parse failed").to_string(), "X(10)");
+        assert_eq!(PicClause::parse("9(5)").expect("parse failed").to_string(), "9(5)");
         assert_eq!(
-            PicClause::parse("S9(7)V99").unwrap().to_string(),
+            PicClause::parse("S9(7)V99").expect("parse failed").to_string(),
             "S9(7)V9(2)"
         );
-        assert_eq!(PicClause::parse("9V9").unwrap().to_string(), "9V9");
+        assert_eq!(PicClause::parse("9V9").expect("parse failed").to_string(), "9V9");
     }
 }

@@ -98,9 +98,8 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
 /// Collect information about REDEFINES relationships
 fn collect_redefines_info(fields: &[Field], context: &mut LayoutContext) {
     for field in fields {
-        if field.redefines_of.is_some() {
+        if let Some(target) = field.redefines_of.as_ref() {
             // Initialize cluster for the target if not already present
-            let target = field.redefines_of.as_ref().unwrap();
             if !context.redefines_clusters.contains_key(target) {
                 context.redefines_clusters.insert(target.clone(), (0, 0));
             }
@@ -547,7 +546,7 @@ mod tests {
         let field = Field::with_kind(1, "TEST-FIELD".to_string(), FieldKind::Alphanum { len: 10 });
         schema.fields.push(field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema).expect("layout resolution failed");
 
         let field = &schema.fields[0];
         assert_eq!(field.offset, 0);
@@ -576,7 +575,7 @@ mod tests {
         binary_field.synchronized = true;
         schema.fields.push(binary_field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema).expect("layout resolution failed");
 
         let char_field = &schema.fields[0];
         assert_eq!(char_field.offset, 0);
@@ -596,7 +595,7 @@ mod tests {
         field.occurs = Some(Occurs::Fixed { count: 10 });
         schema.fields.push(field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema).expect("layout resolution failed");
 
         let field = &schema.fields[0];
         assert_eq!(field.offset, 0);
@@ -633,7 +632,7 @@ mod tests {
         });
         schema.fields.push(array_field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema).expect("layout resolution failed");
 
         let counter = &schema.fields[0];
         assert_eq!(counter.offset, 0);
@@ -645,7 +644,10 @@ mod tests {
 
         // Should have tail ODO info
         assert!(schema.tail_odo.is_some());
-        let tail_odo = schema.tail_odo.as_ref().unwrap();
+        let tail_odo = schema
+            .tail_odo
+            .as_ref()
+            .expect("tail ODO info missing");
         assert_eq!(tail_odo.counter_path, "COUNTER");
         assert_eq!(tail_odo.max_count, 5);
 
@@ -673,7 +675,7 @@ mod tests {
         field_c.redefines_of = Some("FIELD-A".to_string());
         schema.fields.push(field_c);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema).expect("layout resolution failed");
 
         let field_a = &schema.fields[0];
         assert_eq!(field_a.offset, 0);
@@ -707,7 +709,9 @@ mod tests {
         let result = resolve_layout(&mut schema);
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result
+                .expect_err("expected record too large error")
+                .code,
             ErrorCode::CBKS141_RECORD_TOO_LARGE
         ));
     }
@@ -732,7 +736,9 @@ mod tests {
         let result = resolve_layout(&mut schema);
         assert!(result.is_err());
         assert!(matches!(
-            result.unwrap_err().code,
+            result
+                .expect_err("expected counter not found error")
+                .code,
             ErrorCode::CBKS121_COUNTER_NOT_FOUND
         ));
     }
@@ -753,7 +759,7 @@ mod tests {
         );
         schema.fields.push(field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema).expect("layout resolution failed");
 
         let field = &schema.fields[0];
         assert_eq!(field.len, 4);
@@ -782,7 +788,7 @@ mod tests {
             schema.fields.push(field);
         }
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema).expect("layout resolution failed");
 
         assert_eq!(schema.fields[0].len, 2); // 16 bits = 2 bytes
         assert_eq!(schema.fields[1].len, 4); // 32 bits = 4 bytes

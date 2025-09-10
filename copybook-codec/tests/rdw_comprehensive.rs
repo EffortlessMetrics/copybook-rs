@@ -7,7 +7,7 @@ use base64::Engine;
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
 };
-use copybook_core::parse_copybook;
+use copybook_core::{parse_copybook, ErrorCode};
 use serde_json::{Value, json};
 use std::io::Cursor;
 
@@ -279,7 +279,7 @@ fn test_rdw_zero_length_record_invalid() {
     assert!(result.is_err()); // Should fail - zero length invalid for fixed schema
 
     let error = result.unwrap_err();
-    assert!(error.message.contains("underflow") || error.message.contains("length"));
+    assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
 }
 
 #[test]

@@ -606,6 +606,25 @@ impl Parser {
                 self.skip_to_period();
                 return Ok(None);
             }
+            Some(TokenPos { token: Token::Number(n), line, column, .. }) => {
+                if *column == 1 {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        format!("Invalid level number {}", n),
+                    )
+                    .with_context(crate::error::ErrorContext {
+                        record_index: None,
+                        field_path: None,
+                        byte_offset: None,
+                        line_number: Some(*line as u32),
+                        details: None,
+                    }));
+                } else {
+                    // Skip numbers that appear outside column 1 (e.g., sequence area)
+                    self.advance();
+                    return Ok(None);
+                }
+            }
             _ => {
                 // Skip unexpected tokens to prevent infinite loops
                 if !self.is_at_end() {
@@ -632,6 +651,20 @@ impl Parser {
                 ));
             }
         };
+
+        // Collect additional identifiers as part of the name (allows spaces)
+        while let Some(TokenPos {
+            token: Token::Identifier(next),
+            ..
+        }) = self.current_token()
+        {
+            if self.is_keyword() {
+                break;
+            }
+            name.push(' ');
+            name.push_str(next);
+            self.advance();
+        }
 
         // Handle FILLER fields
         if name.to_uppercase() == "FILLER" && !self.options.emit_filler {

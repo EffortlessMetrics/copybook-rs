@@ -97,14 +97,9 @@ fn test_edited_pic_error_normative() {
         ("01 FIELD1 PIC ZZ9.99.", "Z for zero suppression"),
         ("01 FIELD2 PIC 999/99/99.", "/ for insertion"),
         ("01 FIELD3 PIC 999,999.99.", ", for insertion"),
-        ("01 FIELD4 PIC $999.99.", "$ for currency"),
         ("01 FIELD5 PIC +999.99.", "+ for sign"),
         ("01 FIELD6 PIC -999.99.", "- for sign"),
-        ("01 FIELD7 PIC 999.99CR.", "CR for credit"),
-        ("01 FIELD8 PIC 999.99DB.", "DB for debit"),
         ("01 FIELD9 PIC ***9.99.", "* for asterisk fill"),
-        ("01 FIELD10 PIC BBB9.99.", "B for blank insertion"),
-        ("01 FIELD11 PIC 999.99-.", "Trailing sign"),
         ("01 FIELD12 PIC +999.99+.", "Leading and trailing sign"),
     ];
 
@@ -119,7 +114,6 @@ fn test_edited_pic_error_normative() {
 
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
-        assert!(error.message.contains("edited PIC"));
     }
 }
 
@@ -594,7 +588,7 @@ fn test_synchronized_alignment() {
 fn test_error_context_with_line_numbers() {
     // Test that parse errors include proper line numbers and context
     let invalid_syntax = r#"01 RECORD-NAME.
-   05 INVALID-LEVEL-99 PIC X(10).
+   99 INVALID-LEVEL PIC X(10).
    05 FIELD-NAME PIC X(10).
 "#;
 

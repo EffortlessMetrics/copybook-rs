@@ -300,12 +300,25 @@ impl<'a> Lexer<'a> {
             }
 
             if line.is_continuation && i > 0 {
-                // This is a continuation line - join with previous line
-                // Remove the last newline from result and append continuation content
+                // Join continuation line with previous line
                 if result.ends_with('\n') {
                     result.pop(); // Remove newline
                 }
-                result.push(' '); // Add space between joined parts
+
+                // Determine if previous line ended with a hyphen
+                let prev_hyphen = result.ends_with('-');
+
+                // Remove trailing spaces
+                while result.ends_with(' ') {
+                    result.pop();
+                }
+
+                // Add a space if the previous line didn't end with hyphen
+                if !prev_hyphen {
+                    result.push(' ');
+                }
+
+                // Append trimmed continuation content
                 result.push_str(line.content.trim_start());
                 result.push('\n');
             } else {
@@ -398,8 +411,8 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
         };
     }
 
-    // Check for comment line (* in column 1)
-    if line.starts_with('*') {
+    // Check for comment line ("*" in column 7 or after leading spaces)
+    if line.trim_start().starts_with('*') || (line.len() > 6 && line.chars().nth(6) == Some('*')) {
         return ProcessedLine {
             content: line,
             _original_line: line_num,
@@ -431,8 +444,10 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
 
-    // Check for comment lines (* at column 1 or *> anywhere)
-    let is_comment = trimmed.starts_with('*') || line.contains("*>");
+    // Check for comment lines ("*" at start after trimming)
+    // Inline `*>` comments are handled during tokenization and should not
+    // cause the entire line to be treated as a comment
+    let is_comment = trimmed.starts_with('*');
 
     // Free-form doesn't have continuation in the same way as fixed-form
     ProcessedLine {

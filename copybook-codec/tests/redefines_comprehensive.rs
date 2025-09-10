@@ -105,8 +105,8 @@ fn test_redefines_decode_all_views() {
     let schema = create_redefines_schema();
 
     // Create test data: 30 bytes (to fill the longest REDEFINES) + 5 bytes for NEXT-FIELD
-    // Use valid zoned decimal characters for numeric fields
-    let test_data = b"1234567890ABCDEFGHIJKLMNOPQRSTUVWXY"; // 35 bytes total
+    // Use numeric prefix so SHORT-REDEFINES (PIC 9(10)) decodes successfully
+    let test_data = b"1234567890ABCDEFGHIJ          12345";
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -143,9 +143,9 @@ fn test_redefines_decode_all_views() {
     assert_eq!(json_record["EQUAL-REDEFINES"], "1234567890ABCDEFGHIJ");
     assert_eq!(
         json_record["LONG-REDEFINES"],
-        "1234567890ABCDEFGHIJKLMNOPQRST"
+        "1234567890ABCDEFGHIJ          "
     );
-    assert_eq!(json_record["NEXT-FIELD"], "UVWXY");
+    assert_eq!(json_record["NEXT-FIELD"], "12345");
 }
 
 #[test]
@@ -227,7 +227,7 @@ fn test_redefines_raw_data_precedence() {
     let schema = create_redefines_schema();
 
     // First, decode with raw capture to get baseline
-    let test_data = b"1234567890ABCDEFGHIJKLMNOPQRSTUVWXY"; // 35 bytes total
+    let test_data = b"1234567890ABCDEFGHIJ          12345";
 
     let decode_options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -292,7 +292,8 @@ fn test_redefines_raw_data_precedence() {
 fn test_redefines_round_trip_preservation() {
     let schema = create_redefines_schema();
 
-    let original_data = b"1234567890ABCDEFGHIJKLMNOPQRSTUVWXY"; // 35 bytes total
+    // Ensure record fills the longest REDEFINES cluster (35 bytes)
+    let original_data = b"1234567890ABCDEFGHIJ          12345";
 
     // Decode with raw capture
     let decode_options = DecodeOptions {

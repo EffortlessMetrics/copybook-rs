@@ -27,9 +27,10 @@ pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
 
 // Export ODO/REDEFINES module (essential for functionality)
 pub use odo_redefines::{
-    OdoValidationResult, RedefinesContext, validate_odo_counter, validate_odo_tail_position,
-    build_redefines_context, validate_redefines_encoding, handle_missing_counter_field,
-    create_comprehensive_error_context, validate_odo_decode, validate_odo_encode,
+    OdoValidationResult, RedefinesContext, build_redefines_context,
+    create_comprehensive_error_context, handle_missing_counter_field, validate_odo_counter,
+    validate_odo_decode, validate_odo_encode, validate_odo_tail_position,
+    validate_redefines_encoding,
 };
 
 // Export other modules (commented out due to compilation issues)

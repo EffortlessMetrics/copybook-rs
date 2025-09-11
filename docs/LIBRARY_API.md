@@ -122,6 +122,21 @@ pub enum Occurs {
 }
 ```
 
+### ODO and REDEFINES Types
+
+```rust
+pub struct OdoValidationResult {
+    pub actual_count: u32,
+    pub was_clamped: bool,
+    pub warning: Option<Error>,
+}
+
+pub struct RedefinesContext {
+    pub cluster_views: HashMap<String, Vec<String>>,
+    pub field_to_cluster: HashMap<String, String>,
+}
+```
+
 ## Configuration Types
 
 ### DecodeOptions
@@ -297,6 +312,138 @@ let summary = encode_jsonl_to_file(
     Path::new("output.bin"),
 )?;
 ```
+
+## ODO and REDEFINES Validation
+
+### ODO Validation Functions
+
+```rust
+pub fn validate_odo_counter(
+    counter_value: u32,
+    min_count: u32,
+    max_count: u32,
+    field_path: &str,
+    counter_path: &str,
+    record_index: u64,
+    byte_offset: u64,
+    strict_mode: bool,
+) -> Result<OdoValidationResult, Error>
+```
+
+Validate ODO counter value with strict/lenient mode handling.
+
+**Parameters:**
+- `counter_value` - Counter value from the record
+- `min_count` - Minimum allowed array size
+- `max_count` - Maximum allowed array size  
+- `field_path` - Path to the ODO array field
+- `counter_path` - Path to the counter field
+- `record_index` - Current record number (0-based)
+- `byte_offset` - Byte offset within record
+- `strict_mode` - If true, out-of-bounds is fatal; if false, clamp with warning
+
+**Returns:**
+- `Ok(OdoValidationResult)` - Validation result with actual count to use
+- `Err(Error)` - Fatal error in strict mode or other validation failures
+
+**Behavior:**
+- **Strict Mode**: Out-of-bounds counter values result in fatal `CBKS301_ODO_CLIPPED` or `CBKS302_ODO_RAISED` errors
+- **Lenient Mode**: Out-of-bounds values are clamped to min/max with warnings
+
+```rust  
+pub fn validate_odo_decode(
+    counter_value: u32,
+    min_count: u32,
+    max_count: u32,
+    field_path: &str,
+    counter_path: &str,
+    record_index: u64,
+    byte_offset: u64,
+    strict_mode: bool,
+) -> Result<OdoValidationResult, Error>
+```
+
+Wrapper for ODO validation during decode operations. Same parameters and behavior as `validate_odo_counter`.
+
+```rust
+pub fn validate_odo_encode(
+    counter_value: u32,
+    min_count: u32,
+    max_count: u32,
+    field_path: &str,
+    counter_path: &str,
+    record_index: u64,
+    strict_mode: bool,
+) -> Result<OdoValidationResult, Error>
+```
+
+Wrapper for ODO validation during encode operations.
+
+### REDEFINES Validation Functions
+
+```rust
+pub fn build_redefines_context(
+    schema: &Schema,
+    json_record: &serde_json::Value,
+) -> Result<RedefinesContext, Error>
+```
+
+Analyze schema and JSON record to build REDEFINES context for encoding validation.
+
+**Parameters:**
+- `schema` - Parsed copybook schema
+- `json_record` - JSON record to analyze
+
+**Returns:**
+- `Ok(RedefinesContext)` - Context with cluster and view information
+- `Err(Error)` - Analysis error
+
+```rust
+pub fn validate_redefines_encoding(
+    context: &RedefinesContext, 
+    json_record: &serde_json::Value,
+    use_raw: bool,
+) -> Result<(), Error>
+```
+
+Validate REDEFINES encoding precedence rules.
+
+**Parameters:**
+- `context` - REDEFINES context from `build_redefines_context`
+- `json_record` - JSON record to validate
+- `use_raw` - Whether raw byte fallback is enabled
+
+**Returns:**
+- `Ok(())` - Validation passed
+- `Err(Error)` - Validation failed (ambiguous REDEFINES)
+
+**Precedence Rules:**
+1. If `use_raw` is true and `__raw_b64` present with matching values → use raw bytes
+2. If exactly one view under cluster is non-null → encode from that view  
+3. If multiple views are non-null → error `CBKE501_JSON_TYPE_MISMATCH`
+
+### Error Handling Functions
+
+```rust
+pub fn create_comprehensive_error_context(
+    record_index: Option<u64>,
+    field_path: Option<String>,
+    byte_offset: Option<u64>,
+    additional_details: Option<String>,
+) -> ErrorContext
+```
+
+Create comprehensive error context for ODO/REDEFINES errors.
+
+```rust
+pub fn handle_missing_counter_field(
+    counter_path: &str,
+    odo_field_path: &str,
+    schema: &Schema,
+) -> Error
+```
+
+Generate detailed error for missing ODO counter field with suggestions.
 
 ### Record-Level Processing
 
@@ -497,6 +644,107 @@ let opts = DecodeOptions {
     codepage: Codepage::Custom(custom_cp),
     ..Default::default()
 };
+```
+
+## ODO and REDEFINES Usage Examples
+
+### ODO Validation Example
+
+```rust
+use copybook_codec::{validate_odo_decode, OdoValidationResult};
+
+// During record processing
+fn process_odo_field(
+    counter_value: u32,
+    schema: &Schema,
+    field: &Field,
+    record_index: u64,
+    strict_mode: bool,
+) -> Result<u32, Error> {
+    if let Some(Occurs::ODO { min, max, counter_path }) = &field.occurs {
+        let validation = validate_odo_decode(
+            counter_value,
+            *min,
+            *max,
+            &field.path,
+            counter_path,
+            record_index,
+            field.offset as u64,
+            strict_mode,
+        )?;
+        
+        if validation.was_clamped {
+            if let Some(warning) = validation.warning {
+                eprintln!("ODO Warning: {}", warning.message);
+            }
+        }
+        
+        Ok(validation.actual_count)
+    } else {
+        Ok(0) // Not an ODO field
+    }
+}
+```
+
+### REDEFINES Validation Example
+
+```rust
+use copybook_codec::{build_redefines_context, validate_redefines_encoding};
+
+// During JSON encoding
+fn validate_json_for_redefines(
+    schema: &Schema,
+    json_record: &serde_json::Value,
+    use_raw: bool,
+) -> Result<(), Error> {
+    // Build context for REDEFINES analysis
+    let redefines_ctx = build_redefines_context(schema, json_record)?;
+    
+    // Validate encoding precedence
+    validate_redefines_encoding(&redefines_ctx, json_record, use_raw)?;
+    
+    println!("REDEFINES validation passed - no ambiguous clusters");
+    Ok(())
+}
+
+// Example JSON with REDEFINES
+let json = json!({
+    "FIELD_A": "some value",
+    "FIELD_B": null,  // REDEFINES FIELD_A - ok, only one non-null view
+    "OTHER_FIELD": "other value"
+});
+
+validate_json_for_redefines(&schema, &json, false)?;
+```
+
+### Error Handling Pattern
+
+```rust
+use copybook_codec::{validate_odo_counter, ErrorCode};
+
+match validate_odo_counter(counter_value, min, max, field_path, counter_path, 
+                          record_index, byte_offset, strict_mode) {
+    Ok(result) => {
+        if result.was_clamped {
+            // Handle clamping in lenient mode
+            println!("ODO clamped from {} to {}", counter_value, result.actual_count);
+        }
+        // Use result.actual_count for array processing
+    }
+    Err(e) => match e.code {
+        ErrorCode::CBKS301_ODO_CLIPPED => {
+            // Counter exceeded maximum in strict mode
+            eprintln!("ODO counter too large: {}", e.message);
+            return Err(e);
+        }
+        ErrorCode::CBKS302_ODO_RAISED => {
+            // Counter below minimum in strict mode
+            eprintln!("ODO counter too small: {}", e.message);
+            return Err(e);
+        }
+        _ => return Err(e),
+    }
+}
 ```
 
 ## Integration Examples

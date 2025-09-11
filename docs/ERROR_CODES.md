@@ -93,6 +93,19 @@ Computed size: 67108864 bytes
 Maximum: 16777216 bytes
 ```
 
+#### CBKS121_COUNTER_NOT_FOUND
+**Description**: ODO counter field not found or invalid
+**Severity**: Fatal
+**Context**: Counter field path, ODO array path, similar field suggestions
+**Resolution**: Ensure counter field exists and precedes ODO array
+
+```
+Error: CBKS121_COUNTER_NOT_FOUND
+Counter field: ROOT.ORDER_COUNT
+ODO array: ROOT.ORDERS
+Similar fields found: ROOT.ORDER_CNT, ROOT.ITEM_COUNT
+```
+
 #### CBKS301_ODO_CLIPPED
 **Description**: ODO counter value exceeds maximum, clipped
 **Severity**: Warning (lenient mode)
@@ -206,16 +219,23 @@ All spaces decoded as zero
 Errors during JSON to binary encoding.
 
 #### CBKE501_JSON_TYPE_MISMATCH
-**Description**: JSON value type doesn't match field type
+**Description**: JSON value type doesn't match field type, or REDEFINES ambiguity detected
 **Severity**: Fatal
-**Context**: Record number, field path, expected vs actual type
-**Resolution**: Fix JSON data type or schema
+**Context**: Record number, field path, expected vs actual type, or REDEFINES cluster information
+**Resolution**: Fix JSON data type/schema, or resolve REDEFINES ambiguity
 
 ```
 Error: CBKE501_JSON_TYPE_MISMATCH at record 700
 Field: ROOT.CUSTOMER.ID
 Expected: string (zoned decimal)
 Found: number
+```
+
+```
+Error: CBKE501_JSON_TYPE_MISMATCH at record 500
+Multiple non-null views in REDEFINES cluster: ROOT.TRANSACTION_DATA
+Views: TYPE_A_DATA, TYPE_B_DATA
+Resolution: Set all but one view to null, or use --use-raw with __raw_b64
 ```
 
 #### CBKE521_ARRAY_LEN_OOB
@@ -299,12 +319,29 @@ Possible text-mode transfer corruption
 - Check for non-standard RDW format
 - Verify variable-length record format
 
-#### "CBKS301_ODO_CLIPPED"
-**Problem**: ODO counter exceeds maximum
+#### "CBKS301_ODO_CLIPPED" or "CBKS302_ODO_RAISED"
+**Problem**: ODO counter value out of bounds (above maximum or below minimum)
 **Solutions**:
-- Increase OCCURS maximum in copybook
-- Use strict mode to fail fast
-- Check data integrity
+- **Increase/adjust OCCURS bounds** in copybook to accommodate data range
+- **Use strict mode** (`--strict`) to fail immediately instead of clamping
+- **Check data integrity** - verify counter field values are correct
+- **Verify counter field path** - ensure correct field is being used as counter
+
+#### "CBKE501_JSON_TYPE_MISMATCH" (REDEFINES Ambiguity)
+**Problem**: Multiple REDEFINES views have non-null values during encoding
+**Solutions**:
+- **Single view approach** - Set all but one view to `null` in JSON
+- **Raw byte approach** - Use `--emit-raw record` during decode and `--use-raw` during encode
+- **Data analysis** - Determine which view should be populated for each record type
+- **Schema validation** - Verify REDEFINES structure matches data expectations
+
+#### "CBKS121_COUNTER_NOT_FOUND"
+**Problem**: ODO counter field cannot be found in schema
+**Solutions**:
+- **Check field name** - Verify counter field exists in copybook
+- **Check field order** - Ensure counter field appears before ODO array
+- **Review similar fields** - Check suggested similar field names in error message
+- **Verify field path** - Ensure counter field is not inside REDEFINES or ODO regions
 
 ### Performance Issues
 
@@ -371,14 +408,14 @@ Possible text-mode transfer corruption
 | CBKP051 | Parse | Fatal | Edited PIC unsupported |
 | CBKS121 | Schema | Fatal | Counter not found |
 | CBKS141 | Schema | Fatal | Record too large |
-| CBKS301 | Schema | Warning | ODO clipped |
-| CBKS302 | Schema | Warning | ODO raised |
+| CBKS301 | Schema | Warning/Fatal | ODO clipped (lenient/strict) |
+| CBKS302 | Schema | Warning/Fatal | ODO raised (lenient/strict) |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
 | CBKR221 | Record | Fatal | RDW underflow |
 | CBKC301 | Charset | Warning/Fatal | Invalid EBCDIC byte |
 | CBKD401 | Decode | Fatal/Warning | COMP-3 invalid nibble |
 | CBKD411 | Decode | Fatal/Warning | Zoned bad sign |
 | CBKD412 | Decode | Warning | Zoned blank is zero |
-| CBKE501 | Encode | Fatal | JSON type mismatch |
+| CBKE501 | Encode | Fatal | JSON type mismatch / REDEFINES ambiguity |
 | CBKE521 | Encode | Fatal | Array length OOB |
 | CBKF104 | File | Warning | RDW suspect ASCII |

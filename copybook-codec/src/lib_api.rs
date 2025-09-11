@@ -237,9 +237,9 @@ fn decode_record_impl(
                             options.on_decode_unmappable,
                         )?;
                         let counter_value = counter_str.parse::<u32>().unwrap_or(*max);
-                        
+
                         // Use ODO validation from odo_redefines module
-                        match crate::odo_redefines::validate_odo_decode(
+                        let validation_result = crate::odo_redefines::validate_odo_decode(
                             counter_value,
                             *min,
                             *max,
@@ -248,13 +248,9 @@ fn decode_record_impl(
                             0, // record_index - could be passed from caller
                             field.offset as u64,
                             options,
-                        ) {
-                            Ok(validation_result) => {
-                                *warnings += if validation_result.was_clamped { 1 } else { 0 };
-                                validation_result.actual_count as usize
-                            }
-                            Err(_) => *max as usize // Fallback in lenient mode
-                        }
+                        )?; // Propagate errors (strict mode failures)
+                        *warnings += if validation_result.was_clamped { 1 } else { 0 };
+                        validation_result.actual_count as usize
                     } else {
                         *max as usize // Fallback to max
                     }
@@ -600,31 +596,35 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
         // Create a mutable copy for ODO counter updates and build REDEFINES context
         let mut working_obj = obj.clone();
         let redefines_context = crate::odo_redefines::build_redefines_context(schema, json);
-        
+
         // Handle ODO counter updates
         for field in schema.all_fields() {
-            if let Some(copybook_core::Occurs::ODO { counter_path, min, max }) = &field.occurs {
-                if let Some(Value::Array(array)) = working_obj.get(&field.name) {
-                    let actual_count = crate::odo_redefines::validate_odo_encode(
-                        array.len(),
-                        *min,
-                        *max,
-                        &field.path,
-                        counter_path,
-                        0,
-                        field.offset as u64,
-                        options,
-                    )?;
-                    
-                    // Find counter field name (last component of path)
-                    let counter_name = counter_path.split('.').next_back().unwrap_or(counter_path);
-                    
-                    // Update counter field
-                    working_obj.insert(
-                        counter_name.to_string(), 
-                        Value::String(format!("{:02}", actual_count))
-                    );
-                }
+            if let Some(copybook_core::Occurs::ODO {
+                counter_path,
+                min,
+                max,
+            }) = &field.occurs
+                && let Some(Value::Array(array)) = working_obj.get(&field.name)
+            {
+                let actual_count = crate::odo_redefines::validate_odo_encode(
+                    array.len(),
+                    *min,
+                    *max,
+                    &field.path,
+                    counter_path,
+                    0,
+                    field.offset as u64,
+                    options,
+                )?;
+
+                // Find counter field name (last component of path)
+                let counter_name = counter_path.split('.').next_back().unwrap_or(counter_path);
+
+                // Update counter field
+                working_obj.insert(
+                    counter_name.to_string(),
+                    Value::String(format!("{:02}", actual_count)),
+                );
             }
         }
         for field in schema.all_fields() {
@@ -632,16 +632,18 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             if matches!(field.kind, copybook_core::FieldKind::Group) {
                 continue;
             }
-            
+
             // Check REDEFINES validation if this field is part of a REDEFINES cluster
-            if field.redefines_of.is_some() || redefines_context.field_to_cluster.contains_key(&field.name) {
+            if field.redefines_of.is_some()
+                || redefines_context.field_to_cluster.contains_key(&field.name)
+            {
                 // Find cluster root (either this field or what it redefines)
                 let cluster_path = if let Some(ref target) = field.redefines_of {
                     target.split('.').next_back().unwrap_or(target)
                 } else {
                     &field.name
                 };
-                
+
                 // Validate REDEFINES encoding precedence
                 crate::odo_redefines::validate_redefines_encoding(
                     &redefines_context,
@@ -653,8 +655,49 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
                     field.offset as u64,
                 )?;
             }
-            
-            if let Some(field_value) = working_obj.get(&field.name) {
+
+            // Handle arrays (OCCURS clause)
+            if let Some(occurs) = &field.occurs {
+                if let Some(Value::Array(array)) = working_obj.get(&field.name) {
+                    // Determine number of elements to encode
+                    let count = match occurs {
+                        copybook_core::Occurs::Fixed { count } => *count as usize,
+                        copybook_core::Occurs::ODO { min: _, max, .. } => {
+                            array.len().min(*max as usize)
+                        }
+                    };
+
+                    // Encode each array element
+                    for (i, element) in array.iter().take(count).enumerate() {
+                        let element_offset = field.offset + (i as u32 * field.len);
+                        let start = element_offset as usize;
+                        let end = (element_offset + field.len) as usize;
+
+                        if end <= payload_buffer.len() {
+                            match &field.kind {
+                                copybook_core::FieldKind::Alphanum { .. } => {
+                                    if let Some(text) = element.as_str() {
+                                        let bytes = text.as_bytes();
+                                        let copy_len = bytes.len().min(field.len as usize);
+                                        payload_buffer[start..start + copy_len]
+                                            .copy_from_slice(&bytes[..copy_len]);
+                                        // Pad with spaces if needed
+                                        payload_buffer[start + copy_len..end].fill(
+                                            match options.codepage {
+                                                crate::options::Codepage::ASCII => b' ',
+                                                _ => 0x40, // EBCDIC space
+                                            },
+                                        );
+                                    }
+                                }
+                                _ => {
+                                    // Handle other field types as needed
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if let Some(field_value) = working_obj.get(&field.name) {
                 let start = field.offset as usize;
                 let end = (field.offset + field.len) as usize;
 

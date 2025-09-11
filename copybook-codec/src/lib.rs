@@ -9,6 +9,7 @@ pub mod iterator;
 pub mod lib_api;
 pub mod memory;
 pub mod numeric;
+pub mod odo_redefines;
 pub mod options;
 
 pub use options::{
@@ -23,6 +24,13 @@ pub use lib_api::{
 
 // Export RecordIterator from iterator module (handles RDW properly)
 pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
+
+// Export ODO/REDEFINES module (essential for functionality)
+pub use odo_redefines::{
+    OdoValidationResult, RedefinesContext, validate_odo_counter, validate_odo_tail_position,
+    build_redefines_context, validate_redefines_encoding, handle_missing_counter_field,
+    create_comprehensive_error_context, validate_odo_decode, validate_odo_encode,
+};
 
 // Export other modules (commented out due to compilation issues)
 /*
@@ -45,11 +53,6 @@ pub use json::{JsonWriter, JsonEncoder, OrderedJsonWriter};
 pub use roundtrip::{RoundTripConfig, RoundTripResult, RoundTripTestSuite, create_comprehensive_test_suite};
 pub use corruption::{detect_rdw_ascii_corruption, detect_ebcdic_corruption, detect_packed_corruption};
 pub use processor::{DecodeProcessor, EncodeProcessor};
-pub use odo_redefines::{
-    OdoValidationResult, RedefinesContext, validate_odo_counter, validate_odo_tail_position,
-    build_redefines_context, validate_redefines_encoding, handle_missing_counter_field,
-    create_comprehensive_error_context, validate_odo_decode, validate_odo_encode,
-};
 */
 
 // RunSummary is now exported from lib_api module

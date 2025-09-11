@@ -291,19 +291,19 @@ impl ErrorReporter {
     /// Determine error severity based on error code
     fn determine_severity(&self, error: &Error) -> ErrorSeverity {
         match error.code {
-            // Parse errors are typically fatal
+            // Parse errors and JSON write errors are typically fatal
             ErrorCode::CBKP001_SYNTAX
             | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
             | ErrorCode::CBKP021_ODO_NOT_TAIL
-            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
+            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+            | ErrorCode::CBKS121_COUNTER_NOT_FOUND
+            | ErrorCode::CBKS141_RECORD_TOO_LARGE
+            | ErrorCode::CBKC201_JSON_WRITE_ERROR => ErrorSeverity::Fatal,
 
-            // Schema errors can be fatal or errors depending on context
-            ErrorCode::CBKS121_COUNTER_NOT_FOUND | ErrorCode::CBKS141_RECORD_TOO_LARGE => {
-                ErrorSeverity::Fatal
-            }
-
-            // ODO clipping is a warning in lenient mode, error in strict mode
-            ErrorCode::CBKS301_ODO_CLIPPED | ErrorCode::CBKS302_ODO_RAISED => {
+            // ODO clipping and record format warnings - strict mode check
+            ErrorCode::CBKS301_ODO_CLIPPED
+            | ErrorCode::CBKS302_ODO_RAISED
+            | ErrorCode::CBKR211_RDW_RESERVED_NONZERO => {
                 if self.mode == ErrorMode::Strict {
                     ErrorSeverity::Fatal
                 } else {
@@ -311,38 +311,19 @@ impl ErrorReporter {
                 }
             }
 
-            // Record format warnings
-            ErrorCode::CBKR211_RDW_RESERVED_NONZERO => {
-                if self.mode == ErrorMode::Strict {
-                    ErrorSeverity::Fatal
-                } else {
-                    ErrorSeverity::Warning
-                }
-            }
-            ErrorCode::CBKR221_RDW_UNDERFLOW => ErrorSeverity::Error,
-
-            // Character conversion warnings
-            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => ErrorSeverity::Warning,
-
-            // Data decode errors
-            ErrorCode::CBKD101_INVALID_FIELD_TYPE
+            // Data decode and encode errors
+            ErrorCode::CBKR221_RDW_UNDERFLOW
+            | ErrorCode::CBKD101_INVALID_FIELD_TYPE
             | ErrorCode::CBKD301_RECORD_TOO_SHORT
             | ErrorCode::CBKD401_COMP3_INVALID_NIBBLE
-            | ErrorCode::CBKD411_ZONED_BAD_SIGN => ErrorSeverity::Error,
+            | ErrorCode::CBKD411_ZONED_BAD_SIGN
+            | ErrorCode::CBKE501_JSON_TYPE_MISMATCH
+            | ErrorCode::CBKE521_ARRAY_LEN_OOB => ErrorSeverity::Error,
 
-            // BLANK WHEN ZERO is informational
-            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => ErrorSeverity::Warning,
-
-            // Encode errors
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE521_ARRAY_LEN_OOB => {
-                ErrorSeverity::Error
-            }
-
-            // Transfer corruption warnings
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
-
-            // JSON write errors are typically fatal
-            ErrorCode::CBKC201_JSON_WRITE_ERROR => ErrorSeverity::Fatal,
+            // Warnings for character conversion, blank when zero, and transfer corruption
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE
+            | ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO
+            | ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
         }
     }
 

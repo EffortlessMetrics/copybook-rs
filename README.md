@@ -21,7 +21,7 @@ copybook-rs is a Rust implementation of a COBOL copybook parser and data codec t
 - **Memory Safety**: No unsafe code in public API paths
 - **Streaming Architecture**: Bounded memory usage for multi-GB files
 - **Comprehensive Error Handling**: Stable error codes with structured context
-- **COBOL Feature Support**: REDEFINES, OCCURS DEPENDING ON, SYNCHRONIZED, packed/zoned decimals
+- **COBOL Feature Support**: Full REDEFINES and OCCURS DEPENDING ON support, SYNCHRONIZED, packed/zoned decimals
 - **Character Encoding**: Full EBCDIC support (CP037, CP273, CP500, CP1047, CP1140) and ASCII
 - **Performance**: ≥80 MB/s throughput for DISPLAY-heavy data, ≥40 MB/s for COMP-3-heavy
 
@@ -119,6 +119,52 @@ copybook encode schema.cpy data.jsonl \
   --output data-roundtrip.bin
 ```
 
+### Working with ODO (OCCURS DEPENDING ON)
+
+```bash
+# Decode variable arrays with strict validation (fail on ODO out-of-bounds)
+copybook decode schema.cpy data.bin \
+  --format fixed \
+  --strict \
+  --output data.jsonl
+
+# Lenient mode with ODO clamping (clamp counter to min/max with warnings)
+copybook decode schema.cpy data.bin \
+  --format fixed \
+  --output data.jsonl  # lenient is default
+
+# Include metadata to see ODO counter values
+copybook decode schema.cpy data.bin \
+  --format fixed \
+  --emit-meta \
+  --output data.jsonl
+```
+
+### Working with REDEFINES
+
+```bash
+# Decode data with REDEFINES (all views included in JSON)
+copybook decode schema.cpy data.bin \
+  --format fixed \
+  --output data.jsonl
+
+# Encode with REDEFINES precedence validation
+copybook encode schema.cpy data.jsonl \
+  --format fixed \
+  --output data.bin  # Fails if multiple non-null views
+
+# Use raw data for REDEFINES ambiguity resolution
+copybook decode schema.cpy data.bin \
+  --format fixed \
+  --emit-raw record \
+  --output data.jsonl
+
+copybook encode schema.cpy data.jsonl \
+  --format fixed \
+  --use-raw \
+  --output data.bin  # Uses __raw_b64 when present
+```
+
 ### Character Encoding Options
 
 ```bash
@@ -197,7 +243,7 @@ let schema = parse_copybook(&copybook_text)?;
 let opts = DecodeOptions {
     codepage: Codepage::Cp037,
     format: RecordFormat::Fixed,
-    strict: false,
+    strict: false,  // lenient mode: clamp ODO out-of-bounds with warnings
     max_errors: Some(100),
     emit_filler: false,
     emit_meta: true,
@@ -215,6 +261,38 @@ let summary = decode_file_to_jsonl(
 
 println!("Processed {} records with {} errors", 
          summary.records_processed, summary.error_count);
+```
+
+### ODO and REDEFINES Validation
+
+```rust
+use copybook_codec::{
+    validate_odo_decode, validate_redefines_encoding, 
+    build_redefines_context, OdoValidationResult
+};
+
+// Validate ODO counter values during decode
+let odo_result: OdoValidationResult = validate_odo_decode(
+    counter_value,
+    min_count,
+    max_count, 
+    "ROOT.ORDERS",
+    "ROOT.ORDER_COUNT",
+    record_index,
+    byte_offset,
+    opts.strict
+)?;
+
+if odo_result.was_clamped {
+    println!("ODO counter clamped from {} to {}", 
+             counter_value, odo_result.actual_count);
+}
+
+// Build REDEFINES context for encoding validation
+let redefines_ctx = build_redefines_context(&schema, &json_record)?;
+
+// Validate REDEFINES encoding precedence
+validate_redefines_encoding(&redefines_ctx, &json_record, opts.use_raw)?;
 ```
 
 ### Streaming Record Processing
@@ -248,15 +326,15 @@ for record_result in decoder.decode_file("data.bin")? {
 
 ### Structure Features
 - **Level Numbers**: 01-49 hierarchical grouping
-- **REDEFINES**: Multiple views over same storage area
-- **OCCURS**: Fixed arrays and variable arrays (OCCURS DEPENDING ON)
+- **REDEFINES**: Multiple views over same storage area with encoding precedence validation
+- **OCCURS**: Fixed arrays and variable arrays (OCCURS DEPENDING ON) with strict/lenient validation
 - **SYNCHRONIZED**: Field alignment on natural boundaries
 - **BLANK WHEN ZERO**: Special handling for zero values
 
 ### Record Formats
 - **Fixed-Length**: Constant LRECL records
 - **Variable-Length**: RDW (Record Descriptor Word) format
-- **ODO Support**: Variable arrays at tail position only
+- **ODO Support**: Full variable array support at tail position with comprehensive validation
 
 ### Limitations
 - **Unsupported**: COMP-1, COMP-2, edited PIC clauses (Z, /, comma)
@@ -272,6 +350,11 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKP001_SYNTAX`: Copybook syntax errors
 - `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
+
+### Schema Errors (CBKS*)
+- `CBKS121_COUNTER_NOT_FOUND`: ODO counter field not found or invalid
+- `CBKS301_ODO_CLIPPED`: ODO counter value exceeds maximum (warning in lenient mode)
+- `CBKS302_ODO_RAISED`: ODO counter value below minimum (warning in lenient mode)
 
 ### Data Errors (CBKD*)
 - `CBKD401_COMP3_INVALID_NIBBLE`: Invalid packed decimal data

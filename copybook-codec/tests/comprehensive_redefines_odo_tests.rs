@@ -183,7 +183,7 @@ fn test_redefines_raw_preserved_record() {
         ..create_test_decode_options(false)
     };
 
-    let test_data = b"HELLO123";
+    let test_data = b"12345678"; // Use all numeric data that works for both views
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -311,8 +311,8 @@ fn test_odo_decode_clamp_vs_strict() {
     let lenient_options = create_rdw_decode_options(false);
 
     // Counter = 99 (exceeds max of 5)
-    // RDW header: length=17, reserved=0, followed by payload
-    let test_data = b"\x00\x11\x00\x0099ABCDEFGHIJKLMNO"; // Counter + 5 array elements
+    // RDW header: length=21 (4-byte header + 2-byte counter + 15 bytes for 5 elements), reserved=0
+    let test_data = b"\x00\x15\x00\x0099ABCDEFGHIJKLMNO"; // Counter + 5 array elements (2+15=17 bytes payload, 21 total)
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -385,8 +385,8 @@ fn test_odo_payload_length_correctness() {
     let options = create_rdw_decode_options(false);
 
     // Test with counter = 3, should read exactly 3 elements
-    // RDW header: length=14 (2 bytes counter + 12 bytes for 3 elements), reserved=0, followed by payload
-    let test_data = b"\x00\x0E\x00\x0003ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // RDW + Counter + 3x4-byte elements
+    // RDW header: length=18 (4-byte header + 2-byte counter + 12 bytes for 3 elements), reserved=0
+    let test_data = b"\x00\x12\x00\x0003ABCDEFGHIJKL"; // RDW + Counter + 3x4-byte elements (2+12=14 bytes payload, 18 total)
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -517,8 +517,8 @@ fn test_odo_minimum_counter_handling() {
     let options = create_rdw_decode_options(false); // Lenient mode
 
     // Test with counter below minimum (should clamp to minimum)
-    // RDW header: length=8 (2 bytes counter + 6 bytes for 3 elements), reserved=0, followed by payload
-    let test_data = b"\x00\x08\x00\x0001ABCDEF"; // RDW + Counter = 1, min = 3 → read 3x2-byte elements
+    // RDW header: length=12 (4-byte header + 2-byte counter + 6 bytes for 3 elements), reserved=0
+    let test_data = b"\x00\x0C\x00\x0001ABCDEF"; // RDW + Counter = 1, min = 3 → read 3x2-byte elements (2+6=8 bytes payload, 12 total)
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -553,7 +553,7 @@ fn test_redefines_declaration_order() {
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(false);
 
-    let test_data = b"ABCD1234";
+    let test_data = b"31234567"; // Use all numeric data that works for all views
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 

@@ -1073,9 +1073,9 @@ impl Parser {
                 } else {
                     // Traditional logic based on digits (IBM mainframe standards)
                     match digits {
-                        1..=4 => 16,  // 1-4 digits: 2 bytes (16-bit)
-                        5..=8 => 32,  // 5-8 digits: 4 bytes (32-bit)
-                        9..=18 => 64, // 9-18 digits: 8 bytes (64-bit)
+                        1..=4 => 16,   // 1-4 digits: 2 bytes (16-bit)
+                        5..=9 => 32,   // 5-9 digits: 4 bytes (32-bit)
+                        10..=18 => 64, // 10-18 digits: 8 bytes (64-bit)
                         _ => {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
@@ -1107,9 +1107,9 @@ impl Parser {
         match &field.kind {
             FieldKind::ZonedDecimal { digits, signed, .. } => {
                 let bits = match digits {
-                    1..=4 => 16,  // 1-4 digits: 2 bytes (16-bit)
-                    5..=8 => 32,  // 5-8 digits: 4 bytes (32-bit)
-                    9..=18 => 64, // 9-18 digits: 8 bytes (64-bit)
+                    1..=4 => 16,   // 1-4 digits: 2 bytes (16-bit)
+                    5..=9 => 32,   // 5-9 digits: 4 bytes (32-bit)
+                    10..=18 => 64, // 10-18 digits: 8 bytes (64-bit)
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKP001_SYNTAX,

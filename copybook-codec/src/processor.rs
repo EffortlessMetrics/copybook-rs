@@ -1061,7 +1061,7 @@ impl EncodeProcessor {
                 let array_field_name = tail_odo
                     .array_path
                     .split('.')
-                    .last()
+                    .next_back()
                     .unwrap_or(&tail_odo.array_path);
 
                 if let Some(Value::Array(array)) = obj.get(array_field_name) {

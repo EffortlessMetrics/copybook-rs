@@ -10,7 +10,7 @@ pub fn run(copybook: &PathBuf, codepage: Codepage) -> Result<i32, Box<dyn std::e
     info!("Inspecting copybook: {:?}", copybook);
 
     // Read copybook file
-    let copybook_text = fs::read_to_string(&copybook)?;
+    let copybook_text = fs::read_to_string(copybook)?;
 
     // Parse copybook
     let schema = parse_copybook(&copybook_text)?;

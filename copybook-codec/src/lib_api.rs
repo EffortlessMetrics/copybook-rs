@@ -223,7 +223,7 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
     }
 
     // Reorder the JSON object to match schema field declaration order
-    let reordered_obj = reorder_json_fields(schema, json_obj);
+    let reordered_obj = reorder_json_fields(schema, &json_obj);
 
     Ok(Value::Object(reordered_obj))
 }
@@ -231,7 +231,7 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 /// Reorder JSON object fields to match schema declaration order
 fn reorder_json_fields(
     schema: &Schema,
-    json_obj: serde_json::Map<String, Value>,
+    json_obj: &serde_json::Map<String, Value>,
 ) -> serde_json::Map<String, Value> {
     let mut ordered_map = serde_json::Map::new();
 
@@ -256,7 +256,7 @@ fn reorder_json_fields(
     }
 
     // Add any metadata fields at the end
-    for (key, value) in &json_obj {
+    for (key, value) in json_obj {
         if key.starts_with("__") && !ordered_map.contains_key(key) {
             ordered_map.insert(key.clone(), value.clone());
         }
@@ -445,7 +445,7 @@ fn decode_scalar_field_with_data(
         }
         copybook_core::FieldKind::BinaryInt { bits, signed } => {
             // Basic binary integer decoding
-            decode_binary_int_basic(field_data, *bits, *signed)
+            Ok(decode_binary_int_basic(field_data, *bits, *signed))
         }
         copybook_core::FieldKind::Group => Err(Error::new(
             ErrorCode::CBKD101_INVALID_FIELD_TYPE,
@@ -554,7 +554,7 @@ fn decode_scalar_field(
         }
         copybook_core::FieldKind::BinaryInt { bits, signed } => {
             // Basic binary integer decoding
-            decode_binary_int_basic(&field_data, *bits, *signed)
+            Ok(decode_binary_int_basic(&field_data, *bits, *signed))
         }
         copybook_core::FieldKind::Group => Err(Error::new(
             ErrorCode::CBKD101_INVALID_FIELD_TYPE,
@@ -596,10 +596,21 @@ fn decode_array_field(
                     if counter_value < *min {
                         if options.strict_mode {
                             return Err(Error::new(
-                                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                                ErrorCode::CBKS301_ODO_CLIPPED,
                                 format!(
                                     "ODO counter value {} below minimum {} for array {}",
                                     counter_value, min, field.path
+                                ),
+                            )
+                            .with_context(
+                                crate::odo_redefines::create_comprehensive_error_context(
+                                    0, // record_index - using 0 for now since we don't track record index in decode_array_field context
+                                    &field.path,
+                                    u64::from(field.offset),
+                                    Some(format!(
+                                        "counter_field={}, counter_value={}, min_count={}",
+                                        counter_path, counter_value, min
+                                    )),
                                 ),
                             ));
                         }
@@ -611,10 +622,21 @@ fn decode_array_field(
                     if counter_value > *max {
                         if options.strict_mode {
                             return Err(Error::new(
-                                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                                ErrorCode::CBKS301_ODO_CLIPPED,
                                 format!(
                                     "ODO counter value {} exceeds maximum {} for array {}",
                                     counter_value, max, field.path
+                                ),
+                            )
+                            .with_context(
+                                crate::odo_redefines::create_comprehensive_error_context(
+                                    0, // record_index - using 0 for now since we don't track record index in decode_array_field context
+                                    &field.path,
+                                    u64::from(field.offset),
+                                    Some(format!(
+                                        "counter_field={}, counter_value={}, max_count={}",
+                                        counter_path, counter_value, max
+                                    )),
                                 ),
                             ));
                         }
@@ -674,38 +696,7 @@ fn decode_array_field(
         // Check if we have enough data for this element
         if element_offset + element_size as usize > data.len() {
             // Not enough data for this element - pad with empty data or truncate
-            if !options.strict_mode {
-                // In lenient mode, use whatever data is available
-                let available_end = data.len().min(element_offset + element_size as usize);
-                if element_offset < available_end {
-                    let partial_data = &data[element_offset..available_end];
-                    // Pad with spaces for alphanum fields
-                    let mut padded_data = vec![b' '; element_size as usize];
-                    let copy_len = partial_data.len().min(element_size as usize);
-                    padded_data[..copy_len].copy_from_slice(&partial_data[..copy_len]);
-
-                    // Create element field descriptor
-                    let mut element_field = field.clone();
-                    element_field.offset = element_offset as u32;
-                    element_field.len = element_size;
-                    element_field.occurs = None;
-
-                    let element_value =
-                        decode_scalar_field_with_data(&element_field, &padded_data, options)?;
-                    array.push(element_value);
-                } else {
-                    // Create empty element
-                    let empty_data = vec![b' '; element_size as usize];
-                    let mut element_field = field.clone();
-                    element_field.offset = element_offset as u32;
-                    element_field.len = element_size;
-                    element_field.occurs = None;
-
-                    let element_value =
-                        decode_scalar_field_with_data(&element_field, &empty_data, options)?;
-                    array.push(element_value);
-                }
-            } else {
+            if options.strict_mode {
                 return Err(Error::new(
                     ErrorCode::CBKD301_RECORD_TOO_SHORT,
                     format!(
@@ -716,10 +707,43 @@ fn decode_array_field(
                     ),
                 ));
             }
+            // In lenient mode, use whatever data is available
+            let available_end = data.len().min(element_offset + element_size as usize);
+            if element_offset < available_end {
+                let partial_data = &data[element_offset..available_end];
+                // Pad with spaces for alphanum fields
+                let mut padded_data = vec![b' '; element_size as usize];
+                let copy_len = partial_data.len().min(element_size as usize);
+                padded_data[..copy_len].copy_from_slice(&partial_data[..copy_len]);
+
+                // Create element field descriptor
+                let mut element_field = field.clone();
+                element_field.offset =
+                    u32::try_from(element_offset).expect("Element offset fits in u32");
+                element_field.len = element_size;
+                element_field.occurs = None;
+
+                let element_value =
+                    decode_scalar_field_with_data(&element_field, &padded_data, options)?;
+                array.push(element_value);
+            } else {
+                // Create empty element
+                let empty_data = vec![b' '; element_size as usize];
+                let mut element_field = field.clone();
+                element_field.offset =
+                    u32::try_from(element_offset).expect("Element offset fits in u32");
+                element_field.len = element_size;
+                element_field.occurs = None;
+
+                let element_value =
+                    decode_scalar_field_with_data(&element_field, &empty_data, options)?;
+                array.push(element_value);
+            }
         } else {
             // Create element field descriptor
             let mut element_field = field.clone();
-            element_field.offset = element_offset as u32;
+            element_field.offset =
+                u32::try_from(element_offset).expect("Element offset fits in u32");
             element_field.len = element_size;
             element_field.occurs = None; // Remove OCCURS for individual elements
 
@@ -739,7 +763,7 @@ fn read_odo_counter_value_from_schema(
     schema: &Schema,
 ) -> Result<u32> {
     // Extract counter field name from path (last component)
-    let counter_name = counter_path.split('.').last().unwrap_or(counter_path);
+    let counter_name = counter_path.split('.').next_back().unwrap_or(counter_path);
 
     // Find the counter field in the schema
     let counter_field = find_field_by_name(&schema.fields, counter_name).ok_or_else(|| {
@@ -970,7 +994,7 @@ fn decode_binary_int_to_u32(data: &[u8], signed: bool) -> Result<u32> {
         }
         4 => {
             let val = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
-            if signed && val & 0x80000000 != 0 {
+            if signed && val & 0x8000_0000 != 0 {
                 // Negative value in signed int
                 return Err(Error::new(
                     ErrorCode::CBKD101_INVALID_FIELD_TYPE,
@@ -1023,7 +1047,7 @@ fn find_actual_field_offset(field: &copybook_core::Field, _data: &[u8]) -> usize
 fn read_odo_counter_value(data: &[u8], counter_path: &str, array_path: &str) -> Result<u32> {
     // This is now a legacy function that assumes simple zoned decimal format
     // Extract counter field name from path (last component)
-    let _counter_name = counter_path.split('.').last().unwrap_or(counter_path);
+    let _counter_name = counter_path.split('.').next_back().unwrap_or(counter_path);
 
     // Try to read as zoned decimal - this is the old hardcoded behavior
     decode_zoned_decimal_to_u32(data).map_err(|_| {
@@ -1143,7 +1167,8 @@ fn decode_zoned_decimal_basic(
                 let trimmed = digits.trim_start_matches('0');
                 let abs_result = if trimmed.is_empty() { "0" } else { trimmed };
                 if abs_result == "0" {
-                    format!("{:0width$}", 0, width = field_width)
+                    // Normalize negative zero to positive zero (NORMATIVE behavior)
+                    "0".to_string()
                 } else {
                     format!(
                         "-{:0width$}",
@@ -1289,9 +1314,9 @@ fn decode_packed_decimal_basic(
 }
 
 /// Basic binary integer decoding
-fn decode_binary_int_basic(data: &[u8], bits: u16, signed: bool) -> Result<Value> {
+fn decode_binary_int_basic(data: &[u8], bits: u16, signed: bool) -> serde_json::Value {
     if data.is_empty() {
-        return Ok(Value::String("0".to_string()));
+        return Value::String("0".to_string());
     }
 
     let value = match (bits, data.len()) {
@@ -1299,31 +1324,36 @@ fn decode_binary_int_basic(data: &[u8], bits: u16, signed: bool) -> Result<Value
             let bytes = [data[0], data[1]];
             let val = u16::from_be_bytes(bytes);
             if signed {
-                (val as i16) as i64
+                #[allow(clippy::cast_possible_wrap)]
+                i64::from(val as i16)
             } else {
-                val as i64
+                i64::from(val)
             }
         }
         (32, 4) => {
             let bytes = [data[0], data[1], data[2], data[3]];
             let val = u32::from_be_bytes(bytes);
             if signed {
-                (val as i32) as i64
+                #[allow(clippy::cast_possible_wrap)]
+                i64::from(val as i32)
             } else {
-                val as i64
+                i64::from(val)
             }
         }
         _ => {
             // Generic handling for other sizes
             let mut val = 0u64;
             for &byte in data {
-                val = (val << 8) | (byte as u64);
+                val = (val << 8) | u64::from(byte);
             }
-            val as i64
+            #[allow(clippy::cast_possible_wrap)]
+            {
+                val as i64
+            }
         }
     };
 
-    Ok(Value::String(value.to_string()))
+    Value::String(value.to_string())
 }
 
 /// Encode JSON data to binary using the provided schema
@@ -1380,7 +1410,14 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             }
 
             let mut result = Vec::with_capacity(4 + new_length);
-            let length_bytes = (new_length as u16).to_be_bytes();
+            let length_bytes = u16::try_from(new_length)
+                .map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        format!("Record length {} exceeds u16::MAX", new_length),
+                    )
+                })?
+                .to_be_bytes();
             let reserved_bytes = reserved_bytes.to_be_bytes();
             result.extend_from_slice(&length_bytes);
             result.extend_from_slice(&reserved_bytes);
@@ -1422,7 +1459,14 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             }
 
             let mut result = Vec::with_capacity(4 + payload_length);
-            let length_bytes = (payload_length as u16).to_be_bytes();
+            let length_bytes = u16::try_from(payload_length)
+                .map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        format!("Payload length {} exceeds u16::MAX", payload_length),
+                    )
+                })?
+                .to_be_bytes();
             let reserved_bytes = [0u8; 2]; // Reserved bytes
             result.extend_from_slice(&length_bytes);
             result.extend_from_slice(&reserved_bytes);
@@ -1462,7 +1506,7 @@ fn encode_payload_from_json(
         // Process ODO counter updates
         for field in &schema.fields {
             encode_fields_recursive(
-                &[field.clone()],
+                std::slice::from_ref(field),
                 &mut json_with_updated_counters,
                 &Value::Object(obj.clone()),
             )?;
@@ -1620,20 +1664,20 @@ fn validate_redefines_ambiguity(
             let mut non_null_fields = Vec::new();
 
             // Check if original field has a value
-            if let Some(value) = json_obj.get(&target_field) {
-                if !value.is_null() {
-                    non_null_count += 1;
-                    non_null_fields.push(target_field.as_str());
-                }
+            if let Some(value) = json_obj.get(&target_field)
+                && !value.is_null()
+            {
+                non_null_count += 1;
+                non_null_fields.push(target_field.as_str());
             }
 
             // Check redefining fields
             for field in &redefining_fields {
-                if let Some(value) = json_obj.get(&field.name) {
-                    if !value.is_null() {
-                        non_null_count += 1;
-                        non_null_fields.push(&field.name);
-                    }
+                if let Some(value) = json_obj.get(&field.name)
+                    && !value.is_null()
+                {
+                    non_null_count += 1;
+                    non_null_fields.push(&field.name);
                 }
             }
 
@@ -1679,20 +1723,19 @@ fn validate_required_odo_counters(
                     // Check if the array field exists in JSON
                     if json_obj.contains_key(&field.name) {
                         // Array field exists, so counter is required
-                        let counter_name = counter_path.split('.').last().unwrap_or(counter_path);
+                        let counter_name =
+                            counter_path.split('.').next_back().unwrap_or(counter_path);
 
-                        if !json_obj.contains_key(counter_name) {
-                            if options.strict_mode {
-                                return Err(Error::new(
-                                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                    format!(
-                                        "ODO counter field '{}' is required for array '{}' but missing from JSON",
-                                        counter_name, field.name
-                                    ),
-                                ));
-                            }
-                            // In lenient mode, we'll auto-generate the counter later
+                        if !json_obj.contains_key(counter_name) && options.strict_mode {
+                            return Err(Error::new(
+                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                                format!(
+                                    "ODO counter field '{}' is required for array '{}' but missing from JSON",
+                                    counter_name, field.name
+                                ),
+                            ));
                         }
+                        // In lenient mode, we'll auto-generate the counter later
                     }
                 }
             }
@@ -1714,23 +1757,20 @@ fn encode_fields_recursive(
             }
             _ => {
                 // Check if this field has ODO and needs counter update
-                if let Some(copybook_core::Occurs::ODO { counter_path, .. }) = &field.occurs {
-                    if let Some(obj) = original_json.as_object() {
-                        if let Some(array_value) = obj.get(&field.name) {
-                            if let Some(array) = array_value.as_array() {
-                                // Update counter to match array length
-                                let actual_count = array.len();
-                                let counter_name =
-                                    counter_path.split('.').last().unwrap_or(counter_path);
+                if let Some(copybook_core::Occurs::ODO { counter_path, .. }) = &field.occurs
+                    && let Some(obj) = original_json.as_object()
+                    && let Some(array_value) = obj.get(&field.name)
+                    && let Some(array) = array_value.as_array()
+                {
+                    // Update counter to match array length
+                    let actual_count = array.len();
+                    let counter_name = counter_path.split('.').next_back().unwrap_or(counter_path);
 
-                                // Update the counter field in JSON
-                                json_obj.insert(
-                                    counter_name.to_string(),
-                                    Value::String(format!("{:02}", actual_count)),
-                                );
-                            }
-                        }
-                    }
+                    // Update the counter field in JSON
+                    json_obj.insert(
+                        counter_name.to_string(),
+                        Value::String(format!("{:02}", actual_count)),
+                    );
                 }
             }
         }
@@ -1745,27 +1785,24 @@ fn encode_single_field_to_payload(
     payload: &mut [u8],
     options: &EncodeOptions,
 ) -> Result<()> {
-    match &field.kind {
-        copybook_core::FieldKind::Group => {
-            // For groups, process children
-            for child in &field.children {
-                encode_single_field_to_payload(child, json_obj, payload, options)?;
-            }
+    if let copybook_core::FieldKind::Group = &field.kind {
+        // For groups, process children
+        for child in &field.children {
+            encode_single_field_to_payload(child, json_obj, payload, options)?;
         }
-        _ => {
-            // Skip FILLER fields
-            if field.name.eq_ignore_ascii_case("FILLER") {
-                return Ok(());
-            }
+    } else {
+        // Skip FILLER fields
+        if field.name.eq_ignore_ascii_case("FILLER") {
+            return Ok(());
+        }
 
-            // Check if this field has OCCURS (array)
-            if let Some(occurs) = &field.occurs {
-                encode_array_field_to_payload(field, json_obj, payload, options, occurs)?;
-            } else {
-                // Encode scalar field
-                if let Some(field_value) = json_obj.get(&field.name) {
-                    encode_field_to_payload(field, field_value, payload, options)?;
-                }
+        // Check if this field has OCCURS (array)
+        if let Some(occurs) = &field.occurs {
+            encode_array_field_to_payload(field, json_obj, payload, options, occurs)?;
+        } else {
+            // Encode scalar field
+            if let Some(field_value) = json_obj.get(&field.name) {
+                encode_field_to_payload(field, field_value, payload, options)?;
             }
         }
     }
@@ -1780,35 +1817,60 @@ fn encode_array_field_to_payload(
     options: &EncodeOptions,
     occurs: &copybook_core::Occurs,
 ) -> Result<()> {
-    if let Some(array_value) = json_obj.get(&field.name) {
-        if let Some(array) = array_value.as_array() {
-            // Calculate element size
-            let element_size = match occurs {
-                copybook_core::Occurs::Fixed { count } => {
-                    if *count > 0 {
-                        field.len / *count
-                    } else {
-                        field.len
-                    }
-                }
-                copybook_core::Occurs::ODO { .. } => {
-                    // For ODO, assume field.len is element size
+    if let Some(array_value) = json_obj.get(&field.name)
+        && let Some(array) = array_value.as_array()
+    {
+        // For ODO fields, validate array length against bounds
+        if let copybook_core::Occurs::ODO {
+            min,
+            max,
+            counter_path: _,
+        } = occurs
+        {
+            let array_length = array.len();
+            if array_length < *min as usize || array_length > *max as usize {
+                return Err(Error::new(
+                    ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                    format!(
+                        "JSON array length {} is out of bounds for ODO field '{}' (min={}, max={})",
+                        array_length, field.name, min, max
+                    ),
+                ));
+            }
+        }
+
+        // Calculate element size
+        let element_size = match occurs {
+            copybook_core::Occurs::Fixed { count } => {
+                if *count > 0 {
+                    field.len / *count
+                } else {
                     field.len
                 }
-            };
-
-            // Encode each array element
-            for (i, element_value) in array.iter().enumerate() {
-                let element_offset = field.offset + (i as u32 * element_size);
-
-                // Create element field descriptor
-                let mut element_field = field.clone();
-                element_field.offset = element_offset;
-                element_field.len = element_size;
-                element_field.occurs = None; // Remove OCCURS for individual elements
-
-                encode_field_to_payload(&element_field, element_value, payload, options)?;
             }
+            copybook_core::Occurs::ODO { .. } => {
+                // For ODO, assume field.len is element size
+                field.len
+            }
+        };
+
+        // Encode each array element
+        for (i, element_value) in array.iter().enumerate() {
+            let element_offset = field.offset
+                + (u32::try_from(i).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKE521_ARRAY_LEN_OOB,
+                        format!("Array index {} exceeds u32::MAX", i),
+                    )
+                })? * element_size);
+
+            // Create element field descriptor
+            let mut element_field = field.clone();
+            element_field.offset = element_offset;
+            element_field.len = element_size;
+            element_field.occurs = None; // Remove OCCURS for individual elements
+
+            encode_field_to_payload(&element_field, element_value, payload, options)?;
         }
     }
     Ok(())
@@ -1916,33 +1978,30 @@ pub fn decode_file_to_jsonl(
                         summary.bytes_processed += record_length as u64;
 
                         // Decode the record
-                        match decode_record(schema, &buffer, options) {
-                            Ok(json_value) => {
-                                // Check for BLANK WHEN ZERO warnings by examining the input data
-                                summary.warnings += check_blank_when_zero_warnings(schema, &buffer);
+                        if let Ok(json_value) = decode_record(schema, &buffer, options) {
+                            // Check for BLANK WHEN ZERO warnings by examining the input data
+                            summary.warnings += check_blank_when_zero_warnings(schema, &buffer);
 
-                                // Extract warnings from the decoded JSON record
-                                if let Some(obj) = json_value.as_object()
-                                    && let Some(warnings_val) = obj.get("__warnings")
-                                    && let Some(warnings_num) = warnings_val.as_u64()
-                                {
-                                    summary.warnings += warnings_num;
-                                }
-
-                                // Write as JSONL
-                                serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                                })?;
-                                writeln!(output).map_err(|e| {
-                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                                })?;
+                            // Extract warnings from the decoded JSON record
+                            if let Some(obj) = json_value.as_object()
+                                && let Some(warnings_val) = obj.get("__warnings")
+                                && let Some(warnings_num) = warnings_val.as_u64()
+                            {
+                                summary.warnings += warnings_num;
                             }
-                            Err(_) => {
-                                summary.records_with_errors += 1;
-                                // In lenient mode, continue processing
-                                if options.strict_mode {
-                                    break;
-                                }
+
+                            // Write as JSONL
+                            serde_json::to_writer(&mut output, &json_value).map_err(|e| {
+                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                            })?;
+                            writeln!(output).map_err(|e| {
+                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                            })?;
+                        } else {
+                            summary.records_with_errors += 1;
+                            // In lenient mode, continue processing
+                            if options.strict_mode {
+                                break;
                             }
                         }
                     }
@@ -1982,7 +2041,7 @@ pub fn decode_file_to_jsonl(
                         {
                             return Err(Error::new(
                                 ErrorCode::CBKR221_RDW_UNDERFLOW,
-                                format!("RDW payload {} bytes insufficient for schema requiring {} bytes", 
+                                format!("RDW payload length {} bytes insufficient for schema requiring {} bytes", 
                                         rdw_record.payload.len(), schema_lrecl)
                             ).with_context(copybook_core::error::ErrorContext {
                                 record_index: Some(record_count),
@@ -1994,51 +2053,50 @@ pub fn decode_file_to_jsonl(
                         }
 
                         // Decode the record payload
-                        match decode_record(schema, &rdw_record.payload, options) {
-                            Ok(mut json_value) => {
-                                // Check for BLANK WHEN ZERO warnings by examining the payload data
-                                summary.warnings +=
-                                    check_blank_when_zero_warnings(schema, &rdw_record.payload);
+                        if let Ok(mut json_value) =
+                            decode_record(schema, &rdw_record.payload, options)
+                        {
+                            // Check for BLANK WHEN ZERO warnings by examining the payload data
+                            summary.warnings +=
+                                check_blank_when_zero_warnings(schema, &rdw_record.payload);
 
-                                // Extract warnings from the decoded JSON record
-                                if let Some(obj) = json_value.as_object()
-                                    && let Some(warnings_val) = obj.get("__warnings")
-                                    && let Some(warnings_num) = warnings_val.as_u64()
-                                {
-                                    summary.warnings += warnings_num;
-                                }
-
-                                // Add raw data if requested
-                                if matches!(
-                                    options.emit_raw,
-                                    crate::RawMode::Record | crate::RawMode::RecordRDW
-                                ) && let Value::Object(ref mut obj) = json_value
-                                {
-                                    let raw_data = match options.emit_raw {
-                                        crate::RawMode::RecordRDW => rdw_record.as_bytes(), // Include RDW header
-                                        _ => rdw_record.payload.clone(), // Just payload
-                                    };
-
-                                    // Encode raw data as base64
-                                    let encoded =
-                                        base64::engine::general_purpose::STANDARD.encode(raw_data);
-                                    obj.insert("__raw_b64".to_string(), Value::String(encoded));
-                                }
-
-                                // Write as JSONL
-                                serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                                })?;
-                                writeln!(output).map_err(|e| {
-                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                                })?;
+                            // Extract warnings from the decoded JSON record
+                            if let Some(obj) = json_value.as_object()
+                                && let Some(warnings_val) = obj.get("__warnings")
+                                && let Some(warnings_num) = warnings_val.as_u64()
+                            {
+                                summary.warnings += warnings_num;
                             }
-                            Err(_) => {
-                                summary.records_with_errors += 1;
-                                // In lenient mode, continue processing
-                                if options.strict_mode {
-                                    break;
-                                }
+
+                            // Add raw data if requested
+                            if matches!(
+                                options.emit_raw,
+                                crate::RawMode::Record | crate::RawMode::RecordRDW
+                            ) && let Value::Object(ref mut obj) = json_value
+                            {
+                                let raw_data = match options.emit_raw {
+                                    crate::RawMode::RecordRDW => rdw_record.as_bytes(), // Include RDW header
+                                    _ => rdw_record.payload.clone(), // Just payload
+                                };
+
+                                // Encode raw data as base64
+                                let encoded =
+                                    base64::engine::general_purpose::STANDARD.encode(raw_data);
+                                obj.insert("__raw_b64".to_string(), Value::String(encoded));
+                            }
+
+                            // Write as JSONL
+                            serde_json::to_writer(&mut output, &json_value).map_err(|e| {
+                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                            })?;
+                            writeln!(output).map_err(|e| {
+                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                            })?;
+                        } else {
+                            summary.records_with_errors += 1;
+                            // In lenient mode, continue processing
+                            if options.strict_mode {
+                                break;
                             }
                         }
                     }

@@ -9,48 +9,50 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
-pub fn run(
-    copybook: &PathBuf,
-    input: &PathBuf,
-    output: &PathBuf,
-    format: RecordFormat,
-    codepage: Codepage,
-    json_number: JsonNumberMode,
-    strict: bool,
-    max_errors: Option<u64>,
-    emit_filler: bool,
-    emit_meta: bool,
-    emit_raw: RawMode,
-    on_decode_unmappable: UnmappablePolicy,
-    threads: usize,
-) -> Result<i32, Box<dyn std::error::Error>> {
-    info!("Decoding data file: {:?}", input);
+pub struct DecodeArgs<'a> {
+    pub copybook: &'a PathBuf,
+    pub input: &'a PathBuf,
+    pub output: &'a PathBuf,
+    pub format: RecordFormat,
+    pub codepage: Codepage,
+    pub json_number: JsonNumberMode,
+    pub strict: bool,
+    pub max_errors: Option<u64>,
+    pub emit_filler: bool,
+    pub emit_meta: bool,
+    pub emit_raw: RawMode,
+    pub on_decode_unmappable: UnmappablePolicy,
+    pub threads: usize,
+}
+
+pub fn run(args: DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
+    info!("Decoding data file: {:?}", args.input);
 
     // Read copybook file
-    let copybook_text = fs::read_to_string(copybook)?;
+    let copybook_text = fs::read_to_string(args.copybook)?;
 
     // Parse copybook
     let schema = parse_copybook(&copybook_text)?;
 
     // Configure decode options
     let options = DecodeOptions {
-        format,
-        codepage,
-        json_number_mode: json_number,
-        emit_filler,
-        emit_meta,
-        emit_raw,
-        strict_mode: strict,
-        max_errors,
-        on_decode_unmappable,
-        threads,
+        format: args.format,
+        codepage: args.codepage,
+        json_number_mode: args.json_number,
+        emit_filler: args.emit_filler,
+        emit_meta: args.emit_meta,
+        emit_raw: args.emit_raw,
+        strict_mode: args.strict,
+        max_errors: args.max_errors,
+        on_decode_unmappable: args.on_decode_unmappable,
+        threads: args.threads,
     };
 
     // Decode file using atomic write
     let summary = {
         let mut result_summary = None;
-        atomic_write(output, |output_writer| {
-            let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
+        atomic_write(args.output, |output_writer| {
+            let input_file = fs::File::open(args.input).map_err(std::io::Error::other)?;
             let summary =
                 copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
                     .map_err(std::io::Error::other)?;

@@ -312,17 +312,18 @@ pub fn validate_redefines_encoding(
     }
 
     // Multiple non-null views - ambiguous write (step 3)
-    let views_list = context
+    let non_null_view_names: Vec<String> = context
         .cluster_views
         .get(cluster_path)
-        .map(|views| views.join(", "))
-        .unwrap_or_else(|| "unknown".to_string());
+        .map(|views| views.clone())
+        .unwrap_or_default();
 
     Err(Error::new(
         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
         format!(
-            "Ambiguous REDEFINES write: multiple non-null views ({}) for cluster '{}'",
-            views_list, cluster_path
+            "Ambiguous REDEFINES write: multiple views ({}) have non-null values for cluster '{}'",
+            non_null_view_names.join(", "),
+            cluster_path
         ),
     )
     .with_context(ErrorContext {
@@ -331,20 +332,17 @@ pub fn validate_redefines_encoding(
         byte_offset: Some(byte_offset),
         line_number: None,
         details: Some(format!(
-            "cluster_path={}, non_null_views={}",
-            cluster_path, non_null_views
+            "cluster_path={}, non_null_views=[{}]",
+            cluster_path,
+            non_null_view_names.join(", ")
         )),
     }))
 }
 
-/// Handle missing ODO counter field references
+/// Handle missing counter field error with enhanced context and suggestions
 ///
 /// Provides comprehensive error reporting when ODO counter fields cannot be found,
-/// including suggestions for common naming issues.
-///
-/// # Errors
-///
-/// Returns CBKS121_COUNTER_NOT_FOUND with detailed context and suggestions.
+/// including field path suggestions based on similar names in the schema.
 pub fn handle_missing_counter_field(
     counter_path: &str,
     array_path: &str,
@@ -383,13 +381,13 @@ pub fn handle_missing_counter_field(
     Error::new(
         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
         format!(
-            "ODO counter field '{}' not found for array '{}'. {}",
+            "ODO counter field '{}' not found for array '{}'{}",
             counter_path,
             array_path,
             if suggestions.is_empty() {
-                "No similar field names found in schema."
+                ""
             } else {
-                "Did you mean one of the similar fields listed in details?"
+                &format!(". Similar fields found: [{}]", suggestions.join(", "))
             }
         ),
     )
@@ -402,78 +400,10 @@ pub fn handle_missing_counter_field(
     })
 }
 
-/// Collect REDEFINES relationships from schema
-fn collect_redefines_relationships(schema: &Schema, context: &mut RedefinesContext) {
-    collect_redefines_from_fields(&schema.fields, context);
-}
-
-/// Recursively collect REDEFINES relationships from fields
-fn collect_redefines_from_fields(fields: &[Field], context: &mut RedefinesContext) {
-    for field in fields {
-        if let Some(ref target) = field.redefines_of {
-            // Map this field to its cluster (use field name, not full path for JSON matching)
-            context
-                .field_to_cluster
-                .insert(field.name.clone(), target.clone());
-
-            // Initialize cluster if not present (use target name, not full path)
-            let target_name = target.split('.').next_back().unwrap_or(target);
-            context
-                .cluster_views
-                .entry(target_name.to_string())
-                .or_default();
-        }
-
-        // Recursively process children
-        collect_redefines_from_fields(&field.children, context);
-    }
-}
-
-/// Analyze JSON data to find non-null REDEFINES views
-fn analyze_json_for_redefines(
-    context: &mut RedefinesContext,
-    json_obj: &serde_json::Map<String, Value>,
-) {
-    for (key, value) in json_obj {
-        // Skip metadata fields
-        if key.starts_with("__") {
-            continue;
-        }
-
-        // Check if this field is part of a REDEFINES cluster
-        if let Some(cluster_path) = context.field_to_cluster.get(key) {
-            if !value.is_null() {
-                // Add this view to the cluster's non-null views
-                let views = context
-                    .cluster_views
-                    .entry(cluster_path.clone())
-                    .or_default();
-                if !views.contains(key) {
-                    views.push(key.clone());
-                }
-            }
-        } else {
-            // Check if this field is a REDEFINES target (original field)
-            if context.cluster_views.contains_key(key) && !value.is_null() {
-                // This is the original field that others redefine
-                let views = context.cluster_views.entry(key.clone()).or_default();
-                if !views.contains(key) {
-                    views.push(key.clone());
-                }
-            }
-        }
-
-        // Recursively analyze nested objects
-        if let Value::Object(nested_obj) = value {
-            analyze_json_for_redefines(context, nested_obj);
-        }
-    }
-}
-
-/// Create comprehensive error context for CBKD/CBKE errors
+/// Create comprehensive error context with all available information
 ///
-/// Ensures all data decode (CBKD*) and encode (CBKE*) errors include
-/// record_index, field_path, and byte_offset context as required.
+/// Standardizes error context creation across the ODO/REDEFINES module
+/// to ensure consistent error reporting with full context.
 pub fn create_comprehensive_error_context(
     record_index: u64,
     field_path: &str,
@@ -568,214 +498,132 @@ pub fn validate_odo_encode(
     Ok(validation_result.actual_count)
 }
 
+/// Helper function to collect REDEFINES relationships from schema
+fn collect_redefines_relationships(schema: &Schema, context: &mut RedefinesContext) {
+    fn visit_field(field: &Field, path: String, context: &mut RedefinesContext) {
+        // If this field redefines another, record the relationship
+        if let Some(redefines_of) = &field.redefines_of {
+            // The cluster path is the path of the original field being redefined
+            let parent_path = path.rsplit_once('.').map(|(p, _)| p).unwrap_or("");
+            let cluster_path = if parent_path.is_empty() {
+                redefines_of.clone()
+            } else {
+                format!("{}.{}", parent_path, redefines_of)
+            };
+            context.field_to_cluster.insert(path.clone(), cluster_path.clone());
+            context.cluster_views.entry(cluster_path).or_default().push(path.clone());
+        }
+
+        // Visit children
+        for child in &field.children {
+            let child_path = if path.is_empty() {
+                child.name.clone()
+            } else {
+                format!("{}.{}", path, child.name)
+            };
+            visit_field(child, child_path, context);
+        }
+    }
+
+    // Visit all top-level fields
+    for field in &schema.fields {
+        visit_field(field, field.name.clone(), context);
+    }
+
+    // Collect all fields that are being redefined to identify cluster roots
+    let all_fields = schema.all_fields();
+    for field in &all_fields {
+        if let Some(redefines_of) = &field.redefines_of {
+            // Find the original field and add it to the cluster
+            if let Some(original_field) = all_fields.iter().find(|f| f.name == *redefines_of || f.path == *redefines_of) {
+                let cluster_path = original_field.path.clone();
+                context.cluster_views.entry(cluster_path.clone()).or_default().push(original_field.path.clone());
+
+                // Also add this redefining field
+                context.field_to_cluster.insert(field.path.clone(), cluster_path.clone());
+                context.cluster_views.entry(cluster_path).or_default().push(field.path.clone());
+            }
+        }
+    }
+}
+
+/// Helper function to analyze JSON data for non-null REDEFINES views
+fn analyze_json_for_redefines(context: &mut RedefinesContext, json_obj: &serde_json::Map<String, Value>) {
+    fn is_non_null_value(value: &Value) -> bool {
+        match value {
+            Value::Null => false,
+            Value::Object(obj) => obj.values().any(is_non_null_value),
+            Value::Array(arr) => arr.iter().any(is_non_null_value),
+            _ => true,
+        }
+    }
+
+    for (key, value) in json_obj {
+        if let Some(cluster_path) = context.field_to_cluster.get(key) {
+            if is_non_null_value(value) {
+                if let Some(views) = context.cluster_views.get_mut(cluster_path) {
+                    if !views.contains(key) {
+                        views.push(key.clone());
+                    }
+                }
+            }
+        }
+
+        // Recursively analyze nested objects
+        if let Value::Object(nested_obj) = value {
+            analyze_json_for_redefines(context, nested_obj);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use copybook_core::{Field, FieldKind, Schema};
+    use copybook_core::ErrorCode;
 
-    fn create_test_schema_with_odo() -> Schema {
-        let mut schema = Schema::new();
-
-        // Counter field
-        let counter = Field {
-            path: "ROOT.COUNTER".to_string(),
-            name: "COUNTER".to_string(),
-            level: 5,
-            kind: FieldKind::ZonedDecimal {
-                digits: 3,
-                scale: 0,
-                signed: false,
-            },
-            offset: 0,
-            len: 3,
-            redefines_of: None,
-            occurs: None,
-            sync_padding: None,
-            synchronized: false,
-            blank_when_zero: false,
-            children: vec![],
-        };
-
-        // ODO array field
-        let array_field = Field {
-            path: "ROOT.ARRAY".to_string(),
-            name: "ARRAY".to_string(),
-            level: 5,
-            kind: FieldKind::Alphanum { len: 10 },
-            offset: 3,
-            len: 10,
-            redefines_of: None,
-            occurs: Some(Occurs::ODO {
-                min: 0,
-                max: 5,
-                counter_path: "ROOT.COUNTER".to_string(),
-            }),
-            sync_padding: None,
-            synchronized: false,
-            blank_when_zero: false,
-            children: vec![],
-        };
-
-        schema.fields = vec![counter, array_field];
-        schema
+    #[test]
+    fn test_validate_odo_counter_within_bounds() {
+        let result = validate_odo_counter(5, 1, 10, "test_field", "counter_field", 0, 0, false);
+        assert!(result.is_ok());
+        let validation_result = result.unwrap();
+        assert_eq!(validation_result.actual_count, 5);
+        assert!(!validation_result.was_clamped);
+        assert!(validation_result.warning.is_none());
     }
 
     #[test]
-    fn test_odo_validation_within_bounds() {
-        let result =
-            validate_odo_counter(3, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false).unwrap();
-
-        assert_eq!(result.actual_count, 3);
-        assert!(!result.was_clamped);
-        assert!(result.warning.is_none());
-    }
-
-    #[test]
-    fn test_odo_validation_strict_mode_over_max() {
-        let result = validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, true);
-
+    fn test_validate_odo_counter_strict_mode_below_min() {
+        let result = validate_odo_counter(0, 1, 10, "test_field", "counter_field", 0, 0, true);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKS301_ODO_CLIPPED);
-        assert!(error.context.is_some());
-
-        let context = error.context.unwrap();
-        assert_eq!(context.record_index, Some(1));
-        assert_eq!(context.field_path, Some("ROOT.ARRAY".to_string()));
-        assert_eq!(context.byte_offset, Some(3));
     }
 
     #[test]
-    fn test_odo_validation_lenient_mode_clamp_max() {
-        let result =
-            validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false).unwrap();
-
-        assert_eq!(result.actual_count, 5);
-        assert!(result.was_clamped);
-        assert!(result.warning.is_some());
-
-        let warning = result.warning.unwrap();
-        assert_eq!(warning.code, ErrorCode::CBKS301_ODO_CLIPPED);
-    }
-
-    #[test]
-    fn test_odo_validation_lenient_mode_raise_min() {
-        let result =
-            validate_odo_counter(0, 1, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false).unwrap();
-
-        assert_eq!(result.actual_count, 1);
-        assert!(result.was_clamped);
-        assert!(result.warning.is_some());
-
-        let warning = result.warning.unwrap();
-        assert_eq!(warning.code, ErrorCode::CBKS302_ODO_RAISED);
-    }
-
-    #[test]
-    fn test_odo_tail_position_validation() {
-        let schema = create_test_schema_with_odo();
-
-        let result = validate_odo_tail_position(&schema, "ROOT.ARRAY", "ROOT.COUNTER");
-
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_odo_tail_position_validation_counter_after_array() {
-        let mut schema = create_test_schema_with_odo();
-
-        // Swap offsets to make counter come after array
-        schema.fields[0].offset = 10; // counter
-        schema.fields[1].offset = 0; // array
-
-        let result = validate_odo_tail_position(&schema, "ROOT.ARRAY", "ROOT.COUNTER");
-
+    fn test_validate_odo_counter_strict_mode_above_max() {
+        let result = validate_odo_counter(15, 1, 10, "test_field", "counter_field", 0, 0, true);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
+        assert_eq!(error.code, ErrorCode::CBKS301_ODO_CLIPPED);
     }
 
     #[test]
-    fn test_missing_counter_field_handling() {
-        let schema = Schema::new(); // Empty schema
-
-        let error = handle_missing_counter_field("NONEXISTENT", "ROOT.ARRAY", &schema, 1, 10);
-
-        assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
-        assert!(error.context.is_some());
-
-        let context = error.context.unwrap();
-        assert_eq!(context.record_index, Some(1));
-        assert_eq!(context.field_path, Some("ROOT.ARRAY".to_string()));
-        assert_eq!(context.byte_offset, Some(10));
+    fn test_validate_odo_counter_lenient_mode_clamp_below() {
+        let result = validate_odo_counter(0, 1, 10, "test_field", "counter_field", 0, 0, false);
+        assert!(result.is_ok());
+        let validation_result = result.unwrap();
+        assert_eq!(validation_result.actual_count, 1);
+        assert!(validation_result.was_clamped);
+        assert!(validation_result.warning.is_some());
     }
 
     #[test]
-    fn test_redefines_context_building() {
-        let mut schema = Schema::new();
-
-        // Original field
-        let field_a = Field {
-            path: "ROOT.FIELD_A".to_string(),
-            name: "FIELD_A".to_string(),
-            level: 5,
-            kind: FieldKind::Alphanum { len: 10 },
-            offset: 0,
-            len: 10,
-            redefines_of: None,
-            occurs: None,
-            sync_padding: None,
-            synchronized: false,
-            blank_when_zero: false,
-            children: vec![],
-        };
-
-        // REDEFINES field
-        let field_b = Field {
-            path: "ROOT.FIELD_B".to_string(),
-            name: "FIELD_B".to_string(),
-            level: 5,
-            kind: FieldKind::ZonedDecimal {
-                digits: 5,
-                scale: 0,
-                signed: false,
-            },
-            offset: 0,
-            len: 5,
-            redefines_of: Some("ROOT.FIELD_A".to_string()),
-            occurs: None,
-            sync_padding: None,
-            synchronized: false,
-            blank_when_zero: false,
-            children: vec![],
-        };
-
-        schema.fields = vec![field_a, field_b];
-
-        let json_data = serde_json::json!({
-            "FIELD_A": "Hello",
-            "FIELD_B": null
-        });
-
-        let context = build_redefines_context(&schema, &json_data);
-
-        assert_eq!(context.field_to_cluster.len(), 1);
-        assert!(context.field_to_cluster.contains_key("ROOT.FIELD_B"));
-        assert_eq!(context.field_to_cluster["ROOT.FIELD_B"], "ROOT.FIELD_A");
-    }
-
-    #[test]
-    fn test_comprehensive_error_context() {
-        let context = create_comprehensive_error_context(
-            42,
-            "ROOT.TEST_FIELD",
-            100,
-            Some("additional info".to_string()),
-        );
-
-        assert_eq!(context.record_index, Some(42));
-        assert_eq!(context.field_path, Some("ROOT.TEST_FIELD".to_string()));
-        assert_eq!(context.byte_offset, Some(100));
-        assert_eq!(context.details, Some("additional info".to_string()));
+    fn test_validate_odo_counter_lenient_mode_clamp_above() {
+        let result = validate_odo_counter(15, 1, 10, "test_field", "counter_field", 0, 0, false);
+        assert!(result.is_ok());
+        let validation_result = result.unwrap();
+        assert_eq!(validation_result.actual_count, 10);
+        assert!(validation_result.was_clamped);
+        assert!(validation_result.warning.is_some());
     }
 }

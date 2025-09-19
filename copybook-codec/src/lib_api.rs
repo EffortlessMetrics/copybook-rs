@@ -1657,33 +1657,31 @@ fn encode_field_to_payload(
                 *byte = b' ';
             }
         }
-        copybook_core::FieldKind::ZonedDecimal { scale, .. } => {
+        copybook_core::FieldKind::ZonedDecimal { digits, scale, signed } => {
             let text = extract_string_value(value, &field.name, options.coerce_numbers)?;
-            validate_numeric_scale(&text, *scale, &field.name)?;
 
-            // Simple zoned decimal encoding: pad with '0' and right-justify
-            let text_bytes = text.as_bytes();
-            let field_len = field_slice.len();
+            // Use the proper zoned decimal encoding with overpunch support
+            let encoded = crate::numeric::encode_zoned_decimal(
+                &text,
+                *digits,
+                *scale,
+                *signed,
+                options.codepage,
+            )?;
 
-            if text_bytes.len() <= field_len {
-                // Fill with ASCII '0' (0x30) first
-                field_slice.fill(b'0');
-                // Then copy the actual digits from the right
-                let start_pos = field_len - text_bytes.len();
-                field_slice[start_pos..].copy_from_slice(text_bytes);
-            } else if options.strict_mode {
+            if encoded.len() != field_slice.len() {
                 return Err(Error::new(
                     ErrorCode::CBKE510_NUMERIC_OVERFLOW,
                     format!(
-                        "Numeric value '{}' too long for field '{}' (max {} digits)",
-                        text, field.name, field_len
+                        "Encoded zoned decimal length {} doesn't match field length {} for field '{}'",
+                        encoded.len(),
+                        field_slice.len(),
+                        field.name
                     ),
                 ));
-            } else {
-                // If too long, truncate from the left (keep rightmost digits) in lenient mode
-                let start_pos = text_bytes.len() - field_len;
-                field_slice.copy_from_slice(&text_bytes[start_pos..]);
             }
+
+            field_slice.copy_from_slice(&encoded);
         }
         copybook_core::FieldKind::PackedDecimal { digits, scale, signed } => {
             let text = extract_string_value(value, &field.name, options.coerce_numbers)?;

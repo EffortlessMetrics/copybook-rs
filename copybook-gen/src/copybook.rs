@@ -54,6 +54,7 @@ pub fn generate_copybook_with_template(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> String {
     let mut copybook = String::new();
     copybook.push_str("      * Generated synthetic copybook - Simple\n");
@@ -97,9 +98,9 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                         format!("9({})V9({})", digits - scale, scale)
                     }
                 } else if signed {
-                    format!("S9({})", digits)
+                    format!("S9({digits})")
                 } else {
-                    format!("9({})", digits)
+                    format!("9({digits})")
                 };
 
                 writeln!(copybook, "           05  ZONED-{i:02}     PIC {pic}.").unwrap();
@@ -113,9 +114,9 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                 let signed = rng.gen_bool(0.5);
 
                 let pic = if signed {
-                    format!("S9({}) COMP", digits)
+                    format!("S9({digits}) COMP")
                 } else {
-                    format!("9({}) COMP", digits)
+                    format!("9({digits}) COMP")
                 };
 
                 writeln!(copybook, "           05  BINARY-{i:02}    PIC {pic}.").unwrap();
@@ -140,9 +141,9 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                         format!("9({})V9({}) COMP-3", digits - scale, scale)
                     }
                 } else if signed {
-                    format!("S9({}) COMP-3", digits)
+                    format!("S9({digits}) COMP-3")
                 } else {
-                    format!("9({}) COMP-3", digits)
+                    format!("9({digits}) COMP-3")
                 };
 
                 writeln!(copybook, "           05  PACKED-{i:02}    PIC {pic}.").unwrap();
@@ -232,8 +233,7 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
 
     writeln!(
         copybook,
-        "           05  SIMPLE-ARRAY    OCCURS {} TIMES PIC X(10).",
-        array_size
+        "           05  SIMPLE-ARRAY    OCCURS {array_size} TIMES PIC X(10)."
     )
     .unwrap();
 
@@ -241,8 +241,7 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     let group_size = rng.gen_range(3..=10);
     writeln!(
         copybook,
-        "           05  GROUP-ARRAY     OCCURS {} TIMES.",
-        group_size
+        "           05  GROUP-ARRAY     OCCURS {group_size} TIMES."
     )
     .unwrap();
     copybook.push_str("               10  ITEM-ID     PIC 9(5).\n");
@@ -254,14 +253,12 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     let inner_size = rng.gen_range(3..=8);
     writeln!(
         copybook,
-        "           05  NESTED-ARRAY    OCCURS {} TIMES.",
-        outer_size
+        "           05  NESTED-ARRAY    OCCURS {outer_size} TIMES."
     )
     .unwrap();
     writeln!(
         copybook,
-        "               10  INNER-ARRAY OCCURS {} TIMES PIC 9(4) COMP.",
-        inner_size
+        "               10  INNER-ARRAY OCCURS {inner_size} TIMES PIC 9(4) COMP."
     )
     .unwrap();
     copybook
@@ -282,8 +279,7 @@ fn generate_odo_copybook(rng: &mut StdRng, _config: &GeneratorConfig) -> String 
 
     writeln!(
         copybook,
-        "           05  VARIABLE-ITEMS  OCCURS {} TO {} TIMES",
-        min_count, max_count
+        "           05  VARIABLE-ITEMS  OCCURS {min_count} TO {max_count} TIMES"
     )
     .unwrap();
     copybook.push_str("                               DEPENDING ON ITEM-COUNT.\n");
@@ -348,8 +344,7 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     let array_size = rng.gen_range(5..=15);
     writeln!(
         copybook,
-        "           05  DETAIL-ITEMS    OCCURS {} TIMES.",
-        array_size
+        "           05  DETAIL-ITEMS    OCCURS {array_size} TIMES."
     )
     .unwrap();
     copybook.push_str("               10  ITEM-SEQ    PIC 9(3) COMP SYNCHRONIZED.\n");
@@ -361,10 +356,9 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     if config.include_edge_cases && rng.gen_bool(0.5) {
         let max_notes = rng.gen_range(10..=30);
         copybook.push_str("           05  NOTE-COUNT      PIC 9(3) COMP.\n");
-        write!(
+        writeln!(
             copybook,
-            "           05  NOTES           OCCURS 0 TO {} TIMES\n",
-            max_notes
+            "           05  NOTES           OCCURS 0 TO {max_notes} TIMES"
         )
         .unwrap();
         copybook.push_str("                               DEPENDING ON NOTE-COUNT.\n");
@@ -383,10 +377,10 @@ fn generate_display_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig)
     // Many DISPLAY fields for performance testing
     for i in 1..=50 {
         match i % 4 {
-            0 => writeln!(copybook, "           05  TEXT-{:02}       PIC X(20).", i).unwrap(),
-            1 => writeln!(copybook, "           05  NUM-{:02}        PIC 9(10).", i).unwrap(),
-            2 => writeln!(copybook, "           05  DECIMAL-{:02}    PIC 9(8)V99.", i).unwrap(),
-            3 => writeln!(copybook, "           05  SIGNED-{:02}     PIC S9(9).", i).unwrap(),
+            0 => writeln!(copybook, "           05  TEXT-{i:02}       PIC X(20).").unwrap(),
+            1 => writeln!(copybook, "           05  NUM-{i:02}        PIC 9(10).").unwrap(),
+            2 => writeln!(copybook, "           05  DECIMAL-{i:02}    PIC 9(8)V99.").unwrap(),
+            3 => writeln!(copybook, "           05  SIGNED-{i:02}     PIC S9(9).").unwrap(),
             _ => unreachable!(),
         }
     }
@@ -422,7 +416,7 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
 
     // Add some text fields for mixed workload
     for i in 1..=10 {
-        writeln!(copybook, "           05  TEXT-{:02}       PIC X(15).", i).unwrap();
+        writeln!(copybook, "           05  TEXT-{i:02}       PIC X(15).").unwrap();
     }
     copybook
 }

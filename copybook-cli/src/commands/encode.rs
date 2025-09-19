@@ -23,7 +23,7 @@ pub fn run(
     info!("Encoding JSONL file: {:?}", input);
 
     // Read copybook file
-    let copybook_text = fs::read_to_string(&copybook)?;
+    let copybook_text = fs::read_to_string(copybook)?;
 
     // Parse copybook
     let schema = parse_copybook(&copybook_text)?;
@@ -42,8 +42,8 @@ pub fn run(
     // Encode file using atomic write
     let summary = {
         let mut result_summary = None;
-        atomic_write(&output, |output_writer| {
-            let input_file = fs::File::open(&input).map_err(std::io::Error::other)?;
+        atomic_write(output, |output_writer| {
+            let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
             let summary =
                 copybook_codec::encode_jsonl_to_file(&schema, input_file, output_writer, &options)
                     .map_err(std::io::Error::other)?;

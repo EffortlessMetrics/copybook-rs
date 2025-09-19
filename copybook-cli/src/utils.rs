@@ -69,11 +69,7 @@ fn temp_path_for(target: &Path) -> PathBuf {
 /// This function implements the "warnings → 0; any errors → 1" part.
 /// Fatal errors (exit code 2) are handled at the main level when operations fail completely.
 pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
-    if has_errors {
-        1 // Completed with errors
-    } else {
-        0 // Success (warnings do not affect exit code)
-    }
+    i32::from(has_errors)
 }
 
 #[cfg(test)]

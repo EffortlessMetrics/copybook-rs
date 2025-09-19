@@ -8,9 +8,9 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
-pub async fn run(
+pub fn run(
     copybook: PathBuf,
-    input: PathBuf,
+    input: &PathBuf,
     report: Option<PathBuf>,
     format: RecordFormat,
     codepage: Codepage,
@@ -18,16 +18,16 @@ pub async fn run(
     info!("Verifying data file: {:?}", input);
 
     // Read copybook file
-    let copybook_text = fs::read_to_string(&copybook)?;
+    let copybook_text = fs::read_to_string(copybook)?;
 
     // Parse copybook
     let _schema = parse_copybook(&copybook_text)?;
 
     // Placeholder verification logic
     println!("Verification Summary:");
-    println!("  File: {:?}", input);
-    println!("  Format: {:?}", format);
-    println!("  Codepage: {:?}", codepage);
+    println!("  File: {}", input.display());
+    println!("  Format: {format:?}");
+    println!("  Codepage: {codepage:?}");
     println!("  Status: PLACEHOLDER - Not yet implemented");
 
     if let Some(report_path) = report {

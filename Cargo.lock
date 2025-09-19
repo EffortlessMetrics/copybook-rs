@@ -331,7 +331,7 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "copybook-bench"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "copybook-codec",
  "copybook-core",
@@ -340,7 +340,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_cmd",
  "assert_fs",
@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-codec"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64",
  "clap",
@@ -375,7 +375,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "logos",
  "proptest",
@@ -388,7 +388,7 @@ dependencies = [
 
 [[package]]
 name = "copybook-gen"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "copybook-codec",
@@ -1870,7 +1870,7 @@ checksum = "052283831dbae3d879dc7f51f3d92703a316ca49f91540417d38591826127814"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",

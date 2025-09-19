@@ -54,7 +54,7 @@ Group: ROOT.CUSTOMER
 ```
 
 #### CBKP051_UNSUPPORTED_EDITED_PIC
-**Description**: Edited PIC clause not supported
+**Description**: **edited PIC not supported**. Triggered by edited picture strings (e.g., `ZZ9.99`, `CR`/`DB`, blanks `B`, trailing sign).
 **Severity**: Fatal
 **Context**: PIC clause, field path
 **Resolution**: Use non-edited PIC clause

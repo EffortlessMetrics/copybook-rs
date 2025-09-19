@@ -584,18 +584,18 @@ fn test_synchronized_alignment() {
     assert_eq!(another_char.len, 3);
 
     let another_binary = &root.children[3];
-    assert_eq!(another_binary.offset, 16); // Aligned to 8-byte boundary (64-bit)
-    assert_eq!(another_binary.len, 8); // 64-bit binary
+    assert_eq!(another_binary.offset, 12); // Aligned to 4-byte boundary (32-bit)
+    assert_eq!(another_binary.len, 4); // 32-bit binary (9 digits = 5-9 range)
     assert!(another_binary.synchronized);
-    assert_eq!(another_binary.sync_padding, Some(5)); // 5 padding bytes
+    assert_eq!(another_binary.sync_padding, Some(1)); // 1 padding byte
 }
 
 #[test]
 fn test_error_context_with_line_numbers() {
     // Test that parse errors include proper line numbers and context
     let invalid_syntax = r#"01 RECORD-NAME.
-   05 INVALID-LEVEL-99 PIC X(10).
-   05 FIELD-NAME PIC X(10).
+   99 FIELD-NAME PIC X(10).
+   05 OTHER-FIELD PIC X(10).
 "#;
 
     let result = parse_copybook(invalid_syntax);

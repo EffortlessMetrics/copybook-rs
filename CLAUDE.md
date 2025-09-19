@@ -72,7 +72,7 @@ cargo bench --package copybook-bench -- --output-format html
 ### CLI Usage
 ```bash
 # After building, the CLI binary is available as:
-cargo run --bin copybook-cli -- [SUBCOMMAND]
+cargo run --bin copybook -- [SUBCOMMAND]
 
 # Or after installation:
 copybook [SUBCOMMAND]
@@ -83,19 +83,19 @@ copybook [SUBCOMMAND]
 #### Verify Command
 ```bash
 # Verify data file against copybook schema
-cargo run --bin copybook-cli -- verify --format fixed --codepage cp037 copybook.cpy data.bin
+cargo run --bin copybook -- verify --format fixed --codepage cp037 copybook.cpy data.bin
 
 # Generate detailed JSON verification report
-cargo run --bin copybook-cli -- verify --format fixed --codepage cp037 --report report.json copybook.cpy data.bin
+cargo run --bin copybook -- verify --format fixed --codepage cp037 --report report.json copybook.cpy data.bin
 
 # Verify RDW format data
-cargo run --bin copybook-cli -- verify --format rdw --codepage cp1047 copybook.cpy data.bin
+cargo run --bin copybook -- verify --format rdw --codepage cp1047 copybook.cpy data.bin
 ```
 
 #### Complete Decode Command Examples
 ```bash
 # Decode COBOL data to JSONL with comprehensive field processing
-cargo run --bin copybook-cli -- decode customer.cpy customer-data.bin \
+cargo run --bin copybook -- decode customer.cpy customer-data.bin \
   --output customer-data.jsonl \
   --format fixed \
   --codepage cp037 \
@@ -103,7 +103,7 @@ cargo run --bin copybook-cli -- decode customer.cpy customer-data.bin \
   --threads 4
 
 # High-performance decoding with optimized settings
-cargo run --bin copybook-cli -- decode large-file.cpy multi-gb-data.bin \
+cargo run --bin copybook -- decode large-file.cpy multi-gb-data.bin \
   --output processed-data.jsonl \
   --format fixed \
   --codepage cp037 \
@@ -111,7 +111,7 @@ cargo run --bin copybook-cli -- decode large-file.cpy multi-gb-data.bin \
   --threads 8
 
 # Decode with FILLER fields included (named by byte offset: _filler_00000XXX)
-cargo run --bin copybook-cli -- decode copybook.cpy data.bin \
+cargo run --bin copybook -- decode copybook.cpy data.bin \
   --output data-with-fillers.jsonl \
   --format fixed \
   --codepage cp037 \
@@ -121,16 +121,16 @@ cargo run --bin copybook-cli -- decode copybook.cpy data.bin \
 #### Other Commands
 ```bash
 # Parse copybook to schema JSON
-cargo run --bin copybook-cli -- parse copybook.cpy
+cargo run --bin copybook -- parse copybook.cpy
 
 # Inspect copybook layout
-cargo run --bin copybook-cli -- inspect copybook.cpy
+cargo run --bin copybook -- inspect copybook.cpy
 
 # Decode binary data to JSONL
-cargo run --bin copybook-cli -- decode --format fixed --codepage cp037 copybook.cpy data.bin output.jsonl
+cargo run --bin copybook -- decode --format fixed --codepage cp037 copybook.cpy data.bin output.jsonl
 
 # Encode JSONL to binary data
-cargo run --bin copybook-cli -- encode --format fixed --codepage cp037 copybook.cpy input.jsonl output.bin
+cargo run --bin copybook -- encode --format fixed --codepage cp037 copybook.cpy input.jsonl output.bin
 ```
 
 ## Library API Functions

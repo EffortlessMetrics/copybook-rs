@@ -696,7 +696,7 @@ impl Parser {
         let mut name = name_parts.join(" ");
 
         // Handle FILLER fields
-        if name.to_uppercase() == "FILLER" && !self.options.emit_filler {
+        if name.eq_ignore_ascii_case("FILLER") && !self.options.emit_filler {
             // For now, keep FILLER name - it will be processed later
             name = "FILLER".to_string();
         }
@@ -1309,36 +1309,37 @@ impl Parser {
 
     /// Check if an identifier is a field clause keyword
     fn is_field_clause_keyword(name: &str) -> bool {
-        matches!(
-            name.to_uppercase().as_str(),
-            "PIC"
-                | "PICTURE"
-                | "USAGE"
-                | "COMP"
-                | "COMPUTATIONAL"
-                | "COMP-3"
-                | "COMPUTATIONAL-3"
-                | "BINARY"
-                | "REDEFINES"
-                | "OCCURS"
-                | "DEPENDING"
-                | "ON"
-                | "TO"
-                | "TIMES"
-                | "SYNCHRONIZED"
-                | "SYNC"
-                | "VALUE"
-                | "SIGN"
-                | "LEADING"
-                | "TRAILING"
-                | "SEPARATE"
-                | "BLANK"
-                | "WHEN"
-                | "ZERO"
-                | "ZEROS"
-                | "ZEROES"
-                | "DISPLAY"
-        )
+        const FIELD_CLAUSE_KEYWORDS: &[&str] = &[
+            "PIC",
+            "PICTURE",
+            "USAGE",
+            "COMP",
+            "COMPUTATIONAL",
+            "COMP-3",
+            "COMPUTATIONAL-3",
+            "BINARY",
+            "REDEFINES",
+            "OCCURS",
+            "DEPENDING",
+            "ON",
+            "TO",
+            "TIMES",
+            "SYNCHRONIZED",
+            "SYNC",
+            "VALUE",
+            "SIGN",
+            "LEADING",
+            "TRAILING",
+            "SEPARATE",
+            "BLANK",
+            "WHEN",
+            "ZERO",
+            "ZEROS",
+            "ZEROES",
+            "DISPLAY",
+        ];
+
+        FIELD_CLAUSE_KEYWORDS.iter().any(|&keyword| name.eq_ignore_ascii_case(keyword))
     }
 
     /// Skip comments and newlines
@@ -1435,25 +1436,11 @@ mod tests {
     fn test_numeric_field_parsing() {
         let input = "01 AMOUNT PIC S9(7)V99.";
 
-        // Debug: test tokenization
-        let mut lexer = crate::lexer::Lexer::new(input);
-        let tokens = lexer.tokenize();
-        for (i, token) in tokens.iter().enumerate() {
-            println!("Token {}: {:?}", i, token.token);
-        }
-
-        // Debug: test PIC parsing directly
-        let pic_result = crate::pic::PicClause::parse("S9(7)V99");
-        println!("PIC parse result: {:?}", pic_result);
-
         let schema = parse(input).unwrap();
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];
         assert_eq!(field.name, "AMOUNT");
-
-        // Debug print the actual field kind
-        println!("Field kind: {:?}", field.kind);
 
         assert!(matches!(
             field.kind,

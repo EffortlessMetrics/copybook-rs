@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://copybook-rs.org/schemas/verify-report.json",
+  "title": "COBOL Data Verification Report Schema",
+  "description": "JSON schema for copybook-rs verification report output",
+  "type": "object",
+  "properties": {
+    "report_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Report format version (bump on breaking changes)"
+    },
+    "schema_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$",
+      "description": "MD5 fingerprint of the schema used for verification"
+    },
+    "record_format": {
+      "type": "string",
+      "oneOf": [
+        { "const": "fixed", "description": "Fixed-length records" },
+        { "const": "rdw", "description": "Variable-length RDW format" }
+      ],
+      "description": "Record format used for processing"
+    },
+    "file": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Input file path for pipeline integration"
+    },
+    "file_size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Input file size in bytes"
+    },
+    "cli_opts": {
+      "$ref": "#/$defs/verify_cli_echo",
+      "description": "CLI options used for verification (for reproducibility)"
+    },
+    "records_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of records processed"
+    },
+    "errors_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of errors encountered"
+    },
+    "truncated": {
+      "type": "boolean",
+      "description": "Whether error reporting was truncated due to max_errors limit"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/verify_error"
+      },
+      "description": "List of verification errors"
+    },
+    "sample": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/verify_sample"
+      },
+      "description": "Sample of record data for debugging"
+    }
+  },
+  "required": [
+    "report_version",
+    "schema_fingerprint",
+    "record_format",
+    "file",
+    "file_size_bytes",
+    "cli_opts",
+    "records_total",
+    "errors_total",
+    "truncated",
+    "errors",
+    "sample"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "verify_cli_echo": {
+      "type": "object",
+      "properties": {
+        "codepage": {
+          "type": "string",
+          "oneOf": [
+            { "const": "ASCII", "description": "ASCII character encoding" },
+            { "const": "Cp037", "description": "EBCDIC US/Canada" },
+            { "const": "Cp273", "description": "EBCDIC Germany/Austria" },
+            { "const": "Cp500", "description": "EBCDIC International" },
+            { "const": "Cp1047", "description": "EBCDIC Open Systems" },
+            { "const": "Cp1140", "description": "EBCDIC US/Canada Euro" }
+          ],
+          "description": "Codepage used for character conversion"
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Whether strict mode was enabled"
+        },
+        "max_errors": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum errors before truncation"
+        },
+        "sample": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of sample records to include"
+        }
+      },
+      "required": ["codepage", "strict", "max_errors", "sample"],
+      "additionalProperties": false
+    },
+    "verify_error": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Record index (0-based)"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^CBK[PSKDE][0-9]{3}(_[A-Z_]+)?$",
+          "description": "Error code (e.g., CBKP051, CBKD301)"
+        },
+        "field": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Z][A-Z0-9_]*(?:\\.[A-Z][A-Z0-9_]*)*$",
+          "description": "Field path where error occurred (e.g., REC.AMT)"
+        },
+        "offset": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Byte offset in record/file if known"
+        },
+        "msg": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable error message"
+        },
+        "hex": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-fA-F]*$",
+          "description": "Optional hex dump of problematic data"
+        }
+      },
+      "required": ["index", "code", "field", "offset", "msg", "hex"],
+      "additionalProperties": false
+    },
+    "verify_sample": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Record index (0-based)"
+        },
+        "hex": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]*$",
+          "description": "Hex representation of record data"
+        }
+      },
+      "required": ["index", "hex"],
+      "additionalProperties": false
+    }
+  }
+}

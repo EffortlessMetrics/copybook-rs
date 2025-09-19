@@ -378,18 +378,6 @@ mod tests {
         let suite = create_comprehensive_test_suite();
         let results = suite.run_all();
         
-        // Print results for debugging
-        for (i, result) in results.iter().enumerate() {
-            println!("Test {}: {}", i + 1, if result.success { "PASS" } else { "FAIL" });
-            if !result.success {
-                for error in &result.errors {
-                    println!("  Error: {}", error);
-                }
-            }
-            println!("  Original hash: {}", result.original_hash);
-            println!("  Round-trip hash: {}", result.roundtrip_hash);
-        }
-        
         // For now, don't assert success since we're still implementing features
         // assert!(suite.all_passed(), "Some round-trip tests failed");
     }
@@ -455,11 +443,9 @@ mod tests {
             
             // Verify byte-identical round-trip with raw data
             if let Ok(reencoded) = result_with_raw {
-                assert_eq!(original_data, reencoded.as_slice(), 
+                assert_eq!(original_data, reencoded.as_slice(),
                     "Raw data round-trip should be byte-identical");
             }
-            
-            println!("REDEFINES encoding precedence test completed (simplified version)");
         }
     }
 }

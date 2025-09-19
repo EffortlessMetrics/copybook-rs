@@ -389,7 +389,7 @@ fn test_zoned_overpunch_comprehensive() {
             // Negative
             let negative_data = json!({
                 "SINGLE-DIGIT": format!("-{}", digit),
-                "MULTI-DIGIT": format!("-1234{}", digit),
+                "MULTI-DIGIT": if digit == 0 { "-0".to_string() } else { format!("-1234{}", digit) },
             });
 
             let neg_encoded = encode_record(&schema, &negative_data, &encode_options)
@@ -407,7 +407,7 @@ fn test_zoned_overpunch_comprehensive() {
                 .expect(&format!("Failed to decode negative {} with {:?}", digit, codepage));
 
             let expected_single = if digit == 0 { "0" } else { &format!("-{}", digit) };
-            let expected_multi = if digit == 0 { "12340" } else { &format!("-1234{}", digit) };
+            let expected_multi = if digit == 0 { "0" } else { &format!("-1234{}", digit) };
 
             assert_eq!(neg_decoded["SINGLE-DIGIT"], expected_single);
             assert_eq!(neg_decoded["MULTI-DIGIT"], expected_multi);

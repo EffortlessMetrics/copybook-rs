@@ -1081,54 +1081,10 @@ fn decode_zoned_decimal_basic(
 
         if codepage == Codepage::ASCII {
             if is_last && signed {
-                // Handle ASCII overpunch signs
-                match byte {
-                    // Positive overpunch
-                    b'A'..=b'I' => {
-                        digits.push_str(&(byte - b'A' + 1).to_string());
-                        is_negative = false;
-                    }
-                    b'{' => {
-                        digits.push('0');
-                        is_negative = false;
-                    }
-                    b'}' => {
-                        digits.push('3');
-                        is_negative = false;
-                    }
-                    // Negative overpunch
-                    b'J' => {
-                        digits.push('1');
-                        is_negative = true;
-                    }
-                    b'K' => {
-                        digits.push('2');
-                        is_negative = true;
-                    }
-                    b'L' => {
-                        digits.push('3');
-                        is_negative = true;
-                    }
-                    b'M' => {
-                        digits.push('0');
-                        is_negative = true;
-                    }
-                    b'N'..=b'R' => {
-                        digits.push_str(&(byte - b'N' + 5).to_string());
-                        is_negative = true;
-                    }
-                    // Regular digits
-                    b'0'..=b'9' => {
-                        digits.push((byte - b'0' + b'0') as char);
-                    }
-                    _ => {
-                        // Invalid zone - this should be an error in strict mode
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid zone byte 0x{:02X} ('{}')", byte, byte as char),
-                        ));
-                    }
-                }
+                // Use the proper overpunch decoder from zoned_overpunch module
+                let (digit, negative) = crate::zoned_overpunch::decode_overpunch_byte(byte, codepage)?;
+                digits.push_str(&digit.to_string());
+                is_negative = negative;
             } else {
                 // Regular digit positions
                 if byte.is_ascii_digit() {

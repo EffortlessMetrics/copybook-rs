@@ -41,6 +41,8 @@ pub struct ParseOptions {
     pub emit_filler: bool,
     /// Codepage for fingerprint calculation
     pub codepage: String,
+    /// Enforce strict validation (ODO bounds/order, REDEFINES ambiguity as errors)
+    pub strict: bool,
 }
 
 impl Default for ParseOptions {
@@ -48,6 +50,7 @@ impl Default for ParseOptions {
         Self {
             emit_filler: false,
             codepage: "cp037".to_string(),
+            strict: false,
         }
     }
 }
@@ -77,6 +80,32 @@ impl Parser {
         }
     }
 
+    /// Create an error with line/column context from current token
+    fn err_here(&self, code: ErrorCode, msg: impl Into<String>) -> Error {
+        let mut error = Error::new(code, msg.into());
+        if let Some(tok) = self.current_token() {
+            error.context = Some(crate::error::ErrorContext {
+                record_index: None,
+                field_path: None,
+                byte_offset: None,
+                line_number: Some(tok.line.try_into().unwrap_or(u32::MAX)),
+                details: None,
+            });
+        }
+        error
+    }
+
+    /// Consume the tail of the current line after a terminator
+    fn consume_line_tail(&mut self, line_no: usize) {
+        while let Some(tok) = self.current_token() {
+            if tok.line == line_no {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Parse the complete schema
     fn parse_schema(&mut self) -> Result<Schema> {
         // Skip any leading comments or empty lines
@@ -92,7 +121,7 @@ impl Parser {
         }
 
         if flat_fields.is_empty() {
-            return Err(Error::new(
+            return Err(self.err_here(
                 ErrorCode::CBKP001_SYNTAX,
                 "No valid field definitions found",
             ));
@@ -581,6 +610,23 @@ impl Parser {
                 level
             }
             Some(TokenPos {
+                token: Token::Number(n),
+                column,
+                ..
+            }) => {
+                // Check for invalid level numbers that appear to be at beginning of line
+                if *n >= 10 && *n <= 99 && *column <= 2 {
+                    return Err(
+                        self.err_here(ErrorCode::CBKP001_SYNTAX, format!("Invalid level {}", n))
+                    );
+                }
+                // Skip unexpected tokens to prevent infinite loops
+                if !self.is_at_end() {
+                    self.advance();
+                }
+                return Ok(None);
+            }
+            Some(TokenPos {
                 token: Token::Level66,
                 ..
             }) => {
@@ -613,23 +659,41 @@ impl Parser {
             }
         };
 
-        // Get field name
-        let mut name = match self.current_token() {
+        // Get field name - handle multiple identifiers for continuation
+        let mut name_parts = Vec::new();
+
+        // Get first identifier
+        match self.current_token() {
             Some(TokenPos {
                 token: Token::Identifier(name),
                 ..
             }) => {
-                let name = name.clone();
+                name_parts.push(name.clone());
                 self.advance();
-                name
             }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     format!("Expected field name after level {}", level),
                 ));
             }
-        };
+        }
+
+        // Check for additional identifiers (continuation case)
+        while let Some(TokenPos {
+            token: Token::Identifier(next_name),
+            ..
+        }) = self.current_token()
+        {
+            // Stop if we hit a reserved keyword that starts a clause
+            if self.is_field_clause_keyword(next_name) {
+                break;
+            }
+            name_parts.push(next_name.clone());
+            self.advance();
+        }
+
+        let mut name = name_parts.join(" ");
 
         // Handle FILLER fields
         if name.to_uppercase() == "FILLER" && !self.options.emit_filler {
@@ -645,8 +709,16 @@ impl Parser {
         }
 
         // Expect period to end field definition
-        if !self.consume(&Token::Period) {
-            return Err(Error::new(
+        if let Some(TokenPos {
+            token: Token::Period,
+            line: term_line,
+            ..
+        }) = self.current_token().cloned()
+        {
+            self.advance(); // consume the terminator
+            self.consume_line_tail(term_line); // drop any junk on the same physical line
+        } else {
+            return Err(self.err_here(
                 ErrorCode::CBKP001_SYNTAX,
                 format!("Expected period after field definition for {}", field.name),
             ));
@@ -748,7 +820,10 @@ impl Parser {
         // Collect PIC clause tokens - might be split across multiple tokens
         let mut pic_parts = Vec::new();
 
-        // First token should be a PIC clause or identifier
+        // Track whether we got a complete PIC clause from lexer
+        let mut got_complete_pic = false;
+
+        // First token should be a PIC clause, identifier, or number
         match self.current_token() {
             Some(TokenPos {
                 token: Token::PicClause(pic),
@@ -756,6 +831,7 @@ impl Parser {
             }) => {
                 pic_parts.push(pic.clone());
                 self.advance();
+                got_complete_pic = true; // We have a complete PIC, don't collect more
             }
             Some(TokenPos {
                 token: Token::EditedPic(pic),
@@ -763,7 +839,7 @@ impl Parser {
             }) => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("Edited PIC not supported: {}", pic),
+                    format!("edited PIC not supported: {}", pic),
                 ));
             }
             Some(TokenPos {
@@ -774,20 +850,84 @@ impl Parser {
                 pic_parts.push(id.clone());
                 self.advance();
             }
+            Some(TokenPos {
+                token: Token::Number(n),
+                ..
+            }) => {
+                // Numbers can start PIC clauses (like 999.99CR)
+                pic_parts.push(n.to_string());
+                self.advance();
+            }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected PIC clause after PIC keyword",
                 ));
             }
         }
 
-        // Check if next token is also part of PIC (like V99 after S9(7))
-        while let Some(token) = self.current_token() {
+        // Check if next tokens are also part of PIC (like V99, periods, numbers, CR, DB, etc.)
+        // Only do this if we didn't get a complete PIC clause from the lexer
+        while !got_complete_pic && let Some(token) = self.current_token() {
             match &token.token {
-                Token::Identifier(id) if id.starts_with('V') || id.starts_with('v') => {
-                    pic_parts.push(id.clone());
+                Token::Identifier(id) => {
+                    // Continue if it looks like part of a PIC clause
+                    if id.starts_with('V')
+                        || id.starts_with('v')
+                        || id == "CR"
+                        || id == "DB"
+                        || id == "cr"
+                        || id == "db"
+                        || id
+                            .chars()
+                            .all(|c| c.is_ascii_alphabetic() && "ZBCRDBVvZzBbCcRrDd".contains(c))
+                    {
+                        pic_parts.push(id.clone());
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                Token::Number(n) => {
+                    // Numbers can be part of PIC clauses
+                    pic_parts.push(n.to_string());
                     self.advance();
+                }
+                Token::EditedPic(pic) => {
+                    // EditedPic tokens can be part of larger PIC clauses
+                    pic_parts.push(pic.clone());
+                    self.advance();
+                }
+                Token::Period => {
+                    // Look ahead to see if this period is part of the PIC (like in 999.99)
+                    // But don't consume the final period that ends the field definition
+                    if let Some(next_token) = self.peek_token(1) {
+                        match &next_token.token {
+                            Token::Number(_) => {
+                                // Only include the period if the next number is on the same line
+                                // This prevents consuming sequence area numbers
+                                if token.line == next_token.line {
+                                    pic_parts.push(".".to_string());
+                                    self.advance();
+                                } else {
+                                    break;
+                                }
+                            }
+                            Token::EditedPic(_) => {
+                                pic_parts.push(".".to_string());
+                                self.advance();
+                            }
+                            Token::Identifier(id)
+                                if id == "CR" || id == "DB" || id == "cr" || id == "db" =>
+                            {
+                                pic_parts.push(".".to_string());
+                                self.advance();
+                            }
+                            _ => break,
+                        }
+                    } else {
+                        break;
+                    }
                 }
                 _ => break,
             }
@@ -808,7 +948,7 @@ impl Parser {
             crate::pic::PicKind::Edited => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    "Edited PIC should have been caught earlier",
+                    "edited PIC should have been caught earlier",
                 ));
             }
         };
@@ -847,7 +987,7 @@ impl Parser {
                 self.convert_to_binary_field_with_width(field)?;
             }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected USAGE type after USAGE keyword",
                 ));
@@ -868,7 +1008,7 @@ impl Parser {
                 name
             }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected field name after REDEFINES",
                 ));
@@ -1167,6 +1307,40 @@ impl Parser {
         }
     }
 
+    /// Check if an identifier is a field clause keyword
+    fn is_field_clause_keyword(&self, name: &str) -> bool {
+        matches!(
+            name.to_uppercase().as_str(),
+            "PIC"
+                | "PICTURE"
+                | "USAGE"
+                | "COMP"
+                | "COMPUTATIONAL"
+                | "COMP-3"
+                | "COMPUTATIONAL-3"
+                | "BINARY"
+                | "REDEFINES"
+                | "OCCURS"
+                | "DEPENDING"
+                | "ON"
+                | "TO"
+                | "TIMES"
+                | "SYNCHRONIZED"
+                | "SYNC"
+                | "VALUE"
+                | "SIGN"
+                | "LEADING"
+                | "TRAILING"
+                | "SEPARATE"
+                | "BLANK"
+                | "WHEN"
+                | "ZERO"
+                | "ZEROS"
+                | "ZEROES"
+                | "DISPLAY"
+        )
+    }
+
     /// Skip comments and newlines
     fn skip_comments_and_newlines(&mut self) {
         while let Some(token) = self.current_token() {
@@ -1199,6 +1373,11 @@ impl Parser {
     /// Get current token
     fn current_token(&self) -> Option<&TokenPos> {
         self.tokens.get(self.current)
+    }
+
+    /// Peek at a token at offset from current position
+    fn peek_token(&self, offset: usize) -> Option<&TokenPos> {
+        self.tokens.get(self.current + offset)
     }
 
     /// Advance to next token

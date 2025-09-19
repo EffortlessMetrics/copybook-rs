@@ -1,19 +1,28 @@
 //! Inspect command implementation
 
 use copybook_codec::Codepage;
-use copybook_core::parse_copybook;
+use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
-pub fn run(copybook: &PathBuf, codepage: Codepage) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn run(
+    copybook: &PathBuf,
+    codepage: Codepage,
+    strict: bool,
+) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Inspecting copybook: {:?}", copybook);
 
     // Read copybook file
     let copybook_text = fs::read_to_string(copybook)?;
 
-    // Parse copybook
-    let schema = parse_copybook(&copybook_text)?;
+    // Parse copybook with options
+    let options = ParseOptions {
+        strict,
+        codepage: codepage.to_string(),
+        emit_filler: false,
+    };
+    let schema = parse_copybook_with_options(&copybook_text, &options)?;
 
     // Display human-readable layout
     println!("Copybook Layout");

@@ -454,6 +454,14 @@ diff test1.jsonl test2.jsonl
 3. Verify deterministic mode
 4. Report bug if confirmed
 
+| Symptom                                             | Code       | Likely Cause                                  | Fix                                                                 |
+|-----------------------------------------------------|------------|-----------------------------------------------|----------------------------------------------------------------------|
+| "edited PIC …" error when loading schema            | CBKP051    | Edited picture (e.g., `ZZ9.99`, `CR`, `DB`)   | Replace with supported PIC; drop edited formatting.                 |
+| "Invalid character in PIC clause: ."                | CBKP001    | Content after `.` parsed into PIC             | Ensure only spaces after the `.` in columns 8–72; we now ignore tail |
+| "Invalid level 99" with line context                | CBKP001    | Non-standard level at BOL                     | Use 01–49, 66, 77, or 88; or fix misaligned columns                  |
+| ODO array fails to encode                           | CBKP0xx    | Counter missing/out of range/behind array     | Define counter first; check `OCCURS … DEPENDING ON` bounds           |
+| REDEFINES ambiguous on encode                       | CBKP0xx    | Multiple views match                           | Provide disambiguating data; encode a single view only               |
+
 ### Binary Field Alignment Issues
 
 **Symptoms:**

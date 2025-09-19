@@ -379,6 +379,11 @@ copybook decode schema.cpy data.bin --codepage ascii --output test-ascii.jsonl
 diff test-cp037.jsonl test-ascii.jsonl
 ```
 
+## Enabling Strict Validation
+
+Turn on `--strict` to enforce normative rules: ODO bounds/ordering, REDEFINES ambiguity as hard errors, and explicit `CBKP051` for edited PIC.
+Lenient mode preserves loader robustness while surfacing warnings.
+
 ## Validation and Testing
 
 ### 1. Output Comparison

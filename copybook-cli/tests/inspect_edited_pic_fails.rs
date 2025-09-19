@@ -1,7 +1,5 @@
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
-use predicates::prelude::*;
-use predicates::str::contains;
 use std::process::Command;
 
 #[test]
@@ -16,11 +14,15 @@ fn edited_pic_is_a_hard_error() -> Result<(), Box<dyn std::error::Error>> {
     let f = tmp.child("edited_pic.cpy");
     f.write_str(cpy)?;
 
-    Command::cargo_bin("copybook")?
+    let output = Command::cargo_bin("copybook")?
         .args(["inspect", f.path().to_str().unwrap()])
-        .assert()
-        .failure()
-        .stdout(contains("CBKP051").and(contains("edited PIC")));
+        .output()?;
+
+    assert!(!output.status.success());
+    let mut all = String::new();
+    all.push_str(&String::from_utf8_lossy(&output.stdout));
+    all.push_str(&String::from_utf8_lossy(&output.stderr));
+    assert!(all.contains("CBKP051") && all.contains("edited PIC"));
 
     Ok(())
 }

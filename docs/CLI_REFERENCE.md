@@ -53,6 +53,8 @@ copybook inspect <COPYBOOK> [OPTIONS]
 - `--show-offsets` - Include byte offsets in output
 - `--show-lengths` - Include field lengths in output
 
+**Binary widths:** `≤4 → 16-bit`, `5–9 → 32-bit`, `10–18 → 64-bit`.
+
 **Examples:**
 ```bash
 # Basic layout inspection
@@ -203,12 +205,15 @@ copybook verify <COPYBOOK> <DATA> [OPTIONS]
 **Examples:**
 ```bash
 # Basic verification
-copybook verify customer.cpy data.bin --format fixed
+copybook verify customer.cpy data.bin --format fixed --codepage cp037
 
 # Generate detailed report
 copybook verify customer.cpy data.bin \
   --format fixed \
+  --codepage cp037 \
   --report verification-report.json
+# Exit codes: 0 = ok, 3 = validation errors, 2 = fatal (I/O/schema)
+# Report schema: docs/VERIFY_REPORT.schema.json
 
 # Quick summary
 copybook verify customer.cpy data.bin --format fixed --summary

@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://copybook-rs.github.io/schemas/VERIFY_REPORT.schema.json",
   "title": "copybook-verify-report",
   "description": "Verification report schema for copybook-rs verify command",
   "type": "object",

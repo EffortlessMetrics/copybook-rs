@@ -188,10 +188,10 @@ fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
-        } => crate::commands::decode::run(
-            &copybook,
-            &input,
-            &output,
+        } => crate::commands::decode::run(crate::commands::decode::DecodeArgs {
+            copybook: &copybook,
+            input: &input,
+            output: &output,
             format,
             codepage,
             json_number,
@@ -202,7 +202,7 @@ fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
-        ),
+        }),
         Commands::Encode {
             copybook,
             input,

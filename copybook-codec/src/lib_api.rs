@@ -1571,7 +1571,7 @@ fn validate_string_length(
 ) -> Result<String> {
     if text.len() > max_length {
         if strict {
-            return Err(Error::new(
+            Err(Error::new(
                 ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
                 format!(
                     "String too long: {} characters exceeds maximum {} for field '{}'",
@@ -1579,7 +1579,7 @@ fn validate_string_length(
                     max_length,
                     field_name
                 ),
-            ));
+            ))
         } else {
             // Truncate in lenient mode
             Ok(text[..max_length].to_string())

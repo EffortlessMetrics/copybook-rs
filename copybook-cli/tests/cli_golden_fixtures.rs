@@ -9,7 +9,7 @@ use predicates::prelude::*;
 use serde_json::Value;
 use std::fs;
 use tempfile::TempDir;
-use test_utils::fixture_path;
+use test_utils::{copybook_cmd, fixture_path};
 
 /// Test parse command with golden fixture
 #[test]
@@ -48,14 +48,11 @@ fn test_cli_verify_valid_data() {
     let test_data = vec![0u8; 100]; // Create 100 bytes of test data
     fs::write(&data_file, test_data).unwrap();
 
-    let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("verify")
-        .arg(fixture_path("copybooks/simple.cpy"))
-        .arg(&data_file)
-        .arg("--format")
-        .arg("fixed")
-        .arg("--codepage")
-        .arg("cp037");
+    let mut cmd = copybook_cmd(&[
+        "verify",
+        fixture_path("copybooks/simple.cpy").to_str().unwrap(),
+        data_file.to_str().unwrap(),
+    ]);
 
     // This might fail due to data format, but should not crash
     let output = cmd.output().unwrap();
@@ -73,16 +70,12 @@ fn test_cli_verify_report_schema() {
     let test_data = vec![0u8; 100]; // Simple test data
     fs::write(&data_file, test_data).unwrap();
 
-    let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("verify")
-        .arg(fixture_path("copybooks/simple.cpy"))
-        .arg(&data_file)
-        .arg("--format")
-        .arg("fixed")
-        .arg("--codepage")
-        .arg("cp037")
-        .arg("--report")
-        .arg(&report_file);
+    let mut cmd = copybook_cmd(&[
+        "verify",
+        fixture_path("copybooks/simple.cpy").to_str().unwrap(),
+        data_file.to_str().unwrap(),
+    ]);
+    cmd.arg("--report").arg(&report_file);
 
     let output = cmd.output().unwrap();
 

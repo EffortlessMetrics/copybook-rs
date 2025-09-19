@@ -54,7 +54,7 @@ impl PicClause {
         if is_edited_pic(pic_str) {
             return Err(Error::new(
                 ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                format!("Edited PIC clause not supported: {pic_str}"),
+                format!("edited PIC clause not supported: {pic_str}"),
             ));
         }
 
@@ -252,8 +252,8 @@ impl fmt::Display for PicClause {
 
 /// Check if a PIC string contains edited picture characters
 fn is_edited_pic(pic_str: &str) -> bool {
-    // Edited PIC characters: Z, /, comma, $, +, -, *, CR, DB, etc.
-    let edited_chars = ['Z', 'z', '/', ',', '$', '+', '-', '*'];
+    // Edited PIC characters: Z, B, /, comma, $, +, -, *, CR, DB, etc.
+    let edited_chars = ['Z', 'z', 'B', 'b', '/', ',', '$', '+', '-', '*'];
 
     for ch in pic_str.chars() {
         if edited_chars.contains(&ch) {

@@ -214,7 +214,7 @@ fn test_mixed_comment_styles_error() {
 fn test_error_context_in_parse_errors() {
     // Test that parse errors include proper line numbers and context
     let invalid_syntax = r#"01 RECORD-NAME.
-   05 INVALID-LEVEL-99 PIC X(10).
+   99 INVALID-LEVEL PIC X(10).
    05 FIELD-NAME PIC X(10).
 "#;
 

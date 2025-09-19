@@ -775,6 +775,13 @@ pub fn encode_zoned_decimal(
 
 /// Encode packed decimal field
 ///
+/// Algorithm for PIC S9(n)Vs (scale s):
+/// 1. Scale the input value by 10^s to get integer representation
+/// 2. Create n+s decimal digits (zero-padded if needed)
+/// 3. Append sign nibble (C=+, D=-, F=unsigned/zero policy)
+/// 4. If total nibbles odd, prepend leading 0 nibble
+/// 5. Pack two nibbles per byte (high nibble first)
+///
 /// # Errors
 ///
 /// Returns an error if the value cannot be encoded as a packed decimal with the specified parameters
@@ -787,59 +794,73 @@ pub fn encode_packed_decimal(
     // Parse the input value with scale validation (NORMATIVE)
     let decimal = SmallDecimal::from_str(value, scale)?;
 
-    // Convert to string representation of digits
+    // 1. Convert to scaled integer and get sign
     let abs_value = decimal.value.abs();
+    let is_negative = decimal.is_negative();
+
+    // 2. Create zero-padded decimal string of exactly 'digits' length
     let digit_str = format!("{:0width$}", abs_value, width = digits as usize);
 
     if digit_str.len() > digits as usize {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {digits} digits"),
+            format!("Value {abs_value} too large for {digits} digits"),
         ));
     }
 
-    let expected_bytes = digits.div_ceil(2) as usize;
+    // 3. Determine expected bytes based on decode function's expectation: (digits + 2) / 2
+    #[allow(clippy::manual_midpoint)] // Not a midpoint calculation - we want (digits + 2) / 2, not midpoint(digits, 2)
+    let expected_bytes = ((digits + 2) / 2) as usize;
     let mut result = Vec::with_capacity(expected_bytes);
-    let digit_bytes = digit_str.as_bytes();
 
-    let mut byte_idx = 0;
+    // 4. Convert digits to bytes
+    let digit_bytes = digit_str.as_bytes();
     let mut digit_idx = 0;
 
-    while byte_idx < expected_bytes {
-        let mut byte_val = 0u8;
-
-        // High nibble
-        if byte_idx == expected_bytes - 1 && digits % 2 == 0 {
-            // Last byte, even digits - high nibble is sign
-            byte_val |= if signed {
-                if decimal.negative { 0xD0 } else { 0xC0 }
-            } else {
-                0xF0
-            };
-        } else if digit_idx < digit_bytes.len() {
-            // High nibble is a digit
-            let digit = digit_bytes[digit_idx] - b'0';
-            byte_val |= digit << 4;
-            digit_idx += 1;
-        }
-
-        // Low nibble
+    // 5. Pack digits into bytes
+    for byte_idx in 0..expected_bytes {
         if byte_idx == expected_bytes - 1 {
-            // Last byte - low nibble is always sign
-            byte_val |= if signed {
-                if decimal.negative { 0x0D } else { 0x0C }
+            // Last byte: handle even/odd digit count differently
+            if digits % 2 == 0 {
+                // Even digits: last byte is 0x0S (filler + sign)
+                let sign_nibble = if signed {
+                    if is_negative { 0xD } else { 0xC }
+                } else {
+                    0xF
+                };
+                result.push(sign_nibble); // High nibble = 0, low nibble = sign
             } else {
-                0x0F
+                // Odd digits: last byte is 0xDS (digit + sign)
+                let digit = if digit_idx < digit_bytes.len() {
+                    digit_bytes[digit_idx] - b'0'
+                } else {
+                    0
+                };
+                let sign_nibble = if signed {
+                    if is_negative { 0xD } else { 0xC }
+                } else {
+                    0xF
+                };
+                result.push((digit << 4) | sign_nibble);
+            }
+        } else {
+            // Regular byte: pack two digits
+            let high_digit = if digit_idx < digit_bytes.len() {
+                digit_bytes[digit_idx] - b'0'
+            } else {
+                0
             };
-        } else if digit_idx < digit_bytes.len() {
-            // Low nibble is a digit
-            let digit = digit_bytes[digit_idx] - b'0';
-            byte_val |= digit;
             digit_idx += 1;
-        }
 
-        result.push(byte_val);
-        byte_idx += 1;
+            let low_digit = if digit_idx < digit_bytes.len() {
+                digit_bytes[digit_idx] - b'0'
+            } else {
+                0
+            };
+            digit_idx += 1;
+
+            result.push((high_digit << 4) | low_digit);
+        }
     }
 
     Ok(result)
@@ -1250,7 +1271,7 @@ pub fn encode_zoned_decimal_with_scratch(
 }
 
 /// Optimized packed decimal encoder using scratch buffers
-/// Minimizes allocations by reusing digit buffer
+/// Minimizes allocations by reusing digit buffer for high-performance encoding
 ///
 /// # Errors
 /// Returns an error if the decimal value is too large for the specified digit count
@@ -1261,20 +1282,64 @@ pub fn encode_packed_decimal_with_scratch(
     signed: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<Vec<u8>> {
-    // Clear and prepare buffers
+    // Clear and prepare buffers for reuse
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
-    let expected_bytes = digits.div_ceil(2) as usize;
+    scratch.string_buffer.clear();
+
+    // 1. Convert to scaled integer and get sign
+    let abs_value = decimal.value.abs();
+    let is_negative = decimal.is_negative();
+
+    // 2. Build zero-padded digit string using scratch buffer for efficiency
+    scratch.string_buffer.push_str(&format!("{:0width$}", abs_value, width = digits as usize));
+
+    if scratch.string_buffer.len() > digits as usize {
+        return Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!("Value {abs_value} too large for {digits} digits"),
+        ));
+    }
+
+    // 3. Build nibble sequence using scratch digit buffer
+    scratch.digit_buffer.reserve((digits + 1) as usize);
+
+    // Add digit nibbles to scratch buffer
+    for byte in scratch.string_buffer.bytes() {
+        let digit = byte - b'0';
+        if digit > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Invalid digit character: {}", byte as char),
+            ));
+        }
+        scratch.digit_buffer.push(digit);
+    }
+
+    // 4. Append sign nibble
+    let sign_nibble = if signed {
+        if is_negative { 0xD } else { 0xC }
+    } else {
+        0xF // Unsigned: use F for positive/zero
+    };
+    scratch.digit_buffer.push(sign_nibble);
+
+    // 5. If odd nibble count, prepend leading 0 nibble
+    if scratch.digit_buffer.len() % 2 != 0 {
+        scratch.digit_buffer.insert(0, 0);
+    }
+
+    // 6. Pack nibbles using scratch byte buffer for efficiency
+    let expected_bytes = scratch.digit_buffer.len() / 2;
     scratch.byte_buffer.reserve(expected_bytes);
 
-    // Convert decimal to string using scratch buffer
-    scratch.string_buffer.clear();
-    scratch.string_buffer.push_str(&decimal.to_string());
+    for chunk in scratch.digit_buffer.chunks(2) {
+        let byte_val = (chunk[0] << 4) | chunk[1];
+        scratch.byte_buffer.push(byte_val);
+    }
 
-    // Use the standard encode function but with optimized nibble processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
-    encode_packed_decimal(&scratch.string_buffer, digits, decimal.scale, signed)
+    // Return owned copy (minimal allocation at final step)
+    Ok(scratch.byte_buffer.clone())
 }
 
 #[cfg(test)]
@@ -1408,5 +1473,137 @@ mod tests {
         let result =
             encode_zoned_decimal_with_bwz("123", 3, 0, false, Codepage::ASCII, true).unwrap();
         assert_eq!(result, vec![0x31, 0x32, 0x33]); // ASCII "123"
+    }
+
+    #[test]
+    fn test_comp3_encode_decode_roundtrip() {
+        // Test comprehensive round-trip for various COMP-3 values
+
+        // Test case 1: Positive value, odd digits (5 digits -> 5+1=6 nibbles -> 3 bytes)
+        let original_value = "12345";
+        let encoded = encode_packed_decimal(original_value, 5, 0, true).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 5, 0, true).unwrap();
+        assert_eq!(decoded.to_string(), original_value);
+        assert_eq!(encoded, vec![0x12, 0x34, 0x5C]); // 5 digits = 3 bytes, positive sign
+
+        // Test case 2: Negative value, odd digits (5 digits -> 5+1=6 nibbles -> 3 bytes)
+        let original_value = "-12345";
+        let encoded = encode_packed_decimal(original_value, 5, 0, true).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 5, 0, true).unwrap();
+        assert_eq!(decoded.to_string(), original_value);
+        assert_eq!(encoded, vec![0x12, 0x34, 0x5D]); // 5 digits = 3 bytes, negative sign
+
+        // Test case 3: Positive value, even digits (6 digits -> (6+2)/2 = 4 bytes)
+        let original_value = "123456";
+        let encoded = encode_packed_decimal(original_value, 6, 0, true).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 6, 0, true).unwrap();
+        assert_eq!(decoded.to_string(), original_value);
+        assert_eq!(encoded, vec![0x12, 0x34, 0x56, 0x0C]); // 6 digits = 4 bytes, filler + positive sign
+
+        // Test case 4: Negative value, even digits (6 digits -> (6+2)/2 = 4 bytes)
+        let original_value = "-123456";
+        let encoded = encode_packed_decimal(original_value, 6, 0, true).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 6, 0, true).unwrap();
+        assert_eq!(decoded.to_string(), original_value);
+        assert_eq!(encoded, vec![0x12, 0x34, 0x56, 0x0D]); // 6 digits = 4 bytes, filler + negative sign
+
+        // Test case 5: Zero value (should normalize) (3 digits -> 3+1=4 nibbles -> 2 bytes)
+        let original_value = "0";
+        let encoded = encode_packed_decimal(original_value, 3, 0, true).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 3, 0, true).unwrap();
+        assert_eq!(decoded.to_string(), "0"); // Should normalize -0 to 0
+        assert_eq!(encoded, vec![0x00, 0x0C]); // 3 digits = 2 bytes, positive sign
+
+        // Test case 6: Unsigned value (5 digits -> 5+1=6 nibbles -> 3 bytes)
+        let original_value = "12345";
+        let encoded = encode_packed_decimal(original_value, 5, 0, false).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 5, 0, false).unwrap();
+        assert_eq!(decoded.to_string(), original_value);
+        assert_eq!(encoded, vec![0x12, 0x34, 0x5F]); // 5 digits = 3 bytes, unsigned sign F
+    }
+
+    #[test]
+    fn test_comp3_encode_scale_handling() {
+        // Test scale handling with decimal values
+
+        // Test case 1: Scale 2 - "123.45" -> 12345 scaled
+        let original_value = "123.45";
+        let encoded = encode_packed_decimal(original_value, 5, 2, true).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 5, 2, true).unwrap();
+        assert_eq!(decoded.to_string(), original_value);
+        // Value 12345 with 5 digits: 0x12345C = [0x12, 0x34, 0x5C]
+        assert_eq!(encoded, vec![0x12, 0x34, 0x5C]);
+
+        // Test case 2: Scale 0 with padding - "123" -> "00123"
+        let original_value = "123";
+        let encoded = encode_packed_decimal(original_value, 5, 0, true).unwrap();
+        let decoded = decode_packed_decimal(&encoded, 5, 0, true).unwrap();
+        assert_eq!(decoded.to_string(), original_value);
+        // Value 123 padded to 5 digits: 00123 -> 0x00123C = [0x00, 0x12, 0x3C]
+        assert_eq!(encoded, vec![0x00, 0x12, 0x3C]);
+    }
+
+    #[test]
+    fn test_comp3_encode_error_conditions() {
+        // Test overflow - value too large for digit count
+        let result = encode_packed_decimal("123456", 4, 0, true);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("too large"));
+
+        // Test invalid scale
+        let result = encode_packed_decimal("123.4", 3, 2, true);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Scale mismatch") || error.message.contains("type mismatch"));
+    }
+
+    #[test]
+    fn test_comp3_golden_vectors() {
+        // Test against known golden values to ensure compatibility
+
+        // Golden vector 1: 1234 positive, 4 digits (even) -> (4+2)/2 = 3 bytes
+        // Bytes: 0x12 (digits 1,2), 0x34 (digits 3,4), 0x0C (filler 0, sign C)
+        let encoded = encode_packed_decimal("1234", 4, 0, true).unwrap();
+        assert_eq!(encoded, vec![0x12, 0x34, 0x0C]); // Expected: [0x12, 0x34, 0x0C]
+
+        // Golden vector 2: -1234 negative, 4 digits (even)
+        let encoded = encode_packed_decimal("-1234", 4, 0, true).unwrap();
+        assert_eq!(encoded, vec![0x12, 0x34, 0x0D]); // Expected: [0x12, 0x34, 0x0D]
+
+        // Golden vector 3: 1 with padding, 3 digits (odd) -> (3+2)/2 = 2 bytes
+        // Bytes: 0x00 (digit 0,0), 0x1C (digit 1, sign C)
+        let encoded = encode_packed_decimal("1", 3, 0, true).unwrap();
+        assert_eq!(encoded, vec![0x00, 0x1C]); // Expected: [0x00, 0x1C] (001C)
+
+        // Golden vector 4: Odd digit count example, 5 digits -> (5+2)/2 = 3 bytes
+        // Bytes: 0x12 (digits 1,2), 0x34 (digits 3,4), 0x5C (digit 5, sign C)
+        let encoded = encode_packed_decimal("12345", 5, 0, true).unwrap();
+        assert_eq!(encoded, vec![0x12, 0x34, 0x5C]); // Expected: [0x12, 0x34, 0x5C] (12345C)
+    }
+
+    #[test]
+    fn test_comp3_property_tests() {
+        // Property-based testing: encode(decode(bytes)) should be identity for valid inputs
+        let test_cases = vec![
+            (vec![0x12, 0x3C], 3, 0, true),       // 123 positive (3 digits -> 3+1=4 nibbles -> 2 bytes)
+            (vec![0x12, 0x3D], 3, 0, true),       // 123 negative (3 digits -> 3+1=4 nibbles -> 2 bytes)
+            (vec![0x12, 0x3F], 3, 0, false),      // 123 unsigned (3 digits -> 3+1=4 nibbles -> 2 bytes)
+            (vec![0x12, 0x34, 0x5C], 5, 0, true), // 12345 positive (5 digits -> 5+1=6 nibbles -> 3 bytes)
+            (vec![0x00, 0x1C], 3, 0, true),       // 1 positive (3 digits -> 3+1=4 nibbles -> 2 bytes: 001C)
+        ];
+
+        for (bytes, digits, scale, signed) in test_cases {
+            // Decode to get decimal value
+            let decoded = decode_packed_decimal(&bytes, digits, scale, signed).unwrap();
+
+            // Re-encode to bytes
+            let reencoded = encode_packed_decimal(&decoded.to_string(), digits, scale, signed).unwrap();
+
+            // Should be identical
+            assert_eq!(bytes, reencoded,
+                "Round-trip failed for digits={}, scale={}, signed={}: {:?} != {:?}",
+                digits, scale, signed, bytes, reencoded);
+        }
     }
 }

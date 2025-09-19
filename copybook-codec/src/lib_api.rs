@@ -1591,6 +1591,28 @@ fn encode_field_to_payload(
                 }
             }
         }
+        copybook_core::FieldKind::PackedDecimal { digits, scale, signed } => {
+            if let Some(text) = value.as_str() {
+                // Use the COMP-3 encoder we implemented
+                let encoded_bytes = crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
+
+                // Verify the encoded bytes match the expected field length
+                if encoded_bytes.len() != field_slice.len() {
+                    return Err(Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        format!(
+                            "COMP-3 encoded length {} doesn't match field length {} for field {}",
+                            encoded_bytes.len(),
+                            field_slice.len(),
+                            field.name
+                        ),
+                    ));
+                }
+
+                // Copy the encoded bytes to the field slice
+                field_slice.copy_from_slice(&encoded_bytes);
+            }
+        }
         _ => {
             // For now, just handle alphanum and zoned decimal fields.
             return Err(Error::new(

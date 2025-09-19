@@ -9,7 +9,6 @@ use std::path::Path;
 use tracing::info;
 
 /// Configuration options for the encode command
-#[allow(clippy::struct_excessive_bools)]
 pub struct EncodeCliOptions {
     pub format: RecordFormat,
     pub codepage: Codepage,

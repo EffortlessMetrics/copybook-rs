@@ -9,7 +9,6 @@ use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
-#[allow(clippy::too_many_arguments)]
 pub fn run(
     copybook: &PathBuf,
     input: &PathBuf,

@@ -13,16 +13,20 @@ use tracing::{info, warn, error};
 
 // Report structures now defined in verify_report.rs
 
-#[allow(clippy::while_let_on_iterator, clippy::unnecessary_cast, clippy::too_many_lines)]
+/// Configuration options for the verify command
+pub struct VerifyOptions {
+    pub format: RecordFormat,
+    pub codepage: Codepage,
+    pub strict: bool,
+    pub max_errors: u32,
+    pub sample: u32,
+}
+
 pub fn run(
     copybook_path: &PathBuf,
     input: &PathBuf,
     report: Option<PathBuf>,
-    format: RecordFormat,
-    codepage: Codepage,
-    strict: bool,
-    max_errors: Option<u64>,
-    sample_size: Option<u32>,
+    opts: VerifyOptions,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Verifying data file: {:?}", input);
 
@@ -38,20 +42,20 @@ pub fn run(
 
     // Configure decode options for verification
     let decode_options = DecodeOptions {
-        format,
-        codepage,
+        format: opts.format,
+        codepage: opts.codepage,
         json_number_mode: JsonNumberMode::Native, // Simple mode for verification
         emit_filler: false,
         emit_meta: false,
         emit_raw: RawMode::Off,
-        strict_mode: strict,
-        max_errors,
+        strict_mode: opts.strict,
+        max_errors: Some(u64::from(opts.max_errors)),
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1, // Single-threaded for deterministic error reporting
     };
 
     // Validate record format constraints
-    match format {
+    match opts.format {
         RecordFormat::Fixed => {
             if let Some(lrecl) = schema.lrecl_fixed {
                 // Check file size is multiple of LRECL
@@ -72,16 +76,16 @@ pub fn run(
 
     // Create CLI options echo for report
     let cli_opts = VerifyCliEcho {
-        codepage: format!("{codepage:?}"),
-        strict,
-        max_errors: max_errors.map_or(10, |e| e as u32),
-        sample: sample_size.unwrap_or(5),
+        codepage: format!("{:?}", opts.codepage),
+        strict: opts.strict,
+        max_errors: opts.max_errors,
+        sample: opts.sample,
     };
 
     // Initialize report
     let mut verify_report = VerifyReport::new(
         schema_fingerprint,
-        format!("{format:?}").to_lowercase(),
+        format!("{:?}", opts.format).to_lowercase(),
         input.to_string_lossy().to_string(),
         file_size,
         cli_opts,
@@ -97,37 +101,66 @@ pub fn run(
     // Create record iterator based on format
     let mut record_iter = RecordIterator::new(reader, &schema, &decode_options)?;
 
+    // Helper function to create hex string from bytes
+    fn hex_bytes(bytes: &[u8], max: usize) -> String {
+        bytes.iter().take(max).map(|b| format!("{:02X}", b)).collect::<String>()
+    }
+
     // Process each record
     while let Some(record_result) = record_iter.next() {
+        records_total += 1;
+
         match record_result {
             Ok(_json_value) => {
-                // Record decoded successfully
-                records_total += 1;
+                // Record decoded successfully - no action needed
             }
             Err(error) => {
-                // Record failed to decode
-                records_total += 1;
+                // Record failed to decode - we need to try to get the raw record data
+                // Since we can't get the raw bytes from the iterator after failure,
+                // we'll re-read this record manually if it's a fixed format
 
-                // Extract error details
+                let record_bytes = if let Some(lrecl) = schema.lrecl_fixed {
+                    // For fixed format, we can calculate the record position and re-read
+                    let record_offset = (records_total - 1) * u64::from(lrecl);
+
+                    // Try to read the raw record data from the file
+                    match std::fs::read(input) {
+                        Ok(file_data) => {
+                            let start = record_offset as usize;
+                            let end = start + lrecl as usize;
+                            if end <= file_data.len() {
+                                Some(file_data[start..end].to_vec())
+                            } else {
+                                None
+                            }
+                        }
+                        Err(_) => None,
+                    }
+                } else {
+                    None
+                };
+
+                // Extract error details with hex capability
                 let error_entry = VerifyError {
                     index: records_total - 1, // 0-based index
                     code: format!("{:?}", error.code),
                     field: error.context.as_ref().and_then(|ctx| ctx.field_path.clone()),
                     offset: error.context.as_ref().and_then(|ctx| ctx.byte_offset.map(|o| o as u64)),
                     msg: error.message.clone(),
-                    hex: None, // TODO: Add hex dump capability
+                    hex: record_bytes.as_ref().map(|bytes| hex_bytes(bytes, 64)), // First 64 bytes as hex
                 };
 
                 // Add error to report
                 verify_report.add_error(error_entry);
 
-                // Add sample record if within limit
-                // TODO: Add actual record hex data
-                let sample = VerifySample {
-                    index: records_total - 1,
-                    hex: "TODO: Record hex data".to_string(),
-                };
-                verify_report.add_sample(sample);
+                // Add sample record with actual hex data if available
+                if let Some(ref bytes) = record_bytes {
+                    let sample = VerifySample {
+                        index: records_total - 1,
+                        hex: hex_bytes(bytes, 256), // First 256 bytes for samples
+                    };
+                    verify_report.add_sample(sample);
+                }
 
                 // Log error for immediate feedback
                 error!("Record {}: {} - {}", records_total - 1, error.code, error.message);
@@ -141,8 +174,8 @@ pub fn run(
     // Print summary to stdout
     println!("Verification Summary:");
     println!("  File: {}", input.display());
-    println!("  Format: {format:?}");
-    println!("  Codepage: {codepage:?}");
+    println!("  Format: {:?}", opts.format);
+    println!("  Codepage: {:?}", opts.codepage);
     println!("  File Size: {file_size} bytes");
     println!("  Records Total: {}", verify_report.records_total);
     if verify_report.errors_total > 0 {

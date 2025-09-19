@@ -478,6 +478,74 @@ fn test_zoned_zero_sign_handling() {
     assert_eq!(pos_decoded, neg_decoded);
 }
 
+/// Test ASCII negative zero multi-digit handling (Pin the bug)
+/// S9(5): "-12340" must decode to "-12340", only pure -0 normalizes to "0"
+#[test]
+fn test_ascii_negative_zero_multi_digit() {
+    let copybook = r#"
+       01 ASCII-NEG-ZERO-TEST-RECORD.
+          05 MULTI-DIGIT-FIELD    PIC S9(5).
+    "#;
+
+    let schema = parse_copybook(copybook).expect("Failed to parse ASCII negative zero test schema");
+
+    let encode_options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_strict_mode(true);
+
+    let decode_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Lossless);
+
+    // Test pure negative zero (should normalize to "0")
+    let pure_negative_zero = json!({
+        "MULTI-DIGIT-FIELD": "-0"
+    });
+
+    let encoded = encode_record(&schema, &pure_negative_zero, &encode_options)
+        .expect("Failed to encode pure negative zero");
+    let decoded = decode_record(&schema, &encoded, &decode_options)
+        .expect("Failed to decode pure negative zero");
+
+    assert_eq!(decoded["MULTI-DIGIT-FIELD"], "0"); // Pure -0 should normalize to "0"
+
+    // Test multi-digit negative number ending in zero (should preserve negative sign)
+    let multi_digit_neg_zero = json!({
+        "MULTI-DIGIT-FIELD": "-12340"
+    });
+
+    let encoded_multi = encode_record(&schema, &multi_digit_neg_zero, &encode_options)
+        .expect("Failed to encode -12340");
+    let decoded_multi = decode_record(&schema, &encoded_multi, &decode_options)
+        .expect("Failed to decode -12340");
+
+    assert_eq!(decoded_multi["MULTI-DIGIT-FIELD"], "-12340"); // Must preserve negative sign
+
+    // Test other multi-digit negative numbers
+    let test_cases = [
+        ("-12345", "-12345"),
+        ("-98760", "-98760"),
+        ("-00001", "-1"),     // Leading zeros stripped but sign preserved
+        ("-10000", "-10000"),
+    ];
+
+    for (input, expected) in &test_cases {
+        let test_data = json!({
+            "MULTI-DIGIT-FIELD": input
+        });
+
+        let encoded_case = encode_record(&schema, &test_data, &encode_options)
+            .expect(&format!("Failed to encode {}", input));
+        let decoded_case = decode_record(&schema, &encoded_case, &decode_options)
+            .expect(&format!("Failed to decode {}", input));
+
+        assert_eq!(decoded_case["MULTI-DIGIT-FIELD"], *expected,
+                  "Input {} should decode to {}", input, expected);
+    }
+}
+
 /// Test edge cases for blank when zero
 #[test]
 fn test_blank_when_zero_edge_cases() {

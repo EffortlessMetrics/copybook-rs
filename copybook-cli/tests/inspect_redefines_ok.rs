@@ -12,7 +12,8 @@ fn redefines_views_load() -> Result<(), Box<dyn std::error::Error>> {
 "#;
 
     let tmp = assert_fs::TempDir::new()?;
-    let f = tmp.child("redefines_ok.cpy"); f.write_str(cpy)?;
+    let f = tmp.child("redefines_ok.cpy");
+    f.write_str(cpy)?;
 
     Command::cargo_bin("copybook")?
         .args(["inspect", f.path().to_str().unwrap()])

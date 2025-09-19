@@ -41,6 +41,8 @@ pub struct ParseOptions {
     pub emit_filler: bool,
     /// Codepage for fingerprint calculation
     pub codepage: String,
+    /// Enforce strict validation (ODO bounds/order, REDEFINES ambiguity as errors)
+    pub strict: bool,
 }
 
 impl Default for ParseOptions {
@@ -48,6 +50,7 @@ impl Default for ParseOptions {
         Self {
             emit_filler: false,
             codepage: "cp037".to_string(),
+            strict: false,
         }
     }
 }
@@ -85,7 +88,7 @@ impl Parser {
                 record_index: None,
                 field_path: None,
                 byte_offset: None,
-                line_number: Some(tok.line as u32),
+                line_number: Some(tok.line.try_into().unwrap_or(u32::MAX)),
                 details: None,
             });
         }
@@ -613,10 +616,9 @@ impl Parser {
             }) => {
                 // Check for invalid level numbers that appear to be at beginning of line
                 if *n >= 10 && *n <= 99 && *column <= 2 {
-                    return Err(self.err_here(
-                        ErrorCode::CBKP001_SYNTAX,
-                        format!("Invalid level {}", n),
-                    ));
+                    return Err(
+                        self.err_here(ErrorCode::CBKP001_SYNTAX, format!("Invalid level {}", n))
+                    );
                 }
                 // Skip unexpected tokens to prevent infinite loops
                 if !self.is_at_end() {
@@ -681,7 +683,8 @@ impl Parser {
         while let Some(TokenPos {
             token: Token::Identifier(next_name),
             ..
-        }) = self.current_token() {
+        }) = self.current_token()
+        {
             // Stop if we hit a reserved keyword that starts a clause
             if self.is_field_clause_keyword(next_name) {
                 break;
@@ -706,9 +709,14 @@ impl Parser {
         }
 
         // Expect period to end field definition
-        if let Some(TokenPos { token: Token::Period, line: term_line, .. }) = self.current_token().cloned() {
-            self.advance();                     // consume the terminator
-            self.consume_line_tail(term_line);  // drop any junk on the same physical line
+        if let Some(TokenPos {
+            token: Token::Period,
+            line: term_line,
+            ..
+        }) = self.current_token().cloned()
+        {
+            self.advance(); // consume the terminator
+            self.consume_line_tail(term_line); // drop any junk on the same physical line
         } else {
             return Err(self.err_here(
                 ErrorCode::CBKP001_SYNTAX,
@@ -864,9 +872,16 @@ impl Parser {
             match &token.token {
                 Token::Identifier(id) => {
                     // Continue if it looks like part of a PIC clause
-                    if id.starts_with('V') || id.starts_with('v')
-                        || id == "CR" || id == "DB" || id == "cr" || id == "db"
-                        || id.chars().all(|c| c.is_ascii_alphabetic() && "ZBCRDBVvZzBbCcRrDd".contains(c)) {
+                    if id.starts_with('V')
+                        || id.starts_with('v')
+                        || id == "CR"
+                        || id == "DB"
+                        || id == "cr"
+                        || id == "db"
+                        || id
+                            .chars()
+                            .all(|c| c.is_ascii_alphabetic() && "ZBCRDBVvZzBbCcRrDd".contains(c))
+                    {
                         pic_parts.push(id.clone());
                         self.advance();
                     } else {
@@ -902,7 +917,9 @@ impl Parser {
                                 pic_parts.push(".".to_string());
                                 self.advance();
                             }
-                            Token::Identifier(id) if id == "CR" || id == "DB" || id == "cr" || id == "db" => {
+                            Token::Identifier(id)
+                                if id == "CR" || id == "DB" || id == "cr" || id == "db" =>
+                            {
                                 pic_parts.push(".".to_string());
                                 self.advance();
                             }
@@ -1292,13 +1309,35 @@ impl Parser {
 
     /// Check if an identifier is a field clause keyword
     fn is_field_clause_keyword(&self, name: &str) -> bool {
-        matches!(name.to_uppercase().as_str(),
-            "PIC" | "PICTURE" | "USAGE" | "COMP" | "COMPUTATIONAL" |
-            "COMP-3" | "COMPUTATIONAL-3" | "BINARY" | "REDEFINES" |
-            "OCCURS" | "DEPENDING" | "ON" | "TO" | "TIMES" |
-            "SYNCHRONIZED" | "SYNC" | "VALUE" | "SIGN" | "LEADING" |
-            "TRAILING" | "SEPARATE" | "BLANK" | "WHEN" | "ZERO" |
-            "ZEROS" | "ZEROES" | "DISPLAY"
+        matches!(
+            name.to_uppercase().as_str(),
+            "PIC"
+                | "PICTURE"
+                | "USAGE"
+                | "COMP"
+                | "COMPUTATIONAL"
+                | "COMP-3"
+                | "COMPUTATIONAL-3"
+                | "BINARY"
+                | "REDEFINES"
+                | "OCCURS"
+                | "DEPENDING"
+                | "ON"
+                | "TO"
+                | "TIMES"
+                | "SYNCHRONIZED"
+                | "SYNC"
+                | "VALUE"
+                | "SIGN"
+                | "LEADING"
+                | "TRAILING"
+                | "SEPARATE"
+                | "BLANK"
+                | "WHEN"
+                | "ZERO"
+                | "ZEROS"
+                | "ZEROES"
+                | "DISPLAY"
         )
     }
 

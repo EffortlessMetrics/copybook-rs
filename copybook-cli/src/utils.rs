@@ -72,6 +72,12 @@ pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
     i32::from(has_errors)
 }
 
+/// Emit a fatal error message to stderr and return the appropriate exit code
+pub fn emit_fatal(err: &dyn std::error::Error) -> i32 {
+    eprintln!("Fatal error: {err}");
+    2 // Fatal error exit code
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

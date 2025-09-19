@@ -25,6 +25,7 @@ crossbeam-channel.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+hex.workspace = true
 
 [features]
 default = []

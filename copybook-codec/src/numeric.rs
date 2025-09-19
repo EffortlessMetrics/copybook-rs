@@ -136,7 +136,15 @@ impl SmallDecimal {
 
             let divisor =
                 10_i64.pow(u32::try_from(expected_scale).expect("Expected scale fits in u32"));
-            let total_value = integer_value * divisor + fractional_value;
+            let total_value = integer_value
+                .checked_mul(divisor)
+                .and_then(|scaled| scaled.checked_add(fractional_value))
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+                        format!("Numeric value too large for COMP-3 field: overflow in calculation"),
+                    )
+                })?;
 
             let mut result = Self::new(total_value, expected_scale, negative);
             result.normalize();

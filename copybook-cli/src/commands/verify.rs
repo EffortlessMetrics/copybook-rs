@@ -109,6 +109,13 @@ pub fn run(
         bytes.iter().take(max).map(|b| format!("{:02X}", b)).collect::<String>()
     }
 
+    // Helper function to create centered hex window around error offset
+    fn hex_window(bytes: &[u8], offset: usize, ctx: usize) -> String {
+        let start = offset.saturating_sub(ctx);
+        let end = (offset + ctx).min(bytes.len());
+        bytes[start..end].iter().map(|b| format!("{:02X}", b)).collect::<String>()
+    }
+
     // Process each record
     while let Some(record_result) = record_iter.next() {
         records_total += 1;
@@ -140,13 +147,24 @@ pub fn run(
                 };
 
                 // Extract error details with hex capability
+                let error_offset = error.context.as_ref().and_then(|ctx| ctx.byte_offset);
+                let hex_data = record_bytes.as_ref().map(|bytes| {
+                    if let Some(off) = error_offset {
+                        // Center hex window around error offset (16 bytes on each side)
+                        hex_window(bytes, off as usize, 16)
+                    } else {
+                        // Fall back to first 64 bytes if no offset available
+                        hex_bytes(bytes, 64)
+                    }
+                });
+
                 let error_entry = VerifyError {
                     index: records_total - 1, // 0-based index
                     code: format!("{:?}", error.code),
                     field: error.context.as_ref().and_then(|ctx| ctx.field_path.clone()),
-                    offset: error.context.as_ref().and_then(|ctx| ctx.byte_offset.map(|o| o as u64)),
+                    offset: error_offset.map(|o| o as u64),
                     msg: error.message.clone(),
-                    hex: record_bytes.as_ref().map(|bytes| hex_bytes(bytes, 64)), // First 64 bytes as hex
+                    hex: hex_data,
                 };
 
                 // Add error to report

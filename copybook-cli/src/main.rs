@@ -122,7 +122,12 @@ enum Commands {
         coerce_numbers: bool,
     },
     /// Verify data file structure
-    #[command(after_help = "Exit codes:\n  0 = valid data, no errors\n  3 = validation errors found\n  2 = fatal error (I/O, schema)")]
+    #[command(after_help = "\
+Exit codes:
+  0 = valid data, no errors
+  3 = validation errors found
+  2 = fatal error (I/O, schema)
+Report schema: docs/VERIFY_REPORT.schema.json")]
     Verify {
         /// Copybook file path
         copybook: PathBuf,

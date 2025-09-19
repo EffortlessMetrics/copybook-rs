@@ -613,15 +613,17 @@ impl Parser {
             }
         };
 
-        // Get field name
-        let mut name = match self.current_token() {
+        // Get field name - handle multiple identifiers for continuation
+        let mut name_parts = Vec::new();
+
+        // Get first identifier
+        match self.current_token() {
             Some(TokenPos {
                 token: Token::Identifier(name),
                 ..
             }) => {
-                let name = name.clone();
+                name_parts.push(name.clone());
                 self.advance();
-                name
             }
             _ => {
                 return Err(Error::new(
@@ -629,7 +631,22 @@ impl Parser {
                     format!("Expected field name after level {}", level),
                 ));
             }
-        };
+        }
+
+        // Check for additional identifiers (continuation case)
+        while let Some(TokenPos {
+            token: Token::Identifier(next_name),
+            ..
+        }) = self.current_token() {
+            // Stop if we hit a reserved keyword that starts a clause
+            if self.is_field_clause_keyword(next_name) {
+                break;
+            }
+            name_parts.push(next_name.clone());
+            self.advance();
+        }
+
+        let mut name = name_parts.join(" ");
 
         // Handle FILLER fields
         if name.to_uppercase() == "FILLER" && !self.options.emit_filler {
@@ -748,7 +765,7 @@ impl Parser {
         // Collect PIC clause tokens - might be split across multiple tokens
         let mut pic_parts = Vec::new();
 
-        // First token should be a PIC clause or identifier
+        // First token should be a PIC clause, identifier, or number
         match self.current_token() {
             Some(TokenPos {
                 token: Token::PicClause(pic),
@@ -763,7 +780,7 @@ impl Parser {
             }) => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("Edited PIC not supported: {}", pic),
+                    format!("edited PIC not supported: {}", pic),
                 ));
             }
             Some(TokenPos {
@@ -774,6 +791,14 @@ impl Parser {
                 pic_parts.push(id.clone());
                 self.advance();
             }
+            Some(TokenPos {
+                token: Token::Number(n),
+                ..
+            }) => {
+                // Numbers can start PIC clauses (like 999.99CR)
+                pic_parts.push(n.to_string());
+                self.advance();
+            }
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
@@ -782,12 +807,52 @@ impl Parser {
             }
         }
 
-        // Check if next token is also part of PIC (like V99 after S9(7))
+        // Check if next tokens are also part of PIC (like V99, periods, numbers, CR, DB, etc.)
         while let Some(token) = self.current_token() {
             match &token.token {
-                Token::Identifier(id) if id.starts_with('V') || id.starts_with('v') => {
-                    pic_parts.push(id.clone());
+                Token::Identifier(id) => {
+                    // Continue if it looks like part of a PIC clause
+                    if id.starts_with('V') || id.starts_with('v')
+                        || id == "CR" || id == "DB" || id == "cr" || id == "db"
+                        || id.chars().all(|c| c.is_ascii_alphabetic() && "ZBCRDBVvZzBbCcRrDd".contains(c)) {
+                        pic_parts.push(id.clone());
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                Token::Number(n) => {
+                    // Numbers can be part of PIC clauses
+                    pic_parts.push(n.to_string());
                     self.advance();
+                }
+                Token::EditedPic(pic) => {
+                    // EditedPic tokens can be part of larger PIC clauses
+                    pic_parts.push(pic.clone());
+                    self.advance();
+                }
+                Token::Period => {
+                    // Look ahead to see if this period is part of the PIC (like in 999.99)
+                    // But don't consume the final period that ends the field definition
+                    if let Some(next_token) = self.peek_token(1) {
+                        match &next_token.token {
+                            Token::Number(_) => {
+                                pic_parts.push(".".to_string());
+                                self.advance();
+                            }
+                            Token::EditedPic(_) => {
+                                pic_parts.push(".".to_string());
+                                self.advance();
+                            }
+                            Token::Identifier(id) if id == "CR" || id == "DB" || id == "cr" || id == "db" => {
+                                pic_parts.push(".".to_string());
+                                self.advance();
+                            }
+                            _ => break,
+                        }
+                    } else {
+                        break;
+                    }
                 }
                 _ => break,
             }
@@ -808,7 +873,7 @@ impl Parser {
             crate::pic::PicKind::Edited => {
                 return Err(Error::new(
                     ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    "Edited PIC should have been caught earlier",
+                    "edited PIC should have been caught earlier",
                 ));
             }
         };
@@ -1167,6 +1232,18 @@ impl Parser {
         }
     }
 
+    /// Check if an identifier is a field clause keyword
+    fn is_field_clause_keyword(&self, name: &str) -> bool {
+        matches!(name.to_uppercase().as_str(),
+            "PIC" | "PICTURE" | "USAGE" | "COMP" | "COMPUTATIONAL" |
+            "COMP-3" | "COMPUTATIONAL-3" | "BINARY" | "REDEFINES" |
+            "OCCURS" | "DEPENDING" | "ON" | "TO" | "TIMES" |
+            "SYNCHRONIZED" | "SYNC" | "VALUE" | "SIGN" | "LEADING" |
+            "TRAILING" | "SEPARATE" | "BLANK" | "WHEN" | "ZERO" |
+            "ZEROS" | "ZEROES" | "DISPLAY"
+        )
+    }
+
     /// Skip comments and newlines
     fn skip_comments_and_newlines(&mut self) {
         while let Some(token) = self.current_token() {
@@ -1199,6 +1276,11 @@ impl Parser {
     /// Get current token
     fn current_token(&self) -> Option<&TokenPos> {
         self.tokens.get(self.current)
+    }
+
+    /// Peek at a token at offset from current position
+    fn peek_token(&self, offset: usize) -> Option<&TokenPos> {
+        self.tokens.get(self.current + offset)
     }
 
     /// Advance to next token

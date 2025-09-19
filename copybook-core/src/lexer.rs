@@ -294,6 +294,7 @@ impl<'a> Lexer<'a> {
         while i < self.lines.len() {
             let line = &self.lines[i];
 
+
             if line.is_comment {
                 i += 1;
                 continue;
@@ -305,16 +306,33 @@ impl<'a> Lexer<'a> {
                 if result.ends_with('\n') {
                     result.pop(); // Remove newline
                 }
-                // Trim trailing whitespace from previous line, but preserve hyphens
-                while result.ends_with(' ') || result.ends_with('\t') {
-                    result.pop();
+
+                // Handle continuation properly:
+                // 1. Remove trailing whitespace from previous line
+                // 2. For column-7 continuation, preserve hyphens if they're part of the content
+                // 3. Add appropriate spacing between continued parts
+
+                let mut trimmed_result = result.trim_end().to_string();
+                let continuation_content = line.content.trim();
+
+
+                // Join the content with appropriate spacing
+                if !trimmed_result.is_empty() && !continuation_content.is_empty() {
+                    // Check if we need a space or direct join
+                    if trimmed_result.ends_with('-') && !continuation_content.starts_with('-') {
+                        // Hyphenated word continuation - don't add space
+                        trimmed_result.push_str(continuation_content);
+                    } else {
+                        // Add space for separate tokens - always add space for continuation
+                        // unless it's a direct hyphenated join
+                        trimmed_result.push(' ');
+                        trimmed_result.push_str(continuation_content);
+                    }
+                } else if !continuation_content.is_empty() {
+                    trimmed_result.push_str(continuation_content);
                 }
-                // Add continuation content with appropriate spacing
-                let continuation_content = line.content.trim_start();
-                if !result.ends_with('-') && !continuation_content.is_empty() {
-                    result.push(' '); // Add space if not ending with hyphen
-                }
-                result.push_str(continuation_content);
+
+                result = trimmed_result;
                 result.push('\n');
             } else {
                 // Regular line
@@ -439,14 +457,27 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
 
-    // Check for comment lines (* at column 1 or *> anywhere)
-    let is_comment = trimmed.starts_with('*') || line.contains("*>");
+    // Check for full comment lines (* at column 1)
+    if trimmed.starts_with('*') {
+        return ProcessedLine {
+            content: line,
+            _original_line: line_num,
+            is_comment: true,
+            is_continuation: false,
+        };
+    }
 
-    // Free-form doesn't have continuation in the same way as fixed-form
+    // Handle inline comments (*> anywhere) - strip comment part
+    let content = if let Some(comment_pos) = line.find("*>") {
+        line[..comment_pos].trim_end()
+    } else {
+        line
+    };
+
     ProcessedLine {
-        content: line,
+        content,
         _original_line: line_num,
-        is_comment,
+        is_comment: false,
         is_continuation: false,
     }
 }

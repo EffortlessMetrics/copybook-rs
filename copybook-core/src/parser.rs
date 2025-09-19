@@ -686,7 +686,7 @@ impl Parser {
         }) = self.current_token()
         {
             // Stop if we hit a reserved keyword that starts a clause
-            if self.is_field_clause_keyword(next_name) {
+            if Self::is_field_clause_keyword(next_name) {
                 break;
             }
             name_parts.push(next_name.clone());
@@ -1308,7 +1308,7 @@ impl Parser {
     }
 
     /// Check if an identifier is a field clause keyword
-    fn is_field_clause_keyword(&self, name: &str) -> bool {
+    fn is_field_clause_keyword(name: &str) -> bool {
         matches!(
             name.to_uppercase().as_str(),
             "PIC"

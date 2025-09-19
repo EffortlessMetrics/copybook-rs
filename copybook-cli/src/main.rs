@@ -112,6 +112,9 @@ enum Commands {
         /// Maximum errors before stopping
         #[arg(long)]
         max_errors: Option<u64>,
+        /// Stop on first error (default: true)
+        #[arg(long, default_value = "true")]
+        fail_fast: bool,
         /// Number of threads for parallel processing
         #[arg(long, default_value = "1")]
         threads: usize,
@@ -131,6 +134,12 @@ enum Commands {
         /// Character encoding
         #[arg(long, default_value = "cp037")]
         codepage: Codepage,
+        /// Enable strict mode validation
+        #[arg(long)]
+        strict: bool,
+        /// Maximum errors before stopping
+        #[arg(long)]
+        max_errors: Option<u64>,
     },
 }
 
@@ -193,10 +202,11 @@ fn main() {
             bwz_encode,
             strict,
             max_errors,
+            fail_fast,
             threads,
         } => crate::commands::encode::run(
             &copybook, &input, &output, format, codepage, use_raw, bwz_encode, strict, max_errors,
-            threads,
+            fail_fast, threads,
         ),
         Commands::Verify {
             copybook,
@@ -204,7 +214,9 @@ fn main() {
             report,
             format,
             codepage,
-        } => crate::commands::verify::run(copybook, &input, report, format, codepage),
+            strict,
+            max_errors,
+        } => crate::commands::verify::run(copybook, &input, report, format, codepage, strict, max_errors),
     };
 
     match result {

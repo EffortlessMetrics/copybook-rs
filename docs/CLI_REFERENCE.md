@@ -304,6 +304,9 @@ copybook parse path/to/schema.cpy
 - Uses ASCII overpunch sign table for zoned decimals
 - No character conversion applied
 
+### Binary Widths
+Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–18→64b
+
 ## Record Formats
 
 ### Fixed-Length Records

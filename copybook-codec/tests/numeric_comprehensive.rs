@@ -70,7 +70,7 @@ fn test_zoned_decimal_ascii_sign_zones() {
     };
 
     // Test ASCII positive overpunch
-    let positive_data = b"12}"; // "12}" = +123 in ASCII overpunch
+    let positive_data = b"12{"; // "12{" = +120 in ASCII overpunch
     let input = Cursor::new(positive_data);
     let mut output = Vec::new();
 
@@ -78,7 +78,7 @@ fn test_zoned_decimal_ascii_sign_zones() {
     let output_str = String::from_utf8(output).unwrap();
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
-    assert_eq!(json_record["SIGNED-FIELD"], "123");
+    assert_eq!(json_record["SIGNED-FIELD"], "120");
 
     // Test ASCII negative overpunch
     let negative_data = b"12L"; // "12L" = -123 in ASCII overpunch
@@ -176,8 +176,8 @@ fn test_zoned_negative_zero_normalization() {
         threads: 1,
     };
 
-    // Create -0 in ASCII overpunch (00M = -000)
-    let negative_zero_data = b"00M";
+    // Create -0 in ASCII overpunch (00} = -000)
+    let negative_zero_data = b"00}";
     let input = Cursor::new(negative_zero_data);
     let mut output = Vec::new();
 

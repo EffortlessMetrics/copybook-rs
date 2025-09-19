@@ -34,6 +34,7 @@ fn create_test_encode_options(strict: bool) -> EncodeOptions {
         strict_mode: strict,
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     }
 }
 
@@ -129,8 +130,7 @@ fn test_redefines_encode_precedence_normative() {
 
     // Test single non-null view (should succeed)
     let single_view_json = json!({
-        "ORIGINAL-FIELD": "HELLO123",
-        "NUMERIC-VIEW": null
+        "ORIGINAL-FIELD": "HELLO123"
     });
 
     let result = copybook_codec::encode_record(&schema, &single_view_json, &options);

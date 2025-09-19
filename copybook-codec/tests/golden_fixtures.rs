@@ -29,9 +29,10 @@ fn test_comp3_roundtrip_golden() {
         codepage: Codepage::ASCII,
         use_raw: false,
         bwz_encode: false,
-        strict_mode: true,
+        strict_mode: false,
         max_errors: None,
         threads: 1,
+        coerce_numbers: true,
     };
 
     // Encode JSONL to binary

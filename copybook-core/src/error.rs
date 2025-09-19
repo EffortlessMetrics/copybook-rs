@@ -81,6 +81,12 @@ pub enum ErrorCode {
     // Encode Errors (CBKE*)
     /// CBKE501: JSON type doesn't match field type
     CBKE501_JSON_TYPE_MISMATCH,
+    /// CBKE505: Scale mismatch for decimal field
+    CBKE505_SCALE_MISMATCH,
+    /// CBKE510: Numeric field overflow
+    CBKE510_NUMERIC_OVERFLOW,
+    /// CBKE515: String field length violation
+    CBKE515_STRING_LENGTH_VIOLATION,
     /// CBKE521: Array length out of bounds
     CBKE521_ARRAY_LEN_OOB,
 
@@ -110,6 +116,9 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKD411_ZONED_BAD_SIGN => "CBKD411_ZONED_BAD_SIGN",
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => "CBKD412_ZONED_BLANK_IS_ZERO",
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH => "CBKE501_JSON_TYPE_MISMATCH",
+            ErrorCode::CBKE505_SCALE_MISMATCH => "CBKE505_SCALE_MISMATCH",
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW => "CBKE510_NUMERIC_OVERFLOW",
+            ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => "CBKE515_STRING_LENGTH_VIOLATION",
             ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
         };

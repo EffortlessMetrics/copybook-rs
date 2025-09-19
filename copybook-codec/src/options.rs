@@ -45,6 +45,8 @@ pub struct EncodeOptions {
     pub max_errors: Option<u64>,
     /// Number of threads for parallel processing
     pub threads: usize,
+    /// Whether to coerce non-string JSON numbers to strings before encoding
+    pub coerce_numbers: bool,
 }
 
 /// Record format specification
@@ -298,6 +300,7 @@ impl Default for EncodeOptions {
             strict_mode: false,
             max_errors: None,
             threads: 1,
+            coerce_numbers: false,
         }
     }
 }
@@ -355,6 +358,13 @@ impl EncodeOptions {
     #[must_use]
     pub fn with_threads(mut self, threads: usize) -> Self {
         self.threads = threads;
+        self
+    }
+
+    /// Enable or disable number coercion
+    #[must_use]
+    pub fn with_coerce_numbers(mut self, coerce_numbers: bool) -> Self {
+        self.coerce_numbers = coerce_numbers;
         self
     }
 }

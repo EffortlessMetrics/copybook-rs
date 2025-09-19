@@ -133,6 +133,7 @@ fn test_redefines_encode_error_context() {
         strict_mode: true,
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -178,6 +179,7 @@ fn test_missing_counter_field_error() {
         strict_mode: true,
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

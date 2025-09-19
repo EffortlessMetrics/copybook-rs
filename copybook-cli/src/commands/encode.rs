@@ -1,28 +1,32 @@
 //! Encode command implementation
 
-#![allow(clippy::pedantic)]
-
 use crate::utils::{atomic_write, determine_exit_code};
 use copybook_codec::{Codepage, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 use tracing::info;
 
-#[allow(clippy::too_many_arguments, clippy::collapsible_if)]
+/// Configuration options for the encode command
+#[allow(clippy::struct_excessive_bools)]
+pub struct EncodeCliOptions {
+    pub format: RecordFormat,
+    pub codepage: Codepage,
+    pub use_raw: bool,
+    pub bwz_encode: bool,
+    pub strict: bool,
+    pub max_errors: Option<u64>,
+    pub fail_fast: bool,
+    pub threads: usize,
+    pub coerce_numbers: bool,
+}
+
 pub fn run(
-    copybook: &PathBuf,
-    input: &PathBuf,
-    output: &PathBuf,
-    format: RecordFormat,
-    codepage: Codepage,
-    use_raw: bool,
-    bwz_encode: bool,
-    strict: bool,
-    max_errors: Option<u64>,
-    fail_fast: bool,
-    threads: usize,
+    copybook: &Path,
+    input: &Path,
+    output: &Path,
+    options: &EncodeCliOptions,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Encoding JSONL file: {:?}", input);
 
@@ -33,17 +37,18 @@ pub fn run(
     let schema = parse_copybook(&copybook_text)?;
 
     // Configure encode options - use strict mode when fail_fast is enabled
-    let effective_strict_mode = strict || fail_fast;
-    let effective_max_errors = if fail_fast { Some(1) } else { max_errors };
+    let effective_strict_mode = options.strict || options.fail_fast;
+    let effective_max_errors = if options.fail_fast { Some(1) } else { options.max_errors };
 
-    let options = EncodeOptions {
-        format,
-        codepage,
-        use_raw,
-        bwz_encode,
+    let encode_options = EncodeOptions {
+        format: options.format,
+        codepage: options.codepage,
+        use_raw: options.use_raw,
+        bwz_encode: options.bwz_encode,
         strict_mode: effective_strict_mode,
         max_errors: effective_max_errors,
-        threads,
+        threads: options.threads,
+        coerce_numbers: options.coerce_numbers,
     };
 
     // Encode file using atomic write with better error handling
@@ -52,7 +57,7 @@ pub fn run(
         let atomic_result = atomic_write(output, |output_writer| {
             let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
             let summary =
-                copybook_codec::encode_jsonl_to_file(&schema, input_file, output_writer, &options)
+                copybook_codec::encode_jsonl_to_file(&schema, input_file, output_writer, &encode_options)
                     .map_err(std::io::Error::other)?;
             result_summary = Some(summary);
             Ok(())
@@ -62,24 +67,23 @@ pub fn run(
             Ok(()) => Ok(result_summary.unwrap()),
             Err(e) => {
                 // Check if this is an encoding error we should surface
-                if let Some(source) = e.source() {
-                    if let Some(encode_error) = source.downcast_ref::<copybook_core::Error>() {
+                if let Some(source) = e.source()
+                    && let Some(encode_error) = source.downcast_ref::<copybook_core::Error>() {
                         // This is a structured copybook error - provide detailed information
                         eprintln!("Encoding failed: {} - {}", encode_error.code, encode_error.message);
                         if let Some(context) = &encode_error.context {
                             if let Some(field_path) = &context.field_path {
-                                eprintln!("Field: {}", field_path);
+                                eprintln!("Field: {field_path}");
                             }
                             if let Some(record_index) = context.record_index {
-                                eprintln!("Record: {}", record_index);
+                                eprintln!("Record: {record_index}");
                             }
                             if let Some(byte_offset) = context.byte_offset {
-                                eprintln!("Byte offset: {}", byte_offset);
+                                eprintln!("Byte offset: {byte_offset}");
                             }
                         }
                         return Ok(3); // Hard error exit code
                     }
-                }
                 // Generic I/O error
                 return Err(Box::new(e));
             }
@@ -107,7 +111,7 @@ pub fn run(
         eprintln!("ERROR: No records were successfully encoded.");
         eprintln!("All {} records failed to encode. Use --fail-fast=false to see details of additional errors.", summary.records_with_errors);
         eprintln!("Consider checking your input data format and copybook compatibility.");
-    } else if summary.records_with_errors > 0 && !fail_fast {
+    } else if summary.records_with_errors > 0 && !options.fail_fast {
         eprintln!();
         eprintln!("WARNING: {} records failed to encode but were skipped in lenient mode.", summary.records_with_errors);
         eprintln!("Use --fail-fast to stop on first error for detailed error information.");

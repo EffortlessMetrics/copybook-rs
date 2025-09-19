@@ -6,7 +6,6 @@
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use std::path::PathBuf;
-use tracing::error;
 
 #[derive(Parser)]
 #[command(name = "copybook")]
@@ -118,6 +117,9 @@ enum Commands {
         /// Number of threads for parallel processing
         #[arg(long, default_value = "1")]
         threads: usize,
+        /// Coerce non-string JSON numbers to strings before encoding
+        #[arg(long)]
+        coerce_numbers: bool,
     },
     /// Verify data file structure
     Verify {
@@ -204,9 +206,22 @@ fn main() {
             max_errors,
             fail_fast,
             threads,
+            coerce_numbers,
         } => crate::commands::encode::run(
-            &copybook, &input, &output, format, codepage, use_raw, bwz_encode, strict, max_errors,
-            fail_fast, threads,
+            &copybook,
+            &input,
+            &output,
+            &crate::commands::encode::EncodeCliOptions {
+                format,
+                codepage,
+                use_raw,
+                bwz_encode,
+                strict,
+                max_errors,
+                fail_fast,
+                threads,
+                coerce_numbers,
+            }
         ),
         Commands::Verify {
             copybook,
@@ -216,7 +231,7 @@ fn main() {
             codepage,
             strict,
             max_errors,
-        } => crate::commands::verify::run(copybook, &input, report, format, codepage, strict, max_errors),
+        } => crate::commands::verify::run(&copybook, &input, report, format, codepage, strict, max_errors),
     };
 
     match result {
@@ -224,8 +239,8 @@ fn main() {
             std::process::exit(exit_code);
         }
         Err(e) => {
-            error!("Fatal error: {}", e);
-            std::process::exit(2);
+            let exit_code = crate::utils::emit_fatal(e.as_ref());
+            std::process::exit(exit_code);
         }
     }
 }

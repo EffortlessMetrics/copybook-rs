@@ -330,9 +330,11 @@ impl ErrorReporter {
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => ErrorSeverity::Warning,
 
             // Encode errors
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE505_SCALE_MISMATCH | ErrorCode::CBKE510_NUMERIC_OVERFLOW | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION | ErrorCode::CBKE521_ARRAY_LEN_OOB => {
-                ErrorSeverity::Error
-            }
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH
+            | ErrorCode::CBKE505_SCALE_MISMATCH
+            | ErrorCode::CBKE510_NUMERIC_OVERFLOW
+            | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION
+            | ErrorCode::CBKE521_ARRAY_LEN_OOB => ErrorSeverity::Error,
 
             // Transfer corruption warnings
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,

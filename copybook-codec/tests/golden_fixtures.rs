@@ -4,11 +4,14 @@
 //! for well-known inputs. They serve as regression tests and documentation
 //! of the expected behavior.
 
-use copybook_codec::{decode_file_to_jsonl, encode_jsonl_to_file, DecodeOptions, EncodeOptions, Codepage, RecordFormat, JsonNumberMode, RawMode};
+use copybook_codec::{
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    decode_file_to_jsonl, encode_jsonl_to_file,
+};
 use copybook_core::parse_copybook;
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Cursor;
-use sha2::{Digest, Sha256};
 
 /// Test that verifies COMP-3 round-trip encoding and decoding works correctly
 #[test]
@@ -16,8 +19,7 @@ fn test_comp3_roundtrip_golden() {
     let copybook_text = fs::read_to_string("../fixtures/copybooks/comp3_test.cpy")
         .expect("Failed to read COMP-3 test copybook");
 
-    let schema = parse_copybook(&copybook_text)
-        .expect("Failed to parse COMP-3 test copybook");
+    let schema = parse_copybook(&copybook_text).expect("Failed to parse COMP-3 test copybook");
 
     // Read test JSONL data
     let jsonl_data = fs::read_to_string("../fixtures/data/comp3_test.jsonl")
@@ -38,8 +40,9 @@ fn test_comp3_roundtrip_golden() {
     // Encode JSONL to binary
     let mut binary_output = Vec::new();
     let input_cursor = Cursor::new(jsonl_data.as_bytes());
-    let encode_summary = encode_jsonl_to_file(&schema, input_cursor, &mut binary_output, &encode_options)
-        .expect("Failed to encode COMP-3 test data");
+    let encode_summary =
+        encode_jsonl_to_file(&schema, input_cursor, &mut binary_output, &encode_options)
+            .expect("Failed to encode COMP-3 test data");
 
     // Verify encoding succeeded
     assert_eq!(encode_summary.records_processed, 2);
@@ -62,8 +65,9 @@ fn test_comp3_roundtrip_golden() {
     // Decode binary back to JSONL
     let mut decoded_output = Vec::new();
     let binary_cursor = Cursor::new(&binary_output);
-    let decode_summary = decode_file_to_jsonl(&schema, binary_cursor, &mut decoded_output, &decode_options)
-        .expect("Failed to decode COMP-3 test data");
+    let decode_summary =
+        decode_file_to_jsonl(&schema, binary_cursor, &mut decoded_output, &decode_options)
+            .expect("Failed to decode COMP-3 test data");
 
     // Verify decoding succeeded
     assert_eq!(decode_summary.records_processed, 2);
@@ -75,8 +79,8 @@ fn test_comp3_roundtrip_golden() {
     assert_eq!(lines.len(), 2);
 
     // Verify first record
-    let record1: serde_json::Value = serde_json::from_str(lines[0])
-        .expect("Failed to parse first decoded record");
+    let record1: serde_json::Value =
+        serde_json::from_str(lines[0]).expect("Failed to parse first decoded record");
     assert_eq!(record1["RECORD-ID"], "0001");
     assert_eq!(record1["POSITIVE-AMOUNT"], "12345");
     assert_eq!(record1["NEGATIVE-AMOUNT"], "-67890");
@@ -84,8 +88,8 @@ fn test_comp3_roundtrip_golden() {
     assert_eq!(record1["UNSIGNED-AMOUNT"], "999");
 
     // Verify second record
-    let record2: serde_json::Value = serde_json::from_str(lines[1])
-        .expect("Failed to parse second decoded record");
+    let record2: serde_json::Value =
+        serde_json::from_str(lines[1]).expect("Failed to parse second decoded record");
     assert_eq!(record2["RECORD-ID"], "0002");
     assert_eq!(record2["POSITIVE-AMOUNT"], "1");
     assert_eq!(record2["NEGATIVE-AMOUNT"], "-1");
@@ -111,14 +115,26 @@ fn test_schema_parsing_golden() {
             .unwrap_or_else(|_| panic!("Failed to parse copybook: {}", copybook_path));
 
         // Verify schema has expected structure
-        assert!(!schema.fields.is_empty(), "Schema should have fields for {}", copybook_path);
+        assert!(
+            !schema.fields.is_empty(),
+            "Schema should have fields for {}",
+            copybook_path
+        );
 
         // Verify schema fingerprint is consistent
-        assert!(!schema.fingerprint.is_empty(), "Schema should have fingerprint for {}", copybook_path);
+        assert!(
+            !schema.fingerprint.is_empty(),
+            "Schema should have fingerprint for {}",
+            copybook_path
+        );
 
         // For fixed-length schemas, verify LRECL
         if copybook_path.contains("simple") || copybook_path.contains("comp3") {
-            assert!(schema.lrecl_fixed.is_some(), "Fixed-length schema should have LRECL for {}", copybook_path);
+            assert!(
+                schema.lrecl_fixed.is_some(),
+                "Fixed-length schema should have LRECL for {}",
+                copybook_path
+            );
         }
     }
 }
@@ -147,7 +163,8 @@ fn test_create_golden_hashes() {
             if let Ok(content) = fs::read(file_path) {
                 let hash = calculate_sha256(&content);
                 let hash_file = format!("{}.sha256", file_path);
-                fs::write(&hash_file, hash).unwrap_or_else(|_| panic!("Failed to write hash file: {}", hash_file));
+                fs::write(&hash_file, hash)
+                    .unwrap_or_else(|_| panic!("Failed to write hash file: {}", hash_file));
                 println!("Created hash file: {} -> {}", file_path, hash_file);
             }
         }

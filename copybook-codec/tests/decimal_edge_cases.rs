@@ -7,8 +7,11 @@
 //! - Various scale scenarios (V0, large scale)
 //! - Zoned decimal overpunch mapping by codepage
 
-use copybook_codec::{decode_record, encode_record, DecodeOptions, EncodeOptions, Codepage, RecordFormat, JsonNumberMode};
-use copybook_core::{parse_copybook, Schema};
+use copybook_codec::{
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
+    encode_record,
+};
+use copybook_core::{Schema, parse_copybook};
 use serde_json::json;
 
 /// Create test schema for packed decimal testing
@@ -78,8 +81,8 @@ fn test_packed_zero_handling() {
 
     let encoded = encode_record(&schema, &positive_zero, &encode_options)
         .expect("Failed to encode positive zero");
-    let decoded = decode_record(&schema, &encoded, &decode_options)
-        .expect("Failed to decode positive zero");
+    let decoded =
+        decode_record(&schema, &encoded, &decode_options).expect("Failed to decode positive zero");
 
     // Verify zeros are handled consistently (decoder outputs canonical form)
     assert_eq!(decoded["COMP3-2-0"], "0");
@@ -134,20 +137,20 @@ fn test_packed_max_digits_and_overflow() {
         "COMP3-UNSIGNED": "9999"
     });
 
-    let encoded = encode_record(&schema, &max_values, &encode_options)
-        .expect("Failed to encode max values");
+    let encoded =
+        encode_record(&schema, &max_values, &encode_options).expect("Failed to encode max values");
     let decode_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII)
         .with_json_number_mode(JsonNumberMode::Lossless);
 
-    let decoded = decode_record(&schema, &encoded, &decode_options)
-        .expect("Failed to decode max values");
+    let decoded =
+        decode_record(&schema, &encoded, &decode_options).expect("Failed to decode max values");
 
     assert_eq!(decoded["COMP3-2-0"], "99");
-    assert_eq!(decoded["COMP3-4-2"], "9999.99");  // Decimal preserved in output
+    assert_eq!(decoded["COMP3-4-2"], "9999.99"); // Decimal preserved in output
     assert_eq!(decoded["COMP3-9-0"], "999999999");
-    assert_eq!(decoded["COMP3-18-4"], "12345678901234.5678");  // Decimal preserved
+    assert_eq!(decoded["COMP3-18-4"], "12345678901234.5678"); // Decimal preserved
     assert_eq!(decoded["COMP3-UNSIGNED"], "9999");
 
     // Test overflow scenarios
@@ -164,8 +167,15 @@ fn test_packed_max_digits_and_overflow() {
 
     if let Err(e) = overflow_result {
         let error_msg = format!("{}", e);
-        assert!(error_msg.contains("CBKE501") || error_msg.contains("CBKE510") || error_msg.contains("overflow") || error_msg.contains("too long") || error_msg.contains("too large"),
-                "Should contain overflow error code or message: {}", error_msg);
+        assert!(
+            error_msg.contains("CBKE501")
+                || error_msg.contains("CBKE510")
+                || error_msg.contains("overflow")
+                || error_msg.contains("too long")
+                || error_msg.contains("too large"),
+            "Should contain overflow error code or message: {}",
+            error_msg
+        );
     }
 
     // Test arithmetic overflow in large decimal values
@@ -178,12 +188,18 @@ fn test_packed_max_digits_and_overflow() {
     });
 
     let arith_overflow_result = encode_record(&schema, &arithmetic_overflow, &encode_options);
-    assert!(arith_overflow_result.is_err(), "Should fail on arithmetic overflow");
+    assert!(
+        arith_overflow_result.is_err(),
+        "Should fail on arithmetic overflow"
+    );
 
     if let Err(e) = arith_overflow_result {
         let error_msg = format!("{}", e);
-        assert!(error_msg.contains("CBKE510") || error_msg.contains("overflow"),
-                "Should contain arithmetic overflow error: {}", error_msg);
+        assert!(
+            error_msg.contains("CBKE510") || error_msg.contains("overflow"),
+            "Should contain arithmetic overflow error: {}",
+            error_msg
+        );
     }
 }
 
@@ -274,8 +290,11 @@ fn test_scale_scenarios() {
 
     if let Err(e) = mismatch_result {
         let error_msg = format!("{}", e);
-        assert!(error_msg.contains("CBKE505") || error_msg.contains("scale"),
-                "Should contain scale error: {}", error_msg);
+        assert!(
+            error_msg.contains("CBKE505") || error_msg.contains("scale"),
+            "Should contain scale error: {}",
+            error_msg
+        );
     }
 }
 
@@ -302,10 +321,10 @@ fn test_zoned_overpunch_by_codepage() {
         "ZONED-UNSIGNED": "9876"
     });
 
-    let ascii_encoded = encode_record(&schema, &test_data, &ascii_options)
-        .expect("Failed to encode with ASCII");
-    let ascii_decoded = decode_record(&schema, &ascii_encoded, &ascii_decode)
-        .expect("Failed to decode with ASCII");
+    let ascii_encoded =
+        encode_record(&schema, &test_data, &ascii_options).expect("Failed to encode with ASCII");
+    let ascii_decoded =
+        decode_record(&schema, &ascii_encoded, &ascii_decode).expect("Failed to decode with ASCII");
 
     assert_eq!(ascii_decoded["ZONED-2-0"], "-12");
     assert_eq!(ascii_decoded["ZONED-4-0"], "-3456");
@@ -323,8 +342,8 @@ fn test_zoned_overpunch_by_codepage() {
         .with_codepage(Codepage::CP037)
         .with_json_number_mode(JsonNumberMode::Lossless);
 
-    let ebcdic_encoded = encode_record(&schema, &test_data, &ebcdic_options)
-        .expect("Failed to encode with EBCDIC");
+    let ebcdic_encoded =
+        encode_record(&schema, &test_data, &ebcdic_options).expect("Failed to encode with EBCDIC");
     let ebcdic_decoded = decode_record(&schema, &ebcdic_encoded, &ebcdic_decode)
         .expect("Failed to decode with EBCDIC");
 
@@ -340,7 +359,10 @@ fn test_zoned_overpunch_by_codepage() {
     println!("EBCDIC: {:?}", ebcdic_encoded);
 
     // Verify that encodings are actually different for negative values
-    assert_ne!(ascii_encoded, ebcdic_encoded, "ASCII and EBCDIC overpunch should produce different encodings");
+    assert_ne!(
+        ascii_encoded, ebcdic_encoded,
+        "ASCII and EBCDIC overpunch should produce different encodings"
+    );
 }
 
 /// Comprehensive test for zoned decimal overpunch across all codepages
@@ -355,7 +377,14 @@ fn test_zoned_overpunch_comprehensive() {
     let schema = parse_copybook(copybook).expect("Failed to parse overpunch test schema");
 
     // Test all digit values with positive and negative signs across codepages
-    let codepages = [Codepage::ASCII, Codepage::CP037, Codepage::CP273, Codepage::CP500, Codepage::CP1047, Codepage::CP1140];
+    let codepages = [
+        Codepage::ASCII,
+        Codepage::CP037,
+        Codepage::CP273,
+        Codepage::CP500,
+        Codepage::CP1047,
+        Codepage::CP1140,
+    ];
 
     for &codepage in &codepages {
         println!("Testing codepage: {:?}", codepage);
@@ -378,10 +407,12 @@ fn test_zoned_overpunch_comprehensive() {
                 "MULTI-DIGIT": format!("1234{}", digit),
             });
 
-            let pos_encoded = encode_record(&schema, &positive_data, &encode_options)
-                .expect(&format!("Failed to encode positive {} with {:?}", digit, codepage));
-            let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options)
-                .expect(&format!("Failed to decode positive {} with {:?}", digit, codepage));
+            let pos_encoded = encode_record(&schema, &positive_data, &encode_options).expect(
+                &format!("Failed to encode positive {} with {:?}", digit, codepage),
+            );
+            let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options).expect(
+                &format!("Failed to decode positive {} with {:?}", digit, codepage),
+            );
 
             assert_eq!(pos_decoded["SINGLE-DIGIT"], digit.to_string());
             assert_eq!(pos_decoded["MULTI-DIGIT"], format!("1234{}", digit));
@@ -392,22 +423,37 @@ fn test_zoned_overpunch_comprehensive() {
                 "MULTI-DIGIT": if digit == 0 { "-0".to_string() } else { format!("-1234{}", digit) },
             });
 
-            let neg_encoded = encode_record(&schema, &negative_data, &encode_options)
-                .expect(&format!("Failed to encode negative {} with {:?}", digit, codepage));
+            let neg_encoded = encode_record(&schema, &negative_data, &encode_options).expect(
+                &format!("Failed to encode negative {} with {:?}", digit, codepage),
+            );
 
             // Debug: check what the last byte decodes to
             if digit == 0 {
                 let last_byte = neg_encoded[neg_encoded.len() - 1];
-                println!("Last byte {} = 0x{:02X} = '{}', zone={:X}, digit={:X}",
-                        last_byte, last_byte, last_byte as char,
-                        (last_byte >> 4) & 0x0F, last_byte & 0x0F);
+                println!(
+                    "Last byte {} = 0x{:02X} = '{}', zone={:X}, digit={:X}",
+                    last_byte,
+                    last_byte,
+                    last_byte as char,
+                    (last_byte >> 4) & 0x0F,
+                    last_byte & 0x0F
+                );
             }
 
-            let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options)
-                .expect(&format!("Failed to decode negative {} with {:?}", digit, codepage));
+            let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options).expect(
+                &format!("Failed to decode negative {} with {:?}", digit, codepage),
+            );
 
-            let expected_single = if digit == 0 { "0" } else { &format!("-{}", digit) };
-            let expected_multi = if digit == 0 { "0" } else { &format!("-1234{}", digit) };
+            let expected_single = if digit == 0 {
+                "0"
+            } else {
+                &format!("-{}", digit)
+            };
+            let expected_multi = if digit == 0 {
+                "0"
+            } else {
+                &format!("-1234{}", digit)
+            };
 
             assert_eq!(neg_decoded["SINGLE-DIGIT"], expected_single);
             assert_eq!(neg_decoded["MULTI-DIGIT"], expected_multi);
@@ -422,9 +468,11 @@ fn test_zoned_overpunch_comprehensive() {
                 let ascii_encoded = encode_record(&schema, &negative_data, &ascii_options)
                     .expect("Failed to encode with ASCII");
 
-                assert_ne!(neg_encoded, ascii_encoded,
+                assert_ne!(
+                    neg_encoded, ascii_encoded,
                     "Negative {} should produce different overpunch bytes for ASCII vs {:?}",
-                    digit, codepage);
+                    digit, codepage
+                );
             }
         }
     }
@@ -518,8 +566,8 @@ fn test_ascii_negative_zero_multi_digit() {
 
     let encoded_multi = encode_record(&schema, &multi_digit_neg_zero, &encode_options)
         .expect("Failed to encode -12340");
-    let decoded_multi = decode_record(&schema, &encoded_multi, &decode_options)
-        .expect("Failed to decode -12340");
+    let decoded_multi =
+        decode_record(&schema, &encoded_multi, &decode_options).expect("Failed to decode -12340");
 
     assert_eq!(decoded_multi["MULTI-DIGIT-FIELD"], "-12340"); // Must preserve negative sign
 
@@ -527,7 +575,7 @@ fn test_ascii_negative_zero_multi_digit() {
     let test_cases = [
         ("-12345", "-12345"),
         ("-98760", "-98760"),
-        ("-00001", "-1"),     // Leading zeros stripped but sign preserved
+        ("-00001", "-1"), // Leading zeros stripped but sign preserved
         ("-10000", "-10000"),
     ];
 
@@ -541,8 +589,11 @@ fn test_ascii_negative_zero_multi_digit() {
         let decoded_case = decode_record(&schema, &encoded_case, &decode_options)
             .expect(&format!("Failed to decode {}", input));
 
-        assert_eq!(decoded_case["MULTI-DIGIT-FIELD"], *expected,
-                  "Input {} should decode to {}", input, expected);
+        assert_eq!(
+            decoded_case["MULTI-DIGIT-FIELD"], *expected,
+            "Input {} should decode to {}",
+            input, expected
+        );
     }
 }
 
@@ -574,10 +625,10 @@ fn test_blank_when_zero_edge_cases() {
         "NORMAL-FIELD": "0"
     });
 
-    let encoded = encode_record(&schema, &zero_data, &encode_options)
-        .expect("Failed to encode BWZ data");
-    let decoded = decode_record(&schema, &encoded, &decode_options)
-        .expect("Failed to decode BWZ data");
+    let encoded =
+        encode_record(&schema, &zero_data, &encode_options).expect("Failed to encode BWZ data");
+    let decoded =
+        decode_record(&schema, &encoded, &decode_options).expect("Failed to decode BWZ data");
 
     // BWZ field should be handled according to BLANK WHEN ZERO policy
     assert_eq!(decoded["NORMAL-FIELD"], "0000"); // 4-digit field pads with zeros

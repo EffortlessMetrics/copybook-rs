@@ -1339,7 +1339,9 @@ impl Parser {
             "DISPLAY",
         ];
 
-        FIELD_CLAUSE_KEYWORDS.iter().any(|&keyword| name.eq_ignore_ascii_case(keyword))
+        FIELD_CLAUSE_KEYWORDS
+            .iter()
+            .any(|&keyword| name.eq_ignore_ascii_case(keyword))
     }
 
     /// Skip comments and newlines

@@ -204,6 +204,7 @@ copybook verify schema.cpy data.bin \
   --format fixed \
   --codepage cp037 \
   --report validation-report.json
+# Report schema: docs/VERIFY_REPORT.schema.json
 
 # Verify RDW format data
 copybook verify schema.cpy data.bin \

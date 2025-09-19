@@ -7,7 +7,7 @@ use super::verify_report::{VerifyReport, VerifyCliEcho, VerifyError, VerifySampl
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, RecordIterator};
 use copybook_core::parse_copybook;
 use std::fs::{File, metadata};
-use std::io::BufReader;
+use std::io::{BufReader, Seek, SeekFrom, Read};
 use std::path::PathBuf;
 use tracing::{info, warn, error};
 
@@ -98,6 +98,9 @@ pub fn run(
     let file = File::open(input)?;
     let reader = BufReader::new(file);
 
+    // Open a separate file handle for efficient hex sampling
+    let mut file_raw = File::open(input)?;
+
     // Create record iterator based on format
     let mut record_iter = RecordIterator::new(reader, &schema, &decode_options)?;
 
@@ -115,28 +118,24 @@ pub fn run(
                 // Record decoded successfully - no action needed
             }
             Err(error) => {
-                // Record failed to decode - we need to try to get the raw record data
-                // Since we can't get the raw bytes from the iterator after failure,
-                // we'll re-read this record manually if it's a fixed format
-
+                // Record failed to decode - efficiently read the raw record data
                 let record_bytes = if let Some(lrecl) = schema.lrecl_fixed {
-                    // For fixed format, we can calculate the record position and re-read
+                    // For fixed format, use seek + read_exact for efficiency
                     let record_offset = (records_total - 1) * u64::from(lrecl);
 
-                    // Try to read the raw record data from the file
-                    match std::fs::read(input) {
-                        Ok(file_data) => {
-                            let start = record_offset as usize;
-                            let end = start + lrecl as usize;
-                            if end <= file_data.len() {
-                                Some(file_data[start..end].to_vec())
-                            } else {
-                                None
+                    match file_raw.seek(SeekFrom::Start(record_offset)) {
+                        Ok(_) => {
+                            let mut rec = vec![0u8; lrecl as usize];
+                            match file_raw.read_exact(&mut rec) {
+                                Ok(()) => Some(rec),
+                                Err(_) => None, // Fall back to no hex if partial read
                             }
                         }
                         Err(_) => None,
                     }
                 } else {
+                    // For RDW format, we'd need to track record boundaries differently
+                    // For now, skip hex sampling for RDW records with errors
                     None
                 };
 

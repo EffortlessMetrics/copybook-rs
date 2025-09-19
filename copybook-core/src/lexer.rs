@@ -305,8 +305,16 @@ impl<'a> Lexer<'a> {
                 if result.ends_with('\n') {
                     result.pop(); // Remove newline
                 }
-                result.push(' '); // Add space between joined parts
-                result.push_str(line.content.trim_start());
+                // Trim trailing whitespace from previous line, but preserve hyphens
+                while result.ends_with(' ') || result.ends_with('\t') {
+                    result.pop();
+                }
+                // Add continuation content with appropriate spacing
+                let continuation_content = line.content.trim_start();
+                if !result.ends_with('-') && !continuation_content.is_empty() {
+                    result.push(' '); // Add space if not ending with hyphen
+                }
+                result.push_str(continuation_content);
                 result.push('\n');
             } else {
                 // Regular line

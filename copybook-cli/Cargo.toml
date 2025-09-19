@@ -27,3 +27,6 @@ tempfile.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+assert_cmd = "2"
+assert_fs = "1"
+predicates = "3"

@@ -249,6 +249,32 @@ Use with `--config copybook.toml`.
 - `COPYBOOK_THREADS` - Set default thread count
 - `COPYBOOK_CODEPAGE` - Set default codepage
 
+## Validation Modes
+
+### `--strict`
+Enforces normative validation and hard failures.
+
+- **ODO (OCCURS DEPENDING ON)**: Counter must exist, precede the array, and be in range. Violations → error.
+- **REDEFINES**: Single unambiguous view may encode; ambiguity → error.
+- **Edited PIC**: Always an error with `CBKP051_UNSUPPORTED_EDITED_PIC` (e.g., `ZZ9.99`, trailing sign, `CR`/`DB`, `B` blanks).
+- **Fixed-form**: Column-7 continuation and sequence areas handled; tokens after the terminating `.` on the same line are ignored.
+
+### Default (lenient)
+Designed for exploration and ingestion of imperfect copybooks.
+
+- **ODO** out-of-range: clamped with a warning in encoder paths; schema still loads.
+- **REDEFINES** ambiguity: warn and refuse encoding, but schema loads.
+- **Edited PIC**: still a hard error (unsupported).
+
+### Examples
+```bash
+# Parse & inspect copybook (strict)
+copybook-cli inspect --strict path/to/schema.cpy
+
+# Parse & inspect copybook (lenient default)
+copybook-cli inspect path/to/schema.cpy
+```
+
 ## Exit Codes
 
 - `0` - Success (warnings allowed)

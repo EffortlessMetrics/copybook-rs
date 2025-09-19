@@ -527,11 +527,25 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) {
 fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
     // Find the ODO array with the highest offset (tail position)
     if let Some(tail_odo) = context.odo_arrays.iter().max_by_key(|odo| odo.array_offset) {
+        // Extract just the field name from the full path for consistency
+        let array_field_name = tail_odo
+            .array_path
+            .split('.')
+            .next_back()
+            .unwrap_or(&tail_odo.array_path)
+            .to_string();
+        let counter_field_name = tail_odo
+            .counter_path
+            .split('.')
+            .next_back()
+            .unwrap_or(&tail_odo.counter_path)
+            .to_string();
+
         schema.tail_odo = Some(TailODO {
-            counter_path: tail_odo.counter_path.clone(),
+            counter_path: counter_field_name,
             min_count: tail_odo.min_count,
             max_count: tail_odo.max_count,
-            array_path: tail_odo.array_path.clone(),
+            array_path: array_field_name,
         });
     }
 }

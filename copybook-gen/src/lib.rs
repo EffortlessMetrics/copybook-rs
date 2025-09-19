@@ -41,11 +41,13 @@ impl Default for GeneratorConfig {
 }
 
 /// Generate synthetic copybook text
+#[must_use]
 pub fn generate_copybook(config: &GeneratorConfig) -> String {
     copybook::generate_synthetic_copybook(config)
 }
 
 /// Generate copybook with specific template
+#[must_use]
 pub fn generate_copybook_with_template(
     config: &GeneratorConfig,
     template: CopybookTemplate,
@@ -54,11 +56,13 @@ pub fn generate_copybook_with_template(
 }
 
 /// Generate synthetic data for a schema
+#[must_use]
 pub fn generate_data(schema: &Schema, config: &GeneratorConfig) -> Vec<Vec<u8>> {
     data::generate_synthetic_data(schema, config)
 }
 
 /// Generate data with specific strategy
+#[must_use]
 pub fn generate_data_with_strategy(
     schema: &Schema,
     config: &GeneratorConfig,
@@ -68,11 +72,13 @@ pub fn generate_data_with_strategy(
 }
 
 /// Create golden test with SHA-256 validation
+#[must_use]
 pub fn create_golden_test(name: &str, copybook: &str, data: &[u8]) -> golden::GoldenTest {
     golden::GoldenTest::new(name, copybook, data)
 }
 
 /// Create golden test with specific configuration
+#[must_use]
 pub fn create_golden_test_with_config(
     name: &str,
     copybook: &str,
@@ -83,26 +89,31 @@ pub fn create_golden_test_with_config(
 }
 
 /// Generate comprehensive test suite
+#[must_use]
 pub fn generate_comprehensive_test_suite() -> golden::GoldenTestSuite {
     golden::generate_comprehensive_suite()
 }
 
 /// Generate performance test suite
+#[must_use]
 pub fn generate_performance_test_suite() -> golden::GoldenTestSuite {
     golden::generate_performance_suite()
 }
 
 /// Generate negative test suite
+#[must_use]
 pub fn generate_negative_test_suite() -> golden::GoldenTestSuite {
     golden::generate_negative_test_suite()
 }
 
 /// Generate invalid copybooks for negative testing
+#[must_use]
 pub fn generate_invalid_copybooks(config: &GeneratorConfig) -> Vec<(String, String)> {
     copybook::generate_invalid_copybook(config)
 }
 
 /// Generate corrupted data for negative testing
+#[must_use]
 pub fn generate_corrupted_data(clean_data: &[u8], corruption_type: CorruptionType) -> Vec<u8> {
     data::generate_corrupted_data(clean_data, corruption_type)
 }
@@ -115,6 +126,7 @@ pub struct TestSuiteBuilder {
 
 impl TestSuiteBuilder {
     /// Create a new test suite builder
+    #[must_use]
     pub fn new(name: &str, description: &str) -> Self {
         Self {
             suite: golden::GoldenTestSuite::new(name, description),
@@ -123,12 +135,14 @@ impl TestSuiteBuilder {
     }
 
     /// Set the generator configuration
+    #[must_use]
     pub fn with_config(mut self, config: GeneratorConfig) -> Self {
         self.config = config;
         self
     }
 
     /// Add a simple test case
+    #[must_use]
     pub fn add_simple_test(mut self, name: &str) -> Self {
         let copybook = generate_copybook_with_template(&self.config, CopybookTemplate::Simple);
         let test = golden::GoldenTest::new(name, &copybook, &[]);
@@ -137,6 +151,7 @@ impl TestSuiteBuilder {
     }
 
     /// Add a REDEFINES test case
+    #[must_use]
     pub fn add_redefines_test(mut self, name: &str) -> Self {
         let copybook =
             generate_copybook_with_template(&self.config, CopybookTemplate::WithRedefines);
@@ -146,6 +161,7 @@ impl TestSuiteBuilder {
     }
 
     /// Add an ODO test case
+    #[must_use]
     pub fn add_odo_test(mut self, name: &str) -> Self {
         let copybook = generate_copybook_with_template(&self.config, CopybookTemplate::WithODO);
         let test = golden::GoldenTest::new(name, &copybook, &[]);
@@ -154,6 +170,7 @@ impl TestSuiteBuilder {
     }
 
     /// Add a performance test case
+    #[must_use]
     pub fn add_performance_test(mut self, name: &str, template: CopybookTemplate) -> Self {
         let copybook = generate_copybook_with_template(&self.config, template);
         let mut test = golden::GoldenTest::new(name, &copybook, &[]);
@@ -163,8 +180,9 @@ impl TestSuiteBuilder {
     }
 
     /// Add a negative test case
-    pub fn add_negative_test(mut self, name: &str, copybook: String) -> Self {
-        let mut test = golden::GoldenTest::new(name, &copybook, &[]);
+    #[must_use]
+    pub fn add_negative_test(mut self, name: &str, copybook: &str) -> Self {
+        let mut test = golden::GoldenTest::new(name, copybook, &[]);
         test.add_tag("negative");
         test.add_tag("invalid");
         self.suite.add_test(test);
@@ -172,6 +190,7 @@ impl TestSuiteBuilder {
     }
 
     /// Build the test suite
+    #[must_use]
     pub fn build(self) -> golden::GoldenTestSuite {
         self.suite
     }

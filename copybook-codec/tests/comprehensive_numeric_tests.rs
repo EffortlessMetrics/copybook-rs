@@ -262,10 +262,9 @@ fn test_binary_signed_unsigned_edges() {
     // Test simple values first to verify decoding works
     // UNSIGNED-16: \x00\x01 = 1
     // SIGNED-16: \x00\x02 = 2
-    // UNSIGNED-32: \x00\x00\x00\x00\x00\x00\x00\x03 = 3
-    // SIGNED-32: \x00\x00\x00\x00\x00\x00\x00\x04 = 4
-    let test_data =
-        b"\x00\x01\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x04";
+    // UNSIGNED-32: \x00\x00\x00\x03 = 3 (now 4 bytes due to binary width fix)
+    // SIGNED-32: \x00\x00\x00\x04 = 4 (now 4 bytes due to binary width fix)
+    let test_data = b"\x00\x01\x00\x02\x00\x00\x00\x03\x00\x00\x00\x04";
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -278,9 +277,8 @@ fn test_binary_signed_unsigned_edges() {
     assert_eq!(json_record["UNSIGNED-32"], "3");
     assert_eq!(json_record["SIGNED-32"], "4");
 
-    // Test zero values
-    let min_test_data =
-        b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+    // Test zero values (updated for new 4-byte layout)
+    let min_test_data = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     let input = Cursor::new(min_test_data);
     let mut output = Vec::new();
 

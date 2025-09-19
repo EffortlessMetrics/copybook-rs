@@ -13,7 +13,8 @@ fn edited_pic_is_a_hard_error() -> Result<(), Box<dyn std::error::Error>> {
 "#;
 
     let tmp = assert_fs::TempDir::new()?;
-    let f = tmp.child("edited_pic.cpy"); f.write_str(cpy)?;
+    let f = tmp.child("edited_pic.cpy");
+    f.write_str(cpy)?;
 
     Command::cargo_bin("copybook")?
         .args(["inspect", f.path().to_str().unwrap()])

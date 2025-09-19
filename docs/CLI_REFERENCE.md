@@ -269,10 +269,16 @@ Designed for exploration and ingestion of imperfect copybooks.
 ### Examples
 ```bash
 # Parse & inspect copybook (strict)
-copybook-cli inspect --strict path/to/schema.cpy
+copybook inspect --strict path/to/schema.cpy
 
 # Parse & inspect copybook (lenient default)
-copybook-cli inspect path/to/schema.cpy
+copybook inspect path/to/schema.cpy
+
+# Parse copybook (strict)
+copybook parse --strict path/to/schema.cpy
+
+# Parse copybook (lenient default)
+copybook parse path/to/schema.cpy
 ```
 
 ## Exit Codes

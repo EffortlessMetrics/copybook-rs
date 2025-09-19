@@ -13,7 +13,8 @@ fn fixed_form_sequence_and_continuation_are_handled() -> Result<(), Box<dyn std:
 ";
 
     let tmp = assert_fs::TempDir::new()?;
-    let f = tmp.child("fixed_form_ok.cpy"); f.write_str(cpy)?;
+    let f = tmp.child("fixed_form_ok.cpy");
+    f.write_str(cpy)?;
 
     Command::cargo_bin("copybook")?
         .args(["inspect", f.path().to_str().unwrap()])

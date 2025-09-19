@@ -77,6 +77,32 @@ impl Parser {
         }
     }
 
+    /// Create an error with line/column context from current token
+    fn err_here(&self, code: ErrorCode, msg: impl Into<String>) -> Error {
+        let mut error = Error::new(code, msg.into());
+        if let Some(tok) = self.current_token() {
+            error.context = Some(crate::error::ErrorContext {
+                record_index: None,
+                field_path: None,
+                byte_offset: None,
+                line_number: Some(tok.line as u32),
+                details: None,
+            });
+        }
+        error
+    }
+
+    /// Consume the tail of the current line after a terminator
+    fn consume_line_tail(&mut self, line_no: usize) {
+        while let Some(tok) = self.current_token() {
+            if tok.line == line_no {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Parse the complete schema
     fn parse_schema(&mut self) -> Result<Schema> {
         // Skip any leading comments or empty lines
@@ -92,7 +118,7 @@ impl Parser {
         }
 
         if flat_fields.is_empty() {
-            return Err(Error::new(
+            return Err(self.err_here(
                 ErrorCode::CBKP001_SYNTAX,
                 "No valid field definitions found",
             ));
@@ -581,6 +607,24 @@ impl Parser {
                 level
             }
             Some(TokenPos {
+                token: Token::Number(n),
+                column,
+                ..
+            }) => {
+                // Check for invalid level numbers that appear to be at beginning of line
+                if *n >= 10 && *n <= 99 && *column <= 2 {
+                    return Err(self.err_here(
+                        ErrorCode::CBKP001_SYNTAX,
+                        format!("Invalid level {}", n),
+                    ));
+                }
+                // Skip unexpected tokens to prevent infinite loops
+                if !self.is_at_end() {
+                    self.advance();
+                }
+                return Ok(None);
+            }
+            Some(TokenPos {
                 token: Token::Level66,
                 ..
             }) => {
@@ -626,7 +670,7 @@ impl Parser {
                 self.advance();
             }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     format!("Expected field name after level {}", level),
                 ));
@@ -662,8 +706,11 @@ impl Parser {
         }
 
         // Expect period to end field definition
-        if !self.consume(&Token::Period) {
-            return Err(Error::new(
+        if let Some(TokenPos { token: Token::Period, line: term_line, .. }) = self.current_token().cloned() {
+            self.advance();                     // consume the terminator
+            self.consume_line_tail(term_line);  // drop any junk on the same physical line
+        } else {
+            return Err(self.err_here(
                 ErrorCode::CBKP001_SYNTAX,
                 format!("Expected period after field definition for {}", field.name),
             ));
@@ -765,6 +812,9 @@ impl Parser {
         // Collect PIC clause tokens - might be split across multiple tokens
         let mut pic_parts = Vec::new();
 
+        // Track whether we got a complete PIC clause from lexer
+        let mut got_complete_pic = false;
+
         // First token should be a PIC clause, identifier, or number
         match self.current_token() {
             Some(TokenPos {
@@ -773,6 +823,7 @@ impl Parser {
             }) => {
                 pic_parts.push(pic.clone());
                 self.advance();
+                got_complete_pic = true; // We have a complete PIC, don't collect more
             }
             Some(TokenPos {
                 token: Token::EditedPic(pic),
@@ -800,7 +851,7 @@ impl Parser {
                 self.advance();
             }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected PIC clause after PIC keyword",
                 ));
@@ -808,7 +859,8 @@ impl Parser {
         }
 
         // Check if next tokens are also part of PIC (like V99, periods, numbers, CR, DB, etc.)
-        while let Some(token) = self.current_token() {
+        // Only do this if we didn't get a complete PIC clause from the lexer
+        while !got_complete_pic && let Some(token) = self.current_token() {
             match &token.token {
                 Token::Identifier(id) => {
                     // Continue if it looks like part of a PIC clause
@@ -837,8 +889,14 @@ impl Parser {
                     if let Some(next_token) = self.peek_token(1) {
                         match &next_token.token {
                             Token::Number(_) => {
-                                pic_parts.push(".".to_string());
-                                self.advance();
+                                // Only include the period if the next number is on the same line
+                                // This prevents consuming sequence area numbers
+                                if token.line == next_token.line {
+                                    pic_parts.push(".".to_string());
+                                    self.advance();
+                                } else {
+                                    break;
+                                }
                             }
                             Token::EditedPic(_) => {
                                 pic_parts.push(".".to_string());
@@ -912,7 +970,7 @@ impl Parser {
                 self.convert_to_binary_field_with_width(field)?;
             }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected USAGE type after USAGE keyword",
                 ));
@@ -933,7 +991,7 @@ impl Parser {
                 name
             }
             _ => {
-                return Err(Error::new(
+                return Err(self.err_here(
                     ErrorCode::CBKP001_SYNTAX,
                     "Expected field name after REDEFINES",
                 ));

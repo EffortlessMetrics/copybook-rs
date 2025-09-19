@@ -594,8 +594,8 @@ fn test_synchronized_alignment() {
 fn test_error_context_with_line_numbers() {
     // Test that parse errors include proper line numbers and context
     let invalid_syntax = r#"01 RECORD-NAME.
-   05 INVALID-LEVEL-99 PIC X(10).
-   05 FIELD-NAME PIC X(10).
+   99 FIELD-NAME PIC X(10).
+   05 OTHER-FIELD PIC X(10).
 "#;
 
     let result = parse_copybook(invalid_syntax);

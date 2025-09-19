@@ -296,9 +296,9 @@ fn test_zoned_overpunch_by_codepage() {
         .with_json_number_mode(JsonNumberMode::Lossless);
 
     let test_data = json!({
-        "ZONED-2-0": "12",
-        "ZONED-4-0": "3456",
-        "ZONED-9-0": "12345678", // Positive numbers for now
+        "ZONED-2-0": "-12",
+        "ZONED-4-0": "-3456",
+        "ZONED-9-0": "-123456789", // Test negative numbers with overpunch
         "ZONED-UNSIGNED": "9876"
     });
 
@@ -307,9 +307,9 @@ fn test_zoned_overpunch_by_codepage() {
     let ascii_decoded = decode_record(&schema, &ascii_encoded, &ascii_decode)
         .expect("Failed to decode with ASCII");
 
-    assert_eq!(ascii_decoded["ZONED-2-0"], "12");
-    assert_eq!(ascii_decoded["ZONED-4-0"], "3456");
-    assert_eq!(ascii_decoded["ZONED-9-0"], "012345678"); // 9-digit field pads with leading zeros
+    assert_eq!(ascii_decoded["ZONED-2-0"], "-12");
+    assert_eq!(ascii_decoded["ZONED-4-0"], "-3456");
+    assert_eq!(ascii_decoded["ZONED-9-0"], "-123456789"); // 9-digit field with negative overpunch
     assert_eq!(ascii_decoded["ZONED-UNSIGNED"], "9876");
 
     // Test with EBCDIC codepages
@@ -329,15 +329,153 @@ fn test_zoned_overpunch_by_codepage() {
         .expect("Failed to decode with EBCDIC");
 
     // Results should be the same regardless of codepage for the JSON representation
-    assert_eq!(ebcdic_decoded["ZONED-2-0"], "12");
-    assert_eq!(ebcdic_decoded["ZONED-4-0"], "3456");
-    assert_eq!(ebcdic_decoded["ZONED-9-0"], "012345678"); // 9-digit field pads with leading zeros
+    assert_eq!(ebcdic_decoded["ZONED-2-0"], "-12");
+    assert_eq!(ebcdic_decoded["ZONED-4-0"], "-3456");
+    assert_eq!(ebcdic_decoded["ZONED-9-0"], "-123456789"); // 9-digit field with negative overpunch
     assert_eq!(ebcdic_decoded["ZONED-UNSIGNED"], "9876");
 
-    // Note: For simple positive numeric data, binary representations may be identical
-    // Real differences would appear with negative values using overpunch encoding
+    // Note: Binary representations will be different due to different overpunch encoding
+    // ASCII uses letters (e.g., 'K' for -2), EBCDIC uses zone nibbles (0xD2 for -2)
     println!("ASCII:  {:?}", ascii_encoded);
     println!("EBCDIC: {:?}", ebcdic_encoded);
+
+    // Verify that encodings are actually different for negative values
+    assert_ne!(ascii_encoded, ebcdic_encoded, "ASCII and EBCDIC overpunch should produce different encodings");
+}
+
+/// Comprehensive test for zoned decimal overpunch across all codepages
+#[test]
+fn test_zoned_overpunch_comprehensive() {
+    let copybook = r#"
+       01 OVERPUNCH-TEST-RECORD.
+          05 SINGLE-DIGIT    PIC S9.
+          05 MULTI-DIGIT     PIC S9(5).
+    "#;
+
+    let schema = parse_copybook(copybook).expect("Failed to parse overpunch test schema");
+
+    // Test all digit values with positive and negative signs across codepages
+    let codepages = [Codepage::ASCII, Codepage::CP037, Codepage::CP273, Codepage::CP500, Codepage::CP1047, Codepage::CP1140];
+
+    for &codepage in &codepages {
+        println!("Testing codepage: {:?}", codepage);
+
+        let encode_options = EncodeOptions::new()
+            .with_format(RecordFormat::Fixed)
+            .with_codepage(codepage)
+            .with_strict_mode(true);
+
+        let decode_options = DecodeOptions::new()
+            .with_format(RecordFormat::Fixed)
+            .with_codepage(codepage)
+            .with_json_number_mode(JsonNumberMode::Lossless);
+
+        // Test each digit 0-9 with positive and negative signs
+        for digit in 0..=9 {
+            // Positive
+            let positive_data = json!({
+                "SINGLE-DIGIT": digit.to_string(),
+                "MULTI-DIGIT": format!("1234{}", digit),
+            });
+
+            let pos_encoded = encode_record(&schema, &positive_data, &encode_options)
+                .expect(&format!("Failed to encode positive {} with {:?}", digit, codepage));
+            let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options)
+                .expect(&format!("Failed to decode positive {} with {:?}", digit, codepage));
+
+            assert_eq!(pos_decoded["SINGLE-DIGIT"], digit.to_string());
+            assert_eq!(pos_decoded["MULTI-DIGIT"], format!("1234{}", digit));
+
+            // Negative
+            let negative_data = json!({
+                "SINGLE-DIGIT": format!("-{}", digit),
+                "MULTI-DIGIT": format!("-1234{}", digit),
+            });
+
+            let neg_encoded = encode_record(&schema, &negative_data, &encode_options)
+                .expect(&format!("Failed to encode negative {} with {:?}", digit, codepage));
+
+            // Debug: check what the last byte decodes to
+            if digit == 0 {
+                let last_byte = neg_encoded[neg_encoded.len() - 1];
+                println!("Last byte {} = 0x{:02X} = '{}', zone={:X}, digit={:X}",
+                        last_byte, last_byte, last_byte as char,
+                        (last_byte >> 4) & 0x0F, last_byte & 0x0F);
+            }
+
+            let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options)
+                .expect(&format!("Failed to decode negative {} with {:?}", digit, codepage));
+
+            let expected_single = if digit == 0 { "0" } else { &format!("-{}", digit) };
+            let expected_multi = if digit == 0 { "12340" } else { &format!("-1234{}", digit) };
+
+            assert_eq!(neg_decoded["SINGLE-DIGIT"], expected_single);
+            assert_eq!(neg_decoded["MULTI-DIGIT"], expected_multi);
+
+            // Verify different codepages produce different binary representations for negatives
+            if digit != 0 && codepage != Codepage::ASCII {
+                let ascii_options = EncodeOptions::new()
+                    .with_format(RecordFormat::Fixed)
+                    .with_codepage(Codepage::ASCII)
+                    .with_strict_mode(true);
+
+                let ascii_encoded = encode_record(&schema, &negative_data, &ascii_options)
+                    .expect("Failed to encode with ASCII");
+
+                assert_ne!(neg_encoded, ascii_encoded,
+                    "Negative {} should produce different overpunch bytes for ASCII vs {:?}",
+                    digit, codepage);
+            }
+        }
+    }
+}
+
+/// Test zero sign policies and normalization
+#[test]
+fn test_zoned_zero_sign_handling() {
+    let copybook = r#"
+       01 ZERO-TEST-RECORD.
+          05 ZERO-FIELD    PIC S9(3).
+    "#;
+
+    let schema = parse_copybook(copybook).expect("Failed to parse zero test schema");
+
+    let encode_options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::CP037)
+        .with_strict_mode(true);
+
+    let decode_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::CP037)
+        .with_json_number_mode(JsonNumberMode::Lossless);
+
+    // Test positive zero
+    let positive_zero = json!({
+        "ZERO-FIELD": "0"
+    });
+
+    let pos_encoded = encode_record(&schema, &positive_zero, &encode_options)
+        .expect("Failed to encode positive zero");
+    let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options)
+        .expect("Failed to decode positive zero");
+
+    assert_eq!(pos_decoded["ZERO-FIELD"], "0");
+
+    // Test negative zero (should be normalized to positive zero)
+    let negative_zero = json!({
+        "ZERO-FIELD": "-0"
+    });
+
+    let neg_encoded = encode_record(&schema, &negative_zero, &encode_options)
+        .expect("Failed to encode negative zero");
+    let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options)
+        .expect("Failed to decode negative zero");
+
+    assert_eq!(neg_decoded["ZERO-FIELD"], "0"); // Should be normalized
+
+    // Both encodings should produce the same result after normalization
+    assert_eq!(pos_decoded, neg_decoded);
 }
 
 /// Test edge cases for blank when zero

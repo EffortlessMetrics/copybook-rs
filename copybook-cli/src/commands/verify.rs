@@ -82,6 +82,8 @@ pub fn run(
     let mut verify_report = VerifyReport::new(
         schema_fingerprint,
         format!("{format:?}").to_lowercase(),
+        input.to_string_lossy().to_string(),
+        file_size,
         cli_opts,
     );
 

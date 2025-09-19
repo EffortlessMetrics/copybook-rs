@@ -1380,6 +1380,42 @@ mod tests {
     }
 
     #[test]
+    fn test_zoned_decimal_negative_zero_normalization() {
+        // Test that negative zero normalizes to "0" but other negatives remain negative
+        // This tests the specific bug where "-0" was incorrectly returned as "-0"
+
+        // ASCII negative zero: "}" (0x7D) = -0
+        let data = vec![b'}'];  // ASCII overpunch for -0
+        let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::ASCII, false).unwrap();
+        assert_eq!(result.to_string(), "0", "Negative zero should normalize to '0'");
+
+        // ASCII negative non-zero: "J" (0x4A) = -1
+        let data = vec![b'J'];  // ASCII overpunch for -1
+        let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::ASCII, false).unwrap();
+        assert_eq!(result.to_string(), "-1", "Negative non-zero should remain negative");
+
+        // Multi-digit negative zero: "000}" = -0000
+        let data = vec![b'0', b'0', b'0', b'}'];
+        let result = decode_zoned_decimal(&data, 4, 0, true, Codepage::ASCII, false).unwrap();
+        assert_eq!(result.to_string(), "0", "Multi-digit negative zero should normalize to '0'");
+
+        // Multi-digit negative non-zero: "123J" = -1231 (J = negative 1)
+        let data = vec![b'1', b'2', b'3', b'J'];
+        let result = decode_zoned_decimal(&data, 4, 0, true, Codepage::ASCII, false).unwrap();
+        assert_eq!(result.to_string(), "-1231", "Multi-digit negative non-zero should remain negative");
+
+        // EBCDIC negative zero: 0xD0 = -0
+        let data = vec![0xD0];  // EBCDIC overpunch for -0
+        let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::CP037, false).unwrap();
+        assert_eq!(result.to_string(), "0", "EBCDIC negative zero should normalize to '0'");
+
+        // EBCDIC negative non-zero: 0xD1 = -1
+        let data = vec![0xD1];  // EBCDIC overpunch for -1
+        let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::CP037, false).unwrap();
+        assert_eq!(result.to_string(), "-1", "EBCDIC negative non-zero should remain negative");
+    }
+
+    #[test]
     fn test_comp3_encode_decode_roundtrip() {
         // Test comprehensive round-trip for various COMP-3 values
 

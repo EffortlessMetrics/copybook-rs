@@ -294,7 +294,6 @@ impl<'a> Lexer<'a> {
         while i < self.lines.len() {
             let line = &self.lines[i];
 
-
             if line.is_comment {
                 i += 1;
                 continue;
@@ -314,7 +313,6 @@ impl<'a> Lexer<'a> {
 
                 let mut trimmed_result = result.trim_end().to_string();
                 let continuation_content = line.content.trim();
-
 
                 // Join the content with appropriate spacing
                 if !trimmed_result.is_empty() && !continuation_content.is_empty() {

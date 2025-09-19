@@ -13,11 +13,18 @@ fn odo_copybook_loads_in_both_modes() -> Result<(), Box<dyn std::error::Error>> 
 "#;
 
     let tmp = assert_fs::TempDir::new()?;
-    let f = tmp.child("odo_ok.cpy"); f.write_str(cpy)?;
+    let f = tmp.child("odo_ok.cpy");
+    f.write_str(cpy)?;
 
     // Test that ODO copybook loads successfully (lenient mode)
     Command::cargo_bin("copybook")?
         .args(["inspect", f.path().to_str().unwrap()])
+        .assert()
+        .success();
+
+    // strict
+    Command::cargo_bin("copybook")?
+        .args(["inspect", "--strict", f.path().to_str().unwrap()])
         .assert()
         .success();
 

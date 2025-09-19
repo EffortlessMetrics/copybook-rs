@@ -30,6 +30,9 @@ enum Commands {
         /// Output file (stdout if not specified)
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
+        #[arg(long)]
+        strict: bool,
     },
     /// Inspect copybook and show human-readable layout
     Inspect {
@@ -38,6 +41,9 @@ enum Commands {
         /// Character encoding
         #[arg(long, default_value = "cp037")]
         codepage: Codepage,
+        /// Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
+        #[arg(long)]
+        strict: bool,
     },
     /// Decode binary data to JSONL
     Decode {
@@ -138,10 +144,16 @@ fn main() {
         .init();
 
     let result = match cli.command {
-        Commands::Parse { copybook, output } => crate::commands::parse::run(&copybook, output),
-        Commands::Inspect { copybook, codepage } => {
-            crate::commands::inspect::run(&copybook, codepage)
-        }
+        Commands::Parse {
+            copybook,
+            output,
+            strict,
+        } => crate::commands::parse::run(&copybook, output, strict),
+        Commands::Inspect {
+            copybook,
+            codepage,
+            strict,
+        } => crate::commands::inspect::run(&copybook, codepage, strict),
         Commands::Decode {
             copybook,
             input,

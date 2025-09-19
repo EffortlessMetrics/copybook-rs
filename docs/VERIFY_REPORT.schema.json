@@ -93,7 +93,7 @@
           "offset": {
             "type": ["integer", "null"],
             "minimum": 0,
-            "description": "Byte offset in record/file if known"
+            "description": "Byte offset within the record where the error occurred"
           },
           "msg": {
             "type": "string",

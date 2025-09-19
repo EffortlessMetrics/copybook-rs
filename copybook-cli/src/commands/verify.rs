@@ -14,6 +14,10 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 
+// Hex display constants for consistent output formatting
+const HEX_CTX: usize = 16;
+const HEX_FALLBACK: usize = 64;
+
 // Report structures now defined in verify_report.rs
 
 /// Configuration options for the verify command
@@ -111,7 +115,7 @@ pub fn run(
     let mut file_raw = File::open(input)?;
 
     // Create record iterator based on format
-    let mut record_iter = RecordIterator::new(reader, &schema, &decode_options)?;
+    let record_iter = RecordIterator::new(reader, &schema, &decode_options)?;
 
     // Helper function to create hex string from bytes
     fn hex_bytes(bytes: &[u8], max: usize) -> String {
@@ -133,7 +137,7 @@ pub fn run(
     }
 
     // Process each record
-    while let Some(record_result) = record_iter.next() {
+    for record_result in record_iter {
         records_total += 1;
 
         match record_result {
@@ -166,11 +170,9 @@ pub fn run(
                 let error_offset = error.context.as_ref().and_then(|ctx| ctx.byte_offset);
                 let hex_data = record_bytes.as_ref().map(|bytes| {
                     if let Some(off) = error_offset {
-                        // Center hex window around error offset (16 bytes on each side)
-                        hex_window(bytes, off as usize, 16)
+                        hex_window(bytes, off as usize, HEX_CTX)
                     } else {
-                        // Fall back to first 64 bytes if no offset available
-                        hex_bytes(bytes, 64)
+                        hex_bytes(bytes, HEX_FALLBACK)
                     }
                 });
 
@@ -181,7 +183,7 @@ pub fn run(
                         .context
                         .as_ref()
                         .and_then(|ctx| ctx.field_path.clone()),
-                    offset: error_offset.map(|o| o as u64),
+                    offset: error_offset,
                     msg: error.message.clone(),
                     hex: hex_data,
                 };

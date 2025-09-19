@@ -142,9 +142,8 @@ impl SmallDecimal {
                 .ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKE510_NUMERIC_OVERFLOW,
-                        format!(
-                            "Numeric value too large for COMP-3 field: overflow in calculation"
-                        ),
+                        "Numeric value too large for COMP-3 field: overflow in calculation"
+                            .to_string(),
                     )
                 })?;
 
@@ -725,7 +724,7 @@ pub fn encode_packed_decimal(
     for byte_idx in 0..expected_bytes {
         if byte_idx == expected_bytes - 1 {
             // Last byte: handle even/odd digit count differently
-            if digits % 2 == 0 {
+            if digits.is_multiple_of(2) {
                 // Even digits: last byte is 0x0S (filler + sign)
                 let sign_nibble = if signed {
                     if is_negative { 0xD } else { 0xC }
@@ -1230,7 +1229,7 @@ pub fn encode_packed_decimal_with_scratch(
     scratch.digit_buffer.push(sign_nibble);
 
     // 5. If odd nibble count, prepend leading 0 nibble
-    if scratch.digit_buffer.len() % 2 != 0 {
+    if !scratch.digit_buffer.len().is_multiple_of(2) {
         scratch.digit_buffer.insert(0, 0);
     }
 

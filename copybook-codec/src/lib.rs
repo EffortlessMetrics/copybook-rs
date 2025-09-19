@@ -53,6 +53,7 @@ pub mod charset;
 pub mod memory;
 pub mod numeric;
 pub mod odo_redefines;
+pub mod zoned_overpunch;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,

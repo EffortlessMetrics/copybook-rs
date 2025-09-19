@@ -102,7 +102,7 @@
           "hex": {
             "type": ["string", "null"],
             "pattern": "^[0-9A-Fa-f\\s]*$",
-            "description": "Optional hex dump of problematic data"
+            "description": "Optional hex dump of problematic data - may be a centered window around the failure offset if available"
           }
         },
         "additionalProperties": false

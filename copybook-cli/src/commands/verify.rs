@@ -2,8 +2,6 @@
 //!
 //! The verify command validates data file structure against copybook schema without output generation
 
-#![allow(clippy::pedantic)]
-
 use crate::utils::atomic_write;
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, RecordIterator};
 use copybook_core::parse_copybook;
@@ -47,15 +45,15 @@ struct VerificationReport {
     warnings_total: u64,
     /// File size in bytes
     file_size_bytes: u64,
-    /// First errors (up to max_errors)
+    /// First errors (up to `max_errors`)
     errors: Vec<VerificationError>,
     /// Sample of problematic record indexes
     sample: Vec<u64>,
 }
 
-#[allow(clippy::while_let_on_iterator, clippy::unnecessary_cast)]
+#[allow(clippy::while_let_on_iterator, clippy::unnecessary_cast, clippy::too_many_lines)]
 pub fn run(
-    copybook_path: PathBuf,
+    copybook_path: &PathBuf,
     input: &PathBuf,
     report: Option<PathBuf>,
     format: RecordFormat,
@@ -66,7 +64,7 @@ pub fn run(
     info!("Verifying data file: {:?}", input);
 
     // Read copybook file
-    let copybook_text = std::fs::read_to_string(&copybook_path)?;
+    let copybook_text = std::fs::read_to_string(copybook_path)?;
 
     // Parse copybook (strict mode for verification)
     let schema = parse_copybook(&copybook_text)?;
@@ -94,7 +92,7 @@ pub fn run(
         RecordFormat::Fixed => {
             if let Some(lrecl) = schema.lrecl_fixed {
                 // Check file size is multiple of LRECL
-                if file_size % lrecl as u64 != 0 {
+                if file_size % u64::from(lrecl) != 0 {
                     warn!("File size {} is not a multiple of LRECL {}", file_size, lrecl);
                 }
             } else {
@@ -112,6 +110,7 @@ pub fn run(
     let warnings_total = 0u64;
     let mut verification_errors = Vec::new();
     let mut sample_records = Vec::new();
+    #[allow(clippy::cast_possible_truncation)]
     let max_errors_report = max_errors.unwrap_or(10) as usize; // Limit errors in report
     let max_samples = 5;  // Limit sample records
 
@@ -181,8 +180,8 @@ pub fn run(
     println!("  File: {}", input.display());
     println!("  Format: {format:?}");
     println!("  Codepage: {codepage:?}");
-    println!("  File Size: {} bytes", file_size);
-    println!("  Records Total: {}", records_total);
+    println!("  File Size: {file_size} bytes");
+    println!("  Records Total: {records_total}");
     if errors_total > 0 {
         println!("  Errors: {} (showing first {})", errors_total, verification_report.errors.len());
         for error in &verification_report.errors {
@@ -192,7 +191,7 @@ pub fn run(
         println!("  Status: PASS - No validation errors");
     }
     if warnings_total > 0 {
-        println!("  Warnings: {}", warnings_total);
+        println!("  Warnings: {warnings_total}");
     }
 
     // Write detailed report if requested

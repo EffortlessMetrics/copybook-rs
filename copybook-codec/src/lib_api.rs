@@ -1541,12 +1541,96 @@ fn encode_payload_from_json(
     }
 }
 
+/// Extract a string value from JSON with optional coercion
+fn extract_string_value(value: &Value, field_name: &str, coerce_numbers: bool) -> Result<String> {
+    match value {
+        Value::String(s) => Ok(s.clone()),
+        Value::Number(n) if coerce_numbers => Ok(n.to_string()),
+        Value::Bool(b) if coerce_numbers => Ok(b.to_string()),
+        _ => Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!(
+                "Field '{}' expects string value, got {} (use --coerce-numbers to convert)",
+                field_name,
+                match value {
+                    Value::Number(_) => "number",
+                    Value::Bool(_) => "boolean",
+                    Value::Array(_) => "array",
+                    Value::Object(_) => "object",
+                    Value::Null => "null",
+                    Value::String(_) => "string", // unreachable
+                }
+            ),
+        )),
+    }
+}
+
+/// Validate numeric field scale for packed/zoned decimal
+fn validate_numeric_scale(text: &str, expected_scale: i16, field_name: &str) -> Result<()> {
+    // Only validate if scale is positive (negative scale means no decimals expected)
+    if expected_scale > 0 {
+        if let Some(decimal_pos) = text.find('.') {
+            let decimal_places = text.len() - decimal_pos - 1;
+            if decimal_places != expected_scale as usize {
+                return Err(Error::new(
+                    ErrorCode::CBKE505_SCALE_MISMATCH,
+                    format!(
+                        "Scale mismatch: expected {} decimal places, got {} for field '{}'",
+                        expected_scale, decimal_places, field_name
+                    ),
+                ));
+            }
+        } else {
+            return Err(Error::new(
+                ErrorCode::CBKE505_SCALE_MISMATCH,
+                format!(
+                    "Scale mismatch: expected {} decimal places, got integer for field '{}'",
+                    expected_scale, field_name
+                ),
+            ));
+        }
+    } else if expected_scale == 0 {
+        // Scale 0 means integer - should not have decimal point
+        if text.contains('.') {
+            return Err(Error::new(
+                ErrorCode::CBKE505_SCALE_MISMATCH,
+                format!(
+                    "Scale mismatch: expected integer (scale 0), got decimal for field '{}'",
+                    field_name
+                ),
+            ));
+        }
+    }
+    // Negative scale is valid and means implicit scaling
+    Ok(())
+}
+
+/// Validate string field length
+fn validate_string_length(text: &str, max_length: usize, field_name: &str, strict: bool) -> Result<String> {
+    if text.len() > max_length {
+        if strict {
+            return Err(Error::new(
+                ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
+                format!(
+                    "String too long: {} characters exceeds maximum {} for field '{}'",
+                    text.len(), max_length, field_name
+                ),
+            ));
+        } else {
+            // Truncate in lenient mode
+            Ok(text[..max_length].to_string())
+        }
+    } else {
+        Ok(text.to_string())
+    }
+}
+
 /// Encode a single field value into the payload buffer
 fn encode_field_to_payload(
     field: &copybook_core::Field,
     value: &Value,
     payload: &mut [u8],
-    _options: &EncodeOptions,
+    options: &EncodeOptions,
 ) -> Result<()> {
     let start = field.offset as usize;
     let end = start + field.len as usize;
@@ -1562,56 +1646,67 @@ fn encode_field_to_payload(
 
     match &field.kind {
         copybook_core::FieldKind::Alphanum { .. } => {
-            if let Some(text) = value.as_str() {
-                let text_bytes = text.as_bytes();
-                let copy_len = text_bytes.len().min(field_slice.len());
-                field_slice[..copy_len].copy_from_slice(&text_bytes[..copy_len]);
-                // Remaining bytes stay as zero padding (or could be spaces)
-                for byte in &mut field_slice[copy_len..] {
-                    *byte = b' '; // Pad with spaces for alphanum fields
-                }
+            let text = extract_string_value(value, &field.name, options.coerce_numbers)?;
+            let validated_text = validate_string_length(&text, field_slice.len(), &field.name, options.strict_mode)?;
+
+            let text_bytes = validated_text.as_bytes();
+            let copy_len = text_bytes.len().min(field_slice.len());
+            field_slice[..copy_len].copy_from_slice(&text_bytes[..copy_len]);
+            // Pad remaining bytes with spaces for alphanum fields
+            for byte in &mut field_slice[copy_len..] {
+                *byte = b' ';
             }
         }
-        copybook_core::FieldKind::ZonedDecimal { .. } => {
-            if let Some(text) = value.as_str() {
-                // Simple zoned decimal encoding: pad with '0' and right-justify
-                let text_bytes = text.as_bytes();
-                let field_len = field_slice.len();
+        copybook_core::FieldKind::ZonedDecimal { scale, .. } => {
+            let text = extract_string_value(value, &field.name, options.coerce_numbers)?;
+            validate_numeric_scale(&text, *scale, &field.name)?;
 
-                if text_bytes.len() <= field_len {
-                    // Fill with ASCII '0' (0x30) first
-                    field_slice.fill(b'0');
-                    // Then copy the actual digits from the right
-                    let start_pos = field_len - text_bytes.len();
-                    field_slice[start_pos..].copy_from_slice(text_bytes);
-                } else {
-                    // If too long, truncate from the left (keep rightmost digits)
-                    let start_pos = text_bytes.len() - field_len;
-                    field_slice.copy_from_slice(&text_bytes[start_pos..]);
-                }
+            // Simple zoned decimal encoding: pad with '0' and right-justify
+            let text_bytes = text.as_bytes();
+            let field_len = field_slice.len();
+
+            if text_bytes.len() <= field_len {
+                // Fill with ASCII '0' (0x30) first
+                field_slice.fill(b'0');
+                // Then copy the actual digits from the right
+                let start_pos = field_len - text_bytes.len();
+                field_slice[start_pos..].copy_from_slice(text_bytes);
+            } else if options.strict_mode {
+                return Err(Error::new(
+                    ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+                    format!(
+                        "Numeric value '{}' too long for field '{}' (max {} digits)",
+                        text, field.name, field_len
+                    ),
+                ));
+            } else {
+                // If too long, truncate from the left (keep rightmost digits) in lenient mode
+                let start_pos = text_bytes.len() - field_len;
+                field_slice.copy_from_slice(&text_bytes[start_pos..]);
             }
         }
         copybook_core::FieldKind::PackedDecimal { digits, scale, signed } => {
-            if let Some(text) = value.as_str() {
-                // Use the COMP-3 encoder we implemented
-                let encoded_bytes = crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
+            let text = extract_string_value(value, &field.name, options.coerce_numbers)?;
+            validate_numeric_scale(&text, *scale, &field.name)?;
 
-                // Verify the encoded bytes match the expected field length
-                if encoded_bytes.len() != field_slice.len() {
-                    return Err(Error::new(
-                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        format!(
-                            "COMP-3 encoded length {} doesn't match field length {} for field {}",
-                            encoded_bytes.len(),
-                            field_slice.len(),
-                            field.name
-                        ),
-                    ));
-                }
+            // Use the COMP-3 encoder we implemented
+            let encoded_bytes = crate::numeric::encode_packed_decimal(&text, *digits, *scale, *signed)?;
 
-                // Copy the encoded bytes to the field slice
-                field_slice.copy_from_slice(&encoded_bytes);
+            // Verify the encoded bytes match the expected field length
+            if encoded_bytes.len() != field_slice.len() {
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "COMP-3 encoded length {} doesn't match field length {} for field {}",
+                        encoded_bytes.len(),
+                        field_slice.len(),
+                        field.name
+                    ),
+                ));
             }
+
+            // Copy the encoded bytes to the field slice
+            field_slice.copy_from_slice(&encoded_bytes);
         }
         _ => {
             // For now, just handle alphanum and zoned decimal fields.

@@ -150,7 +150,7 @@ fn test_cli_encode_fail_fast() {
     // Should fail with detailed error message
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Fatal error"));
+        .stderr(predicate::str::contains("Fatal error"));
 }
 
 /// Test help messages are correct

@@ -158,6 +158,7 @@ fn test_rdw_raw_preservation_with_reserved() {
         strict_mode: false,
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -323,6 +324,7 @@ fn test_rdw_length_recomputation_on_encode() {
         strict_mode: false,
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

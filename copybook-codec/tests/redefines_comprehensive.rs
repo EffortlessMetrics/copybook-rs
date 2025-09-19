@@ -171,6 +171,7 @@ fn test_redefines_encode_ambiguity_error() {
         strict_mode: true,
         max_errors: None,
         threads: 1,
+        coerce_numbers: true,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -191,9 +192,6 @@ fn test_redefines_encode_single_view_allowed() {
     // JSON with single non-null REDEFINES view (allowed)
     let json_data = json!({
         "ORIGINAL-FIELD": "Hello World Test    ",
-        "SHORT-REDEFINES": null,
-        "EQUAL-REDEFINES": null,
-        "LONG-REDEFINES": null,
         "NEXT-FIELD": "12345"
     });
 
@@ -207,6 +205,7 @@ fn test_redefines_encode_single_view_allowed() {
         strict_mode: false,
         max_errors: None,
         threads: 1,
+        coerce_numbers: true,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -271,6 +270,7 @@ fn test_redefines_raw_data_precedence() {
         strict_mode: false,
         max_errors: None,
         threads: 1,
+        coerce_numbers: true,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -323,6 +323,7 @@ fn test_redefines_round_trip_preservation() {
         strict_mode: false,
         max_errors: None,
         threads: 1,
+        coerce_numbers: true,
     };
 
     let input = Cursor::new(&decode_output);

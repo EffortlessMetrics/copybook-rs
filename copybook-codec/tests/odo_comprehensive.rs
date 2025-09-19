@@ -303,6 +303,7 @@ fn test_odo_encode_counter_update() {
         strict_mode: false,
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -367,6 +368,7 @@ fn test_odo_array_length_out_of_bounds_encode() {
         strict_mode: true, // Strict mode
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

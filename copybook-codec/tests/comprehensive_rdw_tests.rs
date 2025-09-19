@@ -34,6 +34,7 @@ fn create_rdw_encode_options(use_raw: bool, strict: bool) -> EncodeOptions {
         strict_mode: strict,
         max_errors: None,
         threads: 1,
+        coerce_numbers: false,
     }
 }
 

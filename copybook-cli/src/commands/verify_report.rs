@@ -11,6 +11,10 @@ pub struct VerifyReport {
     pub schema_fingerprint: String,
     /// Record format used for processing
     pub record_format: String,
+    /// Input file path for pipeline integration
+    pub file: String,
+    /// Input file size in bytes
+    pub file_size_bytes: u64,
     /// CLI options used for verification (for reproducibility)
     pub cli_opts: VerifyCliEcho,
     /// Total number of records processed
@@ -69,12 +73,16 @@ impl VerifyReport {
     pub fn new(
         schema_fingerprint: String,
         record_format: String,
+        file: String,
+        file_size_bytes: u64,
         cli_opts: VerifyCliEcho,
     ) -> Self {
         Self {
             report_version: 1,
             schema_fingerprint,
             record_format,
+            file,
+            file_size_bytes,
             cli_opts,
             records_total: 0,
             errors_total: 0,

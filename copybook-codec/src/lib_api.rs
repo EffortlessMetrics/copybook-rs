@@ -1029,7 +1029,7 @@ fn find_actual_field_offset(field: &copybook_core::Field, _data: &[u8]) -> usize
     // Use a simple heuristic: if field name contains "ARRAY" or "ITEM",
     // and field path suggests it comes after other fields
 
-    if field.name.to_uppercase().contains("ARRAY")
+    if field.name.to_ascii_uppercase().contains("ARRAY")
         && field.occurs.is_some()
         && field.path.contains("VARIABLE-ARRAY")
     {

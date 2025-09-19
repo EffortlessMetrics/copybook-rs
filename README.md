@@ -220,7 +220,7 @@ copybook verify schema.cpy rdw-data.bin --format rdw --report rdw-report.json
 - **Record-Level Validation**: Detects truncated records, invalid numeric formats, and field type mismatches
 - **Comprehensive Error Reporting**: Provides error codes, record indices, field paths, and byte offsets
 - **JSON Report Generation**: Machine-readable reports for integration with data quality pipelines
-- **Exit Code Compliance**: Returns 0 for valid files, 1 for validation errors, 2 for fatal errors
+- **Exit Code Compliance**: Returns 0 for valid files, 3 for validation errors, 2 for fatal errors (IO/schema)
 - **Performance Optimized**: Validation-only processing without JSON conversion overhead
 
 ## JSON Output Quality
@@ -433,8 +433,10 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 ### Data Types
 - **Alphanumeric**: `PIC X(n)` - Character data with EBCDIC/ASCII conversion
 - **Zoned Decimal**: `PIC 9(n)V9(m)`, `PIC S9(n)V9(m)` - Display numeric with EBCDIC/ASCII sign zones
-  - Supports EBCDIC zone nibbles (C/F = positive, D = negative)
-  - Supports ASCII overpunch characters (A-I = +1 to +9, } = +0, J-R = -1 to -9)
+  - **EBCDIC Overpunch**: Zone nibbles (C/F = positive, D = negative) in sign position
+  - **ASCII Overpunch**: Special characters in sign position (A-I = +1 to +9, } = +0, J-R = -1 to -9)
+  - **Negative Zero Normalization**: `-0` (negative zero) automatically normalizes to `"0"` in JSON output
+  - **Sign Preservation**: Non-zero negative values preserve their negative sign (`-1234` remains `"-1234"`)
 - **Packed Decimal**: `PIC 9(n)V9(m) COMP-3`, `PIC S9(n)V9(m) COMP-3` - Binary-coded decimal with nibble signs
   - Enhanced sign nibble handling (0xC/0xF = positive, 0xD/0xB = negative)
 - **Binary Integer**: `PIC 9(n) COMP/BINARY`, `PIC S9(n) COMP/BINARY` - Big-endian integers (1-8 bytes)

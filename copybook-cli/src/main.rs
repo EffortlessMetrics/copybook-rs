@@ -230,7 +230,7 @@ fn main() {
                 fail_fast,
                 threads,
                 coerce_numbers,
-            }
+            },
         ),
         Commands::Verify {
             copybook,
@@ -250,7 +250,7 @@ fn main() {
                 sample: sample.unwrap_or(5),
             };
             crate::commands::verify::run(&copybook, &input, report, opts)
-        },
+        }
     };
 
     match result {

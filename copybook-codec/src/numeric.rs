@@ -5,9 +5,9 @@
 
 #![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 
-use crate::charset::get_zoned_sign_table;
 use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
+use crate::zoned_overpunch::{decode_overpunch_byte, encode_overpunch_byte, ZeroSignPolicy};
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::{Display, Write};
 use tracing::warn;
@@ -381,155 +381,54 @@ pub fn decode_zoned_decimal(
         ));
     }
 
-    let sign_table = get_zoned_sign_table(codepage);
-    // ASCII zoned decimals use different sign encoding than EBCDIC
-    if codepage == Codepage::ASCII {
-        // Special-case negative zero represented by "M" in last position
-        if signed
-            && !data.is_empty()
-            && data[..data.len() - 1].iter().all(|&b| b == b'0')
-            && data[data.len() - 1] == b'M'
-        {
-            let mut decimal = SmallDecimal::zero(scale);
-            decimal.normalize();
-            return Ok(decimal);
-        }
-
-        let mut value = 0i64;
-        let mut is_negative = false;
-
-        for (i, &byte) in data.iter().enumerate() {
-            if i == data.len() - 1 && signed {
-                let digit = match byte {
-                    b'0'..=b'9' => {
-                        is_negative = false;
-                        byte - b'0'
-                    }
-                    b'{' => {
-                        is_negative = false;
-                        0
-                    }
-                    b'}' => {
-                        is_negative = false;
-                        3
-                    }
-                    b'A'..=b'I' => {
-                        is_negative = false;
-                        byte - b'A' + 1
-                    }
-                    b'J'..=b'R' => {
-                        is_negative = true;
-                        let mut d = byte - b'J' + 1;
-                        if byte == b'M' {
-                            d = 0;
-                        }
-                        d
-                    }
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid ASCII sign byte 0x{byte:02X}"),
-                        ));
-                    }
-                };
-                if digit > 9 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                        format!("Invalid ASCII digit {digit} in last position"),
-                    ));
-                }
-                value = value * 10 + i64::from(digit);
-            } else {
-                if !byte.is_ascii_digit() {
-                    return Err(Error::new(
-                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                        format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
-                    ));
-                }
-                value = value * 10 + i64::from(byte - b'0');
-            }
-        }
-
-        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-        decimal.normalize();
-        return Ok(decimal);
-    }
-
-    // EBCDIC zoned decimals
     let mut value = 0i64;
     let mut is_negative = false;
 
+    // Process each digit with proper overpunch handling
     for (i, &byte) in data.iter().enumerate() {
-        let zone = (byte >> 4) & 0x0F;
-        let mut digit = byte & 0x0F;
+        if i == data.len() - 1 && signed {
+            // Last digit with potential overpunch sign
+            let (digit, negative) = decode_overpunch_byte(byte, codepage)?;
+            is_negative = negative;
+            value = value * 10 + i64::from(digit);
+        } else {
+            // Regular digit position
+            let digit = match codepage {
+                Codepage::ASCII => {
+                    if !byte.is_ascii_digit() {
+                        return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
+                        ));
+                    }
+                    byte - b'0'
+                }
+                _ => {
+                    // EBCDIC: validate zone and digit
+                    let zone = (byte >> 4) & 0x0F;
+                    let digit = byte & 0x0F;
 
-        if digit > 9 {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                format!("Invalid digit nibble 0x{digit:X} at position {i}"),
-            ));
-        }
+                    if digit > 9 {
+                        return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Invalid digit nibble 0x{digit:X} at position {i}"),
+                        ));
+                    }
 
-        // Validate digit for current zone
-        if codepage == Codepage::ASCII {
-            let expected_zone = if i == data.len() - 1 && signed {
-                // Sign zones are allowed on last digit
-                // Will be validated by sign table
-                true
-            } else {
-                // Non-sign digits must be in standard zone 0x3
-                zone == 0x3
+                    // Non-sign positions should have zone 0xF
+                    if zone != 0xF {
+                        return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
+                        ));
+                    }
+
+                    digit
+                }
             };
 
-            if !expected_zone {
-                return Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid ASCII zone 0x{zone:X} at position {i}"),
-                ));
-            }
-        } else {
-            // EBCDIC digits should have zone 0xF (0xF0-0xF9)
-            if zone != 0xF && !(i == data.len() - 1 && signed) {
-                return Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
-                ));
-            }
+            value = value * 10 + i64::from(digit);
         }
-
-        // For the last byte with signed field, handle sign zone
-        if i == data.len() - 1 && signed {
-            let (has_sign, negative) = sign_table[zone as usize];
-            if has_sign {
-                is_negative = negative;
-                // Adjust final digit if ASCII overpunch
-                if codepage == Codepage::ASCII {
-                    digit = match zone {
-                        0x0 | 0x8 => 0, // '{' or 'H' overpunch
-                        0x1 | 0x9 => 1, // 'A' or 'I' overpunch
-                        0x2 | 0xA => 2, // 'B' or 'J' overpunch
-                        0x3 | 0xB => 3, // '}' or 'K' overpunch
-                        0x4 | 0xC => 4, // 'D' or 'L' overpunch
-                        0x5 | 0xD => 5, // 'E' or 'M' overpunch
-                        0x6 | 0xE => 6, // 'F' or 'N' overpunch
-                        0x7 | 0xF => 7, // 'G' or 'O' overpunch
-                        _ => {
-                            return Err(Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                format!("Unexpected ASCII overpunch zone 0x{zone:X}"),
-                            ));
-                        }
-                    };
-                }
-            } else {
-                return Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid sign zone 0x{zone:X} in last digit"),
-                ));
-            }
-        }
-
-        value = value * 10 + i64::from(digit);
     }
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
@@ -757,25 +656,23 @@ pub fn encode_zoned_decimal(
             ));
         }
 
-        let zone = if i == digit_bytes.len() - 1 && signed {
-            // Last digit with sign
-            if decimal.negative {
-                0xD // Negative sign
-            } else {
-                match codepage {
-                    Codepage::ASCII => 0x3, // ASCII positive (0x30-0x39)
-                    _ => 0xF,               // EBCDIC positive (0xF0-0xF9)
-                }
-            }
+        if i == digit_bytes.len() - 1 && signed {
+            // Last digit with sign - use overpunch encoding
+            let overpunch_byte = encode_overpunch_byte(
+                digit,
+                decimal.negative,
+                codepage,
+                ZeroSignPolicy::Positive
+            )?;
+            result.push(overpunch_byte);
         } else {
             // Regular digit
-            match codepage {
+            let zone = match codepage {
                 Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
                 _ => 0xF,               // EBCDIC digits (0xF0-0xF9)
-            }
-        };
-
-        result.push((zone << 4) | digit);
+            };
+            result.push((zone << 4) | digit);
+        }
     }
 
     Ok(result)
@@ -1113,61 +1010,60 @@ pub fn decode_zoned_decimal_with_scratch(
         ));
     }
 
+    let mut value = 0i64;
+    let mut is_negative = false;
+
     // Clear and prepare digit buffer for reuse
     scratch.digit_buffer.clear();
     scratch.digit_buffer.reserve(digits as usize);
 
-    let sign_table = get_zoned_sign_table(codepage);
-    let mut value = 0i64;
-    let mut is_negative = false;
-
-    // Optimized digit processing using scratch buffer
-    let expected_zone = match codepage {
-        Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
-        _ => 0xF,               // EBCDIC digits (0xF0-0xF9)
-    };
-
-    // Process each digit with optimized zone checking
+    // Process each digit with proper overpunch handling
     for (i, &byte) in data.iter().enumerate() {
-        let zone = (byte >> 4) & 0x0F;
-        let digit = byte & 0x0F;
-
-        // Validate digit nibble
-        if digit > 9 {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                format!("Invalid digit nibble 0x{digit:X} at position {i}"),
-            ));
-        }
-
-        // Store digit in scratch buffer for potential reuse
-        scratch.digit_buffer.push(digit);
-
-        // For the last byte, check sign if field is signed
         if i == data.len() - 1 && signed {
-            let (has_sign, negative) = sign_table[zone as usize];
-            if has_sign {
-                is_negative = negative;
-            } else {
-                return Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid sign zone 0x{zone:X} in last digit"),
-                ));
-            }
+            // Last digit with potential overpunch sign
+            let (digit, negative) = decode_overpunch_byte(byte, codepage)?;
+            is_negative = negative;
+            scratch.digit_buffer.push(digit);
+            value = value * 10 + i64::from(digit);
         } else {
-            // For non-sign positions, validate zone
-            if zone != expected_zone {
-                return Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!(
-                        "Invalid zone 0x{zone:X} at position {i}, expected 0x{expected_zone:X}"
-                    ),
-                ));
-            }
-        }
+            // Regular digit position
+            let digit = match codepage {
+                Codepage::ASCII => {
+                    if !byte.is_ascii_digit() {
+                        return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
+                        ));
+                    }
+                    byte - b'0'
+                }
+                _ => {
+                    // EBCDIC: validate zone and digit
+                    let zone = (byte >> 4) & 0x0F;
+                    let digit = byte & 0x0F;
 
-        // Optimized value accumulation
-        value = value * 10 + i64::from(digit);
+                    if digit > 9 {
+                        return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Invalid digit nibble 0x{digit:X} at position {i}"),
+                        ));
+                    }
+
+                    // Non-sign positions should have zone 0xF
+                    if zone != 0xF {
+                        return Err(Error::new(
+                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                            format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
+                        ));
+                    }
+
+                    digit
+                }
+            };
+
+            scratch.digit_buffer.push(digit);
+            value = value * 10 + i64::from(digit);
+        }
     }
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);

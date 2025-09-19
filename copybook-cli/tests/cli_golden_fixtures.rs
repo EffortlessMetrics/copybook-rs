@@ -55,7 +55,9 @@ fn test_cli_verify_valid_data() {
         .arg(fixture_path("copybooks/simple.cpy"))
         .arg(&data_file)
         .arg("--format")
-        .arg("fixed");
+        .arg("fixed")
+        .arg("--codepage")
+        .arg("cp037");
 
     // This might fail due to data format, but should not crash
     let output = cmd.output().unwrap();
@@ -230,7 +232,9 @@ fn test_cli_encode_comp3() {
         .arg("--output")
         .arg(&output_file)
         .arg("--format")
-        .arg("fixed");
+        .arg("fixed")
+        .arg("--codepage")
+        .arg("cp037");
 
     cmd.assert()
         .success()
@@ -258,7 +262,9 @@ fn test_cli_decode_comp3_roundtrip() {
         .arg("--output")
         .arg(&encoded_file)
         .arg("--format")
-        .arg("fixed");
+        .arg("fixed")
+        .arg("--codepage")
+        .arg("cp037");
 
     encode_cmd.assert().success();
 
@@ -270,7 +276,9 @@ fn test_cli_decode_comp3_roundtrip() {
         .arg("--output")
         .arg(&decoded_file)
         .arg("--format")
-        .arg("fixed");
+        .arg("fixed")
+        .arg("--codepage")
+        .arg("cp037");
 
     decode_cmd.assert()
         .success()
@@ -301,6 +309,8 @@ fn test_cli_encode_fail_fast() {
         .arg(&output_file)
         .arg("--format")
         .arg("fixed")
+        .arg("--codepage")
+        .arg("cp037")
         .arg("--fail-fast");
 
     // Should fail with detailed error message

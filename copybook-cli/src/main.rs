@@ -235,7 +235,16 @@ fn main() {
             strict,
             max_errors,
             sample,
-        } => crate::commands::verify::run(&copybook, &input, report, format, codepage, strict, max_errors, sample),
+        } => {
+            let opts = crate::commands::verify::VerifyOptions {
+                format,
+                codepage,
+                strict,
+                max_errors: max_errors.unwrap_or(10) as u32,
+                sample: sample.unwrap_or(5),
+            };
+            crate::commands::verify::run(&copybook, &input, report, opts)
+        },
     };
 
     match result {

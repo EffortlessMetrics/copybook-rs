@@ -37,7 +37,11 @@ pub fn run(
 
     // Configure encode options - use strict mode when fail_fast is enabled
     let effective_strict_mode = options.strict || options.fail_fast;
-    let effective_max_errors = if options.fail_fast { Some(1) } else { options.max_errors };
+    let effective_max_errors = if options.fail_fast {
+        Some(1)
+    } else {
+        options.max_errors
+    };
 
     let encode_options = EncodeOptions {
         format: options.format,
@@ -55,9 +59,13 @@ pub fn run(
         let mut result_summary = None;
         let atomic_result = atomic_write(output, |output_writer| {
             let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
-            let summary =
-                copybook_codec::encode_jsonl_to_file(&schema, input_file, output_writer, &encode_options)
-                    .map_err(std::io::Error::other)?;
+            let summary = copybook_codec::encode_jsonl_to_file(
+                &schema,
+                input_file,
+                output_writer,
+                &encode_options,
+            )
+            .map_err(std::io::Error::other)?;
             result_summary = Some(summary);
             Ok(())
         });
@@ -67,22 +75,26 @@ pub fn run(
             Err(e) => {
                 // Check if this is an encoding error we should surface
                 if let Some(source) = e.source()
-                    && let Some(encode_error) = source.downcast_ref::<copybook_core::Error>() {
-                        // This is a structured copybook error - provide detailed information
-                        eprintln!("Encoding failed: {} - {}", encode_error.code, encode_error.message);
-                        if let Some(context) = &encode_error.context {
-                            if let Some(field_path) = &context.field_path {
-                                eprintln!("Field: {field_path}");
-                            }
-                            if let Some(record_index) = context.record_index {
-                                eprintln!("Record: {record_index}");
-                            }
-                            if let Some(byte_offset) = context.byte_offset {
-                                eprintln!("Byte offset: {byte_offset}");
-                            }
+                    && let Some(encode_error) = source.downcast_ref::<copybook_core::Error>()
+                {
+                    // This is a structured copybook error - provide detailed information
+                    eprintln!(
+                        "Encoding failed: {} - {}",
+                        encode_error.code, encode_error.message
+                    );
+                    if let Some(context) = &encode_error.context {
+                        if let Some(field_path) = &context.field_path {
+                            eprintln!("Field: {field_path}");
                         }
-                        return Ok(3); // Hard error exit code
+                        if let Some(record_index) = context.record_index {
+                            eprintln!("Record: {record_index}");
+                        }
+                        if let Some(byte_offset) = context.byte_offset {
+                            eprintln!("Byte offset: {byte_offset}");
+                        }
                     }
+                    return Ok(3); // Hard error exit code
+                }
                 // Generic I/O error
                 return Err(Box::new(e));
             }
@@ -108,11 +120,17 @@ pub fn run(
     if summary.records_processed == 0 && summary.records_with_errors > 0 {
         eprintln!();
         eprintln!("ERROR: No records were successfully encoded.");
-        eprintln!("All {} records failed to encode. Use --fail-fast=false to see details of additional errors.", summary.records_with_errors);
+        eprintln!(
+            "All {} records failed to encode. Use --fail-fast=false to see details of additional errors.",
+            summary.records_with_errors
+        );
         eprintln!("Consider checking your input data format and copybook compatibility.");
     } else if summary.records_with_errors > 0 && !options.fail_fast {
         eprintln!();
-        eprintln!("WARNING: {} records failed to encode but were skipped in lenient mode.", summary.records_with_errors);
+        eprintln!(
+            "WARNING: {} records failed to encode but were skipped in lenient mode.",
+            summary.records_with_errors
+        );
         eprintln!("Use --fail-fast to stop on first error for detailed error information.");
     }
 

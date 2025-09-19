@@ -4,7 +4,10 @@
 //! and normalized JSON for text data to ensure consistent results
 //! across platforms and avoid issues with CRLF, locale, and defaults.
 
-use copybook_codec::{decode_file_to_jsonl, encode_jsonl_to_file, DecodeOptions, EncodeOptions, Codepage, RecordFormat, JsonNumberMode, RawMode};
+use copybook_codec::{
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    decode_file_to_jsonl, encode_jsonl_to_file,
+};
 use copybook_core::parse_copybook;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -21,9 +24,7 @@ fn normalize_json_value(value: Value) -> Value {
             }
             Value::Object(sorted.into_iter().collect())
         }
-        Value::Array(arr) => {
-            Value::Array(arr.into_iter().map(normalize_json_value).collect())
-        }
+        Value::Array(arr) => Value::Array(arr.into_iter().map(normalize_json_value).collect()),
         other => other,
     }
 }
@@ -56,8 +57,7 @@ fn test_comp3_canonical() {
     let copybook_text = fs::read_to_string("../fixtures/copybooks/comp3_test.cpy")
         .expect("Failed to read COMP-3 test copybook");
 
-    let schema = parse_copybook(&copybook_text)
-        .expect("Failed to parse COMP-3 test copybook");
+    let schema = parse_copybook(&copybook_text).expect("Failed to parse COMP-3 test copybook");
 
     // Test data with explicit codepage to avoid platform defaults
     let test_jsonl = r#"{"RECORD-ID": "0001", "POSITIVE-AMOUNT": "12345", "NEGATIVE-AMOUNT": "-67890", "DECIMAL-AMOUNT": "123.45", "UNSIGNED-AMOUNT": "999"}
@@ -78,8 +78,9 @@ fn test_comp3_canonical() {
     // Encode JSONL to binary
     let mut binary_output = Vec::new();
     let input_cursor = Cursor::new(test_jsonl.as_bytes());
-    let encode_summary = encode_jsonl_to_file(&schema, input_cursor, &mut binary_output, &encode_options)
-        .expect("Failed to encode COMP-3 test data");
+    let encode_summary =
+        encode_jsonl_to_file(&schema, input_cursor, &mut binary_output, &encode_options)
+            .expect("Failed to encode COMP-3 test data");
 
     // Verify encoding succeeded
     assert_eq!(encode_summary.records_processed, 2);
@@ -112,8 +113,9 @@ fn test_comp3_canonical() {
     // Decode binary back to JSONL
     let mut decoded_output = Vec::new();
     let binary_cursor = Cursor::new(&binary_output);
-    let decode_summary = decode_file_to_jsonl(&schema, binary_cursor, &mut decoded_output, &decode_options)
-        .expect("Failed to decode COMP-3 test data");
+    let decode_summary =
+        decode_file_to_jsonl(&schema, binary_cursor, &mut decoded_output, &decode_options)
+            .expect("Failed to decode COMP-3 test data");
 
     // Verify decoding succeeded
     assert_eq!(decode_summary.records_processed, 2);
@@ -130,8 +132,7 @@ fn test_comp3_canonical() {
     let mut normalized_records = Vec::new();
     for line in lines {
         if !line.trim().is_empty() {
-            let value: Value = serde_json::from_str(line)
-                .expect("Failed to parse decoded record");
+            let value: Value = serde_json::from_str(line).expect("Failed to parse decoded record");
             normalized_records.push(normalize_json_value(value));
         }
     }

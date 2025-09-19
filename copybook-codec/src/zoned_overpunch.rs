@@ -34,28 +34,107 @@ pub struct OverpunchMapping {
 /// Maps digit and sign to overpunch character
 static ASCII_OVERPUNCH_ENCODE: [OverpunchMapping; 20] = [
     // Positive digits 0-9
-    OverpunchMapping { digit: 0, is_negative: false, byte_value: b'{' }, // 0x7B
-    OverpunchMapping { digit: 1, is_negative: false, byte_value: b'A' }, // 0x41
-    OverpunchMapping { digit: 2, is_negative: false, byte_value: b'B' }, // 0x42
-    OverpunchMapping { digit: 3, is_negative: false, byte_value: b'C' }, // 0x43
-    OverpunchMapping { digit: 4, is_negative: false, byte_value: b'D' }, // 0x44
-    OverpunchMapping { digit: 5, is_negative: false, byte_value: b'E' }, // 0x45
-    OverpunchMapping { digit: 6, is_negative: false, byte_value: b'F' }, // 0x46
-    OverpunchMapping { digit: 7, is_negative: false, byte_value: b'G' }, // 0x47
-    OverpunchMapping { digit: 8, is_negative: false, byte_value: b'H' }, // 0x48
-    OverpunchMapping { digit: 9, is_negative: false, byte_value: b'I' }, // 0x49
-
+    OverpunchMapping {
+        digit: 0,
+        is_negative: false,
+        byte_value: b'{',
+    }, // 0x7B
+    OverpunchMapping {
+        digit: 1,
+        is_negative: false,
+        byte_value: b'A',
+    }, // 0x41
+    OverpunchMapping {
+        digit: 2,
+        is_negative: false,
+        byte_value: b'B',
+    }, // 0x42
+    OverpunchMapping {
+        digit: 3,
+        is_negative: false,
+        byte_value: b'C',
+    }, // 0x43
+    OverpunchMapping {
+        digit: 4,
+        is_negative: false,
+        byte_value: b'D',
+    }, // 0x44
+    OverpunchMapping {
+        digit: 5,
+        is_negative: false,
+        byte_value: b'E',
+    }, // 0x45
+    OverpunchMapping {
+        digit: 6,
+        is_negative: false,
+        byte_value: b'F',
+    }, // 0x46
+    OverpunchMapping {
+        digit: 7,
+        is_negative: false,
+        byte_value: b'G',
+    }, // 0x47
+    OverpunchMapping {
+        digit: 8,
+        is_negative: false,
+        byte_value: b'H',
+    }, // 0x48
+    OverpunchMapping {
+        digit: 9,
+        is_negative: false,
+        byte_value: b'I',
+    }, // 0x49
     // Negative digits 0-9
-    OverpunchMapping { digit: 0, is_negative: true, byte_value: b'}' },  // 0x7D
-    OverpunchMapping { digit: 1, is_negative: true, byte_value: b'J' },  // 0x4A
-    OverpunchMapping { digit: 2, is_negative: true, byte_value: b'K' },  // 0x4B
-    OverpunchMapping { digit: 3, is_negative: true, byte_value: b'L' },  // 0x4C
-    OverpunchMapping { digit: 4, is_negative: true, byte_value: b'M' },  // 0x4D
-    OverpunchMapping { digit: 5, is_negative: true, byte_value: b'N' },  // 0x4E
-    OverpunchMapping { digit: 6, is_negative: true, byte_value: b'O' },  // 0x4F
-    OverpunchMapping { digit: 7, is_negative: true, byte_value: b'P' },  // 0x50
-    OverpunchMapping { digit: 8, is_negative: true, byte_value: b'Q' },  // 0x51
-    OverpunchMapping { digit: 9, is_negative: true, byte_value: b'R' },  // 0x52
+    OverpunchMapping {
+        digit: 0,
+        is_negative: true,
+        byte_value: b'}',
+    }, // 0x7D
+    OverpunchMapping {
+        digit: 1,
+        is_negative: true,
+        byte_value: b'J',
+    }, // 0x4A
+    OverpunchMapping {
+        digit: 2,
+        is_negative: true,
+        byte_value: b'K',
+    }, // 0x4B
+    OverpunchMapping {
+        digit: 3,
+        is_negative: true,
+        byte_value: b'L',
+    }, // 0x4C
+    OverpunchMapping {
+        digit: 4,
+        is_negative: true,
+        byte_value: b'M',
+    }, // 0x4D
+    OverpunchMapping {
+        digit: 5,
+        is_negative: true,
+        byte_value: b'N',
+    }, // 0x4E
+    OverpunchMapping {
+        digit: 6,
+        is_negative: true,
+        byte_value: b'O',
+    }, // 0x4F
+    OverpunchMapping {
+        digit: 7,
+        is_negative: true,
+        byte_value: b'P',
+    }, // 0x50
+    OverpunchMapping {
+        digit: 8,
+        is_negative: true,
+        byte_value: b'Q',
+    }, // 0x51
+    OverpunchMapping {
+        digit: 9,
+        is_negative: true,
+        byte_value: b'R',
+    }, // 0x52
 ];
 
 /// ASCII overpunch decode table: byte -> (digit, is_negative)
@@ -124,10 +203,10 @@ pub fn encode_ebcdic_overpunch_zone(digit: u8, is_negative: bool, policy: ZeroSi
 #[must_use]
 pub const fn decode_ebcdic_overpunch_zone(zone: u8) -> Option<(bool, bool)> {
     match zone {
-        0xC => Some((true, false)),  // Positive
-        0xD => Some((true, true)),   // Negative
-        0xF => Some((true, false)),  // Preferred positive (often used for zero)
-        _ => None,                   // Invalid zone for signed field
+        0xC => Some((true, false)), // Positive
+        0xD => Some((true, true)),  // Negative
+        0xF => Some((true, false)), // Preferred positive (often used for zero)
+        _ => None,                  // Invalid zone for signed field
     }
 }
 
@@ -139,7 +218,7 @@ pub fn encode_overpunch_byte(
     digit: u8,
     is_negative: bool,
     codepage: Codepage,
-    policy: ZeroSignPolicy
+    policy: ZeroSignPolicy,
 ) -> Result<u8> {
     if digit > 9 {
         return Err(Error::new(
@@ -195,7 +274,9 @@ pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)>
             if digit > 9 {
                 return Err(Error::new(
                     ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid digit nibble 0x{digit:X} in EBCDIC overpunch byte 0x{byte:02X}"),
+                    format!(
+                        "Invalid digit nibble 0x{digit:X} in EBCDIC overpunch byte 0x{byte:02X}"
+                    ),
                 ));
             }
 
@@ -234,18 +315,17 @@ pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
 #[must_use]
 pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
     match codepage {
-        Codepage::ASCII => {
-            ASCII_OVERPUNCH_DECODE.iter()
-                .enumerate()
-                .filter_map(|(byte, mapping)| {
-                    if mapping.is_some() {
-                        Some(byte as u8)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        }
+        Codepage::ASCII => ASCII_OVERPUNCH_DECODE
+            .iter()
+            .enumerate()
+            .filter_map(|(byte, mapping)| {
+                if mapping.is_some() {
+                    Some(byte as u8)
+                } else {
+                    None
+                }
+            })
+            .collect(),
         _ => {
             let mut bytes = Vec::new();
             for zone in [0xC, 0xD, 0xF] {
@@ -266,8 +346,9 @@ mod tests {
     fn test_ascii_overpunch_encode_decode() {
         // Test positive digits
         for digit in 0..=9 {
-            let encoded = encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive)
-                .expect("Failed to encode positive digit");
+            let encoded =
+                encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive)
+                    .expect("Failed to encode positive digit");
             let (decoded_digit, is_negative) = decode_overpunch_byte(encoded, Codepage::ASCII)
                 .expect("Failed to decode positive digit");
 
@@ -277,8 +358,9 @@ mod tests {
 
         // Test negative digits
         for digit in 0..=9 {
-            let encoded = encode_overpunch_byte(digit, true, Codepage::ASCII, ZeroSignPolicy::Positive)
-                .expect("Failed to encode negative digit");
+            let encoded =
+                encode_overpunch_byte(digit, true, Codepage::ASCII, ZeroSignPolicy::Positive)
+                    .expect("Failed to encode negative digit");
             let (decoded_digit, is_negative) = decode_overpunch_byte(encoded, Codepage::ASCII)
                 .expect("Failed to decode negative digit");
 
@@ -291,8 +373,9 @@ mod tests {
     fn test_ebcdic_overpunch_encode_decode() {
         // Test positive digits with positive policy
         for digit in 0..=9 {
-            let encoded = encode_overpunch_byte(digit, false, Codepage::CP037, ZeroSignPolicy::Positive)
-                .expect("Failed to encode positive digit");
+            let encoded =
+                encode_overpunch_byte(digit, false, Codepage::CP037, ZeroSignPolicy::Positive)
+                    .expect("Failed to encode positive digit");
             let (decoded_digit, is_negative) = decode_overpunch_byte(encoded, Codepage::CP037)
                 .expect("Failed to decode positive digit");
 
@@ -308,8 +391,9 @@ mod tests {
 
         // Test negative digits
         for digit in 0..=9 {
-            let encoded = encode_overpunch_byte(digit, true, Codepage::CP037, ZeroSignPolicy::Positive)
-                .expect("Failed to encode negative digit");
+            let encoded =
+                encode_overpunch_byte(digit, true, Codepage::CP037, ZeroSignPolicy::Positive)
+                    .expect("Failed to encode negative digit");
             let (decoded_digit, is_negative) = decode_overpunch_byte(encoded, Codepage::CP037)
                 .expect("Failed to decode negative digit");
 
@@ -325,19 +409,22 @@ mod tests {
     #[test]
     fn test_zero_sign_policies() {
         // Test positive policy for zero
-        let encoded_pos = encode_overpunch_byte(0, false, Codepage::CP037, ZeroSignPolicy::Positive)
-            .expect("Failed to encode zero with positive policy");
+        let encoded_pos =
+            encode_overpunch_byte(0, false, Codepage::CP037, ZeroSignPolicy::Positive)
+                .expect("Failed to encode zero with positive policy");
         let zone_pos = (encoded_pos >> 4) & 0x0F;
         assert_eq!(zone_pos, 0xC);
 
         // Test preferred policy for zero (should use 0xF regardless of sign)
-        let encoded_pref_pos = encode_overpunch_byte(0, false, Codepage::CP037, ZeroSignPolicy::Preferred)
-            .expect("Failed to encode zero with preferred policy");
+        let encoded_pref_pos =
+            encode_overpunch_byte(0, false, Codepage::CP037, ZeroSignPolicy::Preferred)
+                .expect("Failed to encode zero with preferred policy");
         let zone_pref_pos = (encoded_pref_pos >> 4) & 0x0F;
         assert_eq!(zone_pref_pos, 0xF);
 
-        let encoded_pref_neg = encode_overpunch_byte(0, true, Codepage::CP037, ZeroSignPolicy::Preferred)
-            .expect("Failed to encode negative zero with preferred policy");
+        let encoded_pref_neg =
+            encode_overpunch_byte(0, true, Codepage::CP037, ZeroSignPolicy::Preferred)
+                .expect("Failed to encode negative zero with preferred policy");
         let zone_pref_neg = (encoded_pref_neg >> 4) & 0x0F;
         assert_eq!(zone_pref_neg, 0xF);
     }
@@ -361,24 +448,63 @@ mod tests {
     #[test]
     fn test_ascii_overpunch_golden_values() {
         // Test specific ASCII overpunch values
-        assert_eq!(decode_overpunch_byte(b'{', Codepage::ASCII).unwrap(), (0, false)); // +0
-        assert_eq!(decode_overpunch_byte(b'A', Codepage::ASCII).unwrap(), (1, false)); // +1
-        assert_eq!(decode_overpunch_byte(b'I', Codepage::ASCII).unwrap(), (9, false)); // +9
-        assert_eq!(decode_overpunch_byte(b'}', Codepage::ASCII).unwrap(), (0, true));  // -0
-        assert_eq!(decode_overpunch_byte(b'J', Codepage::ASCII).unwrap(), (1, true));  // -1
-        assert_eq!(decode_overpunch_byte(b'R', Codepage::ASCII).unwrap(), (9, true));  // -9
+        assert_eq!(
+            decode_overpunch_byte(b'{', Codepage::ASCII).unwrap(),
+            (0, false)
+        ); // +0
+        assert_eq!(
+            decode_overpunch_byte(b'A', Codepage::ASCII).unwrap(),
+            (1, false)
+        ); // +1
+        assert_eq!(
+            decode_overpunch_byte(b'I', Codepage::ASCII).unwrap(),
+            (9, false)
+        ); // +9
+        assert_eq!(
+            decode_overpunch_byte(b'}', Codepage::ASCII).unwrap(),
+            (0, true)
+        ); // -0
+        assert_eq!(
+            decode_overpunch_byte(b'J', Codepage::ASCII).unwrap(),
+            (1, true)
+        ); // -1
+        assert_eq!(
+            decode_overpunch_byte(b'R', Codepage::ASCII).unwrap(),
+            (9, true)
+        ); // -9
     }
 
     #[test]
     fn test_ebcdic_overpunch_golden_values() {
         // Test specific EBCDIC overpunch values
-        assert_eq!(decode_overpunch_byte(0xC0, Codepage::CP037).unwrap(), (0, false)); // +0
-        assert_eq!(decode_overpunch_byte(0xC1, Codepage::CP037).unwrap(), (1, false)); // +1
-        assert_eq!(decode_overpunch_byte(0xC9, Codepage::CP037).unwrap(), (9, false)); // +9
-        assert_eq!(decode_overpunch_byte(0xD0, Codepage::CP037).unwrap(), (0, true));  // -0
-        assert_eq!(decode_overpunch_byte(0xD1, Codepage::CP037).unwrap(), (1, true));  // -1
-        assert_eq!(decode_overpunch_byte(0xD9, Codepage::CP037).unwrap(), (9, true));  // -9
-        assert_eq!(decode_overpunch_byte(0xF0, Codepage::CP037).unwrap(), (0, false)); // Preferred 0
+        assert_eq!(
+            decode_overpunch_byte(0xC0, Codepage::CP037).unwrap(),
+            (0, false)
+        ); // +0
+        assert_eq!(
+            decode_overpunch_byte(0xC1, Codepage::CP037).unwrap(),
+            (1, false)
+        ); // +1
+        assert_eq!(
+            decode_overpunch_byte(0xC9, Codepage::CP037).unwrap(),
+            (9, false)
+        ); // +9
+        assert_eq!(
+            decode_overpunch_byte(0xD0, Codepage::CP037).unwrap(),
+            (0, true)
+        ); // -0
+        assert_eq!(
+            decode_overpunch_byte(0xD1, Codepage::CP037).unwrap(),
+            (1, true)
+        ); // -1
+        assert_eq!(
+            decode_overpunch_byte(0xD9, Codepage::CP037).unwrap(),
+            (9, true)
+        ); // -9
+        assert_eq!(
+            decode_overpunch_byte(0xF0, Codepage::CP037).unwrap(),
+            (0, false)
+        ); // Preferred 0
     }
 
     #[test]

@@ -1082,7 +1082,8 @@ fn decode_zoned_decimal_basic(
         if codepage == Codepage::ASCII {
             if is_last && signed {
                 // Use the proper overpunch decoder from zoned_overpunch module
-                let (digit, negative) = crate::zoned_overpunch::decode_overpunch_byte(byte, codepage)?;
+                let (digit, negative) =
+                    crate::zoned_overpunch::decode_overpunch_byte(byte, codepage)?;
                 digits.push_str(&digit.to_string());
                 is_negative = negative;
             } else {
@@ -1562,14 +1563,21 @@ fn validate_numeric_scale(text: &str, expected_scale: i16, field_name: &str) -> 
 }
 
 /// Validate string field length
-fn validate_string_length(text: &str, max_length: usize, field_name: &str, strict: bool) -> Result<String> {
+fn validate_string_length(
+    text: &str,
+    max_length: usize,
+    field_name: &str,
+    strict: bool,
+) -> Result<String> {
     if text.len() > max_length {
         if strict {
             return Err(Error::new(
                 ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
                 format!(
                     "String too long: {} characters exceeds maximum {} for field '{}'",
-                    text.len(), max_length, field_name
+                    text.len(),
+                    max_length,
+                    field_name
                 ),
             ));
         } else {
@@ -1603,7 +1611,8 @@ fn encode_field_to_payload(
     match &field.kind {
         copybook_core::FieldKind::Alphanum { .. } => {
             let text = extract_string_value(value, &field.name, options.coerce_numbers)?;
-            let validated_text = validate_string_length(&text, field_slice.len(), &field.name, options.strict_mode)?;
+            let validated_text =
+                validate_string_length(&text, field_slice.len(), &field.name, options.strict_mode)?;
 
             let text_bytes = validated_text.as_bytes();
             let copy_len = text_bytes.len().min(field_slice.len());
@@ -1613,7 +1622,11 @@ fn encode_field_to_payload(
                 *byte = b' ';
             }
         }
-        copybook_core::FieldKind::ZonedDecimal { digits, scale, signed } => {
+        copybook_core::FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
             let text = extract_string_value(value, &field.name, options.coerce_numbers)?;
 
             // Use the proper zoned decimal encoding with overpunch support
@@ -1639,12 +1652,17 @@ fn encode_field_to_payload(
 
             field_slice.copy_from_slice(&encoded);
         }
-        copybook_core::FieldKind::PackedDecimal { digits, scale, signed } => {
+        copybook_core::FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
             let text = extract_string_value(value, &field.name, options.coerce_numbers)?;
             validate_numeric_scale(&text, *scale, &field.name)?;
 
             // Use the COMP-3 encoder we implemented
-            let encoded_bytes = crate::numeric::encode_packed_decimal(&text, *digits, *scale, *signed)?;
+            let encoded_bytes =
+                crate::numeric::encode_packed_decimal(&text, *digits, *scale, *signed)?;
 
             // Verify the encoded bytes match the expected field length
             if encoded_bytes.len() != field_slice.len() {

@@ -584,10 +584,10 @@ fn test_synchronized_alignment() {
     assert_eq!(another_char.len, 3);
 
     let another_binary = &root.children[3];
-    assert_eq!(another_binary.offset, 16); // Aligned to 8-byte boundary (64-bit)
-    assert_eq!(another_binary.len, 8); // 64-bit binary
+    assert_eq!(another_binary.offset, 12); // Aligned to 4-byte boundary (32-bit)
+    assert_eq!(another_binary.len, 4); // 32-bit binary (9 digits = 5-9 range)
     assert!(another_binary.synchronized);
-    assert_eq!(another_binary.sync_padding, Some(5)); // 5 padding bytes
+    assert_eq!(another_binary.sync_padding, Some(1)); // 1 padding byte
 }
 
 #[test]

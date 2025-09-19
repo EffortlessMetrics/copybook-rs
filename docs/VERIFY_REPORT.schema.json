@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "copybook-verify-report",
+  "description": "Verification report schema for copybook-rs verify command",
+  "type": "object",
+  "required": [
+    "report_version",
+    "schema_fingerprint",
+    "record_format",
+    "records_total",
+    "errors_total",
+    "truncated",
+    "errors",
+    "sample",
+    "cli_opts"
+  ],
+  "properties": {
+    "report_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Report format version (bump on breaking changes)"
+    },
+    "schema_fingerprint": {
+      "type": "string",
+      "description": "Schema fingerprint for identity tracking"
+    },
+    "record_format": {
+      "type": "string",
+      "enum": ["fixed", "rdw"],
+      "description": "Record format used for processing"
+    },
+    "records_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of records processed"
+    },
+    "errors_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of errors encountered"
+    },
+    "truncated": {
+      "type": "boolean",
+      "description": "Whether error reporting was truncated due to max_errors limit"
+    },
+    "cli_opts": {
+      "type": "object",
+      "required": ["codepage", "strict", "max_errors", "sample"],
+      "properties": {
+        "codepage": {
+          "type": "string",
+          "description": "Codepage used for character conversion"
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Whether strict mode was enabled"
+        },
+        "max_errors": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum errors before truncation"
+        },
+        "sample": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of sample records to include"
+        }
+      },
+      "additionalProperties": false,
+      "description": "CLI options used for verification (for reproducibility)"
+    },
+    "errors": {
+      "type": "array",
+      "description": "List of verification errors",
+      "items": {
+        "type": "object",
+        "required": ["index", "code", "msg"],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Record index (0-based)"
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code (e.g., CBKP051)"
+          },
+          "field": {
+            "type": ["string", "null"],
+            "description": "Field path where error occurred (e.g., REC.AMT)"
+          },
+          "offset": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "description": "Byte offset in record/file if known"
+          },
+          "msg": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "hex": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9A-Fa-f\\s]*$",
+            "description": "Optional hex dump of problematic data"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "sample": {
+      "type": "array",
+      "description": "Sample of record data for debugging",
+      "items": {
+        "type": "object",
+        "required": ["index", "hex"],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Record index (0-based)"
+          },
+          "hex": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f\\s]+$",
+            "description": "Hex representation of record data"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

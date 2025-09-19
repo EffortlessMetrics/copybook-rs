@@ -142,6 +142,9 @@ enum Commands {
         /// Maximum errors before stopping
         #[arg(long)]
         max_errors: Option<u64>,
+        /// Number of sample records to include in report
+        #[arg(long, default_value = "5")]
+        sample: Option<u32>,
     },
 }
 
@@ -231,7 +234,8 @@ fn main() {
             codepage,
             strict,
             max_errors,
-        } => crate::commands::verify::run(&copybook, &input, report, format, codepage, strict, max_errors),
+            sample,
+        } => crate::commands::verify::run(&copybook, &input, report, format, codepage, strict, max_errors, sample),
     };
 
     match result {
@@ -251,6 +255,7 @@ mod commands {
     pub mod inspect;
     pub mod parse;
     pub mod verify;
+    pub mod verify_report;
 }
 
 mod utils;

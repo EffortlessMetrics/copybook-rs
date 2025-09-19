@@ -7,7 +7,7 @@
 
 use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
-use crate::zoned_overpunch::{decode_overpunch_byte, encode_overpunch_byte, ZeroSignPolicy};
+use crate::zoned_overpunch::{ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte};
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::{Display, Write};
 use tracing::warn;
@@ -142,7 +142,9 @@ impl SmallDecimal {
                 .ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKE510_NUMERIC_OVERFLOW,
-                        format!("Numeric value too large for COMP-3 field: overflow in calculation"),
+                        format!(
+                            "Numeric value too large for COMP-3 field: overflow in calculation"
+                        ),
                     )
                 })?;
 
@@ -658,12 +660,8 @@ pub fn encode_zoned_decimal(
 
         if i == digit_bytes.len() - 1 && signed {
             // Last digit with sign - use overpunch encoding
-            let overpunch_byte = encode_overpunch_byte(
-                digit,
-                decimal.negative,
-                codepage,
-                ZeroSignPolicy::Positive
-            )?;
+            let overpunch_byte =
+                encode_overpunch_byte(digit, decimal.negative, codepage, ZeroSignPolicy::Positive)?;
             result.push(overpunch_byte);
         } else {
             // Regular digit
@@ -714,7 +712,8 @@ pub fn encode_packed_decimal(
     }
 
     // 3. Determine expected bytes based on decode function's expectation: (digits + 2) / 2
-    #[allow(clippy::manual_midpoint)] // Not a midpoint calculation - we want (digits + 2) / 2, not midpoint(digits, 2)
+    #[allow(clippy::manual_midpoint)]
+    // Not a midpoint calculation - we want (digits + 2) / 2, not midpoint(digits, 2)
     let expected_bytes = ((digits + 2) / 2) as usize;
     let mut result = Vec::with_capacity(expected_bytes);
 
@@ -1196,7 +1195,9 @@ pub fn encode_packed_decimal_with_scratch(
     let is_negative = decimal.is_negative();
 
     // 2. Build zero-padded digit string using scratch buffer for efficiency
-    scratch.string_buffer.push_str(&format!("{:0width$}", abs_value, width = digits as usize));
+    scratch
+        .string_buffer
+        .push_str(&format!("{:0width$}", abs_value, width = digits as usize));
 
     if scratch.string_buffer.len() > digits as usize {
         return Err(Error::new(
@@ -1385,34 +1386,58 @@ mod tests {
         // This tests the specific bug where "-0" was incorrectly returned as "-0"
 
         // ASCII negative zero: "}" (0x7D) = -0
-        let data = vec![b'}'];  // ASCII overpunch for -0
+        let data = vec![b'}']; // ASCII overpunch for -0
         let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::ASCII, false).unwrap();
-        assert_eq!(result.to_string(), "0", "Negative zero should normalize to '0'");
+        assert_eq!(
+            result.to_string(),
+            "0",
+            "Negative zero should normalize to '0'"
+        );
 
         // ASCII negative non-zero: "J" (0x4A) = -1
-        let data = vec![b'J'];  // ASCII overpunch for -1
+        let data = vec![b'J']; // ASCII overpunch for -1
         let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::ASCII, false).unwrap();
-        assert_eq!(result.to_string(), "-1", "Negative non-zero should remain negative");
+        assert_eq!(
+            result.to_string(),
+            "-1",
+            "Negative non-zero should remain negative"
+        );
 
         // Multi-digit negative zero: "000}" = -0000
         let data = vec![b'0', b'0', b'0', b'}'];
         let result = decode_zoned_decimal(&data, 4, 0, true, Codepage::ASCII, false).unwrap();
-        assert_eq!(result.to_string(), "0", "Multi-digit negative zero should normalize to '0'");
+        assert_eq!(
+            result.to_string(),
+            "0",
+            "Multi-digit negative zero should normalize to '0'"
+        );
 
         // Multi-digit negative non-zero: "123J" = -1231 (J = negative 1)
         let data = vec![b'1', b'2', b'3', b'J'];
         let result = decode_zoned_decimal(&data, 4, 0, true, Codepage::ASCII, false).unwrap();
-        assert_eq!(result.to_string(), "-1231", "Multi-digit negative non-zero should remain negative");
+        assert_eq!(
+            result.to_string(),
+            "-1231",
+            "Multi-digit negative non-zero should remain negative"
+        );
 
         // EBCDIC negative zero: 0xD0 = -0
-        let data = vec![0xD0];  // EBCDIC overpunch for -0
+        let data = vec![0xD0]; // EBCDIC overpunch for -0
         let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::CP037, false).unwrap();
-        assert_eq!(result.to_string(), "0", "EBCDIC negative zero should normalize to '0'");
+        assert_eq!(
+            result.to_string(),
+            "0",
+            "EBCDIC negative zero should normalize to '0'"
+        );
 
         // EBCDIC negative non-zero: 0xD1 = -1
-        let data = vec![0xD1];  // EBCDIC overpunch for -1
+        let data = vec![0xD1]; // EBCDIC overpunch for -1
         let result = decode_zoned_decimal(&data, 1, 0, true, Codepage::CP037, false).unwrap();
-        assert_eq!(result.to_string(), "-1", "EBCDIC negative non-zero should remain negative");
+        assert_eq!(
+            result.to_string(),
+            "-1",
+            "EBCDIC negative non-zero should remain negative"
+        );
     }
 
     #[test]
@@ -1495,7 +1520,9 @@ mod tests {
         let result = encode_packed_decimal("123.4", 3, 2, true);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.message.contains("Scale mismatch") || error.message.contains("type mismatch"));
+        assert!(
+            error.message.contains("Scale mismatch") || error.message.contains("type mismatch")
+        );
     }
 
     #[test]
@@ -1526,11 +1553,11 @@ mod tests {
     fn test_comp3_property_tests() {
         // Property-based testing: encode(decode(bytes)) should be identity for valid inputs
         let test_cases = vec![
-            (vec![0x12, 0x3C], 3, 0, true),       // 123 positive (3 digits -> 3+1=4 nibbles -> 2 bytes)
-            (vec![0x12, 0x3D], 3, 0, true),       // 123 negative (3 digits -> 3+1=4 nibbles -> 2 bytes)
-            (vec![0x12, 0x3F], 3, 0, false),      // 123 unsigned (3 digits -> 3+1=4 nibbles -> 2 bytes)
+            (vec![0x12, 0x3C], 3, 0, true), // 123 positive (3 digits -> 3+1=4 nibbles -> 2 bytes)
+            (vec![0x12, 0x3D], 3, 0, true), // 123 negative (3 digits -> 3+1=4 nibbles -> 2 bytes)
+            (vec![0x12, 0x3F], 3, 0, false), // 123 unsigned (3 digits -> 3+1=4 nibbles -> 2 bytes)
             (vec![0x12, 0x34, 0x5C], 5, 0, true), // 12345 positive (5 digits -> 5+1=6 nibbles -> 3 bytes)
-            (vec![0x00, 0x1C], 3, 0, true),       // 1 positive (3 digits -> 3+1=4 nibbles -> 2 bytes: 001C)
+            (vec![0x00, 0x1C], 3, 0, true), // 1 positive (3 digits -> 3+1=4 nibbles -> 2 bytes: 001C)
         ];
 
         for (bytes, digits, scale, signed) in test_cases {
@@ -1538,12 +1565,15 @@ mod tests {
             let decoded = decode_packed_decimal(&bytes, digits, scale, signed).unwrap();
 
             // Re-encode to bytes
-            let reencoded = encode_packed_decimal(&decoded.to_string(), digits, scale, signed).unwrap();
+            let reencoded =
+                encode_packed_decimal(&decoded.to_string(), digits, scale, signed).unwrap();
 
             // Should be identical
-            assert_eq!(bytes, reencoded,
+            assert_eq!(
+                bytes, reencoded,
                 "Round-trip failed for digits={}, scale={}, signed={}: {:?} != {:?}",
-                digits, scale, signed, bytes, reencoded);
+                digits, scale, signed, bytes, reencoded
+            );
         }
     }
 }

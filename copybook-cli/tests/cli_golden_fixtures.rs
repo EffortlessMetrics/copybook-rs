@@ -6,17 +6,16 @@ mod test_utils;
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use serde_json::Value;
 use std::fs;
 use tempfile::TempDir;
 use test_utils::fixture_path;
-use serde_json::Value;
 
 /// Test parse command with golden fixture
 #[test]
 fn test_cli_parse_simple() {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("parse")
-        .arg(fixture_path("copybooks/simple.cpy"));
+    cmd.arg("parse").arg(fixture_path("copybooks/simple.cpy"));
 
     cmd.assert()
         .success()
@@ -29,8 +28,7 @@ fn test_cli_parse_simple() {
 #[test]
 fn test_cli_inspect_simple() {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("inspect")
-        .arg(fixture_path("copybooks/simple.cpy"));
+    cmd.arg("inspect").arg(fixture_path("copybooks/simple.cpy"));
 
     cmd.assert()
         .success()
@@ -96,8 +94,7 @@ fn test_cli_verify_report_schema() {
 
     // Read and parse the JSON report
     let report_content = fs::read_to_string(&report_file).unwrap();
-    let report: Value = serde_json::from_str(&report_content)
-        .expect("Report should be valid JSON");
+    let report: Value = serde_json::from_str(&report_content).expect("Report should be valid JSON");
 
     // Validate the report structure using our helper
     validate_verify_report_schema(&report);
@@ -109,35 +106,76 @@ fn validate_verify_report_schema(report: &Value) {
 
     // Validate required fields and types
     assert!(obj.contains_key("report_version"), "Missing report_version");
-    assert!(obj["report_version"].is_u64(), "report_version should be integer");
-    assert_eq!(obj["report_version"].as_u64().unwrap(), 1, "report_version should be 1");
+    assert!(
+        obj["report_version"].is_u64(),
+        "report_version should be integer"
+    );
+    assert_eq!(
+        obj["report_version"].as_u64().unwrap(),
+        1,
+        "report_version should be 1"
+    );
 
-    assert!(obj.contains_key("schema_fingerprint"), "Missing schema_fingerprint");
-    assert!(obj["schema_fingerprint"].is_string(), "schema_fingerprint should be string");
+    assert!(
+        obj.contains_key("schema_fingerprint"),
+        "Missing schema_fingerprint"
+    );
+    assert!(
+        obj["schema_fingerprint"].is_string(),
+        "schema_fingerprint should be string"
+    );
     let fingerprint = obj["schema_fingerprint"].as_str().unwrap();
-    assert_eq!(fingerprint.len(), 32, "schema_fingerprint should be 32 hex chars");
-    assert!(fingerprint.chars().all(|c| c.is_ascii_hexdigit()), "schema_fingerprint should be hex");
+    assert_eq!(
+        fingerprint.len(),
+        32,
+        "schema_fingerprint should be 32 hex chars"
+    );
+    assert!(
+        fingerprint.chars().all(|c| c.is_ascii_hexdigit()),
+        "schema_fingerprint should be hex"
+    );
 
     assert!(obj.contains_key("record_format"), "Missing record_format");
-    assert!(obj["record_format"].is_string(), "record_format should be string");
+    assert!(
+        obj["record_format"].is_string(),
+        "record_format should be string"
+    );
     let format = obj["record_format"].as_str().unwrap();
-    assert!(format == "fixed" || format == "rdw", "record_format should be 'fixed' or 'rdw'");
+    assert!(
+        format == "fixed" || format == "rdw",
+        "record_format should be 'fixed' or 'rdw'"
+    );
 
     assert!(obj.contains_key("file"), "Missing file");
     assert!(obj["file"].is_string(), "file should be string");
-    assert!(!obj["file"].as_str().unwrap().is_empty(), "file should not be empty");
+    assert!(
+        !obj["file"].as_str().unwrap().is_empty(),
+        "file should not be empty"
+    );
 
-    assert!(obj.contains_key("file_size_bytes"), "Missing file_size_bytes");
-    assert!(obj["file_size_bytes"].is_u64(), "file_size_bytes should be integer");
+    assert!(
+        obj.contains_key("file_size_bytes"),
+        "Missing file_size_bytes"
+    );
+    assert!(
+        obj["file_size_bytes"].is_u64(),
+        "file_size_bytes should be integer"
+    );
 
     assert!(obj.contains_key("cli_opts"), "Missing cli_opts");
     validate_cli_opts(&obj["cli_opts"]);
 
     assert!(obj.contains_key("records_total"), "Missing records_total");
-    assert!(obj["records_total"].is_u64(), "records_total should be integer");
+    assert!(
+        obj["records_total"].is_u64(),
+        "records_total should be integer"
+    );
 
     assert!(obj.contains_key("errors_total"), "Missing errors_total");
-    assert!(obj["errors_total"].is_u64(), "errors_total should be integer");
+    assert!(
+        obj["errors_total"].is_u64(),
+        "errors_total should be integer"
+    );
 
     assert!(obj.contains_key("truncated"), "Missing truncated");
     assert!(obj["truncated"].is_boolean(), "truncated should be boolean");
@@ -167,7 +205,10 @@ fn validate_cli_opts(cli_opts: &Value) {
 
     assert!(obj.contains_key("max_errors"), "Missing max_errors");
     assert!(obj["max_errors"].is_u64(), "max_errors should be integer");
-    assert!(obj["max_errors"].as_u64().unwrap() >= 1, "max_errors should be >= 1");
+    assert!(
+        obj["max_errors"].as_u64().unwrap() >= 1,
+        "max_errors should be >= 1"
+    );
 
     assert!(obj.contains_key("sample"), "Missing sample");
     assert!(obj["sample"].is_u64(), "sample should be integer");
@@ -193,13 +234,19 @@ fn validate_verify_error(error: &Value) {
 
     assert!(obj.contains_key("msg"), "Missing error.msg");
     assert!(obj["msg"].is_string(), "error.msg should be string");
-    assert!(!obj["msg"].as_str().unwrap().is_empty(), "error.msg should not be empty");
+    assert!(
+        !obj["msg"].as_str().unwrap().is_empty(),
+        "error.msg should not be empty"
+    );
 
     assert!(obj.contains_key("hex"), "Missing error.hex");
     // hex can be string or null
     if obj["hex"].is_string() {
         let hex = obj["hex"].as_str().unwrap();
-        assert!(hex.chars().all(|c| c.is_ascii_hexdigit()), "error.hex should be hex chars");
+        assert!(
+            hex.chars().all(|c| c.is_ascii_hexdigit()),
+            "error.hex should be hex chars"
+        );
     }
 }
 
@@ -215,7 +262,10 @@ fn validate_verify_sample(sample: &Value) {
     let hex = obj["hex"].as_str().unwrap();
     // Allow TODO placeholder or hex chars
     if !hex.starts_with("TODO:") {
-        assert!(hex.chars().all(|c| c.is_ascii_hexdigit()), "sample.hex should be hex chars or TODO placeholder");
+        assert!(
+            hex.chars().all(|c| c.is_ascii_hexdigit()),
+            "sample.hex should be hex chars or TODO placeholder"
+        );
     }
 }
 
@@ -256,7 +306,8 @@ fn test_cli_decode_comp3_roundtrip() {
 
     // First encode the test data
     let mut encode_cmd = Command::cargo_bin("copybook").unwrap();
-    encode_cmd.arg("encode")
+    encode_cmd
+        .arg("encode")
         .arg(fixture_path("copybooks/comp3_test.cpy"))
         .arg(fixture_path("data/comp3_test.jsonl"))
         .arg("--output")
@@ -270,7 +321,8 @@ fn test_cli_decode_comp3_roundtrip() {
 
     // Then decode it back
     let mut decode_cmd = Command::cargo_bin("copybook").unwrap();
-    decode_cmd.arg("decode")
+    decode_cmd
+        .arg("decode")
         .arg(fixture_path("copybooks/comp3_test.cpy"))
         .arg(&encoded_file)
         .arg("--output")
@@ -280,7 +332,8 @@ fn test_cli_decode_comp3_roundtrip() {
         .arg("--codepage")
         .arg("cp037");
 
-    decode_cmd.assert()
+    decode_cmd
+        .assert()
         .success()
         .stdout(predicate::str::contains("Records processed: 2"));
 
@@ -299,7 +352,11 @@ fn test_cli_encode_fail_fast() {
     let output_file = temp_dir.path().join("output.bin");
 
     // Create invalid JSONL that should fail encoding - provide invalid data for numeric field
-    fs::write(&bad_jsonl, r#"{"CUSTOMER-ID": "not-a-number", "ACCOUNT-BALANCE": "invalid-decimal"}"#).unwrap();
+    fs::write(
+        &bad_jsonl,
+        r#"{"CUSTOMER-ID": "not-a-number", "ACCOUNT-BALANCE": "invalid-decimal"}"#,
+    )
+    .unwrap();
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("encode")
@@ -335,7 +392,8 @@ fn test_cli_help_messages() {
     // Test subcommand help
     let mut verify_cmd = Command::cargo_bin("copybook").unwrap();
     verify_cmd.arg("verify").arg("--help");
-    verify_cmd.assert()
+    verify_cmd
+        .assert()
         .success()
         .stdout(predicate::str::contains("Verify data file structure"))
         .stdout(predicate::str::contains("--strict"))

@@ -2,14 +2,17 @@
 //!
 //! The verify command validates data file structure against copybook schema without output generation
 
+use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
 use crate::utils::atomic_write;
-use super::verify_report::{VerifyReport, VerifyCliEcho, VerifyError, VerifySample};
-use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, RecordIterator};
+use copybook_codec::{
+    Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
+    UnmappablePolicy,
+};
 use copybook_core::parse_copybook;
 use std::fs::{File, metadata};
-use std::io::{BufReader, Seek, SeekFrom, Read};
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::PathBuf;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 // Report structures now defined in verify_report.rs
 
@@ -60,10 +63,16 @@ pub fn run(
             if let Some(lrecl) = schema.lrecl_fixed {
                 // Check file size is multiple of LRECL
                 if file_size % u64::from(lrecl) != 0 {
-                    warn!("File size {} is not a multiple of LRECL {}", file_size, lrecl);
+                    warn!(
+                        "File size {} is not a multiple of LRECL {}",
+                        file_size, lrecl
+                    );
                 }
             } else {
-                return Err("Fixed format requires LRECL from schema, but schema has no fixed length".into());
+                return Err(
+                    "Fixed format requires LRECL from schema, but schema has no fixed length"
+                        .into(),
+                );
             }
         }
         RecordFormat::RDW => {
@@ -106,14 +115,21 @@ pub fn run(
 
     // Helper function to create hex string from bytes
     fn hex_bytes(bytes: &[u8], max: usize) -> String {
-        bytes.iter().take(max).map(|b| format!("{:02X}", b)).collect::<String>()
+        bytes
+            .iter()
+            .take(max)
+            .map(|b| format!("{:02X}", b))
+            .collect::<String>()
     }
 
     // Helper function to create centered hex window around error offset
     fn hex_window(bytes: &[u8], offset: usize, ctx: usize) -> String {
         let start = offset.saturating_sub(ctx);
         let end = (offset + ctx).min(bytes.len());
-        bytes[start..end].iter().map(|b| format!("{:02X}", b)).collect::<String>()
+        bytes[start..end]
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<String>()
     }
 
     // Process each record
@@ -161,7 +177,10 @@ pub fn run(
                 let error_entry = VerifyError {
                     index: records_total - 1, // 0-based index
                     code: format!("{:?}", error.code),
-                    field: error.context.as_ref().and_then(|ctx| ctx.field_path.clone()),
+                    field: error
+                        .context
+                        .as_ref()
+                        .and_then(|ctx| ctx.field_path.clone()),
                     offset: error_offset.map(|o| o as u64),
                     msg: error.message.clone(),
                     hex: hex_data,
@@ -180,7 +199,12 @@ pub fn run(
                 }
 
                 // Log error for immediate feedback
-                error!("Record {}: {} - {}", records_total - 1, error.code, error.message);
+                error!(
+                    "Record {}: {} - {}",
+                    records_total - 1,
+                    error.code,
+                    error.message
+                );
             }
         }
     }
@@ -196,9 +220,16 @@ pub fn run(
     println!("  File Size: {file_size} bytes");
     println!("  Records Total: {}", verify_report.records_total);
     if verify_report.errors_total > 0 {
-        println!("  Errors: {} (showing first {})", verify_report.errors_total, verify_report.errors.len());
+        println!(
+            "  Errors: {} (showing first {})",
+            verify_report.errors_total,
+            verify_report.errors.len()
+        );
         if verify_report.truncated {
-            println!("  Warning: Error list truncated at {} errors", verify_report.cli_opts.max_errors);
+            println!(
+                "  Warning: Error list truncated at {} errors",
+                verify_report.cli_opts.max_errors
+            );
         }
         for error in &verify_report.errors {
             println!("    Record {}: {} - {}", error.index, error.code, error.msg);

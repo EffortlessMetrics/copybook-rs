@@ -10,7 +10,8 @@ pub fn find_workspace_root() -> PathBuf {
     loop {
         if current.join("Cargo.toml").exists()
             && current.join("copybook-cli").exists()
-            && current.join("copybook-codec").exists() {
+            && current.join("copybook-codec").exists()
+        {
             return current;
         }
 

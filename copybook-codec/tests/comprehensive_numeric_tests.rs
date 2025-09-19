@@ -75,7 +75,7 @@ fn test_zoned_decimal_ascii_sign_zones_comprehensive() {
 
     // Test ASCII positive overpunch zones
     let positive_tests = vec![
-        (b"12}", "123", "} = +3"),
+        (b"12{", "120", "{ = +0"),
         (b"12A", "121", "A = +1"),
         (b"12B", "122", "B = +2"),
         (b"12I", "129", "I = +9"),
@@ -170,8 +170,8 @@ fn test_zoned_negative_zero_normalization() {
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false);
 
-    // Create -0 in ASCII overpunch (00M = -000)
-    let negative_zero_data = b"00M";
+    // Create -0 in ASCII overpunch (00} = -000)
+    let negative_zero_data = b"00}";
     let input = Cursor::new(negative_zero_data);
     let mut output = Vec::new();
 

@@ -32,7 +32,7 @@ fn hi(b: u8) -> u8 { b >> 4 }
 fn lo(b: u8) -> u8 { b & 0x0F }
 
 // Normalize a numeric string into ASCII digits without a decimal point.
-// Returns (digits_vec, negative, scale_digits).
+// Returns (digits_vec, negative, observed_frac).
 fn normalize_number_ascii(src: &str, expected_scale: u32) -> Result<(Vec<u8>, bool, u32)> {
     let s = src.trim();
     let mut neg = false;
@@ -61,16 +61,28 @@ fn normalize_number_ascii(src: &str, expected_scale: u32) -> Result<(Vec<u8>, bo
             }
         }
     }
-    // Adjust to expected scale: pad or trim fractional digits
+
+    let observed_frac = frac;
+
+    // Strict parity with legacy behavior: fail when scale doesn't match
+    if observed_frac != expected_scale {
+        return Err(Error::new(
+            ErrorCode::CBKE505_SCALE_MISMATCH,
+            format!("Scale mismatch: expected {}, got {}", expected_scale, observed_frac),
+        ));
+    }
+
+    // Keep existing pad/trim logic to protect downstream when we choose to be lenient later
+    // Note: Currently unreachable due to strict scale check above, but preserved for future flexibility
     if frac < expected_scale {
         digits.extend(std::iter::repeat(b'0').take((expected_scale - frac) as usize));
-        frac = expected_scale;
+        // frac = expected_scale; // Unreachable - removed to silence warning
     } else if frac > expected_scale {
         // Trim extra fractional places from the tail
         for _ in 0..(frac - expected_scale) { let _ = digits.pop(); }
-        frac = expected_scale;
+        // frac = expected_scale; // Unreachable - removed to silence warning
     }
-    Ok((digits, neg, frac))
+    Ok((digits, neg, observed_frac))
 }
 
 // Encode normalized ASCII digits (+ sign) into COMP-3 bytes.
@@ -1625,6 +1637,42 @@ mod tests {
         let data = vec![0x12, 0x3D];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
         assert_eq!(result.to_string(), "-123");
+    }
+
+    #[test]
+    fn test_comp3_unsigned_sign_nibbles() {
+        // Unsigned fields must accept positive sign nibbles: 0xF(+) and 0xC(+)
+
+        // Test 0xF (unsigned positive)
+        let data = vec![0x12, 0x3F]; // 123F
+        let result = decode_packed_decimal(&data, 3, 0, false).unwrap();
+        assert_eq!(result.to_string(), "123");
+
+        // Test 0xC (signed positive, should also work for unsigned)
+        let data = vec![0x12, 0x3C]; // 123C
+        let result = decode_packed_decimal(&data, 3, 0, false).unwrap();
+        assert_eq!(result.to_string(), "123");
+    }
+
+    #[test]
+    fn test_comp3_signed_sign_nibbles() {
+        // Signed fields must accept A/C/E/F as positive and B/D as negative
+
+        // Positive signs: A, C, E, F
+        let positive_signs = [0xA, 0xC, 0xE, 0xF];
+        for sign in positive_signs {
+            let data = vec![0x12, 0x30 | sign]; // 123X where X is the sign
+            let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
+            assert_eq!(result.to_string(), "123", "Failed for positive sign nibble 0x{:X}", sign);
+        }
+
+        // Negative signs: B, D
+        let negative_signs = [0xB, 0xD];
+        for sign in negative_signs {
+            let data = vec![0x12, 0x30 | sign]; // 123X where X is the sign
+            let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
+            assert_eq!(result.to_string(), "-123", "Failed for negative sign nibble 0x{:X}", sign);
+        }
     }
 
     #[test]

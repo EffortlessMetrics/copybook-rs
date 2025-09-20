@@ -329,6 +329,7 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "criterion",
+ "serde_json",
 ]
 
 [[package]]

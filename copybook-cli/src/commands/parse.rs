@@ -1,9 +1,7 @@
 //! Parse command implementation
 
-use crate::utils::atomic_write;
+use crate::utils::{atomic_write, read_file_or_stdin};
 use copybook_core::{ParseOptions, parse_copybook_with_options};
-use std::fs;
-
 use std::path::PathBuf;
 use tracing::info;
 
@@ -11,17 +9,23 @@ pub fn run(
     copybook: &PathBuf,
     output: Option<PathBuf>,
     strict: bool,
+    strict_comments: bool,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Parsing copybook: {:?}", copybook);
 
-    // Read copybook file
-    let copybook_text = fs::read_to_string(copybook)?;
+    if strict_comments {
+        info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
+    }
+
+    // Read copybook file or stdin
+    let copybook_text = read_file_or_stdin(copybook)?;
 
     // Parse copybook with options
     let options = ParseOptions {
         strict,
         codepage: "cp037".to_string(),
         emit_filler: false,
+        allow_inline_comments: !strict_comments,
     };
     let schema = parse_copybook_with_options(&copybook_text, &options)?;
 

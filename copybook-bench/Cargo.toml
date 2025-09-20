@@ -14,10 +14,15 @@ publish = false
 name = "decode_performance"
 harness = false
 
+[[bench]]
+name = "comp3"
+harness = false
+
 [dependencies]
 copybook-core = { path = "../copybook-core" }
 copybook-codec = { path = "../copybook-codec" }
 criterion.workspace = true
+serde_json.workspace = true
 
 [features]
 default = []

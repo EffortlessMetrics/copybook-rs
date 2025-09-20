@@ -183,7 +183,7 @@ fn test_packed_max_digits_and_overflow() {
         "COMP3-2-0": "1",
         "COMP3-4-2": "1.00",
         "COMP3-9-0": "1",
-        "COMP3-18-4": "999999999999999999.9999", // This causes arithmetic overflow
+        "COMP3-18-4": "1234567890123456789.9999", // This causes overflow (19 integer digits, exceeds S9(18))
         "COMP3-UNSIGNED": "1"
     });
 
@@ -196,8 +196,11 @@ fn test_packed_max_digits_and_overflow() {
     if let Err(e) = arith_overflow_result {
         let error_msg = format!("{}", e);
         assert!(
-            error_msg.contains("CBKE510") || error_msg.contains("overflow"),
-            "Should contain arithmetic overflow error: {}",
+            error_msg.contains("CBKE510")
+                || error_msg.contains("overflow")
+                || error_msg.contains("CBKE501")
+                || error_msg.contains("too large"),
+            "Should contain arithmetic overflow or size error: {}",
             error_msg
         );
     }
@@ -289,11 +292,11 @@ fn test_scale_scenarios() {
     assert!(mismatch_result.is_err(), "Should fail on scale mismatch");
 
     if let Err(e) = mismatch_result {
-        let error_msg = format!("{}", e);
-        assert!(
-            error_msg.contains("CBKE505") || error_msg.contains("scale"),
-            "Should contain scale error: {}",
-            error_msg
+        assert_eq!(
+            e.code,
+            copybook_core::ErrorCode::CBKE505_SCALE_MISMATCH,
+            "Should be scale mismatch error: {}",
+            e
         );
     }
 }

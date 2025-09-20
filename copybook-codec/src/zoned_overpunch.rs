@@ -30,111 +30,34 @@ pub struct OverpunchMapping {
     pub byte_value: u8,
 }
 
-/// ASCII overpunch mapping table
-/// Maps digit and sign to overpunch character
-static ASCII_OVERPUNCH_ENCODE: [OverpunchMapping; 20] = [
-    // Positive digits 0-9
-    OverpunchMapping {
-        digit: 0,
-        is_negative: false,
-        byte_value: b'{',
-    }, // 0x7B
-    OverpunchMapping {
-        digit: 1,
-        is_negative: false,
-        byte_value: b'A',
-    }, // 0x41
-    OverpunchMapping {
-        digit: 2,
-        is_negative: false,
-        byte_value: b'B',
-    }, // 0x42
-    OverpunchMapping {
-        digit: 3,
-        is_negative: false,
-        byte_value: b'C',
-    }, // 0x43
-    OverpunchMapping {
-        digit: 4,
-        is_negative: false,
-        byte_value: b'D',
-    }, // 0x44
-    OverpunchMapping {
-        digit: 5,
-        is_negative: false,
-        byte_value: b'E',
-    }, // 0x45
-    OverpunchMapping {
-        digit: 6,
-        is_negative: false,
-        byte_value: b'F',
-    }, // 0x46
-    OverpunchMapping {
-        digit: 7,
-        is_negative: false,
-        byte_value: b'G',
-    }, // 0x47
-    OverpunchMapping {
-        digit: 8,
-        is_negative: false,
-        byte_value: b'H',
-    }, // 0x48
-    OverpunchMapping {
-        digit: 9,
-        is_negative: false,
-        byte_value: b'I',
-    }, // 0x49
-    // Negative digits 0-9
-    OverpunchMapping {
-        digit: 0,
-        is_negative: true,
-        byte_value: b'}',
-    }, // 0x7D
-    OverpunchMapping {
-        digit: 1,
-        is_negative: true,
-        byte_value: b'J',
-    }, // 0x4A
-    OverpunchMapping {
-        digit: 2,
-        is_negative: true,
-        byte_value: b'K',
-    }, // 0x4B
-    OverpunchMapping {
-        digit: 3,
-        is_negative: true,
-        byte_value: b'L',
-    }, // 0x4C
-    OverpunchMapping {
-        digit: 4,
-        is_negative: true,
-        byte_value: b'M',
-    }, // 0x4D
-    OverpunchMapping {
-        digit: 5,
-        is_negative: true,
-        byte_value: b'N',
-    }, // 0x4E
-    OverpunchMapping {
-        digit: 6,
-        is_negative: true,
-        byte_value: b'O',
-    }, // 0x4F
-    OverpunchMapping {
-        digit: 7,
-        is_negative: true,
-        byte_value: b'P',
-    }, // 0x50
-    OverpunchMapping {
-        digit: 8,
-        is_negative: true,
-        byte_value: b'Q',
-    }, // 0x51
-    OverpunchMapping {
-        digit: 9,
-        is_negative: true,
-        byte_value: b'R',
-    }, // 0x52
+/// ASCII positive overpunch lookup table (O(1) access)
+/// Maps digit (0-9) to positive overpunch character
+static ASCII_POSITIVE_OVERPUNCH: [u8; 10] = [
+    b'{', // 0 -> '{'
+    b'A', // 1 -> 'A'
+    b'B', // 2 -> 'B'
+    b'C', // 3 -> 'C'
+    b'D', // 4 -> 'D'
+    b'E', // 5 -> 'E'
+    b'F', // 6 -> 'F'
+    b'G', // 7 -> 'G'
+    b'H', // 8 -> 'H'
+    b'I', // 9 -> 'I'
+];
+
+/// ASCII negative overpunch lookup table (O(1) access)
+/// Maps digit (0-9) to negative overpunch character
+static ASCII_NEGATIVE_OVERPUNCH: [u8; 10] = [
+    b'}', // 0 -> '}'
+    b'J', // 1 -> 'J'
+    b'K', // 2 -> 'K'
+    b'L', // 3 -> 'L'
+    b'M', // 4 -> 'M'
+    b'N', // 5 -> 'N'
+    b'O', // 6 -> 'O'
+    b'P', // 7 -> 'P'
+    b'Q', // 8 -> 'Q'
+    b'R', // 9 -> 'R'
 ];
 
 /// ASCII overpunch decode table: byte -> (digit, `is_negative`)
@@ -228,18 +151,20 @@ pub fn encode_overpunch_byte(
     }
 
     if codepage == Codepage::ASCII {
-        // Find the matching ASCII overpunch character
-        for mapping in &ASCII_OVERPUNCH_ENCODE {
-            if mapping.digit == digit && mapping.is_negative == is_negative {
-                return Ok(mapping.byte_value);
-            }
+        // O(1) ASCII overpunch lookup using direct array indexing
+        if digit <= 9 {
+            let byte_value = if is_negative {
+                ASCII_NEGATIVE_OVERPUNCH[digit as usize]
+            } else {
+                ASCII_POSITIVE_OVERPUNCH[digit as usize]
+            };
+            Ok(byte_value)
+        } else {
+            Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Invalid digit {digit} for ASCII overpunch encoding"),
+            ))
         }
-
-        // Should never reach here for valid inputs
-        Err(Error::new(
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("No ASCII overpunch mapping for digit {digit}, negative: {is_negative}"),
-        ))
     } else {
         // EBCDIC: combine zone and digit nibbles
         let zone = encode_ebcdic_overpunch_zone(digit, is_negative, policy);

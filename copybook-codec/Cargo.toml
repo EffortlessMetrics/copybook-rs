@@ -30,3 +30,6 @@ hex.workspace = true
 [features]
 default = []
 comprehensive-tests = []
+# COMP-3 fast path optimizations
+comp3_fast = []
+comp3_unsafe = []

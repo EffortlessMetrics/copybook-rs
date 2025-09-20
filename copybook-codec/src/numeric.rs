@@ -12,6 +12,187 @@ use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::{Display, Write};
 use tracing::warn;
 
+// ===== COMP-3 packed-decimal helpers (hot path) ====================================
+#[inline(always)]
+fn ascii_nibble(c: u8) -> Option<u8> {
+    // Branchless-ish digit check: '0'..'9' => 0..9
+    let d = c.wrapping_sub(b'0');
+    if d <= 9 { Some(d) } else { None }
+}
+
+#[cfg(feature = "comp3_fast")]
+#[inline(always)]
+fn pack_two(hi: u8, lo: u8) -> u8 { (hi << 4) | lo }
+
+#[cfg(feature = "comp3_fast")]
+#[inline(always)]
+fn hi(b: u8) -> u8 { b >> 4 }
+#[cfg(feature = "comp3_fast")]
+#[inline(always)]
+fn lo(b: u8) -> u8 { b & 0x0F }
+
+// Normalize a numeric string into ASCII digits without a decimal point.
+// Returns (digits_vec, negative, scale_digits).
+fn normalize_number_ascii(src: &str, expected_scale: u32) -> Result<(Vec<u8>, bool, u32)> {
+    let s = src.trim();
+    let mut neg = false;
+    let mut digits = Vec::with_capacity(s.len());
+    let mut seen_dot = false;
+    let mut frac = 0u32;
+
+    for (i, c) in s.bytes().enumerate() {
+        match c {
+            b'+' if i == 0 => {}
+            b'-' if i == 0 => { neg = true; }
+            b'.' => {
+                if seen_dot {
+                    return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "multiple decimal points".to_string()));
+                }
+                seen_dot = true;
+            }
+            b'0'..=b'9' => {
+                digits.push(c);
+                if seen_dot { frac = frac.saturating_add(1); }
+            }
+            _ => {
+                return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "invalid numeric character in COMP-3 input".to_string()));
+            }
+        }
+    }
+    // Adjust to expected scale: pad or trim fractional digits
+    if frac < expected_scale {
+        digits.extend(std::iter::repeat(b'0').take((expected_scale - frac) as usize));
+        frac = expected_scale;
+    } else if frac > expected_scale {
+        // Trim extra fractional places from the tail
+        for _ in 0..(frac - expected_scale) { let _ = digits.pop(); }
+        frac = expected_scale;
+    }
+    Ok((digits, neg, frac))
+}
+
+// Encode normalized ASCII digits (+ sign) into COMP-3 bytes.
+#[cfg(feature = "comp3_fast")]
+fn comp3_encode_fast(digits: &[u8], negative: bool) -> Result<Vec<u8>> {
+    let n = digits.len();
+    // Use same calculation as decode function: (digits + 2) / 2
+    let out_len = (n + 2) / 2;
+    let mut out = vec![0u8; out_len];
+
+    #[cfg(not(feature="comp3_unsafe"))]
+    {
+        // Handle digit packing - for even digit count, first byte has filler
+        if n % 2 == 0 {
+            // Even digits: first nibble is filler (0), pack normally
+            let mut di = 0usize;
+            let mut oi = 0usize;
+            while di + 1 < n {
+                let hi_d = ascii_nibble(digits[di]).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let lo_d = ascii_nibble(digits[di + 1]).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                out[oi] = pack_two(hi_d, lo_d);
+                di += 2; oi += 1;
+            }
+            // Last byte: 0 (filler) + sign
+            out[out_len - 1] = if negative { 0x0D } else { 0x0C };
+        } else {
+            // Odd digits: pack normally, last digit + sign in final byte
+            let mut di = 0usize;
+            let mut oi = 0usize;
+            while di + 1 < n {
+                let hi_d = ascii_nibble(digits[di]).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let lo_d = ascii_nibble(digits[di + 1]).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                out[oi] = pack_two(hi_d, lo_d);
+                di += 2; oi += 1;
+            }
+            // Last byte: final digit + sign
+            let hi_d = ascii_nibble(digits[n - 1]).ok_or_else(|| Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+            out[out_len - 1] = (hi_d << 4) | if negative { 0x0D } else { 0x0C };
+        }
+    }
+
+    #[cfg(feature="comp3_unsafe")]
+    unsafe {
+        // Single bounds check: out fully sized, digits indexed only after digit-check
+        let out_ptr = out.as_mut_ptr();
+
+        if n % 2 == 0 {
+            // Even digits: pack normally, last byte is filler + sign
+            let mut di = 0usize;
+            let mut oi = 0usize;
+            while di + 1 < n {
+                let hi_d = ascii_nibble(*digits.get_unchecked(di)).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let lo_d = ascii_nibble(*digits.get_unchecked(di + 1)).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                *out_ptr.add(oi) = (hi_d << 4) | lo_d;
+                di += 2; oi += 1;
+            }
+            // Last byte: 0 (filler) + sign
+            *out_ptr.add(out_len - 1) = if negative { 0x0D } else { 0x0C };
+        } else {
+            // Odd digits: pack normally, last digit + sign in final byte
+            let mut di = 0usize;
+            let mut oi = 0usize;
+            while di + 1 < n {
+                let hi_d = ascii_nibble(*digits.get_unchecked(di)).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let lo_d = ascii_nibble(*digits.get_unchecked(di + 1)).ok_or_else(|| Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                *out_ptr.add(oi) = (hi_d << 4) | lo_d;
+                di += 2; oi += 1;
+            }
+            // Last byte: final digit + sign
+            let hi_d = ascii_nibble(*digits.get_unchecked(n - 1)).ok_or_else(|| Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+            *out_ptr.add(out_len - 1) = (hi_d << 4) | if negative { 0x0D } else { 0x0C };
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(feature = "comp3_fast")]
+fn comp3_decode_fast(bytes: &[u8]) -> Result<(Vec<u8>, bool)> {
+    if bytes.is_empty() {
+        return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "empty COMP-3".to_string()));
+    }
+    let mut digits = Vec::with_capacity(bytes.len() * 2);
+    // Emit all but last byte as 2 digits
+    for &b in &bytes[..bytes.len()-1] {
+        let h = hi(b); let l = lo(b);
+        if h > 9 || l > 9 {
+            return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("invalid COMP-3 digit nibble: 0x{h:X},0x{l:X}")));
+        }
+        digits.push(b'0' + h);
+        digits.push(b'0' + l);
+    }
+    // Last byte: high is optional digit, low is sign nibble
+    let last = *bytes.last().unwrap();
+    let h = hi(last); let s = lo(last);
+    if h > 9 { return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+        format!("invalid COMP-3 digit nibble: 0x{h:X}"))); }
+    let negative = match s {
+        0x0C => false, // positive
+        0x0D => true,  // negative
+        _ => return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("invalid COMP-3 sign nibble: 0x{s:X}"))),
+    };
+    // If total digits was odd, 'h' is the last digit; if even, 'h' is filler 0.
+    // Heuristic: if high nibble is non-zero OR digits len would be odd, push it.
+    if !(h == 0 && (digits.len() % 2 == 0)) {
+        digits.push(b'0' + h);
+    }
+    Ok((digits, negative))
+}
+// ===== end COMP-3 helpers ==========================================================
+
 /// Small decimal structure for parsing/formatting without floats
 /// This avoids floating-point precision issues for financial data.
 ///
@@ -464,6 +645,37 @@ pub fn decode_packed_decimal(
         return Ok(SmallDecimal::zero(scale));
     }
 
+    #[cfg(feature = "comp3_fast")]
+    {
+        let (digit_bytes, negative) = comp3_decode_fast(data)?;
+        // Convert to string for existing SmallDecimal parsing
+        let mut digit_str = String::with_capacity(digit_bytes.len() + 2);
+        if negative && signed { digit_str.push('-'); }
+
+        // Add integer part
+        let scale_usize = scale.max(0) as usize;
+        let int_digits = digit_bytes.len().saturating_sub(scale_usize);
+        if int_digits == 0 {
+            digit_str.push('0');
+        } else {
+            for &d in &digit_bytes[..int_digits] {
+                digit_str.push(d as char);
+            }
+        }
+
+        // Add decimal part if scale > 0
+        if scale > 0 && scale_usize <= digit_bytes.len() {
+            digit_str.push('.');
+            for &d in &digit_bytes[int_digits..] {
+                digit_str.push(d as char);
+            }
+        }
+
+        let mut decimal = SmallDecimal::from_str(&digit_str, scale)?;
+        decimal.normalize();
+        return Ok(decimal);
+    }
+
     let mut value = 0i64;
 
     for (idx, &byte) in data.iter().enumerate() {
@@ -690,6 +902,26 @@ pub fn encode_packed_decimal(
     scale: i16,
     signed: bool,
 ) -> Result<Vec<u8>> {
+    #[cfg(feature = "comp3_fast")]
+    {
+        // Normalize once; returns ASCII digits (no '.') with desired scale
+        let (mut digit_bytes, negative, _scale_digits) = normalize_number_ascii(value, scale as u32)?;
+
+        // Ensure we have exactly 'digits' number of digits by padding with leading zeros
+        if digit_bytes.len() < digits as usize {
+            let mut padded = vec![b'0'; digits as usize - digit_bytes.len()];
+            padded.extend(digit_bytes);
+            digit_bytes = padded;
+        } else if digit_bytes.len() > digits as usize {
+            return Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Value too large for {} digits", digits),
+            ));
+        }
+
+        return comp3_encode_fast(&digit_bytes, negative && signed);
+    }
+
     // Parse the input value with scale validation (NORMATIVE)
     let decimal = SmallDecimal::from_str(value, scale)?;
 

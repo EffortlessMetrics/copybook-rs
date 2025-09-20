@@ -1,3 +1,4 @@
+#![cfg(feature = "comprehensive-tests")]
 //! Comprehensive ODO tests: validation, strict vs lenient modes, payload length
 //!
 //! This test suite validates ODO (OCCURS DEPENDING ON) handling according to

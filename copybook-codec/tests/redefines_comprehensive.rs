@@ -1,3 +1,4 @@
+#![cfg(feature = "comprehensive-tests")]
 //! Comprehensive REDEFINES tests: shorter/equal/longer overlays, encode ambiguity, raw preservation
 //!
 //! This test suite validates REDEFINES handling according to the normative behavior

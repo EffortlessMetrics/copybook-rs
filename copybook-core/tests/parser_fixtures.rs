@@ -40,7 +40,7 @@ fn test_column_7_continuation() {
 
     let schema = parse_copybook(with_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
-    assert_eq!(schema.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-NEEDS-");
+    assert_eq!(schema.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-NEEDS-CONTINUATION");
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn test_continuation_whitespace_handling() {
 
     let schema = parse_copybook(with_spaces).unwrap();
     assert_eq!(schema.fields.len(), 1);
-    assert_eq!(schema.fields[0].name, "FIELD-WITH-SPACES");
+    assert_eq!(schema.fields[0].name, "FIELD-WITH-SPACES AND-MORE-SPACES");
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn test_error_context_in_parse_errors() {
 "#;
 
     let result = parse_copybook(invalid_syntax);
-    assert!(result.is_ok());
+    assert!(result.is_err()); // Level 99 is invalid
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn test_continuation_across_multiple_lines() {
 
     let schema = parse_copybook(multi_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
-    assert_eq!(schema.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-SPANS-");
+    assert_eq!(schema.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-SPANS-MULTIPLE-LINES-AND-CONTINUES-EVEN-MORE");
 }
 
 #[test]

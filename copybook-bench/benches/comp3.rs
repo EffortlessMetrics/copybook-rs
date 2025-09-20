@@ -46,6 +46,12 @@ fn bench_comp3(c: &mut Criterion) {
     let mut g = c.benchmark_group("comp3");
     g.throughput(Throughput::Bytes(json.len() as u64));
 
+    // Quick profile for local development
+    if std::env::var("QUICK_BENCH").is_ok() {
+        g.measurement_time(std::time::Duration::from_millis(800));
+        g.sample_size(25);
+    }
+
     g.bench_function("encode_comp3", |b| {
         b.iter(|| {
             let _ = encode_record(black_box(&schema), black_box(&serde_json::from_str(json).unwrap()), black_box(&enc)).unwrap();

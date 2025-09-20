@@ -20,6 +20,27 @@ const HEX_FALLBACK: usize = 64;
 
 // Report structures now defined in verify_report.rs
 
+/// Helper function to create hex string from bytes
+#[allow(clippy::format_collect)]
+fn hex_bytes(bytes: &[u8], max: usize) -> String {
+    bytes
+        .iter()
+        .take(max)
+        .map(|b| format!("{b:02X}"))
+        .collect::<String>()
+}
+
+/// Helper function to create centered hex window around error offset
+#[allow(clippy::format_collect)]
+fn hex_window(bytes: &[u8], offset: usize, ctx: usize) -> String {
+    let start = offset.saturating_sub(ctx);
+    let end = (offset + ctx).min(bytes.len());
+    bytes[start..end]
+        .iter()
+        .map(|b| format!("{b:02X}"))
+        .collect::<String>()
+}
+
 /// Configuration options for the verify command
 pub struct VerifyOptions {
     pub format: RecordFormat,
@@ -29,11 +50,12 @@ pub struct VerifyOptions {
     pub sample: u32,
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn run(
     copybook_path: &PathBuf,
     input: &PathBuf,
     report: Option<PathBuf>,
-    opts: VerifyOptions,
+    opts: &VerifyOptions,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Verifying data file: {:?}", input);
 
@@ -117,24 +139,6 @@ pub fn run(
     // Create record iterator based on format
     let record_iter = RecordIterator::new(reader, &schema, &decode_options)?;
 
-    // Helper function to create hex string from bytes
-    fn hex_bytes(bytes: &[u8], max: usize) -> String {
-        bytes
-            .iter()
-            .take(max)
-            .map(|b| format!("{:02X}", b))
-            .collect::<String>()
-    }
-
-    // Helper function to create centered hex window around error offset
-    fn hex_window(bytes: &[u8], offset: usize, ctx: usize) -> String {
-        let start = offset.saturating_sub(ctx);
-        let end = (offset + ctx).min(bytes.len());
-        bytes[start..end]
-            .iter()
-            .map(|b| format!("{:02X}", b))
-            .collect::<String>()
-    }
 
     // Process each record
     for record_result in record_iter {
@@ -170,7 +174,7 @@ pub fn run(
                 let error_offset = error.context.as_ref().and_then(|ctx| ctx.byte_offset);
                 let hex_data = record_bytes.as_ref().map(|bytes| {
                     if let Some(off) = error_offset {
-                        hex_window(bytes, off as usize, HEX_CTX)
+                        hex_window(bytes, usize::try_from(off).unwrap_or(0), HEX_CTX)
                     } else {
                         hex_bytes(bytes, HEX_FALLBACK)
                     }

@@ -154,6 +154,7 @@ Report schema: docs/VERIFY_REPORT.schema.json")]
     },
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     let cli = Cli::parse();
 
@@ -188,7 +189,7 @@ fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
-        } => crate::commands::decode::run(crate::commands::decode::DecodeArgs {
+        } => crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
             copybook: &copybook,
             input: &input,
             output: &output,
@@ -246,10 +247,10 @@ fn main() {
                 format,
                 codepage,
                 strict,
-                max_errors: max_errors.unwrap_or(10) as u32,
+                max_errors: u32::try_from(max_errors.unwrap_or(10)).unwrap_or(10),
                 sample: sample.unwrap_or(5),
             };
-            crate::commands::verify::run(&copybook, &input, report, opts)
+            crate::commands::verify::run(&copybook, &input, report, &opts)
         }
     };
 

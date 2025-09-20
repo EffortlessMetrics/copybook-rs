@@ -30,6 +30,7 @@ pub struct DecodeOptions {
 
 /// Options for encoding operations
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct EncodeOptions {
     /// Record format
     pub format: RecordFormat,

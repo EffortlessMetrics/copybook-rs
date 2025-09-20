@@ -24,6 +24,8 @@ copybook parse <COPYBOOK> [OPTIONS]
 - `--output <FILE>` - Output file (default: stdout)
 - `--pretty` - Pretty-print JSON output
 - `--validate` - Validate schema after parsing
+- `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
+- `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 
 **Examples:**
 ```bash
@@ -52,6 +54,8 @@ copybook inspect <COPYBOOK> [OPTIONS]
 - `--format <FORMAT>` - Output format: table, json, yaml (default: table)
 - `--show-offsets` - Include byte offsets in output
 - `--show-lengths` - Include field lengths in output
+- `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
+- `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 
 **Binary widths:** `≤4 → 16-bit`, `5–9 → 32-bit`, `10–18 → 64-bit`.
 
@@ -92,6 +96,9 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 - `--strict` - Stop on first error (default: lenient)
 - `--max-errors <N>` - Maximum errors before stopping
 - `--verbose` - Verbose error reporting
+
+**Parsing Options:**
+- `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
 
 **Output Control:**
 - `--emit-filler` - Include FILLER fields in output
@@ -162,6 +169,9 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 - `--max-errors <N>` - Maximum errors before stopping
 - `--verbose` - Verbose error reporting
 
+**Parsing Options:**
+- `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
+
 **Performance:**
 - `--threads <N>` - Number of worker threads (default: CPU count)
 
@@ -199,8 +209,11 @@ copybook verify <COPYBOOK> <DATA> [OPTIONS]
 **Options:**
 - `--format <FORMAT>` - Record format: fixed, rdw (required)
 - `--codepage <CP>` - Character encoding (default: cp037)
+- `--strict` - Enable strict mode validation
+- `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility (affects copybook parsing only, not data validation)
 - `--report <FILE>` - Output verification report (JSON format)
-- `--summary` - Show summary statistics only
+- `--max-errors <N>` - Maximum errors before stopping
+- `--sample <N>` - Number of sample records to include in report (default: 5)
 
 **Examples:**
 ```bash
@@ -271,19 +284,45 @@ Designed for exploration and ingestion of imperfect copybooks.
 - **REDEFINES** ambiguity: warn and refuse encoding, but schema loads.
 - **Edited PIC**: still a hard error (unsupported).
 
+## Comment Modes
+
+### Default (allow inline comments)
+Supports COBOL-2002 inline comments (`*>`) for modern copybooks.
+
+- **Inline comments**: `*>` comments allowed anywhere on a line after column 7
+- **End-of-line comments**: `*>` consumes the rest of the line
+- **Backward compatible**: Still supports traditional full-line comments (`*` in column 7)
+
+### `--strict-comments`
+Enforces COBOL-85 compatibility by disabling inline comments.
+
+- **Inline comments disabled**: `*>` treated as regular tokens, causing parse errors if used
+- **COBOL-85 compatible**: Only traditional full-line comments (`*` in column 7) are supported
+- **Legacy copybooks**: Use this flag for strict compliance with older COBOL standards
+- **Library equivalent**: Maps to `ParseOptions::allow_inline_comments = false` when using the library API
+
 ### Examples
 ```bash
-# Parse & inspect copybook (strict)
+# Parse & inspect copybook (strict validation)
 copybook inspect --strict path/to/schema.cpy
 
 # Parse & inspect copybook (lenient default)
 copybook inspect path/to/schema.cpy
 
-# Parse copybook (strict)
+# Parse copybook (strict validation)
 copybook parse --strict path/to/schema.cpy
 
 # Parse copybook (lenient default)
 copybook parse path/to/schema.cpy
+
+# Parse copybook with COBOL-85 comment compatibility
+copybook parse --strict-comments path/to/legacy-schema.cpy
+
+# Parse copybook with both strict validation and strict comments
+copybook parse --strict --strict-comments path/to/legacy-schema.cpy
+
+# Decode with strict comment mode for legacy copybooks
+copybook decode legacy-schema.cpy data.bin --format fixed --strict-comments --output data.jsonl
 ```
 
 ## Exit Codes

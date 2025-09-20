@@ -1,14 +1,15 @@
 //! Decode command implementation
 
-use crate::utils::{atomic_write, determine_exit_code};
+use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
-use copybook_core::parse_copybook;
+use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::fs;
 use std::path::PathBuf;
 use tracing::info;
 
+#[allow(clippy::struct_excessive_bools)]
 pub struct DecodeArgs<'a> {
     pub copybook: &'a PathBuf,
     pub input: &'a PathBuf,
@@ -23,16 +24,27 @@ pub struct DecodeArgs<'a> {
     pub emit_raw: RawMode,
     pub on_decode_unmappable: UnmappablePolicy,
     pub threads: usize,
+    pub strict_comments: bool,
 }
 
 pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Decoding data file: {:?}", args.input);
 
-    // Read copybook file
-    let copybook_text = fs::read_to_string(args.copybook)?;
+    if args.strict_comments {
+        info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
+    }
 
-    // Parse copybook
-    let schema = parse_copybook(&copybook_text)?;
+    // Read copybook file or stdin
+    let copybook_text = read_file_or_stdin(args.copybook)?;
+
+    // Parse copybook with options
+    let parse_options = ParseOptions {
+        strict: args.strict,
+        codepage: args.codepage.to_string(),
+        emit_filler: args.emit_filler,
+        allow_inline_comments: !args.strict_comments,
+    };
+    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Configure decode options
     let options = DecodeOptions {

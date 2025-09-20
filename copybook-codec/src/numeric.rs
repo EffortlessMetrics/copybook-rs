@@ -3,7 +3,12 @@
 //! This module implements encoding and decoding for zoned decimal,
 //! packed decimal, and binary integer types.
 
-#![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+#![allow(
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation,
+    clippy::inline_always,
+    clippy::manual_midpoint
+)]
 
 use crate::memory::ScratchBuffers;
 use crate::options::Codepage;
@@ -2075,12 +2080,18 @@ mod tests {
         // Case 1: Exact max value should succeed
         let max_value = "999999999999999999.9999"; // 18 integer digits, 4 fractional
         let result = encode_packed_decimal(max_value, 22, 4, true);
-        assert!(result.is_ok(), "Max value S9(18)V9(4) should encode successfully");
+        assert!(
+            result.is_ok(),
+            "Max value S9(18)V9(4) should encode successfully"
+        );
 
         // Case 2: 19 integer digits should fail with CBKE501
         let overflow_value = "9999999999999999999.9999"; // 19 integer digits, 4 fractional
         let result = encode_packed_decimal(overflow_value, 22, 4, true);
-        assert!(result.is_err(), "Overflow value with 19 integer digits should fail");
+        assert!(
+            result.is_err(),
+            "Overflow value with 19 integer digits should fail"
+        );
 
         if let Err(e) = result {
             assert_eq!(

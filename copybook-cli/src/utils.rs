@@ -1,6 +1,6 @@
 //! Utility functions for CLI operations
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::Path;
 #[cfg(test)]
 use std::path::PathBuf;
@@ -76,6 +76,28 @@ pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
 pub fn emit_fatal(err: &dyn std::error::Error) -> i32 {
     eprintln!("Fatal error: {err}");
     2 // Fatal error exit code
+}
+
+/// Read file content from path or stdin if path is "-"
+///
+/// This function provides portable stdin support by accepting "-" as a special path.
+/// When the path is "-", it reads from stdin instead of a file.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or if stdin reading fails.
+pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
+    let path = path.as_ref();
+
+    if path == Path::new("-") {
+        debug!("Reading from stdin");
+        let mut buffer = String::new();
+        io::stdin().read_to_string(&mut buffer)?;
+        Ok(buffer)
+    } else {
+        debug!("Reading from file: {:?}", path);
+        std::fs::read_to_string(path)
+    }
 }
 
 #[cfg(test)]

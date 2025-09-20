@@ -3,12 +3,12 @@
 //! The verify command validates data file structure against copybook schema without output generation
 
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
-use crate::utils::atomic_write;
+use crate::utils::{atomic_write, read_file_or_stdin};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
 };
-use copybook_core::parse_copybook;
+use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::fs::{File, metadata};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::PathBuf;
@@ -48,6 +48,7 @@ pub struct VerifyOptions {
     pub strict: bool,
     pub max_errors: u32,
     pub sample: u32,
+    pub strict_comments: bool,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -59,11 +60,21 @@ pub fn run(
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Verifying data file: {:?}", input);
 
-    // Read copybook file
-    let copybook_text = std::fs::read_to_string(copybook_path)?;
+    if opts.strict_comments {
+        info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
+    }
 
-    // Parse copybook (strict mode for verification)
-    let schema = parse_copybook(&copybook_text)?;
+    // Read copybook file or stdin
+    let copybook_text = read_file_or_stdin(copybook_path)?;
+
+    // Parse copybook with options
+    let parse_options = ParseOptions {
+        strict: opts.strict,
+        codepage: opts.codepage.to_string(),
+        emit_filler: false,
+        allow_inline_comments: !opts.strict_comments,
+    };
+    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Get file metadata
     let file_metadata = metadata(input)?;
@@ -115,6 +126,7 @@ pub fn run(
         strict: opts.strict,
         max_errors: opts.max_errors,
         sample: opts.sample,
+        strict_comments: opts.strict_comments,
     };
 
     // Initialize report

@@ -28,7 +28,7 @@ proptest.workspace = true
 hex.workspace = true
 
 [features]
-default = []
+default = ["comp3_fast"]
 comprehensive-tests = []
 # COMP-3 fast path optimizations
 comp3_fast = []

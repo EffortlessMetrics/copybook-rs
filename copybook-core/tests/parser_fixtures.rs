@@ -22,13 +22,18 @@ fn test_fixed_form_detection() {
 
 #[test]
 fn test_free_form_detection() {
-    // Inline comments not supported; parser should error
+    // Inline comments are supported (COBOL-2002); should be ignored
     let free_form = r#"01 CUSTOMER-RECORD. *> Root record
 05 CUSTOMER-ID PIC X(10). *> Customer identifier
 05 BALANCE PIC S9(7)V99 COMP-3. *> Account balance
 "#;
 
-    assert!(parse_copybook(free_form).is_err());
+    let schema = parse_copybook(free_form).unwrap();
+    assert_eq!(schema.fields.len(), 1);
+    assert_eq!(schema.fields[0].name, "CUSTOMER-RECORD");
+    assert_eq!(schema.fields[0].children.len(), 2);
+    assert_eq!(schema.fields[0].children[0].name, "CUSTOMER-ID");
+    assert_eq!(schema.fields[0].children[1].name, "BALANCE");
 }
 
 #[test]
@@ -83,12 +88,16 @@ fn test_fixed_form_comments() {
 
 #[test]
 fn test_inline_comment_handling() {
-    // Inline comments are not supported
+    // Inline comments are supported (COBOL-2002) and ignored
     let with_inline = r#"01 RECORD-NAME. *> This is an inline comment
    05 FIELD-NAME PIC X(10). *> Another inline comment
 "#;
 
-    assert!(parse_copybook(with_inline).is_err());
+    let schema = parse_copybook(with_inline).unwrap();
+    assert_eq!(schema.fields.len(), 1);
+    assert_eq!(schema.fields[0].name, "RECORD-NAME");
+    assert_eq!(schema.fields[0].children.len(), 1);
+    assert_eq!(schema.fields[0].children[0].name, "FIELD-NAME");
 }
 
 #[test]

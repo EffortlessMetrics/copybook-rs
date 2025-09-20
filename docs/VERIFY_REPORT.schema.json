@@ -65,6 +65,10 @@
           "type": "integer",
           "minimum": 0,
           "description": "Number of sample records to include"
+        },
+        "strict_comments": {
+          "type": "boolean",
+          "description": "Whether strict comment parsing was enabled (COBOL-85 compatibility)"
         }
       },
       "additionalProperties": false,

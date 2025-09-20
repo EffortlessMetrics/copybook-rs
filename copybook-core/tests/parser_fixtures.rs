@@ -45,7 +45,10 @@ fn test_column_7_continuation() {
 
     let schema = parse_copybook(with_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
-    assert_eq!(schema.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-NEEDS-CONTINUATION");
+    assert_eq!(
+        schema.fields[0].name,
+        "VERY-LONG-FIELD-NAME-THAT-NEEDS-CONTINUATION"
+    );
 }
 
 #[test]
@@ -233,7 +236,10 @@ fn test_continuation_across_multiple_lines() {
 
     let schema = parse_copybook(multi_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
-    assert_eq!(schema.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-SPANS-MULTIPLE-LINES-AND-CONTINUES-EVEN-MORE");
+    assert_eq!(
+        schema.fields[0].name,
+        "VERY-LONG-FIELD-NAME-THAT-SPANS-MULTIPLE-LINES-AND-CONTINUES-EVEN-MORE"
+    );
 }
 
 #[test]

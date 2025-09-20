@@ -101,3 +101,15 @@ jobs:
       with:
         files: lcov.info
         fail_ci_if_error: true
+
+  strict-comments:
+    name: Strict Comments Mode
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run core tests with strict comments mode
+      run: cargo test --package copybook-core
+      env:
+        COPYBOOK_TEST_STRICT_COMMENTS: "1"

@@ -40,6 +40,8 @@ pub struct VerifyCliEcho {
     pub max_errors: u32,
     /// Number of sample records to include
     pub sample: u32,
+    /// Whether strict comment parsing was enabled
+    pub strict_comments: bool,
 }
 
 /// Verification error entry

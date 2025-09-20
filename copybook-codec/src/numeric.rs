@@ -75,11 +75,31 @@ fn normalize_number_ascii(src: &str, expected_scale: u32) -> Result<(Vec<u8>, bo
 
 // Encode normalized ASCII digits (+ sign) into COMP-3 bytes.
 #[cfg(feature = "comp3_fast")]
-fn comp3_encode_fast(digits: &[u8], negative: bool) -> Result<Vec<u8>> {
+fn comp3_encode_fast(digits: &[u8], negative: bool, signed: bool) -> Result<Vec<u8>> {
     let n = digits.len();
     // Use same calculation as decode function: (digits + 2) / 2
     let out_len = (n + 2) / 2;
     let mut out = vec![0u8; out_len];
+
+    comp3_encode_fast_with_scratch(digits, negative, signed, &mut out)?;
+    Ok(out)
+}
+
+/// Fast COMP-3 encode using pre-allocated scratch buffer
+/// Avoids allocation in hot path when reusing buffers
+#[cfg(feature = "comp3_fast")]
+fn comp3_encode_fast_with_scratch(digits: &[u8], negative: bool, signed: bool, out: &mut [u8]) -> Result<()> {
+    let n = digits.len();
+    if n == 0 {
+        return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "empty digits".to_string()));
+    }
+
+    // Expected output length: (digits + 2) / 2
+    let expected_len = (n + 2) / 2;
+    if out.len() != expected_len {
+        return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!("output buffer size {} != expected {}", out.len(), expected_len)));
+    }
 
     #[cfg(not(feature="comp3_unsafe"))]
     {
@@ -97,7 +117,11 @@ fn comp3_encode_fast(digits: &[u8], negative: bool) -> Result<Vec<u8>> {
                 di += 2; oi += 1;
             }
             // Last byte: 0 (filler) + sign
-            out[out_len - 1] = if negative { 0x0D } else { 0x0C };
+            out[expected_len - 1] = if signed {
+                if negative { 0x0D } else { 0x0C }
+            } else {
+                0x0F
+            };
         } else {
             // Odd digits: pack normally, last digit + sign in final byte
             let mut di = 0usize;
@@ -113,7 +137,12 @@ fn comp3_encode_fast(digits: &[u8], negative: bool) -> Result<Vec<u8>> {
             // Last byte: final digit + sign
             let hi_d = ascii_nibble(digits[n - 1]).ok_or_else(|| Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
-            out[out_len - 1] = (hi_d << 4) | if negative { 0x0D } else { 0x0C };
+            let sign_nibble = if signed {
+                if negative { 0x0D } else { 0x0C }
+            } else {
+                0x0F
+            };
+            out[expected_len - 1] = (hi_d << 4) | sign_nibble;
         }
     }
 
@@ -135,7 +164,11 @@ fn comp3_encode_fast(digits: &[u8], negative: bool) -> Result<Vec<u8>> {
                 di += 2; oi += 1;
             }
             // Last byte: 0 (filler) + sign
-            *out_ptr.add(out_len - 1) = if negative { 0x0D } else { 0x0C };
+            *out_ptr.add(expected_len - 1) = if signed {
+                if negative { 0x0D } else { 0x0C }
+            } else {
+                0x0F
+            };
         } else {
             // Odd digits: pack normally, last digit + sign in final byte
             let mut di = 0usize;
@@ -151,10 +184,15 @@ fn comp3_encode_fast(digits: &[u8], negative: bool) -> Result<Vec<u8>> {
             // Last byte: final digit + sign
             let hi_d = ascii_nibble(*digits.get_unchecked(n - 1)).ok_or_else(|| Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
-            *out_ptr.add(out_len - 1) = (hi_d << 4) | if negative { 0x0D } else { 0x0C };
+            let sign_nibble = if signed {
+                if negative { 0x0D } else { 0x0C }
+            } else {
+                0x0F
+            };
+            *out_ptr.add(expected_len - 1) = (hi_d << 4) | sign_nibble;
         }
     }
-    Ok(out)
+    Ok(())
 }
 
 #[cfg(feature = "comp3_fast")]
@@ -179,8 +217,8 @@ fn comp3_decode_fast(bytes: &[u8]) -> Result<(Vec<u8>, bool)> {
     if h > 9 { return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
         format!("invalid COMP-3 digit nibble: 0x{h:X}"))); }
     let negative = match s {
-        0x0C => false, // positive
-        0x0D => true,  // negative
+        0xA | 0xC | 0xE | 0xF => false, // positive (matches slow path)
+        0xB | 0xD => true,              // negative (matches slow path)
         _ => return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                 format!("invalid COMP-3 sign nibble: 0x{s:X}"))),
     };
@@ -676,7 +714,9 @@ pub fn decode_packed_decimal(
         return Ok(decimal);
     }
 
-    let mut value = 0i64;
+    #[cfg(not(feature = "comp3_fast"))]
+    {
+        let mut value = 0i64;
 
     for (idx, &byte) in data.iter().enumerate() {
         let high = (byte >> 4) & 0x0F;
@@ -741,6 +781,7 @@ pub fn decode_packed_decimal(
 
     // Unsigned zero case
     Ok(SmallDecimal::new(value, scale, false))
+    }
 }
 
 /// Decode binary integer field
@@ -919,11 +960,13 @@ pub fn encode_packed_decimal(
             ));
         }
 
-        return comp3_encode_fast(&digit_bytes, negative && signed);
+        return comp3_encode_fast(&digit_bytes, negative && signed, signed);
     }
 
-    // Parse the input value with scale validation (NORMATIVE)
-    let decimal = SmallDecimal::from_str(value, scale)?;
+    #[cfg(not(feature = "comp3_fast"))]
+    {
+        // Parse the input value with scale validation (NORMATIVE)
+        let decimal = SmallDecimal::from_str(value, scale)?;
 
     // 1. Convert to scaled integer and get sign
     let abs_value = decimal.value.abs();
@@ -996,6 +1039,7 @@ pub fn encode_packed_decimal(
     }
 
     Ok(result)
+    }
 }
 
 /// Encode binary integer field
@@ -1396,6 +1440,65 @@ pub fn encode_zoned_decimal_with_scratch(
         signed,
         codepage,
     )
+}
+
+/// Optimized packed decimal encoder using scratch buffers (fast path)
+/// Uses the fast COMP-3 implementation with reusable scratch buffers
+/// to minimize allocations in hot encoding paths
+///
+/// # Errors
+/// Returns an error if the value cannot be encoded as packed decimal
+pub fn encode_packed_decimal_fast_with_scratch(
+    value: &str,
+    digits: u16,
+    scale: i16,
+    signed: bool,
+    scratch: &mut ScratchBuffers,
+) -> Result<Vec<u8>> {
+    #[cfg(feature = "comp3_fast")]
+    {
+        // Clear and prepare scratch buffers
+        scratch.clear();
+
+        // Normalize the input value to get ASCII digits
+        let (mut digit_bytes, negative, _scale_digits) = normalize_number_ascii(value, scale as u32)?;
+
+        // Ensure we have exactly 'digits' number of digits by padding with leading zeros
+        if digit_bytes.len() < digits as usize {
+            let mut padded = vec![b'0'; digits as usize - digit_bytes.len()];
+            padded.extend(digit_bytes);
+            digit_bytes = padded;
+        } else if digit_bytes.len() > digits as usize {
+            return Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Value too large for {} digits", digits),
+            ));
+        }
+
+        // Calculate expected output length
+        let expected_len = (digits as usize + 2) / 2;
+
+        // Ensure byte buffer has sufficient capacity
+        scratch.byte_buffer.clear();
+        scratch.byte_buffer.resize(expected_len, 0);
+
+        // Use fast encoding with scratch buffer
+        comp3_encode_fast_with_scratch(&digit_bytes, negative && signed, signed, &mut scratch.byte_buffer)?;
+
+        // Return owned copy
+        Ok(scratch.byte_buffer.clone())
+    }
+
+    #[cfg(not(feature = "comp3_fast"))]
+    {
+        // Fallback to standard implementation
+        encode_packed_decimal_with_scratch(
+            &SmallDecimal::from_str(value, scale)?,
+            digits,
+            signed,
+            scratch,
+        )
+    }
 }
 
 /// Optimized packed decimal encoder using scratch buffers

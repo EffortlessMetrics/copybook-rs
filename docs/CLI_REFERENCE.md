@@ -381,6 +381,8 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 - COMP-3-heavy data: ≥40 MB/s
 - Actual performance depends on hardware and data characteristics
 
+The codec uses an optimized fast path for COMP-3 processing by default, providing enhanced performance with no behavior changes.
+
 ## Common Patterns
 
 ### ETL Pipeline Integration

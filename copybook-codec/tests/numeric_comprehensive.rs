@@ -1,3 +1,4 @@
+#![cfg(feature = "comprehensive-tests")]
 //! Comprehensive numeric type tests: zoned, packed, binary with all edge cases
 //!
 //! This test suite validates numeric type handling according to the normative

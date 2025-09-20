@@ -269,9 +269,7 @@ pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)>
         if digit > 9 {
             return Err(Error::new(
                 ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                format!(
-                    "Invalid digit nibble 0x{digit:X} in EBCDIC overpunch byte 0x{byte:02X}"
-                ),
+                format!("Invalid digit nibble 0x{digit:X} in EBCDIC overpunch byte 0x{byte:02X}"),
             ));
         }
 
@@ -295,7 +293,9 @@ pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)>
 /// Check if a byte is a valid overpunch character for the given codepage
 #[must_use]
 pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
-    if codepage == Codepage::ASCII { ASCII_OVERPUNCH_DECODE[byte as usize].is_some() } else {
+    if codepage == Codepage::ASCII {
+        ASCII_OVERPUNCH_DECODE[byte as usize].is_some()
+    } else {
         let zone = (byte >> 4) & 0x0F;
         let digit = byte & 0x0F;
         digit <= 9 && decode_ebcdic_overpunch_zone(zone).is_some()
@@ -305,17 +305,19 @@ pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
 /// Get all valid overpunch bytes for testing purposes
 #[must_use]
 pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
-    if codepage == Codepage::ASCII { ASCII_OVERPUNCH_DECODE
-        .iter()
-        .enumerate()
-        .filter_map(|(byte, mapping)| {
-            if mapping.is_some() {
-                Some(u8::try_from(byte).unwrap_or(0))
-            } else {
-                None
-            }
-        })
-        .collect() } else {
+    if codepage == Codepage::ASCII {
+        ASCII_OVERPUNCH_DECODE
+            .iter()
+            .enumerate()
+            .filter_map(|(byte, mapping)| {
+                if mapping.is_some() {
+                    Some(u8::try_from(byte).unwrap_or(0))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
         let mut bytes = Vec::new();
         for zone in [0xC, 0xD, 0xF] {
             for digit in 0..=9 {

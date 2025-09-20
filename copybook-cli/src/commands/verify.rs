@@ -139,7 +139,6 @@ pub fn run(
     // Create record iterator based on format
     let record_iter = RecordIterator::new(reader, &schema, &decode_options)?;
 
-
     // Process each record
     for record_result in record_iter {
         records_total += 1;

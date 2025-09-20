@@ -1,5 +1,8 @@
-use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use copybook_codec::{encode_record, decode_record, DecodeOptions, EncodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode, UnmappablePolicy};
+use copybook_codec::{
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy, decode_record, encode_record,
+};
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
 
 fn schema_text() -> &'static str {
@@ -54,7 +57,12 @@ fn bench_comp3(c: &mut Criterion) {
 
     g.bench_function("encode_comp3", |b| {
         b.iter(|| {
-            let _ = encode_record(black_box(&schema), black_box(&serde_json::from_str(json).unwrap()), black_box(&enc)).unwrap();
+            let _ = encode_record(
+                black_box(&schema),
+                black_box(&serde_json::from_str(json).unwrap()),
+                black_box(&enc),
+            )
+            .unwrap();
         })
     });
 
@@ -63,7 +71,8 @@ fn bench_comp3(c: &mut Criterion) {
 
     g.bench_function("decode_comp3", |b| {
         b.iter(|| {
-            let _ = decode_record(black_box(&schema), black_box(&encoded), black_box(&dec)).unwrap();
+            let _ =
+                decode_record(black_box(&schema), black_box(&encoded), black_box(&dec)).unwrap();
         })
     });
 

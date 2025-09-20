@@ -1,4 +1,6 @@
-use copybook_codec::{decode_record, encode_record, DecodeOptions, EncodeOptions, RecordFormat, Codepage};
+use copybook_codec::{
+    Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_record, encode_record,
+};
 use proptest::prelude::*;
 
 #[cfg(test)]

@@ -22,14 +22,20 @@ fn ascii_nibble(c: u8) -> Option<u8> {
 
 #[cfg(feature = "comp3_fast")]
 #[inline(always)]
-fn pack_two(hi: u8, lo: u8) -> u8 { (hi << 4) | lo }
+fn pack_two(hi: u8, lo: u8) -> u8 {
+    (hi << 4) | lo
+}
 
 #[cfg(feature = "comp3_fast")]
 #[inline(always)]
-fn hi(b: u8) -> u8 { b >> 4 }
+fn hi(b: u8) -> u8 {
+    b >> 4
+}
 #[cfg(feature = "comp3_fast")]
 #[inline(always)]
-fn lo(b: u8) -> u8 { b & 0x0F }
+fn lo(b: u8) -> u8 {
+    b & 0x0F
+}
 
 // Normalize a numeric string into ASCII digits without a decimal point.
 // Returns (digits_vec, negative, observed_frac).
@@ -43,21 +49,29 @@ fn normalize_number_ascii(src: &str, expected_scale: u32) -> Result<(Vec<u8>, bo
     for (i, c) in s.bytes().enumerate() {
         match c {
             b'+' if i == 0 => {}
-            b'-' if i == 0 => { neg = true; }
+            b'-' if i == 0 => {
+                neg = true;
+            }
             b'.' => {
                 if seen_dot {
-                    return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                        "multiple decimal points".to_string()));
+                    return Err(Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "multiple decimal points".to_string(),
+                    ));
                 }
                 seen_dot = true;
             }
             b'0'..=b'9' => {
                 digits.push(c);
-                if seen_dot { frac = frac.saturating_add(1); }
+                if seen_dot {
+                    frac = frac.saturating_add(1);
+                }
             }
             _ => {
-                return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    "invalid numeric character in COMP-3 input".to_string()));
+                return Err(Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "invalid numeric character in COMP-3 input".to_string(),
+                ));
             }
         }
     }
@@ -68,18 +82,23 @@ fn normalize_number_ascii(src: &str, expected_scale: u32) -> Result<(Vec<u8>, bo
     if observed_frac != expected_scale {
         return Err(Error::new(
             ErrorCode::CBKE505_SCALE_MISMATCH,
-            format!("Scale mismatch: expected {}, got {}", expected_scale, observed_frac),
+            format!(
+                "Scale mismatch: expected {}, got {}",
+                expected_scale, observed_frac
+            ),
         ));
     }
 
     // Keep existing pad/trim logic to protect downstream when we choose to be lenient later
     // Note: Currently unreachable due to strict scale check above, but preserved for future flexibility
     if frac < expected_scale {
-        digits.extend(std::iter::repeat(b'0').take((expected_scale - frac) as usize));
+        digits.extend(std::iter::repeat_n(b'0', (expected_scale - frac) as usize));
         // frac = expected_scale; // Unreachable - removed to silence warning
     } else if frac > expected_scale {
         // Trim extra fractional places from the tail
-        for _ in 0..(frac - expected_scale) { let _ = digits.pop(); }
+        for _ in 0..(frac - expected_scale) {
+            let _ = digits.pop();
+        }
         // frac = expected_scale; // Unreachable - removed to silence warning
     }
     Ok((digits, neg, observed_frac))
@@ -100,33 +119,56 @@ fn comp3_encode_fast(digits: &[u8], negative: bool, signed: bool) -> Result<Vec<
 /// Fast COMP-3 encode using pre-allocated scratch buffer
 /// Avoids allocation in hot path when reusing buffers
 #[cfg(feature = "comp3_fast")]
-fn comp3_encode_fast_with_scratch(digits: &[u8], negative: bool, signed: bool, out: &mut [u8]) -> Result<()> {
+fn comp3_encode_fast_with_scratch(
+    digits: &[u8],
+    negative: bool,
+    signed: bool,
+    out: &mut [u8],
+) -> Result<()> {
     let n = digits.len();
     if n == 0 {
-        return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "empty digits".to_string()));
+        return Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            "empty digits".to_string(),
+        ));
     }
 
     // Expected output length: (digits + 2) / 2
     let expected_len = (n + 2) / 2;
     if out.len() != expected_len {
-        return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("output buffer size {} != expected {}", out.len(), expected_len)));
+        return Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!(
+                "output buffer size {} != expected {}",
+                out.len(),
+                expected_len
+            ),
+        ));
     }
 
-    #[cfg(not(feature="comp3_unsafe"))]
+    #[cfg(not(feature = "comp3_unsafe"))]
     {
         // Handle digit packing - for even digit count, first byte has filler
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             // Even digits: first nibble is filler (0), pack normally
             let mut di = 0usize;
             let mut oi = 0usize;
             while di + 1 < n {
-                let hi_d = ascii_nibble(digits[di]).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
-                let lo_d = ascii_nibble(digits[di + 1]).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let hi_d = ascii_nibble(digits[di]).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
+                let lo_d = ascii_nibble(digits[di + 1]).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
                 out[oi] = pack_two(hi_d, lo_d);
-                di += 2; oi += 1;
+                di += 2;
+                oi += 1;
             }
             // Last byte: 0 (filler) + sign
             out[expected_len - 1] = if signed {
@@ -139,16 +181,29 @@ fn comp3_encode_fast_with_scratch(digits: &[u8], negative: bool, signed: bool, o
             let mut di = 0usize;
             let mut oi = 0usize;
             while di + 1 < n {
-                let hi_d = ascii_nibble(digits[di]).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
-                let lo_d = ascii_nibble(digits[di + 1]).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let hi_d = ascii_nibble(digits[di]).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
+                let lo_d = ascii_nibble(digits[di + 1]).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
                 out[oi] = pack_two(hi_d, lo_d);
-                di += 2; oi += 1;
+                di += 2;
+                oi += 1;
             }
             // Last byte: final digit + sign
-            let hi_d = ascii_nibble(digits[n - 1]).ok_or_else(|| Error::new(
-                ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+            let hi_d = ascii_nibble(digits[n - 1]).ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "non-digit in COMP-3".to_string(),
+                )
+            })?;
             let sign_nibble = if signed {
                 if negative { 0x0D } else { 0x0C }
             } else {
@@ -158,7 +213,7 @@ fn comp3_encode_fast_with_scratch(digits: &[u8], negative: bool, signed: bool, o
         }
     }
 
-    #[cfg(feature="comp3_unsafe")]
+    #[cfg(feature = "comp3_unsafe")]
     unsafe {
         // Single bounds check: out fully sized, digits indexed only after digit-check
         let out_ptr = out.as_mut_ptr();
@@ -168,12 +223,21 @@ fn comp3_encode_fast_with_scratch(digits: &[u8], negative: bool, signed: bool, o
             let mut di = 0usize;
             let mut oi = 0usize;
             while di + 1 < n {
-                let hi_d = ascii_nibble(*digits.get_unchecked(di)).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
-                let lo_d = ascii_nibble(*digits.get_unchecked(di + 1)).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let hi_d = ascii_nibble(*digits.get_unchecked(di)).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
+                let lo_d = ascii_nibble(*digits.get_unchecked(di + 1)).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
                 *out_ptr.add(oi) = (hi_d << 4) | lo_d;
-                di += 2; oi += 1;
+                di += 2;
+                oi += 1;
             }
             // Last byte: 0 (filler) + sign
             *out_ptr.add(expected_len - 1) = if signed {
@@ -186,16 +250,29 @@ fn comp3_encode_fast_with_scratch(digits: &[u8], negative: bool, signed: bool, o
             let mut di = 0usize;
             let mut oi = 0usize;
             while di + 1 < n {
-                let hi_d = ascii_nibble(*digits.get_unchecked(di)).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
-                let lo_d = ascii_nibble(*digits.get_unchecked(di + 1)).ok_or_else(|| Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+                let hi_d = ascii_nibble(*digits.get_unchecked(di)).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
+                let lo_d = ascii_nibble(*digits.get_unchecked(di + 1)).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "non-digit in COMP-3".to_string(),
+                    )
+                })?;
                 *out_ptr.add(oi) = (hi_d << 4) | lo_d;
-                di += 2; oi += 1;
+                di += 2;
+                oi += 1;
             }
             // Last byte: final digit + sign
-            let hi_d = ascii_nibble(*digits.get_unchecked(n - 1)).ok_or_else(|| Error::new(
-                ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "non-digit in COMP-3".to_string()))?;
+            let hi_d = ascii_nibble(*digits.get_unchecked(n - 1)).ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    "non-digit in COMP-3".to_string(),
+                )
+            })?;
             let sign_nibble = if signed {
                 if negative { 0x0D } else { 0x0C }
             } else {
@@ -210,29 +287,44 @@ fn comp3_encode_fast_with_scratch(digits: &[u8], negative: bool, signed: bool, o
 #[cfg(feature = "comp3_fast")]
 fn comp3_decode_fast(bytes: &[u8]) -> Result<(Vec<u8>, bool)> {
     if bytes.is_empty() {
-        return Err(Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "empty COMP-3".to_string()));
+        return Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            "empty COMP-3".to_string(),
+        ));
     }
     let mut digits = Vec::with_capacity(bytes.len() * 2);
     // Emit all but last byte as 2 digits
-    for &b in &bytes[..bytes.len()-1] {
-        let h = hi(b); let l = lo(b);
+    for &b in &bytes[..bytes.len() - 1] {
+        let h = hi(b);
+        let l = lo(b);
         if h > 9 || l > 9 {
-            return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                format!("invalid COMP-3 digit nibble: 0x{h:X},0x{l:X}")));
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("invalid COMP-3 digit nibble: 0x{h:X},0x{l:X}"),
+            ));
         }
         digits.push(b'0' + h);
         digits.push(b'0' + l);
     }
     // Last byte: high is optional digit, low is sign nibble
     let last = *bytes.last().unwrap();
-    let h = hi(last); let s = lo(last);
-    if h > 9 { return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-        format!("invalid COMP-3 digit nibble: 0x{h:X}"))); }
+    let h = hi(last);
+    let s = lo(last);
+    if h > 9 {
+        return Err(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            format!("invalid COMP-3 digit nibble: 0x{h:X}"),
+        ));
+    }
     let negative = match s {
         0xA | 0xC | 0xE | 0xF => false, // positive (matches slow path)
         0xB | 0xD => true,              // negative (matches slow path)
-        _ => return Err(Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                format!("invalid COMP-3 sign nibble: 0x{s:X}"))),
+        _ => {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("invalid COMP-3 sign nibble: 0x{s:X}"),
+            ));
+        }
     };
     // If total digits was odd, 'h' is the last digit; if even, 'h' is filler 0.
     // Heuristic: if high nibble is non-zero OR digits len would be odd, push it.
@@ -700,7 +792,9 @@ pub fn decode_packed_decimal(
         let (digit_bytes, negative) = comp3_decode_fast(data)?;
         // Convert to string for existing SmallDecimal parsing
         let mut digit_str = String::with_capacity(digit_bytes.len() + 2);
-        if negative && signed { digit_str.push('-'); }
+        if negative && signed {
+            digit_str.push('-');
+        }
 
         // Add integer part
         let scale_usize = scale.max(0) as usize;
@@ -723,76 +817,76 @@ pub fn decode_packed_decimal(
 
         let mut decimal = SmallDecimal::from_str(&digit_str, scale)?;
         decimal.normalize();
-        return Ok(decimal);
+        Ok(decimal)
     }
 
     #[cfg(not(feature = "comp3_fast"))]
     {
         let mut value = 0i64;
 
-    for (idx, &byte) in data.iter().enumerate() {
-        let high = (byte >> 4) & 0x0F;
-        let low = byte & 0x0F;
+        for (idx, &byte) in data.iter().enumerate() {
+            let high = (byte >> 4) & 0x0F;
+            let low = byte & 0x0F;
 
-        if idx == data.len() - 1 {
-            // Last byte: high nibble only used for odd digit counts
-            if digits % 2 == 1 {
-                if high > 9 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid digit nibble 0x{high:X} in packed decimal"),
-                    ));
-                }
-                value = value * 10 + i64::from(high);
-            } else if high != 0 {
-                return Err(Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid filler nibble 0x{high:X} in packed decimal"),
-                ));
-            }
-
-            if signed {
-                let is_negative = match low {
-                    0xA | 0xC | 0xE | 0xF => false,
-                    0xB | 0xD => true,
-                    _ => {
+            if idx == data.len() - 1 {
+                // Last byte: high nibble only used for odd digit counts
+                if digits % 2 == 1 {
+                    if high > 9 {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{low:X} in packed decimal"),
+                            format!("Invalid digit nibble 0x{high:X} in packed decimal"),
                         ));
                     }
-                };
-                let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                decimal.normalize();
-                return Ok(decimal);
+                    value = value * 10 + i64::from(high);
+                } else if high != 0 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid filler nibble 0x{high:X} in packed decimal"),
+                    ));
+                }
+
+                if signed {
+                    let is_negative = match low {
+                        0xA | 0xC | 0xE | 0xF => false,
+                        0xB | 0xD => true,
+                        _ => {
+                            return Err(Error::new(
+                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                                format!("Invalid sign nibble 0x{low:X} in packed decimal"),
+                            ));
+                        }
+                    };
+                    let mut decimal = SmallDecimal::new(value, scale, is_negative);
+                    decimal.normalize();
+                    return Ok(decimal);
+                }
+                if low != 0xF && low != 0xC {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid unsigned sign nibble 0x{low:X}, expected 0xF or 0xC"),
+                    ));
+                }
+                return Ok(SmallDecimal::new(value, scale, false));
             }
-            if low != 0xF && low != 0xC {
+            if high > 9 {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid unsigned sign nibble 0x{low:X}, expected 0xF or 0xC"),
+                    format!("Invalid digit nibble 0x{high:X} at byte {idx}"),
                 ));
             }
-            return Ok(SmallDecimal::new(value, scale, false));
-        }
-        if high > 9 {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                format!("Invalid digit nibble 0x{high:X} at byte {idx}"),
-            ));
-        }
-        value = value * 10 + i64::from(high);
+            value = value * 10 + i64::from(high);
 
-        if low > 9 {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                format!("Invalid digit nibble 0x{low:X} at byte {idx}"),
-            ));
+            if low > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{low:X} at byte {idx}"),
+                ));
+            }
+            value = value * 10 + i64::from(low);
         }
-        value = value * 10 + i64::from(low);
-    }
 
-    // Unsigned zero case
-    Ok(SmallDecimal::new(value, scale, false))
+        // Unsigned zero case
+        Ok(SmallDecimal::new(value, scale, false))
     }
 }
 
@@ -958,7 +1052,8 @@ pub fn encode_packed_decimal(
     #[cfg(feature = "comp3_fast")]
     {
         // Normalize once; returns ASCII digits (no '.') with desired scale
-        let (mut digit_bytes, negative, _scale_digits) = normalize_number_ascii(value, scale as u32)?;
+        let (mut digit_bytes, negative, _scale_digits) =
+            normalize_number_ascii(value, scale as u32)?;
 
         // Ensure we have exactly 'digits' number of digits by padding with leading zeros
         if digit_bytes.len() < digits as usize {
@@ -972,7 +1067,7 @@ pub fn encode_packed_decimal(
             ));
         }
 
-        return comp3_encode_fast(&digit_bytes, negative && signed, signed);
+        comp3_encode_fast(&digit_bytes, negative && signed, signed)
     }
 
     #[cfg(not(feature = "comp3_fast"))]
@@ -980,77 +1075,77 @@ pub fn encode_packed_decimal(
         // Parse the input value with scale validation (NORMATIVE)
         let decimal = SmallDecimal::from_str(value, scale)?;
 
-    // 1. Convert to scaled integer and get sign
-    let abs_value = decimal.value.abs();
-    let is_negative = decimal.is_negative();
+        // 1. Convert to scaled integer and get sign
+        let abs_value = decimal.value.abs();
+        let is_negative = decimal.is_negative();
 
-    // 2. Create zero-padded decimal string of exactly 'digits' length
-    let digit_str = format!("{:0width$}", abs_value, width = digits as usize);
+        // 2. Create zero-padded decimal string of exactly 'digits' length
+        let digit_str = format!("{:0width$}", abs_value, width = digits as usize);
 
-    if digit_str.len() > digits as usize {
-        return Err(Error::new(
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value {abs_value} too large for {digits} digits"),
-        ));
-    }
+        if digit_str.len() > digits as usize {
+            return Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                format!("Value {abs_value} too large for {digits} digits"),
+            ));
+        }
 
-    // 3. Determine expected bytes based on decode function's expectation: (digits + 2) / 2
-    #[allow(clippy::manual_midpoint)]
-    // Not a midpoint calculation - we want (digits + 2) / 2, not midpoint(digits, 2)
-    let expected_bytes = ((digits + 2) / 2) as usize;
-    let mut result = Vec::with_capacity(expected_bytes);
+        // 3. Determine expected bytes based on decode function's expectation: (digits + 2) / 2
+        #[allow(clippy::manual_midpoint)]
+        // Not a midpoint calculation - we want (digits + 2) / 2, not midpoint(digits, 2)
+        let expected_bytes = ((digits + 2) / 2) as usize;
+        let mut result = Vec::with_capacity(expected_bytes);
 
-    // 4. Convert digits to bytes
-    let digit_bytes = digit_str.as_bytes();
-    let mut digit_idx = 0;
+        // 4. Convert digits to bytes
+        let digit_bytes = digit_str.as_bytes();
+        let mut digit_idx = 0;
 
-    // 5. Pack digits into bytes
-    for byte_idx in 0..expected_bytes {
-        if byte_idx == expected_bytes - 1 {
-            // Last byte: handle even/odd digit count differently
-            if digits.is_multiple_of(2) {
-                // Even digits: last byte is 0x0S (filler + sign)
-                let sign_nibble = if signed {
-                    if is_negative { 0xD } else { 0xC }
+        // 5. Pack digits into bytes
+        for byte_idx in 0..expected_bytes {
+            if byte_idx == expected_bytes - 1 {
+                // Last byte: handle even/odd digit count differently
+                if digits.is_multiple_of(2) {
+                    // Even digits: last byte is 0x0S (filler + sign)
+                    let sign_nibble = if signed {
+                        if is_negative { 0xD } else { 0xC }
+                    } else {
+                        0xF
+                    };
+                    result.push(sign_nibble); // High nibble = 0, low nibble = sign
                 } else {
-                    0xF
-                };
-                result.push(sign_nibble); // High nibble = 0, low nibble = sign
+                    // Odd digits: last byte is 0xDS (digit + sign)
+                    let digit = if digit_idx < digit_bytes.len() {
+                        digit_bytes[digit_idx] - b'0'
+                    } else {
+                        0
+                    };
+                    let sign_nibble = if signed {
+                        if is_negative { 0xD } else { 0xC }
+                    } else {
+                        0xF
+                    };
+                    result.push((digit << 4) | sign_nibble);
+                }
             } else {
-                // Odd digits: last byte is 0xDS (digit + sign)
-                let digit = if digit_idx < digit_bytes.len() {
+                // Regular byte: pack two digits
+                let high_digit = if digit_idx < digit_bytes.len() {
                     digit_bytes[digit_idx] - b'0'
                 } else {
                     0
                 };
-                let sign_nibble = if signed {
-                    if is_negative { 0xD } else { 0xC }
+                digit_idx += 1;
+
+                let low_digit = if digit_idx < digit_bytes.len() {
+                    digit_bytes[digit_idx] - b'0'
                 } else {
-                    0xF
+                    0
                 };
-                result.push((digit << 4) | sign_nibble);
+                digit_idx += 1;
+
+                result.push((high_digit << 4) | low_digit);
             }
-        } else {
-            // Regular byte: pack two digits
-            let high_digit = if digit_idx < digit_bytes.len() {
-                digit_bytes[digit_idx] - b'0'
-            } else {
-                0
-            };
-            digit_idx += 1;
-
-            let low_digit = if digit_idx < digit_bytes.len() {
-                digit_bytes[digit_idx] - b'0'
-            } else {
-                0
-            };
-            digit_idx += 1;
-
-            result.push((high_digit << 4) | low_digit);
         }
-    }
 
-    Ok(result)
+        Ok(result)
     }
 }
 
@@ -1473,7 +1568,8 @@ pub fn encode_packed_decimal_fast_with_scratch(
         scratch.clear();
 
         // Normalize the input value to get ASCII digits
-        let (mut digit_bytes, negative, _scale_digits) = normalize_number_ascii(value, scale as u32)?;
+        let (mut digit_bytes, negative, _scale_digits) =
+            normalize_number_ascii(value, scale as u32)?;
 
         // Ensure we have exactly 'digits' number of digits by padding with leading zeros
         if digit_bytes.len() < digits as usize {
@@ -1495,10 +1591,17 @@ pub fn encode_packed_decimal_fast_with_scratch(
         scratch.byte_buffer.resize(expected_len, 0);
 
         // Use fast encoding with scratch buffer
-        comp3_encode_fast_with_scratch(&digit_bytes, negative && signed, signed, &mut scratch.byte_buffer)?;
+        comp3_encode_fast_with_scratch(
+            &digit_bytes,
+            negative && signed,
+            signed,
+            &mut scratch.byte_buffer,
+        )?;
 
-        // Return owned copy
-        Ok(scratch.byte_buffer.clone())
+        // Return owned buffer and pre-size for next call
+        let out = std::mem::take(&mut scratch.byte_buffer);
+        scratch.byte_buffer.reserve(64); // Pre-size for next usage
+        Ok(out)
     }
 
     #[cfg(not(feature = "comp3_fast"))]
@@ -1583,8 +1686,10 @@ pub fn encode_packed_decimal_with_scratch(
         scratch.byte_buffer.push(byte_val);
     }
 
-    // Return owned copy (minimal allocation at final step)
-    Ok(scratch.byte_buffer.clone())
+    // Return owned buffer and pre-size for next call
+    let out = std::mem::take(&mut scratch.byte_buffer);
+    scratch.byte_buffer.reserve(64); // Pre-size for next usage
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -1663,7 +1768,12 @@ mod tests {
         for sign in positive_signs {
             let data = vec![0x12, 0x30 | sign]; // 123X where X is the sign
             let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-            assert_eq!(result.to_string(), "123", "Failed for positive sign nibble 0x{:X}", sign);
+            assert_eq!(
+                result.to_string(),
+                "123",
+                "Failed for positive sign nibble 0x{:X}",
+                sign
+            );
         }
 
         // Negative signs: B, D
@@ -1671,7 +1781,12 @@ mod tests {
         for sign in negative_signs {
             let data = vec![0x12, 0x30 | sign]; // 123X where X is the sign
             let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-            assert_eq!(result.to_string(), "-123", "Failed for negative sign nibble 0x{:X}", sign);
+            assert_eq!(
+                result.to_string(),
+                "-123",
+                "Failed for negative sign nibble 0x{:X}",
+                sign
+            );
         }
     }
 
@@ -1949,6 +2064,30 @@ mod tests {
                 bytes, reencoded,
                 "Round-trip failed for digits={}, scale={}, signed={}: {:?} != {:?}",
                 digits, scale, signed, bytes, reencoded
+            );
+        }
+    }
+
+    #[test]
+    fn test_comp3_s9_18_v9_4_boundary_cases() {
+        // Test S9(18)V9(4) boundary cases
+
+        // Case 1: Exact max value should succeed
+        let max_value = "999999999999999999.9999"; // 18 integer digits, 4 fractional
+        let result = encode_packed_decimal(max_value, 22, 4, true);
+        assert!(result.is_ok(), "Max value S9(18)V9(4) should encode successfully");
+
+        // Case 2: 19 integer digits should fail with CBKE501
+        let overflow_value = "9999999999999999999.9999"; // 19 integer digits, 4 fractional
+        let result = encode_packed_decimal(overflow_value, 22, 4, true);
+        assert!(result.is_err(), "Overflow value with 19 integer digits should fail");
+
+        if let Err(e) = result {
+            assert_eq!(
+                e.code,
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                "Should be type mismatch/too large error: {}",
+                e
             );
         }
     }

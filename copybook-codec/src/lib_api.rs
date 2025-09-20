@@ -2067,38 +2067,32 @@ pub fn decode_file_to_jsonl(
                         summary.bytes_processed += record_length as u64;
 
                         // Decode the record
-                        if let Ok(json_value) = decode_record(schema, &buffer, options) {
-                            // Check for BLANK WHEN ZERO warnings by examining the input data
-                            summary.warnings += check_blank_when_zero_warnings(schema, &buffer);
+                        match decode_record(schema, &buffer, options) {
+                            Ok(json_value) => {
+                                // Check for BLANK WHEN ZERO warnings by examining the input data
+                                summary.warnings += check_blank_when_zero_warnings(schema, &buffer);
 
-                            // Extract warnings from the decoded JSON record
-                            if let Some(obj) = json_value.as_object()
-                                && let Some(warnings_val) = obj.get("__warnings")
-                                && let Some(warnings_num) = warnings_val.as_u64()
-                            {
-                                summary.warnings += warnings_num;
+                                // Extract warnings from the decoded JSON record
+                                if let Some(obj) = json_value.as_object()
+                                    && let Some(warnings_val) = obj.get("__warnings")
+                                    && let Some(warnings_num) = warnings_val.as_u64()
+                                {
+                                    summary.warnings += warnings_num;
+                                }
+
+                                // Write as JSONL
+                                serde_json::to_writer(&mut output, &json_value).map_err(|e| {
+                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                                })?;
+                                writeln!(output).map_err(|e| {
+                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                                })?;
                             }
-<<<<<<< HEAD
-
-                            // Write as JSONL
-                            serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                            })?;
-                            writeln!(output).map_err(|e| {
-                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                            })?;
-                        } else {
-                            summary.records_with_errors += 1;
-                            // In lenient mode, continue processing
-                            if options.strict_mode {
-                                break;
-=======
                             Err(e) => {
                                 summary.records_with_errors += 1;
                                 if options.strict_mode {
                                     return Err(e);
                                 }
->>>>>>> 266b169 (Fix numeric codec tests and error reporting)
                             }
                         }
                     }
@@ -2150,58 +2144,50 @@ pub fn decode_file_to_jsonl(
                         }
 
                         // Decode the record payload
-                        if let Ok(mut json_value) =
-                            decode_record(schema, &rdw_record.payload, options)
-                        {
-                            // Check for BLANK WHEN ZERO warnings by examining the payload data
-                            summary.warnings +=
-                                check_blank_when_zero_warnings(schema, &rdw_record.payload);
+                        match decode_record(schema, &rdw_record.payload, options) {
+                            Ok(mut json_value) => {
+                                // Check for BLANK WHEN ZERO warnings by examining the payload data
+                                summary.warnings +=
+                                    check_blank_when_zero_warnings(schema, &rdw_record.payload);
 
-                            // Extract warnings from the decoded JSON record
-                            if let Some(obj) = json_value.as_object()
-                                && let Some(warnings_val) = obj.get("__warnings")
-                                && let Some(warnings_num) = warnings_val.as_u64()
-                            {
-                                summary.warnings += warnings_num;
+                                // Extract warnings from the decoded JSON record
+                                if let Some(obj) = json_value.as_object()
+                                    && let Some(warnings_val) = obj.get("__warnings")
+                                    && let Some(warnings_num) = warnings_val.as_u64()
+                                {
+                                    summary.warnings += warnings_num;
+                                }
+
+                                // Add raw data if requested
+                                if matches!(
+                                    options.emit_raw,
+                                    crate::RawMode::Record | crate::RawMode::RecordRDW
+                                ) && let Value::Object(ref mut obj) = json_value
+                                {
+                                    let raw_data = match options.emit_raw {
+                                        crate::RawMode::RecordRDW => rdw_record.as_bytes(), // Include RDW header
+                                        _ => rdw_record.payload.clone(), // Just payload
+                                    };
+
+                                    // Encode raw data as base64
+                                    let encoded =
+                                        base64::engine::general_purpose::STANDARD.encode(raw_data);
+                                    obj.insert("__raw_b64".to_string(), Value::String(encoded));
+                                }
+
+                                // Write as JSONL
+                                serde_json::to_writer(&mut output, &json_value).map_err(|e| {
+                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                                })?;
+                                writeln!(output).map_err(|e| {
+                                    Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
+                                })?;
                             }
-<<<<<<< HEAD
-
-                            // Add raw data if requested
-                            if matches!(
-                                options.emit_raw,
-                                crate::RawMode::Record | crate::RawMode::RecordRDW
-                            ) && let Value::Object(ref mut obj) = json_value
-                            {
-                                let raw_data = match options.emit_raw {
-                                    crate::RawMode::RecordRDW => rdw_record.as_bytes(), // Include RDW header
-                                    _ => rdw_record.payload.clone(), // Just payload
-                                };
-
-                                // Encode raw data as base64
-                                let encoded =
-                                    base64::engine::general_purpose::STANDARD.encode(raw_data);
-                                obj.insert("__raw_b64".to_string(), Value::String(encoded));
-                            }
-
-                            // Write as JSONL
-                            serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                            })?;
-                            writeln!(output).map_err(|e| {
-                                Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                            })?;
-                        } else {
-                            summary.records_with_errors += 1;
-                            // In lenient mode, continue processing
-                            if options.strict_mode {
-                                break;
-=======
                             Err(e) => {
                                 summary.records_with_errors += 1;
                                 if options.strict_mode {
                                     return Err(e);
                                 }
->>>>>>> 266b169 (Fix numeric codec tests and error reporting)
                             }
                         }
                     }

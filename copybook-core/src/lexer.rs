@@ -6,6 +6,8 @@
 use logos::Logos;
 use std::fmt;
 
+use crate::parser::ParseOptions;
+
 /// COBOL copybook tokens
 #[derive(Logos, Debug, Clone, PartialEq)]
 #[logos(skip r"[ \t\f]+")]
@@ -209,6 +211,7 @@ pub struct Lexer<'a> {
     lines: Vec<ProcessedLine<'a>>,
     _current_line: usize,
     _current_pos: usize,
+    _options: ParseOptions,
 }
 
 /// A processed line after format-specific handling
@@ -223,8 +226,13 @@ struct ProcessedLine<'a> {
 impl<'a> Lexer<'a> {
     /// Create a new lexer for the given input
     pub fn new(input: &'a str) -> Self {
+        Self::new_with_options(input, &ParseOptions::default())
+    }
+
+    /// Create a new lexer for the given input with specific options
+    pub fn new_with_options(input: &'a str, options: &ParseOptions) -> Self {
         let format = detect_format(input);
-        let lines = preprocess_lines(input, format);
+        let lines = preprocess_lines(input, format, options);
 
         Self {
             _input: input,
@@ -232,6 +240,7 @@ impl<'a> Lexer<'a> {
             lines,
             _current_line: 0,
             _current_pos: 0,
+            _options: options.clone(),
         }
     }
 
@@ -317,12 +326,16 @@ impl<'a> Lexer<'a> {
                 // Join the content with appropriate spacing
                 if !trimmed_result.is_empty() && !continuation_content.is_empty() {
                     // Check if we need a space or direct join
-                    if trimmed_result.ends_with('-') && !continuation_content.starts_with('-') {
-                        // Hyphenated word continuation - don't add space
-                        trimmed_result.push_str(continuation_content);
+                    if trimmed_result.ends_with('-') {
+                        if let Some(stripped) = continuation_content.strip_prefix('-') {
+                            // Both end and start with hyphen - remove one to avoid duplication
+                            trimmed_result.push_str(stripped);
+                        } else {
+                            // Hyphenated word continuation - don't add space
+                            trimmed_result.push_str(continuation_content);
+                        }
                     } else {
-                        // Add space for separate tokens - always add space for continuation
-                        // unless it's a direct hyphenated join
+                        // Add space for separate tokens
                         trimmed_result.push(' ');
                         trimmed_result.push_str(continuation_content);
                     }
@@ -397,13 +410,17 @@ fn detect_format(input: &str) -> CobolFormat {
 }
 
 /// Preprocess lines according to the detected format
-fn preprocess_lines(input: &str, format: CobolFormat) -> Vec<ProcessedLine<'_>> {
+fn preprocess_lines<'a>(
+    input: &'a str,
+    format: CobolFormat,
+    options: &ParseOptions,
+) -> Vec<ProcessedLine<'a>> {
     let mut result = Vec::new();
 
     for (line_num, line) in input.lines().enumerate() {
         let processed = match format {
             CobolFormat::Fixed => process_fixed_form_line(line, line_num + 1),
-            CobolFormat::Free => process_free_form_line(line, line_num + 1),
+            CobolFormat::Free => process_free_form_line(line, line_num + 1, options),
         };
         result.push(processed);
     }
@@ -452,7 +469,11 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 }
 
 /// Process a free-form COBOL line
-fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
+fn process_free_form_line<'a>(
+    line: &'a str,
+    line_num: usize,
+    options: &ParseOptions,
+) -> ProcessedLine<'a> {
     let trimmed = line.trim_start();
 
     // Check for full comment lines (* at column 1)
@@ -465,10 +486,17 @@ fn process_free_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
         };
     }
 
-    // Handle inline comments (*> anywhere) - strip comment part
-    let content = if let Some(comment_pos) = line.find("*>") {
-        line[..comment_pos].trim_end()
+    // Handle inline comments (*> anywhere) based on options
+    let content = if options.allow_inline_comments {
+        // Strip inline comments when allowed
+        if let Some(comment_pos) = line.find("*>") {
+            line[..comment_pos].trim_end()
+        } else {
+            line
+        }
     } else {
+        // When inline comments are disabled, preserve the line as-is
+        // The parser will later encounter the *> tokens and reject them
         line
     };
 

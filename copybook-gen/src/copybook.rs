@@ -63,33 +63,33 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     let field_count = if config.include_edge_cases { 20 } else { 10 };
 
     for i in 1..=field_count {
-        let kind = rng.gen_range(0..5);
+        let kind = rng.random_range(0..5);
         match kind {
             0 => {
-                let len = if config.include_edge_cases && rng.gen_bool(0.2) {
+                let len = if config.include_edge_cases && rng.random_bool(0.2) {
                     // Edge cases: very small or large
-                    if rng.gen_bool(0.5) {
+                    if rng.random_bool(0.5) {
                         1
                     } else {
-                        rng.gen_range(100..=200)
+                        rng.random_range(100..=200)
                     }
                 } else {
-                    rng.gen_range(1..=50)
+                    rng.random_range(1..=50)
                 };
                 writeln!(copybook, "           05  ALPHA-{i:02}     PIC X({len}).").unwrap();
             }
             1 => {
-                let digits = if config.include_edge_cases && rng.gen_bool(0.2) {
-                    rng.gen_range(15..=18)
+                let digits = if config.include_edge_cases && rng.random_bool(0.2) {
+                    rng.random_range(15..=18)
                 } else {
-                    rng.gen_range(1..=9)
+                    rng.random_range(1..=9)
                 };
-                let scale = if rng.gen_bool(0.3) {
-                    rng.gen_range(0..=4)
+                let scale = if rng.random_bool(0.3) {
+                    rng.random_range(0..=4)
                 } else {
                     0
                 };
-                let signed = rng.gen_bool(0.5);
+                let signed = rng.random_bool(0.5);
 
                 let pic = if scale > 0 {
                     if signed {
@@ -106,12 +106,12 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                 writeln!(copybook, "           05  ZONED-{i:02}     PIC {pic}.").unwrap();
             }
             2 => {
-                let digits = if config.include_edge_cases && rng.gen_bool(0.2) {
-                    rng.gen_range(15..=18)
+                let digits = if config.include_edge_cases && rng.random_bool(0.2) {
+                    rng.random_range(15..=18)
                 } else {
-                    rng.gen_range(1..=9)
+                    rng.random_range(1..=9)
                 };
-                let signed = rng.gen_bool(0.5);
+                let signed = rng.random_bool(0.5);
 
                 let pic = if signed {
                     format!("S9({digits}) COMP")
@@ -122,17 +122,17 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                 writeln!(copybook, "           05  BINARY-{i:02}    PIC {pic}.").unwrap();
             }
             3 => {
-                let digits = if config.include_edge_cases && rng.gen_bool(0.2) {
-                    rng.gen_range(15..=18)
+                let digits = if config.include_edge_cases && rng.random_bool(0.2) {
+                    rng.random_range(15..=18)
                 } else {
-                    rng.gen_range(1..=9)
+                    rng.random_range(1..=9)
                 };
-                let scale = if rng.gen_bool(0.3) {
-                    rng.gen_range(0..=4)
+                let scale = if rng.random_bool(0.3) {
+                    rng.random_range(0..=4)
                 } else {
                     0
                 };
-                let signed = rng.gen_bool(0.5);
+                let signed = rng.random_bool(0.5);
 
                 let pic = if scale > 0 {
                     if signed {
@@ -151,17 +151,17 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
             4 => {
                 // Group with sub-fields
                 writeln!(copybook, "           05  GROUP-{i:02}.").unwrap();
-                let sub_count = rng.gen_range(2..=4);
+                let sub_count = rng.random_range(2..=4);
                 for j in 1..=sub_count {
-                    let sub = rng.gen_range(0..3);
+                    let sub = rng.random_range(0..3);
                     match sub {
                         0 => {
-                            let len = rng.gen_range(5..=20);
+                            let len = rng.random_range(5..=20);
                             writeln!(copybook, "               10  SUB-{i}-{j}   PIC X({len}).")
                                 .unwrap();
                         }
                         1 => {
-                            let digits = rng.gen_range(3..=7);
+                            let digits = rng.random_range(3..=7);
                             writeln!(
                                 copybook,
                                 "               10  NUM-{i}-{j}   PIC 9({digits})."
@@ -169,7 +169,7 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                             .unwrap();
                         }
                         2 => {
-                            let digits = rng.gen_range(3..=7);
+                            let digits = rng.random_range(3..=7);
                             writeln!(
                                 copybook,
                                 "               10  PKD-{i}-{j}   PIC 9({digits}) COMP-3."
@@ -225,10 +225,10 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     copybook.push_str("       01  RECORD-ROOT.\n");
 
     // Simple OCCURS
-    let array_size = if config.include_edge_cases && rng.gen_bool(0.3) {
-        rng.gen_range(100..=500) // Large arrays
+    let array_size = if config.include_edge_cases && rng.random_bool(0.3) {
+        rng.random_range(100..=500) // Large arrays
     } else {
-        rng.gen_range(5..=20)
+        rng.random_range(5..=20)
     };
 
     writeln!(
@@ -238,7 +238,7 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     .unwrap();
 
     // OCCURS with group
-    let group_size = rng.gen_range(3..=10);
+    let group_size = rng.random_range(3..=10);
     writeln!(
         copybook,
         "           05  GROUP-ARRAY     OCCURS {group_size} TIMES."
@@ -249,8 +249,8 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     copybook.push_str("               10  ITEM-VALUE  PIC 9(7)V99 COMP-3.\n");
 
     // Nested OCCURS
-    let outer_size = rng.gen_range(2..=5);
-    let inner_size = rng.gen_range(3..=8);
+    let outer_size = rng.random_range(2..=5);
+    let inner_size = rng.random_range(3..=8);
     writeln!(
         copybook,
         "           05  NESTED-ARRAY    OCCURS {outer_size} TIMES."
@@ -270,8 +270,8 @@ fn generate_odo_copybook(rng: &mut StdRng, _config: &GeneratorConfig) -> String 
     copybook.push_str("       01  RECORD-ROOT.\n");
 
     // ODO at record tail
-    let max_count = rng.gen_range(10..=50);
-    let min_count = rng.gen_range(1..=5);
+    let max_count = rng.random_range(10..=50);
+    let min_count = rng.random_range(1..=5);
     copybook.push_str("           05  HEADER-DATA.\n");
     copybook.push_str("               10  RECORD-TYPE PIC X(4).\n");
     copybook.push_str("               10  ITEM-COUNT  PIC 9(3) COMP.\n");
@@ -341,7 +341,7 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     copybook.push_str("               10  FILLER      PIC X(35).\n");
 
     // OCCURS section with SYNCHRONIZED
-    let array_size = rng.gen_range(5..=15);
+    let array_size = rng.random_range(5..=15);
     writeln!(
         copybook,
         "           05  DETAIL-ITEMS    OCCURS {array_size} TIMES."
@@ -353,8 +353,8 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     copybook.push_str("               10  ITEM-FLAGS  PIC X(8).\n");
 
     // Tail ODO if edge cases enabled
-    if config.include_edge_cases && rng.gen_bool(0.5) {
-        let max_notes = rng.gen_range(10..=30);
+    if config.include_edge_cases && rng.random_bool(0.5) {
+        let max_notes = rng.random_range(10..=30);
         copybook.push_str("           05  NOTE-COUNT      PIC 9(3) COMP.\n");
         writeln!(
             copybook,

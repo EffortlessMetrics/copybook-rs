@@ -69,7 +69,15 @@ use copybook_codec::{decode_record, DecodeOptions, Codepage, JsonNumberMode};
 // Parse copybook
 let schema = parse_copybook(&copybook_text)?;
 
-// Configure options
+// Parse copybook with custom options
+use copybook_core::{parse_copybook_with_options, ParseOptions};
+let parse_options = ParseOptions {
+    allow_inline_comments: false, // Disable COBOL-2002 inline comments (*>)
+    ..ParseOptions::default()
+};
+let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
+
+// Configure decoder options
 let options = DecodeOptions::new()
     .with_codepage(Codepage::CP037)
     .with_json_number_mode(JsonNumberMode::Lossless)

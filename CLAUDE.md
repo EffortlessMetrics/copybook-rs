@@ -308,7 +308,7 @@ Uses structured error taxonomy with stable error codes:
 
 ## Requirements
 
-- Rust 1.89+ (MSRV)
+- Rust 1.90+ (MSRV)
 - Edition 2024
 - Uses workspace dependencies for consistent versions across crates
 

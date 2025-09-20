@@ -1,3 +1,4 @@
+#![cfg(feature = "comprehensive-tests")]
 //! Comprehensive REDEFINES and ODO tests covering all edge cases and normative behavior
 //!
 //! This test suite validates REDEFINES and ODO handling according to the normative

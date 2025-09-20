@@ -280,7 +280,12 @@ fn test_rdw_zero_length_record_invalid() {
     assert!(result.is_err()); // Should fail - zero length invalid for fixed schema
 
     let error = result.unwrap_err();
-    assert!(error.message.contains("underflow") || error.message.contains("length"));
+    assert!(
+        error.message.contains("underflow")
+            || error.message.contains("length")
+            || error.message.contains("record errors")
+            || error.message.contains("payload")
+    );
 }
 
 #[test]

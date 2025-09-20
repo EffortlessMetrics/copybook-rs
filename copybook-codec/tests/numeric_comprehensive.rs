@@ -479,11 +479,9 @@ fn test_fixed_scale_rendering() {
         threads: 1,
     };
 
-    // Test data: packed decimals for realistic values
-    // SCALE-2 PIC 9(5)V99: "12345.67" = 1234567 as 7 digits → 0x123456|7C (4 bytes)
-    // SCALE-0 PIC 9(5): "12345" = 12345 as 5 digits → 0x01|23|4C (3 bytes: (5+1)/2=3)
-    // SCALE-4 PIC 9(3)V9999: "123.4567" = 1234567 as 7 digits → 0x123456|7C (4 bytes)
-    let test_data = b"\x12\x34\x56\x7C\x01\x23\x4C\x12\x34\x56\x7C";
+    // Test data: 12345.67 (scale 2), 12345 (scale 0), 123.4567 (scale 4)
+    // Correct packed representations: 1234567 -> \x12\x34\x56\x7C, 12345 -> \x12\x34\x5C
+    let test_data = b"\x12\x34\x56\x7C\x12\x34\x5C\x12\x34\x56\x7C"; // Packed decimals
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -492,9 +490,9 @@ fn test_fixed_scale_rendering() {
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
     // Should render with exactly the specified scale
-    assert_eq!(json_record["SCALE-2"], "12345.67"); // PIC 9(5)V99: 7 digits, 2 decimal places
-    assert_eq!(json_record["SCALE-0"], "1234"); // PIC 9(5): 5 digits, but this packed data represents 1234  
-    assert_eq!(json_record["SCALE-4"], "123.4567"); // PIC 9(3)V9999: 7 digits, 4 decimal places
+    assert_eq!(json_record["SCALE-2"], "12345.67"); // Always 2 decimal places
+    assert_eq!(json_record["SCALE-0"], "12345"); // No decimal point for scale 0
+    assert_eq!(json_record["SCALE-4"], "123.4567"); // Always 4 decimal places
 }
 
 #[test]

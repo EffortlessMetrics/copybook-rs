@@ -205,6 +205,15 @@ fn validate_cli_opts(cli_opts: &Value) {
 
     assert!(obj.contains_key("sample"), "Missing sample");
     assert!(obj["sample"].is_u64(), "sample should be integer");
+
+    assert!(
+        obj.contains_key("strict_comments"),
+        "Missing strict_comments"
+    );
+    assert!(
+        obj["strict_comments"].is_boolean(),
+        "strict_comments should be boolean"
+    );
 }
 
 /// Validate verify error structure
@@ -391,4 +400,76 @@ fn test_cli_help_messages() {
         .stdout(predicate::str::contains("Verify data file structure"))
         .stdout(predicate::str::contains("--strict"))
         .stdout(predicate::str::contains("--max-errors"));
+}
+
+/// Test that inline comments work by default (should succeed)
+#[test]
+fn test_cli_strict_comments_allowed_by_default() {
+    let temp_dir = TempDir::new().unwrap();
+    let copybook_file = temp_dir.path().join("test_inline.cpy");
+
+    // Create a copybook with inline comments
+    fs::write(
+        &copybook_file,
+        r#"01 CUSTOMER-ID PIC X(10). *> This should be allowed by default
+        "#,
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
+    cmd.arg("inspect").arg(&copybook_file);
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("CUSTOMER-ID"));
+}
+
+/// Test that inline comments are rejected with --strict-comments flag
+#[test]
+fn test_cli_strict_comments_flag_rejects_inline_comments() {
+    let temp_dir = TempDir::new().unwrap();
+    let copybook_file = temp_dir.path().join("test_inline.cpy");
+
+    // Create a copybook with inline comments
+    fs::write(
+        &copybook_file,
+        r#"01 CUSTOMER-ID PIC X(10). *> This should be rejected
+        "#,
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
+    cmd.arg("inspect")
+        .arg(&copybook_file)
+        .arg("--strict-comments");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("CBKP001_SYNTAX"))
+        .stderr(predicate::str::contains(
+            "Inline comments (*>) are not allowed in strict mode",
+        ));
+}
+
+/// Test that stdin ("-") works with inline comments by default
+#[test]
+fn test_cli_strict_comments_stdin_path() {
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
+    cmd.arg("inspect")
+        .arg("-") // stdin
+        .write_stdin("01 A PIC X(5). *> inline\n");
+    cmd.assert().success().stdout(predicate::str::contains("A"));
+}
+
+/// Test that stdin ("-") rejects inline comments with --strict-comments
+#[test]
+fn test_cli_strict_comments_stdin_rejected() {
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
+    cmd.arg("inspect")
+        .arg("-")
+        .arg("--strict-comments")
+        .write_stdin("01 A PIC X(5). *> inline\n");
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("CBKP001_SYNTAX"));
 }

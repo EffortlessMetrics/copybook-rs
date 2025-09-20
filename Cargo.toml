@@ -23,35 +23,35 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
 # Core dependencies
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
-thiserror = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0.225", features = ["derive"] }
+serde_json = { version = "1.0.145", features = ["preserve_order"] }
+thiserror = "2.0.16"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 # Memory management dependencies
-smallvec = "1.13"
-crossbeam-channel = "0.5"
+smallvec = "1.15.1"
+crossbeam-channel = "0.5.15"
 
 # CLI dependencies
-clap = { version = "4.0", features = ["derive"] }
-tokio = { version = "1.0", features = ["full"] }
-tempfile = "3.0"
+clap = { version = "4.5.48", features = ["derive"] }
+tokio = { version = "1.47.1", features = ["full"] }
+tempfile = "3.22.0"
 
 # Parsing dependencies
-logos = "0.14"
+logos = "0.15.1"
 
 # Crypto dependencies
-sha2 = "0.10"
-base64 = "0.22"
+sha2 = "0.10.9"
+base64 = "0.22.1"
 
 # Testing dependencies
-proptest = "1.0"
-criterion = { version = "0.5", features = ["html_reports"] }
-hex = "0.4"
+proptest = "1.7.0"
+criterion = { version = "0.7.0", features = ["html_reports"] }
+hex = "0.4.3"
 
 # Task automation dependencies  
-anyhow = "1.0"
+anyhow = "1.0.100"
 
 [profile.release]
 lto = true

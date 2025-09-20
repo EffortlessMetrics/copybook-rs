@@ -55,12 +55,16 @@ fn test_column_7_continuation_normative() {
 
 #[test]
 fn test_comment_handling_normative() {
-    // Inline comments are not supported and should cause parse errors
+    // Inline comments are supported (COBOL-2002) and should be ignored
     let inline_comments = r#"01 RECORD-NAME. *> This is an inline comment
-    05 FIELD-NAME PIC X(10). *> Another inline comment
+05 FIELD-NAME PIC X(10). *> Another inline comment
 "#;
 
-    assert!(parse_copybook(inline_comments).is_err());
+    let schema = parse_copybook(inline_comments).unwrap();
+    assert_eq!(schema.fields.len(), 1);
+    assert_eq!(schema.fields[0].name, "RECORD-NAME");
+    assert_eq!(schema.fields[0].children.len(), 1);
+    assert_eq!(schema.fields[0].children[0].name, "FIELD-NAME");
 }
 
 #[test]

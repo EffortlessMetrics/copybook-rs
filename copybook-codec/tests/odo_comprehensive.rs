@@ -97,7 +97,7 @@ fn test_valid_odo_configuration() {
     let tail_odo = schema.tail_odo.as_ref().unwrap();
     assert_eq!(tail_odo.counter_path, "ITEM-COUNT");
     assert_eq!(tail_odo.max_count, 5);
-    assert_eq!(tail_odo.array_path, "RECORD-LAYOUT.ITEMS");
+    assert_eq!(tail_odo.array_path, "ITEMS");
 
     // Should not have fixed LRECL due to ODO
     assert!(schema.lrecl_fixed.is_none());

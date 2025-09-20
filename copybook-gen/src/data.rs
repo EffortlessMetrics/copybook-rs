@@ -188,9 +188,9 @@ fn fill_field_data(
                 // For ODO, we need to set the counter field
                 if let Some(counter_field) = find_field_by_path(schema, field, counter_path) {
                     let actual_count = if edge_cases {
-                        if rng.gen_bool(0.5) { *min } else { *max }
+                        if rng.random_bool(0.5) { *min } else { *max }
                     } else {
-                        rng.gen_range(*min..=*max)
+                        rng.random_range(*min..=*max)
                     };
 
                     // Set counter field value
@@ -208,15 +208,15 @@ fn fill_alphanum_field(
     edge_cases: bool,
     invalid: bool,
 ) {
-    if invalid && rng.gen_bool(0.3) {
+    if invalid && rng.random_bool(0.3) {
         // Invalid: use control characters or invalid EBCDIC
         for byte in data.iter_mut() {
-            *byte = rng.gen_range(0x00..=0x1F);
+            *byte = rng.random_range(0x00..=0x1F);
         }
         return;
     }
 
-    if edge_cases && rng.gen_bool(0.3) {
+    if edge_cases && rng.random_bool(0.3) {
         // Edge case: all spaces (already initialized)
         return;
     }
@@ -224,9 +224,9 @@ fn fill_alphanum_field(
     // Generate random text
     let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
     for byte in data.iter_mut() {
-        if rng.gen_bool(0.8) {
+        if rng.random_bool(0.8) {
             // Convert ASCII to EBCDIC approximation
-            let ascii_char = chars[rng.gen_range(0..chars.len())];
+            let ascii_char = chars[rng.random_range(0..chars.len())];
             *byte = ascii_to_ebcdic_approx(ascii_char);
         }
         // else leave as space (0x40)
@@ -242,15 +242,15 @@ fn fill_zoned_field(
     edge_cases: bool,
     invalid: bool,
 ) {
-    if invalid && rng.gen_bool(0.3) {
+    if invalid && rng.random_bool(0.3) {
         // Invalid: bad zone nibbles
         for byte in data.iter_mut() {
-            *byte = rng.gen_range(0x00..=0x9F); // Invalid zones
+            *byte = rng.random_range(0x00..=0x9F); // Invalid zones
         }
         return;
     }
 
-    if edge_cases && rng.gen_bool(0.2) {
+    if edge_cases && rng.random_bool(0.2) {
         // BLANK WHEN ZERO case - all spaces
         for byte in data.iter_mut() {
             *byte = 0x40; // EBCDIC space
@@ -259,13 +259,13 @@ fn fill_zoned_field(
     }
 
     // Generate a valid number
-    let is_negative = signed && rng.gen_bool(0.3);
+    let is_negative = signed && rng.random_bool(0.3);
     let max_value = 10_u64.pow(u32::from(digits)) - 1;
 
-    let value = if edge_cases && rng.gen_bool(0.3) {
-        if rng.gen_bool(0.5) { 0 } else { max_value }
+    let value = if edge_cases && rng.random_bool(0.3) {
+        if rng.random_bool(0.5) { 0 } else { max_value }
     } else {
-        rng.gen_range(0..=max_value)
+        rng.random_range(0..=max_value)
     };
 
     // Format as zoned decimal
@@ -300,21 +300,21 @@ fn fill_packed_field(
     edge_cases: bool,
     invalid: bool,
 ) {
-    if invalid && rng.gen_bool(0.3) {
+    if invalid && rng.random_bool(0.3) {
         // Invalid: bad nibbles
         for byte in data.iter_mut() {
-            *byte = rng.gen_range(0xAA..=0xFF); // Invalid nibbles
+            *byte = rng.random_range(0xAA..=0xFF); // Invalid nibbles
         }
         return;
     }
 
-    let is_negative = signed && rng.gen_bool(0.3);
+    let is_negative = signed && rng.random_bool(0.3);
     let max_value = 10_u64.pow(u32::from(digits)) - 1;
 
-    let value = if edge_cases && rng.gen_bool(0.3) {
-        if rng.gen_bool(0.5) { 0 } else { max_value }
+    let value = if edge_cases && rng.random_bool(0.3) {
+        if rng.random_bool(0.5) { 0 } else { max_value }
     } else {
-        rng.gen_range(0..=max_value)
+        rng.random_range(0..=max_value)
     };
 
     // Pack the decimal
@@ -352,7 +352,7 @@ fn fill_binary_field(
     if invalid {
         // For binary, invalid data is just random bytes
         for byte in data.iter_mut() {
-            *byte = rng.r#gen();
+            *byte = rng.random();
         }
         return;
     }
@@ -364,13 +364,13 @@ fn fill_binary_field(
         (1u64 << bits) - 1
     };
 
-    let value = if edge_cases && rng.gen_bool(0.3) {
-        if rng.gen_bool(0.5) { 0 } else { max_value }
+    let value = if edge_cases && rng.random_bool(0.3) {
+        if rng.random_bool(0.5) { 0 } else { max_value }
     } else {
-        rng.gen_range(0..=max_value)
+        rng.random_range(0..=max_value)
     };
 
-    let is_negative = signed && rng.gen_bool(0.3) && value > 0;
+    let is_negative = signed && rng.random_bool(0.3) && value > 0;
     let final_value = if is_negative {
         // Two's complement
         (!value).wrapping_add(1)

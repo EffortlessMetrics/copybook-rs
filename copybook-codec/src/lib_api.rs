@@ -1528,7 +1528,7 @@ fn validate_numeric_scale(text: &str, expected_scale: i16, field_name: &str) -> 
     if expected_scale > 0 {
         if let Some(decimal_pos) = text.find('.') {
             let decimal_places = text.len() - decimal_pos - 1;
-            if decimal_places != expected_scale as usize {
+            if decimal_places != usize::try_from(expected_scale).unwrap_or(0) {
                 return Err(Error::new(
                     ErrorCode::CBKE505_SCALE_MISMATCH,
                     format!(

@@ -21,7 +21,7 @@ pub struct VerifyReport {
     pub records_total: u64,
     /// Total number of errors encountered
     pub errors_total: u64,
-    /// Whether error reporting was truncated due to max_errors limit
+    /// Whether error reporting was truncated due to `max_errors` limit
     pub truncated: bool,
     /// List of verification errors
     pub errors: Vec<VerifyError>,

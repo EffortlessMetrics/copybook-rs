@@ -394,38 +394,35 @@ pub fn decode_zoned_decimal(
             value = value * 10 + i64::from(digit);
         } else {
             // Regular digit position
-            let digit = match codepage {
-                Codepage::ASCII => {
-                    if !byte.is_ascii_digit() {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
-                        ));
-                    }
-                    byte - b'0'
+            let digit = if codepage == Codepage::ASCII {
+                if !byte.is_ascii_digit() {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
+                    ));
                 }
-                _ => {
-                    // EBCDIC: validate zone and digit
-                    let zone = (byte >> 4) & 0x0F;
-                    let digit = byte & 0x0F;
+                byte - b'0'
+            } else {
+                // EBCDIC: validate zone and digit
+                let zone = (byte >> 4) & 0x0F;
+                let digit = byte & 0x0F;
 
-                    if digit > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid digit nibble 0x{digit:X} at position {i}"),
-                        ));
-                    }
-
-                    // Non-sign positions should have zone 0xF
-                    if zone != 0xF {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
-                        ));
-                    }
-
-                    digit
+                if digit > 9 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid digit nibble 0x{digit:X} at position {i}"),
+                    ));
                 }
+
+                // Non-sign positions should have zone 0xF
+                if zone != 0xF {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
+                    ));
+                }
+
+                digit
             };
 
             value = value * 10 + i64::from(digit);
@@ -1025,38 +1022,35 @@ pub fn decode_zoned_decimal_with_scratch(
             value = value * 10 + i64::from(digit);
         } else {
             // Regular digit position
-            let digit = match codepage {
-                Codepage::ASCII => {
-                    if !byte.is_ascii_digit() {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
-                        ));
-                    }
-                    byte - b'0'
+            let digit = if codepage == Codepage::ASCII {
+                if !byte.is_ascii_digit() {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid ASCII digit byte 0x{byte:02X} at position {i}"),
+                    ));
                 }
-                _ => {
-                    // EBCDIC: validate zone and digit
-                    let zone = (byte >> 4) & 0x0F;
-                    let digit = byte & 0x0F;
+                byte - b'0'
+            } else {
+                // EBCDIC: validate zone and digit
+                let zone = (byte >> 4) & 0x0F;
+                let digit = byte & 0x0F;
 
-                    if digit > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid digit nibble 0x{digit:X} at position {i}"),
-                        ));
-                    }
-
-                    // Non-sign positions should have zone 0xF
-                    if zone != 0xF {
-                        return Err(Error::new(
-                            ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                            format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
-                        ));
-                    }
-
-                    digit
+                if digit > 9 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid digit nibble 0x{digit:X} at position {i}"),
+                    ));
                 }
+
+                // Non-sign positions should have zone 0xF
+                if zone != 0xF {
+                    return Err(Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        format!("Invalid EBCDIC zone 0x{zone:X} at position {i}, expected 0xF"),
+                    ));
+                }
+
+                digit
             };
 
             scratch.digit_buffer.push(digit);

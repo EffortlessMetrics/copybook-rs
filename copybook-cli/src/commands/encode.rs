@@ -1,8 +1,8 @@
 //! Encode command implementation
 
-use crate::utils::{atomic_write, determine_exit_code};
+use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
 use copybook_codec::{Codepage, EncodeOptions, RecordFormat};
-use copybook_core::parse_copybook;
+use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,6 +20,7 @@ pub struct EncodeCliOptions {
     pub fail_fast: bool,
     pub threads: usize,
     pub coerce_numbers: bool,
+    pub strict_comments: bool,
 }
 
 pub fn run(
@@ -30,11 +31,21 @@ pub fn run(
 ) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Encoding JSONL file: {:?}", input);
 
-    // Read copybook file
-    let copybook_text = fs::read_to_string(copybook)?;
+    if options.strict_comments {
+        info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
+    }
 
-    // Parse copybook
-    let schema = parse_copybook(&copybook_text)?;
+    // Read copybook file or stdin
+    let copybook_text = read_file_or_stdin(copybook)?;
+
+    // Parse copybook with options
+    let parse_options = ParseOptions {
+        strict: options.strict,
+        codepage: options.codepage.to_string(),
+        emit_filler: false,
+        allow_inline_comments: !options.strict_comments,
+    };
+    let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Configure encode options - use strict mode when fail_fast is enabled
     let effective_strict_mode = options.strict || options.fail_fast;

@@ -23,6 +23,9 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Parse copybook and output schema JSON
+    #[command(
+        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
+    )]
     Parse {
         /// Copybook file path
         copybook: PathBuf,
@@ -32,8 +35,14 @@ enum Commands {
         /// Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
         #[arg(long)]
         strict: bool,
+        /// Disable inline comments (*>) - enforce COBOL-85 compatibility
+        #[arg(long)]
+        strict_comments: bool,
     },
     /// Inspect copybook and show human-readable layout
+    #[command(
+        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
+    )]
     Inspect {
         /// Copybook file path
         copybook: PathBuf,
@@ -43,8 +52,14 @@ enum Commands {
         /// Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
         #[arg(long)]
         strict: bool,
+        /// Disable inline comments (*>) - enforce COBOL-85 compatibility
+        #[arg(long)]
+        strict_comments: bool,
     },
     /// Decode binary data to JSONL
+    #[command(
+        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
+    )]
     Decode {
         /// Copybook file path
         copybook: PathBuf,
@@ -83,8 +98,14 @@ enum Commands {
         /// Number of threads for parallel processing
         #[arg(long, default_value = "1")]
         threads: usize,
+        /// Disable inline comments (*>) - enforce COBOL-85 compatibility
+        #[arg(long)]
+        strict_comments: bool,
     },
     /// Encode JSONL to binary data
+    #[command(
+        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
+    )]
     Encode {
         /// Copybook file path
         copybook: PathBuf,
@@ -120,6 +141,9 @@ enum Commands {
         /// Coerce non-string JSON numbers to strings before encoding
         #[arg(long)]
         coerce_numbers: bool,
+        /// Disable inline comments (*>) - enforce COBOL-85 compatibility
+        #[arg(long)]
+        strict_comments: bool,
     },
     /// Verify data file structure
     #[command(after_help = "\
@@ -127,7 +151,9 @@ Exit codes:
   0 = valid data, no errors
   3 = validation errors found
   2 = fatal error (I/O, schema)
-Report schema: docs/VERIFY_REPORT.schema.json")]
+Report schema: docs/VERIFY_REPORT.schema.json
+
+Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
     Verify {
         /// Copybook file path
         copybook: PathBuf,
@@ -151,6 +177,9 @@ Report schema: docs/VERIFY_REPORT.schema.json")]
         /// Number of sample records to include in report
         #[arg(long, default_value = "5")]
         sample: Option<u32>,
+        /// Disable inline comments (*>) - enforce COBOL-85 compatibility
+        #[arg(long)]
+        strict_comments: bool,
     },
 }
 
@@ -169,12 +198,14 @@ fn main() {
             copybook,
             output,
             strict,
-        } => crate::commands::parse::run(&copybook, output, strict),
+            strict_comments,
+        } => crate::commands::parse::run(&copybook, output, strict, strict_comments),
         Commands::Inspect {
             copybook,
             codepage,
             strict,
-        } => crate::commands::inspect::run(&copybook, codepage, strict),
+            strict_comments,
+        } => crate::commands::inspect::run(&copybook, codepage, strict, strict_comments),
         Commands::Decode {
             copybook,
             input,
@@ -189,6 +220,7 @@ fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
+            strict_comments,
         } => crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
             copybook: &copybook,
             input: &input,
@@ -203,6 +235,7 @@ fn main() {
             emit_raw,
             on_decode_unmappable,
             threads,
+            strict_comments,
         }),
         Commands::Encode {
             copybook,
@@ -217,6 +250,7 @@ fn main() {
             fail_fast,
             threads,
             coerce_numbers,
+            strict_comments,
         } => crate::commands::encode::run(
             &copybook,
             &input,
@@ -231,6 +265,7 @@ fn main() {
                 fail_fast,
                 threads,
                 coerce_numbers,
+                strict_comments,
             },
         ),
         Commands::Verify {
@@ -242,6 +277,7 @@ fn main() {
             strict,
             max_errors,
             sample,
+            strict_comments,
         } => {
             let opts = crate::commands::verify::VerifyOptions {
                 format,
@@ -249,6 +285,7 @@ fn main() {
                 strict,
                 max_errors: u32::try_from(max_errors.unwrap_or(10)).unwrap_or(10),
                 sample: sample.unwrap_or(5),
+                strict_comments,
             };
             crate::commands::verify::run(&copybook, &input, report, &opts)
         }

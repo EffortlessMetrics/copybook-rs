@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--strict` flag for `inspect`/`parse` commands: normative ODO bounds/ordering; REDEFINES ambiguity becomes error.
 - Comprehensive CLI integration tests for ODO lenient/strict modes, REDEFINES, edited PIC, and fixed-form parsing.
 - Enhanced documentation with validation modes, binary widths clarification, and strict mode examples.
+- COMP-3 fast path enabled by default: encoding ≈61 MiB/s, decoding ≈48 MiB/s (exceeds ≥40 MiB/s target).
 
 ### Fixed
 

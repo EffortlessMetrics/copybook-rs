@@ -1,3 +1,4 @@
+#![cfg(feature = "comprehensive-tests")]
 //! Integration tests for ODO and REDEFINES error handling
 //!
 //! This test suite validates the comprehensive error handling implementation

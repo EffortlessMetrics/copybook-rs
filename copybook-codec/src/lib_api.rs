@@ -1050,7 +1050,6 @@ fn read_odo_counter_value(
 ) -> Result<u32> {
     read_odo_counter_value_from_schema(data, counter_path, array_path, schema)
 }
-}
 
 /// Basic zoned decimal decoding
 fn decode_zoned_decimal_basic(

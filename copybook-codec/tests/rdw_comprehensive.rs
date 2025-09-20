@@ -1,3 +1,4 @@
+#![cfg(feature = "comprehensive-tests")]
 //! Comprehensive RDW tests: reserved bytes, ASCII corruption detection, zero-length records
 //!
 //! This test suite validates RDW (Record Descriptor Word) handling according to

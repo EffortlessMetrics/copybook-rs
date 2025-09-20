@@ -21,14 +21,21 @@ jobs:
           - 1.90.0  # MSRV
           - stable
           - beta
+        features: ["", "comp3_fast"]
     steps:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
     - uses: Swatinem/rust-cache@v2
-    - name: Run tests
-      run: cargo test --all-features --workspace
+      with:
+        key: ${{ matrix.features }}
+    - name: Run tests (no features)
+      if: matrix.features == ''
+      run: cargo test --workspace
+    - name: Run tests (with features)
+      if: matrix.features != ''
+      run: cargo test --workspace --features ${{ matrix.features }}
 
   fmt:
     name: Rustfmt

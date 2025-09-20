@@ -137,7 +137,7 @@ static ASCII_OVERPUNCH_ENCODE: [OverpunchMapping; 20] = [
     }, // 0x52
 ];
 
-/// ASCII overpunch decode table: byte -> (digit, is_negative)
+/// ASCII overpunch decode table: byte -> (digit, `is_negative`)
 /// Uses Option to handle invalid bytes
 static ASCII_OVERPUNCH_DECODE: [Option<(u8, bool)>; 256] = {
     let mut table = [None; 256];
@@ -181,7 +181,7 @@ static ASCII_OVERPUNCH_DECODE: [Option<(u8, bool)>; 256] = {
     table
 };
 
-/// EBCDIC overpunch encoding: (digit, is_negative) -> zone nibble
+/// EBCDIC overpunch encoding: (digit, `is_negative`) -> zone nibble
 /// Returns the zone nibble (high 4 bits) for the given digit and sign
 #[must_use]
 pub fn encode_ebcdic_overpunch_zone(digit: u8, is_negative: bool, policy: ZeroSignPolicy) -> u8 {
@@ -198,7 +198,7 @@ pub fn encode_ebcdic_overpunch_zone(digit: u8, is_negative: bool, policy: ZeroSi
     }
 }
 
-/// EBCDIC overpunch decoding: zone nibble -> (is_signed, is_negative)
+/// EBCDIC overpunch decoding: zone nibble -> (`is_signed`, `is_negative`)
 /// Returns None for invalid zone nibbles
 #[must_use]
 pub const fn decode_ebcdic_overpunch_zone(zone: u8) -> Option<(bool, bool)> {
@@ -227,26 +227,23 @@ pub fn encode_overpunch_byte(
         ));
     }
 
-    match codepage {
-        Codepage::ASCII => {
-            // Find the matching ASCII overpunch character
-            for mapping in &ASCII_OVERPUNCH_ENCODE {
-                if mapping.digit == digit && mapping.is_negative == is_negative {
-                    return Ok(mapping.byte_value);
-                }
+    if codepage == Codepage::ASCII {
+        // Find the matching ASCII overpunch character
+        for mapping in &ASCII_OVERPUNCH_ENCODE {
+            if mapping.digit == digit && mapping.is_negative == is_negative {
+                return Ok(mapping.byte_value);
             }
+        }
 
-            // Should never reach here for valid inputs
-            Err(Error::new(
-                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!("No ASCII overpunch mapping for digit {digit}, negative: {is_negative}"),
-            ))
-        }
-        _ => {
-            // EBCDIC: combine zone and digit nibbles
-            let zone = encode_ebcdic_overpunch_zone(digit, is_negative, policy);
-            Ok((zone << 4) | digit)
-        }
+        // Should never reach here for valid inputs
+        Err(Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            format!("No ASCII overpunch mapping for digit {digit}, negative: {is_negative}"),
+        ))
+    } else {
+        // EBCDIC: combine zone and digit nibbles
+        let zone = encode_ebcdic_overpunch_zone(digit, is_negative, policy);
+        Ok((zone << 4) | digit)
     }
 }
 
@@ -255,45 +252,42 @@ pub fn encode_overpunch_byte(
 /// # Errors
 /// Returns an error if the byte is not a valid overpunch character
 pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)> {
-    match codepage {
-        Codepage::ASCII => {
-            if let Some((digit, is_negative)) = ASCII_OVERPUNCH_DECODE[byte as usize] {
-                Ok((digit, is_negative))
-            } else {
-                Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid ASCII overpunch byte 0x{byte:02X}"),
-                ))
-            }
+    if codepage == Codepage::ASCII {
+        if let Some((digit, is_negative)) = ASCII_OVERPUNCH_DECODE[byte as usize] {
+            Ok((digit, is_negative))
+        } else {
+            Err(Error::new(
+                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                format!("Invalid ASCII overpunch byte 0x{byte:02X}"),
+            ))
         }
-        _ => {
-            // EBCDIC: extract zone and digit nibbles
-            let zone = (byte >> 4) & 0x0F;
-            let digit = byte & 0x0F;
+    } else {
+        // EBCDIC: extract zone and digit nibbles
+        let zone = (byte >> 4) & 0x0F;
+        let digit = byte & 0x0F;
 
-            if digit > 9 {
+        if digit > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                format!(
+                    "Invalid digit nibble 0x{digit:X} in EBCDIC overpunch byte 0x{byte:02X}"
+                ),
+            ));
+        }
+
+        if let Some((is_signed, is_negative)) = decode_ebcdic_overpunch_zone(zone) {
+            if !is_signed {
                 return Err(Error::new(
                     ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!(
-                        "Invalid digit nibble 0x{digit:X} in EBCDIC overpunch byte 0x{byte:02X}"
-                    ),
+                    format!("Unsigned zone 0x{zone:X} in signed EBCDIC field"),
                 ));
             }
-
-            if let Some((is_signed, is_negative)) = decode_ebcdic_overpunch_zone(zone) {
-                if !is_signed {
-                    return Err(Error::new(
-                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                        format!("Unsigned zone 0x{zone:X} in signed EBCDIC field"),
-                    ));
-                }
-                Ok((digit, is_negative))
-            } else {
-                Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid EBCDIC zone nibble 0x{zone:X} in byte 0x{byte:02X}"),
-                ))
-            }
+            Ok((digit, is_negative))
+        } else {
+            Err(Error::new(
+                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                format!("Invalid EBCDIC zone nibble 0x{zone:X} in byte 0x{byte:02X}"),
+            ))
         }
     }
 }
@@ -301,40 +295,34 @@ pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)>
 /// Check if a byte is a valid overpunch character for the given codepage
 #[must_use]
 pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
-    match codepage {
-        Codepage::ASCII => ASCII_OVERPUNCH_DECODE[byte as usize].is_some(),
-        _ => {
-            let zone = (byte >> 4) & 0x0F;
-            let digit = byte & 0x0F;
-            digit <= 9 && decode_ebcdic_overpunch_zone(zone).is_some()
-        }
+    if codepage == Codepage::ASCII { ASCII_OVERPUNCH_DECODE[byte as usize].is_some() } else {
+        let zone = (byte >> 4) & 0x0F;
+        let digit = byte & 0x0F;
+        digit <= 9 && decode_ebcdic_overpunch_zone(zone).is_some()
     }
 }
 
 /// Get all valid overpunch bytes for testing purposes
 #[must_use]
 pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
-    match codepage {
-        Codepage::ASCII => ASCII_OVERPUNCH_DECODE
-            .iter()
-            .enumerate()
-            .filter_map(|(byte, mapping)| {
-                if mapping.is_some() {
-                    Some(byte as u8)
-                } else {
-                    None
-                }
-            })
-            .collect(),
-        _ => {
-            let mut bytes = Vec::new();
-            for zone in [0xC, 0xD, 0xF] {
-                for digit in 0..=9 {
-                    bytes.push((zone << 4) | digit);
-                }
+    if codepage == Codepage::ASCII { ASCII_OVERPUNCH_DECODE
+        .iter()
+        .enumerate()
+        .filter_map(|(byte, mapping)| {
+            if mapping.is_some() {
+                Some(u8::try_from(byte).unwrap_or(0))
+            } else {
+                None
             }
-            bytes
+        })
+        .collect() } else {
+        let mut bytes = Vec::new();
+        for zone in [0xC, 0xD, 0xF] {
+            for digit in 0..=9 {
+                bytes.push((zone << 4) | digit);
+            }
         }
+        bytes
     }
 }
 

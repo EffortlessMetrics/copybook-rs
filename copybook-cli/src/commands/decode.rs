@@ -25,7 +25,7 @@ pub struct DecodeArgs<'a> {
     pub threads: usize,
 }
 
-pub fn run(args: DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
     info!("Decoding data file: {:?}", args.input);
 
     // Read copybook file

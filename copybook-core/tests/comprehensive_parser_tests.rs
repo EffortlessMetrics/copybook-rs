@@ -672,6 +672,44 @@ fn test_explicit_binary_width_normative() {
 }
 
 #[test]
+fn test_binary_clause_with_and_without_explicit_width() {
+    let copybook = r#"
+01 BINARY-WIDTH-TEST.
+   05 BIN-IMPLICIT PIC 9(4) BINARY.
+   05 BIN-EXPLICIT PIC 9(4) BINARY(4).
+   05 COMP-EXPLICIT PIC 9(3) COMP(1).
+"#;
+
+    let schema = parse_copybook(copybook).unwrap();
+    let root = &schema.fields[0];
+    assert_eq!(root.children.len(), 3);
+
+    // Implicit BINARY should infer width from digits (4 digits → 2 bytes / 16 bits)
+    assert_eq!(root.children[0].len, 2);
+    if let FieldKind::BinaryInt { bits, .. } = &root.children[0].kind {
+        assert_eq!(*bits, 16);
+    } else {
+        panic!("Expected BinaryInt for BIN-IMPLICIT");
+    }
+
+    // Explicit BINARY(4) overrides to 4 bytes / 32 bits
+    assert_eq!(root.children[1].len, 4);
+    if let FieldKind::BinaryInt { bits, .. } = &root.children[1].kind {
+        assert_eq!(*bits, 32);
+    } else {
+        panic!("Expected BinaryInt for BIN-EXPLICIT");
+    }
+
+    // Explicit COMP(1) overrides to 1 byte / 8 bits
+    assert_eq!(root.children[2].len, 1);
+    if let FieldKind::BinaryInt { bits, .. } = &root.children[2].kind {
+        assert_eq!(*bits, 8);
+    } else {
+        panic!("Expected BinaryInt for COMP-EXPLICIT");
+    }
+}
+
+#[test]
 fn test_blank_when_zero_parsing() {
     let copybook = r#"
 01 RECORD-WITH-BWZ.

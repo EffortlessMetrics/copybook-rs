@@ -2,6 +2,12 @@
 //!
 //! This module implements the parsing logic for COBOL copybooks,
 //! including lexical analysis and AST construction.
+//!
+//! ## Comments
+//!
+//! In both free and fixed forms, COBOL-2002 inline comments `*>` are supported
+//! and stripped (outside string literals). Disable via `ParseOptions { allow_inline_comments: false }`
+//! for strict legacy parsing.
 
 use crate::error::ErrorCode;
 use crate::lexer::{Lexer, Token, TokenPos};
@@ -96,6 +102,13 @@ impl Parser {
             });
         }
         error
+    }
+
+    /// Check if a token is ignorable (can be skipped)
+    #[inline]
+    fn is_ignorable(&self, tok: &Token) -> bool {
+        matches!(tok, Token::Newline)
+            || (self.options.allow_inline_comments && matches!(tok, Token::InlineComment(_)))
     }
 
     /// Consume the tail of the current line after a terminator
@@ -1360,21 +1373,16 @@ impl Parser {
     /// Skip comments and newlines
     fn skip_comments_and_newlines(&mut self) -> Result<()> {
         while let Some(token) = self.current_token() {
-            match &token.token {
-                Token::InlineComment(_) => {
-                    if self.options.allow_inline_comments {
-                        self.advance();
-                    } else {
-                        return Err(self.err_here(
-                            ErrorCode::CBKP001_SYNTAX,
-                            "Inline comments (*>) are not allowed in strict mode",
-                        ));
-                    }
-                }
-                Token::Newline => {
-                    self.advance();
-                }
-                _ => break,
+            if self.is_ignorable(&token.token) {
+                self.advance();
+            } else if let Token::InlineComment(_) = &token.token {
+                // Handle the case where inline comments are not allowed
+                return Err(self.err_here(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Inline comments (*>) are not allowed in strict mode",
+                ));
+            } else {
+                break;
             }
         }
         Ok(())
@@ -1781,5 +1789,105 @@ mod tests {
         let schema = result.unwrap();
         assert_eq!(schema.fields.len(), 1);
         assert_eq!(schema.fields[0].name, "CUSTOMER-ID");
+    }
+
+    #[test]
+    fn test_period_then_inline_comment_is_ignored() {
+        let src = r#"
+       01 REC.
+       05 A PIC X(5). *> ignore me
+       05 B PIC X(5).
+    "#;
+        let s = parse(src).unwrap();
+        assert_eq!(s.fields.len(), 1);
+        assert_eq!(s.fields[0].children.len(), 2);
+        assert_eq!(s.fields[0].children[0].name, "A");
+        assert_eq!(s.fields[0].children[1].name, "B");
+    }
+
+    #[test]
+    fn test_inline_comment_at_col8_fixed() {
+        let src = "       *> comment only line\n       01 REC.\n";
+        assert!(parse(src).is_ok());
+        let schema = parse(src).unwrap();
+        assert_eq!(schema.fields.len(), 1);
+        assert_eq!(schema.fields[0].name, "REC");
+    }
+
+    #[test]
+    fn test_multi_hyphen_continuation_mixed() {
+        let src = r#"
+       01 VERY-LONG-FIELD-
+      - -NAME-THAT-
+      - -CONTINUES PIC X(3).
+    "#;
+        let s = parse(src).unwrap();
+        assert_eq!(s.fields.len(), 1);
+        assert_eq!(s.fields[0].name, "VERY-LONG-FIELD-NAME-THAT-CONTINUES");
+    }
+
+    #[test]
+    fn test_ci_strict_comments_mode() {
+        // This test is specifically for CI to validate strict comments mode
+        if std::env::var("COPYBOOK_TEST_STRICT_COMMENTS").is_ok() {
+            // When the CI environment variable is set, run tests that verify
+            // inline comments are properly rejected in strict mode
+            let test_cases = vec![
+                r#"01 CUSTOMER-ID PIC X(10). *> This should be rejected"#,
+                r#"01 REC.
+           05 NAME PIC X(30). *> end-of-line comment
+        "#,
+                r#"       01 REC.
+           05 A PIC X(5). *> ignore me
+           05 B PIC X(5).
+        "#,
+            ];
+
+            for (i, input) in test_cases.iter().enumerate() {
+                let options = ParseOptions {
+                    allow_inline_comments: false,
+                    ..ParseOptions::default()
+                };
+                let result = parse_with_options(input, &options);
+                assert!(
+                    result.is_err(),
+                    "Test case {} should fail in strict comments mode: {}",
+                    i,
+                    input
+                );
+                if let Err(error) = result {
+                    assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+                    assert!(
+                        error
+                            .message
+                            .contains("Inline comments (*>) are not allowed in strict mode"),
+                        "Expected strict mode error message, got: {}",
+                        error.message
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_quoted_literal_with_inline_comment_syntax() {
+        // Test that *> inside quoted literals remains literal and doesn't trigger comment parsing
+        let src = r#"
+       01 REC.
+       05 A PIC X(20) VALUE "TEXT *> not a comment". *> real comment
+    "#;
+
+        let schema = parse(src).unwrap();
+        assert_eq!(schema.fields.len(), 1);
+        assert_eq!(schema.fields[0].name, "REC");
+        assert_eq!(schema.fields[0].children.len(), 1);
+        assert_eq!(schema.fields[0].children[0].name, "A");
+
+        // The key test: parsing should succeed and the literal content is preserved
+        // The *> inside the quoted string should not be treated as a comment
+        assert!(matches!(
+            schema.fields[0].children[0].kind,
+            FieldKind::Alphanum { len: 20 }
+        ));
     }
 }

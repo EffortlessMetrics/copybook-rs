@@ -1,6 +1,6 @@
 //! Encode command implementation
 
-use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
+use crate::utils::{atomic_write, determine_exit_code, emit_fatal, read_file_or_stdin};
 use copybook_codec::{Codepage, EncodeOptions, RecordFormat};
 use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::error::Error;
@@ -40,7 +40,7 @@ pub fn run(
 
     // Parse copybook with options
     let parse_options = ParseOptions {
-        strict_comments: false,
+        strict_comments: options.strict_comments,
         strict: options.strict,
         codepage: options.codepage.to_string(),
         emit_filler: false,
@@ -90,23 +90,9 @@ pub fn run(
                 if let Some(source) = e.source()
                     && let Some(encode_error) = source.downcast_ref::<copybook_core::Error>()
                 {
-                    // This is a structured copybook error - provide detailed information
-                    eprintln!(
-                        "Encoding failed: {} - {}",
-                        encode_error.code, encode_error.message
-                    );
-                    if let Some(context) = &encode_error.context {
-                        if let Some(field_path) = &context.field_path {
-                            eprintln!("Field: {field_path}");
-                        }
-                        if let Some(record_index) = context.record_index {
-                            eprintln!("Record: {record_index}");
-                        }
-                        if let Some(byte_offset) = context.byte_offset {
-                            eprintln!("Byte offset: {byte_offset}");
-                        }
-                    }
-                    return Ok(3); // Hard error exit code
+                    // Use emit_fatal for structured copybook errors
+                    let exit_code = emit_fatal(encode_error);
+                    return Ok(exit_code);
                 }
                 // Generic I/O error
                 return Err(Box::new(e));
@@ -145,6 +131,16 @@ pub fn run(
             summary.records_with_errors
         );
         eprintln!("Use --fail-fast to stop on first error for detailed error information.");
+    }
+
+    // Check for fatal errors when fail-fast is enabled
+    if options.fail_fast && summary.has_errors() {
+        let error_msg = format!(
+            "Encoding failed with {} error(s) in fail-fast mode",
+            summary.records_with_errors
+        );
+        let exit_code = emit_fatal(&std::io::Error::other(error_msg));
+        return Ok(exit_code);
     }
 
     info!("Encode completed successfully");

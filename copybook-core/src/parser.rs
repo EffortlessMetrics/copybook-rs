@@ -29,7 +29,7 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
         return Err(Error::new(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
     }
 
-    let tokens = Lexer::new(text).tokenize();
+    let tokens = Lexer::new_with_options(text, options).tokenize();
     let mut parser = Parser::with_options(tokens, options.clone());
     parser.parse_schema()
 }
@@ -81,7 +81,7 @@ impl Parser {
     /// Parse the complete schema
     fn parse_schema(&mut self) -> Result<Schema> {
         // Skip any leading comments or empty lines
-        self.skip_comments_and_newlines();
+        self.skip_comments_and_newlines()?;
 
         // Parse all field definitions into a flat list first
         let mut flat_fields = Vec::new();
@@ -89,7 +89,7 @@ impl Parser {
             if let Some(field) = self.parse_field()? {
                 flat_fields.push(field);
             }
-            self.skip_comments_and_newlines();
+            self.skip_comments_and_newlines()?;
         }
 
         if flat_fields.is_empty() {
@@ -524,7 +524,11 @@ impl Parser {
                 self.skip_to_period();
                 return Ok(None);
             }
-            _ => return Ok(None),
+            _ => {
+                // If we encounter an unrecognized token, advance to avoid infinite loop
+                self.advance();
+                return Ok(None);
+            }
         };
 
         // Get field name
@@ -957,15 +961,25 @@ impl Parser {
     }
 
     /// Skip comments and newlines
-    fn skip_comments_and_newlines(&mut self) {
+    fn skip_comments_and_newlines(&mut self) -> Result<()> {
         while let Some(token) = self.current_token() {
             match &token.token {
-                Token::InlineComment(_) | Token::Newline => {
+                Token::InlineComment(_) => {
+                    if self.options.strict_comments {
+                        return Err(Error::new(
+                            ErrorCode::CBKP001_SYNTAX,
+                            "Inline comments (*>) are not allowed in strict mode",
+                        ));
+                    }
+                    self.advance();
+                }
+                Token::Newline => {
                     self.advance();
                 }
                 _ => break,
             }
         }
+        Ok(())
     }
 
     /// Check if current token is a keyword

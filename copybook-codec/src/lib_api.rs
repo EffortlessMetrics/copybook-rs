@@ -9,17 +9,16 @@
 //! - RecordIterator (for programmatic access)
 
 use crate::options::{DecodeOptions, EncodeOptions, RecordFormat};
+use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
-use base64::Engine;
 
 thread_local! {
     static WARNING_COUNTER: RefCell<u64> = RefCell::new(0);
 }
-
 
 /// Summary of processing run with comprehensive statistics
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -183,13 +182,13 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 
 /// Decode a record with optional raw data for RDW format
 pub fn decode_record_with_raw_data(
-    schema: &Schema, 
-    data: &[u8], 
-    options: &DecodeOptions, 
-    raw_data_with_header: Option<&[u8]>
+    schema: &Schema,
+    data: &[u8],
+    options: &DecodeOptions,
+    raw_data_with_header: Option<&[u8]>,
 ) -> Result<Value> {
-    use serde_json::Map;
     use crate::options::RawMode;
+    use serde_json::Map;
 
     let mut json_obj = Map::new();
 
@@ -247,10 +246,10 @@ fn process_fields_recursive(
 
                 // For RDW records, if this is the last field, it's alphanumeric, and there's more data available,
                 // extend the field to consume all remaining data (common COBOL pattern)
-                if options.format == RecordFormat::RDW 
-                    && field_index == fields.len() - 1 
+                if options.format == RecordFormat::RDW
+                    && field_index == fields.len() - 1
                     && matches!(field.kind, copybook_core::FieldKind::Alphanum { .. })
-                    && data.len() > field_end 
+                    && data.len() > field_end
                 {
                     field_end = data.len();
                 }
@@ -265,7 +264,7 @@ fn process_fields_recursive(
 
                 // For RDW records, allow partial fields but ensure we don't go beyond data
                 field_end = field_end.min(data.len());
-                
+
                 if field_start >= field_end {
                     continue; // Skip this field if no data available
                 }
@@ -344,40 +343,46 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             if let Some(raw_b64) = obj.get("__raw_b64") {
                 if let Some(raw_str) = raw_b64.as_str() {
                     // Decode base64 raw data
-                    let raw_data = base64::engine::general_purpose::STANDARD.decode(raw_str)
-                        .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, 
-                                                format!("Invalid base64 in __raw_b64: {}", e)))?;
-                    
+                    let raw_data = base64::engine::general_purpose::STANDARD
+                        .decode(raw_str)
+                        .map_err(|e| {
+                            Error::new(
+                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                                format!("Invalid base64 in __raw_b64: {}", e),
+                            )
+                        })?;
+
                     match options.format {
                         RecordFormat::RDW => {
                             // For RDW, we need to validate/recompute length if payload changed
                             if raw_data.len() >= 4 {
                                 let mut rdw_data = raw_data.clone();
-                                
+
                                 // Extract the payload portion (everything after 4-byte header)
                                 let payload = &rdw_data[4..];
-                                
+
                                 // Check if we need to recompute length based on field changes
                                 let mut should_recompute = false;
-                                
+
                                 // Encode the fields to see if payload changed
                                 let field_payload = encode_fields_to_bytes(schema, json, options)?;
                                 if field_payload != payload {
                                     should_recompute = true;
                                 }
-                                
+
                                 if should_recompute {
                                     // Recompute length header
-                                    let new_length = field_payload.len().min(u16::MAX as usize) as u16;
+                                    let new_length =
+                                        field_payload.len().min(u16::MAX as usize) as u16;
                                     let length_bytes = new_length.to_be_bytes();
                                     rdw_data[0] = length_bytes[0];
                                     rdw_data[1] = length_bytes[1];
                                     // Preserve reserved bytes [2] and [3]
-                                    
+
                                     // Replace payload
                                     rdw_data.splice(4.., field_payload);
                                 }
-                                
+
                                 return Ok(rdw_data);
                             }
                         }
@@ -398,7 +403,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
         }
         RecordFormat::RDW => {
             let payload = encode_fields_to_bytes(schema, json, options)?;
-            
+
             // Create RDW record
             let rdw_record = crate::record::RDWRecord::new(payload);
             let mut result = Vec::new();
@@ -410,39 +415,55 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 }
 
 /// Helper function to encode JSON fields to binary payload
-fn encode_fields_to_bytes(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
+fn encode_fields_to_bytes(
+    schema: &Schema,
+    json: &Value,
+    options: &EncodeOptions,
+) -> Result<Vec<u8>> {
     let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
         // For variable length, estimate based on schema
         schema.fields.iter().map(|f| f.len).sum::<u32>()
     }) as usize;
-    
+
     let mut buffer = vec![0u8; record_length];
-    
+
     if let Some(obj) = json.as_object() {
         encode_fields_recursive(&schema.fields, obj, &mut buffer, 0, options)?;
     }
-    
+
     Ok(buffer)
 }
 
 /// Recursively encode fields into the buffer
 fn encode_fields_recursive(
-    fields: &[copybook_core::Field], 
-    json_obj: &serde_json::Map<String, Value>, 
-    buffer: &mut [u8], 
-    offset: usize, 
-    options: &EncodeOptions
+    fields: &[copybook_core::Field],
+    json_obj: &serde_json::Map<String, Value>,
+    buffer: &mut [u8],
+    offset: usize,
+    options: &EncodeOptions,
 ) -> Result<usize> {
     let mut current_offset = offset;
-    
+
     for field in fields {
         match &field.kind {
             copybook_core::FieldKind::Group => {
                 // Recursively encode group fields
                 if let Some(sub_obj) = json_obj.get(&field.name).and_then(|v| v.as_object()) {
-                    current_offset = encode_fields_recursive(&field.children, sub_obj, buffer, current_offset, options)?;
+                    current_offset = encode_fields_recursive(
+                        &field.children,
+                        sub_obj,
+                        buffer,
+                        current_offset,
+                        options,
+                    )?;
                 } else {
-                    current_offset = encode_fields_recursive(&field.children, json_obj, buffer, current_offset, options)?;
+                    current_offset = encode_fields_recursive(
+                        &field.children,
+                        json_obj,
+                        buffer,
+                        current_offset,
+                        options,
+                    )?;
                 }
             }
             copybook_core::FieldKind::Alphanum { .. } => {
@@ -451,9 +472,10 @@ fn encode_fields_recursive(
                         let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
                         let field_len = field.len as usize;
                         let copy_len = bytes.len().min(field_len);
-                        
+
                         if current_offset + field_len <= buffer.len() {
-                            buffer[current_offset..current_offset + copy_len].copy_from_slice(&bytes[..copy_len]);
+                            buffer[current_offset..current_offset + copy_len]
+                                .copy_from_slice(&bytes[..copy_len]);
                             // Pad with spaces if needed
                             for i in copy_len..field_len {
                                 buffer[current_offset + i] = b' ';
@@ -463,25 +485,44 @@ fn encode_fields_recursive(
                 }
                 current_offset += field.len as usize;
             }
-            copybook_core::FieldKind::ZonedDecimal { digits, scale, signed } => {
+            copybook_core::FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 if let Some(value) = json_obj.get(&field.name) {
                     if let Some(text) = value.as_str() {
-                        let encoded = crate::numeric::encode_zoned_decimal(text, *digits, *scale, *signed, options.codepage)?;
+                        let encoded = crate::numeric::encode_zoned_decimal(
+                            text,
+                            *digits,
+                            *scale,
+                            *signed,
+                            options.codepage,
+                        )?;
                         let field_len = field.len as usize;
-                        if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
-                            buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
+                        if current_offset + field_len <= buffer.len() && encoded.len() == field_len
+                        {
+                            buffer[current_offset..current_offset + field_len]
+                                .copy_from_slice(&encoded);
                         }
                     }
                 }
                 current_offset += field.len as usize;
             }
-            copybook_core::FieldKind::PackedDecimal { digits, scale, signed } => {
+            copybook_core::FieldKind::PackedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 if let Some(value) = json_obj.get(&field.name) {
                     if let Some(text) = value.as_str() {
-                        let encoded = crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
+                        let encoded =
+                            crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
                         let field_len = field.len as usize;
-                        if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
-                            buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
+                        if current_offset + field_len <= buffer.len() && encoded.len() == field_len
+                        {
+                            buffer[current_offset..current_offset + field_len]
+                                .copy_from_slice(&encoded);
                         }
                     }
                 }
@@ -493,8 +534,11 @@ fn encode_fields_recursive(
                         if let Ok(num) = text.parse::<i64>() {
                             let encoded = crate::numeric::encode_binary_int(num, *bits, *signed)?;
                             let field_len = field.len as usize;
-                            if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
-                                buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
+                            if current_offset + field_len <= buffer.len()
+                                && encoded.len() == field_len
+                            {
+                                buffer[current_offset..current_offset + field_len]
+                                    .copy_from_slice(&encoded);
                             }
                         }
                     }
@@ -503,7 +547,7 @@ fn encode_fields_recursive(
             }
         }
     }
-    
+
     Ok(current_offset)
 }
 
@@ -585,7 +629,7 @@ pub fn decode_file_to_jsonl(
                                 schema_lrecl
                             ),
                         );
-                        
+
                         summary.records_with_errors += 1;
                         if options.strict_mode {
                             return Err(error);
@@ -596,20 +640,21 @@ pub fn decode_file_to_jsonl(
                 }
 
                 // For RDW records, we need to provide the full raw data including header
-                let full_raw_data = if matches!(options.emit_raw, crate::options::RawMode::RecordRDW) {
-                    let mut full_data = Vec::new();
-                    full_data.extend_from_slice(&rdw_record.header);
-                    full_data.extend_from_slice(&rdw_record.payload);
-                    Some(full_data)
-                } else {
-                    None
-                };
+                let full_raw_data =
+                    if matches!(options.emit_raw, crate::options::RawMode::RecordRDW) {
+                        let mut full_data = Vec::new();
+                        full_data.extend_from_slice(&rdw_record.header);
+                        full_data.extend_from_slice(&rdw_record.payload);
+                        Some(full_data)
+                    } else {
+                        None
+                    };
 
                 match decode_record_with_raw_data(
-                    schema, 
-                    &rdw_record.payload, 
-                    options, 
-                    full_raw_data.as_deref()
+                    schema,
+                    &rdw_record.payload,
+                    options,
+                    full_raw_data.as_deref(),
                 ) {
                     Ok(json_value) => {
                         serde_json::to_writer(&mut output, &json_value).map_err(|e| {

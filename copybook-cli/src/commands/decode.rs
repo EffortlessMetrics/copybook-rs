@@ -38,7 +38,8 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
     let copybook_text = read_file_or_stdin(args.copybook)?;
 
     // Parse copybook with options
-    let parse_options = ParseOptions { strict_comments: false,
+    let parse_options = ParseOptions {
+        strict_comments: false,
         strict: args.strict,
         codepage: args.codepage.to_string(),
         emit_filler: args.emit_filler,

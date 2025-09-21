@@ -36,6 +36,7 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
 
 /// Options for parsing behavior
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ParseOptions {
     /// Whether to emit FILLER fields in output
     pub emit_filler: bool,
@@ -971,8 +972,16 @@ impl Parser {
     fn is_keyword(&self) -> bool {
         matches!(
             self.current_token().map(|t| &t.token),
-            Some(Token::Pic | Token::Usage | Token::Redefines | Token::Occurs |
-                 Token::Synchronized | Token::Value | Token::Blank | Token::Sign)
+            Some(
+                Token::Pic
+                    | Token::Usage
+                    | Token::Redefines
+                    | Token::Occurs
+                    | Token::Synchronized
+                    | Token::Value
+                    | Token::Blank
+                    | Token::Sign
+            )
         )
     }
 

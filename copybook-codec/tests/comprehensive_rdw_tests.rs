@@ -354,7 +354,7 @@ fn test_rdw_with_odo_variable_length() {
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
     assert_eq!(json_record["COUNTER"], "03");
-    
+
     // TODO: ODO array processing is not working correctly in simple decode_record
     // The VARIABLE-ARRAY should be ["ABC", "DEF", "GHI"] but is "ABCDEFGHI"
     // This is a complex feature that needs proper ODO implementation

@@ -150,12 +150,13 @@ impl<R: Read> FixedRecordReader<R> {
 
         // If schema has a fixed LRECL, validate against it
         if let Some(schema_lrecl) = schema.lrecl_fixed
-            && self.lrecl != schema_lrecl {
-                warn!(
-                    "LRECL mismatch: reader configured for {}, schema expects {}",
-                    self.lrecl, schema_lrecl
-                );
-            }
+            && self.lrecl != schema_lrecl
+        {
+            warn!(
+                "LRECL mismatch: reader configured for {}, schema expects {}",
+                self.lrecl, schema_lrecl
+            );
+        }
 
         // For ODO tail records, the actual record might be shorter than LRECL
         if schema.tail_odo.is_some() {
@@ -374,13 +375,21 @@ impl<R: Read> RDWRecordReader<R> {
 
                 // Check for ASCII transfer corruption heuristic
                 if Self::is_suspect_ascii_corruption(rdw_header) {
-                    warn!("RDW appears to be ASCII-corrupted (record {}): {:02X} {:02X} {:02X} {:02X}", 
-                          self.record_count, rdw_header[0], rdw_header[1], rdw_header[2], rdw_header[3]);
+                    warn!(
+                        "RDW appears to be ASCII-corrupted (record {}): {:02X} {:02X} {:02X} {:02X}",
+                        self.record_count,
+                        rdw_header[0],
+                        rdw_header[1],
+                        rdw_header[2],
+                        rdw_header[3]
+                    );
                     // For ASCII corruption, return an error instead of just warning
                     return Err(Error::new(
                         ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                        format!("RDW appears to be ASCII-corrupted: {:02X} {:02X} {:02X} {:02X}", 
-                               rdw_header[0], rdw_header[1], rdw_header[2], rdw_header[3]),
+                        format!(
+                            "RDW appears to be ASCII-corrupted: {:02X} {:02X} {:02X} {:02X}",
+                            rdw_header[0], rdw_header[1], rdw_header[2], rdw_header[3]
+                        ),
                     )
                     .with_context(ErrorContext {
                         record_index: Some(self.record_count),

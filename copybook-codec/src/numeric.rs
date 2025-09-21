@@ -388,33 +388,38 @@ pub fn decode_packed_decimal(
     }
 
     let mut value = 0i64;
-    let mut digit_count = 0;
 
-    // Process all bytes except the last one (which contains the sign)
+    // Process all bytes to extract digits and sign
     for (byte_idx, &byte) in data.iter().enumerate() {
         let high_nibble = (byte >> 4) & 0x0F;
         let low_nibble = byte & 0x0F;
 
-        // Process high nibble (always a digit except possibly in last byte)
-        if byte_idx == data.len() - 1 && digits % 2 == 0 {
-            // Last byte, even number of digits - high nibble is sign
-            if signed {
-                let is_negative = match high_nibble {
-                    0xA | 0xC | 0xE | 0xF => false, // Positive
-                    0xB | 0xD => true,              // Negative
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{high_nibble:X} in packed decimal"),
-                        ));
-                    }
-                };
-                let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
-                return Ok(decimal);
+        // Process high nibble
+        if byte_idx == data.len() - 1 {
+            // Last byte - for even number of digits, high nibble should be 0 (unused)
+            // For odd number of digits, high nibble contains the last digit
+            if digits.is_multiple_of(2) {
+                // Even digits: high nibble should be 0
+                if high_nibble != 0 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!(
+                            "Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"
+                        ),
+                    ));
+                }
+            } else {
+                // Odd digits: high nibble is the last digit
+                if high_nibble > 9 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                    ));
+                }
+                value = value * 10 + i64::from(high_nibble);
             }
         } else {
-            // High nibble is a digit
+            // Not last byte - high nibble is always a digit
             if high_nibble > 9 {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -422,7 +427,6 @@ pub fn decode_packed_decimal(
                 ));
             }
             value = value * 10 + i64::from(high_nibble);
-            digit_count += 1;
         }
 
         // Process low nibble
@@ -460,12 +464,9 @@ pub fn decode_packed_decimal(
                 ));
             }
             value = value * 10 + i64::from(low_nibble);
-            digit_count += 1;
         }
 
-        if digit_count >= digits {
-            break;
-        }
+        // Note: Continue processing all bytes to reach the sign in the last byte
     }
 
     // If we get here without returning, it's unsigned
@@ -654,19 +655,13 @@ pub fn encode_packed_decimal(
         let mut byte_val = 0u8;
 
         // High nibble
-        if byte_idx == expected_bytes - 1 && digits % 2 == 0 {
-            // Last byte, even digits - high nibble is sign
-            byte_val |= if signed {
-                if decimal.negative { 0xD0 } else { 0xC0 }
-            } else {
-                0xF0
-            };
-        } else if digit_idx < digit_bytes.len() {
+        if digit_idx < digit_bytes.len() {
             // High nibble is a digit
             let digit = digit_bytes[digit_idx] - b'0';
             byte_val |= digit << 4;
             digit_idx += 1;
         }
+        // Note: For odd number of digits, the first byte will have 0 in high nibble
 
         // Low nibble
         if byte_idx == expected_bytes - 1 {
@@ -1055,7 +1050,7 @@ pub fn decode_packed_decimal_with_scratch(
                 let low_nibble = byte & 0x0F;
 
                 // Process high nibble
-                if byte_idx == data.len() - 1 && digits % 2 == 0 {
+                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
                     // Last byte, even digits - high nibble is sign
                     if signed {
                         let is_negative = match high_nibble {
@@ -1129,7 +1124,7 @@ pub fn decode_packed_decimal_with_scratch(
                 let low_nibble = byte & 0x0F;
 
                 // Process high nibble
-                if byte_idx == data.len() - 1 && digits % 2 == 0 {
+                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
                     // Last byte, even digits - high nibble is sign
                     if signed {
                         let is_negative = match high_nibble {
@@ -1355,6 +1350,24 @@ mod tests {
         let data = vec![0x12, 0x3D];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
         assert_eq!(result.to_string(), "-123");
+
+        // Test the failing case from property tests: -11 (2 digits)
+        // Test that round-trip encoding/decoding preserves the sign
+        let encoded = encode_packed_decimal("-11", 2, 0, true).unwrap();
+        let result = decode_packed_decimal(&encoded, 2, 0, true).unwrap();
+        assert_eq!(
+            result.to_string(),
+            "-11",
+            "Failed to round-trip -11 correctly"
+        );
+
+        // Test that the old buggy format is now rejected
+        let data = vec![0x11, 0xDD]; // Invalid format with sign in both nibbles
+        let result = decode_packed_decimal(&data, 2, 0, true);
+        assert!(
+            result.is_err(),
+            "Should reject invalid format with sign in both nibbles"
+        );
     }
 
     #[test]

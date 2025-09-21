@@ -338,59 +338,56 @@ fn process_fields_recursive(
 /// Returns an error if the JSON data cannot be encoded according to the schema
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
     // Check if we should use raw data
-    if options.use_raw {
-        if let Some(obj) = json.as_object() {
-            if let Some(raw_b64) = obj.get("__raw_b64") {
-                if let Some(raw_str) = raw_b64.as_str() {
-                    // Decode base64 raw data
-                    let raw_data = base64::engine::general_purpose::STANDARD
-                        .decode(raw_str)
-                        .map_err(|e| {
-                            Error::new(
-                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                format!("Invalid base64 in __raw_b64: {}", e),
-                            )
-                        })?;
+    if options.use_raw
+        && let Some(obj) = json.as_object()
+        && let Some(raw_b64) = obj.get("__raw_b64")
+        && let Some(raw_str) = raw_b64.as_str()
+    {
+        // Decode base64 raw data
+        let raw_data = base64::engine::general_purpose::STANDARD
+            .decode(raw_str)
+            .map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!("Invalid base64 in __raw_b64: {}", e),
+                )
+            })?;
 
-                    match options.format {
-                        RecordFormat::RDW => {
-                            // For RDW, we need to validate/recompute length if payload changed
-                            if raw_data.len() >= 4 {
-                                let mut rdw_data = raw_data.clone();
+        match options.format {
+            RecordFormat::RDW => {
+                // For RDW, we need to validate/recompute length if payload changed
+                if raw_data.len() >= 4 {
+                    let mut rdw_record = raw_data.clone();
 
-                                // Extract the payload portion (everything after 4-byte header)
-                                let payload = &rdw_data[4..];
+                    // Extract the payload portion (everything after 4-byte header)
+                    let payload = &rdw_record[4..];
 
-                                // Check if we need to recompute length based on field changes
-                                let mut should_recompute = false;
+                    // Check if we need to recompute length based on field changes
+                    let mut should_recompute = false;
 
-                                // Encode the fields to see if payload changed
-                                let field_payload = encode_fields_to_bytes(schema, json, options)?;
-                                if field_payload != payload {
-                                    should_recompute = true;
-                                }
-
-                                if should_recompute {
-                                    // Recompute length header
-                                    let new_length =
-                                        field_payload.len().min(u16::MAX as usize) as u16;
-                                    let length_bytes = new_length.to_be_bytes();
-                                    rdw_data[0] = length_bytes[0];
-                                    rdw_data[1] = length_bytes[1];
-                                    // Preserve reserved bytes [2] and [3]
-
-                                    // Replace payload
-                                    rdw_data.splice(4.., field_payload);
-                                }
-
-                                return Ok(rdw_data);
-                            }
-                        }
-                        RecordFormat::Fixed => {
-                            return Ok(raw_data);
-                        }
+                    // Encode the fields to see if payload changed
+                    let field_payload = encode_fields_to_bytes(schema, json, options)?;
+                    if field_payload != payload {
+                        should_recompute = true;
                     }
+
+                    if should_recompute {
+                        // Recompute length header
+                        let new_length = field_payload.len().min(u16::MAX as usize) as u16;
+                        let length_bytes = new_length.to_be_bytes();
+                        rdw_record[0] = length_bytes[0];
+                        rdw_record[1] = length_bytes[1];
+                        // Preserve reserved bytes [2] and [3]
+
+                        // Replace payload
+                        rdw_record.splice(4.., field_payload);
+                    }
+
+                    return Ok(rdw_record);
                 }
+            }
+            RecordFormat::Fixed => {
+                return Ok(raw_data);
             }
         }
     }
@@ -467,19 +464,19 @@ fn encode_fields_recursive(
                 }
             }
             copybook_core::FieldKind::Alphanum { .. } => {
-                if let Some(value) = json_obj.get(&field.name) {
-                    if let Some(text) = value.as_str() {
-                        let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
-                        let field_len = field.len as usize;
-                        let copy_len = bytes.len().min(field_len);
+                if let Some(value) = json_obj.get(&field.name)
+                    && let Some(text) = value.as_str()
+                {
+                    let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
+                    let field_len = field.len as usize;
+                    let copy_len = bytes.len().min(field_len);
 
-                        if current_offset + field_len <= buffer.len() {
-                            buffer[current_offset..current_offset + copy_len]
-                                .copy_from_slice(&bytes[..copy_len]);
-                            // Pad with spaces if needed
-                            for i in copy_len..field_len {
-                                buffer[current_offset + i] = b' ';
-                            }
+                    if current_offset + field_len <= buffer.len() {
+                        buffer[current_offset..current_offset + copy_len]
+                            .copy_from_slice(&bytes[..copy_len]);
+                        // Pad with spaces if needed
+                        for i in copy_len..field_len {
+                            buffer[current_offset + i] = b' ';
                         }
                     }
                 }
@@ -490,21 +487,20 @@ fn encode_fields_recursive(
                 scale,
                 signed,
             } => {
-                if let Some(value) = json_obj.get(&field.name) {
-                    if let Some(text) = value.as_str() {
-                        let encoded = crate::numeric::encode_zoned_decimal(
-                            text,
-                            *digits,
-                            *scale,
-                            *signed,
-                            options.codepage,
-                        )?;
-                        let field_len = field.len as usize;
-                        if current_offset + field_len <= buffer.len() && encoded.len() == field_len
-                        {
-                            buffer[current_offset..current_offset + field_len]
-                                .copy_from_slice(&encoded);
-                        }
+                if let Some(value) = json_obj.get(&field.name)
+                    && let Some(text) = value.as_str()
+                {
+                    let encoded = crate::numeric::encode_zoned_decimal(
+                        text,
+                        *digits,
+                        *scale,
+                        *signed,
+                        options.codepage,
+                    )?;
+                    let field_len = field.len as usize;
+                    if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
+                        buffer[current_offset..current_offset + field_len]
+                            .copy_from_slice(&encoded);
                     }
                 }
                 current_offset += field.len as usize;
@@ -514,33 +510,29 @@ fn encode_fields_recursive(
                 scale,
                 signed,
             } => {
-                if let Some(value) = json_obj.get(&field.name) {
-                    if let Some(text) = value.as_str() {
-                        let encoded =
-                            crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
-                        let field_len = field.len as usize;
-                        if current_offset + field_len <= buffer.len() && encoded.len() == field_len
-                        {
-                            buffer[current_offset..current_offset + field_len]
-                                .copy_from_slice(&encoded);
-                        }
+                if let Some(value) = json_obj.get(&field.name)
+                    && let Some(text) = value.as_str()
+                {
+                    let encoded =
+                        crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
+                    let field_len = field.len as usize;
+                    if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
+                        buffer[current_offset..current_offset + field_len]
+                            .copy_from_slice(&encoded);
                     }
                 }
                 current_offset += field.len as usize;
             }
             copybook_core::FieldKind::BinaryInt { bits, signed } => {
-                if let Some(value) = json_obj.get(&field.name) {
-                    if let Some(text) = value.as_str() {
-                        if let Ok(num) = text.parse::<i64>() {
-                            let encoded = crate::numeric::encode_binary_int(num, *bits, *signed)?;
-                            let field_len = field.len as usize;
-                            if current_offset + field_len <= buffer.len()
-                                && encoded.len() == field_len
-                            {
-                                buffer[current_offset..current_offset + field_len]
-                                    .copy_from_slice(&encoded);
-                            }
-                        }
+                if let Some(value) = json_obj.get(&field.name)
+                    && let Some(text) = value.as_str()
+                    && let Ok(num) = text.parse::<i64>()
+                {
+                    let encoded = crate::numeric::encode_binary_int(num, *bits, *signed)?;
+                    let field_len = field.len as usize;
+                    if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
+                        buffer[current_offset..current_offset + field_len]
+                            .copy_from_slice(&encoded);
                     }
                 }
                 current_offset += field.len as usize;
@@ -619,23 +611,23 @@ pub fn decode_file_to_jsonl(
                 summary.bytes_processed += rdw_record.payload.len() as u64;
 
                 // Validate RDW payload length against schema requirements
-                if let Some(schema_lrecl) = schema.lrecl_fixed {
-                    if rdw_record.payload.len() < schema_lrecl as usize {
-                        let error = Error::new(
-                            ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!(
-                                "RDW payload too short: {} bytes, schema requires {} bytes",
-                                rdw_record.payload.len(),
-                                schema_lrecl
-                            ),
-                        );
+                if let Some(schema_lrecl) = schema.lrecl_fixed
+                    && rdw_record.payload.len() < schema_lrecl as usize
+                {
+                    let error = Error::new(
+                        ErrorCode::CBKR221_RDW_UNDERFLOW,
+                        format!(
+                            "RDW payload too short: {} bytes, schema requires {} bytes",
+                            rdw_record.payload.len(),
+                            schema_lrecl
+                        ),
+                    );
 
-                        summary.records_with_errors += 1;
-                        if options.strict_mode {
-                            return Err(error);
-                        } else {
-                            continue; // Skip this record in lenient mode
-                        }
+                    summary.records_with_errors += 1;
+                    if options.strict_mode {
+                        return Err(error);
+                    } else {
+                        continue; // Skip this record in lenient mode
                     }
                 }
 

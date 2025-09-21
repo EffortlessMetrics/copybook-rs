@@ -36,7 +36,7 @@ impl PicClause {
         if is_edited_pic(pic_str) {
             return Err(Error::new(
                 ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                format!("Edited PIC clause not supported: {}", pic_str),
+                format!("edited PIC clause not supported: {}", pic_str),
             ));
         }
 

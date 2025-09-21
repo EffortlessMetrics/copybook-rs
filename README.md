@@ -186,6 +186,12 @@ copybook decode schema.cpy data.bin \
 copybook encode schema.cpy data.jsonl \
   --bwz-encode on \         # emit spaces for zero values
   --output data.bin
+
+# Error handling options for encoding
+copybook encode schema.cpy data.jsonl \
+  --output data.bin \
+  --fail-fast \             # stop on first error (default: true)
+  --max-errors 10          # or allow up to N errors before stopping
 ```
 
 ### Performance and Parallel Processing
@@ -456,7 +462,6 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 
 ### Data Types
 - **Alphanumeric**: `PIC X(n)` - Character data with EBCDIC/ASCII conversion
-<<<<<<< HEAD
 - **Zoned Decimal**: `PIC 9(n)V9(m)`, `PIC S9(n)V9(m)` - Display numeric with EBCDIC/ASCII sign zones
   - **EBCDIC Overpunch**: Zone nibbles (C/F = positive, D = negative) in sign position
   - **ASCII Overpunch**: Special characters in sign position (A-I = +1 to +9, } = +0, J-R = -1 to -9)
@@ -504,12 +509,8 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKS302_ODO_RAISED`: ODO counter below minimum (strict: fatal, lenient: warning with clamping)
 
 ### Data Errors (CBKD*)
-<<<<<<< HEAD
 - `CBKD101_INVALID_FIELD_TYPE`: Invalid field type for operation
-- `CBKD301_RECORD_TOO_SHORT`: Record too short for field
-=======
 - `CBKD301_RECORD_TOO_SHORT`: Record truncated or too short for field data
->>>>>>> 402010d (docs: update Diátaxis documentation for PR #8 truncated record handling)
 - `CBKD401_COMP3_INVALID_NIBBLE`: Invalid packed decimal data
 - `CBKD411_ZONED_BAD_SIGN`: Invalid zoned decimal sign or ASCII overpunch
 - `CBKD412_ZONED_BLANK_IS_ZERO`: BLANK WHEN ZERO field decoded as zero

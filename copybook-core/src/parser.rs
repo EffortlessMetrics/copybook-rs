@@ -41,6 +41,12 @@ pub struct ParseOptions {
     pub emit_filler: bool,
     /// Codepage for fingerprint calculation
     pub codepage: String,
+    /// Whether to allow inline comments (*>)
+    pub allow_inline_comments: bool,
+    /// Whether to run in strict mode (more error intolerance)
+    pub strict: bool,
+    /// Whether to enforce strict comment parsing rules
+    pub strict_comments: bool,
 }
 
 impl Default for ParseOptions {
@@ -48,6 +54,9 @@ impl Default for ParseOptions {
         Self {
             emit_filler: false,
             codepage: "cp037".to_string(),
+            allow_inline_comments: true,
+            strict: false,
+            strict_comments: false,
         }
     }
 }

@@ -487,7 +487,7 @@ fn process_free_form_line<'a>(
     }
 
     // Handle inline comments (*> anywhere) based on options
-    let content = if options.allow_inline_comments {
+    let content = if options.allow_inline_comments && !options.strict_comments {
         // Strip inline comments when allowed
         if let Some(comment_pos) = line.find("*>") {
             line[..comment_pos].trim_end()

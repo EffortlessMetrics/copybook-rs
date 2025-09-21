@@ -290,9 +290,11 @@ impl ErrorReporter {
             | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
 
             // Schema errors can be fatal or errors depending on context
-            ErrorCode::CBKS121_COUNTER_NOT_FOUND | ErrorCode::CBKS141_RECORD_TOO_LARGE => {
-                ErrorSeverity::Fatal
-            }
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND
+            | ErrorCode::CBKS141_RECORD_TOO_LARGE
+            | ErrorCode::CBKE505_SCALE_MISMATCH
+            | ErrorCode::CBKE510_NUMERIC_OVERFLOW
+            | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => ErrorSeverity::Fatal,
 
             // ODO clipping is a warning in lenient mode, error in strict mode
             ErrorCode::CBKS301_ODO_CLIPPED | ErrorCode::CBKS302_ODO_RAISED => {

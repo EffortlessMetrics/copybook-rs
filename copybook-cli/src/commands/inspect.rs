@@ -22,7 +22,7 @@ pub fn run(
     let copybook_text = read_file_or_stdin(copybook)?;
 
     // Parse copybook with options
-    let options = ParseOptions {
+    let options = ParseOptions { strict_comments: false,
         strict,
         codepage: codepage.to_string(),
         emit_filler: false,

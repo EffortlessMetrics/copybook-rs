@@ -19,6 +19,7 @@ pub struct DecodeArgs<'a> {
     pub json_number: JsonNumberMode,
     pub strict: bool,
     pub max_errors: Option<u64>,
+    pub fail_fast: bool,
     pub emit_filler: bool,
     pub emit_meta: bool,
     pub emit_raw: RawMode,
@@ -39,6 +40,7 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
 
     // Parse copybook with options
     let parse_options = ParseOptions {
+        strict_comments: false,
         strict: args.strict,
         codepage: args.codepage.to_string(),
         emit_filler: args.emit_filler,
@@ -46,7 +48,14 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
     };
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
-    // Configure decode options
+    // Configure decode options - use strict mode when fail_fast is enabled
+    let effective_strict_mode = args.strict || args.fail_fast;
+    let effective_max_errors = if args.fail_fast {
+        Some(1)
+    } else {
+        args.max_errors
+    };
+
     let options = DecodeOptions {
         format: args.format,
         codepage: args.codepage,
@@ -54,8 +63,8 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
         emit_filler: args.emit_filler,
         emit_meta: args.emit_meta,
         emit_raw: args.emit_raw,
-        strict_mode: args.strict,
-        max_errors: args.max_errors,
+        strict_mode: effective_strict_mode,
+        max_errors: effective_max_errors,
         on_decode_unmappable: args.on_decode_unmappable,
         threads: args.threads,
     };

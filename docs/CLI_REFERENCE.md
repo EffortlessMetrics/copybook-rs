@@ -165,7 +165,8 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 - `--bwz-encode` - Encode zero values as spaces for BLANK WHEN ZERO fields
 
 **Error Handling:**
-- `--strict` - Stop on first error (default: lenient)
+- `--fail-fast` - Stop on first error (default: true)
+- `--strict` - Enable strict mode validation
 - `--max-errors <N>` - Maximum errors before stopping
 - `--verbose` - Verbose error reporting
 

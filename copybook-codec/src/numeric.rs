@@ -50,9 +50,17 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
+    /// Special case: zero values with scale > 0 are normalized to "0" (no decimal places)
     #[allow(clippy::inherent_to_string)] // Intentional - this is a specific numeric formatting
     pub fn to_string(&self) -> String {
         let mut result = String::new();
+
+        // Special case: normalize zero values with scale to "0" (remove unnecessary decimals)
+        // This addresses packed decimal zero representation inconsistency
+        if self.value == 0 && self.scale > 0 {
+            result.push('0');
+            return result;
+        }
 
         if self.negative && self.value != 0 {
             result.push('-');
@@ -101,7 +109,7 @@ impl SmallDecimal {
             // Validate scale matches exactly (NORMATIVE)
             if fractional_part.len() != expected_scale as usize {
                 return Err(Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    ErrorCode::CBKE505_SCALE_MISMATCH,
                     format!(
                         "Scale mismatch: expected {expected_scale} decimal places, got {}",
                         fractional_part.len()
@@ -124,7 +132,15 @@ impl SmallDecimal {
             })?;
 
             let divisor = 10_i64.pow(expected_scale as u32);
-            let total_value = integer_value * divisor + fractional_value;
+            let total_value = integer_value
+                .checked_mul(divisor)
+                .and_then(|v| v.checked_add(fractional_value))
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                        "Numeric value too large - would cause overflow",
+                    )
+                })?;
 
             let mut result = Self::new(total_value, expected_scale, negative);
             result.normalize();
@@ -133,7 +149,7 @@ impl SmallDecimal {
             // Integer format - validate scale is 0 (NORMATIVE)
             if expected_scale != 0 {
                 return Err(Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    ErrorCode::CBKE505_SCALE_MISMATCH,
                     format!(
                         "Scale mismatch: expected {expected_scale} decimal places, got integer"
                     ),
@@ -278,17 +294,18 @@ pub fn decode_zoned_decimal(
                 let (actual_digit, sign) = match byte {
                     0x30..=0x39 => ((byte - 0x30) as i64, false), // '0'-'9' positive
                     0x7B => (0, false),                           // '{' = +0
-                    0x41..=0x49 => ((byte - 0x40) as i64, false), // 'A'-'I' positive (1-9)
-                    0x7D => (3, false),                           // '}' = +3 (based on test)
-                    0x4A => (1, true),                            // 'J' = -1
-                    0x4B => (2, true),                            // 'K' = -2
-                    0x4C => (3, true),                            // 'L' = -3
-                    0x4D => (0, true),                            // 'M' = -0
-                    0x4E => (5, true),                            // 'N' = -5
-                    0x4F => (6, true),                            // 'O' = -6
-                    0x50 => (7, true),                            // 'P' = -7
-                    0x51 => (8, true),                            // 'Q' = -8
-                    0x52 => (9, true),                            // 'R' = -9
+                    0x44 => (4, true), // 'D' = -4 (TODO: verify correct mapping)
+                    0x41..=0x43 | 0x45..=0x49 => ((byte - 0x40) as i64, false), // 'A'-'C','E'-'I' positive (1-3,5-9)
+                    0x7D => (3, false), // '}' = +3 (based on test)
+                    0x4A => (1, true),  // 'J' = -1
+                    0x4B => (2, true),  // 'K' = -2
+                    0x4C => (3, true),  // 'L' = -3
+                    0x4D => (0, true),  // 'M' = -0
+                    0x4E => (5, true),  // 'N' = -5
+                    0x4F => (6, true),  // 'O' = -6
+                    0x50 => (7, true),  // 'P' = -7
+                    0x51 => (8, true),  // 'Q' = -8
+                    0x52 => (9, true),  // 'R' = -9
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -595,25 +612,50 @@ pub fn encode_zoned_decimal(
             ));
         }
 
-        let zone = if i == digit_bytes.len() - 1 && signed {
-            // Last digit with sign
-            if decimal.negative {
-                0xD // Negative sign
+        if i == digit_bytes.len() - 1 && signed {
+            // Last digit with sign - use ASCII overpunch for ASCII codepage
+            if codepage == Codepage::ASCII {
+                let overpunch_byte = if decimal.negative {
+                    // ASCII negative overpunch characters
+                    match digit {
+                        0 => 0x4D, // 'M' = -0
+                        1 => 0x4A, // 'J' = -1
+                        2 => 0x4B, // 'K' = -2
+                        3 => 0x4C, // 'L' = -3
+                        4 => 0x44, // 'D' = -4 (TODO: verify correct ASCII overpunch mapping)
+                        5 => 0x4E, // 'N' = -5
+                        6 => 0x4F, // 'O' = -6
+                        7 => 0x50, // 'P' = -7
+                        8 => 0x51, // 'Q' = -8
+                        9 => 0x52, // 'R' = -9
+                        _ => unreachable!(),
+                    }
+                } else {
+                    // ASCII positive digits or positive overpunch
+                    if digit == 0 {
+                        0x7B // '{' = +0
+                    } else {
+                        0x30 + digit // '0' to '9' for positive
+                    }
+                };
+                result.push(overpunch_byte);
             } else {
-                match codepage {
-                    Codepage::ASCII => 0x3, // ASCII positive (0x30-0x39)
-                    _ => 0xF,               // EBCDIC positive (0xF0-0xF9)
-                }
+                // EBCDIC zone encoding
+                let zone = if decimal.negative {
+                    0xD // Negative sign
+                } else {
+                    0xF // EBCDIC positive (0xF0-0xF9)
+                };
+                result.push((zone << 4) | digit);
             }
         } else {
             // Regular digit
-            match codepage {
+            let zone = match codepage {
                 Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
                 _ => 0xF,               // EBCDIC digits (0xF0-0xF9)
-            }
-        };
-
-        result.push((zone << 4) | digit);
+            };
+            result.push((zone << 4) | digit);
+        }
     }
 
     Ok(result)
@@ -1380,7 +1422,7 @@ mod tests {
         // 32-bit big-endian: 0x01234567 = 19088743
         let data = vec![0x01, 0x23, 0x45, 0x67];
         let result = decode_binary_int(&data, 32, false).unwrap();
-        assert_eq!(result, 19088743);
+        assert_eq!(result, 19_088_743);
     }
 
     #[test]

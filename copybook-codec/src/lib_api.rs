@@ -293,7 +293,13 @@ fn process_fields_recursive(
                             options.codepage,
                             field.blank_when_zero,
                         )?;
-                        Value::String(decimal.to_string())
+                        // Use proper digit formatting for integer zoned decimals
+                        let formatted = if *scale == 0 {
+                            format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+                        } else {
+                            decimal.to_string()
+                        };
+                        Value::String(formatted)
                     }
                     FieldKind::BinaryInt { bits, signed } => {
                         let int_value =
@@ -853,15 +859,17 @@ mod tests {
 
     #[test]
     fn test_decode_record() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
-        let mut options = DecodeOptions::default();
-        options.codepage = Codepage::ASCII; // Fix: Use ASCII for ASCII test data
+        let options = DecodeOptions {
+            codepage: Codepage::ASCII, // Fix: Use ASCII for ASCII test data
+            ..DecodeOptions::default()
+        };
         let data = b"001ALICE";
 
         let result = decode_record(&schema, data, &options).unwrap();
@@ -873,11 +881,11 @@ mod tests {
 
     #[test]
     fn test_encode_record() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = EncodeOptions::default();
@@ -896,11 +904,11 @@ mod tests {
 
     #[test]
     fn test_record_iterator() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = DecodeOptions::default();
@@ -916,15 +924,17 @@ mod tests {
 
     #[test]
     fn test_decode_file_to_jsonl() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
-        let mut options = DecodeOptions::default();
-        options.codepage = Codepage::ASCII; // Fix: Use ASCII for ASCII test data
+        let options = DecodeOptions {
+            codepage: Codepage::ASCII, // Fix: Use ASCII for ASCII test data
+            ..DecodeOptions::default()
+        };
 
         // Create test input with valid ASCII digits and characters
         let input_data = b"001ALICE002BOBBY".to_vec(); // Two 8-byte records with valid data
@@ -940,18 +950,17 @@ mod tests {
 
     #[test]
     fn test_encode_jsonl_to_file() {
-        let copybook_text = r#"
+        let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook_text).unwrap();
         let options = EncodeOptions::default();
 
         // Create test JSONL input
-        let jsonl_data = r#"{"__status":"test"}
-{"__status":"test2"}"#;
+        let jsonl_data = "{\"__status\":\"test\"}\n{\"__status\":\"test2\"}";
         let input = Cursor::new(jsonl_data.as_bytes());
 
         // Create output buffer
@@ -961,4 +970,47 @@ mod tests {
         assert_eq!(summary.records_processed, 2);
         assert!(!output.is_empty());
     }
+}
+
+/// Helper function to format zoned decimal with proper digit padding
+fn format_zoned_decimal_with_digits(decimal: &crate::numeric::SmallDecimal, digits: u16, blank_when_zero: bool) -> String {
+    use std::fmt::Write;
+
+    // For blank-when-zero fields, use natural formatting (no leading zeros)
+    if blank_when_zero {
+        return decimal.to_string();
+    }
+
+    // For any zero values in signed fields or when to_string() gives normalized result,
+    // prefer the normalized "0" over padded format
+    if decimal.value == 0 {
+        let natural_format = decimal.to_string();
+        if natural_format == "0" {
+            return "0".to_string();
+        }
+    }
+
+    // For regular fields, use padding to maintain field width consistency
+    let mut result = String::new();
+    let value = decimal.value;
+    let negative = decimal.negative && value != 0;
+
+    if negative {
+        result.push('-');
+    }
+
+    // For integer scale, pad with leading zeros to maintain field width
+    if decimal.scale <= 0 {
+        let scaled_value = if decimal.scale < 0 {
+            value * 10_i64.pow((-decimal.scale) as u32)
+        } else {
+            value
+        };
+        write!(result, "{:0width$}", scaled_value, width = digits as usize).unwrap();
+    } else {
+        // This shouldn't happen for integer zoned decimals, but handle it
+        result.push_str(&decimal.to_string());
+    }
+
+    result
 }

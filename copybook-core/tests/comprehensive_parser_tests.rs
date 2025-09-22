@@ -1,4 +1,5 @@
 #![cfg(feature = "comprehensive-tests")]
+#![allow(clippy::uninlined_format_args, clippy::too_many_lines)]
 //! Comprehensive parser tests covering all normative grammar rules and edge cases
 //!
 //! This test suite validates the parser's handling of various COBOL copybook formats
@@ -11,10 +12,10 @@ use copybook_core::{
 #[test]
 fn test_fixed_form_vs_free_form_detection() {
     // Basic free-form copybook without comments
-    let basic = r#"01 CUSTOMER-RECORD.
+    let basic = r"01 CUSTOMER-RECORD.
 05 CUSTOMER-ID PIC X(10).
 05 BALANCE PIC S9(7)V99 COMP-3.
-"#;
+";
 
     let schema = parse_copybook(basic).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -25,9 +26,9 @@ fn test_fixed_form_vs_free_form_detection() {
 #[test]
 fn test_column_7_continuation_normative() {
     // NORMATIVE: Only column-7 '-' is continuation
-    let with_continuation = r#"       01 VERY-LONG-FIELD-NAME-THAT-NEEDS-
+    let with_continuation = r"       01 VERY-LONG-FIELD-NAME-THAT-NEEDS-
       -    CONTINUATION PIC X(20).
-"#;
+";
 
     let schema = parse_copybook(with_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -37,17 +38,17 @@ fn test_column_7_continuation_normative() {
     );
 
     // Test whitespace handling: strip trailing/leading spaces, preserve interior
-    let with_spaces = r#"       01 FIELD-WITH-SPACES
+    let with_spaces = r"       01 FIELD-WITH-SPACES
       -      AND-MORE-SPACES PIC X(10).
-"#;
+";
 
     let schema = parse_copybook(with_spaces).unwrap();
     assert_eq!(schema.fields.len(), 1);
     assert_eq!(schema.fields[0].name, "FIELD-WITH-SPACES AND-MORE-SPACES");
 
     // Dash not in column 7 should be treated as literal
-    let literal_dash = r#"       01 FIELD-WITH-DASH PIC X(10).
-"#;
+    let literal_dash = r"       01 FIELD-WITH-DASH PIC X(10).
+";
 
     let schema = parse_copybook(literal_dash).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -57,9 +58,9 @@ fn test_column_7_continuation_normative() {
 #[test]
 fn test_comment_handling_normative() {
     // Inline comments are supported (COBOL-2002) and should be ignored
-    let inline_comments = r#"01 RECORD-NAME. *> This is an inline comment
+    let inline_comments = r"01 RECORD-NAME. *> This is an inline comment
 05 FIELD-NAME PIC X(10). *> Another inline comment
-"#;
+";
 
     let schema = parse_copybook(inline_comments).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -226,6 +227,7 @@ fn test_valid_pic_clauses_comprehensive() {
         assert_eq!(schema.fields.len(), 1);
 
         // Compare field kinds (simplified comparison)
+        #[allow(clippy::match_same_arms)]
         match (&schema.fields[0].kind, &expected_kind) {
             (FieldKind::Alphanum { len: a }, FieldKind::Alphanum { len: b }) => assert_eq!(a, b),
             (
@@ -284,9 +286,9 @@ fn test_valid_pic_clauses_comprehensive() {
 #[test]
 fn test_sequence_area_ignored_normative() {
     // NORMATIVE: Cols 1-6 and 73-80 ignored in fixed-form
-    let with_sequence = r#"123456 01 RECORD-NAME.                                          12345678
+    let with_sequence = r"123456 01 RECORD-NAME.                                          12345678
 123456    05 FIELD-NAME PIC X(10).                                   12345678
-"#;
+";
 
     let schema = parse_copybook(with_sequence).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -298,14 +300,14 @@ fn test_sequence_area_ignored_normative() {
 #[test]
 fn test_duplicate_name_disambiguation_normative() {
     // NORMATIVE: Sibling fields with identical names get __dup2, __dup3 suffixes
-    let with_duplicates = r#"
+    let with_duplicates = r"
 01 RECORD-NAME.
    05 FIELD-NAME PIC X(5).
    05 FIELD-NAME PIC X(5).
    05 FIELD-NAME PIC X(5).
    05 OTHER-FIELD PIC X(5).
    05 OTHER-FIELD PIC X(5).
-"#;
+";
 
     let schema = parse_copybook(with_duplicates).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -324,13 +326,13 @@ fn test_duplicate_name_disambiguation_normative() {
 #[test]
 fn test_filler_field_naming_normative() {
     // NORMATIVE: FILLER fields get _filler_<offset> names when emitted
-    let with_filler = r#"
+    let with_filler = r"
 01 RECORD-NAME.
    05 FIELD1 PIC X(5).
    05 FILLER PIC X(3).
    05 FIELD2 PIC X(5).
    05 FILLER PIC X(2).
-"#;
+";
 
     let schema = parse_copybook_with_options(
         with_filler,
@@ -357,7 +359,7 @@ fn test_filler_field_naming_normative() {
 #[test]
 fn test_multiple_filler_fields_distinct() {
     // Test that multiple FILLER fields get unique names based on their offsets
-    let with_multiple_fillers = r#"
+    let with_multiple_fillers = r"
 01 RECORD-NAME.
    05 FIELD1 PIC X(2).
    05 FILLER PIC X(1).
@@ -365,7 +367,7 @@ fn test_multiple_filler_fields_distinct() {
    05 FILLER PIC X(2).
    05 FIELD3 PIC X(1).
    05 FILLER PIC X(4).
-"#;
+";
 
     let schema = parse_copybook_with_options(
         with_multiple_fillers,
@@ -394,13 +396,13 @@ fn test_multiple_filler_fields_distinct() {
 
 #[test]
 fn test_occurs_fixed_arrays() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-WITH-ARRAYS.
    05 SIMPLE-ARRAY OCCURS 5 TIMES PIC X(3).
    05 NESTED-GROUP OCCURS 3 TIMES.
       10 SUB-FIELD PIC 9(2).
       10 SUB-ARRAY OCCURS 2 TIMES PIC X(1).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -434,11 +436,11 @@ fn test_occurs_fixed_arrays() {
 #[test]
 fn test_odo_validation_normative() {
     // NORMATIVE: ODO only at tail, not nested under another ODO
-    let valid_odo = r#"
+    let valid_odo = r"
 01 RECORD-WITH-ODO.
    05 COUNTER PIC 9(3).
    05 VARIABLE-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON COUNTER PIC X(5).
-"#;
+";
 
     let schema = parse_copybook(valid_odo).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -458,12 +460,12 @@ fn test_odo_validation_normative() {
     ));
 
     // Invalid: ODO not at tail
-    let invalid_odo_not_tail = r#"
+    let invalid_odo_not_tail = r"
 01 RECORD-WITH-BAD-ODO.
    05 COUNTER PIC 9(3).
    05 VARIABLE-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON COUNTER PIC X(5).
    05 TRAILING-FIELD PIC X(3).
-"#;
+";
 
     let result = parse_copybook(invalid_odo_not_tail);
     assert!(result.is_err());
@@ -471,13 +473,13 @@ fn test_odo_validation_normative() {
     assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
 
     // Invalid: Nested ODO
-    let invalid_nested_odo = r#"
+    let invalid_nested_odo = r"
 01 RECORD-WITH-NESTED-ODO.
    05 OUTER-COUNTER PIC 9(3).
    05 OUTER-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON OUTER-COUNTER.
       10 INNER-COUNTER PIC 9(2).
       10 INNER-ARRAY OCCURS 1 TO 3 TIMES DEPENDING ON INNER-COUNTER PIC X(2).
-"#;
+";
 
     let result = parse_copybook(invalid_nested_odo);
     assert!(result.is_err());
@@ -487,14 +489,14 @@ fn test_odo_validation_normative() {
 
 #[test]
 fn test_redefines_validation() {
-    let valid_redefines = r#"
+    let valid_redefines = r"
 01 RECORD-WITH-REDEFINES.
    05 ORIGINAL-FIELD PIC X(10).
    05 REDEFINING-FIELD REDEFINES ORIGINAL-FIELD PIC 9(10).
    05 ANOTHER-REDEFINE REDEFINES ORIGINAL-FIELD.
       10 PART1 PIC X(5).
       10 PART2 PIC X(5).
-"#;
+";
 
     let schema = parse_copybook(valid_redefines).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -519,11 +521,11 @@ fn test_redefines_validation() {
     );
 
     // Invalid: Redefines non-existent field
-    let invalid_redefines = r#"
+    let invalid_redefines = r"
 01 RECORD-WITH-BAD-REDEFINES.
    05 FIELD1 PIC X(5).
    05 FIELD2 REDEFINES NON-EXISTENT PIC X(5).
-"#;
+";
 
     let result = parse_copybook(invalid_redefines);
     assert!(result.is_err());
@@ -532,13 +534,13 @@ fn test_redefines_validation() {
 
 #[test]
 fn test_synchronized_alignment() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-WITH-SYNC.
    05 CHAR-FIELD PIC X(1).
    05 BINARY-FIELD PIC 9(5) USAGE COMP SYNCHRONIZED.
    05 ANOTHER-CHAR PIC X(3).
    05 ANOTHER-BINARY PIC 9(9) USAGE COMP SYNCHRONIZED.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -572,10 +574,10 @@ fn test_synchronized_alignment() {
 #[test]
 fn test_error_context_with_line_numbers() {
     // Parse errors should be reported for invalid level numbers
-    let invalid_syntax = r#"01 RECORD-NAME.
+    let invalid_syntax = r"01 RECORD-NAME.
    99 INVALID-LEVEL PIC X(10).
    05 FIELD-NAME PIC X(10).
-"#;
+";
 
     let result = parse_copybook(invalid_syntax);
     assert!(result.is_err()); // Level 99 is invalid
@@ -584,10 +586,10 @@ fn test_error_context_with_line_numbers() {
 #[test]
 fn test_continuation_across_multiple_lines() {
     // Test continuation across multiple lines
-    let multi_continuation = r#"       01 VERY-LONG-FIELD-NAME-THAT-SPANS-
+    let multi_continuation = r"       01 VERY-LONG-FIELD-NAME-THAT-SPANS-
       -    MULTIPLE-LINES-AND-CONTINUES-
       -    EVEN-MORE PIC X(50).
-"#;
+";
 
     let schema = parse_copybook(multi_continuation).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -600,13 +602,13 @@ fn test_continuation_across_multiple_lines() {
 #[test]
 fn test_empty_lines_and_whitespace() {
     // Test handling of empty lines and whitespace-only lines
-    let with_empty_lines = r#"
+    let with_empty_lines = r"
 
        01 RECORD-NAME.
 
           05 FIELD-NAME PIC X(10).
 
-"#;
+";
 
     let schema = parse_copybook(with_empty_lines).unwrap();
     assert_eq!(schema.fields.len(), 1);
@@ -630,12 +632,12 @@ fn test_binary_width_mapping_normative() {
         let schema = parse_copybook(copybook).unwrap();
         let field = &schema.fields[0];
 
-        assert_eq!(field.len, expected_len, "Length mismatch for: {}", copybook);
+        assert_eq!(field.len, expected_len, "Length mismatch for: {copybook}");
 
         if let FieldKind::BinaryInt { bits, .. } = &field.kind {
-            assert_eq!(*bits, expected_bits, "Bit width mismatch for: {}", copybook);
+            assert_eq!(*bits, expected_bits, "Bit width mismatch for: {copybook}");
         } else {
-            panic!("Expected BinaryInt for: {}", copybook);
+            panic!("Expected BinaryInt for: {copybook}");
         }
     }
 }
@@ -643,13 +645,13 @@ fn test_binary_width_mapping_normative() {
 #[test]
 fn test_explicit_binary_width_normative() {
     // Test NORMATIVE explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
-    let copybook = r#"
+    let copybook = r"
 01 EXPLICIT-BINARY.
    05 BIN1 PIC 9(3) USAGE BINARY(1).
    05 BIN2 PIC 9(5) USAGE BINARY(2).
    05 BIN4 PIC 9(9) USAGE BINARY(4).
    05 BIN8 PIC 9(18) USAGE BINARY(8).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -667,19 +669,19 @@ fn test_explicit_binary_width_normative() {
         if let FieldKind::BinaryInt { bits, .. } = &root.children[i].kind {
             assert_eq!(*bits, *expected_bits);
         } else {
-            panic!("Expected BinaryInt for child {}", i);
+            panic!("Expected BinaryInt for child {i}");
         }
     }
 }
 
 #[test]
 fn test_binary_clause_with_and_without_explicit_width() {
-    let copybook = r#"
+    let copybook = r"
 01 BINARY-WIDTH-TEST.
    05 BIN-IMPLICIT PIC 9(4) BINARY.
    05 BIN-EXPLICIT PIC 9(4) BINARY(4).
    05 COMP-EXPLICIT PIC 9(3) COMP(1).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let root = &schema.fields[0];
@@ -712,12 +714,12 @@ fn test_binary_clause_with_and_without_explicit_width() {
 
 #[test]
 fn test_blank_when_zero_parsing() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-WITH-BWZ.
    05 NORMAL-FIELD PIC 9(5).
    05 BWZ-FIELD PIC 9(5) BLANK WHEN ZERO.
    05 BWZ-SIGNED PIC S9(3)V99 BLANK WHEN ZERO.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let root = &schema.fields[0];
@@ -730,11 +732,11 @@ fn test_blank_when_zero_parsing() {
 
 #[test]
 fn test_schema_fingerprinting() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-FOR-FINGERPRINT.
    05 FIELD1 PIC X(10).
    05 FIELD2 PIC 9(5) COMP.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -746,11 +748,11 @@ fn test_schema_fingerprinting() {
     assert_eq!(schema.fingerprint, schema2.fingerprint);
 
     // Different copybook should produce different fingerprint
-    let different_copybook = r#"
+    let different_copybook = r"
 01 DIFFERENT-RECORD.
    05 FIELD1 PIC X(5).
    05 FIELD2 PIC 9(3) COMP-3.
-"#;
+";
 
     let schema3 = parse_copybook(different_copybook).unwrap();
     assert_ne!(schema.fingerprint, schema3.fingerprint);

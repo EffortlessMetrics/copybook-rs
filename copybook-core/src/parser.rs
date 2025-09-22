@@ -1117,10 +1117,10 @@ mod tests {
 
     #[test]
     fn test_redefines_parsing() {
-        let input = r#"
+        let input = r"
 01 FIELD-A PIC X(10).
 01 FIELD-B REDEFINES FIELD-A PIC 9(10).
-"#;
+";
         let schema = parse(input).unwrap();
 
         assert_eq!(schema.fields.len(), 2);
@@ -1168,11 +1168,11 @@ mod tests {
 
     #[test]
     fn test_duplicate_name_handling() {
-        let input = r#"
+        let input = r"
 01 RECORD-A.
    05 FIELD-NAME PIC X(10).
    05 FIELD-NAME PIC 9(5).
-"#;
+";
         let schema = parse(input).unwrap();
 
         // Should have one root field with hierarchical structure
@@ -1189,10 +1189,10 @@ mod tests {
 
     #[test]
     fn test_odo_validation() {
-        let input = r#"
+        let input = r"
 01 COUNTER PIC 9(3).
 01 ARRAY-FIELD PIC X(10) OCCURS 5 TIMES DEPENDING ON COUNTER.
-"#;
+";
         let result = parse(input);
 
         // Should succeed with valid ODO structure
@@ -1215,10 +1215,10 @@ mod tests {
 
     #[test]
     fn test_redefines_validation() {
-        let input = r#"
+        let input = r"
 01 FIELD-A PIC X(10).
 01 FIELD-B REDEFINES FIELD-A PIC 9(10).
-"#;
+";
         let result = parse(input);
 
         // Should succeed with valid REDEFINES
@@ -1232,7 +1232,7 @@ mod tests {
 
     #[test]
     fn test_hierarchical_structure() {
-        let input = r#"
+        let input = r"
 01 CUSTOMER-RECORD.
    05 CUSTOMER-ID PIC X(10).
    05 CUSTOMER-NAME.
@@ -1241,7 +1241,7 @@ mod tests {
    05 CUSTOMER-ADDRESS.
       10 STREET PIC X(38).
       10 CITY PIC X(30).
-"#;
+";
         let schema = parse(input).unwrap();
 
         // Should have one root field
@@ -1293,10 +1293,10 @@ mod tests {
 
     #[test]
     fn test_invalid_redefines_target() {
-        let input = r#"
+        let input = r"
 01 FIELD-A PIC X(10).
 01 FIELD-B REDEFINES NONEXISTENT PIC 9(10).
-"#;
+";
         let result = parse(input);
 
         // Should fail with invalid REDEFINES target

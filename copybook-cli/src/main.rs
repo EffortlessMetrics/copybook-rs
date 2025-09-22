@@ -83,6 +83,9 @@ enum Commands {
         /// Maximum errors before stopping
         #[arg(long)]
         max_errors: Option<u64>,
+        /// Stop on first error (default: false)
+        #[arg(long, default_value = "false")]
+        fail_fast: bool,
         /// Emit FILLER fields
         #[arg(long)]
         emit_filler: bool,
@@ -215,6 +218,7 @@ fn main() {
             json_number,
             strict,
             max_errors,
+            fail_fast,
             emit_filler,
             emit_meta,
             emit_raw,
@@ -230,6 +234,7 @@ fn main() {
             json_number,
             strict,
             max_errors,
+            fail_fast,
             emit_filler,
             emit_meta,
             emit_raw,

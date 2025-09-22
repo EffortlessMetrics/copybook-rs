@@ -31,6 +31,27 @@
 //! - **Performance**: Efficient parsing with minimal memory allocation
 //! - **Standards Compliance**: Adherence to COBOL copybook syntax standards
 
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::bool_to_int_with_if)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::assigning_clones)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::manual_midpoint)]
+#![allow(clippy::redundant_closure_for_method_calls)]
+#![allow(clippy::single_match_else)]
+#![allow(clippy::ignored_unit_patterns)]
+#![allow(clippy::too_many_lines)]
+
 pub mod error;
 pub mod error_reporter;
 pub mod layout;

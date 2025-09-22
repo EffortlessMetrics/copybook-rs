@@ -523,7 +523,7 @@ See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference and [REPO
 
 ## Requirements
 
-- **Rust**: 1.89 or later (MSRV)
+- **Rust**: 1.90 or later (MSRV)
 - **Edition**: 2024
 - **Platform**: Linux, macOS, Windows
 
@@ -602,7 +602,7 @@ We welcome contributions! Please see [REPORT.md](REPORT.md) for current project 
 - Follow Rust conventions and idioms with complete clippy pedantic compliance
 - Add comprehensive tests for new features (127 tests passing)
 - Update documentation for API changes
-- Maintain MSRV compatibility (Rust 1.89)
+- Maintain MSRV compatibility (Rust 1.90)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)
 - Implement Display trait for user-facing types where appropriate
 - Use safe type conversions (try_from() instead of unsafe casts)

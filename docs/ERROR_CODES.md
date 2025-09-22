@@ -198,6 +198,19 @@ Replaced with: U+FFFD
 
 Errors during binary data decoding to JSON.
 
+#### CBKD301_RECORD_TOO_SHORT
+**Description**: Record is too short to contain the required field data
+**Severity**: Fatal
+**Context**: Record number, field path, byte offset, expected vs actual length
+**Resolution**: Check data integrity, file transfer mode, or record boundaries
+
+```
+Error: CBKD301_RECORD_TOO_SHORT at record 150
+Field: ROOT.CUSTOMER.BALANCE  
+Expected record length: 120 bytes
+Actual record length: 85 bytes
+```
+
 #### CBKD401_COMP3_INVALID_NIBBLE
 **Description**: Invalid nibble in packed decimal field
 **Severity**: Fatal (strict), Warning (lenient)
@@ -211,15 +224,19 @@ Offset: 25, nibble: 0xE (expected 0-9, A-F for sign)
 ```
 
 #### CBKD411_ZONED_BAD_SIGN
-**Description**: Invalid sign zone in zoned decimal field
+**Description**: Invalid sign zone in zoned decimal field or ASCII overpunch character
 **Severity**: Fatal (strict), Warning (lenient)
-**Context**: Record number, field path, byte offset, zone value
-**Resolution**: Fix data corruption or check codepage
+**Context**: Record number, field path, byte offset, zone/character value
+**Resolution**: Fix data corruption, verify codepage (EBCDIC vs ASCII), or check overpunch encoding
 
 ```
 Error: CBKD411_ZONED_BAD_SIGN at record 500
-Field: ROOT.CUSTOMER.AMOUNT
+Field: ROOT.CUSTOMER.AMOUNT  
 Offset: 30, zone: 0x4 (expected C/D/F for EBCDIC)
+
+Error: CBKD411_ZONED_BAD_SIGN at record 501
+Field: ROOT.CUSTOMER.DISCOUNT
+Invalid ASCII overpunch character 0x40 (expected 0-9, {A-I}, {J-R})
 ```
 
 #### CBKD412_ZONED_BLANK_IS_ZERO
@@ -328,6 +345,15 @@ Possible text-mode transfer corruption
 
 ### Common Issues and Solutions
 
+#### "CBKD301_RECORD_TOO_SHORT"
+**Problem**: Record data is truncated or incomplete
+**Solutions**:
+- Check file transfer mode (binary vs text mode corruption)
+- Verify LRECL setting matches actual data record length
+- Check for premature EOF or file corruption
+- Use `copybook inspect` to verify expected record size
+- For RDW format, ensure RDW headers are intact and correctly formatted
+
 #### "CBKP051_UNSUPPORTED_EDITED_PIC"
 **Problem**: Copybook contains edited PIC clauses
 **Solution**: 
@@ -348,6 +374,15 @@ Possible text-mode transfer corruption
 - Verify correct codepage (`--codepage`)
 - Use `--on-decode-unmappable replace` for tolerance
 - Check for binary data in text fields
+
+#### "CBKD411_ZONED_BAD_SIGN"
+**Problem**: Invalid sign zone or ASCII overpunch character in zoned decimal
+**Solutions**:
+- For EBCDIC data: Verify correct codepage and check for C/D/F sign zones
+- For ASCII data: Ensure proper overpunch encoding (0-9, {A-I}, {J-R})
+- Check data integrity and field alignment
+- Verify that the field is properly signed (PIC S9) if sign data is present
+- Use `--emit-raw` to inspect raw byte values for debugging
 
 #### "CBKR211_RDW_RESERVED_NONZERO"
 **Problem**: RDW reserved bytes contain data

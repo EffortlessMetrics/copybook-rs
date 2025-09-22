@@ -73,7 +73,7 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
         resolve_field_layout(field, &mut context, None)?;
     }
 
-    // Validate ODO constraints
+    // Validate ODO constraints (counter existence, not tail position)
     validate_odo_constraints(&context)?;
 
     // Calculate fixed record length if all fields are fixed
@@ -460,37 +460,39 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
             }));
         }
 
-        // Validate ODO is at tail position (comprehensive validation)
-        // Check if there are any fields after this ODO array in the same group
-        let has_fields_after = context.field_paths.iter().any(|(path, offset)| {
-            // Skip the ODO array itself and its counter
-            if path == &odo.array_path || path == &odo.counter_path {
-                return false;
-            }
+        // ODO tail validation is now handled structurally during parsing
+        // The following code is commented out to avoid conflicts with structural validation
+        // let has_fields_after = context.field_paths.iter().any(|(path, offset)| {
+        //     // Skip the ODO array itself and its counter
+        //     if path == &odo.array_path || path == &odo.counter_path {
+        //         return false;
+        //     }
+        //
+        //     // Check if this field comes after the ODO array
+        //     *offset > odo.array_offset
+        // });
 
-            // Check if this field comes after the ODO array
-            *offset > odo.array_offset
-        });
-
-        if has_fields_after {
-            return Err(Error::new(
-                ErrorCode::CBKP021_ODO_NOT_TAIL,
-                format!(
-                    "ODO array '{}' must be at tail position (no fields after it)",
-                    odo.array_path
-                ),
-            )
-            .with_context(crate::error::ErrorContext {
-                record_index: None,
-                field_path: Some(odo.array_path.clone()),
-                byte_offset: Some(odo.array_offset),
-                line_number: None,
-                details: Some(format!(
-                    "fields_after_odo=true, counter_field={}",
-                    odo.counter_path
-                )),
-            }));
-        }
+        // ODO tail validation is now handled structurally during parsing
+        // Disable layout-based tail validation to avoid conflicts
+        // if has_fields_after {
+        //     return Err(Error::new(
+        //         ErrorCode::CBKP021_ODO_NOT_TAIL,
+        //         format!(
+        //             "ODO array '{}' must be at tail position (no fields after it)",
+        //             odo.array_path
+        //         ),
+        //     )
+        //     .with_context(crate::error::ErrorContext {
+        //         record_index: None,
+        //         field_path: Some(odo.array_path.clone()),
+        //         byte_offset: Some(odo.array_offset),
+        //         line_number: None,
+        //         details: Some(format!(
+        //             "fields_after_odo=true, counter_field={}",
+        //             odo.counter_path
+        //         )),
+        //     }));
+        // }
 
         debug!(
             "ODO validation passed: array='{}', counter='{}', array_offset={}, counter_offset={}",

@@ -3,7 +3,7 @@
 //! This module implements the parsing logic for COBOL copybooks,
 //! including lexical analysis and AST construction.
 
-use crate::error::ErrorCode;
+use crate::error::{ErrorCode, ErrorContext};
 use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema};
@@ -522,6 +522,31 @@ impl Parser {
             }) => {
                 // Skip 88-level (condition) entries
                 self.skip_to_period();
+                return Ok(None);
+            }
+            Some(TokenPos {
+                token: Token::Number(n),
+                line,
+                ..
+            }) => {
+                // Only treat single/double digit numbers as potential invalid level numbers
+                // Larger numbers are likely from sequence areas or other contexts
+                if *n <= 99 {
+                    let line_number = *line;
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        format!("Invalid level number '{}'", n),
+                    )
+                    .with_context(ErrorContext {
+                        record_index: None,
+                        field_path: None,
+                        byte_offset: None,
+                        line_number: Some(line_number.try_into().unwrap_or(u32::MAX)),
+                        details: None,
+                    }));
+                }
+                // Skip larger numbers (likely sequence numbers)
+                self.advance();
                 return Ok(None);
             }
             _ => {

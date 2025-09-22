@@ -44,7 +44,8 @@ fn bench_comp3(c: &mut Criterion) {
     let (enc, dec) = make_opts();
 
     // Make a buffer of JSON records (hot path: encode)
-    let json = r#"{"A":"123456789","B":"123456789012345678.1234"}"#;
+    // Use values that fit within i64 limits to avoid overflow
+    let json = r#"{"A":"123456789","B":"12345678901234.1234"}"#;
 
     let mut g = c.benchmark_group("comp3");
     g.throughput(Throughput::Bytes(json.len() as u64));

@@ -234,6 +234,12 @@ fn process_fields_recursive(
     use copybook_core::FieldKind;
 
     for (field_index, field) in fields.iter().enumerate() {
+        // Check if this field has an OCCURS clause
+        if let Some(occurs) = &field.occurs {
+            process_array_field(field, occurs, data, json_obj, options, fields)?;
+            continue;
+        }
+
         match &field.kind {
             FieldKind::Group => {
                 // Process children fields recursively
@@ -295,7 +301,11 @@ fn process_fields_recursive(
                         )?;
                         // Use proper digit formatting for integer zoned decimals
                         let formatted = if *scale == 0 {
-                            format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+                            format_zoned_decimal_with_digits(
+                                &decimal,
+                                *digits,
+                                field.blank_when_zero,
+                            )
                         } else {
                             decimal.to_string()
                         };
@@ -329,6 +339,299 @@ fn process_fields_recursive(
     }
 
     Ok(())
+}
+
+/// Process an array field (with OCCURS clause)
+fn process_array_field(
+    field: &copybook_core::Field,
+    occurs: &copybook_core::Occurs,
+    data: &[u8],
+    json_obj: &mut serde_json::Map<String, Value>,
+    options: &DecodeOptions,
+    all_fields: &[copybook_core::Field],
+) -> Result<()> {
+    use copybook_core::{FieldKind, Occurs};
+
+    let count = match occurs {
+        Occurs::Fixed { count } => *count,
+        Occurs::ODO {
+            min,
+            max,
+            counter_path,
+        } => {
+            // Find the counter field and get its value
+            let counter_value =
+                find_and_read_counter_field(counter_path, all_fields, data, options)?;
+
+            // Validate ODO constraints
+            if counter_value < *min {
+                return Err(Error::new(
+                    ErrorCode::CBKS302_ODO_RAISED,
+                    format!("ODO count {} is below minimum {}", counter_value, min),
+                ));
+            }
+
+            if counter_value > *max {
+                return Err(Error::new(
+                    ErrorCode::CBKS302_ODO_RAISED,
+                    format!("ODO count {} exceeds maximum {}", counter_value, max),
+                ));
+            }
+
+            counter_value
+        }
+    };
+
+    let element_size = field.len as usize;
+    let array_start = field.offset as usize;
+    let total_array_size = element_size * count as usize;
+    let array_end = array_start + total_array_size;
+
+    // Check if we have enough data for all array elements
+    if array_end > data.len() {
+        return match occurs {
+            Occurs::ODO { .. } => Err(Error::new(
+                ErrorCode::CBKS301_ODO_CLIPPED,
+                format!(
+                    "Array '{}' requires {} bytes but only {} bytes available",
+                    field.name,
+                    total_array_size,
+                    data.len().saturating_sub(array_start)
+                ),
+            )),
+            Occurs::Fixed { .. } => Err(Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                format!(
+                    "Fixed array '{}' requires {} bytes but only {} bytes available",
+                    field.name,
+                    total_array_size,
+                    data.len().saturating_sub(array_start)
+                ),
+            )),
+        };
+    }
+
+    // Process array elements
+    let mut array_values = Vec::new();
+    for i in 0..count {
+        let element_start = array_start + (i as usize * element_size);
+        let element_end = element_start + element_size;
+
+        let element_value = match &field.kind {
+            FieldKind::Group => {
+                // For group fields, create a modified field with adjusted offsets for this element
+                let mut element_obj = serde_json::Map::new();
+                let adjusted_children = adjust_field_offsets(&field.children, element_start);
+                process_fields_recursive(&adjusted_children, data, &mut element_obj, options)?;
+                Value::Object(element_obj)
+            }
+            _ => {
+                let element_data = &data[element_start..element_end];
+                decode_scalar_field_value(field, element_data, options)?
+            }
+        };
+
+        array_values.push(element_value);
+    }
+
+    json_obj.insert(field.name.clone(), Value::Array(array_values));
+    Ok(())
+}
+
+/// Find and read the value of a counter field for ODO arrays
+fn find_and_read_counter_field(
+    counter_path: &str,
+    all_fields: &[copybook_core::Field],
+    data: &[u8],
+    options: &DecodeOptions,
+) -> Result<u32> {
+    // Find the counter field by path
+    let counter_field = find_field_by_path(all_fields, counter_path)?;
+
+    // Read the counter field value
+    let field_start = counter_field.offset as usize;
+    let field_end = field_start + counter_field.len as usize;
+
+    if field_end > data.len() {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!("Counter field '{}' extends beyond record", counter_path),
+        ));
+    }
+
+    let field_data = &data[field_start..field_end];
+
+    // Decode the counter value based on its type
+    match &counter_field.kind {
+        copybook_core::FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal = crate::numeric::decode_zoned_decimal(
+                field_data,
+                *digits,
+                *scale,
+                *signed,
+                options.codepage,
+                counter_field.blank_when_zero,
+            )?;
+
+            // Convert to u32, ensuring it's non-negative
+            let decimal_str = decimal.to_string();
+            let count = decimal_str.parse::<u32>().map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!(
+                        "ODO counter '{}' has invalid value: {}",
+                        counter_path, decimal_str
+                    ),
+                )
+            })?;
+
+            Ok(count)
+        }
+        copybook_core::FieldKind::BinaryInt { bits, signed } => {
+            let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+            if int_value < 0 {
+                return Err(Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!(
+                        "ODO counter '{}' has negative value: {}",
+                        counter_path, int_value
+                    ),
+                ));
+            }
+            Ok(int_value as u32)
+        }
+        copybook_core::FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal =
+                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
+            let decimal_str = decimal.to_string();
+            let count = decimal_str.parse::<u32>().map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!(
+                        "ODO counter '{}' has invalid value: {}",
+                        counter_path, decimal_str
+                    ),
+                )
+            })?;
+            Ok(count)
+        }
+        _ => Err(Error::new(
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            format!("ODO counter '{}' has unsupported type", counter_path),
+        )),
+    }
+}
+
+/// Find a field by its path in the field hierarchy
+fn find_field_by_path<'a>(
+    fields: &'a [copybook_core::Field],
+    path: &str,
+) -> Result<&'a copybook_core::Field> {
+    for field in fields {
+        if field.path == path || field.name == path {
+            return Ok(field);
+        }
+        // Search in children recursively
+        if let Ok(found) = find_field_by_path(&field.children, path) {
+            return Ok(found);
+        }
+    }
+
+    Err(Error::new(
+        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+        format!("ODO counter field '{}' not found", path),
+    ))
+}
+
+/// Adjust field offsets for array element processing
+fn adjust_field_offsets(
+    fields: &[copybook_core::Field],
+    base_offset: usize,
+) -> Vec<copybook_core::Field> {
+    fields
+        .iter()
+        .map(|field| {
+            let mut adjusted_field = field.clone();
+            adjusted_field.offset = base_offset as u32;
+            if !adjusted_field.children.is_empty() {
+                adjusted_field.children =
+                    adjust_field_offsets(&adjusted_field.children, base_offset);
+            }
+            adjusted_field
+        })
+        .collect()
+}
+
+/// Decode a scalar field value from raw data
+fn decode_scalar_field_value(
+    field: &copybook_core::Field,
+    field_data: &[u8],
+    options: &DecodeOptions,
+) -> Result<Value> {
+    use copybook_core::FieldKind;
+
+    match &field.kind {
+        FieldKind::Alphanum { .. } => {
+            let text = crate::charset::ebcdic_to_utf8(
+                field_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            Ok(Value::String(text))
+        }
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal = crate::numeric::decode_zoned_decimal(
+                field_data,
+                *digits,
+                *scale,
+                *signed,
+                options.codepage,
+                field.blank_when_zero,
+            )?;
+            let formatted = if *scale == 0 {
+                format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+            } else {
+                decimal.to_string()
+            };
+            Ok(Value::String(formatted))
+        }
+        FieldKind::BinaryInt { bits, signed } => {
+            let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+            if *signed {
+                Ok(Value::String((int_value as i64).to_string()))
+            } else {
+                Ok(Value::String(int_value.to_string()))
+            }
+        }
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal =
+                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
+            Ok(Value::String(decimal.to_string()))
+        }
+        FieldKind::Group => {
+            // Group fields should not be processed as scalars
+            Err(Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!("Cannot process group field '{}' as scalar", field.name),
+            ))
+        }
+    }
 }
 
 /// Encode JSON data to binary using the provided schema
@@ -973,7 +1276,11 @@ mod tests {
 }
 
 /// Helper function to format zoned decimal with proper digit padding
-fn format_zoned_decimal_with_digits(decimal: &crate::numeric::SmallDecimal, digits: u16, blank_when_zero: bool) -> String {
+fn format_zoned_decimal_with_digits(
+    decimal: &crate::numeric::SmallDecimal,
+    digits: u16,
+    blank_when_zero: bool,
+) -> String {
     use std::fmt::Write;
 
     // For blank-when-zero fields, use natural formatting (no leading zeros)

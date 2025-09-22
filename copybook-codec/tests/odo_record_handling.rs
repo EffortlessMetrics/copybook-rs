@@ -149,3 +149,36 @@ fn test_odo_array_count_raised() {
         }
     }
 }
+
+#[test]
+fn test_odo_array_count_below_min() {
+    let schema = parse_copybook(ODO_COPYBOOK).unwrap();
+    let below_min_record = create_ebcdic_record(
+        0,
+        &[
+            // Provide some data (but count 0 is below min 1)
+            0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xF0,
+        ],
+    );
+
+    let options = DecodeOptions::new().with_codepage(Codepage::CP037);
+
+    match decode_record(&schema, &below_min_record, &options) {
+        Ok(json_value) => {
+            println!(
+                "Unexpectedly decoded record: {}",
+                serde_json::to_string_pretty(&json_value).unwrap()
+            );
+            panic!("Expected error for ODO count below minimum, but got success");
+        }
+        Err(e) => {
+            println!("Below min count record error code: {:?}", e.code);
+            println!("Below min count record error message: {}", e.to_string());
+            assert_eq!(
+                e.code,
+                ErrorCode::CBKS302_ODO_RAISED,
+                "Wrong error code for ODO count below minimum"
+            );
+        }
+    }
+}

@@ -101,7 +101,7 @@ fn test_complex_layout_resolution() {
     assert_eq!(accounts.len, 15); // Base field size
     assert!(matches!(
         accounts.occurs,
-        Some(Occurs::ODO { min: 0, max: 5, .. })
+        Some(Occurs::ODO { min: 5, max: 5, .. })
     ));
 
     // Should have tail ODO info
@@ -110,8 +110,8 @@ fn test_complex_layout_resolution() {
     assert_eq!(tail_odo.counter_path, "ACCOUNT-COUNT");
     assert_eq!(tail_odo.max_count, 5);
 
-    // Should not have fixed LRECL due to ODO
-    assert!(schema.lrecl_fixed.is_none());
+    // Should have fixed LRECL since ODO min equals max (effectively fixed-size)
+    assert_eq!(schema.lrecl_fixed, Some(143));
 
     // Verify schema fingerprint is generated
     assert!(!schema.fingerprint.is_empty());

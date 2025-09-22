@@ -270,72 +270,113 @@ impl Parser {
         Ok(())
     }
 
-    /// Validate ODO constraints
+    /// Validate ODO constraints using hierarchical structure
     fn validate_odo_constraints(&self, fields: &[Field]) -> Result<()> {
+        // Collect all fields for counter lookups
         let all_fields = Self::collect_all_fields(fields);
 
-        for field in &all_fields {
-            if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
-                // Find the counter field
-                let counter_field = all_fields
-                    .iter()
-                    .find(|f| f.name == *counter_path || f.path == *counter_path);
-
-                if counter_field.is_none() {
-                    return Err(Error::new(
-                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                        format!(
-                            "ODO counter field '{}' not found for array '{}'",
-                            counter_path, field.name
-                        ),
-                    ));
-                }
-
-                // Validate that ODO array is at tail position
-                // This is a simplified check - full validation would require layout resolution
-                if !self.is_odo_at_tail(field, &all_fields) {
-                    return Err(Error::new(
-                        ErrorCode::CBKP021_ODO_NOT_TAIL,
-                        format!(
-                            "ODO array '{}' must be at tail position of its containing group",
-                            field.name
-                        ),
-                    ));
-                }
-
-                // Validate that counter is not inside REDEFINES or ODO region
-                if let Some(counter) = counter_field {
-                    if counter.redefines_of.is_some() {
-                        return Err(Error::new(
-                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!(
-                                "ODO counter '{}' cannot be inside a REDEFINES region",
-                                counter_path
-                            ),
-                        ));
-                    }
-
-                    if counter.occurs.is_some() {
-                        return Err(Error::new(
-                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!(
-                                "ODO counter '{}' cannot be inside an ODO region",
-                                counter_path
-                            ),
-                        ));
-                    }
-                }
-            }
+        // Validate each field group hierarchically
+        for field in fields {
+            self.validate_odo_in_group(field, &all_fields)?;
         }
 
         Ok(())
     }
 
-    /// Check if ODO array is at tail position (simplified check)
-    fn is_odo_at_tail(&self, _odo_field: &Field, _all_fields: &[&Field]) -> bool {
-        // This is a simplified implementation
-        // Full validation would require layout resolution to check byte positions
-        true
+    /// Recursively validate ODO constraints within a field group
+    fn validate_odo_in_group(&self, field: &Field, all_fields: &[&Field]) -> Result<()> {
+        // Check if this field is an ODO array
+        if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
+            // Find the counter field
+            let counter_field = all_fields
+                .iter()
+                .find(|f| f.name == *counter_path || f.path == *counter_path);
+
+            if counter_field.is_none() {
+                return Err(Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!(
+                        "ODO counter field '{}' not found for array '{}'",
+                        counter_path, field.name
+                    ),
+                ));
+            }
+
+            // Validate that counter is not inside REDEFINES or ODO region
+            if let Some(counter) = counter_field {
+                if counter.redefines_of.is_some() {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' cannot be inside a REDEFINES region",
+                            counter_path
+                        ),
+                    ));
+                }
+
+                if counter.occurs.is_some() {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' cannot be inside an ODO region",
+                            counter_path
+                        ),
+                    ));
+                }
+            }
+        }
+
+        // Recursively validate children and check ODO tail constraints
+        for (i, child) in field.children.iter().enumerate() {
+            // Check if child is ODO and enforce tail position rule
+            if child.occurs.as_ref().map_or(false, |o| matches!(o, Occurs::ODO { .. })) {
+                if !self.is_odo_at_tail_sibling_based(child, &field.children, i) {
+                    return Err(Error::new(
+                        ErrorCode::CBKP021_ODO_NOT_TAIL,
+                        format!(
+                            "ODO array '{}' must be last storage field under '{}'",
+                            child.path, field.path
+                        ),
+                    ));
+                }
+            }
+
+            // Recursively validate this child's subtree
+            self.validate_odo_in_group(child, all_fields)?;
+        }
+
+        Ok(())
+    }
+
+    /// Check if ODO array is the last storage sibling (structural, sibling-based logic)
+    fn is_odo_at_tail_sibling_based(&self, _odo_field: &Field, siblings: &[Field], odo_index: usize) -> bool {
+        // Check if there are any storage fields after this ODO field among siblings
+        !siblings
+            .iter()
+            .skip(odo_index + 1)
+            .any(|sibling| self.is_storage_field(sibling))
+        // Return true if no storage siblings found after ODO
+    }
+
+    /// Check if a field is a storage field (excludes level 88 and non-storage field types)
+    fn is_storage_field(&self, field: &Field) -> bool {
+        // Exclude level 88 (condition names)
+        if field.level == 88 {
+            return false;
+        }
+
+        // Check if field kind would have storage (independent of calculated length)
+        match &field.kind {
+            FieldKind::Group => {
+                // Groups have storage if they have storage children or aren't just containers
+                // For validation purposes, consider groups as having potential storage
+                true
+            }
+            FieldKind::Alphanum { .. } |
+            FieldKind::ZonedDecimal { .. } |
+            FieldKind::BinaryInt { .. } |
+            FieldKind::PackedDecimal { .. } => true,
+        }
     }
 
     /// Collect all fields in a flat list

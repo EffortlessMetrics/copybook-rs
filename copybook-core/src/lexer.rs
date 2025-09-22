@@ -487,7 +487,7 @@ fn process_free_form_line<'a>(
     }
 
     // Handle inline comments (*> anywhere) based on options
-    let content = if options.allow_inline_comments {
+    let content = if options.allow_inline_comments && !options.strict_comments {
         // Strip inline comments when allowed
         if let Some(comment_pos) = line.find("*>") {
             line[..comment_pos].trim_end()
@@ -514,21 +514,21 @@ mod tests {
 
     #[test]
     fn test_format_detection_fixed() {
-        let input = r#"      * This is a comment
+        let input = r"      * This is a comment
        01  CUSTOMER-RECORD.
            05  CUSTOMER-ID     PIC X(10).
            05  CUSTOMER-NAME   PIC X(30).
-"#;
+";
         assert_eq!(detect_format(input), CobolFormat::Fixed);
     }
 
     #[test]
     fn test_format_detection_free() {
-        let input = r#"*> This is a comment
+        let input = r"*> This is a comment
 01 CUSTOMER-RECORD.
   05 CUSTOMER-ID PIC X(10).
   05 CUSTOMER-NAME PIC X(30).
-"#;
+";
         assert_eq!(detect_format(input), CobolFormat::Free);
     }
 
@@ -550,9 +550,9 @@ mod tests {
 
     #[test]
     fn test_continuation_handling() {
-        let input = r#"       01  VERY-LONG-FIELD-NAME
+        let input = r"       01  VERY-LONG-FIELD-NAME
       -        PIC X(50).
-"#;
+";
         let lexer = Lexer::new(input);
         let processed = lexer.build_processed_text();
 

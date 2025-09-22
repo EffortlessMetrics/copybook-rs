@@ -23,6 +23,7 @@ pub fn run(
 
     // Parse copybook with options
     let options = ParseOptions {
+        strict_comments,
         strict,
         codepage: codepage.to_string(),
         emit_filler: false,

@@ -56,6 +56,9 @@ cargo run --bin copybook -- decode file.cpy data.bin --output data.jsonl --forma
 
 # Encode JSONL to binary
 cargo run --bin copybook -- encode --format fixed --codepage cp037 copybook.cpy input.jsonl output.bin
+
+# Encode with error handling options
+cargo run --bin copybook -- encode --format fixed --codepage cp037 --fail-fast --max-errors 5 copybook.cpy input.jsonl output.bin
 ```
 
 ## Library API

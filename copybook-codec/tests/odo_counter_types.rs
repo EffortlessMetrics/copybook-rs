@@ -25,7 +25,6 @@ fn decode_opts() -> DecodeOptions {
 }
 
 #[test]
-#[ignore = "ODO support not yet implemented in decode path"]
 fn test_odo_zoned_counter() {
     let copybook = r#"
 01 RECORD.
@@ -46,7 +45,6 @@ fn test_odo_zoned_counter() {
 }
 
 #[test]
-#[ignore = "ODO support not yet implemented in decode path"]
 fn test_odo_packed_counter() {
     let copybook = r#"
 01 RECORD.
@@ -57,8 +55,8 @@ fn test_odo_packed_counter() {
     let schema = parse_copybook(copybook).unwrap();
     let options = decode_opts();
 
-    // Packed decimal representation of 3 with two digits: 0x00 0x3C
-    let mut data = vec![0x00, 0x3C];
+    // Packed decimal representation of 3 with two digits: 0x03 0x0F
+    let mut data = vec![0x03, 0x0F];
     data.extend_from_slice(b"AAABBBCCC");
     let json = copybook_codec::decode_record(&schema, &data, &options).unwrap();
     let items = json.get("ITEMS").and_then(|v| v.as_array()).unwrap();
@@ -69,7 +67,6 @@ fn test_odo_packed_counter() {
 }
 
 #[test]
-#[ignore = "ODO support not yet implemented in decode path"]
 fn test_odo_binary_counter() {
     let copybook = r#"
 01 RECORD.

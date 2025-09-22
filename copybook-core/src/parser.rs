@@ -824,14 +824,14 @@ impl Parser {
 
     /// Parse OCCURS clause
     fn parse_occurs_clause(&mut self, field: &mut Field) -> Result<()> {
-        let count = match self.current_token() {
+        let min = match self.current_token() {
             Some(TokenPos {
                 token: Token::Number(n),
                 ..
             }) => {
-                let count = *n;
+                let min = *n;
                 self.advance();
-                count
+                min
             }
             _ => {
                 return Err(Error::new(
@@ -841,14 +841,42 @@ impl Parser {
             }
         };
 
-        // Skip optional TIMES keyword first
+        // Check for TO keyword (range syntax)
+        let max = if self.check(&Token::To) {
+            self.advance(); // consume TO
+            match self.current_token() {
+                Some(TokenPos {
+                    token: Token::Number(n),
+                    ..
+                }) => {
+                    let max = *n;
+                    self.advance();
+                    max
+                }
+                _ => {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Expected number after TO in OCCURS clause",
+                    ));
+                }
+            }
+        } else {
+            min // If no TO, then min == max (fixed count)
+        };
+
+        // Skip optional TIMES keyword
         if self.check(&Token::Times) {
             self.advance();
         }
 
-        // Check for DEPENDING ON
-        if self.check(&Token::Depending) {
+        // Look for DEPENDING ON (might not be immediately next)
+        let depending_pos = self.find_depending_in_clause();
+
+        if let Some(depending_idx) = depending_pos {
+            // Found DEPENDING, advance to it
+            self.current = depending_idx;
             self.advance(); // consume DEPENDING
+
             if !self.consume(&Token::On) {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
@@ -874,15 +902,35 @@ impl Parser {
             };
 
             field.occurs = Some(Occurs::ODO {
-                min: 0, // Will be validated later
-                max: count,
+                min,
+                max,
                 counter_path: counter_field,
             });
         } else {
-            field.occurs = Some(Occurs::Fixed { count });
+            // No DEPENDING ON found
+            if min != max {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Range syntax (min TO max) requires DEPENDING ON clause",
+                ));
+            }
+            field.occurs = Some(Occurs::Fixed { count: min });
         }
 
         Ok(())
+    }
+
+    /// Find DEPENDING token in the current clause (before the next field starts)
+    fn find_depending_in_clause(&self) -> Option<usize> {
+        for i in self.current..self.tokens.len() {
+            match &self.tokens[i].token {
+                Token::Depending => return Some(i),
+                // Stop looking when we hit the start of a new field
+                Token::Level(_) | Token::Level66 | Token::Level77 | Token::Level88 => break,
+                _ => continue,
+            }
+        }
+        None
     }
 
     /// Parse BLANK WHEN ZERO clause

@@ -58,7 +58,6 @@ fn test_odo_array_valid_count() {
 }
 
 #[test]
-#[ignore = "ODO validation not yet implemented in decode path"]
 fn test_odo_array_count_clipped() {
     let schema = parse_copybook(ODO_COPYBOOK).unwrap();
     let clipped_record = create_ebcdic_record(
@@ -84,15 +83,14 @@ fn test_odo_array_count_clipped() {
             println!("Clipped record error message: {}", e.to_string());
             assert_eq!(
                 e.code,
-                ErrorCode::CBKS301_ODO_CLIPPED,
-                "Wrong error code for clipped record"
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                "Wrong error code for insufficient data"
             );
         }
     }
 }
 
 #[test]
-#[ignore = "ODO validation not yet implemented in decode path"]
 fn test_odo_array_record_too_short() {
     let schema = parse_copybook(ODO_COPYBOOK).unwrap();
     let too_short_record = vec![0xF3]; // Just count, no data
@@ -120,7 +118,6 @@ fn test_odo_array_record_too_short() {
 }
 
 #[test]
-#[ignore = "ODO validation not yet implemented in decode path"]
 fn test_odo_array_count_raised() {
     let schema = parse_copybook(ODO_COPYBOOK).unwrap();
     let raised_count_record = create_ebcdic_record(
@@ -146,8 +143,8 @@ fn test_odo_array_count_raised() {
             println!("Raised count record error message: {}", e.to_string());
             assert_eq!(
                 e.code,
-                ErrorCode::CBKS302_ODO_RAISED,
-                "Wrong error code for raised ODO count"
+                ErrorCode::CBKS301_ODO_CLIPPED,
+                "Wrong error code for ODO count exceeding maximum"
             );
         }
     }

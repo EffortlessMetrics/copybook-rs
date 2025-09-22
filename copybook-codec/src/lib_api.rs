@@ -16,6 +16,23 @@ use std::cell::RefCell;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 
+/// Shared helper for ODO bounds validation used by both decode and verify paths
+fn validate_odo_bounds(count: u32, min: u32, max: u32) -> Result<()> {
+    if count > max {
+        return Err(Error::new(
+            ErrorCode::CBKS301_ODO_CLIPPED,
+            format!("ODO count {} exceeds maximum {}", count, max),
+        ));
+    }
+    if count < min {
+        return Err(Error::new(
+            ErrorCode::CBKS302_ODO_RAISED,
+            format!("ODO count {} is below minimum {}", count, min),
+        ));
+    }
+    Ok(())
+}
+
 thread_local! {
     static WARNING_COUNTER: RefCell<u64> = RefCell::new(0);
 }
@@ -363,20 +380,8 @@ fn process_array_field(
             let counter_value =
                 find_and_read_counter_field(counter_path, all_fields, data, options)?;
 
-            // Validate ODO constraints
-            if counter_value < *min {
-                return Err(Error::new(
-                    ErrorCode::CBKS302_ODO_RAISED,
-                    format!("ODO count {} is below minimum {}", counter_value, min),
-                ));
-            }
-
-            if counter_value > *max {
-                return Err(Error::new(
-                    ErrorCode::CBKS302_ODO_RAISED,
-                    format!("ODO count {} exceeds maximum {}", counter_value, max),
-                ));
-            }
+            // Validate ODO constraints using shared helper
+            validate_odo_bounds(counter_value, *min, *max)?;
 
             counter_value
         }
@@ -389,26 +394,15 @@ fn process_array_field(
 
     // Check if we have enough data for all array elements
     if array_end > data.len() {
-        return match occurs {
-            Occurs::ODO { .. } => Err(Error::new(
-                ErrorCode::CBKS301_ODO_CLIPPED,
-                format!(
-                    "Array '{}' requires {} bytes but only {} bytes available",
-                    field.name,
-                    total_array_size,
-                    data.len().saturating_sub(array_start)
-                ),
-            )),
-            Occurs::Fixed { .. } => Err(Error::new(
-                ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                format!(
-                    "Fixed array '{}' requires {} bytes but only {} bytes available",
-                    field.name,
-                    total_array_size,
-                    data.len().saturating_sub(array_start)
-                ),
-            )),
-        };
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!(
+                "Array '{}' requires {} bytes but only {} bytes available",
+                field.name,
+                total_array_size,
+                data.len().saturating_sub(array_start)
+            ),
+        ));
     }
 
     // Process array elements

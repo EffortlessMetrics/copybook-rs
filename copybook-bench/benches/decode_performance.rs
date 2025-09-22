@@ -1,7 +1,7 @@
 use copybook_codec::{DecodeOptions, decode_file_to_jsonl, decode_record};
 use copybook_core::parse_copybook;
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use std::hint::black_box as hint_black_box;
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use std::hint::black_box;
 use std::io::Cursor;
 
 const SIMPLE_COPYBOOK: &str = r#"
@@ -154,7 +154,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        black_box(_result);
                     }
                 })
             },
@@ -175,7 +175,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                             &mut output,
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        black_box(_result);
                     })
                 },
             );
@@ -209,7 +209,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        black_box(_result);
                     }
                 })
             },
@@ -230,7 +230,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                             &mut output,
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        black_box(_result);
                     })
                 },
             );
@@ -264,7 +264,7 @@ fn bench_decode_binary_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        hint_black_box(_result);
+                        black_box(_result);
                     }
                 })
             },

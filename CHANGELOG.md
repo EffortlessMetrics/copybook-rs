@@ -5,6 +5,18 @@ All notable changes to copybook-rs will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2025-09-22
+### Added
+- Decode/verify parity for ODO: >max→CBKS301, <min→CBKS302, short→CBKD301
+- Counter-type twins (zoned/binary/packed) + verify twins
+- Structural tail rule (last storage sibling), allows children inside ODO
+
+### Changed
+- Layout validation: retain counter existence checks; tail check is structural
+
+### Performance
+- DISPLAY 4–5 GiB/s; COMP-3 50–70 MiB/s (SLOs far exceeded)
+
 ## [0.2.0] - 2025-09-19
 
 ### Added

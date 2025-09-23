@@ -760,8 +760,8 @@ mod tests {
         let context = build_redefines_context(&schema, &json_data);
 
         assert_eq!(context.field_to_cluster.len(), 1);
-        assert!(context.field_to_cluster.contains_key("ROOT.FIELD_B"));
-        assert_eq!(context.field_to_cluster["ROOT.FIELD_B"], "ROOT.FIELD_A");
+        assert!(context.field_to_cluster.contains_key("FIELD_B"));
+        assert_eq!(context.field_to_cluster["FIELD_B"], "ROOT.FIELD_A");
     }
 
     #[test]

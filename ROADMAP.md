@@ -1,178 +1,194 @@
 # copybook-rs Roadmap
 
-## Current Status: ✅ **PRODUCTION READY**
+**Status:** ✅ Production Ready (v0.3.0)
 
-copybook-rs has **achieved production maturity** as of v0.3.0 (September 2025) and is ready for immediate enterprise deployment.
-
-### Production Achievements ✅
-- **127 tests passing** with comprehensive coverage
-- **15-52x performance above enterprise targets**
-- **Zero unsafe code** with complete memory safety
-- **Comprehensive COBOL support** for enterprise workloads
-- **Multi-GB file processing** with <256 MiB memory usage
-- **Robust error taxonomy** with stable error codes
+This roadmap tracks **what we will ship**, **how we'll measure it**, and **when it's done**. Each milestone has: Objectives → Deliverables → Exit Criteria → Risks/Mitigations.
 
 ---
 
-## Roadmap Overview
+## Principles (keep these stable)
 
-### **Phase 1: Production Foundation** ✅ **COMPLETED**
-*Target: Q3 2025 | Status: **DELIVERED***
-
-Core functionality for enterprise mainframe data processing:
-- ✅ Complete COBOL copybook parser (lexer, AST, layout resolution)
-- ✅ High-performance data codec (encode/decode with character conversion)
-- ✅ CLI interface with comprehensive subcommands
-- ✅ Multiple record formats (fixed-length, RDW variable)
-- ✅ EBCDIC codepage support (CP037, CP273, CP500, CP1047, CP1140)
-- ✅ Memory-safe streaming architecture
-- ✅ Comprehensive test coverage and error handling
-
-**Result**: System ready for production deployment with substantial performance safety margins.
+* **Stability first**: No breaking public behaviors without a minor+ bump; hold API freeze before v1.0.
+* **Performance budgeted**: Any change must keep ≥ **DISPLAY 4.1–4.2 GiB/s** and **COMP-3 560–580 MiB/s**, memory < **256 MiB** steady-state.
+* **Single source of truth**: Performance figures live in **README "Performance Specifications"**; other docs reference it.
+* **Determinism**: Parallel decode remains deterministic; round-trip remains lossless.
 
 ---
 
-## **Phase 2: Ecosystem & Distribution** 🚀 **CURRENT FOCUS**
-*Target: Q4 2025*
+## Milestone v0.4.0 — Distribution & CI (Q4 2025)  🚀 *current focus*
 
-### 2.1 Package Distribution
-- [ ] **Crates.io Publishing** - Make available via `cargo install copybook-cli`
-  - Publish `copybook-core`, `copybook-codec`, `copybook-cli` in dependency order
-  - Set up automated release pipeline
-- [ ] **Binary Releases** - GitHub releases with pre-built binaries
-  - Linux (x86_64, aarch64), macOS (Intel, Apple Silicon), Windows
-  - Docker container images for CI/CD integration
+### Objectives
 
-### 2.2 Development Experience Enhancement
-- [ ] **[Issue #52](https://github.com/EffortlessMetrics/copybook-rs/issues/52)**: Benchmark CI Integration
-  - JSON benchmark receipts with machine-readable results
-  - PR comments showing performance deltas
-  - Continuous SLO validation in CI pipeline
-- [ ] **[Issue #53](https://github.com/EffortlessMetrics/copybook-rs/issues/53)**: Golden Fixture Expansion
-  - Structural validation test cases (level-88 after ODO, child-inside-ODO)
-  - Edge case coverage for production scenarios
-  - Regression prevention for layout validation rules
+* Make installation trivial; make performance visible in PRs; lock structural semantics with fixtures.
 
-### 2.3 Documentation & Examples
-- [ ] **Production Case Studies** - Real-world deployment examples
-- [ ] **Integration Guides** - Kafka, Spark, data pipeline integrations
-- [ ] **Performance Tuning Guide** - Optimization for specific workloads
+### Deliverables
 
----
+1. **Crates.io publish** (`core`, `codec`, `cli`)
 
-## **Phase 3: Enterprise Features** 📈 **PLANNED**
-*Target: Q1 2026*
+   * crate metadata: categories, keywords, readme path, license files included
+   * docs.rs builds for all crates
+2. **Bench receipts in CI** (#52)
 
-### 3.1 Advanced COBOL Dialect Support
-- [ ] **[Issue #51](https://github.com/EffortlessMetrics/copybook-rs/issues/51)**: ODO Dialect Configuration
-  - Configurable lower bounds for `OCCURS n TIMES DEPENDING ON`
-  - Support for 0|1|n minimum values based on compiler behavior
-  - Backward compatibility with current behavior (default: min=max=n)
-- [ ] **Extended Character Sets** - Additional EBCDIC variants and ASCII variants
-- [ ] **Regional Numeric Formats** - Locale-specific decimal and sign conventions
+   * criterion JSON + rolled-up `perf.json` artifact
+   * PR comment: SLO deltas and pass/fail against budgets (±5% warn, >10% fail)
+3. **Golden fixtures** (#53)
 
-### 3.2 Performance & Scalability
-- [ ] **SIMD Optimizations** - Vectorized character conversion and numeric processing
-- [ ] **Memory Pool Management** - Advanced scratch buffer strategies
-- [ ] **Distributed Processing** - Multi-node processing coordination
-- [ ] **GPU Acceleration** - CUDA/OpenCL for massive parallel workloads
+   * `level-88 after ODO` (pass)
+   * `child-inside-ODO` (pass)
+   * `storage sibling after ODO` (fail) wired into the suite
+4. **Docs nav + link hygiene**
 
-### 3.3 Integration & Ecosystem
-- [ ] **Apache Arrow Integration** - Zero-copy columnar data output
-- [ ] **Parquet Export** - Direct conversion to analytical storage formats
-- [ ] **Schema Registry Support** - Avro/Protobuf schema generation
-- [ ] **Streaming Platforms** - Native Kafka Connect integration
+   * Ensure `docs/CLI_REFERENCE.md` and `docs/LIBRARY_API.md` exist and are linked
+   * Remove duplicate perf numbers elsewhere; link to canonical section
+
+### Exit Criteria (all must be true)
+
+* `cargo add copybook-cli@0.3` **works** in a clean project; docs.rs pages live
+* CI uploads artifacts and posts a **bench summary** on PRs; failures block merge
+* Golden fixtures run in CI; the failing sibling-after-ODO case is asserted
+* No dead links (`just docs-check`) and no perf number duplication
+
+### Risks & Mitigations
+
+* **docs.rs build timing out** → slim examples; mark heavy benches as `doc(cfg)`
+* **Artifact bloat** → keep raw criterion JSON; rollup ≤ 50 KB; retain 14 days
 
 ---
 
-## **Phase 4: Advanced Analytics** 🔬 **FUTURE**
-*Target: Q2-Q3 2026*
+## Milestone v0.5.0 — Dialects & Optimizations (Q1 2026)
 
-### 4.1 Data Quality & Observability
-- [ ] **Data Profiling** - Automatic data quality assessment
-- [ ] **Anomaly Detection** - Statistical analysis of data patterns
-- [ ] **Lineage Tracking** - End-to-end data transformation tracking
-- [ ] **Compliance Reporting** - GDPR, SOX, audit trail generation
+### Objectives
 
-### 4.2 AI/ML Integration
-- [ ] **Schema Inference** - ML-powered copybook reconstruction from data
-- [ ] **Data Classification** - Automatic PII/sensitive data detection
-- [ ] **Pattern Recognition** - Automated COBOL structure analysis
-- [ ] **Intelligent Mapping** - AI-assisted field mapping suggestions
+* Add a safe, explicit knob for ODO bounds across COBOL dialects; squeeze throughput without changing outputs.
 
-### 4.3 Cloud-Native Features
-- [ ] **Kubernetes Operator** - Native K8s resource management
-- [ ] **Serverless Functions** - AWS Lambda, Azure Functions support
-- [ ] **Multi-Cloud Storage** - S3, Azure Blob, GCS native integration
-- [ ] **Horizontal Scaling** - Auto-scaling based on workload demand
+### Deliverables
 
----
+1. **Dialect lever** (#51)
 
-## **Phase 5: Ecosystem Expansion** 🌐 **VISION**
-*Target: 2027+*
+   * Config:
 
-### 5.1 Language Bindings
-- [ ] **Python SDK** - Native Python bindings for data science workflows
-- [ ] **Java/Scala API** - JVM ecosystem integration
-- [ ] **Go Bindings** - Cloud-native application integration
-- [ ] **WebAssembly** - Browser-based copybook processing
+     ```toml
+     [parser]
+     occurs_fixed_with_depends_lower_bound = "n"   # allowed: "n" | "0" | "1"; default "n"
+     ```
+   * CLI flag and env var mapping (`--dialect-odo-lower-bound`, `COPYBOOK_DIALECT_ODO_LOWER`)
+   * Golden fixtures for each setting; docs examples and migration notes
+2. **Perf tune (SIMD/I/O)**
 
-### 5.2 Enterprise Platform
-- [ ] **Management Console** - Web-based configuration and monitoring
-- [ ] **Multi-Tenant Architecture** - SaaS deployment model
-- [ ] **Enterprise SSO** - SAML, OAuth, Active Directory integration
-- [ ] **API Gateway** - RESTful service orchestration
+   * Target +10–20% p95 throughput maintained under budgets; no API/behavior changes
 
-### 5.3 Industry Specialization
-- [ ] **Financial Services Pack** - Banking-specific COBOL patterns
-- [ ] **Insurance Domain** - Actuarial and claims processing optimizations
-- [ ] **Government/Defense** - Security clearance and compliance features
-- [ ] **Healthcare** - HIPAA compliance and medical record processing
+### Exit Criteria
+
+* Same inputs under each dialect mode produce **documented** and **tested** outcomes
+* No regressions vs v0.3.0 budgets; CI receipts show deltas ≤ 5% except where improved
+* Default behavior unchanged (back-compat preserved)
+
+### Risks & Mitigations
+
+* **Behavior drift for existing users** → default remains current `"n"`; strong docs + examples
 
 ---
 
-## Contributing to the Roadmap
+## Toward v1.0.0 — Stability & Ecosystem (Q2 2026)
 
-### Immediate Opportunities
-1. **Crates.io Publishing** - Help package and publish the crates
-2. **Binary Distribution** - Set up cross-platform build automation
-3. **Documentation** - Create production deployment case studies
-4. **Testing** - Add golden fixtures for edge cases
+### Objectives
 
-### Long-term Vision
-The roadmap emphasizes **enterprise-grade reliability** while expanding the ecosystem. Priority is given to:
-- **Stability over features** - No breaking changes to core APIs
-- **Performance preservation** - Maintain 15-52x performance margins
-- **Backward compatibility** - Support for existing deployments
-- **Security first** - Memory safety and secure-by-default design
+* Lock public behaviors, add first-class connectors.
 
-### Community Input
-- **GitHub Issues**: Report bugs, request features, share use cases
-- **Discussions**: Architecture decisions, performance optimizations
-- **Pull Requests**: Documentation, tests, bug fixes, optimizations
+### Deliverables
+
+* **API freeze window** (4 weeks): only doc/bench/test changes
+* **Ecosystem adapters** (best-effort): Arrow/Parquet writer crate prototype, Kafka example pipeline
+* **Support policy**: 6-month minor support window; security patches anytime
+
+### Exit Criteria
+
+* Changelog & README carry a "**Stability Guarantees**" section
+* Example integrations build in CI; round-trip and perf budgets still satisfied
 
 ---
 
-## Version Planning
+## Project board & labels
 
-### **v0.4.0** (Q4 2025) - Distribution & CI
-- Crates.io publishing
-- Benchmark CI integration
-- Binary releases
-- Enhanced golden fixtures
+* **Board columns**: Backlog → In Progress → In Review → Bench Verified → Done
+* **Labels**: `area:parser`, `area:bench`, `area:docs`, `type:feature`, `type:bug`, `type:tests`, `perf:budget-regression`
+* **Rules**:
 
-### **v0.5.0** (Q1 2026) - Dialect Support
-- ODO configuration options
-- Extended character set support
-- Performance optimizations
-
-### **v1.0.0** (Q2 2026) - Long-Term Stability
-- API stability guarantees
-- Comprehensive enterprise features
-- Full backward compatibility promise
+  * Anything touching hot paths must pass **Bench Verified** before **Done**
+  * Any PR adding perf numbers must **not** repeat them—link to canonical section
 
 ---
 
-**Status**: copybook-rs is **production-ready today** and suitable for immediate enterprise deployment. The roadmap focuses on ecosystem expansion and advanced enterprise features while maintaining the exceptional performance and reliability standards already achieved.
+## Release train
 
-**Last Updated**: v0.3.0 (September 2025)
+* **Minor**: every 6–8 weeks (feature batches)
+* **Patch**: as-needed (bug or doc only)
+* **Pre-release checklist**: `cargo build -r` • `nextest` • `bench receipts` • link check • changelog • tag • GitHub release
+
+---
+
+## Owner matrix (example; edit as you like)
+
+| Area              | DRI        | Backup     |
+| ----------------- | ---------- | ---------- |
+| Parser & dialects | @you       | @contrib-A |
+| Codec & perf      | @you       | @contrib-B |
+| CLI & docs        | @contrib-C | @you       |
+| CI/bench receipts | @contrib-D | @contrib-C |
+
+---
+
+## Paste-ready CI snippets
+
+**Bench receipts (GitHub Actions)**
+
+```yaml
+- name: Run benches
+  run: PERF=1 cargo bench -p copybook-bench -- --output-format bencher | tee bench.out
+
+- name: Roll up perf JSON
+  run: |
+    python - << 'PY'
+    import json,glob,os,sys
+    from pathlib import Path
+    reports=list(glob.glob('target/criterion/**/new/benchmark.json',recursive=True))
+    out={"display_gibs":None,"comp3_mibs":None}
+    # TODO: parse actual metric keys; set SLOs
+    Path('perf.json').write_text(json.dumps(out))
+    PY
+
+- name: Upload artifacts
+  uses: actions/upload-artifact@v4
+  with:
+    name: bench-artifacts
+    path: |
+      perf.json
+      target/criterion/**
+    retention-days: 14
+
+- name: Comment perf summary
+  if: ${{ github.event_name == 'pull_request' }}
+  run: gh pr comment ${{ github.event.pull_request.number }} --body "$(cat perf.json)"
+```
+
+**SLO gate (simple)**
+
+```yaml
+- name: Enforce SLOs
+  run: |
+    python - << 'PY'
+    import json,sys
+    d=json.load(open('perf.json'))
+    assert d["display_gibs"] >= 4.1, "DISPLAY throughput below 4.1 GiB/s"
+    assert d["comp3_mibs"] >= 560, "COMP-3 throughput below 560 MiB/s"
+    PY
+```
+
+---
+
+## Definition of Done (all milestones)
+
+* ✅ Tests green (unit/integration/goldens)
+* ✅ Bench receipts uploaded; budgets respected
+* ✅ Docs updated (no duplicated performance figures)
+* ✅ Changelog entry & tag created

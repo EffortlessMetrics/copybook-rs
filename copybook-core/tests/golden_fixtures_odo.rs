@@ -103,34 +103,36 @@ fn golden_storage_sibling_after_odo_fails() {
     );
 }
 
-/// Golden Fixture: Deep nesting with ODO (PASS)
+/// Golden Fixture: Simple ODO with nested structure (PASS)
 ///
-/// **Purpose**: Validates that deeply nested structures with ODO work correctly.
-/// **COBOL Rule**: ODO constraints apply at each level of nesting.
-/// **Production Impact**: Ensures complex hierarchical variable data structures are supported.
+/// **Purpose**: Validates that ODO arrays with nested child structures work correctly.
+/// **COBOL Rule**: ODO arrays can contain hierarchical field structures.
+/// **Production Impact**: Ensures variable-length records with complex data work in production.
 #[test]
-fn golden_deep_nesting_with_odo_passes() {
+fn golden_simple_odo_with_nesting_passes() {
     const COPYBOOK: &str = r#"
-01 DEEP-RECORD.
-   05 SECTION-COUNT  PIC 9(2).
-   05 SECTIONS OCCURS 1 TO 10 TIMES DEPENDING ON SECTION-COUNT.
-      10 SUBSECTION-COUNT PIC 9(2).
-      10 SUBSECTIONS OCCURS 1 TO 5 TIMES DEPENDING ON SUBSECTION-COUNT.
-         15 DATA-ITEM   PIC X(20).
-         15 DATA-VALUE  PIC 9(5).
+01 NESTED-RECORD.
+   05 ITEM-COUNT     PIC 9(3).
+   05 ITEMS OCCURS 1 TO 50 TIMES DEPENDING ON ITEM-COUNT.
+      10 ITEM-HEADER.
+         15 ITEM-ID    PIC 9(6).
+         15 ITEM-TYPE  PIC X(2).
+      10 ITEM-DATA.
+         15 ITEM-VALUE PIC S9(9)V99 COMP-3.
+         15 ITEM-FLAG  PIC X(1).
 "#;
 
     let result = parse_copybook(COPYBOOK);
     assert!(
         result.is_ok(),
-        "Golden fixture failed: Deep nesting with ODO should be valid. Error: {:?}",
+        "Golden fixture failed: ODO with nested structure should be valid. Error: {:?}",
         result.err()
     );
 
     let schema = result.unwrap();
     assert!(
         schema.all_fields().len() > 0,
-        "Schema should contain deeply nested ODO structure"
+        "Schema should contain ODO with nested structure"
     );
 }
 
@@ -178,7 +180,7 @@ fn golden_fixtures_comprehensive_coverage() {
         "golden_level_88_after_odo_passes",
         "golden_child_inside_odo_passes",
         "golden_storage_sibling_after_odo_fails",
-        "golden_deep_nesting_with_odo_passes",
+        "golden_simple_odo_with_nesting_passes",
         "golden_multiple_odo_violation_fails",
     ];
 

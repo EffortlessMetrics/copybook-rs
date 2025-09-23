@@ -45,8 +45,12 @@ jobs:
         import sys
         from pathlib import Path
 
-        # Find all criterion benchmark JSON files
-        criterion_files = list(glob.glob('target/criterion/**/new/benchmark.json', recursive=True))
+        # Map benchmark directories to our metrics
+        # Criterion stores results in target/criterion/<group_name>/<bench_name>/new/
+        BENCHMARK_MAP = {
+            "decode_display_heavy": "display_gibs",
+            "decode_comp3_heavy": "comp3_mibs"
+        }
 
         # Initialize results
         results = {
@@ -59,42 +63,80 @@ jobs:
             "errors": []
         }
 
+        # Find criterion estimate files (these contain the final statistics)
+        estimate_files = list(glob.glob('target/criterion/**/new/estimates.json', recursive=True))
+
+        print(f"Found {len(estimate_files)} estimate files")
+
         # Parse criterion results
-        for file in criterion_files:
+        for file in estimate_files:
             try:
                 with open(file, 'r') as f:
                     data = json.load(f)
 
-                benchmark_name = data.get('id', '').lower()
+                # Extract group name from path (parent directory)
+                # Path format: target/criterion/<group_name>/<bench_name>/new/estimates.json
+                path_parts = Path(file).parts
+                if len(path_parts) >= 4:
+                    group_name = path_parts[-4]  # Get the group name
+                    bench_name = path_parts[-3]  # Get the benchmark name
 
-                # Extract throughput from criterion data
-                if 'throughput' in data:
-                    throughput = data['throughput']
-                    if 'bytes_per_second' in throughput:
-                        bytes_per_sec = throughput['bytes_per_second']
+                    print(f"Processing {group_name}/{bench_name}")
 
-                        if 'display' in benchmark_name:
-                            gibs = bytes_per_sec / (1024**3)  # Convert to GiB/s
-                            results["display_gibs"] = round(gibs, 2)
-                        elif 'comp3' in benchmark_name or 'comp_3' in benchmark_name:
-                            mibs = bytes_per_sec / (1024**2)  # Convert to MiB/s
-                            results["comp3_mibs"] = round(mibs, 1)
+                    if group_name in BENCHMARK_MAP:
+                        metric_name = BENCHMARK_MAP[group_name]
+
+                        # Extract the mean throughput estimate
+                        if 'mean' in data and 'point_estimate' in data['mean']:
+                            # Criterion stores throughput in elements/second or bytes/second
+                            # We need to find the benchmark.json to get the throughput info
+                            benchmark_json = file.replace('estimates.json', 'benchmark.json')
+
+                            if os.path.exists(benchmark_json):
+                                with open(benchmark_json, 'r') as bf:
+                                    bench_data = json.load(bf)
+
+                                if 'throughput' in bench_data:
+                                    throughput_info = bench_data['throughput']
+                                    mean_time_ns = data['mean']['point_estimate']
+
+                                    if throughput_info.get('Bytes') is not None:
+                                        # Calculate bytes per second from time per iteration
+                                        bytes_per_iter = throughput_info['Bytes']
+                                        time_per_iter_sec = mean_time_ns / 1e9
+                                        bytes_per_sec = bytes_per_iter / time_per_iter_sec
+
+                                        if metric_name == "display_gibs":
+                                            gibs = bytes_per_sec / (1024**3)
+                                            results["display_gibs"] = max(results["display_gibs"] or 0, round(gibs, 2))
+                                            print(f"  DISPLAY throughput: {gibs:.2f} GiB/s")
+                                        elif metric_name == "comp3_mibs":
+                                            mibs = bytes_per_sec / (1024**2)
+                                            results["comp3_mibs"] = max(results["comp3_mibs"] or 0, round(mibs, 1))
+                                            print(f"  COMP-3 throughput: {mibs:.1f} MiB/s")
 
             except Exception as e:
-                results["errors"].append(f"Failed to parse {file}: {e}")
+                error_msg = f"Failed to parse {file}: {e}"
+                results["errors"].append(error_msg)
+                print(f"Error: {error_msg}")
+
+        # Validate we got results
+        if results["display_gibs"] is None and results["comp3_mibs"] is None:
+            results["errors"].append("No throughput data found in benchmark results")
+            results["status"] = "failure"
 
         # Validate against SLOs
         slo_display_gibs = 4.1
         slo_comp3_mibs = 560
 
-        if results["display_gibs"]:
+        if results["display_gibs"] is not None:
             if results["display_gibs"] < slo_display_gibs:
                 results["status"] = "failure"
                 results["errors"].append(f"DISPLAY throughput {results['display_gibs']} GiB/s below SLO {slo_display_gibs} GiB/s")
             elif results["display_gibs"] < slo_display_gibs * 1.05:  # Within 5% warning threshold
                 results["warnings"].append(f"DISPLAY throughput {results['display_gibs']} GiB/s close to SLO threshold")
 
-        if results["comp3_mibs"]:
+        if results["comp3_mibs"] is not None:
             if results["comp3_mibs"] < slo_comp3_mibs:
                 results["status"] = "failure"
                 results["errors"].append(f"COMP-3 throughput {results['comp3_mibs']} MiB/s below SLO {slo_comp3_mibs} MiB/s")
@@ -121,6 +163,8 @@ jobs:
                 print(f"   {warning}")
         else:
             print("✅ All benchmark SLOs passed!")
+            print(f"   DISPLAY: {results['display_gibs']} GiB/s")
+            print(f"   COMP-3: {results['comp3_mibs']} MiB/s")
         EOF
 
     - name: Upload benchmark artifacts

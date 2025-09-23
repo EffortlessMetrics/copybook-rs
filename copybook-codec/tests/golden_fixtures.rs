@@ -75,7 +75,8 @@ fn test_comp3_roundtrip_golden() {
     assert_eq!(decode_summary.records_with_errors, 0);
 
     // Parse the decoded JSONL and verify content
-    let decoded_jsonl = String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
+    let decoded_jsonl =
+        String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
     let lines: Vec<&str> = decoded_jsonl.trim().split('\n').collect();
     assert_eq!(lines.len(), 2);
 

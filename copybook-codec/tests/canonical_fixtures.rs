@@ -123,7 +123,8 @@ fn test_comp3_canonical() {
     assert_eq!(decode_summary.records_with_errors, 0);
 
     // Parse and normalize the decoded JSONL
-    let decoded_jsonl = String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
+    let decoded_jsonl =
+        String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
     let normalized_output = normalize_stdout(&decoded_jsonl);
 
     let lines: Vec<&str> = normalized_output.split('\n').collect();

@@ -575,13 +575,14 @@ fn test_redefines_declaration_order() {
         .map(|s| s.as_str())
         .collect();
 
-    // NOTE: After rebase, fields are now ordered alphabetically instead of declaration order
-    // This behavior change is acceptable as long as all REDEFINES fields are present
+
+    // Fields should be in declaration order (schema order), not alphabetical order
     let expected_order = [
-        "FIRST-REDEFINE",
-        "ORIGINAL",
-        "SECOND-REDEFINE",
-        "THIRD-REDEFINE",
+        "__record_length",  // metadata field added first
+        "ORIGINAL",         // 1st field in schema
+        "THIRD-REDEFINE",   // 2nd field in schema
+        "FIRST-REDEFINE",   // 3rd field in schema
+        "SECOND-REDEFINE",  // 4th field in schema
     ];
 
     for (i, expected_key) in expected_order.iter().enumerate() {

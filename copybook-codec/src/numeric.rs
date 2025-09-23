@@ -414,7 +414,7 @@ pub fn decode_packed_decimal(
         let low_nibble = byte & 0x0F;
 
         // Process high nibble (always a digit except possibly in last byte)
-        if byte_idx == data.len() - 1 && digits % 2 == 0 {
+        if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
             // Last byte, even number of digits - high nibble is sign
             if signed {
                 let is_negative = match high_nibble {
@@ -674,7 +674,7 @@ pub fn encode_packed_decimal(
         let mut byte_val = 0u8;
 
         // High nibble
-        if byte_idx == expected_bytes - 1 && digits % 2 == 0 {
+        if byte_idx == expected_bytes - 1 && digits.is_multiple_of(2) {
             // Last byte, even digits - high nibble is sign
             byte_val |= if signed {
                 if decimal.negative { 0xD0 } else { 0xC0 }
@@ -1076,7 +1076,7 @@ pub fn decode_packed_decimal_with_scratch(
                 let low_nibble = byte & 0x0F;
 
                 // Process high nibble
-                if byte_idx == data.len() - 1 && digits % 2 == 0 {
+                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
                     // Last byte, even digits - high nibble is sign
                     if signed {
                         let is_negative = match high_nibble {
@@ -1152,7 +1152,7 @@ pub fn decode_packed_decimal_with_scratch(
                 let low_nibble = byte & 0x0F;
 
                 // Process high nibble
-                if byte_idx == data.len() - 1 && digits % 2 == 0 {
+                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
                     // Last byte, even digits - high nibble is sign
                     if signed {
                         let is_negative = match high_nibble {

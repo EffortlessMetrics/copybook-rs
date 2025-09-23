@@ -11,6 +11,7 @@
 use crate::options::{Codepage, DecodeOptions, EncodeOptions, JsonNumberMode};
 use base64;
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Result, Schema};
+use indexmap::IndexMap;
 use serde_json::Value;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -189,7 +190,7 @@ fn decode_record_impl(
         data: &[u8],
         options: &DecodeOptions,
         warnings: &mut u64,
-        out: &mut serde_json::Map<String, Value>,
+        out: &mut IndexMap<String, Value>,
     ) -> Result<()> {
         // Handle arrays first (OCCURS clause)
         if let Some(occurs) = &field.occurs {
@@ -327,7 +328,7 @@ fn decode_record_impl(
 
         match &field.kind {
             FieldKind::Group => {
-                let mut group_obj = serde_json::Map::new();
+                let mut group_obj = IndexMap::new();
                 for child in &field.children {
                     decode_into(child, data, options, warnings, &mut group_obj)?;
                 }
@@ -337,7 +338,7 @@ fn decode_record_impl(
                         out.insert(k, v);
                     }
                 } else {
-                    out.insert(field.name.clone(), Value::Object(group_obj));
+                    out.insert(field.name.clone(), serde_json::to_value(group_obj).unwrap());
                 }
             }
             FieldKind::Alphanum { .. } => {
@@ -497,7 +498,7 @@ fn decode_record_impl(
         Ok(())
     }
 
-    let mut obj = serde_json::Map::new();
+    let mut obj = IndexMap::new();
     // Always include the raw record length for diagnostics
     obj.insert(
         "__record_length".to_string(),
@@ -526,7 +527,8 @@ fn decode_record_impl(
         obj.insert("__raw_b64".to_string(), Value::String(raw_b64));
     }
 
-    Ok(Value::Object(obj))
+    // Convert IndexMap to Value while preserving order (serde_json has preserve_order feature enabled)
+    Ok(serde_json::to_value(obj).unwrap())
 }
 
 pub fn decode_record(
@@ -959,10 +961,10 @@ mod tests {
         let schema = parse_copybook(copybook_text).unwrap();
         let options = EncodeOptions::default();
 
-        let mut json_obj = serde_json::Map::new();
+        let mut json_obj = IndexMap::new();
         json_obj.insert("ID".to_string(), Value::String("123".to_string()));
         json_obj.insert("NAME".to_string(), Value::String("ALICE".to_string()));
-        let json = Value::Object(json_obj);
+        let json = serde_json::to_value(json_obj).unwrap();
 
         let result = encode_record(&schema, &json, &options).unwrap();
         assert!(!result.is_empty());

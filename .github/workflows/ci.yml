@@ -113,3 +113,17 @@ jobs:
       run: cargo test --package copybook-core
       env:
         COPYBOOK_TEST_STRICT_COMMENTS: "1"
+
+  publish-dry-run:
+    name: Publish Dry Run
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Dry run publish (copybook-core)
+      run: cargo publish -p copybook-core --dry-run
+    - name: Dry run publish (copybook-codec)
+      run: cargo publish -p copybook-codec --dry-run
+    - name: Dry run publish (copybook-cli)
+      run: cargo publish -p copybook-cli --dry-run

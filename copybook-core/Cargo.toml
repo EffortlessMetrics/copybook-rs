@@ -7,9 +7,18 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Core parsing and schema types for COBOL copybooks"
-keywords.workspace = true
-categories.workspace = true
+description = "Core COBOL copybook parser, schema, and validation primitives."
+documentation = "https://docs.rs/copybook-core"
+readme = "README.md"
+keywords = ["cobol", "copybook", "mainframe", "ebcdic", "parser"]
+categories = ["parsing", "data-structures", "encoding"]
+
+# Keep tarballs slim; whitelist essential files
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 serde.workspace = true

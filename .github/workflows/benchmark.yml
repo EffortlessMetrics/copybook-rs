@@ -1,0 +1,220 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # For PR comments
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for comparison
+
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: benchmark
+
+    - name: Run benchmarks
+      run: |
+        # Run benchmarks with performance mode enabled
+        PERF=1 cargo bench --package copybook-bench -- --output-format json | tee bench_raw.json
+        # Also generate human-readable output
+        PERF=1 cargo bench --package copybook-bench -- --output-format pretty | tee bench.out
+
+    - name: Process benchmark results
+      id: process
+      run: |
+        python3 - << 'EOF'
+        import json
+        import glob
+        import os
+        import sys
+        from pathlib import Path
+
+        # Find all criterion benchmark JSON files
+        criterion_files = list(glob.glob('target/criterion/**/new/benchmark.json', recursive=True))
+
+        # Initialize results
+        results = {
+            "display_gibs": None,
+            "comp3_mibs": None,
+            "timestamp": "",
+            "commit": os.environ.get("GITHUB_SHA", "unknown")[:8],
+            "status": "success",
+            "warnings": [],
+            "errors": []
+        }
+
+        # Parse criterion results
+        for file in criterion_files:
+            try:
+                with open(file, 'r') as f:
+                    data = json.load(f)
+
+                benchmark_name = data.get('id', '').lower()
+
+                # Extract throughput from criterion data
+                if 'throughput' in data:
+                    throughput = data['throughput']
+                    if 'bytes_per_second' in throughput:
+                        bytes_per_sec = throughput['bytes_per_second']
+
+                        if 'display' in benchmark_name:
+                            gibs = bytes_per_sec / (1024**3)  # Convert to GiB/s
+                            results["display_gibs"] = round(gibs, 2)
+                        elif 'comp3' in benchmark_name or 'comp_3' in benchmark_name:
+                            mibs = bytes_per_sec / (1024**2)  # Convert to MiB/s
+                            results["comp3_mibs"] = round(mibs, 1)
+
+            except Exception as e:
+                results["errors"].append(f"Failed to parse {file}: {e}")
+
+        # Validate against SLOs
+        slo_display_gibs = 4.1
+        slo_comp3_mibs = 560
+
+        if results["display_gibs"]:
+            if results["display_gibs"] < slo_display_gibs:
+                results["status"] = "failure"
+                results["errors"].append(f"DISPLAY throughput {results['display_gibs']} GiB/s below SLO {slo_display_gibs} GiB/s")
+            elif results["display_gibs"] < slo_display_gibs * 1.05:  # Within 5% warning threshold
+                results["warnings"].append(f"DISPLAY throughput {results['display_gibs']} GiB/s close to SLO threshold")
+
+        if results["comp3_mibs"]:
+            if results["comp3_mibs"] < slo_comp3_mibs:
+                results["status"] = "failure"
+                results["errors"].append(f"COMP-3 throughput {results['comp3_mibs']} MiB/s below SLO {slo_comp3_mibs} MiB/s")
+            elif results["comp3_mibs"] < slo_comp3_mibs * 1.05:  # Within 5% warning threshold
+                results["warnings"].append(f"COMP-3 throughput {results['comp3_mibs']} MiB/s close to SLO threshold")
+
+        # Write results
+        Path('perf.json').write_text(json.dumps(results, indent=2))
+
+        # Set outputs for GitHub Actions
+        print(f"::set-output name=status::{results['status']}")
+        print(f"::set-output name=display_gibs::{results['display_gibs'] or 'N/A'}")
+        print(f"::set-output name=comp3_mibs::{results['comp3_mibs'] or 'N/A'}")
+
+        # Exit with error if SLOs failed
+        if results["status"] == "failure":
+            print("❌ Benchmark SLOs failed!")
+            for error in results["errors"]:
+                print(f"   {error}")
+            sys.exit(1)
+        elif results["warnings"]:
+            print("⚠️  Benchmark warnings:")
+            for warning in results["warnings"]:
+                print(f"   {warning}")
+        else:
+            print("✅ All benchmark SLOs passed!")
+        EOF
+
+    - name: Upload benchmark artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: |
+          perf.json
+          bench.out
+          bench_raw.json
+          target/criterion/**/*.json
+          target/criterion/**/*.html
+        retention-days: 14
+        compression-level: 6
+
+    - name: Comment PR with benchmark results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+
+          try {
+            const perfData = JSON.parse(fs.readFileSync('perf.json', 'utf8'));
+
+            const statusIcon = perfData.status === 'failure' ? '❌' :
+                             perfData.warnings.length > 0 ? '⚠️' : '✅';
+
+            const displayMetric = perfData.display_gibs ? `${perfData.display_gibs} GiB/s` : 'N/A';
+            const comp3Metric = perfData.comp3_mibs ? `${perfData.comp3_mibs} MiB/s` : 'N/A';
+
+            let body = `## ${statusIcon} Benchmark Results\n\n`;
+            body += `**Commit:** \`${perfData.commit}\`\n\n`;
+            body += `| Metric | Result | SLO | Status |\n`;
+            body += `|--------|--------|-----|--------|\n`;
+            body += `| DISPLAY | ${displayMetric} | ≥4.1 GiB/s | ${perfData.display_gibs >= 4.1 ? '✅' : '❌'} |\n`;
+            body += `| COMP-3 | ${comp3Metric} | ≥560 MiB/s | ${perfData.comp3_mibs >= 560 ? '✅' : '❌'} |\n\n`;
+
+            if (perfData.errors.length > 0) {
+              body += `### ❌ Errors\n`;
+              perfData.errors.forEach(error => {
+                body += `- ${error}\n`;
+              });
+              body += `\n`;
+            }
+
+            if (perfData.warnings.length > 0) {
+              body += `### ⚠️ Warnings\n`;
+              perfData.warnings.forEach(warning => {
+                body += `- ${warning}\n`;
+              });
+              body += `\n`;
+            }
+
+            body += `### 📊 Performance Specifications\n`;
+            body += `For detailed performance analysis, see [Performance Specifications](https://github.com/EffortlessMetrics/copybook-rs#performance-specifications) in the main README.\n\n`;
+            body += `**Benchmark artifacts available for 14 days.**`;
+
+            // Find existing benchmark comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const existingComment = comments.find(comment =>
+              comment.body.includes('## 📊 Benchmark Results') ||
+              comment.body.includes('## ✅ Benchmark Results') ||
+              comment.body.includes('## ❌ Benchmark Results') ||
+              comment.body.includes('## ⚠️ Benchmark Results')
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+          } catch (error) {
+            console.error('Failed to post benchmark comment:', error);
+          }
+
+    - name: Fail if SLOs not met
+      if: steps.process.outputs.status == 'failure'
+      run: |
+        echo "❌ Benchmark SLOs failed - see results above"
+        exit 1

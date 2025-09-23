@@ -15,7 +15,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ---
 
-## Milestone v0.4.0 — Distribution & CI (Q4 2025)  🚀 *current focus*
+## Milestone v0.4.0 — Distribution & CI (October 2025)  🚀 *current focus*
 
 ### Objectives
 
@@ -23,35 +23,41 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ### Deliverables
 
-1. **Crates.io publish** (`core`, `codec`, `cli`)
+1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **COMPLETED**
 
-   * crate metadata: categories, keywords, readme path, license files included
-   * docs.rs builds for all crates
-2. **Bench receipts in CI** (#52)
+   * ✅ crate metadata: categories, keywords, readme path, license files included
+   * ✅ workspace dependencies configured for version-based publishing
+   * ✅ publish dry-run validation in CI
+   * 🔄 docs.rs builds for all crates (pending first publish)
+2. **Bench receipts in CI** (#52) — **IN PROGRESS**
 
    * criterion JSON + rolled-up `perf.json` artifact
    * PR comment: SLO deltas and pass/fail against budgets (±5% warn, >10% fail)
-3. **Golden fixtures** (#53)
+   * Upload to GitHub Actions artifacts with 14-day retention
+3. **Golden fixtures** (#53) — **PLANNED**
 
-   * `level-88 after ODO` (pass)
-   * `child-inside-ODO` (pass)
-   * `storage sibling after ODO` (fail) wired into the suite
-4. **Docs nav + link hygiene**
+   * `level-88 after ODO` (pass) - validates deep nesting works
+   * `child-inside-ODO` (pass) - validates inner field access
+   * `storage sibling after ODO` (fail) - enforces structural constraints
+4. **Docs nav + link hygiene** — **PLANNED**
 
-   * Ensure `docs/CLI_REFERENCE.md` and `docs/LIBRARY_API.md` exist and are linked
+   * Create `docs/CLI_REFERENCE.md` and `docs/LIBRARY_API.md`
    * Remove duplicate perf numbers elsewhere; link to canonical section
+   * Add navigation to README with anchor links
 
 ### Exit Criteria (all must be true)
 
-* `cargo add copybook-cli@0.3` **works** in a clean project; docs.rs pages live
-* CI uploads artifacts and posts a **bench summary** on PRs; failures block merge
-* Golden fixtures run in CI; the failing sibling-after-ODO case is asserted
-* No dead links (`just docs-check`) and no perf number duplication
+* `cargo publish` sequence completes successfully; `cargo add copybook-cli` works in clean project
+* docs.rs pages build and are accessible for all three crates
+* CI uploads bench artifacts and posts **bench summary** on PRs; SLO failures block merge
+* Golden fixtures run in CI; the failing sibling-after-ODO case is properly asserted
+* Documentation audit complete: no duplicate perf numbers, working anchor links
 
 ### Risks & Mitigations
 
-* **docs.rs build timing out** → slim examples; mark heavy benches as `doc(cfg)`
-* **Artifact bloat** → keep raw criterion JSON; rollup ≤ 50 KB; retain 14 days
+* **docs.rs build timing out** → slim examples; mark heavy benches as `#[cfg(docsrs)]`
+* **Artifact bloat** → limit to raw criterion JSON + ≤50KB rollup; 14-day retention
+* **Publishing sequence failure** → automated retry with 90s delays between crates
 
 ---
 

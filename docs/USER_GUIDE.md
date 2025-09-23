@@ -63,8 +63,7 @@ copybook verify schema.cpy production-data.bin \
 ## Performance Characteristics
 
 ### **Enterprise-Grade Throughput**
-- **DISPLAY data**: 4.1+ GiB/s (52x above typical enterprise requirements)
-- **COMP-3 data**: 560+ MiB/s (15x above typical enterprise requirements)
+For detailed performance benchmarks and specifications, see [Performance Specifications](../README.md#performance-specifications).
 - **Memory efficiency**: <256 MiB for multi-GB files
 - **Parallel scaling**: Linear performance with thread count
 

@@ -280,14 +280,14 @@ fn bench_parse_copybook(c: &mut Criterion) {
     group.bench_function("simple_copybook", |b| {
         b.iter(|| {
             let _result = parse_copybook(black_box(SIMPLE_COPYBOOK));
-            hint_black_box(_result);
+            black_box(_result);
         })
     });
 
     group.bench_function("comp3_heavy_copybook", |b| {
         b.iter(|| {
             let _result = parse_copybook(black_box(COMP3_HEAVY_COPYBOOK));
-            hint_black_box(_result);
+            black_box(_result);
         })
     });
 
@@ -314,7 +314,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
                 &mut output,
                 black_box(&options),
             );
-            hint_black_box(result);
+            black_box(result);
         })
     });
 
@@ -333,7 +333,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
                 &mut output,
                 black_box(&options),
             );
-            hint_black_box(result);
+            black_box(result);
         })
     });
 
@@ -365,7 +365,7 @@ fn bench_parallel_scaling(c: &mut Criterion) {
                         &mut output,
                         black_box(&options),
                     );
-                    hint_black_box(result);
+                    black_box(result);
                 })
             },
         );

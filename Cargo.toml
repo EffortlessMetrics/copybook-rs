@@ -36,6 +36,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 # Memory management dependencies
 smallvec = "1.15.1"
 crossbeam-channel = "0.5.15"
+indexmap = { version = "2.0", features = ["serde"] }
 
 # CLI dependencies
 clap = { version = "4.5.48", features = ["derive"] }

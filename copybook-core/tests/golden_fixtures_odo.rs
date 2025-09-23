@@ -10,7 +10,7 @@
  * data structure integrity in mainframe applications.
  */
 
-use copybook_core::{parse_copybook, ErrorCode};
+use copybook_core::{ErrorCode, parse_copybook};
 
 /// Golden Fixture: Level-88 after ODO (PASS)
 ///
@@ -192,5 +192,8 @@ fn golden_fixtures_comprehensive_coverage() {
     );
 
     // This test passing means all golden fixtures above compiled and are available
-    println!("✅ All {} ODO golden fixtures are present and accounted for", golden_fixtures.len());
+    println!(
+        "✅ All {} ODO golden fixtures are present and accounted for",
+        golden_fixtures.len()
+    );
 }

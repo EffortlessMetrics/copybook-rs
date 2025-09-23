@@ -15,7 +15,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ---
 
-## Milestone v0.4.0 — Distribution & CI ✅ **READY TO SHIP**
+## Milestone v0.4.0 — Distribution & CI ✅ **SHIPPED** (v0.3.1)
 
 ### Objectives
 
@@ -58,15 +58,12 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 * ✅ Benchmark CI parses real throughput data and enforces SLOs
 * ✅ Documentation audit complete: no duplicate perf numbers, working navigation
 
-### **Status: READY FOR RELEASE**
+### **Status: ✅ SHIPPED (v0.3.1)**
 
-**Next Action**: Execute release by running:
-```bash
-git tag -a v0.3.1 -m "v0.3.1: Initial crates.io release with CI benchmarks"
-git push origin main --tags
-```
+**Released**: 2025-09-23
+**Includes**: IndexMap deterministic JSON output, complete CI benchmarking, golden fixtures validation
 
-Automated publishing will handle the rest via `.github/workflows/publish.yml`.
+Ready for crates.io publishing with `cargo login` + publish sequence.
 
 ---
 

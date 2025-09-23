@@ -10,18 +10,19 @@ use copybook_core::parse_copybook;
 use serde_json::Value;
 
 fn decode_opts() -> DecodeOptions {
-    DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII,
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: true,
-        max_errors: None,
-        on_decode_unmappable: UnmappablePolicy::Error,
-        threads: 1,
-    }
+    DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(true)
+        .with_max_errors(None)
+        .with_unmappable_policy(UnmappablePolicy::Error)
+        .with_threads(1)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto)
 }
 
 #[test]

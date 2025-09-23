@@ -149,12 +149,12 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
             |b, &record_count| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
-                        let _result = decode_record(
+                        let result = decode_record(
                             black_box(&schema),
                             black_box(chunk),
                             black_box(&options),
                         );
-                        black_box(_result);
+                        black_box(result);
                     }
                 })
             },
@@ -169,13 +169,13 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                     b.iter(|| {
                         let input = Cursor::new(black_box(&test_data));
                         let mut output = Vec::new();
-                        let _result = decode_file_to_jsonl(
+                        let result = decode_file_to_jsonl(
                             black_box(&schema),
                             input,
                             &mut output,
                             black_box(&options),
                         );
-                        black_box(_result);
+                        black_box(result);
                     })
                 },
             );
@@ -204,12 +204,12 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
             |b, &record_count| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
-                        let _result = decode_record(
+                        let result = decode_record(
                             black_box(&schema),
                             black_box(chunk),
                             black_box(&options),
                         );
-                        black_box(_result);
+                        black_box(result);
                     }
                 })
             },
@@ -224,13 +224,13 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                     b.iter(|| {
                         let input = Cursor::new(black_box(&test_data));
                         let mut output = Vec::new();
-                        let _result = decode_file_to_jsonl(
+                        let result = decode_file_to_jsonl(
                             black_box(&schema),
                             input,
                             &mut output,
                             black_box(&options),
                         );
-                        black_box(_result);
+                        black_box(result);
                     })
                 },
             );
@@ -259,12 +259,12 @@ fn bench_decode_binary_heavy(c: &mut Criterion) {
             |b, &record_count| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
-                        let _result = decode_record(
+                        let result = decode_record(
                             black_box(&schema),
                             black_box(chunk),
                             black_box(&options),
                         );
-                        black_box(_result);
+                        black_box(result);
                     }
                 })
             },
@@ -279,15 +279,15 @@ fn bench_parse_copybook(c: &mut Criterion) {
 
     group.bench_function("simple_copybook", |b| {
         b.iter(|| {
-            let _result = parse_copybook(black_box(SIMPLE_COPYBOOK));
-            black_box(_result);
+            let result = parse_copybook(black_box(SIMPLE_COPYBOOK));
+            black_box(result);
         })
     });
 
     group.bench_function("comp3_heavy_copybook", |b| {
         b.iter(|| {
-            let _result = parse_copybook(black_box(COMP3_HEAVY_COPYBOOK));
-            black_box(_result);
+            let result = parse_copybook(black_box(COMP3_HEAVY_COPYBOOK));
+            black_box(result);
         })
     });
 
@@ -314,7 +314,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
                 &mut output,
                 black_box(&options),
             );
-            black_box(result);
+            let _ = black_box(result);
         })
     });
 
@@ -333,7 +333,7 @@ fn bench_throughput_slo_validation(c: &mut Criterion) {
                 &mut output,
                 black_box(&options),
             );
-            black_box(result);
+            let _ = black_box(result);
         })
     });
 
@@ -365,7 +365,7 @@ fn bench_parallel_scaling(c: &mut Criterion) {
                         &mut output,
                         black_box(&options),
                     );
-                    black_box(result);
+                    let _ = black_box(result);
                 })
             },
         );

@@ -32,6 +32,7 @@ copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exc
 ### **Production Quality**
 - **Deterministic Output**: Byte-identical results across runs and parallel processing
 - **Round-Trip Fidelity**: Guaranteed binary↔JSON conversion with zero data loss
+- **Zoned Encoding Preservation**: Binary round-trip fidelity for ASCII/EBCDIC digit zones
 - **Memory Safety**: Zero unsafe code with complete clippy pedantic compliance (140+ violations resolved)
 - **Comprehensive Testing**: 127 tests passing with full integration coverage
 
@@ -60,7 +61,7 @@ The project is organized as a Cargo workspace with the following crates:
 cargo install copybook-cli
 
 # Or build from source
-git clone https://github.com/copybook-rs/copybook-rs.git
+git clone https://github.com/EffortlessMetrics/copybook-rs.git
 cd copybook-rs
 cargo build --release
 ```
@@ -159,7 +160,7 @@ copybook decode schema.cpy data.bin \
 ```bash
 # Different EBCDIC code pages
 copybook decode schema.cpy data.bin --codepage cp037   # US/Canada
-copybook decode schema.cpy data.bin --codepage cp273   # Germany/Austria  
+copybook decode schema.cpy data.bin --codepage cp273   # Germany/Austria
 copybook decode schema.cpy data.bin --codepage cp500   # International
 copybook decode schema.cpy data.bin --codepage cp1047  # Open Systems
 copybook decode schema.cpy data.bin --codepage cp1140  # US/Canada Euro
@@ -171,6 +172,31 @@ copybook decode schema.cpy data.bin --codepage ascii
 copybook decode schema.cpy data.bin \
   --codepage cp037 \
   --on-decode-unmappable replace  # or error, skip
+```
+
+### Zoned Decimal Encoding Preservation
+
+copybook-rs supports **binary round-trip fidelity** for zoned decimal fields, preserving the original encoding format (ASCII vs EBCDIC digit zones) during decode/encode cycles. This is essential for enterprise mainframe data processing where byte-perfect data integrity is required.
+
+```bash
+# Preserve original zoned decimal encoding format during decode
+# Note: CLI flags not yet implemented - use library API
+copybook decode schema.cpy data.bin \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --output data.jsonl
+
+# Override zoned decimal encoding format during encode
+copybook encode schema.cpy data.jsonl \
+  --codepage cp037 \
+  --zoned-encoding-override ebcdic \
+  --output data.bin
+
+# Auto-detect encoding format with preferred fallback
+copybook decode schema.cpy data.bin \
+  --codepage cp037 \
+  --preferred-zoned-encoding auto \
+  --output data.jsonl
 ```
 
 ### Advanced Options
@@ -296,8 +322,8 @@ The library provides comprehensive COBOL record decoding with complete field pro
 ```rust
 use copybook_core::parse_copybook;
 use copybook_codec::{
-    decode_record, decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat, 
-    JsonNumberMode, RawMode, UnmappablePolicy
+    decode_record, decode_file_to_jsonl, DecodeOptions, Codepage, RecordFormat,
+    JsonNumberMode, RawMode, UnmappablePolicy, ZonedEncodingFormat
 };
 use std::path::Path;
 
@@ -305,7 +331,7 @@ use std::path::Path;
 let copybook_text = std::fs::read_to_string("customer.cpy")?;
 let schema = parse_copybook(&copybook_text)?;
 
-// Configure decode options for complete JSON output
+// Configure decode options for complete JSON output with zoned encoding preservation
 let opts = DecodeOptions {
     codepage: Codepage::Cp037,
     format: RecordFormat::Fixed,
@@ -317,6 +343,8 @@ let opts = DecodeOptions {
     emit_raw: RawMode::Off,
     on_decode_unmappable: UnmappablePolicy::Error,
     threads: 1,
+    preserve_zoned_encoding: true, // Enable binary round-trip fidelity
+    preferred_zoned_encoding: ZonedEncodingFormat::Auto, // Auto-detect with EBCDIC fallback
 };
 
 // Single record decoding with complete field processing
@@ -330,8 +358,37 @@ let input = std::fs::File::open("data.bin")?;
 let output = std::fs::File::create("output.jsonl")?;
 let summary = decode_file_to_jsonl(&schema, input, output, &opts)?;
 
-println!("Processed {} records with {} errors at {:.2} MB/s", 
+println!("Processed {} records with {} errors at {:.2} MB/s",
          summary.records_processed, summary.records_with_errors, summary.throughput_mbps);
+```
+
+### Zoned Decimal Encoding Configuration
+
+```rust
+use copybook_codec::{DecodeOptions, EncodeOptions, ZonedEncodingFormat};
+
+// Configure decode options for encoding preservation
+let decode_opts = DecodeOptions::new()
+    .with_codepage(Codepage::Cp037)
+    .with_preserve_zoned_encoding(true) // Enable format detection and preservation
+    .with_preferred_zoned_encoding(ZonedEncodingFormat::Ebcdic); // Fallback for ambiguous cases
+
+// Configure encode options with explicit format override
+let encode_opts = EncodeOptions::new()
+    .with_codepage(Codepage::Cp037)
+    .with_zoned_encoding_override(Some(ZonedEncodingFormat::Ascii)); // Force ASCII zones
+
+// Or use preserved format from decode metadata
+let encode_opts = EncodeOptions::new()
+    .with_codepage(Codepage::Cp037)
+    .with_zoned_encoding_override(None); // Respect preserved formats
+
+// Round-trip with encoding preservation
+let json_value = decode_record(&schema, &record_data, &decode_opts)?;
+// json_value now contains _encoding_metadata for zoned decimal fields
+
+let encoded_data = encode_record(&schema, &json_value, &encode_opts)?;
+// encoded_data preserves original zoned decimal encoding format
 ```
 
 ### High-Performance Streaming Processing
@@ -528,6 +585,9 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKD401_COMP3_INVALID_NIBBLE`: Invalid packed decimal data
 - `CBKD411_ZONED_BAD_SIGN`: Invalid zoned decimal sign or ASCII overpunch
 - `CBKD412_ZONED_BLANK_IS_ZERO`: BLANK WHEN ZERO field decoded as zero
+- `CBKD413_ZONED_INVALID_ENCODING`: Invalid zoned decimal encoding format
+- `CBKD414_ZONED_MIXED_ENCODING`: Mixed ASCII/EBCDIC encoding in single field
+- `CBKD415_ZONED_ENCODING_DETECTION_FAILED`: Unable to detect zoned decimal encoding format
 
 ### Encoding Errors (CBKE*)
 - `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type or REDEFINES ambiguity
@@ -575,7 +635,7 @@ See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference and [REPO
 
 ```bash
 # Clone the repository
-git clone https://github.com/copybook-rs/copybook-rs.git
+git clone https://github.com/EffortlessMetrics/copybook-rs.git
 cd copybook-rs
 
 # Build all crates

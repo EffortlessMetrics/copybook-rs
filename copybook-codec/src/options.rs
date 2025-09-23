@@ -3,8 +3,101 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+/// Zone nibble constants for zoned decimal encoding detection
+mod zone_constants {
+    /// ASCII digit zone nibble (0x30-0x39 range)
+    pub const ASCII_ZONE: u8 = 0x3;
+    /// EBCDIC digit zone nibble (0xF0-0xF9 range)
+    pub const EBCDIC_ZONE: u8 = 0xF;
+    /// Zone nibble mask for extracting upper 4 bits
+    pub const ZONE_MASK: u8 = 0x0F;
+}
+
+/// Zoned decimal encoding format specification for round-trip fidelity
+///
+/// This enum controls how zoned decimal fields are encoded and decoded,
+/// enabling preservation of the original encoding format during round-trip
+/// operations for enterprise data consistency.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+pub enum ZonedEncodingFormat {
+    /// ASCII digit zones (0x30-0x39) - Used in ASCII environments
+    Ascii,
+    /// EBCDIC digit zones (0xF0-0xF9) - Standard mainframe encoding
+    Ebcdic,
+    /// Automatic detection based on zone nibbles - Analyzes data to determine format
+    Auto,
+}
+
+impl ZonedEncodingFormat {
+    /// Check if this is ASCII encoding
+    #[must_use]
+    pub const fn is_ascii(self) -> bool {
+        matches!(self, Self::Ascii)
+    }
+
+    /// Check if this is EBCDIC encoding
+    #[must_use]
+    pub const fn is_ebcdic(self) -> bool {
+        matches!(self, Self::Ebcdic)
+    }
+
+    /// Check if this is auto-detection mode
+    #[must_use]
+    pub const fn is_auto(self) -> bool {
+        matches!(self, Self::Auto)
+    }
+
+    /// Get a human-readable description of the encoding format
+    #[must_use]
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::Ascii => "ASCII digit zones (0x30-0x39)",
+            Self::Ebcdic => "EBCDIC digit zones (0xF0-0xF9)",
+            Self::Auto => "Automatic detection based on zone nibbles",
+        }
+    }
+
+    /// Detect encoding format from a single byte of zoned decimal data
+    ///
+    /// Examines the zone nibble (upper 4 bits) to determine the encoding format.
+    /// Returns `None` for invalid zone values that don't match standard patterns.
+    ///
+    /// # Zone Analysis
+    /// - `0x3`: ASCII digit zone (0x30-0x39 range)
+    /// - `0xF`: EBCDIC digit zone (0xF0-0xF9 range)
+    /// - Others: Invalid or non-standard zones
+    #[must_use]
+    pub fn detect_from_byte(byte: u8) -> Option<Self> {
+        use zone_constants::{ASCII_ZONE, EBCDIC_ZONE, ZONE_MASK};
+
+        let zone_nibble = (byte >> 4) & ZONE_MASK;
+        match zone_nibble {
+            ASCII_ZONE => Some(Self::Ascii),
+            EBCDIC_ZONE => Some(Self::Ebcdic),
+            _ => None, // Invalid or mixed zone
+        }
+    }
+}
+
+impl Default for ZonedEncodingFormat {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+impl fmt::Display for ZonedEncodingFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ascii => write!(f, "ascii"),
+            Self::Ebcdic => write!(f, "ebcdic"),
+            Self::Auto => write!(f, "auto"),
+        }
+    }
+}
+
 /// Options for decoding operations
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)] // Many boolean options are needed for decode configuration
 pub struct DecodeOptions {
     /// Record format
     pub format: RecordFormat,
@@ -26,6 +119,17 @@ pub struct DecodeOptions {
     pub on_decode_unmappable: UnmappablePolicy,
     /// Number of threads for parallel processing
     pub threads: usize,
+    /// Enable zoned decimal encoding preservation for binary round-trip consistency
+    ///
+    /// When enabled, the decoder captures the original encoding format (ASCII vs EBCDIC)
+    /// and includes it in metadata for use during re-encoding to maintain byte-level
+    /// fidelity in encode/decode cycles.
+    pub preserve_zoned_encoding: bool,
+    /// Preferred encoding format when auto-detection is ambiguous
+    ///
+    /// Used as fallback when `ZonedEncodingFormat::Auto` cannot determine the format
+    /// from the data (e.g., all-zero fields, mixed encodings).
+    pub preferred_zoned_encoding: ZonedEncodingFormat,
 }
 
 /// Options for encoding operations
@@ -48,6 +152,15 @@ pub struct EncodeOptions {
     pub threads: usize,
     /// Whether to coerce non-string JSON numbers to strings before encoding
     pub coerce_numbers: bool,
+    /// Explicit zoned decimal encoding format override
+    ///
+    /// When specified, forces all zoned decimal fields to use this encoding format,
+    /// overriding any preserved format from decode operations. This provides the
+    /// highest precedence in the format selection hierarchy:
+    /// 1. Explicit override (this field)
+    /// 2. Preserved format from decode metadata
+    /// 3. EBCDIC default for mainframe compatibility
+    pub zoned_encoding_override: Option<ZonedEncodingFormat>,
 }
 
 /// Record format specification
@@ -209,6 +322,8 @@ impl Default for DecodeOptions {
             max_errors: None,
             on_decode_unmappable: UnmappablePolicy::Error,
             threads: 1,
+            preserve_zoned_encoding: false,
+            preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         }
     }
 }
@@ -289,6 +404,32 @@ impl DecodeOptions {
         self.threads = threads;
         self
     }
+
+    // === Zoned Decimal Encoding Configuration ===
+
+    /// Enable zoned decimal encoding preservation for round-trip fidelity
+    ///
+    /// When enabled, the decoder will detect and preserve the original encoding
+    /// format (ASCII vs EBCDIC) for use during subsequent encoding operations.
+    /// This ensures byte-level consistency in encode/decode cycles.
+    #[must_use]
+    pub fn with_preserve_zoned_encoding(mut self, preserve_zoned_encoding: bool) -> Self {
+        self.preserve_zoned_encoding = preserve_zoned_encoding;
+        self
+    }
+
+    /// Set the preferred zoned encoding format for ambiguous detection
+    ///
+    /// This format is used as a fallback when auto-detection cannot determine
+    /// the encoding from the data (e.g., all-zero fields, mixed encodings).
+    #[must_use]
+    pub fn with_preferred_zoned_encoding(
+        mut self,
+        preferred_zoned_encoding: ZonedEncodingFormat,
+    ) -> Self {
+        self.preferred_zoned_encoding = preferred_zoned_encoding;
+        self
+    }
 }
 
 impl Default for EncodeOptions {
@@ -302,6 +443,7 @@ impl Default for EncodeOptions {
             max_errors: None,
             threads: 1,
             coerce_numbers: false,
+            zoned_encoding_override: None,
         }
     }
 }
@@ -366,6 +508,29 @@ impl EncodeOptions {
     #[must_use]
     pub fn with_coerce_numbers(mut self, coerce_numbers: bool) -> Self {
         self.coerce_numbers = coerce_numbers;
+        self
+    }
+
+    /// Set explicit zoned decimal encoding format override
+    ///
+    /// Forces all zoned decimal fields to use the specified encoding format,
+    /// overriding any preserved format from decode operations. Use `None` to
+    /// disable override and respect preserved formats.
+    #[must_use]
+    pub fn with_zoned_encoding_override(
+        mut self,
+        zoned_encoding_override: Option<ZonedEncodingFormat>,
+    ) -> Self {
+        self.zoned_encoding_override = zoned_encoding_override;
+        self
+    }
+
+    /// Convenience method to set explicit zoned encoding format
+    ///
+    /// Equivalent to `with_zoned_encoding_override(Some(format))`.
+    #[must_use]
+    pub fn with_zoned_encoding_format(mut self, format: ZonedEncodingFormat) -> Self {
+        self.zoned_encoding_override = Some(format);
         self
     }
 }

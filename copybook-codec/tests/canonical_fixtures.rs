@@ -64,16 +64,16 @@ fn test_comp3_canonical() {
 {"RECORD-ID": "0002", "POSITIVE-AMOUNT": "1", "NEGATIVE-AMOUNT": "-1", "DECIMAL-AMOUNT": "-999.99", "UNSIGNED-AMOUNT": "0"}"#;
 
     // Configure encode options with explicit settings
-    let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII, // Explicit codepage
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-    };
+    let encode_options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII) // Explicit codepage
+        .with_use_raw(false)
+        .with_bwz_encode(false)
+        .with_strict_mode(true)
+        .with_max_errors(None)
+        .with_threads(1)
+        .with_coerce_numbers(false)
+        .with_zoned_encoding_override(None);
 
     // Encode JSONL to binary
     let mut binary_output = Vec::new();
@@ -97,18 +97,19 @@ fn test_comp3_canonical() {
     println!("Generated hex for comp3_test.bin: {}", expected_hex);
 
     // Configure decode options
-    let decode_options = DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII, // Explicit codepage
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: true,
-        max_errors: None,
-        on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-        threads: 1,
-    };
+    let decode_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII) // Explicit codepage
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(true)
+        .with_max_errors(None)
+        .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+        .with_threads(1)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
     // Decode binary back to JSONL
     let mut decoded_output = Vec::new();
@@ -122,7 +123,8 @@ fn test_comp3_canonical() {
     assert_eq!(decode_summary.records_with_errors, 0);
 
     // Parse and normalize the decoded JSONL
-    let decoded_jsonl = String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
+    let decoded_jsonl =
+        String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
     let normalized_output = normalize_stdout(&decoded_jsonl);
 
     let lines: Vec<&str> = normalized_output.split('\n').collect();

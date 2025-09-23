@@ -55,6 +55,7 @@ fn test_packed_zero_handling() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     let decode_options = DecodeOptions {
@@ -68,6 +69,8 @@ fn test_packed_zero_handling() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
     };
 
     // Test positive zero
@@ -126,6 +129,7 @@ fn test_packed_max_digits_and_overflow() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     // Test reasonable maximum values (avoiding overflow)

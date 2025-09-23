@@ -1147,6 +1147,53 @@ pub fn iter_records<R: Read>(
     RecordIterator::new(reader, schema, options)
 }
 
+/// Helper function to format zoned decimal with proper digit padding
+fn format_zoned_decimal_with_digits(
+    decimal: &crate::numeric::SmallDecimal,
+    digits: u16,
+    blank_when_zero: bool,
+) -> String {
+    use std::fmt::Write;
+
+    // For blank-when-zero fields, use natural formatting (no leading zeros)
+    if blank_when_zero {
+        return decimal.to_string();
+    }
+
+    // For any zero values in signed fields or when to_string() gives normalized result,
+    // prefer the normalized "0" over padded format
+    if decimal.value == 0 {
+        let natural_format = decimal.to_string();
+        if natural_format == "0" {
+            return "0".to_string();
+        }
+    }
+
+    // For regular fields, use padding to maintain field width consistency
+    let mut result = String::new();
+    let value = decimal.value;
+    let negative = decimal.negative && value != 0;
+
+    if negative {
+        result.push('-');
+    }
+
+    // For integer scale, pad with leading zeros to maintain field width
+    if decimal.scale <= 0 {
+        let scaled_value = if decimal.scale < 0 {
+            value * 10_i64.pow((-decimal.scale) as u32)
+        } else {
+            value
+        };
+        write!(result, "{:0width$}", scaled_value, width = digits as usize).unwrap();
+    } else {
+        // This shouldn't happen for integer zoned decimals, but handle it
+        result.push_str(&decimal.to_string());
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1267,51 +1314,4 @@ mod tests {
         assert_eq!(summary.records_processed, 2);
         assert!(!output.is_empty());
     }
-}
-
-/// Helper function to format zoned decimal with proper digit padding
-fn format_zoned_decimal_with_digits(
-    decimal: &crate::numeric::SmallDecimal,
-    digits: u16,
-    blank_when_zero: bool,
-) -> String {
-    use std::fmt::Write;
-
-    // For blank-when-zero fields, use natural formatting (no leading zeros)
-    if blank_when_zero {
-        return decimal.to_string();
-    }
-
-    // For any zero values in signed fields or when to_string() gives normalized result,
-    // prefer the normalized "0" over padded format
-    if decimal.value == 0 {
-        let natural_format = decimal.to_string();
-        if natural_format == "0" {
-            return "0".to_string();
-        }
-    }
-
-    // For regular fields, use padding to maintain field width consistency
-    let mut result = String::new();
-    let value = decimal.value;
-    let negative = decimal.negative && value != 0;
-
-    if negative {
-        result.push('-');
-    }
-
-    // For integer scale, pad with leading zeros to maintain field width
-    if decimal.scale <= 0 {
-        let scaled_value = if decimal.scale < 0 {
-            value * 10_i64.pow((-decimal.scale) as u32)
-        } else {
-            value
-        };
-        write!(result, "{:0width$}", scaled_value, width = digits as usize).unwrap();
-    } else {
-        // This shouldn't happen for integer zoned decimals, but handle it
-        result.push_str(&decimal.to_string());
-    }
-
-    result
 }

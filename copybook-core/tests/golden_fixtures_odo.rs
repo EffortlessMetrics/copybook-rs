@@ -19,14 +19,14 @@ use copybook_core::{ErrorCode, parse_copybook};
 /// **Production Impact**: Ensures conditional fields can follow variable arrays.
 #[test]
 fn golden_level_88_after_odo_passes() {
-    const COPYBOOK: &str = r#"
+    const COPYBOOK: &str = r"
 01 VARIABLE-RECORD.
    05 ITEM-COUNT     PIC 9(3).
    05 ITEMS OCCURS 1 TO 5 TIMES DEPENDING ON ITEM-COUNT.
       10 ITEM-NAME  PIC X(3).
    88 STATUS-ACTIVE VALUE 'Y'.
    88 STATUS-INACTIVE VALUE 'N'.
-"#;
+";
 
     let result = parse_copybook(COPYBOOK);
     assert!(
@@ -37,7 +37,7 @@ fn golden_level_88_after_odo_passes() {
 
     let schema = result.unwrap();
     assert!(
-        schema.all_fields().len() > 0,
+        !schema.all_fields().is_empty(),
         "Schema should contain parsed fields"
     );
 }
@@ -49,7 +49,7 @@ fn golden_level_88_after_odo_passes() {
 /// **Production Impact**: Essential for variable-length record processing.
 #[test]
 fn golden_child_inside_odo_passes() {
-    const COPYBOOK: &str = r#"
+    const COPYBOOK: &str = r"
 01 VARIABLE-RECORD.
    05 RECORD-LENGTH  PIC 9(4) COMP.
    05 ITEM-COUNT     PIC 9(3).
@@ -57,7 +57,7 @@ fn golden_child_inside_odo_passes() {
       10 ITEM-ID    PIC 9(6).
       10 ITEM-NAME  PIC X(15).
       10 ITEM-PRICE PIC S9(5)V99 COMP-3.
-"#;
+";
 
     let result = parse_copybook(COPYBOOK);
     assert!(
@@ -68,7 +68,7 @@ fn golden_child_inside_odo_passes() {
 
     let schema = result.unwrap();
     assert!(
-        schema.all_fields().len() > 0,
+        !schema.all_fields().is_empty(),
         "Schema should contain parsed fields including ODO children"
     );
 }
@@ -80,13 +80,13 @@ fn golden_child_inside_odo_passes() {
 /// **Production Impact**: Prevents data corruption from variable-length field placement.
 #[test]
 fn golden_storage_sibling_after_odo_fails() {
-    const COPYBOOK: &str = r#"
+    const COPYBOOK: &str = r"
 01 VARIABLE-RECORD.
    05 ITEM-COUNT     PIC 9(3).
    05 ITEMS OCCURS 1 TO 5 TIMES DEPENDING ON ITEM-COUNT.
       10 ITEM-NAME  PIC X(3).
    05 TRAILER       PIC X(1).
-"#;
+";
 
     let result = parse_copybook(COPYBOOK);
     assert!(
@@ -110,7 +110,7 @@ fn golden_storage_sibling_after_odo_fails() {
 /// **Production Impact**: Ensures variable-length records with complex data work in production.
 #[test]
 fn golden_simple_odo_with_nesting_passes() {
-    const COPYBOOK: &str = r#"
+    const COPYBOOK: &str = r"
 01 NESTED-RECORD.
    05 ITEM-COUNT     PIC 9(3).
    05 ITEMS OCCURS 1 TO 50 TIMES DEPENDING ON ITEM-COUNT.
@@ -120,7 +120,7 @@ fn golden_simple_odo_with_nesting_passes() {
       10 ITEM-DATA.
          15 ITEM-VALUE PIC S9(9)V99 COMP-3.
          15 ITEM-FLAG  PIC X(1).
-"#;
+";
 
     let result = parse_copybook(COPYBOOK);
     assert!(
@@ -131,7 +131,7 @@ fn golden_simple_odo_with_nesting_passes() {
 
     let schema = result.unwrap();
     assert!(
-        schema.all_fields().len() > 0,
+        !schema.all_fields().is_empty(),
         "Schema should contain ODO with nested structure"
     );
 }
@@ -143,14 +143,14 @@ fn golden_simple_odo_with_nesting_passes() {
 /// **Production Impact**: Prevents complex variable-length layouts that could corrupt data.
 #[test]
 fn golden_multiple_odo_violation_fails() {
-    const COPYBOOK: &str = r#"
+    const COPYBOOK: &str = r"
 01 MULTI-ODO-RECORD.
    05 COUNT1        PIC 9(3).
    05 ARRAY1 OCCURS 5 TIMES DEPENDING ON COUNT1 PIC X(3).
    05 COUNT2        PIC 9(3).
    05 ARRAY2 OCCURS 5 TIMES DEPENDING ON COUNT2 PIC X(3).
    05 TRAILER       PIC X(1).
-"#;
+";
 
     let result = parse_copybook(COPYBOOK);
     assert!(

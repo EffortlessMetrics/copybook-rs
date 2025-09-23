@@ -12,18 +12,19 @@ use serde_json::Value;
 use std::io::Cursor;
 
 fn create_test_decode_options(codepage: Codepage, strict: bool) -> DecodeOptions {
-    DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage,
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: strict,
-        max_errors: None,
-        on_decode_unmappable: UnmappablePolicy::Error,
-        threads: 1,
-    }
+    DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(codepage)
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(strict)
+        .with_max_errors(None)
+        .with_unmappable_policy(UnmappablePolicy::Error)
+        .with_threads(1)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto)
 }
 
 #[test]

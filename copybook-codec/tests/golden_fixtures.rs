@@ -26,16 +26,16 @@ fn test_comp3_roundtrip_golden() {
         .expect("Failed to read COMP-3 test JSONL");
 
     // Configure encode options
-    let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII,
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: true,
-    };
+    let encode_options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_use_raw(false)
+        .with_bwz_encode(false)
+        .with_strict_mode(false)
+        .with_max_errors(None)
+        .with_threads(1)
+        .with_coerce_numbers(true)
+        .with_zoned_encoding_override(None);
 
     // Encode JSONL to binary
     let mut binary_output = Vec::new();
@@ -49,18 +49,19 @@ fn test_comp3_roundtrip_golden() {
     assert_eq!(encode_summary.records_with_errors, 0);
 
     // Configure decode options
-    let decode_options = DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII,
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: true,
-        max_errors: None,
-        on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-        threads: 1,
-    };
+    let decode_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(true)
+        .with_max_errors(None)
+        .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+        .with_threads(1)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
     // Decode binary back to JSONL
     let mut decoded_output = Vec::new();
@@ -74,7 +75,8 @@ fn test_comp3_roundtrip_golden() {
     assert_eq!(decode_summary.records_with_errors, 0);
 
     // Parse the decoded JSONL and verify content
-    let decoded_jsonl = String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
+    let decoded_jsonl =
+        String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
     let lines: Vec<&str> = decoded_jsonl.trim().split('\n').collect();
     assert_eq!(lines.len(), 2);
 

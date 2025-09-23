@@ -29,8 +29,12 @@ pub mod options;
 pub mod record;
 
 pub use options::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy, ZonedEncodingFormat,
 };
+
+// Export numeric types for advanced zoned decimal processing
+pub use numeric::ZonedEncodingInfo;
 
 // Export the core library API functions (task 9.1)
 pub use lib_api::{

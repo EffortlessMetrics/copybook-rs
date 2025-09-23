@@ -27,29 +27,30 @@ mod comp3_roundtrip_tests {
               05 A PIC S9(18)V9(4) COMP-3.
         ").unwrap();
 
-            let enc = EncodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::CP037,
-                use_raw: false,
-                bwz_encode: false,
-                strict_mode: true,
-                max_errors: None,
-                threads: 1,
-                coerce_numbers: false,
-            };
+            let enc = EncodeOptions::new()
+                .with_format(RecordFormat::Fixed)
+                .with_codepage(Codepage::CP037)
+                .with_use_raw(false)
+                .with_bwz_encode(false)
+                .with_strict_mode(true)
+                .with_max_errors(None)
+                .with_threads(1)
+                .with_coerce_numbers(false)
+                .with_zoned_encoding_override(None);
 
-            let dec = DecodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::CP037,
-                json_number_mode: copybook_codec::JsonNumberMode::Lossless,
-                emit_filler: false,
-                emit_meta: false,
-                emit_raw: copybook_codec::RawMode::Off,
-                strict_mode: true,
-                max_errors: None,
-                on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-                threads: 1,
-            };
+            let dec = DecodeOptions::new()
+                .with_format(RecordFormat::Fixed)
+                .with_codepage(Codepage::CP037)
+                .with_json_number_mode(copybook_codec::JsonNumberMode::Lossless)
+                .with_emit_filler(false)
+                .with_emit_meta(false)
+                .with_emit_raw(copybook_codec::RawMode::Off)
+                .with_strict_mode(true)
+                .with_max_errors(None)
+                .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+                .with_threads(1)
+                .with_preserve_zoned_encoding(false)
+                .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
             // Test round-trip: encode -> decode
             let v = serde_json::json!({"A": s});
@@ -88,29 +89,30 @@ mod comp3_roundtrip_tests {
 
             let schema = copybook_core::parse_copybook(&schema_text).unwrap();
 
-            let enc = EncodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::CP037,
-                use_raw: false,
-                bwz_encode: false,
-                strict_mode: true,
-                max_errors: None,
-                threads: 1,
-                coerce_numbers: false,
-            };
+            let enc = EncodeOptions::new()
+                .with_format(RecordFormat::Fixed)
+                .with_codepage(Codepage::CP037)
+                .with_use_raw(false)
+                .with_bwz_encode(false)
+                .with_strict_mode(true)
+                .with_max_errors(None)
+                .with_threads(1)
+                .with_coerce_numbers(false)
+                .with_zoned_encoding_override(None);
 
-            let dec = DecodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::CP037,
-                json_number_mode: copybook_codec::JsonNumberMode::Lossless,
-                emit_filler: false,
-                emit_meta: false,
-                emit_raw: copybook_codec::RawMode::Off,
-                strict_mode: true,
-                max_errors: None,
-                on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-                threads: 1,
-            };
+            let dec = DecodeOptions::new()
+                .with_format(RecordFormat::Fixed)
+                .with_codepage(Codepage::CP037)
+                .with_json_number_mode(copybook_codec::JsonNumberMode::Lossless)
+                .with_emit_filler(false)
+                .with_emit_meta(false)
+                .with_emit_raw(copybook_codec::RawMode::Off)
+                .with_strict_mode(true)
+                .with_max_errors(None)
+                .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+                .with_threads(1)
+                .with_preserve_zoned_encoding(false)
+                .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
             let v = serde_json::json!({"A": s});
 
@@ -153,29 +155,30 @@ mod comp3_roundtrip_tests {
 
             let schema = copybook_core::parse_copybook(&schema_text).unwrap();
 
-            let enc = EncodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::CP037,
-                use_raw: false,
-                bwz_encode: false,
-                strict_mode: true,
-                max_errors: None,
-                threads: 1,
-                coerce_numbers: false,
-            };
+            let enc = EncodeOptions::new()
+                .with_format(RecordFormat::Fixed)
+                .with_codepage(Codepage::CP037)
+                .with_use_raw(false)
+                .with_bwz_encode(false)
+                .with_strict_mode(true)
+                .with_max_errors(None)
+                .with_threads(1)
+                .with_coerce_numbers(false)
+                .with_zoned_encoding_override(None);
 
-            let dec = DecodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::CP037,
-                json_number_mode: copybook_codec::JsonNumberMode::Lossless,
-                emit_filler: false,
-                emit_meta: false,
-                emit_raw: copybook_codec::RawMode::Off,
-                strict_mode: true,
-                max_errors: None,
-                on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-                threads: 1,
-            };
+            let dec = DecodeOptions::new()
+                .with_format(RecordFormat::Fixed)
+                .with_codepage(Codepage::CP037)
+                .with_json_number_mode(copybook_codec::JsonNumberMode::Lossless)
+                .with_emit_filler(false)
+                .with_emit_meta(false)
+                .with_emit_raw(copybook_codec::RawMode::Off)
+                .with_strict_mode(true)
+                .with_max_errors(None)
+                .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+                .with_threads(1)
+                .with_preserve_zoned_encoding(false)
+                .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
             let v = serde_json::json!({"A": s});
 

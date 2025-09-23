@@ -91,7 +91,7 @@ fn test_display_heavy_throughput() -> Result<f64, Box<dyn std::error::Error>> {
         processed_bytes += chunk.len();
         
         // Simulate JSON conversion work
-        let _json_work = format!("{{\"field1\":\"{}\"}}", processed_bytes);
+        let json_work = format!("{{\"field1\":\"{}\"}}", processed_bytes);
     }
     
     let elapsed = start.elapsed();
@@ -128,12 +128,12 @@ fn test_comp3_heavy_throughput() -> Result<f64, Box<dyn std::error::Error>> {
         for field_chunk in chunk.chunks(6) {
             if field_chunk.len() == 6 {
                 // Simulate packed decimal decode
-                let _value = u32::from_be_bytes([0, field_chunk[0], field_chunk[1], field_chunk[2]]);
+                let value = u32::from_be_bytes([0, field_chunk[0], field_chunk[1], field_chunk[2]]);
             }
         }
         
         // Simulate JSON conversion
-        let _json_work = format!("{{\"numeric_field\":\"{}\"}}", processed_bytes);
+        let json_work = format!("{{\"numeric_field\":\"{}\"}}", processed_bytes);
     }
     
     let elapsed = start.elapsed();

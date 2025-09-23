@@ -203,7 +203,7 @@ if not results['valid']:
 
 ## Performance Notes
 
-- **Throughput**: Validation processes at 4+ GiB/s for DISPLAY fields, 500+ MiB/s for COMP-3 fields
+- **Throughput**: High-performance validation - see [Performance Specifications](../README.md#performance-specifications) for detailed benchmarks
 - **Memory usage**: <256 MiB steady-state for multi-GB files
 - **Error handling**: Fast-fail on fatal errors, configurable error limits for data issues
 - **Output**: No data conversion overhead - validation only

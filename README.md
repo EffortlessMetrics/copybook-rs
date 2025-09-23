@@ -2,6 +2,12 @@
 
 **Production-ready**, memory-safe parser/codec for COBOL copybooks and mainframe data processing.
 
+## 📚 Documentation
+
+| **User Guide** | **CLI Reference** | **Library API** | **Error Codes** | **ADR** | **Production Status** | **Roadmap** |
+|----------------|-------------------|------------------|-----------------|---------|----------------------|-------------|
+| [User Guide](docs/USER_GUIDE.md) | [CLI Reference](docs/CLI_REFERENCE.md) | [Library API](docs/LIBRARY_API.md) | [Error Codes](docs/ERROR_CODES.md) | [ADR](docs/adr/) | [Production Status](#production-status) | [Roadmap](ROADMAP.md) |
+
 ## Overview
 
 copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exceeded production readiness** for COBOL copybook parsing and mainframe data conversion. With **127 tests passing**, **exceptional performance** (15-52x above targets), and **comprehensive COBOL support**, it enables organizations to confidently modernize mainframe data processing workflows.
@@ -9,7 +15,7 @@ copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exc
 ### Production Benefits
 
 - **Enterprise Ready**: Battle-tested with comprehensive error taxonomy and 127 passing tests
-- **Exceptional Performance**: 4.1+ GiB/s processing (52x above requirements) with <256 MiB memory usage
+- **Exceptional Performance**: See [Performance Specifications](#performance-specifications) for detailed benchmarks
 - **Mainframe Data Liberation**: Complete COBOL→JSON conversion without COBOL runtime dependencies
 - **ETL Integration**: Production-grade streaming for multi-GB files with deterministic output
 - **Round-Trip Fidelity**: Guaranteed lossless binary↔JSON conversion with full data integrity
@@ -19,7 +25,7 @@ copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exc
 
 ### **Core Capabilities**
 - **Complete COBOL Support**: All major data types, structures (REDEFINES, ODO, SYNC), record formats
-- **High-Performance Processing**: 4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3 (exceeds targets by 15-52x)
+- **High-Performance Processing**: See [Performance Specifications](#performance-specifications) for throughput details
 - **Enterprise Error Handling**: Comprehensive taxonomy with stable codes (CBKP*, CBKS*, CBKD*, CBKE*)
 - **Memory-Efficient Streaming**: <256 MiB for multi-GB files with bounded memory architecture
 
@@ -367,7 +373,7 @@ for (record_idx, record_result) in iter.enumerate() {
 let mut scratch = ScratchBuffers::new();
 for record_data in records {
     let json_value = decode_record_with_scratch(&schema, &record_data, &opts, &mut scratch)?;
-    // Process with 15+ GiB/s throughput for DISPLAY data, 45+ MiB/s for COMP-3
+    // Process with high throughput - see Performance Specifications
     process_record(json_value);
     // scratch buffers automatically cleared for next iteration
 }
@@ -378,7 +384,7 @@ for record_data in records {
 - **LRECL Requirement**: Fixed-format processing now requires `schema.lrecl_fixed` to be set for proper truncation detection
 - **Fail-Fast Validation**: RecordIterator constructor validates LRECL availability early
 - **Enhanced Error Messages**: Precise byte counts and record indexing for truncation errors
-- **Performance Optimized**: 4-23% performance improvements with enhanced validation
+- **Performance Optimized**: Enhanced validation with minimal performance impact
 
 ### Data Verification API
 

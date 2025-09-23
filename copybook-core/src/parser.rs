@@ -329,16 +329,19 @@ impl Parser {
         // Recursively validate children and check ODO tail constraints
         for (i, child) in field.children.iter().enumerate() {
             // Check if child is ODO and enforce tail position rule
-            if child.occurs.as_ref().map_or(false, |o| matches!(o, Occurs::ODO { .. })) {
-                if !self.is_odo_at_tail_sibling_based(child, &field.children, i) {
-                    return Err(Error::new(
-                        ErrorCode::CBKP021_ODO_NOT_TAIL,
-                        format!(
-                            "ODO array '{}' must be last storage field under '{}'",
-                            child.path, field.path
-                        ),
-                    ));
-                }
+            if child
+                .occurs
+                .as_ref()
+                .is_some_and(|o| matches!(o, Occurs::ODO { .. }))
+                && !self.is_odo_at_tail_sibling_based(child, &field.children, i)
+            {
+                return Err(Error::new(
+                    ErrorCode::CBKP021_ODO_NOT_TAIL,
+                    format!(
+                        "ODO array '{}' must be last storage field under '{}'",
+                        child.path, field.path
+                    ),
+                ));
             }
 
             // Recursively validate this child's subtree
@@ -349,7 +352,12 @@ impl Parser {
     }
 
     /// Check if ODO array is the last storage sibling (structural, sibling-based logic)
-    fn is_odo_at_tail_sibling_based(&self, _odo_field: &Field, siblings: &[Field], odo_index: usize) -> bool {
+    fn is_odo_at_tail_sibling_based(
+        &self,
+        _odo_field: &Field,
+        siblings: &[Field],
+        odo_index: usize,
+    ) -> bool {
         // Check if there are any storage fields after this ODO field among siblings
         !siblings
             .iter()
@@ -372,10 +380,10 @@ impl Parser {
                 // For validation purposes, consider groups as having potential storage
                 true
             }
-            FieldKind::Alphanum { .. } |
-            FieldKind::ZonedDecimal { .. } |
-            FieldKind::BinaryInt { .. } |
-            FieldKind::PackedDecimal { .. } => true,
+            FieldKind::Alphanum { .. }
+            | FieldKind::ZonedDecimal { .. }
+            | FieldKind::BinaryInt { .. }
+            | FieldKind::PackedDecimal { .. } => true,
         }
     }
 
@@ -968,7 +976,7 @@ impl Parser {
                 Token::Depending => return Some(i),
                 // Stop looking when we hit the start of a new field
                 Token::Level(_) | Token::Level66 | Token::Level77 | Token::Level88 => break,
-                _ => continue,
+                _ => {}
             }
         }
         None

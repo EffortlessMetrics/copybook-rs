@@ -13,6 +13,7 @@
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
 use base64::{engine::general_purpose, Engine as _};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
+use indexmap::IndexMap;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::io::Write;
@@ -52,7 +53,7 @@ impl<W: Write> JsonWriter<W> {
         byte_offset: u64,
     ) -> Result<()> {
         // Create JSON object in schema order (pre-order traversal)
-        let mut json_obj = Map::new();
+        let mut json_obj = IndexMap::new();
 
         // Process fields in schema order
         self.process_fields_recursive(
@@ -80,7 +81,7 @@ impl<W: Write> JsonWriter<W> {
         }
 
         // Write JSON line
-        let json_value = Value::Object(json_obj);
+        let json_value = Value::Object(json_obj.into_iter().collect());
         serde_json::to_writer(&mut self.writer, &json_value).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
@@ -425,7 +426,7 @@ impl<W: Write> JsonWriter<W> {
         &mut self,
         fields: &[Field],
         record_data: &[u8],
-        json_obj: &mut Map<String, Value>,
+        json_obj: &mut IndexMap<String, Value>,
         record_index: u64,
         byte_offset: u64,
     ) -> Result<()> {
@@ -440,7 +441,7 @@ impl<W: Write> JsonWriter<W> {
         &mut self,
         field: &Field,
         record_data: &[u8],
-        json_obj: &mut Map<String, Value>,
+        json_obj: &mut IndexMap<String, Value>,
         record_index: u64,
         byte_offset: u64,
     ) -> Result<()> {
@@ -459,7 +460,7 @@ impl<W: Write> JsonWriter<W> {
         match &field.kind {
             FieldKind::Group => {
                 // For groups, create nested object and process children
-                let mut group_obj = Map::new();
+                let mut group_obj = IndexMap::new();
                 self.process_fields_recursive(
                     &field.children,
                     record_data,
@@ -479,7 +480,7 @@ impl<W: Write> JsonWriter<W> {
                     )?;
                     json_obj.insert(self.get_field_name(field), array_value);
                 } else {
-                    json_obj.insert(self.get_field_name(field), Value::Object(group_obj));
+                    json_obj.insert(self.get_field_name(field), Value::Object(group_obj.into_iter().collect()));
                 }
             }
             _ => {
@@ -525,7 +526,7 @@ impl<W: Write> JsonWriter<W> {
             // Element offset calculation - currently unused but preserved for debugging
             #[allow(unused_variables)]
             let element_offset = field.offset + (i * field.len);
-            let mut element_obj = Map::new();
+            let mut element_obj = IndexMap::new();
 
             // Process children for this array element
             self.process_fields_recursive(
@@ -536,7 +537,7 @@ impl<W: Write> JsonWriter<W> {
                 byte_offset,
             )?;
 
-            array.push(Value::Object(element_obj));
+            array.push(Value::Object(element_obj.into_iter().collect()));
         }
 
         Ok(Value::Array(array))
@@ -742,7 +743,7 @@ impl<W: Write> JsonWriter<W> {
     /// Add metadata to JSON object
     fn add_metadata(
         &self,
-        json_obj: &mut Map<String, Value>,
+        json_obj: &mut IndexMap<String, Value>,
         schema: &Schema,
         record_index: u64,
         byte_offset: u64,
@@ -762,7 +763,7 @@ impl<W: Write> JsonWriter<W> {
     }
 
     /// Add raw record data
-    fn add_raw_data(&self, json_obj: &mut Map<String, Value>, record_data: &[u8]) -> Result<()> {
+    fn add_raw_data(&self, json_obj: &mut IndexMap<String, Value>, record_data: &[u8]) -> Result<()> {
         let encoded = general_purpose::STANDARD.encode(record_data);
         json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
         Ok(())
@@ -771,7 +772,7 @@ impl<W: Write> JsonWriter<W> {
     /// Add field-level raw data
     fn add_field_raw_data(
         &self,
-        json_obj: &mut Map<String, Value>,
+        json_obj: &mut IndexMap<String, Value>,
         field: &Field,
         record_data: &[u8],
     ) -> Result<()> {
@@ -1258,7 +1259,7 @@ impl JsonEncoder {
         &self,
         schema: &Schema,
         fields: &[Field],
-        json_obj: &Map<String, Value>,
+        json_obj: &IndexMap<String, Value>,
         record_data: &mut [u8],
     ) -> Result<()> {
         for field in fields {
@@ -1272,7 +1273,7 @@ impl JsonEncoder {
         &self,
         schema: &Schema,
         field: &Field,
-        json_obj: &Map<String, Value>,
+        json_obj: &IndexMap<String, Value>,
         record_data: &mut [u8],
     ) -> Result<()> {
         let field_name = self.get_field_name(field);
@@ -1321,7 +1322,7 @@ impl JsonEncoder {
         &self,
         schema: &Schema,
         field: &Field,
-        json_obj: &Map<String, Value>,
+        json_obj: &IndexMap<String, Value>,
         record_data: &mut [u8],
     ) -> Result<()> {
         // REDEFINES encode precedence (NORMATIVE):
@@ -1380,7 +1381,7 @@ impl JsonEncoder {
             1 => {
                 // Single non-null view - encode from that view
                 let (view_field, view_value) = non_null_views[0];
-                let mut temp_obj = Map::new();
+                let mut temp_obj = IndexMap::new();
                 temp_obj.insert(view_field.name.clone(), (*view_value).clone());
                 self.encode_single_field(schema, view_field, &temp_obj, record_data)
             }
@@ -1405,7 +1406,7 @@ impl JsonEncoder {
         &'a self,
         schema: &'a Schema,
         field: &'a Field,
-        json_obj: &'a Map<String, Value>,
+        json_obj: &'a IndexMap<String, Value>,
     ) -> Result<Vec<(&'a Field, &'a Value)>> {
         let mut cluster_views = Vec::new();
 
@@ -1453,7 +1454,7 @@ impl JsonEncoder {
         &self,
         schema: &Schema,
         field: &Field,
-        json_obj: &Map<String, Value>,
+        json_obj: &IndexMap<String, Value>,
         record_data: &mut [u8],
         occurs: &Occurs,
     ) -> Result<()> {
@@ -1509,7 +1510,7 @@ impl JsonEncoder {
         &self,
         schema: &Schema,
         field: &Field,
-        json_obj: &Map<String, Value>,
+        json_obj: &IndexMap<String, Value>,
         record_data: &mut [u8],
         occurs: &Occurs,
     ) -> Result<()> {
@@ -1588,7 +1589,7 @@ impl JsonEncoder {
         schema: &Schema,
         counter_path: &str,
         count: u32,
-        _json_obj: &Map<String, Value>,
+        _json_obj: &IndexMap<String, Value>,
         record_data: &mut [u8],
     ) -> Result<()> {
         // Find the counter field in the schema
@@ -2240,7 +2241,7 @@ impl JsonEncoder {
     fn extract_field_raw_data(
         &self,
         field: &Field,
-        json_obj: &Map<String, Value>,
+        json_obj: &IndexMap<String, Value>,
     ) -> Result<Option<Vec<u8>>> {
         let raw_key = format!("{}_raw_b64", field.name);
         if let Some(Value::String(raw_b64)) = json_obj.get(&raw_key) {
@@ -2327,7 +2328,7 @@ impl JsonEncoder {
     /// Extract raw data from JSON object (record-level)
     fn extract_raw_data_from_json_obj(
         &self,
-        json_obj: &Map<String, Value>,
+        json_obj: &IndexMap<String, Value>,
     ) -> Result<Option<Vec<u8>>> {
         if let Some(Value::String(raw_b64)) = json_obj.get("__raw_b64") {
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {

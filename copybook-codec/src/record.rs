@@ -943,7 +943,7 @@ mod tests {
     fn test_validate_record_length_mismatch() {
         let data = b"ABCD1234";
         let mut reader = FixedRecordReader::new(Cursor::new(data), Some(8)).unwrap();
-        let record = reader.read_record().unwrap().unwrap();
+        let _record = reader.read_record().unwrap().unwrap();
 
         let schema = Schema::new();
         // Simulate wrong length record

@@ -176,7 +176,7 @@ fn golden_fixtures_comprehensive_coverage() {
     // This test serves as documentation of all golden fixtures
     // and ensures they remain in the test suite
 
-    let golden_fixtures = vec![
+    let golden_fixtures = [
         "golden_level_88_after_odo_passes",
         "golden_child_inside_odo_passes",
         "golden_storage_sibling_after_odo_fails",

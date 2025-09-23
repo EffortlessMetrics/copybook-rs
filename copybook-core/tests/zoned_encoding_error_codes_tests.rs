@@ -4,16 +4,16 @@
 //!
 //! This test suite validates:
 //! - AC11: Enterprise error handling with new CBKD* error codes
-//! - CBKD413_ZONED_INVALID_ENCODING: Invalid zoned decimal encoding format
-//! - CBKD414_ZONED_MIXED_ENCODING: Mixed ASCII/EBCDIC encoding in single field
-//! - CBKD415_ZONED_ENCODING_DETECTION_FAILED: Unable to detect encoding format
+//! - `CBKD413_ZONED_INVALID_ENCODING`: Invalid zoned decimal encoding format
+//! - `CBKD414_ZONED_MIXED_ENCODING`: Mixed ASCII/EBCDIC encoding in single field
+//! - `CBKD415_ZONED_ENCODING_DETECTION_FAILED`: Unable to detect encoding format
 //!
-//! Note: Runtime behavior tests are in copybook-codec crate tests since they depend on DecodeOptions
+//! Note: Runtime behavior tests are in copybook-codec crate tests since they depend on `DecodeOptions`
 
 use copybook_core::error::{Error, ErrorCode};
 use std::error::Error as StdError;
 
-/// AC11: Test CBKD413_ZONED_INVALID_ENCODING error code
+/// AC11: Test `CBKD413_ZONED_INVALID_ENCODING` error code
 /// Tests error handling spec: SPEC.manifest.yml#CBKD413-invalid-encoding
 #[test]
 fn test_cbkd413_zoned_invalid_encoding() -> Result<(), Box<dyn StdError>> {
@@ -44,7 +44,7 @@ fn test_cbkd413_zoned_invalid_encoding() -> Result<(), Box<dyn StdError>> {
     );
 }
 
-/// AC11: Test CBKD414_ZONED_MIXED_ENCODING error code
+/// AC11: Test `CBKD414_ZONED_MIXED_ENCODING` error code
 /// Tests error handling spec: SPEC.manifest.yml#CBKD414-mixed-encoding
 #[test]
 fn test_cbkd414_zoned_mixed_encoding() -> Result<(), Box<dyn StdError>> {
@@ -63,7 +63,7 @@ fn test_cbkd414_zoned_mixed_encoding() -> Result<(), Box<dyn StdError>> {
     );
 }
 
-/// AC11: Test CBKD415_ZONED_ENCODING_DETECTION_FAILED error code
+/// AC11: Test `CBKD415_ZONED_ENCODING_DETECTION_FAILED` error code
 /// Tests error handling spec: SPEC.manifest.yml#CBKD415-detection-failed
 #[test]
 fn test_cbkd415_zoned_encoding_detection_failed() -> Result<(), Box<dyn StdError>> {
@@ -82,7 +82,7 @@ fn test_cbkd415_zoned_encoding_detection_failed() -> Result<(), Box<dyn StdError
 /// Test error context information for zoned encoding errors
 /// Tests error handling spec: SPEC.manifest.yml#error-context-zoned-encoding
 #[test]
-fn test_zoned_encoding_error_context() -> Result<(), Box<dyn StdError>> {
+fn test_zoned_encoding_error_context() {
     // Test error context creation patterns
     let mut error = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Test error with context");
 
@@ -97,7 +97,6 @@ fn test_zoned_encoding_error_context() -> Result<(), Box<dyn StdError>> {
     assert_eq!(context.record_index, Some(42));
     assert_eq!(context.byte_offset, Some(123));
 
-    Ok(())
 }
 
 /// Test that error messages are clear and actionable

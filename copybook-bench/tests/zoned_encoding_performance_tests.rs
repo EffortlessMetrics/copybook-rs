@@ -280,8 +280,7 @@ fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
     // Encode 1000 times to measure lookup overhead
     for _ in 0..1000 {
         // TODO: This should use preserved encoding when implemented
-        let encoded =
-            copybook_codec::encode_record(&schema, &json_with_metadata, &encode_options)?;
+        let encoded = copybook_codec::encode_record(&schema, &json_with_metadata, &encode_options)?;
     }
 
     let duration = start_time.elapsed();

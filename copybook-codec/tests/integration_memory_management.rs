@@ -37,9 +37,9 @@ fn test_deterministic_parallel_decode() {
     // Test that --threads 1 vs --threads 4 produce identical outputs
     let schema = create_test_schema();
 
-    // Create test data with multiple records
+    // Create test data with multiple records (increased workload to avoid 0ms timing)
     let mut test_data = Vec::new();
-    for i in 0..50 {
+    for i in 0..10_000 {
         let record = format!("{:05}", i % 10000); // 5-digit numbers
         test_data.extend_from_slice(record.as_bytes());
     }
@@ -66,7 +66,7 @@ fn test_deterministic_parallel_decode() {
 
         let summary =
             copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
-        assert_eq!(summary.records_processed, 50);
+        assert_eq!(summary.records_processed, 10_000);
 
         let output_str = String::from_utf8(output).unwrap();
         results.push((threads, output_str));
@@ -84,7 +84,7 @@ fn test_deterministic_parallel_decode() {
 
     // Verify output is valid JSON lines
     let lines: Vec<&str> = baseline.trim().split('\n').collect();
-    assert_eq!(lines.len(), 50);
+    assert_eq!(lines.len(), 10_000);
 
     // Each line should be valid JSON
     for line in lines {
@@ -133,11 +133,12 @@ fn test_memory_bounded_processing() {
         let _: serde_json::Value = serde_json::from_str(line).unwrap();
     }
 
-    // Verify throughput is reasonable (allow for very fast processing of small data)
-    // For small datasets, throughput might be 0.0 due to timing precision
+    // Verify throughput is reasonable (with larger dataset, should be > 0)
+    // With 10,000 records (50KB), timing should be sufficient to avoid 0ms
     assert!(
-        summary.throughput_mbps >= 0.0,
-        "Throughput should not be negative"
+        summary.throughput_mbps > 0.0,
+        "Throughput should be positive with sufficient workload. Processing time: {} ms",
+        summary.processing_time_ms
     );
     println!(
         "Throughput: {:.2} MB/s (processing time: {} ms)",

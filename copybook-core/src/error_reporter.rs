@@ -162,7 +162,7 @@ impl ErrorReporter {
         };
 
         // Check for transfer corruption patterns
-        if self.is_corruption_warning(&report.error) {
+        if Self::is_corruption_warning(&report.error) {
             self.summary.corruption_warnings += 1;
             report
                 .metadata
@@ -388,7 +388,7 @@ impl ErrorReporter {
     }
 
     /// Check if error indicates transfer corruption
-    fn is_corruption_warning(&self, error: &Error) -> bool {
+    fn is_corruption_warning(error: &Error) -> bool {
         matches!(
             error.code,
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII | ErrorCode::CBKC301_INVALID_EBCDIC_BYTE

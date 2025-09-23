@@ -126,7 +126,7 @@ fn resolve_field_layout(
     } else {
         field.name.clone()
     };
-    field.path = field_path.clone();
+    field.path.clone_from(&field_path);
 
     // Handle REDEFINES fields
     if let Some(target) = field.redefines_of.clone() {
@@ -148,10 +148,16 @@ fn resolve_field_layout(
     let padding_bytes = aligned_offset - context.current_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(padding_bytes as u16);
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            field.sync_padding = Some(padding_bytes as u16);
+        }
     }
 
-    field.offset = aligned_offset as u32;
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        field.offset = aligned_offset as u32;
+    }
     context.current_offset = aligned_offset;
 
     // Record field path and offset
@@ -171,9 +177,9 @@ fn resolve_field_layout(
             cluster_start
         };
         let field_effective_size = match &field.occurs {
-            Some(Occurs::Fixed { count }) => (base_size as u64) * (*count as u64),
-            Some(Occurs::ODO { max, .. }) => (base_size as u64) * (*max as u64),
-            None => base_size as u64,
+            Some(Occurs::Fixed { count }) => u64::from(base_size) * u64::from(*count),
+            Some(Occurs::ODO { max, .. }) => u64::from(base_size) * u64::from(*max),
+            None => u64::from(base_size),
         };
         context.redefines_clusters.insert(
             cluster_key,
@@ -185,8 +191,8 @@ fn resolve_field_layout(
     let effective_size = match &field.occurs {
         Some(Occurs::Fixed { count }) => {
             // Fixed array: multiply base size by count
-            (base_size as u64)
-                .checked_mul(*count as u64)
+            u64::from(base_size)
+                .checked_mul(u64::from(*count))
                 .ok_or_else(|| {
                     error!(
                         ErrorCode::CBKS141_RECORD_TOO_LARGE,
@@ -200,7 +206,7 @@ fn resolve_field_layout(
             counter_path,
         }) => {
             // ODO array: use maximum count for space allocation
-            let array_size = (base_size as u64).checked_mul(*max as u64).ok_or_else(|| {
+            let array_size = u64::from(base_size).checked_mul(u64::from(*max)).ok_or_else(|| {
                 error!(
                     ErrorCode::CBKS141_RECORD_TOO_LARGE,
                     "ODO array size overflow for field '{}'", field.name
@@ -218,7 +224,7 @@ fn resolve_field_layout(
 
             array_size
         }
-        None => base_size as u64,
+        None => u64::from(base_size),
     };
 
     // Handle group fields recursively
@@ -231,7 +237,10 @@ fn resolve_field_layout(
             group_size = group_size.max(child_end_offset - group_start_offset);
         }
 
-        field.len = group_size as u32;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            field.len = group_size as u32;
+        }
         let final_offset = group_start_offset + group_size;
         context.current_offset = final_offset;
 
@@ -280,10 +289,16 @@ fn resolve_redefines_field(
     let padding_bytes = aligned_offset - target_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(padding_bytes as u16);
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            field.sync_padding = Some(padding_bytes as u16);
+        }
     }
 
-    field.offset = aligned_offset as u32;
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        field.offset = aligned_offset as u32;
+    }
 
     // Calculate effective size including arrays
     let effective_size =

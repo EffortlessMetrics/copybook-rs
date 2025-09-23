@@ -10,6 +10,7 @@ homepage.workspace = true
 description = "Test fixture and synthetic data generation for copybook-rs"
 keywords.workspace = true
 categories.workspace = true
+publish = false
 
 [dependencies]
 copybook-core = { path = "../copybook-core" }

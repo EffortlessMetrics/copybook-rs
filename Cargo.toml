@@ -22,6 +22,10 @@ keywords = ["cobol", "mainframe", "etl", "parser", "codec"]
 categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
+# Internal workspace crates
+copybook-core = { version = "0.3.0", path = "copybook-core" }
+copybook-codec = { version = "0.3.0", path = "copybook-codec" }
+
 # Core dependencies
 serde = { version = "1.0.225", features = ["derive"] }
 serde_json = { version = "1.0.145", features = ["preserve_order"] }

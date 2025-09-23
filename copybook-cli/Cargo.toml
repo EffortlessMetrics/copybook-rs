@@ -7,17 +7,26 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Command-line interface for COBOL copybook processing"
-keywords.workspace = true
-categories.workspace = true
+description = "CLI for parsing/decoding/encoding COBOL copybooks at GiB/s throughput."
+documentation = "https://docs.rs/copybook-cli"
+readme = "README.md"
+keywords = ["cobol", "copybook", "cli", "ebcdic"]
+categories = ["command-line-utilities", "encoding"]
+
+# Keep tarballs slim; whitelist essential files
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
 
 [[bin]]
 name = "copybook"
 path = "src/main.rs"
 
 [dependencies]
-copybook-core = { path = "../copybook-core" }
-copybook-codec = { path = "../copybook-codec" }
+copybook-core = { workspace = true }
+copybook-codec = { workspace = true }
 clap.workspace = true
 serde_json.workspace = true
 tracing.workspace = true

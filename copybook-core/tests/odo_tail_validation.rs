@@ -1,4 +1,4 @@
-use copybook_core::{parse_copybook, ErrorCode};
+use copybook_core::{ErrorCode, parse_copybook};
 
 #[test]
 fn odo_tail_ok_with_children_but_no_sibling_after() {
@@ -13,7 +13,7 @@ fn odo_tail_ok_with_children_but_no_sibling_after() {
       10 ITEM-PRICE PIC S9(5)V99 COMP-3.
 "#;
     match parse_copybook(CPY) {
-        Ok(_) => {}, // Test passes
+        Ok(_) => {} // Test passes
         Err(e) => panic!("Expected success but got error: {:?}", e),
     }
 }
@@ -46,7 +46,7 @@ fn odo_tail_ok_with_level_88_sibling_after() {
 "#;
 
     match parse_copybook(CPY) {
-        Ok(_) => {}, // Test passes
+        Ok(_) => {} // Test passes
         Err(e) => panic!("Expected success but got error: {:?}", e),
     }
 }
@@ -60,7 +60,7 @@ fn odo_tail_ok_when_odo_is_only_child() {
 "#;
 
     match parse_copybook(CPY) {
-        Ok(_) => {}, // Test passes
+        Ok(_) => {} // Test passes
         Err(e) => panic!("Expected success but got error: {:?}", e),
     }
 }
@@ -115,7 +115,7 @@ fn odo_tail_validation_with_non_storage_after() {
 
     // This should be valid because only level 88 fields come after the ODO array
     match parse_copybook(CPY) {
-        Ok(_) => {}, // Test passes
+        Ok(_) => {} // Test passes
         Err(e) => panic!("Expected success but got error: {:?}", e),
     }
 }

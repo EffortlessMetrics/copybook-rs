@@ -1,11 +1,3 @@
-#![allow(
-    clippy::cast_possible_truncation,
-    clippy::too_many_lines,
-    clippy::similar_names,
-    clippy::shadow_unrelated,
-    clippy::field_reassign_with_default
-)]
-
 use copybook_codec::{DecodeOptions, decode_file_to_jsonl, decode_record};
 use copybook_core::parse_copybook;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
@@ -69,7 +61,9 @@ fn generate_display_heavy_data(record_count: usize) -> Vec<u8> {
     for i in 0..record_count {
         // Generate 10 fields of 50 bytes each (EBCDIC text)
         for field in 0..10 {
-            let text = format!("FIELD{field:02}_{i:06}_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890");
+            let text = format!(
+                "FIELD{field:02}_{i:06}_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+            );
             let mut field_data = text.as_bytes().to_vec();
             field_data.resize(50, 0x40); // Pad with EBCDIC spaces
             data.extend_from_slice(&field_data);
@@ -84,7 +78,7 @@ fn generate_comp3_heavy_data(record_count: usize) -> Vec<u8> {
     for i in 0..record_count {
         // Generate 10 packed decimal fields of 6 bytes each
         for field in 0..10 {
-            let value = (i * 10 + field) % 999_999_999;
+            let value = (i * 10 + field) % 999999999;
             // Convert to packed decimal: S9(9)V99 = 6 bytes
             let mut packed = vec![0x00; 6];
 

@@ -104,7 +104,9 @@ fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
 
     // Skip if fixtures don't exist
     if !copybook_path.exists() || !data_path.exists() {
-        println!("Skipping test: comp3 fixtures not found at {fixtures_dir:?}");
+        println!(
+            "Skipping test: comp3 fixtures not found at {fixtures_dir:?}"
+        );
         return Ok(());
     }
 
@@ -184,7 +186,9 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
 
     // Skip if fixture doesn't exist
     if !copybook_path.exists() {
-        println!("Skipping test: complex fixture not found at {copybook_path:?}");
+        println!(
+            "Skipping test: complex fixture not found at {copybook_path:?}"
+        );
         return Ok(());
     }
 
@@ -246,7 +250,9 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
             // TODO: Verify encoding metadata for various field types
         }
         Err(e) => {
-            println!("Complex fixture decode error (expected during development): {e}");
+            println!(
+                "Complex fixture decode error (expected during development): {e}"
+            );
             // Complex schemas may have features not yet supported
             // This is acceptable during TDD Red phase
         }
@@ -267,7 +273,9 @@ fn test_odo_fixture_variable_length_zoned() -> Result<(), Box<dyn Error>> {
 
     // Skip if fixture doesn't exist
     if !copybook_path.exists() {
-        println!("Skipping test: ODO fixture not found at {copybook_path:?}");
+        println!(
+            "Skipping test: ODO fixture not found at {copybook_path:?}"
+        );
         return Ok(());
     }
 
@@ -328,7 +336,9 @@ fn test_odo_fixture_variable_length_zoned() -> Result<(), Box<dyn Error>> {
             }
         }
         Err(e) => {
-            println!("ODO fixture decode error (may be expected during development): {e}");
+            println!(
+                "ODO fixture decode error (may be expected during development): {e}"
+            );
             // ODO processing with mixed encoding may not be fully implemented yet
         }
     }
@@ -515,7 +525,9 @@ fn test_mainframe_compatibility_scenarios() -> Result<(), Box<dyn Error>> {
     ];
 
     for (scenario_name, codepage) in codepage_scenarios {
-        println!("Testing mainframe compatibility scenario: {scenario_name}");
+        println!(
+            "Testing mainframe compatibility scenario: {scenario_name}"
+        );
 
         // Use simple fixture for codepage testing
         let copybook_path = fixtures_dir.join("copybooks/simple.cpy");
@@ -527,9 +539,7 @@ fn test_mainframe_compatibility_scenarios() -> Result<(), Box<dyn Error>> {
         let schema = parse_copybook(&copybook_content)?;
 
         // Create test data appropriate for the codepage
-        let test_data = if codepage == Codepage::ASCII {
-            b"Test ASCII data 123".to_vec()
-        } else {
+        let test_data = if codepage == Codepage::ASCII { b"Test ASCII data 123".to_vec() } else {
             // EBCDIC test data
             // Calculate record size for EBCDIC test data
             let record_size = if let Some(last_field) = schema.all_fields().last() {

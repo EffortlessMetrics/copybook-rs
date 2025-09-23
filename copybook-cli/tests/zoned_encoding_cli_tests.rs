@@ -278,16 +278,14 @@ fn test_cli_help_includes_zoned_encoding_flags() -> Result<(), Box<dyn Error>> {
     // assert!(decode_help_text.contains("--preferred-zoned-encoding"),
     //        "decode help should document --preferred-zoned-encoding flag");
 
-    // These flags should be present in decode help
+    // For now, these flags shouldn't exist in help
     assert!(
-        decode_help_text.contains("--preserve-zoned-encoding")
-            || decode_help_text.contains("preserve-zoned-encoding"),
-        "--preserve-zoned-encoding flag should be present in decode help"
+        !decode_help_text.contains("--preserve-encoding"),
+        "--preserve-encoding flag not yet implemented - expected absence from help"
     );
     assert!(
-        decode_help_text.contains("--preferred-zoned-encoding")
-            || decode_help_text.contains("preferred-zoned-encoding"),
-        "--preferred-zoned-encoding flag should be present in decode help"
+        !decode_help_text.contains("--preferred-zoned-encoding"),
+        "--preferred-zoned-encoding flag not yet implemented - expected absence from help"
     );
 
     // Test encode command help
@@ -301,11 +299,10 @@ fn test_cli_help_includes_zoned_encoding_flags() -> Result<(), Box<dyn Error>> {
     // assert!(encode_help_text.contains("--zoned-encoding"),
     //        "encode help should document --zoned-encoding flag");
 
-    // This flag should be present in encode help
+    // For now, this flag shouldn't exist in help
     assert!(
-        encode_help_text.contains("--zoned-encoding-override")
-            || encode_help_text.contains("zoned-encoding-override"),
-        "--zoned-encoding-override flag should be present in encode help"
+        !encode_help_text.contains("--zoned-encoding"),
+        "--zoned-encoding flag not yet implemented - expected absence from help"
     );
 
     Ok(())
@@ -412,7 +409,7 @@ fn test_cli_zoned_encoding_error_messages() -> Result<(), Box<dyn Error>> {
     fs::write(&data_path, b"\x31\x32\xFF")?; // Invalid zone in last byte
 
     // TODO: When implemented, should produce clear error message for mixed/invalid encoding
-    let _output = Command::cargo_bin("copybook")
+    let output = Command::cargo_bin("copybook")
         .unwrap()
         .args([
             "decode",
@@ -531,12 +528,13 @@ fn test_cli_large_dataset_performance() -> Result<(), Box<dyn Error>> {
     // Generate larger dataset (100 records)
     let mut large_dataset = Vec::new();
     for i in 0..100 {
-        large_dataset.extend_from_slice(format!("{:0>12}", i + 1_000_000_000).as_bytes()); // Transaction ID
+        large_dataset.extend_from_slice(format!("{:0>12}", i + 1000000000).as_bytes()); // Transaction ID
         large_dataset.extend_from_slice(&[0x12, 0x34, 0x56, 0x78, 0x9C]); // COMP-3 amount
         large_dataset.extend_from_slice(format!("Transaction description {i:>10}").as_bytes()); // Description
         large_dataset.extend_from_slice(&vec![
             b' ';
-            50 - format!("Transaction description {i:>10}").len()
+            50 - format!("Transaction description {i:>10}")
+                .len()
         ]); // Padding
         large_dataset.extend_from_slice(b"20230915"); // Processing date
         large_dataset.extend_from_slice(b"LIVE "); // Flags

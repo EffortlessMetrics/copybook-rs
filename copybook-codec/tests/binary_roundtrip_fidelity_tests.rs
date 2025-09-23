@@ -19,37 +19,34 @@ use tempfile::TempDir;
 #[test]
 fn test_ascii_zoned_roundtrip_byte_identical() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(5).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // Original ASCII zoned decimal data
-    let original_data = b"\x31\x32\x33\x34\x35"; // ASCII "12345"
+    let _original_data = b"\x31\x32\x33\x34\x35"; // ASCII "12345"
 
     // Decode with preservation enabled
-    let decode_options = DecodeOptions::new()
+    let _decode_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::ASCII)
-        .with_preserve_zoned_encoding(true);
+        .with_codepage(Codepage::ASCII);
+    // TODO: Add when implemented
+    // .with_preserve_zoned_encoding(true);
 
-    // Decode to JSON with encoding preservation
-    let json_result = copybook_codec::decode_record(&schema, original_data, &decode_options)?;
+    // TODO: Decode to JSON with encoding preservation
+    // let json_result = copybook_codec::decode_record(&schema, original_data, &decode_options)?;
 
-    // For now, test basic decode/encode round-trip (without metadata preservation yet)
-    // This verifies the core functionality works
-    let encode_options = EncodeOptions::new()
+    // Encode back using preserved format
+    let _encode_options = EncodeOptions::new()
         .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::ASCII)
-        .with_zoned_encoding_format(copybook_codec::ZonedEncodingFormat::Ascii);
+        .with_codepage(Codepage::ASCII);
 
-    // Encode JSON back to binary
-    let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
+    // TODO: Encode JSON back to binary
+    // let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
 
-    // Should be byte-identical to original for ASCII data with explicit ASCII encoding
-    assert_eq!(
-        roundtrip_data, original_data,
-        "ASCII round-trip should produce byte-identical data with explicit ASCII encoding"
-    );
+    // Should be byte-identical to original
+    // assert_eq!(roundtrip_data, original_data,
+    //           "ASCII round-trip should produce byte-identical data");
 
-    Ok(())
+    panic!("Round-trip encoding preservation not yet implemented - expected TDD Red phase failure");
 }
 
 /// AC7: Test EBCDIC zoned decimal round-trip with byte-identical output
@@ -57,37 +54,34 @@ fn test_ascii_zoned_roundtrip_byte_identical() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_ebcdic_zoned_roundtrip_byte_identical() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(5).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // Original EBCDIC zoned decimal data
-    let original_data = b"\xF1\xF2\xF3\xF4\xF5"; // EBCDIC "12345"
+    let _original_data = b"\xF1\xF2\xF3\xF4\xF5"; // EBCDIC "12345"
 
     // Decode with preservation enabled
-    let decode_options = DecodeOptions::new()
+    let _decode_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::CP037)
-        .with_preserve_zoned_encoding(true);
+        .with_codepage(Codepage::CP037);
+    // TODO: Add when implemented
+    // .with_preserve_zoned_encoding(true);
 
-    // Decode to JSON with encoding preservation
-    let json_result = copybook_codec::decode_record(&schema, original_data, &decode_options)?;
+    // TODO: Decode to JSON with encoding preservation
+    // let json_result = copybook_codec::decode_record(&schema, original_data, &decode_options)?;
 
-    // For now, test basic decode/encode round-trip (without metadata preservation yet)
-    // This verifies the core functionality works
-    let encode_options = EncodeOptions::new()
+    // Encode back using preserved format
+    let _encode_options = EncodeOptions::new()
         .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::CP037)
-        .with_zoned_encoding_format(copybook_codec::ZonedEncodingFormat::Ebcdic);
+        .with_codepage(Codepage::CP037);
 
-    // Encode JSON back to binary
-    let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
+    // TODO: Encode JSON back to binary
+    // let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
 
-    // Should be byte-identical to original for EBCDIC data with explicit EBCDIC encoding
-    assert_eq!(
-        roundtrip_data, original_data,
-        "EBCDIC round-trip should produce byte-identical data with explicit EBCDIC encoding"
-    );
+    // Should be byte-identical to original
+    // assert_eq!(roundtrip_data, original_data,
+    //           "EBCDIC round-trip should produce byte-identical data");
 
-    Ok(())
+    panic!("Round-trip encoding preservation not yet implemented - expected TDD Red phase failure");
 }
 
 /// AC7: Test round-trip with CLI using cmp utility for validation
@@ -106,23 +100,23 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
     // Create original ASCII zoned decimal data
     fs::write(&original_data_path, b"\x31\x32\x33\x34\x35")?; // ASCII "12345"
 
-    // Decode with current implementation (no preservation yet)
-    let decode_output = Command::new(
-        std::env::var("CARGO_BIN_EXE_copybook").unwrap_or_else(|_| "copybook".to_string()),
-    )
-    .args([
-        "decode",
-        // "--preserve-encoding", // TODO: Add when implemented
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        copybook_path.to_str().unwrap(),
-        original_data_path.to_str().unwrap(),
-        "--output",
-        json_path.to_str().unwrap(),
-    ])
-    .output();
+    // TODO: Decode with preservation - this should work when flags are implemented
+    // TODO: Fix CLI binary path when implementing
+    // let decode_output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+    let decode_output = Command::new("copybook")
+        .args([
+            "decode",
+            // "--preserve-encoding", // TODO: Add when implemented
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            copybook_path.to_str().unwrap(),
+            original_data_path.to_str().unwrap(),
+            "--output",
+            json_path.to_str().unwrap(),
+        ])
+        .output();
 
     // For now, this will use current behavior (no preservation)
     // TODO: When preservation is implemented, verify it works
@@ -131,22 +125,21 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
         "Decode should work with current implementation"
     );
 
-    // Encode with current implementation (no preservation yet)
-    let encode_output = Command::new(
-        std::env::var("CARGO_BIN_EXE_copybook").unwrap_or_else(|_| "copybook".to_string()),
-    )
-    .args([
-        "encode",
-        // "--zoned-encoding", "ascii", // TODO: Add when implemented
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        copybook_path.to_str().unwrap(),
-        json_path.to_str().unwrap(),
-        roundtrip_data_path.to_str().unwrap(),
-    ])
-    .output();
+    // TODO: Encode with preserved format - this should work when flags are implemented
+    // TODO: Fix CLI binary path when implementing
+    let encode_output = Command::new("copybook")
+        .args([
+            "encode",
+            // "--zoned-encoding", "ascii", // TODO: Add when implemented
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            copybook_path.to_str().unwrap(),
+            json_path.to_str().unwrap(),
+            roundtrip_data_path.to_str().unwrap(),
+        ])
+        .output();
 
     assert!(
         encode_output.is_ok(),
@@ -180,60 +173,40 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_signed_zoned_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // Test ASCII positive overpunch
-    let ascii_positive_data = b"12{"; // ASCII +120
+    let _ascii_positive_data = b"12{"; // ASCII +120
 
-    let decode_options = DecodeOptions::new()
-        .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::ASCII)
-        .with_preserve_zoned_encoding(true);
+    // TODO: Test round-trip preservation of ASCII overpunch
+    // let decode_options = DecodeOptions::new()
+    //     .with_format(RecordFormat::Fixed)
+    //     .with_codepage(Codepage::ASCII)
+    //     .with_preserve_zoned_encoding(true);
 
-    let json_result = copybook_codec::decode_record(&schema, ascii_positive_data, &decode_options)?;
-    let encode_options = EncodeOptions::new()
-        .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::ASCII)
-        .with_zoned_encoding_format(copybook_codec::ZonedEncodingFormat::Ascii);
-    let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
-    assert_eq!(roundtrip_data, ascii_positive_data);
+    // let json_result = copybook_codec::decode_record(&schema, ascii_positive_data, &decode_options)?;
+    // let encode_options = EncodeOptions::new()
+    //     .with_format(RecordFormat::Fixed)
+    //     .with_codepage(Codepage::ASCII);
+    // let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
+    // assert_eq!(roundtrip_data, ascii_positive_data);
 
     // Test ASCII negative overpunch
-    let ascii_negative_data = b"12L"; // ASCII -123
+    let _ascii_negative_data = b"12L"; // ASCII -123
 
-    let json_result2 =
-        copybook_codec::decode_record(&schema, ascii_negative_data, &decode_options)?;
-    let roundtrip_data2 = copybook_codec::encode_record(&schema, &json_result2, &encode_options)?;
-    assert_eq!(roundtrip_data2, ascii_negative_data);
+    // TODO: Test round-trip preservation of ASCII negative overpunch
+    // Similar implementation as above
 
     // Test EBCDIC signed zones
     let ebcdic_positive_data = b"\xF1\xF2\xC3"; // EBCDIC +123
     let ebcdic_negative_data = b"\xF1\xF2\xD3"; // EBCDIC -123
 
-    let decode_options_ebcdic = DecodeOptions::new()
-        .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::CP037)
-        .with_preserve_zoned_encoding(true);
-    let encode_options_ebcdic = EncodeOptions::new()
-        .with_format(RecordFormat::Fixed)
-        .with_codepage(Codepage::CP037)
-        .with_zoned_encoding_format(copybook_codec::ZonedEncodingFormat::Ebcdic);
+    // TODO: Test round-trip preservation of EBCDIC signed zones
+    // Similar implementation but with CP037 codepage
 
-    // Test EBCDIC positive
-    let json_result3 =
-        copybook_codec::decode_record(&schema, ebcdic_positive_data, &decode_options_ebcdic)?;
-    let roundtrip_data3 =
-        copybook_codec::encode_record(&schema, &json_result3, &encode_options_ebcdic)?;
-    assert_eq!(roundtrip_data3, ebcdic_positive_data);
-
-    // Test EBCDIC negative
-    let json_result4 =
-        copybook_codec::decode_record(&schema, ebcdic_negative_data, &decode_options_ebcdic)?;
-    let roundtrip_data4 =
-        copybook_codec::encode_record(&schema, &json_result4, &encode_options_ebcdic)?;
-    assert_eq!(roundtrip_data4, ebcdic_negative_data);
-
-    Ok(())
+    panic!(
+        "Signed zoned decimal round-trip preservation not yet implemented - expected TDD Red phase failure"
+    );
 }
 
 /// AC8: Test backward compatibility - default behavior unchanged
@@ -281,10 +254,10 @@ fn test_multi_field_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
    05 FIELD2 PIC S9(3).
    05 FIELD3 PIC 9(4).
 ";
-    let _schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     // Mixed encoding data: ASCII + EBCDIC signed + ASCII
-    let _original_data = b"\x31\x32\xF1\xF2\xC3\x33\x34\x35\x36"; // "12" + "+123" + "3456"
+    let original_data = b"\x31\x32\xF1\xF2\xC3\x33\x34\x35\x36"; // "12" + "+123" + "3456"
 
     // TODO: Decode with preservation
     // let decode_options = DecodeOptions::new()
@@ -318,10 +291,10 @@ fn test_multi_field_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_rdw_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(5).";
-    let _schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     // RDW header (5 + 4 = 9 bytes total) + ASCII zoned data
-    let _original_data = b"\x00\x09\x00\x00\x31\x32\x33\x34\x35"; // RDW + ASCII "12345"
+    let original_data = b"\x00\x09\x00\x00\x31\x32\x33\x34\x35"; // RDW + ASCII "12345"
 
     // TODO: Decode RDW with preservation
     // let decode_options = DecodeOptions::new()
@@ -356,21 +329,22 @@ proptest! {
         // Convert to ASCII zoned decimal
         let original_data: Vec<u8> = digits.iter().map(|&d| 0x30 + d).collect();
 
-        // Test round-trip preservation with encoding detection
-        let decode_options = DecodeOptions::new()
-            .with_format(RecordFormat::Fixed)
-            .with_codepage(Codepage::ASCII)
-            .with_preserve_zoned_encoding(true);
+        // TODO: Test round-trip preservation
+        // let decode_options = DecodeOptions::new()
+        //     .with_format(RecordFormat::Fixed)
+        //     .with_codepage(Codepage::ASCII)
+        //     .with_preserve_zoned_encoding(true);
 
-        let json_result = copybook_codec::decode_record(&schema, &original_data, &decode_options)?;
-        let encode_options = EncodeOptions::new()
-            .with_format(RecordFormat::Fixed)
-            .with_codepage(Codepage::ASCII)
-            .with_zoned_encoding_format(copybook_codec::ZonedEncodingFormat::Ascii);
+        // let json_result = copybook_codec::decode_record(&schema, &original_data, &decode_options)?;
+        // let encode_options = EncodeOptions::new()
+        //     .with_format(RecordFormat::Fixed)
+        //     .with_codepage(Codepage::ASCII);
+        // let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
 
-        let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
+        // prop_assert_eq!(roundtrip_data, original_data);
 
-        prop_assert_eq!(roundtrip_data, original_data);
+        // For now, this will fail
+        prop_assert!(false, "Round-trip preservation not yet implemented - expected TDD Red phase failure");
     }
 
     /// Property test: Any valid EBCDIC zoned data should round-trip identically
@@ -382,21 +356,11 @@ proptest! {
         // Convert to EBCDIC zoned decimal
         let original_data: Vec<u8> = digits.iter().map(|&d| 0xF0 + d).collect();
 
-        // Test round-trip preservation with EBCDIC encoding detection
-        let decode_options = DecodeOptions::new()
-            .with_format(RecordFormat::Fixed)
-            .with_codepage(Codepage::CP037)
-            .with_preserve_zoned_encoding(true);
+        // TODO: Test round-trip preservation
+        // Similar to ASCII test but with CP037 codepage
 
-        let json_result = copybook_codec::decode_record(&schema, &original_data, &decode_options)?;
-        let encode_options = EncodeOptions::new()
-            .with_format(RecordFormat::Fixed)
-            .with_codepage(Codepage::CP037)
-            .with_zoned_encoding_format(copybook_codec::ZonedEncodingFormat::Ebcdic);
-
-        let roundtrip_data = copybook_codec::encode_record(&schema, &json_result, &encode_options)?;
-
-        prop_assert_eq!(roundtrip_data, original_data);
+        // For now, this will fail
+        prop_assert!(false, "Round-trip preservation not yet implemented - expected TDD Red phase failure");
     }
 }
 

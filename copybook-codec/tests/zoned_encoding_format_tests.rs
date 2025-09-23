@@ -14,7 +14,7 @@ use std::error::Error;
 /// AC1: Test `ZonedEncodingFormat` enum behavior and conversions
 /// Tests COBOL parsing spec: SPEC.manifest.yml#ZonedEncodingFormat-enum-variants
 #[test]
-fn test_zoned_encoding_format_enum_variants() {
+fn test_zoned_encoding_format_enum_variants() -> Result<(), Box<dyn Error>> {
     // This test will fail until ZonedEncodingFormat enum is implemented
 
     // Test that ZonedEncodingFormat has correct variants
@@ -54,23 +54,24 @@ fn test_zoned_encoding_format_enum_variants() {
 
     // For now, this test should succeed as we have implemented the enum
     // panic!("ZonedEncodingFormat enum not yet implemented - expected TDD Red phase failure");
+    Ok(())
 }
 
 /// AC1: Test ASCII zoned decimal encoding detection (0x30-0x39 digit zones)
 /// Tests COBOL parsing spec: SPEC.manifest.yml#encoding-detection-ascii
 #[test]
-fn test_ascii_zoned_encoding_detection() {
+fn test_ascii_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let _schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
-    let _options = DecodeOptions::new()
+    let options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // ASCII zoned decimal data: "123" = 0x31, 0x32, 0x33
-    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    let ascii_data = b"\x31\x32\x33"; // ASCII "123"
 
     // This should detect ASCII encoding (zone nibbles 0x3)
     // TODO: Implement encoding detection logic
@@ -84,7 +85,7 @@ fn test_ascii_zoned_encoding_detection() {
         .with_preserve_zoned_encoding(true);
 
     // ASCII zoned decimal data: "123" = 0x31, 0x32, 0x33
-    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    let ascii_data = b"\x31\x32\x33"; // ASCII "123"
 
     // For now, mark as success since basic preserve_zoned_encoding field is implemented
     // TODO: Implement full encoding detection logic in decode_record
@@ -93,6 +94,7 @@ fn test_ascii_zoned_encoding_detection() {
     // Temporarily commented out until full integration is done:
     // let result = copybook_codec::decode_record(&schema, ascii_data, &options)?;
     // assert!(result.encoding_metadata.contains("ascii"));
+    Ok(())
 }
 
 /// AC1: Test EBCDIC zoned decimal encoding detection (0xF0-0xF9 digit zones)
@@ -100,16 +102,16 @@ fn test_ascii_zoned_encoding_detection() {
 #[test]
 fn test_ebcdic_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let _schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
-    let _options = DecodeOptions::new()
+    let options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // EBCDIC zoned decimal data: "123" = 0xF1, 0xF2, 0xF3
-    let _ebcdic_data = b"\xF1\xF2\xF3"; // EBCDIC "123"
+    let ebcdic_data = b"\xF1\xF2\xF3"; // EBCDIC "123"
 
     // This should detect EBCDIC encoding (zone nibbles 0xF)
     // TODO: Implement encoding detection logic
@@ -124,7 +126,7 @@ fn test_ebcdic_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_decode_options_preserve_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     // Test that DecodeOptions supports preserve_zoned_encoding field
-    let _options = DecodeOptions::new();
+    let options = DecodeOptions::new();
 
     // TODO: These should compile when preserve_zoned_encoding is added to DecodeOptions
     // options = options.with_preserve_zoned_encoding(true);
@@ -143,7 +145,7 @@ fn test_decode_options_preserve_zoned_encoding_flag() -> Result<(), Box<dyn Erro
 #[test]
 fn test_decode_options_preferred_zoned_encoding() -> Result<(), Box<dyn Error>> {
     // Test that DecodeOptions supports preferred_zoned_encoding field
-    let _options = DecodeOptions::new();
+    let options = DecodeOptions::new();
 
     // TODO: These should compile when preferred_zoned_encoding is added to DecodeOptions
     // options = options.with_preferred_zoned_encoding(Some(ZonedEncodingFormat::Ascii));
@@ -168,16 +170,16 @@ fn test_decode_options_preferred_zoned_encoding() -> Result<(), Box<dyn Error>> 
 #[test]
 fn test_mixed_encoding_detection_single_field() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(4).";
-    let _schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
-    let _options = DecodeOptions::new()
+    let options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // Mixed encoding: First two ASCII zones, last two EBCDIC zones
-    let _mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
+    let mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
 
     // This should detect mixed encoding and return appropriate error/warning
     // TODO: Implement mixed encoding detection with CBKD414 error code
@@ -198,16 +200,16 @@ fn test_mixed_encoding_detection_multiple_fields() -> Result<(), Box<dyn Error>>
    05 FIELD1 PIC 9(2).
    05 FIELD2 PIC 9(2).
 ";
-    let _schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
-    let _options = DecodeOptions::new()
+    let options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // Mixed encoding across fields: FIELD1 ASCII, FIELD2 EBCDIC
-    let _mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
+    let mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
 
     // This should detect mixed encoding across fields and emit warning
     // TODO: Implement mixed encoding detection with appropriate warning
@@ -408,7 +410,7 @@ proptest! {
 
 /// Test comprehensive error handling for invalid record sizes
 #[test]
-fn test_record_size_mismatch_error_handling() {
+fn test_record_size_mismatch_error_handling() -> Result<(), Box<dyn Error>> {
     let copybook = "01 FIELD PIC 9(5)."; // Expects 5 bytes
     let schema = parse_copybook(copybook).unwrap();
 
@@ -434,11 +436,13 @@ fn test_record_size_mismatch_error_handling() {
     let long_data = b"\x31\x32\x33\x34\x35\x36\x37"; // 7 bytes, expected 5
     let result = copybook_codec::decode_record(&schema, long_data, &options);
     assert!(result.is_ok(), "Should handle oversized data gracefully");
+
+    Ok(())
 }
 
 /// Test error handling for malformed COBOL copybooks
 #[test]
-fn test_malformed_copybook_error_handling() {
+fn test_malformed_copybook_error_handling() -> Result<(), Box<dyn Error>> {
     let malformed_copybooks = [
         "",                                        // Empty copybook
         "01 FIELD PIC 9(",                         // Incomplete PIC clause
@@ -459,11 +463,13 @@ fn test_malformed_copybook_error_handling() {
         }
         // Some might succeed with default handling, which is also acceptable
     }
+
+    Ok(())
 }
 
 /// Test error recovery and continuation for enterprise workflows
 #[test]
-fn test_enterprise_error_recovery_patterns() {
+fn test_enterprise_error_recovery_patterns() -> Result<(), Box<dyn Error>> {
     let copybook = r"01 MULTI-FIELD.
    05 FIELD1 PIC 9(3).
    05 FIELD2 PIC X(5).
@@ -485,7 +491,7 @@ fn test_enterprise_error_recovery_patterns() {
     match result {
         Ok(_decoded) => {
             // Success path: implementation has error tolerance
-            // No assertion needed - successful decode is acceptable
+            assert!(true, "Implementation handled invalid data gracefully");
         }
         Err(error) => {
             // Error path: should provide structured error information
@@ -497,11 +503,13 @@ fn test_enterprise_error_recovery_patterns() {
             );
         }
     }
+
+    Ok(())
 }
 
 /// Test EBCDIC codepage conversion edge cases for enterprise data
 #[test]
-fn test_ebcdic_codepage_conversion_robustness() {
+fn test_ebcdic_codepage_conversion_robustness() -> Result<(), Box<dyn Error>> {
     let copybook = "01 EBCDIC-FIELD PIC 9(5).";
     let schema = parse_copybook(copybook).unwrap();
 
@@ -543,4 +551,6 @@ fn test_ebcdic_codepage_conversion_robustness() {
             }
         }
     }
+
+    Ok(())
 }

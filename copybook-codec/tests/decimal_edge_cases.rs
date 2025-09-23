@@ -371,7 +371,7 @@ fn test_zoned_overpunch_by_codepage() {
 
 /// Comprehensive test for zoned decimal overpunch across all codepages
 #[test]
-#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
+#[ignore] // TODO: Fix decimal zero normalization in display formatting
 fn test_zoned_overpunch_comprehensive() {
     let copybook = r"
        01 OVERPUNCH-TEST-RECORD.
@@ -412,10 +412,8 @@ fn test_zoned_overpunch_comprehensive() {
                 "MULTI-DIGIT": format!("1234{}", digit),
             });
 
-            let pos_encoded = encode_record(&schema, &positive_data, &encode_options)
-                .unwrap_or_else(|_| panic!("Failed to encode positive {digit} with {codepage:?}"));
-            let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options)
-                .unwrap_or_else(|_| panic!("Failed to decode positive {digit} with {codepage:?}"));
+            let pos_encoded = encode_record(&schema, &positive_data, &encode_options).unwrap_or_else(|_| panic!("Failed to encode positive {digit} with {codepage:?}"));
+            let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options).unwrap_or_else(|_| panic!("Failed to decode positive {digit} with {codepage:?}"));
 
             assert_eq!(pos_decoded["SINGLE-DIGIT"], digit.to_string());
             assert_eq!(pos_decoded["MULTI-DIGIT"], format!("1234{digit}"));
@@ -426,8 +424,7 @@ fn test_zoned_overpunch_comprehensive() {
                 "MULTI-DIGIT": if digit == 0 { "-0".to_string() } else { format!("-1234{digit}") },
             });
 
-            let neg_encoded = encode_record(&schema, &negative_data, &encode_options)
-                .unwrap_or_else(|_| panic!("Failed to encode negative {digit} with {codepage:?}"));
+            let neg_encoded = encode_record(&schema, &negative_data, &encode_options).unwrap_or_else(|_| panic!("Failed to encode negative {digit} with {codepage:?}"));
 
             // Debug: check what the last byte decodes to
             if digit == 0 {
@@ -442,8 +439,7 @@ fn test_zoned_overpunch_comprehensive() {
                 );
             }
 
-            let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options)
-                .unwrap_or_else(|_| panic!("Failed to decode negative {digit} with {codepage:?}"));
+            let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options).unwrap_or_else(|_| panic!("Failed to decode negative {digit} with {codepage:?}"));
 
             let expected_single = if digit == 0 {
                 "0"
@@ -480,7 +476,7 @@ fn test_zoned_overpunch_comprehensive() {
 
 /// Test zero sign policies and normalization
 #[test]
-#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
+#[ignore] // TODO: Fix decimal zero normalization in display formatting
 fn test_zoned_zero_sign_handling() {
     let copybook = r"
        01 ZERO-TEST-RECORD.
@@ -530,7 +526,7 @@ fn test_zoned_zero_sign_handling() {
 /// Test ASCII negative zero multi-digit handling (Pin the bug)
 /// S9(5): "-12340" must decode to "-12340", only pure -0 normalizes to "0"
 #[test]
-#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
+#[ignore] // TODO: Fix decimal zero normalization in display formatting
 fn test_ascii_negative_zero_multi_digit() {
     let copybook = r"
        01 ASCII-NEG-ZERO-TEST-RECORD.

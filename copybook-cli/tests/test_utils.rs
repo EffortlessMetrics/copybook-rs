@@ -4,7 +4,7 @@ use assert_cmd::Command;
 use std::path::PathBuf;
 
 /// Find the workspace root by looking for Cargo.toml
-#[must_use]
+#[must_use] 
 pub fn find_workspace_root() -> PathBuf {
     let mut current = std::env::current_dir().expect("Failed to get current directory");
 
@@ -25,13 +25,13 @@ pub fn find_workspace_root() -> PathBuf {
 }
 
 /// Get the path to a fixture file relative to workspace root
-#[must_use]
+#[must_use] 
 pub fn fixture_path(relative_path: &str) -> PathBuf {
     find_workspace_root().join("fixtures").join(relative_path)
 }
 
 /// Create a copybook command with standard fixed format and CP037 codepage args
-#[must_use]
+#[must_use] 
 pub fn copybook_cmd(args: &[&str]) -> Command {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.args(args)

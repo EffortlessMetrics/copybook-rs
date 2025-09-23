@@ -1,10 +1,3 @@
-#![allow(
-    clippy::unreadable_literal,
-    clippy::too_many_lines,
-    clippy::similar_names,
-    clippy::cast_precision_loss
-)]
-
 //! Test scaffolding for zoned encoding performance impact - Issue #48
 //!
 //! Tests performance spec: SPEC.manifest.yml#performance-impact-limits
@@ -157,7 +150,9 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
     let data_size_gb = test_data.len() as f64 / (1024.0 * 1024.0 * 1024.0);
     let throughput_gib_per_s = data_size_gb / duration.as_secs_f64();
 
-    println!("DISPLAY throughput: {throughput_gib_per_s:.2} GiB/s (target: ≥4.1 GiB/s)");
+    println!(
+        "DISPLAY throughput: {throughput_gib_per_s:.2} GiB/s (target: ≥4.1 GiB/s)"
+    );
 
     // TODO: When encoding detection is implemented, ensure it maintains high throughput
     // For now, verify current implementation meets baseline expectations
@@ -223,7 +218,9 @@ fn test_comp3_throughput_with_minimal_regression() -> Result<(), Box<dyn Error>>
     let data_size_mb = test_data.len() as f64 / (1024.0 * 1024.0);
     let throughput_mib_per_s = data_size_mb / duration.as_secs_f64();
 
-    println!("COMP-3 throughput: {throughput_mib_per_s:.2} MiB/s (target: ≥560 MiB/s)");
+    println!(
+        "COMP-3 throughput: {throughput_mib_per_s:.2} MiB/s (target: ≥560 MiB/s)"
+    );
 
     // COMP-3 processing should not be affected by zoned encoding changes
     // Verify reasonable performance (lower threshold for test environment)
@@ -283,7 +280,9 @@ fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
     let duration = start_time.elapsed();
     let avg_lookup_time = duration / 1000;
 
-    println!("Average encoding lookup time: {avg_lookup_time:?} (target: <2% additional time)");
+    println!(
+        "Average encoding lookup time: {avg_lookup_time:?} (target: <2% additional time)"
+    );
 
     // TODO: When metadata lookup is implemented, verify it's fast
     // For now, just verify basic encode performance
@@ -342,7 +341,9 @@ fn test_encoding_detection_algorithm_performance() -> Result<(), Box<dyn Error>>
         let duration = start_time.elapsed();
         let avg_detection_time = duration / 1000;
 
-        println!("{case_name} encoding detection time: {avg_detection_time:?} per field");
+        println!(
+            "{case_name} encoding detection time: {avg_detection_time:?} per field"
+        );
 
         // Detection should be very fast (target: <1ms per field)
         assert!(
@@ -381,7 +382,7 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
         }
 
         // ZONED-FIELD: 15 bytes ASCII zoned
-        let zoned_value = format!("{:0>15}", i % 1_000_000_000_000_000_i64);
+        let zoned_value = format!("{:0>15}", i % 1000000000000000_i64);
         let zoned_bytes = zoned_value.as_bytes();
         test_data.extend_from_slice(&zoned_bytes[..15.min(zoned_bytes.len())]);
         // Pad to exactly 15 bytes
@@ -454,7 +455,7 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
 /// Performance stress test with large-scale data processing
 /// Tests performance spec: SPEC.manifest.yml#large-scale-performance
 #[test]
-#[ignore = "Long-running performance test - use 'cargo test -- --ignored' to run"]
+#[ignore] // Run only with 'cargo test -- --ignored' for full performance testing
 fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
     let copybook = r"
 01 LARGE-RECORD.

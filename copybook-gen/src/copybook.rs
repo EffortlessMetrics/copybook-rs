@@ -424,7 +424,7 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
 /// Generate negative test copybooks (invalid syntax)
 #[must_use]
 pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, String)> {
-    let rng = StdRng::seed_from_u64(config.seed);
+    let _rng = StdRng::seed_from_u64(config.seed);
 
     vec![
         (

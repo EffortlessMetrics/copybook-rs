@@ -29,7 +29,7 @@ fn test_simple_fixture_zoned_encoding_integration() -> Result<(), Box<dyn Error>
 
     // Skip if fixtures don't exist
     if !copybook_path.exists() || !data_path.exists() {
-        println!("Skipping test: fixtures not found at {:?}", fixtures_dir);
+        println!("Skipping test: fixtures not found at {fixtures_dir:?}");
         return Ok(());
     }
 
@@ -91,7 +91,7 @@ fn test_simple_fixture_zoned_encoding_integration() -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-/// AC12: Test zoned encoding with comp3_test.cpy fixture (mixed field types)
+/// AC12: Test zoned encoding with `comp3_test.cpy` fixture (mixed field types)
 /// Tests fixture integration spec: SPEC.manifest.yml#comp3-fixture-mixed-types
 #[test]
 fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
@@ -105,8 +105,7 @@ fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
     // Skip if fixtures don't exist
     if !copybook_path.exists() || !data_path.exists() {
         println!(
-            "Skipping test: comp3 fixtures not found at {:?}",
-            fixtures_dir
+            "Skipping test: comp3 fixtures not found at {fixtures_dir:?}"
         );
         return Ok(());
     }
@@ -126,7 +125,7 @@ fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
     ];
 
     for (name, codepage) in test_cases {
-        println!("Testing comp3 fixture with {} codepage", name);
+        println!("Testing comp3 fixture with {name} codepage");
 
         let options = DecodeOptions::new()
             .with_format(RecordFormat::Fixed)
@@ -146,8 +145,7 @@ fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
         // Should succeed for all codepages (COMP-3 is codepage-independent)
         assert!(
             result.is_ok(),
-            "COMP-3 fixture should decode successfully with {} codepage",
-            name
+            "COMP-3 fixture should decode successfully with {name} codepage"
         );
 
         // TODO: When zoned encoding preservation is implemented, verify:
@@ -159,8 +157,7 @@ fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
         let lines: Vec<&str> = output_str.trim().split('\n').collect();
         assert!(
             !lines.is_empty(),
-            "Should produce at least one output record for {}",
-            name
+            "Should produce at least one output record for {name}"
         );
 
         // Verify basic JSON structure
@@ -169,8 +166,7 @@ fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
             let json: Value = serde_json::from_str(line)?;
             assert!(
                 json.is_object(),
-                "Output should be valid JSON object for {}",
-                name
+                "Output should be valid JSON object for {name}"
             );
         }
     }
@@ -191,8 +187,7 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
     // Skip if fixture doesn't exist
     if !copybook_path.exists() {
         println!(
-            "Skipping test: complex fixture not found at {:?}",
-            copybook_path
+            "Skipping test: complex fixture not found at {copybook_path:?}"
         );
         return Ok(());
     }
@@ -212,7 +207,7 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
     } else {
         0
     };
-    println!("Complex schema record length: {} bytes", record_size);
+    println!("Complex schema record length: {record_size} bytes");
 
     // Create test data with various zoned decimal encoding patterns
     for record_num in 0..10 {
@@ -256,8 +251,7 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => {
             println!(
-                "Complex fixture decode error (expected during development): {}",
-                e
+                "Complex fixture decode error (expected during development): {e}"
             );
             // Complex schemas may have features not yet supported
             // This is acceptable during TDD Red phase
@@ -280,8 +274,7 @@ fn test_odo_fixture_variable_length_zoned() -> Result<(), Box<dyn Error>> {
     // Skip if fixture doesn't exist
     if !copybook_path.exists() {
         println!(
-            "Skipping test: ODO fixture not found at {:?}",
-            copybook_path
+            "Skipping test: ODO fixture not found at {copybook_path:?}"
         );
         return Ok(());
     }
@@ -344,8 +337,7 @@ fn test_odo_fixture_variable_length_zoned() -> Result<(), Box<dyn Error>> {
         }
         Err(e) => {
             println!(
-                "ODO fixture decode error (may be expected during development): {}",
-                e
+                "ODO fixture decode error (may be expected during development): {e}"
             );
             // ODO processing with mixed encoding may not be fully implemented yet
         }
@@ -499,8 +491,7 @@ fn test_enterprise_scale_fixture_performance() -> Result<(), Box<dyn Error>> {
     // Verify reasonable enterprise performance
     assert!(
         throughput_mb_per_s > 1.0,
-        "Enterprise fixture processing should be performant: {:.2} MB/s",
-        throughput_mb_per_s
+        "Enterprise fixture processing should be performant: {throughput_mb_per_s:.2} MB/s"
     );
 
     // Verify output integrity
@@ -535,8 +526,7 @@ fn test_mainframe_compatibility_scenarios() -> Result<(), Box<dyn Error>> {
 
     for (scenario_name, codepage) in codepage_scenarios {
         println!(
-            "Testing mainframe compatibility scenario: {}",
-            scenario_name
+            "Testing mainframe compatibility scenario: {scenario_name}"
         );
 
         // Use simple fixture for codepage testing
@@ -549,23 +539,20 @@ fn test_mainframe_compatibility_scenarios() -> Result<(), Box<dyn Error>> {
         let schema = parse_copybook(&copybook_content)?;
 
         // Create test data appropriate for the codepage
-        let test_data = match codepage {
-            Codepage::ASCII => b"Test ASCII data 123".to_vec(),
-            _ => {
-                // EBCDIC test data
-                // Calculate record size for EBCDIC test data
-                let record_size = if let Some(last_field) = schema.all_fields().last() {
-                    last_field.offset + last_field.len
-                } else {
-                    100 // Default size if schema is empty
-                };
-                let mut ebcdic_data = vec![0x40; record_size as usize]; // EBCDIC spaces
-                // Add some EBCDIC digits and letters
-                for i in 0..10.min(ebcdic_data.len()) {
-                    ebcdic_data[i] = 0xF0 + (i % 10) as u8; // EBCDIC digits
-                }
-                ebcdic_data
+        let test_data = if codepage == Codepage::ASCII { b"Test ASCII data 123".to_vec() } else {
+            // EBCDIC test data
+            // Calculate record size for EBCDIC test data
+            let record_size = if let Some(last_field) = schema.all_fields().last() {
+                last_field.offset + last_field.len
+            } else {
+                100 // Default size if schema is empty
+            };
+            let mut ebcdic_data = vec![0x40; record_size as usize]; // EBCDIC spaces
+            // Add some EBCDIC digits and letters
+            for i in 0..10.min(ebcdic_data.len()) {
+                ebcdic_data[i] = 0xF0 + (i % 10) as u8; // EBCDIC digits
             }
+            ebcdic_data
         };
 
         let options = DecodeOptions::new()
@@ -585,8 +572,7 @@ fn test_mainframe_compatibility_scenarios() -> Result<(), Box<dyn Error>> {
 
         assert!(
             result.is_ok(),
-            "Should handle {} codepage scenario",
-            scenario_name
+            "Should handle {scenario_name} codepage scenario"
         );
 
         // TODO: When encoding preservation is implemented, verify:

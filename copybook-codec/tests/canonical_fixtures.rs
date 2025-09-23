@@ -33,7 +33,7 @@ fn normalize_json_value(value: Value) -> Value {
 fn normalize_stdout(output: &str) -> String {
     output
         .lines()
-        .map(|line| line.trim_end())
+        .map(str::trim_end)
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
@@ -94,7 +94,7 @@ fn test_comp3_canonical() {
     // let expected_hex = "00313233343500..."; // stored expected value
     // assert_eq!(binary_to_hex(&binary_output), expected_hex);
 
-    println!("Generated hex for comp3_test.bin: {}", expected_hex);
+    println!("Generated hex for comp3_test.bin: {expected_hex}");
 
     // Configure decode options
     let decode_options = DecodeOptions::new()
@@ -146,22 +146,20 @@ fn test_comp3_canonical() {
         .join("\n");
 
     // Expected normalized JSON (would be stored in a file)
-    let expected_json_lines = vec![
-        r#"{"DECIMAL-AMOUNT":"123.45","NEGATIVE-AMOUNT":"-67890","POSITIVE-AMOUNT":"12345","RECORD-ID":"0001","UNSIGNED-AMOUNT":"999","__record_length":8}"#,
-        r#"{"DECIMAL-AMOUNT":"-999.99","NEGATIVE-AMOUNT":"-1","POSITIVE-AMOUNT":"1","RECORD-ID":"0002","UNSIGNED-AMOUNT":"0","__record_length":8}"#,
-    ];
+    let expected_json_lines = [r#"{"DECIMAL-AMOUNT":"123.45","NEGATIVE-AMOUNT":"-67890","POSITIVE-AMOUNT":"12345","RECORD-ID":"0001","UNSIGNED-AMOUNT":"999","__record_length":8}"#,
+        r#"{"DECIMAL-AMOUNT":"-999.99","NEGATIVE-AMOUNT":"-1","POSITIVE-AMOUNT":"1","RECORD-ID":"0002","UNSIGNED-AMOUNT":"0","__record_length":8}"#];
     let expected_normalized = expected_json_lines.join("\n");
 
     println!("Generated normalized JSON:");
-    println!("{}", normalized_jsonl);
+    println!("{normalized_jsonl}");
     println!("Expected normalized JSON:");
-    println!("{}", expected_normalized);
+    println!("{expected_normalized}");
 
     // In a real test, we would compare against the stored expected value
     // assert_eq!(normalized_jsonl, expected_normalized);
 }
 
-/// Test to generate canonical fixtures (run with CREATE_CANONICAL_FIXTURES=1)
+/// Test to generate canonical fixtures (run with `CREATE_CANONICAL_FIXTURES=1`)
 #[test]
 #[ignore] // Only run when explicitly requested
 fn test_generate_canonical_fixtures() {

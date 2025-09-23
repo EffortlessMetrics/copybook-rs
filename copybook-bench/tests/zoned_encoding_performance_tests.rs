@@ -73,8 +73,7 @@ fn test_encoding_detection_overhead_within_limits() -> Result<(), Box<dyn Error>
     let overhead_ratio = enhanced_duration.as_secs_f64() / baseline_duration.as_secs_f64();
     assert!(
         overhead_ratio < 1.1, // Allow 10% variance for measurement noise
-        "Performance should be similar without encoding preservation, actual ratio: {:.2}",
-        overhead_ratio
+        "Performance should be similar without encoding preservation, actual ratio: {overhead_ratio:.2}"
     );
 
     println!(
@@ -93,12 +92,12 @@ fn test_encoding_detection_overhead_within_limits() -> Result<(), Box<dyn Error>
 #[test]
 fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error>> {
     // Create large DISPLAY data for throughput testing
-    let copybook = r#"
+    let copybook = r"
 01 DISPLAY-RECORD.
    05 FIELD1 PIC X(50).
    05 FIELD2 PIC 9(30).
    05 FIELD3 PIC X(100).
-"#; // 180 bytes per record
+"; // 180 bytes per record
     let schema = parse_copybook(copybook).unwrap();
 
     // Generate test data: ASCII DISPLAY + zoned fields
@@ -108,7 +107,7 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
 
     for i in 0..num_records {
         // FIELD1: 50 bytes of ASCII text
-        let field1 = format!("Record {:>10} text data for display field      ", i);
+        let field1 = format!("Record {i:>10} text data for display field      ");
         let field1_bytes = field1.as_bytes();
         let field1_len = field1_bytes.len().min(50);
         test_data.extend_from_slice(&field1_bytes[..field1_len]);
@@ -124,8 +123,7 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
 
         // FIELD3: 100 bytes of ASCII text
         let field3 = format!(
-            "Additional display data for performance testing record {:>10} with more content to fill space",
-            i
+            "Additional display data for performance testing record {i:>10} with more content to fill space"
         );
         let field3_bytes = field3.as_bytes();
         let field3_len = field3_bytes.len().min(100);
@@ -153,16 +151,14 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
     let throughput_gib_per_s = data_size_gb / duration.as_secs_f64();
 
     println!(
-        "DISPLAY throughput: {:.2} GiB/s (target: ≥4.1 GiB/s)",
-        throughput_gib_per_s
+        "DISPLAY throughput: {throughput_gib_per_s:.2} GiB/s (target: ≥4.1 GiB/s)"
     );
 
     // TODO: When encoding detection is implemented, ensure it maintains high throughput
     // For now, verify current implementation meets baseline expectations
     assert!(
         throughput_gib_per_s > 0.01,
-        "Throughput should be reasonable even without optimizations: {:.2} GiB/s",
-        throughput_gib_per_s
+        "Throughput should be reasonable even without optimizations: {throughput_gib_per_s:.2} GiB/s"
     );
 
     // TODO: Verify target when encoding detection is optimized
@@ -178,13 +174,13 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
 #[test]
 fn test_comp3_throughput_with_minimal_regression() -> Result<(), Box<dyn Error>> {
     // Create COMP-3 heavy data for throughput testing
-    let copybook = r#"
+    let copybook = r"
 01 COMP3-RECORD.
    05 DECIMAL1 PIC 9(15)V99 COMP-3.
    05 DECIMAL2 PIC 9(10)V9(5) COMP-3.
    05 DECIMAL3 PIC S9(8)V99 COMP-3.
    05 DECIMAL4 PIC 9(12) COMP-3.
-"#; // Approximately 36 bytes per record
+"; // Approximately 36 bytes per record
     let schema = parse_copybook(copybook).unwrap();
 
     let num_records = 50_000; // ~1.8 MB of COMP-3 data
@@ -223,16 +219,14 @@ fn test_comp3_throughput_with_minimal_regression() -> Result<(), Box<dyn Error>>
     let throughput_mib_per_s = data_size_mb / duration.as_secs_f64();
 
     println!(
-        "COMP-3 throughput: {:.2} MiB/s (target: ≥560 MiB/s)",
-        throughput_mib_per_s
+        "COMP-3 throughput: {throughput_mib_per_s:.2} MiB/s (target: ≥560 MiB/s)"
     );
 
     // COMP-3 processing should not be affected by zoned encoding changes
     // Verify reasonable performance (lower threshold for test environment)
     assert!(
         throughput_mib_per_s > 10.0,
-        "COMP-3 throughput should be reasonable: {:.2} MiB/s",
-        throughput_mib_per_s
+        "COMP-3 throughput should be reasonable: {throughput_mib_per_s:.2} MiB/s"
     );
 
     // TODO: Verify target when running in optimized environment
@@ -247,13 +241,13 @@ fn test_comp3_throughput_with_minimal_regression() -> Result<(), Box<dyn Error>>
 /// Tests performance spec: SPEC.manifest.yml#format-preservation-lookup
 #[test]
 fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"
+    let copybook = r"
 01 MULTI-FIELD-RECORD.
    05 FIELD1 PIC 9(5).
    05 FIELD2 PIC 9(8).
    05 FIELD3 PIC 9(3).
    05 FIELD4 PIC 9(10).
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
 
     // Simulate JSON with encoding metadata for multiple fields
@@ -287,8 +281,7 @@ fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
     let avg_lookup_time = duration / 1000;
 
     println!(
-        "Average encoding lookup time: {:?} (target: <2% additional time)",
-        avg_lookup_time
+        "Average encoding lookup time: {avg_lookup_time:?} (target: <2% additional time)"
     );
 
     // TODO: When metadata lookup is implemented, verify it's fast
@@ -349,16 +342,13 @@ fn test_encoding_detection_algorithm_performance() -> Result<(), Box<dyn Error>>
         let avg_detection_time = duration / 1000;
 
         println!(
-            "{} encoding detection time: {:?} per field",
-            case_name, avg_detection_time
+            "{case_name} encoding detection time: {avg_detection_time:?} per field"
         );
 
         // Detection should be very fast (target: <1ms per field)
         assert!(
             avg_detection_time < Duration::from_millis(5),
-            "{} encoding detection should be fast: {:?}",
-            case_name,
-            avg_detection_time
+            "{case_name} encoding detection should be fast: {avg_detection_time:?}"
         );
     }
 
@@ -369,12 +359,12 @@ fn test_encoding_detection_algorithm_performance() -> Result<(), Box<dyn Error>>
 /// Tests performance spec: SPEC.manifest.yml#parallel-processing-performance
 #[test]
 fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"
+    let copybook = r"
 01 MIXED-RECORD.
    05 DISPLAY-FIELD PIC X(20).
    05 ZONED-FIELD PIC 9(15).
    05 COMP3-FIELD PIC 9(10)V99 COMP-3.
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
 
     // Generate test data with mixed field types
@@ -383,7 +373,7 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
 
     for i in 0..num_records {
         // DISPLAY-FIELD: 20 bytes
-        let display_field = format!("Display data {:>8}", i);
+        let display_field = format!("Display data {i:>8}");
         let display_bytes = display_field.as_bytes();
         test_data.extend_from_slice(&display_bytes[..20.min(display_bytes.len())]);
         // Pad to exactly 20 bytes
@@ -443,15 +433,13 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
     let speedup = single_duration.as_secs_f64() / multi_duration.as_secs_f64();
 
     println!(
-        "Single-threaded: {:?}, Multi-threaded: {:?}, Speedup: {:.2}x",
-        single_duration, multi_duration, speedup
+        "Single-threaded: {single_duration:?}, Multi-threaded: {multi_duration:?}, Speedup: {speedup:.2}x"
     );
 
     // Parallel processing should provide some benefit (even if modest for small data)
     assert!(
         speedup > 0.8,
-        "Multi-threading shouldn't significantly hurt performance: {:.2}x",
-        speedup
+        "Multi-threading shouldn't significantly hurt performance: {speedup:.2}x"
     );
 
     // Outputs should be identical (deterministic parallel processing)
@@ -469,19 +457,19 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
 #[test]
 #[ignore] // Run only with 'cargo test -- --ignored' for full performance testing
 fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"
+    let copybook = r"
 01 LARGE-RECORD.
    05 ID PIC 9(10).
    05 NAME PIC X(50).
    05 AMOUNTS OCCURS 10 TIMES.
       10 AMOUNT PIC 9(12)V99 COMP-3.
    05 DESCRIPTION PIC X(200).
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
 
     // Generate 100,000 records (~30MB of data)
     let num_records = 100_000;
-    println!("Generating {} records for stress test...", num_records);
+    println!("Generating {num_records} records for stress test...");
 
     // TODO: Generate realistic test data with mixed encoding scenarios
     // This would test the full pipeline with encoding detection/preservation
@@ -515,8 +503,7 @@ fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
     // Verify reasonable performance even at scale
     assert!(
         throughput_mb_per_s > 1.0,
-        "Large-scale throughput should be reasonable: {:.2} MB/s",
-        throughput_mb_per_s
+        "Large-scale throughput should be reasonable: {throughput_mb_per_s:.2} MB/s"
     );
 
     Ok(())

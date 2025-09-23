@@ -104,7 +104,7 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
     // TODO: Fix CLI binary path when implementing
     // let decode_output = Command::new(env!("CARGO_BIN_EXE_copybook"))
     let decode_output = Command::new("copybook")
-        .args(&[
+        .args([
             "decode",
             // "--preserve-encoding", // TODO: Add when implemented
             "--format",
@@ -128,7 +128,7 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
     // TODO: Encode with preserved format - this should work when flags are implemented
     // TODO: Fix CLI binary path when implementing
     let encode_output = Command::new("copybook")
-        .args(&[
+        .args([
             "encode",
             // "--zoned-encoding", "ascii", // TODO: Add when implemented
             "--format",
@@ -148,7 +148,7 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
 
     // Use cmp utility to verify byte-identical files
     let cmp_output = Command::new("cmp")
-        .args(&[
+        .args([
             original_data_path.to_str().unwrap(),
             roundtrip_data_path.to_str().unwrap(),
         ])
@@ -248,12 +248,12 @@ fn test_backward_compatibility_default_behavior() -> Result<(), Box<dyn Error>> 
 /// Tests binary round-trip spec: SPEC.manifest.yml#multi-field-round-trip
 #[test]
 fn test_multi_field_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD.
    05 FIELD1 PIC 9(2).
    05 FIELD2 PIC S9(3).
    05 FIELD3 PIC 9(4).
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
 
     // Mixed encoding data: ASCII + EBCDIC signed + ASCII
@@ -370,13 +370,13 @@ proptest! {
 #[test]
 fn test_customer_record_roundtrip_fidelity() -> Result<(), Box<dyn Error>> {
     // Use the real customer record copybook from fixtures
-    let copybook = r#"* Simple copybook for testing
+    let copybook = r"* Simple copybook for testing
        01  CUSTOMER-RECORD.
            05  CUSTOMER-ID         PIC 9(6).
            05  CUSTOMER-NAME       PIC X(30).
            05  ACCOUNT-BALANCE     PIC S9(7)V99 COMP-3.
            05  LAST-ACTIVITY-DATE  PIC 9(8).
-           05  STATUS-CODE         PIC X(1)."#;
+           05  STATUS-CODE         PIC X(1).";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -438,10 +438,10 @@ fn test_customer_record_roundtrip_fidelity() -> Result<(), Box<dyn Error>> {
 /// Test COMP-3 packed decimal round-trip accuracy with real fixture
 #[test]
 fn test_comp3_packed_decimal_roundtrip_accuracy() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"01 COMP3-TEST.
+    let copybook = r"01 COMP3-TEST.
    05 AMOUNT PIC S9(7)V99 COMP-3.
    05 QUANTITY PIC 9(5) COMP-3.
-   05 PERCENTAGE PIC 99V999 COMP-3."#;
+   05 PERCENTAGE PIC 99V999 COMP-3.";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -469,8 +469,7 @@ fn test_comp3_packed_decimal_roundtrip_accuracy() -> Result<(), Box<dyn Error>> 
         let result = copybook_codec::decode_record(&schema, &test_data, &decode_options);
         assert!(
             result.is_ok(),
-            "COMP-3 test '{}' should decode successfully",
-            description
+            "COMP-3 test '{description}' should decode successfully"
         );
 
         let decoded = result.unwrap();
@@ -480,18 +479,15 @@ fn test_comp3_packed_decimal_roundtrip_accuracy() -> Result<(), Box<dyn Error>> 
         let record = &decoded["COMP3-TEST"];
         assert!(
             record.get("AMOUNT").is_some(),
-            "AMOUNT field should exist for {}",
-            description
+            "AMOUNT field should exist for {description}"
         );
         assert!(
             record.get("QUANTITY").is_some(),
-            "QUANTITY field should exist for {}",
-            description
+            "QUANTITY field should exist for {description}"
         );
         assert!(
             record.get("PERCENTAGE").is_some(),
-            "PERCENTAGE field should exist for {}",
-            description
+            "PERCENTAGE field should exist for {description}"
         );
     }
 
@@ -501,14 +497,14 @@ fn test_comp3_packed_decimal_roundtrip_accuracy() -> Result<(), Box<dyn Error>> 
 /// Test mixed field types round-trip robustness with enterprise patterns
 #[test]
 fn test_mixed_field_types_enterprise_robustness() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"01 ENTERPRISE-RECORD.
+    let copybook = r"01 ENTERPRISE-RECORD.
    05 RECORD-TYPE PIC X(2).
    05 TRANSACTION-ID PIC 9(12).
    05 AMOUNT PIC S9(11)V99 COMP-3.
    05 CURRENCY-CODE PIC X(3).
    05 PROCESSING-DATE PIC 9(8).
    05 FLAGS PIC X(4).
-   05 FILLER PIC X(10)."#;
+   05 FILLER PIC X(10).";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -596,17 +592,16 @@ fn test_roundtrip_error_recovery_enterprise_patterns() -> Result<(), Box<dyn Err
         match result {
             Ok(_) => {
                 // Some implementations might handle errors gracefully
-                println!("Test '{}' succeeded with error tolerance", description);
+                println!("Test '{description}' succeeded with error tolerance");
             }
             Err(error) => {
                 // Error should be structured and informative
                 let error_str = error.to_string();
                 assert!(
                     !error_str.is_empty(),
-                    "Error for '{}' should have meaningful message",
-                    description
+                    "Error for '{description}' should have meaningful message"
                 );
-                println!("Test '{}' failed as expected: {}", description, error_str);
+                println!("Test '{description}' failed as expected: {error_str}");
             }
         }
     }

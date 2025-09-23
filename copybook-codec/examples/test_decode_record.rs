@@ -4,7 +4,7 @@ use copybook_codec::{
 use copybook_core::parse_copybook;
 
 fn main() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-LAYOUT.
    05 COUNTER PIC 9(3).
    05 ORIGINAL-AREA PIC X(20).
@@ -12,7 +12,7 @@ fn main() {
       10 PART1 PIC X(10).
       10 PART2 PIC X(10).
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(4).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     println!("Schema LRECL: {:?}", schema.lrecl_fixed);
@@ -45,7 +45,7 @@ fn main() {
             );
         }
         Err(e) => {
-            println!("decode_record FAILED: {:?}", e);
+            println!("decode_record FAILED: {e:?}");
         }
     }
 }

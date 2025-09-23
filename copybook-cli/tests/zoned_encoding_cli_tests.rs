@@ -31,7 +31,7 @@ fn test_decode_preserve_encoding_flag() -> Result<(), Box<dyn Error>> {
     // TODO: This should work when --preserve-encoding flag is implemented
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--preserve-encoding", // This flag should be implemented
             "--format",
@@ -80,7 +80,7 @@ fn test_decode_preferred_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     // Test ASCII preference
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--preserve-encoding",
             "--preferred-zoned-encoding",
@@ -105,7 +105,7 @@ fn test_decode_preferred_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     // Test EBCDIC preference
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--preserve-encoding",
             "--preferred-zoned-encoding",
@@ -130,7 +130,7 @@ fn test_decode_preferred_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     // Test Auto preference
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--preserve-encoding",
             "--preferred-zoned-encoding",
@@ -173,7 +173,7 @@ fn test_encode_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     // Test ASCII encoding override
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "encode",
             "--zoned-encoding",
             "ascii", // This flag should be implemented
@@ -196,7 +196,7 @@ fn test_encode_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     // Test EBCDIC encoding override
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "encode",
             "--zoned-encoding",
             "ebcdic", // This flag should be implemented
@@ -235,7 +235,7 @@ fn test_cli_encoding_format_validation() -> Result<(), Box<dyn Error>> {
     // Test invalid preferred-zoned-encoding value
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--preserve-encoding",
             "--preferred-zoned-encoding",
@@ -267,7 +267,7 @@ fn test_cli_encoding_format_validation() -> Result<(), Box<dyn Error>> {
 fn test_cli_help_includes_zoned_encoding_flags() -> Result<(), Box<dyn Error>> {
     // Test decode command help
     let decode_help = Command::new(env!("CARGO_BIN_EXE_copybook"))
-        .args(&["decode", "--help"])
+        .args(["decode", "--help"])
         .output()?;
 
     let decode_help_text = String::from_utf8(decode_help.stdout)?;
@@ -290,7 +290,7 @@ fn test_cli_help_includes_zoned_encoding_flags() -> Result<(), Box<dyn Error>> {
 
     // Test encode command help
     let encode_help = Command::new(env!("CARGO_BIN_EXE_copybook"))
-        .args(&["encode", "--help"])
+        .args(["encode", "--help"])
         .output()?;
 
     let encode_help_text = String::from_utf8(encode_help.stdout)?;
@@ -324,7 +324,7 @@ fn test_cli_flag_combination_validation() -> Result<(), Box<dyn Error>> {
     // Test that --preferred-zoned-encoding requires --preserve-encoding
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--preferred-zoned-encoding",
             "ascii", // Without --preserve-encoding
@@ -365,7 +365,7 @@ fn test_cli_backward_compatibility() -> Result<(), Box<dyn Error>> {
     // Test that existing decode command works without new flags
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--format",
             "fixed",
@@ -411,7 +411,7 @@ fn test_cli_zoned_encoding_error_messages() -> Result<(), Box<dyn Error>> {
     // TODO: When implemented, should produce clear error message for mixed/invalid encoding
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             // TODO: Add when implemented
             // "--preserve-encoding",
@@ -459,7 +459,7 @@ fn test_cli_enterprise_customer_record_processing() -> Result<(), Box<dyn Error>
     let mut customer_data = Vec::new();
     customer_data.extend_from_slice(b"12345678"); // Customer ID
     customer_data.extend_from_slice(b"John Smith"); // Customer name
-    customer_data.extend_from_slice(&vec![b' '; 30]); // Padding to 40 chars
+    customer_data.extend_from_slice(&[b' '; 30]); // Padding to 40 chars
     customer_data.extend_from_slice(&[0x12, 0x34, 0x56, 0x78, 0x90, 0x1C]); // COMP-3 balance (6 bytes)
     customer_data.extend_from_slice(b"20230915"); // Activity date
     customer_data.extend_from_slice(b"AC"); // Status code
@@ -469,7 +469,7 @@ fn test_cli_enterprise_customer_record_processing() -> Result<(), Box<dyn Error>
     // Test decode command with enterprise parameters
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--format",
             "fixed",
@@ -517,12 +517,12 @@ fn test_cli_large_dataset_performance() -> Result<(), Box<dyn Error>> {
     let output_path = temp_dir.path().join("large_output.jsonl");
 
     // Create copybook with multiple field types
-    let copybook_content = r#"01 TRANSACTION-RECORD.
+    let copybook_content = r"01 TRANSACTION-RECORD.
    05 TRANSACTION-ID PIC 9(12).
    05 AMOUNT PIC S9(7)V99 COMP-3.
    05 DESCRIPTION PIC X(50).
    05 PROCESSING-DATE PIC 9(8).
-   05 FLAGS PIC X(5)."#;
+   05 FLAGS PIC X(5).";
     fs::write(&copybook_path, copybook_content)?;
 
     // Generate larger dataset (100 records)
@@ -530,10 +530,10 @@ fn test_cli_large_dataset_performance() -> Result<(), Box<dyn Error>> {
     for i in 0..100 {
         large_dataset.extend_from_slice(format!("{:0>12}", i + 1000000000).as_bytes()); // Transaction ID
         large_dataset.extend_from_slice(&[0x12, 0x34, 0x56, 0x78, 0x9C]); // COMP-3 amount
-        large_dataset.extend_from_slice(format!("Transaction description {:>10}", i).as_bytes()); // Description
+        large_dataset.extend_from_slice(format!("Transaction description {i:>10}").as_bytes()); // Description
         large_dataset.extend_from_slice(&vec![
             b' ';
-            50 - format!("Transaction description {:>10}", i)
+            50 - format!("Transaction description {i:>10}")
                 .len()
         ]); // Padding
         large_dataset.extend_from_slice(b"20230915"); // Processing date
@@ -546,7 +546,7 @@ fn test_cli_large_dataset_performance() -> Result<(), Box<dyn Error>> {
     let start_time = std::time::Instant::now();
     let output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--format",
             "fixed",
@@ -602,7 +602,7 @@ fn test_cli_enterprise_error_handling_resilience() -> Result<(), Box<dyn Error>>
     for (test_name, data_file) in error_test_cases {
         let output = Command::cargo_bin("copybook")
             .unwrap()
-            .args(&[
+            .args([
                 "decode",
                 "--format",
                 "fixed",
@@ -620,15 +620,12 @@ fn test_cli_enterprise_error_handling_resilience() -> Result<(), Box<dyn Error>>
             let stderr = String::from_utf8_lossy(&output.stderr);
             assert!(
                 !stderr.is_empty(),
-                "Error case '{}' should provide error message",
-                test_name
+                "Error case '{test_name}' should provide error message"
             );
             assert!(
                 stderr.to_lowercase().contains("error")
                     || stderr.to_lowercase().contains("not found"),
-                "Error message for '{}' should be informative: {}",
-                test_name,
-                stderr
+                "Error message for '{test_name}' should be informative: {stderr}"
             );
         }
     }
@@ -644,10 +641,10 @@ fn test_cli_data_validation_enterprise_patterns() -> Result<(), Box<dyn Error>> 
     let data_path = temp_dir.path().join("validation.bin");
 
     // Create copybook for validation testing
-    let copybook_content = r#"01 VALIDATION-RECORD.
+    let copybook_content = r"01 VALIDATION-RECORD.
    05 NUMERIC-FIELD PIC 9(5).
    05 TEXT-FIELD PIC X(10).
-   05 COMP3-FIELD PIC 9(3)V99 COMP-3."#;
+   05 COMP3-FIELD PIC 9(3)V99 COMP-3.";
     fs::write(&copybook_path, copybook_content)?;
 
     // Create test data
@@ -660,7 +657,7 @@ fn test_cli_data_validation_enterprise_patterns() -> Result<(), Box<dyn Error>> 
     // Test parse command for schema validation
     let parse_output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&["parse", copybook_path.to_str().unwrap()])
+        .args(["parse", copybook_path.to_str().unwrap()])
         .output()?;
 
     assert!(
@@ -680,7 +677,7 @@ fn test_cli_data_validation_enterprise_patterns() -> Result<(), Box<dyn Error>> 
     // Test inspect command for layout validation
     let inspect_output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&["inspect", copybook_path.to_str().unwrap()])
+        .args(["inspect", copybook_path.to_str().unwrap()])
         .output()?;
 
     assert!(
@@ -696,7 +693,7 @@ fn test_cli_data_validation_enterprise_patterns() -> Result<(), Box<dyn Error>> 
     // Test verify command for data validation
     let verify_output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "verify",
             "--format",
             "fixed",
@@ -713,7 +710,7 @@ fn test_cli_data_validation_enterprise_patterns() -> Result<(), Box<dyn Error>> 
         // Some verify failures may not provide stderr but should provide stdout or be expected
         // For test purposes, we'll accept this as normal behavior
         println!("Verify failed with status: {}", verify_output.status);
-        println!("Stderr: {}", verify_stderr);
+        println!("Stderr: {verify_stderr}");
         println!("Stdout: {}", String::from_utf8_lossy(&verify_output.stdout));
     }
 
@@ -730,10 +727,10 @@ fn test_cli_roundtrip_data_integrity_validation() -> Result<(), Box<dyn Error>> 
     let roundtrip_data_path = temp_dir.path().join("roundtrip.bin");
 
     // Create simple copybook for round-trip testing
-    let copybook_content = r#"01 SIMPLE-RECORD.
+    let copybook_content = r"01 SIMPLE-RECORD.
    05 ID-FIELD PIC 9(6).
    05 NAME-FIELD PIC X(20).
-   05 STATUS-FIELD PIC X(1)."#;
+   05 STATUS-FIELD PIC X(1).";
     fs::write(&copybook_path, copybook_content)?;
 
     // Create original binary data
@@ -746,7 +743,7 @@ fn test_cli_roundtrip_data_integrity_validation() -> Result<(), Box<dyn Error>> 
     // Step 1: Decode binary to JSON
     let decode_output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "decode",
             "--format",
             "fixed",
@@ -779,7 +776,7 @@ fn test_cli_roundtrip_data_integrity_validation() -> Result<(), Box<dyn Error>> 
     // Step 2: Encode JSON back to binary
     let encode_output = Command::cargo_bin("copybook")
         .unwrap()
-        .args(&[
+        .args([
             "encode",
             "--format",
             "fixed",

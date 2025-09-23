@@ -27,11 +27,11 @@ fn decode_opts() -> DecodeOptions {
 
 #[test]
 fn test_odo_zoned_counter() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD.
    05 ITEM-COUNT PIC 9(2).
    05 ITEMS PIC X(3) OCCURS 0 TO 5 TIMES DEPENDING ON ITEM-COUNT.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let options = decode_opts();
@@ -47,11 +47,11 @@ fn test_odo_zoned_counter() {
 
 #[test]
 fn test_odo_packed_counter() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD.
    05 ITEM-COUNT PIC 9(2) COMP-3.
    05 ITEMS PIC X(3) OCCURS 0 TO 5 TIMES DEPENDING ON ITEM-COUNT.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let options = decode_opts();
@@ -69,11 +69,11 @@ fn test_odo_packed_counter() {
 
 #[test]
 fn test_odo_binary_counter() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD.
    05 ITEM-COUNT PIC 9(4) COMP.
    05 ITEMS PIC X(3) OCCURS 0 TO 5 TIMES DEPENDING ON ITEM-COUNT.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let options = decode_opts();

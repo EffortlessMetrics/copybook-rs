@@ -1,17 +1,17 @@
-//! Test scaffolding for ZonedEncodingFormat enum - Issue #48
+//! Test scaffolding for `ZonedEncodingFormat` enum - Issue #48
 //!
 //! Tests COBOL zoned decimal encoding preservation spec: SPEC.manifest.yml#ZonedEncodingFormat
 //!
 //! This test suite validates:
 //! - AC1: Zoned decimal encoding format detection correctly identifies ASCII vs EBCDIC digit zones
-//! - AC2: DecodeOptions supports preserve_zoned_encoding flag
-//! - AC3: DecodeOptions supports preferred_zoned_encoding option
+//! - AC2: `DecodeOptions` supports `preserve_zoned_encoding` flag
+//! - AC3: `DecodeOptions` supports `preferred_zoned_encoding` option
 
 use copybook_codec::{Codepage, DecodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
 
-/// AC1: Test ZonedEncodingFormat enum behavior and conversions
+/// AC1: Test `ZonedEncodingFormat` enum behavior and conversions
 /// Tests COBOL parsing spec: SPEC.manifest.yml#ZonedEncodingFormat-enum-variants
 #[test]
 fn test_zoned_encoding_format_enum_variants() -> Result<(), Box<dyn Error>> {
@@ -121,7 +121,7 @@ fn test_ebcdic_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
     panic!("Zoned encoding preservation not yet implemented - expected TDD Red phase failure");
 }
 
-/// AC2: Test DecodeOptions preserve_zoned_encoding flag support
+/// AC2: Test `DecodeOptions` `preserve_zoned_encoding` flag support
 /// Tests COBOL parsing spec: SPEC.manifest.yml#DecodeOptions-preserve_zoned_encoding
 #[test]
 fn test_decode_options_preserve_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
@@ -140,7 +140,7 @@ fn test_decode_options_preserve_zoned_encoding_flag() -> Result<(), Box<dyn Erro
     );
 }
 
-/// AC3: Test DecodeOptions preferred_zoned_encoding option support
+/// AC3: Test `DecodeOptions` `preferred_zoned_encoding` option support
 /// Tests COBOL parsing spec: SPEC.manifest.yml#DecodeOptions-preferred_zoned_encoding
 #[test]
 fn test_decode_options_preferred_zoned_encoding() -> Result<(), Box<dyn Error>> {
@@ -195,11 +195,11 @@ fn test_mixed_encoding_detection_single_field() -> Result<(), Box<dyn Error>> {
 /// Tests COBOL parsing spec: SPEC.manifest.yml#mixed-encoding-multiple-fields
 #[test]
 fn test_mixed_encoding_detection_multiple_fields() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD.
    05 FIELD1 PIC 9(2).
    05 FIELD2 PIC 9(2).
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions::new()
@@ -244,7 +244,7 @@ proptest! {
         prop_assert!(result.is_ok(), "ASCII zoned decimal should decode successfully");
 
         let decoded = result.unwrap();
-        let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + d as i64);
+        let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + i64::from(d));
 
         // Verify the numeric value is correctly decoded
         let field_value = &decoded["FIELD"];
@@ -274,7 +274,7 @@ proptest! {
         prop_assert!(result.is_ok(), "EBCDIC zoned decimal should decode successfully");
 
         let decoded = result.unwrap();
-        let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + d as i64);
+        let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + i64::from(d));
 
         // Verify the numeric value is correctly decoded
         let field_value = &decoded["FIELD"];
@@ -323,7 +323,7 @@ proptest! {
         let actual_size = (field_size as usize).min(digits.len());
         let truncated_digits = &digits[..actual_size];
 
-        let copybook = format!("01 FIELD PIC 9({}).", actual_size);
+        let copybook = format!("01 FIELD PIC 9({actual_size}).");
         let schema = parse_copybook(&copybook).unwrap();
 
         // Test both ASCII and EBCDIC encodings
@@ -364,9 +364,9 @@ proptest! {
         display_chars in "[A-Za-z0-9 ]{1,10}"
     ) {
         let copybook = format!(
-            r#"01 MIXED-RECORD.
+            r"01 MIXED-RECORD.
    05 DISPLAY-FIELD PIC X({}).
-   05 ZONED-FIELD PIC 9({})."#,
+   05 ZONED-FIELD PIC 9({}).",
             display_chars.len(),
             zoned_digits.len()
         );
@@ -428,8 +428,7 @@ fn test_record_size_mismatch_error_handling() -> Result<(), Box<dyn Error>> {
             error_str.contains("CBK")
                 || error_str.contains("truncated")
                 || error_str.contains("underflow"),
-            "Should contain structured error information: {}",
-            error_str
+            "Should contain structured error information: {error_str}"
         );
     }
 
@@ -459,9 +458,7 @@ fn test_malformed_copybook_error_handling() -> Result<(), Box<dyn Error>> {
                 error_str.contains("CBK")
                     || error_str.contains("parse")
                     || error_str.contains("syntax"),
-                "Malformed copybook {} should produce structured error: {}",
-                i,
-                error_str
+                "Malformed copybook {i} should produce structured error: {error_str}"
             );
         }
         // Some might succeed with default handling, which is also acceptable
@@ -473,10 +470,10 @@ fn test_malformed_copybook_error_handling() -> Result<(), Box<dyn Error>> {
 /// Test error recovery and continuation for enterprise workflows
 #[test]
 fn test_enterprise_error_recovery_patterns() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"01 MULTI-FIELD.
+    let copybook = r"01 MULTI-FIELD.
    05 FIELD1 PIC 9(3).
    05 FIELD2 PIC X(5).
-   05 FIELD3 PIC 9(2)."#;
+   05 FIELD3 PIC 9(2).";
     let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions::new()
@@ -502,8 +499,7 @@ fn test_enterprise_error_recovery_patterns() -> Result<(), Box<dyn Error>> {
             assert!(
                 !error_str.is_empty()
                     && (error_str.contains("CBK") || error_str.contains("invalid")),
-                "Error should be structured and informative: {}",
-                error_str
+                "Error should be structured and informative: {error_str}"
             );
         }
     }
@@ -536,8 +532,7 @@ fn test_ebcdic_codepage_conversion_robustness() -> Result<(), Box<dyn Error>> {
         let result = copybook_codec::decode_record(&schema, test_data, &options);
         assert!(
             result.is_ok(),
-            "EBCDIC codepage {:?} should handle zoned decimals correctly",
-            codepage
+            "EBCDIC codepage {codepage:?} should handle zoned decimals correctly"
         );
 
         if let Ok(decoded) = result {
@@ -546,14 +541,12 @@ fn test_ebcdic_codepage_conversion_robustness() -> Result<(), Box<dyn Error>> {
             if let Some(num) = field_value.as_i64() {
                 assert_eq!(
                     num, 12345,
-                    "Should decode to 12345 for codepage {:?}",
-                    codepage
+                    "Should decode to 12345 for codepage {codepage:?}"
                 );
             } else if let Some(str_val) = field_value.as_str() {
                 assert_eq!(
                     str_val, "12345",
-                    "Should decode to '12345' for codepage {:?}",
-                    codepage
+                    "Should decode to '12345' for codepage {codepage:?}"
                 );
             }
         }

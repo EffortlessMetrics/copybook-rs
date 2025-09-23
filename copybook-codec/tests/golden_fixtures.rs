@@ -110,31 +110,28 @@ fn test_schema_parsing_golden() {
 
     for copybook_path in &copybooks {
         let copybook_text = fs::read_to_string(copybook_path)
-            .unwrap_or_else(|_| panic!("Failed to read copybook: {}", copybook_path));
+            .unwrap_or_else(|_| panic!("Failed to read copybook: {copybook_path}"));
 
         let schema = parse_copybook(&copybook_text)
-            .unwrap_or_else(|_| panic!("Failed to parse copybook: {}", copybook_path));
+            .unwrap_or_else(|_| panic!("Failed to parse copybook: {copybook_path}"));
 
         // Verify schema has expected structure
         assert!(
             !schema.fields.is_empty(),
-            "Schema should have fields for {}",
-            copybook_path
+            "Schema should have fields for {copybook_path}"
         );
 
         // Verify schema fingerprint is consistent
         assert!(
             !schema.fingerprint.is_empty(),
-            "Schema should have fingerprint for {}",
-            copybook_path
+            "Schema should have fingerprint for {copybook_path}"
         );
 
         // For fixed-length schemas, verify LRECL
         if copybook_path.contains("simple") || copybook_path.contains("comp3") {
             assert!(
                 schema.lrecl_fixed.is_some(),
-                "Fixed-length schema should have LRECL for {}",
-                copybook_path
+                "Fixed-length schema should have LRECL for {copybook_path}"
             );
         }
     }
@@ -163,10 +160,10 @@ fn test_create_golden_hashes() {
         for file_path in &test_files {
             if let Ok(content) = fs::read(file_path) {
                 let hash = calculate_sha256(&content);
-                let hash_file = format!("{}.sha256", file_path);
+                let hash_file = format!("{file_path}.sha256");
                 fs::write(&hash_file, hash)
-                    .unwrap_or_else(|_| panic!("Failed to write hash file: {}", hash_file));
-                println!("Created hash file: {} -> {}", file_path, hash_file);
+                    .unwrap_or_else(|_| panic!("Failed to write hash file: {hash_file}"));
+                println!("Created hash file: {file_path} -> {hash_file}");
             }
         }
     }

@@ -6,11 +6,11 @@ use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
 
 fn schema_text() -> &'static str {
-    r#"
+    r"
 01 REC.
    05 A   PIC S9(9)     COMP-3.
    05 B   PIC S9(18)V9(4)  COMP-3.
-"#
+"
 }
 
 fn make_opts() -> (EncodeOptions, DecodeOptions) {
@@ -67,7 +67,7 @@ fn bench_comp3(c: &mut Criterion) {
                 black_box(&enc),
             )
             .unwrap();
-        })
+        });
     });
 
     // Now generate one encoded record and benchmark decode
@@ -77,7 +77,7 @@ fn bench_comp3(c: &mut Criterion) {
         b.iter(|| {
             let _ =
                 decode_record(black_box(&schema), black_box(&encoded), black_box(&dec)).unwrap();
-        })
+        });
     });
 
     g.finish();

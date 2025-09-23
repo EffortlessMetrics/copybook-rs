@@ -84,8 +84,8 @@ mod comp3_roundtrip_tests {
 
             let schema_text = format!("
            01 REC.
-              05 A PIC S9({}) COMP-3.
-        ", digits);
+              05 A PIC S9({digits}) COMP-3.
+        ");
 
             let schema = copybook_core::parse_copybook(&schema_text).unwrap();
 
@@ -150,8 +150,8 @@ mod comp3_roundtrip_tests {
             let _total_digits = int_digits + scale;
             let schema_text = format!("
            01 REC.
-              05 A PIC S9({})V9({}) COMP-3.
-        ", int_digits, scale);
+              05 A PIC S9({int_digits})V9({scale}) COMP-3.
+        ");
 
             let schema = copybook_core::parse_copybook(&schema_text).unwrap();
 

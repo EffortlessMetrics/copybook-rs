@@ -1,17 +1,17 @@
-//! Test scaffolding for EncodeOptions zoned encoding extensions - Issue #48
+//! Test scaffolding for `EncodeOptions` zoned encoding extensions - Issue #48
 //!
 //! Tests COBOL encoding preservation spec: SPEC.manifest.yml#EncodeOptions-zoned_encoding_override
 //!
 //! This test suite validates:
 //! - AC4: Encode operations use preserved encoding format when available
-//! - EncodeOptions zoned_encoding_override field support
+//! - `EncodeOptions` `zoned_encoding_override` field support
 //! - Encoding precedence order: explicit override > preserved format > EBCDIC default
 
 use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
 
-/// AC4: Test EncodeOptions zoned_encoding_override field support
+/// AC4: Test `EncodeOptions` `zoned_encoding_override` field support
 /// Tests COBOL parsing spec: SPEC.manifest.yml#EncodeOptions-zoned_encoding_override
 #[test]
 fn test_encode_options_zoned_encoding_override() -> Result<(), Box<dyn Error>> {
@@ -211,11 +211,11 @@ fn test_backward_compatibility_default_ebcdic() -> Result<(), Box<dyn Error>> {
 /// Tests COBOL parsing spec: SPEC.manifest.yml#format-preservation-metadata-schema
 #[test]
 fn test_encoding_metadata_json_structure() -> Result<(), Box<dyn Error>> {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD.
    05 FIELD1 PIC 9(2).
    05 FIELD2 PIC 9(3).
-"#;
+";
     let _schema = parse_copybook(copybook).unwrap();
 
     let _decode_options = DecodeOptions::new()

@@ -61,16 +61,16 @@ fn test_zoned_encoding_format_enum_variants() {
 #[test]
 fn test_ascii_zoned_encoding_detection() {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
-    let options = DecodeOptions::new()
+    let _options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // ASCII zoned decimal data: "123" = 0x31, 0x32, 0x33
-    let ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
 
     // This should detect ASCII encoding (zone nibbles 0x3)
     // TODO: Implement encoding detection logic
@@ -84,7 +84,7 @@ fn test_ascii_zoned_encoding_detection() {
         .with_preserve_zoned_encoding(true);
 
     // ASCII zoned decimal data: "123" = 0x31, 0x32, 0x33
-    let ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
 
     // For now, mark as success since basic preserve_zoned_encoding field is implemented
     // TODO: Implement full encoding detection logic in decode_record
@@ -100,16 +100,16 @@ fn test_ascii_zoned_encoding_detection() {
 #[test]
 fn test_ebcdic_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
-    let options = DecodeOptions::new()
+    let _options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // EBCDIC zoned decimal data: "123" = 0xF1, 0xF2, 0xF3
-    let ebcdic_data = b"\xF1\xF2\xF3"; // EBCDIC "123"
+    let _ebcdic_data = b"\xF1\xF2\xF3"; // EBCDIC "123"
 
     // This should detect EBCDIC encoding (zone nibbles 0xF)
     // TODO: Implement encoding detection logic
@@ -124,7 +124,7 @@ fn test_ebcdic_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_decode_options_preserve_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     // Test that DecodeOptions supports preserve_zoned_encoding field
-    let options = DecodeOptions::new();
+    let _options = DecodeOptions::new();
 
     // TODO: These should compile when preserve_zoned_encoding is added to DecodeOptions
     // options = options.with_preserve_zoned_encoding(true);
@@ -143,7 +143,7 @@ fn test_decode_options_preserve_zoned_encoding_flag() -> Result<(), Box<dyn Erro
 #[test]
 fn test_decode_options_preferred_zoned_encoding() -> Result<(), Box<dyn Error>> {
     // Test that DecodeOptions supports preferred_zoned_encoding field
-    let options = DecodeOptions::new();
+    let _options = DecodeOptions::new();
 
     // TODO: These should compile when preferred_zoned_encoding is added to DecodeOptions
     // options = options.with_preferred_zoned_encoding(Some(ZonedEncodingFormat::Ascii));
@@ -168,16 +168,16 @@ fn test_decode_options_preferred_zoned_encoding() -> Result<(), Box<dyn Error>> 
 #[test]
 fn test_mixed_encoding_detection_single_field() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(4).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
-    let options = DecodeOptions::new()
+    let _options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // Mixed encoding: First two ASCII zones, last two EBCDIC zones
-    let mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
+    let _mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
 
     // This should detect mixed encoding and return appropriate error/warning
     // TODO: Implement mixed encoding detection with CBKD414 error code
@@ -198,16 +198,16 @@ fn test_mixed_encoding_detection_multiple_fields() -> Result<(), Box<dyn Error>>
    05 FIELD1 PIC 9(2).
    05 FIELD2 PIC 9(2).
 ";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
-    let options = DecodeOptions::new()
+    let _options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037);
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
     // Mixed encoding across fields: FIELD1 ASCII, FIELD2 EBCDIC
-    let mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
+    let _mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
 
     // This should detect mixed encoding across fields and emit warning
     // TODO: Implement mixed encoding detection with appropriate warning

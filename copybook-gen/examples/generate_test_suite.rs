@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Export suite to JSON
-    let _json_output = custom_suite.to_json()?;
+    let json_output = custom_suite.to_json()?;
     println!("\nSample test from custom suite:");
     if let Some(test) = custom_suite.tests.first() {
         println!("Test name: {}", test.name);

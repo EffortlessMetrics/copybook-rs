@@ -4,7 +4,7 @@
 //! This test suite validates numeric type handling according to the normative
 //! behavior specified in the design document.
 
-use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat};
+use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, ZonedEncodingFormat};
 use copybook_core::{FieldKind, parse_copybook};
 use serde_json::Value;
 use std::io::Cursor;
@@ -26,6 +26,8 @@ fn test_zoned_decimal_ebcdic_sign_zones() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test positive signs (C zone = +)
@@ -68,6 +70,8 @@ fn test_zoned_decimal_ascii_sign_zones() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test ASCII positive overpunch
@@ -109,6 +113,8 @@ fn test_blank_when_zero_handling() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test all spaces (should decode to 0 with warning)
@@ -142,6 +148,8 @@ fn test_zoned_invalid_zone_error() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Invalid zone in last character
@@ -175,6 +183,8 @@ fn test_zoned_negative_zero_normalization() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Create -0 in ASCII overpunch (00} = -000)
@@ -206,6 +216,8 @@ fn test_packed_decimal_odd_digits() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Packed: 12345 = 0x12345C (3 bytes)
@@ -236,6 +248,8 @@ fn test_packed_decimal_even_digits() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Packed: 123456 = 0x123456C (4 bytes)
@@ -266,6 +280,8 @@ fn test_packed_decimal_sign_nibbles() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test C sign (positive)
@@ -318,6 +334,8 @@ fn test_packed_decimal_invalid_nibble() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Invalid nibble (A in digit position)
@@ -367,10 +385,10 @@ fn test_binary_width_by_digits() {
 
 #[test]
 fn test_binary_signed_unsigned_edges() {
-    let copybook = r#"
+    let copybook = r"
 01 UNSIGNED-BIN PIC 9(5) COMP.
 01 SIGNED-BIN PIC S9(5) COMP.
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
 
     // Test maximum values for 32-bit binary
@@ -385,6 +403,8 @@ fn test_binary_signed_unsigned_edges() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Maximum unsigned 32-bit: 4294967295 (0xFFFFFFFF)
@@ -403,12 +423,12 @@ fn test_binary_signed_unsigned_edges() {
 
 #[test]
 fn test_binary_alignment_padding() {
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-WITH-ALIGNMENT.
    05 CHAR-FIELD PIC X(1).
    05 BINARY-FIELD PIC 9(5) USAGE COMP SYNCHRONIZED.
    05 ANOTHER-CHAR PIC X(3).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -439,6 +459,8 @@ fn test_binary_alignment_padding() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Data: 1 byte char + 3 padding + 4 bytes binary + 3 bytes char
@@ -458,12 +480,12 @@ fn test_binary_alignment_padding() {
 #[test]
 fn test_fixed_scale_rendering() {
     // Test NORMATIVE fixed-scale rendering for decimals
-    let copybook = r#"
+    let copybook = r"
 01 DECIMAL-FIELDS.
    05 SCALE-2 PIC 9(5)V99 COMP-3.
    05 SCALE-0 PIC 9(5) COMP-3.
    05 SCALE-4 PIC 9(3)V9999 COMP-3.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -478,6 +500,8 @@ fn test_fixed_scale_rendering() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test data: 12345.67 (scale 2), 12345 (scale 0), 123.4567 (scale 4)
@@ -499,13 +523,13 @@ fn test_fixed_scale_rendering() {
 #[test]
 fn test_explicit_binary_width() {
     // Test NORMATIVE explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
-    let copybook = r#"
+    let copybook = r"
 01 EXPLICIT-BINARY.
    05 BIN1 PIC 9(3) USAGE BINARY(1).
    05 BIN2 PIC 9(5) USAGE BINARY(2).
    05 BIN4 PIC 9(9) USAGE BINARY(4).
    05 BIN8 PIC 9(18) USAGE BINARY(8).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 

@@ -337,6 +337,11 @@ impl ErrorReporter {
 
             // JSON write errors are typically fatal
             ErrorCode::CBKC201_JSON_WRITE_ERROR => ErrorSeverity::Fatal,
+
+            // Zoned encoding errors - validation errors
+            ErrorCode::CBKD413_ZONED_INVALID_ENCODING
+            | ErrorCode::CBKD414_ZONED_MIXED_ENCODING
+            | ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => ErrorSeverity::Error,
         }
     }
 

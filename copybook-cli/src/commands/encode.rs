@@ -21,6 +21,7 @@ pub struct EncodeCliOptions {
     pub threads: usize,
     pub coerce_numbers: bool,
     pub strict_comments: bool,
+    pub zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
 }
 
 pub fn run(
@@ -56,16 +57,16 @@ pub fn run(
         options.max_errors
     };
 
-    let encode_options = EncodeOptions {
-        format: options.format,
-        codepage: options.codepage,
-        use_raw: options.use_raw,
-        bwz_encode: options.bwz_encode,
-        strict_mode: effective_strict_mode,
-        max_errors: effective_max_errors,
-        threads: options.threads,
-        coerce_numbers: options.coerce_numbers,
-    };
+    let encode_options = EncodeOptions::new()
+        .with_format(options.format)
+        .with_codepage(options.codepage)
+        .with_use_raw(options.use_raw)
+        .with_bwz_encode(options.bwz_encode)
+        .with_strict_mode(effective_strict_mode)
+        .with_max_errors(effective_max_errors)
+        .with_threads(options.threads)
+        .with_coerce_numbers(options.coerce_numbers)
+        .with_zoned_encoding_override(options.zoned_encoding_override);
 
     // Encode file using atomic write with better error handling
     let encode_result: Result<copybook_codec::RunSummary, Box<dyn std::error::Error>> = {

@@ -48,18 +48,19 @@ fn test_deterministic_parallel_decode() {
 
     // Test with different thread counts
     for threads in [1, 4] {
-        let options = DecodeOptions {
-            format: RecordFormat::Fixed,
-            codepage: Codepage::ASCII,
-            json_number_mode: JsonNumberMode::Lossless,
-            emit_filler: false,
-            emit_meta: false,
-            emit_raw: RawMode::Off,
-            strict_mode: false,
-            max_errors: None,
-            on_decode_unmappable: UnmappablePolicy::Error,
-            threads,
-        };
+        let options = DecodeOptions::new()
+            .with_format(RecordFormat::Fixed)
+            .with_codepage(Codepage::ASCII)
+            .with_json_number_mode(JsonNumberMode::Lossless)
+            .with_emit_filler(false)
+            .with_emit_meta(false)
+            .with_emit_raw(RawMode::Off)
+            .with_strict_mode(false)
+            .with_max_errors(None)
+            .with_unmappable_policy(UnmappablePolicy::Error)
+            .with_threads(threads)
+            .with_preserve_zoned_encoding(false)
+            .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
         let input = Cursor::new(&test_data);
         let mut output = Vec::new();
@@ -103,18 +104,19 @@ fn test_memory_bounded_processing() {
         test_data.extend_from_slice(record.as_bytes());
     }
 
-    let options = DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII,
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: false,
-        max_errors: None,
-        on_decode_unmappable: UnmappablePolicy::Error,
-        threads: 4,
-    };
+    let options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(false)
+        .with_max_errors(None)
+        .with_unmappable_policy(UnmappablePolicy::Error)
+        .with_threads(4)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
     let input = Cursor::new(&test_data);
     let mut output = Vec::new();

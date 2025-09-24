@@ -93,7 +93,7 @@ fn test_cli_verify_report_schema() {
     validate_verify_report_schema(&report);
 }
 
-/// Helper function to validate VerifyReport JSON structure
+/// Helper function to validate `VerifyReport` JSON structure
 fn validate_verify_report_schema(report: &Value) {
     let obj = report.as_object().expect("Report should be a JSON object");
 
@@ -186,7 +186,7 @@ fn validate_verify_report_schema(report: &Value) {
     }
 }
 
-/// Validate cli_opts structure
+/// Validate `cli_opts` structure
 fn validate_cli_opts(cli_opts: &Value) {
     let obj = cli_opts.as_object().expect("cli_opts should be object");
 
@@ -411,8 +411,8 @@ fn test_cli_strict_comments_allowed_by_default() {
     // Create a copybook with inline comments
     fs::write(
         &copybook_file,
-        r#"01 CUSTOMER-ID PIC X(10). *> This should be allowed by default
-        "#,
+        r"01 CUSTOMER-ID PIC X(10). *> This should be allowed by default
+        ",
     )
     .unwrap();
 
@@ -433,8 +433,8 @@ fn test_cli_strict_comments_flag_rejects_inline_comments() {
     // Create a copybook with inline comments
     fs::write(
         &copybook_file,
-        r#"01 CUSTOMER-ID PIC X(10). *> This should be rejected
-        "#,
+        r"01 CUSTOMER-ID PIC X(10). *> This should be rejected
+        ",
     )
     .unwrap();
 

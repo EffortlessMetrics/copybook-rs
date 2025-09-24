@@ -6,7 +6,7 @@
 //! normative behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, parse_copybook};
 use serde_json::json;
@@ -15,7 +15,7 @@ use std::io::Cursor;
 #[test]
 fn test_odo_redefines_integration() {
     // Test ODO and REDEFINES working together
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-LAYOUT.
    05 COUNTER PIC 9(3).
    05 ORIGINAL-AREA PIC X(20).
@@ -23,7 +23,7 @@ fn test_odo_redefines_integration() {
       10 PART1 PIC X(10).
       10 PART2 PIC X(10).
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(4).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -38,6 +38,8 @@ fn test_odo_redefines_integration() {
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test data: counter=3, original area, 3 array items
@@ -65,11 +67,11 @@ fn test_odo_redefines_integration() {
 #[test]
 fn test_comprehensive_error_context() {
     // Test that errors include comprehensive context information
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-LAYOUT.
    05 COUNTER PIC 9(3).
    05 ITEMS OCCURS 1 TO 3 TIMES DEPENDING ON COUNTER PIC X(5).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -84,6 +86,8 @@ fn test_comprehensive_error_context() {
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Counter exceeds maximum
@@ -110,11 +114,11 @@ fn test_comprehensive_error_context() {
 #[test]
 fn test_redefines_encode_error_context() {
     // Test that REDEFINES encoding errors have proper context
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-LAYOUT.
    05 ORIGINAL-FIELD PIC X(10).
    05 NUMERIC-VIEW REDEFINES ORIGINAL-FIELD PIC 9(10).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -124,7 +128,7 @@ fn test_redefines_encode_error_context() {
         "NUMERIC-VIEW": "1234567890"
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let formatted_json = format!("{}\n", json_data.to_string());
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -135,9 +139,10 @@ fn test_redefines_encode_error_context() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
-    let input = Cursor::new(jsonl_data.as_bytes());
+    let input = Cursor::new(formatted_json.as_bytes());
     let mut output = Vec::new();
 
     let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options);
@@ -157,11 +162,11 @@ fn test_redefines_encode_error_context() {
 #[test]
 fn test_missing_counter_field_error() {
     // Test error when ODO counter field is missing from data
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-LAYOUT.
    05 COUNTER PIC 9(3).
    05 ITEMS OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(4).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 
@@ -170,7 +175,7 @@ fn test_missing_counter_field_error() {
         "ITEMS": ["ITEM1", "ITEM2", "ITEM3"]
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let formatted_json = format!("{}\n", json_data.to_string());
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -181,9 +186,10 @@ fn test_missing_counter_field_error() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
-    let input = Cursor::new(jsonl_data.as_bytes());
+    let input = Cursor::new(formatted_json.as_bytes());
     let mut output = Vec::new();
 
     let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options);

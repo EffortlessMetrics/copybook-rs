@@ -5,10 +5,10 @@ use std::process::Command;
 #[test]
 fn edited_pic_is_a_hard_error() -> Result<(), Box<dyn std::error::Error>> {
     // Edited picture (unsupported): ZZ9.99
-    let cpy = r#"
+    let cpy = r"
 01 REC.
    05 AMT PIC ZZ9.99.
-"#;
+";
 
     let tmp = assert_fs::TempDir::new()?;
     let f = tmp.child("edited_pic.cpy");

@@ -1,3 +1,14 @@
+#![allow(
+    clippy::items_after_statements,
+    clippy::too_many_lines,
+    clippy::similar_names,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::print_literal,
+    clippy::uninlined_format_args,
+    clippy::bool_assert_comparison
+)]
+
 use copybook_codec::{DecodeOptions, decode_record};
 use copybook_core::parse_copybook;
 use std::time::Instant;

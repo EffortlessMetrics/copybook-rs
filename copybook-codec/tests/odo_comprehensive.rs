@@ -1,4 +1,10 @@
 #![cfg(feature = "comprehensive-tests")]
+#![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::cast_precision_loss
+)]
 //! Comprehensive ODO tests: validation, strict vs lenient modes, payload length
 //!
 //! This test suite validates ODO (OCCURS DEPENDING ON) handling according to

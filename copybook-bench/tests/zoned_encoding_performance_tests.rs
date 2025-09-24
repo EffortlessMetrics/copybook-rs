@@ -1,3 +1,10 @@
+#![allow(
+    clippy::unreadable_literal,
+    clippy::too_many_lines,
+    clippy::similar_names,
+    clippy::cast_precision_loss
+)]
+
 //! Test scaffolding for zoned encoding performance impact - Issue #48
 //!
 //! Tests performance spec: SPEC.manifest.yml#performance-impact-limits
@@ -374,7 +381,7 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
         }
 
         // ZONED-FIELD: 15 bytes ASCII zoned
-        let zoned_value = format!("{:0>15}", i % 1000000000000000_i64);
+        let zoned_value = format!("{:0>15}", i % 1_000_000_000_000_000_i64);
         let zoned_bytes = zoned_value.as_bytes();
         test_data.extend_from_slice(&zoned_bytes[..15.min(zoned_bytes.len())]);
         // Pad to exactly 15 bytes
@@ -447,7 +454,7 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
 /// Performance stress test with large-scale data processing
 /// Tests performance spec: SPEC.manifest.yml#large-scale-performance
 #[test]
-#[ignore] // Run only with 'cargo test -- --ignored' for full performance testing
+#[ignore = "Long-running performance test - use 'cargo test -- --ignored' to run"]
 fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
     let copybook = r"
 01 LARGE-RECORD.

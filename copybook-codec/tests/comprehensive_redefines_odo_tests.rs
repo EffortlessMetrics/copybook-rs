@@ -1,11 +1,17 @@
 #![cfg(feature = "comprehensive-tests")]
+#![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::cast_precision_loss
+)]
 //! Comprehensive REDEFINES and ODO tests covering all edge cases and normative behavior
 //!
 //! This test suite validates REDEFINES and ODO handling according to the normative
 //! behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, Occurs, parse_copybook};
 use serde_json::{Value, json};
@@ -23,6 +29,8 @@ fn create_test_decode_options(strict: bool) -> DecodeOptions {
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     }
 }
 
@@ -36,6 +44,7 @@ fn create_test_encode_options(strict: bool) -> EncodeOptions {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     }
 }
 

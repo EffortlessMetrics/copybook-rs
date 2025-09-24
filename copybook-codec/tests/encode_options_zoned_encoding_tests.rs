@@ -41,7 +41,7 @@ fn test_encode_options_zoned_encoding_override() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_encode_preserves_ascii_format() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // First decode ASCII data with preservation enabled
     let _decode_options = DecodeOptions::new()
@@ -79,7 +79,7 @@ fn test_encode_preserves_ascii_format() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_encode_preserves_ebcdic_format() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // First decode EBCDIC data with preservation enabled
     let _decode_options = DecodeOptions::new()
@@ -117,7 +117,7 @@ fn test_encode_preserves_ebcdic_format() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_encoding_precedence_explicit_override() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // JSON with preserved EBCDIC metadata
     let _json_with_ebcdic_meta = serde_json::json!({
@@ -151,7 +151,7 @@ fn test_encoding_precedence_explicit_override() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_encoding_precedence_preserved_over_default() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // JSON with preserved ASCII metadata
     let _json_with_ascii_meta = serde_json::json!({
@@ -183,7 +183,7 @@ fn test_encoding_precedence_preserved_over_default() -> Result<(), Box<dyn Error
 #[test]
 fn test_backward_compatibility_default_ebcdic() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // JSON without any encoding metadata (legacy behavior)
     let _json_without_meta = serde_json::json!({
@@ -255,7 +255,7 @@ fn test_encoding_metadata_json_structure() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_auto_encoding_detection() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     let _decode_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)

@@ -78,8 +78,7 @@ fn test_deterministic_parallel_decode() {
     for (threads, output) in &results[1..] {
         assert_eq!(
             output, baseline,
-            "Output differs between 1 thread and {} threads",
-            threads
+            "Output differs between 1 thread and {threads} threads",
         );
     }
 

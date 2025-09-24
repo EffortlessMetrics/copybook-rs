@@ -6,7 +6,8 @@
 //! normative behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, parse_copybook};
 use serde_json::json;

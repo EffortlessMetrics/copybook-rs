@@ -470,6 +470,7 @@ fn test_enterprise_scale_fixture_performance() -> Result<(), Box<dyn Error>> {
     )?;
 
     let duration = start_time.elapsed();
+    #[allow(clippy::cast_precision_loss)]
     let data_size_mb = enterprise_data.len() as f64 / (1024.0 * 1024.0);
     let throughput_mb_per_s = data_size_mb / duration.as_secs_f64();
 

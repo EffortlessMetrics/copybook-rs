@@ -12,7 +12,8 @@
 
 use base64::Engine;
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, ZonedEncodingFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    ZonedEncodingFormat,
 };
 use copybook_core::parse_copybook;
 use serde_json::{Value, json};
@@ -216,13 +217,11 @@ fn test_rdw_suspect_ascii_heuristic() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
 
     // This might succeed or fail depending on implementation, but should detect ASCII pattern
-    if result.is_ok() {
-        let summary = result.unwrap();
+    if let Ok(summary) = result {
         // Should have warning about suspect ASCII corruption
         assert!(summary.has_warnings());
-    } else {
+    } else if let Err(error) = result {
         // Or might fail with ASCII corruption detection error
-        let error = result.unwrap_err();
         assert!(error.message.contains("ASCII") || error.message.contains("corruption"));
     }
 }

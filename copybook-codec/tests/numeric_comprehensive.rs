@@ -4,7 +4,9 @@
 //! This test suite validates numeric type handling according to the normative
 //! behavior specified in the design document.
 
-use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, ZonedEncodingFormat};
+use copybook_codec::{
+    Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, ZonedEncodingFormat,
+};
 use copybook_core::{FieldKind, parse_copybook};
 use serde_json::Value;
 use std::io::Cursor;
@@ -368,17 +370,16 @@ fn test_binary_width_by_digits() {
         let schema = parse_copybook(copybook).unwrap();
         let field = &schema.fields[0];
 
-        assert_eq!(field.len, expected_len, "Failed for: {}", copybook);
+        assert_eq!(field.len, expected_len, "Failed for: {copybook}");
 
         if let FieldKind::BinaryInt { bits, .. } = &field.kind {
             assert_eq!(
-                *bits as u32 / 8,
+                u32::from(*bits) / 8,
                 expected_len,
-                "Bit width mismatch for: {}",
-                copybook
+                "Bit width mismatch for: {copybook}",
             );
         } else {
-            panic!("Expected BinaryInt for: {}", copybook);
+            panic!("Expected BinaryInt for: {copybook}");
         }
     }
 }

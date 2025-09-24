@@ -2,7 +2,12 @@
     clippy::unreadable_literal,
     clippy::too_many_lines,
     clippy::similar_names,
-    clippy::cast_precision_loss
+    clippy::cast_precision_loss,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::same_item_push,
+    clippy::unnecessary_wraps,
+    unused_variables
 )]
 
 //! Test scaffolding for zoned encoding performance impact - Issue #48
@@ -277,7 +282,7 @@ fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
     // Encode 1000 times to measure lookup overhead
     for _ in 0..1000 {
         // TODO: This should use preserved encoding when implemented
-        let encoded = copybook_codec::encode_record(&schema, &json_with_metadata, &encode_options)?;
+        let _encoded = copybook_codec::encode_record(&schema, &json_with_metadata, &encode_options)?;
     }
 
     let duration = start_time.elapsed();
@@ -298,6 +303,7 @@ fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
 /// Benchmark encoding detection algorithm performance
 /// Tests performance spec: SPEC.manifest.yml#encoding-detection-algorithm-performance
 #[test]
+#[allow(clippy::cast_sign_loss)]
 fn test_encoding_detection_algorithm_performance() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(100)."; // Large field for detection testing
     let schema = parse_copybook(copybook).unwrap();

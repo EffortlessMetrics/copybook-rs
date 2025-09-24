@@ -11,7 +11,8 @@
 //! behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, Occurs, parse_copybook};
 use serde_json::{Value, json};
@@ -586,7 +587,7 @@ fn test_redefines_declaration_order() {
         .as_object()
         .unwrap()
         .keys()
-        .map(|s| s.as_str())
+        .map(std::string::String::as_str)
         .collect();
     let expected_order = vec![
         "ORIGINAL",
@@ -598,10 +599,7 @@ fn test_redefines_declaration_order() {
     for (i, expected_key) in expected_order.iter().enumerate() {
         assert!(
             keys.iter().position(|&k| k == *expected_key).unwrap() == i,
-            "Field {} not in expected position. Actual order: {:?}, Expected: {:?}",
-            expected_key,
-            keys,
-            expected_order
+            "Field {expected_key} not in expected position. Actual order: {keys:?}, Expected: {expected_order:?}",
         );
     }
 }

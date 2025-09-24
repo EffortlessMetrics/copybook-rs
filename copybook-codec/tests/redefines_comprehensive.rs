@@ -11,7 +11,8 @@
 //! specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, ZonedEncodingFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    ZonedEncodingFormat,
 };
 use copybook_core::{FieldKind, parse_copybook};
 use serde_json::{Value, json};
@@ -273,7 +274,7 @@ fn test_redefines_raw_data_precedence() {
     decoded_json["ORIGINAL-FIELD"] = json!("Modified Original   ");
     decoded_json["SHORT-REDEFINES"] = json!("9876543210");
 
-    let jsonl_data = format!("{}\n", decoded_json.to_string());
+    let jsonl_data = format!("{decoded_json}\n");
 
     let encode_options = EncodeOptions {
         format: RecordFormat::Fixed,

@@ -473,7 +473,7 @@ fn test_customer_record_roundtrip_fidelity() -> Result<(), Box<dyn Error>> {
 
 /// Test COMP-3 packed decimal round-trip accuracy with real fixture
 #[test]
-fn test_comp3_packed_decimal_roundtrip_accuracy() -> Result<(), Box<dyn Error>> {
+fn test_comp3_packed_decimal_roundtrip_accuracy() {
     let copybook = r"01 COMP3-TEST.
    05 AMOUNT PIC S9(7)V99 COMP-3.
    05 QUANTITY PIC 9(5) COMP-3.
@@ -526,8 +526,6 @@ fn test_comp3_packed_decimal_roundtrip_accuracy() -> Result<(), Box<dyn Error>> 
             "PERCENTAGE field should exist for {description}"
         );
     }
-
-    Ok(())
 }
 
 /// Test mixed field types round-trip robustness with enterprise patterns
@@ -595,7 +593,7 @@ fn test_mixed_field_types_enterprise_robustness() -> Result<(), Box<dyn Error>> 
 
 /// Test error recovery in round-trip scenarios for enterprise resilience
 #[test]
-fn test_roundtrip_error_recovery_enterprise_patterns() -> Result<(), Box<dyn Error>> {
+fn test_roundtrip_error_recovery_enterprise_patterns() {
     let copybook = "01 SIMPLE-RECORD.\n   05 NUMERIC-FIELD PIC 9(5).\n   05 TEXT-FIELD PIC X(10).";
     let schema = parse_copybook(copybook).unwrap();
 
@@ -641,6 +639,4 @@ fn test_roundtrip_error_recovery_enterprise_patterns() -> Result<(), Box<dyn Err
             }
         }
     }
-
-    Ok(())
 }

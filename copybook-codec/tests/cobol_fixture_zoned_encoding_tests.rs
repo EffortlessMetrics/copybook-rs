@@ -152,7 +152,7 @@ fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
         // 3. Mixed field types are handled correctly
 
         let output_str = String::from_utf8(output)?;
-        let lines: Vec<&str> = output_str.trim().split('\n').collect();
+        let lines: Vec<&str> = output_str.lines().collect();
         assert!(
             !lines.is_empty(),
             "Should produce at least one output record for {name}"
@@ -211,6 +211,7 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
 
         // TODO: Fill record with realistic data based on field types
         // For now, create basic pattern for testing
+        #[allow(clippy::cast_possible_truncation)]
         for (i, byte) in record_data.iter_mut().enumerate() {
             match i % 4 {
                 0 => *byte = 0x40,                                 // EBCDIC space
@@ -376,7 +377,7 @@ fn test_fixture_round_trip_validation() -> Result<(), Box<dyn Error>> {
 
     // Parse JSON for re-encoding
     let json_str = String::from_utf8(json_output)?;
-    let json_lines: Vec<&str> = json_str.trim().split('\n').collect();
+    let json_lines: Vec<&str> = json_str.lines().collect();
 
     if json_lines.is_empty() || json_lines[0].is_empty() {
         println!("No JSON output produced, skipping round-trip test");
@@ -486,7 +487,7 @@ fn test_enterprise_scale_fixture_performance() -> Result<(), Box<dyn Error>> {
 
     // Verify output integrity
     let output_str = String::from_utf8(output)?;
-    let lines: Vec<&str> = output_str.trim().split('\n').collect();
+    let lines: Vec<&str> = output_str.lines().collect();
     assert_eq!(
         lines.len(),
         10_000,
@@ -539,6 +540,7 @@ fn test_mainframe_compatibility_scenarios() -> Result<(), Box<dyn Error>> {
             };
             let mut ebcdic_data = vec![0x40; record_size as usize]; // EBCDIC spaces
             // Add some EBCDIC digits and letters
+            #[allow(clippy::cast_possible_truncation)]
             for i in 0..10.min(ebcdic_data.len()) {
                 ebcdic_data[i] = 0xF0 + (i % 10) as u8; // EBCDIC digits
             }

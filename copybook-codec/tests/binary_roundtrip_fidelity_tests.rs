@@ -284,7 +284,7 @@ fn test_multi_field_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
     let _schema = parse_copybook(copybook).unwrap();
 
     // Mixed encoding data: ASCII + EBCDIC signed + ASCII
-    let _original_data = b"\x31\x32\xF1\xF2\xC3\x33\x34\x35\x36"; // "12" + "+123" + "3456"
+    // Original data: "12" + "+123" + "3456" = b"\x31\x32\xF1\xF2\xC3\x33\x34\x35\x36"
 
     // TODO: Decode with preservation
     // let decode_options = DecodeOptions::new()
@@ -321,7 +321,7 @@ fn test_rdw_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
     let _schema = parse_copybook(copybook).unwrap();
 
     // RDW header (5 + 4 = 9 bytes total) + ASCII zoned data
-    let _original_data = b"\x00\x09\x00\x00\x31\x32\x33\x34\x35"; // RDW + ASCII "12345"
+    // RDW + ASCII "12345" = b"\x00\x09\x00\x00\x31\x32\x33\x34\x35"
 
     // TODO: Decode RDW with preservation
     // let decode_options = DecodeOptions::new()

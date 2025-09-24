@@ -5,7 +5,7 @@
 //! behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, parse_copybook};
 use serde_json::{Value, json};
@@ -24,7 +24,7 @@ fn create_rdw_decode_options(emit_raw: RawMode, strict: bool) -> DecodeOptions {
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
         preserve_zoned_encoding: false,
-        preferred_zoned_encoding: None,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     }
 }
 
@@ -321,7 +321,7 @@ fn test_rdw_multiple_records() {
     assert_eq!(summary.records_processed, 3);
 
     let output_str = String::from_utf8(output).unwrap();
-    let lines: Vec<&str> = output_str.trim().split('\n').collect();
+    let lines: Vec<&str> = output_str.lines().collect();
     assert_eq!(lines.len(), 3);
 
     let record1: Value = serde_json::from_str(lines[0]).unwrap();

@@ -11,7 +11,7 @@
 //! specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, ZonedEncodingFormat,
 };
 use copybook_core::{FieldKind, parse_copybook};
 use serde_json::{Value, json};
@@ -126,6 +126,8 @@ fn test_redefines_decode_all_views() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     let input = Cursor::new(test_data);
@@ -168,7 +170,7 @@ fn test_redefines_encode_ambiguity_error() {
         "NEXT-FIELD": "Test"
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{json_data}\n");
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -179,6 +181,7 @@ fn test_redefines_encode_ambiguity_error() {
         max_errors: None,
         threads: 1,
         coerce_numbers: true,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -202,7 +205,7 @@ fn test_redefines_encode_single_view_allowed() {
         "NEXT-FIELD": "12345"
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{json_data}\n");
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -213,6 +216,7 @@ fn test_redefines_encode_single_view_allowed() {
         max_errors: None,
         threads: 1,
         coerce_numbers: true,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -247,6 +251,8 @@ fn test_redefines_raw_data_precedence() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     let input = Cursor::new(test_data);
@@ -278,6 +284,7 @@ fn test_redefines_raw_data_precedence() {
         max_errors: None,
         threads: 1,
         coerce_numbers: true,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -314,6 +321,8 @@ fn test_redefines_round_trip_preservation() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     let input = Cursor::new(original_data);
@@ -332,6 +341,7 @@ fn test_redefines_round_trip_preservation() {
         max_errors: None,
         threads: 1,
         coerce_numbers: true,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(&decode_output);

@@ -153,15 +153,15 @@ fn test_error_code_stability() -> Result<(), Box<dyn StdError>> {
     assert_eq!(error_string, "CBKD411_ZONED_BAD_SIGN");
 
     // Test new error codes
-    let new_error_413 = Error::new(ErrorCode::CBKD413_ZONED_INVALID_ENCODING, "Test error");
+    let _new_error_413 = Error::new(ErrorCode::CBKD413_ZONED_INVALID_ENCODING, "Test error");
     let error_413_string = format!("{}", ErrorCode::CBKD413_ZONED_INVALID_ENCODING);
     assert_eq!(error_413_string, "CBKD413_ZONED_INVALID_ENCODING");
 
-    let new_error_414 = Error::new(ErrorCode::CBKD414_ZONED_MIXED_ENCODING, "Test error");
+    let _new_error_414 = Error::new(ErrorCode::CBKD414_ZONED_MIXED_ENCODING, "Test error");
     let error_414_string = format!("{}", ErrorCode::CBKD414_ZONED_MIXED_ENCODING);
     assert_eq!(error_414_string, "CBKD414_ZONED_MIXED_ENCODING");
 
-    let new_error_415 = Error::new(ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS, "Test error");
+    let _new_error_415 = Error::new(ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS, "Test error");
     let error_415_string = format!("{}", ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS);
     assert_eq!(error_415_string, "CBKD415_ZONED_ENCODING_AMBIGUOUS");
 

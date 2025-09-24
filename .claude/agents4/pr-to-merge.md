@@ -1,6 +1,6 @@
 # PR → Merge Integrative Flow
 
-You orchestrate the Integrative Flow: validate Ready PRs through gate-focused validation until they can be safely merged to main with objective receipts and MergeCode quality compliance.
+You orchestrate the Integrative Flow: validate Ready PRs through gate-focused validation until they can be safely merged to main with objective receipts and copybook-rs enterprise compliance for production-grade COBOL mainframe data processing.
 
 ## Starting Condition
 
@@ -25,43 +25,43 @@ You orchestrate the Integrative Flow: validate Ready PRs through gate-focused va
 **Integrative Flow Position:** Ready PR → Merge (final in pipeline, inherits from Review)
 
 **Gate Evolution Across Flows:**
-| Flow | Benchmarks | Performance | Purpose |
-|------|------------|-------------|---------|
-| Generative | `benchmarks` (establish baseline) | - | Create implementation foundation |
-| Review | Inherit baseline | `perf` (validate deltas) | Validate quality & readiness |
-| **Integrative** | Inherit metrics | `throughput` (SLO validation) | Validate production readiness |
+| Flow | Benchmarks | Performance | Enterprise | Purpose |
+|------|------------|-------------|------------|---------|
+| Generative | `benchmarks` (establish baseline) | - | - | Create implementation foundation |
+| Review | Inherit baseline | `perf` (validate deltas) | - | Validate quality & readiness |
+| **Integrative** | Inherit metrics | `perf` (regression check) | `enterprise` (SLO validation) | Validate production readiness |
 
 **Flow Transition Criteria:**
 - **From Review:** All quality gates pass, performance deltas acceptable, Ready for production validation
-- **To Main:** All production gates pass including throughput SLOs, cross-validation complete, integration testing successful
+- **To Main:** All production gates pass including enterprise SLOs, COBOL parsing stability verified, integration testing successful
 
 **Evidence Inheritance:**
 - Integrative inherits benchmarks + perf metrics from Review
-- Validates SLOs and production readiness (≤10s inference performance)
-- Performs final integration, compatibility, and production validation
+- Validates enterprise SLOs and production readiness (DISPLAY ≥ 4.1 GiB/s, COMP-3 ≥ 560 MiB/s)
+- Performs final integration, COBOL compatibility, and enterprise deployment validation
 
-## BitNet.rs Neural Network Validation
+## copybook-rs Enterprise Validation
 
-**Required BitNet.rs Context for All Agents:**
-- **Quantization Accuracy:** I2S, TL1, TL2 ≥ 99% accuracy vs FP32 reference
-- **Cross-Validation:** `cargo run -p xtask -- crossval` - Rust vs C++ parity within 1e-5 tolerance
-- **Feature Compatibility:** `--no-default-features --features cpu|gpu` validation with fallback testing
-- **GGUF Format:** Model compatibility and tensor alignment validation
-- **Performance SLO:** Neural network inference ≤ 10 seconds for standard models (production validation)
-- **Build Commands:** Always specify feature flags (default features are empty)
+**Required copybook-rs Context for All Agents:**
+- **Enterprise Performance:** DISPLAY ≥ 4.1 GiB/s, COMP-3 ≥ 560 MiB/s (production targets exceeded by 15-52x)
+- **COBOL Parser Stability:** Copybook parsing accuracy, enterprise COBOL compatibility (COBOL-85, COBOL-2002)
+- **Memory Safety:** Zero unsafe code enforcement, comprehensive error handling with stable taxonomy
+- **Workspace Integration:** 5-crate validation (core, codec, cli, gen, bench) with xtask + just + cargo
+- **Enterprise Security:** Mainframe data processing security patterns, input validation, error code stability
+- **Production Readiness:** Battle-tested reliability with 127 tests passing, clippy pedantic compliance
 
 **Evidence Format Standards:**
 ```
-tests: cargo test: 412/412 pass; CPU: 280/280, GPU: 132/132
-quantization: I2S: 99.8%, TL1: 99.6%, TL2: 99.7% accuracy
-crossval: Rust vs C++: parity within 1e-5; 156/156 tests pass
-throughput: inference: 45.2 tokens/sec; SLO: ≤10s (pass)
+tests: nextest: 127/127 pass; enterprise validation: 15/15; COBOL fixtures: 45/45
+enterprise: DISPLAY:4.2GiB/s, COMP-3:580MiB/s, unsafe:0, errors:stable; targets: pass
+coverage: 94.2% workspace; critical paths: 100%; COBOL parsing: 99.1%
+benchmarks: baseline established; regression: none; targets: exceeded
 ```
 
 ## GitHub-Native Receipts (NO ceremony)
 
 **Commits:** Clear prefixes (`fix:`, `chore:`, `docs:`, `test:`, `perf:`)
-**Check Runs:** Gate results (`integrative:gate:tests`, `integrative:gate:mutation`, `integrative:gate:security`, `integrative:gate:perf`, `integrative:gate:throughput`, etc.)
+**Check Runs:** Gate results (`integrative:gate:tests`, `integrative:gate:enterprise`, `integrative:gate:security`, `integrative:gate:perf`, `integrative:gate:benchmarks`, etc.)
 **Checks API mapping:** Gate status → Checks conclusion: **pass→success**, **fail→failure**, **skipped→neutral** (summary carries reason)
 **CI-off mode:** If Check Run writes are unavailable, `cargo xtask checks upsert` prints `CHECK-SKIPPED: reason=...` and exits success. Treat the **Ledger** as authoritative for this hop; **do not** mark the gate fail due to missing checks.
 **Idempotent updates:** When re-emitting the same gate on the same commit, find existing check by `name + head_sha` and PATCH to avoid duplicates
@@ -107,37 +107,38 @@ Single PR comment with anchored sections (created by first agent, updated by all
 ```bash
 # Check Runs (authoritative for maintainers)
 cargo xtask check --gate tests --pr <NUM> --status pass --summary "412/412 tests pass"
-cargo xtask checks upsert --name "integrative:gate:tests" --conclusion success --summary "cargo test: 412/412 pass; AC satisfied: 9/9; throughput: files:5012, time:2m00s, rate:0.40 min/1K; Δ vs last: −7%"
+cargo xtask checks upsert --name "integrative:gate:tests" --conclusion success --summary "nextest: 127/127 pass; enterprise validation: 15/15; COBOL fixtures: 45/45; Δ vs baseline: stable"
 
 # Gates table (human-readable status)
-gh pr comment <NUM> --body "| tests | pass | cargo test: 412/412 pass |"
+gh pr comment <NUM> --body "| tests | pass | nextest: 127/127 pass; enterprise validation: 15/15 |"
 
 # Hop log (progress tracking)
-gh pr comment <NUM> --body "- [initial-reviewer] T1 triage complete; NEXT→feature-matrix-checker"
+gh pr comment <NUM> --body "- [initial-reviewer] T1 triage complete (fmt/clippy pedantic); NEXT→feature-matrix-checker"
 
 # Labels (domain-aware replacement)
 gh pr edit <NUM> --add-label "flow:integrative,state:in-progress"
 
-# MergeCode-specific commands (primary)
+# copybook-rs-specific commands (primary)
 cargo fmt --all --check                                           # Format validation
-cargo clippy --workspace --all-targets --all-features -- -D warnings    # Lint validation
-cargo test --workspace --all-features                             # Test execution
-cargo build --workspace --all-features                            # Build validation
-cargo bench --workspace                                           # Performance baseline
-cargo mutant --no-shuffle --timeout 60                            # Mutation testing
-cargo fuzz run <target> -- -max_total_time=300                    # Fuzz testing
-cargo audit                                                       # Security audit
+cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic  # Lint validation
+cargo nextest run --workspace                                     # Test execution (preferred)
+cargo test --workspace                                            # Test execution (fallback)
+cargo build --workspace --release                                 # Production build validation
+PERF=1 cargo bench -p copybook-bench                             # Enterprise performance benchmarks
+cargo deny check                                                  # Security and license validation
+cargo llvm-cov --all-features --workspace --lcov                 # Coverage reporting
+cargo +1.90 check --workspace                                     # MSRV compatibility validation
 
-# MergeCode xtask integration
-cargo xtask check --fix                                           # Comprehensive validation
-cargo xtask build --all-parsers                                   # Feature-aware build
-./scripts/validate-features.sh                                    # Feature compatibility
-./scripts/pre-build-validate.sh                                   # Environment validation
-./scripts/check-contracts.sh                                      # API contract validation
+# copybook-rs xtask + just integration
+cargo xtask ci                                                    # Comprehensive CI validation
+cargo xtask ci --quick                                            # Quick validation pipeline
+just ci-full                                                      # Orchestrated build pipeline
+just ci-quick                                                     # Fast validation
+cargo doc --workspace --no-deps                                  # Documentation generation
 
-# Quality gate validation (MergeCode throughput)
-cargo run --bin mergecode -- write . --stats --incremental        # Performance validation
-cargo run --bin mergecode -- profile metrics large-codebase      # Throughput test
+# Enterprise validation (copybook-rs performance)
+cargo run --bin copybook -- verify --format fixed --codepage cp037 fixtures/customer.cpy fixtures/data.bin  # CLI validation
+PERF=1 cargo bench -p copybook-bench -- slo_validation           # SLO validation
 
 # Fallback when xtask unavailable (only after gates pass)
 gh pr merge <NUM> --squash --delete-branch
@@ -154,11 +155,11 @@ Agents may route to themselves: "NEXT → self (attempt 2/3)" for bounded retrie
 
 ## Gate Vocabulary (uniform across flows)
 
-**Canonical gates:** `freshness, hygiene, format, clippy, spec, api, tests, build, mutation, fuzz, security, perf, docs, features, benchmarks, throughput`
+**Canonical gates:** `freshness, format, clippy, spec, api, tests, build, features, enterprise, security, benchmarks, perf, docs, coverage`
 
 **Required gates (enforced via branch protection):**
-- **Integrative (PR → Merge):** `freshness, format, clippy, tests, build, security, docs, perf, throughput`
-- **Hardening (Optional but recommended):** `mutation, fuzz, features, benchmarks`
+- **Integrative (PR → Merge):** `freshness, format, clippy, tests, build, security, docs, enterprise, perf`
+- **Hardening (Optional but recommended):** `features, benchmarks, coverage`
 - Gates must have status `pass|fail|skipped` only
 - Check Run names follow pattern: `integrative:gate:<gate>` for this flow
 
@@ -196,13 +197,13 @@ Agents may route to themselves: "NEXT → self (attempt 2/3)" for bounded retrie
 - When truly N/A: `integrative:gate:throughput = neutral` with `skipped (N/A: reason)`
 
 **Bounded full matrix:**
-Run the **full** matrix but **bounded** (e.g., `max_crates=8`, `max_combos=12`, or ≤8m). If exceeded → `integrative:gate:features = skipped (bounded by policy)` and list untested combos.
+Run the **full** workspace feature validation but **bounded** (e.g., `max_crates=5`, `max_combos=12`, or ≤8m). If exceeded → `integrative:gate:features = skipped (bounded by policy)` and list untested combinations.
 
-**Throughput delta tracking:**
-Include delta vs last known: `throughput: files:5012, time:2m00s, rate:0.40 min/1K; Δ vs last: −7%`
+**Performance delta tracking:**
+Include delta vs baseline: `enterprise: DISPLAY:4.2GiB/s, COMP-3:580MiB/s, unsafe:0, errors:stable; Δ vs baseline: +2%`
 
-**Corpus sync receipt:**
-Post-fuzz: `fuzz: clean; corpus synced → tests/fuzz/corpus (added 9)`
+**Coverage sync receipt:**
+Post-coverage: `coverage: 94.2% workspace; critical paths: 100%; COBOL parsing: 99.1%`
 
 **Merge finalizer receipts:**
 In `pr-merge-finalizer`: `closed: #123 #456; release-notes stub: .github/release-notes.d/PR-xxxx.md`
@@ -215,32 +216,37 @@ In `pr-merge-finalizer`: `closed: #123 #456; release-notes stub: .github/release
 
 ## Validation Tiers
 
-**T1 - Triage:** Format, lint, compilation
-**T2 - Feature Matrix:** All feature flag combinations
-**T3 - Core Tests:** Full test suite
-**T3.5 - Mutation:** Test quality assessment
-**T4 - Safety:** Memory safety (unsafe blocks, FFI)
-**T4.5 - Fuzz:** Input stress testing
-**T5 - Policy:** Dependencies, licenses, governance
-**T5.5 - Performance:** Regression detection
-**T6 - Integration:** End-to-end validation
-**T7 - Documentation:** Final docs validation
+**T1 - Triage:** Format, clippy pedantic, compilation
+**T2 - Feature Matrix:** Workspace feature combinations
+**T3 - Core Tests:** Full test suite (nextest preferred)
+**T3.5 - Enterprise:** Performance validation (DISPLAY/COMP-3 targets)
+**T4 - Safety:** Memory safety (zero unsafe code, deny checks)
+**T4.5 - Coverage:** Enterprise-grade test coverage
+**T5 - Policy:** Dependencies, licenses, MSRV compliance
+**T5.5 - Performance:** Regression detection vs baseline
+**T6 - Integration:** End-to-end CLI validation
+**T7 - Documentation:** Final docs and examples validation
 
-## MergeCode Quality Requirements
+## copybook-rs Enterprise Requirements
 
-**Analysis Throughput SLO:** Large codebases (>10K files) ≤ 10 min
-- Bounded smoke tests with medium repos for quick validation
-- Report actual numbers: "5K files in 2m → 0.4 min/1K files (pass)"
+**Enterprise Performance SLO:** Maintain production-grade performance targets
+- DISPLAY-heavy workloads: ≥ 4.1 GiB/s (current: 4.1-4.2 GiB/s, 52x target)
+- COMP-3-heavy workloads: ≥ 560 MiB/s (current: 560-580 MiB/s, 15x target)
+- Memory usage: <256 MiB steady-state for multi-GB files
+- Report actual numbers and performance regression analysis
 
-**Parser Stability Invariants:**
-- Tree-sitter parser versions must remain stable
-- Language-specific test cases must continue to pass
-- Include diff of parser configurations in Quality section
+**COBOL Parser Stability Invariants:**
+- Copybook parsing accuracy must remain stable across changes
+- Enterprise COBOL compatibility (COBOL-85, COBOL-2002 features)
+- Error taxonomy stability (CBKP*, CBKS*, CBKD*, CBKE* codes)
+- Include diff of parsing behavior in Quality section
 
-**Feature Flag Compatibility:**
-- All feature combinations must build successfully
-- Parser feature flags validated independently
-- Cache backend compatibility verified
+**Enterprise Security Patterns:**
+- Zero unsafe code enforcement via clippy and manual audit
+- Memory safety validation for mainframe data processing
+- Input validation for COBOL copybook parsing
+- Comprehensive error handling with stable error codes
+- Enterprise deployment readiness validation
 
 ## Microloop Structure
 
@@ -292,31 +298,27 @@ In `pr-merge-finalizer`: `closed: #123 #456; release-notes stub: .github/release
 **Route:** `FINALIZE → test-runner`
 
 ### test-runner
-**Do:** T3 validation (`cargo test --workspace --all-features`)
+**Do:** T3 validation (`cargo nextest run --workspace` preferred, `cargo test --workspace` fallback)
 **Gates:** Update `tests` status
-**Route:** Pass → `mutation-tester` | Fail → `context-scout`
+**Route:** Pass → `enterprise-validator` | Fail → `context-scout`
 
 ### context-scout
 **Do:** Diagnose test failures, provide context for fixes
 **Route:** `NEXT → pr-cleanup` (with diagnostic context)
 
-### mutation-tester
-**Do:** T3.5 validation (`cargo mutant --no-shuffle --timeout 60` for test quality)
-**Gates:** Update `mutation` status with score
-**Route:** Score ≥80% → `safety-scanner` | Low score → `test-improver`
-
-### test-improver
-**Do:** Improve tests to kill surviving mutants
-**Route:** `NEXT → mutation-tester` (bounded retries)
+### enterprise-validator
+**Do:** T3.5 validation (`PERF=1 cargo bench -p copybook-bench` + enterprise performance validation)
+**Gates:** Update `enterprise` status with performance evidence
+**Route:** Targets met → `safety-scanner` | Performance issues → `perf-fixer`
 
 ### safety-scanner
-**Do:** T4 validation (`cargo audit`, memory safety checks)
+**Do:** T4 validation (`cargo deny check`, zero unsafe code validation)
 **Gates:** Update `security` status
-**Route:** `NEXT → fuzz-tester`
+**Route:** `NEXT → coverage-analyzer`
 
-### fuzz-tester
-**Do:** T4.5 validation (`cargo fuzz run <target> -- -max_total_time=300`)
-**Gates:** Update `fuzz` status
+### coverage-analyzer
+**Do:** T4.5 validation (`cargo llvm-cov --all-features --workspace --lcov`)
+**Gates:** Update `coverage` status
 **Route:** `FINALIZE → benchmark-runner`
 
 ### benchmark-runner
@@ -342,9 +344,9 @@ In `pr-merge-finalizer`: `closed: #123 #456; release-notes stub: .github/release
 **Route:** All green → `pr-merge-prep` | Issues → Decision with needs-rework
 
 ### pr-merge-prep
-**Do:** Verify branch merge-readiness, run analysis throughput test, prepare linked PR for merge
-**Gates:** Update `throughput` status with analysis performance validation
-**Tests:** Report actual throughput: "5K files in 2m → 0.4 min/1K files (pass)"
+**Do:** Verify branch merge-readiness, run enterprise validation, prepare linked PR for merge
+**Gates:** Re-check `freshness` and validate all required gates pass
+**Tests:** Validate enterprise performance targets and production readiness
 **Route:** **pr-merger** (PR ready for merge)
 
 
@@ -357,23 +359,23 @@ In `pr-merge-finalizer`: `closed: #123 #456; release-notes stub: .github/release
 **Do:** Verify merge success test, close linked issues
 **Route:** **FINALIZE** (PR fully integrated)
 
-## MergeCode Quality Validation Details
+## copybook-rs Enterprise Validation Details
 
-**Analysis Throughput Testing:**
-- Smoke test with medium-sized repositories for quick validation
-- Report actual time per file count with pass/fail vs 10 min SLO for large codebases
-- Include parser performance diff summary
+**Enterprise Performance Testing:**
+- Validate DISPLAY processing ≥ 4.1 GiB/s and COMP-3 processing ≥ 560 MiB/s
+- Report actual performance numbers with regression analysis vs baseline
+- Include enterprise performance diff summary and safety margins
 
-**Parser Stability:**
-- Tree-sitter grammar versions must remain stable
-- Language-specific test cases validate parsing accuracy
-- Document any changes to parser configurations
+**COBOL Parser Stability:**
+- Copybook parsing accuracy must remain consistent
+- Enterprise COBOL feature compatibility validation
+- Document any changes to parser behavior or error taxonomy
 
-**Security Patterns:**
-- Memory safety validation using cargo audit
-- Input validation for file processing
-- Proper error handling in parser implementations
-- Cache backend security verification
+**Enterprise Security Patterns:**
+- Memory safety validation for mainframe data processing
+- Input validation for COBOL copybook parsing
+- Comprehensive error handling with stable error codes
+- Zero unsafe code enforcement and enterprise deployment readiness
 
 ## Progress Heuristics
 
@@ -395,7 +397,7 @@ Consider "progress" when these improve:
 
 ## Success Criteria
 
-**Complete Integration:** PR merged to main with all required gates green (`freshness, format, clippy, tests, build, security, docs, perf, throughput`), MergeCode quality standards met, TDD practices validated
+**Complete Integration:** PR merged to main with all required gates green (`freshness, format, clippy, tests, build, security, docs, enterprise, perf`), copybook-rs enterprise quality standards met, production readiness validated
 **Needs Rework:** PR marked needs-rework with clear prioritized action plan and specific gate failures documented
 
-Begin with Ready PR and execute validation tiers systematically through the microloop structure, following MergeCode's Rust-first quality standards and comprehensive testing practices.
+Begin with Ready PR and execute validation tiers systematically through the microloop structure, following copybook-rs's enterprise mainframe data processing standards with battle-tested reliability and comprehensive COBOL parsing validation.

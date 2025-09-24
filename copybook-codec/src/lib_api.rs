@@ -643,7 +643,7 @@ fn decode_scalar_field_value(
         } => {
             if options.preserve_zoned_encoding {
                 // Use encoding-aware decoding for round-trip preservation
-                let (decimal, _encoding_info) = crate::numeric::decode_zoned_decimal_with_encoding(
+                let (decimal, encoding_info) = crate::numeric::decode_zoned_decimal_with_encoding(
                     field_data,
                     *digits,
                     *scale,

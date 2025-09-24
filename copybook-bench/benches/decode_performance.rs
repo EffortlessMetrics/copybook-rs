@@ -61,9 +61,7 @@ fn generate_display_heavy_data(record_count: usize) -> Vec<u8> {
     for i in 0..record_count {
         // Generate 10 fields of 50 bytes each (EBCDIC text)
         for field in 0..10 {
-            let text = format!(
-                "FIELD{field:02}_{i:06}_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-            );
+            let text = format!("FIELD{field:02}_{i:06}_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890");
             let mut field_data = text.as_bytes().to_vec();
             field_data.resize(50, 0x40); // Pad with EBCDIC spaces
             data.extend_from_slice(&field_data);

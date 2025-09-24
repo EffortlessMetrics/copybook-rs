@@ -147,9 +147,7 @@ fn test_rdw_length_recomputation() {
     let original_rdw = b"\x00\x08\x00\x00ORIGINAL";
     let input = Cursor::new(original_rdw);
 
-    println!(
-        "DEBUG: Starting decode_file_to_jsonl with schema: {copybook}",
-    );
+    println!("DEBUG: Starting decode_file_to_jsonl with schema: {copybook}",);
     println!("DEBUG: Original RDW input: {original_rdw:?}");
 
     // Prepare output with newline-terminated JSONL

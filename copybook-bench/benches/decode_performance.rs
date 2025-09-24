@@ -1,3 +1,11 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::too_many_lines,
+    clippy::similar_names,
+    clippy::shadow_unrelated,
+    clippy::field_reassign_with_default
+)]
+
 use copybook_codec::{DecodeOptions, decode_file_to_jsonl, decode_record};
 use copybook_core::parse_copybook;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
@@ -76,7 +84,7 @@ fn generate_comp3_heavy_data(record_count: usize) -> Vec<u8> {
     for i in 0..record_count {
         // Generate 10 packed decimal fields of 6 bytes each
         for field in 0..10 {
-            let value = (i * 10 + field) % 999999999;
+            let value = (i * 10 + field) % 999_999_999;
             // Convert to packed decimal: S9(9)V99 = 6 bytes
             let mut packed = vec![0x00; 6];
 

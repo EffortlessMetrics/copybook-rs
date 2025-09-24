@@ -281,10 +281,10 @@ fn test_multi_field_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
    05 FIELD2 PIC S9(3).
    05 FIELD3 PIC 9(4).
 ";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // Mixed encoding data: ASCII + EBCDIC signed + ASCII
-    let original_data = b"\x31\x32\xF1\xF2\xC3\x33\x34\x35\x36"; // "12" + "+123" + "3456"
+    let _original_data = b"\x31\x32\xF1\xF2\xC3\x33\x34\x35\x36"; // "12" + "+123" + "3456"
 
     // TODO: Decode with preservation
     // let decode_options = DecodeOptions::new()
@@ -318,10 +318,10 @@ fn test_multi_field_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_rdw_roundtrip_preservation() -> Result<(), Box<dyn Error>> {
     let copybook = "01 ZONED-FIELD PIC 9(5).";
-    let schema = parse_copybook(copybook).unwrap();
+    let _schema = parse_copybook(copybook).unwrap();
 
     // RDW header (5 + 4 = 9 bytes total) + ASCII zoned data
-    let original_data = b"\x00\x09\x00\x00\x31\x32\x33\x34\x35"; // RDW + ASCII "12345"
+    let _original_data = b"\x00\x09\x00\x00\x31\x32\x33\x34\x35"; // RDW + ASCII "12345"
 
     // TODO: Decode RDW with preservation
     // let decode_options = DecodeOptions::new()

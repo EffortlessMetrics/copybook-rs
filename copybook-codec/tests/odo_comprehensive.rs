@@ -14,12 +14,12 @@ use std::io::Cursor;
 #[test]
 fn test_odo_driver_in_redefines_rejection() {
     // Test that ODO counter inside REDEFINES is rejected
-    let copybook = r#"
+    let copybook = r"
 01 MAIN-AREA PIC X(20).
 01 REDEF-AREA REDEFINES MAIN-AREA.
    05 COUNTER PIC 9(3).
    05 ITEMS PIC X(5) OCCURS 1 TO 3 TIMES DEPENDING ON COUNTER.
-"#;
+";
 
     let result = parse_copybook(copybook);
     assert!(result.is_err());
@@ -31,11 +31,11 @@ fn test_odo_driver_in_redefines_rejection() {
 #[test]
 fn test_odo_driver_after_array_rejection() {
     // Test that ODO counter after the array is rejected
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-LAYOUT.
    05 ITEMS PIC X(10) OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER.
    05 COUNTER PIC 9(3).
-"#;
+";
 
     let result = parse_copybook(copybook);
     assert!(result.is_err());

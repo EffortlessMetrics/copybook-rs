@@ -11,12 +11,11 @@
 //! Note: Runtime behavior tests are in copybook-codec crate tests since they depend on `DecodeOptions`
 
 use copybook_core::error::{Error, ErrorCode};
-use std::error::Error as StdError;
 
 /// AC11: Test `CBKD413_ZONED_INVALID_ENCODING` error code
 /// Tests error handling spec: SPEC.manifest.yml#CBKD413-invalid-encoding
 #[test]
-fn test_cbkd413_zoned_invalid_encoding() -> Result<(), Box<dyn StdError>> {
+fn test_cbkd413_zoned_invalid_encoding() {
     // TODO: Move this test to copybook-codec crate since it depends on DecodeOptions
     // let copybook = "01 ZONED-FIELD PIC 9(3).";
     // let schema = parse_copybook(copybook).unwrap();
@@ -44,14 +43,12 @@ fn test_cbkd413_zoned_invalid_encoding() -> Result<(), Box<dyn StdError>> {
         "Test new error code",
     );
     assert_eq!(new_error.code, ErrorCode::CBKD413_ZONED_INVALID_ENCODING);
-
-    Ok(())
 }
 
 /// AC11: Test `CBKD414_ZONED_MIXED_ENCODING` error code
 /// Tests error handling spec: SPEC.manifest.yml#CBKD414-mixed-encoding
 #[test]
-fn test_cbkd414_zoned_mixed_encoding() -> Result<(), Box<dyn StdError>> {
+fn test_cbkd414_zoned_mixed_encoding() {
     // TODO: Test error code definition when implemented
     // Runtime behavior tests are in copybook-codec crate
 
@@ -68,14 +65,12 @@ fn test_cbkd414_zoned_mixed_encoding() -> Result<(), Box<dyn StdError>> {
         "Test new error code",
     );
     assert_eq!(new_error.code, ErrorCode::CBKD414_ZONED_MIXED_ENCODING);
-
-    Ok(())
 }
 
 /// AC11: Test `CBKD415_ZONED_ENCODING_DETECTION_FAILED` error code
 /// Tests error handling spec: SPEC.manifest.yml#CBKD415-detection-failed
 #[test]
-fn test_cbkd415_zoned_encoding_detection_failed() -> Result<(), Box<dyn StdError>> {
+fn test_cbkd415_zoned_encoding_detection_failed() {
     // TODO: Test error code definition when implemented
     // Runtime behavior tests are in copybook-codec crate
 
@@ -89,8 +84,6 @@ fn test_cbkd415_zoned_encoding_detection_failed() -> Result<(), Box<dyn StdError
         "Test new error code",
     );
     assert_eq!(new_error.code, ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS);
-
-    Ok(())
 }
 
 /// Test error context information for zoned encoding errors
@@ -115,7 +108,7 @@ fn test_zoned_encoding_error_context() {
 /// Test that error messages are clear and actionable
 /// Tests error handling spec: SPEC.manifest.yml#clear-error-messages
 #[test]
-fn test_zoned_encoding_error_messages_clarity() -> Result<(), Box<dyn StdError>> {
+fn test_zoned_encoding_error_messages_clarity() {
     // Test error message formatting with existing error codes
     let error = Error::new(
         ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -133,14 +126,12 @@ fn test_zoned_encoding_error_messages_clarity() -> Result<(), Box<dyn StdError>>
     );
     assert!(new_error.message.contains("Invalid zoned encoding format"));
     assert!(new_error.message.contains("found 0xAX"));
-
-    Ok(())
 }
 
 /// Test error code stability and backward compatibility
 /// Tests error handling spec: SPEC.manifest.yml#error-code-stability
 #[test]
-fn test_error_code_stability() -> Result<(), Box<dyn StdError>> {
+fn test_error_code_stability() {
     // Test that existing error codes still work
     let existing_error = Error::new(
         ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -164,8 +155,6 @@ fn test_error_code_stability() -> Result<(), Box<dyn StdError>> {
     let _new_error_415 = Error::new(ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS, "Test error");
     let error_415_string = format!("{}", ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS);
     assert_eq!(error_415_string, "CBKD415_ZONED_ENCODING_AMBIGUOUS");
-
-    Ok(())
 }
 
 // TODO: Add more comprehensive error integration tests when codec types are available in core

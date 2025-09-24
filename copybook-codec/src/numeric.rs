@@ -446,6 +446,7 @@ impl SmallDecimal {
 ///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
 /// All errors include proper context information (record_index, field_path, byte_offset).
+#[inline]
 pub fn decode_zoned_decimal(
     data: &[u8],
     digits: u16,
@@ -777,12 +778,19 @@ pub fn decode_zoned_decimal_with_encoding(
 ///
 /// Returns an error if the packed decimal data contains invalid nibbles.
 /// All errors include proper context information (record_index, field_path, byte_offset).
+#[inline]
 pub fn decode_packed_decimal(
     data: &[u8],
     digits: u16,
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
+    // Fast path for small decimals
+    if digits <= 9 {
+        return decode_packed_decimal_direct_optimized(data, digits, scale, signed);
+    }
+
+    // Fall back to original implementation for larger decimals
     let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
     if data.len() != expected_bytes {
         return Err(Error::new(
@@ -1503,6 +1511,7 @@ pub fn decode_zoned_decimal_with_scratch(
 
 /// Optimized packed decimal decoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+#[inline]
 pub fn decode_packed_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -1527,7 +1536,12 @@ pub fn decode_packed_decimal_with_scratch(
         return Ok(SmallDecimal::zero(scale));
     }
 
-    // Clear and prepare digit buffer for reuse
+    // Fast path for small packed decimals - avoid scratch buffer overhead
+    if digits <= 9 {
+        return decode_packed_decimal_direct_optimized(data, digits, scale, signed);
+    }
+
+    // Clear and prepare digit buffer for reuse only for large decimals
     scratch.digit_buffer.clear();
     scratch.digit_buffer.reserve(digits as usize);
 
@@ -1735,6 +1749,7 @@ pub fn decode_packed_decimal_with_scratch(
 }
 
 /// Fast binary integer decoder with optimized paths for common widths
+#[inline]
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     // Optimized paths for common binary widths
     match (bits, data.len()) {
@@ -1834,6 +1849,89 @@ pub fn encode_packed_decimal_with_scratch(
     // This is a placeholder for now - the actual optimization would involve
     // rewriting the encode logic to use the scratch buffers
     encode_packed_decimal(&scratch.string_buffer, digits, decimal.scale, signed)
+}
+
+/// Fast direct packed decimal decoder for small numbers (≤9 digits)
+/// Optimized for performance with no allocations
+#[inline]
+fn decode_packed_decimal_direct_optimized(
+    data: &[u8],
+    digits: u16,
+    scale: i16,
+    signed: bool,
+) -> Result<SmallDecimal> {
+    let mut value = 0i64;
+    let last_byte_idx = data.len() - 1;
+
+    // Process bytes directly without allocation
+    for (byte_idx, &byte) in data.iter().enumerate() {
+        let high_nibble = (byte >> 4) & 0x0F;
+        let low_nibble = byte & 0x0F;
+
+        if byte_idx == last_byte_idx {
+            // Last byte processing
+            if digits.is_multiple_of(2) {
+                // Even digits: high nibble should be 0 (unused)
+                if high_nibble != 0 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!(
+                            "Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"
+                        ),
+                    ));
+                }
+            } else {
+                // Odd digits: high nibble is the last digit
+                if high_nibble > 9 {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                    ));
+                }
+                value = value * 10 + i64::from(high_nibble);
+            }
+
+            // Low nibble is always the sign
+            if signed {
+                let is_negative = match low_nibble {
+                    0xA | 0xC | 0xE | 0xF => false, // Positive signs
+                    0xB | 0xD => true,              // Negative signs
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{low_nibble:X} in packed decimal"),
+                        ));
+                    }
+                };
+                let mut decimal = SmallDecimal::new(value, scale, is_negative);
+                decimal.normalize();
+                return Ok(decimal);
+            } else if low_nibble != 0xF {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                ));
+            }
+        } else {
+            // Non-last byte processing - both nibbles are digits
+            if high_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                ));
+            }
+            if low_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{low_nibble:X} at byte {byte_idx}"),
+                ));
+            }
+            value = value * 100 + i64::from(high_nibble) * 10 + i64::from(low_nibble);
+        }
+    }
+
+    // If we reach here, it's an unsigned decimal
+    Ok(SmallDecimal::new(value, scale, false))
 }
 
 #[cfg(test)]

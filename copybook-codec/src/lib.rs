@@ -38,8 +38,8 @@ pub use numeric::ZonedEncodingInfo;
 
 // Export the core library API functions (task 9.1)
 pub use lib_api::{
-    RecordIterator, RunSummary, decode_file_to_jsonl, decode_record, encode_jsonl_to_file,
-    encode_record, iter_records, iter_records_from_file,
+    RecordIterator, RunSummary, decode_file_to_jsonl, decode_record, decode_record_with_scratch,
+    encode_jsonl_to_file, encode_record, iter_records, iter_records_from_file,
 };
 
 // DecodeProcessor not needed - benchmarks use decode_file_to_jsonl instead

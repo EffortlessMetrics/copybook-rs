@@ -412,7 +412,7 @@ fn test_cli_zoned_encoding_error_messages() -> Result<(), Box<dyn Error>> {
     fs::write(&data_path, b"\x31\x32\xFF")?; // Invalid zone in last byte
 
     // TODO: When implemented, should produce clear error message for mixed/invalid encoding
-    let output = Command::cargo_bin("copybook")
+    let _output = Command::cargo_bin("copybook")
         .unwrap()
         .args([
             "decode",

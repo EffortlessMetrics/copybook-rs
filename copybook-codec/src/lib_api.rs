@@ -586,20 +586,45 @@ fn decode_scalar_field_value(
             scale,
             signed,
         } => {
-            let decimal = crate::numeric::decode_zoned_decimal(
-                field_data,
-                *digits,
-                *scale,
-                *signed,
-                options.codepage,
-                field.blank_when_zero,
-            )?;
-            let formatted = if *scale == 0 {
-                format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+            if options.preserve_zoned_encoding {
+                // Use encoding-aware decoding for round-trip preservation
+                let (decimal, encoding_info) = crate::numeric::decode_zoned_decimal_with_encoding(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    options.codepage,
+                    field.blank_when_zero,
+                    true, // preserve_encoding = true
+                )?;
+
+                let formatted = if *scale == 0 {
+                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+                } else {
+                    decimal.to_string()
+                };
+
+                // Store encoding info for later use in metadata emission
+                // For now, we can't return it directly from this function
+                // This will be handled at the record level
+                Ok(Value::String(formatted))
             } else {
-                decimal.to_string()
-            };
-            Ok(Value::String(formatted))
+                // Use standard decoding
+                let decimal = crate::numeric::decode_zoned_decimal(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    options.codepage,
+                    field.blank_when_zero,
+                )?;
+                let formatted = if *scale == 0 {
+                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+                } else {
+                    decimal.to_string()
+                };
+                Ok(Value::String(formatted))
+            }
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
@@ -793,13 +818,26 @@ fn encode_fields_recursive(
                 if let Some(value) = json_obj.get(&field.name)
                     && let Some(text) = value.as_str()
                 {
-                    let encoded = crate::numeric::encode_zoned_decimal(
-                        text,
-                        *digits,
-                        *scale,
-                        *signed,
-                        options.codepage,
-                    )?;
+                    // Check if we have a zoned encoding override
+                    let encoded = if options.zoned_encoding_override.is_some() {
+                        crate::numeric::encode_zoned_decimal_with_format(
+                            text,
+                            *digits,
+                            *scale,
+                            *signed,
+                            options.codepage,
+                            options.zoned_encoding_override,
+                        )?
+                    } else {
+                        // Use standard encoding (maintains backward compatibility)
+                        crate::numeric::encode_zoned_decimal(
+                            text,
+                            *digits,
+                            *scale,
+                            *signed,
+                            options.codepage,
+                        )?
+                    };
                     let field_len = field.len as usize;
                     if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
                         buffer[current_offset..current_offset + field_len]

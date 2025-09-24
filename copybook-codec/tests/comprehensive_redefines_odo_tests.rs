@@ -42,13 +42,13 @@ fn create_test_encode_options(strict: bool) -> EncodeOptions {
 #[test]
 fn test_redefines_shorter_equal_longer_overlays() {
     // Test REDEFINES with different lengths: shorter, equal, longer
-    let copybook = r#"
+    let copybook = r"
 01 REDEFINES-RECORD.
    05 ORIGINAL-FIELD PIC X(10).
    05 SHORTER-REDEFINE REDEFINES ORIGINAL-FIELD PIC X(5).
    05 EQUAL-REDEFINE REDEFINES ORIGINAL-FIELD PIC X(10).
    05 LONGER-REDEFINE REDEFINES ORIGINAL-FIELD PIC X(15).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let root = &schema.fields[0];
@@ -82,14 +82,14 @@ fn test_redefines_shorter_equal_longer_overlays() {
 #[test]
 fn test_redefines_decode_all_views() {
     // Test that all REDEFINES views are included in JSON output
-    let copybook = r#"
+    let copybook = r"
 01 REDEFINES-RECORD.
    05 ORIGINAL-FIELD PIC X(8).
    05 NUMERIC-VIEW REDEFINES ORIGINAL-FIELD PIC 9(8).
    05 STRUCTURED-VIEW REDEFINES ORIGINAL-FIELD.
       10 PART1 PIC X(4).
       10 PART2 PIC X(4).
-"#;
+";
 
     let mut schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(false);
@@ -120,11 +120,11 @@ fn test_redefines_decode_all_views() {
 #[test]
 fn test_redefines_encode_precedence_normative() {
     // Test NORMATIVE REDEFINES encode precedence: single view > error
-    let copybook = r#"
+    let copybook = r"
 01 REDEFINES-RECORD.
    05 ORIGINAL-FIELD PIC X(8).
    05 NUMERIC-VIEW REDEFINES ORIGINAL-FIELD PIC 9(8).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_encode_options(true); // Strict mode
@@ -159,11 +159,11 @@ fn test_redefines_encode_precedence_normative() {
 #[test]
 fn test_redefines_raw_preserved_record() {
     // Test raw byte preservation for REDEFINES round-trip
-    let copybook = r#"
+    let copybook = r"
 01 REDEFINES-RECORD.
    05 ORIGINAL-FIELD PIC X(8).
    05 NUMERIC-VIEW REDEFINES ORIGINAL-FIELD PIC 9(8).
-"#;
+";
 
     let mut schema = parse_copybook(copybook).unwrap();
 

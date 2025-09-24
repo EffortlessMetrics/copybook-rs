@@ -15,7 +15,7 @@ use std::io::Cursor;
 #[test]
 fn test_odo_redefines_integration() {
     // Test ODO and REDEFINES working together
-    let copybook = r#"
+    let copybook = r"
 01 RECORD-LAYOUT.
    05 COUNTER PIC 9(3).
    05 ORIGINAL-AREA PIC X(20).
@@ -23,7 +23,7 @@ fn test_odo_redefines_integration() {
       10 PART1 PIC X(10).
       10 PART2 PIC X(10).
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(4).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
 

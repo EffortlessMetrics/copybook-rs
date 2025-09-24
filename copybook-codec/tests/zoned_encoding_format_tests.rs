@@ -14,7 +14,7 @@ use std::error::Error;
 /// AC1: Test `ZonedEncodingFormat` enum behavior and conversions
 /// Tests COBOL parsing spec: SPEC.manifest.yml#ZonedEncodingFormat-enum-variants
 #[test]
-fn test_zoned_encoding_format_enum_variants() -> Result<(), Box<dyn Error>> {
+fn test_zoned_encoding_format_enum_variants() {
     // This test will fail until ZonedEncodingFormat enum is implemented
 
     // Test that ZonedEncodingFormat has correct variants
@@ -54,13 +54,12 @@ fn test_zoned_encoding_format_enum_variants() -> Result<(), Box<dyn Error>> {
 
     // For now, this test should succeed as we have implemented the enum
     // panic!("ZonedEncodingFormat enum not yet implemented - expected TDD Red phase failure");
-    Ok(())
 }
 
 /// AC1: Test ASCII zoned decimal encoding detection (0x30-0x39 digit zones)
 /// Tests COBOL parsing spec: SPEC.manifest.yml#encoding-detection-ascii
 #[test]
-fn test_ascii_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
+fn test_ascii_zoned_encoding_detection() {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
     let schema = parse_copybook(copybook).unwrap();
 
@@ -94,7 +93,6 @@ fn test_ascii_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
     // Temporarily commented out until full integration is done:
     // let result = copybook_codec::decode_record(&schema, ascii_data, &options)?;
     // assert!(result.encoding_metadata.contains("ascii"));
-    Ok(())
 }
 
 /// AC1: Test EBCDIC zoned decimal encoding detection (0xF0-0xF9 digit zones)
@@ -410,7 +408,7 @@ proptest! {
 
 /// Test comprehensive error handling for invalid record sizes
 #[test]
-fn test_record_size_mismatch_error_handling() -> Result<(), Box<dyn Error>> {
+fn test_record_size_mismatch_error_handling() {
     let copybook = "01 FIELD PIC 9(5)."; // Expects 5 bytes
     let schema = parse_copybook(copybook).unwrap();
 
@@ -436,13 +434,11 @@ fn test_record_size_mismatch_error_handling() -> Result<(), Box<dyn Error>> {
     let long_data = b"\x31\x32\x33\x34\x35\x36\x37"; // 7 bytes, expected 5
     let result = copybook_codec::decode_record(&schema, long_data, &options);
     assert!(result.is_ok(), "Should handle oversized data gracefully");
-
-    Ok(())
 }
 
 /// Test error handling for malformed COBOL copybooks
 #[test]
-fn test_malformed_copybook_error_handling() -> Result<(), Box<dyn Error>> {
+fn test_malformed_copybook_error_handling() {
     let malformed_copybooks = [
         "",                                        // Empty copybook
         "01 FIELD PIC 9(",                         // Incomplete PIC clause
@@ -463,13 +459,11 @@ fn test_malformed_copybook_error_handling() -> Result<(), Box<dyn Error>> {
         }
         // Some might succeed with default handling, which is also acceptable
     }
-
-    Ok(())
 }
 
 /// Test error recovery and continuation for enterprise workflows
 #[test]
-fn test_enterprise_error_recovery_patterns() -> Result<(), Box<dyn Error>> {
+fn test_enterprise_error_recovery_patterns() {
     let copybook = r"01 MULTI-FIELD.
    05 FIELD1 PIC 9(3).
    05 FIELD2 PIC X(5).
@@ -491,7 +485,7 @@ fn test_enterprise_error_recovery_patterns() -> Result<(), Box<dyn Error>> {
     match result {
         Ok(_decoded) => {
             // Success path: implementation has error tolerance
-            assert!(true, "Implementation handled invalid data gracefully");
+            // No assertion needed - successful decode is acceptable
         }
         Err(error) => {
             // Error path: should provide structured error information
@@ -503,13 +497,11 @@ fn test_enterprise_error_recovery_patterns() -> Result<(), Box<dyn Error>> {
             );
         }
     }
-
-    Ok(())
 }
 
 /// Test EBCDIC codepage conversion edge cases for enterprise data
 #[test]
-fn test_ebcdic_codepage_conversion_robustness() -> Result<(), Box<dyn Error>> {
+fn test_ebcdic_codepage_conversion_robustness() {
     let copybook = "01 EBCDIC-FIELD PIC 9(5).";
     let schema = parse_copybook(copybook).unwrap();
 
@@ -551,6 +543,4 @@ fn test_ebcdic_codepage_conversion_robustness() -> Result<(), Box<dyn Error>> {
             }
         }
     }
-
-    Ok(())
 }

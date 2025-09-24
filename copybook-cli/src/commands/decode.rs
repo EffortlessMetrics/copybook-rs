@@ -37,6 +37,15 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
         info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
     }
 
+    // Validate flag combinations
+    if args.preferred_zoned_encoding != copybook_codec::ZonedEncodingFormat::Auto
+        && !args.preserve_zoned_encoding
+    {
+        return Err(
+            "--preferred-zoned-encoding requires --preserve-zoned-encoding to be enabled".into(),
+        );
+    }
+
     // Read copybook file or stdin
     let copybook_text = read_file_or_stdin(args.copybook)?;
 

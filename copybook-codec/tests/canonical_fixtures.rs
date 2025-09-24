@@ -146,8 +146,10 @@ fn test_comp3_canonical() {
         .join("\n");
 
     // Expected normalized JSON (would be stored in a file)
-    let expected_json_lines = [r#"{"DECIMAL-AMOUNT":"123.45","NEGATIVE-AMOUNT":"-67890","POSITIVE-AMOUNT":"12345","RECORD-ID":"0001","UNSIGNED-AMOUNT":"999","__record_length":8}"#,
-        r#"{"DECIMAL-AMOUNT":"-999.99","NEGATIVE-AMOUNT":"-1","POSITIVE-AMOUNT":"1","RECORD-ID":"0002","UNSIGNED-AMOUNT":"0","__record_length":8}"#];
+    let expected_json_lines = [
+        r#"{"DECIMAL-AMOUNT":"123.45","NEGATIVE-AMOUNT":"-67890","POSITIVE-AMOUNT":"12345","RECORD-ID":"0001","UNSIGNED-AMOUNT":"999","__record_length":8}"#,
+        r#"{"DECIMAL-AMOUNT":"-999.99","NEGATIVE-AMOUNT":"-1","POSITIVE-AMOUNT":"1","RECORD-ID":"0002","UNSIGNED-AMOUNT":"0","__record_length":8}"#,
+    ];
     let expected_normalized = expected_json_lines.join("\n");
 
     println!("Generated normalized JSON:");
@@ -161,7 +163,7 @@ fn test_comp3_canonical() {
 
 /// Test to generate canonical fixtures (run with `CREATE_CANONICAL_FIXTURES=1`)
 #[test]
-#[ignore] // Only run when explicitly requested
+#[ignore = "Only run when explicitly requested"]
 fn test_generate_canonical_fixtures() {
     if std::env::var("CREATE_CANONICAL_FIXTURES").is_ok() {
         // This test would generate the canonical hex dumps and normalized JSON

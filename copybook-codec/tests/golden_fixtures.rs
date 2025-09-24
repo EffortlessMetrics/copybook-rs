@@ -26,16 +26,16 @@ fn test_comp3_roundtrip_golden() {
         .expect("Failed to read COMP-3 test JSONL");
 
     // Configure encode options
-    let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII,
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: true,
-    };
+    let encode_options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_use_raw(false)
+        .with_bwz_encode(false)
+        .with_strict_mode(false)
+        .with_max_errors(None)
+        .with_threads(1)
+        .with_coerce_numbers(true)
+        .with_zoned_encoding_override(None);
 
     // Encode JSONL to binary
     let mut binary_output = Vec::new();
@@ -49,18 +49,19 @@ fn test_comp3_roundtrip_golden() {
     assert_eq!(encode_summary.records_with_errors, 0);
 
     // Configure decode options
-    let decode_options = DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII,
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: true,
-        max_errors: None,
-        on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-        threads: 1,
-    };
+    let decode_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(true)
+        .with_max_errors(None)
+        .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+        .with_threads(1)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
     // Decode binary back to JSONL
     let mut decoded_output = Vec::new();
@@ -109,31 +110,28 @@ fn test_schema_parsing_golden() {
 
     for copybook_path in &copybooks {
         let copybook_text = fs::read_to_string(copybook_path)
-            .unwrap_or_else(|_| panic!("Failed to read copybook: {}", copybook_path));
+            .unwrap_or_else(|_| panic!("Failed to read copybook: {copybook_path}"));
 
         let schema = parse_copybook(&copybook_text)
-            .unwrap_or_else(|_| panic!("Failed to parse copybook: {}", copybook_path));
+            .unwrap_or_else(|_| panic!("Failed to parse copybook: {copybook_path}"));
 
         // Verify schema has expected structure
         assert!(
             !schema.fields.is_empty(),
-            "Schema should have fields for {}",
-            copybook_path
+            "Schema should have fields for {copybook_path}"
         );
 
         // Verify schema fingerprint is consistent
         assert!(
             !schema.fingerprint.is_empty(),
-            "Schema should have fingerprint for {}",
-            copybook_path
+            "Schema should have fingerprint for {copybook_path}"
         );
 
         // For fixed-length schemas, verify LRECL
         if copybook_path.contains("simple") || copybook_path.contains("comp3") {
             assert!(
                 schema.lrecl_fixed.is_some(),
-                "Fixed-length schema should have LRECL for {}",
-                copybook_path
+                "Fixed-length schema should have LRECL for {copybook_path}"
             );
         }
     }
@@ -162,10 +160,10 @@ fn test_create_golden_hashes() {
         for file_path in &test_files {
             if let Ok(content) = fs::read(file_path) {
                 let hash = calculate_sha256(&content);
-                let hash_file = format!("{}.sha256", file_path);
+                let hash_file = format!("{file_path}.sha256");
                 fs::write(&hash_file, hash)
-                    .unwrap_or_else(|_| panic!("Failed to write hash file: {}", hash_file));
-                println!("Created hash file: {} -> {}", file_path, hash_file);
+                    .unwrap_or_else(|_| panic!("Failed to write hash file: {hash_file}"));
+                println!("Created hash file: {file_path} -> {hash_file}");
             }
         }
     }

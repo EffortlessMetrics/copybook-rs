@@ -16,27 +16,27 @@ use serde_json::json;
 
 /// Create test schema for packed decimal testing
 fn create_packed_test_schema() -> Schema {
-    let copybook = r#"
+    let copybook = r"
        01 PACKED-TEST-RECORD.
           05 COMP3-2-0    PIC S9(2) COMP-3.
           05 COMP3-4-2    PIC S9(4)V99 COMP-3.
           05 COMP3-9-0    PIC S9(9) COMP-3.
           05 COMP3-18-4   PIC S9(18)V9999 COMP-3.
           05 COMP3-UNSIGNED PIC 9(4) COMP-3.
-    "#;
+    ";
 
     parse_copybook(copybook).expect("Failed to parse packed test schema")
 }
 
 /// Create test schema for zoned decimal testing
 fn create_zoned_test_schema() -> Schema {
-    let copybook = r#"
+    let copybook = r"
        01 ZONED-TEST-RECORD.
           05 ZONED-2-0    PIC S9(2).
           05 ZONED-4-0    PIC S9(4).
           05 ZONED-9-0    PIC S9(9).
           05 ZONED-UNSIGNED PIC 9(4).
-    "#;
+    ";
 
     parse_copybook(copybook).expect("Failed to parse zoned test schema")
 }
@@ -55,6 +55,7 @@ fn test_packed_zero_handling() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     let decode_options = DecodeOptions {
@@ -68,6 +69,8 @@ fn test_packed_zero_handling() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
     };
 
     // Test positive zero
@@ -126,6 +129,7 @@ fn test_packed_max_digits_and_overflow() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     // Test reasonable maximum values (avoiding overflow)
@@ -166,15 +170,14 @@ fn test_packed_max_digits_and_overflow() {
     assert!(overflow_result.is_err(), "Should fail on overflow");
 
     if let Err(e) = overflow_result {
-        let error_msg = format!("{}", e);
+        let error_msg = format!("{e}");
         assert!(
             error_msg.contains("CBKE501")
                 || error_msg.contains("CBKE510")
                 || error_msg.contains("overflow")
                 || error_msg.contains("too long")
                 || error_msg.contains("too large"),
-            "Should contain overflow error code or message: {}",
-            error_msg
+            "Should contain overflow error code or message: {error_msg}"
         );
     }
 
@@ -194,14 +197,13 @@ fn test_packed_max_digits_and_overflow() {
     );
 
     if let Err(e) = arith_overflow_result {
-        let error_msg = format!("{}", e);
+        let error_msg = format!("{e}");
         assert!(
             error_msg.contains("CBKE510")
                 || error_msg.contains("overflow")
                 || error_msg.contains("CBKE501")
                 || error_msg.contains("too large"),
-            "Should contain arithmetic overflow or size error: {}",
-            error_msg
+            "Should contain arithmetic overflow or size error: {error_msg}"
         );
     }
 }
@@ -246,12 +248,12 @@ fn test_packed_negative_values() {
 /// Test various scale scenarios
 #[test]
 fn test_scale_scenarios() {
-    let copybook = r#"
+    let copybook = r"
        01 SCALE-TEST-RECORD.
           05 SCALE-0      PIC S9(4) COMP-3.
           05 SCALE-9      PIC S9(4)V9(9) COMP-3.
           05 IMPLIED-SCALE PIC S99V9 COMP-3.
-    "#;
+    ";
 
     let schema = parse_copybook(copybook).expect("Failed to parse scale test schema");
 
@@ -295,8 +297,7 @@ fn test_scale_scenarios() {
         assert_eq!(
             e.code,
             copybook_core::ErrorCode::CBKE505_SCALE_MISMATCH,
-            "Should be scale mismatch error: {}",
-            e
+            "Should be scale mismatch error: {e}"
         );
     }
 }
@@ -358,8 +359,8 @@ fn test_zoned_overpunch_by_codepage() {
 
     // Note: Binary representations will be different due to different overpunch encoding
     // ASCII uses letters (e.g., 'K' for -2), EBCDIC uses zone nibbles (0xD2 for -2)
-    println!("ASCII:  {:?}", ascii_encoded);
-    println!("EBCDIC: {:?}", ebcdic_encoded);
+    println!("ASCII:  {ascii_encoded:?}");
+    println!("EBCDIC: {ebcdic_encoded:?}");
 
     // Verify that encodings are actually different for negative values
     assert_ne!(
@@ -370,13 +371,13 @@ fn test_zoned_overpunch_by_codepage() {
 
 /// Comprehensive test for zoned decimal overpunch across all codepages
 #[test]
-#[ignore] // TODO: Fix decimal zero normalization in display formatting
+#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
 fn test_zoned_overpunch_comprehensive() {
-    let copybook = r#"
+    let copybook = r"
        01 OVERPUNCH-TEST-RECORD.
           05 SINGLE-DIGIT    PIC S9.
           05 MULTI-DIGIT     PIC S9(5).
-    "#;
+    ";
 
     let schema = parse_copybook(copybook).expect("Failed to parse overpunch test schema");
 
@@ -391,7 +392,7 @@ fn test_zoned_overpunch_comprehensive() {
     ];
 
     for &codepage in &codepages {
-        println!("Testing codepage: {:?}", codepage);
+        println!("Testing codepage: {codepage:?}");
 
         let encode_options = EncodeOptions::new()
             .with_format(RecordFormat::Fixed)
@@ -411,25 +412,22 @@ fn test_zoned_overpunch_comprehensive() {
                 "MULTI-DIGIT": format!("1234{}", digit),
             });
 
-            let pos_encoded = encode_record(&schema, &positive_data, &encode_options).expect(
-                &format!("Failed to encode positive {} with {:?}", digit, codepage),
-            );
-            let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options).expect(
-                &format!("Failed to decode positive {} with {:?}", digit, codepage),
-            );
+            let pos_encoded = encode_record(&schema, &positive_data, &encode_options)
+                .unwrap_or_else(|_| panic!("Failed to encode positive {digit} with {codepage:?}"));
+            let pos_decoded = decode_record(&schema, &pos_encoded, &decode_options)
+                .unwrap_or_else(|_| panic!("Failed to decode positive {digit} with {codepage:?}"));
 
             assert_eq!(pos_decoded["SINGLE-DIGIT"], digit.to_string());
-            assert_eq!(pos_decoded["MULTI-DIGIT"], format!("1234{}", digit));
+            assert_eq!(pos_decoded["MULTI-DIGIT"], format!("1234{digit}"));
 
             // Negative
             let negative_data = json!({
                 "SINGLE-DIGIT": format!("-{}", digit),
-                "MULTI-DIGIT": if digit == 0 { "-0".to_string() } else { format!("-1234{}", digit) },
+                "MULTI-DIGIT": if digit == 0 { "-0".to_string() } else { format!("-1234{digit}") },
             });
 
-            let neg_encoded = encode_record(&schema, &negative_data, &encode_options).expect(
-                &format!("Failed to encode negative {} with {:?}", digit, codepage),
-            );
+            let neg_encoded = encode_record(&schema, &negative_data, &encode_options)
+                .unwrap_or_else(|_| panic!("Failed to encode negative {digit} with {codepage:?}"));
 
             // Debug: check what the last byte decodes to
             if digit == 0 {
@@ -444,19 +442,18 @@ fn test_zoned_overpunch_comprehensive() {
                 );
             }
 
-            let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options).expect(
-                &format!("Failed to decode negative {} with {:?}", digit, codepage),
-            );
+            let neg_decoded = decode_record(&schema, &neg_encoded, &decode_options)
+                .unwrap_or_else(|_| panic!("Failed to decode negative {digit} with {codepage:?}"));
 
             let expected_single = if digit == 0 {
                 "0"
             } else {
-                &format!("-{}", digit)
+                &format!("-{digit}")
             };
             let expected_multi = if digit == 0 {
                 "0"
             } else {
-                &format!("-1234{}", digit)
+                &format!("-1234{digit}")
             };
 
             assert_eq!(neg_decoded["SINGLE-DIGIT"], expected_single);
@@ -474,8 +471,7 @@ fn test_zoned_overpunch_comprehensive() {
 
                 assert_ne!(
                     neg_encoded, ascii_encoded,
-                    "Negative {} should produce different overpunch bytes for ASCII vs {:?}",
-                    digit, codepage
+                    "Negative {digit} should produce different overpunch bytes for ASCII vs {codepage:?}"
                 );
             }
         }
@@ -484,12 +480,12 @@ fn test_zoned_overpunch_comprehensive() {
 
 /// Test zero sign policies and normalization
 #[test]
-#[ignore] // TODO: Fix decimal zero normalization in display formatting
+#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
 fn test_zoned_zero_sign_handling() {
-    let copybook = r#"
+    let copybook = r"
        01 ZERO-TEST-RECORD.
           05 ZERO-FIELD    PIC S9(3).
-    "#;
+    ";
 
     let schema = parse_copybook(copybook).expect("Failed to parse zero test schema");
 
@@ -534,12 +530,12 @@ fn test_zoned_zero_sign_handling() {
 /// Test ASCII negative zero multi-digit handling (Pin the bug)
 /// S9(5): "-12340" must decode to "-12340", only pure -0 normalizes to "0"
 #[test]
-#[ignore] // TODO: Fix decimal zero normalization in display formatting
+#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
 fn test_ascii_negative_zero_multi_digit() {
-    let copybook = r#"
+    let copybook = r"
        01 ASCII-NEG-ZERO-TEST-RECORD.
           05 MULTI-DIGIT-FIELD    PIC S9(5).
-    "#;
+    ";
 
     let schema = parse_copybook(copybook).expect("Failed to parse ASCII negative zero test schema");
 
@@ -591,14 +587,13 @@ fn test_ascii_negative_zero_multi_digit() {
         });
 
         let encoded_case = encode_record(&schema, &test_data, &encode_options)
-            .expect(&format!("Failed to encode {}", input));
+            .unwrap_or_else(|_| panic!("Failed to encode {input}"));
         let decoded_case = decode_record(&schema, &encoded_case, &decode_options)
-            .expect(&format!("Failed to decode {}", input));
+            .unwrap_or_else(|_| panic!("Failed to decode {input}"));
 
         assert_eq!(
             decoded_case["MULTI-DIGIT-FIELD"], *expected,
-            "Input {} should decode to {}",
-            input, expected
+            "Input {input} should decode to {expected}"
         );
     }
 }
@@ -607,11 +602,11 @@ fn test_ascii_negative_zero_multi_digit() {
 #[test]
 #[ignore = "Test expectations conflict with negative zero normalization - needs review"]
 fn test_blank_when_zero_edge_cases() {
-    let copybook = r#"
+    let copybook = r"
        01 BWZ-TEST-RECORD.
           05 BWZ-FIELD    PIC S9(4) BLANK WHEN ZERO.
           05 NORMAL-FIELD PIC S9(4).
-    "#;
+    ";
 
     let schema = parse_copybook(copybook).expect("Failed to parse BWZ test schema");
 

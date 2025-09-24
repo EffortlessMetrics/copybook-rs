@@ -82,18 +82,19 @@ pub fn run(
     let file_size = file_metadata.len();
 
     // Configure decode options for verification
-    let decode_options = DecodeOptions {
-        format: opts.format,
-        codepage: opts.codepage,
-        json_number_mode: JsonNumberMode::Native, // Simple mode for verification
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: opts.strict,
-        max_errors: Some(u64::from(opts.max_errors)),
-        on_decode_unmappable: UnmappablePolicy::Error,
-        threads: 1, // Single-threaded for deterministic error reporting
-    };
+    let decode_options = DecodeOptions::new()
+        .with_format(opts.format)
+        .with_codepage(opts.codepage)
+        .with_json_number_mode(JsonNumberMode::Native) // Simple mode for verification
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(opts.strict)
+        .with_max_errors(Some(u64::from(opts.max_errors)))
+        .with_unmappable_policy(UnmappablePolicy::Error)
+        .with_threads(1) // Single-threaded for deterministic error reporting
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
     // Validate record format constraints
     match opts.format {

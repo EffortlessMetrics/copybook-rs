@@ -26,6 +26,8 @@ pub struct DecodeArgs<'a> {
     pub on_decode_unmappable: UnmappablePolicy,
     pub threads: usize,
     pub strict_comments: bool,
+    pub preserve_zoned_encoding: bool,
+    pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
 }
 
 pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
@@ -33,6 +35,15 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
 
     if args.strict_comments {
         info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
+    }
+
+    // Validate flag combinations
+    if args.preferred_zoned_encoding != copybook_codec::ZonedEncodingFormat::Auto
+        && !args.preserve_zoned_encoding
+    {
+        return Err(
+            "--preferred-zoned-encoding requires --preserve-zoned-encoding to be enabled".into(),
+        );
     }
 
     // Read copybook file or stdin
@@ -56,18 +67,19 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
         args.max_errors
     };
 
-    let options = DecodeOptions {
-        format: args.format,
-        codepage: args.codepage,
-        json_number_mode: args.json_number,
-        emit_filler: args.emit_filler,
-        emit_meta: args.emit_meta,
-        emit_raw: args.emit_raw,
-        strict_mode: effective_strict_mode,
-        max_errors: effective_max_errors,
-        on_decode_unmappable: args.on_decode_unmappable,
-        threads: args.threads,
-    };
+    let options = DecodeOptions::new()
+        .with_format(args.format)
+        .with_codepage(args.codepage)
+        .with_json_number_mode(args.json_number)
+        .with_emit_filler(args.emit_filler)
+        .with_emit_meta(args.emit_meta)
+        .with_emit_raw(args.emit_raw)
+        .with_strict_mode(effective_strict_mode)
+        .with_max_errors(effective_max_errors)
+        .with_unmappable_policy(args.on_decode_unmappable)
+        .with_threads(args.threads)
+        .with_preserve_zoned_encoding(args.preserve_zoned_encoding)
+        .with_preferred_zoned_encoding(args.preferred_zoned_encoding);
 
     // Decode file using atomic write
     let summary = {

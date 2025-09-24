@@ -33,7 +33,7 @@ fn normalize_json_value(value: Value) -> Value {
 fn normalize_stdout(output: &str) -> String {
     output
         .lines()
-        .map(|line| line.trim_end())
+        .map(str::trim_end)
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
@@ -64,16 +64,16 @@ fn test_comp3_canonical() {
 {"RECORD-ID": "0002", "POSITIVE-AMOUNT": "1", "NEGATIVE-AMOUNT": "-1", "DECIMAL-AMOUNT": "-999.99", "UNSIGNED-AMOUNT": "0"}"#;
 
     // Configure encode options with explicit settings
-    let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII, // Explicit codepage
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-    };
+    let encode_options = EncodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII) // Explicit codepage
+        .with_use_raw(false)
+        .with_bwz_encode(false)
+        .with_strict_mode(true)
+        .with_max_errors(None)
+        .with_threads(1)
+        .with_coerce_numbers(false)
+        .with_zoned_encoding_override(None);
 
     // Encode JSONL to binary
     let mut binary_output = Vec::new();
@@ -94,21 +94,22 @@ fn test_comp3_canonical() {
     // let expected_hex = "00313233343500..."; // stored expected value
     // assert_eq!(binary_to_hex(&binary_output), expected_hex);
 
-    println!("Generated hex for comp3_test.bin: {}", expected_hex);
+    println!("Generated hex for comp3_test.bin: {expected_hex}");
 
     // Configure decode options
-    let decode_options = DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII, // Explicit codepage
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: true,
-        max_errors: None,
-        on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-        threads: 1,
-    };
+    let decode_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII) // Explicit codepage
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(true)
+        .with_max_errors(None)
+        .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+        .with_threads(1)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto);
 
     // Decode binary back to JSONL
     let mut decoded_output = Vec::new();
@@ -145,24 +146,24 @@ fn test_comp3_canonical() {
         .join("\n");
 
     // Expected normalized JSON (would be stored in a file)
-    let expected_json_lines = vec![
+    let expected_json_lines = [
         r#"{"DECIMAL-AMOUNT":"123.45","NEGATIVE-AMOUNT":"-67890","POSITIVE-AMOUNT":"12345","RECORD-ID":"0001","UNSIGNED-AMOUNT":"999","__record_length":8}"#,
         r#"{"DECIMAL-AMOUNT":"-999.99","NEGATIVE-AMOUNT":"-1","POSITIVE-AMOUNT":"1","RECORD-ID":"0002","UNSIGNED-AMOUNT":"0","__record_length":8}"#,
     ];
     let expected_normalized = expected_json_lines.join("\n");
 
     println!("Generated normalized JSON:");
-    println!("{}", normalized_jsonl);
+    println!("{normalized_jsonl}");
     println!("Expected normalized JSON:");
-    println!("{}", expected_normalized);
+    println!("{expected_normalized}");
 
     // In a real test, we would compare against the stored expected value
     // assert_eq!(normalized_jsonl, expected_normalized);
 }
 
-/// Test to generate canonical fixtures (run with CREATE_CANONICAL_FIXTURES=1)
+/// Test to generate canonical fixtures (run with `CREATE_CANONICAL_FIXTURES=1`)
 #[test]
-#[ignore] // Only run when explicitly requested
+#[ignore = "Only run when explicitly requested"]
 fn test_generate_canonical_fixtures() {
     if std::env::var("CREATE_CANONICAL_FIXTURES").is_ok() {
         // This test would generate the canonical hex dumps and normalized JSON

@@ -1,4 +1,10 @@
 #![cfg(feature = "comprehensive-tests")]
+#![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::cast_precision_loss
+)]
 //! Comprehensive RDW tests: reserved bytes, ASCII corruption detection, zero-length records
 //!
 //! This test suite validates RDW (Record Descriptor Word) handling according to

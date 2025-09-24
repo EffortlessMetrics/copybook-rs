@@ -92,6 +92,10 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 - `--codepage <CP>` - Character encoding: cp037, cp273, cp500, cp1047, cp1140, ascii (default: cp037)
 - `--on-decode-unmappable <POLICY>` - Handle unmappable chars: error, replace, skip (default: error)
 
+**Zoned Decimal Encoding (Experimental):**
+- `--preserve-zoned-encoding` - Preserve original encoding format (ASCII/EBCDIC zones) for round-trip fidelity
+- `--preferred-zoned-encoding <FORMAT>` - Preferred format for ambiguous detection: ascii, ebcdic, auto (default: auto)
+
 **Error Handling:**
 - `--strict` - Stop on first error (default: lenient)
 - `--max-errors <N>` - Maximum errors before stopping
@@ -138,6 +142,19 @@ copybook decode customer.cpy large-data.bin \
   --format fixed \
   --threads 8 \
   --output data.jsonl
+
+# Decode with zoned encoding preservation (when CLI flags are implemented)
+copybook decode financial.cpy mainframe-data.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --output preserved.jsonl
+
+# Decode with preferred encoding fallback
+copybook decode legacy.cpy mixed-data.bin \
+  --format fixed \
+  --preferred-zoned-encoding ebcdic \
+  --output detected.jsonl
 ```
 
 ### encode
@@ -163,6 +180,9 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 **Encoding Options:**
 - `--use-raw` - Use raw bytes from __raw_b64 fields when available
 - `--bwz-encode` - Encode zero values as spaces for BLANK WHEN ZERO fields
+
+**Zoned Decimal Encoding (Experimental):**
+- `--zoned-encoding-override <FORMAT>` - Override zoned decimal format: ascii, ebcdic (default: respect preserved formats)
 
 **Error Handling:**
 - `--fail-fast` - Stop on first error (default: true)
@@ -194,6 +214,17 @@ copybook encode customer.cpy data.jsonl \
   --format fixed \
   --bwz-encode \
   --output data.bin
+
+# Encode with zoned encoding override (when CLI flags are implemented)
+copybook encode financial.cpy data.jsonl \
+  --format fixed \
+  --zoned-encoding-override ascii \
+  --output ascii-zones.bin
+
+# Encode respecting preserved formats (default behavior)
+copybook encode financial.cpy preserved.jsonl \
+  --format fixed \
+  --output roundtrip.bin
 ```
 
 ### verify

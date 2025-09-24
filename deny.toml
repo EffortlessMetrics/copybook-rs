@@ -32,7 +32,6 @@ allow = [
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
     "AGPL-3.0-or-later",
 ]
 
@@ -51,7 +50,13 @@ deny = [
     { name = "openssl", version = "<0.10.55" },
 ]
 # Certain crates/versions that will be skipped when doing duplicate detection
-skip = []
+skip = [
+    { name = "windows-sys", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows-targets", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows-link", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows_x86_64_gnu", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows_x86_64_msvc", reason = "transitive, multiple versions unavoidable" },
+]
 # Similarly to `skip` allows you to skip certain crates from being checked
 skip-tree = []
 

@@ -23,6 +23,8 @@ fn create_rdw_decode_options(emit_raw: RawMode, strict: bool) -> DecodeOptions {
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: None,
     }
 }
 
@@ -36,6 +38,7 @@ fn create_rdw_encode_options(use_raw: bool, strict: bool) -> EncodeOptions {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     }
 }
 
@@ -332,11 +335,11 @@ fn test_rdw_multiple_records() {
 
 #[test]
 fn test_rdw_with_odo_variable_length() {
-    let copybook = r#"
+    let copybook = r"
 01 ODO-RDW-RECORD.
    05 COUNTER PIC 9(2).
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(3).
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let options = create_rdw_decode_options(RawMode::Off, false);

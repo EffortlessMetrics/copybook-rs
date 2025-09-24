@@ -12,18 +12,19 @@ use serde_json::Value;
 use std::io::Cursor;
 
 fn create_test_decode_options(codepage: Codepage, strict: bool) -> DecodeOptions {
-    DecodeOptions {
-        format: RecordFormat::Fixed,
-        codepage,
-        json_number_mode: JsonNumberMode::Lossless,
-        emit_filler: false,
-        emit_meta: false,
-        emit_raw: RawMode::Off,
-        strict_mode: strict,
-        max_errors: None,
-        on_decode_unmappable: UnmappablePolicy::Error,
-        threads: 1,
-    }
+    DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(codepage)
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(strict)
+        .with_max_errors(None)
+        .with_unmappable_policy(UnmappablePolicy::Error)
+        .with_threads(1)
+        .with_preserve_zoned_encoding(false)
+        .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto)
 }
 
 #[test]
@@ -43,15 +44,14 @@ fn test_zoned_decimal_ebcdic_sign_zones_comprehensive() {
         let mut output = Vec::new();
 
         let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-        assert!(result.is_ok(), "Failed for {}: {:?}", description, result);
+        assert!(result.is_ok(), "Failed for {description}: {result:?}");
 
         let output_str = String::from_utf8(output).unwrap();
         let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
         assert_eq!(
             json_record["SIGNED-FIELD"], expected,
-            "Failed for {}",
-            description
+            "Failed for {description}"
         );
     }
 
@@ -86,15 +86,14 @@ fn test_zoned_decimal_ascii_sign_zones_comprehensive() {
         let mut output = Vec::new();
 
         let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-        assert!(result.is_ok(), "Failed for {}: {:?}", description, result);
+        assert!(result.is_ok(), "Failed for {description}: {result:?}");
 
         let output_str = String::from_utf8(output).unwrap();
         let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
         assert_eq!(
             json_record["SIGNED-FIELD"], expected,
-            "Failed for {}",
-            description
+            "Failed for {description}"
         );
     }
 
@@ -116,19 +115,18 @@ fn test_zoned_decimal_ascii_sign_zones_comprehensive() {
 
         assert_eq!(
             json_record["SIGNED-FIELD"], expected,
-            "Failed for {}",
-            description
+            "Failed for {description}"
         );
     }
 }
 
 #[test]
 fn test_blank_when_zero_comprehensive() {
-    let copybook = r#"
+    let copybook = r"
 01 BWZ-RECORD.
    05 BWZ-FIELD PIC 9(5) BLANK WHEN ZERO.
    05 NORMAL-FIELD PIC 9(5).
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false);
 
@@ -186,12 +184,12 @@ fn test_zoned_negative_zero_normalization() {
 
 #[test]
 fn test_packed_decimal_comprehensive() {
-    let copybook = r#"
+    let copybook = r"
 01 PACKED-RECORD.
    05 PACKED-ODD PIC 9(5) COMP-3.
    05 PACKED-EVEN PIC 9(6) COMP-3.
    05 PACKED-SIGNED PIC S9(3) COMP-3.
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false);
 
@@ -232,28 +230,27 @@ fn test_packed_decimal_sign_nibbles_comprehensive() {
         let mut output = Vec::new();
 
         let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-        assert!(result.is_ok(), "Failed for {}: {:?}", description, result);
+        assert!(result.is_ok(), "Failed for {description}: {result:?}");
 
         let output_str = String::from_utf8(output).unwrap();
         let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
         assert_eq!(
             json_record["SIGNED-PACKED"], expected,
-            "Failed for {}",
-            description
+            "Failed for {description}"
         );
     }
 }
 
 #[test]
 fn test_binary_signed_unsigned_edges() {
-    let copybook = r#"
+    let copybook = r"
 01 BINARY-RECORD.
    05 UNSIGNED-16 PIC 9(4) COMP.
    05 SIGNED-16 PIC S9(4) COMP.
    05 UNSIGNED-32 PIC 9(9) COMP.
    05 SIGNED-32 PIC S9(9) COMP.
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
 
     let options = create_test_decode_options(Codepage::ASCII, false);
@@ -296,13 +293,13 @@ fn test_binary_signed_unsigned_edges() {
 #[test]
 fn test_fixed_scale_rendering_normative() {
     // Test NORMATIVE fixed-scale rendering for decimals
-    let copybook = r#"
+    let copybook = r"
 01 DECIMAL-FIELDS.
    05 SCALE-0 PIC 9(5) COMP-3.
    05 SCALE-2 PIC 9(5)V99 COMP-3.
    05 SCALE-4 PIC 9(3)V9999 COMP-3.
    05 NEGATIVE-SCALE PIC S9(3)V99 COMP-3.
-"#;
+";
 
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false);
@@ -363,11 +360,11 @@ fn test_invalid_data_error_handling() {
 
 #[test]
 fn test_lenient_mode_error_handling() {
-    let copybook = r#"
+    let copybook = r"
 01 MIXED-RECORD.
    05 ZONED-FIELD PIC 9(3).
    05 PACKED-FIELD PIC 9(3) COMP-3.
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false); // Lenient mode
 
@@ -384,11 +381,11 @@ fn test_lenient_mode_error_handling() {
 #[test]
 fn test_alphanumeric_handling_normative() {
     // Test NORMATIVE alphanumeric handling: preserve all spaces, no trimming
-    let copybook = r#"
+    let copybook = r"
 01 ALPHA-RECORD.
    05 FIELD1 PIC X(10).
    05 FIELD2 PIC X(5).
-"#;
+";
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false);
 
@@ -429,7 +426,7 @@ fn test_codepage_specific_behavior() {
         let mut output = Vec::new();
 
         let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-        assert!(result.is_ok(), "Failed for codepage {:?}", codepage);
+        assert!(result.is_ok(), "Failed for codepage {codepage:?}");
 
         // For ASCII, should be unchanged; for EBCDIC, should be converted
         let output_str = String::from_utf8(output).unwrap();
@@ -447,18 +444,17 @@ fn test_codepage_specific_behavior() {
 
 #[test]
 fn test_json_number_modes() {
-    let copybook = r#"
+    let copybook = r"
 01 NUMERIC-RECORD.
    05 ZONED-FIELD PIC 9(5)V99.
    05 PACKED-FIELD PIC 9(3)V9 COMP-3.
    05 BINARY-FIELD PIC 9(5) COMP.
-"#;
+";
     let _schema = parse_copybook(copybook).unwrap();
     // TODO: This test is currently failing due to record length calculation changes after COMP-3 fix
     // The COMP-3 encoding/decoding is working correctly (verified above), but the overall record
     // processing has issues that need separate investigation
     println!("SKIPPED: Test needs investigation for record length calculation after COMP-3 fix");
-    return;
 }
 
 #[test]

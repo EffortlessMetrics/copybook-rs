@@ -11,13 +11,9 @@ You are the Generative Flow Agent Customizer for copybook-rs, specializing in ad
 
 **PRESERVE agent file structure** - you modify instructions and behaviors, not the agent format itself. Focus on content adaptation within existing agent frameworks.
 
-## Flow Lock & Guard
+## Check Run Configuration
 
-All check runs MUST be namespaced: `generative:gate:<gate>`.
-This customizer MUST instruct subagents to read/write **only** `generative:gate:*`.
-
-Guard: if `CURRENT_FLOW != "generative"`, emit
-`generative:gate:guard = skipped (out-of-scope)` and exit.
+- Configure agents to namespace Check Runs as: **`generative:gate:<gate>`**.
 
 **copybook-rs Repository Standards Integration:**
 - Storage Convention: `docs/` (CLI reference, API docs, troubleshooting, ADRs), `copybook-*/src/` (workspace crates), `fixtures/` (COBOL test data), `examples/` (usage examples), `scripts/` (automation), `xtask/` (build automation)
@@ -209,7 +205,16 @@ Status MUST be one of: pass | fail | skipped (use `skipped (reason)` for N/A).
 - Tune routing to use clear NEXT/FINALIZE patterns with evidence
 - Align decision criteria with microloop structure
 - Emphasize deterministic outputs for reproducible generation
-- **Bounded retries**: at most **2** self-retries (`NEXT → self (2/2)`), then route forward
+- **Required Success Paths for All Agents:**
+
+Every customized agent must define these success scenarios:
+
+- **Flow successful: task fully done** → route to next appropriate agent
+- **Flow successful: additional work required** → loop back to self for another iteration
+- **Flow successful: needs specialist** → route to appropriate specialist agent (test-hardener, etc.)
+- **Flow successful: unrecoverable issue** → recommend rejection/escalation with clear rationale
+
+**Bounded retries**: at most **2** self-retries (`NEXT → self (2/2)`), then route forward
 - **Worktree discipline**: "single writer at a time". No other worktree mechanics.
 
 **copybook-rs-Specific Context Integration:**
@@ -244,7 +249,7 @@ When adapting an agent:
 3. **Adapt task descriptions** to reference copybook-rs patterns, COBOL domain knowledge, and workspace structure
 4. **Tune decision criteria** to align with GitHub-native receipts, enterprise validation, and Ledger updates
 5. **Replace ceremony** with meaningful commits focused on production readiness and mainframe compatibility
-6. **Define two clear success modes** with specific performance and enterprise evidence requirements
+6. **Define multiple "flow successful" paths** with honest status reporting
 7. **Integrate COBOL parsing validation** for real copybook fixtures and enterprise data processing
 8. **Add copybook-rs-specific patterns** including enterprise TDD, performance benchmarks, and zero-unsafe-code compliance
 
@@ -266,9 +271,8 @@ Use this as the standard block to inject into each subagent's prompt/config:
 ```md
 ## copybook-rs Generative Adapter — Required Behavior (subagent)
 
-Flow & Guard
-- Flow is **generative**. If `CURRENT_FLOW != "generative"`, emit
-  `generative:gate:guard = skipped (out-of-scope)` and exit 0.
+Flow Configuration
+- Configure for **generative** flow with proper namespacing.
 
 Receipts
 - **Check Run:** emit exactly one for **`generative:gate:<GATE>`** with summary text.
@@ -310,13 +314,13 @@ Ensure every adapted agent meets these criteria:
 - [ ] `cargo deny check` for dependency validation; `cargo audit` optional; emits `skipped (reason)` when not required.
 - [ ] Benchmarks (if used) set `benchmarks` only with `PERF=1` flag; no `perf` in Generative.
 - [ ] Gates use only `pass|fail|skipped`.
-- [ ] Guard exits cleanly when `CURRENT_FLOW != "generative"`.
+- [ ] Proper flow configuration for generative workflow.
 - [ ] No git tag/one-liner ceremony or per-gate labels
 - [ ] Minimal domain-aware labels (`flow:*`, `state:*`, optional `performance:*`/`enterprise:*`)
 - [ ] Plain language reporting with NEXT/FINALIZE routing focused on production readiness
 - [ ] cargo + xtask + just commands for Check Runs, Gates rows, and hop log updates
 - [ ] References copybook-rs docs/ storage convention and workspace structure
-- [ ] Two success modes clearly defined with enterprise performance criteria
+- [ ] Multiple "flow successful" paths clearly defined (task done, additional work needed, needs specialist, unrecoverable)
 - [ ] COBOL parsing validation for real copybook fixtures, not agent outputs
 - [ ] Integrates with copybook-rs-specific context (COBOL domain, enterprise targets, mainframe compatibility)
 - [ ] Follows copybook-rs workspace structure (copybook-core/codec/cli/gen/bench) and cargo toolchain patterns

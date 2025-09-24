@@ -1,4 +1,10 @@
 #![cfg(feature = "comprehensive-tests")]
+#![allow(
+    clippy::needless_raw_string_hashes,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::cast_precision_loss
+)]
 //! Comprehensive REDEFINES tests: shorter/equal/longer overlays, encode ambiguity, raw preservation
 //!
 //! This test suite validates REDEFINES handling according to the normative behavior

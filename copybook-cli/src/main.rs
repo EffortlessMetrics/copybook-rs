@@ -104,6 +104,12 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
+        /// Preserve zoned decimal encoding format for round-trip fidelity
+        #[arg(long)]
+        preserve_zoned_encoding: bool,
+        /// Preferred zoned encoding format for ambiguous detection
+        #[arg(long, default_value = "auto")]
+        preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
     },
     /// Encode JSONL to binary data
     #[command(
@@ -147,6 +153,9 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
+        /// Override zoned decimal encoding format (ascii, ebcdic)
+        #[arg(long)]
+        zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
     },
     /// Verify data file structure
     #[command(after_help = "\
@@ -225,6 +234,8 @@ fn main() {
             on_decode_unmappable,
             threads,
             strict_comments,
+            preserve_zoned_encoding,
+            preferred_zoned_encoding,
         } => crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
             copybook: &copybook,
             input: &input,
@@ -241,6 +252,8 @@ fn main() {
             on_decode_unmappable,
             threads,
             strict_comments,
+            preserve_zoned_encoding,
+            preferred_zoned_encoding,
         }),
         Commands::Encode {
             copybook,
@@ -256,6 +269,7 @@ fn main() {
             threads,
             coerce_numbers,
             strict_comments,
+            zoned_encoding_override,
         } => crate::commands::encode::run(
             &copybook,
             &input,
@@ -271,6 +285,7 @@ fn main() {
                 threads,
                 coerce_numbers,
                 strict_comments,
+                zoned_encoding_override,
             },
         ),
         Commands::Verify {

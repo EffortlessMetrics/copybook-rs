@@ -11,7 +11,8 @@
 //! the normative behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, ZonedEncodingFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, Occurs, parse_copybook};
 use serde_json::{Value, json};
@@ -277,7 +278,7 @@ fn test_odo_payload_length_correctness() {
         let mut output = Vec::new();
 
         let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-        assert!(result.is_ok(), "Failed for {} items", expected_count);
+        assert!(result.is_ok(), "Failed for {expected_count} items");
 
         let output_str = String::from_utf8(output).unwrap();
         let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
@@ -286,8 +287,7 @@ fn test_odo_payload_length_correctness() {
         assert_eq!(
             items.len(),
             expected_count,
-            "Wrong item count for {} items",
-            expected_count
+            "Wrong item count for {expected_count} items",
         );
     }
 }

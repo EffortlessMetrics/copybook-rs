@@ -39,7 +39,8 @@ fn test_zoned_encoding_format_enum_variants() {
 
     let ascii_format = ZonedEncodingFormat::Ascii;
     let ebcdic_format = ZonedEncodingFormat::Ebcdic;
-    let auto_format = ZonedEncodingFormat::Auto;
+    #[allow(clippy::no_effect_underscore_binding)]
+    let _auto_format = ZonedEncodingFormat::Auto;
 
     assert!(ascii_format.is_ascii());
     assert!(!ascii_format.is_ebcdic());

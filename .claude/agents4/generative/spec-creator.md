@@ -110,25 +110,25 @@ You will follow a rigorous three-phase approach: Draft → Analyze → Refine
 **Final Deliverable:**
 Provide success message summarizing created artifacts and route appropriately:
 
-**BitNet.rs-Specific Context:**
-- Specifications align with inference pipeline (Model Loading → Quantization → Inference → Output)
-- Validate performance against latency targets and GPU memory constraints
-- Consider quantization accuracy and C++ reference compatibility
-- Address GPU/CPU optimization patterns and SIMD efficiency
-- Account for device-aware error handling and production reliability
-- Reference existing patterns: quantization traits, GPU kernels, GGUF parsers, universal tokenizers
-- Align with tooling: `cargo xtask` commands, feature validation (`cpu|gpu|ffi`), TDD practices
-- Follow storage: `docs/explanation/` (specs), `docs/reference/` (API contracts)
-- Validate GGUF compatibility and tensor alignment
-- Ensure cross-validation against C++ implementation when applicable
-- Consider WebAssembly compatibility for browser inference
+**copybook-rs-Specific Context:**
+- Specifications align with data processing pipeline (Parsing → Encoding → Decoding → CLI Output)
+- Validate performance against enterprise targets and memory constraints
+- Consider COBOL parsing accuracy and mainframe compatibility
+- Address enterprise optimization patterns and performance efficiency
+- Account for structured error handling and production reliability
+- Reference existing patterns: parsing traits, encoding/decoding, CLI interfaces, data conversion
+- Align with tooling: `cargo xtask` commands, workspace validation, TDD practices
+- Follow storage: `docs/` (specs), `docs/` (API contracts)
+- Validate COBOL copybook compatibility and data accuracy
+- Ensure enterprise deployment readiness for production mainframe workloads
+- Consider CLI integration and subcommand functionality
 
 **Standardized Evidence Format:**
 ```
-spec: comprehensive architectural blueprint created in docs/explanation/
-api: contracts defined for quantization interfaces and neural network operations
+spec: comprehensive architectural blueprint created in docs/
+api: contracts defined for COBOL parsing interfaces and enterprise data processing operations
 validation: acceptance criteria mapped with AC_ID tags for cargo test integration
-compatibility: GGUF format alignment and C++ reference validation requirements
+compatibility: COBOL copybook format alignment and mainframe validation requirements
 ```
 
 **Example Routing Decisions:**

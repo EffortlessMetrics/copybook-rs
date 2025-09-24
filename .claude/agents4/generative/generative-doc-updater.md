@@ -152,7 +152,7 @@ gh api repos/:owner/:repo/check-runs --method POST \
   --field head_sha="$(git rev-parse HEAD)" \
   --field status=completed \
   --field conclusion=success \
-  --field summary="docs: Updated <affected-sections> for <feature>; validated with cargo test --doc"
+  --field summary="docs: Updated <affected-sections> for <feature>; validated with cargo test --workspace"
 ```
 
 ### Ledger Update Process

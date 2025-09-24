@@ -8,6 +8,7 @@ use copybook_codec::{
     UnmappablePolicy,
 };
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     println!("copybook-rs Configuration and Options Demo");
     println!("==========================================");
@@ -104,10 +105,11 @@ fn main() {
     println!("  Bytes processed: {:.2} MB", summary.bytes_processed_mb());
     println!("  Throughput: {:.2} MB/s", summary.throughput_mbps);
     println!("  Threads used: {}", summary.threads_used);
-    println!(
-        "  Peak memory: {:.2} MB",
-        summary.peak_memory_bytes.unwrap() as f64 / (1024.0 * 1024.0)
-    );
+    #[allow(clippy::cast_precision_loss)]
+    {
+        let peak_memory_mb = summary.peak_memory_bytes.unwrap() as f64 / (1024.0 * 1024.0);
+        println!("  Peak memory: {peak_memory_mb:.2} MB");
+    }
     println!("  Schema fingerprint: {}", summary.schema_fingerprint);
     println!("  Has errors: {}", summary.has_errors());
     println!("  Has warnings: {}", summary.has_warnings());

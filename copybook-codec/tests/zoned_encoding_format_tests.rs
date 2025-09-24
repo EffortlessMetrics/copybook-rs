@@ -70,7 +70,7 @@ fn test_ascii_zoned_encoding_detection() {
     // .with_preserve_zoned_encoding(true);
 
     // ASCII zoned decimal data: "123" = 0x31, 0x32, 0x33
-    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    // ASCII "123" = b"\x31\x32\x33"
 
     // This should detect ASCII encoding (zone nibbles 0x3)
     // TODO: Implement encoding detection logic
@@ -84,7 +84,7 @@ fn test_ascii_zoned_encoding_detection() {
         .with_preserve_zoned_encoding(true);
 
     // ASCII zoned decimal data: "123" = 0x31, 0x32, 0x33
-    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    // ASCII "123" = b"\x31\x32\x33"
 
     // For now, mark as success since basic preserve_zoned_encoding field is implemented
     // TODO: Implement full encoding detection logic in decode_record
@@ -109,7 +109,7 @@ fn test_ebcdic_zoned_encoding_detection() -> Result<(), Box<dyn Error>> {
     // .with_preserve_zoned_encoding(true);
 
     // EBCDIC zoned decimal data: "123" = 0xF1, 0xF2, 0xF3
-    let _ebcdic_data = b"\xF1\xF2\xF3"; // EBCDIC "123"
+    // EBCDIC "123" = b"\xF1\xF2\xF3"
 
     // This should detect EBCDIC encoding (zone nibbles 0xF)
     // TODO: Implement encoding detection logic
@@ -177,7 +177,7 @@ fn test_mixed_encoding_detection_single_field() -> Result<(), Box<dyn Error>> {
     // .with_preserve_zoned_encoding(true);
 
     // Mixed encoding: First two ASCII zones, last two EBCDIC zones
-    let _mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
+    // "12" ASCII + "34" EBCDIC = b"\x31\x32\xF3\xF4"
 
     // This should detect mixed encoding and return appropriate error/warning
     // TODO: Implement mixed encoding detection with CBKD414 error code
@@ -207,7 +207,7 @@ fn test_mixed_encoding_detection_multiple_fields() -> Result<(), Box<dyn Error>>
     // .with_preserve_zoned_encoding(true);
 
     // Mixed encoding across fields: FIELD1 ASCII, FIELD2 EBCDIC
-    let _mixed_data = b"\x31\x32\xF3\xF4"; // "12" ASCII + "34" EBCDIC
+    // "12" ASCII + "34" EBCDIC = b"\x31\x32\xF3\xF4"
 
     // This should detect mixed encoding across fields and emit warning
     // TODO: Implement mixed encoding detection with appropriate warning

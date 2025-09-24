@@ -50,7 +50,7 @@ fn test_encode_preserves_ascii_format() -> Result<(), Box<dyn Error>> {
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
-    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    // ASCII "123" = b"\x31\x32\x33"
 
     // TODO: Decode with preservation to get JSON with encoding metadata
     // let json_result = copybook_codec::decode_record(&schema, ascii_data, &decode_options)?;
@@ -88,7 +88,7 @@ fn test_encode_preserves_ebcdic_format() -> Result<(), Box<dyn Error>> {
     // TODO: Add when implemented
     // .with_preserve_zoned_encoding(true);
 
-    let _ebcdic_data = b"\xF1\xF2\xF3"; // EBCDIC "123"
+    // EBCDIC "123" = b"\xF1\xF2\xF3"
 
     // TODO: Decode with preservation to get JSON with encoding metadata
     // let json_result = copybook_codec::decode_record(&schema, ebcdic_data, &decode_options)?;
@@ -225,7 +225,7 @@ fn test_encoding_metadata_json_structure() -> Result<(), Box<dyn Error>> {
     // .with_preserve_zoned_encoding(true);
 
     // Mixed encoding data
-    let _mixed_data = b"\x31\x32\xF1\xF2\xF3"; // "12" ASCII + "123" EBCDIC
+    // "12" ASCII + "123" EBCDIC = b"\x31\x32\xF1\xF2\xF3"
 
     // TODO: Decode should produce JSON with field-level encoding metadata
     // let json_result = copybook_codec::decode_record(&schema, mixed_data, &decode_options)?;
@@ -265,7 +265,7 @@ fn test_auto_encoding_detection() -> Result<(), Box<dyn Error>> {
     // .with_preferred_zoned_encoding(Some(ZonedEncodingFormat::Auto));
 
     // ASCII data with Auto detection
-    let _ascii_data = b"\x31\x32\x33"; // ASCII "123"
+    // ASCII "123" = b"\x31\x32\x33"
 
     // TODO: Auto detection should identify ASCII zones despite EBCDIC codepage
     // let json_result = copybook_codec::decode_record(&schema, ascii_data, &decode_options)?;

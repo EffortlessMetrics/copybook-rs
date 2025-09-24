@@ -4,6 +4,11 @@ use assert_cmd::Command;
 use std::path::PathBuf;
 
 /// Find the workspace root by looking for Cargo.toml
+///
+/// # Panics
+///
+/// Panics if the current directory cannot be accessed or if the workspace root
+/// cannot be found by traversing parent directories.
 #[must_use]
 pub fn find_workspace_root() -> PathBuf {
     let mut current = std::env::current_dir().expect("Failed to get current directory");
@@ -31,6 +36,10 @@ pub fn fixture_path(relative_path: &str) -> PathBuf {
 }
 
 /// Create a copybook command with standard fixed format and CP037 codepage args
+///
+/// # Panics
+///
+/// Panics if the copybook binary cannot be found in the cargo target directory.
 #[must_use]
 pub fn copybook_cmd(args: &[&str]) -> Command {
     let mut cmd = Command::cargo_bin("copybook").unwrap();

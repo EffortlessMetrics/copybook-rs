@@ -31,67 +31,99 @@ impl fmt::Display for Error {
 }
 
 /// Stable error codes for programmatic error handling
+///
+/// The copybook-rs error taxonomy uses a structured approach with stable error codes
+/// that enable programmatic error handling across all components. Each code follows
+/// the pattern `CBK[Category][Number]_[Description]` where:
+///
+/// - **CBKP**: Parse errors during copybook analysis
+/// - **CBKS**: Schema validation and ODO processing
+/// - **CBKR**: Record format and RDW processing
+/// - **CBKC**: Character conversion and encoding
+/// - **CBKD**: Data decoding and field validation
+/// - **CBKE**: Encoding and JSON serialization
+/// - **CBKF**: File format and structure validation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)] // These are stable external error codes
 pub enum ErrorCode {
-    // Parse Errors (CBKP*)
-    /// CBKP001: General copybook syntax error
+    // =============================================================================
+    // Parse Errors (CBKP*) - Copybook syntax and COBOL clause processing
+    // =============================================================================
+    /// CBKP001: General copybook syntax error during parsing
     CBKP001_SYNTAX,
-    /// CBKP011: Unsupported COBOL clause or feature
+    /// CBKP011: Unsupported COBOL clause or feature encountered
     CBKP011_UNSUPPORTED_CLAUSE,
-    /// CBKP021: ODO array not at tail position
+    /// CBKP021: ODO (OCCURS DEPENDING ON) array not at tail position
     CBKP021_ODO_NOT_TAIL,
-    /// CBKP051: Unsupported edited PIC clause
+    /// CBKP051: Unsupported edited PIC clause pattern
     CBKP051_UNSUPPORTED_EDITED_PIC,
 
-    // Schema Errors (CBKS*)
-    /// CBKS121: ODO counter field not found
+    // =============================================================================
+    // Schema Errors (CBKS*) - Schema validation and ODO processing
+    // =============================================================================
+    /// CBKS121: ODO counter field not found in schema
     CBKS121_COUNTER_NOT_FOUND,
-    /// CBKS141: Record size exceeds maximum limit
+    /// CBKS141: Record size exceeds maximum allowable limit
     CBKS141_RECORD_TOO_LARGE,
-    /// CBKS301: ODO count clipped to maximum
+    /// CBKS301: ODO count clipped to maximum allowed value (warning)
     CBKS301_ODO_CLIPPED,
-    /// CBKS302: ODO count raised to minimum
+    /// CBKS302: ODO count raised to minimum required value (warning)
     CBKS302_ODO_RAISED,
 
-    // Record Errors (CBKR*)
-    /// CBKR211: RDW reserved bytes are non-zero
+    // =============================================================================
+    // Record Errors (CBKR*) - Record format and RDW processing
+    // =============================================================================
+    /// CBKR211: RDW reserved bytes contain non-zero values
     CBKR211_RDW_RESERVED_NONZERO,
-    /// CBKR221: RDW length underflow
+    /// CBKR221: RDW length field indicates underflow condition
     CBKR221_RDW_UNDERFLOW,
 
-    // Character Conversion Errors (CBKC*)
-    /// CBKC201: JSON write error
+    // =============================================================================
+    // Character Conversion Errors (CBKC*) - EBCDIC/ASCII conversion
+    // =============================================================================
+    /// CBKC201: JSON serialization write error
     CBKC201_JSON_WRITE_ERROR,
-    /// CBKC301: Invalid EBCDIC byte encountered
+    /// CBKC301: Invalid EBCDIC byte encountered during conversion
     CBKC301_INVALID_EBCDIC_BYTE,
 
-    // Data Decode Errors (CBKD*)
-    /// CBKD101: Invalid field type for operation
+    // =============================================================================
+    // Data Decode Errors (CBKD*) - Field validation and numeric processing
+    // =============================================================================
+    /// CBKD101: Invalid field type for requested operation
     CBKD101_INVALID_FIELD_TYPE,
-    /// CBKD301: Record too short for field
+    /// CBKD301: Record data too short for field requirements
     CBKD301_RECORD_TOO_SHORT,
-    /// CBKD401: Invalid packed decimal nibble
+    /// CBKD401: Invalid packed decimal nibble value
     CBKD401_COMP3_INVALID_NIBBLE,
-    /// CBKD411: Invalid zoned decimal sign
+    /// CBKD411: Invalid zoned decimal sign zone
     CBKD411_ZONED_BAD_SIGN,
-    /// CBKD412: Zoned field is blank (BLANK WHEN ZERO)
+    /// CBKD412: Zoned field contains all spaces (BLANK WHEN ZERO processing)
     CBKD412_ZONED_BLANK_IS_ZERO,
+    /// CBKD413: Invalid zoned decimal encoding format detected
+    CBKD413_ZONED_INVALID_ENCODING,
+    /// CBKD414: Mixed ASCII/EBCDIC encoding within single zoned field
+    CBKD414_ZONED_MIXED_ENCODING,
+    /// CBKD415: Zoned encoding detection failed or remains ambiguous
+    CBKD415_ZONED_ENCODING_AMBIGUOUS,
 
-    // Encode Errors (CBKE*)
-    /// CBKE501: JSON type doesn't match field type
+    // =============================================================================
+    // Encode Errors (CBKE*) - JSON to binary encoding validation
+    // =============================================================================
+    /// CBKE501: JSON value type doesn't match expected field type
     CBKE501_JSON_TYPE_MISMATCH,
-    /// CBKE505: Scale mismatch for decimal field
+    /// CBKE505: Decimal scale mismatch during field encoding
     CBKE505_SCALE_MISMATCH,
-    /// CBKE510: Numeric field overflow
+    /// CBKE510: Numeric value overflow for field capacity
     CBKE510_NUMERIC_OVERFLOW,
-    /// CBKE515: String field length violation
+    /// CBKE515: String length exceeds field size limit
     CBKE515_STRING_LENGTH_VIOLATION,
-    /// CBKE521: Array length out of bounds
+    /// CBKE521: Array length exceeds ODO bounds
     CBKE521_ARRAY_LEN_OOB,
 
-    // File/Format Errors (CBKF*)
-    /// CBKF104: RDW appears to be ASCII-corrupted
+    // =============================================================================
+    // File/Format Errors (CBKF*) - File structure and format validation
+    // =============================================================================
+    /// CBKF104: RDW appears to be corrupted by ASCII conversion
     CBKF104_RDW_SUSPECT_ASCII,
 }
 
@@ -115,6 +147,9 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE => "CBKD401_COMP3_INVALID_NIBBLE",
             ErrorCode::CBKD411_ZONED_BAD_SIGN => "CBKD411_ZONED_BAD_SIGN",
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => "CBKD412_ZONED_BLANK_IS_ZERO",
+            ErrorCode::CBKD413_ZONED_INVALID_ENCODING => "CBKD413_ZONED_INVALID_ENCODING",
+            ErrorCode::CBKD414_ZONED_MIXED_ENCODING => "CBKD414_ZONED_MIXED_ENCODING",
+            ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => "CBKD415_ZONED_ENCODING_AMBIGUOUS",
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH => "CBKE501_JSON_TYPE_MISMATCH",
             ErrorCode::CBKE505_SCALE_MISMATCH => "CBKE505_SCALE_MISMATCH",
             ErrorCode::CBKE510_NUMERIC_OVERFLOW => "CBKE510_NUMERIC_OVERFLOW",
@@ -126,18 +161,38 @@ impl fmt::Display for ErrorCode {
     }
 }
 
-/// Context information for errors
+/// Context information for detailed error reporting
+///
+/// Provides comprehensive location and contextual information for errors,
+/// enabling precise error reporting and debugging in enterprise environments.
+/// All fields are optional to accommodate different error scenarios.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ErrorContext {
-    /// Record number (1-based) where error occurred
+    /// Record number (1-based) where the error occurred
+    ///
+    /// Used for data processing errors to identify the specific record
+    /// in multi-record files or streams.
     pub record_index: Option<u64>,
-    /// Field path where error occurred
+
+    /// Hierarchical field path where the error occurred
+    ///
+    /// Uses dot notation (e.g., "customer.address.street") to identify
+    /// the exact field location within nested structures.
     pub field_path: Option<String>,
-    /// Byte offset where error occurred
+
+    /// Byte offset within the record or file where the error occurred
+    ///
+    /// Provides precise location information for debugging binary data issues.
     pub byte_offset: Option<u64>,
-    /// Line number in copybook (for parse errors)
+
+    /// Line number in the copybook source (for parse errors)
+    ///
+    /// Used during copybook parsing to identify problematic COBOL syntax.
     pub line_number: Option<u32>,
+
     /// Additional context-specific information
+    ///
+    /// Free-form text providing extra details relevant to the specific error.
     pub details: Option<String>,
 }
 
@@ -166,7 +221,25 @@ impl fmt::Display for ErrorContext {
 }
 
 impl Error {
-    /// Create a new error with the given code and message
+    /// Create a new error with the specified code and message
+    ///
+    /// This is the primary constructor for copybook-rs errors. The error code
+    /// should be chosen from the stable `ErrorCode` taxonomy to enable
+    /// programmatic error handling.
+    ///
+    /// # Arguments
+    /// * `code` - Stable error code from the copybook-rs taxonomy
+    /// * `message` - Human-readable error description
+    ///
+    /// # Example
+    /// ```rust
+    /// use copybook_core::{Error, ErrorCode};
+    ///
+    /// let error = Error::new(
+    ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
+    ///     "Invalid sign zone 0xA in zoned decimal field"
+    /// );
+    /// ```
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,

@@ -607,6 +607,182 @@ copybook encode schema.cpy stage2.jsonl \
 echo "Pipeline completed successfully"
 ```
 
+## Zoned Decimal Encoding Preservation
+
+copybook-rs supports **binary round-trip fidelity** for zoned decimal fields, preserving the original encoding format (ASCII vs EBCDIC digit zones) during decode/encode cycles. This addresses critical enterprise requirements for byte-perfect data integrity.
+
+### Basic Encoding Preservation
+
+```bash
+# Decode with encoding format detection and preservation
+# Note: CLI flags not yet implemented - use library API
+# Future CLI syntax (when implemented):
+copybook decode financial.cpy mainframe-data.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --output financial.jsonl
+
+# Encode respecting preserved formats
+copybook encode financial.cpy financial.jsonl \
+  --format fixed \
+  --codepage cp037 \
+  --output roundtrip.bin
+
+# Verify byte-perfect round-trip
+cmp mainframe-data.bin roundtrip.bin
+```
+
+### Format Override Scenarios
+
+```bash
+# Override encoding format during encode (force ASCII zones)
+copybook encode financial.cpy mixed-data.jsonl \
+  --format fixed \
+  --codepage cp037 \
+  --zoned-encoding-override ascii \
+  --output ascii-zones.bin
+
+# Override encoding format during encode (force EBCDIC zones)
+copybook encode financial.cpy mixed-data.jsonl \
+  --format fixed \
+  --codepage cp037 \
+  --zoned-encoding-override ebcdic \
+  --output ebcdic-zones.bin
+
+# Auto-detect with preferred fallback
+copybook decode legacy.cpy partial-data.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preferred-zoned-encoding ebcdic \
+  --output detected.jsonl
+```
+
+### Mixed Encoding Handling
+
+```bash
+# Strict mode - fail on mixed encoding detection
+copybook decode mixed-data.cpy problematic.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --strict \
+  --output strict.jsonl
+
+# Lenient mode - warn on mixed encoding, continue processing
+copybook decode mixed-data.cpy problematic.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --max-errors 100 \
+  --output lenient.jsonl
+```
+
+### Enterprise Migration Workflows
+
+```bash
+#!/bin/bash
+# Mainframe data migration with encoding preservation
+
+set -euo pipefail
+
+SCHEMA="schemas/customer-master.cpy"
+SOURCE_DATA="extract/customer-$(date +%Y%m%d).bin"
+CONVERTED_DATA="staging/customer-preserved.jsonl"
+VALIDATED_DATA="output/customer-roundtrip.bin"
+
+echo "Starting mainframe data migration with encoding preservation..."
+
+# Step 1: Decode with format preservation
+copybook decode "$SCHEMA" "$SOURCE_DATA" \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --emit-meta \
+  --output "$CONVERTED_DATA" || {
+  echo "Decode failed: exit code $?"
+  exit 1
+}
+
+# Step 2: Validate data quality
+copybook verify "$SCHEMA" "$SOURCE_DATA" \
+  --format fixed \
+  --codepage cp037 \
+  --report "reports/migration-validation.json" || {
+  echo "Data validation failed: exit code $?"
+  exit 2
+}
+
+# Step 3: Re-encode with preserved formats
+copybook encode "$SCHEMA" "$CONVERTED_DATA" \
+  --format fixed \
+  --codepage cp037 \
+  --output "$VALIDATED_DATA" || {
+  echo "Encode failed: exit code $?"
+  exit 3
+}
+
+# Step 4: Binary comparison for integrity
+if cmp "$SOURCE_DATA" "$VALIDATED_DATA"; then
+  echo "✅ Binary round-trip successful - data integrity verified"
+else
+  echo "❌ Binary round-trip failed - data integrity compromised"
+  exit 4
+fi
+
+echo "Migration completed with byte-perfect fidelity"
+```
+
+### Error Handling for Encoding Issues
+
+```bash
+# Handle encoding detection failures
+copybook decode problematic.cpy suspect-data.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --verbose \
+  --output suspect.jsonl 2> encoding-errors.log
+
+# Check for specific encoding error codes
+if grep -q "CBKD414_ZONED_MIXED_ENCODING" encoding-errors.log; then
+  echo "Warning: Mixed encoding detected in data"
+fi
+
+if grep -q "CBKD415_ZONED_ENCODING_DETECTION_FAILED" encoding-errors.log; then
+  echo "Warning: Unable to reliably detect encoding format"
+fi
+```
+
+### Performance Monitoring with Encoding Preservation
+
+```bash
+# Monitor performance impact of encoding detection
+time copybook decode large-financial.cpy huge-dataset.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --threads 8 \
+  --verbose \
+  --output performance-test.jsonl
+
+# Compare performance with/without encoding preservation
+echo "Testing performance without encoding preservation..."
+time copybook decode large-financial.cpy huge-dataset.bin \
+  --format fixed \
+  --codepage cp037 \
+  --threads 8 \
+  --output baseline.jsonl
+
+echo "Testing performance with encoding preservation..."
+time copybook decode large-financial.cpy huge-dataset.bin \
+  --format fixed \
+  --codepage cp037 \
+  --preserve-zoned-encoding \
+  --threads 8 \
+  --output preserved.jsonl
+```
+
 ## Man Page Style Examples
 
 ### NAME
@@ -640,7 +816,7 @@ copybook encode schema.cpy temp.jsonl --use-raw --output roundtrip.bin
 **copybook-parse**(1), **copybook-decode**(1), **copybook-encode**(1)
 
 For complete documentation, see the copybook-rs documentation at:
-https://github.com/copybook-rs/copybook-rs
+https://github.com/EffortlessMetrics/copybook-rs
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

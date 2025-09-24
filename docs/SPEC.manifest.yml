@@ -1,0 +1,303 @@
+# SPEC.manifest.yml - Binary Round-trip Encoding Consistency
+# Issue #48: Binary round-trip encoding inconsistency in encode/decode cycle
+
+metadata:
+  issue_id: "48"
+  title: "Binary round-trip encoding inconsistency in encode/decode cycle"
+  priority: "high"
+  complexity: "moderate"
+  estimated_effort: "3-5 days"
+  author: "copybook-rs-spec-creator"
+  created: "2025-09-23"
+  status: "draft"
+
+# SCOPE & BOUNDARIES
+scope:
+  affected_crates:
+    - copybook-codec:
+        modules:
+          - src/numeric.rs: "Core zoned decimal encoding/decoding logic"
+          - src/options.rs: "DecodeOptions and EncodeOptions extension"
+          - src/lib_api.rs: "Public API surface modifications"
+        impact: "moderate - new encoding format tracking and detection"
+    - copybook-cli:
+        modules:
+          - src/commands/decode.rs: "CLI decode command flag additions"
+          - src/commands/encode.rs: "CLI encode command flag additions"
+        impact: "low - command-line interface additions"
+    - copybook-core:
+        modules:
+          - src/error.rs: "New CBKD* error code definitions"
+          - src/schema.rs: "Optional schema-level encoding metadata"
+        impact: "minimal - error taxonomy and optional metadata"
+
+  pipeline_stages:
+    - parse: "unaffected - COBOL parsing works correctly"
+    - decode: "enhanced - encoding format detection and preservation"
+    - encode: "enhanced - respect preserved or specified encoding format"
+    - validation: "enhanced - new error codes for encoding format validation"
+
+  data_flow:
+    current:
+      - "Binary → JSON: Accepts both ASCII/EBCDIC zones, loses format info"
+      - "JSON → Binary: Always outputs EBCDIC zones (0xF0-0xF9)"
+    enhanced:
+      - "Binary → JSON: Detects and preserves original encoding format"
+      - "JSON → Binary: Uses preserved format or explicit specification"
+
+# CONSTRAINTS & REQUIREMENTS
+constraints:
+  performance:
+    throughput_targets:
+      - "DISPLAY-heavy: ≥4.1 GiB/s (maintain current 52x safety margin)"
+      - "COMP-3-heavy: ≥560 MiB/s (maintain current 15x safety margin)"
+    impact_limits:
+      - "Encoding detection overhead: <5% of current throughput"
+      - "Format preservation lookup: <2% additional decode time"
+    memory:
+      - "Steady-state: <256 MiB for multi-GB files (unchanged)"
+      - "Encoding metadata: <1% additional memory per record"
+
+  compatibility:
+    backward_compatibility:
+      - "Default behavior unchanged: EBCDIC output when preservation disabled"
+      - "Existing CLI commands work without new flags"
+      - "API compatibility: DecodeOptions/EncodeOptions remain backward compatible"
+    enterprise_requirements:
+      - "Zero unsafe code compliance maintained"
+      - "Deterministic output for parallel processing"
+      - "Enterprise error taxonomy consistency (CBKD* codes)"
+
+  reliability:
+    error_handling:
+      - "Graceful degradation when encoding detection fails"
+      - "Clear error messages for invalid encoding formats"
+      - "Warning-level notifications for mixed encoding detection"
+    data_integrity:
+      - "Byte-perfect round-trip for ASCII zoned decimals when preserved"
+      - "Byte-perfect round-trip for EBCDIC zoned decimals when preserved"
+      - "Validation of encoding format consistency within fields"
+
+# PUBLIC CONTRACTS
+public_contracts:
+  api_changes:
+    DecodeOptions:
+      new_fields:
+        - "preserve_zoned_encoding: bool"
+        - "preferred_zoned_encoding: Option<ZonedEncodingFormat>"
+      builder_methods:
+        - "with_preserve_zoned_encoding(bool) -> Self"
+        - "with_preferred_zoned_encoding(Option<ZonedEncodingFormat>) -> Self"
+
+    EncodeOptions:
+      new_fields:
+        - "zoned_encoding_override: Option<ZonedEncodingFormat>"
+      builder_methods:
+        - "with_zoned_encoding_override(Option<ZonedEncodingFormat>) -> Self"
+
+    new_types:
+      ZonedEncodingFormat:
+        enum_variants:
+          - "Ascii: ASCII digit zones (0x30-0x39)"
+          - "Ebcdic: EBCDIC digit zones (0xF0-0xF9)"
+          - "Auto: Detect from input data"
+        methods:
+          - "is_ascii() -> bool"
+          - "is_ebcdic() -> bool"
+          - "description() -> &'static str"
+
+  cli_interface:
+    decode_command:
+      new_flags:
+        - "--preserve-encoding: Enable encoding format preservation"
+        - "--preferred-zoned-encoding {ascii|ebcdic|auto}: Set preferred encoding when detection fails"
+
+    encode_command:
+      new_flags:
+        - "--zoned-encoding {ascii|ebcdic|auto}: Override zoned decimal encoding format"
+        - "--preserve-encoding: Use preserved encoding from decode metadata (deprecated alias)"
+
+  error_codes:
+    new_cbkd_codes:
+      - "CBKD413_ZONED_INVALID_ENCODING: Invalid zoned decimal encoding format"
+      - "CBKD414_ZONED_MIXED_ENCODING: Mixed ASCII/EBCDIC encoding in single field"
+      - "CBKD415_ZONED_ENCODING_DETECTION_FAILED: Unable to detect encoding format"
+
+# IMPLEMENTATION ARCHITECTURE
+implementation:
+  core_components:
+    encoding_detection:
+      location: "copybook-codec/src/numeric.rs"
+      responsibilities:
+        - "Detect ASCII vs EBCDIC zoned decimal encoding during decode"
+        - "Validate encoding format consistency within fields"
+        - "Handle mixed encoding scenarios with appropriate errors/warnings"
+      algorithm:
+        - "Scan zone nibbles: 0x3 = ASCII, 0xF = EBCDIC"
+        - "Track encoding per field for consistency validation"
+        - "Fall back to preferred encoding when detection inconclusive"
+
+    format_preservation:
+      location: "copybook-codec/src/json.rs"
+      responsibilities:
+        - "Store detected encoding format in JSON metadata"
+        - "Retrieve preserved encoding during encode operations"
+        - "Provide encoding format override mechanisms"
+      metadata_schema:
+        field_level: "_{field_name}_encoding: 'ascii' | 'ebcdic'"
+        record_level: "_zoned_encoding_default: 'ascii' | 'ebcdic'"
+
+    encode_enhancement:
+      location: "copybook-codec/src/numeric.rs::encode_zoned_decimal"
+      responsibilities:
+        - "Respect preserved encoding format from decode metadata"
+        - "Apply explicit encoding override when specified"
+        - "Maintain current EBCDIC default for backward compatibility"
+      precedence_order:
+        1: "Explicit override from EncodeOptions"
+        2: "Preserved format from decode metadata"
+        3: "EBCDIC default (current behavior)"
+
+  integration_points:
+    cli_argument_parsing:
+      decode_integration:
+        - "Parse --preserve-encoding flag to DecodeOptions"
+        - "Parse --preferred-zoned-encoding to DecodeOptions"
+        - "Validate encoding format enum values"
+
+      encode_integration:
+        - "Parse --zoned-encoding flag to EncodeOptions"
+        - "Validate encoding format compatibility with input data"
+        - "Handle conflicting flags with clear error messages"
+
+    schema_metadata:
+      optional_enhancement:
+        - "Schema-level default encoding format tracking"
+        - "Copybook-level encoding hints for enterprise workflows"
+        - "Forward compatibility for additional encoding formats"
+
+# RISK ASSESSMENT
+risks:
+  performance_impact:
+    encoding_detection:
+      risk_level: "low"
+      mitigation: "Optimize zone nibble scanning with SIMD when available"
+      measurement: "Benchmark against current DISPLAY throughput targets"
+
+    metadata_overhead:
+      risk_level: "medium"
+      mitigation: "Optional metadata emission, efficient JSON field naming"
+      measurement: "Memory usage profiling with large datasets"
+
+  compatibility_risks:
+    api_surface_expansion:
+      risk_level: "low"
+      mitigation: "Additive-only API changes, default behavior unchanged"
+      validation: "Comprehensive backward compatibility test suite"
+
+    cli_interface_changes:
+      risk_level: "minimal"
+      mitigation: "New flags optional, existing workflows unaffected"
+      validation: "CLI regression testing with existing scripts"
+
+  implementation_complexity:
+    mixed_encoding_handling:
+      risk_level: "medium"
+      mitigation: "Clear error messages, graceful degradation strategies"
+      validation: "Property-based testing with malformed input data"
+
+    detection_accuracy:
+      risk_level: "medium"
+      mitigation: "Conservative detection with explicit override options"
+      validation: "Comprehensive test fixtures covering edge cases"
+
+  enterprise_adoption:
+    mainframe_compatibility:
+      risk_level: "low"
+      mitigation: "Extensive testing with real COBOL fixtures"
+      validation: "Enterprise data processing pipeline validation"
+
+    regulatory_compliance:
+      risk_level: "minimal"
+      mitigation: "Byte-perfect round-trip validation, audit trail preservation"
+      validation: "Financial industry compliance verification"
+
+# VALIDATION CRITERIA
+validation:
+  performance_benchmarks:
+    - "DISPLAY throughput: ≥4.1 GiB/s with encoding detection enabled"
+    - "COMP-3 throughput: ≥560 MiB/s with minimal regression"
+    - "Memory usage: <256 MiB steady-state for multi-GB files"
+    - "Detection overhead: <5% impact on overall processing time"
+
+  functionality_requirements:
+    - "ASCII zoned decimal round-trip: byte-identical with cmp utility"
+    - "EBCDIC zoned decimal round-trip: byte-identical with cmp utility"
+    - "Mixed encoding detection: appropriate error/warning generation"
+    - "Backward compatibility: existing workflows unchanged"
+
+  enterprise_compliance:
+    - "Zero unsafe code: clippy pedantic compliance maintained"
+    - "Error taxonomy: new CBKD* codes follow enterprise patterns"
+    - "CLI interface: consistent with copybook-rs command conventions"
+    - "Documentation: enterprise-grade specification and examples"
+
+# IMPLEMENTATION PHASES
+phases:
+  phase_1_core_detection:
+    deliverables:
+      - "ZonedEncodingFormat enum implementation"
+      - "Encoding detection logic in decode_zoned_decimal"
+      - "New CBKD* error codes for encoding validation"
+    acceptance_criteria: "AC1, AC2, AC11"
+    estimated_effort: "1.5 days"
+
+  phase_2_preservation:
+    deliverables:
+      - "DecodeOptions/EncodeOptions API extensions"
+      - "JSON metadata integration for encoding preservation"
+      - "Encode logic enhancement to respect preserved formats"
+    acceptance_criteria: "AC3, AC4, AC9"
+    estimated_effort: "1.5 days"
+
+  phase_3_cli_integration:
+    deliverables:
+      - "CLI flag additions for decode/encode commands"
+      - "Argument validation and error handling"
+      - "Integration testing with real COBOL fixtures"
+    acceptance_criteria: "AC5, AC6, AC7, AC8"
+    estimated_effort: "1 day"
+
+  phase_4_validation:
+    deliverables:
+      - "Performance regression testing and optimization"
+      - "Round-trip validation test suite"
+      - "Enterprise compliance verification"
+    acceptance_criteria: "AC10, AC12"
+    estimated_effort: "1 day"
+
+# TESTING STRATEGY
+testing:
+  unit_tests:
+    - "ZonedEncodingFormat enum behavior and conversions"
+    - "Encoding detection logic with various zone patterns"
+    - "Error code generation for invalid encoding scenarios"
+    - "Round-trip encoding/decoding with preserved formats"
+
+  integration_tests:
+    - "CLI command flag parsing and validation"
+    - "End-to-end decode/encode cycles with real fixtures"
+    - "Performance benchmarking with encoding detection enabled"
+    - "Backward compatibility with existing copybook-rs workflows"
+
+  property_tests:
+    - "Round-trip fidelity for all valid zoned decimal encodings"
+    - "Encoding detection consistency across field boundaries"
+    - "Error handling behavior with malformed input data"
+    - "Performance characteristics under various data patterns"
+
+  enterprise_tests:
+    - "Real COBOL copybook fixture validation"
+    - "Multi-GB file processing with preserved encoding"
+    - "Mainframe compatibility verification"
+    - "Regulatory compliance audit trail validation"

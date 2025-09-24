@@ -1,13 +1,12 @@
 use copybook_codec::{Codepage, DecodeOptions, decode_record};
 use copybook_core::{ErrorCode, parse_copybook};
-use serde_json;
 
-const ODO_COPYBOOK: &str = r#"
+const ODO_COPYBOOK: &str = r"
        01 RECORD.
           05 ARRAY-COUNT PIC 9(1).
           05 DYNAMIC-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON ARRAY-COUNT.
              10 ELEMENT PIC X(10).
-"#;
+";
 
 fn create_ebcdic_record(count: u8, data: &[u8]) -> Vec<u8> {
     let mut record = Vec::new();
@@ -53,7 +52,7 @@ fn test_odo_array_valid_count() {
                 serde_json::to_string_pretty(&json_value).unwrap()
             );
         }
-        Err(e) => panic!("Unexpected decode error: {:?} - {}", e.code, e.to_string()),
+        Err(e) => panic!("Unexpected decode error: {:?} - {}", e.code, e),
     }
 }
 
@@ -80,7 +79,7 @@ fn test_odo_array_count_clipped() {
         }
         Err(e) => {
             println!("Clipped record error code: {:?}", e.code);
-            println!("Clipped record error message: {}", e.to_string());
+            println!("Clipped record error message: {}", e);
             assert_eq!(
                 e.code,
                 ErrorCode::CBKD301_RECORD_TOO_SHORT,
@@ -107,7 +106,7 @@ fn test_odo_array_record_too_short() {
         }
         Err(e) => {
             println!("Too short record error code: {:?}", e.code);
-            println!("Too short record error message: {}", e.to_string());
+            println!("Too short record error message: {}", e);
             assert_eq!(
                 e.code,
                 ErrorCode::CBKD301_RECORD_TOO_SHORT,
@@ -140,7 +139,7 @@ fn test_odo_array_count_raised() {
         }
         Err(e) => {
             println!("Raised count record error code: {:?}", e.code);
-            println!("Raised count record error message: {}", e.to_string());
+            println!("Raised count record error message: {}", e);
             assert_eq!(
                 e.code,
                 ErrorCode::CBKS301_ODO_CLIPPED,
@@ -173,7 +172,7 @@ fn test_odo_array_count_below_min() {
         }
         Err(e) => {
             println!("Below min count record error code: {:?}", e.code);
-            println!("Below min count record error message: {}", e.to_string());
+            println!("Below min count record error message: {}", e);
             assert_eq!(
                 e.code,
                 ErrorCode::CBKS302_ODO_RAISED,

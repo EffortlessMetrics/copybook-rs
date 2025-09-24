@@ -1047,7 +1047,7 @@ impl<W: Write> JsonWriter<W> {
                 self.json_buffer.push(',');
             }
 
-            let _element_offset = field.offset + (i * field.len);
+            let element_offset = field.offset + (i * field.len);
             self.json_buffer.push('{');
 
             let mut element_first_field = true;
@@ -2525,7 +2525,7 @@ mod tests {
     #[test]
     fn test_schema_field_lookup_and_redefines() {
         let schema = build_test_schema();
-        let _writer = JsonWriter::new(Cursor::new(Vec::new()), schema.clone(), DecodeOptions::default());
+        let writer = JsonWriter::new(Cursor::new(Vec::new()), schema.clone(), DecodeOptions::default());
 
         // Test direct path lookup
         let field_a = schema.find_field("ROOT.FIELD-A").unwrap();

@@ -71,6 +71,10 @@ pub enum Token {
     #[token("VALUE", ignore(case))]
     Value,
 
+    #[token("THROUGH", ignore(case))]
+    #[token("THRU", ignore(case))]
+    Through,
+
     #[token("SIGN", ignore(case))]
     Sign,
 
@@ -166,6 +170,7 @@ impl fmt::Display for Token {
             Token::Times => write!(f, "TIMES"),
             Token::Synchronized => write!(f, "SYNCHRONIZED"),
             Token::Value => write!(f, "VALUE"),
+            Token::Through => write!(f, "THROUGH"),
             Token::Sign => write!(f, "SIGN"),
             Token::Leading => write!(f, "LEADING"),
             Token::Trailing => write!(f, "TRAILING"),

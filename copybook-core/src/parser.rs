@@ -3,12 +3,12 @@
 //! This module implements the parsing logic for COBOL copybooks,
 //! including lexical analysis and AST construction.
 
+use crate::error;
 use crate::error::{ErrorCode, ErrorContext};
 use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema};
 use crate::{Error, Result};
-use serde_json::Value;
 
 /// Parse a COBOL copybook text into a schema
 ///
@@ -26,7 +26,7 @@ pub fn parse(text: &str) -> Result<Schema> {
 /// Returns an error if the copybook contains syntax errors or unsupported features
 pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     if text.trim().is_empty() {
-        return Err(Error::new(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
+        return Err(error!(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));
     }
 
     let tokens = Lexer::new_with_options(text, options).tokenize();
@@ -93,9 +93,9 @@ impl Parser {
         }
 
         if flat_fields.is_empty() {
-            return Err(Error::new(
+            return Err(error!(
                 ErrorCode::CBKP001_SYNTAX,
-                "No valid field definitions found",
+                "No valid field definitions found"
             ));
         }
 
@@ -384,6 +384,7 @@ impl Parser {
             | FieldKind::ZonedDecimal { .. }
             | FieldKind::BinaryInt { .. }
             | FieldKind::PackedDecimal { .. } => true,
+            FieldKind::Condition { .. } => false, // Level-88 fields don't have storage
         }
     }
 
@@ -398,143 +399,24 @@ impl Parser {
         result
     }
 
-    /// Calculate schema fingerprint using SHA-256
+    /// Calculate schema fingerprint using SHA-256 including parse options
     fn calculate_schema_fingerprint(&self, schema: &mut Schema) {
         use sha2::{Digest, Sha256};
 
-        // Create canonical JSON representation for fingerprinting
-        let canonical_json = Self::create_canonical_schema_json(schema);
+        // Use schema's canonical JSON representation
+        let canonical_json = schema.create_canonical_json();
 
         // Create hasher and add canonical JSON
         let mut hasher = Sha256::new();
         hasher.update(canonical_json.as_bytes());
 
-        // Add codepage and options
+        // Add parse-specific options that affect fingerprint
         hasher.update(self.options.codepage.as_bytes());
         hasher.update([if self.options.emit_filler { 1 } else { 0 }]);
 
         // Compute final hash
         let result = hasher.finalize();
         schema.fingerprint = format!("{:x}", result);
-    }
-
-    /// Create canonical JSON representation of schema for fingerprinting
-    fn create_canonical_schema_json(schema: &Schema) -> String {
-        use serde_json::{Map, Value};
-
-        let mut schema_obj = Map::new();
-
-        // Add fields in canonical order
-        let fields_json: Vec<Value> = schema
-            .fields
-            .iter()
-            .map(Self::field_to_canonical_json)
-            .collect();
-        schema_obj.insert("fields".to_string(), Value::Array(fields_json));
-
-        // Add schema-level properties
-        if let Some(lrecl) = schema.lrecl_fixed {
-            schema_obj.insert("lrecl_fixed".to_string(), Value::Number(lrecl.into()));
-        }
-
-        if let Some(ref tail_odo) = schema.tail_odo {
-            let mut tail_odo_obj = Map::new();
-            tail_odo_obj.insert(
-                "counter_path".to_string(),
-                Value::String(tail_odo.counter_path.clone()),
-            );
-            tail_odo_obj.insert(
-                "min_count".to_string(),
-                Value::Number(tail_odo.min_count.into()),
-            );
-            tail_odo_obj.insert(
-                "max_count".to_string(),
-                Value::Number(tail_odo.max_count.into()),
-            );
-            tail_odo_obj.insert(
-                "array_path".to_string(),
-                Value::String(tail_odo.array_path.clone()),
-            );
-            schema_obj.insert("tail_odo".to_string(), Value::Object(tail_odo_obj));
-        }
-
-        // Convert to canonical JSON string (sorted keys)
-        serde_json::to_string(&Value::Object(schema_obj)).unwrap_or_default()
-    }
-
-    /// Convert field to canonical JSON for fingerprinting
-    fn field_to_canonical_json(field: &Field) -> Value {
-        use serde_json::{Map, Value};
-
-        let mut field_obj = Map::new();
-
-        // Add fields in canonical order
-        field_obj.insert("path".to_string(), Value::String(field.path.clone()));
-        field_obj.insert("name".to_string(), Value::String(field.name.clone()));
-        field_obj.insert("level".to_string(), Value::Number(field.level.into()));
-
-        // Add field kind
-        let kind_str = match &field.kind {
-            FieldKind::Alphanum { len } => format!("Alphanum({})", len),
-            FieldKind::ZonedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                format!("ZonedDecimal({},{},{})", digits, scale, signed)
-            }
-            FieldKind::BinaryInt { bits, signed } => {
-                format!("BinaryInt({},{})", bits, signed)
-            }
-            FieldKind::PackedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                format!("PackedDecimal({},{},{})", digits, scale, signed)
-            }
-            FieldKind::Group => "Group".to_string(),
-        };
-        field_obj.insert("kind".to_string(), Value::String(kind_str));
-
-        // Add optional fields
-        if let Some(ref redefines) = field.redefines_of {
-            field_obj.insert("redefines_of".to_string(), Value::String(redefines.clone()));
-        }
-
-        if let Some(ref occurs) = field.occurs {
-            let occurs_str = match occurs {
-                Occurs::Fixed { count } => format!("Fixed({})", count),
-                Occurs::ODO {
-                    min,
-                    max,
-                    counter_path,
-                } => {
-                    format!("ODO({},{},{})", min, max, counter_path)
-                }
-            };
-            field_obj.insert("occurs".to_string(), Value::String(occurs_str));
-        }
-
-        if field.synchronized {
-            field_obj.insert("synchronized".to_string(), Value::Bool(true));
-        }
-
-        if field.blank_when_zero {
-            field_obj.insert("blank_when_zero".to_string(), Value::Bool(true));
-        }
-
-        // Add children recursively
-        if !field.children.is_empty() {
-            let children_json: Vec<Value> = field
-                .children
-                .iter()
-                .map(Self::field_to_canonical_json)
-                .collect();
-            field_obj.insert("children".to_string(), Value::Array(children_json));
-        }
-
-        Value::Object(field_obj)
     }
 
     /// Parse a single field definition
@@ -569,18 +451,19 @@ impl Parser {
                 token: Token::Level88,
                 ..
             }) => {
-                // Skip 88-level (condition) entries
-                self.skip_to_period();
-                return Ok(None);
+                let level = 88;
+                self.advance();
+                level
             }
             Some(TokenPos {
                 token: Token::Number(n),
                 line,
                 ..
             }) => {
-                // Only treat single/double digit numbers as potential invalid level numbers
-                // Larger numbers are likely from sequence areas or other contexts
-                if *n <= 99 {
+                // Handle invalid level numbers more carefully
+                // 0 and numbers > 49 are invalid as COBOL level numbers
+                // But only report as error if they appear in level number position
+                if (*n == 0) || (*n >= 50 && *n <= 99) {
                     let line_number = *line;
                     return Err(Error::new(
                         ErrorCode::CBKP001_SYNTAX,
@@ -593,10 +476,17 @@ impl Parser {
                         line_number: Some(line_number.try_into().unwrap_or(u32::MAX)),
                         details: None,
                     }));
+                } else if *n >= 1 && *n <= 49 {
+                    // Valid single-digit level numbers (1-49) without leading zeros
+                    // Convert to proper level number
+                    let level = *n as u8;
+                    self.advance();
+                    level
+                } else {
+                    // Large numbers are likely sequence numbers or other contexts
+                    self.advance();
+                    return Ok(None);
                 }
-                // Skip larger numbers (likely sequence numbers)
-                self.advance();
-                return Ok(None);
             }
             _ => {
                 // If we encounter an unrecognized token, advance to avoid infinite loop
@@ -688,8 +578,13 @@ impl Parser {
                 token: Token::Value,
                 ..
             }) => {
-                // Skip VALUE clauses (metadata only)
-                self.skip_value_clause()?;
+                if field.level == 88 {
+                    self.advance();
+                    self.parse_level88_value_clause(field)?;
+                } else {
+                    // Skip VALUE clauses for non-88 fields (metadata only)
+                    self.skip_value_clause()?;
+                }
             }
             Some(TokenPos {
                 token: Token::Blank,
@@ -999,6 +894,92 @@ impl Parser {
         }
 
         field.blank_when_zero = true;
+        Ok(())
+    }
+
+    /// Parse Level-88 VALUE clause
+    fn parse_level88_value_clause(&mut self, field: &mut Field) -> Result<()> {
+        let mut values = Vec::new();
+
+        // Parse VALUE clauses - can be literals, ranges, or multiple values
+        loop {
+            match self.current_token() {
+                Some(TokenPos {
+                    token: Token::StringLiteral(s),
+                    ..
+                }) => {
+                    values.push(s.clone());
+                    self.advance();
+                }
+                Some(TokenPos {
+                    token: Token::Number(n),
+                    ..
+                }) => {
+                    values.push(n.to_string());
+                    self.advance();
+                }
+                Some(TokenPos {
+                    token: Token::Identifier(id),
+                    ..
+                }) if id.to_uppercase() == "ZEROS" || id.to_uppercase() == "ZEROES" => {
+                    values.push("ZEROS".to_string());
+                    self.advance();
+                }
+                Some(TokenPos {
+                    token: Token::Identifier(id),
+                    ..
+                }) if id.to_uppercase() == "SPACES" => {
+                    values.push("SPACES".to_string());
+                    self.advance();
+                }
+                _ => break,
+            }
+
+            // Check for THROUGH/THRU ranges or additional values
+            if let Some(TokenPos {
+                token: Token::Through,
+                ..
+            }) = self.current_token()
+            {
+                self.advance();
+                match self.current_token() {
+                    Some(TokenPos {
+                        token: Token::StringLiteral(s),
+                        ..
+                    }) => {
+                        // Replace last value with range notation
+                        if let Some(last) = values.last_mut() {
+                            *last = format!("{} THROUGH {}", last, s);
+                        }
+                        self.advance();
+                    }
+                    Some(TokenPos {
+                        token: Token::Number(n),
+                        ..
+                    }) => {
+                        if let Some(last) = values.last_mut() {
+                            *last = format!("{} THROUGH {}", last, n);
+                        }
+                        self.advance();
+                    }
+                    _ => break,
+                }
+            }
+
+            // For now, we'll just parse space-separated values without comma requirement
+            // TODO: Add comma token support if needed for complex VALUE clauses
+        }
+
+        if values.is_empty() {
+            return Err(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                "Level-88 VALUE clause requires at least one value",
+            ));
+        }
+
+        // Set field kind to Condition
+        field.kind = FieldKind::Condition { values };
+
         Ok(())
     }
 

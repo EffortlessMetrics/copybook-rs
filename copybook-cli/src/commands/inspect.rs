@@ -73,6 +73,9 @@ pub fn run(
                 }
             }
             copybook_core::FieldKind::Group => "GROUP".to_string(),
+            copybook_core::FieldKind::Condition { values } => {
+                format!("LEVEL-88: {:?}", values)
+            }
         };
 
         let details = if let Some(ref occurs) = field.occurs {

@@ -172,6 +172,9 @@ fn fill_field_data(
         FieldKind::Group => {
             // Groups are filled by their child fields
         }
+        FieldKind::Condition { .. } => {
+            // Level-88 fields don't store data - they're metadata only
+        }
     }
 
     // Handle OCCURS
@@ -460,6 +463,9 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
         }
         FieldKind::Group => {
             // Groups handled by child fields
+        }
+        FieldKind::Condition { .. } => {
+            // Level-88 fields don't store data - they're metadata only
         }
     }
 }

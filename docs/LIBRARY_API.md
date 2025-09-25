@@ -4,7 +4,7 @@ Complete reference for using copybook-rs as a Rust library.
 
 ## Overview
 
-copybook-rs provides a comprehensive Rust API for parsing COBOL copybooks and encoding/decoding mainframe data. The library is designed for integration into ETL pipelines, data processing applications, and other systems that need to work with legacy COBOL data formats.
+copybook-rs provides a comprehensive Rust API for parsing COBOL copybooks and encoding/decoding mainframe data with full Level-88 condition value support and structural validation. The library is designed for integration into ETL pipelines, data processing applications, and other systems that need to work with legacy COBOL data formats.
 
 ## Core Concepts
 
@@ -12,7 +12,7 @@ copybook-rs provides a comprehensive Rust API for parsing COBOL copybooks and en
 A parsed representation of a COBOL copybook that defines the structure and layout of records.
 
 ### Field
-An individual data element within a record, with type information, byte offset, and length.
+An individual data element within a record, with type information, byte offset, length, and support for Level-88 condition values.
 
 ### Codec
 Encoding and decoding logic for converting between binary data and structured values.

@@ -1,3 +1,11 @@
+#![allow(
+    clippy::nonminimal_bool,
+    clippy::cast_precision_loss,
+    clippy::must_use_candidate,
+    clippy::uninlined_format_args,
+    clippy::cast_possible_truncation,
+    clippy::too_many_lines
+)]
 /*!
  * AC6: Performance Impact Assessment and Benchmarking Integration
  *
@@ -41,6 +49,7 @@ impl Default for GoldenFixturePerformanceDetector {
 }
 
 impl GoldenFixturePerformanceDetector {
+    #[must_use]
     pub fn new() -> Self {
         let mut detector = Self {
             baselines: HashMap::new(),
@@ -144,6 +153,12 @@ impl GoldenFixturePerformanceDetector {
         );
     }
 
+    /// Benchmark a golden fixture and return performance metrics
+    ///
+    /// # Panics
+    ///
+    /// Panics if the baseline for the fixture ID is not found
+    #[must_use]
     pub fn benchmark_fixture(
         &self,
         fixture_id: &str,
@@ -160,12 +175,11 @@ impl GoldenFixturePerformanceDetector {
         let parse_duration = start_time.elapsed();
 
         // Validate parsing succeeded (performance test assumes valid copybook)
-        if parse_result.is_err() && !fixture_id.contains("ac4") {
-            panic!(
-                "Performance test fixture should parse successfully: {:?}",
-                parse_result.err()
-            );
-        }
+        assert!(
+            !(parse_result.is_err() && !fixture_id.contains("ac4")),
+            "Performance test fixture should parse successfully: {:?}",
+            parse_result.err()
+        );
 
         // Estimate memory usage (simplified for test scaffolding)
         let estimated_memory_kb = copybook.len() as u64 / 4; // Rough estimate

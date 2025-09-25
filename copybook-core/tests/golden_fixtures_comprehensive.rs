@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args, clippy::items_after_statements)]
 /*!
  * Comprehensive Golden Fixtures for Issue #53 Structural Validation
  *
@@ -105,6 +106,7 @@ impl GoldenFixtureRegistry {
 
 /// Initialize the golden fixture registry with all Issue #53 fixtures
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn initialize_golden_fixture_registry() -> GoldenFixtureRegistry {
     let mut registry = GoldenFixtureRegistry::new();
 

@@ -1,3 +1,11 @@
+#![allow(
+    clippy::uninlined_format_args,
+    clippy::must_use_candidate,
+    clippy::cast_precision_loss,
+    clippy::items_after_statements,
+    clippy::cast_possible_truncation,
+    clippy::too_many_lines
+)]
 /*!
  * AC7: Test Framework Integration and CI/CD Hardening
  *

@@ -167,6 +167,7 @@ fn test_ac2_multiple_level88_after_odo_pass() {
 /// **COBOL Rule**: Level-88 can reference fields within ODO array elements
 /// **Enterprise Context**: Financial transaction records with complex conditions
 #[test]
+#[allow(clippy::too_many_lines)]
 fn test_ac2_nested_level88_after_complex_odo_pass() {
     const COPYBOOK: &str = r"
 01 TRANSACTION-RECORD.
@@ -327,6 +328,7 @@ fn test_ac2_nested_level88_after_complex_odo_pass() {
 /// **COBOL Rule**: Production-grade ODO with comprehensive Level-88 coverage
 /// **Enterprise Context**: Patient record with diagnosis and treatment conditions
 #[test]
+#[allow(clippy::too_many_lines)]
 fn test_ac2_enterprise_healthcare_level88_after_odo_pass() {
     const COPYBOOK: &str = r"
 01 PATIENT-RECORD.

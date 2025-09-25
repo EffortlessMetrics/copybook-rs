@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_lines, clippy::uninlined_format_args)]
 /*!
  * AC5: REDEFINES and Level-88 Interaction Fixtures (PASS/FAIL Scenarios)
  *
@@ -206,6 +207,7 @@ fn test_ac5_complex_redefines_with_nested_level88_pass() {
 /// **Enterprise Context**: Financial record with multiple numeric interpretations
 #[test]
 #[ignore = "Parser bug: CBKP001_SYNTAX - requires parser state investigation"]
+#[allow(clippy::too_many_lines)]
 fn test_ac5_redefines_with_level88_ranges_pass() {
     const COPYBOOK: &str = r"
 01 FINANCIAL-RECORD.
@@ -418,6 +420,7 @@ fn test_ac5_complex_redefines_odo_violation_fail() {
 /// **COBOL Rule**: Complex medical records can use REDEFINES for data efficiency
 /// **Enterprise Context**: Patient record with multiple data interpretations
 #[test]
+#[allow(clippy::too_many_lines)]
 fn test_ac5_enterprise_healthcare_redefines_level88_pass() {
     const COPYBOOK: &str = r"
 01 PATIENT-RECORD.

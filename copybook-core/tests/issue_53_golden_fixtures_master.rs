@@ -1,5 +1,9 @@
-#![allow(clippy::too_many_lines)]
-#![allow(clippy::items_after_statements)]
+#![allow(
+    clippy::too_many_lines,
+    clippy::items_after_statements,
+    clippy::uninlined_format_args,
+    clippy::must_use_candidate
+)]
 
 /*!
  * Issue #53 Golden Fixtures Master Integration Test Suite

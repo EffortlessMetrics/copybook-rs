@@ -1,7 +1,9 @@
 #![allow(
     clippy::too_many_lines,
     clippy::cast_precision_loss,
-    clippy::cast_possible_truncation
+    clippy::cast_possible_truncation,
+    clippy::uninlined_format_args,
+    clippy::cast_possible_wrap
 )]
 
 /*!
@@ -30,7 +32,7 @@ use std::time::Instant;
 
 /// Test memory usage patterns with large datasets
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - data generation needs debugging
+#[ignore = "Temporarily disabled for quality assessment - data generation needs debugging"]
 fn test_memory_usage_large_datasets() -> Result<(), Box<dyn std::error::Error>> {
     const LARGE_RECORD_COPYBOOK: &str = r"
 01 LARGE-DATA-RECORD.
@@ -118,7 +120,7 @@ fn test_memory_usage_large_datasets() -> Result<(), Box<dyn std::error::Error>> 
 
 /// Test performance regression detection capabilities
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - data generation needs debugging
+#[ignore = "Temporarily disabled for quality assessment - data generation needs debugging"]
 fn test_performance_regression_detection() -> Result<(), Box<dyn std::error::Error>> {
     const REGRESSION_TEST_COPYBOOK: &str = r"
 01 REGRESSION-TEST-RECORD.
@@ -143,11 +145,11 @@ fn test_performance_regression_detection() -> Result<(), Box<dyn std::error::Err
         record.extend_from_slice(field1.as_bytes());
 
         // FIELD2 (10 bytes)
-        let field2 = format!("{:010}", i % 9999999999);
+        let field2 = format!("{:010}", i % 9_999_999_999);
         record.extend_from_slice(field2.as_bytes());
 
         // FIELD3 (5 bytes COMP-3)
-        let field3_packed = encode_simple_comp3((i as i64 * 123) % 9999999);
+        let field3_packed = encode_simple_comp3((i as i64 * 123) % 9_999_999);
         record.extend_from_slice(&field3_packed[..5]);
 
         // FIELD4 (50 bytes)
@@ -218,7 +220,7 @@ fn test_performance_regression_detection() -> Result<(), Box<dyn std::error::Err
 
 /// Test throughput validation under different load patterns
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - data generation needs debugging
+#[ignore = "Temporarily disabled for quality assessment - data generation needs debugging"]
 fn test_throughput_load_patterns() -> Result<(), Box<dyn std::error::Error>> {
     const LOAD_TEST_COPYBOOK: &str = r"
 01 LOAD-TEST-RECORD.
@@ -251,14 +253,14 @@ fn test_throughput_load_patterns() -> Result<(), Box<dyn std::error::Error>> {
             record.extend_from_slice(format!("{:08}", i / 1000).as_bytes());
 
             // SEQUENCE (6 bytes)
-            record.extend_from_slice(format!("{:06}", i % 1000000).as_bytes());
+            record.extend_from_slice(format!("{:06}", i % 1_000_000).as_bytes());
 
             // PAYLOAD (100 bytes)
             let payload = format!("LOAD-TEST-PAYLOAD-{:076}", i);
             record.extend_from_slice(payload.as_bytes());
 
             // CHECKSUM (10 bytes)
-            let checksum = format!("{:010}", i % 9999999999);
+            let checksum = format!("{:010}", i % 9_999_999_999);
             record.extend_from_slice(checksum.as_bytes());
 
             test_data.extend_from_slice(&record);
@@ -332,7 +334,7 @@ fn test_throughput_load_patterns() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Test resource utilization optimization
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - data generation needs debugging
+#[ignore = "Temporarily disabled for quality assessment - data generation needs debugging"]
 fn test_resource_utilization_optimization() -> Result<(), Box<dyn std::error::Error>> {
     const RESOURCE_TEST_COPYBOOK: &str = r"
 01 RESOURCE-USAGE-RECORD.
@@ -418,7 +420,7 @@ fn test_resource_utilization_optimization() -> Result<(), Box<dyn std::error::Er
         }
 
         let duration = start_time.elapsed();
-        let throughput = total_processed as f64 / duration.as_secs_f64();
+        let throughput = f64::from(total_processed) / duration.as_secs_f64();
 
         thread_results.push((thread_count, throughput, duration));
 
@@ -457,7 +459,7 @@ fn test_resource_utilization_optimization() -> Result<(), Box<dyn std::error::Er
 
 /// Test error handling performance impact
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - data generation needs debugging
+#[ignore = "Temporarily disabled for quality assessment - data generation needs debugging"]
 fn test_error_handling_performance_impact() -> Result<(), Box<dyn std::error::Error>> {
     const ERROR_TEST_COPYBOOK: &str = r"
 01 ERROR-TEST-RECORD.
@@ -479,7 +481,7 @@ fn test_error_handling_performance_impact() -> Result<(), Box<dyn std::error::Er
         let mut mixed_record = Vec::with_capacity(record_size);
 
         // VALID-FIELD (10 bytes)
-        let field1 = format!("FIELD{:05}", i);
+        let field1 = format!("FIELD{i:05}");
         valid_record.extend_from_slice(&field1.as_bytes()[..10]);
         mixed_record.extend_from_slice(&field1.as_bytes()[..10]);
 
@@ -487,15 +489,15 @@ fn test_error_handling_performance_impact() -> Result<(), Box<dyn std::error::Er
         if i % 10 == 0 {
             // Invalid numeric data for mixed set
             mixed_record.extend_from_slice(b"INVALID!");
-            valid_record.extend_from_slice(format!("{:08}", i % 99999999).as_bytes());
+            valid_record.extend_from_slice(format!("{:08}", i % 99_999_999).as_bytes());
         } else {
-            let numeric = format!("{:08}", i % 99999999);
+            let numeric = format!("{:08}", i % 99_999_999);
             valid_record.extend_from_slice(numeric.as_bytes());
             mixed_record.extend_from_slice(numeric.as_bytes());
         }
 
         // COMP3-FIELD (6 bytes)
-        let comp3_data = encode_simple_comp3((i as i64 * 543) % 999999999);
+        let comp3_data = encode_simple_comp3((i64::from(i) * 543) % 999_999_999);
         valid_record.extend_from_slice(&comp3_data[..6]);
         mixed_record.extend_from_slice(&comp3_data[..6]);
 
@@ -530,8 +532,8 @@ fn test_error_handling_performance_impact() -> Result<(), Box<dyn std::error::Er
     }
     let mixed_duration = start_time.elapsed();
 
-    let valid_throughput = valid_processed as f64 / valid_duration.as_secs_f64();
-    let mixed_throughput = (mixed_processed + error_count) as f64 / mixed_duration.as_secs_f64();
+    let valid_throughput = f64::from(valid_processed) / valid_duration.as_secs_f64();
+    let mixed_throughput = f64::from(mixed_processed + error_count) / mixed_duration.as_secs_f64();
 
     println!(
         "Valid data: {} records in {}ms ({:.0} records/s)",
@@ -569,8 +571,7 @@ fn test_error_handling_performance_impact() -> Result<(), Box<dyn std::error::Er
 
     assert!(
         mixed_throughput > 1000.0,
-        "Mixed processing should maintain reasonable throughput: {:.0} records/s",
-        mixed_throughput
+        "Mixed processing should maintain reasonable throughput: {mixed_throughput:.0} records/s"
     );
 
     Ok(())
@@ -580,7 +581,7 @@ fn test_error_handling_performance_impact() -> Result<(), Box<dyn std::error::Er
 fn encode_simple_comp3(value: i64) -> Vec<u8> {
     let mut result = vec![0x00; 9]; // 9 bytes for S9(15)V99
     let abs_value = value.abs();
-    let value_str = format!("{:017}", abs_value); // 17 digits total
+    let value_str = format!("{abs_value:017}"); // 17 digits total
     let digits: Vec<u8> = value_str.bytes().map(|b| b - b'0').collect();
 
     for (i, chunk) in digits.chunks(2).enumerate() {

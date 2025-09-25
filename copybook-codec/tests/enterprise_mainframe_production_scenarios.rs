@@ -1,4 +1,12 @@
-#![allow(clippy::too_many_lines, clippy::cast_precision_loss)]
+#![allow(
+    clippy::too_many_lines,
+    clippy::cast_precision_loss,
+    clippy::uninlined_format_args,
+    clippy::cast_lossless,
+    clippy::naive_bytecount,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
 
 /*!
  * Enterprise Mainframe Production Scenarios
@@ -28,7 +36,7 @@ use std::time::Instant;
 /// Simulates high-volume daily transaction processing with complex record structures
 /// typical of mainframe banking systems.
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - needs record format debugging
+#[ignore = "Temporarily disabled for quality assessment - needs record format debugging"]
 fn test_enterprise_banking_transaction_processing() -> Result<(), Box<dyn std::error::Error>> {
     const BANKING_COPYBOOK: &str = r"
 01 DAILY-TRANSACTION-RECORD.
@@ -80,8 +88,8 @@ fn test_enterprise_banking_transaction_processing() -> Result<(), Box<dyn std::e
         record.extend_from_slice(b"TELLER0123"); // TELLER-ID
 
         // ACCOUNT-INFO (46 bytes)
-        record.extend_from_slice(format!("{:016}", 1000000000000000 + i).as_bytes()); // FROM-ACCOUNT
-        record.extend_from_slice(format!("{:016}", 2000000000000000 + i).as_bytes()); // TO-ACCOUNT
+        record.extend_from_slice(format!("{:016}", 1_000_000_000_000_000 + i).as_bytes()); // FROM-ACCOUNT
+        record.extend_from_slice(format!("{:016}", 2_000_000_000_000_000 + i).as_bytes()); // TO-ACCOUNT
         record.extend_from_slice(b"CK"); // ACCOUNT-TYPE
         record.extend_from_slice(format!("CUST{:08}", i).as_bytes()); // CUSTOMER-ID
 
@@ -92,7 +100,7 @@ fn test_enterprise_banking_transaction_processing() -> Result<(), Box<dyn std::e
         record.extend_from_slice(&encode_comp3_amount(amount, 8));
         record.extend_from_slice(b"USD"); // TXN-CURRENCY
         // EXCHANGE-RATE: 9(3)V9(6) COMP-3 (5 bytes)
-        record.extend_from_slice(&encode_comp3_rate(1000000, 5)); // 1.000000
+        record.extend_from_slice(&encode_comp3_rate(1_000_000, 5)); // 1.000000
         // FEE-AMOUNT: S9(7)V99 COMP-3 (5 bytes)
         let fee = (i % 1000) * 25; // Fee in cents
         record.extend_from_slice(&encode_comp3_amount(fee, 5));
@@ -177,7 +185,7 @@ fn test_enterprise_banking_transaction_processing() -> Result<(), Box<dyn std::e
 /// Tests complex nested structures with ODO arrays typical of insurance
 /// claims processing systems with variable-length claim details.
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - ODO field ordering fixed but needs validation
+#[ignore = "Temporarily disabled for quality assessment - ODO field ordering fixed but needs validation"]
 fn test_enterprise_insurance_claims_processing() -> Result<(), Box<dyn std::error::Error>> {
     const INSURANCE_COPYBOOK: &str = r"
 01 INSURANCE-CLAIM-RECORD.
@@ -231,7 +239,7 @@ fn test_enterprise_insurance_claims_processing() -> Result<(), Box<dyn std::erro
         record.extend_from_slice(format!("CLMT{:08}", claim_id).as_bytes()); // CLAIMANT-ID
         let name = format!("CLAIMANT-{:08} NAME                           ", claim_id);
         record.extend_from_slice(&name.as_bytes()[..50]); // CLAIMANT-NAME
-        record.extend_from_slice(format!("{:09}", 100000000u64 + claim_id as u64).as_bytes()); // CLAIMANT-SSN
+        record.extend_from_slice(format!("{:09}", 100_000_000_u64 + claim_id as u64).as_bytes()); // CLAIMANT-SSN
         record.extend_from_slice(b"555-0123-456789"); // CONTACT-PHONE
 
         // DETAIL-COUNT (3 bytes)
@@ -271,7 +279,7 @@ fn test_enterprise_insurance_claims_processing() -> Result<(), Box<dyn std::erro
             record.extend_from_slice(
                 format!(
                     "{:010}",
-                    1000000000u64 + detail_idx as u64 * 1000 + claim_id as u64 % 1000
+                    1_000_000_000_u64 + detail_idx as u64 * 1000 + claim_id as u64 % 1000
                 )
                 .as_bytes(),
             ); // PROVIDER-NPI
@@ -365,7 +373,7 @@ fn test_enterprise_insurance_claims_processing() -> Result<(), Box<dyn std::erro
 /// Tests high-frequency, small record processing typical of retail POS systems
 /// with emphasis on throughput and low latency.
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - needs record format debugging
+#[ignore = "Temporarily disabled for quality assessment - needs record format debugging"]
 fn test_enterprise_retail_pos_processing() -> Result<(), Box<dyn std::error::Error>> {
     const POS_COPYBOOK: &str = r"
 01 POS-TRANSACTION-RECORD.
@@ -416,7 +424,9 @@ fn test_enterprise_retail_pos_processing() -> Result<(), Box<dyn std::error::Err
         // CUSTOMER-INFO (30 bytes)
         if txn_id % 3 == 0 {
             record.extend_from_slice(format!("CUST{:08}", txn_id / 3).as_bytes()); // CUSTOMER-ID
-            record.extend_from_slice(format!("{:016}", 4000000000000000u64 + txn_id).as_bytes()); // LOYALTY-CARD
+            record.extend_from_slice(
+                format!("{:016}", 4_000_000_000_000_000_u64 + txn_id).as_bytes(),
+            ); // LOYALTY-CARD
             record.extend_from_slice(b"LY"); // CUSTOMER-TYPE (Loyalty)
         } else {
             record.extend_from_slice(b"            "); // Empty CUSTOMER-ID
@@ -446,7 +456,9 @@ fn test_enterprise_retail_pos_processing() -> Result<(), Box<dyn std::error::Err
         record.extend_from_slice(payment_method); // PAYMENT-METHOD
 
         if payment_method == b"CC" || payment_method == b"DB" {
-            record.extend_from_slice(format!("{:016}", 4000000000000000u64 + txn_id).as_bytes()); // CARD-NUMBER
+            record.extend_from_slice(
+                format!("{:016}", 4_000_000_000_000_000_u64 + txn_id).as_bytes(),
+            ); // CARD-NUMBER
         } else {
             record.extend_from_slice(b"                "); // Empty for cash/gift card
         }
@@ -519,7 +531,7 @@ fn test_enterprise_retail_pos_processing() -> Result<(), Box<dyn std::error::Err
 /// Tests precision handling and error conditions with manufacturing quality
 /// control data featuring precise measurements and tolerance validation.
 #[test]
-#[ignore] // Temporarily disabled for quality assessment - ODO field ordering fixed but needs validation
+#[ignore = "Temporarily disabled for quality assessment - ODO field ordering fixed but needs validation"]
 fn test_enterprise_manufacturing_quality_control() -> Result<(), Box<dyn std::error::Error>> {
     const QC_COPYBOOK: &str = r"
 01 QUALITY-CONTROL-RECORD.
@@ -570,12 +582,12 @@ fn test_enterprise_manufacturing_quality_control() -> Result<(), Box<dyn std::er
 
             // Create realistic measurement with precision
             let base_value = match meas_type {
-                b"DIMN" => 1250000 + (part_id as i64 * 13) % 100000, // 12.5mm +/- 1mm (in 0.0001mm units)
-                b"WGHT" => 2500000 + (part_id as i64 * 7) % 50000,   // 250.0g +/- 5g
-                b"TEMP" => 230000 + (part_id as i64 * 3) % 5000,     // 23.0°C +/- 0.5°C
-                b"PRSS" => 1013250 + (part_id as i64 * 11) % 2500,   // 101.325 kPa +/- 0.25 kPa
-                b"VOLT" => 120000 + (part_id as i64 * 5) % 1000,     // 12.0V +/- 0.1V
-                _ => 1000000,
+                b"DIMN" => 1_250_000 + (part_id as i64 * 13) % 100_000, // 12.5mm +/- 1mm (in 0.0001mm units)
+                b"WGHT" => 2_500_000 + (part_id as i64 * 7) % 50_000,   // 250.0g +/- 5g
+                b"TEMP" => 230_000 + (part_id as i64 * 3) % 5_000,      // 23.0°C +/- 0.5°C
+                b"PRSS" => 1_013_250 + (part_id as i64 * 11) % 2_500,   // 101.325 kPa +/- 0.25 kPa
+                b"VOLT" => 120_000 + (part_id as i64 * 5) % 1000,       // 12.0V +/- 0.1V
+                _ => 1_000_000,
             };
 
             let tolerance = base_value / 100; // 1% tolerance

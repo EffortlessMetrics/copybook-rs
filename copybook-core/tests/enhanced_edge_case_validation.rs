@@ -1,5 +1,10 @@
 #![allow(clippy::too_many_lines)]
-
+#![allow(
+    clippy::items_after_statements,
+    clippy::format_push_string,
+    clippy::uninlined_format_args,
+    clippy::cast_precision_loss
+)]
 /*!
  * Enhanced Edge Case Validation Tests
  *
@@ -111,9 +116,6 @@ fn test_odo_extreme_boundary_values() {
       10 ITEM-DATA PIC X(10).
 ";
 
-    let result = parse_copybook(MIN_ODO_COPYBOOK);
-    assert!(result.is_ok(), "ODO with minimum bounds should be valid");
-
     // Test enterprise-scale maximum boundary
     const MAX_ODO_COPYBOOK: &str = r"
 01 ENTERPRISE-RECORD.
@@ -122,6 +124,9 @@ fn test_odo_extreme_boundary_values() {
       10 TXN-ID PIC X(20).
       10 TXN-AMOUNT PIC S9(15)V99 COMP-3.
 ";
+
+    let result = parse_copybook(MIN_ODO_COPYBOOK);
+    assert!(result.is_ok(), "ODO with minimum bounds should be valid");
 
     let result = parse_copybook(MAX_ODO_COPYBOOK);
     assert!(
@@ -153,16 +158,6 @@ fn test_odo_invalid_configurations() {
    05 ITEM-COUNT PIC 9(3).
 ";
 
-    let result = parse_copybook(INVALID_ODO_ORDER);
-    assert!(result.is_err(), "ODO counter after ODO array should fail");
-
-    if let Err(Error { code, .. }) = result {
-        assert!(
-            matches!(code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
-            "Should be ODO counter validation error"
-        );
-    }
-
     // Nested ODO should fail
     const NESTED_ODO: &str = r"
 01 NESTED-RECORD.
@@ -172,6 +167,16 @@ fn test_odo_invalid_configurations() {
       10 INNER-ARRAY OCCURS 1 TO 50 TIMES DEPENDING ON INNER-COUNT.
          15 INNER-DATA PIC X(5).
 ";
+
+    let result = parse_copybook(INVALID_ODO_ORDER);
+    assert!(result.is_err(), "ODO counter after ODO array should fail");
+
+    if let Err(Error { code, .. }) = result {
+        assert!(
+            matches!(code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
+            "Should be ODO counter validation error"
+        );
+    }
 
     let result = parse_copybook(NESTED_ODO);
     assert!(result.is_err(), "Nested ODO should fail");
@@ -267,12 +272,6 @@ fn test_redefines_size_validation() {
       10 PART2 PIC X(15).
 ";
 
-    let result = parse_copybook(OVERSIZED_REDEFINES);
-    assert!(
-        result.is_err(),
-        "REDEFINES larger than original should fail"
-    );
-
     // Test valid same-size REDEFINES
     const VALID_REDEFINES: &str = r"
 01 VALID-SIZE-RECORD.
@@ -281,6 +280,12 @@ fn test_redefines_size_validation() {
       10 PART1 PIC X(10).
       10 PART2 PIC X(10).
 ";
+
+    let result = parse_copybook(OVERSIZED_REDEFINES);
+    assert!(
+        result.is_err(),
+        "REDEFINES larger than original should fail"
+    );
 
     let result = parse_copybook(VALID_REDEFINES);
     assert!(result.is_ok(), "Same-size REDEFINES should be valid");
@@ -367,7 +372,7 @@ fn test_memory_usage_large_complex_structures() {
     let memory_estimate = std::mem::size_of_val(&schema)
         + schema.fields.len() * std::mem::size_of::<copybook_core::Field>();
 
-    println!("Schema memory estimate: {} bytes", memory_estimate);
+    println!("Schema memory estimate: {memory_estimate} bytes");
     assert!(
         memory_estimate < 1024 * 1024,
         "Memory usage should be reasonable"
@@ -402,17 +407,15 @@ fn test_error_handling_robustness() {
         ),
     ];
 
-    for (description, copybook, _expected_error) in malformed_cases {
+    #[allow(unused_variables)] // expected_error used in matches! macro
+    for (description, copybook, expected_error) in malformed_cases {
         let result = parse_copybook(copybook);
-        assert!(result.is_err(), "{} should produce an error", description);
+        assert!(result.is_err(), "{description} should produce an error");
 
         if let Err(Error { code, .. }) = result {
             assert!(
-                matches!(code, _expected_error),
-                "{} should produce error code {:?}, got {:?}",
-                description,
-                _expected_error,
-                code
+                matches!(code, expected_error),
+                "{description} should produce error code {expected_error:?}, got {code:?}"
             );
         }
     }
@@ -473,12 +476,6 @@ fn test_comprehensive_boundary_conditions() {
    88 VERY-LONG-CONDITION-NAME-THAT-TESTS-LEVEL88-IDENTIFIER-LIMITS VALUE 'Y' OF A.
 ";
 
-    let result = parse_copybook(LONG_FIELD_NAMES);
-    assert!(
-        result.is_ok(),
-        "Long field names within COBOL limits should be valid"
-    );
-
     // Test PIC clause boundaries
     const PIC_BOUNDARIES: &str = r"
 01 PIC-BOUNDARY-RECORD.
@@ -489,6 +486,12 @@ fn test_comprehensive_boundary_conditions() {
    05 TINY-DECIMAL PIC 9(1)V9(1).
    05 LARGE-DECIMAL PIC 9(15)V9(2).
 ";
+
+    let result = parse_copybook(LONG_FIELD_NAMES);
+    assert!(
+        result.is_ok(),
+        "Long field names within COBOL limits should be valid"
+    );
 
     let result = parse_copybook(PIC_BOUNDARIES);
     assert!(

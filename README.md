@@ -561,7 +561,8 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 - **Unsupported**: Edited PIC clauses (Z, /, comma, $, CR, DB)
 - **Unsupported**: SIGN LEADING/TRAILING SEPARATE
 - **Unsupported**: Nested ODO arrays (ODO within ODO)
-- **Unsupported**: 66-level (RENAMES) and 88-level (condition names) items
+- **Unsupported**: 66-level (RENAMES) items
+- **Supported**: 88-level (condition names) items with VALUE clauses
 
 ## Error Handling
 

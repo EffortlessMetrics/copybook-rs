@@ -463,7 +463,21 @@ impl SmallDecimal {
             return;
         }
 
-        // Use a small stack buffer for digits
+        // Optimized formatting with fewer divisions for common cases
+        if value < 100 {
+            // Fast path for 1-2 digit numbers (very common in COMP-3)
+            if value < 10 {
+                buffer.push((value as u8 + b'0') as char);
+            } else {
+                let tens = (value / 10) as u8;
+                let ones = (value % 10) as u8;
+                buffer.push((tens + b'0') as char);
+                buffer.push((ones + b'0') as char);
+            }
+            return;
+        }
+
+        // Use a small stack buffer for digits for larger numbers
         let mut digits = [0u8; 20]; // More than enough for i64::MAX
         let mut count = 0;
 
@@ -482,7 +496,33 @@ impl SmallDecimal {
     /// Ultra-fast manual integer formatting with leading zeros
     #[inline]
     fn format_integer_with_leading_zeros(mut value: i64, width: u32, buffer: &mut String) {
-        // Use a small stack buffer for digits
+        // Optimized for common small widths (most COMP-3 scales are 0-4)
+        if width <= 4 && value < 10000 {
+            match width {
+                1 => {
+                    buffer.push((value as u8 + b'0') as char);
+                }
+                2 => {
+                    buffer.push(((value / 10) as u8 + b'0') as char);
+                    buffer.push(((value % 10) as u8 + b'0') as char);
+                }
+                3 => {
+                    buffer.push(((value / 100) as u8 + b'0') as char);
+                    buffer.push((((value / 10) % 10) as u8 + b'0') as char);
+                    buffer.push(((value % 10) as u8 + b'0') as char);
+                }
+                4 => {
+                    buffer.push(((value / 1000) as u8 + b'0') as char);
+                    buffer.push((((value / 100) % 10) as u8 + b'0') as char);
+                    buffer.push((((value / 10) % 10) as u8 + b'0') as char);
+                    buffer.push(((value % 10) as u8 + b'0') as char);
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // General case for larger widths
         let mut digits = [0u8; 20]; // More than enough for i64::MAX
         let mut count = 0;
 
@@ -1962,7 +2002,78 @@ pub fn decode_packed_decimal_to_string_with_scratch(
     signed: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<String> {
-    // First decode to SmallDecimal using existing optimized decoder
+    // CRITICAL OPTIMIZATION: Direct decode-to-string path to avoid SmallDecimal allocation
+    if data.is_empty() {
+        return Ok(if scale > 0 { "0".to_string() } else { "0".to_string() });
+    }
+
+    // Fast path for common single-digit packed decimals
+    if data.len() == 1 && digits == 1 {
+        let byte = data[0];
+        let high_nibble = (byte >> 4) & 0x0F;
+        let low_nibble = byte & 0x0F;
+
+        let mut value = 0i64;
+        let mut is_negative = false;
+
+        if digits == 1 {
+            // Single digit: high nibble is unused (should be 0), low nibble is sign
+            if high_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{high_nibble:X}"),
+                ));
+            }
+            value = i64::from(high_nibble);
+
+            if signed {
+                is_negative = match low_nibble {
+                    0xA | 0xC | 0xE | 0xF => false, // Positive
+                    0xB | 0xD => true,              // Negative
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{low_nibble:X}"),
+                        ));
+                    }
+                };
+            } else if low_nibble != 0xF {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                ));
+            }
+        }
+
+        // Format directly to string without SmallDecimal
+        scratch.string_buffer.clear();
+        if is_negative && value != 0 {
+            scratch.string_buffer.push('-');
+        }
+
+        if scale <= 0 {
+            // Integer format
+            let scaled_value = if scale < 0 {
+                value * 10_i64.pow((-scale) as u32)
+            } else {
+                value
+            };
+            format_integer_to_buffer(scaled_value, &mut scratch.string_buffer);
+        } else {
+            // Decimal format
+            let divisor = 10_i64.pow(scale as u32);
+            let integer_part = value / divisor;
+            let fractional_part = value % divisor;
+
+            format_integer_to_buffer(integer_part, &mut scratch.string_buffer);
+            scratch.string_buffer.push('.');
+            format_integer_with_leading_zeros_to_buffer(fractional_part, scale as u32, &mut scratch.string_buffer);
+        }
+
+        return Ok(scratch.string_buffer.clone());
+    }
+
+    // Fall back to general case for larger packed decimals
     let decimal = decode_packed_decimal_with_scratch(data, digits, scale, signed, scratch)?;
 
     // Now format to string using the optimized scratch buffer method
@@ -1972,6 +2083,99 @@ pub fn decode_packed_decimal_to_string_with_scratch(
     // This is the single allocation we can't avoid, but it's much more efficient
     // than the original path that did multiple allocations
     Ok(scratch.string_buffer.clone())
+}
+
+/// Ultra-fast integer formatting for standalone use
+#[inline]
+fn format_integer_to_buffer(mut value: i64, buffer: &mut String) {
+    if value == 0 {
+        buffer.push('0');
+        return;
+    }
+
+    // Optimized formatting with fewer divisions for common cases
+    if value < 100 {
+        // Fast path for 1-2 digit numbers (very common in COMP-3)
+        if value < 10 {
+            buffer.push((value as u8 + b'0') as char);
+        } else {
+            let tens = (value / 10) as u8;
+            let ones = (value % 10) as u8;
+            buffer.push((tens + b'0') as char);
+            buffer.push((ones + b'0') as char);
+        }
+        return;
+    }
+
+    // Use a small stack buffer for digits for larger numbers
+    let mut digits = [0u8; 20]; // More than enough for i64::MAX
+    let mut count = 0;
+
+    while value > 0 {
+        digits[count] = (value % 10) as u8 + b'0';
+        value /= 10;
+        count += 1;
+    }
+
+    // Add digits in reverse order
+    for i in (0..count).rev() {
+        buffer.push(digits[i] as char);
+    }
+}
+
+/// Ultra-fast integer formatting with leading zeros for standalone use
+#[inline]
+fn format_integer_with_leading_zeros_to_buffer(mut value: i64, width: u32, buffer: &mut String) {
+    // Optimized for common small widths (most COMP-3 scales are 0-4)
+    if width <= 4 && value < 10000 {
+        match width {
+            1 => {
+                buffer.push((value as u8 + b'0') as char);
+            }
+            2 => {
+                buffer.push(((value / 10) as u8 + b'0') as char);
+                buffer.push(((value % 10) as u8 + b'0') as char);
+            }
+            3 => {
+                buffer.push(((value / 100) as u8 + b'0') as char);
+                buffer.push((((value / 10) % 10) as u8 + b'0') as char);
+                buffer.push(((value % 10) as u8 + b'0') as char);
+            }
+            4 => {
+                buffer.push(((value / 1000) as u8 + b'0') as char);
+                buffer.push((((value / 100) % 10) as u8 + b'0') as char);
+                buffer.push((((value / 10) % 10) as u8 + b'0') as char);
+                buffer.push(((value % 10) as u8 + b'0') as char);
+            }
+            _ => {}
+        }
+        return;
+    }
+
+    // General case for larger widths
+    let mut digits = [0u8; 20]; // More than enough for i64::MAX
+    let mut count = 0;
+
+    // Extract digits
+    loop {
+        digits[count] = (value % 10) as u8 + b'0';
+        value /= 10;
+        count += 1;
+        if value == 0 && count >= width as usize {
+            break;
+        }
+    }
+
+    // Pad with leading zeros if needed
+    while count < width as usize {
+        digits[count] = b'0';
+        count += 1;
+    }
+
+    // Add digits in reverse order
+    for i in (0..count).rev() {
+        buffer.push(digits[i] as char);
+    }
 }
 
 /// Optimized zoned decimal decoder that formats to string using scratch buffer

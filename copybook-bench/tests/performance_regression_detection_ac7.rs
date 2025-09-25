@@ -1,17 +1,15 @@
-#![allow(dead_code)]
-#![allow(clippy::new_without_default)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::too_many_lines)]
-
 //! AC7: Automated performance regression detection
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#performance-validation-infrastructure
 //! Tests ADR-002: Automated performance regression detection with <2% variance tolerance
 //! Validates comprehensive performance regression detection with CI integration and automated baseline enforcement.
 
+use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat};
+use copybook_core::{Schema, parse_copybook};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use std::io::Cursor;
+use std::path::PathBuf;
+use std::time::{Duration, Instant, SystemTime};
 // use serde::{/* TODO: Add Serialize, Deserialize when implementing */}; // TODO: Add serde dependency when implementing
 
 /// Automated performance regression detection system following ADR-002 patterns
@@ -712,7 +710,7 @@ impl PerformanceRegressionDetector {
     /// Execute comprehensive regression detection analysis
     pub fn detect_performance_regression(
         &mut self,
-        _current_metrics: PerformanceMetrics,
+        current_metrics: PerformanceMetrics,
     ) -> Result<RegressionAnalysis, Box<dyn std::error::Error>> {
         // Implementation placeholder - tests must compile but fail due to missing implementation
         todo!("Performance regression detection not implemented yet")
@@ -721,8 +719,8 @@ impl PerformanceRegressionDetector {
     /// Establish new performance baseline with comprehensive validation
     pub fn establish_baseline(
         &mut self,
-        _metrics: PerformanceMetrics,
-        _environment: EnvironmentInfo,
+        metrics: PerformanceMetrics,
+        environment: EnvironmentInfo,
     ) -> Result<String, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Baseline establishment not implemented yet")
@@ -739,7 +737,7 @@ impl PerformanceRegressionDetector {
     /// Trigger performance alerts based on regression analysis
     pub fn trigger_alerts(
         &mut self,
-        _analysis: &RegressionAnalysis,
+        analysis: &RegressionAnalysis,
     ) -> Result<Vec<AlertResult>, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Alert triggering not implemented yet")
@@ -764,7 +762,7 @@ impl BaselineRepository {
 
     pub fn store_baseline(
         &mut self,
-        _baseline: BaselineMetadata,
+        baseline: BaselineMetadata,
     ) -> Result<String, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Baseline storage not implemented yet")
@@ -772,7 +770,7 @@ impl BaselineRepository {
 
     pub fn load_baseline(
         &self,
-        _baseline_id: &str,
+        baseline_id: &str,
     ) -> Result<BaselineMetadata, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Baseline loading not implemented yet")
@@ -780,7 +778,7 @@ impl BaselineRepository {
 
     pub fn find_compatible_baseline(
         &self,
-        _environment: &EnvironmentInfo,
+        environment: &EnvironmentInfo,
     ) -> Result<Option<BaselineMetadata>, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Compatible baseline search not implemented yet")
@@ -803,8 +801,8 @@ impl StatisticalRegressionAnalyzer {
 
     pub fn analyze_regression(
         &self,
-        _baseline: &BaselineMetadata,
-        _current: &PerformanceMetrics,
+        baseline: &BaselineMetadata,
+        current: &PerformanceMetrics,
     ) -> Result<RegressionAnalysis, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Regression analysis not implemented yet")
@@ -812,8 +810,8 @@ impl StatisticalRegressionAnalyzer {
 
     pub fn calculate_statistical_significance(
         &self,
-        _baseline_samples: &[f64],
-        _current_samples: &[f64],
+        baseline_samples: &[f64],
+        current_samples: &[f64],
     ) -> Result<StatisticalTestResult, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Statistical significance calculation not implemented yet")
@@ -871,7 +869,7 @@ impl CiIntegrator {
 
     pub fn execute_performance_gate(
         &self,
-        _analysis: &RegressionAnalysis,
+        analysis: &RegressionAnalysis,
     ) -> Result<GateResult, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Performance gate execution not implemented yet")
@@ -895,7 +893,7 @@ impl AlertSystem {
 
     pub fn evaluate_alerts(
         &mut self,
-        _analysis: &RegressionAnalysis,
+        analysis: &RegressionAnalysis,
     ) -> Result<Vec<AlertResult>, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Alert evaluation not implemented yet")
@@ -973,8 +971,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_performance_baseline_establishment() -> Result<(), Box<dyn std::error::Error>> {
-        // Tests feature spec: test-suite-enhancement-architecture.md#baseline-management-system
-        // Tests ADR-002: Automated baseline capture and enforcement of performance baselines
+        /// Tests feature spec: test-suite-enhancement-architecture.md#baseline-management-system
+        /// Tests ADR-002: Automated baseline capture and enforcement of performance baselines
         let mut regression_detector = PerformanceRegressionDetector::new();
 
         // Create comprehensive performance metrics for baseline
@@ -1107,8 +1105,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_statistical_regression_analysis() -> Result<(), Box<dyn std::error::Error>> {
-        // Tests feature spec: test-suite-enhancement-architecture.md#regression-detection-engine
-        // Tests ADR-002: Statistical analysis with <2% variance tolerance
+        /// Tests feature spec: test-suite-enhancement-architecture.md#regression-detection-engine
+        /// Tests ADR-002: Statistical analysis with <2% variance tolerance
         let regression_detector = PerformanceRegressionDetector::new();
 
         // Create baseline metadata with known good performance
@@ -1381,8 +1379,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_ci_integration_performance_gates() -> Result<(), Box<dyn std::error::Error>> {
-        // Tests feature spec: test-suite-enhancement-architecture.md#ci-performance-gates
-        // Tests ADR-002: Automated performance comparison with baseline enforcement
+        /// Tests feature spec: test-suite-enhancement-architecture.md#ci-performance-gates
+        /// Tests ADR-002: Automated performance comparison with baseline enforcement
         let regression_detector = PerformanceRegressionDetector::new();
 
         // Create regression analysis with gate-triggering regression
@@ -1603,10 +1601,9 @@ mod tests {
             !display_gate.threshold_met,
             "Display throughput condition should not be met"
         );
-        assert!(
-            (display_gate.actual_value - (-3.0)).abs() < f64::EPSILON,
-            "Should report 3% regression but got {}",
-            display_gate.actual_value
+        assert_eq!(
+            display_gate.actual_value, -3.0,
+            "Should report 3% regression"
         );
 
         // Validate enforcement action
@@ -1629,8 +1626,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_automated_alert_system() -> Result<(), Box<dyn std::error::Error>> {
-        // Tests feature spec: test-suite-enhancement-architecture.md#automated-performance-monitoring
-        // Tests ADR-002: Comprehensive alert system with escalation policies
+        /// Tests feature spec: test-suite-enhancement-architecture.md#automated-performance-monitoring
+        /// Tests ADR-002: Comprehensive alert system with escalation policies
         let mut regression_detector = PerformanceRegressionDetector::new();
 
         // Create regression analysis that should trigger alerts
@@ -1927,8 +1924,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_comprehensive_ci_performance_workflow() -> Result<(), Box<dyn std::error::Error>> {
-        // Tests feature spec: test-suite-enhancement-architecture.md#ci-integration
-        // Tests ADR-002: Complete CI workflow with regression detection, gates, and alerts
+        /// Tests feature spec: test-suite-enhancement-architecture.md#ci-integration
+        /// Tests ADR-002: Complete CI workflow with regression detection, gates, and alerts
         let mut regression_detector = PerformanceRegressionDetector::new();
 
         // Execute comprehensive CI performance check
@@ -2050,11 +2047,11 @@ mod tests {
     }
 
     #[test] // AC:7
-    #[ignore = "Long-running comprehensive regression detection test"]
+    #[ignore] // Long-running comprehensive regression detection test
     fn test_comprehensive_performance_regression_system() -> Result<(), Box<dyn std::error::Error>>
     {
-        // Tests feature spec: test-suite-enhancement-architecture.md#comprehensive-performance-regression-detection
-        // Tests ADR-002: Full automated performance regression detection system
+        /// Tests feature spec: test-suite-enhancement-architecture.md#comprehensive-performance-regression-detection
+        /// Tests ADR-002: Full automated performance regression detection system
 
         println!("Starting comprehensive performance regression detection system test...");
 
@@ -2099,7 +2096,7 @@ mod tests {
                 standard_deviation: 0.18,
                 coefficient_of_variation: 0.0375,
                 samples: (0..50)
-                    .map(|i| 4.6 + (f64::from(i) * 0.008) + (f64::from(i) % 3.0) * 0.02)
+                    .map(|i| 4.6 + (i as f64 * 0.008) + (i as f64 % 3.0) * 0.02)
                     .collect(),
             },
             comp3_throughput: ThroughputMetrics {
@@ -2110,7 +2107,7 @@ mod tests {
                 standard_deviation: 15.5,
                 coefficient_of_variation: 0.0238,
                 samples: (0..50)
-                    .map(|i| 630.0 + (f64::from(i) * 0.8) + (f64::from(i) % 5.0) * 1.2)
+                    .map(|i| 630.0 + (i as f64 * 0.8) + (i as f64 % 5.0) * 1.2)
                     .collect(),
             },
             memory_usage: MemoryUsageMetrics {
@@ -2140,7 +2137,7 @@ mod tests {
             comprehensive_environment.clone(),
         )?;
 
-        println!("Baseline established: {baseline_id}");
+        println!("Baseline established: {}", baseline_id);
 
         // Phase 2: Test various regression scenarios
         println!("Phase 2: Testing regression detection across various scenarios...");
@@ -2155,7 +2152,7 @@ mod tests {
                 standard_deviation: 0.19,
                 coefficient_of_variation: 0.040,
                 samples: (0..50)
-                    .map(|i| 4.55 + (f64::from(i) * 0.008) + (f64::from(i) % 3.0) * 0.02)
+                    .map(|i| 4.55 + (i as f64 * 0.008) + (i as f64 % 3.0) * 0.02)
                     .collect(),
             },
             comp3_throughput: ThroughputMetrics {
@@ -2166,7 +2163,7 @@ mod tests {
                 standard_deviation: 16.0,
                 coefficient_of_variation: 0.025,
                 samples: (0..50)
-                    .map(|i| 623.0 + (f64::from(i) * 0.8) + (f64::from(i) % 5.0) * 1.2)
+                    .map(|i| 623.0 + (i as f64 * 0.8) + (i as f64 % 5.0) * 1.2)
                     .collect(),
             },
             memory_usage: MemoryUsageMetrics {
@@ -2215,7 +2212,7 @@ mod tests {
                 standard_deviation: 0.20,
                 coefficient_of_variation: 0.043,
                 samples: (0..50)
-                    .map(|i| 4.48 + (f64::from(i) * 0.008) + (f64::from(i) % 3.0) * 0.02)
+                    .map(|i| 4.48 + (i as f64 * 0.008) + (i as f64 % 3.0) * 0.02)
                     .collect(),
             },
             comp3_throughput: ThroughputMetrics {
@@ -2226,7 +2223,7 @@ mod tests {
                 standard_deviation: 16.5,
                 coefficient_of_variation: 0.026,
                 samples: (0..50)
-                    .map(|i| 614.0 + (f64::from(i) * 0.8) + (f64::from(i) % 5.0) * 1.2)
+                    .map(|i| 614.0 + (i as f64 * 0.8) + (i as f64 % 5.0) * 1.2)
                     .collect(),
             },
             memory_usage: MemoryUsageMetrics {
@@ -2267,7 +2264,7 @@ mod tests {
                     ),
                     "2.5% regression should be minor or moderate"
                 );
-                println!("✓ Minor regression scenario: {severity:?} detected");
+                println!("✓ Minor regression scenario: {:?} detected", severity);
             }
             _ => {
                 panic!("2.5% regression should be detected");
@@ -2284,7 +2281,7 @@ mod tests {
                 standard_deviation: 0.25,
                 coefficient_of_variation: 0.060,
                 samples: (0..50)
-                    .map(|i| 3.95 + (f64::from(i) * 0.008) + (f64::from(i) % 3.0) * 0.02)
+                    .map(|i| 3.95 + (i as f64 * 0.008) + (i as f64 % 3.0) * 0.02)
                     .collect(),
             },
             comp3_throughput: ThroughputMetrics {
@@ -2295,7 +2292,7 @@ mod tests {
                 standard_deviation: 20.0,
                 coefficient_of_variation: 0.038,
                 samples: (0..50)
-                    .map(|i| 500.0 + (f64::from(i) * 0.8) + (f64::from(i) % 5.0) * 1.2)
+                    .map(|i| 500.0 + (i as f64 * 0.8) + (i as f64 % 5.0) * 1.2)
                     .collect(),
             },
             memory_usage: MemoryUsageMetrics {
@@ -2372,7 +2369,7 @@ mod tests {
         // Phase 4: Test alert system responsiveness
         println!("Phase 4: Testing alert system for various regression levels...");
 
-        let alert_scenarios = [&minor_regression_analysis, &critical_regression_analysis];
+        let alert_scenarios = vec![&minor_regression_analysis, &critical_regression_analysis];
 
         let mut total_alerts = 0;
         let mut critical_alerts = 0;
@@ -2433,7 +2430,7 @@ mod tests {
 
         // Generate comprehensive summary report
         println!("\n=== COMPREHENSIVE PERFORMANCE REGRESSION DETECTION RESULTS ===");
-        println!("Baseline ID: {baseline_id}");
+        println!("Baseline ID: {}", baseline_id);
         println!("Test Scenarios:");
         println!("  ✓ Acceptable variance (1%): No regression detected");
         println!("  ✓ Minor regression (2.5%): Warning level detection");
@@ -2441,15 +2438,12 @@ mod tests {
         println!(
             "CI Integration: {} total checks, {}% success rate",
             ci_results.len(),
-            {
-                #[allow(clippy::cast_precision_loss)]
-                let passed_f64 = passed_checks as f64;
-                #[allow(clippy::cast_precision_loss)]
-                let total_f64 = ci_results.len() as f64;
-                (passed_f64 / total_f64) * 100.0
-            }
+            (passed_checks as f64 / ci_results.len() as f64) * 100.0
         );
-        println!("Alert System: {total_alerts} total alerts, {critical_alerts} critical alerts");
+        println!(
+            "Alert System: {} total alerts, {} critical alerts",
+            total_alerts, critical_alerts
+        );
         println!("Statistical Analysis: Comprehensive regression detection with 95% confidence");
         println!("Performance Gates: Automated enforcement with <2% variance tolerance");
         println!("=== COMPREHENSIVE TEST COMPLETE ===\n");

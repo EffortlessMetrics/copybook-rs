@@ -740,6 +740,9 @@ impl PerformanceRegressionDetector {
     /// # Errors
     ///
     /// Returns error if baseline establishment fails
+    ///
+    /// # Panics
+    /// Panics if system time calculation fails during baseline ID generation
     pub fn establish_baseline(
         &mut self,
         metrics: &PerformanceMetrics,
@@ -762,6 +765,9 @@ impl PerformanceRegressionDetector {
     /// # Errors
     ///
     /// Returns error if CI performance check fails
+    ///
+    /// # Panics
+    /// Panics if system time calculation fails during check ID generation
     pub fn execute_ci_performance_check(
         &mut self,
     ) -> Result<CiCheckResult, Box<dyn std::error::Error>> {
@@ -790,12 +796,34 @@ impl PerformanceRegressionDetector {
                         sample_size: 100,
                         confidence_level: 0.95,
                         confidence_intervals: ConfidenceIntervals {
-                            throughput_ci: ConfidenceInterval { lower_bound: 4.0, upper_bound: 4.4, confidence_level: 0.95 },
-                            memory_ci: ConfidenceInterval { lower_bound: 90.0, upper_bound: 130.0, confidence_level: 0.95 },
-                            latency_ci: ConfidenceInterval { lower_bound: 10.0, upper_bound: 20.0, confidence_level: 0.95 }
+                            throughput_ci: ConfidenceInterval {
+                                lower_bound: 4.0,
+                                upper_bound: 4.4,
+                                confidence_level: 0.95,
+                            },
+                            memory_ci: ConfidenceInterval {
+                                lower_bound: 90.0,
+                                upper_bound: 130.0,
+                                confidence_level: 0.95,
+                            },
+                            latency_ci: ConfidenceInterval {
+                                lower_bound: 10.0,
+                                upper_bound: 20.0,
+                                confidence_level: 0.95,
+                            },
                         },
-                        normality_test_results: NormalityTestResults { shapiro_wilk_p_value: Some(0.2), kolmogorov_smirnov_p_value: Some(0.5), is_normally_distributed: true, recommended_test_type: StatisticalTestType::TTest },
-                        outlier_analysis: OutlierAnalysis { outliers_detected: vec![], outlier_method: OutlierDetectionMethod::InterquartileRange, outlier_threshold: 3.0, outlier_impact_assessment: OutlierImpact::Minimal }
+                        normality_test_results: NormalityTestResults {
+                            shapiro_wilk_p_value: Some(0.2),
+                            kolmogorov_smirnov_p_value: Some(0.5),
+                            is_normally_distributed: true,
+                            recommended_test_type: StatisticalTestType::TTest,
+                        },
+                        outlier_analysis: OutlierAnalysis {
+                            outliers_detected: vec![],
+                            outlier_method: OutlierDetectionMethod::InterquartileRange,
+                            outlier_threshold: 3.0,
+                            outlier_impact_assessment: OutlierImpact::Minimal,
+                        },
                     },
                     validation_status: BaselineValidationStatus::Valid,
                     performance_metrics: PerformanceMetrics {
@@ -993,6 +1021,20 @@ impl StatisticalRegressionAnalyzer {
         }
     }
 
+    /// Analyze performance regression between baseline and current metrics
+    ///
+    /// # Arguments
+    /// * `baseline` - Baseline metadata for comparison
+    /// * `current` - Current performance metrics to analyze
+    ///
+    /// # Returns
+    /// `RegressionAnalysis` containing analysis results
+    ///
+    /// # Errors
+    /// Returns error if regression analysis fails
+    ///
+    /// # Panics
+    /// Panics if system time calculation fails during analysis ID generation
     pub fn analyze_regression(
         &self,
         baseline: &BaselineMetadata,
@@ -1017,12 +1059,39 @@ impl StatisticalRegressionAnalyzer {
                     sample_size: 50,
                     confidence_level: 0.95,
                     confidence_intervals: ConfidenceIntervals {
-                        throughput_ci: ConfidenceInterval { lower_bound: 3.8, upper_bound: 4.6, confidence_level: 0.95 },
-                        memory_ci: ConfidenceInterval { lower_bound: 85.0, upper_bound: 125.0, confidence_level: 0.95 },
-                        latency_ci: ConfidenceInterval { lower_bound: 8.0, upper_bound: 25.0, confidence_level: 0.95 }
+                        throughput_ci: ConfidenceInterval {
+                            lower_bound: 3.8,
+                            upper_bound: 4.6,
+                            confidence_level: 0.95,
+                        },
+                        memory_ci: ConfidenceInterval {
+                            lower_bound: 85.0,
+                            upper_bound: 125.0,
+                            confidence_level: 0.95,
+                        },
+                        latency_ci: ConfidenceInterval {
+                            lower_bound: 8.0,
+                            upper_bound: 25.0,
+                            confidence_level: 0.95,
+                        },
                     },
-                    normality_test_results: NormalityTestResults { shapiro_wilk_p_value: Some(0.15), kolmogorov_smirnov_p_value: Some(0.6), is_normally_distributed: true, recommended_test_type: StatisticalTestType::TTest },
-                    outlier_analysis: OutlierAnalysis { outliers_detected: vec![OutlierPoint { value: 3.2, z_score: 3.1, impact_on_mean: 0.05, should_exclude: false }], outlier_method: OutlierDetectionMethod::InterquartileRange, outlier_threshold: 3.0, outlier_impact_assessment: OutlierImpact::Moderate }
+                    normality_test_results: NormalityTestResults {
+                        shapiro_wilk_p_value: Some(0.15),
+                        kolmogorov_smirnov_p_value: Some(0.6),
+                        is_normally_distributed: true,
+                        recommended_test_type: StatisticalTestType::TTest,
+                    },
+                    outlier_analysis: OutlierAnalysis {
+                        outliers_detected: vec![OutlierPoint {
+                            value: 3.2,
+                            z_score: 3.1,
+                            impact_on_mean: 0.05,
+                            should_exclude: false,
+                        }],
+                        outlier_method: OutlierDetectionMethod::InterquartileRange,
+                        outlier_threshold: 3.0,
+                        outlier_impact_assessment: OutlierImpact::Moderate,
+                    },
                 },
                 validation_status: BaselineValidationStatus::Valid,
                 performance_metrics: current.clone(),

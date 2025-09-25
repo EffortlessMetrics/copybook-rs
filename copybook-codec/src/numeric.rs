@@ -11,11 +11,14 @@ use std::fmt::Write;
 use tracing::warn;
 
 // CRITICAL PERFORMANCE OPTIMIZATION: Inline hints for hot paths
+#[allow(dead_code)]
+#[allow(clippy::inline_always)]
 #[inline(always)]
 fn likely(b: bool) -> bool {
     b
 }
 
+#[allow(clippy::inline_always)]
 #[inline(always)]
 fn unlikely(b: bool) -> bool {
     b
@@ -1381,8 +1384,8 @@ pub fn encode_packed_decimal(
         if digit_pos > 0 {
             digit_pos -= 1;
             if digit_pos < digit_count {
-                // Use actual digit (stored in reverse order)
-                let digit = digit_buffer[digit_count - 1 - digit_pos];
+                // Use actual digit (stored in reverse order, so index directly)
+                let digit = digit_buffer[digit_pos];
                 byte_val |= digit << 4;
             }
             // else: leading zero, already initialized to 0
@@ -1399,8 +1402,8 @@ pub fn encode_packed_decimal(
         } else if digit_pos > 0 {
             digit_pos -= 1;
             if digit_pos < digit_count {
-                // Use actual digit
-                let digit = digit_buffer[digit_count - 1 - digit_pos];
+                // Use actual digit (stored in reverse order, so index directly)
+                let digit = digit_buffer[digit_pos];
                 byte_val |= digit;
             }
             // else: leading zero, already initialized to 0

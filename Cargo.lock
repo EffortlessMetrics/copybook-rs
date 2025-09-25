@@ -330,6 +330,7 @@ dependencies = [
  "copybook-core",
  "criterion",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

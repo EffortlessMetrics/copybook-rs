@@ -6,7 +6,8 @@
 //! normative behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, parse_copybook};
 use serde_json::json;
@@ -128,7 +129,7 @@ fn test_redefines_encode_error_context() {
         "NUMERIC-VIEW": "1234567890"
     });
 
-    let formatted_json = format!("{}\n", json_data.to_string());
+    let formatted_json = format!("{json_data}\n");
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -175,7 +176,7 @@ fn test_missing_counter_field_error() {
         "ITEMS": ["ITEM1", "ITEM2", "ITEM3"]
     });
 
-    let formatted_json = format!("{}\n", json_data.to_string());
+    let formatted_json = format!("{json_data}\n");
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,

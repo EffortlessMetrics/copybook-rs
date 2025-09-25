@@ -11,7 +11,8 @@
 //! behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, Occurs, parse_copybook};
 use serde_json::{Value, json};
@@ -106,7 +107,7 @@ fn test_redefines_decode_all_views() {
     let test_data = b"12345678"; // 8 bytes of data
 
     // Set LRECL to match test data length
-    schema.lrecl_fixed = Some(test_data.len() as u32);
+    schema.lrecl_fixed = Some(u32::try_from(test_data.len()).unwrap());
 
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
@@ -185,7 +186,7 @@ fn test_redefines_raw_preserved_record() {
     let test_data = b"12345123"; // Use all numeric digits for zoned decimal compatibility
 
     // Set LRECL to match test data length
-    schema.lrecl_fixed = Some(test_data.len() as u32);
+    schema.lrecl_fixed = Some(u32::try_from(test_data.len()).unwrap());
 
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
@@ -317,7 +318,7 @@ fn test_odo_decode_clamp_vs_strict() {
     let test_data = b"99ABCDEFGHIJKLMNO"; // Counter + 5 array elements
 
     // Set LRECL to match test data length for ODO schemas
-    schema.lrecl_fixed = Some(test_data.len() as u32);
+    schema.lrecl_fixed = Some(u32::try_from(test_data.len()).unwrap());
 
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
@@ -569,7 +570,7 @@ fn test_redefines_declaration_order() {
     let test_data = b"12345678"; // Use all numeric digits for zoned decimal compatibility
 
     // Set LRECL to match test data length
-    schema.lrecl_fixed = Some(test_data.len() as u32);
+    schema.lrecl_fixed = Some(u32::try_from(test_data.len()).unwrap());
 
     // Instead of using decode_file_to_jsonl which goes through string serialization,
     // use decode_record directly to avoid JSON string round-trip that might reorder keys
@@ -586,7 +587,7 @@ fn test_redefines_declaration_order() {
         .as_object()
         .unwrap()
         .keys()
-        .map(|s| s.as_str())
+        .map(std::string::String::as_str)
         .collect();
     let expected_order = vec![
         "ORIGINAL",
@@ -598,10 +599,7 @@ fn test_redefines_declaration_order() {
     for (i, expected_key) in expected_order.iter().enumerate() {
         assert!(
             keys.iter().position(|&k| k == *expected_key).unwrap() == i,
-            "Field {} not in expected position. Actual order: {:?}, Expected: {:?}",
-            expected_key,
-            keys,
-            expected_order
+            "Field {expected_key} not in expected position. Actual order: {keys:?}, Expected: {expected_order:?}",
         );
     }
 }

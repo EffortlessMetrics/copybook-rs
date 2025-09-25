@@ -13,14 +13,13 @@ fn create_ebcdic_record(count: u8, data: &[u8]) -> Vec<u8> {
 
     // Convert decimal digit to EBCDIC zoned numeric (CP037)
     let ebcdic_digit = match count {
-        0 => 0xF0,
         1 => 0xF1,
         2 => 0xF2,
         3 => 0xF3,
         4 => 0xF4,
         5 => 0xF5,
         9 => 0xF9,
-        _ => 0xF0,
+        _ => 0xF0, // Default for 0 and invalid values
     };
 
     record.push(ebcdic_digit);
@@ -79,7 +78,7 @@ fn test_odo_array_count_clipped() {
         }
         Err(e) => {
             println!("Clipped record error code: {:?}", e.code);
-            println!("Clipped record error message: {}", e);
+            println!("Clipped record error message: {e}");
             assert_eq!(
                 e.code,
                 ErrorCode::CBKD301_RECORD_TOO_SHORT,
@@ -106,7 +105,7 @@ fn test_odo_array_record_too_short() {
         }
         Err(e) => {
             println!("Too short record error code: {:?}", e.code);
-            println!("Too short record error message: {}", e);
+            println!("Too short record error message: {e}");
             assert_eq!(
                 e.code,
                 ErrorCode::CBKD301_RECORD_TOO_SHORT,
@@ -139,7 +138,7 @@ fn test_odo_array_count_raised() {
         }
         Err(e) => {
             println!("Raised count record error code: {:?}", e.code);
-            println!("Raised count record error message: {}", e);
+            println!("Raised count record error message: {e}");
             assert_eq!(
                 e.code,
                 ErrorCode::CBKS301_ODO_CLIPPED,
@@ -172,7 +171,7 @@ fn test_odo_array_count_below_min() {
         }
         Err(e) => {
             println!("Below min count record error code: {:?}", e.code);
-            println!("Below min count record error message: {}", e);
+            println!("Below min count record error message: {e}");
             assert_eq!(
                 e.code,
                 ErrorCode::CBKS302_ODO_RAISED,

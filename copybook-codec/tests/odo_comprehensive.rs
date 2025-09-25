@@ -12,6 +12,7 @@
 
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, Occurs, parse_copybook};
 use serde_json::{Value, json};
@@ -131,6 +132,8 @@ fn test_odo_strict_mode_clamp_fatal() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Counter value exceeds maximum (005 > 3)
@@ -167,6 +170,8 @@ fn test_odo_lenient_mode_clamp_with_warning() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Counter value exceeds maximum (005 > 3)
@@ -213,6 +218,8 @@ fn test_odo_lenient_mode_raise_to_minimum() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Counter value below minimum (001 < 2)
@@ -255,6 +262,8 @@ fn test_odo_payload_length_correctness() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test different array lengths
@@ -269,7 +278,7 @@ fn test_odo_payload_length_correctness() {
         let mut output = Vec::new();
 
         let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
-        assert!(result.is_ok(), "Failed for {} items", expected_count);
+        assert!(result.is_ok(), "Failed for {expected_count} items");
 
         let output_str = String::from_utf8(output).unwrap();
         let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
@@ -278,8 +287,7 @@ fn test_odo_payload_length_correctness() {
         assert_eq!(
             items.len(),
             expected_count,
-            "Wrong item count for {} items",
-            expected_count
+            "Wrong item count for {expected_count} items",
         );
     }
 }
@@ -300,7 +308,7 @@ fn test_odo_encode_counter_update() {
         "ITEMS": ["ITEM1     ", "ITEM2     ", "ITEM3     "] // But array has 3 items
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{json_data}\n");
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -311,6 +319,7 @@ fn test_odo_encode_counter_update() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -332,6 +341,8 @@ fn test_odo_encode_counter_update() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     let input = Cursor::new(&output);
@@ -365,7 +376,7 @@ fn test_odo_array_length_out_of_bounds_encode() {
         "ITEMS": ["ITEM1     ", "ITEM2     ", "ITEM3     ", "ITEM4     ", "ITEM5     "] // 5 items > max 3
     });
 
-    let jsonl_data = format!("{}\n", json_data.to_string());
+    let jsonl_data = format!("{json_data}\n");
 
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
@@ -376,6 +387,7 @@ fn test_odo_array_length_out_of_bounds_encode() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -471,6 +483,8 @@ fn test_odo_zero_length_record_handling() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Zero-length array (counter = 0)
@@ -511,6 +525,8 @@ fn test_odo_comprehensive_error_context() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Counter exceeds maximum

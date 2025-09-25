@@ -78,13 +78,12 @@ fn test_deterministic_parallel_decode() {
     for (threads, output) in &results[1..] {
         assert_eq!(
             output, baseline,
-            "Output differs between 1 thread and {} threads",
-            threads
+            "Output differs between 1 thread and {threads} threads",
         );
     }
 
     // Verify output is valid JSON lines
-    let lines: Vec<&str> = baseline.trim().split('\n').collect();
+    let lines: Vec<&str> = baseline.lines().collect();
     assert_eq!(lines.len(), 50);
 
     // Each line should be valid JSON
@@ -127,7 +126,7 @@ fn test_memory_bounded_processing() {
 
     // Verify output is valid JSON lines
     let output_str = String::from_utf8(output).unwrap();
-    let lines: Vec<&str> = output_str.trim().split('\n').collect();
+    let lines: Vec<&str> = output_str.lines().collect();
     assert_eq!(lines.len(), 200);
 
     // Each line should be valid JSON

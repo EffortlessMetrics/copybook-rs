@@ -13,6 +13,7 @@
 use base64::Engine;
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    ZonedEncodingFormat,
 };
 use copybook_core::parse_copybook;
 use serde_json::{Value, json};
@@ -38,6 +39,8 @@ fn test_rdw_normal_processing() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // RDW: 4-byte header (length + reserved) + data
@@ -73,6 +76,8 @@ fn test_rdw_reserved_nonzero_warning() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // RDW with non-zero reserved bytes
@@ -107,6 +112,8 @@ fn test_rdw_reserved_nonzero_strict_fatal() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // RDW with non-zero reserved bytes
@@ -137,6 +144,8 @@ fn test_rdw_raw_preservation_with_reserved() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // RDW with non-zero reserved bytes
@@ -155,7 +164,7 @@ fn test_rdw_raw_preservation_with_reserved() {
     assert!(decoded_json.get("__raw_b64").is_some());
 
     // Now encode back with raw usage
-    let jsonl_data = format!("{}\n", decoded_json.to_string());
+    let jsonl_data = format!("{decoded_json}\n");
 
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
@@ -166,6 +175,7 @@ fn test_rdw_raw_preservation_with_reserved() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -194,6 +204,8 @@ fn test_rdw_suspect_ascii_heuristic() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Create RDW that looks like ASCII digits (suspect corruption)
@@ -205,13 +217,11 @@ fn test_rdw_suspect_ascii_heuristic() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
 
     // This might succeed or fail depending on implementation, but should detect ASCII pattern
-    if result.is_ok() {
-        let summary = result.unwrap();
+    if let Ok(summary) = result {
         // Should have warning about suspect ASCII corruption
         assert!(summary.has_warnings());
-    } else {
+    } else if let Err(error) = result {
         // Or might fail with ASCII corruption detection error
-        let error = result.unwrap_err();
         assert!(error.message.contains("ASCII") || error.message.contains("corruption"));
     }
 }
@@ -238,6 +248,8 @@ fn test_rdw_zero_length_record_valid() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Zero-length record: RDW with length 0
@@ -276,6 +288,8 @@ fn test_rdw_zero_length_record_invalid() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Zero-length record with fixed schema
@@ -311,6 +325,8 @@ fn test_rdw_length_recomputation_on_encode() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     let original_data = b"\x00\x0A\x00\x00HELLO WRLD";
@@ -326,7 +342,7 @@ fn test_rdw_length_recomputation_on_encode() {
     // Modify the data (change length)
     decoded_json["SIMPLE-RECORD"] = json!("MODIFIED  "); // Still 10 bytes
 
-    let jsonl_data = format!("{}\n", decoded_json.to_string());
+    let jsonl_data = format!("{decoded_json}\n");
 
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
@@ -337,6 +353,7 @@ fn test_rdw_length_recomputation_on_encode() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        zoned_encoding_override: None,
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -367,6 +384,8 @@ fn test_rdw_multiple_records() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Multiple RDW records
@@ -385,7 +404,7 @@ fn test_rdw_multiple_records() {
     assert_eq!(summary.records_processed, 3);
 
     let output_str = String::from_utf8(output).unwrap();
-    let lines: Vec<&str> = output_str.trim().split('\n').collect();
+    let lines: Vec<&str> = output_str.lines().collect();
     assert_eq!(lines.len(), 3);
 
     // Verify each record
@@ -413,6 +432,8 @@ fn test_rdw_big_endian_length() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     // Test big-endian length encoding
@@ -441,6 +462,8 @@ fn test_rdw_raw_record_only_mode() {
         max_errors: None,
         on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     };
 
     let test_data = b"\x00\x0A\x00\x00HELLO WRLD";

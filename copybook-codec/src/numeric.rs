@@ -14,13 +14,13 @@ use tracing::warn;
 #[allow(dead_code)]
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn likely(b: bool) -> bool {
+pub(crate) fn likely(b: bool) -> bool {
     b
 }
 
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn unlikely(b: bool) -> bool {
+pub(crate) fn unlikely(b: bool) -> bool {
     b
 }
 
@@ -951,86 +951,126 @@ pub fn decode_packed_decimal(
         return Ok(SmallDecimal::zero(scale));
     }
 
+    // CRITICAL PERFORMANCE OPTIMIZATION: Hot-path optimized decoder
+    // Simplified high-performance approach with minimal branching
+
     let mut value = 0i64;
 
-    // Process all bytes to extract digits and sign
-    for (byte_idx, &byte) in data.iter().enumerate() {
-        let high_nibble = (byte >> 4) & 0x0F;
-        let low_nibble = byte & 0x0F;
+    // Fast path: Unroll common sizes for maximum CPU efficiency
+    match data.len() {
+        1 => {
+            // Single byte: common case optimization
+            let byte = data[0];
+            let high_nibble = (byte >> 4) & 0x0F;
+            let low_nibble = byte & 0x0F;
 
-        // Process high nibble
-        if byte_idx == data.len() - 1 {
-            // Last byte - for even number of digits, high nibble should be 0 (unused)
-            // For odd number of digits, high nibble contains the last digit
-            if digits.is_multiple_of(2) {
-                // Even digits: high nibble should be 0
-                if high_nibble != 0 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!(
-                            "Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"
-                        ),
-                    ));
-                }
-            } else {
-                // Odd digits: high nibble is the last digit
-                if high_nibble > 9 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
-                    ));
-                }
-                value = value * 10 + i64::from(high_nibble);
-            }
-        } else {
-            // Not last byte - high nibble is always a digit
-            if high_nibble > 9 {
+            if digits.is_multiple_of(2) && unlikely(high_nibble != 0) {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                    format!("Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"),
                 ));
             }
-            value = value * 10 + i64::from(high_nibble);
-        }
 
-        // Process low nibble
-        if byte_idx == data.len() - 1 {
-            // Last byte - low nibble is always sign
+            if !digits.is_multiple_of(2) {
+                if unlikely(high_nibble > 9) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid digit nibble 0x{high_nibble:X}"),
+                    ));
+                }
+                value = i64::from(high_nibble);
+            }
+
+            // Process sign nibble
             if signed {
                 let is_negative = match low_nibble {
-                    0xA | 0xC | 0xE | 0xF => false, // Positive
-                    0xB | 0xD => true,              // Negative
+                    0xA | 0xC | 0xE | 0xF => false,
+                    0xB | 0xD => true,
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{low_nibble:X} in packed decimal"),
+                            format!("Invalid sign nibble 0x{low_nibble:X}"),
                         ));
                     }
                 };
                 let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
+                decimal.normalize();
                 return Ok(decimal);
-            } else {
-                // Unsigned - low nibble should be 0xF
-                if low_nibble != 0xF {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                    ));
-                }
-            }
-        } else {
-            // Low nibble is a digit
-            if low_nibble > 9 {
+            } else if unlikely(low_nibble != 0xF) {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{low_nibble:X} at byte {byte_idx}"),
+                    format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
                 ));
             }
-            value = value * 10 + i64::from(low_nibble);
-        }
+        },
+        _ => {
+            // General case: Optimized loop with minimal overhead
+            for (byte_idx, &byte) in data.iter().enumerate() {
+                let high_nibble = (byte >> 4) & 0x0F;
+                let low_nibble = byte & 0x0F;
+                let is_last_byte = byte_idx == data.len() - 1;
 
-        // Note: Continue processing all bytes to reach the sign in the last byte
+                // Process high nibble
+                if is_last_byte {
+                    if digits.is_multiple_of(2) {
+                        if unlikely(high_nibble != 0) {
+                            return Err(Error::new(
+                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                                format!("Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"),
+                            ));
+                        }
+                    } else {
+                        if unlikely(high_nibble > 9) {
+                            return Err(Error::new(
+                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                                format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                            ));
+                        }
+                        value = value * 10 + i64::from(high_nibble);
+                    }
+                } else {
+                    if unlikely(high_nibble > 9) {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                        ));
+                    }
+                    value = value * 10 + i64::from(high_nibble);
+                }
+
+                // Process low nibble
+                if is_last_byte {
+                    if signed {
+                        let is_negative = match low_nibble {
+                            0xA | 0xC | 0xE | 0xF => false,
+                            0xB | 0xD => true,
+                            _ => {
+                                return Err(Error::new(
+                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                                    format!("Invalid sign nibble 0x{low_nibble:X} in packed decimal"),
+                                ));
+                            }
+                        };
+                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
+                        decimal.normalize();
+                        return Ok(decimal);
+                    } else if unlikely(low_nibble != 0xF) {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                        ));
+                    }
+                } else {
+                    if unlikely(low_nibble > 9) {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid digit nibble 0x{low_nibble:X} at byte {byte_idx}"),
+                        ));
+                    }
+                    value = value * 10 + i64::from(low_nibble);
+                }
+            }
+        }
     }
 
     // If we get here without returning, it's unsigned

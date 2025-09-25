@@ -109,8 +109,8 @@ fn odo_tail_validation_with_non_storage_after() {
 01 VALID-WITH-NON-STORAGE.
    05 COUNT         PIC 9(3).
    05 ITEMS OCCURS 5 TIMES DEPENDING ON COUNT PIC X(3).
-   88 ITEMS-EMPTY VALUE ZEROS.
-   88 ITEMS-PRESENT VALUE 1 THROUGH 999.
+   88 ITEMS-EMPTY VALUE '000'.
+   88 ITEMS-PRESENT VALUE '001' THROUGH '999'.
 ";
 
     // This should be valid because only level 88 fields come after the ODO array

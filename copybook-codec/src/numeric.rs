@@ -967,7 +967,9 @@ pub fn decode_packed_decimal(
             if digits.is_multiple_of(2) && unlikely(high_nibble != 0) {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"),
+                    format!(
+                        "Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"
+                    ),
                 ));
             }
 
@@ -1002,7 +1004,7 @@ pub fn decode_packed_decimal(
                     format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
                 ));
             }
-        },
+        }
         _ => {
             // General case: Optimized loop with minimal overhead
             for (byte_idx, &byte) in data.iter().enumerate() {
@@ -1016,14 +1018,18 @@ pub fn decode_packed_decimal(
                         if unlikely(high_nibble != 0) {
                             return Err(Error::new(
                                 ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!("Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"),
+                                format!(
+                                    "Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"
+                                ),
                             ));
                         }
                     } else {
                         if unlikely(high_nibble > 9) {
                             return Err(Error::new(
                                 ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                                format!(
+                                    "Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"
+                                ),
                             ));
                         }
                         value = value * 10 + i64::from(high_nibble);
@@ -1047,7 +1053,9 @@ pub fn decode_packed_decimal(
                             _ => {
                                 return Err(Error::new(
                                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{low_nibble:X} in packed decimal"),
+                                    format!(
+                                        "Invalid sign nibble 0x{low_nibble:X} in packed decimal"
+                                    ),
                                 ));
                             }
                         };

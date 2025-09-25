@@ -397,12 +397,23 @@ fn process_fields_recursive(
                         scale,
                         signed,
                     } => {
+                        // Use simple decode for non-scratch path (backward compatibility)
                         let decimal = crate::numeric::decode_packed_decimal(
                             field_data, *digits, *scale, *signed,
                         )?;
                         Value::String(decimal.to_string())
                     }
                     FieldKind::Group => unreachable!(), // Already handled above
+                    FieldKind::Condition { values } => {
+                        // Level-88 fields are condition names (conditional variables)
+                        // In COBOL, these define named constants or ranges for their parent field
+                        // Return a structured representation for API consistency
+                        if values.is_empty() {
+                            Value::String("CONDITION".to_string())
+                        } else {
+                            Value::String(format!("CONDITION({})", values.join("|")))
+                        }
+                    }
                 };
 
                 json_obj.insert(field.name.clone(), field_value);
@@ -526,6 +537,16 @@ fn process_fields_recursive_with_scratch(
                             Value::String(decimal_str)
                         }
                         FieldKind::Group => unreachable!(), // Already handled above
+                        FieldKind::Condition { values } => {
+                            // Level-88 fields are condition names (conditional variables)
+                            // In COBOL, these define named constants or ranges for their parent field
+                            // Return a structured representation for API consistency
+                            if values.is_empty() {
+                                Value::String("CONDITION".to_string())
+                            } else {
+                                Value::String(format!("CONDITION({})", values.join("|")))
+                            }
+                        }
                     };
 
                     json_obj.insert(field.name.clone(), field_value);
@@ -734,6 +755,15 @@ fn process_array_field_with_scratch(
                 )?;
                 Value::Object(group_obj)
             }
+            FieldKind::Condition { values } => {
+                // Level-88 fields are condition names, not data arrays
+                // Return structured representation for API consistency
+                if values.is_empty() {
+                    Value::String("CONDITION_ARRAY".to_string())
+                } else {
+                    Value::String(format!("CONDITION_ARRAY({})", values.join("|")))
+                }
+            }
         };
 
         array_values.push(element_value);
@@ -814,9 +844,15 @@ fn find_and_read_counter_field(
             scale,
             signed,
         } => {
-            let decimal =
-                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            let decimal_str = decimal.to_string();
+            // OPTIMIZATION: Use scratch buffer for ODO counter decoding
+            let mut scratch = crate::memory::ScratchBuffers::new();
+            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                field_data,
+                *digits,
+                *scale,
+                *signed,
+                &mut scratch,
+            )?;
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,
@@ -950,9 +986,16 @@ fn decode_scalar_field_value(
             scale,
             signed,
         } => {
-            let decimal =
-                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            Ok(Value::String(decimal.to_string()))
+            // OPTIMIZATION: Use scratch buffer for scalar packed decimal processing
+            let mut scratch = crate::memory::ScratchBuffers::new();
+            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                field_data,
+                *digits,
+                *scale,
+                *signed,
+                &mut scratch,
+            )?;
+            Ok(Value::String(decimal_str))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
@@ -960,6 +1003,15 @@ fn decode_scalar_field_value(
                 ErrorCode::CBKD101_INVALID_FIELD_TYPE,
                 format!("Cannot process group field '{}' as scalar", field.name),
             ))
+        }
+        FieldKind::Condition { values } => {
+            // Level-88 fields are condition names, not data scalars
+            // Return structured representation for API consistency
+            if values.is_empty() {
+                Ok(Value::String("CONDITION".to_string()))
+            } else {
+                Ok(Value::String(format!("CONDITION({})", values.join("|"))))
+            }
         }
     }
 }
@@ -1188,6 +1240,10 @@ fn encode_fields_recursive(
                     }
                 }
                 current_offset += field.len as usize;
+            }
+            copybook_core::FieldKind::Condition { .. } => {
+                // Level-88 fields don't encode to binary - they're metadata only
+                // Skip without consuming any space in the buffer
             }
         }
     }

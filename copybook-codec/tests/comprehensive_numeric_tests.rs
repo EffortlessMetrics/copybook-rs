@@ -522,9 +522,10 @@ fn test_throughput_measurement() {
     } else {
         // In release mode with optimizations, processing may be too fast to measure
         // This is actually a good thing - it means performance is excellent!
-        assert_eq!(
-            summary.throughput_mbps, 0.0,
-            "Throughput should be 0.0 when processing time is unmeasurable"
+        assert!(
+            (summary.throughput_mbps - 0.0).abs() < f64::EPSILON,
+            "Throughput should be 0.0 when processing time is unmeasurable: got {}",
+            summary.throughput_mbps
         );
     }
 

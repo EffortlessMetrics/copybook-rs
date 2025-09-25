@@ -4,12 +4,10 @@
 //! Tests ADR-002: Automated performance regression detection with <2% variance tolerance
 //! Validates comprehensive performance regression detection with CI integration and automated baseline enforcement.
 
-use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat};
-use copybook_core::{Schema, parse_copybook};
+#![allow(dead_code, unused_variables, clippy::too_many_arguments)]
+
 use std::collections::HashMap;
-use std::io::Cursor;
-use std::path::PathBuf;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 // use serde::{/* TODO: Add Serialize, Deserialize when implementing */}; // TODO: Add serde dependency when implementing
 
 /// Automated performance regression detection system following ADR-002 patterns
@@ -697,6 +695,12 @@ pub struct ActiveEscalation {
     pub acknowledged: bool,
 }
 
+impl Default for PerformanceRegressionDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceRegressionDetector {
     pub fn new() -> Self {
         Self {
@@ -744,6 +748,12 @@ impl PerformanceRegressionDetector {
     }
 }
 
+impl Default for BaselineRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BaselineRepository {
     pub fn new() -> Self {
         Self {
@@ -785,6 +795,12 @@ impl BaselineRepository {
     }
 }
 
+impl Default for StatisticalRegressionAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StatisticalRegressionAnalyzer {
     pub fn new() -> Self {
         Self {
@@ -815,6 +831,12 @@ impl StatisticalRegressionAnalyzer {
     ) -> Result<StatisticalTestResult, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Statistical significance calculation not implemented yet")
+    }
+}
+
+impl Default for CiIntegrator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -873,6 +895,12 @@ impl CiIntegrator {
     ) -> Result<GateResult, Box<dyn std::error::Error>> {
         // Implementation placeholder
         todo!("Performance gate execution not implemented yet")
+    }
+}
+
+impl Default for AlertSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -971,8 +999,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_performance_baseline_establishment() -> Result<(), Box<dyn std::error::Error>> {
-        /// Tests feature spec: test-suite-enhancement-architecture.md#baseline-management-system
-        /// Tests ADR-002: Automated baseline capture and enforcement of performance baselines
+        // Tests feature spec: test-suite-enhancement-architecture.md#baseline-management-system
+        // Tests ADR-002: Automated baseline capture and enforcement of performance baselines
         let mut regression_detector = PerformanceRegressionDetector::new();
 
         // Create comprehensive performance metrics for baseline
@@ -1105,8 +1133,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_statistical_regression_analysis() -> Result<(), Box<dyn std::error::Error>> {
-        /// Tests feature spec: test-suite-enhancement-architecture.md#regression-detection-engine
-        /// Tests ADR-002: Statistical analysis with <2% variance tolerance
+        // Tests feature spec: test-suite-enhancement-architecture.md#regression-detection-engine
+        // Tests ADR-002: Statistical analysis with <2% variance tolerance
         let regression_detector = PerformanceRegressionDetector::new();
 
         // Create baseline metadata with known good performance
@@ -1379,8 +1407,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_ci_integration_performance_gates() -> Result<(), Box<dyn std::error::Error>> {
-        /// Tests feature spec: test-suite-enhancement-architecture.md#ci-performance-gates
-        /// Tests ADR-002: Automated performance comparison with baseline enforcement
+        // Tests feature spec: test-suite-enhancement-architecture.md#ci-performance-gates
+        // Tests ADR-002: Automated performance comparison with baseline enforcement
         let regression_detector = PerformanceRegressionDetector::new();
 
         // Create regression analysis with gate-triggering regression
@@ -1626,8 +1654,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_automated_alert_system() -> Result<(), Box<dyn std::error::Error>> {
-        /// Tests feature spec: test-suite-enhancement-architecture.md#automated-performance-monitoring
-        /// Tests ADR-002: Comprehensive alert system with escalation policies
+        // Tests feature spec: test-suite-enhancement-architecture.md#automated-performance-monitoring
+        // Tests ADR-002: Comprehensive alert system with escalation policies
         let mut regression_detector = PerformanceRegressionDetector::new();
 
         // Create regression analysis that should trigger alerts
@@ -1924,8 +1952,8 @@ mod tests {
 
     #[test] // AC:7
     fn test_comprehensive_ci_performance_workflow() -> Result<(), Box<dyn std::error::Error>> {
-        /// Tests feature spec: test-suite-enhancement-architecture.md#ci-integration
-        /// Tests ADR-002: Complete CI workflow with regression detection, gates, and alerts
+        // Tests feature spec: test-suite-enhancement-architecture.md#ci-integration
+        // Tests ADR-002: Complete CI workflow with regression detection, gates, and alerts
         let mut regression_detector = PerformanceRegressionDetector::new();
 
         // Execute comprehensive CI performance check
@@ -2050,8 +2078,8 @@ mod tests {
     #[ignore] // Long-running comprehensive regression detection test
     fn test_comprehensive_performance_regression_system() -> Result<(), Box<dyn std::error::Error>>
     {
-        /// Tests feature spec: test-suite-enhancement-architecture.md#comprehensive-performance-regression-detection
-        /// Tests ADR-002: Full automated performance regression detection system
+        // Tests feature spec: test-suite-enhancement-architecture.md#comprehensive-performance-regression-detection
+        // Tests ADR-002: Full automated performance regression detection system
 
         println!("Starting comprehensive performance regression detection system test...");
 
@@ -2369,7 +2397,7 @@ mod tests {
         // Phase 4: Test alert system responsiveness
         println!("Phase 4: Testing alert system for various regression levels...");
 
-        let alert_scenarios = vec![&minor_regression_analysis, &critical_regression_analysis];
+        let alert_scenarios = [&minor_regression_analysis, &critical_regression_analysis];
 
         let mut total_alerts = 0;
         let mut critical_alerts = 0;

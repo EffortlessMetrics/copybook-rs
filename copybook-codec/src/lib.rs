@@ -22,6 +22,7 @@
 
 // Only include working modules for task 9.1
 pub mod charset;
+pub mod fidelity;
 pub mod lib_api;
 pub mod memory;
 pub mod numeric;

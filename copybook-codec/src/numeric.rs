@@ -2004,7 +2004,7 @@ pub fn decode_packed_decimal_to_string_with_scratch(
 ) -> Result<String> {
     // CRITICAL OPTIMIZATION: Direct decode-to-string path to avoid SmallDecimal allocation
     if data.is_empty() {
-        return Ok(if scale > 0 { "0".to_string() } else { "0".to_string() });
+        return Ok("0".to_string());
     }
 
     // Fast path for common single-digit packed decimals
@@ -2067,7 +2067,11 @@ pub fn decode_packed_decimal_to_string_with_scratch(
 
             format_integer_to_buffer(integer_part, &mut scratch.string_buffer);
             scratch.string_buffer.push('.');
-            format_integer_with_leading_zeros_to_buffer(fractional_part, scale as u32, &mut scratch.string_buffer);
+            format_integer_with_leading_zeros_to_buffer(
+                fractional_part,
+                scale as u32,
+                &mut scratch.string_buffer,
+            );
         }
 
         return Ok(scratch.string_buffer.clone());

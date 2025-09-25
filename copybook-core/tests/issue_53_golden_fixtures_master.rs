@@ -223,9 +223,9 @@ impl Issue53FixtureRegistry {
         // AC6: Performance integration fixtures (4 fixtures)
         for i in 1..=4 {
             self.fixture_metadata.insert(
-                format!("ac6_performance_{}", i),
+                format!("ac6_performance_{i}"),
                 FixtureMetadata {
-                    fixture_id: format!("ac6_performance_{}", i),
+                    fixture_id: format!("ac6_performance_{i}"),
                     acceptance_criteria: "AC6".to_string(),
                     fixture_category: FixtureCategory::PerformanceIntegration,
                     expected_outcome: ExpectedOutcome::Pass,
@@ -242,9 +242,9 @@ impl Issue53FixtureRegistry {
         // AC7: Framework integration fixtures (4 fixtures)
         for i in 1..=4 {
             self.fixture_metadata.insert(
-                format!("ac7_framework_integration_{}", i),
+                format!("ac7_framework_integration_{i}"),
                 FixtureMetadata {
-                    fixture_id: format!("ac7_framework_integration_{}", i),
+                    fixture_id: format!("ac7_framework_integration_{i}"),
                     acceptance_criteria: "AC7".to_string(),
                     fixture_category: FixtureCategory::FrameworkIntegration,
                     expected_outcome: ExpectedOutcome::Pass,
@@ -259,6 +259,7 @@ impl Issue53FixtureRegistry {
         }
     }
 
+    #[must_use]
     pub fn get_fixtures_by_ac(&self, ac: &str) -> Vec<&FixtureMetadata> {
         self.fixture_metadata
             .values()
@@ -266,6 +267,7 @@ impl Issue53FixtureRegistry {
             .collect()
     }
 
+    #[must_use]
     pub fn get_fixture_count_by_category(&self) -> HashMap<FixtureCategory, usize> {
         let mut counts = HashMap::new();
         for metadata in self.fixture_metadata.values() {
@@ -274,6 +276,7 @@ impl Issue53FixtureRegistry {
         counts
     }
 
+    #[must_use]
     pub fn validate_comprehensive_coverage(&self) -> bool {
         let ac_counts = ["AC1", "AC2", "AC3", "AC4", "AC5", "AC6", "AC7"]
             .iter()
@@ -348,7 +351,7 @@ fn test_issue_53_comprehensive_validation() {
     );
 
     println!("🏆 Issue #53 Comprehensive Validation Results:");
-    println!("   Total fixtures: {}", total_fixtures);
+    println!("   Total fixtures: {total_fixtures}");
     println!(
         "   AC1 (Infrastructure): {} fixtures",
         ac_statistics.get("AC1").unwrap()
@@ -377,7 +380,7 @@ fn test_issue_53_comprehensive_validation() {
         "   AC7 (Framework): {} fixtures",
         ac_statistics.get("AC7").unwrap()
     );
-    println!("   Enterprise fixtures: {}", enterprise_fixtures);
+    println!("   Enterprise fixtures: {enterprise_fixtures}");
 
     println!(
         "✅ Issue #53 comprehensive structural validation CERTIFIED for production deployment"
@@ -389,7 +392,7 @@ fn test_issue_53_comprehensive_validation() {
 /// **Purpose**: Certifies enterprise production deployment readiness
 /// **Enterprise Impact**: Final production deployment gate validation
 #[test]
-#[ignore] // Temporarily disabled - parsing issue with Level-88 decimal values needs investigation
+#[ignore = "Temporarily disabled - parsing issue with Level-88 decimal values needs investigation"]
 fn test_issue_53_enterprise_production_certification() {
     let registry = Issue53FixtureRegistry::new();
 

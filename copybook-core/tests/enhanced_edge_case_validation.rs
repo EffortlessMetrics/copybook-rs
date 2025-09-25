@@ -143,7 +143,7 @@ fn test_odo_extreme_boundary_values() {
 
 /// Test invalid ODO configurations (should fail)
 #[test]
-#[ignore] // Temporarily disabled - ODO validation logic needs refinement
+#[ignore = "Temporarily disabled - ODO validation logic needs refinement"]
 fn test_odo_invalid_configurations() {
     // ODO counter after ODO array should fail
     const INVALID_ODO_ORDER: &str = r"
@@ -179,7 +179,7 @@ fn test_odo_invalid_configurations() {
 
 /// Test complex REDEFINES with multiple overlapping structures
 #[test]
-#[ignore] // Temporarily disabled - REDEFINES implementation needs adjustment for complex overlapping structures
+#[ignore = "Temporarily disabled - REDEFINES implementation needs adjustment for complex overlapping structures"]
 fn test_complex_redefines_overlapping_structures() {
     const COMPLEX_REDEFINES: &str = r"
 01 COMPLEX-OVERLAY-RECORD.
@@ -256,7 +256,7 @@ fn test_complex_redefines_overlapping_structures() {
 
 /// Test REDEFINES size validation with mismatched sizes
 #[test]
-#[ignore] // Temporarily disabled - REDEFINES size validation needs enhancement
+#[ignore = "Temporarily disabled - REDEFINES size validation needs enhancement"]
 fn test_redefines_size_validation() {
     // Test REDEFINES that's larger than original (should fail)
     const OVERSIZED_REDEFINES: &str = r"
@@ -288,7 +288,7 @@ fn test_redefines_size_validation() {
 
 /// Test memory usage patterns with large, complex structures
 #[test]
-#[ignore] // Temporarily disabled - Large structure parsing needs optimization
+#[ignore = "Temporarily disabled - Large structure parsing needs optimization"]
 fn test_memory_usage_large_complex_structures() {
     const LARGE_COMPLEX_STRUCTURE: &str = r"
 01 ENTERPRISE-MASTER-RECORD.
@@ -376,7 +376,7 @@ fn test_memory_usage_large_complex_structures() {
 
 /// Test error handling robustness with malformed input
 #[test]
-#[ignore] // Temporarily disabled - Level-88 validation needs adjustment
+#[ignore = "Temporarily disabled - Level-88 validation needs adjustment"]
 fn test_error_handling_robustness() {
     // Test various malformed inputs that should produce meaningful errors
     let malformed_cases = vec![
@@ -420,7 +420,7 @@ fn test_error_handling_robustness() {
 
 /// Test parse options with different configurations
 #[test]
-#[ignore] // Temporarily disabled - ParseOptions behavior needs alignment
+#[ignore = "Temporarily disabled - ParseOptions behavior needs alignment"]
 fn test_parse_options_configurations() {
     const COPYBOOK_WITH_INLINE_COMMENTS: &str = r"
 01 RECORD-WITH-COMMENTS.               *> Main record structure

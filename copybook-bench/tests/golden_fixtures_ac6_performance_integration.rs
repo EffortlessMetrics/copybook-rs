@@ -34,6 +34,12 @@ pub struct GoldenFixturePerformanceDetector {
     baselines: HashMap<String, GoldenFixturePerformanceBaseline>,
 }
 
+impl Default for GoldenFixturePerformanceDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GoldenFixturePerformanceDetector {
     pub fn new() -> Self {
         let mut detector = Self {

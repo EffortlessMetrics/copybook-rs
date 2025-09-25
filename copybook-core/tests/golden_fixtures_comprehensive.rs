@@ -442,7 +442,7 @@ mod ac1_infrastructure_enhancement {
                 copybook_core::Occurs::ODO { max, .. } => {
                     assert_eq!(*max, 1000, "Enterprise ODO should support large bounds");
                 }
-                _ => panic!("CUSTOMERS should be ODO field"),
+                copybook_core::Occurs::Fixed { .. } => panic!("CUSTOMERS should be ODO field"),
             }
         }
 

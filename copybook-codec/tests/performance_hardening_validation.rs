@@ -511,9 +511,9 @@ fn test_error_handling_performance_impact() -> Result<(), Box<dyn std::error::Er
     let start_time = Instant::now();
     let mut valid_processed = 0;
     for record_data in valid_data.chunks(record_size) {
-        match decode_record(&schema, record_data, &options) {
-            Ok(_) => valid_processed += 1,
-            Err(_) => {} // Should not happen for valid data
+        if decode_record(&schema, record_data, &options).is_ok() {
+            valid_processed += 1;
+            // Should not have errors for valid data
         }
     }
     let valid_duration = start_time.elapsed();

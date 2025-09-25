@@ -88,14 +88,14 @@ fn test_enterprise_banking_transaction_processing() -> Result<(), Box<dyn std::e
         // TRANSACTION-DETAILS (22 bytes packed decimal fields)
         record.extend_from_slice(b"TRF"); // TXN-TYPE
         // TXN-AMOUNT: S9(13)V99 COMP-3 (8 bytes)
-        let amount = (i * 12345) % 1_000_000_00; // Amount in cents
+        let amount = (i * 12345) % 100_000_000; // Amount in cents
         record.extend_from_slice(&encode_comp3_amount(amount, 8));
         record.extend_from_slice(b"USD"); // TXN-CURRENCY
         // EXCHANGE-RATE: 9(3)V9(6) COMP-3 (5 bytes)
         record.extend_from_slice(&encode_comp3_rate(1000000, 5)); // 1.000000
         // FEE-AMOUNT: S9(7)V99 COMP-3 (5 bytes)
         let fee = (i % 1000) * 25; // Fee in cents
-        record.extend_from_slice(&encode_comp3_amount(fee as i64, 5));
+        record.extend_from_slice(&encode_comp3_amount(fee, 5));
 
         // REGULATORY-INFO (20 bytes)
         record.extend_from_slice(b"R001"); // REPORTING-CODE
@@ -249,7 +249,7 @@ fn test_enterprise_insurance_claims_processing() -> Result<(), Box<dyn std::erro
             record.extend_from_slice(detail_type);
 
             // DETAIL-AMOUNT: S9(11)V99 COMP-3 (7 bytes)
-            let amount = (detail_idx as i64 * claim_id as i64 * 15000) % 10_000_000_00;
+            let amount = (detail_idx as i64 * claim_id as i64 * 15000) % 1_000_000_000;
             record.extend_from_slice(&encode_comp3_amount(amount, 7));
 
             // DETAIL-DESCRIPTION (100 bytes)
@@ -284,7 +284,7 @@ fn test_enterprise_insurance_claims_processing() -> Result<(), Box<dyn std::erro
         record.extend_from_slice(b"ADJ0001234"); // ADJUSTER-ID
         record.extend_from_slice(b"PE"); // STATUS-CODE (Pending)
         // APPROVAL-AMOUNT: S9(11)V99 COMP-3 (7 bytes)
-        let approval = (claim_id as i64 * 25000) % 100_000_00;
+        let approval = (claim_id as i64 * 25000) % 10_000_000;
         record.extend_from_slice(&encode_comp3_amount(approval, 7));
         // DEDUCTIBLE-AMOUNT: S9(9)V99 COMP-3 (6 bytes)
         record.extend_from_slice(&encode_comp3_amount(50000, 6)); // $500.00 deductible
@@ -651,18 +651,15 @@ fn test_enterprise_manufacturing_quality_control() -> Result<(), Box<dyn std::er
         let json_result = decode_record(&schema, record_data, &options)?;
 
         // Validate precision preservation
-        if let serde_json::Value::Object(obj) = &json_result {
-            if let Some(measurements) = obj.get("MEASUREMENTS") {
-                if let serde_json::Value::Array(meas_array) = measurements {
-                    for measurement in meas_array {
-                        if let serde_json::Value::Object(meas_obj) = measurement {
-                            if let Some(value) = meas_obj.get("MEASURED-VALUE") {
-                                if let serde_json::Value::String(val_str) = value {
-                                    precision_values.push(val_str.clone());
-                                }
-                            }
-                        }
-                    }
+        if let serde_json::Value::Object(obj) = &json_result
+            && let Some(measurements) = obj.get("MEASUREMENTS")
+            && let serde_json::Value::Array(meas_array) = measurements
+        {
+            for measurement in meas_array {
+                if let serde_json::Value::Object(meas_obj) = measurement
+                    && let Some(serde_json::Value::String(val_str)) = meas_obj.get("MEASURED-VALUE")
+                {
+                    precision_values.push(val_str.clone());
                 }
             }
         }

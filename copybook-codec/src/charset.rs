@@ -3,10 +3,9 @@
 //! This module provides EBCDIC to UTF-8 conversion using static lookup tables
 //! for performance.
 
-use crate::numeric::{likely, unlikely};
+use crate::numeric::likely;
 use crate::options::{Codepage, UnmappablePolicy};
 use copybook_core::{Error, ErrorCode, Result};
-use tracing::warn;
 
 // EBCDIC to Unicode lookup tables for supported code pages
 // Each table maps EBCDIC byte values (0-255) to Unicode code points

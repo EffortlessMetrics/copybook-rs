@@ -156,12 +156,26 @@ fn resolve_field_layout(
         .field_paths
         .insert(field_path.clone(), aligned_offset);
 
-    // If this field is a REDEFINES target, update the cluster
+    // Handle COBOL REDEFINES clause processing
+    //
+    // In COBOL, REDEFINES allows multiple fields to occupy the same memory location,
+    // providing different interpretations of the same data. For example:
+    //
+    // ```cobol
+    // 01 DATE-FIELD      PIC X(8).
+    // 01 DATE-PARTS REDEFINES DATE-FIELD.
+    //    05 YEAR         PIC 9(4).
+    //    05 MONTH        PIC 9(2).
+    //    05 DAY          PIC 9(2).
+    // ```
+    //
+    // Both DATE-FIELD and DATE-PARTS occupy the same 8 bytes, but provide
+    // different access patterns to the same underlying data.
     let cluster_key = field.name.clone();
     if let Some((cluster_start, current_max)) =
         context.redefines_clusters.get(&cluster_key).copied()
     {
-        // This field is a REDEFINES target, update cluster info
+        // This field is being redefined by other fields - update cluster metadata
         let new_cluster_start = if cluster_start == 0 {
             aligned_offset
         } else {
@@ -376,6 +390,7 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (
             (bytes, 1u64)
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size
+        FieldKind::Condition { .. } => (0, 1u64), // Level-88 fields don't consume storage
     };
 
     let alignment = if synchronized && natural_alignment > 1 {

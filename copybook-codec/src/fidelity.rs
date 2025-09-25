@@ -593,6 +593,7 @@ impl BinaryFidelityValidator {
             | FieldKind::BinaryInt { .. } => true,
             FieldKind::Alphanum { .. } => false,
             FieldKind::Group => false,
+            FieldKind::Condition { .. } => false, // Level-88 fields are not numeric
         }
     }
 
@@ -642,6 +643,7 @@ impl BinaryFidelityValidator {
             }
             FieldKind::Alphanum { .. } => CobolFieldType::Display,
             FieldKind::Group => CobolFieldType::Display,
+            FieldKind::Condition { .. } => CobolFieldType::Display, // Level-88 fields treated as display
         }
     }
 

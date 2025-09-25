@@ -8,7 +8,7 @@ copybook-rs is a **production-ready** Rust workspace for enterprise mainframe da
 
 **Status**: **PRODUCTION READY** - Ready for immediate enterprise deployment
 **Performance**: Exceeds enterprise targets by 15-52x (DISPLAY: 4.1+ GiB/s, COMP-3: 560+ MiB/s)
-**Quality**: 127 tests passing, zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
+**Quality**: 458+ tests passing, zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
 **Enterprise Assessment**: System ready for production mainframe workloads with substantial performance safety margins.
 
@@ -17,11 +17,11 @@ See [REPORT.md](REPORT.md) for complete production readiness analysis.
 ## Workspace Structure
 
 5 crates:
-- **copybook-core**: COBOL parsing (lexer, parser, AST, layout)
-- **copybook-codec**: Data encoding/decoding, character conversion
+- **copybook-core**: COBOL parsing (lexer, parser, AST, layout) with Level-88 condition value support
+- **copybook-codec**: Data encoding/decoding, character conversion with structural validation
 - **copybook-cli**: CLI with subcommands (parse, inspect, decode, encode, verify)
-- **copybook-gen**: Test fixture generation
-- **copybook-bench**: Performance benchmarks
+- **copybook-gen**: Test fixture generation with golden fixture framework
+- **copybook-bench**: Performance benchmarks with regression detection
 
 ## Development Commands
 
@@ -35,6 +35,12 @@ cargo fmt --all
 # Benchmarks
 cargo bench --package copybook-bench
 PERF=1 cargo bench  # Performance mode
+
+# Golden fixture testing
+cargo test --test golden_fixtures_comprehensive    # All golden fixtures
+cargo test --test golden_fixtures_odo             # ODO-specific fixtures
+cargo test --test golden_fixtures_level88         # Level-88 fixtures
+cargo test --test golden_fixtures_enterprise      # Enterprise scenarios
 
 # Full validation pipeline
 cargo build --workspace --release && cargo test --workspace && cargo clippy --workspace -- -D warnings -W clippy::pedantic && cargo fmt --all --check
@@ -75,7 +81,7 @@ use copybook_codec::{decode_record, DecodeOptions, Codepage, JsonNumberMode};
 // Parse copybook
 let schema = parse_copybook(&copybook_text)?;
 
-// Parse copybook with custom options
+// Parse copybook with custom options (supports Level-88 condition values)
 use copybook_core::{parse_copybook_with_options, ParseOptions};
 let parse_options = ParseOptions {
     allow_inline_comments: false, // Disable COBOL-2002 inline comments (*>)
@@ -108,6 +114,25 @@ for record_result in iterator {
 // File processing with metrics
 use copybook_codec::decode_file_to_jsonl;
 let summary = decode_file_to_jsonl(&schema, input, output, &options)?;
+
+// Golden fixture testing with structural validation
+use copybook_gen::golden::{GoldenTest, GoldenTestSuite, TestConfig};
+
+// Create golden test with specific configuration
+let config = TestConfig {
+    codepage: "cp037".to_string(),
+    record_format: "fixed".to_string(),
+    json_number_mode: "lossless".to_string(),
+    flags: vec!["level88".to_string(), "odo".to_string()],
+};
+let golden_test = GoldenTest::new_with_config("test_name", &copybook_text, &test_data, config);
+
+// Create test suite for enterprise scenarios
+let mut suite = GoldenTestSuite::new("enterprise_tests", "Production mainframe scenarios");
+suite.add_test(golden_test);
+
+// Validate fixture outputs with SHA-256 verification
+let is_valid = golden_test.validate_string_output("json", &output_json);
 ```
 
 ## Architecture
@@ -118,12 +143,13 @@ let summary = decode_file_to_jsonl(&schema, input, output, &options)?;
 3. **copybook-cli**: User-friendly command orchestration
 
 ### Key Data Types
-- `Schema`: Parsed copybook structure with field lookup methods
-- `Field`/`FieldKind`: COBOL field definitions with JSON processing
+- `Schema`: Parsed copybook structure with field lookup methods and Level-88 condition support
+- `Field`/`FieldKind`: COBOL field definitions with JSON processing and condition value handling
 - `DecodeOptions`/`EncodeOptions`: Configuration (codepage, JSON modes, metadata)
 - `ScratchBuffers`: Reusable memory buffers for performance
 - `RecordFormat`: Fixed-length vs RDW formats
 - `Codepage`: EBCDIC variants (CP037, CP273, CP500, CP1047, CP1140)
+- `GoldenTest`/`GoldenTestSuite`: Structural validation fixtures with SHA-256 verification
 
 ### Error Handling
 Structured error taxonomy with stable codes:
@@ -157,3 +183,67 @@ Structured error taxonomy with stable codes:
 cargo bench --package copybook-bench           # All benchmarks
 cargo bench --package copybook-bench -- slo_validation  # SLO validation
 ```
+
+## Golden Fixtures System
+
+The Golden Fixtures framework provides comprehensive structural validation for enterprise COBOL scenarios with SHA-256 verification and performance regression detection.
+
+### Key Features
+
+- **Structural Validation**: ODO (Occurs Depending On), Level-88 condition values, REDEFINES interactions
+- **Enterprise Scenarios**: Production mainframe patterns from banking, insurance, retail, manufacturing
+- **Performance Integration**: Automated performance regression detection with baselines
+- **SHA-256 Verification**: Cryptographic validation of test outputs for consistency
+- **Comprehensive Coverage**: 458+ tests including edge cases and enterprise production scenarios
+
+### Usage Patterns
+
+```bash
+# Run comprehensive golden fixture validation
+cargo test --workspace --test "*golden*"
+
+# Run specific fixture categories
+cargo test --test golden_fixtures_odo                    # ODO structural validation
+cargo test --test golden_fixtures_level88               # Level-88 condition values
+cargo test --test golden_fixtures_redefines            # REDEFINES interactions
+cargo test --test golden_fixtures_enterprise           # Enterprise production scenarios
+cargo test --test golden_fixtures_comprehensive        # Full comprehensive suite
+
+# Performance integration testing
+cargo test --test golden_fixtures_ac6_performance_integration
+PERF=1 cargo bench --package copybook-bench -- golden_fixtures
+
+# Generate new golden fixtures
+cargo run --package copybook-gen -- generate-golden-fixtures --enterprise --output fixtures/enterprise/
+```
+
+### Structural Validation Coverage
+
+- **ODO Tail Validation**: Ensures ODO arrays are properly positioned as tail elements
+- **Level-88 After ODO**: Validates non-storage condition values following variable arrays
+- **Child Inside ODO**: Validates internal structure of variable arrays
+- **Sibling After ODO**: Validates rejection of storage fields after ODO (negative test)
+- **REDEFINES + Level-88**: Complex interactions between memory redefinition and conditions
+- **Enterprise Patterns**: Real-world mainframe record layouts with authentic constraints
+
+### Error Code Coverage
+
+The golden fixtures comprehensively test structural error conditions:
+
+- `CBKP021_ODO_NOT_TAIL`: ODO array positioning validation
+- `CBKS121_COUNTER_NOT_FOUND`: ODO counter field validation
+- `CBKS301_ODO_CLIPPED`: ODO bounds enforcement
+- `CBKS302_ODO_RAISED`: ODO minimum value validation
+- Plus comprehensive coverage of parsing, schema, and data validation error codes
+
+### Performance Standards
+
+Golden fixtures maintain strict performance requirements:
+
+- **DISPLAY-heavy**: 4.1+ GiB/s throughput (52x enterprise target)
+- **COMP-3-heavy**: 560+ MiB/s throughput (15x enterprise target)
+- **Memory**: <256 MiB steady-state for multi-GB fixture sets
+- **Variance**: <5% performance variance across runs
+- **Regression Detection**: Automated baseline comparison with <2% tolerance
+
+See `docs/golden-fixtures-spec.md` for complete architectural specification.

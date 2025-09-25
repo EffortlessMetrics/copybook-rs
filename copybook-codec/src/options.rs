@@ -18,13 +18,14 @@ mod zone_constants {
 /// This enum controls how zoned decimal fields are encoded and decoded,
 /// enabling preservation of the original encoding format during round-trip
 /// operations for enterprise data consistency.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum, Default)]
 pub enum ZonedEncodingFormat {
     /// ASCII digit zones (0x30-0x39) - Used in ASCII environments
     Ascii,
     /// EBCDIC digit zones (0xF0-0xF9) - Standard mainframe encoding
     Ebcdic,
     /// Automatic detection based on zone nibbles - Analyzes data to determine format
+    #[default]
     Auto,
 }
 
@@ -76,12 +77,6 @@ impl ZonedEncodingFormat {
             EBCDIC_ZONE => Some(Self::Ebcdic),
             _ => None, // Invalid or mixed zone
         }
-    }
-}
-
-impl Default for ZonedEncodingFormat {
-    fn default() -> Self {
-        Self::Auto
     }
 }
 

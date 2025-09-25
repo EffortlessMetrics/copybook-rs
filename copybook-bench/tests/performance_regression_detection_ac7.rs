@@ -2678,7 +2678,7 @@ mod tests {
         // Phase 3: Test CI integration with various scenarios
         println!("Phase 3: Testing CI integration workflow...");
 
-        let ci_results = vec![
+        let ci_results = [
             comprehensive_detector.execute_ci_performance_check()?,
             comprehensive_detector.execute_ci_performance_check()?,
             comprehensive_detector.execute_ci_performance_check()?,

@@ -147,7 +147,7 @@ mod comp3_roundtrip_tests {
             s.push('.');
             s.push_str(&"8".repeat(scale as usize));
 
-            let _total_digits = int_digits + scale;
+            // Total digits for reference: int_digits + scale
             let schema_text = format!("
            01 REC.
               05 A PIC S9({int_digits})V9({scale}) COMP-3.

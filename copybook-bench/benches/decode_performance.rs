@@ -1,9 +1,11 @@
 #![allow(
     clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
     clippy::too_many_lines,
     clippy::similar_names,
     clippy::shadow_unrelated,
-    clippy::field_reassign_with_default
+    clippy::field_reassign_with_default,
+    clippy::unnecessary_unwrap
 )]
 
 use copybook_codec::{DecodeOptions, decode_file_to_jsonl, decode_record};
@@ -151,7 +153,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
-            |b, &record_count| {
+            |b, &_record_count| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
                         let result = decode_record(
@@ -159,7 +161,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        black_box(result);
+                        let _ = black_box(result);
                     }
                 });
             },
@@ -180,7 +182,7 @@ fn bench_decode_display_heavy(c: &mut Criterion) {
                             &mut output,
                             black_box(&options),
                         );
-                        black_box(result);
+                        let _ = black_box(result);
                     });
                 },
             );
@@ -206,7 +208,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
-            |b, &record_count| {
+            |b, &_record_count| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
                         let result = decode_record(
@@ -214,7 +216,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        black_box(result);
+                        let _ = black_box(result);
                     }
                 });
             },
@@ -235,7 +237,7 @@ fn bench_decode_comp3_heavy(c: &mut Criterion) {
                             &mut output,
                             black_box(&options),
                         );
-                        black_box(result);
+                        let _ = black_box(result);
                     });
                 },
             );
@@ -261,7 +263,7 @@ fn bench_decode_binary_heavy(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("single_threaded", record_count),
             record_count,
-            |b, &record_count| {
+            |b, &_record_count| {
                 b.iter(|| {
                     for chunk in test_data.chunks(record_size) {
                         let result = decode_record(
@@ -269,7 +271,7 @@ fn bench_decode_binary_heavy(c: &mut Criterion) {
                             black_box(chunk),
                             black_box(&options),
                         );
-                        black_box(result);
+                        let _ = black_box(result);
                     }
                 });
             },
@@ -285,14 +287,14 @@ fn bench_parse_copybook(c: &mut Criterion) {
     group.bench_function("simple_copybook", |b| {
         b.iter(|| {
             let result = parse_copybook(black_box(SIMPLE_COPYBOOK));
-            black_box(result);
+            let _ = black_box(result);
         });
     });
 
     group.bench_function("comp3_heavy_copybook", |b| {
         b.iter(|| {
             let result = parse_copybook(black_box(COMP3_HEAVY_COPYBOOK));
-            black_box(result);
+            let _ = black_box(result);
         });
     });
 

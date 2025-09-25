@@ -5,7 +5,8 @@
 //! behavior specified in the design document.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    UnmappablePolicy, ZonedEncodingFormat,
 };
 use copybook_core::{ErrorCode, parse_copybook};
 use serde_json::{Value, json};
@@ -24,7 +25,7 @@ fn create_rdw_decode_options(emit_raw: RawMode, strict: bool) -> DecodeOptions {
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
         preserve_zoned_encoding: false,
-        preferred_zoned_encoding: None,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
     }
 }
 
@@ -146,11 +147,8 @@ fn test_rdw_length_recomputation() {
     let original_rdw = b"\x00\x08\x00\x00ORIGINAL";
     let input = Cursor::new(original_rdw);
 
-    println!(
-        "DEBUG: Starting decode_file_to_jsonl with schema: {}",
-        copybook
-    );
-    println!("DEBUG: Original RDW input: {:?}", original_rdw);
+    println!("DEBUG: Starting decode_file_to_jsonl with schema: {copybook}",);
+    println!("DEBUG: Original RDW input: {original_rdw:?}");
 
     // Prepare output with newline-terminated JSONL
     let mut output = Vec::new();
@@ -170,7 +168,7 @@ fn test_rdw_length_recomputation() {
             );
         }
         Err(e) => {
-            println!("DEBUG: Decode failed: {:?}", e);
+            println!("DEBUG: Decode failed: {e:?}");
             panic!("Test failed during decode");
         }
     }
@@ -179,8 +177,8 @@ fn test_rdw_length_recomputation() {
     // Debug output diagnostics
     let output_str = String::from_utf8(output).expect("Failed to convert output to UTF-8");
 
-    println!("DEBUG: Summary: {:?}", summary);
-    println!("DEBUG: Output string: {}", output_str);
+    println!("DEBUG: Summary: {summary:?}");
+    println!("DEBUG: Output string: {output_str}");
 
     // Validate that a single record was processed
     assert_eq!(
@@ -210,7 +208,7 @@ fn test_rdw_length_recomputation() {
     let encoded_data = result.unwrap();
 
     // Detailed length computation diagnostics
-    println!("DEBUG: Encoded Data: {:?}", encoded_data);
+    println!("DEBUG: Encoded Data: {encoded_data:?}");
     println!("DEBUG: Encoded Data Length: {}", encoded_data.len());
 
     // Length should be recomputed (20 bytes for new payload)
@@ -321,7 +319,7 @@ fn test_rdw_multiple_records() {
     assert_eq!(summary.records_processed, 3);
 
     let output_str = String::from_utf8(output).unwrap();
-    let lines: Vec<&str> = output_str.trim().split('\n').collect();
+    let lines: Vec<&str> = output_str.lines().collect();
     assert_eq!(lines.len(), 3);
 
     let record1: Value = serde_json::from_str(lines[0]).unwrap();
@@ -459,12 +457,11 @@ fn test_rdw_maximum_length_handling() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
 
     // Should handle maximum length (may be limited by implementation)
-    if result.is_ok() {
-        let summary = result.unwrap();
+    if let Ok(summary) = result {
         assert_eq!(summary.records_processed, 1);
-    } else {
+    } else if let Err(err) = result {
         // May fail due to memory or other limits, which is acceptable
-        println!("Test failed (acceptable): {:?}", result.unwrap_err());
+        println!("Test failed (acceptable): {err:?}");
     }
 }
 

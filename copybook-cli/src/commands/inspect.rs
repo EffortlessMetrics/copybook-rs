@@ -74,7 +74,7 @@ pub fn run(
             }
             copybook_core::FieldKind::Group => "GROUP".to_string(),
             copybook_core::FieldKind::Condition { values } => {
-                format!("LEVEL-88: {:?}", values)
+                format!("LEVEL-88: {values:?}")
             }
         };
 

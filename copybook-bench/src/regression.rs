@@ -1591,7 +1591,7 @@ mod tests {
     #[test]
     fn test_detector_creation() {
         let detector = PerformanceRegressionDetector::new();
-        assert_eq!(detector.statistical_analyzer.variance_tolerance, 0.02);
+        assert!((detector.statistical_analyzer.variance_tolerance - 0.02).abs() < f64::EPSILON);
     }
 
     #[test]

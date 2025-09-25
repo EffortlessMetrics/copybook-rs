@@ -23,6 +23,7 @@ copybook-core = { path = "../copybook-core" }
 copybook-codec = { path = "../copybook-codec" }
 criterion.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 
 [features]
 default = []

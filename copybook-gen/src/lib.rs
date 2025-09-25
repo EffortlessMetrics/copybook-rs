@@ -5,6 +5,7 @@
 
 pub mod copybook;
 pub mod data;
+pub mod enterprise;
 pub mod golden;
 pub mod test_generation;
 
@@ -13,6 +14,11 @@ use copybook_core::Schema;
 // Re-export key types
 pub use copybook::{CopybookTemplate, FieldType};
 pub use data::{CorruptionType, DataStrategy};
+pub use enterprise::{
+    CobolDialect, EnterpriseFixtureConfig, EnterprisePattern, EnterprisePatternGenerator,
+    GenerationError, MainframeTarget, ScaleFactor, StandardEnterpriseGenerator,
+    ValidationResult as EnterpriseValidationResult,
+};
 pub use golden::{GoldenTest, GoldenTestSuite, TestConfig, ValidationResult};
 pub use test_generation::{TestSuiteStats, generate_complete_test_suite};
 

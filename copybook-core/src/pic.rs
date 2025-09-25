@@ -1,7 +1,25 @@
-//! PIC clause parsing and validation
+//! PIC clause parsing and validation for COBOL data types
 //!
-//! This module handles parsing of COBOL PICTURE clauses, including validation
-//! of supported formats and rejection of edited pictures.
+//! This module handles parsing of COBOL PICTURE clauses, which define the format
+//! and storage characteristics of data items. COBOL PIC clauses specify:
+//!
+//! - **Data Type**: Alphanumeric (X), Numeric (9), or Alphabetic (A)
+//! - **Size**: Number of characters or digits
+//! - **Decimal Places**: Position of implied decimal point (V)
+//! - **Sign**: Whether numeric values can be signed (S)
+//!
+//! ## Common COBOL PIC Examples
+//!
+//! ```cobol
+//! PIC X(10)        -- 10 alphanumeric characters
+//! PIC 9(5)         -- 5-digit unsigned integer
+//! PIC S9(5)        -- 5-digit signed integer
+//! PIC 9(7)V99      -- 7 digits with 2 decimal places (e.g. 12345.67)
+//! PIC S9(5)V9(2)   -- Signed decimal with 5 integer and 2 fractional digits
+//! ```
+//!
+//! This module validates supported formats and rejects edited pictures
+//! (currency symbols, etc.) which require separate handling.
 
 use crate::error::ErrorCode;
 use crate::{Error, Result};

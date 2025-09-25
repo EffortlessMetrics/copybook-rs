@@ -96,6 +96,11 @@ pub enum FieldKind {
     },
     /// Group field (contains other fields)
     Group,
+    /// Level-88 condition field (conditional values)
+    Condition {
+        /// Condition values (e.g., VALUE 'A', VALUE 1 THROUGH 5)
+        values: Vec<String>,
+    },
 }
 
 /// Array occurrence information
@@ -158,7 +163,7 @@ impl Schema {
     }
 
     /// Create canonical JSON representation for fingerprinting
-    fn create_canonical_json(&self) -> String {
+    pub fn create_canonical_json(&self) -> String {
         use serde_json::{Map, Value};
 
         let mut schema_obj = Map::new();
@@ -233,6 +238,7 @@ impl Schema {
                 format!("PackedDecimal({digits},{scale},{signed})")
             }
             FieldKind::Group => "Group".to_string(),
+            FieldKind::Condition { values } => format!("Condition({values:?})"),
         };
         field_obj.insert("kind".to_string(), Value::String(kind_str));
 

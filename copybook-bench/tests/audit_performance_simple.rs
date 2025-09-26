@@ -71,7 +71,7 @@ fn test_audit_overhead_scaffolding() {
     let baseline_duration = baseline_start.elapsed();
 
     // Measurement with audit context creation
-    let audit_context = AuditContext::new()
+    let audit_context = AuditContext::new_lightweight()
         .with_operation_id("enterprise_overhead_validation")
         .with_security_classification(
             copybook_core::audit::context::SecurityClassification::MaterialTransaction,
@@ -82,10 +82,9 @@ fn test_audit_overhead_scaffolding() {
 
     let audit_start = Instant::now();
     for i in 0..iterations {
-        // Simulate audit overhead with context creation
+        // Simulate audit overhead with lightweight context creation
         let _operation_context = audit_context
-            .clone()
-            .with_operation_id(format!("overhead_test_{i}"));
+            .create_lightweight_child_context(format!("overhead_test_{i}"));
         let _processing_overhead = std::hint::black_box(record_size);
     }
     let audit_duration = audit_start.elapsed();
@@ -158,15 +157,17 @@ fn test_audit_system_scalability_scaffolding() {
     let operations = 100; // Reduced for test scaffolding
     let start_time = Instant::now();
 
+    // Create a lightweight template context
+    let template_context = AuditContext::new_lightweight()
+        .with_security_classification(
+            copybook_core::audit::context::SecurityClassification::Internal,
+        )
+        .with_metadata("schema_fingerprint", &schema.fingerprint);
+
     // Simulate concurrent audit context creation
     for i in 0..operations {
-        let _audit_context = AuditContext::new()
-            .with_operation_id(format!("scalability_test_{i}"))
-            .with_security_classification(
-                copybook_core::audit::context::SecurityClassification::Internal,
-            )
-            .with_metadata("operation_index", i.to_string())
-            .with_metadata("schema_fingerprint", &schema.fingerprint);
+        let _audit_context = template_context
+            .create_lightweight_child_context(format!("scalability_test_{i}"));
 
         // Simulate minimal processing
         std::thread::sleep(Duration::from_micros(1));

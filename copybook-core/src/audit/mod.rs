@@ -106,6 +106,22 @@ pub fn generate_audit_id() -> String {
     format!("audit-{}-{}", timestamp, random_hex)
 }
 
+// Thread-local counter for lightweight ID generation
+thread_local! {
+    static ID_COUNTER: std::cell::RefCell<u64> = const { std::cell::RefCell::new(0) };
+}
+
+/// Generate a lightweight audit ID for performance-critical operations
+/// Uses thread-local counter instead of expensive timestamp and crypto
+#[inline]
+pub fn generate_lightweight_audit_id() -> String {
+    ID_COUNTER.with(|counter| {
+        let mut counter = counter.borrow_mut();
+        *counter = counter.wrapping_add(1);
+        format!("perf-audit-{}", *counter)
+    })
+}
+
 /// Generate a cryptographic hash for audit trail integrity
 pub fn generate_integrity_hash(data: &[u8], previous_hash: Option<&str>) -> String {
     use sha2::{Digest, Sha256};

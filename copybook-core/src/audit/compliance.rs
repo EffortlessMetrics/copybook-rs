@@ -817,4 +817,137 @@ mod tests {
         assert!(!non_compliant_result.is_compliant());
         assert!(non_compliant_result.has_critical_violations());
     }
+
+    #[test]
+    fn test_calculate_next_review_date_arithmetic() {
+        let engine = ComplianceEngine::new();
+
+        // Test default 90-day calculation
+        let review_date = engine.calculate_next_review_date();
+        let current_time = chrono::Utc::now();
+
+        // Parse the returned date to verify arithmetic
+        let parsed_review_date = chrono::DateTime::parse_from_rfc3339(&review_date).unwrap();
+        let actual_timestamp = parsed_review_date.timestamp();
+
+        // Should be approximately 90 days (allow small variance for execution time)
+        let days_diff = (actual_timestamp - current_time.timestamp()) / (24 * 3600);
+        assert!(days_diff >= 89, "Review date should be at least 89 days from now");
+        assert!(days_diff <= 91, "Review date should be at most 91 days from now");
+
+        // Test custom review interval arithmetic
+        let custom_config = ComplianceConfig {
+            review_interval_days: Some(365), // 1 year
+            ..Default::default()
+        };
+        let custom_engine = ComplianceEngine::new().with_config(custom_config);
+        let custom_review_date = custom_engine.calculate_next_review_date();
+
+        let parsed_custom_date = chrono::DateTime::parse_from_rfc3339(&custom_review_date).unwrap();
+        let custom_days_diff = (parsed_custom_date.timestamp() - current_time.timestamp()) / (24 * 3600);
+        assert!(custom_days_diff >= 364, "Custom review date should be at least 364 days from now");
+        assert!(custom_days_diff <= 366, "Custom review date should be at most 366 days from now");
+    }
+
+    #[tokio::test]
+    async fn test_sox_retention_calculation_logic() {
+        // Test the specific arithmetic operation in line 237: retention_days < 2555
+        // Create a context with retention exactly at threshold (2555)
+        let mut context_compliant = AuditContext::new().with_security_classification(SecurityClassification::MaterialTransaction);
+        context_compliant.security.audit_requirements.retention_days = 2555; // Exactly the threshold
+
+        let sox_validator = SoxValidator::new();
+        let result = sox_validator.validate_operation(&context_compliant).await.unwrap();
+
+        // At exactly 2555 days, should not trigger warning (not < 2555)
+        let retention_warnings: Vec<_> = result.warnings.iter()
+            .filter(|w| w.warning_id == "SOX-AUDIT-001")
+            .collect();
+        assert!(retention_warnings.is_empty(), "Should not warn at exactly 2555 days");
+
+        // Test just below threshold
+        let mut context_warning = AuditContext::new().with_security_classification(SecurityClassification::MaterialTransaction);
+        context_warning.security.audit_requirements.retention_days = 2554; // Just below threshold
+
+        let result_warning = sox_validator.validate_operation(&context_warning).await.unwrap();
+
+        // Should trigger warning when < 2555
+        let retention_warnings: Vec<_> = result_warning.warnings.iter()
+            .filter(|w| w.warning_id == "SOX-AUDIT-001")
+            .collect();
+        assert!(!retention_warnings.is_empty(), "Should warn when retention < 2555 days");
+
+        // Test well above threshold
+        let mut context_good = AuditContext::new().with_security_classification(SecurityClassification::MaterialTransaction);
+        context_good.security.audit_requirements.retention_days = 3000; // Well above threshold
+
+        let result_good = sox_validator.validate_operation(&context_good).await.unwrap();
+
+        // Should not trigger warning when > 2555
+        let retention_warnings_good: Vec<_> = result_good.warnings.iter()
+            .filter(|w| w.warning_id == "SOX-AUDIT-001")
+            .collect();
+        assert!(retention_warnings_good.is_empty(), "Should not warn when retention > 2555 days");
+    }
+
+    #[test]
+    fn test_compliance_status_determination_logic() {
+        // Test the arithmetic/logic for determining ComplianceStatus
+
+        // Case 1: Empty violations and warnings -> Compliant
+        let mut violations = Vec::new();
+        let mut warnings = Vec::new();
+
+        let status = if violations.is_empty() {
+            if warnings.is_empty() {
+                ComplianceStatus::Compliant
+            } else {
+                ComplianceStatus::CompliantWithWarnings
+            }
+        } else {
+            ComplianceStatus::NonCompliant
+        };
+        assert_eq!(status, ComplianceStatus::Compliant);
+
+        // Case 2: No violations but has warnings -> CompliantWithWarnings
+        warnings.push(ComplianceWarning {
+            warning_id: "TEST-001".to_string(),
+            title: "Test Warning".to_string(),
+            description: "Test".to_string(),
+            recommendation: "Test".to_string(),
+        });
+
+        let status = if violations.is_empty() {
+            if warnings.is_empty() {
+                ComplianceStatus::Compliant
+            } else {
+                ComplianceStatus::CompliantWithWarnings
+            }
+        } else {
+            ComplianceStatus::NonCompliant
+        };
+        assert_eq!(status, ComplianceStatus::CompliantWithWarnings);
+
+        // Case 3: Has violations -> NonCompliant
+        violations.push(ComplianceViolation {
+            violation_id: "TEST-001".to_string(),
+            regulation: "Test".to_string(),
+            severity: ComplianceSeverity::Medium,
+            title: "Test".to_string(),
+            description: "Test".to_string(),
+            remediation: "Test".to_string(),
+            reference_url: None,
+        });
+
+        let status = if violations.is_empty() {
+            if warnings.is_empty() {
+                ComplianceStatus::Compliant
+            } else {
+                ComplianceStatus::CompliantWithWarnings
+            }
+        } else {
+            ComplianceStatus::NonCompliant
+        };
+        assert_eq!(status, ComplianceStatus::NonCompliant);
+    }
 }

@@ -23,3 +23,5 @@ target
 
 # Claude Code Working Agents
 .claude/agents
+
+*.log

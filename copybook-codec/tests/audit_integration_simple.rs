@@ -3,6 +3,8 @@
 //! Tests feature spec: enterprise-audit-system-spec.md#workflow-integration
 //! API contracts: audit-api-reference.md#codec-integration
 //!
+
+#![cfg(feature = "audit")]
 //! This simple test scaffolding compiles and provides TDD foundation for
 //! audit system integration with COBOL data processing workflow.
 

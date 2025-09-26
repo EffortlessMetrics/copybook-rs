@@ -158,6 +158,7 @@ enum Commands {
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
     },
     /// Enterprise audit system for regulatory compliance
+    #[cfg(feature = "audit")]
     #[command(
         after_help = "Enterprise audit capabilities including SOX, HIPAA, GDPR compliance validation, \
                       performance auditing, security monitoring, and data lineage tracking.\n\n\
@@ -302,6 +303,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 zoned_encoding_override,
             },
         ),
+        #[cfg(feature = "audit")]
         Commands::Audit { audit_command } => {
             // Run audit command asynchronously
             let runtime = tokio::runtime::Runtime::new()?;
@@ -342,6 +344,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 mod commands {
+    #[cfg(feature = "audit")]
     pub mod audit;
     pub mod decode;
     pub mod encode;

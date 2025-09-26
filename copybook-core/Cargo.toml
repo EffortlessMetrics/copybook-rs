@@ -40,6 +40,6 @@ tempfile.workspace = true
 tokio = { version = "1.47", features = ["macros", "rt-multi-thread"] }
 
 [features]
-default = ["audit"]
-audit = ["dep:async-trait", "dep:chrono", "dep:hex", "dep:rand"]  # Enable audit system (default)
+default = []
+audit = ["dep:async-trait", "dep:chrono", "dep:hex", "dep:rand"]  # Enable audit system (disabled by default for performance)
 comprehensive-tests = []

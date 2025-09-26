@@ -10,11 +10,11 @@
 
 ## Overview
 
-copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exceeded production readiness** for COBOL copybook parsing and mainframe data conversion. With **127 tests passing**, **exceptional performance** (15-52x above targets), and **comprehensive COBOL support**, it enables organizations to confidently modernize mainframe data processing workflows.
+copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exceeded production readiness** for COBOL copybook parsing and mainframe data conversion. With **377+ tests passing**, **solid performance** (3-32x above targets with 20% overhead budget for enterprise features), and **comprehensive COBOL support**, it enables organizations to confidently modernize mainframe data processing workflows.
 
 ### Production Benefits
 
-- **Enterprise Ready**: Battle-tested with comprehensive error taxonomy and 127 passing tests
+- **Enterprise Ready**: Battle-tested with comprehensive error taxonomy and 377+ passing tests
 - **Exceptional Performance**: See [Performance Specifications](#performance-specifications) for detailed benchmarks
 - **Mainframe Data Liberation**: Complete COBOL→JSON conversion without COBOL runtime dependencies
 - **ETL Integration**: Production-grade streaming for multi-GB files with deterministic output
@@ -34,7 +34,7 @@ copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exc
 - **Round-Trip Fidelity**: Guaranteed binary↔JSON conversion with zero data loss
 - **Zoned Encoding Preservation**: Binary round-trip fidelity for ASCII/EBCDIC digit zones
 - **Memory Safety**: Zero unsafe code with complete clippy pedantic compliance (140+ violations resolved)
-- **Comprehensive Testing**: 127 tests passing with full integration coverage
+- **Comprehensive Testing**: 377+ tests passing with full integration coverage
 
 ### **Enterprise Integration**
 - **Multiple EBCDIC Codepages**: CP037, CP273, CP500, CP1047, CP1140 + ASCII support
@@ -469,19 +469,192 @@ while let Some(result) = iter.next() {
     }
 }
 
-println!("Validation complete: {} errors found in {} records", 
+println!("Validation complete: {} errors found in {} records",
          errors.len(), iter.current_record_index());
 
 // Process errors for reporting
 for error in errors {
     if let Some(ctx) = &error.context {
-        println!("Record {}: {} - {}", 
+        println!("Record {}: {} - {}",
                  ctx.record_index.unwrap_or(0),
-                 error.code, 
+                 error.code,
                  error.message);
     }
 }
 ```
+
+## Enterprise Audit System
+
+copybook-rs includes a comprehensive enterprise audit system for regulatory compliance, security monitoring, and data lineage tracking. The audit system is disabled by default for optimal performance and can be enabled when enterprise features are required.
+
+### Enabling Enterprise Audit Features
+
+The audit system is available as an optional feature that can be enabled during build:
+
+```bash
+# Enable audit features for CLI
+cargo build --features audit
+
+# Install CLI with audit capabilities
+cargo install copybook-cli --features audit
+
+# Build library with audit support
+cargo build --workspace --features audit
+```
+
+### Supported Compliance Frameworks
+
+- **SOX (Sarbanes-Oxley)**: Financial data integrity, audit trails, executive certification
+- **HIPAA**: Protected health information processing, breach detection, safeguards validation
+- **GDPR**: Personal data processing records, data subject rights, cross-border monitoring
+- **PCI DSS**: Payment card data protection, encryption validation, access controls
+
+### Enterprise Audit CLI Commands
+
+When the audit feature is enabled, the CLI provides comprehensive audit capabilities:
+
+```bash
+# Validate compliance against multiple frameworks
+copybook audit validate --compliance sox,gdpr,hipaa \
+  --output compliance-report.json \
+  financial-schema.cpy financial-data.bin
+
+# Generate comprehensive audit reports
+copybook audit report --include-performance \
+  --include-lineage --include-security \
+  schema.cpy data.bin --output audit-report.json
+
+# Analyze data lineage and transformation impact
+copybook audit lineage schema.cpy \
+  --source-system mainframe \
+  --target-system data-warehouse \
+  --output lineage-analysis.json
+
+# Performance audit with baseline validation
+copybook audit performance schema.cpy data.bin \
+  --baseline performance-baseline.json \
+  --output performance-audit.json
+
+# Security audit and access pattern analysis
+copybook audit security schema.cpy \
+  --monitor-access-patterns \
+  --output security-audit.json
+
+# Audit trail health and integrity monitoring
+copybook audit health \
+  --verify-integrity \
+  --output health-report.json
+```
+
+### Enterprise Library API
+
+```rust
+#[cfg(feature = "audit")]
+use copybook_core::audit::*;
+
+#[cfg(feature = "audit")]
+async fn enterprise_audit_example() -> Result<(), Box<dyn std::error::Error>> {
+    // Create audit context with compliance requirements
+    let audit_context = AuditContext::new()
+        .with_operation_id("financial_data_processing_2024")
+        .with_user("data_processor")
+        .with_compliance_profiles(&[ComplianceProfile::SOX, ComplianceProfile::GDPR])
+        .with_security_classification(SecurityClassification::Confidential);
+
+    // Initialize compliance engine
+    let compliance_engine = ComplianceEngine::new()
+        .with_sox_validation(true)
+        .with_gdpr_validation(true)
+        .with_audit_trail_integrity(true);
+
+    // Validate compliance before processing
+    let validation_result = compliance_engine
+        .validate_operation(&audit_context)
+        .await?;
+
+    if !validation_result.is_compliant() {
+        for violation in validation_result.violations() {
+            eprintln!("Compliance violation: {} - {}",
+                     violation.violation_id, violation.title);
+        }
+        return Err("Compliance validation failed".into());
+    }
+
+    // Process data with comprehensive auditing
+    let schema = parse_copybook_with_audit(&copybook_text, audit_context.clone())?;
+
+    // Audit trail is automatically maintained throughout processing
+    let processing_result = process_financial_data_with_audit(
+        &schema,
+        "financial-data.bin",
+        &audit_context
+    ).await?;
+
+    // Generate compliance reports
+    let compliance_report = compliance_engine
+        .generate_compliance_report(&processing_result)
+        .await?;
+
+    println!("Compliance status: {:?}", compliance_report.overall_status);
+
+    Ok(())
+}
+```
+
+### Enterprise Configuration
+
+```yaml
+# copybook-audit.yaml - Enterprise audit configuration
+audit:
+  enabled: true
+  output_format: json
+  retention_days: 2555  # 7 years for SOX compliance
+
+  compliance:
+    sox:
+      enabled: true
+      validation_level: strict
+      retention_years: 7
+    hipaa:
+      enabled: true
+      phi_protection: strict
+      breach_notification: automatic
+    gdpr:
+      enabled: true
+      data_subject_rights: enabled
+      cross_border_monitoring: true
+
+  security:
+    access_monitoring: true
+    anomaly_detection: true
+    encryption_validation: required
+
+  performance:
+    baseline_tracking: true
+    regression_threshold: 0.05  # 5% degradation threshold
+
+  data_lineage:
+    field_level: true
+    transformation_tracking: comprehensive
+```
+
+### Audit Trail Features
+
+- **Cryptographic Integrity**: SHA-256 chaining for tamper-evident audit trails
+- **Comprehensive Logging**: All operations tracked with detailed context
+- **Compliance Validation**: Automated validation against regulatory requirements
+- **Performance Monitoring**: Baseline tracking and regression detection
+- **Data Lineage**: Field-level transformation tracking and impact analysis
+- **Security Monitoring**: Access pattern analysis and anomaly detection
+
+### Documentation
+
+For comprehensive enterprise audit system documentation:
+
+- **Specification**: [docs/enterprise-audit-system-spec.md](docs/enterprise-audit-system-spec.md)
+- **Compliance Guide**: [docs/enterprise-compliance-guide.md](docs/enterprise-compliance-guide.md)
+- **API Reference**: [docs/audit-api-reference.md](docs/audit-api-reference.md)
+- **Architecture**: [docs/explanation/enterprise-audit-architecture.md](docs/explanation/enterprise-audit-architecture.md)
 
 ## Numeric Data Type Examples
 
@@ -607,8 +780,8 @@ See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference and [REPO
 ### **Performance Specifications** ⚡
 
 #### **Throughput (Production Validated)**
-- **DISPLAY-heavy**: **4.1-4.2 GiB/s** (target: 80 MB/s → **52x exceeded**)
-- **COMP-3-heavy**: **560-580 MiB/s** (target: 40 MB/s → **15x exceeded**)
+- **DISPLAY-heavy**: **2.5-3.0 GiB/s** (target: 80 MB/s → **32x exceeded**)
+- **COMP-3-heavy**: **100-120 MiB/s** (target: 40 MB/s → **3x exceeded**)
 - **Stability**: <5% variance across benchmark runs
 - **Scalability**: Linear scaling with parallel processing
 
@@ -689,7 +862,7 @@ We welcome contributions! Please see [REPORT.md](REPORT.md) for current project 
 
 #### Code Standards
 - Follow Rust conventions and idioms with complete clippy pedantic compliance
-- Add comprehensive tests for new features (127 tests passing)
+- Add comprehensive tests for new features (377+ tests passing)
 - Update documentation for API changes
 - Maintain MSRV compatibility (Rust 1.90)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)

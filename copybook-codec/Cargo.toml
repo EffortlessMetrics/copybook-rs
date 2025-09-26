@@ -44,3 +44,4 @@ comprehensive-tests = []
 # COMP-3 fast path optimizations
 comp3_fast = []
 comp3_unsafe = []
+audit = ["copybook-core/audit"]

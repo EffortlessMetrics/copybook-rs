@@ -1,7 +1,7 @@
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
-    UnmappablePolicy, ZonedEncodingFormat, decode_record, decode_record_with_scratch, encode_record,
-    memory::ScratchBuffers,
+    UnmappablePolicy, ZonedEncodingFormat, decode_record, decode_record_with_scratch,
+    encode_record, memory::ScratchBuffers,
 };
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;

@@ -135,27 +135,33 @@ pub mod audit {
             Self::default()
         }
         #[inline]
+        #[must_use]
         pub fn with_operation_id(mut self, id: impl Into<String>) -> Self {
             self.operation_id = id.into();
             self
         }
         #[inline]
+        #[must_use]
         pub fn with_user(self, _user: impl Into<String>) -> Self {
             self
         }
         #[inline]
+        #[must_use]
         pub fn with_security_classification(self, _classification: SecurityClassification) -> Self {
             self
         }
         #[inline]
+        #[must_use]
         pub fn with_compliance_profile(self, _profile: ComplianceProfile) -> Self {
             self
         }
         #[inline]
+        #[must_use]
         pub fn with_metadata(self, _key: impl Into<String>, _value: impl Into<String>) -> Self {
             self
         }
         #[inline]
+        #[must_use]
         pub fn create_lightweight_child_context(&self, _id: impl Into<String>) -> Self {
             // Return clone for no-op performance - avoid any allocations
             self.clone()

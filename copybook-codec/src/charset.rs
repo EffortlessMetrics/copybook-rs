@@ -365,7 +365,7 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
     let mut result = String::with_capacity(data.len());
 
     for &byte in data {
-        let unicode_point = unsafe { *table.get_unchecked(byte as usize) };
+        let unicode_point = table[byte as usize];
 
         // Fast path: Most EBCDIC characters map to valid printable characters
         if likely(unicode_point >= 0x20) {

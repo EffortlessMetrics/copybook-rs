@@ -3,7 +3,7 @@
 //! Tracks processing performance metrics, baseline management, and regression
 //! detection for copybook-rs enterprise mainframe data processing operations.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // Performance audit functionality - implementation placeholder
 
@@ -58,10 +58,10 @@ pub struct PerformanceBaseline {
 /// Throughput performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThroughputMetrics {
-    pub display_throughput: u64,    // bytes/sec for DISPLAY fields
-    pub comp3_throughput: u64,      // bytes/sec for COMP-3 fields
-    pub record_rate: u64,           // records/sec
-    pub peak_memory_mb: u64,        // peak memory usage
+    pub display_throughput: u64, // bytes/sec for DISPLAY fields
+    pub comp3_throughput: u64,   // bytes/sec for COMP-3 fields
+    pub record_rate: u64,        // records/sec
+    pub peak_memory_mb: u64,     // peak memory usage
 }
 
 /// System resource utilization metrics
@@ -86,6 +86,7 @@ impl RegressionDetector {
         }
     }
 
+    #[must_use]
     pub fn with_threshold(mut self, threshold_percent: f64) -> Self {
         self.threshold_percent = threshold_percent;
         self

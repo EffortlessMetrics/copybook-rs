@@ -4,14 +4,14 @@
 //! compliance validation, performance assessment, security auditing, and
 //! complete data lineage reporting.
 
-use clap::{Parser, Subcommand};
-use copybook_core::audit::{
-    AuditContext, ComplianceEngine, ComplianceProfile, AuditLogger, AuditLoggerConfig,
-};
-use copybook_codec::{Codepage, RecordFormat};
-use std::path::PathBuf;
-use serde_json;
 use chrono;
+use clap::{Parser, Subcommand};
+use copybook_codec::{Codepage, RecordFormat};
+use copybook_core::audit::{
+    AuditContext, AuditLogger, AuditLoggerConfig, ComplianceEngine, ComplianceProfile,
+};
+use serde_json;
+use std::path::PathBuf;
 
 /// Enterprise audit command with comprehensive regulatory compliance
 #[derive(Parser)]
@@ -375,6 +375,7 @@ pub enum OutputFormat {
 }
 
 #[derive(clap::ValueEnum, Clone)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum ComplianceFramework {
     SOX,
     HIPAA,
@@ -394,6 +395,7 @@ impl From<ComplianceFramework> for ComplianceProfile {
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, serde::Serialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum DataClassification {
     Public,
     Internal,
@@ -402,7 +404,7 @@ pub enum DataClassification {
     PHI,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug, serde::Serialize)]
+#[derive(clap::ValueEnum, Clone, Copy, Debug, serde::Serialize)]
 pub enum ValidationDepth {
     Basic,
     Standard,
@@ -411,6 +413,7 @@ pub enum ValidationDepth {
 }
 
 /// Run the audit command with comprehensive enterprise capabilities
+#[allow(clippy::too_many_lines)]
 pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error::Error>> {
     // Initialize audit context
     let audit_context = AuditContext::new()
@@ -439,20 +442,18 @@ pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error:
             include_security,
             include_lineage,
             include_recommendations,
-        } => {
-            run_audit_report(
-                &copybook,
-                data_file.as_deref(),
-                &output,
-                format,
-                compliance.as_deref(),
-                include_performance,
-                include_security,
-                include_lineage,
-                include_recommendations,
-                audit_context,
-            ).await
-        },
+        } => run_audit_report(
+            &copybook,
+            data_file.as_deref(),
+            &output,
+            format,
+            compliance.as_deref(),
+            include_performance,
+            include_security,
+            include_lineage,
+            include_recommendations,
+            audit_context,
+        ),
 
         AuditSubcommand::Validate {
             copybook,
@@ -478,8 +479,9 @@ pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error:
                 report_violations,
                 include_recommendations,
                 audit_context,
-            ).await
-        },
+            )
+            .await
+        }
 
         AuditSubcommand::Lineage {
             source_copybook,
@@ -494,23 +496,21 @@ pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error:
             quality_metrics,
             impact_analysis,
             confidence_threshold,
-        } => {
-            run_lineage_analysis(
-                &source_copybook,
-                target_copybook.as_deref(),
-                &source_system,
-                target_system.as_deref(),
-                &output,
-                source.as_deref(),
-                &target_format,
-                field_level,
-                transformation_details,
-                quality_metrics,
-                impact_analysis,
-                confidence_threshold,
-                audit_context,
-            ).await
-        },
+        } => run_lineage_analysis(
+            &source_copybook,
+            target_copybook.as_deref(),
+            &source_system,
+            target_system.as_deref(),
+            &output,
+            source.as_deref(),
+            &target_format,
+            field_level,
+            transformation_details,
+            quality_metrics,
+            impact_analysis,
+            confidence_threshold,
+            audit_context,
+        ),
 
         AuditSubcommand::Performance {
             copybook,
@@ -526,24 +526,22 @@ pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error:
             max_overhead_percent,
             include_regression_analysis,
             iterations,
-        } => {
-            run_performance_audit(
-                &copybook,
-                data_file.as_deref(),
-                format,
-                codepage,
-                &output,
-                establish_baseline,
-                baseline_file.as_deref(),
-                validate_against_baseline.as_deref(),
-                target_display_gbps,
-                target_comp3_mbps,
-                max_overhead_percent,
-                include_regression_analysis,
-                iterations,
-                audit_context,
-            ).await
-        },
+        } => run_performance_audit(
+            &copybook,
+            data_file.as_deref(),
+            format,
+            codepage,
+            &output,
+            establish_baseline,
+            baseline_file.as_deref(),
+            validate_against_baseline.as_deref(),
+            target_display_gbps,
+            target_comp3_mbps,
+            max_overhead_percent,
+            include_regression_analysis,
+            iterations,
+            audit_context,
+        ),
 
         AuditSubcommand::Security {
             copybook,
@@ -559,24 +557,22 @@ pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error:
             real_time_monitoring,
             validation_depth,
             threat_assessment,
-        } => {
-            run_security_audit(
-                &copybook,
-                classification,
-                &output,
-                access_log.as_deref(),
-                detect_anomalies,
-                validate_encryption,
-                check_access_patterns,
-                siem_format.as_deref(),
-                siem_vendor.as_deref(),
-                export_events.as_deref(),
-                real_time_monitoring,
-                validation_depth,
-                threat_assessment,
-                audit_context,
-            ).await
-        },
+        } => run_security_audit(
+            &copybook,
+            classification,
+            &output,
+            access_log.as_deref(),
+            detect_anomalies,
+            validate_encryption,
+            check_access_patterns,
+            siem_format.as_deref(),
+            siem_vendor.as_deref(),
+            export_events.as_deref(),
+            real_time_monitoring,
+            validation_depth,
+            threat_assessment,
+            audit_context,
+        ),
 
         AuditSubcommand::Health {
             audit_trail,
@@ -590,26 +586,29 @@ pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error:
             detailed_diagnostics,
             check_interval,
             continuous,
-        } => {
-            run_audit_health_check(
-                audit_trail.as_deref(),
-                audit_log.as_deref(),
-                validate_integrity,
-                validate_chain_integrity,
-                check_cryptographic_hashes,
-                verify_timestamps,
-                check_retention,
-                output.as_deref(),
-                detailed_diagnostics,
-                check_interval,
-                continuous,
-                audit_context,
-            ).await
-        },
+        } => run_audit_health_check(
+            audit_trail.as_deref(),
+            audit_log.as_deref(),
+            validate_integrity,
+            validate_chain_integrity,
+            check_cryptographic_hashes,
+            verify_timestamps,
+            check_retention,
+            output.as_deref(),
+            detailed_diagnostics,
+            check_interval,
+            continuous,
+            audit_context,
+        ),
     }
 }
 
-async fn run_audit_report(
+#[allow(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    clippy::used_underscore_binding
+)]
+fn run_audit_report(
     _copybook: &std::path::Path,
     _data_file: Option<&std::path::Path>,
     _output: &std::path::Path,
@@ -649,6 +648,11 @@ async fn run_audit_report(
     Ok(0)
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    clippy::used_underscore_binding
+)]
 async fn run_compliance_validation(
     compliance: &str,
     _copybook: &std::path::Path,
@@ -665,8 +669,9 @@ async fn run_compliance_validation(
     println!("Running compliance validation...");
 
     // Parse compliance frameworks from comma-separated string
-    let framework_names: Vec<&str> = compliance.split(',').map(|s| s.trim()).collect();
-    let framework_names_owned: Vec<String> = framework_names.iter().map(|s| s.to_string()).collect();
+    let framework_names: Vec<&str> = compliance.split(',').map(str::trim).collect();
+    let framework_names_owned: Vec<String> =
+        framework_names.iter().map(|s| (*s).to_string()).collect();
     let mut profiles = Vec::new();
 
     for name in &framework_names {
@@ -674,11 +679,9 @@ async fn run_compliance_validation(
             "sox" => ComplianceProfile::SOX,
             "hipaa" => ComplianceProfile::HIPAA,
             "gdpr" => ComplianceProfile::GDPR,
-            "pci" => ComplianceProfile::PciDss,
-            "pcidss" => ComplianceProfile::PciDss,
-            "pci_dss" => ComplianceProfile::PciDss,
+            "pci" | "pcidss" | "pci_dss" => ComplianceProfile::PciDss,
             _ => {
-                eprintln!("❌ invalid compliance profile: '{}'", name);
+                eprintln!("❌ invalid compliance profile: '{name}'");
                 eprintln!("Supported profiles: sox, hipaa, gdpr, pci");
                 return Ok(2); // Invalid compliance framework
             }
@@ -686,8 +689,7 @@ async fn run_compliance_validation(
         profiles.push(profile);
     }
 
-    let compliance_engine = ComplianceEngine::new()
-        .with_profiles(&profiles);
+    let compliance_engine = ComplianceEngine::new().with_profiles(&profiles);
 
     // Run compliance validation
     // Parse copybook to validate it
@@ -726,16 +728,21 @@ async fn run_compliance_validation(
     } else {
         println!("❌ Compliance violations detected:");
         for violation in &compliance_result.violations {
-            println!("   {} - {}: {}",
-                    violation.violation_id,
-                    violation.title,
-                    violation.description);
+            println!(
+                "   {} - {}: {}",
+                violation.violation_id, violation.title, violation.description
+            );
         }
         Ok(3) // Compliance failure exit code
     }
 }
 
-async fn run_lineage_analysis(
+#[allow(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    clippy::used_underscore_binding
+)]
+fn run_lineage_analysis(
     _source_copybook: &std::path::Path,
     _target_copybook: Option<&std::path::Path>,
     _source_system: &str,
@@ -780,7 +787,12 @@ async fn run_lineage_analysis(
     Ok(0)
 }
 
-async fn run_performance_audit(
+#[allow(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    clippy::used_underscore_binding
+)]
+fn run_performance_audit(
     _copybook: &std::path::Path,
     _data_file: Option<&std::path::Path>,
     _format: Option<RecordFormat>,
@@ -832,20 +844,25 @@ async fn run_performance_audit(
     Ok(0)
 }
 
-async fn run_security_audit(
+#[allow(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    clippy::used_underscore_binding
+)]
+fn run_security_audit(
     _copybook: &std::path::Path,
     _classification: Option<DataClassification>,
-    _output: &std::path::Path,
+    output: &std::path::Path,
     _access_log: Option<&std::path::Path>,
     _detect_anomalies: bool,
     _validate_encryption: bool,
     _check_access_patterns: bool,
-    _siem_format: Option<&str>,
+    siem_format: Option<&str>,
     _siem_vendor: Option<&str>,
-    _export_events: Option<&std::path::Path>,
-    _real_time_monitoring: bool,
-    _validation_depth: ValidationDepth,
-    _threat_assessment: bool,
+    export_events: Option<&std::path::Path>,
+    real_time_monitoring: bool,
+    validation_depth: ValidationDepth,
+    threat_assessment: bool,
     _audit_context: AuditContext,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Running security audit...");
@@ -864,46 +881,49 @@ async fn run_security_audit(
             "detect_anomalies": _detect_anomalies,
             "validate_encryption": _validate_encryption,
             "check_access_patterns": _check_access_patterns,
-            "siem_format": _siem_format,
+            "siem_format": siem_format,
             "siem_vendor": _siem_vendor,
-            "export_events": _export_events.map(|p| p.display().to_string()),
-            "real_time_monitoring": _real_time_monitoring,
-            "validation_depth": format!("{:?}", _validation_depth),
-            "threat_assessment": _threat_assessment,
+            "export_events": export_events.map(|p| p.display().to_string()),
+            "real_time_monitoring": real_time_monitoring,
+            "validation_depth": format!("{validation_depth:?}"),
+            "threat_assessment": threat_assessment,
             "security_findings": [],
             "threat_level": "low",
             "status": "passed"
         }
     });
 
-    std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
+    std::fs::write(output, serde_json::to_string_pretty(&report)?)?;
 
     // Also create SIEM export if requested
-    if let (Some(format), Some(events_path)) = (_siem_format, _export_events) {
+    if let (Some(format), Some(events_path)) = (siem_format, export_events) {
         let siem_data = match format {
-            "cef" => "CEF:0|Copybook|Audit|1.0|SECURITY_AUDIT|Security Audit Completed|Low|src=copybook dst=siem",
+            "cef" => {
+                "CEF:0|Copybook|Audit|1.0|SECURITY_AUDIT|Security Audit Completed|Low|src=copybook dst=siem"
+            }
             "leef" => "LEEF:2.0|Copybook|Audit|1.0|SECURITY_AUDIT|devTime=|src=|dst=|",
-            _ => "Unknown SIEM format"
+            _ => "Unknown SIEM format",
         };
         std::fs::write(events_path, siem_data)?;
     }
 
-    println!("✅ Security audit completed: {}", _output.display());
+    println!("✅ Security audit completed: {}", output.display());
     Ok(0)
 }
 
-async fn run_audit_health_check(
-    _audit_trail: Option<&std::path::Path>,
-    _audit_log: Option<&std::path::Path>,
-    _validate_integrity: bool,
-    _validate_chain_integrity: bool,
-    _check_cryptographic_hashes: bool,
-    _verify_timestamps: bool,
-    _check_retention: bool,
-    _output: Option<&std::path::Path>,
-    _detailed_diagnostics: bool,
-    _check_interval: u32,
-    _continuous: bool,
+#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
+fn run_audit_health_check(
+    audit_trail: Option<&std::path::Path>,
+    audit_log: Option<&std::path::Path>,
+    validate_integrity: bool,
+    validate_chain_integrity: bool,
+    check_cryptographic_hashes: bool,
+    verify_timestamps: bool,
+    check_retention: bool,
+    output: Option<&std::path::Path>,
+    detailed_diagnostics: bool,
+    check_interval: u32,
+    continuous: bool,
     _audit_context: AuditContext,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     println!("Running audit health check...");
@@ -912,16 +932,16 @@ async fn run_audit_health_check(
     let report = serde_json::json!({
         "audit_health": {
             "timestamp": chrono::Utc::now().to_rfc3339(),
-            "audit_trail": _audit_trail.map(|p| p.display().to_string()),
-            "audit_log": _audit_log.map(|p| p.display().to_string()),
-            "validate_integrity": _validate_integrity,
-            "validate_chain_integrity": _validate_chain_integrity,
-            "check_cryptographic_hashes": _check_cryptographic_hashes,
-            "verify_timestamps": _verify_timestamps,
-            "check_retention": _check_retention,
-            "detailed_diagnostics": _detailed_diagnostics,
-            "check_interval": _check_interval,
-            "continuous": _continuous,
+            "audit_trail": audit_trail.map(|p| p.display().to_string()),
+            "audit_log": audit_log.map(|p| p.display().to_string()),
+            "validate_integrity": validate_integrity,
+            "validate_chain_integrity": validate_chain_integrity,
+            "check_cryptographic_hashes": check_cryptographic_hashes,
+            "verify_timestamps": verify_timestamps,
+            "check_retention": check_retention,
+            "detailed_diagnostics": detailed_diagnostics,
+            "check_interval": check_interval,
+            "continuous": continuous,
             "health_status": {
                 "overall": "healthy",
                 "integrity_valid": true,
@@ -937,7 +957,7 @@ async fn run_audit_health_check(
         }
     });
 
-    if let Some(output_path) = _output {
+    if let Some(output_path) = output {
         std::fs::write(output_path, serde_json::to_string_pretty(&report)?)?;
         println!("✅ Health report generated: {}", output_path.display());
     } else {
@@ -972,15 +992,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_compliance_validation() {
-        use tempfile::NamedTempFile;
         use std::io::Write;
+        use tempfile::NamedTempFile;
 
         let compliance = "sox";
 
         // Create temporary copybook file
         let mut temp_file = NamedTempFile::new().unwrap();
-        writeln!(temp_file, r#"       01 TEST-RECORD.
-           05 TEST-FIELD           PIC X(10)."#).unwrap();
+        writeln!(
+            temp_file,
+            r"       01 TEST-RECORD.
+           05 TEST-FIELD           PIC X(10)."
+        )
+        .unwrap();
         let copybook_path = temp_file.path().to_path_buf();
 
         let output_path = tempfile::NamedTempFile::new().unwrap().path().to_path_buf();
@@ -998,10 +1022,11 @@ mod tests {
             false,
             false,
             audit_context,
-        ).await;
+        )
+        .await;
 
         // Should return error code for non-compliant operations
-        assert!(result.is_ok(), "Result should be Ok, got: {:?}", result);
+        assert!(result.is_ok(), "Result should be Ok, got: {result:?}");
         let exit_code = result.unwrap();
         assert_eq!(exit_code, 3); // Compliance failure
     }

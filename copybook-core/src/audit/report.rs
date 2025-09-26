@@ -3,7 +3,7 @@
 //! Generates comprehensive audit reports for compliance, performance,
 //! and security monitoring in copybook-rs enterprise operations.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::ComplianceResult;
 

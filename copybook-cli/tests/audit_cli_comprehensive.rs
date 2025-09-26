@@ -25,28 +25,35 @@ fn test_audit_report_comprehensive() {
     let output_file = temp_dir.path().join("audit_report.json");
 
     // Create test copybook fixture
-    fs::write(&copybook_file, r#"       01 FINANCIAL-TRANSACTION.
+    fs::write(
+        &copybook_file,
+        r"       01 FINANCIAL-TRANSACTION.
            05 ACCOUNT-ID           PIC 9(12) COMP-3.
            05 TRANSACTION-AMOUNT   PIC S9(13)V99 COMP-3.
            05 AUDIT-TRAIL-REF      PIC X(32).
-    "#).unwrap();
+    ",
+    )
+    .unwrap();
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("report")
-       .arg("--compliance").arg("sox")
-       .arg("--format").arg("json")
-       .arg("--output").arg(&output_file)
-       .arg("--include-recommendations")
-       .arg("--include-lineage")
-       .arg(&copybook_file);
+        .arg("report")
+        .arg("--compliance")
+        .arg("sox")
+        .arg("--format")
+        .arg("json")
+        .arg("--output")
+        .arg(&output_file)
+        .arg("--include-recommendations")
+        .arg("--include-lineage")
+        .arg(&copybook_file);
 
     // Should succeed with comprehensive audit report generation
     cmd.assert().success();
 
     // Verify output file exists and contains expected structure
     assert!(output_file.exists());
-    let report_content = fs::read_to_string(&output_file).unwrap();
+    let _report_content = fs::read_to_string(&output_file).unwrap();
 
     // TODO: Verify comprehensive report structure when implemented
     // assert!(report_content.contains("\"compliance_summary\""));
@@ -66,7 +73,9 @@ fn test_audit_validate_multi_compliance() {
     let validation_report = temp_dir.path().join("validation_report.json");
 
     // Create HIPAA test copybook fixture
-    fs::write(&copybook_file, r#"
+    fs::write(
+        &copybook_file,
+        r"
        01 PATIENT-RECORD.
            05 PATIENT-ID           PIC 9(10) COMP-3.
            05 SSN-LAST-FOUR        PIC 9(4) COMP.
@@ -75,17 +84,21 @@ fn test_audit_validate_multi_compliance() {
                88 MEDICAL-HISTORY  VALUE 'MH'.
            05 CONSENT-STATUS       PIC X(1).
                88 CONSENT-OBTAINED VALUE 'Y'.
-    "#).unwrap();
+    ",
+    )
+    .unwrap();
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("validate")
-       .arg("--compliance").arg("hipaa,gdpr")
-       .arg("--strict")
-       .arg("--output").arg(&validation_report)
-       .arg("--report-violations")
-       .arg("--include-recommendations")
-       .arg(&copybook_file);
+        .arg("validate")
+        .arg("--compliance")
+        .arg("hipaa,gdpr")
+        .arg("--strict")
+        .arg("--output")
+        .arg(&validation_report)
+        .arg("--report-violations")
+        .arg("--include-recommendations")
+        .arg(&copybook_file);
 
     let assert = cmd.assert();
 
@@ -96,7 +109,7 @@ fn test_audit_validate_multi_compliance() {
     // Verify validation report generated
     if validation_report.exists() {
         let report_content = fs::read_to_string(&validation_report).unwrap();
-        println!("Validation report generated: {}", report_content);
+        println!("Validation report generated: {report_content}");
     }
 }
 
@@ -109,7 +122,9 @@ fn test_audit_lineage_field_level() {
     let lineage_report = temp_dir.path().join("lineage_report.json");
 
     // Create source copybook for lineage tracking
-    fs::write(&source_copybook, r#"
+    fs::write(
+        &source_copybook,
+        r"
        01 SOURCE-RECORD.
            05 CUSTOMER-ID          PIC 9(8) COMP-3.
            05 TRANSACTION-AMOUNT   PIC S9(11)V99 COMP-3.
@@ -117,26 +132,32 @@ fn test_audit_lineage_field_level() {
            05 STATUS-CODE          PIC X(2).
                88 ACTIVE-STATUS    VALUE 'AC'.
                88 INACTIVE-STATUS  VALUE 'IN'.
-    "#).unwrap();
+    ",
+    )
+    .unwrap();
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("lineage")
-       .arg("--source-system").arg("test-system")
-       .arg("--source").arg(&source_copybook)
-       .arg("--target-format").arg("json")
-       .arg("--field-level")
-       .arg("--transformation-details")
-       .arg("--quality-metrics")
-       .arg("--output").arg(&lineage_report)
-       .arg(&source_copybook);
+        .arg("lineage")
+        .arg("--source-system")
+        .arg("test-system")
+        .arg("--source")
+        .arg(&source_copybook)
+        .arg("--target-format")
+        .arg("json")
+        .arg("--field-level")
+        .arg("--transformation-details")
+        .arg("--quality-metrics")
+        .arg("--output")
+        .arg(&lineage_report)
+        .arg(&source_copybook);
 
     // Should succeed with lineage report generation
     cmd.assert().success();
 
     // Verify lineage report structure
     if lineage_report.exists() {
-        let lineage_content = fs::read_to_string(&lineage_report).unwrap();
+        let _lineage_content = fs::read_to_string(&lineage_report).unwrap();
 
         // TODO: Verify comprehensive lineage structure when implemented
         // assert!(lineage_content.contains("\"field_mappings\""));
@@ -157,7 +178,9 @@ fn test_audit_performance_baseline() {
     let performance_report = temp_dir.path().join("performance_report.json");
 
     // Create performance test copybook
-    fs::write(&performance_copybook, r#"
+    fs::write(
+        &performance_copybook,
+        r"
        01 PERFORMANCE-RECORD.
            05 DISPLAY-HEAVY-SECTION.
                10 CUSTOMER-NAME        PIC X(100).
@@ -167,36 +190,47 @@ fn test_audit_performance_baseline() {
                10 ACCOUNT-BALANCE      PIC S9(13)V99 COMP-3.
                10 TRANSACTION-AMOUNT   PIC S9(11)V99 COMP-3.
                10 INTEREST-RATE        PIC S9(3)V9999 COMP-3.
-    "#).unwrap();
+    ",
+    )
+    .unwrap();
 
     // Test baseline establishment
     let mut baseline_cmd = Command::cargo_bin("copybook").unwrap();
-    baseline_cmd.arg("audit")
-               .arg("performance")
-               .arg("--establish-baseline")
-               .arg("--baseline-file").arg(&baseline_file)
-               .arg("--target-display-gbps").arg("4.1")
-               .arg("--target-comp3-mbps").arg("560")
-               .arg("--output").arg(&performance_report)
-               .arg(&performance_copybook);
+    baseline_cmd
+        .arg("audit")
+        .arg("performance")
+        .arg("--establish-baseline")
+        .arg("--baseline-file")
+        .arg(&baseline_file)
+        .arg("--target-display-gbps")
+        .arg("4.1")
+        .arg("--target-comp3-mbps")
+        .arg("560")
+        .arg("--output")
+        .arg(&performance_report)
+        .arg(&performance_copybook);
 
     baseline_cmd.assert().success();
 
     // Test performance validation against baseline
     let mut validation_cmd = Command::cargo_bin("copybook").unwrap();
-    validation_cmd.arg("audit")
-                 .arg("performance")
-                 .arg("--validate-against-baseline").arg(&baseline_file)
-                 .arg("--max-overhead-percent").arg("5.0") // AC11: <5% overhead
-                 .arg("--output").arg(&performance_report)
-                 .arg("--include-regression-analysis")
-                 .arg(&performance_copybook);
+    validation_cmd
+        .arg("audit")
+        .arg("performance")
+        .arg("--validate-against-baseline")
+        .arg(&baseline_file)
+        .arg("--max-overhead-percent")
+        .arg("5.0") // AC11: <5% overhead
+        .arg("--output")
+        .arg(&performance_report)
+        .arg("--include-regression-analysis")
+        .arg(&performance_copybook);
 
     validation_cmd.assert().success();
 
     // Verify performance report generated
     if performance_report.exists() {
-        let report_content = fs::read_to_string(&performance_report).unwrap();
+        let _report_content = fs::read_to_string(&performance_report).unwrap();
 
         // TODO: Verify performance metrics when implemented
         // assert!(report_content.contains("\"display_throughput_gbps\""));
@@ -217,7 +251,9 @@ fn test_audit_security_comprehensive() {
     let access_log = temp_dir.path().join("access_log.jsonl");
 
     // Create security test copybook with sensitive data
-    fs::write(&security_copybook, r#"
+    fs::write(
+        &security_copybook,
+        r"
        01 SENSITIVE-RECORD.
            05 SSN                  PIC 9(9) COMP-3.
                88 VALID-SSN        VALUE 100000000 THRU 999999999.
@@ -226,30 +262,34 @@ fn test_audit_security_comprehensive() {
            05 ENCRYPTION-STATUS    PIC X(1).
                88 ENCRYPTED        VALUE 'Y'.
                88 UNENCRYPTED      VALUE 'N'.
-    "#).unwrap();
+    ",
+    )
+    .unwrap();
 
     // Create mock access log
-    fs::write(&access_log, r#"
-{"timestamp": "2024-09-25T10:00:00Z", "user": "test_user", "action": "read", "resource": "sensitive_record"}
-{"timestamp": "2024-09-25T10:01:00Z", "user": "test_user", "action": "write", "resource": "sensitive_record"}
-    "#).unwrap();
+    fs::write(&access_log, "
+{\"timestamp\": \"2024-09-25T10:00:00Z\", \"user\": \"test_user\", \"action\": \"read\", \"resource\": \"sensitive_record\"}
+{\"timestamp\": \"2024-09-25T10:01:00Z\", \"user\": \"test_user\", \"action\": \"write\", \"resource\": \"sensitive_record\"}
+    ").unwrap();
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("security")
-       .arg("--access-log").arg(&access_log)
-       .arg("--detect-anomalies")
-       .arg("--validate-encryption")
-       .arg("--check-access-patterns")
-       .arg("--output").arg(&security_report)
-       .arg(&security_copybook);
+        .arg("security")
+        .arg("--access-log")
+        .arg(&access_log)
+        .arg("--detect-anomalies")
+        .arg("--validate-encryption")
+        .arg("--check-access-patterns")
+        .arg("--output")
+        .arg(&security_report)
+        .arg(&security_copybook);
 
     // Should succeed with security analysis
     cmd.assert().success();
 
     // Verify security report structure
     if security_report.exists() {
-        let report_content = fs::read_to_string(&security_report).unwrap();
+        let _report_content = fs::read_to_string(&security_report).unwrap();
 
         // TODO: Verify security analysis structure when implemented
         // assert!(report_content.contains("\"sensitive_fields\""));
@@ -269,28 +309,30 @@ fn test_audit_health_integrity() {
     let health_report = temp_dir.path().join("health_report.json");
 
     // Create mock audit trail
-    fs::write(&audit_log, r#"
-{"event_id": "audit-001", "timestamp": "2024-09-25T10:00:00Z", "integrity_hash": "a1b2c3d4", "previous_hash": null}
-{"event_id": "audit-002", "timestamp": "2024-09-25T10:01:00Z", "integrity_hash": "e5f6g7h8", "previous_hash": "a1b2c3d4"}
-{"event_id": "audit-003", "timestamp": "2024-09-25T10:02:00Z", "integrity_hash": "i9j0k1l2", "previous_hash": "e5f6g7h8"}
-    "#).unwrap();
+    fs::write(&audit_log, "
+{\"event_id\": \"audit-001\", \"timestamp\": \"2024-09-25T10:00:00Z\", \"integrity_hash\": \"a1b2c3d4\", \"previous_hash\": null}
+{\"event_id\": \"audit-002\", \"timestamp\": \"2024-09-25T10:01:00Z\", \"integrity_hash\": \"e5f6g7h8\", \"previous_hash\": \"a1b2c3d4\"}
+{\"event_id\": \"audit-003\", \"timestamp\": \"2024-09-25T10:02:00Z\", \"integrity_hash\": \"i9j0k1l2\", \"previous_hash\": \"e5f6g7h8\"}
+    ").unwrap();
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("health")
-       .arg("--audit-log").arg(&audit_log)
-       .arg("--validate-chain-integrity")
-       .arg("--check-cryptographic-hashes")
-       .arg("--verify-timestamps")
-       .arg("--output").arg(&health_report)
-       .arg("--detailed-diagnostics");
+        .arg("health")
+        .arg("--audit-log")
+        .arg(&audit_log)
+        .arg("--validate-chain-integrity")
+        .arg("--check-cryptographic-hashes")
+        .arg("--verify-timestamps")
+        .arg("--output")
+        .arg(&health_report)
+        .arg("--detailed-diagnostics");
 
     // Should succeed with health check
     cmd.assert().success();
 
     // Verify health report generated
     if health_report.exists() {
-        let report_content = fs::read_to_string(&health_report).unwrap();
+        let _report_content = fs::read_to_string(&health_report).unwrap();
 
         // TODO: Verify health check structure when implemented
         // assert!(report_content.contains("\"chain_integrity_valid\""));
@@ -309,37 +351,44 @@ fn test_audit_command_error_handling() {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit").arg("validate");
     cmd.assert()
-       .failure()
-       .stderr(predicate::str::contains("required arguments"));
+        .failure()
+        .stderr(predicate::str::contains("required arguments"));
 
     // Test invalid compliance profile
     let temp_dir = tempdir().unwrap();
     let copybook_file = temp_dir.path().join("test.cpy");
-    fs::write(&copybook_file, "01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).").unwrap();
+    fs::write(
+        &copybook_file,
+        "01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).",
+    )
+    .unwrap();
 
     let output_file = temp_dir.path().join("validation_output.json");
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("validate")
-       .arg("--compliance").arg("invalid_profile")
-       .arg("--output").arg(&output_file)
-       .arg(&copybook_file);
+        .arg("validate")
+        .arg("--compliance")
+        .arg("invalid_profile")
+        .arg("--output")
+        .arg(&output_file)
+        .arg(&copybook_file);
 
     cmd.assert()
-       .failure()
-       .stderr(predicate::str::contains("invalid compliance profile"));
+        .failure()
+        .stderr(predicate::str::contains("invalid compliance profile"));
 
     // Test nonexistent file
     let output_file2 = temp_dir.path().join("report_output.json");
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("report")
-       .arg("--output").arg(&output_file2)
-       .arg("nonexistent_file.cpy");
+        .arg("report")
+        .arg("--output")
+        .arg(&output_file2)
+        .arg("nonexistent_file.cpy");
 
     cmd.assert()
-       .failure()
-       .stderr(predicate::str::contains("No such file"));
+        .failure()
+        .stderr(predicate::str::contains("No such file"));
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#enterprise-integration
@@ -350,7 +399,9 @@ fn test_audit_siem_integration() {
     let copybook_file = temp_dir.path().join("siem_test.cpy");
     let siem_output = temp_dir.path().join("siem_events.cef");
 
-    fs::write(&copybook_file, r#"
+    fs::write(
+        &copybook_file,
+        r"
        01 SECURITY-EVENT-RECORD.
            05 EVENT-ID             PIC 9(12) COMP-3.
            05 SECURITY-LEVEL       PIC X(1).
@@ -358,25 +409,31 @@ fn test_audit_siem_integration() {
                88 MEDIUM-SECURITY  VALUE 'M'.
                88 LOW-SECURITY     VALUE 'L'.
            05 THREAT-INDICATOR     PIC X(50).
-    "#).unwrap();
+    ",
+    )
+    .unwrap();
 
     let security_report = temp_dir.path().join("security_report.json");
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
-       .arg("security")
-       .arg("--siem-format").arg("cef")
-       .arg("--siem-vendor").arg("splunk")
-       .arg("--export-events").arg(&siem_output)
-       .arg("--real-time-monitoring")
-       .arg("--output").arg(&security_report)
-       .arg(&copybook_file);
+        .arg("security")
+        .arg("--siem-format")
+        .arg("cef")
+        .arg("--siem-vendor")
+        .arg("splunk")
+        .arg("--export-events")
+        .arg(&siem_output)
+        .arg("--real-time-monitoring")
+        .arg("--output")
+        .arg(&security_report)
+        .arg(&copybook_file);
 
     // Should succeed with SIEM integration
     cmd.assert().success();
 
     // TODO: Verify CEF format output when implemented
     if siem_output.exists() {
-        let cef_content = fs::read_to_string(&siem_output).unwrap();
+        let _cef_content = fs::read_to_string(&siem_output).unwrap();
         println!("SIEM integration test generated CEF output (implementation pending)");
     }
 }

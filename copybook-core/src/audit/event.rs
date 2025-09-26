@@ -3,7 +3,7 @@
 //! Defines the core audit event structure and payload types for comprehensive
 //! enterprise audit trail generation and validation.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use super::{AuditContext, generate_audit_id, generate_integrity_hash};
@@ -44,15 +44,11 @@ pub struct AuditEvent {
 
 impl AuditEvent {
     /// Create a new audit event
-    pub fn new(
-        event_type: AuditEventType,
-        context: AuditContext,
-        payload: AuditPayload,
-    ) -> Self {
+    pub fn new(event_type: AuditEventType, context: AuditContext, payload: AuditPayload) -> Self {
         let event_id = generate_audit_id();
         let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
         let severity = payload.default_severity();
-        let source = Self::determine_source(&event_type);
+        let source = Self::determine_source(event_type);
 
         let mut event = Self {
             event_id,
@@ -61,43 +57,55 @@ impl AuditEvent {
             context,
             payload,
             integrity_hash: String::new(), // Will be set below
-            previous_hash: None, // Will be set by audit logger
+            previous_hash: None,           // Will be set by audit logger
             severity,
             source,
             event_version: "1.0.0".to_string(),
         };
 
-        // Generate integrity hash
-        let event_bytes = serde_json::to_vec(&event).expect("Failed to serialize audit event");
+        // Generate integrity hash (exclude hash field from calculation)
+        let mut event_for_hash = event.clone();
+        event_for_hash.integrity_hash = String::new();
+        let event_bytes =
+            serde_json::to_vec(&event_for_hash).expect("Failed to serialize audit event");
         event.integrity_hash = generate_integrity_hash(&event_bytes, None);
 
         event
     }
 
     /// Create event with specific severity
+    #[must_use]
     pub fn with_severity(mut self, severity: AuditSeverity) -> Self {
         self.severity = severity;
 
-        // Regenerate integrity hash with updated severity
-        let event_bytes = serde_json::to_vec(&self).expect("Failed to serialize audit event");
+        // Regenerate integrity hash with updated severity (exclude hash field from calculation)
+        let mut event_for_hash = self.clone();
+        event_for_hash.integrity_hash = String::new();
+        let event_bytes =
+            serde_json::to_vec(&event_for_hash).expect("Failed to serialize audit event");
         self.integrity_hash = generate_integrity_hash(&event_bytes, None);
 
         self
     }
 
     /// Set the previous event hash for chain integrity
+    #[must_use]
     pub fn with_previous_hash(mut self, previous_hash: String) -> Self {
         self.previous_hash = Some(previous_hash);
 
-        // Regenerate integrity hash with previous hash
-        let event_bytes = serde_json::to_vec(&self).expect("Failed to serialize audit event");
+        // Regenerate integrity hash with previous hash (exclude hash field from calculation)
+        let mut event_for_hash = self.clone();
+        event_for_hash.integrity_hash = String::new();
+        event_for_hash.previous_hash = None; // Also exclude previous_hash from serialization
+        let event_bytes =
+            serde_json::to_vec(&event_for_hash).expect("Failed to serialize audit event");
         self.integrity_hash = generate_integrity_hash(&event_bytes, self.previous_hash.as_deref());
 
         self
     }
 
     /// Determine the source component based on event type
-    fn determine_source(event_type: &AuditEventType) -> String {
+    fn determine_source(event_type: AuditEventType) -> String {
         match event_type {
             AuditEventType::CopybookParse => "copybook-core::parser",
             AuditEventType::DataValidation => "copybook-codec::validator",
@@ -109,7 +117,8 @@ impl AuditEvent {
             AuditEventType::ErrorEvent => "copybook-core::error",
             AuditEventType::AccessEvent => "copybook-core::access",
             AuditEventType::ConfigurationChange => "copybook-core::config",
-        }.to_string()
+        }
+        .to_string()
     }
 
     /// Check if this event requires immediate attention
@@ -265,57 +274,58 @@ impl AuditPayload {
     /// Get the default severity for this payload type
     pub fn default_severity(&self) -> AuditSeverity {
         match self {
-            AuditPayload::CopybookParse { parse_result, .. } => {
-                match parse_result {
-                    ParseResult::Success => AuditSeverity::Info,
-                    ParseResult::SuccessWithWarnings => AuditSeverity::Low,
-                    ParseResult::Failed => AuditSeverity::High,
-                }
+            AuditPayload::CopybookParse { parse_result, .. } => match parse_result {
+                ParseResult::Success => AuditSeverity::Info,
+                ParseResult::SuccessWithWarnings => AuditSeverity::Low,
+                ParseResult::Failed => AuditSeverity::High,
             },
-            AuditPayload::DataValidation { validation_result, .. } => {
-                match validation_result {
-                    ValidationResult::Valid => AuditSeverity::Info,
-                    ValidationResult::ValidWithWarnings => AuditSeverity::Low,
-                    ValidationResult::Invalid => AuditSeverity::Medium,
-                }
+            AuditPayload::DataValidation {
+                validation_result, ..
+            } => match validation_result {
+                ValidationResult::Valid => AuditSeverity::Info,
+                ValidationResult::ValidWithWarnings => AuditSeverity::Low,
+                ValidationResult::Invalid => AuditSeverity::Medium,
             },
-            AuditPayload::DataTransformation { transformation_result, .. } => {
-                match transformation_result {
-                    TransformationResult::Success => AuditSeverity::Info,
-                    TransformationResult::PartialSuccess => AuditSeverity::Medium,
-                    TransformationResult::Failed => AuditSeverity::High,
-                }
+            AuditPayload::DataTransformation {
+                transformation_result,
+                ..
+            } => match transformation_result {
+                TransformationResult::Success => AuditSeverity::Info,
+                TransformationResult::PartialSuccess => AuditSeverity::Medium,
+                TransformationResult::Failed => AuditSeverity::High,
             },
-            AuditPayload::PerformanceMeasurement { regression_detected, .. } => {
+            AuditPayload::PerformanceMeasurement {
+                regression_detected,
+                ..
+            } => {
                 if *regression_detected {
                     AuditSeverity::Medium
                 } else {
                     AuditSeverity::Info
                 }
-            },
-            AuditPayload::ComplianceCheck { remediation_required, .. } => {
+            }
+            AuditPayload::ComplianceCheck {
+                remediation_required,
+                ..
+            } => {
                 if *remediation_required {
                     AuditSeverity::High
                 } else {
                     AuditSeverity::Info
                 }
-            },
+            }
             AuditPayload::SecurityEvent { .. } => AuditSeverity::High,
             AuditPayload::LineageTracking { .. } => AuditSeverity::Info,
-            AuditPayload::ErrorEvent { user_impact, .. } => {
-                match user_impact {
-                    UserImpactLevel::None => AuditSeverity::Low,
-                    UserImpactLevel::Low => AuditSeverity::Medium,
-                    UserImpactLevel::Medium => AuditSeverity::High,
-                    UserImpactLevel::High => AuditSeverity::Critical,
-                }
+            AuditPayload::ErrorEvent { user_impact, .. } => match user_impact {
+                UserImpactLevel::None => AuditSeverity::Low,
+                UserImpactLevel::Low => AuditSeverity::Medium,
+                UserImpactLevel::Medium => AuditSeverity::High,
+                UserImpactLevel::High => AuditSeverity::Critical,
             },
-            AuditPayload::AccessEvent { access_result, .. } => {
-                match access_result {
-                    AccessResult::Success => AuditSeverity::Info,
-                    AccessResult::Denied => AuditSeverity::Medium,
-                    AccessResult::Failed => AuditSeverity::High,
-                }
+            AuditPayload::AccessEvent { access_result, .. } => match access_result {
+                AccessResult::Success => AuditSeverity::Info,
+                AccessResult::Denied => AuditSeverity::Medium,
+                AccessResult::Failed => AuditSeverity::High,
             },
             AuditPayload::ConfigurationChange { .. } => AuditSeverity::Medium,
         }
@@ -489,11 +499,7 @@ mod tests {
             warnings: vec![],
         };
 
-        let event = AuditEvent::new(
-            AuditEventType::CopybookParse,
-            context,
-            payload,
-        );
+        let event = AuditEvent::new(AuditEventType::CopybookParse, context, payload);
 
         assert!(event.event_id.starts_with("audit-"));
         assert!(!event.timestamp.is_empty());
@@ -515,11 +521,8 @@ mod tests {
             user_impact: UserImpactLevel::None,
         };
 
-        let event = AuditEvent::new(
-            AuditEventType::ErrorEvent,
-            context,
-            payload,
-        ).with_severity(AuditSeverity::Critical);
+        let event = AuditEvent::new(AuditEventType::ErrorEvent, context, payload)
+            .with_severity(AuditSeverity::Critical);
 
         assert_eq!(event.severity, AuditSeverity::Critical);
     }

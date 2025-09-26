@@ -4,11 +4,11 @@
 //! including SOX, HIPAA, GDPR, and PCI DSS with automated validation
 //! and remediation guidance.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::{AuditContext, AuditResult};
 use super::context::SecurityClassification;
+use super::{AuditContext, AuditResult};
 
 /// Enterprise compliance engine for regulatory validation
 pub struct ComplianceEngine {
@@ -28,6 +28,7 @@ impl ComplianceEngine {
     }
 
     /// Add compliance profiles to validate against
+    #[must_use]
     pub fn with_profiles(mut self, profiles: &[ComplianceProfile]) -> Self {
         self.profiles = profiles.to_vec();
 
@@ -46,6 +47,7 @@ impl ComplianceEngine {
     }
 
     /// Set compliance configuration
+    #[must_use]
     pub fn with_config(mut self, config: ComplianceConfig) -> Self {
         self.config = config;
         self
@@ -104,7 +106,10 @@ impl ComplianceEngine {
         })
     }
 
-    async fn generate_recommendations(&self, context: &AuditContext) -> AuditResult<Vec<ComplianceRecommendation>> {
+    async fn generate_recommendations(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let mut recommendations = Vec::new();
 
         for profile in &self.profiles {
@@ -146,8 +151,14 @@ pub enum ComplianceProfile {
 /// Compliance validation trait for different regulatory frameworks
 #[async_trait::async_trait]
 pub trait ComplianceValidator: Send + Sync {
-    async fn validate_operation(&self, context: &AuditContext) -> AuditResult<ComplianceValidationResult>;
-    async fn generate_recommendations(&self, context: &AuditContext) -> AuditResult<Vec<ComplianceRecommendation>>;
+    async fn validate_operation(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<ComplianceValidationResult>;
+    async fn generate_recommendations(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<Vec<ComplianceRecommendation>>;
 }
 
 /// SOX compliance validator
@@ -198,8 +209,11 @@ impl SoxValidator {
 
     fn has_adequate_data_integrity_controls(&self, context: &AuditContext) -> bool {
         // Check if cryptographic integrity is enabled for financial data
-        context.security.audit_requirements.integrity_protection &&
-        matches!(context.security.classification, SecurityClassification::MaterialTransaction)
+        context.security.audit_requirements.integrity_protection
+            && matches!(
+                context.security.classification,
+                SecurityClassification::MaterialTransaction
+            )
     }
 
     fn has_segregation_of_duties(&self, context: &AuditContext) -> bool {
@@ -209,7 +223,10 @@ impl SoxValidator {
 
 #[async_trait::async_trait]
 impl ComplianceValidator for SoxValidator {
-    async fn validate_operation(&self, context: &AuditContext) -> AuditResult<ComplianceValidationResult> {
+    async fn validate_operation(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<ComplianceValidationResult> {
         let mut violations = Vec::new();
         let mut warnings = Vec::new();
 
@@ -221,7 +238,9 @@ impl ComplianceValidator for SoxValidator {
             warnings.push(ComplianceWarning {
                 warning_id: "SOX-AUDIT-001".to_string(),
                 title: "Audit Retention Below Recommended".to_string(),
-                description: "Audit retention period is less than 7 years recommended for SOX compliance".to_string(),
+                description:
+                    "Audit retention period is less than 7 years recommended for SOX compliance"
+                        .to_string(),
                 recommendation: "Set audit retention to at least 2555 days (7 years)".to_string(),
             });
         }
@@ -232,17 +251,26 @@ impl ComplianceValidator for SoxValidator {
         })
     }
 
-    async fn generate_recommendations(&self, context: &AuditContext) -> AuditResult<Vec<ComplianceRecommendation>> {
+    async fn generate_recommendations(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let mut recommendations = Vec::new();
 
-        if matches!(context.security.classification, SecurityClassification::MaterialTransaction) {
+        if matches!(
+            context.security.classification,
+            SecurityClassification::MaterialTransaction
+        ) {
             recommendations.push(ComplianceRecommendation {
                 recommendation_id: "SOX-REC-001".to_string(),
                 priority: RecommendationPriority::High,
                 title: "Implement Executive Certification Process".to_string(),
-                description: "Establish automated executive certification for financial data processing".to_string(),
+                description:
+                    "Establish automated executive certification for financial data processing"
+                        .to_string(),
                 implementation_effort: "2-3 weeks".to_string(),
-                compliance_benefit: "Ensures SOX Section 302 compliance for executive accountability".to_string(),
+                compliance_benefit:
+                    "Ensures SOX Section 302 compliance for executive accountability".to_string(),
             });
         }
 
@@ -250,9 +278,11 @@ impl ComplianceValidator for SoxValidator {
             recommendation_id: "SOX-REC-002".to_string(),
             priority: RecommendationPriority::Medium,
             title: "Quarterly Compliance Reporting".to_string(),
-            description: "Implement automated quarterly compliance reporting for SOX audits".to_string(),
+            description: "Implement automated quarterly compliance reporting for SOX audits"
+                .to_string(),
             implementation_effort: "1-2 weeks".to_string(),
-            compliance_benefit: "Streamlines SOX audit process and reduces compliance burden".to_string(),
+            compliance_benefit: "Streamlines SOX audit process and reduces compliance burden"
+                .to_string(),
         });
 
         Ok(recommendations)
@@ -284,8 +314,12 @@ impl HipaaValidator {
                 severity: ComplianceSeverity::High,
                 title: "Inadequate Administrative Safeguards".to_string(),
                 description: "PHI processing lacks required administrative safeguards".to_string(),
-                remediation: "Implement role-based access control and user training for PHI handling".to_string(),
-                reference_url: Some("https://www.hhs.gov/hipaa/for-professionals/security/index.html".to_string()),
+                remediation:
+                    "Implement role-based access control and user training for PHI handling"
+                        .to_string(),
+                reference_url: Some(
+                    "https://www.hhs.gov/hipaa/for-professionals/security/index.html".to_string(),
+                ),
             });
         }
 
@@ -296,9 +330,13 @@ impl HipaaValidator {
                 regulation: "HIPAA Security Rule §164.312".to_string(),
                 severity: ComplianceSeverity::Critical,
                 title: "Inadequate Technical Safeguards".to_string(),
-                description: "PHI processing lacks required encryption and access controls".to_string(),
-                remediation: "Implement AES-256 encryption and comprehensive access logging".to_string(),
-                reference_url: Some("https://www.hhs.gov/hipaa/for-professionals/security/index.html".to_string()),
+                description: "PHI processing lacks required encryption and access controls"
+                    .to_string(),
+                remediation: "Implement AES-256 encryption and comprehensive access logging"
+                    .to_string(),
+                reference_url: Some(
+                    "https://www.hhs.gov/hipaa/for-professionals/security/index.html".to_string(),
+                ),
             });
         }
 
@@ -313,14 +351,19 @@ impl HipaaValidator {
     }
 
     fn has_adequate_technical_safeguards(&self, context: &AuditContext) -> bool {
-        matches!(context.security.encryption.at_rest, super::context::EncryptionStandard::AES256) &&
-        context.security.audit_requirements.comprehensive_logging
+        matches!(
+            context.security.encryption.at_rest,
+            super::context::EncryptionStandard::AES256
+        ) && context.security.audit_requirements.comprehensive_logging
     }
 }
 
 #[async_trait::async_trait]
 impl ComplianceValidator for HipaaValidator {
-    async fn validate_operation(&self, context: &AuditContext) -> AuditResult<ComplianceValidationResult> {
+    async fn validate_operation(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<ComplianceValidationResult> {
         let mut violations = Vec::new();
         let mut warnings = Vec::new();
 
@@ -329,12 +372,17 @@ impl ComplianceValidator for HipaaValidator {
             violations.extend(self.validate_phi_protection(context));
 
             // Check minimum necessary requirement
-            if !context.metadata.contains_key("minimum_necessary_justification") {
+            if !context
+                .metadata
+                .contains_key("minimum_necessary_justification")
+            {
                 warnings.push(ComplianceWarning {
                     warning_id: "HIPAA-MIN-001".to_string(),
                     title: "Minimum Necessary Justification Missing".to_string(),
-                    description: "PHI processing should include minimum necessary justification".to_string(),
-                    recommendation: "Add minimum necessary justification to audit context metadata".to_string(),
+                    description: "PHI processing should include minimum necessary justification"
+                        .to_string(),
+                    recommendation: "Add minimum necessary justification to audit context metadata"
+                        .to_string(),
                 });
             }
         }
@@ -345,7 +393,10 @@ impl ComplianceValidator for HipaaValidator {
         })
     }
 
-    async fn generate_recommendations(&self, context: &AuditContext) -> AuditResult<Vec<ComplianceRecommendation>> {
+    async fn generate_recommendations(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let mut recommendations = Vec::new();
 
         if matches!(context.security.classification, SecurityClassification::PHI) {
@@ -353,7 +404,9 @@ impl ComplianceValidator for HipaaValidator {
                 recommendation_id: "HIPAA-REC-001".to_string(),
                 priority: RecommendationPriority::High,
                 title: "Implement Breach Detection Automation".to_string(),
-                description: "Automated monitoring for potential PHI breaches with notification workflows".to_string(),
+                description:
+                    "Automated monitoring for potential PHI breaches with notification workflows"
+                        .to_string(),
                 implementation_effort: "3-4 weeks".to_string(),
                 compliance_benefit: "Ensures HIPAA Breach Notification Rule compliance".to_string(),
             });
@@ -377,7 +430,10 @@ impl GdprValidator {
         }
     }
 
-    fn validate_data_protection_principles(&self, context: &AuditContext) -> Vec<ComplianceViolation> {
+    fn validate_data_protection_principles(
+        &self,
+        context: &AuditContext,
+    ) -> Vec<ComplianceViolation> {
         let mut violations = Vec::new();
 
         // GDPR Article 5: Principles of data processing
@@ -388,8 +444,11 @@ impl GdprValidator {
                 severity: ComplianceSeverity::High,
                 title: "Legal Basis Not Documented".to_string(),
                 description: "Personal data processing lacks documented legal basis".to_string(),
-                remediation: "Document legal basis for processing in audit context metadata".to_string(),
-                reference_url: Some("https://gdpr.eu/article-5-how-to-process-personal-data/".to_string()),
+                remediation: "Document legal basis for processing in audit context metadata"
+                    .to_string(),
+                reference_url: Some(
+                    "https://gdpr.eu/article-5-how-to-process-personal-data/".to_string(),
+                ),
             });
         }
 
@@ -400,9 +459,14 @@ impl GdprValidator {
                 regulation: "GDPR Article 25".to_string(),
                 severity: ComplianceSeverity::Medium,
                 title: "Data Minimization Controls Missing".to_string(),
-                description: "Processing does not implement data minimization by design".to_string(),
-                remediation: "Implement data minimization controls to process only necessary personal data".to_string(),
-                reference_url: Some("https://gdpr.eu/article-25-data-protection-by-design/".to_string()),
+                description: "Processing does not implement data minimization by design"
+                    .to_string(),
+                remediation:
+                    "Implement data minimization controls to process only necessary personal data"
+                        .to_string(),
+                reference_url: Some(
+                    "https://gdpr.eu/article-25-data-protection-by-design/".to_string(),
+                ),
             });
         }
 
@@ -410,8 +474,8 @@ impl GdprValidator {
     }
 
     fn has_legal_basis_documentation(&self, context: &AuditContext) -> bool {
-        context.metadata.contains_key("gdpr_legal_basis") ||
-        context.metadata.contains_key("processing_purpose")
+        context.metadata.contains_key("gdpr_legal_basis")
+            || context.metadata.contains_key("processing_purpose")
     }
 
     fn has_data_minimization_controls(&self, context: &AuditContext) -> bool {
@@ -422,7 +486,10 @@ impl GdprValidator {
 
 #[async_trait::async_trait]
 impl ComplianceValidator for GdprValidator {
-    async fn validate_operation(&self, context: &AuditContext) -> AuditResult<ComplianceValidationResult> {
+    async fn validate_operation(
+        &self,
+        context: &AuditContext,
+    ) -> AuditResult<ComplianceValidationResult> {
         let mut violations = Vec::new();
         let mut warnings = Vec::new();
 
@@ -433,7 +500,9 @@ impl ComplianceValidator for GdprValidator {
             warnings.push(ComplianceWarning {
                 warning_id: "GDPR-DSR-001".to_string(),
                 title: "Data Subject Rights Support Not Indicated".to_string(),
-                description: "Processing should support data subject rights (access, rectification, erasure)".to_string(),
+                description:
+                    "Processing should support data subject rights (access, rectification, erasure)"
+                        .to_string(),
                 recommendation: "Implement data subject rights handling capabilities".to_string(),
             });
         }
@@ -444,14 +513,20 @@ impl ComplianceValidator for GdprValidator {
         })
     }
 
-    async fn generate_recommendations(&self, _context: &AuditContext) -> AuditResult<Vec<ComplianceRecommendation>> {
+    async fn generate_recommendations(
+        &self,
+        _context: &AuditContext,
+    ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let recommendations = vec![ComplianceRecommendation {
             recommendation_id: "GDPR-REC-001".to_string(),
             priority: RecommendationPriority::High,
             title: "Implement Data Subject Rights Portal".to_string(),
-            description: "Automated portal for data subject access, rectification, and erasure requests".to_string(),
+            description:
+                "Automated portal for data subject access, rectification, and erasure requests"
+                    .to_string(),
             implementation_effort: "4-6 weeks".to_string(),
-            compliance_benefit: "Ensures GDPR Articles 15-17 compliance for data subject rights".to_string(),
+            compliance_benefit: "Ensures GDPR Articles 15-17 compliance for data subject rights"
+                .to_string(),
         }];
 
         Ok(recommendations)
@@ -475,7 +550,10 @@ impl PciDssValidator {
 
 #[async_trait::async_trait]
 impl ComplianceValidator for PciDssValidator {
-    async fn validate_operation(&self, _context: &AuditContext) -> AuditResult<ComplianceValidationResult> {
+    async fn validate_operation(
+        &self,
+        _context: &AuditContext,
+    ) -> AuditResult<ComplianceValidationResult> {
         // PCI DSS validation would be implemented here
         Ok(ComplianceValidationResult {
             violations: Vec::new(),
@@ -483,7 +561,10 @@ impl ComplianceValidator for PciDssValidator {
         })
     }
 
-    async fn generate_recommendations(&self, _context: &AuditContext) -> AuditResult<Vec<ComplianceRecommendation>> {
+    async fn generate_recommendations(
+        &self,
+        _context: &AuditContext,
+    ) -> AuditResult<Vec<ComplianceRecommendation>> {
         Ok(Vec::new())
     }
 }
@@ -586,11 +667,16 @@ pub struct ComplianceResult {
 
 impl ComplianceResult {
     pub fn is_compliant(&self) -> bool {
-        matches!(self.status, ComplianceStatus::Compliant | ComplianceStatus::CompliantWithWarnings)
+        matches!(
+            self.status,
+            ComplianceStatus::Compliant | ComplianceStatus::CompliantWithWarnings
+        )
     }
 
     pub fn has_critical_violations(&self) -> bool {
-        self.violations.iter().any(|v| matches!(v.severity, ComplianceSeverity::Critical))
+        self.violations
+            .iter()
+            .any(|v| matches!(v.severity, ComplianceSeverity::Critical))
     }
 }
 
@@ -690,8 +776,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hipaa_compliance_validation() {
-        let context = AuditContext::new()
-            .with_security_classification(SecurityClassification::PHI);
+        let context = AuditContext::new().with_security_classification(SecurityClassification::PHI);
 
         let hipaa_validator = HipaaValidator::new();
         let result = hipaa_validator.validate_operation(&context).await.unwrap();

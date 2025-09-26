@@ -63,10 +63,45 @@ impl ComplianceEngine {
 
         for profile in &self.profiles {
             if let Some(validator) = self.validators.get(profile) {
-                let validation_result = validator.validate_operation(context).await?;
+                match validator.validate_operation(context).await {
+                    Ok(validation_result) => {
+                        violations.extend(validation_result.violations);
+                        warnings.extend(validation_result.warnings);
+                    }
+                    Err(e) => {
+                        // Add a critical violation when a validator fails completely
+                        // This ensures compliance failures are tracked even if validator crashes
+                        violations.push(ComplianceViolation {
+                            violation_id: format!("{:?}-VALIDATOR-FAILURE", profile),
+                            regulation: format!("{:?} Compliance Framework", profile),
+                            severity: ComplianceSeverity::Critical,
+                            title: "Compliance Validator System Failure".to_string(),
+                            description: format!(
+                                "Critical failure in {:?} compliance validator: {}. \
+                                Compliance status cannot be determined for this framework.",
+                                profile, e
+                            ),
+                            remediation: format!(
+                                "Investigate and resolve {:?} validator system issues. \
+                                Review audit logs and system health. \
+                                Consider manual compliance review until validator is restored.",
+                                profile
+                            ),
+                            reference_url: None,
+                        });
 
-                violations.extend(validation_result.violations);
-                warnings.extend(validation_result.warnings);
+                        // Add warning about degraded compliance monitoring
+                        warnings.push(ComplianceWarning {
+                            warning_id: format!("{:?}-DEGRADED-MONITORING", profile),
+                            title: "Degraded Compliance Monitoring".to_string(),
+                            description: format!(
+                                "Compliance monitoring for {:?} framework is degraded due to validator failure",
+                                profile
+                            ),
+                            recommendation: "Restore validator functionality to ensure complete compliance coverage".to_string(),
+                        });
+                    }
+                }
             }
         }
 
@@ -96,11 +131,32 @@ impl ComplianceEngine {
     ) -> AuditResult<ComplianceReport> {
         let validation_result = self.validate_processing_operation(context).await?;
 
+        // Generate recommendations with fallback handling
+        let recommendations = match self.generate_recommendations(context).await {
+            Ok(recs) => recs,
+            Err(e) => {
+                // Provide fallback recommendation when recommendation generation fails
+                vec![ComplianceRecommendation {
+                    recommendation_id: "SYSTEM-FALLBACK-REC".to_string(),
+                    priority: RecommendationPriority::Critical,
+                    title: "Restore Compliance Recommendation System".to_string(),
+                    description: format!(
+                        "The compliance recommendation system failed: {}. \
+                        Manual compliance analysis is required.",
+                        e
+                    ),
+                    implementation_effort: "Immediate".to_string(),
+                    compliance_benefit:
+                        "Restores automated compliance guidance and recommendations".to_string(),
+                }]
+            }
+        };
+
         Ok(ComplianceReport {
             report_id: super::generate_audit_id(),
             operation_id: context.operation_id.clone(),
             compliance_result: validation_result,
-            recommendations: self.generate_recommendations(context).await?,
+            recommendations,
             next_review_date: self.calculate_next_review_date(),
             created_at: chrono::Utc::now().to_rfc3339(),
         })
@@ -114,8 +170,29 @@ impl ComplianceEngine {
 
         for profile in &self.profiles {
             if let Some(validator) = self.validators.get(profile) {
-                let profile_recommendations = validator.generate_recommendations(context).await?;
-                recommendations.extend(profile_recommendations);
+                match validator.generate_recommendations(context).await {
+                    Ok(profile_recommendations) => {
+                        recommendations.extend(profile_recommendations);
+                    }
+                    Err(e) => {
+                        // Add fallback recommendation when validator fails
+                        recommendations.push(ComplianceRecommendation {
+                            recommendation_id: format!("{:?}-FALLBACK-REC", profile),
+                            priority: RecommendationPriority::Critical,
+                            title: format!("Restore {:?} Compliance Monitoring", profile),
+                            description: format!(
+                                "The {:?} compliance validator failed to generate recommendations due to: {}. \
+                                Manual compliance review is recommended until validator is restored.",
+                                profile, e
+                            ),
+                            implementation_effort: "Immediate".to_string(),
+                            compliance_benefit: format!(
+                                "Restores automated {:?} compliance monitoring and recommendation generation",
+                                profile
+                            ),
+                        });
+                    }
+                }
             }
         }
 
@@ -768,7 +845,10 @@ mod tests {
             .with_security_classification(SecurityClassification::MaterialTransaction);
 
         let sox_validator = SoxValidator::new();
-        let result = sox_validator.validate_operation(&context).await.unwrap();
+        let result = sox_validator
+            .validate_operation(&context)
+            .await
+            .expect("SOX validation should not fail in test environment");
 
         // Should have violations due to missing controls in default context
         assert!(!result.violations.is_empty());
@@ -779,7 +859,10 @@ mod tests {
         let context = AuditContext::new().with_security_classification(SecurityClassification::PHI);
 
         let hipaa_validator = HipaaValidator::new();
-        let result = hipaa_validator.validate_operation(&context).await.unwrap();
+        let result = hipaa_validator
+            .validate_operation(&context)
+            .await
+            .expect("HIPAA validation should not fail in test environment");
 
         // Should have violations due to missing PHI protections in default context
         assert!(!result.violations.is_empty());
@@ -827,7 +910,8 @@ mod tests {
         let current_time = chrono::Utc::now();
 
         // Parse the returned date to verify arithmetic
-        let parsed_review_date = chrono::DateTime::parse_from_rfc3339(&review_date).unwrap();
+        let parsed_review_date = chrono::DateTime::parse_from_rfc3339(&review_date)
+            .expect("Review date should be valid RFC3339 format in test");
         let actual_timestamp = parsed_review_date.timestamp();
 
         // Should be approximately 90 days (allow small variance for execution time)
@@ -849,7 +933,8 @@ mod tests {
         let custom_engine = ComplianceEngine::new().with_config(custom_config);
         let custom_review_date = custom_engine.calculate_next_review_date();
 
-        let parsed_custom_date = chrono::DateTime::parse_from_rfc3339(&custom_review_date).unwrap();
+        let parsed_custom_date = chrono::DateTime::parse_from_rfc3339(&custom_review_date)
+            .expect("Custom review date should be valid RFC3339 format in test");
         let custom_days_diff =
             (parsed_custom_date.timestamp() - current_time.timestamp()) / (24 * 3600);
         assert!(
@@ -874,7 +959,7 @@ mod tests {
         let result = sox_validator
             .validate_operation(&context_compliant)
             .await
-            .unwrap();
+            .expect("SOX validation should not fail in test with compliant context");
 
         // At exactly 2555 days, should not trigger warning (not < 2555)
         let retention_warnings: Vec<_> = result
@@ -895,7 +980,7 @@ mod tests {
         let result_warning = sox_validator
             .validate_operation(&context_warning)
             .await
-            .unwrap();
+            .expect("SOX validation should not fail in test with warning context");
 
         // Should trigger warning when < 2555
         let retention_warnings: Vec<_> = result_warning
@@ -916,7 +1001,7 @@ mod tests {
         let result_good = sox_validator
             .validate_operation(&context_good)
             .await
-            .unwrap();
+            .expect("SOX validation should not fail in test with good context");
 
         // Should not trigger warning when > 2555
         let retention_warnings_good: Vec<_> = result_good

@@ -127,22 +127,34 @@ pub mod audit {
 
     impl AuditContext {
         #[inline]
-        pub fn new() -> Self { Self::default() }
+        pub fn new() -> Self {
+            Self::default()
+        }
         #[inline]
-        pub fn new_lightweight() -> Self { Self::default() }
+        pub fn new_lightweight() -> Self {
+            Self::default()
+        }
         #[inline]
         pub fn with_operation_id(mut self, id: impl Into<String>) -> Self {
             self.operation_id = id.into();
             self
         }
         #[inline]
-        pub fn with_user(self, _user: impl Into<String>) -> Self { self }
+        pub fn with_user(self, _user: impl Into<String>) -> Self {
+            self
+        }
         #[inline]
-        pub fn with_security_classification(self, _classification: SecurityClassification) -> Self { self }
+        pub fn with_security_classification(self, _classification: SecurityClassification) -> Self {
+            self
+        }
         #[inline]
-        pub fn with_compliance_profile(self, _profile: ComplianceProfile) -> Self { self }
+        pub fn with_compliance_profile(self, _profile: ComplianceProfile) -> Self {
+            self
+        }
         #[inline]
-        pub fn with_metadata(self, _key: impl Into<String>, _value: impl Into<String>) -> Self { self }
+        pub fn with_metadata(self, _key: impl Into<String>, _value: impl Into<String>) -> Self {
+            self
+        }
         #[inline]
         pub fn create_lightweight_child_context(&self, _id: impl Into<String>) -> Self {
             // Return clone for no-op performance - avoid any allocations
@@ -153,13 +165,20 @@ pub mod audit {
     /// Stub compliance profile enum
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub enum ComplianceProfile {
-        SOX, HIPAA, GDPR, PCIQDSS,
+        SOX,
+        HIPAA,
+        GDPR,
+        PCIQDSS,
     }
 
     /// Stub security classification enum
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub enum SecurityClassification {
-        Public, Internal, Confidential, MaterialTransaction, PHI,
+        Public,
+        Internal,
+        Confidential,
+        MaterialTransaction,
+        PHI,
     }
 
     pub mod context {

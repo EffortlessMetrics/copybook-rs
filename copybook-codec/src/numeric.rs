@@ -2099,7 +2099,7 @@ pub fn decode_packed_decimal_to_string_with_scratch(
     // Index by nibble value: 0=invalid, 1=positive, 2=negative
     const SIGN_TABLE: [u8; 16] = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x0-0x9: invalid
-        1, 2, 1, 2, 1, 1,             // 0xA=pos, 0xB=neg, 0xC=pos, 0xD=neg, 0xE=pos, 0xF=pos
+        1, 2, 1, 2, 1, 1, // 0xA=pos, 0xB=neg, 0xC=pos, 0xD=neg, 0xE=pos, 0xF=pos
     ];
 
     // CRITICAL OPTIMIZATION: Direct decode-to-string path to avoid SmallDecimal allocation

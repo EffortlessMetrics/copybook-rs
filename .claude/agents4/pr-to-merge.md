@@ -181,7 +181,7 @@ Agents may route to themselves: "NEXT → self (attempt 2/3)" for bounded retrie
 | docs       | pr-doc-reviewer, doc-fixer                       | Documentation complete; `cargo test --doc` passes; links valid            | `docs: complete; examples tested` |
 | features   | feature-matrix-checker                           | Feature combinations build and test successfully                          | `features: compatible` |
 | benchmarks | benchmark-runner                                 | Performance benchmarks complete without errors                            | `benchmarks: baseline established` |
-| throughput | pr-merge-prep                                    | MergeCode analysis throughput meets SLO (≤10 min for large codebases)     | `analysis: <size> in <time> → <rate> (pass)` **or** `throughput: N/A (no perf surface)` |
+| throughput | pr-merge-prep                                    | copybook-rs analysis throughput meets SLO (≤10 min for large codebases)     | `analysis: <size> in <time> → <rate> (pass)` **or** `throughput: N/A (no perf surface)` |
 
 **Required to merge (Integrative)**: `freshness, format, clippy, tests, build, security, docs, perf, throughput` *(allow `throughput` = **skipped-but-successful** when truly N/A; see check‑run mapping below)*.
 
@@ -191,7 +191,7 @@ Agents may route to themselves: "NEXT → self (attempt 2/3)" for bounded retrie
 `pr-merge-prep` **must** re-check `integrative:gate:freshness` on current HEAD. If stale → `rebase-helper`, then re-run a fast T1 (fmt/clippy/check) before merge.
 
 **Throughput gate contract:**
-- Command: `cargo run --bin mergecode -- write . --stats --incremental`
+- Command: `cargo build --workspace --release && cargo test --workspace`
 - Evidence grammar: `files:<N>, time:<MmSs>, rate:<R> min/1K; SLO: pass|fail`
 - In the progress comment, include **CPU model / cores** and a short 'limits' note (e.g., turbo off) to help future comparisons
 - When truly N/A: `integrative:gate:throughput = neutral` with `skipped (N/A: reason)`

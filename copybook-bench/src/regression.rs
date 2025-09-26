@@ -1794,4 +1794,154 @@ mod tests {
                 < dev.statistical_analyzer.variance_tolerance
         );
     }
+
+    #[test]
+    fn test_generate_baseline_id_not_empty() {
+        let detector = PerformanceRegressionDetector::new();
+        let env = EnvironmentInfo {
+            rust_version: "1.90.0".to_string(),
+            target_triple: "x86_64-unknown-linux-gnu".to_string(),
+            cpu_info: CpuInfo {
+                model: "Test CPU".to_string(),
+                cores: 4,
+                frequency_mhz: 2400,
+                cache_size_kb: 8192,
+            },
+            memory_info: MemoryInfo {
+                total_gb: 16.0,
+                available_gb: 12.0,
+                memory_type: "DDR4".to_string(),
+            },
+            build_configuration: BuildConfiguration {
+                optimization_level: OptimizationLevel::Release,
+                debug_info: false,
+                target_cpu: "x86_64".to_string(),
+                features_enabled: vec!["sse2".to_string(), "avx".to_string()],
+            },
+        };
+
+        let baseline_id = detector.generate_baseline_id(&env);
+
+        // Kill mutants that return empty string or fixed string
+        assert!(!baseline_id.is_empty(), "Baseline ID must not be empty");
+        assert_ne!(baseline_id, "xyzzy", "Baseline ID must not be fixed string");
+        assert!(baseline_id.len() > 10, "Baseline ID should be substantial hash");
+
+        // Verify ID has expected format (kill mutants that return invalid formats)
+        assert!(baseline_id.starts_with("baseline_"), "Baseline ID should start with 'baseline_'");
+        assert!(baseline_id.len() == 16, "Baseline ID should be exactly 16 characters (8 + 8 hex chars)");
+    }
+
+    #[test]
+    fn test_establish_baseline_returns_valid_id() {
+        let mut detector = PerformanceRegressionDetector::new();
+        let metrics = create_test_performance_metrics();
+        let env = EnvironmentInfo {
+            rust_version: "1.90.0".to_string(),
+            target_triple: "x86_64-unknown-linux-gnu".to_string(),
+            cpu_info: CpuInfo {
+                model: "Test CPU".to_string(),
+                cores: 4,
+                frequency_mhz: 2400,
+                cache_size_kb: 8192,
+            },
+            memory_info: MemoryInfo {
+                total_gb: 16.0,
+                available_gb: 12.0,
+                memory_type: "DDR4".to_string(),
+            },
+            build_configuration: BuildConfiguration {
+                optimization_level: OptimizationLevel::Release,
+                debug_info: false,
+                target_cpu: "x86_64".to_string(),
+                features_enabled: vec!["sse2".to_string(), "avx".to_string()],
+            },
+        };
+
+        let result = detector.establish_baseline(metrics, env);
+        assert!(result.is_ok(), "Establish baseline should succeed");
+
+        let baseline_id = result.unwrap();
+        // Kill mutants that return empty string
+        assert!(!baseline_id.is_empty(), "Baseline ID from establish_baseline must not be empty");
+        assert_ne!(baseline_id, "xyzzy", "Baseline ID must not be fixed string");
+        assert!(baseline_id.len() > 10, "Established baseline ID should be substantial");
+    }
+
+    #[test]
+    fn test_performance_regression_detector_baseline_workflow() {
+        // Test the complete workflow to catch more mutants
+        let mut detector = PerformanceRegressionDetector::new();
+
+        let metrics = create_test_performance_metrics();
+        let env = EnvironmentInfo {
+            rust_version: "1.90.0".to_string(),
+            target_triple: "x86_64-unknown-linux-gnu".to_string(),
+            cpu_info: CpuInfo {
+                model: "Test CPU".to_string(),
+                cores: 4,
+                frequency_mhz: 2400,
+                cache_size_kb: 8192,
+            },
+            memory_info: MemoryInfo {
+                total_gb: 16.0,
+                available_gb: 12.0,
+                memory_type: "DDR4".to_string(),
+            },
+            build_configuration: BuildConfiguration {
+                optimization_level: OptimizationLevel::Release,
+                debug_info: false,
+                target_cpu: "x86_64".to_string(),
+                features_enabled: vec!["sse2".to_string(), "avx".to_string()],
+            },
+        };
+
+        // Test that baseline establishment produces a valid ID
+        let baseline_id = detector.establish_baseline(metrics, env).unwrap();
+
+        // Kill mutants that return empty or fixed strings
+        assert!(!baseline_id.is_empty(), "Baseline workflow should produce non-empty ID");
+        assert_ne!(baseline_id, "xyzzy", "Baseline workflow should not produce fixed string");
+        assert!(baseline_id.len() > 10, "Baseline workflow should produce substantial ID");
+
+        // Test that the detector now has some baseline data stored
+        // Just verify the workflow completed without error - the baseline_id is proof it worked
+        assert!(baseline_id.starts_with("baseline_"), "Baseline ID should have expected format");
+    }
+
+    fn create_test_performance_metrics() -> PerformanceMetrics {
+        PerformanceMetrics {
+            display_throughput: ThroughputMetrics {
+                mean: 4200.0,
+                median: 4100.0,
+                percentile_95: 4800.0,
+                percentile_99: 5200.0,
+                std_deviation: 300.0,
+                min: 3800.0,
+                max: 5600.0,
+            },
+            comp3_throughput: ThroughputMetrics {
+                mean: 580.0,
+                median: 575.0,
+                percentile_95: 620.0,
+                percentile_99: 650.0,
+                std_deviation: 30.0,
+                min: 540.0,
+                max: 680.0,
+            },
+            memory_usage: MemoryUsageMetrics {
+                peak_memory_mb: 245.0,
+                average_memory_mb: 180.0,
+                steady_state_memory_mb: 165.0,
+                memory_variance: 12.5,
+            },
+            latency_metrics: LatencyMetrics {
+                p50_ms: 0.24,
+                p95_ms: 0.45,
+                p99_ms: 0.68,
+                p999_ms: 1.2,
+                max_latency_ms: 2.1,
+            },
+        }
+    }
 }

@@ -4,6 +4,8 @@
 //! compliance validation, performance assessment, security auditing, and
 //! complete data lineage reporting.
 
+#![cfg(feature = "audit")]
+
 use chrono;
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, RecordFormat};

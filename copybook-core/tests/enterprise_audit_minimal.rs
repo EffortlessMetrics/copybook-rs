@@ -6,6 +6,8 @@
 //! This minimal test scaffolding compiles successfully and provides TDD foundation
 //! for implementing the 18 acceptance criteria of the Enterprise Audit System.
 
+#![cfg(feature = "audit")]
+
 use copybook_core::audit::{
     AuditContext, AuditEvent, AuditEventType, AuditLogger, AuditLoggerConfig, ComplianceEngine,
     ComplianceProfile,

@@ -37,6 +37,10 @@ md5 = "0.8.0"
 serde.workspace = true
 chrono.workspace = true
 
+[features]
+default = []
+audit = ["copybook-core/audit"]
+
 [dev-dependencies]
 proptest.workspace = true
 assert_cmd = "2.0.17"

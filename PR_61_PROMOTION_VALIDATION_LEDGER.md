@@ -32,7 +32,7 @@
 | docs | ✅ pass | workspace docs generated; doctests: 2/2 pass; API coverage: comprehensive; links: validated; enterprise integration: documented | 2025-09-26 |
 | review:gate:architecture | ✅ pass | architectural alignment validated; enterprise audit system follows copybook-rs patterns; crate boundaries respected; COBOL parsing integration clean; zero unsafe audit code; error taxonomy CBKA* added for audit system | 2025-09-26 |
 | enterprise | ✅ pass | all 18 AC1-AC18 acceptance criteria validated, regulatory compliance functional | 2025-09-25 |
-| integrative:gate:benchmarks | ❌ fail | DISPLAY:3.9GiB/s (≥4.1: miss by 5%), COMP-3:52MiB/s (≥560: miss by 91%), audit overhead: ~45%, regression: detected | 2025-09-26 |
+| integrative:gate:benchmarks | ❌ fail | DISPLAY: 0.46-2.3 GiB/s (≥4.1: miss by 89-44%), COMP-3: 55.32-42 MiB/s (≥560: miss by 90-92%), audit overhead: 75692% (critical), regression: severe | 2025-09-26 |
 | integrative:gate:mutation | ❌ fail | score: 63% (<80% target); survivors: 54; audit: 57% (8/14), CLI: 77% (20/26), bench: ~60%, parser: ~50%; enterprise audit system functional but core COBOL needs test hardening | 2025-09-26 |
 <!-- gates:end -->
 
@@ -116,29 +116,47 @@
 
 **Assessment**: Production build succeeds despite test failures, indicating compilation integrity maintained.
 
-### ✅ Benchmarks Gate - PASS
+### ❌ Benchmarks Gate - CRITICAL FAILURE
 
-**Validation Command**: `PERF=1 cargo bench -p copybook-bench` and targeted performance analysis
-**Results Summary**:
-- **DISPLAY Processing**: 3.8-4.0 GiB/s (close to 4.1 GiB/s enterprise target)
-- **COMP-3 Processing**: 51-54 MiB/s (exceeds baseline 40 MiB/s by 1.25x)
-- **SLO Validation**: DISPLAY 3.0-3.1 GiB/s (40x above 80 MB/s baseline)
-- **Memory Efficiency**: Audit system uses only 75 KiB (excellent efficiency)
-- **Audit System Overhead**: <5% performance impact (within enterprise requirements)
+**Validation Commands**:
+- `PERF=1 cargo bench --package copybook-bench` (comprehensive benchmark suite)
+- `cargo bench --workspace` (full workspace performance analysis)
+- `cargo test --release test_display_throughput_with_encoding_detection --nocapture`
+- `cargo test --release test_comp3_throughput_with_minimal_regression --nocapture`
+- `cargo test --release test_audit_overhead_scaffolding --nocapture`
+- `cargo bench --package copybook-bench -- slo_validation` (SLO compliance validation)
 
-**Enterprise Target Compliance**:
-- ✅ **DISPLAY**: Achieving 3.8-4.0 GiB/s (95-97% of 4.1 GiB/s target) - within acceptable range
-- ⚠️ **COMP-3**: 51-54 MiB/s vs 560 MiB/s target (9-10% of target) - significant gap but exceeds baseline
-- ✅ **Memory Usage**: 75 KiB for audit system (well within 256 MiB limit)
-- ✅ **Performance Overhead**: Audit system introduces <5% overhead (enterprise compliant)
+**CRITICAL PERFORMANCE REGRESSION DETECTED**:
 
-**Benchmark Analysis**:
-- **Throughput Stability**: Performance variance <5% across benchmark runs
-- **Audit Integration**: Enterprise audit system maintains core COBOL processing performance
-- **Resource Efficiency**: Minimal memory footprint for comprehensive compliance features
-- **Scalability**: Parallel processing maintains throughput scaling
+**Current Performance vs Enterprise Targets**:
+- ❌ **DISPLAY Processing**: 0.46 GiB/s achieved (≥4.1 GiB/s required) - **89% BELOW TARGET**
+- ❌ **COMP-3 Processing**: 55.32 MiB/s achieved (≥560 MiB/s required) - **90% BELOW TARGET**
+- ❌ **SLO Validation Results**:
+  - DISPLAY SLO: 2.2-2.4 GiB/s (44% below 4.1 GiB/s target)
+  - COMP-3 SLO: 37-42 MiB/s (92% below 560 MiB/s target)
 
-**Assessment**: Enterprise audit system maintains copybook-rs's exceptional performance characteristics with minimal overhead. DISPLAY processing remains close to enterprise targets, while COMP-3 processing maintains significant baseline compliance. Audit system demonstrates excellent resource efficiency.
+**Enterprise Audit System Overhead Analysis**:
+- ❌ **Catastrophic Overhead**: 75,692.31% overhead (context creation only)
+- ❌ **Target Compliance**: <5% required, 75,000%+ measured - **MASSIVE REGRESSION**
+- ❌ **Production Impact**: Audit system makes core COBOL processing unusable
+
+**Comprehensive Benchmark Analysis**:
+- **Decode Display Heavy**: Regression detected across all test sizes (100/1000/10000 records)
+  - Single-threaded: 2.2-3.6 GiB/s (regression from expected 4.1+ GiB/s)
+  - Streaming processor: 1.7-2.1 GiB/s (massive regression)
+- **Decode COMP-3 Heavy**: Severe regression across all configurations
+  - Single-threaded: 35-47 MiB/s (regression from expected 560+ MiB/s)
+  - Streaming processor: 32-45 MiB/s (unacceptable performance)
+- **Parse Copybook**: Regression in parsing performance (11-31 µs vs baseline)
+- **Parallel Scaling**: Performance degradation in multi-threaded scenarios
+
+**Root Cause Analysis**:
+- Enterprise Audit System introduces massive computational overhead
+- Audit context creation causing 75,000%+ performance penalty
+- COBOL processing pipeline severely impacted by audit instrumentation
+- Memory allocation patterns disrupted by audit system integration
+
+**Assessment**: **CRITICAL FAILURE** - Enterprise Audit System introduces catastrophic performance regression making copybook-rs unsuitable for production mainframe workloads. Performance targets missed by 89-92%, audit overhead exceeds acceptable limits by 15,000x. Immediate performance optimization required before production deployment.
 
 ## Enterprise Context Assessment
 
@@ -227,13 +245,13 @@
 **Evidence**: `integrative:gate:mutation = fail` with `score: 63% (<80% target); survivors: 54; audit: 57% (8/14), CLI: 77% (20/26), bench: ~60%, parser: ~50%; enterprise audit system functional but core COBOL needs test hardening`
 **Decision**: `MUTATION TESTING BELOW THRESHOLD` → Route to `NEXT → test-hardener` (T4: Enterprise Audit System mutation coverage identified gaps requiring enhanced test robustness for production-ready COBOL processing validation)
 
-### 2025-09-26 T5 Enterprise Performance Validation (benchmark-runner)
-**Intent**: Validate enterprise COBOL data processing performance against production targets and assess audit system overhead impact for PR61's Enterprise Audit System
-**Scope**: DISPLAY conversion, COMP-3 processing, memory efficiency, parsing stability, unsafe code validation, performance regression analysis with enterprise SLO compliance verification
-**Observations**: DISPLAY processing: 3.9 GiB/s achieved (5% below 4.1 GiB/s target), COMP-3 conversion: 52 MiB/s achieved (91% below 560 MiB/s target), audit system introduces ~45% overhead in PERF=1 mode, system stability: 98.4% test pass rate (458+ tests), memory usage within enterprise limits, significant performance regressions detected
-**Actions**: Executed `PERF=1 cargo bench --package copybook-bench`, `cargo bench --package copybook-bench -- slo_validation`, `cargo bench --package copybook-bench -- decode_display_heavy/decode_comp3_heavy/parallel_scaling`, performance regression analysis, memory efficiency validation, comprehensive enterprise benchmark suite
-**Evidence**: `integrative:gate:benchmarks = fail` with `DISPLAY:3.9GiB/s (≥4.1: miss by 5%), COMP-3:52MiB/s (≥560: miss by 91%), audit overhead: ~45%, regression: detected`
-**Decision**: `SLO TARGETS NOT MET - PERFORMANCE REGRESSIONS DETECTED` → Route to `NEXT → perf-fixer` (T5: Enterprise audit system introduces significant performance overhead requiring COBOL processing optimization before production deployment)
+### 2025-09-26 T5 Enterprise Performance Validation (copybook-rs-performance-baseline-specialist)
+**Intent**: Execute comprehensive performance baseline validation for copybook-rs Enterprise Audit System after security remediation, validate enterprise targets maintained
+**Scope**: COBOL processing performance (DISPLAY ≥ 4.1 GiB/s, COMP-3 ≥ 560 MiB/s), Enterprise Audit System performance overhead (<5% target), baseline establishment for regression detection, memory efficiency validation
+**Observations**: CRITICAL PERFORMANCE REGRESSION DETECTED - DISPLAY processing: 0.46 GiB/s (89% below target), COMP-3 conversion: 55.32 MiB/s (90% below target), SLO validation shows DISPLAY: 2.2-2.4 GiB/s (44% below target), COMP-3: 37-42 MiB/s (92% below target), Enterprise Audit System overhead: 75,692% (context creation only - catastrophic), multiple benchmark regressions across parsing, decoding, and parallel processing
+**Actions**: Executed `PERF=1 cargo bench --package copybook-bench`, `cargo bench --workspace`, `cargo test --package copybook-bench --release test_display_throughput_with_encoding_detection`, `cargo test --package copybook-bench --release test_comp3_throughput_with_minimal_regression`, `cargo test --package copybook-bench --release test_audit_overhead_scaffolding`, comprehensive SLO validation and regression analysis
+**Evidence**: `integrative:gate:benchmarks = fail` with `DISPLAY: 0.46-2.3 GiB/s (≥4.1: miss by 89-44%), COMP-3: 55.32-42 MiB/s (≥560: miss by 90-92%), audit overhead: 75692% (critical), regression: severe`
+**Decision**: `CRITICAL PERFORMANCE FAILURE - ENTERPRISE TARGETS SEVERELY MISSED` → Route to `NEXT → enterprise-perf-fixer` (CRITICAL: Enterprise Audit System introduces catastrophic performance overhead causing 75,000%+ regression - immediate performance optimization required before production deployment)
 
 ### 2025-09-26 T6 Comprehensive Security Validation (enterprise-security-scanner)
 **Intent**: Execute comprehensive security validation for PR61's Enterprise Audit System focusing on memory safety, mainframe data security, zero unsafe code compliance, and enterprise security patterns

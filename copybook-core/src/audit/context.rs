@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{ComplianceProfile, generate_audit_id};
+use super::{ComplianceProfile, generate_audit_id, generate_lightweight_audit_id};
 
 /// Comprehensive audit context for all operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +55,31 @@ impl AuditContext {
             started_at: chrono::Utc::now().to_rfc3339(),
             parent_operation_id: None,
         }
+    }
+
+    /// Create a lightweight audit context for performance-critical operations
+    /// Avoids expensive system calls and allocations for better performance
+    pub fn new_lightweight() -> Self {
+        Self {
+            operation_id: generate_lightweight_audit_id(),
+            user: None,
+            environment: EnvironmentContext::lightweight(),
+            processing_config: ProcessingConfig::default(),
+            security: SecurityContext::default(),
+            compliance_profiles: Vec::new(),
+            metadata: HashMap::new(),
+            started_at: "1970-01-01T00:00:00Z".to_string(), // Avoid timestamp generation
+            parent_operation_id: None,
+        }
+    }
+
+    /// Create an audit context from a reusable template to avoid repeated allocations
+    pub fn from_template(template: &Self, operation_id: impl Into<String>) -> Self {
+        let mut context = template.clone();
+        context.operation_id = operation_id.into();
+        context.started_at = chrono::Utc::now().to_rfc3339();
+        context.parent_operation_id = None;
+        context
     }
 
     /// Set the operation identifier
@@ -137,6 +162,23 @@ impl AuditContext {
         child
     }
 
+    /// Create a lightweight child context for performance-critical operations
+    /// Avoids timestamp generation and expensive cloning
+    #[must_use]
+    pub fn create_lightweight_child_context(&self, child_operation_id: impl Into<String>) -> Self {
+        Self {
+            operation_id: child_operation_id.into(),
+            user: self.user.clone(),
+            environment: EnvironmentContext::lightweight(),
+            processing_config: ProcessingConfig::default(),
+            security: self.security.clone(),
+            compliance_profiles: self.compliance_profiles.clone(),
+            metadata: HashMap::new(), // Don't clone metadata for performance
+            started_at: "1970-01-01T00:00:00Z".to_string(),
+            parent_operation_id: Some(self.operation_id.clone()),
+        }
+    }
+
     /// Check if this context requires specific compliance validation
     pub fn requires_compliance(&self, profile: ComplianceProfile) -> bool {
         self.compliance_profiles.contains(&profile)
@@ -216,6 +258,22 @@ impl EnvironmentContext {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
+        }
+    }
+
+    /// Create lightweight environment context for performance-critical operations
+    /// Avoids expensive system calls and allocations
+    #[inline]
+    pub fn lightweight() -> Self {
+        Self {
+            hostname: "performance-host".to_string(),
+            process_id: std::process::id(),
+            system_arch: std::env::consts::ARCH.to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            command_line: vec!["copybook-rs".to_string()],
+            environment_variables: HashMap::new(),
+            working_directory: "/tmp".to_string(),
+            system_timestamp: 0, // Avoid system time call
         }
     }
 

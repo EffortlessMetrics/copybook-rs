@@ -28,11 +28,11 @@ tracing.workspace = true
 logos.workspace = true
 sha2.workspace = true
 
-# Audit system dependencies
-async-trait = "0.1"
-chrono = { version = "0.4", features = ["serde"] }
-hex.workspace = true
-rand.workspace = true
+# Audit system dependencies (only when audit feature is enabled)
+async-trait = { version = "0.1", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+hex = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true
@@ -40,5 +40,6 @@ tempfile.workspace = true
 tokio = { version = "1.47", features = ["macros", "rt-multi-thread"] }
 
 [features]
-default = []
+default = ["audit"]
+audit = ["dep:async-trait", "dep:chrono", "dep:hex", "dep:rand"]  # Enable audit system (default)
 comprehensive-tests = []

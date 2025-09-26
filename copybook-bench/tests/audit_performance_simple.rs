@@ -83,8 +83,8 @@ fn test_audit_overhead_scaffolding() {
     let audit_start = Instant::now();
     for i in 0..iterations {
         // Simulate audit overhead with lightweight context creation
-        let _operation_context = audit_context
-            .create_lightweight_child_context(format!("overhead_test_{i}"));
+        let _operation_context =
+            audit_context.create_lightweight_child_context(format!("overhead_test_{i}"));
         let _processing_overhead = std::hint::black_box(record_size);
     }
     let audit_duration = audit_start.elapsed();
@@ -166,8 +166,8 @@ fn test_audit_system_scalability_scaffolding() {
 
     // Simulate concurrent audit context creation
     for i in 0..operations {
-        let _audit_context = template_context
-            .create_lightweight_child_context(format!("scalability_test_{i}"));
+        let _audit_context =
+            template_context.create_lightweight_child_context(format!("scalability_test_{i}"));
 
         // Simulate minimal processing
         std::thread::sleep(Duration::from_micros(1));

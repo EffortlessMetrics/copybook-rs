@@ -66,8 +66,17 @@ impl AuditEvent {
         // Generate integrity hash (exclude hash field from calculation)
         let mut event_for_hash = event.clone();
         event_for_hash.integrity_hash = String::new();
-        let event_bytes =
-            serde_json::to_vec(&event_for_hash).expect("Failed to serialize audit event");
+        let event_bytes = match serde_json::to_vec(&event_for_hash) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                // Fallback to a minimal serializable representation on serialization failure
+                let fallback_data = format!(
+                    "{{\"event_id\":\"{}\",\"timestamp\":\"{}\",\"event_type\":\"{:?}\",\"serialization_error\":\"{}\"}}",
+                    event.event_id, event.timestamp, event.event_type, e
+                );
+                fallback_data.into_bytes()
+            }
+        };
         event.integrity_hash = generate_integrity_hash(&event_bytes, None);
 
         event
@@ -81,8 +90,17 @@ impl AuditEvent {
         // Regenerate integrity hash with updated severity (exclude hash field from calculation)
         let mut event_for_hash = self.clone();
         event_for_hash.integrity_hash = String::new();
-        let event_bytes =
-            serde_json::to_vec(&event_for_hash).expect("Failed to serialize audit event");
+        let event_bytes = match serde_json::to_vec(&event_for_hash) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                // Fallback to a minimal serializable representation on serialization failure
+                let fallback_data = format!(
+                    "{{\"event_id\":\"{}\",\"timestamp\":\"{}\",\"event_type\":\"{:?}\",\"severity\":\"{:?}\",\"serialization_error\":\"{}\"}}",
+                    self.event_id, self.timestamp, self.event_type, self.severity, e
+                );
+                fallback_data.into_bytes()
+            }
+        };
         self.integrity_hash = generate_integrity_hash(&event_bytes, None);
 
         self
@@ -97,8 +115,17 @@ impl AuditEvent {
         let mut event_for_hash = self.clone();
         event_for_hash.integrity_hash = String::new();
         event_for_hash.previous_hash = None; // Also exclude previous_hash from serialization
-        let event_bytes =
-            serde_json::to_vec(&event_for_hash).expect("Failed to serialize audit event");
+        let event_bytes = match serde_json::to_vec(&event_for_hash) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                // Fallback to a minimal serializable representation on serialization failure
+                let fallback_data = format!(
+                    "{{\"event_id\":\"{}\",\"timestamp\":\"{}\",\"event_type\":\"{:?}\",\"serialization_error\":\"{}\"}}",
+                    self.event_id, self.timestamp, self.event_type, e
+                );
+                fallback_data.into_bytes()
+            }
+        };
         self.integrity_hash = generate_integrity_hash(&event_bytes, self.previous_hash.as_deref());
 
         self

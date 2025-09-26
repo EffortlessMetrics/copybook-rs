@@ -1825,11 +1825,20 @@ mod tests {
         // Kill mutants that return empty string or fixed string
         assert!(!baseline_id.is_empty(), "Baseline ID must not be empty");
         assert_ne!(baseline_id, "xyzzy", "Baseline ID must not be fixed string");
-        assert!(baseline_id.len() > 10, "Baseline ID should be substantial hash");
+        assert!(
+            baseline_id.len() > 10,
+            "Baseline ID should be substantial hash"
+        );
 
         // Verify ID has expected format (kill mutants that return invalid formats)
-        assert!(baseline_id.starts_with("baseline_"), "Baseline ID should start with 'baseline_'");
-        assert!(baseline_id.len() == 16, "Baseline ID should be exactly 16 characters (8 + 8 hex chars)");
+        assert!(
+            baseline_id.starts_with("baseline_"),
+            "Baseline ID should start with 'baseline_'"
+        );
+        assert!(
+            baseline_id.len() == 16,
+            "Baseline ID should be exactly 16 characters (8 + 8 hex chars)"
+        );
     }
 
     #[test]
@@ -1863,9 +1872,15 @@ mod tests {
 
         let baseline_id = result.unwrap();
         // Kill mutants that return empty string
-        assert!(!baseline_id.is_empty(), "Baseline ID from establish_baseline must not be empty");
+        assert!(
+            !baseline_id.is_empty(),
+            "Baseline ID from establish_baseline must not be empty"
+        );
         assert_ne!(baseline_id, "xyzzy", "Baseline ID must not be fixed string");
-        assert!(baseline_id.len() > 10, "Established baseline ID should be substantial");
+        assert!(
+            baseline_id.len() > 10,
+            "Established baseline ID should be substantial"
+        );
     }
 
     #[test]
@@ -1900,13 +1915,25 @@ mod tests {
         let baseline_id = detector.establish_baseline(metrics, env).unwrap();
 
         // Kill mutants that return empty or fixed strings
-        assert!(!baseline_id.is_empty(), "Baseline workflow should produce non-empty ID");
-        assert_ne!(baseline_id, "xyzzy", "Baseline workflow should not produce fixed string");
-        assert!(baseline_id.len() > 10, "Baseline workflow should produce substantial ID");
+        assert!(
+            !baseline_id.is_empty(),
+            "Baseline workflow should produce non-empty ID"
+        );
+        assert_ne!(
+            baseline_id, "xyzzy",
+            "Baseline workflow should not produce fixed string"
+        );
+        assert!(
+            baseline_id.len() > 10,
+            "Baseline workflow should produce substantial ID"
+        );
 
         // Test that the detector now has some baseline data stored
         // Just verify the workflow completed without error - the baseline_id is proof it worked
-        assert!(baseline_id.starts_with("baseline_"), "Baseline ID should have expected format");
+        assert!(
+            baseline_id.starts_with("baseline_"),
+            "Baseline ID should have expected format"
+        );
     }
 
     fn create_test_performance_metrics() -> PerformanceMetrics {

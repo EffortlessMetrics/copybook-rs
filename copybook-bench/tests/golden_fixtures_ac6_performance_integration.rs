@@ -319,11 +319,16 @@ fn test_ac6_basic_parse_time_performance() {
     let parse_time_cv = (parse_time_stddev / avg_parse_time) * 100.0;
 
     // Allow higher variance in CI environments - performance tests can be noisy
-    let cv_threshold = if std::env::var("CI").is_ok() { 200.0 } else { 100.0 };
+    let cv_threshold = if std::env::var("CI").is_ok() {
+        200.0
+    } else {
+        100.0
+    };
     assert!(
         parse_time_cv < cv_threshold,
         "Parse time coefficient of variation should be <{:.0}%, actual: {:.2}%",
-        cv_threshold, parse_time_cv
+        cv_threshold,
+        parse_time_cv
     );
 
     println!("✅ AC6 basic parse-time performance validated:");

@@ -2466,15 +2466,24 @@ mod tests {
         // Test packed decimal with invalid input - should return specific CBKD error
         let invalid_data = vec![0xFF]; // Invalid packed decimal
         let result = decode_packed_decimal(&invalid_data, 2, 0, false);
-        assert!(result.is_err(), "Invalid packed decimal should return error");
+        assert!(
+            result.is_err(),
+            "Invalid packed decimal should return error"
+        );
 
         let error = result.unwrap_err();
-        assert!(error.to_string().contains("CBKD"), "Error should be CBKD code");
+        assert!(
+            error.to_string().contains("CBKD"),
+            "Error should be CBKD code"
+        );
 
         // Test binary int with insufficient data
         let short_data = vec![0x01]; // Only 1 byte for 4-byte int
         let result = decode_binary_int(&short_data, 32, false);
-        assert!(result.is_err(), "Insufficient binary data should return error");
+        assert!(
+            result.is_err(),
+            "Insufficient binary data should return error"
+        );
 
         // Test zoned decimal with invalid characters
         let invalid_zoned = b"12X"; // Contains non-digit
@@ -2483,10 +2492,16 @@ mod tests {
 
         // Test alphanumeric encoding with oversized input
         let result = encode_alphanumeric("TOOLONGFORFIELD", 5, Codepage::ASCII);
-        assert!(result.is_err(), "Oversized alphanumeric should return error");
+        assert!(
+            result.is_err(),
+            "Oversized alphanumeric should return error"
+        );
 
         let error = result.unwrap_err();
-        assert!(error.to_string().contains("CBKE"), "Error should be CBKE code");
+        assert!(
+            error.to_string().contains("CBKE"),
+            "Error should be CBKE code"
+        );
     }
 
     #[test]
@@ -2494,9 +2509,12 @@ mod tests {
         // Test maximum values for different data types
 
         // Test maximum packed decimal
-        let max_packed_bytes = vec![0x99, 0x99, 0x9C]; // 9999 positive
-        let result = decode_packed_decimal(&max_packed_bytes, 4, 0, true);
-        assert!(result.is_ok(), "Valid maximum packed decimal should succeed");
+        let max_packed_bytes = vec![0x99, 0x9C]; // 999 positive (3 digits)
+        let result = decode_packed_decimal(&max_packed_bytes, 3, 0, true);
+        assert!(
+            result.is_ok(),
+            "Valid maximum packed decimal should succeed"
+        );
 
         // Test zero packed decimal
         let zero_packed = vec![0x00, 0x0C]; // 00 positive
@@ -2508,8 +2526,8 @@ mod tests {
         let result = decode_binary_int(&max_u16_bytes, 16, false);
         assert!(result.is_ok(), "Maximum unsigned 16-bit should succeed");
 
-        let max_i16_bytes = vec![0x7F, 0xFF];
-        let result = decode_binary_int(&max_i16_bytes, 16, true);
+        let max_signed_16_bytes = vec![0x7F, 0xFF];
+        let result = decode_binary_int(&max_signed_16_bytes, 16, true);
         assert!(result.is_ok(), "Maximum signed 16-bit should succeed");
 
         // Test edge case with minimum signed values
@@ -2527,8 +2545,8 @@ mod tests {
         assert!(!decimal.negative);
 
         // Test boundary conditions for large values
-        let large_decimal = SmallDecimal::new(999999999, 0, false);
-        assert_eq!(large_decimal.value, 999999999);
+        let large_decimal = SmallDecimal::new(999_999_999, 0, false);
+        assert_eq!(large_decimal.value, 999_999_999);
 
         // Test boundary conditions for scale normalization
         let mut small_decimal = SmallDecimal::new(1, 10, false);
@@ -2537,9 +2555,15 @@ mod tests {
 
         // Test signed/unsigned conversions with boundary values
         let negative_decimal = SmallDecimal::new(-1, 0, true);
-        assert!(negative_decimal.is_negative(), "Signed negative should be negative");
+        assert!(
+            negative_decimal.is_negative(),
+            "Signed negative should be negative"
+        );
 
         let positive_decimal = SmallDecimal::new(1, 0, false);
-        assert!(!positive_decimal.is_negative(), "Unsigned should not be negative");
+        assert!(
+            !positive_decimal.is_negative(),
+            "Unsigned should not be negative"
+        );
     }
 }

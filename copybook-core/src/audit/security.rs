@@ -3,7 +3,7 @@
 //! Provides comprehensive security monitoring, access control auditing,
 //! and threat detection for copybook-rs enterprise operations.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // Security audit functionality - implementation placeholder
 

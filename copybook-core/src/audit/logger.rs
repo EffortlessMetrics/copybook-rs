@@ -3,14 +3,14 @@
 //! Provides structured logging and audit trail management with cryptographic
 //! integrity, enterprise format integration, and automated retention policies.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use super::{AuditEvent, AuditError, AuditResult, validate_audit_chain};
+use super::{AuditError, AuditEvent, AuditResult, validate_audit_chain};
 
 /// Enterprise audit logger with cryptographic integrity and retention management
 pub struct AuditLogger {
@@ -40,15 +40,17 @@ impl AuditLogger {
     }
 
     /// Log an audit event with integrity chain validation
-    pub async fn log_event(&self, mut event: AuditEvent) -> AuditResult<()> {
+    pub fn log_event(&self, mut event: AuditEvent) -> AuditResult<()> {
         // Get the previous event hash for chain integrity
-        if let Some(previous_hash) = self.get_last_event_hash().await? {
+        if let Some(previous_hash) = self.get_last_event_hash()? {
             event = event.with_previous_hash(previous_hash);
         }
 
         // Add to buffer
         {
-            let mut buffer = self.event_buffer.lock()
+            let mut buffer = self
+                .event_buffer
+                .lock()
                 .map_err(|_| AuditError::Configuration {
                     message: "Failed to acquire buffer lock".to_string(),
                 })?;
@@ -63,20 +65,22 @@ impl AuditLogger {
 
         // Write to file if configured
         if let Some(ref writer) = self.file_writer {
-            self.write_event_to_file(writer.clone(), &event).await?;
+            self.write_event_to_file(writer, &event)?;
         }
 
         // Send to external systems if configured
         if !self.config.external_endpoints.is_empty() {
-            self.send_to_external_systems(&event).await?;
+            self.send_to_external_systems(&event)?;
         }
 
         Ok(())
     }
 
     /// Get the last event hash for chain integrity
-    async fn get_last_event_hash(&self) -> AuditResult<Option<String>> {
-        let buffer = self.event_buffer.lock()
+    fn get_last_event_hash(&self) -> AuditResult<Option<String>> {
+        let buffer = self
+            .event_buffer
+            .lock()
             .map_err(|_| AuditError::Configuration {
                 message: "Failed to acquire buffer lock".to_string(),
             })?;
@@ -85,9 +89,9 @@ impl AuditLogger {
     }
 
     /// Write event to log file
-    async fn write_event_to_file(
+    fn write_event_to_file(
         &self,
-        writer: Arc<Mutex<BufWriter<File>>>,
+        writer: &Arc<Mutex<BufWriter<File>>>,
         event: &AuditEvent,
     ) -> AuditResult<()> {
         let formatted_event = match self.config.format {
@@ -97,10 +101,9 @@ impl AuditLogger {
             LogFormat::Syslog => self.format_as_syslog(event)?,
         };
 
-        let mut file_writer = writer.lock()
-            .map_err(|_| AuditError::Configuration {
-                message: "Failed to acquire file writer lock".to_string(),
-            })?;
+        let mut file_writer = writer.lock().map_err(|_| AuditError::Configuration {
+            message: "Failed to acquire file writer lock".to_string(),
+        })?;
 
         file_writer.write_all(formatted_event.as_bytes())?;
         file_writer.flush()?;
@@ -130,7 +133,7 @@ impl AuditLogger {
             env!("CARGO_PKG_VERSION"),
             event_class_id,
             event_name,
-            self.map_severity_to_cef(&event.severity),
+            self.map_severity_to_cef(event.severity),
             event.source,
             event.context.operation_id,
             serde_json::to_string(&event.context).unwrap_or_default(),
@@ -143,7 +146,7 @@ impl AuditLogger {
     /// Format event as Syslog format
     fn format_as_syslog(&self, event: &AuditEvent) -> AuditResult<String> {
         // RFC5424 Syslog format
-        let priority = self.map_severity_to_syslog_priority(&event.severity);
+        let priority = self.map_severity_to_syslog_priority(event.severity);
         let hostname = &event.context.environment.hostname;
         let app_name = "copybook-audit";
         let process_id = event.context.environment.process_id;
@@ -162,7 +165,7 @@ impl AuditLogger {
     }
 
     /// Map audit severity to CEF severity
-    fn map_severity_to_cef(&self, severity: &super::event::AuditSeverity) -> u32 {
+    fn map_severity_to_cef(&self, severity: super::event::AuditSeverity) -> u32 {
         match severity {
             super::event::AuditSeverity::Info => 2,
             super::event::AuditSeverity::Low => 3,
@@ -173,24 +176,24 @@ impl AuditLogger {
     }
 
     /// Map audit severity to Syslog priority
-    fn map_severity_to_syslog_priority(&self, severity: &super::event::AuditSeverity) -> u32 {
+    fn map_severity_to_syslog_priority(&self, severity: super::event::AuditSeverity) -> u32 {
         // Facility 16 (local0) + Severity
         let facility = 16 * 8; // local0 = 16, shifted left 3 bits
         let sev = match severity {
-            super::event::AuditSeverity::Info => 6,      // info
-            super::event::AuditSeverity::Low => 5,       // notice
-            super::event::AuditSeverity::Medium => 4,    // warning
-            super::event::AuditSeverity::High => 3,      // err
-            super::event::AuditSeverity::Critical => 2,  // crit
+            super::event::AuditSeverity::Info => 6,     // info
+            super::event::AuditSeverity::Low => 5,      // notice
+            super::event::AuditSeverity::Medium => 4,   // warning
+            super::event::AuditSeverity::High => 3,     // err
+            super::event::AuditSeverity::Critical => 2, // crit
         };
 
         facility + sev
     }
 
     /// Send audit events to external systems
-    async fn send_to_external_systems(&self, event: &AuditEvent) -> AuditResult<()> {
+    fn send_to_external_systems(&self, event: &AuditEvent) -> AuditResult<()> {
         for endpoint in &self.config.external_endpoints {
-            if let Err(e) = self.send_to_endpoint(endpoint, event).await {
+            if let Err(e) = self.send_to_endpoint(endpoint, event) {
                 eprintln!("Failed to send audit event to {:?}: {}", endpoint, e);
                 // Continue with other endpoints rather than failing entirely
             }
@@ -199,22 +202,16 @@ impl AuditLogger {
     }
 
     /// Send audit event to specific endpoint
-    async fn send_to_endpoint(&self, endpoint: &ExternalEndpoint, event: &AuditEvent) -> AuditResult<()> {
+    fn send_to_endpoint(&self, endpoint: &ExternalEndpoint, event: &AuditEvent) -> AuditResult<()> {
         match endpoint {
-            ExternalEndpoint::Http { url, headers } => {
-                self.send_http(url, headers, event).await
-            },
-            ExternalEndpoint::Syslog { host, port } => {
-                self.send_syslog(host, *port, event).await
-            },
-            ExternalEndpoint::Kafka { brokers, topic } => {
-                self.send_kafka(brokers, topic, event).await
-            },
+            ExternalEndpoint::Http { url, headers } => self.send_http(url, headers, event),
+            ExternalEndpoint::Syslog { host, port } => self.send_syslog(host, *port, event),
+            ExternalEndpoint::Kafka { brokers, topic } => self.send_kafka(brokers, topic, event),
         }
     }
 
     /// Send audit event via HTTP
-    async fn send_http(
+    fn send_http(
         &self,
         url: &str,
         _headers: &std::collections::HashMap<String, String>,
@@ -222,28 +219,38 @@ impl AuditLogger {
     ) -> AuditResult<()> {
         // HTTP client implementation would go here
         // For now, just log the attempt
-        println!("Would send audit event {} to HTTP endpoint {}", event.event_id, url);
+        println!(
+            "Would send audit event {} to HTTP endpoint {}",
+            event.event_id, url
+        );
         Ok(())
     }
 
     /// Send audit event via Syslog
-    async fn send_syslog(&self, host: &str, port: u16, event: &AuditEvent) -> AuditResult<()> {
+    fn send_syslog(&self, host: &str, port: u16, event: &AuditEvent) -> AuditResult<()> {
         // Syslog client implementation would go here
-        println!("Would send audit event {} to Syslog {}:{}", event.event_id, host, port);
+        println!(
+            "Would send audit event {} to Syslog {}:{}",
+            event.event_id, host, port
+        );
         Ok(())
     }
 
     /// Send audit event via Kafka
-    async fn send_kafka(&self, brokers: &[String], topic: &str, event: &AuditEvent) -> AuditResult<()> {
+    fn send_kafka(&self, brokers: &[String], topic: &str, event: &AuditEvent) -> AuditResult<()> {
         // Kafka client implementation would go here
-        println!("Would send audit event {} to Kafka topic {} via brokers {:?}",
-                event.event_id, topic, brokers);
+        println!(
+            "Would send audit event {} to Kafka topic {} via brokers {:?}",
+            event.event_id, topic, brokers
+        );
         Ok(())
     }
 
     /// Validate audit trail integrity
-    pub async fn validate_integrity(&self) -> AuditResult<bool> {
-        let buffer = self.event_buffer.lock()
+    pub fn validate_integrity(&self) -> AuditResult<bool> {
+        let buffer = self
+            .event_buffer
+            .lock()
             .map_err(|_| AuditError::Configuration {
                 message: "Failed to acquire buffer lock".to_string(),
             })?;
@@ -253,12 +260,14 @@ impl AuditLogger {
     }
 
     /// Get audit events within time range
-    pub async fn get_events_in_range(
+    pub fn get_events_in_range(
         &self,
         start_time: chrono::DateTime<chrono::Utc>,
         end_time: chrono::DateTime<chrono::Utc>,
     ) -> AuditResult<Vec<AuditEvent>> {
-        let buffer = self.event_buffer.lock()
+        let buffer = self
+            .event_buffer
+            .lock()
             .map_err(|_| AuditError::Configuration {
                 message: "Failed to acquire buffer lock".to_string(),
             })?;
@@ -280,23 +289,26 @@ impl AuditLogger {
     }
 
     /// Perform log rotation based on retention policy
-    pub async fn rotate_logs(&self) -> AuditResult<()> {
+    pub fn rotate_logs(&self) -> AuditResult<()> {
         if let Some(ref retention) = self.config.retention_policy {
-            self.enforce_retention_policy(retention).await?;
+            self.enforce_retention_policy(retention)?;
         }
 
         if let Some(ref log_file) = self.config.log_file_path {
-            self.rotate_log_file(log_file).await?;
+            self.rotate_log_file(log_file)?;
         }
 
         Ok(())
     }
 
     /// Enforce retention policy
-    async fn enforce_retention_policy(&self, retention: &RetentionPolicy) -> AuditResult<()> {
-        let cutoff_time = chrono::Utc::now() - chrono::Duration::days(retention.retention_days as i64);
+    fn enforce_retention_policy(&self, retention: &RetentionPolicy) -> AuditResult<()> {
+        let cutoff_time =
+            chrono::Utc::now() - chrono::Duration::days(retention.retention_days as i64);
 
-        let mut buffer = self.event_buffer.lock()
+        let mut buffer = self
+            .event_buffer
+            .lock()
             .map_err(|_| AuditError::Configuration {
                 message: "Failed to acquire buffer lock".to_string(),
             })?;
@@ -314,7 +326,7 @@ impl AuditLogger {
     }
 
     /// Rotate log file
-    async fn rotate_log_file(&self, log_file: &Path) -> AuditResult<()> {
+    fn rotate_log_file(&self, log_file: &Path) -> AuditResult<()> {
         // Simple rotation: rename current file with timestamp suffix
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
         let rotated_name = format!("{}.{}", log_file.display(), timestamp);
@@ -326,10 +338,9 @@ impl AuditLogger {
         // Recreate the log file
         if let Some(ref writer) = self.file_writer {
             let new_file = File::create(log_file)?;
-            let mut writer_guard = writer.lock()
-                .map_err(|_| AuditError::Configuration {
-                    message: "Failed to acquire file writer lock".to_string(),
-                })?;
+            let mut writer_guard = writer.lock().map_err(|_| AuditError::Configuration {
+                message: "Failed to acquire file writer lock".to_string(),
+            })?;
             *writer_guard = BufWriter::new(new_file);
         }
 
@@ -444,9 +455,9 @@ pub enum ExternalEndpoint {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
-    use crate::audit::{AuditContext, AuditEvent, AuditEventType, AuditPayload};
     use crate::audit::event::{ParseResult, SecurityEventType};
+    use crate::audit::{AuditContext, AuditEvent, AuditEventType, AuditPayload};
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_audit_logger_creation() {
@@ -484,14 +495,10 @@ mod tests {
             warnings: vec![],
         };
 
-        let event = AuditEvent::new(
-            AuditEventType::CopybookParse,
-            context,
-            payload,
-        );
+        let event = AuditEvent::new(AuditEventType::CopybookParse, context, payload);
 
         // Log the event
-        logger.log_event(event).await.unwrap();
+        logger.log_event(event).unwrap();
 
         // Verify event was buffered
         let buffer = logger.event_buffer.lock().unwrap();
@@ -523,17 +530,13 @@ mod tests {
                 warnings: vec![],
             };
 
-            let event = AuditEvent::new(
-                AuditEventType::CopybookParse,
-                context.clone(),
-                payload,
-            );
+            let event = AuditEvent::new(AuditEventType::CopybookParse, context.clone(), payload);
 
-            logger.log_event(event).await.unwrap();
+            logger.log_event(event).unwrap();
         }
 
         // Validate chain integrity
-        let is_valid = logger.validate_integrity().await.unwrap();
+        let is_valid = logger.validate_integrity().unwrap();
         assert!(is_valid);
     }
 
@@ -556,11 +559,7 @@ mod tests {
             incident_id: Some("INC-001".to_string()),
         };
 
-        let event = AuditEvent::new(
-            AuditEventType::SecurityEvent,
-            context,
-            payload,
-        );
+        let event = AuditEvent::new(AuditEventType::SecurityEvent, context, payload);
 
         let cef_format = logger.format_as_cef(&event).unwrap();
         assert!(cef_format.starts_with("CEF:0|copybook-rs|Enterprise Audit|"));

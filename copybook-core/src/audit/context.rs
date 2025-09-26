@@ -4,11 +4,11 @@
 //! user context, environment information, security classification, and
 //! compliance requirements.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{generate_audit_id, ComplianceProfile};
+use super::{ComplianceProfile, generate_audit_id};
 
 /// Comprehensive audit context for all operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,66 +58,77 @@ impl AuditContext {
     }
 
     /// Set the operation identifier
+    #[must_use]
     pub fn with_operation_id(mut self, operation_id: impl Into<String>) -> Self {
         self.operation_id = operation_id.into();
         self
     }
 
     /// Set the user context
+    #[must_use]
     pub fn with_user(mut self, user: impl Into<String>) -> Self {
         self.user = Some(user.into());
         self
     }
 
     /// Set the environment context
+    #[must_use]
     pub fn with_environment(mut self, environment: EnvironmentContext) -> Self {
         self.environment = environment;
         self
     }
 
     /// Set the processing configuration
+    #[must_use]
     pub fn with_processing_config(mut self, config: ProcessingConfig) -> Self {
         self.processing_config = config;
         self
     }
 
     /// Set the security context
+    #[must_use]
     pub fn with_security_context(mut self, security: SecurityContext) -> Self {
         self.security = security;
         self
     }
 
     /// Add compliance profiles
+    #[must_use]
     pub fn with_compliance_profiles(mut self, profiles: &[ComplianceProfile]) -> Self {
         self.compliance_profiles = profiles.to_vec();
         self
     }
 
     /// Add a single compliance profile
+    #[must_use]
     pub fn with_compliance_profile(mut self, profile: ComplianceProfile) -> Self {
         self.compliance_profiles.push(profile);
         self
     }
 
     /// Set security classification
+    #[must_use]
     pub fn with_security_classification(mut self, classification: SecurityClassification) -> Self {
         self.security.classification = classification;
         self
     }
 
     /// Add metadata key-value pair
+    #[must_use]
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
     }
 
     /// Set parent operation ID for nested operations
+    #[must_use]
     pub fn with_parent_operation_id(mut self, parent_id: impl Into<String>) -> Self {
         self.parent_operation_id = Some(parent_id.into());
         self
     }
 
     /// Create a child context for nested operations
+    #[must_use]
     pub fn create_child_context(&self, child_operation_id: impl Into<String>) -> Self {
         let mut child = self.clone();
         child.operation_id = child_operation_id.into();
@@ -138,15 +149,17 @@ impl AuditContext {
             SecurityClassification::Public => SecurityLevel::Low,
             SecurityClassification::Internal => SecurityLevel::Medium,
             SecurityClassification::Confidential => {
-                if self.compliance_profiles.contains(&ComplianceProfile::SOX) ||
-                   self.compliance_profiles.contains(&ComplianceProfile::HIPAA) {
+                if self.compliance_profiles.contains(&ComplianceProfile::SOX)
+                    || self.compliance_profiles.contains(&ComplianceProfile::HIPAA)
+                {
                     SecurityLevel::High
                 } else {
                     SecurityLevel::Medium
                 }
-            },
-            SecurityClassification::MaterialTransaction |
-            SecurityClassification::PHI => SecurityLevel::Critical,
+            }
+            SecurityClassification::MaterialTransaction | SecurityClassification::PHI => {
+                SecurityLevel::Critical
+            }
         }
     }
 }
@@ -214,8 +227,7 @@ impl EnvironmentContext {
 
     fn get_filtered_env_vars() -> HashMap<String, String> {
         let allowed_vars = [
-            "USER", "USERNAME", "HOME", "PATH", "SHELL", "TERM",
-            "LANG", "LC_ALL", "TZ", "PWD"
+            "USER", "USERNAME", "HOME", "PATH", "SHELL", "TERM", "LANG", "LC_ALL", "TZ", "PWD",
         ];
 
         std::env::vars()
@@ -348,6 +360,7 @@ pub enum SecurityLevel {
 
 /// Access control requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct AccessControlRequirements {
     pub authentication_required: bool,
     pub authorization_required: bool,
@@ -423,9 +436,9 @@ pub struct NetworkSecurityContext {
     pub firewall_rules: Vec<String>,
 }
 
-
 /// Audit trail requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct AuditRequirements {
     pub comprehensive_logging: bool,
     pub integrity_protection: bool,
@@ -470,7 +483,10 @@ mod tests {
         assert_eq!(context.operation_id, "test-operation");
         assert_eq!(context.user, Some("test_user".to_string()));
         assert!(context.requires_compliance(ComplianceProfile::SOX));
-        assert_eq!(context.security.classification, SecurityClassification::Confidential);
+        assert_eq!(
+            context.security.classification,
+            SecurityClassification::Confidential
+        );
     }
 
     #[test]
@@ -482,24 +498,33 @@ mod tests {
         let child = parent.create_child_context("child-operation");
 
         assert_eq!(child.operation_id, "child-operation");
-        assert_eq!(child.parent_operation_id, Some("parent-operation".to_string()));
+        assert_eq!(
+            child.parent_operation_id,
+            Some("parent-operation".to_string())
+        );
         assert_eq!(child.user, Some("test_user".to_string()));
     }
 
     #[test]
     fn test_effective_security_level() {
-        let low_security = AuditContext::new()
-            .with_security_classification(SecurityClassification::Public);
+        let low_security =
+            AuditContext::new().with_security_classification(SecurityClassification::Public);
         assert_eq!(low_security.effective_security_level(), SecurityLevel::Low);
 
         let high_security = AuditContext::new()
             .with_security_classification(SecurityClassification::Confidential)
             .with_compliance_profile(ComplianceProfile::SOX);
-        assert_eq!(high_security.effective_security_level(), SecurityLevel::High);
+        assert_eq!(
+            high_security.effective_security_level(),
+            SecurityLevel::High
+        );
 
-        let critical_security = AuditContext::new()
-            .with_security_classification(SecurityClassification::PHI);
-        assert_eq!(critical_security.effective_security_level(), SecurityLevel::Critical);
+        let critical_security =
+            AuditContext::new().with_security_classification(SecurityClassification::PHI);
+        assert_eq!(
+            critical_security.effective_security_level(),
+            SecurityLevel::Critical
+        );
     }
 
     #[test]

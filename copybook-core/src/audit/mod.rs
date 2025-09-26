@@ -4,39 +4,35 @@
 //! data processing, including regulatory compliance, security monitoring, performance
 //! tracking, and complete data lineage.
 
+pub mod compliance;
 pub mod context;
 pub mod event;
-pub mod logger;
-pub mod compliance;
-pub mod performance;
 pub mod lineage;
-pub mod security;
+pub mod logger;
+pub mod performance;
 pub mod report;
+pub mod security;
 
+pub use compliance::{ComplianceEngine, ComplianceProfile, ComplianceResult, ComplianceViolation};
 pub use context::{AuditContext, EnvironmentContext, ProcessingConfig, SecurityContext};
 pub use event::{AuditEvent, AuditEventType, AuditPayload};
-pub use logger::{AuditLogger, AuditLoggerConfig, LogFormat, RetentionPolicy};
-pub use compliance::{
-    ComplianceEngine, ComplianceProfile, ComplianceResult, ComplianceViolation
-};
-pub use performance::{
-    PerformanceAuditor, PerformanceBaseline, ThroughputMetrics, ResourceMetrics,
-    RegressionDetector, BaselineManager
-};
 pub use lineage::{
-    LineageTracker, FieldLineage, TransformationType, LineageRecord,
-    ImpactAnalyzer, ImpactAssessment
+    FieldLineage, ImpactAnalyzer, ImpactAssessment, LineageRecord, LineageTracker,
+    TransformationType,
 };
-pub use security::{
-    SecurityAuditor, AccessEvent, AccessResult, SecurityValidation,
-    AccessAuditor, SecurityMonitor
+pub use logger::{AuditLogger, AuditLoggerConfig, LogFormat, RetentionPolicy};
+pub use performance::{
+    BaselineManager, PerformanceAuditor, PerformanceBaseline, RegressionDetector, ResourceMetrics,
+    ThroughputMetrics,
 };
 pub use report::{
-    AuditReport, ComplianceReport, PerformanceReport, SecurityReport,
-    ReportGenerator, ReportFormat
+    AuditReport, ComplianceReport, PerformanceReport, ReportFormat, ReportGenerator, SecurityReport,
+};
+pub use security::{
+    AccessAuditor, AccessEvent, AccessResult, SecurityAuditor, SecurityMonitor, SecurityValidation,
 };
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -112,7 +108,7 @@ pub fn generate_audit_id() -> String {
 
 /// Generate a cryptographic hash for audit trail integrity
 pub fn generate_integrity_hash(data: &[u8], previous_hash: Option<&str>) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
 
     let mut hasher = Sha256::new();
     hasher.update(data);

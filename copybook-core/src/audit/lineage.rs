@@ -3,7 +3,7 @@
 //! Comprehensive data transformation and lineage tracking for copybook-rs
 //! enterprise mainframe data processing operations.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // Data lineage tracking functionality - implementation placeholder
 
@@ -21,11 +21,13 @@ impl LineageTracker {
         }
     }
 
+    #[must_use]
     pub fn with_source_system(mut self, system_id: impl Into<String>) -> Self {
         self.source_system = system_id.into();
         self
     }
 
+    #[must_use]
     pub fn with_target_system(mut self, system_id: impl Into<String>) -> Self {
         self.target_system = system_id.into();
         self

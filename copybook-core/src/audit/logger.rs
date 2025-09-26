@@ -111,11 +111,25 @@ impl AuditLogger {
     /// Format event as Common Event Format (CEF) for SIEM integration
     fn format_as_cef(&self, event: &AuditEvent) -> AuditResult<String> {
         // CEF format: CEF:Version|Device Vendor|Device Product|Device Version|Device Event Class ID|Name|Severity|[Extension]
+        let event_class_id = format!("{:?}", event.event_type);
+        let event_name = match &event.payload {
+            super::AuditPayload::SecurityEvent { .. } => "SecurityEvent",
+            super::AuditPayload::ComplianceCheck { .. } => "ComplianceEvent",
+            super::AuditPayload::PerformanceMeasurement { .. } => "PerformanceEvent",
+            super::AuditPayload::CopybookParse { .. } => "CopybookEvent",
+            super::AuditPayload::DataValidation { .. } => "ValidationEvent",
+            super::AuditPayload::DataTransformation { .. } => "TransformationEvent",
+            super::AuditPayload::LineageTracking { .. } => "LineageEvent",
+            super::AuditPayload::ErrorEvent { .. } => "ErrorEvent",
+            super::AuditPayload::AccessEvent { .. } => "AccessEvent",
+            super::AuditPayload::ConfigurationChange { .. } => "ConfigurationEvent",
+        };
+
         let cef_event = format!(
             "CEF:0|copybook-rs|Enterprise Audit|{}|{}|{}|{}|src={} cs1Label=Operation cs1={} cs2Label=Context cs2={} cn1Label=Severity cn1={}\n",
             env!("CARGO_PKG_VERSION"),
-            event.event_type as u32,
-            event.event_id,
+            event_class_id,
+            event_name,
             self.map_severity_to_cef(&event.severity),
             event.source,
             event.context.operation_id,

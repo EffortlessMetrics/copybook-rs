@@ -157,6 +157,20 @@ enum Commands {
         #[arg(long)]
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
     },
+    /// Enterprise audit system for regulatory compliance
+    #[command(
+        after_help = "Enterprise audit capabilities including SOX, HIPAA, GDPR compliance validation, \
+                      performance auditing, security monitoring, and data lineage tracking.\n\n\
+                      Examples:\n\
+                      copybook audit validate --compliance sox,gdpr schema.cpy\n\
+                      copybook audit report --include-performance schema.cpy data.bin -o report.json\n\
+                      copybook audit lineage source.cpy --source-system mainframe -o lineage.json"
+    )]
+    Audit {
+        #[command(flatten)]
+        audit_command: crate::commands::audit::AuditCommand,
+    },
+
     /// Verify data file structure
     #[command(after_help = "\
 Exit codes:
@@ -196,7 +210,7 @@ Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
 }
 
 #[allow(clippy::too_many_lines)]
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     // Initialize tracing
@@ -288,6 +302,11 @@ fn main() {
                 zoned_encoding_override,
             },
         ),
+        Commands::Audit { audit_command } => {
+            // Run audit command asynchronously
+            let runtime = tokio::runtime::Runtime::new()?;
+            runtime.block_on(crate::commands::audit::run(audit_command))
+        }
         Commands::Verify {
             copybook,
             input,
@@ -323,6 +342,7 @@ fn main() {
 }
 
 mod commands {
+    pub mod audit;
     pub mod decode;
     pub mod encode;
     pub mod inspect;

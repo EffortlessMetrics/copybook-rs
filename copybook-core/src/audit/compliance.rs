@@ -307,7 +307,9 @@ impl HipaaValidator {
 
     fn has_adequate_administrative_safeguards(&self, context: &AuditContext) -> bool {
         context.security.access_control.role_based_access &&
-        context.security.access_control.authorization_required
+        context.security.access_control.authorization_required &&
+        context.security.access_control.multi_factor_authentication && // PHI requires MFA
+        context.metadata.contains_key("phi_access_justification") // PHI access must be justified
     }
 
     fn has_adequate_technical_safeguards(&self, context: &AuditContext) -> bool {

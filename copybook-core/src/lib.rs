@@ -94,6 +94,7 @@
 //! }
 //! ```
 
+pub mod audit;
 pub mod error;
 pub mod error_reporter;
 pub mod layout;

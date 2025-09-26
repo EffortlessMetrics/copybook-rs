@@ -1,6 +1,7 @@
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
-    UnmappablePolicy, ZonedEncodingFormat, decode_record, encode_record,
+    UnmappablePolicy, ZonedEncodingFormat, decode_record, decode_record_with_scratch, encode_record,
+    memory::ScratchBuffers,
 };
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
@@ -77,6 +78,20 @@ fn bench_comp3(c: &mut Criterion) {
         b.iter(|| {
             let _ =
                 decode_record(black_box(&schema), black_box(&encoded), black_box(&dec)).unwrap();
+        });
+    });
+
+    // Optimized decode with scratch buffers - CRITICAL PERFORMANCE OPTIMIZATION
+    g.bench_function("decode_comp3_optimized", |b| {
+        let mut scratch = ScratchBuffers::new();
+        b.iter(|| {
+            let _ = decode_record_with_scratch(
+                black_box(&schema),
+                black_box(&encoded),
+                black_box(&dec),
+                black_box(&mut scratch),
+            )
+            .unwrap();
         });
     });
 

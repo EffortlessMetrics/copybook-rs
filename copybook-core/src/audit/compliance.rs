@@ -832,8 +832,14 @@ mod tests {
 
         // Should be approximately 90 days (allow small variance for execution time)
         let days_diff = (actual_timestamp - current_time.timestamp()) / (24 * 3600);
-        assert!(days_diff >= 89, "Review date should be at least 89 days from now");
-        assert!(days_diff <= 91, "Review date should be at most 91 days from now");
+        assert!(
+            days_diff >= 89,
+            "Review date should be at least 89 days from now"
+        );
+        assert!(
+            days_diff <= 91,
+            "Review date should be at most 91 days from now"
+        );
 
         // Test custom review interval arithmetic
         let custom_config = ComplianceConfig {
@@ -844,50 +850,84 @@ mod tests {
         let custom_review_date = custom_engine.calculate_next_review_date();
 
         let parsed_custom_date = chrono::DateTime::parse_from_rfc3339(&custom_review_date).unwrap();
-        let custom_days_diff = (parsed_custom_date.timestamp() - current_time.timestamp()) / (24 * 3600);
-        assert!(custom_days_diff >= 364, "Custom review date should be at least 364 days from now");
-        assert!(custom_days_diff <= 366, "Custom review date should be at most 366 days from now");
+        let custom_days_diff =
+            (parsed_custom_date.timestamp() - current_time.timestamp()) / (24 * 3600);
+        assert!(
+            custom_days_diff >= 364,
+            "Custom review date should be at least 364 days from now"
+        );
+        assert!(
+            custom_days_diff <= 366,
+            "Custom review date should be at most 366 days from now"
+        );
     }
 
     #[tokio::test]
     async fn test_sox_retention_calculation_logic() {
         // Test the specific arithmetic operation in line 237: retention_days < 2555
         // Create a context with retention exactly at threshold (2555)
-        let mut context_compliant = AuditContext::new().with_security_classification(SecurityClassification::MaterialTransaction);
+        let mut context_compliant = AuditContext::new()
+            .with_security_classification(SecurityClassification::MaterialTransaction);
         context_compliant.security.audit_requirements.retention_days = 2555; // Exactly the threshold
 
         let sox_validator = SoxValidator::new();
-        let result = sox_validator.validate_operation(&context_compliant).await.unwrap();
+        let result = sox_validator
+            .validate_operation(&context_compliant)
+            .await
+            .unwrap();
 
         // At exactly 2555 days, should not trigger warning (not < 2555)
-        let retention_warnings: Vec<_> = result.warnings.iter()
+        let retention_warnings: Vec<_> = result
+            .warnings
+            .iter()
             .filter(|w| w.warning_id == "SOX-AUDIT-001")
             .collect();
-        assert!(retention_warnings.is_empty(), "Should not warn at exactly 2555 days");
+        assert!(
+            retention_warnings.is_empty(),
+            "Should not warn at exactly 2555 days"
+        );
 
         // Test just below threshold
-        let mut context_warning = AuditContext::new().with_security_classification(SecurityClassification::MaterialTransaction);
+        let mut context_warning = AuditContext::new()
+            .with_security_classification(SecurityClassification::MaterialTransaction);
         context_warning.security.audit_requirements.retention_days = 2554; // Just below threshold
 
-        let result_warning = sox_validator.validate_operation(&context_warning).await.unwrap();
+        let result_warning = sox_validator
+            .validate_operation(&context_warning)
+            .await
+            .unwrap();
 
         // Should trigger warning when < 2555
-        let retention_warnings: Vec<_> = result_warning.warnings.iter()
+        let retention_warnings: Vec<_> = result_warning
+            .warnings
+            .iter()
             .filter(|w| w.warning_id == "SOX-AUDIT-001")
             .collect();
-        assert!(!retention_warnings.is_empty(), "Should warn when retention < 2555 days");
+        assert!(
+            !retention_warnings.is_empty(),
+            "Should warn when retention < 2555 days"
+        );
 
         // Test well above threshold
-        let mut context_good = AuditContext::new().with_security_classification(SecurityClassification::MaterialTransaction);
+        let mut context_good = AuditContext::new()
+            .with_security_classification(SecurityClassification::MaterialTransaction);
         context_good.security.audit_requirements.retention_days = 3000; // Well above threshold
 
-        let result_good = sox_validator.validate_operation(&context_good).await.unwrap();
+        let result_good = sox_validator
+            .validate_operation(&context_good)
+            .await
+            .unwrap();
 
         // Should not trigger warning when > 2555
-        let retention_warnings_good: Vec<_> = result_good.warnings.iter()
+        let retention_warnings_good: Vec<_> = result_good
+            .warnings
+            .iter()
             .filter(|w| w.warning_id == "SOX-AUDIT-001")
             .collect();
-        assert!(retention_warnings_good.is_empty(), "Should not warn when retention > 2555 days");
+        assert!(
+            retention_warnings_good.is_empty(),
+            "Should not warn when retention > 2555 days"
+        );
     }
 
     #[test]

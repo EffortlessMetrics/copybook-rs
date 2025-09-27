@@ -165,7 +165,10 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     match sub {
                         0 => {
                             let len = rng.random_range(5..=20);
-                            safe_writeln!(copybook, "               10  SUB-{i}-{j}   PIC X({len}).");
+                            safe_writeln!(
+                                copybook,
+                                "               10  SUB-{i}-{j}   PIC X({len})."
+                            );
                         }
                         1 => {
                             let digits = rng.random_range(3..=7);

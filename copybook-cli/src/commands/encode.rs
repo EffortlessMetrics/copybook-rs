@@ -85,7 +85,11 @@ pub fn run(
         });
 
         match atomic_result {
-            Ok(()) => result_summary.ok_or_else(|| Box::new(std::io::Error::other("Internal error: summary not populated after successful processing")) as Box<dyn std::error::Error>),
+            Ok(()) => result_summary.ok_or_else(|| {
+                Box::new(std::io::Error::other(
+                    "Internal error: summary not populated after successful processing",
+                )) as Box<dyn std::error::Error>
+            }),
             Err(e) => {
                 // Check if this is an encoding error we should surface
                 if let Some(source) = e.source()

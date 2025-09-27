@@ -1,4 +1,9 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::assertions_on_constants
+)]
 #![allow(clippy::uninlined_format_args, clippy::items_after_statements)]
 #![allow(clippy::panic)]
 /*!

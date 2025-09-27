@@ -6,7 +6,7 @@
 /// signatures, and error semantics while internal implementations become panic-safe.
 
 
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::assertions_on_constants)]
 #[cfg(test)]
 mod api_compatibility {
     use copybook_core::{parse_copybook, Schema, Field, FieldKind, error::{Error, ErrorCode, Result}};

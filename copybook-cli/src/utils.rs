@@ -3,7 +3,6 @@
 use std::io::{self, Read, Write};
 use std::path::Path;
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use tracing::debug;

@@ -17,10 +17,8 @@ use test_utils::{copybook_cmd, fixture_path};
 #[test]
 fn test_cli_parse_simple() {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("parse").arg(
-        fixture_path("copybooks/simple.cpy")
-            .expect("fixture path"),
-    );
+    cmd.arg("parse")
+        .arg(fixture_path("copybooks/simple.cpy").expect("fixture path"));
 
     cmd.assert()
         .success()
@@ -33,10 +31,8 @@ fn test_cli_parse_simple() {
 #[test]
 fn test_cli_inspect_simple() {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("inspect").arg(
-        fixture_path("copybooks/simple.cpy")
-            .expect("fixture path"),
-    );
+    cmd.arg("inspect")
+        .arg(fixture_path("copybooks/simple.cpy").expect("fixture path"));
 
     cmd.assert()
         .success()
@@ -59,7 +55,6 @@ fn test_cli_verify_valid_data() {
     let mut cmd = copybook_cmd(&[
         "verify",
         fixture_path("copybooks/simple.cpy")
-            .expect("fixture path")
             .expect("fixture path")
             .to_str()
             .unwrap(),
@@ -85,7 +80,6 @@ fn test_cli_verify_report_schema() {
     let mut cmd = copybook_cmd(&[
         "verify",
         fixture_path("copybooks/simple.cpy")
-            .expect("fixture path")
             .expect("fixture path")
             .to_str()
             .unwrap(),

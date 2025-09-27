@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! Performance regression detection for automated CI/CD integration
 //!
 //! Implements comprehensive performance regression detection with statistical analysis,

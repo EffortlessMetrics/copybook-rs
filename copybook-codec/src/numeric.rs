@@ -1051,7 +1051,7 @@ pub fn decode_packed_decimal(
             }
         }
         2 => {
-            // SECOND FASTEST PATH: 2-byte COMP-3 (PIC S9(3) COMP-3, very common)
+            // SECOND FASTEST PATH: 2-byte COMP-3 (PIC S9(2) or S9(3) COMP-3, very common)
             // Handles amounts, quantities, percentages in enterprise applications
             let byte0 = data[0];
             let byte1 = data[1];
@@ -1061,16 +1061,38 @@ pub fn decode_packed_decimal(
             let d3 = (byte1 >> 4) & 0x0F;
             let sign_nibble = byte1 & 0x0F;
 
-            // Fast validation: all digits must be ≤ 9
-            if unlikely(d1 > 9 || d2 > 9 || d3 > 9) {
-                return Err(Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    "Invalid digit in 2-byte COMP-3 field".to_string(),
-                ));
-            }
+            // CRITICAL FIX: Handle both 2-digit and 3-digit cases in 2-byte path
+            if digits == 2 {
+                // For 2 digits: format is [0][d1][d2][sign] where first nibble is padding
+                if unlikely(d1 != 0) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Expected padding nibble 0 for 2-digit field, got 0x{d1:X}"),
+                    ));
+                }
 
-            // Fast value computation: avoid loop overhead
-            value = i64::from(d1) * 100 + i64::from(d2) * 10 + i64::from(d3);
+                // Fast validation: digits must be ≤ 9
+                if unlikely(d2 > 9 || d3 > 9) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        "Invalid digit in 2-digit COMP-3 field".to_string(),
+                    ));
+                }
+
+                // Fast value computation for 2 digits: d2*10 + d3
+                value = i64::from(d2) * 10 + i64::from(d3);
+            } else {
+                // For 3 digits: format is [d1][d2][d3][sign] - all nibbles are digits
+                if unlikely(d1 > 9 || d2 > 9 || d3 > 9) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        "Invalid digit in 3-digit COMP-3 field".to_string(),
+                    ));
+                }
+
+                // Fast value computation for 3 digits: d1*100 + d2*10 + d3
+                value = i64::from(d1) * 100 + i64::from(d2) * 10 + i64::from(d3);
+            }
 
             let is_negative = if signed {
                 match sign_nibble {
@@ -1582,44 +1604,73 @@ pub fn encode_packed_decimal(
     let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
     let mut result = Vec::with_capacity(expected_bytes);
 
-    // Process digits from most significant to least significant
-    let mut byte_idx = 0;
-    let mut digit_pos = digits as usize;
+    // CRITICAL FIX: Handle digit positioning correctly for even/odd digit counts
+    // For packed decimal, we have:
+    // - Total nibbles needed: digits + 1 (for sign)
+    // - If digits is even: first nibble is padding (0), then digits, then sign
+    // - If digits is odd: no padding, digits fill completely, then sign
 
-    while byte_idx < expected_bytes {
+    let has_padding = digits.is_multiple_of(2); // Even digit count requires padding
+    let total_nibbles = digits as usize + 1 + usize::from(has_padding);
+
+    for byte_idx in 0..expected_bytes {
         let mut byte_val = 0u8;
 
+        // Calculate which nibbles belong to this byte
+        let nibble_offset = byte_idx * 2;
+
         // High nibble
-        if digit_pos > 0 {
-            digit_pos -= 1;
-            if digit_pos < digit_count {
-                // Use actual digit (stored in reverse order, so index directly)
-                let digit = digit_buffer[digit_pos];
-                byte_val |= digit << 4;
+        let high_nibble_idx = nibble_offset;
+        if high_nibble_idx < total_nibbles - 1 {
+            // Not the sign nibble
+            if has_padding && high_nibble_idx == 0 {
+                // First nibble is padding for even digit count
+                byte_val |= 0x00 << 4;
+            } else {
+                // Calculate which digit this represents
+                let digit_idx = if has_padding {
+                    high_nibble_idx - 1
+                } else {
+                    high_nibble_idx
+                };
+
+                if digit_idx < digit_count {
+                    // Digits are stored in reverse order (least significant first)
+                    let digit_pos_from_right = digit_count - 1 - digit_idx;
+                    let digit = digit_buffer[digit_pos_from_right];
+                    byte_val |= digit << 4;
+                }
+                // else: leading zero for large digit field
             }
-            // else: leading zero, already initialized to 0
         }
 
         // Low nibble
-        if byte_idx == expected_bytes - 1 {
-            // Last byte - low nibble is always sign
+        let low_nibble_idx = nibble_offset + 1;
+        if low_nibble_idx == total_nibbles - 1 {
+            // This is the sign nibble
             byte_val |= if signed {
                 if decimal.negative { 0x0D } else { 0x0C }
             } else {
                 0x0F
             };
-        } else if digit_pos > 0 {
-            digit_pos -= 1;
-            if digit_pos < digit_count {
-                // Use actual digit (stored in reverse order, so index directly)
-                let digit = digit_buffer[digit_pos];
+        } else if low_nibble_idx < total_nibbles - 1 {
+            // Calculate which digit this represents
+            let digit_idx = if has_padding {
+                low_nibble_idx - 1
+            } else {
+                low_nibble_idx
+            };
+
+            if digit_idx < digit_count {
+                // Digits are stored in reverse order (least significant first)
+                let digit_pos_from_right = digit_count - 1 - digit_idx;
+                let digit = digit_buffer[digit_pos_from_right];
                 byte_val |= digit;
             }
-            // else: leading zero, already initialized to 0
+            // else: leading zero for large digit field
         }
 
         result.push(byte_val);
-        byte_idx += 1;
     }
 
     Ok(result)

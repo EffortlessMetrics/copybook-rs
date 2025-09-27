@@ -134,7 +134,17 @@ pub mod safe_ops {
         Ok(numerator / denominator)
     }
 
-    /// Safely calculate array bounds, checking for overflow
+    /// Safely calculate COBOL array bounds with overflow protection
+    ///
+    /// Critical for ODO (Occurs Depending On) arrays and OCCURS clauses where
+    /// arithmetic overflow could compromise mainframe data processing integrity.
+    ///
+    /// # Performance
+    /// Uses hardware overflow detection for maximum performance on modern CPUs.
+    ///
+    /// # Errors
+    /// Returns `CBKP021_ODO_NOT_TAIL` for overflow conditions with detailed context.
+    #[inline]
     pub fn safe_array_bound(
         base: usize,
         count: usize,
@@ -162,7 +172,14 @@ pub mod safe_ops {
         })
     }
 
-    /// Safely write formatted data to a String, converting fmt errors to Result
+    /// Safely format data into string buffer for JSON generation
+    ///
+    /// Used in high-performance COBOL to JSON conversion where formatting
+    /// errors must be handled gracefully without panics.
+    ///
+    /// # Performance
+    /// Zero allocation overhead beyond normal string formatting.
+    #[inline]
     pub fn safe_write(buffer: &mut String, args: std::fmt::Arguments<'_>) -> Result<()> {
         buffer.write_fmt(args).map_err(|e| {
             Error::new(
@@ -172,7 +189,14 @@ pub mod safe_ops {
         })
     }
 
-    /// Safely write a simple value to a String
+    /// Safely append string slice to buffer for JSON field construction
+    ///
+    /// Optimized for high-throughput JSON generation during COBOL data conversion
+    /// with comprehensive error handling for enterprise reliability.
+    ///
+    /// # Performance
+    /// Single bounds check and direct memory copy for maximum efficiency.
+    #[inline]
     pub fn safe_write_str(buffer: &mut String, s: &str) -> Result<()> {
         buffer.write_str(s).map_err(|e| {
             Error::new(

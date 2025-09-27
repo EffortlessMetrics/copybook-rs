@@ -109,7 +109,7 @@ pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, ErrorSummary};
 pub use parser::ParseOptions;
 pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
-pub use utils::{OptionExt, SliceExt, VecExt};
+pub use utils::{OptionExt, SliceExt, VecExt, safe_ops};
 
 #[cfg(feature = "audit")]
 pub use audit::*;

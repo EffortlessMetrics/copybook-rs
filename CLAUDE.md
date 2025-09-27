@@ -7,12 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 copybook-rs is a **production-ready** Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and high-performance data conversion with battle-tested reliability.
 
 **Status**: **PRODUCTION READY** - Ready for immediate enterprise deployment
-**Performance**: Exceeds enterprise targets by 15-52x (DISPLAY: 4.1+ GiB/s, COMP-3: 560+ MiB/s)
+**Performance**: Exceeds enterprise targets (DISPLAY: 2.5+ GiB/s, COMP-3: 100+ MiB/s with safety margins)
 **Quality**: 458+ tests passing, zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
 **Enterprise Assessment**: System ready for production mainframe workloads with substantial performance safety margins.
 
-See [REPORT.md](REPORT.md) for complete production readiness analysis.
+See [REPORT.md](docs/REPORT.md) for complete production readiness analysis.
 
 ## Workspace Structure
 
@@ -173,10 +173,11 @@ Structured error taxonomy with stable codes:
 ## Performance
 
 **Targets vs Achieved**:
-- DISPLAY-heavy: ≥80 MB/s → **4.1-4.2 GiB/s (52x exceeded)**
-- COMP-3-heavy: ≥40 MB/s → **560-580 MiB/s (15x exceeded)**
+- DISPLAY-heavy: ≥80 MB/s → **2.5-3.0 GiB/s (32x exceeded)**
+- COMP-3-heavy: ≥40 MB/s → **100-120 MiB/s (3x exceeded)**
 - Memory: <256 MiB steady-state for multi-GB files
 - Variance: <5% across benchmark runs
+- Overhead budget: 20% reserved for enterprise security/audit features
 
 **Benchmarking**:
 ```bash
@@ -240,8 +241,8 @@ The golden fixtures comprehensively test structural error conditions:
 
 Golden fixtures maintain strict performance requirements:
 
-- **DISPLAY-heavy**: 4.1+ GiB/s throughput (52x enterprise target)
-- **COMP-3-heavy**: 560+ MiB/s throughput (15x enterprise target)
+- **DISPLAY-heavy**: 2.5+ GiB/s throughput (32x enterprise target)
+- **COMP-3-heavy**: 100+ MiB/s throughput (3x enterprise target)
 - **Memory**: <256 MiB steady-state for multi-GB fixture sets
 - **Variance**: <5% performance variance across runs
 - **Regression Detection**: Automated baseline comparison with <2% tolerance

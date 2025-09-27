@@ -23,7 +23,7 @@ When triggered by the breaking-change-detector identifying breaking changes, you
    - Validate that migration code snippets are syntactically correct
 
 3. **Changelog Validation**:
-   - Verify that CHANGELOG.md has been updated with the breaking changes
+   - Verify that docs/CHANGELOG.md has been updated with the breaking changes
    - Ensure changelog entries include migration instructions
    - Check that changelog follows the project's established format
    - Validate that breaking changes are clearly marked and categorized

@@ -1,0 +1,1 @@
+01 TEST PIC X.

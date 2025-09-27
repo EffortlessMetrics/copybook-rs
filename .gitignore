@@ -24,4 +24,15 @@ target
 # Claude Code Working Agents
 .claude/agents
 
+# Temporary development files
 *.log
+debug_*
+test_actual_*
+*_baseline.log
+*_results.log
+coverage.lcov
+
+# Test data files (use test-data/ directory instead)
+test_*.cpy
+test_*.jsonl
+test_*.bin

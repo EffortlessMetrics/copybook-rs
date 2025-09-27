@@ -228,6 +228,9 @@ Execute examples via `cargo test --doc --workspace`; Evidence: `examples tested:
 
 ## Microloop Structure
 
+**0. pre=analysis**
+- `github-pr-issue-researcher`
+
 **1. Issue Work**
 - `issue-creator` → `spec-analyzer` → `issue-finalizer`
 

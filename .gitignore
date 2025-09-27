@@ -30,7 +30,14 @@ debug_*
 test_actual_*
 *_baseline.log
 *_results.log
-coverage.lcov
+*.lcov
+lcov.info
+
+# Backup files
+*.bak
+*.tmp
+*.orig
+*.old
 
 # Test data files (use test-data/ directory instead)
 test_*.cpy

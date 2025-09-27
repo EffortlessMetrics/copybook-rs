@@ -12,7 +12,7 @@ copybook-rs is a **production-ready** Rust workspace for enterprise mainframe da
 
 **Enterprise Assessment**: System ready for production mainframe workloads with substantial performance safety margins.
 
-See [REPORT.md](REPORT.md) for complete production readiness analysis.
+See [REPORT.md](docs/REPORT.md) for complete production readiness analysis.
 
 ## Workspace Structure
 

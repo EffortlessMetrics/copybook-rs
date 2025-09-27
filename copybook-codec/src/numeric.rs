@@ -263,7 +263,11 @@ impl SmallDecimal {
             // Normal integer format (scale = 0)
             self.value
         };
-        write!(result, "{scaled_value}").unwrap();
+        // Writing to String should never fail, but handle gracefully for panic elimination
+        if write!(result, "{scaled_value}").is_err() {
+            // Fallback: append a placeholder if formatting somehow fails
+            result.push_str("ERR");
+        }
     }
 
     /// Append decimal format with exactly `scale` digits after decimal point
@@ -272,13 +276,18 @@ impl SmallDecimal {
         let integer_part = self.value / divisor;
         let fractional_part = self.value % divisor;
 
-        write!(
+        // Writing to String should never fail, but handle gracefully for panic elimination
+        if write!(
             result,
             "{integer_part}.{:0width$}",
             fractional_part,
             width = self.scale as usize
         )
-        .unwrap();
+        .is_err()
+        {
+            // Fallback: append a placeholder if formatting somehow fails
+            result.push_str("ERR");
+        }
     }
 
     /// Parse decimal from string with strict scale validation
@@ -419,20 +428,27 @@ impl SmallDecimal {
             } else {
                 self.value
             };
-            write!(result, "{scaled_value}").unwrap();
+            // Writing to String should never fail, but handle gracefully for panic elimination
+            if write!(result, "{scaled_value}").is_err() {
+                result.push_str("ERR");
+            }
         } else {
             // Decimal format with exactly `scale` digits after decimal
             let divisor = 10_i64.pow(scale as u32);
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
 
-            write!(
+            // Writing to String should never fail, but handle gracefully for panic elimination
+            if write!(
                 result,
                 "{integer_part}.{:0width$}",
                 fractional_part,
                 width = scale as usize
             )
-            .unwrap();
+            .is_err()
+            {
+                result.push_str("ERR");
+            }
         }
 
         result
@@ -1032,7 +1048,12 @@ pub fn decode_packed_decimal(
                                 ),
                             ));
                         }
-                        value = value * 10 + i64::from(high_nibble);
+                        value = value.checked_mul(10)
+                            .and_then(|v| v.checked_add(i64::from(high_nibble)))
+                            .ok_or_else(|| Error::new(
+                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                                format!("Numeric overflow during packed decimal conversion at byte {byte_idx}")
+                            ))?;
                     }
                 } else {
                     if unlikely(high_nibble > 9) {
@@ -1041,7 +1062,12 @@ pub fn decode_packed_decimal(
                             format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
                         ));
                     }
-                    value = value * 10 + i64::from(high_nibble);
+                    value = value.checked_mul(10)
+                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
+                        .ok_or_else(|| Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Numeric overflow during packed decimal conversion at byte {byte_idx}")
+                        ))?;
                 }
 
                 // Process low nibble
@@ -1075,7 +1101,12 @@ pub fn decode_packed_decimal(
                             format!("Invalid digit nibble 0x{low_nibble:X} at byte {byte_idx}"),
                         ));
                     }
-                    value = value * 10 + i64::from(low_nibble);
+                    value = value.checked_mul(10)
+                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
+                        .ok_or_else(|| Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Numeric overflow during packed decimal conversion at byte {byte_idx}")
+                        ))?;
                 }
             }
         }
@@ -1855,7 +1886,15 @@ pub fn decode_packed_decimal_with_scratch(
                             format!("Invalid digit nibble 0x{high_nibble:X}"),
                         ));
                     }
-                    value = value * 10 + i64::from(high_nibble);
+                    value = value
+                        .checked_mul(10)
+                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                                "Numeric overflow during zoned decimal conversion",
+                            )
+                        })?;
                     digit_count += 1;
                 }
 
@@ -1889,7 +1928,15 @@ pub fn decode_packed_decimal_with_scratch(
                             format!("Invalid digit nibble 0x{low_nibble:X}"),
                         ));
                     }
-                    value = value * 10 + i64::from(low_nibble);
+                    value = value
+                        .checked_mul(10)
+                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                                "Numeric overflow during zoned decimal conversion",
+                            )
+                        })?;
                     digit_count += 1;
                 }
 
@@ -1929,7 +1976,15 @@ pub fn decode_packed_decimal_with_scratch(
                             format!("Invalid digit nibble 0x{high_nibble:X}"),
                         ));
                     }
-                    value = value * 10 + i64::from(high_nibble);
+                    value = value
+                        .checked_mul(10)
+                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                                "Numeric overflow during zoned decimal conversion",
+                            )
+                        })?;
                     digit_count += 1;
                 }
 
@@ -1963,7 +2018,15 @@ pub fn decode_packed_decimal_with_scratch(
                             format!("Invalid digit nibble 0x{low_nibble:X}"),
                         ));
                     }
-                    value = value * 10 + i64::from(low_nibble);
+                    value = value
+                        .checked_mul(10)
+                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                                "Numeric overflow during zoned decimal conversion",
+                            )
+                        })?;
                     digit_count += 1;
                 }
 

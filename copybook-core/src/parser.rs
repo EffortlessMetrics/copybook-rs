@@ -8,6 +8,7 @@ use crate::error::{ErrorCode, ErrorContext};
 use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema};
+use crate::utils::VecExt;
 use crate::{Error, Result};
 
 /// Parse a COBOL copybook text into a schema
@@ -136,7 +137,10 @@ impl Parser {
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
                 if top.level >= field.level {
-                    let mut completed_field = stack.pop().unwrap();
+                    let mut completed_field = stack.pop_or_cbkp_error(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Parser stack underflow: expected field to pop but stack was empty",
+                    )?;
 
                     // If this field has children, make it a group
                     if !completed_field.children.is_empty() {

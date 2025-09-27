@@ -22,9 +22,9 @@
 <!-- gates:start -->
 | Gate | Status | Evidence | Updated |
 |------|--------|----------|---------|
-| freshness | ✅ pass | branch up-to-date with main; panic elimination complete | 2025-09-27 |
-| format | ✅ pass | rustfmt: all files formatted | 2025-09-27 |
-| clippy | ✅ pass | clippy: 0 warnings (workspace) | 2025-09-27 |
+| freshness | ✅ pass | base up-to-date @ae7332b | 2025-09-27 |
+| format | ✅ pass | rustfmt: all files formatted (5 crates: core, codec, cli, gen, bench) | 2025-09-27 |
+| clippy | ✅ pass | clippy: 0 warnings (pedantic, workspace, all-targets, all-features) | 2025-09-27 |
 | tests | ⚠️ partial | cargo test: core tests pass; CLI audit tests fail (unimplemented features) | 2025-09-27 |
 | build | ✅ pass | build: workspace ok; release mode builds successfully | 2025-09-27 |
 | features | ✅ pass | matrix: 18/18 ok (audit/comp3_fast/comp3_unsafe/comprehensive-tests); COBOL: 171 tests pass; time: 4.5min | 2025-09-27 |
@@ -188,6 +188,22 @@ decode_comp3_heavy/single_threaded/1000
 **Actions**: PERF=1 benchmark execution, enterprise target validation, regression analysis, comprehensive throughput measurement
 **Evidence**: `benchmarks: ❌ fail | DISPLAY:3.3GiB/s (<4.1: fail), COMP-3:133MiB/s (<560: fail); enterprise targets: fail`
 **Decision**: NEXT → perf-fixer (critical performance regression requires optimization before enterprise readiness)
+
+### 2025-09-27 Branch Freshness Validation (review-freshness-checker)
+**Intent**: Validate branch freshness against main for Draft→Ready promotion
+**Scope**: Git ancestry analysis, commit validation, semantic message compliance, merge commit detection
+**Observations**: Branch includes commits [5e4959c..f6744c7], base at [ae7332b]; 11 commits ahead, 0 commits behind; ancestry check passes
+**Actions**: Executed git merge-base --is-ancestor origin/main HEAD, analyzed commit differences, validated semantic commit format
+**Evidence**: `freshness: ✅ pass | base up-to-date @ae7332b`
+**Decision**: NEXT → hygiene-finalizer (branch current, proceed to hygiene validation)
+
+### 2025-09-27 Hygiene Validation (review-hygiene-finalizer)
+**Intent**: Comprehensive mechanical hygiene validation for panic elimination implementation
+**Scope**: Rust formatting, clippy pedantic compliance, import organization, zero unsafe code enforcement, 5-crate workspace coherence
+**Observations**: All hygiene checks PASS: cargo fmt --all --check ✓, cargo clippy pedantic with zero warnings ✓, proper import organization ✓, zero unsafe code maintained ✓
+**Actions**: Executed comprehensive hygiene pipeline: formatting validation, pedantic clippy analysis, import organization check, unsafe code audit
+**Evidence**: `format: ✅ pass | rustfmt: all files formatted (5 crates), clippy: ✅ pass | 0 warnings (pedantic, workspace, all-targets, all-features)`
+**Decision**: NEXT → cobol-arch-reviewer (hygiene validation complete, ready for architectural review)
 <!-- hoplog:end -->
 
 ---

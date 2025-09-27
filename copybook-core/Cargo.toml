@@ -43,3 +43,6 @@ tokio = { version = "1.47", features = ["macros", "rt-multi-thread"] }
 default = []
 audit = ["dep:async-trait", "dep:chrono", "dep:hex", "dep:rand"]  # Enable audit system (disabled by default for performance)
 comprehensive-tests = []
+
+[lints]
+workspace = true

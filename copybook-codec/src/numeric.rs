@@ -652,14 +652,10 @@ pub fn decode_zoned_decimal(
     codepage: Codepage,
     blank_when_zero: bool,
 ) -> Result<SmallDecimal> {
-    if data.len() != digits as usize {
+    if unlikely(data.len() != digits as usize) {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
-            format!(
-                "Zoned decimal data length {} doesn't match digits {}",
-                data.len(),
-                digits
-            ),
+            "Zoned decimal data length mismatch".to_string(),
         ));
     }
 
@@ -988,12 +984,7 @@ pub fn decode_packed_decimal(
     if unlikely(data.len() != expected_bytes) {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-            format!(
-                "Packed decimal data length {} doesn't match expected {} bytes for {} digits",
-                data.len(),
-                expected_bytes,
-                digits
-            ),
+            "Packed decimal data length mismatch".to_string(),
         ));
     }
 

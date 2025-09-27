@@ -2,9 +2,8 @@
 /// Issue #33 - Numeric Hotspot Unit Tests
 ///
 /// This module provides comprehensive unit testing for panic elimination in numeric.rs
-/// (20 panic occurrences target) and zoned_overpunch.rs (24 panic occurrences target).
+/// (20 panic occurrences target) and `zoned_overpunch.rs` (24 panic occurrences target).
 /// Validates panic-safe numeric conversion with CBKD* error codes and performance preservation.
-
 #[cfg(test)]
 mod numeric_hotspot_safety {
     use copybook_codec::{
@@ -20,11 +19,11 @@ mod numeric_hotspot_safety {
 
     #[test] // AC:33:NUMERIC_HOTSPOT:PACKED_DECIMAL_SAFETY
     fn test_packed_decimal_conversion_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 PACKED-TEST-RECORD.
             05 VALID-PACKED PIC S9(7)V99 COMP-3.
             05 EDGE-PACKED PIC S9(15)V99 COMP-3.
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
@@ -81,11 +80,11 @@ mod numeric_hotspot_safety {
 
     #[test] // AC:33:NUMERIC_HOTSPOT:NUMERIC_FORMATTING_SAFETY
     fn test_numeric_formatting_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 FORMATTING-TEST.
             05 LARGE-DECIMAL PIC S9(15)V99 COMP-3.
             05 SMALL-DECIMAL PIC S9(3)V99 COMP-3.
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
@@ -134,19 +133,16 @@ mod numeric_hotspot_safety {
 
     #[test] // AC:33:NUMERIC_HOTSPOT:SCALE_CALCULATION_SAFETY
     fn test_scale_calculation_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 SCALE-TEST.
             05 NO-DECIMAL PIC S9(10) COMP-3.
             05 HIGH-PRECISION PIC S9(10)V99999 COMP-3.
             05 FRACTIONAL-ONLY PIC SV99999 COMP-3.
-        "#;
+        ";
 
-        let schema = match parse_copybook(copybook) {
-            Ok(schema) => schema,
-            Err(_) => {
-                // Some PIC clauses might not be supported - test should pass gracefully
-                return;
-            }
+        let Ok(schema) = parse_copybook(copybook) else {
+            // Some PIC clauses might not be supported - test should pass gracefully
+            return;
         };
 
         // Test case: Various scale configurations
@@ -193,10 +189,10 @@ mod numeric_hotspot_safety {
 
     #[test] // AC:33:NUMERIC_HOTSPOT:OVERFLOW_PROTECTION
     fn test_numeric_overflow_protection() {
-        let copybook = r#"
+        let copybook = r"
         01 OVERFLOW-TEST.
             05 MAX-PRECISION PIC S9(18)V99 COMP-3.
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
@@ -240,10 +236,10 @@ mod numeric_hotspot_safety {
 
     #[test] // AC:33:NUMERIC_HOTSPOT:ENCODING_SAFETY
     fn test_numeric_encoding_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 ENCODING-TEST.
             05 DECIMAL-FIELD PIC S9(7)V99 COMP-3.
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
@@ -263,8 +259,7 @@ mod numeric_hotspot_safety {
             let result = encode_record(&schema, invalid_json, &options);
 
             // Invalid encoding should return appropriate errors
-            if result.is_err() {
-                let error = result.unwrap_err();
+            if let Err(error) = result {
                 assert!(
                     matches!(
                         error.code,
@@ -288,16 +283,16 @@ mod zoned_overpunch_hotspot_safety {
     use copybook_core::ErrorCode;
     use copybook_core::parse_copybook;
 
-    /// Tests zoned_overpunch.rs hotspot panic elimination (24 occurrences target)
+    /// Tests `zoned_overpunch.rs` hotspot panic elimination (24 occurrences target)
     /// Validates panic-safe zoned decimal processing with sign handling
 
     #[test] // AC:33:ZONED_HOTSPOT:SIGN_CHARACTER_SAFETY
     fn test_zoned_sign_character_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 ZONED-TEST.
             05 SIGNED-ZONED PIC S9(5).
             05 UNSIGNED-ZONED PIC 9(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
@@ -332,15 +327,15 @@ mod zoned_overpunch_hotspot_safety {
 
     #[test] // AC:33:ZONED_HOTSPOT:OVERPUNCH_DETECTION
     fn test_zoned_overpunch_detection_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 OVERPUNCH-TEST.
             05 OVERPUNCH-FIELD PIC S9(5).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
         // Test case: Various overpunch sign patterns
-        let overpunch_patterns = vec![
+        let overpunch_patterns = [
             vec![0xF1, 0xF2, 0xF3, 0xF4, 0xC1], // Positive overpunch (A = +1)
             vec![0xF1, 0xF2, 0xF3, 0xF4, 0xD1], // Negative overpunch (J = -1)
             vec![0xF1, 0xF2, 0xF3, 0xF4, 0xC9], // Positive overpunch (I = +9)
@@ -360,8 +355,7 @@ mod zoned_overpunch_hotspot_safety {
                     let field_value = &json_value["OVERPUNCH-FIELD"];
                     assert!(
                         field_value.is_string(),
-                        "Overpunch field {} should format to string",
-                        i
+                        "Overpunch field {i} should format to string"
                     );
                 }
                 Err(error) => {
@@ -383,10 +377,10 @@ mod zoned_overpunch_hotspot_safety {
 
     #[test] // AC:33:ZONED_HOTSPOT:CHARACTER_VALIDATION
     fn test_zoned_character_validation_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 CHAR-VALIDATION-TEST.
             05 ZONED-NUMERIC PIC 9(8).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
@@ -420,10 +414,10 @@ mod zoned_overpunch_hotspot_safety {
 
     #[test] // AC:33:ZONED_HOTSPOT:CODEPAGE_CONVERSION
     fn test_zoned_codepage_conversion_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 CODEPAGE-TEST.
             05 ZONED-FIELD PIC S9(6).
-        "#;
+        ";
 
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
@@ -450,8 +444,7 @@ mod zoned_overpunch_hotspot_safety {
                     let field_value = &json_value["ZONED-FIELD"];
                     assert!(
                         field_value.is_string(),
-                        "Zoned field should format for codepage {:?}",
-                        codepage
+                        "Zoned field should format for codepage {codepage:?}"
                     );
                 }
                 Err(error) => {
@@ -473,12 +466,12 @@ mod zoned_overpunch_hotspot_safety {
 
     #[test] // AC:33:ZONED_HOTSPOT:EDGE_CASE_HANDLING
     fn test_zoned_edge_case_handling_safety() {
-        let copybook = r#"
+        let copybook = r"
         01 EDGE-CASE-TEST.
             05 ZERO-LENGTH PIC 9(0).
             05 SINGLE-DIGIT PIC S9(1).
             05 MAX-LENGTH PIC 9(18).
-        "#;
+        ";
 
         let schema_result = parse_copybook(copybook);
 

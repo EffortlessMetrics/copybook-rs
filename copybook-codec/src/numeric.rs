@@ -1076,10 +1076,12 @@ pub fn decode_packed_decimal(
                 match sign_nibble {
                     0xA | 0xC | 0xE | 0xF => false,
                     0xB | 0xD => true,
-                    _ => return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid sign nibble 0x{sign_nibble:X}"),
-                    )),
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{sign_nibble:X}"),
+                        ));
+                    }
                 }
             } else {
                 if unlikely(sign_nibble != 0xF) {
@@ -1118,16 +1120,22 @@ pub fn decode_packed_decimal(
             }
 
             // Fast value computation: unrolled multiplication for maximum performance
-            value = i64::from(d1) * 10000 + i64::from(d2) * 1000 + i64::from(d3) * 100 + i64::from(d4) * 10 + i64::from(d5);
+            value = i64::from(d1) * 10000
+                + i64::from(d2) * 1000
+                + i64::from(d3) * 100
+                + i64::from(d4) * 10
+                + i64::from(d5);
 
             let is_negative = if signed {
                 match sign_nibble {
                     0xA | 0xC | 0xE | 0xF => false,
                     0xB | 0xD => true,
-                    _ => return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid sign nibble 0x{sign_nibble:X}"),
-                    )),
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{sign_nibble:X}"),
+                        ));
+                    }
                 }
             } else {
                 if unlikely(sign_nibble != 0xF) {

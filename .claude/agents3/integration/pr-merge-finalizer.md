@@ -33,7 +33,7 @@ Your core responsibilities:
 - Handle MergeCode-specific issue patterns (parser improvements, performance targets, cache backend fixes)
 
 **3. Downstream Actions**
-- Update CHANGELOG.md with merged changes if they affect MergeCode API or analysis behavior
+- Update docs/CHANGELOG.md with merged changes if they affect MergeCode API or analysis behavior
 - Trigger documentation updates using `cargo xtask docs` if changes affect user or developer documentation
 - Update MergeCode milestone tracking and roadmap progress
 - Validate that merged changes maintain MergeCode performance targets (≤10 min for large codebases) and error handling patterns

@@ -6,7 +6,7 @@
 
 | **User Guide** | **CLI Reference** | **Library API** | **Error Codes** | **ADR** | **Production Status** | **Roadmap** |
 |----------------|-------------------|------------------|-----------------|---------|----------------------|-------------|
-| [User Guide](docs/USER_GUIDE.md) | [CLI Reference](docs/CLI_REFERENCE.md) | [Library API](docs/LIBRARY_API.md) | [Error Codes](docs/ERROR_CODES.md) | [ADR](docs/adr/) | [Production Status](#production-status) | [Roadmap](ROADMAP.md) |
+| [User Guide](docs/USER_GUIDE.md) | [CLI Reference](docs/CLI_REFERENCE.md) | [Library API](docs/reference/LIBRARY_API.md) | [Error Codes](docs/reference/ERROR_CODES.md) | [ADR](docs/adr/) | [Production Status](#production-status) | [Roadmap](docs/ROADMAP.md) |
 
 ## Overview
 
@@ -767,7 +767,7 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type or REDEFINES ambiguity
 - `CBKE521_ARRAY_LEN_OOB`: Array length out of bounds
 
-See [ERROR_CODES.md](docs/ERROR_CODES.md) for complete error reference and [REPORT.md](REPORT.md) for detailed project status and performance analysis.
+See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference and [REPORT.md](docs/REPORT.md) for detailed project status and performance analysis.
 
 ## Production Deployment
 
@@ -844,21 +844,50 @@ cargo fmt --all
 ### Project Status & Roadmap
 
 ### **Current Status: Production Ready** ✅
-copybook-rs has achieved full production maturity and is ready for immediate enterprise deployment. See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for complete assessment.
+copybook-rs has achieved full production maturity and is ready for immediate enterprise deployment. See [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) for complete assessment.
 
 ### **Development Roadmap**
-See [ROADMAP.md](ROADMAP.md) for planned features and development phases. Current focus: ecosystem distribution and CI enhancements.
+See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: ecosystem distribution and CI enhancements.
+
+## Repository Structure
+
+### Core Workspace
+- **copybook-core** - COBOL parsing engine (lexer, parser, AST)
+- **copybook-codec** - Data encoding/decoding with character conversion
+- **copybook-cli** - Command-line interface with subcommands
+- **copybook-gen** - Test fixture generation and golden corpus
+- **copybook-bench** - Performance benchmarks and validation
+
+### Documentation (`docs/`)
+- **reference/** - API docs, CLI reference, error codes
+- **specs/** - Technical specifications and feature definitions
+- **reports/** - Validation reports and PR analysis
+- **adr/** - Architecture decision records
+- **api/** - API documentation and contracts
+- **explanation/** - In-depth technical explanations
+
+### Development Resources
+- **examples/** - Usage examples (basic/integration/enterprise)
+- **fixtures/** - Test data and golden corpus for validation
+- **test-data/** - Simple test copybooks and sample data
+- **tools/** - Debug utilities and maintenance scripts
+- **scripts/** - Automation and CI/CD scripts
+- **schemas/** - JSON schemas for data validation
+
+### Configuration
+- **.config/** - Tool configurations (rustfmt, clippy, nextest)
+- **.github/** - GitHub workflows and issue templates
 
 ## Contributing
 
-We welcome contributions! Please see [REPORT.md](REPORT.md) for current project status and [ROADMAP.md](ROADMAP.md) for development priorities.
+We welcome contributions! Please see [REPORT.md](docs/REPORT.md) for current project status and [ROADMAP.md](docs/ROADMAP.md) for development priorities.
 
 #### Development Workflow
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes with tests
-4. Run `cargo test --workspace` and `cargo clippy --workspace`
-5. Submit a pull request
+4. Run `just ci-quick` or `cargo xtask ci --quick`
+5. Submit a pull request using the provided template
 
 #### Code Standards
 - Follow Rust conventions and idioms with complete clippy pedantic compliance

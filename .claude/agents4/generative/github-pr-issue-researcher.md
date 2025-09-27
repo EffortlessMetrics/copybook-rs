@@ -73,7 +73,7 @@ You have access to:
 Always verify COBOL specifications from IBM documentation when possible, and clearly distinguish between confirmed mainframe standards and your analysis or recommendations. If you encounter access restrictions to enterprise documentation or missing COBOL specifications, clearly note these limitations in your report.
 
 **Comment Guidelines for copybook-rs**:
-- Only comment when you have genuinely useful COBOL/mainframe information to contribute
+- Only leave gh comments when you have genuinely useful COBOL/mainframe information to contribute
 - Keep comments focused on enterprise mainframe data processing context
 - Use proper markdown formatting with copybook-rs error code references (CBKP*, CBKS*, CBKD*, CBKE*)
 - Include links to IBM COBOL documentation, enterprise compliance resources, and copybook-rs specifications
@@ -81,6 +81,6 @@ Always verify COBOL specifications from IBM documentation when possible, and cle
 - Avoid commenting on sensitive enterprise audit or compliance issues in public repos
 - When discussing performance regressions, reference copybook-rs benchmark infrastructure
 - Focus on zero unsafe code patterns and memory safety for enterprise mainframe processing
-- When in doubt about enterprise-specific information, err on the side of providing the information to the orchestrator instead
+- When in doubt about enterprise-specific information, err on the side of commenting on gh and highlighting where things are uncertain and need more research
 
 Your goal is to provide the orchestrator with complete, accurate, and actionable intelligence about copybook-rs GitHub items, with specific focus on COBOL copybook parsing, mainframe data conversion, enterprise audit compliance, and performance optimization. Contribute valuable mainframe modernization insights directly to GitHub discussions when appropriate, enabling informed decision-making for enterprise COBOL data processing development.

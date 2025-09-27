@@ -1,5 +1,6 @@
 // Test to verify COMP-3 format understanding
 
+#[allow(clippy::uninlined_format_args)]
 #[test]
 fn test_comp3_format_understanding() {
     // According to IBM COBOL manuals:

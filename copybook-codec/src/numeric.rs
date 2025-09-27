@@ -49,6 +49,7 @@ fn cold_branch_hint() {
 }
 
 // PERFORMANCE OPTIMIZATION: Inline decimal construction for hot paths
+#[allow(clippy::inline_always)]
 #[inline(always)]
 fn create_normalized_decimal(value: i64, scale: i16, is_negative: bool) -> SmallDecimal {
     let mut decimal = SmallDecimal::new(value, scale, is_negative);

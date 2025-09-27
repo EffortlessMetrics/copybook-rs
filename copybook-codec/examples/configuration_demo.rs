@@ -106,9 +106,11 @@ fn main() {
     println!("  Throughput: {:.2} MB/s", summary.throughput_mbps);
     println!("  Threads used: {}", summary.threads_used);
     #[allow(clippy::cast_precision_loss)]
-    {
-        let peak_memory_mb = summary.peak_memory_bytes.unwrap() as f64 / (1024.0 * 1024.0);
+    if let Some(peak_memory_bytes) = summary.peak_memory_bytes {
+        let peak_memory_mb = peak_memory_bytes as f64 / (1024.0 * 1024.0);
         println!("  Peak memory: {peak_memory_mb:.2} MB");
+    } else {
+        println!("  Peak memory: N/A");
     }
     println!("  Schema fingerprint: {}", summary.schema_fingerprint);
     println!("  Has errors: {}", summary.has_errors());

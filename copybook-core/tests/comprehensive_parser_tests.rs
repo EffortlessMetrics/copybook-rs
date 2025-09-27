@@ -282,7 +282,7 @@ fn test_valid_pic_clauses_comprehensive() {
                     "Field kind mismatch for {}: expected {:?}, got {:?}",
                     description, expected_kind, schema.fields[0].kind
                 );
-                unreachable!("Field kind mismatch for {}", description);
+                panic!("Field kind mismatch for {}", description);
             }
         }
     }

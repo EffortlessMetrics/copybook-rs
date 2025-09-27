@@ -3,6 +3,8 @@
 //! This crate provides utilities for generating synthetic COBOL copybooks
 //! and test data for comprehensive testing and validation.
 
+#![allow(clippy::missing_inline_in_public_items)]
+
 pub mod copybook;
 pub mod data;
 pub mod enterprise;

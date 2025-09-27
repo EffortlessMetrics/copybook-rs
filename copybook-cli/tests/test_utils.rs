@@ -12,8 +12,8 @@ use std::path::PathBuf;
 /// Returns an error if the current directory cannot be accessed or if the workspace root
 /// cannot be found by traversing parent directories.
 pub fn find_workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let mut current = std::env::current_dir()
-        .map_err(|e| format!("Failed to get current directory: {e}"))?;
+    let mut current =
+        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {e}"))?;
 
     loop {
         if current.join("Cargo.toml").exists()

@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };

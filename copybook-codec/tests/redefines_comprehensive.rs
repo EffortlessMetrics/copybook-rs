@@ -449,6 +449,6 @@ fn test_redefines_with_occurs() {
     if let Some(copybook_core::Occurs::Fixed { count }) = &items.occurs {
         assert_eq!(*count, 5);
     } else {
-        assert!(false, "Expected fixed OCCURS, got {:?}", items.occurs);
+        panic!("Expected fixed OCCURS, got {:?}", items.occurs);
     }
 }

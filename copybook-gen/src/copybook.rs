@@ -5,6 +5,14 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::fmt::Write;
 
+/// Safe writeln! wrapper that ignores write errors for String targets
+/// Since writing to a String should never fail in practice, we can safely ignore the Result
+macro_rules! safe_writeln {
+    ($dst:expr, $($arg:tt)*) => {{
+        let _ = writeln!($dst, $($arg)*);
+    }};
+}
+
 /// Field type for synthetic generation (currently unused but kept for completeness)
 #[derive(Debug, Clone, Copy)]
 pub enum FieldType {
@@ -76,7 +84,7 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                 } else {
                     rng.random_range(1..=50)
                 };
-                writeln!(copybook, "           05  ALPHA-{i:02}     PIC X({len}).").unwrap();
+                safe_writeln!(copybook, "           05  ALPHA-{i:02}     PIC X({len}).");
             }
             1 => {
                 let digits = if config.include_edge_cases && rng.random_bool(0.2) {
@@ -103,7 +111,7 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     format!("9({digits})")
                 };
 
-                writeln!(copybook, "           05  ZONED-{i:02}     PIC {pic}.").unwrap();
+                safe_writeln!(copybook, "           05  ZONED-{i:02}     PIC {pic}.");
             }
             2 => {
                 let digits = if config.include_edge_cases && rng.random_bool(0.2) {
@@ -119,7 +127,7 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     format!("9({digits}) COMP")
                 };
 
-                writeln!(copybook, "           05  BINARY-{i:02}    PIC {pic}.").unwrap();
+                safe_writeln!(copybook, "           05  BINARY-{i:02}    PIC {pic}.");
             }
             3 => {
                 let digits = if config.include_edge_cases && rng.random_bool(0.2) {
@@ -146,41 +154,38 @@ fn generate_simple_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
                     format!("9({digits}) COMP-3")
                 };
 
-                writeln!(copybook, "           05  PACKED-{i:02}    PIC {pic}.").unwrap();
+                safe_writeln!(copybook, "           05  PACKED-{i:02}    PIC {pic}.");
             }
             4 => {
                 // Group with sub-fields
-                writeln!(copybook, "           05  GROUP-{i:02}.").unwrap();
+                safe_writeln!(copybook, "           05  GROUP-{i:02}.");
                 let sub_count = rng.random_range(2..=4);
                 for j in 1..=sub_count {
                     let sub = rng.random_range(0..3);
                     match sub {
                         0 => {
                             let len = rng.random_range(5..=20);
-                            writeln!(copybook, "               10  SUB-{i}-{j}   PIC X({len}).")
-                                .unwrap();
+                            safe_writeln!(copybook, "               10  SUB-{i}-{j}   PIC X({len}).");
                         }
                         1 => {
                             let digits = rng.random_range(3..=7);
-                            writeln!(
+                            safe_writeln!(
                                 copybook,
                                 "               10  NUM-{i}-{j}   PIC 9({digits})."
-                            )
-                            .unwrap();
+                            );
                         }
                         2 => {
                             let digits = rng.random_range(3..=7);
-                            writeln!(
+                            safe_writeln!(
                                 copybook,
                                 "               10  PKD-{i}-{j}   PIC 9({digits}) COMP-3."
-                            )
-                            .unwrap();
+                            );
                         }
-                        _ => unreachable!(),
+                        _ => { /* Should not happen for range 0..3 */ }
                     }
                 }
             }
-            _ => unreachable!(),
+            _ => { /* Should not happen for range 0..5 */ }
         }
     }
 
@@ -231,19 +236,17 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
         rng.random_range(5..=20)
     };
 
-    writeln!(
+    safe_writeln!(
         copybook,
         "           05  SIMPLE-ARRAY    OCCURS {array_size} TIMES PIC X(10)."
-    )
-    .unwrap();
+    );
 
     // OCCURS with group
     let group_size = rng.random_range(3..=10);
-    writeln!(
+    safe_writeln!(
         copybook,
         "           05  GROUP-ARRAY     OCCURS {group_size} TIMES."
-    )
-    .unwrap();
+    );
     copybook.push_str("               10  ITEM-ID     PIC 9(5).\n");
     copybook.push_str("               10  ITEM-NAME   PIC X(20).\n");
     copybook.push_str("               10  ITEM-VALUE  PIC 9(7)V99 COMP-3.\n");
@@ -251,16 +254,14 @@ fn generate_occurs_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Strin
     // Nested OCCURS
     let outer_size = rng.random_range(2..=5);
     let inner_size = rng.random_range(3..=8);
-    writeln!(
+    safe_writeln!(
         copybook,
         "           05  NESTED-ARRAY    OCCURS {outer_size} TIMES."
-    )
-    .unwrap();
-    writeln!(
+    );
+    safe_writeln!(
         copybook,
         "               10  INNER-ARRAY OCCURS {inner_size} TIMES PIC 9(4) COMP."
-    )
-    .unwrap();
+    );
     copybook
 }
 
@@ -277,11 +278,10 @@ fn generate_odo_copybook(rng: &mut StdRng, _config: &GeneratorConfig) -> String 
     copybook.push_str("               10  ITEM-COUNT  PIC 9(3) COMP.\n");
     copybook.push_str("               10  TIMESTAMP   PIC X(20).\n");
 
-    writeln!(
+    safe_writeln!(
         copybook,
         "           05  VARIABLE-ITEMS  OCCURS {min_count} TO {max_count} TIMES"
-    )
-    .unwrap();
+    );
     copybook.push_str("                               DEPENDING ON ITEM-COUNT.\n");
     copybook.push_str("               10  ITEM-CODE   PIC X(8).\n");
     copybook.push_str("               10  ITEM-QTY    PIC 9(5) COMP-3.\n");
@@ -342,11 +342,10 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
 
     // OCCURS section with SYNCHRONIZED
     let array_size = rng.random_range(5..=15);
-    writeln!(
+    safe_writeln!(
         copybook,
         "           05  DETAIL-ITEMS    OCCURS {array_size} TIMES."
-    )
-    .unwrap();
+    );
     copybook.push_str("               10  ITEM-SEQ    PIC 9(3) COMP SYNCHRONIZED.\n");
     copybook.push_str("               10  ITEM-TYPE   PIC X(2).\n");
     copybook.push_str("               10  ITEM-AMT    PIC S9(9)V99 COMP-3.\n");
@@ -356,11 +355,10 @@ fn generate_complex_copybook(rng: &mut StdRng, config: &GeneratorConfig) -> Stri
     if config.include_edge_cases && rng.random_bool(0.5) {
         let max_notes = rng.random_range(10..=30);
         copybook.push_str("           05  NOTE-COUNT      PIC 9(3) COMP.\n");
-        writeln!(
+        safe_writeln!(
             copybook,
             "           05  NOTES           OCCURS 0 TO {max_notes} TIMES"
-        )
-        .unwrap();
+        );
         copybook.push_str("                               DEPENDING ON NOTE-COUNT.\n");
         copybook.push_str("               10  NOTE-TEXT   PIC X(80).\n");
         copybook.push_str("               10  NOTE-DATE   PIC 9(8).\n");
@@ -377,11 +375,11 @@ fn generate_display_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig)
     // Many DISPLAY fields for performance testing
     for i in 1..=50 {
         match i % 4 {
-            0 => writeln!(copybook, "           05  TEXT-{i:02}       PIC X(20).").unwrap(),
-            1 => writeln!(copybook, "           05  NUM-{i:02}        PIC 9(10).").unwrap(),
-            2 => writeln!(copybook, "           05  DECIMAL-{i:02}    PIC 9(8)V99.").unwrap(),
-            3 => writeln!(copybook, "           05  SIGNED-{i:02}     PIC S9(9).").unwrap(),
-            _ => unreachable!(),
+            0 => safe_writeln!(copybook, "           05  TEXT-{i:02}       PIC X(20)."),
+            1 => safe_writeln!(copybook, "           05  NUM-{i:02}        PIC 9(10)."),
+            2 => safe_writeln!(copybook, "           05  DECIMAL-{i:02}    PIC 9(8)V99."),
+            3 => safe_writeln!(copybook, "           05  SIGNED-{i:02}     PIC S9(9)."),
+            _ => { /* Should not happen for i % 4 */ }
         }
     }
     copybook
@@ -395,28 +393,25 @@ fn generate_comp3_heavy_copybook(_rng: &mut StdRng, _config: &GeneratorConfig) -
     // Many COMP-3 fields for performance testing
     for i in 1..=40 {
         match i % 3 {
-            0 => writeln!(
+            0 => safe_writeln!(
                 copybook,
                 "           05  PACKED-{i:02}     PIC 9(7) COMP-3."
-            )
-            .unwrap(),
-            1 => writeln!(
+            ),
+            1 => safe_writeln!(
                 copybook,
                 "           05  DECIMAL-{i:02}    PIC 9(9)V99 COMP-3."
-            )
-            .unwrap(),
-            2 => writeln!(
+            ),
+            2 => safe_writeln!(
                 copybook,
                 "           05  SIGNED-{i:02}     PIC S9(11)V99 COMP-3."
-            )
-            .unwrap(),
-            _ => unreachable!(),
+            ),
+            _ => { /* Should not happen for i % 3 */ }
         }
     }
 
     // Add some text fields for mixed workload
     for i in 1..=10 {
-        writeln!(copybook, "           05  TEXT-{i:02}       PIC X(15).").unwrap();
+        safe_writeln!(copybook, "           05  TEXT-{i:02}       PIC X(15).");
     }
     copybook
 }

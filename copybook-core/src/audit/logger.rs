@@ -466,7 +466,13 @@ mod tests {
         let logger = AuditLogger::new(config).expect("Failed to create audit logger");
 
         // Should be able to create logger with default config
-        assert!(logger.event_buffer.lock().expect("Lock should work").is_empty());
+        assert!(
+            logger
+                .event_buffer
+                .lock()
+                .expect("Lock should work")
+                .is_empty()
+        );
     }
 
     #[tokio::test]
@@ -537,7 +543,9 @@ mod tests {
         }
 
         // Validate chain integrity
-        let is_valid = logger.validate_integrity().expect("Failed to validate integrity");
+        let is_valid = logger
+            .validate_integrity()
+            .expect("Failed to validate integrity");
         assert!(is_valid);
     }
 
@@ -562,7 +570,9 @@ mod tests {
 
         let event = AuditEvent::new(AuditEventType::SecurityEvent, context, payload);
 
-        let cef_format = logger.format_as_cef(&event).expect("Failed to format as CEF");
+        let cef_format = logger
+            .format_as_cef(&event)
+            .expect("Failed to format as CEF");
         assert!(cef_format.starts_with("CEF:0|copybook-rs|Enterprise Audit|"));
         assert!(cef_format.contains("SecurityEvent"));
     }

@@ -119,10 +119,10 @@ pub mod audit {
 
     use serde::{Deserialize, Serialize};
 
-    /// Lightweight audit context stub
+    /// Lightweight audit context stub (zero-cost when audit disabled)
     #[derive(Debug, Clone, Default, Serialize, Deserialize)]
     pub struct AuditContext {
-        pub operation_id: String,
+        // Zero-sized for maximum performance when audit is disabled
     }
 
     impl AuditContext {
@@ -136,9 +136,8 @@ pub mod audit {
         }
         #[inline]
         #[must_use]
-        pub fn with_operation_id(mut self, id: impl Into<String>) -> Self {
-            self.operation_id = id.into();
-            self
+        pub fn with_operation_id(self, _id: impl Into<String>) -> Self {
+            self // No-op for zero-cost optimization
         }
         #[inline]
         #[must_use]

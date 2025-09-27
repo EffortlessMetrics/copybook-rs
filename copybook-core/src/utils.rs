@@ -20,6 +20,7 @@ impl<T> OptionExt<T> for Option<T> {
         self.ok_or_else(|| Error::new(code, message.into()))
     }
 
+    #[inline]
     fn ok_or_error(self, error: Error) -> Result<T> {
         self.ok_or(error)
     }
@@ -42,14 +43,17 @@ pub trait VecExt<T> {
 }
 
 impl<T> VecExt<T> for Vec<T> {
+    #[inline]
     fn pop_or_cbkp_error(&mut self, code: ErrorCode, message: impl Into<String>) -> Result<T> {
         self.pop().ok_or_cbkp_error(code, message)
     }
 
+    #[inline]
     fn last_or_cbkp_error(&self, code: ErrorCode, message: impl Into<String>) -> Result<&T> {
         self.last().ok_or_cbkp_error(code, message)
     }
 
+    #[inline]
     fn last_mut_or_cbkp_error(
         &mut self,
         code: ErrorCode,
@@ -79,6 +83,7 @@ pub trait SliceExt<T> {
 }
 
 impl<T> SliceExt<T> for [T] {
+    #[inline]
     fn get_or_cbkp_error(
         &self,
         index: usize,
@@ -88,6 +93,7 @@ impl<T> SliceExt<T> for [T] {
         self.get(index).ok_or_cbkp_error(code, message)
     }
 
+    #[inline]
     fn get_mut_or_cbkp_error(
         &mut self,
         index: usize,
@@ -104,6 +110,7 @@ pub mod safe_ops {
     use std::fmt::Write;
 
     /// Safely convert a string to usize, returning an error on failure
+    #[inline]
     pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
         s.parse().map_err(|_| {
             Error::new(
@@ -114,6 +121,7 @@ pub mod safe_ops {
     }
 
     /// Safely convert a string to isize, returning an error on failure
+    #[inline]
     pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
         s.parse().map_err(|_| {
             Error::new(
@@ -124,6 +132,7 @@ pub mod safe_ops {
     }
 
     /// Safely divide two numbers, checking for division by zero
+    #[inline]
     pub fn safe_divide(numerator: usize, denominator: usize, context: &str) -> Result<usize> {
         if denominator == 0 {
             return Err(Error::new(
@@ -208,6 +217,7 @@ pub mod safe_ops {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::{OptionExt, VecExt, safe_ops};
     use crate::error::ErrorCode;

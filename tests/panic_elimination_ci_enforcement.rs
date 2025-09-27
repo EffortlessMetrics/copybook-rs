@@ -5,6 +5,8 @@
 /// prevent panic reintroduction after elimination. Validates clippy restriction lints,
 /// static analysis guards, and automated detection pipelines for production safety.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::process::Command;
 use std::collections::HashMap;
 use std::path::Path;

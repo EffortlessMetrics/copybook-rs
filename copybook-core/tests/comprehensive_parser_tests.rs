@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(clippy::uninlined_format_args, clippy::too_many_lines)]
 //! Comprehensive parser tests covering all normative grammar rules and edge cases

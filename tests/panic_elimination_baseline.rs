@@ -5,6 +5,8 @@
 /// the entire copybook-rs workspace. These tests validate the current panic distribution
 /// and track elimination progress through the 3-phase implementation strategy.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::process::Command;
 use std::collections::HashMap;
 

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! AC7: Automated performance regression detection
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#performance-validation-infrastructure

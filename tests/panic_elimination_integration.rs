@@ -5,6 +5,8 @@
 /// the entire copybook-rs pipeline. Validates end-to-end COBOL processing with structured
 /// error handling, enterprise scenarios, and golden fixture compatibility.
 
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(test)]
 mod integration_panic_safety {
     use copybook_core::{parse_copybook, Schema};

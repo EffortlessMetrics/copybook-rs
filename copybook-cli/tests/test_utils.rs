@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Test utilities for finding fixture files
 
 use assert_cmd::Command;

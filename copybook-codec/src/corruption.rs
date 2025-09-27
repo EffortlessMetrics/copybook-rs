@@ -187,6 +187,7 @@ fn ascii_char_or_dot(byte: u8) -> char {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
 

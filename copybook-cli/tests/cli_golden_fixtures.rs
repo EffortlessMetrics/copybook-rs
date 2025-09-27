@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! CLI integration tests using golden fixtures
 //!
 //! These tests verify that the CLI commands work correctly with real fixtures

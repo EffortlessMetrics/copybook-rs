@@ -5,6 +5,8 @@
 /// to provide comprehensive coverage of the 243 identified panic scenarios
 /// across the copybook-rs workspace while maintaining enterprise performance.
 
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use copybook_core::parse_copybook;
 use copybook_codec::{decode_record, DecodeOptions, Codepage, JsonNumberMode};
 use std::time::Instant;

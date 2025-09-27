@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(
     clippy::nonminimal_bool,
     clippy::cast_precision_loss,

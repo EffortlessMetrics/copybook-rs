@@ -1,8 +1,10 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(
     clippy::too_many_lines,
     clippy::items_after_statements,
     clippy::uninlined_format_args,
-    clippy::must_use_candidate
+    clippy::must_use_candidate,
+    clippy::panic
 )]
 
 /*!

@@ -5,6 +5,8 @@
 /// panic-prone patterns. All error paths use existing CBKP*/CBKS*/CBKD*/CBKE* codes
 /// with enhanced context information for enterprise debugging and audit trails.
 
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(test)]
 mod error_path_validation {
     use copybook_core::{parse_copybook, error::{Error, ErrorCode, Result}};

@@ -4,7 +4,9 @@
 /// This module provides comprehensive unit testing for panic elimination in numeric.rs
 /// (20 panic occurrences target) and `zoned_overpunch.rs` (24 panic occurrences target).
 /// Validates panic-safe numeric conversion with CBKD* error codes and performance preservation.
+
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod numeric_hotspot_safety {
     use copybook_codec::{
         Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
@@ -278,6 +280,7 @@ mod numeric_hotspot_safety {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod zoned_overpunch_hotspot_safety {
     use copybook_codec::{Codepage, DecodeOptions, decode_record};
     use copybook_core::ErrorCode;

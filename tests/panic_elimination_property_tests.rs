@@ -6,6 +6,7 @@
 /// never panic regardless of input data patterns, ensuring enterprise reliability.
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod property_panic_safety {
     use copybook_core::{parse_copybook, Schema};
     use copybook_codec::{decode_record, encode_record, DecodeOptions, EncodeOptions, Codepage, JsonNumberMode, RecordFormat};

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Test scaffolding for binary round-trip fidelity - Issue #48
 //!
 //! Tests binary round-trip spec: SPEC.manifest.yml#validation-round-trip-fidelity

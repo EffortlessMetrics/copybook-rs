@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Test scaffolding for zoned encoding error codes - Issue #48
 //!
 //! Tests error handling spec: SPEC.manifest.yml#error-codes-new-cbkd-codes

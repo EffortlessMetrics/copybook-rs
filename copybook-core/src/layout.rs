@@ -98,9 +98,8 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
 /// Collect information about REDEFINES relationships
 fn collect_redefines_info(fields: &[Field], context: &mut LayoutContext) {
     for field in fields {
-        if field.redefines_of.is_some() {
+        if let Some(target) = field.redefines_of.as_ref() {
             // Initialize cluster for the target if not already present
-            let target = field.redefines_of.as_ref().unwrap();
             if !context.redefines_clusters.contains_key(target) {
                 context.redefines_clusters.insert(target.clone(), (0, 0));
             }
@@ -568,6 +567,7 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::schema::{Field, FieldKind, Occurs};

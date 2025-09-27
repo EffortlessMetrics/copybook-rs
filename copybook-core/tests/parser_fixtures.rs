@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]
 //! Parser fixture tests for fixed/free form, continuation, comments, and edited PIC errors
 //!

@@ -389,7 +389,11 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
             }
         } else if unicode_point == 0x09 || unicode_point == 0x0A || unicode_point == 0x0D {
             // Valid control characters: tab, LF, CR
-            result.push(char::from_u32(unicode_point).unwrap());
+            if let Some(ch) = char::from_u32(unicode_point) {
+                result.push(ch);
+            } else {
+                result.push('\u{FFFD}'); // Unicode replacement character
+            }
         } else {
             // Unmappable control character
             match policy {
@@ -432,10 +436,7 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     let mut reverse_table = std::collections::HashMap::new();
     for (ebcdic_byte, &unicode_point) in table.iter().enumerate() {
         if let Some(ch) = char::from_u32(unicode_point) {
-            reverse_table.insert(
-                ch,
-                u8::try_from(ebcdic_byte).expect("enumerate produces values within u8 range"),
-            );
+            reverse_table.insert(ch, u8::try_from(ebcdic_byte).unwrap_or(0));
         }
     }
 

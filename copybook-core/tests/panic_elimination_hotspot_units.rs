@@ -5,6 +5,7 @@
 /// modules. Targets identified hotspots: parser.rs (17 panics), layout.rs (9 panics),
 /// pic.rs (8 panics), and validates panic-safe error handling with structured error codes.
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod hotspot_parser_safety {
     use copybook_core::{ErrorCode, parse_copybook};
 
@@ -191,6 +192,7 @@ mod hotspot_parser_safety {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod hotspot_layout_safety {
     use copybook_core::{ErrorCode, parse_copybook};
 
@@ -367,6 +369,7 @@ mod hotspot_layout_safety {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod hotspot_pic_safety {
     use copybook_core::{ErrorCode, parse_copybook};
 
@@ -512,6 +515,7 @@ mod hotspot_pic_safety {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod hotspot_integration_safety {
     use copybook_core::{ErrorCode, parse_copybook};
 

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Minimal Enterprise Audit System Test Scaffolding
 //!
 //! Tests feature spec: enterprise-audit-system-spec.md

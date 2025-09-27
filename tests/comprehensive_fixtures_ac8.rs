@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! AC8: Comprehensive real-world test fixtures
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#real-world-data-integration-framework

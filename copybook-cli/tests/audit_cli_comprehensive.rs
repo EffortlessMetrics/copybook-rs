@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Comprehensive CLI Audit Command Tests
 //!
 //! Tests feature spec: enterprise-audit-system-spec.md#cli-integration

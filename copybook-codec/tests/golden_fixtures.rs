@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Golden fixture tests for copybook-rs
 //!
 //! These tests verify that the library produces consistent, expected outputs

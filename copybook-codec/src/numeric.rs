@@ -971,31 +971,34 @@ pub fn decode_zoned_decimal_with_encoding(
 ///
 /// Returns an error if the packed decimal data contains invalid nibbles.
 /// All errors include proper context information (record_index, field_path, byte_offset).
-#[inline]
+#[inline(always)]
 pub fn decode_packed_decimal(
     data: &[u8],
     digits: u16,
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
-    // CRITICAL PERFORMANCE OPTIMIZATION: SIMD-friendly dual-path decoder
+    // CRITICAL PERFORMANCE OPTIMIZATION: Ultra-fast path with minimal safety overhead
     let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
-    // PERFORMANCE CRITICAL: Fast-path length validation with branch prediction hints
-    if unlikely(data.len() != expected_bytes) {
+    // PERFORMANCE CRITICAL: Single branch validation optimized for happy path
+    if likely(data.len() == expected_bytes && !data.is_empty() && digits <= 18) {
+        // ULTRA-FAST PATH: Most common enterprise cases with minimal validation
+        return decode_packed_decimal_fast_path(data, digits, scale, signed);
+    }
+
+    // FALLBACK PATH: Full validation for edge cases
+    if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
             "Packed decimal data length mismatch".to_string(),
         ));
     }
 
-    // PERFORMANCE CRITICAL: Fast empty check to avoid processing overhead
-    if unlikely(data.is_empty()) {
+    if data.is_empty() {
         return Ok(SmallDecimal::zero(scale));
     }
 
-    // CRITICAL FIX: Check for field sizes that exceed i64 capacity (approximately 18-19 digits)
-    // Large COBOL COMP-3 fields like S9(18)V9(4) can overflow i64 during processing
-    if unlikely(digits > 18) {
+    if digits > 18 {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
             format!(
@@ -1005,13 +1008,25 @@ pub fn decode_packed_decimal(
         ));
     }
 
-    // CRITICAL PERFORMANCE OPTIMIZATION: Hot-path optimized decoder
-    // Simplified high-performance approach with minimal branching
+    // Delegate to ultra-fast path
+    decode_packed_decimal_fast_path(data, digits, scale, signed)
+}
 
+/// Ultra-optimized COMP-3 decoder for hot path performance
+///
+/// This function is highly optimized for the 95% case of enterprise COBOL processing
+/// where COMP-3 fields are 1-5 bytes and well-formed.
+#[inline(always)]
+fn decode_packed_decimal_fast_path(
+    data: &[u8],
+    digits: u16,
+    scale: i16,
+    signed: bool,
+) -> Result<SmallDecimal> {
     let mut value = 0i64;
 
-    // CRITICAL PERFORMANCE OPTIMIZATION: Fast path unrolling for common enterprise cases
-    // Most COBOL COMP-3 fields are 1-3 bytes (PIC 9(1)V99 COMP-3, PIC S9(7)V99 COMP-3, etc)
+    // CRITICAL PERFORMANCE OPTIMIZATION: Ultra-fast unrolled decoder
+    // Optimized for enterprise mainframe patterns (1-5 byte COMP-3 fields)
     match data.len() {
         1 => {
             // FASTEST PATH: Single byte COMP-3 (PIC 9(1) COMP-3, PIC S9(1) COMP-3)
@@ -1183,22 +1198,23 @@ pub fn decode_packed_decimal(
             return Ok(decimal);
         }
         _ => {
-            // PERFORMANCE OPTIMIZATION: General case with correct padding logic
-            // Revert to a simpler, more correct approach that preserves the original logic
+            // ULTRA-FAST GENERAL CASE: Optimized for 4+ byte COMP-3 fields
+            // Minimal branching, streamlined validation, optimized for throughput
             let total_nibbles = digits + 1;
-            let has_padding = (total_nibbles % 2) == 1;
+            let has_padding = (total_nibbles & 1) == 1;
+            let digit_count = digits as usize;
 
-            // PERFORMANCE CRITICAL: Correct nibble processing with minimal overhead
-            let mut nibble_index = 0;
+            // PERFORMANCE CRITICAL: Process all bytes except last in tight loop
+            let (last_byte, prefix_bytes) = data.split_last().unwrap();
+            let mut digit_pos = 0;
 
-            for (byte_idx, &byte) in data.iter().enumerate() {
+            // Process prefix bytes (all digits)
+            for &byte in prefix_bytes.iter() {
                 let high_nibble = (byte >> 4) & 0x0F;
                 let low_nibble = byte & 0x0F;
-                let is_last_byte = byte_idx == data.len() - 1;
 
-                // Process high nibble (skip if padding)
-                if !(nibble_index == 0 && has_padding) {
-                    // This is a digit nibble
+                // High nibble: skip padding, otherwise process as digit
+                if likely(!(digit_pos == 0 && has_padding)) {
                     if unlikely(high_nibble > 9) {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -1207,41 +1223,57 @@ pub fn decode_packed_decimal(
                     }
                     value = value * 10 + i64::from(high_nibble);
                 }
-                nibble_index += 1;
+                digit_pos += 1;
 
-                // Process low nibble
-                if is_last_byte {
-                    // Last nibble is the sign
-                    if signed {
-                        let is_negative = match low_nibble {
-                            0xA | 0xC | 0xE | 0xF => false,
-                            0xB | 0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    "Invalid sign nibble".to_string(),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
-                    } else if unlikely(low_nibble != 0xF) {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            "Invalid unsigned sign nibble".to_string(),
-                        ));
-                    }
-                } else {
-                    // This is a digit nibble
-                    if unlikely(low_nibble > 9) {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            "Invalid digit nibble".to_string(),
-                        ));
-                    }
-                    value = value * 10 + i64::from(low_nibble);
+                // Low nibble: always a digit in prefix bytes
+                if unlikely(low_nibble > 9) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        "Invalid digit nibble".to_string(),
+                    ));
                 }
-                nibble_index += 1;
+                value = value * 10 + i64::from(low_nibble);
+                digit_pos += 1;
             }
+
+            // Process last byte: high nibble = last digit, low nibble = sign
+            let last_high = (*last_byte >> 4) & 0x0F;
+            let sign_nibble = *last_byte & 0x0F;
+
+            // Process final digit if not padding
+            if likely(digit_pos < digit_count) {
+                if unlikely(last_high > 9) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        "Invalid digit nibble".to_string(),
+                    ));
+                }
+                value = value * 10 + i64::from(last_high);
+            }
+
+            // Process sign
+            let is_negative = if signed {
+                match sign_nibble {
+                    0xA | 0xC | 0xE | 0xF => false,
+                    0xB | 0xD => true,
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            "Invalid sign nibble".to_string(),
+                        ));
+                    }
+                }
+            } else {
+                if unlikely(sign_nibble != 0xF) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        "Invalid unsigned sign nibble".to_string(),
+                    ));
+                }
+                false
+            };
+
+            return Ok(create_normalized_decimal(value, scale, is_negative));
         }
     }
 
@@ -2555,6 +2587,7 @@ pub fn decode_zoned_decimal_to_string_with_scratch(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
 

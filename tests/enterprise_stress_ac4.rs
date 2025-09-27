@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! AC4: Enterprise-scale stress testing
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#enterprise-scale-testing-architecture

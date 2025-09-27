@@ -5,6 +5,8 @@
 /// panic elimination. All existing public APIs must maintain identical behavior,
 /// signatures, and error semantics while internal implementations become panic-safe.
 
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(test)]
 mod api_compatibility {
     use copybook_core::{parse_copybook, Schema, Field, FieldKind, error::{Error, ErrorCode, Result}};

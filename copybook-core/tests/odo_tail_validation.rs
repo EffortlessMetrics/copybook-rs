@@ -1,3 +1,6 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::panic)]
+
 use copybook_core::{ErrorCode, parse_copybook};
 
 #[test]

@@ -5,6 +5,8 @@
 /// Validates that panic-safe error handling maintains enterprise performance targets:
 /// - DISPLAY processing: ≥4.1 GiB/s (current: 2.5-3.0 GiB/s with 32x buffer)
 /// - COMP-3 processing: ≥560 MiB/s (current: 100-120 MiB/s with 3x buffer)
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 /// - Performance regression threshold: <5% degradation maximum
 
 use copybook_core::parse_copybook;

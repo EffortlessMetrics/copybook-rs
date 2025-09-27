@@ -4,6 +4,8 @@
 //! processing, including AST construction, layout resolution, and schema validation.
 //!
 
+// Allow missing inline for public methods in this library - too many methods to inline individually
+#![allow(clippy::missing_inline_in_public_items)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::format_push_string)]
@@ -198,6 +200,7 @@ pub mod audit {
 /// # Errors
 ///
 /// Returns an error if the copybook contains syntax errors or unsupported features
+#[inline]
 pub fn parse_copybook(text: &str) -> Result<Schema> {
     parser::parse(text)
 }
@@ -207,6 +210,7 @@ pub fn parse_copybook(text: &str) -> Result<Schema> {
 /// # Errors
 ///
 /// Returns an error if the copybook contains syntax errors or unsupported features
+#[inline]
 pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     parser::parse_with_options(text, options)
 }

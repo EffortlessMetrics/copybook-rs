@@ -1,96 +1,63 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://copybook-rs.org/schemas/record-format.json",
   "title": "COBOL Record Format Schema",
-  "description": "JSON schema for decoded COBOL record data",
+  "description": "JSON schema for decoded COBOL record format",
   "type": "object",
-  "properties": {
-    "__schema_id": {
+  "patternProperties": {
+    "^[A-Z][A-Z0-9_-]*(__dup[0-9]+)?$": {
+      "description": "Field names follow COBOL conventions with duplicate disambiguation"
+    },
+    "^_filler_[0-9]+$": {
+      "description": "FILLER fields with byte offset"
+    },
+    "^__raw_b64$": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+      "description": "Base64-encoded raw record data"
+    },
+    "^__schema_id$": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$",
-      "description": "SHA-256 fingerprint of the schema used for decoding"
+      "description": "Schema fingerprint"
     },
-    "__record_index": {
+    "^__record_index$": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1-based record number"
+    },
+    "^__offset$": {
       "type": "integer",
       "minimum": 0,
-      "description": "Zero-based record number in the file"
+      "description": "Byte offset in file"
     },
-    "__offset": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Byte offset of record in the file"
-    },
-    "__length": {
+    "^__length$": {
       "type": "integer",
       "minimum": 0,
       "description": "Record length in bytes"
-    },
-    "__raw_b64": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9+/]*={0,2}$",
-      "description": "Base64-encoded raw record bytes (when --emit-raw is used)"
     }
   },
-  "patternProperties": {
-    "^[A-Z][A-Z0-9_]*(?:__dup[2-9])?$": {
-      "description": "COBOL field name (with optional duplicate suffix)",
-      "oneOf": [
-        {
-          "type": "string",
-          "description": "Alphanumeric field or decimal number as string"
+  "additionalProperties": {
+    "oneOf": [
+      {
+        "type": "string",
+        "description": "Alphanumeric or decimal fields"
+      },
+      {
+        "type": "number",
+        "description": "Binary integer fields"
+      },
+      {
+        "type": "array",
+        "items": {
+          "type": "object"
         },
-        {
-          "type": "number",
-          "description": "Binary integer field"
-        },
-        {
-          "type": "array",
-          "description": "OCCURS array field",
-          "items": {
-            "$ref": "#"
-          }
-        },
-        {
-          "type": "object",
-          "description": "Group field",
-          "$ref": "#"
-        }
-      ]
-    },
-    "^_filler_[0-9]+$": {
-      "type": "string",
-      "description": "FILLER field at specified byte offset (when --emit-filler is used)"
-    }
-  },
-  "additionalProperties": false,
-  "$defs": {
-    "decimal_string": {
-      "type": "string",
-      "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
-      "description": "Decimal number as string for lossless precision"
-    },
-    "binary_integer": {
-      "type": "number",
-      "multipleOf": 1,
-      "minimum": -9223372036854775808,
-      "maximum": 9223372036854775807,
-      "description": "Binary integer within 64-bit range"
-    },
-    "alphanum_field": {
-      "type": "string",
-      "description": "Alphanumeric field with preserved spaces"
-    },
-    "occurs_array": {
-      "type": "array",
-      "description": "Array from OCCURS clause",
-      "items": {
-        "oneOf": [
-          {"$ref": "#/$defs/decimal_string"},
-          {"$ref": "#/$defs/binary_integer"},
-          {"$ref": "#/$defs/alphanum_field"},
-          {"$ref": "#"}
-        ]
+        "description": "OCCURS arrays"
+      },
+      {
+        "type": "object",
+        "description": "Group fields or nested structures"
       }
-    }
+    ]
   }
 }

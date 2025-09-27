@@ -62,6 +62,10 @@ anyhow = "1.0.100"
 rand = "0.9.2"
 rand_core = "0.6"
 
+# Enterprise audit dependencies
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+
 [profile.release]
 lto = true
 codegen-units = 1

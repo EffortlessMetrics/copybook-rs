@@ -1,0 +1,41 @@
+# Rust formatting configuration for copybook-rs
+# Enforces consistent formatting across the enterprise COBOL data processing workspace
+
+# Edition and stability
+edition = "2024"
+unstable_features = false
+
+# Layout and indentation
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+
+# Function formatting
+fn_params_layout = "Tall"
+brace_style = "SameLineWhere"
+
+# Import formatting
+imports_layout = "Mixed"
+imports_granularity = "Crate"
+reorder_imports = true
+reorder_modules = true
+
+# Comments and documentation
+format_code_in_doc_comments = true
+normalize_comments = true
+normalize_doc_attributes = true
+
+# String formatting
+format_strings = true
+
+# Control flow
+control_brace_style = "AlwaysSameLine"
+match_block_trailing_comma = false
+
+# Trailing elements
+trailing_comma = "Vertical"
+trailing_semicolon = true
+
+# Miscellaneous
+use_small_heuristics = "Default"
+format_generated_files = false

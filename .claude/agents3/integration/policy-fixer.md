@@ -25,7 +25,7 @@ You are a policy compliance specialist focused exclusively on fixing simple, mec
    - For formatting issues: Fix markdown issues, maintain copybook-rs doc standards
    - For file references: Update to correct copybook-rs 5-crate workspace paths (copybook-core/src/, copybook-codec/src/, copybook-cli/src/, copybook-gen/src/, copybook-bench/src/)
    - For Cargo.toml issues: Fix configuration validation problems using `cargo check --workspace`
-   - For CHANGELOG.md: Correct semver classification or migration notes
+   - For docs/CHANGELOG.md: Correct semver classification or migration notes
 4. **Verify Fix**: Ensure your change addresses the violation without introducing new issues using:
    - `cargo fmt --all --check` (format validation)
    - `cargo clippy --workspace --all-targets --all-features -- -D warnings` (lint validation)

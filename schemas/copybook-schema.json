@@ -1,283 +1,216 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://copybook-rs.org/schemas/copybook-schema.json",
   "title": "COBOL Copybook Schema",
-  "description": "JSON schema for parsed COBOL copybook structure",
+  "description": "JSON schema for parsed COBOL copybook structures",
   "type": "object",
-  "required": ["version", "fingerprint", "fields"],
+  "required": ["fields", "fingerprint"],
   "properties": {
-    "version": {
-      "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Schema version in semver format"
-    },
-    "fingerprint": {
-      "type": "string",
-      "pattern": "^[a-f0-9]{64}$",
-      "description": "SHA-256 hash of canonical schema for provenance tracking"
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/field"
+      }
     },
     "lrecl_fixed": {
       "type": ["integer", "null"],
       "minimum": 1,
-      "maximum": 16777216,
-      "description": "Fixed record length in bytes (null for variable-length)"
+      "description": "Fixed record length in bytes, null for variable records"
     },
     "tail_odo": {
       "type": ["object", "null"],
-      "description": "Information about tail ODO array if present",
       "properties": {
         "field_path": {
-          "type": "string",
-          "description": "Dot-separated path to ODO array field"
+          "type": "string"
         },
         "counter_path": {
-          "type": "string", 
-          "description": "Dot-separated path to counter field"
+          "type": "string"
         },
         "min_count": {
           "type": "integer",
-          "minimum": 0,
-          "description": "Minimum array count"
+          "minimum": 0
         },
         "max_count": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Maximum array count"
+          "minimum": 1
         }
       },
-      "required": ["field_path", "counter_path", "min_count", "max_count"],
-      "additionalProperties": false
+      "required": ["field_path", "counter_path", "min_count", "max_count"]
     },
-    "fields": {
-      "type": "array",
-      "minItems": 1,
-      "description": "Hierarchical list of fields in schema order",
-      "items": {
-        "$ref": "#/$defs/field"
-      }
-    },
-    "metadata": {
-      "type": "object",
-      "description": "Additional metadata about the schema",
-      "properties": {
-        "source_file": {
-          "type": "string",
-          "description": "Original copybook filename"
-        },
-        "parsed_at": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp when schema was parsed"
-        },
-        "parser_version": {
-          "type": "string",
-          "description": "Version of copybook-rs used for parsing"
-        },
-        "total_fields": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Total number of fields in schema"
-        },
-        "max_record_size": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Maximum possible record size in bytes"
-        }
-      },
-      "additionalProperties": true
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 fingerprint of canonical schema"
     }
   },
-  "additionalProperties": false,
-  "$defs": {
+  "definitions": {
     "field": {
       "type": "object",
       "required": ["path", "kind", "offset", "len"],
       "properties": {
         "path": {
           "type": "string",
-          "pattern": "^[A-Z][A-Z0-9_]*(?:\\.[A-Z][A-Z0-9_]*)*$",
-          "description": "Dot-separated field path (e.g., ROOT.CUSTOMER.ID)"
+          "description": "Dot-separated field path"
         },
         "kind": {
-          "$ref": "#/$defs/field_kind"
+          "$ref": "#/definitions/fieldKind"
         },
         "offset": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 16777216,
-          "description": "Byte offset within record"
+          "description": "Byte offset from record start"
         },
         "len": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 16777216,
           "description": "Field length in bytes"
-        },
-        "level": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 49,
-          "description": "COBOL level number"
         },
         "redefines_of": {
           "type": ["string", "null"],
-          "pattern": "^[A-Z][A-Z0-9_]*(?:\\.[A-Z][A-Z0-9_]*)*$",
-          "description": "Path of redefined field (if applicable)"
+          "description": "Path of field this redefines"
         },
         "occurs": {
-          "type": ["object", "null"],
-          "description": "Array information (if applicable)",
-          "oneOf": [
-            {
-              "properties": {
-                "type": {
-                  "const": "fixed"
-                },
-                "count": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 65535,
-                  "description": "Fixed array count"
-                }
-              },
-              "required": ["type", "count"],
-              "additionalProperties": false
-            },
-            {
-              "properties": {
-                "type": {
-                  "const": "odo"
-                },
-                "min": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "Minimum array count"
-                },
-                "max": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "description": "Maximum array count"
-                },
-                "counter_path": {
-                  "type": "string",
-                  "pattern": "^[A-Z][A-Z0-9_]*(?:\\.[A-Z][A-Z0-9_]*)*$",
-                  "description": "Path to counter field"
-                }
-              },
-              "required": ["type", "min", "max", "counter_path"],
-              "additionalProperties": false
-            }
-          ]
+          "$ref": "#/definitions/occurs"
         },
         "sync": {
           "type": ["integer", "null"],
-          "minimum": 0,
-          "maximum": 8,
-          "description": "Alignment padding bytes (if SYNCHRONIZED)"
-        },
-        "blank_when_zero": {
-          "type": "boolean",
-          "default": false,
-          "description": "Whether field has BLANK WHEN ZERO clause"
+          "description": "Alignment padding bytes if SYNCHRONIZED"
         }
-      },
-      "additionalProperties": false
+      }
     },
-    "field_kind": {
-      "type": "object",
-      "description": "Field type and characteristics",
+    "fieldKind": {
       "oneOf": [
         {
+          "type": "object",
           "properties": {
-            "type": {
-              "const": "alphanum"
-            },
-            "len": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 65535,
-              "description": "Character length"
+            "Alphanum": {
+              "type": "object",
+              "properties": {
+                "len": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": ["len"]
             }
           },
-          "required": ["type", "len"],
-          "additionalProperties": false
+          "required": ["Alphanum"]
         },
         {
+          "type": "object",
           "properties": {
-            "type": {
-              "const": "zoned_decimal"
-            },
-            "digits": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 31,
-              "description": "Total number of digits"
-            },
-            "scale": {
-              "type": "integer",
-              "minimum": -31,
-              "maximum": 31,
-              "description": "Number of decimal places (negative for scaling)"
-            },
-            "signed": {
-              "type": "boolean",
-              "description": "Whether field is signed"
+            "ZonedDecimal": {
+              "type": "object",
+              "properties": {
+                "digits": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 31
+                },
+                "scale": {
+                  "type": "integer",
+                  "minimum": -31,
+                  "maximum": 31
+                },
+                "signed": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["digits", "scale", "signed"]
             }
           },
-          "required": ["type", "digits", "scale", "signed"],
-          "additionalProperties": false
+          "required": ["ZonedDecimal"]
         },
         {
+          "type": "object",
           "properties": {
-            "type": {
-              "const": "binary_int"
-            },
-            "bits": {
-              "type": "integer",
-              "enum": [16, 32, 64],
-              "description": "Bit width of binary integer"
-            },
-            "signed": {
-              "type": "boolean",
-              "description": "Whether field is signed"
+            "BinaryInt": {
+              "type": "object",
+              "properties": {
+                "bits": {
+                  "type": "integer",
+                  "enum": [16, 32, 64]
+                },
+                "signed": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["bits", "signed"]
             }
           },
-          "required": ["type", "bits", "signed"],
-          "additionalProperties": false
+          "required": ["BinaryInt"]
         },
         {
+          "type": "object",
           "properties": {
-            "type": {
-              "const": "packed_decimal"
-            },
-            "digits": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 31,
-              "description": "Total number of digits"
-            },
-            "scale": {
-              "type": "integer",
-              "minimum": -31,
-              "maximum": 31,
-              "description": "Number of decimal places (negative for scaling)"
-            },
-            "signed": {
-              "type": "boolean",
-              "description": "Whether field is signed"
+            "PackedDecimal": {
+              "type": "object",
+              "properties": {
+                "digits": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 31
+                },
+                "scale": {
+                  "type": "integer",
+                  "minimum": -31,
+                  "maximum": 31
+                },
+                "signed": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["digits", "scale", "signed"]
             }
           },
-          "required": ["type", "digits", "scale", "signed"],
-          "additionalProperties": false
+          "required": ["PackedDecimal"]
         },
         {
+          "type": "string",
+          "enum": ["Group"]
+        }
+      ]
+    },
+    "occurs": {
+      "oneOf": [
+        {
+          "type": "object",
           "properties": {
-            "type": {
-              "const": "group"
+            "Fixed": {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": ["count"]
             }
           },
-          "required": ["type"],
-          "additionalProperties": false
+          "required": ["Fixed"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ODO": {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "counter_path": {
+                  "type": "string"
+                }
+              },
+              "required": ["min", "max", "counter_path"]
+            }
+          },
+          "required": ["ODO"]
         }
       ]
     }

@@ -108,13 +108,17 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
 
     // Decode with current implementation (no preservation yet)
     let binary_path = std::env::var("CARGO_BIN_EXE_copybook").unwrap_or_else(|_| {
-        // Fallback to the built binary
+        // Fallback to the built binary, try debug first then release
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
         let project_root = std::path::Path::new(&manifest_dir).parent().unwrap();
-        project_root
-            .join("target/release/copybook")
-            .to_string_lossy()
-            .to_string()
+        let debug_path = project_root.join("target/debug/copybook");
+        let release_path = project_root.join("target/release/copybook");
+
+        if debug_path.exists() {
+            debug_path.to_string_lossy().to_string()
+        } else {
+            release_path.to_string_lossy().to_string()
+        }
     });
 
     let decode_output = Command::new(&binary_path)

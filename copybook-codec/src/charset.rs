@@ -3,10 +3,9 @@
 //! This module provides EBCDIC to UTF-8 conversion using static lookup tables
 //! for performance.
 
-use crate::numeric::{likely, unlikely};
+use crate::numeric::likely;
 use crate::options::{Codepage, UnmappablePolicy};
 use copybook_core::{Error, ErrorCode, Result};
-use tracing::warn;
 
 // EBCDIC to Unicode lookup tables for supported code pages
 // Each table maps EBCDIC byte values (0-255) to Unicode code points
@@ -366,7 +365,7 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
     let mut result = String::with_capacity(data.len());
 
     for &byte in data {
-        let unicode_point = unsafe { *table.get_unchecked(byte as usize) };
+        let unicode_point = table[byte as usize];
 
         // Fast path: Most EBCDIC characters map to valid printable characters
         if likely(unicode_point >= 0x20) {

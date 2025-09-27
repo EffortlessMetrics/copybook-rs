@@ -65,7 +65,7 @@ Routing
 3. **Organize copybook-rs Fixture Structure**: Place fixtures following copybook-rs storage conventions:
    - `fixtures/copybooks/` - COBOL copybook test files with various field layouts and PIC clause scenarios
    - `fixtures/data/` - Binary data files for encoding/decoding validation with enterprise data samples
-   - `fixtures/schemas/` - Parsed copybook schemas for validation testing with field layout verification
+   - `schemas/` - Parsed copybook schemas for validation testing with field layout verification
    - `fixtures/codepages/` - Character set conversion test data with EBCDIC/ASCII sample files
    - `fixtures/cli/` - CLI processing test data with command arguments and file processing scenarios
    - `fixtures/enterprise/` - Large-scale test datasets for performance validation with mainframe compatibility

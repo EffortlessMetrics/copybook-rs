@@ -94,6 +94,8 @@
 //! }
 //! ```
 
+#[cfg(feature = "audit")]
+pub mod audit;
 pub mod error;
 pub mod error_reporter;
 pub mod layout;
@@ -106,6 +108,88 @@ pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, ErrorSummary};
 pub use parser::ParseOptions;
 pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
+
+#[cfg(feature = "audit")]
+pub use audit::*;
+
+// Performance-optimized audit stubs when audit feature is disabled
+#[cfg(not(feature = "audit"))]
+pub mod audit {
+    //! No-op audit stubs for performance-critical builds
+
+    use serde::{Deserialize, Serialize};
+
+    /// Lightweight audit context stub (zero-cost when audit disabled)
+    #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    pub struct AuditContext {
+        // Zero-sized for maximum performance when audit is disabled
+    }
+
+    impl AuditContext {
+        #[inline]
+        pub fn new() -> Self {
+            Self::default()
+        }
+        #[inline]
+        pub fn new_lightweight() -> Self {
+            Self::default()
+        }
+        #[inline]
+        #[must_use]
+        pub fn with_operation_id(self, _id: impl Into<String>) -> Self {
+            self // No-op for zero-cost optimization
+        }
+        #[inline]
+        #[must_use]
+        pub fn with_user(self, _user: impl Into<String>) -> Self {
+            self
+        }
+        #[inline]
+        #[must_use]
+        pub fn with_security_classification(self, _classification: SecurityClassification) -> Self {
+            self
+        }
+        #[inline]
+        #[must_use]
+        pub fn with_compliance_profile(self, _profile: ComplianceProfile) -> Self {
+            self
+        }
+        #[inline]
+        #[must_use]
+        pub fn with_metadata(self, _key: impl Into<String>, _value: impl Into<String>) -> Self {
+            self
+        }
+        #[inline]
+        #[must_use]
+        pub fn create_lightweight_child_context(&self, _id: impl Into<String>) -> Self {
+            // Return clone for no-op performance - avoid any allocations
+            self.clone()
+        }
+    }
+
+    /// Stub compliance profile enum
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum ComplianceProfile {
+        SOX,
+        HIPAA,
+        GDPR,
+        PCIQDSS,
+    }
+
+    /// Stub security classification enum
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum SecurityClassification {
+        Public,
+        Internal,
+        Confidential,
+        MaterialTransaction,
+        PHI,
+    }
+
+    pub mod context {
+        pub use super::*;
+    }
+}
 
 /// Parse a COBOL copybook into a structured schema
 ///

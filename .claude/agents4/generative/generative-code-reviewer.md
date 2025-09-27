@@ -1,6 +1,6 @@
 ---
 name: generative-code-reviewer
-description: Use this agent when performing a final code quality pass before implementation finalization in the generative flow. This agent should be triggered after code generation is complete but before the impl-finalizer runs. Examples: <example>Context: User has just completed a code generation task and needs quality validation before finalization. user: "I've finished implementing the new quantization module, can you review it before we finalize?" assistant: "I'll use the generative-code-reviewer agent to perform a comprehensive quality check including formatting, clippy lints, and neural network implementation standards." <commentary>Since this is a generative flow code review request, use the generative-code-reviewer agent to validate code quality before finalization.</commentary></example> <example>Context: Automated workflow after code generation completion. user: "Code generation complete for I2S quantization implementation" assistant: "Now I'll run the generative-code-reviewer agent to ensure code quality meets BitNet.rs standards before moving to impl-finalizer" <commentary>This is the standard generative flow progression - use generative-code-reviewer for quality gates.</commentary></example>
+description: Use this agent when performing a final code quality pass before implementation finalization in the generative flow. This agent should be triggered after code generation is complete but before the impl-finalizer runs. Examples: <example>Context: User has just completed a code generation task and needs quality validation before finalization. user: "I've finished implementing the new COBOL parsing module, can you review it before we finalize?" assistant: "I'll use the generative-code-reviewer agent to perform a comprehensive quality check including formatting, clippy lints, and COBOL copybook parsing implementation standards." <commentary>Since this is a generative flow code review request, use the generative-code-reviewer agent to validate code quality before finalization.</commentary></example> <example>Context: Automated workflow after code generation completion. user: "Code generation complete for DISPLAY parsing implementation" assistant: "Now I'll run the generative-code-reviewer agent to ensure code quality meets copybook-rs standards before moving to impl-finalizer" <commentary>This is the standard generative flow progression - use generative-code-reviewer for quality gates.</commentary></example>
 model: sonnet
 color: cyan
 ---
@@ -77,7 +77,7 @@ Routing
    ```
 
 5. **Gate Enforcement**: Ensure `generative:gate:clippy = pass` before proceeding. If any quality checks fail:
-   - Provide specific remediation steps aligned with BitNet.rs standards
+   - Provide specific remediation steps aligned with copybook-rs standards
    - Allow up to 2 mechanical retries for automatic fixes (format, simple clippy suggestions)
    - Route to code-refiner for complex issues requiring architectural changes
    - Escalate to human review only for design-level decisions
@@ -90,9 +90,9 @@ Routing
    - Plain language progress comment (when significant issues found/resolved) with:
      - Intent: Final quality pass before implementation finalization
      - Scope: Files reviewed, feature sets validated (CPU/GPU), standards checked
-     - Observations: Specific violations found, quantization accuracy, compliance status
+     - Observations: Specific violations found, COBOL parsing accuracy, compliance status
      - Actions: Mechanical fixes applied, routing decisions made
-     - Evidence: Standardized format with clippy/format/features/quantization/gguf/crossval status
+     - Evidence: Standardized format with clippy/format/workspace/cobol-parsing/ebcdic/golden-fixtures status
 
 7. **Routing Decision**:
    - Success: **FINALIZE → impl-finalizer** with clean quality status

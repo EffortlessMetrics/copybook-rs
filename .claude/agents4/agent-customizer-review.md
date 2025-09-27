@@ -163,7 +163,7 @@ Examples:
 
 ### 1. Preserve Agent Structure
 
-**CRITICAL**: Do NOT change the agent's JSON format or core structure. Only adapt the systemPrompt content to MergeCode standards.
+**CRITICAL**: Do NOT change the agent's JSON format or core structure. Only adapt the systemPrompt content to copybook-rs standards.
 
 ### 2. Behavioral Tuning Focus Areas
 

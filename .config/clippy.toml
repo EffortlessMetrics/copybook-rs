@@ -1,0 +1,75 @@
+# Clippy configuration for copybook-rs
+# Enterprise-grade linting rules for COBOL data processing systems
+
+# Cognitive complexity limits for enterprise mainframe code
+cognitive-complexity-threshold = 30
+
+# Documentation requirements
+missing-docs-in-crate-items = true
+
+# Performance and efficiency
+enum-variant-size-threshold = 200
+trivial-copy-size-limit = 128
+pass-by-value-size-limit = 256
+
+# Safety and correctness (critical for COBOL data processing)
+avoid-breaking-exported-api = true
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+
+# Code style preferences
+single-char-lifetime-names = true
+allow-one-hash-in-raw-strings = true
+
+# Enterprise patterns
+max-suggested-slice-pattern-length = 3
+msrv = "1.90"
+
+# Suppress specific lints that conflict with COBOL parsing patterns
+allow = [
+    # COBOL field names often use underscores and specific patterns
+    "module_name_repetitions",
+    # Enterprise error handling may have deeply nested patterns
+    "too_many_lines",
+    # COBOL parsing may require explicit casting for mainframe data types
+    "cast_possible_truncation",
+    "cast_sign_loss",
+    # Enterprise audit logging may use similar names
+    "similar_names",
+]
+
+# Warn on additional lints beyond pedantic
+warn = [
+    "cargo_common_metadata",
+    "clone_on_ref_ptr",
+    "create_dir",
+    "dbg_macro",
+    "decimal_literal_representation",
+    "empty_structs_with_brackets",
+    "exit",
+    "float_cmp_const",
+    "fn_to_numeric_cast_any",
+    "format_push_string",
+    "get_unwrap",
+    "impl_trait_in_params",
+    "integer_division",
+    "lossy_float_literal",
+    "mixed_read_write_in_expression",
+    "mutex_atomic",
+    "partial_pub_fields",
+    "path_buf_push_overwrite",
+    "pattern_type_mismatch",
+    "print_stderr",
+    "print_stdout",
+    "rc_mutex",
+    "rest_pat_in_fully_bound_structs",
+    "str_to_string",
+    "string_to_string",
+    "todo",
+    "undocumented_unsafe_blocks",
+    "unimplemented",
+    "unnecessary_self_imports",
+    "unneeded_field_pattern",
+    "use_debug",
+    "verbose_file_reads",
+]

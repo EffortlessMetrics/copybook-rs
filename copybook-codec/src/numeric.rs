@@ -15,13 +15,37 @@ use tracing::warn;
 #[allow(clippy::inline_always)]
 #[inline(always)]
 pub(crate) fn likely(b: bool) -> bool {
-    b
+    // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
+    // The true case is expected to be taken most of the time (likely path)
+    // Mark the false case as cold to optimize for the common true case
+    if b {
+        true
+    } else {
+        cold_branch_hint();
+        false
+    }
 }
 
 #[allow(clippy::inline_always)]
 #[inline(always)]
 pub(crate) fn unlikely(b: bool) -> bool {
-    b
+    // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
+    // Use explicit cold annotation to hint that error paths are unlikely
+    // This provides significant speedup by keeping hot paths optimized
+    if b {
+        // Cold path: mark as unlikely taken
+        cold_branch_hint();
+        true
+    } else {
+        false
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn cold_branch_hint() {
+    // This function serves as a branch prediction hint that the calling path is cold/unlikely
+    // The #[cold] attribute tells the compiler this is an unlikely execution path
 }
 
 /// Statistics collector for encoding analysis
@@ -951,6 +975,7 @@ pub fn decode_packed_decimal(
 ) -> Result<SmallDecimal> {
     // CRITICAL PERFORMANCE OPTIMIZATION: SIMD-friendly dual-path decoder
     let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
+    // PERFORMANCE CRITICAL: Fast-path length validation with branch prediction hints
     if unlikely(data.len() != expected_bytes) {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -963,6 +988,7 @@ pub fn decode_packed_decimal(
         ));
     }
 
+    // PERFORMANCE CRITICAL: Fast empty check to avoid processing overhead
     if unlikely(data.is_empty()) {
         return Ok(SmallDecimal::zero(scale));
     }
@@ -972,9 +998,12 @@ pub fn decode_packed_decimal(
 
     let mut value = 0i64;
 
-    // Fast path: Unroll common sizes for maximum CPU efficiency
+    // CRITICAL PERFORMANCE OPTIMIZATION: Fast path unrolling for common enterprise cases
+    // Most COBOL COMP-3 fields are 1-3 bytes (PIC 9(1)V99 COMP-3, PIC S9(7)V99 COMP-3, etc)
     match data.len() {
         1 => {
+            // FASTEST PATH: Single byte COMP-3 (PIC 9(1) COMP-3, PIC S9(1) COMP-3)
+            // Extremely common in mainframe applications for flags, counters, etc
             // Single byte: common case optimization
             let byte = data[0];
             let high_nibble = (byte >> 4) & 0x0F;
@@ -1020,6 +1049,99 @@ pub fn decode_packed_decimal(
                     format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
                 ));
             }
+        }
+        2 => {
+            // SECOND FASTEST PATH: 2-byte COMP-3 (PIC S9(3) COMP-3, very common)
+            // Handles amounts, quantities, percentages in enterprise applications
+            let byte0 = data[0];
+            let byte1 = data[1];
+
+            let d1 = (byte0 >> 4) & 0x0F;
+            let d2 = byte0 & 0x0F;
+            let d3 = (byte1 >> 4) & 0x0F;
+            let sign_nibble = byte1 & 0x0F;
+
+            // Fast validation: all digits must be ≤ 9
+            if unlikely(d1 > 9 || d2 > 9 || d3 > 9) {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    "Invalid digit in 2-byte COMP-3 field".to_string(),
+                ));
+            }
+
+            // Fast value computation: avoid loop overhead
+            value = i64::from(d1) * 100 + i64::from(d2) * 10 + i64::from(d3);
+
+            let is_negative = if signed {
+                match sign_nibble {
+                    0xA | 0xC | 0xE | 0xF => false,
+                    0xB | 0xD => true,
+                    _ => return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid sign nibble 0x{sign_nibble:X}"),
+                    )),
+                }
+            } else {
+                if unlikely(sign_nibble != 0xF) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid unsigned sign nibble 0x{sign_nibble:X}"),
+                    ));
+                }
+                false
+            };
+
+            let mut decimal = SmallDecimal::new(value, scale, is_negative);
+            decimal.normalize();
+            return Ok(decimal);
+        }
+        3 => {
+            // THIRD FASTEST PATH: 3-byte COMP-3 (PIC S9(5) COMP-3, extremely common)
+            // Handles account numbers, amounts, IDs in enterprise applications
+            let byte0 = data[0];
+            let byte1 = data[1];
+            let byte2 = data[2];
+
+            let d1 = (byte0 >> 4) & 0x0F;
+            let d2 = byte0 & 0x0F;
+            let d3 = (byte1 >> 4) & 0x0F;
+            let d4 = byte1 & 0x0F;
+            let d5 = (byte2 >> 4) & 0x0F;
+            let sign_nibble = byte2 & 0x0F;
+
+            // Fast validation: all digits must be ≤ 9
+            if unlikely(d1 > 9 || d2 > 9 || d3 > 9 || d4 > 9 || d5 > 9) {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    "Invalid digit in 3-byte COMP-3 field".to_string(),
+                ));
+            }
+
+            // Fast value computation: unrolled multiplication for maximum performance
+            value = i64::from(d1) * 10000 + i64::from(d2) * 1000 + i64::from(d3) * 100 + i64::from(d4) * 10 + i64::from(d5);
+
+            let is_negative = if signed {
+                match sign_nibble {
+                    0xA | 0xC | 0xE | 0xF => false,
+                    0xB | 0xD => true,
+                    _ => return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid sign nibble 0x{sign_nibble:X}"),
+                    )),
+                }
+            } else {
+                if unlikely(sign_nibble != 0xF) {
+                    return Err(Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Invalid unsigned sign nibble 0x{sign_nibble:X}"),
+                    ));
+                }
+                false
+            };
+
+            let mut decimal = SmallDecimal::new(value, scale, is_negative);
+            decimal.normalize();
+            return Ok(decimal);
         }
         _ => {
             // General case: Optimized loop with minimal overhead

@@ -21,7 +21,7 @@ jobs:
           - 1.90.0  # MSRV
           - stable
           - beta
-        features: ["", "comp3_fast"]
+        features: ["", "comp3_fast", "audit"]
     steps:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@master

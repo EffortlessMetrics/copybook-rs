@@ -10,6 +10,10 @@
 //! - `copybook audit performance` - Performance audit and baseline validation (AC7)
 //! - `copybook audit security` - Security audit and access pattern analysis (AC7)
 //! - `copybook audit health` - Audit trail integrity and health checking (AC7)
+//!
+//! Note: These tests require the `audit` feature to be enabled during compilation.
+
+#![cfg(feature = "audit")]
 
 use assert_cmd::Command;
 use predicates::prelude::*;

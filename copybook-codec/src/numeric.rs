@@ -2107,41 +2107,38 @@ pub fn decode_packed_decimal_to_string_with_scratch(
         return Ok("0".to_string());
     }
 
-    // Fast path for common small packed decimals (covers 90%+ of enterprise use cases)
-    if data.len() <= 2 && digits <= 3 {
+    // Fast path for common single-digit packed decimals
+    if data.len() == 1 && digits == 1 {
         let byte = data[0];
         let high_nibble = (byte >> 4) & 0x0F;
         let low_nibble = byte & 0x0F;
 
-        let mut value = 0i64;
         let mut is_negative = false;
 
-        if digits == 1 {
-            // Single digit: high nibble is unused (should be 0), low nibble is sign
-            if high_nibble > 9 {
-                return Err(Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid digit nibble 0x{high_nibble:X}"),
-                ));
-            }
-            value = i64::from(high_nibble);
+        // Single digit: high nibble is unused (should be 0), low nibble is sign
+        if high_nibble > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid digit nibble 0x{high_nibble:X}"),
+            ));
+        }
+        let value = i64::from(high_nibble);
 
-            if signed {
-                // SIMD-friendly branch-free sign detection
-                let sign_code = SIGN_TABLE[low_nibble as usize];
-                if sign_code == 0 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid sign nibble 0x{low_nibble:X}"),
-                    ));
-                }
-                is_negative = sign_code == 2;
-            } else if low_nibble != 0xF {
+        if signed {
+            // SIMD-friendly branch-free sign detection
+            let sign_code = SIGN_TABLE[low_nibble as usize];
+            if sign_code == 0 {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                    format!("Invalid sign nibble 0x{low_nibble:X}"),
                 ));
             }
+            is_negative = sign_code == 2;
+        } else if low_nibble != 0xF {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+            ));
         }
 
         // Format directly to string without SmallDecimal
@@ -2173,9 +2170,8 @@ pub fn decode_packed_decimal_to_string_with_scratch(
             );
         }
 
-        // CRITICAL OPTIMIZATION: Return string and clear buffer for reuse
-        let result = scratch.string_buffer.clone();
-        scratch.string_buffer.clear();
+        // CRITICAL OPTIMIZATION: Move string content without cloning
+        let result = std::mem::take(&mut scratch.string_buffer);
         return Ok(result);
     }
 
@@ -2185,9 +2181,8 @@ pub fn decode_packed_decimal_to_string_with_scratch(
     // Now format to string using the optimized scratch buffer method
     decimal.format_to_scratch_buffer(scale, &mut scratch.string_buffer);
 
-    // CRITICAL OPTIMIZATION: Return string and clear buffer for reuse
-    let result = scratch.string_buffer.clone();
-    scratch.string_buffer.clear();
+    // CRITICAL OPTIMIZATION: Move string content without cloning
+    let result = std::mem::take(&mut scratch.string_buffer);
     Ok(result)
 }
 
@@ -2326,9 +2321,8 @@ pub fn decode_zoned_decimal_to_string_with_scratch(
     // Now format to string using the optimized scratch buffer method
     decimal.format_to_scratch_buffer(scale, &mut scratch.string_buffer);
 
-    // CRITICAL OPTIMIZATION: Return string and clear buffer for reuse
-    let result = scratch.string_buffer.clone();
-    scratch.string_buffer.clear();
+    // CRITICAL OPTIMIZATION: Move string content without cloning
+    let result = std::mem::take(&mut scratch.string_buffer);
     Ok(result)
 }
 

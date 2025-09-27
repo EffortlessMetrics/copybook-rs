@@ -17,7 +17,7 @@ use test_utils::{copybook_cmd, fixture_path};
 #[test]
 fn test_cli_parse_simple() {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("parse").arg(fixture_path("copybooks/simple.cpy"));
+    cmd.arg("parse").arg(fixture_path("copybooks/simple.cpy").expect("fixture path").expect("fixture path"));
 
     cmd.assert()
         .success()
@@ -30,7 +30,7 @@ fn test_cli_parse_simple() {
 #[test]
 fn test_cli_inspect_simple() {
     let mut cmd = Command::cargo_bin("copybook").unwrap();
-    cmd.arg("inspect").arg(fixture_path("copybooks/simple.cpy"));
+    cmd.arg("inspect").arg(fixture_path("copybooks/simple.cpy").expect("fixture path").expect("fixture path"));
 
     cmd.assert()
         .success()
@@ -52,7 +52,7 @@ fn test_cli_verify_valid_data() {
 
     let mut cmd = copybook_cmd(&[
         "verify",
-        fixture_path("copybooks/simple.cpy").to_str().unwrap(),
+        fixture_path("copybooks/simple.cpy").expect("fixture path").expect("fixture path").to_str().unwrap(),
         data_file.to_str().unwrap(),
     ]);
 
@@ -74,7 +74,7 @@ fn test_cli_verify_report_schema() {
 
     let mut cmd = copybook_cmd(&[
         "verify",
-        fixture_path("copybooks/simple.cpy").to_str().unwrap(),
+        fixture_path("copybooks/simple.cpy").expect("fixture path").expect("fixture path").to_str().unwrap(),
         data_file.to_str().unwrap(),
     ]);
     cmd.arg("--report").arg(&report_file);
@@ -281,8 +281,8 @@ fn test_cli_encode_comp3() {
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("encode")
-        .arg(fixture_path("copybooks/comp3_test.cpy"))
-        .arg(fixture_path("data/comp3_test.jsonl"))
+        .arg(fixture_path("copybooks/comp3_test.cpy").expect("fixture path"))
+        .arg(fixture_path("data/comp3_test.jsonl").expect("fixture path"))
         .arg("--output")
         .arg(&output_file)
         .arg("--format")
@@ -312,8 +312,8 @@ fn test_cli_decode_comp3_roundtrip() {
     let mut encode_cmd = Command::cargo_bin("copybook").unwrap();
     encode_cmd
         .arg("encode")
-        .arg(fixture_path("copybooks/comp3_test.cpy"))
-        .arg(fixture_path("data/comp3_test.jsonl"))
+        .arg(fixture_path("copybooks/comp3_test.cpy").expect("fixture path"))
+        .arg(fixture_path("data/comp3_test.jsonl").expect("fixture path"))
         .arg("--output")
         .arg(&encoded_file)
         .arg("--format")
@@ -327,7 +327,7 @@ fn test_cli_decode_comp3_roundtrip() {
     let mut decode_cmd = Command::cargo_bin("copybook").unwrap();
     decode_cmd
         .arg("decode")
-        .arg(fixture_path("copybooks/comp3_test.cpy"))
+        .arg(fixture_path("copybooks/comp3_test.cpy").expect("fixture path"))
         .arg(&encoded_file)
         .arg("--output")
         .arg(&decoded_file)
@@ -364,7 +364,7 @@ fn test_cli_encode_fail_fast() {
 
     let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("encode")
-        .arg(fixture_path("copybooks/simple.cpy"))
+        .arg(fixture_path("copybooks/simple.cpy").expect("fixture path"))
         .arg(&bad_jsonl)
         .arg("--output")
         .arg(&output_file)

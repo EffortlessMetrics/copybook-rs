@@ -453,6 +453,7 @@ pub enum ExternalEndpoint {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::audit::event::{ParseResult, SecurityEventType};
@@ -462,15 +463,15 @@ mod tests {
     #[tokio::test]
     async fn test_audit_logger_creation() {
         let config = AuditLoggerConfig::default();
-        let logger = AuditLogger::new(config).unwrap();
+        let logger = AuditLogger::new(config).expect("Failed to create audit logger");
 
         // Should be able to create logger with default config
-        assert!(logger.event_buffer.lock().unwrap().is_empty());
+        assert!(logger.event_buffer.lock().expect("Lock should work").is_empty());
     }
 
     #[tokio::test]
     async fn test_event_logging() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp directory");
         let log_path = dir.path().join("test_audit.jsonl");
 
         let config = AuditLoggerConfig {
@@ -480,7 +481,7 @@ mod tests {
             ..Default::default()
         };
 
-        let logger = AuditLogger::new(config).unwrap();
+        let logger = AuditLogger::new(config).expect("Failed to create audit logger");
 
         // Create a test audit event
         let context = AuditContext::new();
@@ -498,22 +499,22 @@ mod tests {
         let event = AuditEvent::new(AuditEventType::CopybookParse, context, payload);
 
         // Log the event
-        logger.log_event(event).unwrap();
+        logger.log_event(event).expect("Failed to log event");
 
         // Verify event was buffered
-        let buffer = logger.event_buffer.lock().unwrap();
+        let buffer = logger.event_buffer.lock().expect("Lock should work");
         assert_eq!(buffer.len(), 1);
 
         // Verify event was written to file
         assert!(log_path.exists());
-        let file_content = std::fs::read_to_string(&log_path).unwrap();
+        let file_content = std::fs::read_to_string(&log_path).expect("Failed to read log file");
         assert!(file_content.contains("CopybookParse"));
     }
 
     #[tokio::test]
     async fn test_integrity_validation() {
         let config = AuditLoggerConfig::default();
-        let logger = AuditLogger::new(config).unwrap();
+        let logger = AuditLogger::new(config).expect("Failed to create audit logger");
 
         // Add multiple events to establish chain
         let context = AuditContext::new();
@@ -532,11 +533,11 @@ mod tests {
 
             let event = AuditEvent::new(AuditEventType::CopybookParse, context.clone(), payload);
 
-            logger.log_event(event).unwrap();
+            logger.log_event(event).expect("Failed to log event");
         }
 
         // Validate chain integrity
-        let is_valid = logger.validate_integrity().unwrap();
+        let is_valid = logger.validate_integrity().expect("Failed to validate integrity");
         assert!(is_valid);
     }
 
@@ -547,7 +548,7 @@ mod tests {
             ..Default::default()
         };
 
-        let logger = AuditLogger::new(config).unwrap();
+        let logger = AuditLogger::new(config).expect("Failed to create audit logger");
 
         let context = AuditContext::new();
         let payload = AuditPayload::SecurityEvent {
@@ -561,7 +562,7 @@ mod tests {
 
         let event = AuditEvent::new(AuditEventType::SecurityEvent, context, payload);
 
-        let cef_format = logger.format_as_cef(&event).unwrap();
+        let cef_format = logger.format_as_cef(&event).expect("Failed to format as CEF");
         assert!(cef_format.starts_with("CEF:0|copybook-rs|Enterprise Audit|"));
         assert!(cef_format.contains("SecurityEvent"));
     }

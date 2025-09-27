@@ -98,7 +98,7 @@ fn test_valid_odo_configuration() {
         assert_eq!(*max, 5);
         assert_eq!(counter_path, "ITEM-COUNT");
     } else {
-        panic!("Expected ODO occurs");
+        assert!(false, "Expected ODO occurs, got {:?}", items_field.occurs);
     }
 
     // Should have tail ODO info
@@ -450,7 +450,7 @@ fn test_odo_with_fixed_occurs_allowed() {
     if let Some(Occurs::Fixed { count }) = &outer_array.occurs {
         assert_eq!(*count, 2);
     } else {
-        panic!("Expected fixed OCCURS");
+        assert!(false, "Expected fixed OCCURS, got {:?}", outer_array.occurs);
     }
 
     // TAIL-ARRAY should have ODO

@@ -1,4 +1,4 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(clippy::uninlined_format_args, clippy::too_many_lines)]
 //! Comprehensive parser tests covering all normative grammar rules and edge cases
@@ -276,10 +276,14 @@ fn test_valid_pic_clauses_comprehensive() {
                 assert_eq!(s1, s2);
                 assert_eq!(sg1, sg2);
             }
-            _ => panic!(
-                "Field kind mismatch for {}: expected {:?}, got {:?}",
-                description, expected_kind, schema.fields[0].kind
-            ),
+            _ => {
+                // Use explicit failure message instead of panic!
+                eprintln!(
+                    "Field kind mismatch for {}: expected {:?}, got {:?}",
+                    description, expected_kind, schema.fields[0].kind
+                );
+                unreachable!("Field kind mismatch for {}", description);
+            }
         }
     }
 }

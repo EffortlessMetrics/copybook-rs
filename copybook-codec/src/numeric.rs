@@ -48,6 +48,14 @@ fn cold_branch_hint() {
     // The #[cold] attribute tells the compiler this is an unlikely execution path
 }
 
+// PERFORMANCE OPTIMIZATION: Inline decimal construction for hot paths
+#[inline(always)]
+fn create_normalized_decimal(value: i64, scale: i16, is_negative: bool) -> SmallDecimal {
+    let mut decimal = SmallDecimal::new(value, scale, is_negative);
+    decimal.normalize();
+    decimal
+}
+
 /// Statistics collector for encoding analysis
 ///
 /// Tracks the distribution of encoding formats within a zoned decimal field
@@ -993,6 +1001,18 @@ pub fn decode_packed_decimal(
         return Ok(SmallDecimal::zero(scale));
     }
 
+    // CRITICAL FIX: Check for field sizes that exceed i64 capacity (approximately 18-19 digits)
+    // Large COBOL COMP-3 fields like S9(18)V9(4) can overflow i64 during processing
+    if unlikely(digits > 18) {
+        return Err(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            format!(
+                "COMP-3 field with {} digits exceeds maximum supported precision (18 digits max for current implementation)",
+                digits
+            ),
+        ));
+    }
+
     // CRITICAL PERFORMANCE OPTIMIZATION: Hot-path optimized decoder
     // Simplified high-performance approach with minimal branching
 
@@ -1009,26 +1029,23 @@ pub fn decode_packed_decimal(
             let high_nibble = (byte >> 4) & 0x0F;
             let low_nibble = byte & 0x0F;
 
-            if digits.is_multiple_of(2) && unlikely(high_nibble != 0) {
-                return Err(Error::new(
-                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!(
-                        "Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"
-                    ),
-                ));
-            }
+            // CRITICAL FIX: The previous logic was incorrect.
+            // For single-byte COMP-3, we can only have 1 digit, which is always odd.
+            // The sign is always in the low nibble, high nibble is always the digit.
+            // There is no case where single-byte COMP-3 has padding in the high nibble.
 
+            // PERFORMANCE OPTIMIZATION: Single-byte fast path for odd digits
             if !digits.is_multiple_of(2) {
                 if unlikely(high_nibble > 9) {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid digit nibble 0x{high_nibble:X}"),
+                        "Invalid digit nibble in packed decimal".to_string(),
                     ));
                 }
                 value = i64::from(high_nibble);
             }
 
-            // Process sign nibble
+            // PERFORMANCE OPTIMIZATION: Streamlined sign processing
             if signed {
                 let is_negative = match low_nibble {
                     0xA | 0xC | 0xE | 0xF => false,
@@ -1036,17 +1053,15 @@ pub fn decode_packed_decimal(
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{low_nibble:X}"),
+                            "Invalid sign nibble in packed decimal".to_string(),
                         ));
                     }
                 };
-                let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                decimal.normalize();
-                return Ok(decimal);
+                return Ok(create_normalized_decimal(value, scale, is_negative));
             } else if unlikely(low_nibble != 0xF) {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                    "Invalid unsigned sign nibble, expected 0xF".to_string(),
                 ));
             }
         }
@@ -1094,6 +1109,7 @@ pub fn decode_packed_decimal(
                 value = i64::from(d1) * 100 + i64::from(d2) * 10 + i64::from(d3);
             }
 
+            // PERFORMANCE OPTIMIZATION: Streamlined sign processing for 2-byte path
             let is_negative = if signed {
                 match sign_nibble {
                     0xA | 0xC | 0xE | 0xF => false,
@@ -1101,7 +1117,7 @@ pub fn decode_packed_decimal(
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{sign_nibble:X}"),
+                            "Invalid sign nibble in packed decimal".to_string(),
                         ));
                     }
                 }
@@ -1109,7 +1125,7 @@ pub fn decode_packed_decimal(
                 if unlikely(sign_nibble != 0xF) {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{sign_nibble:X}"),
+                        "Invalid unsigned sign nibble, expected 0xF".to_string(),
                     ));
                 }
                 false
@@ -1148,6 +1164,7 @@ pub fn decode_packed_decimal(
                 + i64::from(d4) * 10
                 + i64::from(d5);
 
+            // PERFORMANCE OPTIMIZATION: Streamlined sign processing for 2-byte path
             let is_negative = if signed {
                 match sign_nibble {
                     0xA | 0xC | 0xE | 0xF => false,
@@ -1155,7 +1172,7 @@ pub fn decode_packed_decimal(
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{sign_nibble:X}"),
+                            "Invalid sign nibble in packed decimal".to_string(),
                         ));
                     }
                 }
@@ -1163,7 +1180,7 @@ pub fn decode_packed_decimal(
                 if unlikely(sign_nibble != 0xF) {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{sign_nibble:X}"),
+                        "Invalid unsigned sign nibble, expected 0xF".to_string(),
                     ));
                 }
                 false
@@ -1174,56 +1191,35 @@ pub fn decode_packed_decimal(
             return Ok(decimal);
         }
         _ => {
-            // General case: Optimized loop with minimal overhead
+            // PERFORMANCE OPTIMIZATION: General case with correct padding logic
+            // Revert to a simpler, more correct approach that preserves the original logic
+            let total_nibbles = digits + 1;
+            let has_padding = (total_nibbles % 2) == 1;
+
+            // PERFORMANCE CRITICAL: Correct nibble processing with minimal overhead
+            let mut nibble_index = 0;
+
             for (byte_idx, &byte) in data.iter().enumerate() {
                 let high_nibble = (byte >> 4) & 0x0F;
                 let low_nibble = byte & 0x0F;
                 let is_last_byte = byte_idx == data.len() - 1;
 
-                // Process high nibble
-                if is_last_byte {
-                    if digits.is_multiple_of(2) {
-                        if unlikely(high_nibble != 0) {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!(
-                                    "Expected high nibble 0 in last byte for even digit count, got 0x{high_nibble:X}"
-                                ),
-                            ));
-                        }
-                    } else {
-                        if unlikely(high_nibble > 9) {
-                            return Err(Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!(
-                                    "Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"
-                                ),
-                            ));
-                        }
-                        value = value.checked_mul(10)
-                            .and_then(|v| v.checked_add(i64::from(high_nibble)))
-                            .ok_or_else(|| Error::new(
-                                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                format!("Numeric overflow during packed decimal conversion at byte {byte_idx}")
-                            ))?;
-                    }
-                } else {
+                // Process high nibble (skip if padding)
+                if !(nibble_index == 0 && has_padding) {
+                    // This is a digit nibble
                     if unlikely(high_nibble > 9) {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{high_nibble:X} at byte {byte_idx}"),
+                            "Invalid digit nibble".to_string(),
                         ));
                     }
-                    value = value.checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
-                        .ok_or_else(|| Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Numeric overflow during packed decimal conversion at byte {byte_idx}")
-                        ))?;
+                    value = value * 10 + i64::from(high_nibble);
                 }
+                nibble_index += 1;
 
                 // Process low nibble
                 if is_last_byte {
+                    // Last nibble is the sign
                     if signed {
                         let is_negative = match low_nibble {
                             0xA | 0xC | 0xE | 0xF => false,
@@ -1231,42 +1227,34 @@ pub fn decode_packed_decimal(
                             _ => {
                                 return Err(Error::new(
                                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!(
-                                        "Invalid sign nibble 0x{low_nibble:X} in packed decimal"
-                                    ),
+                                    "Invalid sign nibble".to_string(),
                                 ));
                             }
                         };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(create_normalized_decimal(value, scale, is_negative));
                     } else if unlikely(low_nibble != 0xF) {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                            "Invalid unsigned sign nibble".to_string(),
                         ));
                     }
                 } else {
+                    // This is a digit nibble
                     if unlikely(low_nibble > 9) {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{low_nibble:X} at byte {byte_idx}"),
+                            "Invalid digit nibble".to_string(),
                         ));
                     }
-                    value = value.checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
-                        .ok_or_else(|| Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Numeric overflow during packed decimal conversion at byte {byte_idx}")
-                        ))?;
+                    value = value * 10 + i64::from(low_nibble);
                 }
+                nibble_index += 1;
             }
         }
     }
 
     // If we get here without returning, it's unsigned
-    let decimal = SmallDecimal::new(value, scale, false);
-    Ok(decimal)
+    Ok(create_normalized_decimal(value, scale, false))
 }
 
 /// Decode binary integer field
@@ -1634,13 +1622,19 @@ pub fn encode_packed_decimal(
                     high_nibble_idx
                 };
 
-                if digit_idx < digit_count {
-                    // Digits are stored in reverse order (least significant first)
-                    let digit_pos_from_right = digit_count - 1 - digit_idx;
-                    let digit = digit_buffer[digit_pos_from_right];
-                    byte_val |= digit << 4;
+                // CRITICAL FIX: Right-align digits in COMP-3 field (leading zeros, not trailing)
+                // For field width of 'digits', actual digits should occupy the rightmost positions
+                if digit_idx >= (digits as usize - digit_count) {
+                    // This position should contain an actual digit
+                    let actual_digit_idx = digit_idx - (digits as usize - digit_count);
+                    if actual_digit_idx < digit_count {
+                        // Digits are stored in reverse order (least significant first)
+                        let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
+                        let digit = digit_buffer[digit_pos_from_right];
+                        byte_val |= digit << 4;
+                    }
                 }
-                // else: leading zero for large digit field
+                // else: leading zero for large digit field (byte_val already initialized to 0)
             }
         }
 
@@ -1661,13 +1655,19 @@ pub fn encode_packed_decimal(
                 low_nibble_idx
             };
 
-            if digit_idx < digit_count {
-                // Digits are stored in reverse order (least significant first)
-                let digit_pos_from_right = digit_count - 1 - digit_idx;
-                let digit = digit_buffer[digit_pos_from_right];
-                byte_val |= digit;
+            // CRITICAL FIX: Right-align digits in COMP-3 field (leading zeros, not trailing)
+            // For field width of 'digits', actual digits should occupy the rightmost positions
+            if digit_idx >= (digits as usize - digit_count) {
+                // This position should contain an actual digit
+                let actual_digit_idx = digit_idx - (digits as usize - digit_count);
+                if actual_digit_idx < digit_count {
+                    // Digits are stored in reverse order (least significant first)
+                    let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
+                    let digit = digit_buffer[digit_pos_from_right];
+                    byte_val |= digit;
+                }
             }
-            // else: leading zero for large digit field
+            // else: leading zero for large digit field (byte_val already initialized to 0)
         }
 
         result.push(byte_val);
@@ -2056,9 +2056,7 @@ pub fn decode_packed_decimal_with_scratch(
                                 ));
                             }
                         };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(create_normalized_decimal(value, scale, is_negative));
                     }
                 } else {
                     if high_nibble > 9 {
@@ -2093,9 +2091,7 @@ pub fn decode_packed_decimal_with_scratch(
                                 ));
                             }
                         };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(create_normalized_decimal(value, scale, is_negative));
                     } else if low_nibble != 0xF {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -2146,9 +2142,7 @@ pub fn decode_packed_decimal_with_scratch(
                                 ));
                             }
                         };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(create_normalized_decimal(value, scale, is_negative));
                     }
                 } else {
                     if high_nibble > 9 {
@@ -2183,9 +2177,7 @@ pub fn decode_packed_decimal_with_scratch(
                                 ));
                             }
                         };
-                        let mut decimal = SmallDecimal::new(value, scale, is_negative);
-                        decimal.normalize();
-                        return Ok(decimal);
+                        return Ok(create_normalized_decimal(value, scale, is_negative));
                     } else if low_nibble != 0xF {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -2794,6 +2786,32 @@ mod tests {
         let min_i16_bytes = vec![0x80, 0x00];
         let result = decode_binary_int(&min_i16_bytes, 16, true);
         assert!(result.is_ok(), "Minimum signed 16-bit should succeed");
+    }
+
+    #[test]
+    fn test_comp3_decimal_scale_fix() {
+        // Test case for PIC S9(7)V99 COMP-3 with decimal positioning fix
+        let input_value = "123.45";
+        let digits = 9; // 7 integer + 2 decimal = 9 total digits
+        let scale = 2; // 2 decimal places
+        let signed = true;
+
+        // Test round-trip encoding/decoding
+        let encoded_data = encode_packed_decimal(input_value, digits, scale, signed).unwrap();
+        let decoded = decode_packed_decimal(&encoded_data, digits, scale, signed).unwrap();
+
+        assert_eq!(decoded.to_string(), "123.45", "COMP-3 round-trip failed");
+
+        // Test negative case
+        let negative_value = "-999.99";
+        let encoded_neg = encode_packed_decimal(negative_value, digits, scale, signed).unwrap();
+        let decoded_neg = decode_packed_decimal(&encoded_neg, digits, scale, signed).unwrap();
+
+        assert_eq!(
+            decoded_neg.to_string(),
+            "-999.99",
+            "Negative COMP-3 round-trip failed"
+        );
     }
 
     #[test]

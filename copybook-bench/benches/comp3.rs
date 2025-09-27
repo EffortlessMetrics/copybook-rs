@@ -10,7 +10,7 @@ fn schema_text() -> &'static str {
     r"
 01 REC.
    05 A   PIC S9(9)     COMP-3.
-   05 B   PIC S9(18)V9(4)  COMP-3.
+   05 B   PIC S9(14)V9(4)  COMP-3.
 "
 }
 

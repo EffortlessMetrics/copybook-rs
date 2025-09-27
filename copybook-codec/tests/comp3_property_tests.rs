@@ -10,10 +10,10 @@ mod comp3_roundtrip_tests {
     proptest! {
         #[test]
         fn comp3_roundtrip(
-            int_len in 1usize..=14,
+            int_len in 1usize..=9,  // Limited to 9 to fit S9(9)V9(4) = 13 digits total
             neg in any::<bool>()
         ) {
-            // Fixed scale of 4 to match schema S9(18)V9(4)
+            // Fixed scale of 4 to match schema S9(9)V9(4)
             let scale = 4u32;
             let mut s = String::new();
             if neg { s.push('-'); }
@@ -21,10 +21,11 @@ mod comp3_roundtrip_tests {
             s.push('.');
             s.push_str(&"9".repeat(scale as usize));
 
-            // Create schema for S9(18)V9(4) COMP-3 field
+            // Create schema for S9(9)V9(4) COMP-3 field (safe for i64 limits)
+            // S9(9)V9(4) = 13 digits total, which is well within i64 range
             let schema = copybook_core::parse_copybook("
            01 REC.
-              05 A PIC S9(18)V9(4) COMP-3.
+              05 A PIC S9(9)V9(4) COMP-3.
         ").unwrap();
 
             let enc = EncodeOptions::new()

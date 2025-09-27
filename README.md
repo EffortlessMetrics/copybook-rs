@@ -779,11 +779,11 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### **Performance Specifications** ⚡
 
-#### **Throughput (Production Validated)**
-- **DISPLAY-heavy**: **2.5-3.0 GiB/s** (target: 80 MB/s → **32x exceeded**)
-- **COMP-3-heavy**: **100-120 MiB/s** (target: 40 MB/s → **3x exceeded**)
+#### **Throughput (Latest Benchmark Results)**
+- **DISPLAY-heavy**: **2.33 GiB/s** (target: 80 MB/s → **30x exceeded**, enterprise target: 4.1 GiB/s ⚠️)
+- **COMP-3-heavy**: **27.7 MiB/s** (target: 40 MB/s → ⚠️ **31% below target**, enterprise target: 560 MiB/s ⚠️)
 - **Stability**: <5% variance across benchmark runs
-- **Scalability**: Linear scaling with parallel processing
+- **Scalability**: Linear scaling with parallel processing (up to 250% improvement with 8 threads)
 
 #### **Resource Efficiency**
 - **Memory**: <256 MiB steady-state for multi-GB files
@@ -791,7 +791,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 - **I/O**: Streaming architecture with bounded memory usage
 - **Error Overhead**: <5% performance impact for comprehensive validation
 
-**Status**: Production performance validated with substantial safety margins for enterprise mainframe workloads.
+**Status**: ⚠️ **Performance regressions detected** in COMP-3 processing (30-40% slower) after panic elimination improvements. DISPLAY performance remains excellent but below enterprise targets. See benchmark analysis for details.
 
 ### Optimization Features
 - **Scratch Buffer Optimization**: Reusable memory buffers minimize allocations in hot paths

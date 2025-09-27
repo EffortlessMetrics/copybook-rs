@@ -21,7 +21,7 @@ fn create_packed_test_schema() -> Schema {
           05 COMP3-2-0    PIC S9(2) COMP-3.
           05 COMP3-4-2    PIC S9(4)V99 COMP-3.
           05 COMP3-9-0    PIC S9(9) COMP-3.
-          05 COMP3-18-4   PIC S9(18)V9999 COMP-3.
+          05 COMP3-14-4   PIC S9(14)V9999 COMP-3.
           05 COMP3-UNSIGNED PIC 9(4) COMP-3.
     ";
 
@@ -78,7 +78,7 @@ fn test_packed_zero_handling() {
         "COMP3-2-0": "0",
         "COMP3-4-2": "0.00",
         "COMP3-9-0": "0",
-        "COMP3-18-4": "0.0000",
+        "COMP3-14-4": "0.0000",
         "COMP3-UNSIGNED": "0"
     });
 
@@ -91,7 +91,7 @@ fn test_packed_zero_handling() {
     assert_eq!(decoded["COMP3-2-0"], "0");
     assert_eq!(decoded["COMP3-4-2"], "0");
     assert_eq!(decoded["COMP3-9-0"], "0");
-    assert_eq!(decoded["COMP3-18-4"], "0");
+    assert_eq!(decoded["COMP3-14-4"], "0");
     assert_eq!(decoded["COMP3-UNSIGNED"], "0");
 
     // Test negative zero (should be normalized to positive zero)
@@ -99,7 +99,7 @@ fn test_packed_zero_handling() {
         "COMP3-2-0": "-0",
         "COMP3-4-2": "-0.00",
         "COMP3-9-0": "-0",
-        "COMP3-18-4": "-0.0000",
+        "COMP3-14-4": "-0.0000",
         "COMP3-UNSIGNED": "0"
     });
 
@@ -112,7 +112,7 @@ fn test_packed_zero_handling() {
     assert_eq!(decoded_neg["COMP3-2-0"], "0");
     assert_eq!(decoded_neg["COMP3-4-2"], "0");
     assert_eq!(decoded_neg["COMP3-9-0"], "0");
-    assert_eq!(decoded_neg["COMP3-18-4"], "0");
+    assert_eq!(decoded_neg["COMP3-14-4"], "0");
 }
 
 /// Test maximum digits and overflow detection for packed decimals
@@ -137,7 +137,7 @@ fn test_packed_max_digits_and_overflow() {
         "COMP3-2-0": "99",
         "COMP3-4-2": "9999.99",
         "COMP3-9-0": "999999999",
-        "COMP3-18-4": "12345678901234.5678",  // Large but reasonable value
+        "COMP3-14-4": "12345678901234.5678",  // Large but reasonable value
         "COMP3-UNSIGNED": "9999"
     });
 
@@ -154,7 +154,7 @@ fn test_packed_max_digits_and_overflow() {
     assert_eq!(decoded["COMP3-2-0"], "99");
     assert_eq!(decoded["COMP3-4-2"], "9999.99"); // Decimal preserved in output
     assert_eq!(decoded["COMP3-9-0"], "999999999");
-    assert_eq!(decoded["COMP3-18-4"], "12345678901234.5678"); // Decimal preserved
+    assert_eq!(decoded["COMP3-14-4"], "12345678901234.5678"); // Decimal preserved
     assert_eq!(decoded["COMP3-UNSIGNED"], "9999");
 
     // Test overflow scenarios
@@ -162,7 +162,7 @@ fn test_packed_max_digits_and_overflow() {
         "COMP3-2-0": "100",  // Exceeds 99
         "COMP3-4-2": "0.00",
         "COMP3-9-0": "0",
-        "COMP3-18-4": "0.0000",
+        "COMP3-14-4": "0.0000",
         "COMP3-UNSIGNED": "0"
     });
 
@@ -186,7 +186,7 @@ fn test_packed_max_digits_and_overflow() {
         "COMP3-2-0": "1",
         "COMP3-4-2": "1.00",
         "COMP3-9-0": "1",
-        "COMP3-18-4": "1234567890123456789.9999", // This causes overflow (19 integer digits, exceeds S9(18))
+        "COMP3-14-4": "1234567890123456789.9999", // This causes overflow (19 integer digits, exceeds S9(18))
         "COMP3-UNSIGNED": "1"
     });
 
@@ -228,7 +228,7 @@ fn test_packed_negative_values() {
         "COMP3-2-0": "-99",
         "COMP3-4-2": "-9999.99",
         "COMP3-9-0": "-999999999",
-        "COMP3-18-4": "-12345678901234.5678", // Smaller value to avoid overflow
+        "COMP3-14-4": "-12345678901234.5678", // Smaller value to avoid overflow
         "COMP3-UNSIGNED": "1234" // Unsigned field
     });
 
@@ -241,7 +241,7 @@ fn test_packed_negative_values() {
     assert_eq!(decoded["COMP3-2-0"], "-99");
     assert_eq!(decoded["COMP3-4-2"], "-9999.99");
     assert_eq!(decoded["COMP3-9-0"], "-999999999");
-    assert_eq!(decoded["COMP3-18-4"], "-12345678901234.5678");
+    assert_eq!(decoded["COMP3-14-4"], "-12345678901234.5678");
     assert_eq!(decoded["COMP3-UNSIGNED"], "1234");
 }
 

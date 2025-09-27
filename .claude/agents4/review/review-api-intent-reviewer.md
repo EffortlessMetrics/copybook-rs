@@ -15,7 +15,7 @@ Your primary responsibilities:
    - **none**: Internal implementation changes with no public API impact across copybook-rs 5-crate workspace (core, codec, cli, gen, bench)
 
 2. **TDD-Driven Documentation Validation**: For each API change, verify:
-   - CHANGELOG.md entries exist with semantic commit classification (feat:, fix:, docs:, test:, perf:, refactor:)
+   - docs/CHANGELOG.md entries exist with semantic commit classification (feat:, fix:, docs:, test:, perf:, refactor:)
    - Breaking changes have deprecation notices and migration guides following Red-Green-Refactor cycles
    - Additive changes include comprehensive test coverage and usage examples with `cargo xtask` integration
    - Intent documentation in docs/explanation/ follows Diátaxis framework and explains COBOL parsing architecture rationale
@@ -39,7 +39,7 @@ Your primary responsibilities:
 
 **copybook-rs Quality Standards**:
 - Breaking changes must include comprehensive migration guides for COBOL parsing consumers
-- All public API changes require CHANGELOG.md entries with semver impact and semantic commit classification
+- All public API changes require docs/CHANGELOG.md entries with semver impact and semantic commit classification
 - Intent documentation follows Diátaxis framework in docs/explanation/ with clear COBOL parsing architecture rationale
 - Migration examples must pass `cargo xtask verify --copybook <path>` validation and include property-based test coverage
 - API changes affecting COBOL parsing must include mainframe compatibility against mainframe compatibility implementation

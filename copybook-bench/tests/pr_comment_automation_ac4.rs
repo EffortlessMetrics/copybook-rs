@@ -28,9 +28,7 @@ impl PerformanceReportData {
         Self {
             display_gibs: 4.15,
             comp3_mibs: 560.0,
-            warnings: vec![
-                "COMP-3 throughput approaching floor threshold".to_string(),
-            ],
+            warnings: vec!["COMP-3 throughput approaching floor threshold".to_string()],
             errors: Vec::new(),
         }
     }
@@ -63,13 +61,19 @@ impl PrCommentGenerator {
 
         format!(
             "## 🚀 Performance Report\n\n**DISPLAY**: {:.2} GiB/s ({:.1}x safety margin), **COMP-3**: {:.0} MiB/s ({:.1}x safety margin) [{}{}]\n\n<details>\n<summary>Details</summary>\n\n- **DISPLAY Processing**: {:.2} GiB/s ({:.0} MB/s)\n- **COMP-3 Processing**: {:.0} MiB/s\n- **Safety Margins**: DISPLAY {:.1}x, COMP-3 {:.1}x\n- **Status**: {}{}\n{}{}{}",
-            data.display_gibs, display_margin,
-            data.comp3_mibs, comp3_margin,
-            status_emoji, status,
-            data.display_gibs, display_mbps,
+            data.display_gibs,
+            display_margin,
             data.comp3_mibs,
-            display_margin, comp3_margin,
-            status_emoji, status,
+            comp3_margin,
+            status_emoji,
+            status,
+            data.display_gibs,
+            display_mbps,
+            data.comp3_mibs,
+            display_margin,
+            comp3_margin,
+            status_emoji,
+            status,
             Self::format_warnings(&data.warnings),
             Self::format_errors(&data.errors),
             "\n</details>"
@@ -109,9 +113,7 @@ impl PrCommentGenerator {
         if warnings.is_empty() {
             String::new()
         } else {
-            let formatted: Vec<String> = warnings.iter()
-                .map(|w| format!("- {}", w))
-                .collect();
+            let formatted: Vec<String> = warnings.iter().map(|w| format!("- {}", w)).collect();
             format!("\n\n**⚠️ Warnings**:\n{}", formatted.join("\n"))
         }
     }
@@ -120,9 +122,7 @@ impl PrCommentGenerator {
         if errors.is_empty() {
             String::new()
         } else {
-            let formatted: Vec<String> = errors.iter()
-                .map(|e| format!("- {}", e))
-                .collect();
+            let formatted: Vec<String> = errors.iter().map(|e| format!("- {}", e)).collect();
             format!("\n\n**❌ Errors**:\n{}", formatted.join("\n"))
         }
     }
@@ -140,7 +140,11 @@ impl MockGitHubApi {
         }
     }
 
-    pub fn post_comment(&mut self, pr_number: u32, comment_body: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn post_comment(
+        &mut self,
+        pr_number: u32,
+        comment_body: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Simulate API validation
         if pr_number == 0 {
             return Err("Invalid PR number".into());
@@ -167,17 +171,44 @@ fn test_one_liner_performance_summary_format() -> Result<(), Box<dyn std::error:
     let one_liner = PrCommentGenerator::generate_one_liner(&test_data);
 
     // Validate format structure
-    assert!(one_liner.contains("DISPLAY:"), "One-liner must contain 'DISPLAY:'");
-    assert!(one_liner.contains("GiB/s"), "One-liner must contain 'GiB/s' unit");
-    assert!(one_liner.contains("COMP-3:"), "One-liner must contain 'COMP-3:'");
-    assert!(one_liner.contains("MiB/s"), "One-liner must contain 'MiB/s' unit");
-    assert!(one_liner.contains("["), "One-liner must contain status brackets");
-    assert!(one_liner.contains("]"), "One-liner must contain closing status bracket");
+    assert!(
+        one_liner.contains("DISPLAY:"),
+        "One-liner must contain 'DISPLAY:'"
+    );
+    assert!(
+        one_liner.contains("GiB/s"),
+        "One-liner must contain 'GiB/s' unit"
+    );
+    assert!(
+        one_liner.contains("COMP-3:"),
+        "One-liner must contain 'COMP-3:'"
+    );
+    assert!(
+        one_liner.contains("MiB/s"),
+        "One-liner must contain 'MiB/s' unit"
+    );
+    assert!(
+        one_liner.contains("["),
+        "One-liner must contain status brackets"
+    );
+    assert!(
+        one_liner.contains("]"),
+        "One-liner must contain closing status bracket"
+    );
 
     // Validate specific values
-    assert!(one_liner.contains("4.22"), "One-liner must contain correct DISPLAY value");
-    assert!(one_liner.contains("571"), "One-liner must contain correct COMP-3 value");
-    assert!(one_liner.contains("PASSED"), "One-liner must contain PASSED status");
+    assert!(
+        one_liner.contains("4.22"),
+        "One-liner must contain correct DISPLAY value"
+    );
+    assert!(
+        one_liner.contains("571"),
+        "One-liner must contain correct COMP-3 value"
+    );
+    assert!(
+        one_liner.contains("PASSED"),
+        "One-liner must contain PASSED status"
+    );
 
     Ok(())
 }
@@ -191,17 +222,26 @@ fn test_performance_status_determination() -> Result<(), Box<dyn std::error::Err
     // Test PASSED status
     let passing_data = PerformanceReportData::new_passing();
     let passing_comment = PrCommentGenerator::generate_one_liner(&passing_data);
-    assert!(passing_comment.contains("✅ PASSED"), "Should show PASSED status with checkmark");
+    assert!(
+        passing_comment.contains("✅ PASSED"),
+        "Should show PASSED status with checkmark"
+    );
 
     // Test WARNING status
     let warning_data = PerformanceReportData::new_with_warnings();
     let warning_comment = PrCommentGenerator::generate_one_liner(&warning_data);
-    assert!(warning_comment.contains("⚠️ WARNING"), "Should show WARNING status with warning symbol");
+    assert!(
+        warning_comment.contains("⚠️ WARNING"),
+        "Should show WARNING status with warning symbol"
+    );
 
     // Test FAILED status
     let failed_data = PerformanceReportData::new_with_errors();
     let failed_comment = PrCommentGenerator::generate_one_liner(&failed_data);
-    assert!(failed_comment.contains("❌ FAILED"), "Should show FAILED status with X mark");
+    assert!(
+        failed_comment.contains("❌ FAILED"),
+        "Should show FAILED status with X mark"
+    );
 
     Ok(())
 }
@@ -215,20 +255,50 @@ fn test_full_pr_comment_structure() -> Result<(), Box<dyn std::error::Error>> {
     let full_comment = PrCommentGenerator::generate_performance_comment(&test_data);
 
     // Validate main sections
-    assert!(full_comment.contains("## 🚀 Performance Report"), "Must have performance report header");
-    assert!(full_comment.contains("<details>"), "Must have collapsible details section");
-    assert!(full_comment.contains("<summary>Details</summary>"), "Must have details summary");
-    assert!(full_comment.contains("</details>"), "Must close details section");
+    assert!(
+        full_comment.contains("## 🚀 Performance Report"),
+        "Must have performance report header"
+    );
+    assert!(
+        full_comment.contains("<details>"),
+        "Must have collapsible details section"
+    );
+    assert!(
+        full_comment.contains("<summary>Details</summary>"),
+        "Must have details summary"
+    );
+    assert!(
+        full_comment.contains("</details>"),
+        "Must close details section"
+    );
 
     // Validate content sections
-    assert!(full_comment.contains("DISPLAY Processing"), "Must show DISPLAY processing details");
-    assert!(full_comment.contains("COMP-3 Processing"), "Must show COMP-3 processing details");
-    assert!(full_comment.contains("Safety Margins"), "Must show safety margins");
-    assert!(full_comment.contains("Status"), "Must show status information");
+    assert!(
+        full_comment.contains("DISPLAY Processing"),
+        "Must show DISPLAY processing details"
+    );
+    assert!(
+        full_comment.contains("COMP-3 Processing"),
+        "Must show COMP-3 processing details"
+    );
+    assert!(
+        full_comment.contains("Safety Margins"),
+        "Must show safety margins"
+    );
+    assert!(
+        full_comment.contains("Status"),
+        "Must show status information"
+    );
 
     // Validate safety margin calculations
-    assert!(full_comment.contains("52."), "Must show DISPLAY safety margin (~52x)");
-    assert!(full_comment.contains("14."), "Must show COMP-3 safety margin (~14x)");
+    assert!(
+        full_comment.contains("56."),
+        "Must show DISPLAY safety margin (~56.6x)"
+    );
+    assert!(
+        full_comment.contains("14."),
+        "Must show COMP-3 safety margin (~14.3x)"
+    );
 
     Ok(())
 }
@@ -242,16 +312,27 @@ fn test_warnings_display_in_pr_comments() -> Result<(), Box<dyn std::error::Erro
     let comment = PrCommentGenerator::generate_performance_comment(&warning_data);
 
     // Validate warnings section
-    assert!(comment.contains("⚠️ Warnings"), "Must have warnings section header");
-    assert!(comment.contains("COMP-3 throughput approaching floor threshold"),
-        "Must show specific warning message");
+    assert!(
+        comment.contains("⚠️ Warnings"),
+        "Must have warnings section header"
+    );
+    assert!(
+        comment.contains("COMP-3 throughput approaching floor threshold"),
+        "Must show specific warning message"
+    );
 
     // Validate warning formatting
     let warnings_section = comment.split("**⚠️ Warnings**:").nth(1);
-    assert!(warnings_section.is_some(), "Warnings section must be extractable");
+    assert!(
+        warnings_section.is_some(),
+        "Warnings section must be extractable"
+    );
 
     let warnings_text = warnings_section.unwrap();
-    assert!(warnings_text.contains("- COMP-3"), "Warning must be formatted as list item");
+    assert!(
+        warnings_text.contains("- COMP-3"),
+        "Warning must be formatted as list item"
+    );
 
     Ok(())
 }
@@ -265,19 +346,35 @@ fn test_errors_display_in_pr_comments() -> Result<(), Box<dyn std::error::Error>
     let comment = PrCommentGenerator::generate_performance_comment(&error_data);
 
     // Validate errors section
-    assert!(comment.contains("❌ Errors"), "Must have errors section header");
-    assert!(comment.contains("DISPLAY throughput below 80 MB/s floor"),
-        "Must show DISPLAY error message");
-    assert!(comment.contains("COMP-3 throughput below 40 MB/s floor"),
-        "Must show COMP-3 error message");
+    assert!(
+        comment.contains("❌ Errors"),
+        "Must have errors section header"
+    );
+    assert!(
+        comment.contains("DISPLAY throughput below 80 MB/s floor"),
+        "Must show DISPLAY error message"
+    );
+    assert!(
+        comment.contains("COMP-3 throughput below 40 MB/s floor"),
+        "Must show COMP-3 error message"
+    );
 
     // Validate error formatting
     let errors_section = comment.split("**❌ Errors**:").nth(1);
-    assert!(errors_section.is_some(), "Errors section must be extractable");
+    assert!(
+        errors_section.is_some(),
+        "Errors section must be extractable"
+    );
 
     let errors_text = errors_section.unwrap();
-    assert!(errors_text.contains("- DISPLAY"), "DISPLAY error must be formatted as list item");
-    assert!(errors_text.contains("- COMP-3"), "COMP-3 error must be formatted as list item");
+    assert!(
+        errors_text.contains("- DISPLAY"),
+        "DISPLAY error must be formatted as list item"
+    );
+    assert!(
+        errors_text.contains("- COMP-3"),
+        "COMP-3 error must be formatted as list item"
+    );
 
     Ok(())
 }
@@ -296,7 +393,11 @@ fn test_github_api_integration_mock() -> Result<(), Box<dyn std::error::Error>> 
     mock_api.post_comment(pr_number, comment.clone())?;
 
     // Validate comment was stored
-    assert_eq!(mock_api.posted_comments.len(), 1, "Should have one posted comment");
+    assert_eq!(
+        mock_api.posted_comments.len(),
+        1,
+        "Should have one posted comment"
+    );
 
     let (posted_pr, posted_comment) = mock_api.get_last_comment().unwrap();
     assert_eq!(*posted_pr, pr_number, "PR number should match");
@@ -321,10 +422,17 @@ fn test_github_api_error_handling() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result.is_err(), "Should error with empty comment body");
 
     let result = mock_api.post_comment(123, "   ".to_string());
-    assert!(result.is_err(), "Should error with whitespace-only comment body");
+    assert!(
+        result.is_err(),
+        "Should error with whitespace-only comment body"
+    );
 
     // Verify no comments were posted due to errors
-    assert_eq!(mock_api.posted_comments.len(), 0, "No comments should be posted on errors");
+    assert_eq!(
+        mock_api.posted_comments.len(),
+        0,
+        "No comments should be posted on errors"
+    );
 
     Ok(())
 }
@@ -342,20 +450,30 @@ fn test_safety_margin_calculations() -> Result<(), Box<dyn std::error::Error>> {
     // 4531.1 / 80 = 56.6x safety margin
     let display_mbps = test_data.display_gibs * 1073.74;
     let display_margin = display_mbps / 80.0;
-    assert!((display_margin - 56.6).abs() < 1.0,
-        "DISPLAY safety margin should be ~56.6x, calculated {}", display_margin);
+    assert!(
+        (display_margin - 56.6).abs() < 1.0,
+        "DISPLAY safety margin should be ~56.6x, calculated {}",
+        display_margin
+    );
 
     // Verify COMP-3 safety margin calculation
     // 571 MiB/s / 40 MB/s = 14.3x safety margin
     let comp3_margin = test_data.comp3_mibs / 40.0;
-    assert!((comp3_margin - 14.3).abs() < 0.5,
-        "COMP-3 safety margin should be ~14.3x, calculated {}", comp3_margin);
+    assert!(
+        (comp3_margin - 14.3).abs() < 0.5,
+        "COMP-3 safety margin should be ~14.3x, calculated {}",
+        comp3_margin
+    );
 
     // Verify safety margins appear in comment
-    assert!(comment.contains(&format!("{:.1}x", display_margin)),
-        "Comment should contain calculated DISPLAY safety margin");
-    assert!(comment.contains(&format!("{:.1}x", comp3_margin)),
-        "Comment should contain calculated COMP-3 safety margin");
+    assert!(
+        comment.contains(&format!("{:.1}x", display_margin)),
+        "Comment should contain calculated DISPLAY safety margin"
+    );
+    assert!(
+        comment.contains(&format!("{:.1}x", comp3_margin)),
+        "Comment should contain calculated COMP-3 safety margin"
+    );
 
     Ok(())
 }
@@ -376,22 +494,48 @@ fn test_comment_template_consistency() -> Result<(), Box<dyn std::error::Error>>
         let comment = PrCommentGenerator::generate_performance_comment(&data);
 
         // All comments should have consistent structure
-        assert!(comment.starts_with("## 🚀 Performance Report"),
-            "All comments should start with performance report header for {}", scenario_name);
-        assert!(comment.contains("<details>"),
-            "All comments should have details section for {}", scenario_name);
-        assert!(comment.contains("DISPLAY Processing"),
-            "All comments should show DISPLAY processing for {}", scenario_name);
-        assert!(comment.contains("COMP-3 Processing"),
-            "All comments should show COMP-3 processing for {}", scenario_name);
-        assert!(comment.contains("Safety Margins"),
-            "All comments should show safety margins for {}", scenario_name);
-        assert!(comment.ends_with("</details>"),
-            "All comments should end with closing details tag for {}", scenario_name);
+        assert!(
+            comment.starts_with("## 🚀 Performance Report"),
+            "All comments should start with performance report header for {}",
+            scenario_name
+        );
+        assert!(
+            comment.contains("<details>"),
+            "All comments should have details section for {}",
+            scenario_name
+        );
+        assert!(
+            comment.contains("DISPLAY Processing"),
+            "All comments should show DISPLAY processing for {}",
+            scenario_name
+        );
+        assert!(
+            comment.contains("COMP-3 Processing"),
+            "All comments should show COMP-3 processing for {}",
+            scenario_name
+        );
+        assert!(
+            comment.contains("Safety Margins"),
+            "All comments should show safety margins for {}",
+            scenario_name
+        );
+        assert!(
+            comment.ends_with("</details>"),
+            "All comments should end with closing details tag for {}",
+            scenario_name
+        );
 
         // Comments should be reasonable length (not too short, not too long)
-        assert!(comment.len() > 200, "Comment should be substantial for {}", scenario_name);
-        assert!(comment.len() < 2000, "Comment should not be excessively long for {}", scenario_name);
+        assert!(
+            comment.len() > 200,
+            "Comment should be substantial for {}",
+            scenario_name
+        );
+        assert!(
+            comment.len() < 2000,
+            "Comment should not be excessively long for {}",
+            scenario_name
+        );
     }
 
     Ok(())
@@ -406,12 +550,18 @@ fn test_automation_environment_handling() -> Result<(), Box<dyn std::error::Erro
     // Test GitHub token environment variable handling
     // Use test values directly instead of modifying global environment
     let test_token = "test_token_123";
-    assert!(!test_token.is_empty(), "GitHub token should be available for testing");
+    assert!(
+        !test_token.is_empty(),
+        "GitHub token should be available for testing"
+    );
 
     // Test PR number extraction simulation
     let test_pr_number_str = "123";
     let pr_number: u32 = test_pr_number_str.parse().unwrap_or(0);
-    assert!(pr_number > 0, "PR number should be parseable from test data");
+    assert!(
+        pr_number > 0,
+        "PR number should be parseable from test data"
+    );
 
     Ok(())
 }

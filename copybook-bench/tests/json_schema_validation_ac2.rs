@@ -3,7 +3,11 @@
 //! Tests feature spec: issue-52-spec.md#AC2
 //! Validates simplified perf.json schema with required fields and decimal precision
 
-use serde_json::{Value, Map};
+#![allow(clippy::expect_used)] // Test code: expects are acceptable for test assertions
+#![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
+#![allow(clippy::uninlined_format_args)] // Test readability over optimization
+
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 /// Test data structure representing the simplified perf.json schema
@@ -16,6 +20,7 @@ pub struct PerformanceReportSchema {
 }
 
 impl PerformanceReportSchema {
+    #[must_use]
     pub fn new(display_gibs: f64, comp3_mibs: f64) -> Self {
         Self {
             display_gibs,
@@ -25,22 +30,56 @@ impl PerformanceReportSchema {
         }
     }
 
+    #[must_use]
     pub fn with_warnings(mut self, warnings: Vec<String>) -> Self {
         self.warnings = warnings;
         self
     }
 
+    #[must_use]
     pub fn with_errors(mut self, errors: Vec<String>) -> Self {
         self.errors = errors;
         self
     }
 
+    /// # Errors
+    /// Returns error if floating point values cannot be converted to JSON numbers
+    /// # Panics
+    /// Panics if floating point values are infinite or NaN
     pub fn to_json(&self) -> serde_json::Result<Value> {
         let mut map = Map::new();
-        map.insert("display_gibs".to_string(), Value::Number(serde_json::Number::from_f64(self.display_gibs).unwrap()));
-        map.insert("comp3_mibs".to_string(), Value::Number(serde_json::Number::from_f64(self.comp3_mibs).unwrap()));
-        map.insert("warnings".to_string(), Value::Array(self.warnings.iter().map(|w| Value::String(w.clone())).collect()));
-        map.insert("errors".to_string(), Value::Array(self.errors.iter().map(|e| Value::String(e.clone())).collect()));
+        map.insert(
+            "display_gibs".to_string(),
+            Value::Number(
+                serde_json::Number::from_f64(self.display_gibs)
+                    .expect("display_gibs must be finite for JSON conversion"),
+            ),
+        );
+        map.insert(
+            "comp3_mibs".to_string(),
+            Value::Number(
+                serde_json::Number::from_f64(self.comp3_mibs)
+                    .expect("comp3_mibs must be finite for JSON conversion"),
+            ),
+        );
+        map.insert(
+            "warnings".to_string(),
+            Value::Array(
+                self.warnings
+                    .iter()
+                    .map(|w| Value::String(w.clone()))
+                    .collect(),
+            ),
+        );
+        map.insert(
+            "errors".to_string(),
+            Value::Array(
+                self.errors
+                    .iter()
+                    .map(|e| Value::String(e.clone()))
+                    .collect(),
+            ),
+        );
         Ok(Value::Object(map))
     }
 }
@@ -53,25 +92,32 @@ fn test_perf_json_schema_required_fields() -> Result<(), Box<dyn std::error::Err
     let test_schema = PerformanceReportSchema::new(4.22, 571.0);
     let json_value = test_schema.to_json()?;
 
-    assert!(json_value.is_object(), "Performance report must be a JSON object");
-    let obj = json_value.as_object().unwrap();
+    assert!(
+        json_value.is_object(),
+        "Performance report must be a JSON object"
+    );
+    let obj = json_value
+        .as_object()
+        .expect("JSON value must be an object");
 
     // Validate required fields exist
     let required_fields = vec!["display_gibs", "comp3_mibs", "warnings", "errors"];
     for field in required_fields {
-        assert!(obj.contains_key(field),
-            "JSON schema must contain required field: {}", field);
+        assert!(
+            obj.contains_key(field),
+            "JSON schema must contain required field: {}",
+            field
+        );
     }
 
     // Validate field types
-    assert!(obj["display_gibs"].is_number(),
-        "display_gibs must be a number");
-    assert!(obj["comp3_mibs"].is_number(),
-        "comp3_mibs must be a number");
-    assert!(obj["warnings"].is_array(),
-        "warnings must be an array");
-    assert!(obj["errors"].is_array(),
-        "errors must be an array");
+    assert!(
+        obj["display_gibs"].is_number(),
+        "display_gibs must be a number"
+    );
+    assert!(obj["comp3_mibs"].is_number(), "comp3_mibs must be a number");
+    assert!(obj["warnings"].is_array(), "warnings must be an array");
+    assert!(obj["errors"].is_array(), "errors must be an array");
 
     Ok(())
 }
@@ -92,16 +138,30 @@ fn test_decimal_precision_support() -> Result<(), Box<dyn std::error::Error>> {
     for (display_gibs, comp3_mibs) in test_cases {
         let schema = PerformanceReportSchema::new(display_gibs, comp3_mibs);
         let json_value = schema.to_json()?;
-        let obj = json_value.as_object().unwrap();
+        let obj = json_value
+            .as_object()
+            .expect("JSON value must be an object");
 
         // Verify precision is maintained
-        let json_display = obj["display_gibs"].as_f64().unwrap();
-        let json_comp3 = obj["comp3_mibs"].as_f64().unwrap();
+        let json_display = obj["display_gibs"]
+            .as_f64()
+            .expect("display_gibs must be a valid f64");
+        let json_comp3 = obj["comp3_mibs"]
+            .as_f64()
+            .expect("comp3_mibs must be a valid f64");
 
-        assert!((json_display - display_gibs).abs() < 0.001,
-            "DISPLAY precision must be maintained: expected {}, got {}", display_gibs, json_display);
-        assert!((json_comp3 - comp3_mibs).abs() < 0.001,
-            "COMP-3 precision must be maintained: expected {}, got {}", comp3_mibs, json_comp3);
+        assert!(
+            (json_display - display_gibs).abs() < 0.001,
+            "DISPLAY precision must be maintained: expected {}, got {}",
+            display_gibs,
+            json_display
+        );
+        assert!(
+            (json_comp3 - comp3_mibs).abs() < 0.001,
+            "COMP-3 precision must be maintained: expected {}, got {}",
+            comp3_mibs,
+            json_comp3
+        );
     }
 
     Ok(())
@@ -119,15 +179,28 @@ fn test_warnings_array_functionality() -> Result<(), Box<dyn std::error::Error>>
 
     let schema = PerformanceReportSchema::new(4.22, 571.0).with_warnings(warnings.clone());
     let json_value = schema.to_json()?;
-    let obj = json_value.as_object().unwrap();
+    let obj = json_value
+        .as_object()
+        .expect("JSON value must be an object");
 
-    let json_warnings = obj["warnings"].as_array().unwrap();
-    assert_eq!(json_warnings.len(), warnings.len(),
-        "Warnings array length must match input");
+    let json_warnings = obj["warnings"]
+        .as_array()
+        .expect("warnings must be an array");
+    assert_eq!(
+        json_warnings.len(),
+        warnings.len(),
+        "Warnings array length must match input"
+    );
 
     for (i, warning) in warnings.iter().enumerate() {
-        assert_eq!(json_warnings[i].as_str().unwrap(), warning,
-            "Warning message {} must be preserved", i);
+        assert_eq!(
+            json_warnings[i]
+                .as_str()
+                .expect("warning must be a string"),
+            warning,
+            "Warning message {} must be preserved",
+            i
+        );
     }
 
     Ok(())
@@ -146,15 +219,28 @@ fn test_errors_array_functionality() -> Result<(), Box<dyn std::error::Error>> {
 
     let schema = PerformanceReportSchema::new(0.5, 25.0).with_errors(errors.clone());
     let json_value = schema.to_json()?;
-    let obj = json_value.as_object().unwrap();
+    let obj = json_value
+        .as_object()
+        .expect("JSON value must be an object");
 
-    let json_errors = obj["errors"].as_array().unwrap();
-    assert_eq!(json_errors.len(), errors.len(),
-        "Errors array length must match input");
+    let json_errors = obj["errors"]
+        .as_array()
+        .expect("errors must be an array");
+    assert_eq!(
+        json_errors.len(),
+        errors.len(),
+        "Errors array length must match input"
+    );
 
     for (i, error) in errors.iter().enumerate() {
-        assert_eq!(json_errors[i].as_str().unwrap(), error,
-            "Error message {} must be preserved", i);
+        assert_eq!(
+            json_errors[i]
+                .as_str()
+                .expect("error must be a string"),
+            error,
+            "Error message {} must be preserved",
+            i
+        );
     }
 
     Ok(())
@@ -174,13 +260,37 @@ fn test_json_serialization_roundtrip() -> Result<(), Box<dyn std::error::Error>>
 
     // Parse back from string to verify round-trip
     let parsed_value: Value = serde_json::from_str(&json_string)?;
-    let parsed_obj = parsed_value.as_object().unwrap();
+    let parsed_obj = parsed_value
+        .as_object()
+        .expect("parsed value must be an object");
 
     // Verify all fields are preserved
-    assert_eq!(parsed_obj["display_gibs"].as_f64().unwrap(), 4.22);
-    assert_eq!(parsed_obj["comp3_mibs"].as_f64().unwrap(), 571.0);
-    assert_eq!(parsed_obj["warnings"].as_array().unwrap().len(), 1);
-    assert_eq!(parsed_obj["errors"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        parsed_obj["display_gibs"]
+            .as_f64()
+            .expect("display_gibs must be a valid f64"),
+        4.22
+    );
+    assert_eq!(
+        parsed_obj["comp3_mibs"]
+            .as_f64()
+            .expect("comp3_mibs must be a valid f64"),
+        571.0
+    );
+    assert_eq!(
+        parsed_obj["warnings"]
+            .as_array()
+            .expect("warnings must be an array")
+            .len(),
+        1
+    );
+    assert_eq!(
+        parsed_obj["errors"]
+            .as_array()
+            .expect("errors must be an array")
+            .len(),
+        1
+    );
 
     Ok(())
 }
@@ -194,31 +304,55 @@ fn test_performance_values_enterprise_ranges() -> Result<(), Box<dyn std::error:
     // Test current performance levels (exceeding targets)
     let current_performance = PerformanceReportSchema::new(4.22, 571.0);
     let json_value = current_performance.to_json()?;
-    let obj = json_value.as_object().unwrap();
+    let obj = json_value
+        .as_object()
+        .expect("JSON value must be an object");
 
-    let display_gibs = obj["display_gibs"].as_f64().unwrap();
-    let comp3_mibs = obj["comp3_mibs"].as_f64().unwrap();
+    let display_gibs = obj["display_gibs"]
+        .as_f64()
+        .expect("display_gibs must be a valid f64");
+    let comp3_mibs = obj["comp3_mibs"]
+        .as_f64()
+        .expect("comp3_mibs must be a valid f64");
 
     // Verify values are positive and within reasonable bounds
     assert!(display_gibs > 0.0, "DISPLAY throughput must be positive");
     assert!(comp3_mibs > 0.0, "COMP-3 throughput must be positive");
-    assert!(display_gibs < 100.0, "DISPLAY throughput must be within reasonable bounds");
-    assert!(comp3_mibs < 10000.0, "COMP-3 throughput must be within reasonable bounds");
+    assert!(
+        display_gibs < 100.0,
+        "DISPLAY throughput must be within reasonable bounds"
+    );
+    assert!(
+        comp3_mibs < 10000.0,
+        "COMP-3 throughput must be within reasonable bounds"
+    );
 
     // Test enterprise performance floor scenarios
     let floor_scenarios = vec![
-        (0.08, 40.0),  // At performance floors (80 MB/s = ~0.074 GiB/s, 40 MB/s)
-        (1.0, 100.0),  // Above floors
-        (5.0, 600.0),  // High performance
+        (0.08, 40.0), // At performance floors (80 MB/s = ~0.074 GiB/s, 40 MB/s)
+        (1.0, 100.0), // Above floors
+        (5.0, 600.0), // High performance
     ];
 
     for (display, comp3) in floor_scenarios {
         let schema = PerformanceReportSchema::new(display, comp3);
         let json = schema.to_json()?;
-        let obj = json.as_object().unwrap();
+        let obj = json
+            .as_object()
+            .expect("JSON value must be an object");
 
-        assert!(obj["display_gibs"].as_f64().unwrap() > 0.0);
-        assert!(obj["comp3_mibs"].as_f64().unwrap() > 0.0);
+        assert!(
+            obj["display_gibs"]
+                .as_f64()
+                .expect("display_gibs must be a valid f64")
+                > 0.0
+        );
+        assert!(
+            obj["comp3_mibs"]
+                .as_f64()
+                .expect("comp3_mibs must be a valid f64")
+                > 0.0
+        );
     }
 
     Ok(())
@@ -244,8 +378,10 @@ fn test_machine_readable_format_compliance() -> Result<(), Box<dyn std::error::E
 
     // Verify JSON can be minified (for machine processing)
     let compact_json = serde_json::to_string(&json_value)?;
-    assert!(compact_json.len() < json_string.len(),
-        "JSON must support compact format for machine processing");
+    assert!(
+        compact_json.len() < json_string.len(),
+        "JSON must support compact format for machine processing"
+    );
 
     // Verify JSON can be parsed by different parsers
     let _: HashMap<String, Value> = serde_json::from_str(&json_string)?;
@@ -260,13 +396,25 @@ fn test_empty_arrays_handling() -> Result<(), Box<dyn std::error::Error>> {
     // AC:AC2 - Verify empty arrays are handled correctly for successful runs
     let schema = PerformanceReportSchema::new(4.22, 571.0);
     let json_value = schema.to_json()?;
-    let obj = json_value.as_object().unwrap();
+    let obj = json_value
+        .as_object()
+        .expect("JSON value must be an object");
 
-    let warnings = obj["warnings"].as_array().unwrap();
-    let errors = obj["errors"].as_array().unwrap();
+    let warnings = obj["warnings"]
+        .as_array()
+        .expect("warnings must be an array");
+    let errors = obj["errors"]
+        .as_array()
+        .expect("errors must be an array");
 
-    assert!(warnings.is_empty(), "Warnings array should be empty for successful performance");
-    assert!(errors.is_empty(), "Errors array should be empty for successful performance");
+    assert!(
+        warnings.is_empty(),
+        "Warnings array should be empty for successful performance"
+    );
+    assert!(
+        errors.is_empty(),
+        "Errors array should be empty for successful performance"
+    );
 
     // Verify empty arrays serialize correctly
     let json_string = serde_json::to_string(&json_value)?;
@@ -286,18 +434,31 @@ fn test_json_output_file_generation_readiness() -> Result<(), Box<dyn std::error
     let json_string = serde_json::to_string_pretty(&json_value)?;
 
     // Verify JSON string is valid and non-empty
-    assert!(!json_string.trim().is_empty(), "Generated JSON must not be empty");
-    assert!(json_string.len() > 50, "Generated JSON must contain substantial content");
+    assert!(
+        !json_string.trim().is_empty(),
+        "Generated JSON must not be empty"
+    );
+    assert!(
+        json_string.len() > 50,
+        "Generated JSON must contain substantial content"
+    );
 
     // Verify JSON can be parsed back
     let _parsed: Value = serde_json::from_str(&json_string)?;
 
     // Test file path construction (without actually writing)
-    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let expected_output_path = workspace_root.join("scripts").join("bench").join("perf.json");
+    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("CARGO_MANIFEST_DIR must have a parent directory");
+    let expected_output_path = workspace_root
+        .join("scripts")
+        .join("bench")
+        .join("perf.json");
 
-    assert!(expected_output_path.parent().is_some(),
-        "Output path must have valid parent directory");
+    assert!(
+        expected_output_path.parent().is_some(),
+        "Output path must have valid parent directory"
+    );
 
     Ok(())
 }

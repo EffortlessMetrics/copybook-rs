@@ -24,12 +24,18 @@ pub struct GitHubWorkflowContext {
 }
 
 impl GitHubWorkflowContext {
+    /// Creates a GitHubWorkflowContext from environment variables.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CicdIntegrationError::EnvironmentVariableError` if required
+    /// environment variables are missing.
     pub fn from_environment() -> Result<Self, CicdIntegrationError> {
         let get_env = |key: &str| -> Result<String, CicdIntegrationError> {
             std::env::var(key).map_err(|_| {
-                CicdIntegrationError::EnvironmentVariableError(
-                    format!("Missing required environment variable: {}", key)
-                )
+                CicdIntegrationError::EnvironmentVariableError(format!(
+                    "Missing required environment variable: {key}"
+                ))
             })
         };
 
@@ -48,6 +54,7 @@ impl GitHubWorkflowContext {
         })
     }
 
+    #[must_use]
     pub fn mock_pull_request() -> Self {
         Self {
             workflow_id: "benchmark.yml".to_string(),
@@ -64,6 +71,7 @@ impl GitHubWorkflowContext {
         }
     }
 
+    #[must_use]
     pub fn mock_push_to_main() -> Self {
         Self {
             workflow_id: "benchmark.yml".to_string(),
@@ -99,6 +107,7 @@ pub struct BenchmarkConfiguration {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ReportingConfiguration {
     pub json_output_enabled: bool,
     pub pr_comments_enabled: bool,
@@ -108,6 +117,7 @@ pub struct ReportingConfiguration {
 }
 
 impl CicdPipelineIntegrator {
+    #[must_use]
     pub fn new(workflow_context: GitHubWorkflowContext) -> Self {
         Self {
             workflow_context,
@@ -116,12 +126,21 @@ impl CicdPipelineIntegrator {
         }
     }
 
-    pub fn execute_benchmark_pipeline(&self) -> Result<PipelineExecutionResult, CicdIntegrationError> {
+    /// Executes the complete benchmark pipeline.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CicdIntegrationError` if any pipeline step fails,
+    /// including environment validation, benchmark execution,
+    /// or report generation.
+    pub fn execute_benchmark_pipeline(
+        &self,
+    ) -> Result<PipelineExecutionResult, CicdIntegrationError> {
         let mut execution_steps = Vec::new();
         let start_time = SystemTime::now();
 
         // Step 1: Environment validation
-        let _env_validation = self.validate_environment()?;
+        let _env_validation = Self::validate_environment()?;
         execution_steps.push(PipelineStep {
             step_name: "environment_validation".to_string(),
             status: StepStatus::Completed,
@@ -135,7 +154,10 @@ impl CicdPipelineIntegrator {
             step_name: "benchmark_execution".to_string(),
             status: StepStatus::Completed,
             duration: Duration::from_secs(120),
-            output: Some(format!("Benchmarks completed: {} results", benchmark_result.metrics.len())),
+            output: Some(format!(
+                "Benchmarks completed: {} results",
+                benchmark_result.metrics.len()
+            )),
         });
 
         // Step 3: JSON report generation
@@ -145,12 +167,17 @@ impl CicdPipelineIntegrator {
                 step_name: "json_report_generation".to_string(),
                 status: StepStatus::Completed,
                 duration: Duration::from_millis(500),
-                output: Some(format!("JSON report generated: {} bytes", json_report.len())),
+                output: Some(format!(
+                    "JSON report generated: {} bytes",
+                    json_report.len()
+                )),
             });
         }
 
         // Step 4: PR comment posting (for pull_request events)
-        if self.workflow_context.event_name == "pull_request" && self.reporting_config.pr_comments_enabled {
+        if self.workflow_context.event_name == "pull_request"
+            && self.reporting_config.pr_comments_enabled
+        {
             let _pr_comment = self.post_pr_comment(&benchmark_result)?;
             execution_steps.push(PipelineStep {
                 step_name: "pr_comment_posting".to_string(),
@@ -161,9 +188,10 @@ impl CicdPipelineIntegrator {
         }
 
         // Step 5: Baseline promotion (for push to main)
-        if self.workflow_context.event_name == "push" &&
-           self.workflow_context.ref_name == "main" &&
-           self.reporting_config.baseline_promotion_enabled {
+        if self.workflow_context.event_name == "push"
+            && self.workflow_context.ref_name == "main"
+            && self.reporting_config.baseline_promotion_enabled
+        {
             let _baseline_promotion = self.promote_baseline(&benchmark_result)?;
             execution_steps.push(PipelineStep {
                 step_name: "baseline_promotion".to_string(),
@@ -195,7 +223,7 @@ impl CicdPipelineIntegrator {
         })
     }
 
-    fn validate_environment(&self) -> Result<EnvironmentValidationResult, CicdIntegrationError> {
+    fn validate_environment() -> Result<EnvironmentValidationResult, CicdIntegrationError> {
         // Validate required environment variables
         let required_vars = vec![
             "GITHUB_WORKSPACE",
@@ -212,9 +240,10 @@ impl CicdPipelineIntegrator {
         }
 
         if !missing_vars.is_empty() {
-            return Err(CicdIntegrationError::EnvironmentValidationError(
-                format!("Missing environment variables: {}", missing_vars.join(", "))
-            ));
+            return Err(CicdIntegrationError::EnvironmentValidationError(format!(
+                "Missing environment variables: {}",
+                missing_vars.join(", ")
+            )));
         }
 
         // Validate workspace structure
@@ -223,7 +252,7 @@ impl CicdPipelineIntegrator {
 
         if !workspace_path.exists() {
             return Err(CicdIntegrationError::WorkspaceValidationError(
-                "GitHub workspace directory does not exist".to_string()
+                "GitHub workspace directory does not exist".to_string(),
             ));
         }
 
@@ -231,7 +260,7 @@ impl CicdPipelineIntegrator {
         let copybook_bench_path = workspace_path.join("copybook-bench");
         if !copybook_bench_path.exists() {
             return Err(CicdIntegrationError::WorkspaceValidationError(
-                "copybook-bench directory not found in workspace".to_string()
+                "copybook-bench directory not found in workspace".to_string(),
             ));
         }
 
@@ -241,7 +270,7 @@ impl CicdPipelineIntegrator {
             copybook_bench_available: true,
             system_resources: SystemResources {
                 cpu_cores: num_cpus::get() as u32,
-                memory_gb: 16, // Mock value for testing
+                memory_gb: 16,      // Mock value for testing
                 disk_space_gb: 100, // Mock value for testing
             },
         })
@@ -275,13 +304,20 @@ impl CicdPipelineIntegrator {
         })
     }
 
-    fn generate_json_report(&self, benchmark_result: &BenchmarkExecutionResult) -> Result<String, CicdIntegrationError> {
-        let display_metric = benchmark_result.metrics.iter()
+    fn generate_json_report(
+        &self,
+        benchmark_result: &BenchmarkExecutionResult,
+    ) -> Result<String, CicdIntegrationError> {
+        let display_metric = benchmark_result
+            .metrics
+            .iter()
             .find(|m| m.metric_name.contains("display"))
             .map(|m| m.throughput_gibs)
             .unwrap_or(0.0);
 
-        let comp3_metric = benchmark_result.metrics.iter()
+        let comp3_metric = benchmark_result
+            .metrics
+            .iter()
             .find(|m| m.metric_name.contains("comp3"))
             .map(|m| m.throughput_mibs)
             .unwrap_or(0.0);
@@ -304,22 +340,29 @@ impl CicdPipelineIntegrator {
             .map_err(|e| CicdIntegrationError::JsonGenerationError(e.to_string()))
     }
 
-    fn post_pr_comment(&self, benchmark_result: &BenchmarkExecutionResult) -> Result<PrCommentResult, CicdIntegrationError> {
+    fn post_pr_comment(
+        &self,
+        benchmark_result: &BenchmarkExecutionResult,
+    ) -> Result<PrCommentResult, CicdIntegrationError> {
         // Extract PR number from context
         let pr_number = self.extract_pr_number()?;
 
-        let display_gibs = benchmark_result.metrics.iter()
+        let display_gibs = benchmark_result
+            .metrics
+            .iter()
             .find(|m| m.metric_name.contains("display"))
             .map(|m| m.throughput_gibs)
             .unwrap_or(0.0);
 
-        let comp3_mibs = benchmark_result.metrics.iter()
+        let comp3_mibs = benchmark_result
+            .metrics
+            .iter()
             .find(|m| m.metric_name.contains("comp3"))
             .map(|m| m.throughput_mibs)
             .unwrap_or(0.0);
 
         let comment_body = format!(
-            "## 🚀 Performance Report\n\n**DISPLAY**: {:.2} GiB/s, **COMP-3**: {:.0} MiB/s [✅ PASSED]\n\n_Generated by workflow run: {}_",
+            "## 🚀 Performance Report\n\nDISPLAY: {:.2} GiB/s, COMP-3: {:.0} MiB/s [✅ PASSED]\n\n_Generated by workflow run: {}_",
             display_gibs, comp3_mibs, self.workflow_context.run_id
         );
 
@@ -331,7 +374,10 @@ impl CicdPipelineIntegrator {
         })
     }
 
-    fn promote_baseline(&self, benchmark_result: &BenchmarkExecutionResult) -> Result<BaselinePromotionResult, CicdIntegrationError> {
+    fn promote_baseline(
+        &self,
+        benchmark_result: &BenchmarkExecutionResult,
+    ) -> Result<BaselinePromotionResult, CicdIntegrationError> {
         let baseline_id = format!("main-{}", &self.workflow_context.sha[..8]);
 
         Ok(BaselinePromotionResult {
@@ -342,7 +388,10 @@ impl CicdPipelineIntegrator {
         })
     }
 
-    fn generate_audit_report(&self, _benchmark_result: &BenchmarkExecutionResult) -> Result<AuditReportResult, CicdIntegrationError> {
+    fn generate_audit_report(
+        &self,
+        _benchmark_result: &BenchmarkExecutionResult,
+    ) -> Result<AuditReportResult, CicdIntegrationError> {
         Ok(AuditReportResult {
             audit_id: format!("AUDIT-{}", self.workflow_context.run_id),
             generated_at: SystemTime::now(),
@@ -357,7 +406,7 @@ impl CicdPipelineIntegrator {
             Ok(123) // Mock PR number
         } else {
             Err(CicdIntegrationError::PrNumberExtractionError(
-                "Not a pull request event".to_string()
+                "Not a pull request event".to_string(),
             ))
         }
     }
@@ -529,26 +578,36 @@ pub enum CicdIntegrationError {
 impl std::fmt::Display for CicdIntegrationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CicdIntegrationError::EnvironmentVariableError(msg) =>
-                write!(f, "Environment variable error: {}", msg),
-            CicdIntegrationError::EnvironmentValidationError(msg) =>
-                write!(f, "Environment validation error: {}", msg),
-            CicdIntegrationError::WorkspaceValidationError(msg) =>
-                write!(f, "Workspace validation error: {}", msg),
-            CicdIntegrationError::BenchmarkExecutionError(msg) =>
-                write!(f, "Benchmark execution error: {}", msg),
-            CicdIntegrationError::JsonGenerationError(msg) =>
-                write!(f, "JSON generation error: {}", msg),
-            CicdIntegrationError::PrCommentPostingError(msg) =>
-                write!(f, "PR comment posting error: {}", msg),
-            CicdIntegrationError::BaselinePromotionError(msg) =>
-                write!(f, "Baseline promotion error: {}", msg),
-            CicdIntegrationError::AuditReportGenerationError(msg) =>
-                write!(f, "Audit report generation error: {}", msg),
-            CicdIntegrationError::PrNumberExtractionError(msg) =>
-                write!(f, "PR number extraction error: {}", msg),
-            CicdIntegrationError::ArtifactCollectionError(msg) =>
-                write!(f, "Artifact collection error: {}", msg),
+            CicdIntegrationError::EnvironmentVariableError(msg) => {
+                write!(f, "Environment variable error: {}", msg)
+            }
+            CicdIntegrationError::EnvironmentValidationError(msg) => {
+                write!(f, "Environment validation error: {}", msg)
+            }
+            CicdIntegrationError::WorkspaceValidationError(msg) => {
+                write!(f, "Workspace validation error: {}", msg)
+            }
+            CicdIntegrationError::BenchmarkExecutionError(msg) => {
+                write!(f, "Benchmark execution error: {}", msg)
+            }
+            CicdIntegrationError::JsonGenerationError(msg) => {
+                write!(f, "JSON generation error: {}", msg)
+            }
+            CicdIntegrationError::PrCommentPostingError(msg) => {
+                write!(f, "PR comment posting error: {}", msg)
+            }
+            CicdIntegrationError::BaselinePromotionError(msg) => {
+                write!(f, "Baseline promotion error: {}", msg)
+            }
+            CicdIntegrationError::AuditReportGenerationError(msg) => {
+                write!(f, "Audit report generation error: {}", msg)
+            }
+            CicdIntegrationError::PrNumberExtractionError(msg) => {
+                write!(f, "PR number extraction error: {}", msg)
+            }
+            CicdIntegrationError::ArtifactCollectionError(msg) => {
+                write!(f, "Artifact collection error: {}", msg)
+            }
         }
     }
 }
@@ -578,13 +637,16 @@ fn test_github_workflow_context_extraction() -> Result<(), Box<dyn std::error::E
     // Test environment variable extraction (will fail without actual environment)
     // This tests the error handling path
     let env_result = GitHubWorkflowContext::from_environment();
-    assert!(env_result.is_err(), "Should fail without proper GitHub Actions environment");
+    assert!(
+        env_result.is_err(),
+        "Should fail without proper GitHub Actions environment"
+    );
 
     // Verify error handling
     match env_result {
         Err(CicdIntegrationError::EnvironmentVariableError(msg)) => {
             assert!(msg.contains("GITHUB_WORKFLOW"));
-        },
+        }
         _ => panic!("Expected EnvironmentVariableError"),
     }
 
@@ -606,16 +668,19 @@ fn test_pipeline_execution_pull_request() -> Result<(), Box<dyn std::error::Erro
 
     // Note: This will fail because we don't have the actual workspace structure
     // But it tests the error handling path
-    assert!(result.is_err(), "Should fail without proper workspace setup");
+    assert!(
+        result.is_err(),
+        "Should fail without proper workspace setup"
+    );
 
     // Verify error type
     match result {
         Err(CicdIntegrationError::WorkspaceValidationError(_)) => {
             // Expected error type for missing workspace
-        },
+        }
         Err(CicdIntegrationError::EnvironmentValidationError(_)) => {
             // Also acceptable for environment validation failure
-        },
+        }
         _ => panic!("Expected workspace or environment validation error"),
     }
 
@@ -636,12 +701,18 @@ fn test_pipeline_execution_push_to_main() -> Result<(), Box<dyn std::error::Erro
     assert_eq!(integrator.workflow_context.ref_name, "main");
 
     // Verify configurations are appropriate for main branch
-    assert!(integrator.benchmark_config.perf_mode_enabled,
-        "PERF mode should be enabled for main branch benchmarks");
-    assert!(integrator.reporting_config.baseline_promotion_enabled,
-        "Baseline promotion should be enabled for main branch");
-    assert!(integrator.reporting_config.audit_reports_enabled,
-        "Audit reports should be enabled for main branch");
+    assert!(
+        integrator.benchmark_config.perf_mode_enabled,
+        "PERF mode should be enabled for main branch benchmarks"
+    );
+    assert!(
+        integrator.reporting_config.baseline_promotion_enabled,
+        "Baseline promotion should be enabled for main branch"
+    );
+    assert!(
+        integrator.reporting_config.audit_reports_enabled,
+        "Audit reports should be enabled for main branch"
+    );
 
     Ok(())
 }
@@ -653,14 +724,14 @@ fn test_cicd_environment_validation() -> Result<(), Box<dyn std::error::Error>> 
     // AC:AC9 - Verify CI/CD environment validation
 
     let context = GitHubWorkflowContext::mock_pull_request();
-    let integrator = CicdPipelineIntegrator::new(context);
+    let _integrator = CicdPipelineIntegrator::new(context);
 
     // Test environment validation with mock setup
     // Note: Using mock context which should handle environment validation internally
     // without needing to modify global environment variables
 
     // Test initial validation (may pass or fail depending on actual environment)
-    let validation_result = integrator.validate_environment();
+    let validation_result = CicdPipelineIntegrator::validate_environment();
 
     // The validation logic should be tested through mock contexts
     // rather than manipulating global environment state
@@ -669,10 +740,10 @@ fn test_cicd_environment_validation() -> Result<(), Box<dyn std::error::Error>> 
     match validation_result {
         Err(CicdIntegrationError::WorkspaceValidationError(_)) => {
             // Expected - workspace doesn't exist
-        },
+        }
         Err(CicdIntegrationError::EnvironmentValidationError(_)) => {
             // Also acceptable if other environment issues
-        },
+        }
         Ok(_) => panic!("Should not succeed without proper workspace"),
         Err(e) => panic!("Unexpected error type: {:?}", e),
     }
@@ -687,32 +758,57 @@ fn test_benchmark_execution_integration() -> Result<(), Box<dyn std::error::Erro
     // AC:AC9 - Verify benchmark execution integration
 
     let context = GitHubWorkflowContext::mock_pull_request();
-    let integrator = CicdPipelineIntegrator::new(context);
+    let _integrator = CicdPipelineIntegrator::new(context);
 
     // Test benchmark execution (mocked)
     let benchmark_result = integrator.execute_benchmarks()?;
 
     // Verify benchmark results structure
-    assert!(!benchmark_result.metrics.is_empty(), "Should have performance metrics");
-    assert_eq!(benchmark_result.exit_code, 0, "Should have successful exit code");
-    assert!(benchmark_result.execution_time > Duration::from_secs(0), "Should have execution time");
+    assert!(
+        !benchmark_result.metrics.is_empty(),
+        "Should have performance metrics"
+    );
+    assert_eq!(
+        benchmark_result.exit_code, 0,
+        "Should have successful exit code"
+    );
+    assert!(
+        benchmark_result.execution_time > Duration::from_secs(0),
+        "Should have execution time"
+    );
 
     // Verify metrics contain expected benchmarks
-    let display_metric = benchmark_result.metrics.iter()
+    let display_metric = benchmark_result
+        .metrics
+        .iter()
         .find(|m| m.metric_name.contains("display"));
-    assert!(display_metric.is_some(), "Should have DISPLAY benchmark metric");
+    assert!(
+        display_metric.is_some(),
+        "Should have DISPLAY benchmark metric"
+    );
 
-    let comp3_metric = benchmark_result.metrics.iter()
+    let comp3_metric = benchmark_result
+        .metrics
+        .iter()
         .find(|m| m.metric_name.contains("comp3"));
-    assert!(comp3_metric.is_some(), "Should have COMP-3 benchmark metric");
+    assert!(
+        comp3_metric.is_some(),
+        "Should have COMP-3 benchmark metric"
+    );
 
     // Verify performance values are reasonable
     let display = display_metric.unwrap();
-    assert!(display.throughput_gibs > 4.0, "DISPLAY throughput should exceed 4 GiB/s");
+    assert!(
+        display.throughput_gibs > 4.0,
+        "DISPLAY throughput should exceed 4 GiB/s"
+    );
     assert!(display.sample_count > 50, "Should have sufficient samples");
 
     let comp3 = comp3_metric.unwrap();
-    assert!(comp3.throughput_mibs > 500.0, "COMP-3 throughput should exceed 500 MiB/s");
+    assert!(
+        comp3.throughput_mibs > 500.0,
+        "COMP-3 throughput should exceed 500 MiB/s"
+    );
 
     Ok(())
 }
@@ -724,7 +820,7 @@ fn test_json_report_generation_integration() -> Result<(), Box<dyn std::error::E
     // AC:AC9 - Verify JSON report generation integration
 
     let context = GitHubWorkflowContext::mock_pull_request();
-    let integrator = CicdPipelineIntegrator::new(context);
+    let _integrator = CicdPipelineIntegrator::new(context);
 
     // Mock benchmark result
     let benchmark_result = integrator.execute_benchmarks()?;
@@ -737,17 +833,32 @@ fn test_json_report_generation_integration() -> Result<(), Box<dyn std::error::E
     assert!(json_report.is_object(), "Report should be JSON object");
 
     let obj = json_report.as_object().unwrap();
-    assert!(obj.contains_key("display_gibs"), "Should contain display_gibs");
+    assert!(
+        obj.contains_key("display_gibs"),
+        "Should contain display_gibs"
+    );
     assert!(obj.contains_key("comp3_mibs"), "Should contain comp3_mibs");
-    assert!(obj.contains_key("warnings"), "Should contain warnings array");
+    assert!(
+        obj.contains_key("warnings"),
+        "Should contain warnings array"
+    );
     assert!(obj.contains_key("errors"), "Should contain errors array");
 
     // Verify metadata includes workflow context
     assert!(obj.contains_key("_metadata"), "Should contain metadata");
     let metadata = obj["_metadata"].as_object().unwrap();
-    assert!(metadata.contains_key("workflow_id"), "Metadata should include workflow_id");
-    assert!(metadata.contains_key("run_id"), "Metadata should include run_id");
-    assert!(metadata.contains_key("sha"), "Metadata should include git SHA");
+    assert!(
+        metadata.contains_key("workflow_id"),
+        "Metadata should include workflow_id"
+    );
+    assert!(
+        metadata.contains_key("run_id"),
+        "Metadata should include run_id"
+    );
+    assert!(
+        metadata.contains_key("sha"),
+        "Metadata should include git SHA"
+    );
 
     // Verify performance values
     let display_gibs = obj["display_gibs"].as_f64().unwrap();
@@ -775,22 +886,42 @@ fn test_pr_comment_posting_integration() -> Result<(), Box<dyn std::error::Error
     let pr_comment_result = integrator.post_pr_comment(&benchmark_result)?;
 
     // Verify PR comment structure
-    assert!(pr_comment_result.pr_number > 0, "Should have valid PR number");
-    assert!(!pr_comment_result.comment_body.is_empty(), "Should have comment body");
-    assert!(!pr_comment_result.comment_id.is_empty(), "Should have comment ID");
+    assert!(
+        pr_comment_result.pr_number > 0,
+        "Should have valid PR number"
+    );
+    assert!(
+        !pr_comment_result.comment_body.is_empty(),
+        "Should have comment body"
+    );
+    assert!(
+        !pr_comment_result.comment_id.is_empty(),
+        "Should have comment ID"
+    );
 
     // Verify comment content
     let comment_body = &pr_comment_result.comment_body;
-    assert!(comment_body.contains("Performance Report"), "Should have performance report header");
-    assert!(comment_body.contains("DISPLAY:"), "Should show DISPLAY metrics");
-    assert!(comment_body.contains("COMP-3:"), "Should show COMP-3 metrics");
+    assert!(
+        comment_body.contains("Performance Report"),
+        "Should have performance report header"
+    );
+    assert!(
+        comment_body.contains("DISPLAY:"),
+        "Should show DISPLAY metrics"
+    );
+    assert!(
+        comment_body.contains("COMP-3:"),
+        "Should show COMP-3 metrics"
+    );
     assert!(comment_body.contains("GiB/s"), "Should have GiB/s units");
     assert!(comment_body.contains("MiB/s"), "Should have MiB/s units");
     assert!(comment_body.contains("PASSED"), "Should show PASSED status");
 
     // Verify workflow context is included
-    assert!(comment_body.contains(&integrator.workflow_context.run_id),
-        "Should include workflow run ID for traceability");
+    assert!(
+        comment_body.contains(&integrator.workflow_context.run_id),
+        "Should include workflow run ID for traceability"
+    );
 
     Ok(())
 }
@@ -811,21 +942,40 @@ fn test_baseline_promotion_integration() -> Result<(), Box<dyn std::error::Error
     let promotion_result = integrator.promote_baseline(&benchmark_result)?;
 
     // Verify baseline promotion structure
-    assert!(!promotion_result.baseline_id.is_empty(), "Should have baseline ID");
-    assert!(promotion_result.baseline_id.starts_with("main-"), "Should have main- prefix");
-    assert!(promotion_result.baseline_id.contains(&integrator.workflow_context.sha[..8]),
-        "Should include commit SHA prefix");
+    assert!(
+        !promotion_result.baseline_id.is_empty(),
+        "Should have baseline ID"
+    );
+    assert!(
+        promotion_result.baseline_id.starts_with("main-"),
+        "Should have main- prefix"
+    );
+    assert!(
+        promotion_result
+            .baseline_id
+            .contains(&integrator.workflow_context.sha[..8]),
+        "Should include commit SHA prefix"
+    );
 
     // Verify promotion metadata
-    assert_eq!(promotion_result.git_commit, integrator.workflow_context.sha,
-        "Should record correct git commit");
-    assert!(!promotion_result.performance_metrics.is_empty(),
-        "Should include performance metrics");
+    assert_eq!(
+        promotion_result.git_commit, integrator.workflow_context.sha,
+        "Should record correct git commit"
+    );
+    assert!(
+        !promotion_result.performance_metrics.is_empty(),
+        "Should include performance metrics"
+    );
 
     // Verify timestamp is recent
     let now = SystemTime::now();
-    let promotion_age = now.duration_since(promotion_result.promoted_at).unwrap_or_default();
-    assert!(promotion_age < Duration::from_secs(10), "Promotion timestamp should be recent");
+    let promotion_age = now
+        .duration_since(promotion_result.promoted_at)
+        .unwrap_or_default();
+    assert!(
+        promotion_age < Duration::from_secs(10),
+        "Promotion timestamp should be recent"
+    );
 
     Ok(())
 }
@@ -837,7 +987,7 @@ fn test_artifact_collection() -> Result<(), Box<dyn std::error::Error>> {
     // AC:AC9 - Verify artifact collection
 
     let context = GitHubWorkflowContext::mock_pull_request();
-    let integrator = CicdPipelineIntegrator::new(context);
+    let _integrator = CicdPipelineIntegrator::new(context);
 
     // Collect artifacts
     let artifacts = integrator.collect_artifacts()?;
@@ -846,7 +996,8 @@ fn test_artifact_collection() -> Result<(), Box<dyn std::error::Error>> {
     assert!(!artifacts.is_empty(), "Should have artifacts to collect");
 
     // Verify JSON report artifact
-    let json_artifact = artifacts.iter()
+    let json_artifact = artifacts
+        .iter()
         .find(|a| matches!(a.artifact_type, ArtifactType::JsonReport));
     assert!(json_artifact.is_some(), "Should have JSON report artifact");
 
@@ -856,13 +1007,20 @@ fn test_artifact_collection() -> Result<(), Box<dyn std::error::Error>> {
     assert!(json_artifact.path.to_string_lossy().contains("perf.json"));
 
     // Verify audit report artifact
-    let audit_artifact = artifacts.iter()
+    let audit_artifact = artifacts
+        .iter()
         .find(|a| matches!(a.artifact_type, ArtifactType::AuditReport));
-    assert!(audit_artifact.is_some(), "Should have audit report artifact");
+    assert!(
+        audit_artifact.is_some(),
+        "Should have audit report artifact"
+    );
 
     let audit_artifact = audit_artifact.unwrap();
     assert_eq!(audit_artifact.name, "audit-report.html");
-    assert!(audit_artifact.size_bytes > 0, "Audit artifact should have size");
+    assert!(
+        audit_artifact.size_bytes > 0,
+        "Audit artifact should have size"
+    );
 
     Ok(())
 }
@@ -887,20 +1045,32 @@ fn test_workflow_step_orchestration() -> Result<(), Box<dyn std::error::Error>> 
 
         // Verify step configuration based on event type
         if context.event_name == "pull_request" {
-            assert!(integrator.reporting_config.pr_comments_enabled,
-                "PR comments should be enabled for pull_request events in {}", scenario_name);
+            assert!(
+                integrator.reporting_config.pr_comments_enabled,
+                "PR comments should be enabled for pull_request events in {}",
+                scenario_name
+            );
         }
 
         if context.event_name == "push" && context.ref_name == "main" {
-            assert!(integrator.reporting_config.baseline_promotion_enabled,
-                "Baseline promotion should be enabled for push to main in {}", scenario_name);
+            assert!(
+                integrator.reporting_config.baseline_promotion_enabled,
+                "Baseline promotion should be enabled for push to main in {}",
+                scenario_name
+            );
         }
 
         // Verify configuration consistency
-        assert!(integrator.benchmark_config.perf_mode_enabled,
-            "PERF mode should be enabled for {} scenario", scenario_name);
-        assert!(integrator.reporting_config.json_output_enabled,
-            "JSON output should be enabled for {} scenario", scenario_name);
+        assert!(
+            integrator.benchmark_config.perf_mode_enabled,
+            "PERF mode should be enabled for {} scenario",
+            scenario_name
+        );
+        assert!(
+            integrator.reporting_config.json_output_enabled,
+            "JSON output should be enabled for {} scenario",
+            scenario_name
+        );
     }
 
     Ok(())

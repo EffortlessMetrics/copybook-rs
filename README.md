@@ -805,6 +805,78 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ## Development
 
+## Performance Reporting
+
+copybook-rs includes comprehensive performance reporting infrastructure (Issue #52) for machine-readable benchmark data, regression detection, and enterprise audit trails.
+
+### Configuration
+
+Performance reporting is configured through YAML files in `scripts/bench/config/`:
+
+```yaml
+# performance_config.yaml
+baseline_retention: 10              # Keep 10 most recent baselines
+performance_floors:
+  display_gibs: 80.0               # Minimum DISPLAY throughput (MB/s)
+  comp3_mibs: 40.0                 # Minimum COMP-3 throughput (MB/s)
+regression_thresholds:
+  warning_percent: 5.0             # Performance degradation warning
+  critical_percent: 10.0           # Performance degradation alert
+```
+
+### Usage
+
+```bash
+# Generate machine-readable performance report
+cargo bench --package copybook-bench -- --output-format json > performance.json
+
+# Run with environment variable for enhanced reporting
+PERF=1 cargo bench --package copybook-bench
+
+# Generate baseline for current commit
+scripts/bench/generate_baseline.py --commit $(git rev-parse HEAD)
+
+# Compare performance against baseline
+scripts/bench/regression_detector.py --baseline main --current HEAD
+
+# Generate enterprise audit report
+scripts/bench/audit_generator.py --output audit_report.json
+```
+
+### Python Utilities
+
+The `scripts/bench/` directory contains Python utilities for performance analysis:
+
+- **baseline_manager.py** - Baseline creation and retention management
+- **regression_detector.py** - Automated performance regression detection
+- **audit_generator.py** - Enterprise compliance audit report generation
+- **report_generator.py** - Machine-readable performance report generation
+
+### JSON Schema
+
+Performance reports conform to standardized JSON schemas:
+
+- **Performance Report Schema**: `docs/schemas/performance_report.schema.json`
+- **Baseline Schema**: `docs/schemas/baseline.schema.json`
+- **Regression Report Schema**: `docs/schemas/regression_report.schema.json`
+
+### CI/CD Integration
+
+Performance reporting integrates with GitHub Actions for automated baseline promotion:
+
+```yaml
+# .github/workflows/performance.yml
+- name: Run performance benchmarks
+  run: cargo bench --package copybook-bench -- --output-format json
+
+- name: Detect performance regressions
+  run: python scripts/bench/regression_detector.py
+
+- name: Promote baseline on merge to main
+  if: github.ref == 'refs/heads/main'
+  run: python scripts/bench/baseline_manager.py --promote
+```
+
 ### Building
 
 ```bash

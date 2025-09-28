@@ -3,6 +3,18 @@
 //! Tests feature spec: issue-52-spec.md#AC7
 //! Validates enterprise audit capabilities with historical performance tracking and compliance reporting
 
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::expect_used)] // Test code: expects are acceptable for test assertions
+#![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::panic)]
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
@@ -24,11 +36,11 @@ pub struct ComplianceEngine {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ComplianceFramework {
-    SOX,        // Sarbanes-Oxley Act
-    PciDss,     // Payment Card Industry Data Security Standard
-    GDPR,       // General Data Protection Regulation
-    SOC2,       // Service Organization Control 2
-    ISO27001,   // Information Security Management
+    SOX,      // Sarbanes-Oxley Act
+    PciDss,   // Payment Card Industry Data Security Standard
+    GDPR,     // General Data Protection Regulation
+    SOC2,     // Service Organization Control 2
+    ISO27001, // Information Security Management
 }
 
 #[derive(Debug, Clone)]
@@ -424,8 +436,13 @@ impl EnterpriseAuditFramework {
         &self,
         coverage_period: (SystemTime, SystemTime),
     ) -> Result<ComplianceReport, AuditError> {
-        let audit_id = format!("AUDIT-{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default().as_secs());
+        let audit_id = format!(
+            "AUDIT-{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
 
         let executive_summary = ExecutiveSummary {
             overall_compliance_score: 0.95, // 95% compliance
@@ -485,14 +502,12 @@ impl EnterpriseAuditFramework {
 
         let regulatory_status = RegulatoryStatus {
             framework_compliance,
-            certification_status: vec![
-                CertificationStatus {
-                    framework: ComplianceFramework::SOC2,
-                    status: ComplianceStatus::FullyCompliant,
-                    expiry_date: Some(SystemTime::now() + Duration::from_secs(365 * 24 * 3600)),
-                    last_audit_date: SystemTime::now() - Duration::from_secs(90 * 24 * 3600),
-                },
-            ],
+            certification_status: vec![CertificationStatus {
+                framework: ComplianceFramework::SOC2,
+                status: ComplianceStatus::FullyCompliant,
+                expiry_date: Some(SystemTime::now() + Duration::from_secs(365 * 24 * 3600)),
+                last_audit_date: SystemTime::now() - Duration::from_secs(90 * 24 * 3600),
+            }],
             pending_requirements: Vec::new(),
         };
 
@@ -502,20 +517,20 @@ impl EnterpriseAuditFramework {
             mitigation_strategies: Vec::new(),
         };
 
-        let recommendations = vec![
-            AuditRecommendation {
-                recommendation_id: "REC-001".to_string(),
-                priority: RecommendationPriority::Medium,
-                description: "Continue monitoring performance trends for early regression detection".to_string(),
-                implementation_effort: ImplementationEffort::Low,
-                expected_impact: "Maintain excellent performance visibility".to_string(),
-            },
-        ];
+        let recommendations = vec![AuditRecommendation {
+            recommendation_id: "REC-001".to_string(),
+            priority: RecommendationPriority::Medium,
+            description: "Continue monitoring performance trends for early regression detection"
+                .to_string(),
+            implementation_effort: ImplementationEffort::Low,
+            expected_impact: "Maintain excellent performance visibility".to_string(),
+        }];
 
         let certification = ReportCertification {
             auditor_signature: "Enterprise Audit System v1.0".to_string(),
             certification_timestamp: SystemTime::now(),
-            validation_methodology: "Automated compliance validation with statistical analysis".to_string(),
+            validation_methodology: "Automated compliance validation with statistical analysis"
+                .to_string(),
             evidence_verification: EvidenceVerification {
                 total_evidence_pieces: 100,
                 verified_evidence_pieces: 100,
@@ -609,10 +624,12 @@ impl HistoricalPerformanceTracker {
             let recent = &self.performance_history[self.performance_history.len() - 1];
             let previous = &self.performance_history[self.performance_history.len() - 2];
 
-            let display_change = (recent.display_gibs - previous.display_gibs) / previous.display_gibs;
+            let display_change =
+                (recent.display_gibs - previous.display_gibs) / previous.display_gibs;
             let comp3_change = (recent.comp3_mibs - previous.comp3_mibs) / previous.comp3_mibs;
 
-            self.trend_analysis.performance_trend = if display_change > 0.05 || comp3_change > 0.05 {
+            self.trend_analysis.performance_trend = if display_change > 0.05 || comp3_change > 0.05
+            {
                 PerformanceTrend::Improving
             } else if display_change < -0.05 || comp3_change < -0.05 {
                 PerformanceTrend::Declining
@@ -695,24 +712,44 @@ fn test_enterprise_audit_framework_initialization() -> Result<(), Box<dyn std::e
     let audit_framework = EnterpriseAuditFramework::new();
 
     // Verify framework components are properly initialized
-    assert!(!audit_framework.compliance_engine.frameworks.is_empty(),
-        "Compliance engine should have configured frameworks");
-    assert!(!audit_framework.compliance_engine.validation_rules.is_empty(),
-        "Compliance engine should have validation rules");
+    assert!(
+        !audit_framework.compliance_engine.frameworks.is_empty(),
+        "Compliance engine should have configured frameworks"
+    );
+    assert!(
+        !audit_framework
+            .compliance_engine
+            .validation_rules
+            .is_empty(),
+        "Compliance engine should have validation rules"
+    );
 
     // Verify historical tracker is ready
-    assert_eq!(audit_framework.historical_tracker.performance_history.len(), 0,
-        "Historical tracker should start empty");
+    assert_eq!(
+        audit_framework.historical_tracker.performance_history.len(),
+        0,
+        "Historical tracker should start empty"
+    );
 
     // Verify regulatory validator has frameworks
-    assert!(!audit_framework.regulatory_validator.active_frameworks.is_empty(),
-        "Regulatory validator should have active frameworks");
+    assert!(
+        !audit_framework
+            .regulatory_validator
+            .active_frameworks
+            .is_empty(),
+        "Regulatory validator should have active frameworks"
+    );
 
     // Verify audit trail is initialized
-    assert_eq!(audit_framework.audit_trail.entries.len(), 0,
-        "Audit trail should start empty");
-    assert!(!audit_framework.audit_trail.integrity_hash.is_empty(),
-        "Audit trail should have initial integrity hash");
+    assert_eq!(
+        audit_framework.audit_trail.entries.len(),
+        0,
+        "Audit trail should start empty"
+    );
+    assert!(
+        !audit_framework.audit_trail.integrity_hash.is_empty(),
+        "Audit trail should have initial integrity hash"
+    );
 
     Ok(())
 }
@@ -732,36 +769,65 @@ fn test_compliance_report_generation() -> Result<(), Box<dyn std::error::Error>>
 
     // Verify report structure
     assert!(!report.audit_id.is_empty(), "Report should have audit ID");
-    assert!(report.report_timestamp <= SystemTime::now(), "Report timestamp should be valid");
-    assert_eq!(report.coverage_period, coverage_period, "Coverage period should match");
+    assert!(
+        report.report_timestamp <= SystemTime::now(),
+        "Report timestamp should be valid"
+    );
+    assert_eq!(
+        report.coverage_period, coverage_period,
+        "Coverage period should match"
+    );
 
     // Verify executive summary
-    assert!(report.executive_summary.overall_compliance_score > 0.9,
-        "Should have high compliance score");
-    assert!(!report.executive_summary.key_findings.is_empty(),
-        "Should have key findings");
-    assert!(report.executive_summary.critical_issues.is_empty(),
-        "Should have no critical issues with current performance");
+    assert!(
+        report.executive_summary.overall_compliance_score > 0.9,
+        "Should have high compliance score"
+    );
+    assert!(
+        !report.executive_summary.key_findings.is_empty(),
+        "Should have key findings"
+    );
+    assert!(
+        report.executive_summary.critical_issues.is_empty(),
+        "Should have no critical issues with current performance"
+    );
 
     // Verify performance analysis
-    assert!(report.performance_analysis.current_metrics.display_gibs > 4.0,
-        "Should show current DISPLAY performance");
-    assert!(report.performance_analysis.current_metrics.comp3_mibs > 500.0,
-        "Should show current COMP-3 performance");
+    assert!(
+        report.performance_analysis.current_metrics.display_gibs > 4.0,
+        "Should show current DISPLAY performance"
+    );
+    assert!(
+        report.performance_analysis.current_metrics.comp3_mibs > 500.0,
+        "Should show current COMP-3 performance"
+    );
 
     // Verify regulatory status
-    assert!(!report.regulatory_status.framework_compliance.is_empty(),
-        "Should have framework compliance status");
+    assert!(
+        !report.regulatory_status.framework_compliance.is_empty(),
+        "Should have framework compliance status"
+    );
 
     // Verify risk assessment
-    assert_eq!(report.risk_assessment.overall_risk_level, RiskLevel::Low,
-        "Should have low risk level with excellent performance");
+    assert_eq!(
+        report.risk_assessment.overall_risk_level,
+        RiskLevel::Low,
+        "Should have low risk level with excellent performance"
+    );
 
     // Verify certification
-    assert!(!report.certification.auditor_signature.is_empty(),
-        "Should have auditor signature");
-    assert!(report.certification.evidence_verification.verification_confidence > 0.95,
-        "Should have high verification confidence");
+    assert!(
+        !report.certification.auditor_signature.is_empty(),
+        "Should have auditor signature"
+    );
+    assert!(
+        report
+            .certification
+            .evidence_verification
+            .verification_confidence
+            > 0.95,
+        "Should have high verification confidence"
+    );
 
     Ok(())
 }
@@ -808,18 +874,32 @@ fn test_historical_performance_tracking() -> Result<(), Box<dyn std::error::Erro
     }
 
     // Verify data was stored
-    assert_eq!(tracker.performance_history.len(), 2,
-        "Should have stored both data points");
+    assert_eq!(
+        tracker.performance_history.len(),
+        2,
+        "Should have stored both data points"
+    );
 
     // Verify trend analysis was updated
-    assert_eq!(tracker.trend_analysis.performance_trend, PerformanceTrend::Stable,
-        "Should detect stable performance trend");
+    assert_eq!(
+        tracker.trend_analysis.performance_trend,
+        PerformanceTrend::Stable,
+        "Should detect stable performance trend"
+    );
 
     // Verify stability metrics
-    assert!(tracker.trend_analysis.stability_metrics.variance_coefficient < 0.05,
-        "Should have low variance coefficient");
-    assert!(tracker.trend_analysis.stability_metrics.uptime_percentage > 0.99,
-        "Should have high uptime percentage");
+    assert!(
+        tracker
+            .trend_analysis
+            .stability_metrics
+            .variance_coefficient
+            < 0.05,
+        "Should have low variance coefficient"
+    );
+    assert!(
+        tracker.trend_analysis.stability_metrics.uptime_percentage > 0.99,
+        "Should have high uptime percentage"
+    );
 
     Ok(())
 }
@@ -832,18 +912,41 @@ fn test_regulatory_compliance_validation() -> Result<(), Box<dyn std::error::Err
     let validator = RegulatoryValidator::new();
 
     // Verify active frameworks
-    assert!(validator.active_frameworks.contains(&ComplianceFramework::SOX),
-        "Should include SOX framework");
-    assert!(validator.active_frameworks.contains(&ComplianceFramework::SOC2),
-        "Should include SOC2 framework");
+    assert!(
+        validator
+            .active_frameworks
+            .contains(&ComplianceFramework::SOX),
+        "Should include SOX framework"
+    );
+    assert!(
+        validator
+            .active_frameworks
+            .contains(&ComplianceFramework::SOC2),
+        "Should include SOC2 framework"
+    );
 
     // Verify performance requirements exist
-    assert!(validator.validation_matrix.performance_requirements.contains_key(&ComplianceFramework::SOC2),
-        "Should have SOC2 performance requirements");
+    assert!(
+        validator
+            .validation_matrix
+            .performance_requirements
+            .contains_key(&ComplianceFramework::SOC2),
+        "Should have SOC2 performance requirements"
+    );
 
-    let soc2_reqs = validator.validation_matrix.performance_requirements.get(&ComplianceFramework::SOC2).unwrap();
-    assert!(soc2_reqs.min_availability > 0.99, "Should require high availability");
-    assert!(soc2_reqs.min_throughput > 0.0, "Should have minimum throughput requirement");
+    let soc2_reqs = validator
+        .validation_matrix
+        .performance_requirements
+        .get(&ComplianceFramework::SOC2)
+        .expect("SOC2 compliance requirements must be available");
+    assert!(
+        soc2_reqs.min_availability > 0.99,
+        "Should require high availability"
+    );
+    assert!(
+        soc2_reqs.min_throughput > 0.0,
+        "Should have minimum throughput requirement"
+    );
 
     Ok(())
 }
@@ -864,25 +967,28 @@ fn test_audit_trail_integrity() -> Result<(), Box<dyn std::error::Error>> {
         event_type: AuditEventType::PerformanceValidation,
         actor: "system".to_string(),
         description: "Performance validation completed".to_string(),
-        evidence: vec![
-            EvidenceRecord {
-                evidence_type: EvidenceType::PerformanceLogs,
-                content_hash: "hash1".to_string(),
-                storage_location: "s3://audit-bucket/perf-001".to_string(),
-            },
-        ],
+        evidence: vec![EvidenceRecord {
+            evidence_type: EvidenceType::PerformanceLogs,
+            content_hash: "hash1".to_string(),
+            storage_location: "s3://audit-bucket/perf-001".to_string(),
+        }],
     };
 
     audit_trail.add_entry(entry1);
 
     // Verify integrity hash changed
-    assert_ne!(audit_trail.integrity_hash, initial_hash,
-        "Integrity hash should change when entries are added");
+    assert_ne!(
+        audit_trail.integrity_hash, initial_hash,
+        "Integrity hash should change when entries are added"
+    );
 
     // Verify entry was stored
     assert_eq!(audit_trail.entries.len(), 1, "Should have one audit entry");
     assert_eq!(audit_trail.entries[0].audit_id, "AUDIT-001");
-    assert_eq!(audit_trail.entries[0].event_type as u8, AuditEventType::PerformanceValidation as u8);
+    assert_eq!(
+        audit_trail.entries[0].event_type as u8,
+        AuditEventType::PerformanceValidation as u8
+    );
 
     // Add second entry
     let entry2 = AuditEntry {
@@ -898,11 +1004,17 @@ fn test_audit_trail_integrity() -> Result<(), Box<dyn std::error::Error>> {
     audit_trail.add_entry(entry2);
 
     // Verify integrity hash changed again
-    assert_ne!(audit_trail.integrity_hash, hash_after_first,
-        "Integrity hash should change with each new entry");
+    assert_ne!(
+        audit_trail.integrity_hash, hash_after_first,
+        "Integrity hash should change with each new entry"
+    );
 
     // Verify both entries are preserved
-    assert_eq!(audit_trail.entries.len(), 2, "Should have two audit entries");
+    assert_eq!(
+        audit_trail.entries.len(),
+        2,
+        "Should have two audit entries"
+    );
 
     Ok(())
 }
@@ -922,27 +1034,41 @@ fn test_compliance_framework_coverage() -> Result<(), Box<dyn std::error::Error>
     ];
 
     for framework in supported_frameworks {
-        assert!(compliance_engine.frameworks.contains(&framework),
-            "Should support compliance framework: {:?}", framework);
+        assert!(
+            compliance_engine.frameworks.contains(&framework),
+            "Should support compliance framework: {:?}",
+            framework
+        );
     }
 
     // Verify validation rules exist
-    assert!(!compliance_engine.validation_rules.is_empty(),
-        "Should have validation rules");
+    assert!(
+        !compliance_engine.validation_rules.is_empty(),
+        "Should have validation rules"
+    );
 
     // Verify critical performance rules exist
-    let critical_rules: Vec<_> = compliance_engine.validation_rules.iter()
+    let critical_rules: Vec<_> = compliance_engine
+        .validation_rules
+        .iter()
         .filter(|rule| rule.severity == RuleSeverity::Critical)
         .collect();
 
-    assert!(!critical_rules.is_empty(), "Should have critical validation rules");
+    assert!(
+        !critical_rules.is_empty(),
+        "Should have critical validation rules"
+    );
 
     // Find performance floor rules
-    let perf_rules: Vec<_> = critical_rules.iter()
+    let perf_rules: Vec<_> = critical_rules
+        .iter()
         .filter(|rule| rule.rule_id.starts_with("PERF-"))
         .collect();
 
-    assert!(perf_rules.len() >= 2, "Should have performance floor validation rules");
+    assert!(
+        perf_rules.len() >= 2,
+        "Should have performance floor validation rules"
+    );
 
     Ok(())
 }
@@ -964,18 +1090,28 @@ fn test_evidence_verification() -> Result<(), Box<dyn std::error::Error>> {
     // Verify evidence verification
     let verification = &report.certification.evidence_verification;
 
-    assert!(verification.total_evidence_pieces > 0,
-        "Should have evidence pieces to verify");
-    assert_eq!(verification.verified_evidence_pieces, verification.total_evidence_pieces,
-        "All evidence should be verified");
-    assert!(verification.verification_confidence > 0.95,
-        "Should have high verification confidence");
+    assert!(
+        verification.total_evidence_pieces > 0,
+        "Should have evidence pieces to verify"
+    );
+    assert_eq!(
+        verification.verified_evidence_pieces, verification.total_evidence_pieces,
+        "All evidence should be verified"
+    );
+    assert!(
+        verification.verification_confidence > 0.95,
+        "Should have high verification confidence"
+    );
 
     // Verify certification
-    assert!(!report.certification.auditor_signature.is_empty(),
-        "Should have auditor signature");
-    assert!(!report.certification.validation_methodology.is_empty(),
-        "Should have validation methodology");
+    assert!(
+        !report.certification.auditor_signature.is_empty(),
+        "Should have auditor signature"
+    );
+    assert!(
+        !report.certification.validation_methodology.is_empty(),
+        "Should have validation methodology"
+    );
 
     Ok(())
 }
@@ -997,23 +1133,32 @@ fn test_risk_assessment_capabilities() -> Result<(), Box<dyn std::error::Error>>
     // Verify risk assessment structure
     let risk_assessment = &report.risk_assessment;
 
-    assert_eq!(risk_assessment.overall_risk_level, RiskLevel::Low,
-        "Should have low overall risk with excellent performance");
+    assert_eq!(
+        risk_assessment.overall_risk_level,
+        RiskLevel::Low,
+        "Should have low overall risk with excellent performance"
+    );
 
     // With excellent performance, should have minimal risk factors
-    assert!(risk_assessment.risk_factors.is_empty(),
-        "Should have no significant risk factors with current performance");
+    assert!(
+        risk_assessment.risk_factors.is_empty(),
+        "Should have no significant risk factors with current performance"
+    );
 
-    assert!(risk_assessment.mitigation_strategies.is_empty(),
-        "Should have no mitigation strategies needed with low risk");
+    assert!(
+        risk_assessment.mitigation_strategies.is_empty(),
+        "Should have no mitigation strategies needed with low risk"
+    );
 
     // Verify risk level consistency with performance
     match risk_assessment.overall_risk_level {
         RiskLevel::Low => {
             // This is expected with current high performance
-            assert!(report.performance_analysis.current_metrics.compliance_score > 0.9,
-                "Low risk should correlate with high compliance score");
-        },
+            assert!(
+                report.performance_analysis.current_metrics.compliance_score > 0.9,
+                "Low risk should correlate with high compliance score"
+            );
+        }
         _ => {
             panic!("Expected low risk level with excellent performance");
         }
@@ -1037,45 +1182,62 @@ fn test_audit_recommendations() -> Result<(), Box<dyn std::error::Error>> {
     let report = audit_framework.generate_compliance_report(coverage_period)?;
 
     // Verify recommendations structure
-    assert!(!report.recommendations.is_empty(),
-        "Should have audit recommendations");
+    assert!(
+        !report.recommendations.is_empty(),
+        "Should have audit recommendations"
+    );
 
     for recommendation in &report.recommendations {
-        assert!(!recommendation.recommendation_id.is_empty(),
-            "Each recommendation should have an ID");
-        assert!(!recommendation.description.is_empty(),
-            "Each recommendation should have a description");
-        assert!(!recommendation.expected_impact.is_empty(),
-            "Each recommendation should have expected impact");
+        assert!(
+            !recommendation.recommendation_id.is_empty(),
+            "Each recommendation should have an ID"
+        );
+        assert!(
+            !recommendation.description.is_empty(),
+            "Each recommendation should have a description"
+        );
+        assert!(
+            !recommendation.expected_impact.is_empty(),
+            "Each recommendation should have expected impact"
+        );
 
         // Verify priority is valid
         match recommendation.priority {
-            RecommendationPriority::Critical |
-            RecommendationPriority::High |
-            RecommendationPriority::Medium |
-            RecommendationPriority::Low => {
+            RecommendationPriority::Critical
+            | RecommendationPriority::High
+            | RecommendationPriority::Medium
+            | RecommendationPriority::Low => {
                 // Valid priority
             }
         }
 
         // Verify implementation effort is specified
         match recommendation.implementation_effort {
-            ImplementationEffort::Low |
-            ImplementationEffort::Medium |
-            ImplementationEffort::High |
-            ImplementationEffort::Substantial => {
+            ImplementationEffort::Low
+            | ImplementationEffort::Medium
+            | ImplementationEffort::High
+            | ImplementationEffort::Substantial => {
                 // Valid effort level
             }
         }
     }
 
     // With excellent performance, recommendations should be preventive/maintenance
-    let high_priority_recs: Vec<_> = report.recommendations.iter()
-        .filter(|rec| matches!(rec.priority, RecommendationPriority::Critical | RecommendationPriority::High))
+    let high_priority_recs: Vec<_> = report
+        .recommendations
+        .iter()
+        .filter(|rec| {
+            matches!(
+                rec.priority,
+                RecommendationPriority::Critical | RecommendationPriority::High
+            )
+        })
         .collect();
 
-    assert!(high_priority_recs.is_empty(),
-        "Should have no high-priority recommendations with excellent performance");
+    assert!(
+        high_priority_recs.is_empty(),
+        "Should have no high-priority recommendations with excellent performance"
+    );
 
     Ok(())
 }

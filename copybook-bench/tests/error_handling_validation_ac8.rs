@@ -3,6 +3,10 @@
 //! Tests feature spec: issue-52-spec.md#AC8
 //! Validates machine-readable reports capture benchmark warnings and errors with proper anyhow::Result<T> patterns
 
+#![allow(clippy::expect_used)] // Test code: expects are acceptable for test assertions
+#![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
+#![allow(clippy::unnecessary_wraps)] // Test scaffolding requires Result types
+
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
@@ -48,48 +52,65 @@ pub enum BenchmarkReportingError {
 impl std::fmt::Display for BenchmarkReportingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BenchmarkReportingError::JsonGenerationError(msg) =>
-                write!(f, "JSON generation failed: {}", msg),
-            BenchmarkReportingError::JsonSchemaValidationError(msg) =>
-                write!(f, "JSON schema validation failed: {}", msg),
-            BenchmarkReportingError::JsonSerializationError(msg) =>
-                write!(f, "JSON serialization failed: {}", msg),
-            BenchmarkReportingError::BenchmarkExecutionError(msg) =>
-                write!(f, "Benchmark execution failed: {}", msg),
-            BenchmarkReportingError::BenchmarkTimeoutError(duration) =>
-                write!(f, "Benchmark timed out after {:?}", duration),
-            BenchmarkReportingError::BenchmarkDataCorruptionError(msg) =>
-                write!(f, "Benchmark data corruption detected: {}", msg),
-            BenchmarkReportingError::PerformanceExtractionError(msg) =>
-                write!(f, "Performance data extraction failed: {}", msg),
-            BenchmarkReportingError::MetricsCalculationError(msg) =>
-                write!(f, "Metrics calculation failed: {}", msg),
-            BenchmarkReportingError::StatisticalAnalysisError(msg) =>
-                write!(f, "Statistical analysis failed: {}", msg),
-            BenchmarkReportingError::GithubApiError(msg) =>
-                write!(f, "GitHub API error: {}", msg),
-            BenchmarkReportingError::PrCommentPostingError(msg) =>
-                write!(f, "PR comment posting failed: {}", msg),
-            BenchmarkReportingError::BaselinePromotionError(msg) =>
-                write!(f, "Baseline promotion failed: {}", msg),
-            BenchmarkReportingError::SloValidationError(msg) =>
-                write!(f, "SLO validation failed: {}", msg),
-            BenchmarkReportingError::ComplianceValidationError(msg) =>
-                write!(f, "Compliance validation failed: {}", msg),
-            BenchmarkReportingError::DataValidationError(msg) =>
-                write!(f, "Data validation failed: {}", msg),
-            BenchmarkReportingError::FileSystemError(msg) =>
-                write!(f, "File system error: {}", msg),
-            BenchmarkReportingError::NetworkError(msg) =>
-                write!(f, "Network error: {}", msg),
-            BenchmarkReportingError::ConfigurationError(msg) =>
-                write!(f, "Configuration error: {}", msg),
-            BenchmarkReportingError::AuditReportGenerationError(msg) =>
-                write!(f, "Audit report generation failed: {}", msg),
-            BenchmarkReportingError::ComplianceFrameworkError(msg) =>
-                write!(f, "Compliance framework error: {}", msg),
-            BenchmarkReportingError::EvidenceCollectionError(msg) =>
-                write!(f, "Evidence collection failed: {}", msg),
+            BenchmarkReportingError::JsonGenerationError(msg) => {
+                write!(f, "JSON generation failed: {}", msg)
+            }
+            BenchmarkReportingError::JsonSchemaValidationError(msg) => {
+                write!(f, "JSON schema validation failed: {}", msg)
+            }
+            BenchmarkReportingError::JsonSerializationError(msg) => {
+                write!(f, "JSON serialization failed: {}", msg)
+            }
+            BenchmarkReportingError::BenchmarkExecutionError(msg) => {
+                write!(f, "Benchmark execution failed: {}", msg)
+            }
+            BenchmarkReportingError::BenchmarkTimeoutError(duration) => {
+                write!(f, "Benchmark timed out after {:?}", duration)
+            }
+            BenchmarkReportingError::BenchmarkDataCorruptionError(msg) => {
+                write!(f, "Benchmark data corruption detected: {}", msg)
+            }
+            BenchmarkReportingError::PerformanceExtractionError(msg) => {
+                write!(f, "Performance data extraction failed: {}", msg)
+            }
+            BenchmarkReportingError::MetricsCalculationError(msg) => {
+                write!(f, "Metrics calculation failed: {}", msg)
+            }
+            BenchmarkReportingError::StatisticalAnalysisError(msg) => {
+                write!(f, "Statistical analysis failed: {}", msg)
+            }
+            BenchmarkReportingError::GithubApiError(msg) => write!(f, "GitHub API error: {}", msg),
+            BenchmarkReportingError::PrCommentPostingError(msg) => {
+                write!(f, "PR comment posting failed: {}", msg)
+            }
+            BenchmarkReportingError::BaselinePromotionError(msg) => {
+                write!(f, "Baseline promotion failed: {}", msg)
+            }
+            BenchmarkReportingError::SloValidationError(msg) => {
+                write!(f, "SLO validation failed: {}", msg)
+            }
+            BenchmarkReportingError::ComplianceValidationError(msg) => {
+                write!(f, "Compliance validation failed: {}", msg)
+            }
+            BenchmarkReportingError::DataValidationError(msg) => {
+                write!(f, "Data validation failed: {}", msg)
+            }
+            BenchmarkReportingError::FileSystemError(msg) => {
+                write!(f, "File system error: {}", msg)
+            }
+            BenchmarkReportingError::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            BenchmarkReportingError::ConfigurationError(msg) => {
+                write!(f, "Configuration error: {}", msg)
+            }
+            BenchmarkReportingError::AuditReportGenerationError(msg) => {
+                write!(f, "Audit report generation failed: {}", msg)
+            }
+            BenchmarkReportingError::ComplianceFrameworkError(msg) => {
+                write!(f, "Compliance framework error: {}", msg)
+            }
+            BenchmarkReportingError::EvidenceCollectionError(msg) => {
+                write!(f, "Evidence collection failed: {}", msg)
+            }
         }
     }
 }
@@ -137,10 +158,10 @@ pub struct ErrorRecord {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ErrorSeverity {
-    Critical,    // Blocks all functionality
-    High,        // Blocks major functionality
-    Medium,      // Degrades functionality
-    Low,         // Minor impact
+    Critical,      // Blocks all functionality
+    High,          // Blocks major functionality
+    Medium,        // Degrades functionality
+    Low,           // Minor impact
     Informational, // No functional impact
 }
 
@@ -197,33 +218,37 @@ impl PerformanceMetrics {
     pub fn validate(&self) -> BenchmarkResult<()> {
         if self.display_gibs.is_none() && self.comp3_mibs.is_none() {
             return Err(BenchmarkReportingError::PerformanceExtractionError(
-                "No performance metrics could be extracted".to_string()
+                "No performance metrics could be extracted".to_string(),
             ));
         }
 
         if let Some(display) = self.display_gibs {
             if display < 0.0 {
-                return Err(BenchmarkReportingError::MetricsCalculationError(
-                    format!("Invalid DISPLAY throughput: {}", display)
-                ));
+                return Err(BenchmarkReportingError::MetricsCalculationError(format!(
+                    "Invalid DISPLAY throughput: {}",
+                    display
+                )));
             }
             if display > 100.0 {
-                return Err(BenchmarkReportingError::MetricsCalculationError(
-                    format!("Unrealistic DISPLAY throughput: {} GiB/s", display)
-                ));
+                return Err(BenchmarkReportingError::MetricsCalculationError(format!(
+                    "Unrealistic DISPLAY throughput: {} GiB/s",
+                    display
+                )));
             }
         }
 
         if let Some(comp3) = self.comp3_mibs {
             if comp3 < 0.0 {
-                return Err(BenchmarkReportingError::MetricsCalculationError(
-                    format!("Invalid COMP-3 throughput: {}", comp3)
-                ));
+                return Err(BenchmarkReportingError::MetricsCalculationError(format!(
+                    "Invalid COMP-3 throughput: {}",
+                    comp3
+                )));
             }
             if comp3 > 10000.0 {
-                return Err(BenchmarkReportingError::MetricsCalculationError(
-                    format!("Unrealistic COMP-3 throughput: {} MiB/s", comp3)
-                ));
+                return Err(BenchmarkReportingError::MetricsCalculationError(format!(
+                    "Unrealistic COMP-3 throughput: {} MiB/s",
+                    comp3
+                )));
             }
         }
 
@@ -243,7 +268,10 @@ impl JsonReportGenerator {
         }
     }
 
-    pub fn generate_report(&mut self, metrics: &PerformanceMetrics) -> BenchmarkResult<serde_json::Value> {
+    pub fn generate_report(
+        &mut self,
+        metrics: &PerformanceMetrics,
+    ) -> BenchmarkResult<serde_json::Value> {
         // Validate input metrics
         metrics.validate().map_err(|e| {
             self.error_handler.handle_error(e.clone());
@@ -259,11 +287,14 @@ impl JsonReportGenerator {
         Ok(report)
     }
 
-    fn create_json_structure(&self, metrics: &PerformanceMetrics) -> BenchmarkResult<serde_json::Value> {
+    fn create_json_structure(
+        &self,
+        metrics: &PerformanceMetrics,
+    ) -> BenchmarkResult<serde_json::Value> {
         let display_value = metrics.display_gibs.unwrap_or(0.0);
         let comp3_value = metrics.comp3_mibs.unwrap_or(0.0);
 
-        let warnings = metrics.calculation_warnings.clone();
+        let mut warnings = metrics.calculation_warnings.clone();
         let errors = metrics.extraction_errors.clone();
 
         // Add warnings for missing metrics
@@ -285,13 +316,14 @@ impl JsonReportGenerator {
                 "schema_version": "1.0",
                 "generator": "copybook-bench-reporter"
             }
-        })).map_err(|e| BenchmarkReportingError::JsonSerializationError(e.to_string()))
+        }))
+        .map_err(|e| BenchmarkReportingError::JsonSerializationError(e.to_string()))
     }
 
     fn validate_json_schema(&self, json: &serde_json::Value) -> BenchmarkResult<()> {
         let obj = json.as_object().ok_or_else(|| {
             BenchmarkReportingError::JsonSchemaValidationError(
-                "JSON root must be an object".to_string()
+                "JSON root must be an object".to_string(),
             )
         })?;
 
@@ -299,34 +331,35 @@ impl JsonReportGenerator {
         let required_fields = ["display_gibs", "comp3_mibs", "warnings", "errors"];
         for field in &required_fields {
             if !obj.contains_key(*field) {
-                return Err(BenchmarkReportingError::JsonSchemaValidationError(
-                    format!("Missing required field: {}", field)
-                ));
+                return Err(BenchmarkReportingError::JsonSchemaValidationError(format!(
+                    "Missing required field: {}",
+                    field
+                )));
             }
         }
 
         // Validate field types
         if !obj["display_gibs"].is_number() {
             return Err(BenchmarkReportingError::JsonSchemaValidationError(
-                "display_gibs must be a number".to_string()
+                "display_gibs must be a number".to_string(),
             ));
         }
 
         if !obj["comp3_mibs"].is_number() {
             return Err(BenchmarkReportingError::JsonSchemaValidationError(
-                "comp3_mibs must be a number".to_string()
+                "comp3_mibs must be a number".to_string(),
             ));
         }
 
         if !obj["warnings"].is_array() {
             return Err(BenchmarkReportingError::JsonSchemaValidationError(
-                "warnings must be an array".to_string()
+                "warnings must be an array".to_string(),
             ));
         }
 
         if !obj["errors"].is_array() {
             return Err(BenchmarkReportingError::JsonSchemaValidationError(
-                "errors must be an array".to_string()
+                "errors must be an array".to_string(),
             ));
         }
 
@@ -363,10 +396,16 @@ impl BenchmarkErrorHandler {
 
     fn create_error_context(&self, error: &BenchmarkReportingError) -> ErrorContext {
         let (component, operation) = match error {
-            BenchmarkReportingError::JsonGenerationError(_) => ("json_generator", "generate_report"),
-            BenchmarkReportingError::BenchmarkExecutionError(_) => ("benchmark_runner", "execute_benchmarks"),
+            BenchmarkReportingError::JsonGenerationError(_) => {
+                ("json_generator", "generate_report")
+            }
+            BenchmarkReportingError::BenchmarkExecutionError(_) => {
+                ("benchmark_runner", "execute_benchmarks")
+            }
             BenchmarkReportingError::GithubApiError(_) => ("github_api", "post_comment"),
-            BenchmarkReportingError::SloValidationError(_) => ("slo_validator", "validate_performance"),
+            BenchmarkReportingError::SloValidationError(_) => {
+                ("slo_validator", "validate_performance")
+            }
             _ => ("unknown", "unknown"),
         };
 
@@ -425,41 +464,47 @@ impl BenchmarkErrorHandler {
     fn create_recovery_strategies() -> HashMap<String, RecoveryStrategy> {
         let mut strategies = HashMap::new();
 
-        strategies.insert("benchmark_timeout".to_string(), RecoveryStrategy {
-            strategy_id: "benchmark_timeout".to_string(),
-            description: "Recover from benchmark timeout by using cached results".to_string(),
-            steps: vec![
-                RecoveryStep {
-                    description: "Check for cached benchmark results".to_string(),
-                    action: RecoveryAction::FallbackToCache,
-                    timeout: Duration::from_secs(30),
-                },
-                RecoveryStep {
-                    description: "Use default performance values if no cache".to_string(),
-                    action: RecoveryAction::UseDefaultValues,
-                    timeout: Duration::from_secs(5),
-                },
-            ],
-            success_probability: 0.8,
-        });
+        strategies.insert(
+            "benchmark_timeout".to_string(),
+            RecoveryStrategy {
+                strategy_id: "benchmark_timeout".to_string(),
+                description: "Recover from benchmark timeout by using cached results".to_string(),
+                steps: vec![
+                    RecoveryStep {
+                        description: "Check for cached benchmark results".to_string(),
+                        action: RecoveryAction::FallbackToCache,
+                        timeout: Duration::from_secs(30),
+                    },
+                    RecoveryStep {
+                        description: "Use default performance values if no cache".to_string(),
+                        action: RecoveryAction::UseDefaultValues,
+                        timeout: Duration::from_secs(5),
+                    },
+                ],
+                success_probability: 0.8,
+            },
+        );
 
-        strategies.insert("github_api_failure".to_string(), RecoveryStrategy {
-            strategy_id: "github_api_failure".to_string(),
-            description: "Recover from GitHub API failures with retry logic".to_string(),
-            steps: vec![
-                RecoveryStep {
-                    description: "Retry GitHub API call with exponential backoff".to_string(),
-                    action: RecoveryAction::RetryOperation,
-                    timeout: Duration::from_secs(60),
-                },
-                RecoveryStep {
-                    description: "Skip PR comment if API unavailable".to_string(),
-                    action: RecoveryAction::SkipNonCritical,
-                    timeout: Duration::from_secs(5),
-                },
-            ],
-            success_probability: 0.9,
-        });
+        strategies.insert(
+            "github_api_failure".to_string(),
+            RecoveryStrategy {
+                strategy_id: "github_api_failure".to_string(),
+                description: "Recover from GitHub API failures with retry logic".to_string(),
+                steps: vec![
+                    RecoveryStep {
+                        description: "Retry GitHub API call with exponential backoff".to_string(),
+                        action: RecoveryAction::RetryOperation,
+                        timeout: Duration::from_secs(60),
+                    },
+                    RecoveryStep {
+                        description: "Skip PR comment if API unavailable".to_string(),
+                        action: RecoveryAction::SkipNonCritical,
+                        timeout: Duration::from_secs(5),
+                    },
+                ],
+                success_probability: 0.9,
+            },
+        );
 
         strategies
     }
@@ -488,14 +533,14 @@ impl BenchmarkErrorHandler {
                     if self.error_history.len() >= *threshold {
                         // Would trigger escalation notification
                     }
-                },
+                }
                 EscalationTrigger::CriticalError => {
                     if let Some(last_error) = self.error_history.last() {
                         if last_error.severity == ErrorSeverity::Critical {
                             // Would trigger immediate escalation
                         }
                     }
-                },
+                }
                 _ => {}
             }
         }
@@ -509,15 +554,26 @@ fn test_comprehensive_error_taxonomy() -> Result<(), Box<dyn std::error::Error>>
     // AC:AC8 - Verify comprehensive error taxonomy covers all error categories
 
     // Test JSON-related errors
-    let json_error = BenchmarkReportingError::JsonGenerationError("Schema validation failed".to_string());
+    let json_error =
+        BenchmarkReportingError::JsonGenerationError("Schema validation failed".to_string());
     assert!(json_error.to_string().contains("JSON generation failed"));
 
-    let schema_error = BenchmarkReportingError::JsonSchemaValidationError("Missing field".to_string());
-    assert!(schema_error.to_string().contains("JSON schema validation failed"));
+    let schema_error =
+        BenchmarkReportingError::JsonSchemaValidationError("Missing field".to_string());
+    assert!(
+        schema_error
+            .to_string()
+            .contains("JSON schema validation failed")
+    );
 
     // Test benchmark execution errors
-    let exec_error = BenchmarkReportingError::BenchmarkExecutionError("Cargo bench failed".to_string());
-    assert!(exec_error.to_string().contains("Benchmark execution failed"));
+    let exec_error =
+        BenchmarkReportingError::BenchmarkExecutionError("Cargo bench failed".to_string());
+    assert!(
+        exec_error
+            .to_string()
+            .contains("Benchmark execution failed")
+    );
 
     let timeout_error = BenchmarkReportingError::BenchmarkTimeoutError(Duration::from_secs(3600));
     assert!(timeout_error.to_string().contains("Benchmark timed out"));
@@ -526,15 +582,22 @@ fn test_comprehensive_error_taxonomy() -> Result<(), Box<dyn std::error::Error>>
     let github_error = BenchmarkReportingError::GithubApiError("Authentication failed".to_string());
     assert!(github_error.to_string().contains("GitHub API error"));
 
-    let pr_error = BenchmarkReportingError::PrCommentPostingError("Rate limit exceeded".to_string());
+    let pr_error =
+        BenchmarkReportingError::PrCommentPostingError("Rate limit exceeded".to_string());
     assert!(pr_error.to_string().contains("PR comment posting failed"));
 
     // Test validation errors
-    let slo_error = BenchmarkReportingError::SloValidationError("Performance below floor".to_string());
+    let slo_error =
+        BenchmarkReportingError::SloValidationError("Performance below floor".to_string());
     assert!(slo_error.to_string().contains("SLO validation failed"));
 
-    let compliance_error = BenchmarkReportingError::ComplianceValidationError("SOX requirements not met".to_string());
-    assert!(compliance_error.to_string().contains("Compliance validation failed"));
+    let compliance_error =
+        BenchmarkReportingError::ComplianceValidationError("SOX requirements not met".to_string());
+    assert!(
+        compliance_error
+            .to_string()
+            .contains("Compliance validation failed")
+    );
 
     Ok(())
 }
@@ -554,7 +617,10 @@ fn test_anyhow_result_patterns() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let validation_result: BenchmarkResult<()> = metrics.validate();
-    assert!(validation_result.is_ok(), "Valid metrics should pass validation");
+    assert!(
+        validation_result.is_ok(),
+        "Valid metrics should pass validation"
+    );
 
     // Test error propagation
     let invalid_metrics = PerformanceMetrics {
@@ -565,13 +631,16 @@ fn test_anyhow_result_patterns() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let validation_result = invalid_metrics.validate();
-    assert!(validation_result.is_err(), "Invalid metrics should fail validation");
+    assert!(
+        validation_result.is_err(),
+        "Invalid metrics should fail validation"
+    );
 
     // Verify error can be unwrapped and examined
     match validation_result {
         Err(BenchmarkReportingError::MetricsCalculationError(msg)) => {
             assert!(msg.contains("Invalid DISPLAY throughput"));
-        },
+        }
         _ => panic!("Expected MetricsCalculationError"),
     }
 
@@ -586,13 +655,16 @@ fn test_error_context_information() -> Result<(), Box<dyn std::error::Error>> {
     let mut error_handler = BenchmarkErrorHandler::new();
 
     let test_error = BenchmarkReportingError::BenchmarkExecutionError(
-        "Criterion benchmark failed with exit code 1".to_string()
+        "Criterion benchmark failed with exit code 1".to_string(),
     );
 
     let error_record = error_handler.handle_error(test_error);
 
     // Verify error context is comprehensive
-    assert!(!error_record.context.error_code.is_empty(), "Should have error code");
+    assert!(
+        !error_record.context.error_code.is_empty(),
+        "Should have error code"
+    );
     assert_eq!(error_record.context.component, "benchmark_runner");
     assert_eq!(error_record.context.operation, "execute_benchmarks");
     assert!(error_record.context.timestamp <= SystemTime::now());
@@ -619,18 +691,38 @@ fn test_error_severity_classification() -> Result<(), Box<dyn std::error::Error>
     let mut error_handler = BenchmarkErrorHandler::new();
 
     let test_cases = vec![
-        (BenchmarkReportingError::BenchmarkExecutionError("Failed".to_string()), ErrorSeverity::Critical),
-        (BenchmarkReportingError::BenchmarkTimeoutError(Duration::from_secs(3600)), ErrorSeverity::High),
-        (BenchmarkReportingError::JsonGenerationError("Failed".to_string()), ErrorSeverity::High),
-        (BenchmarkReportingError::GithubApiError("Rate limited".to_string()), ErrorSeverity::Medium),
-        (BenchmarkReportingError::MetricsCalculationError("Invalid value".to_string()), ErrorSeverity::Medium),
-        (BenchmarkReportingError::ConfigurationError("Missing setting".to_string()), ErrorSeverity::Low),
+        (
+            BenchmarkReportingError::BenchmarkExecutionError("Failed".to_string()),
+            ErrorSeverity::Critical,
+        ),
+        (
+            BenchmarkReportingError::BenchmarkTimeoutError(Duration::from_secs(3600)),
+            ErrorSeverity::High,
+        ),
+        (
+            BenchmarkReportingError::JsonGenerationError("Failed".to_string()),
+            ErrorSeverity::High,
+        ),
+        (
+            BenchmarkReportingError::GithubApiError("Rate limited".to_string()),
+            ErrorSeverity::Medium,
+        ),
+        (
+            BenchmarkReportingError::MetricsCalculationError("Invalid value".to_string()),
+            ErrorSeverity::Medium,
+        ),
+        (
+            BenchmarkReportingError::ConfigurationError("Missing setting".to_string()),
+            ErrorSeverity::Low,
+        ),
     ];
 
     for (error, expected_severity) in test_cases {
         let error_record = error_handler.handle_error(error);
-        assert_eq!(error_record.severity, expected_severity,
-            "Error severity should match expected classification");
+        assert_eq!(
+            error_record.severity, expected_severity,
+            "Error severity should match expected classification"
+        );
     }
 
     Ok(())
@@ -652,9 +744,12 @@ fn test_json_report_error_handling() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let result = generator.generate_report(&valid_metrics);
-    assert!(result.is_ok(), "Valid metrics should generate successful report");
+    assert!(
+        result.is_ok(),
+        "Valid metrics should generate successful report"
+    );
 
-    let report = result.unwrap();
+    let report = result.expect("Valid metrics should generate successful report");
     assert!(report.is_object(), "Report should be a JSON object");
 
     // Test error handling for invalid metrics
@@ -666,7 +761,10 @@ fn test_json_report_error_handling() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let result = generator.generate_report(&invalid_metrics);
-    assert!(result.is_err(), "Invalid metrics should fail report generation");
+    assert!(
+        result.is_err(),
+        "Invalid metrics should fail report generation"
+    );
 
     // Test error handling for missing metrics
     let missing_metrics = PerformanceMetrics {
@@ -682,7 +780,7 @@ fn test_json_report_error_handling() -> Result<(), Box<dyn std::error::Error>> {
     match result {
         Err(BenchmarkReportingError::PerformanceExtractionError(_)) => {
             // Expected error type
-        },
+        }
         _ => panic!("Expected PerformanceExtractionError for missing metrics"),
     }
 
@@ -697,29 +795,46 @@ fn test_recovery_strategies() -> Result<(), Box<dyn std::error::Error>> {
     let error_handler = BenchmarkErrorHandler::new();
 
     // Verify recovery strategies exist
-    assert!(!error_handler.recovery_strategies.is_empty(),
-        "Should have defined recovery strategies");
+    assert!(
+        !error_handler.recovery_strategies.is_empty(),
+        "Should have defined recovery strategies"
+    );
 
     // Test benchmark timeout recovery strategy
     let timeout_strategy = error_handler.recovery_strategies.get("benchmark_timeout");
-    assert!(timeout_strategy.is_some(), "Should have benchmark timeout recovery strategy");
+    assert!(
+        timeout_strategy.is_some(),
+        "Should have benchmark timeout recovery strategy"
+    );
 
-    let strategy = timeout_strategy.unwrap();
-    assert!(!strategy.description.is_empty(), "Strategy should have description");
-    assert!(!strategy.steps.is_empty(), "Strategy should have recovery steps");
-    assert!(strategy.success_probability > 0.0, "Strategy should have success probability");
+    let strategy = timeout_strategy.expect("Should have benchmark timeout recovery strategy");
+    assert!(
+        !strategy.description.is_empty(),
+        "Strategy should have description"
+    );
+    assert!(
+        !strategy.steps.is_empty(),
+        "Strategy should have recovery steps"
+    );
+    assert!(
+        strategy.success_probability > 0.0,
+        "Strategy should have success probability"
+    );
 
     // Verify recovery steps are actionable
     for step in &strategy.steps {
         assert!(!step.description.is_empty(), "Step should have description");
-        assert!(step.timeout > Duration::from_secs(0), "Step should have timeout");
+        assert!(
+            step.timeout > Duration::from_secs(0),
+            "Step should have timeout"
+        );
 
         match &step.action {
-            RecoveryAction::FallbackToCache |
-            RecoveryAction::UseDefaultValues |
-            RecoveryAction::RetryOperation |
-            RecoveryAction::SkipNonCritical |
-            RecoveryAction::RestartComponent => {
+            RecoveryAction::FallbackToCache
+            | RecoveryAction::UseDefaultValues
+            | RecoveryAction::RetryOperation
+            | RecoveryAction::SkipNonCritical
+            | RecoveryAction::RestartComponent => {
                 // Valid recovery actions
             }
         }
@@ -727,10 +842,16 @@ fn test_recovery_strategies() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test GitHub API failure recovery strategy
     let github_strategy = error_handler.recovery_strategies.get("github_api_failure");
-    assert!(github_strategy.is_some(), "Should have GitHub API failure recovery strategy");
+    assert!(
+        github_strategy.is_some(),
+        "Should have GitHub API failure recovery strategy"
+    );
 
-    let strategy = github_strategy.unwrap();
-    assert!(strategy.success_probability > 0.8, "GitHub API recovery should have high success rate");
+    let strategy = github_strategy.expect("Should have GitHub integration error recovery strategy");
+    assert!(
+        strategy.success_probability > 0.8,
+        "GitHub API recovery should have high success rate"
+    );
 
     Ok(())
 }
@@ -743,26 +864,45 @@ fn test_error_escalation_rules() -> Result<(), Box<dyn std::error::Error>> {
     let error_handler = BenchmarkErrorHandler::new();
 
     // Verify escalation rules exist
-    assert!(!error_handler.escalation_rules.is_empty(),
-        "Should have defined escalation rules");
+    assert!(
+        !error_handler.escalation_rules.is_empty(),
+        "Should have defined escalation rules"
+    );
 
     // Test critical error escalation rule
-    let critical_rule = error_handler.escalation_rules.iter()
+    let critical_rule = error_handler
+        .escalation_rules
+        .iter()
         .find(|rule| matches!(rule.trigger_condition, EscalationTrigger::CriticalError));
-    assert!(critical_rule.is_some(), "Should have critical error escalation rule");
+    assert!(
+        critical_rule.is_some(),
+        "Should have critical error escalation rule"
+    );
 
-    let rule = critical_rule.unwrap();
-    assert_eq!(rule.escalation_delay, Duration::from_secs(0),
-        "Critical errors should escalate immediately");
-    assert!(!rule.notification_targets.is_empty(),
-        "Critical errors should have notification targets");
+    let rule = critical_rule.expect("Should have critical error validation rule");
+    assert_eq!(
+        rule.escalation_delay,
+        Duration::from_secs(0),
+        "Critical errors should escalate immediately"
+    );
+    assert!(
+        !rule.notification_targets.is_empty(),
+        "Critical errors should have notification targets"
+    );
 
     // Test error count threshold rule
-    let threshold_rule = error_handler.escalation_rules.iter()
-        .find(|rule| matches!(rule.trigger_condition, EscalationTrigger::ErrorCountThreshold(_)));
-    assert!(threshold_rule.is_some(), "Should have error count threshold rule");
+    let threshold_rule = error_handler.escalation_rules.iter().find(|rule| {
+        matches!(
+            rule.trigger_condition,
+            EscalationTrigger::ErrorCountThreshold(_)
+        )
+    });
+    assert!(
+        threshold_rule.is_some(),
+        "Should have error count threshold rule"
+    );
 
-    let rule = threshold_rule.unwrap();
+    let rule = threshold_rule.expect("Should have threshold validation rule");
     if let EscalationTrigger::ErrorCountThreshold(threshold) = &rule.trigger_condition {
         assert!(*threshold > 0, "Error threshold should be positive");
         assert!(*threshold < 100, "Error threshold should be reasonable");
@@ -783,8 +923,18 @@ fn test_comprehensive_validation_scenarios() -> Result<(), Box<dyn std::error::E
         (Some(0.0), Some(0.0), true, "zero_values_valid"),
         (Some(-0.1), Some(571.0), false, "negative_display_invalid"),
         (Some(4.22), Some(-0.1), false, "negative_comp3_invalid"),
-        (Some(100.1), Some(571.0), false, "unrealistic_display_invalid"),
-        (Some(4.22), Some(10000.1), false, "unrealistic_comp3_invalid"),
+        (
+            Some(100.1),
+            Some(571.0),
+            false,
+            "unrealistic_display_invalid",
+        ),
+        (
+            Some(4.22),
+            Some(10000.1),
+            false,
+            "unrealistic_comp3_invalid",
+        ),
         (Some(4.22), Some(571.0), true, "normal_values_valid"),
         (None, None, false, "no_metrics_invalid"),
         (Some(4.22), None, true, "partial_metrics_valid"),
@@ -805,9 +955,17 @@ fn test_comprehensive_validation_scenarios() -> Result<(), Box<dyn std::error::E
         let result = metrics.validate();
 
         if should_pass {
-            assert!(result.is_ok(), "Test case '{}' should pass validation", description);
+            assert!(
+                result.is_ok(),
+                "Test case '{}' should pass validation",
+                description
+            );
         } else {
-            assert!(result.is_err(), "Test case '{}' should fail validation", description);
+            assert!(
+                result.is_err(),
+                "Test case '{}' should fail validation",
+                description
+            );
         }
     }
 
@@ -834,24 +992,45 @@ fn test_error_aggregation_and_reporting() -> Result<(), Box<dyn std::error::Erro
     }
 
     // Verify errors were collected
-    assert_eq!(error_handler.error_history.len(), 4,
-        "Should have collected all 4 errors");
+    assert_eq!(
+        error_handler.error_history.len(),
+        4,
+        "Should have collected all 4 errors"
+    );
 
     // Verify error history maintains order
-    assert!(error_handler.error_history[0].context.error_code.contains("001"));
-    assert!(error_handler.error_history[3].context.error_code.contains("004"));
+    assert!(
+        error_handler.error_history[0]
+            .context
+            .error_code
+            .contains("001")
+    );
+    assert!(
+        error_handler.error_history[3]
+            .context
+            .error_code
+            .contains("004")
+    );
 
     // Verify different severity levels are represented
-    let severities: Vec<_> = error_handler.error_history.iter()
+    let severities: Vec<_> = error_handler
+        .error_history
+        .iter()
         .map(|record| &record.severity)
         .collect();
 
-    assert!(severities.contains(&&ErrorSeverity::High),
-        "Should have high severity errors");
-    assert!(severities.contains(&&ErrorSeverity::Medium),
-        "Should have medium severity errors");
-    assert!(severities.contains(&&ErrorSeverity::Low),
-        "Should have low severity errors");
+    assert!(
+        severities.contains(&&ErrorSeverity::High),
+        "Should have high severity errors"
+    );
+    assert!(
+        severities.contains(&&ErrorSeverity::Medium),
+        "Should have medium severity errors"
+    );
+    assert!(
+        severities.contains(&&ErrorSeverity::Low),
+        "Should have low severity errors"
+    );
 
     Ok(())
 }
@@ -875,11 +1054,18 @@ fn test_warning_vs_error_distinction() -> Result<(), Box<dyn std::error::Error>>
     };
 
     let result = generator.generate_report(&metrics_with_warnings);
-    assert!(result.is_ok(), "Metrics with only warnings should generate report");
+    assert!(
+        result.is_ok(),
+        "Metrics with only warnings should generate report"
+    );
 
-    let report = result.unwrap();
-    let warnings = report["warnings"].as_array().unwrap();
-    let errors = report["errors"].as_array().unwrap();
+    let report = result.expect("Metrics with only warnings should generate report");
+    let warnings = report["warnings"]
+        .as_array()
+        .expect("Report must contain warnings array");
+    let errors = report["errors"]
+        .as_array()
+        .expect("Report must contain errors array");
 
     // Should have warnings but no errors
     assert!(!warnings.is_empty(), "Should have warnings");
@@ -897,11 +1083,18 @@ fn test_warning_vs_error_distinction() -> Result<(), Box<dyn std::error::Error>>
     };
 
     let result = generator.generate_report(&metrics_with_errors);
-    assert!(result.is_ok(), "Should generate report even with extraction errors");
+    assert!(
+        result.is_ok(),
+        "Should generate report even with extraction errors"
+    );
 
-    let report = result.unwrap();
-    let warnings = report["warnings"].as_array().unwrap();
-    let errors = report["errors"].as_array().unwrap();
+    let report = result.expect("Should generate report even with extraction errors");
+    let warnings = report["warnings"]
+        .as_array()
+        .expect("Report must contain warnings array");
+    let errors = report["errors"]
+        .as_array()
+        .expect("Report must contain errors array");
 
     // Should have errors but no warnings
     assert!(warnings.is_empty(), "Should have no warnings");

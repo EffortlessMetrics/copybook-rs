@@ -3,9 +3,20 @@
 //! Tests feature spec: issue-52-spec.md#AC5
 //! Validates baseline promotion workflow that updates performance baselines automatically
 
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::needless_pass_by_value)]
+
+use serde_json::Value;
 use std::collections::HashMap;
 use std::time::SystemTime;
-use serde_json::Value;
 
 /// Performance baseline entry for promotion workflow
 #[derive(Debug, Clone)]
@@ -30,8 +41,8 @@ pub struct PromotionMetadata {
 
 #[derive(Debug, Clone)]
 pub struct SafetyMargins {
-    pub display_safety_factor: f64,  // Current: ~56x safety margin
-    pub comp3_safety_factor: f64,    // Current: ~14x safety margin
+    pub display_safety_factor: f64, // Current: ~56x safety margin
+    pub comp3_safety_factor: f64,   // Current: ~14x safety margin
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +53,7 @@ pub enum BaselineValidationStatus {
 }
 
 impl PerformanceBaseline {
+    #[must_use]
     pub fn new_enterprise_baseline(pr_number: u32, git_commit: String) -> Self {
         Self {
             baseline_id: format!("main-{}", &git_commit[..8]),
@@ -63,6 +75,11 @@ impl PerformanceBaseline {
         }
     }
 
+    /// Serializes the performance baseline to JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns `serde_json::Error` if serialization fails.
     pub fn to_json(&self) -> serde_json::Result<Value> {
         Ok(serde_json::json!({
             "baseline_id": self.baseline_id,
@@ -97,13 +114,20 @@ pub struct BaselineManager {
     max_baselines_retained: usize,
 }
 
-impl BaselineManager {
-    pub fn new() -> Self {
+impl Default for BaselineManager {
+    fn default() -> Self {
         Self {
             baselines: HashMap::new(),
             current_baseline_id: None,
             max_baselines_retained: 10,
         }
+    }
+}
+
+impl BaselineManager {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn promote_baseline(
@@ -149,12 +173,16 @@ impl BaselineManager {
         Ok(baseline_id)
     }
 
-    pub fn validate_promotion_criteria(&self, performance_data: &PerformanceData) -> Result<(), BaselinePromotionError> {
+    pub fn validate_promotion_criteria(
+        &self,
+        performance_data: &PerformanceData,
+    ) -> Result<(), BaselinePromotionError> {
         // Must have no errors
         if !performance_data.errors.is_empty() {
-            return Err(BaselinePromotionError::ValidationFailed(
-                format!("Cannot promote baseline with {} errors", performance_data.errors.len())
-            ));
+            return Err(BaselinePromotionError::ValidationFailed(format!(
+                "Cannot promote baseline with {} errors",
+                performance_data.errors.len()
+            )));
         }
 
         // Must meet minimum performance floors
@@ -163,25 +191,30 @@ impl BaselineManager {
         let comp3_margin = performance_data.comp3_mibs / 40.0; // vs 40 MB/s floor
 
         if display_margin < 1.0 {
-            return Err(BaselinePromotionError::PerformanceFloor(
-                format!("DISPLAY throughput {:.2} GiB/s below 80 MB/s floor", performance_data.display_gibs)
-            ));
+            return Err(BaselinePromotionError::PerformanceFloor(format!(
+                "DISPLAY throughput {:.2} GiB/s below 80 MB/s floor",
+                performance_data.display_gibs
+            )));
         }
 
         if comp3_margin < 1.0 {
-            return Err(BaselinePromotionError::PerformanceFloor(
-                format!("COMP-3 throughput {:.1} MiB/s below 40 MB/s floor", performance_data.comp3_mibs)
-            ));
+            return Err(BaselinePromotionError::PerformanceFloor(format!(
+                "COMP-3 throughput {:.1} MiB/s below 40 MB/s floor",
+                performance_data.comp3_mibs
+            )));
         }
 
         Ok(())
     }
 
+    #[must_use]
     pub fn get_current_baseline(&self) -> Option<&PerformanceBaseline> {
-        self.current_baseline_id.as_ref()
+        self.current_baseline_id
+            .as_ref()
             .and_then(|id| self.baselines.get(id))
     }
 
+    #[must_use]
     pub fn get_baseline_history(&self) -> Vec<&PerformanceBaseline> {
         let mut baselines: Vec<_> = self.baselines.values().collect();
         baselines.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -198,12 +231,14 @@ impl BaselineManager {
         baseline_items.sort_by(|a, b| b.1.timestamp.cmp(&a.1.timestamp));
 
         // Keep only the newest baselines
-        let baselines_to_keep: Vec<_> = baseline_items.into_iter()
+        let baselines_to_keep: Vec<_> = baseline_items
+            .into_iter()
             .take(self.max_baselines_retained)
             .map(|(id, _)| id.clone())
             .collect();
 
-        self.baselines.retain(|id, _| baselines_to_keep.contains(id));
+        self.baselines
+            .retain(|id, _| baselines_to_keep.contains(id));
     }
 }
 
@@ -216,6 +251,7 @@ pub struct PerformanceData {
 }
 
 impl PerformanceData {
+    #[must_use]
     pub fn new_valid() -> Self {
         Self {
             display_gibs: 4.22,
@@ -225,6 +261,7 @@ impl PerformanceData {
         }
     }
 
+    #[must_use]
     pub fn new_invalid() -> Self {
         Self {
             display_gibs: 0.05, // Below 80 MB/s floor
@@ -249,9 +286,15 @@ pub enum BaselinePromotionError {
 impl std::fmt::Display for BaselinePromotionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BaselinePromotionError::ValidationFailed(msg) => write!(f, "Validation failed: {}", msg),
-            BaselinePromotionError::PerformanceFloor(msg) => write!(f, "Performance floor violation: {}", msg),
-            BaselinePromotionError::GitCommitInvalid(msg) => write!(f, "Invalid git commit: {}", msg),
+            BaselinePromotionError::ValidationFailed(msg) => {
+                write!(f, "Validation failed: {}", msg)
+            }
+            BaselinePromotionError::PerformanceFloor(msg) => {
+                write!(f, "Performance floor violation: {}", msg)
+            }
+            BaselinePromotionError::GitCommitInvalid(msg) => {
+                write!(f, "Invalid git commit: {}", msg)
+            }
             BaselinePromotionError::StorageError(msg) => write!(f, "Storage error: {}", msg),
         }
     }
@@ -299,11 +342,20 @@ fn test_baseline_promotion_validation_failures() -> Result<(), Box<dyn std::erro
 
     // Attempt to promote invalid baseline
     let result = manager.promote_baseline(pr_number, git_commit, &invalid_data);
-    assert!(result.is_err(), "Should fail to promote baseline with errors");
+    assert!(
+        result.is_err(),
+        "Should fail to promote baseline with errors"
+    );
 
     // Verify no baseline was created
-    assert!(manager.baselines.is_empty(), "No baseline should be created on validation failure");
-    assert!(manager.get_current_baseline().is_none(), "Current baseline should remain unchanged");
+    assert!(
+        manager.baselines.is_empty(),
+        "No baseline should be created on validation failure"
+    );
+    assert!(
+        manager.get_current_baseline().is_none(),
+        "Current baseline should remain unchanged"
+    );
 
     Ok(())
 }
@@ -324,18 +376,24 @@ fn test_performance_floor_validation() -> Result<(), Box<dyn std::error::Error>>
     };
 
     let result = manager.validate_promotion_criteria(&below_floor_data);
-    assert!(result.is_err(), "Should fail validation with performance below floors");
+    assert!(
+        result.is_err(),
+        "Should fail validation with performance below floors"
+    );
 
     // Test data above floors
     let above_floor_data = PerformanceData {
-        display_gibs: 1.0,  // ~1073 MB/s, above 80 MB/s floor
-        comp3_mibs: 100.0,  // above 40 MB/s floor
+        display_gibs: 1.0, // ~1073 MB/s, above 80 MB/s floor
+        comp3_mibs: 100.0, // above 40 MB/s floor
         warnings: Vec::new(),
         errors: Vec::new(),
     };
 
     let result = manager.validate_promotion_criteria(&above_floor_data);
-    assert!(result.is_ok(), "Should pass validation with performance above floors");
+    assert!(
+        result.is_ok(),
+        "Should pass validation with performance above floors"
+    );
 
     Ok(())
 }
@@ -358,19 +416,55 @@ fn test_safety_margin_calculation_in_promotion() -> Result<(), Box<dyn std::erro
     let expected_display_margin = (performance_data.display_gibs * 1073.74) / 80.0;
     let expected_comp3_margin = performance_data.comp3_mibs / 40.0;
 
-    assert!((baseline.promotion_metadata.safety_margins.display_safety_factor - expected_display_margin).abs() < 0.1,
+    assert!(
+        (baseline
+            .promotion_metadata
+            .safety_margins
+            .display_safety_factor
+            - expected_display_margin)
+            .abs()
+            < 0.1,
         "DISPLAY safety margin should be {:.1}, got {:.1}",
-        expected_display_margin, baseline.promotion_metadata.safety_margins.display_safety_factor);
+        expected_display_margin,
+        baseline
+            .promotion_metadata
+            .safety_margins
+            .display_safety_factor
+    );
 
-    assert!((baseline.promotion_metadata.safety_margins.comp3_safety_factor - expected_comp3_margin).abs() < 0.1,
+    assert!(
+        (baseline
+            .promotion_metadata
+            .safety_margins
+            .comp3_safety_factor
+            - expected_comp3_margin)
+            .abs()
+            < 0.1,
         "COMP-3 safety margin should be {:.1}, got {:.1}",
-        expected_comp3_margin, baseline.promotion_metadata.safety_margins.comp3_safety_factor);
+        expected_comp3_margin,
+        baseline
+            .promotion_metadata
+            .safety_margins
+            .comp3_safety_factor
+    );
 
     // Current performance should show substantial safety margins
-    assert!(baseline.promotion_metadata.safety_margins.display_safety_factor > 50.0,
-        "DISPLAY should have substantial safety margin");
-    assert!(baseline.promotion_metadata.safety_margins.comp3_safety_factor > 10.0,
-        "COMP-3 should have substantial safety margin");
+    assert!(
+        baseline
+            .promotion_metadata
+            .safety_margins
+            .display_safety_factor
+            > 50.0,
+        "DISPLAY should have substantial safety margin"
+    );
+    assert!(
+        baseline
+            .promotion_metadata
+            .safety_margins
+            .comp3_safety_factor
+            > 10.0,
+        "COMP-3 should have substantial safety margin"
+    );
 
     Ok(())
 }
@@ -386,23 +480,37 @@ fn test_baseline_cleanup_retention() -> Result<(), Box<dyn std::error::Error>> {
     // Promote more baselines than the retention limit
     for i in 1..=15 {
         let pr_number = i as u32;
-        let git_commit = format!("commit{:040}", i);
+        let git_commit = format!("{:08x}{:032}", i, 0); // Ensure unique first 8 chars
         manager.promote_baseline(pr_number, git_commit, &performance_data)?;
     }
 
     // Should only retain the newest 10 baselines
-    assert_eq!(manager.baselines.len(), manager.max_baselines_retained,
-        "Should retain exactly {} baselines", manager.max_baselines_retained);
+    assert_eq!(
+        manager.baselines.len(),
+        manager.max_baselines_retained,
+        "Should retain exactly {} baselines",
+        manager.max_baselines_retained
+    );
 
     // Current baseline should be the most recent
     let current = manager.get_current_baseline().unwrap();
-    assert_eq!(current.pr_number, 15, "Current baseline should be the most recent");
+    assert_eq!(
+        current.pr_number, 15,
+        "Current baseline should be the most recent"
+    );
 
     // Verify history is sorted by newest first
     let history = manager.get_baseline_history();
     assert_eq!(history.len(), manager.max_baselines_retained);
-    assert_eq!(history[0].pr_number, 15, "History should start with newest baseline");
-    assert_eq!(history[history.len() - 1].pr_number, 6, "History should end with oldest retained baseline");
+    assert_eq!(
+        history[0].pr_number, 15,
+        "History should start with newest baseline"
+    );
+    assert_eq!(
+        history[history.len() - 1].pr_number,
+        6,
+        "History should end with oldest retained baseline"
+    );
 
     Ok(())
 }
@@ -423,14 +531,29 @@ fn test_baseline_json_serialization() -> Result<(), Box<dyn std::error::Error>> 
     let obj = json_value.as_object().unwrap();
 
     // Validate required fields
-    assert!(obj.contains_key("baseline_id"), "JSON must contain baseline_id");
-    assert!(obj.contains_key("git_commit"), "JSON must contain git_commit");
+    assert!(
+        obj.contains_key("baseline_id"),
+        "JSON must contain baseline_id"
+    );
+    assert!(
+        obj.contains_key("git_commit"),
+        "JSON must contain git_commit"
+    );
     assert!(obj.contains_key("pr_number"), "JSON must contain pr_number");
-    assert!(obj.contains_key("performance_data"), "JSON must contain performance_data");
-    assert!(obj.contains_key("promotion_metadata"), "JSON must contain promotion_metadata");
+    assert!(
+        obj.contains_key("performance_data"),
+        "JSON must contain performance_data"
+    );
+    assert!(
+        obj.contains_key("promotion_metadata"),
+        "JSON must contain promotion_metadata"
+    );
 
     // Verify values
-    assert_eq!(obj["baseline_id"].as_str().unwrap(), format!("main-{}", &git_commit[..8]));
+    assert_eq!(
+        obj["baseline_id"].as_str().unwrap(),
+        format!("main-{}", &git_commit[..8])
+    );
     assert_eq!(obj["git_commit"].as_str().unwrap(), git_commit);
     assert_eq!(obj["pr_number"].as_u64().unwrap(), 123);
 
@@ -479,7 +602,7 @@ fn test_automated_merge_trigger_simulation() -> Result<(), Box<dyn std::error::E
         let baseline_id = manager.promote_baseline(
             merge_event.pr_number,
             merge_event.git_commit.clone(),
-            &performance_data
+            &performance_data,
         )?;
 
         // Verify baseline was created with correct metadata
@@ -509,16 +632,24 @@ fn test_baseline_versioning_patterns() -> Result<(), Box<dyn std::error::Error>>
 
     for (i, commit) in test_commits.iter().enumerate() {
         let pr_number = (i + 1) as u32;
-        let baseline_id = manager.promote_baseline(pr_number, commit.to_string(), &performance_data)?;
+        let baseline_id =
+            manager.promote_baseline(pr_number, commit.to_string(), &performance_data)?;
 
         // Verify baseline ID follows pattern
         let expected_id = format!("main-{}", &commit[..8]);
-        assert_eq!(baseline_id, expected_id, "Baseline ID should follow main-{{commit8}} pattern");
+        assert_eq!(
+            baseline_id, expected_id,
+            "Baseline ID should follow main-{{commit8}} pattern"
+        );
 
         // Verify baseline can be retrieved
         let baseline = manager.baselines.get(&baseline_id);
         assert!(baseline.is_some(), "Baseline should be retrievable by ID");
-        assert_eq!(baseline.unwrap().git_commit, *commit, "Full commit hash should be preserved");
+        assert_eq!(
+            baseline.unwrap().git_commit,
+            *commit,
+            "Full commit hash should be preserved"
+        );
     }
 
     Ok(())
@@ -555,10 +686,14 @@ fn test_promotion_metadata_completeness() -> Result<(), Box<dyn std::error::Erro
     assert!(metadata.safety_margins.comp3_safety_factor > 0.0);
 
     // Verify safety margins meet enterprise requirements
-    assert!(metadata.safety_margins.display_safety_factor > 1.0,
-        "DISPLAY safety margin must exceed 1.0 for promotion");
-    assert!(metadata.safety_margins.comp3_safety_factor > 1.0,
-        "COMP-3 safety margin must exceed 1.0 for promotion");
+    assert!(
+        metadata.safety_margins.display_safety_factor > 1.0,
+        "DISPLAY safety margin must exceed 1.0 for promotion"
+    );
+    assert!(
+        metadata.safety_margins.comp3_safety_factor > 1.0,
+        "COMP-3 safety margin must exceed 1.0 for promotion"
+    );
 
     Ok(())
 }

@@ -3,6 +3,23 @@
 //! Tests feature spec: issue-52-spec.md#AC10
 //! Validates complete workflow from benchmark → JSON → PR comment → baseline
 
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::panic)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::unnested_or_patterns)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::to_string_in_format_args)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::inherent_to_string)]
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
@@ -37,8 +54,8 @@ pub struct BenchmarkExecutionConfig {
 
 #[derive(Debug, Clone)]
 pub struct PerformanceFloors {
-    pub display_mbps: f64,    // 80 MB/s
-    pub comp3_mbps: f64,      // 40 MB/s
+    pub display_mbps: f64,       // 80 MB/s
+    pub comp3_mbps: f64,         // 40 MB/s
     pub variance_tolerance: f64, // 2%
 }
 
@@ -60,8 +77,8 @@ pub struct PrAutomationConfig {
 
 #[derive(Debug, Clone)]
 pub struct StatusThresholds {
-    pub warning_threshold: f64,   // 1.25x floor
-    pub error_threshold: f64,     // 1.0x floor
+    pub warning_threshold: f64, // 1.25x floor
+    pub error_threshold: f64,   // 1.0x floor
 }
 
 #[derive(Debug, Clone)]
@@ -100,12 +117,27 @@ pub struct AuditComplianceConfig {
     pub automated_reporting: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct DocumentationConfig {
     pub auto_generation: bool,
     pub output_formats: Vec<DocumentationFormat>,
     pub include_examples: bool,
     pub update_readme: bool,
+}
+
+impl Default for DocumentationConfig {
+    fn default() -> Self {
+        Self {
+            auto_generation: true,
+            output_formats: vec![
+                DocumentationFormat::Markdown,
+                DocumentationFormat::Html,
+                DocumentationFormat::Json,
+            ],
+            include_examples: true,
+            update_readme: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -284,7 +316,9 @@ impl EndToEndWorkflowOrchestrator {
         }
     }
 
-    pub fn execute_complete_workflow(&mut self) -> Result<WorkflowExecutionResult, WorkflowExecutionError> {
+    pub fn execute_complete_workflow(
+        &mut self,
+    ) -> Result<WorkflowExecutionResult, WorkflowExecutionError> {
         let workflow_start = SystemTime::now();
         self.state_tracker.overall_status = WorkflowStatus::InProgress;
 
@@ -390,30 +424,35 @@ impl EndToEndWorkflowOrchestrator {
             safety_margins: SafetyMargins {
                 display_margin: (benchmark_metrics.display_gibs * 1073.74) / 80.0,
                 comp3_margin: benchmark_metrics.comp3_mibs / 40.0,
-                overall_score: ((benchmark_metrics.display_gibs * 1073.74) / 80.0 + benchmark_metrics.comp3_mibs / 40.0) / 2.0,
+                overall_score: f64::midpoint(
+                    (benchmark_metrics.display_gibs * 1073.74) / 80.0,
+                    benchmark_metrics.comp3_mibs / 40.0
+                ),
             },
             slo_compliance: benchmark_metrics.slo_compliance,
         };
 
-        self.state_tracker.performance_history.push(performance_snapshot);
+        self.state_tracker
+            .performance_history
+            .push(performance_snapshot);
 
         let duration = stage_start.elapsed().unwrap_or_default();
         self.state_tracker.completed_stages.push(StageResult {
             stage: WorkflowStage::BenchmarkExecution,
             status: StageStatus::Completed,
             duration,
-            output: Some(format!("Benchmarks completed: DISPLAY {:.2} GiB/s, COMP-3 {:.0} MiB/s",
-                benchmark_metrics.display_gibs, benchmark_metrics.comp3_mibs)),
-            artifacts: vec![
-                WorkflowArtifact {
-                    name: "benchmark-results.json".to_string(),
-                    path: PathBuf::from("target/criterion/benchmark-results.json"),
-                    artifact_type: ArtifactType::BenchmarkLogs,
-                    size_bytes: 10240,
-                    checksum: "sha256:abc123".to_string(),
-                    generated_at: SystemTime::now(),
-                },
-            ],
+            output: Some(format!(
+                "Benchmarks completed: DISPLAY {:.2} GiB/s, COMP-3 {:.0} MiB/s",
+                benchmark_metrics.display_gibs, benchmark_metrics.comp3_mibs
+            )),
+            artifacts: vec![WorkflowArtifact {
+                name: "benchmark-results.json".to_string(),
+                path: PathBuf::from("target/criterion/benchmark-results.json"),
+                artifact_type: ArtifactType::BenchmarkLogs,
+                size_bytes: 10240,
+                checksum: "sha256:abc123".to_string(),
+                generated_at: SystemTime::now(),
+            }],
             warnings: benchmark_metrics.warnings.clone(),
             errors: benchmark_metrics.errors.clone(),
         });
@@ -425,7 +464,10 @@ impl EndToEndWorkflowOrchestrator {
         })
     }
 
-    fn execute_json_generation_stage(&mut self, benchmark_result: &BenchmarkStageResult) -> Result<JsonGenerationResult, WorkflowExecutionError> {
+    fn execute_json_generation_stage(
+        &mut self,
+        benchmark_result: &BenchmarkStageResult,
+    ) -> Result<JsonGenerationResult, WorkflowExecutionError> {
         let stage_start = SystemTime::now();
         self.state_tracker.current_stage = WorkflowStage::JsonGeneration;
 
@@ -447,16 +489,14 @@ impl EndToEndWorkflowOrchestrator {
             status: StageStatus::Completed,
             duration,
             output: Some(format!("JSON report generated: {} bytes", json_size)),
-            artifacts: vec![
-                WorkflowArtifact {
-                    name: "perf.json".to_string(),
-                    path: output_path,
-                    artifact_type: ArtifactType::JsonOutput,
-                    size_bytes: json_size,
-                    checksum: "sha256:def456".to_string(),
-                    generated_at: SystemTime::now(),
-                },
-            ],
+            artifacts: vec![WorkflowArtifact {
+                name: "perf.json".to_string(),
+                path: output_path,
+                artifact_type: ArtifactType::JsonOutput,
+                size_bytes: json_size,
+                checksum: "sha256:def456".to_string(),
+                generated_at: SystemTime::now(),
+            }],
             warnings: Vec::new(),
             errors: Vec::new(),
         });
@@ -468,7 +508,10 @@ impl EndToEndWorkflowOrchestrator {
         })
     }
 
-    fn execute_validation_stage(&mut self, json_report: &JsonGenerationResult) -> Result<(), WorkflowExecutionError> {
+    fn execute_validation_stage(
+        &mut self,
+        json_report: &JsonGenerationResult,
+    ) -> Result<(), WorkflowExecutionError> {
         let stage_start = SystemTime::now();
         self.state_tracker.current_stage = WorkflowStage::ValidationAndTesting;
 
@@ -496,7 +539,10 @@ impl EndToEndWorkflowOrchestrator {
     }
 
     // Implementation stubs for other stages...
-    fn execute_pr_comment_stage(&mut self, _benchmark_result: &BenchmarkStageResult) -> Result<PrCommentResult, WorkflowExecutionError> {
+    fn execute_pr_comment_stage(
+        &mut self,
+        _benchmark_result: &BenchmarkStageResult,
+    ) -> Result<PrCommentResult, WorkflowExecutionError> {
         // Implementation for PR comment posting
         Ok(PrCommentResult {
             comment_id: "comment_123".to_string(),
@@ -505,7 +551,10 @@ impl EndToEndWorkflowOrchestrator {
         })
     }
 
-    fn execute_baseline_promotion_stage(&mut self, _benchmark_result: &BenchmarkStageResult) -> Result<BaselinePromotionResult, WorkflowExecutionError> {
+    fn execute_baseline_promotion_stage(
+        &mut self,
+        _benchmark_result: &BenchmarkStageResult,
+    ) -> Result<BaselinePromotionResult, WorkflowExecutionError> {
         // Implementation for baseline promotion
         Ok(BaselinePromotionResult {
             baseline_id: "main-abc12345".to_string(),
@@ -513,7 +562,10 @@ impl EndToEndWorkflowOrchestrator {
         })
     }
 
-    fn execute_audit_reporting_stage(&mut self, _benchmark_result: &BenchmarkStageResult) -> Result<AuditReportResult, WorkflowExecutionError> {
+    fn execute_audit_reporting_stage(
+        &mut self,
+        _benchmark_result: &BenchmarkStageResult,
+    ) -> Result<AuditReportResult, WorkflowExecutionError> {
         // Implementation for audit reporting
         Ok(AuditReportResult {
             audit_id: "AUDIT-123456".to_string(),
@@ -522,9 +574,12 @@ impl EndToEndWorkflowOrchestrator {
         })
     }
 
-    fn execute_documentation_generation_stage(&mut self) -> Result<DocumentationResult, WorkflowExecutionError> {
+    fn execute_documentation_generation_stage(
+        &mut self,
+    ) -> Result<DocumentationResult, WorkflowExecutionError> {
         // Implementation for documentation generation
-        self.documentation_generator.generate_workflow_documentation(&self.state_tracker)
+        self.documentation_generator
+            .generate_workflow_documentation(&self.state_tracker)
     }
 
     fn execute_completion_stage(&mut self) -> Result<(), WorkflowExecutionError> {
@@ -559,24 +614,44 @@ impl EndToEndWorkflowOrchestrator {
         })
     }
 
-    fn validate_performance_floors(&self, metrics: &BenchmarkMetrics) -> Result<(), WorkflowExecutionError> {
+    fn validate_performance_floors(
+        &self,
+        metrics: &BenchmarkMetrics,
+    ) -> Result<(), WorkflowExecutionError> {
         let display_mbps = metrics.display_gibs * 1073.74;
-        if display_mbps < self.workflow_config.benchmark_execution.performance_floors.display_mbps {
-            return Err(WorkflowExecutionError::PerformanceFloorViolation(
-                format!("DISPLAY throughput {} MB/s below floor", display_mbps)
-            ));
+        if display_mbps
+            < self
+                .workflow_config
+                .benchmark_execution
+                .performance_floors
+                .display_mbps
+        {
+            return Err(WorkflowExecutionError::PerformanceFloorViolation(format!(
+                "DISPLAY throughput {} MB/s below floor",
+                display_mbps
+            )));
         }
 
-        if metrics.comp3_mibs < self.workflow_config.benchmark_execution.performance_floors.comp3_mbps {
-            return Err(WorkflowExecutionError::PerformanceFloorViolation(
-                format!("COMP-3 throughput {} MiB/s below floor", metrics.comp3_mibs)
-            ));
+        if metrics.comp3_mibs
+            < self
+                .workflow_config
+                .benchmark_execution
+                .performance_floors
+                .comp3_mbps
+        {
+            return Err(WorkflowExecutionError::PerformanceFloorViolation(format!(
+                "COMP-3 throughput {} MiB/s below floor",
+                metrics.comp3_mibs
+            )));
         }
 
         Ok(())
     }
 
-    fn generate_performance_json(&self, metrics: &BenchmarkMetrics) -> Result<String, WorkflowExecutionError> {
+    fn generate_performance_json(
+        &self,
+        metrics: &BenchmarkMetrics,
+    ) -> Result<String, WorkflowExecutionError> {
         let json = serde_json::json!({
             "display_gibs": metrics.display_gibs,
             "comp3_mibs": metrics.comp3_mibs,
@@ -593,7 +668,11 @@ impl EndToEndWorkflowOrchestrator {
         Ok(())
     }
 
-    fn save_json_report(&self, _json_content: &str, _output_path: &PathBuf) -> Result<(), WorkflowExecutionError> {
+    fn save_json_report(
+        &self,
+        _json_content: &str,
+        _output_path: &PathBuf,
+    ) -> Result<(), WorkflowExecutionError> {
         // Save JSON to file
         Ok(())
     }
@@ -603,24 +682,36 @@ impl EndToEndWorkflowOrchestrator {
         Ok(())
     }
 
-    fn validate_performance_thresholds(&self, _json_content: &str) -> Result<(), WorkflowExecutionError> {
+    fn validate_performance_thresholds(
+        &self,
+        _json_content: &str,
+    ) -> Result<(), WorkflowExecutionError> {
         // Validate performance thresholds
         Ok(())
     }
 
-    fn validate_enterprise_compliance(&self, _json_content: &str) -> Result<(), WorkflowExecutionError> {
+    fn validate_enterprise_compliance(
+        &self,
+        _json_content: &str,
+    ) -> Result<(), WorkflowExecutionError> {
         // Validate enterprise compliance
         Ok(())
     }
 
     fn collect_all_artifacts(&self) -> Vec<WorkflowArtifact> {
-        self.state_tracker.completed_stages.iter()
+        self.state_tracker
+            .completed_stages
+            .iter()
             .flat_map(|stage| stage.artifacts.clone())
             .collect()
     }
 
     fn generate_performance_summary(&self) -> PerformanceSummary {
-        let latest_snapshot = self.state_tracker.performance_history.last().cloned()
+        let latest_snapshot = self
+            .state_tracker
+            .performance_history
+            .last()
+            .cloned()
             .unwrap_or_else(|| PerformanceSnapshot {
                 timestamp: SystemTime::now(),
                 display_gibs: 0.0,
@@ -744,28 +835,35 @@ pub enum WorkflowExecutionError {
 impl std::fmt::Display for WorkflowExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WorkflowExecutionError::InitializationError(msg) =>
-                write!(f, "Initialization error: {}", msg),
-            WorkflowExecutionError::BenchmarkExecutionError(msg) =>
-                write!(f, "Benchmark execution error: {}", msg),
-            WorkflowExecutionError::PerformanceFloorViolation(msg) =>
-                write!(f, "Performance floor violation: {}", msg),
-            WorkflowExecutionError::JsonGenerationError(msg) =>
-                write!(f, "JSON generation error: {}", msg),
-            WorkflowExecutionError::ValidationError(msg) =>
-                write!(f, "Validation error: {}", msg),
-            WorkflowExecutionError::PrCommentError(msg) =>
-                write!(f, "PR comment error: {}", msg),
-            WorkflowExecutionError::BaselinePromotionError(msg) =>
-                write!(f, "Baseline promotion error: {}", msg),
-            WorkflowExecutionError::AuditReportError(msg) =>
-                write!(f, "Audit report error: {}", msg),
-            WorkflowExecutionError::DocumentationError(msg) =>
-                write!(f, "Documentation error: {}", msg),
-            WorkflowExecutionError::EnvironmentError(msg) =>
-                write!(f, "Environment error: {}", msg),
-            WorkflowExecutionError::ConfigurationError(msg) =>
-                write!(f, "Configuration error: {}", msg),
+            WorkflowExecutionError::InitializationError(msg) => {
+                write!(f, "Initialization error: {}", msg)
+            }
+            WorkflowExecutionError::BenchmarkExecutionError(msg) => {
+                write!(f, "Benchmark execution error: {}", msg)
+            }
+            WorkflowExecutionError::PerformanceFloorViolation(msg) => {
+                write!(f, "Performance floor violation: {}", msg)
+            }
+            WorkflowExecutionError::JsonGenerationError(msg) => {
+                write!(f, "JSON generation error: {}", msg)
+            }
+            WorkflowExecutionError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
+            WorkflowExecutionError::PrCommentError(msg) => write!(f, "PR comment error: {}", msg),
+            WorkflowExecutionError::BaselinePromotionError(msg) => {
+                write!(f, "Baseline promotion error: {}", msg)
+            }
+            WorkflowExecutionError::AuditReportError(msg) => {
+                write!(f, "Audit report error: {}", msg)
+            }
+            WorkflowExecutionError::DocumentationError(msg) => {
+                write!(f, "Documentation error: {}", msg)
+            }
+            WorkflowExecutionError::EnvironmentError(msg) => {
+                write!(f, "Environment error: {}", msg)
+            }
+            WorkflowExecutionError::ConfigurationError(msg) => {
+                write!(f, "Configuration error: {}", msg)
+            }
         }
     }
 }
@@ -839,15 +937,23 @@ impl Default for WorkflowConfiguration {
 impl ExecutionContext {
     pub fn new() -> Self {
         Self {
-            workflow_id: format!("workflow-{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default().as_secs()),
+            workflow_id: format!(
+                "workflow-{}",
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            ),
             execution_id: format!("exec-{}", uuid::Uuid::new_v4().to_string()[..8].to_string()),
             started_at: SystemTime::now(),
             environment: EnvironmentContext {
                 platform: std::env::consts::OS.to_string(),
                 rust_version: "1.90.0".to_string(),
                 cargo_version: "1.90.0".to_string(),
-                workspace_root: PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf(),
+                workspace_root: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .unwrap()
+                    .to_path_buf(),
                 system_resources: SystemResourceInfo {
                     cpu_cores: num_cpus::get() as u32,
                     memory_gb: 16,
@@ -890,7 +996,10 @@ impl DocumentationGenerator {
         }
     }
 
-    pub fn generate_workflow_documentation(&self, state_tracker: &WorkflowStateTracker) -> Result<DocumentationResult, WorkflowExecutionError> {
+    pub fn generate_workflow_documentation(
+        &self,
+        state_tracker: &WorkflowStateTracker,
+    ) -> Result<DocumentationResult, WorkflowExecutionError> {
         let mut documents_generated = 0;
         let mut total_size = 0u64;
 
@@ -900,12 +1009,12 @@ impl DocumentationGenerator {
                     self.generate_markdown_documentation(state_tracker)?;
                     documents_generated += 1;
                     total_size += 5000; // Mock size
-                },
+                }
                 DocumentationFormat::Html => {
                     self.generate_html_documentation(state_tracker)?;
                     documents_generated += 1;
                     total_size += 15000; // Mock size
-                },
+                }
                 _ => {}
             }
         }
@@ -917,12 +1026,18 @@ impl DocumentationGenerator {
         })
     }
 
-    fn generate_markdown_documentation(&self, _state_tracker: &WorkflowStateTracker) -> Result<(), WorkflowExecutionError> {
+    fn generate_markdown_documentation(
+        &self,
+        _state_tracker: &WorkflowStateTracker,
+    ) -> Result<(), WorkflowExecutionError> {
         // Generate markdown documentation
         Ok(())
     }
 
-    fn generate_html_documentation(&self, _state_tracker: &WorkflowStateTracker) -> Result<(), WorkflowExecutionError> {
+    fn generate_html_documentation(
+        &self,
+        _state_tracker: &WorkflowStateTracker,
+    ) -> Result<(), WorkflowExecutionError> {
         // Generate HTML documentation
         Ok(())
     }
@@ -932,8 +1047,12 @@ impl DocumentationGenerator {
 mod uuid {
     pub struct Uuid;
     impl Uuid {
-        pub fn new_v4() -> Self { Self }
-        pub fn to_string(&self) -> String { "12345678-1234-1234-1234-123456789012".to_string() }
+        pub fn new_v4() -> Self {
+            Self
+        }
+        pub fn to_string(&self) -> String {
+            "12345678-1234-1234-1234-123456789012".to_string()
+        }
     }
 }
 
@@ -951,17 +1070,29 @@ fn test_complete_end_to_end_workflow() -> Result<(), Box<dyn std::error::Error>>
     match result {
         Ok(workflow_result) => {
             // If successful, validate result structure
-            assert!(workflow_result.success, "Workflow should complete successfully");
-            assert!(!workflow_result.stage_results.is_empty(), "Should have completed stages");
-            assert!(!workflow_result.artifacts.is_empty(), "Should generate artifacts");
-            assert_eq!(workflow_result.performance_summary.compliance_status, ComplianceStatus::FullyCompliant);
-        },
-        Err(WorkflowExecutionError::InitializationError(_)) |
-        Err(WorkflowExecutionError::EnvironmentError(_)) |
-        Err(WorkflowExecutionError::BenchmarkExecutionError(_)) => {
+            assert!(
+                workflow_result.success,
+                "Workflow should complete successfully"
+            );
+            assert!(
+                !workflow_result.stage_results.is_empty(),
+                "Should have completed stages"
+            );
+            assert!(
+                !workflow_result.artifacts.is_empty(),
+                "Should generate artifacts"
+            );
+            assert_eq!(
+                workflow_result.performance_summary.compliance_status,
+                ComplianceStatus::FullyCompliant
+            );
+        }
+        Err(WorkflowExecutionError::InitializationError(_))
+        | Err(WorkflowExecutionError::EnvironmentError(_))
+        | Err(WorkflowExecutionError::BenchmarkExecutionError(_)) => {
             // Expected failures due to missing test environment
             // The test validates that proper error types are returned
-        },
+        }
         Err(e) => {
             // Unexpected error types should be investigated
             panic!("Unexpected workflow error: {:?}", e);
@@ -979,8 +1110,14 @@ fn test_workflow_stage_validation() -> Result<(), Box<dyn std::error::Error>> {
     let orchestrator = EndToEndWorkflowOrchestrator::new();
 
     // Test stage progression
-    assert_eq!(orchestrator.state_tracker.current_stage, WorkflowStage::Initialization);
-    assert_eq!(orchestrator.state_tracker.overall_status, WorkflowStatus::NotStarted);
+    assert_eq!(
+        orchestrator.state_tracker.current_stage,
+        WorkflowStage::Initialization
+    );
+    assert_eq!(
+        orchestrator.state_tracker.overall_status,
+        WorkflowStatus::NotStarted
+    );
 
     // Test stage configuration
     let expected_stages = vec![
@@ -1001,27 +1138,56 @@ fn test_workflow_stage_validation() -> Result<(), Box<dyn std::error::Error>> {
         match stage {
             WorkflowStage::Initialization => {
                 assert!(orchestrator.workflow_config.benchmark_execution.perf_mode);
-            },
+            }
             WorkflowStage::BenchmarkExecution => {
-                assert!(orchestrator.workflow_config.benchmark_execution.timeout_seconds > 0);
-                assert!(orchestrator.workflow_config.benchmark_execution.performance_floors.display_mbps > 0.0);
-            },
+                assert!(
+                    orchestrator
+                        .workflow_config
+                        .benchmark_execution
+                        .timeout_seconds
+                        > 0
+                );
+                assert!(
+                    orchestrator
+                        .workflow_config
+                        .benchmark_execution
+                        .performance_floors
+                        .display_mbps
+                        > 0.0
+                );
+            }
             WorkflowStage::JsonGeneration => {
-                assert!(!orchestrator.workflow_config.json_reporting.schema_version.is_empty());
-                assert!(orchestrator.workflow_config.json_reporting.validation_enabled);
-            },
+                assert!(
+                    !orchestrator
+                        .workflow_config
+                        .json_reporting
+                        .schema_version
+                        .is_empty()
+                );
+                assert!(
+                    orchestrator
+                        .workflow_config
+                        .json_reporting
+                        .validation_enabled
+                );
+            }
             WorkflowStage::PrCommentPosting => {
                 assert!(orchestrator.workflow_config.pr_automation.auto_post_enabled);
-            },
+            }
             WorkflowStage::BaselinePromotion => {
-                assert!(orchestrator.workflow_config.baseline_management.auto_promotion_enabled);
-            },
+                assert!(
+                    orchestrator
+                        .workflow_config
+                        .baseline_management
+                        .auto_promotion_enabled
+                );
+            }
             WorkflowStage::AuditReporting => {
                 assert!(orchestrator.workflow_config.audit_compliance.audit_enabled);
-            },
+            }
             WorkflowStage::DocumentationGeneration => {
                 assert!(orchestrator.workflow_config.documentation.auto_generation);
-            },
+            }
             _ => {}
         }
     }
@@ -1050,14 +1216,33 @@ fn test_workflow_artifact_generation() -> Result<(), Box<dyn std::error::Error>>
     for artifact_type in expected_artifact_types {
         match artifact_type {
             ArtifactType::JsonOutput => {
-                assert!(!orchestrator.workflow_config.json_reporting.output_path.as_os_str().is_empty());
-            },
+                assert!(
+                    !orchestrator
+                        .workflow_config
+                        .json_reporting
+                        .output_path
+                        .as_os_str()
+                        .is_empty()
+                );
+            }
             ArtifactType::Documentation => {
-                assert!(!orchestrator.workflow_config.documentation.output_formats.is_empty());
-            },
+                assert!(
+                    !orchestrator
+                        .workflow_config
+                        .documentation
+                        .output_formats
+                        .is_empty()
+                );
+            }
             ArtifactType::AuditReport => {
-                assert!(orchestrator.workflow_config.audit_compliance.evidence_retention_days > 0);
-            },
+                assert!(
+                    orchestrator
+                        .workflow_config
+                        .audit_compliance
+                        .evidence_retention_days
+                        > 0
+                );
+            }
             _ => {
                 // Other artifact types are generated as part of normal workflow
             }
@@ -1089,15 +1274,33 @@ fn test_documentation_generation() -> Result<(), Box<dyn std::error::Error>> {
     let doc_result = doc_generator.generate_workflow_documentation(&state_tracker)?;
 
     // Verify documentation result
-    assert!(doc_result.documents_generated > 0, "Should generate documents");
-    assert!(doc_result.total_size_bytes > 0, "Documents should have content");
-    assert!(!doc_result.formats.is_empty(), "Should specify formats used");
+    assert!(
+        doc_result.documents_generated > 0,
+        "Should generate documents"
+    );
+    assert!(
+        doc_result.total_size_bytes > 0,
+        "Documents should have content"
+    );
+    assert!(
+        !doc_result.formats.is_empty(),
+        "Should specify formats used"
+    );
 
     // Verify supported formats
-    let has_markdown = doc_result.formats.iter().any(|f| matches!(f, DocumentationFormat::Markdown));
-    let has_html = doc_result.formats.iter().any(|f| matches!(f, DocumentationFormat::Html));
+    let has_markdown = doc_result
+        .formats
+        .iter()
+        .any(|f| matches!(f, DocumentationFormat::Markdown));
+    let has_html = doc_result
+        .formats
+        .iter()
+        .any(|f| matches!(f, DocumentationFormat::Html));
 
-    assert!(has_markdown || has_html, "Should support at least one major documentation format");
+    assert!(
+        has_markdown || has_html,
+        "Should support at least one major documentation format"
+    );
 
     Ok(())
 }
@@ -1110,8 +1313,10 @@ fn test_performance_tracking_throughout_workflow() -> Result<(), Box<dyn std::er
     let mut orchestrator = EndToEndWorkflowOrchestrator::new();
 
     // Test initial performance history
-    assert!(orchestrator.state_tracker.performance_history.is_empty(),
-        "Should start with empty performance history");
+    assert!(
+        orchestrator.state_tracker.performance_history.is_empty(),
+        "Should start with empty performance history"
+    );
 
     // Simulate adding performance snapshot
     let performance_snapshot = PerformanceSnapshot {
@@ -1126,7 +1331,10 @@ fn test_performance_tracking_throughout_workflow() -> Result<(), Box<dyn std::er
         slo_compliance: true,
     };
 
-    orchestrator.state_tracker.performance_history.push(performance_snapshot.clone());
+    orchestrator
+        .state_tracker
+        .performance_history
+        .push(performance_snapshot.clone());
 
     // Verify performance tracking
     assert_eq!(orchestrator.state_tracker.performance_history.len(), 1);
@@ -1143,7 +1351,10 @@ fn test_performance_tracking_throughout_workflow() -> Result<(), Box<dyn std::er
 
     // Test performance summary generation
     let performance_summary = orchestrator.generate_performance_summary();
-    assert_eq!(performance_summary.compliance_status, ComplianceStatus::FullyCompliant);
+    assert_eq!(
+        performance_summary.compliance_status,
+        ComplianceStatus::FullyCompliant
+    );
     assert_eq!(performance_summary.trend_analysis, TrendAnalysis::Stable);
 
     Ok(())
@@ -1174,27 +1385,35 @@ fn test_comprehensive_error_handling_workflow() -> Result<(), Box<dyn std::error
     // Verify error messages are descriptive
     for error in error_scenarios {
         let error_message = error.to_string();
-        assert!(!error_message.is_empty(), "Error message should not be empty");
-        assert!(error_message.len() > 10, "Error message should be descriptive");
+        assert!(
+            !error_message.is_empty(),
+            "Error message should not be empty"
+        );
+        assert!(
+            error_message.len() > 10,
+            "Error message should be descriptive"
+        );
 
         // Verify error categorization
         match error {
-            WorkflowExecutionError::InitializationError(_) |
-            WorkflowExecutionError::EnvironmentError(_) |
-            WorkflowExecutionError::ConfigurationError(_) => {
+            WorkflowExecutionError::InitializationError(_)
+            | WorkflowExecutionError::EnvironmentError(_)
+            | WorkflowExecutionError::ConfigurationError(_) => {
                 // Setup/configuration errors
                 assert!(error_message.contains("error"));
-            },
-            WorkflowExecutionError::BenchmarkExecutionError(_) |
-            WorkflowExecutionError::PerformanceFloorViolation(_) => {
+            }
+            WorkflowExecutionError::BenchmarkExecutionError(_)
+            | WorkflowExecutionError::PerformanceFloorViolation(_) => {
                 // Performance-related errors
-                assert!(error_message.contains("Benchmark") || error_message.contains("Performance"));
-            },
-            WorkflowExecutionError::JsonGenerationError(_) |
-            WorkflowExecutionError::ValidationError(_) => {
+                assert!(
+                    error_message.contains("Benchmark") || error_message.contains("Performance")
+                );
+            }
+            WorkflowExecutionError::JsonGenerationError(_)
+            | WorkflowExecutionError::ValidationError(_) => {
                 // Output generation errors
                 assert!(error_message.contains("JSON") || error_message.contains("validation"));
-            },
+            }
             _ => {
                 // Other workflow errors should have appropriate categorization
             }
@@ -1202,8 +1421,10 @@ fn test_comprehensive_error_handling_workflow() -> Result<(), Box<dyn std::error
     }
 
     // Test error history tracking
-    assert!(orchestrator.state_tracker.error_history.is_empty(),
-        "Should start with empty error history");
+    assert!(
+        orchestrator.state_tracker.error_history.is_empty(),
+        "Should start with empty error history"
+    );
 
     // Simulate adding error to history
     let workflow_error = WorkflowError {
@@ -1214,10 +1435,16 @@ fn test_comprehensive_error_handling_workflow() -> Result<(), Box<dyn std::error
         recoverable: false,
     };
 
-    orchestrator.state_tracker.error_history.push(workflow_error);
+    orchestrator
+        .state_tracker
+        .error_history
+        .push(workflow_error);
 
     assert_eq!(orchestrator.state_tracker.error_history.len(), 1);
-    assert_eq!(orchestrator.state_tracker.error_history[0].stage, WorkflowStage::BenchmarkExecution);
+    assert_eq!(
+        orchestrator.state_tracker.error_history[0].stage,
+        WorkflowStage::BenchmarkExecution
+    );
     assert!(!orchestrator.state_tracker.error_history[0].recoverable);
 
     Ok(())
@@ -1231,42 +1458,131 @@ fn test_workflow_configuration_validation() -> Result<(), Box<dyn std::error::Er
     let config = WorkflowConfiguration::default();
 
     // Validate benchmark execution configuration
-    assert!(config.benchmark_execution.perf_mode, "PERF mode should be enabled by default");
-    assert!(config.benchmark_execution.timeout_seconds > 0, "Timeout should be positive");
-    assert!(!config.benchmark_execution.target_metrics.is_empty(), "Should have target metrics");
-    assert!(config.benchmark_execution.performance_floors.display_mbps > 0.0, "DISPLAY floor should be positive");
-    assert!(config.benchmark_execution.performance_floors.comp3_mbps > 0.0, "COMP-3 floor should be positive");
-    assert!(config.benchmark_execution.performance_floors.variance_tolerance > 0.0, "Variance tolerance should be positive");
+    assert!(
+        config.benchmark_execution.perf_mode,
+        "PERF mode should be enabled by default"
+    );
+    assert!(
+        config.benchmark_execution.timeout_seconds > 0,
+        "Timeout should be positive"
+    );
+    assert!(
+        !config.benchmark_execution.target_metrics.is_empty(),
+        "Should have target metrics"
+    );
+    assert!(
+        config.benchmark_execution.performance_floors.display_mbps > 0.0,
+        "DISPLAY floor should be positive"
+    );
+    assert!(
+        config.benchmark_execution.performance_floors.comp3_mbps > 0.0,
+        "COMP-3 floor should be positive"
+    );
+    assert!(
+        config
+            .benchmark_execution
+            .performance_floors
+            .variance_tolerance
+            > 0.0,
+        "Variance tolerance should be positive"
+    );
 
     // Validate JSON reporting configuration
-    assert!(!config.json_reporting.schema_version.is_empty(), "Schema version should be specified");
-    assert!(!config.json_reporting.output_path.as_os_str().is_empty(), "Output path should be specified");
-    assert!(config.json_reporting.include_metadata, "Metadata should be included by default");
-    assert!(config.json_reporting.validation_enabled, "Validation should be enabled by default");
+    assert!(
+        !config.json_reporting.schema_version.is_empty(),
+        "Schema version should be specified"
+    );
+    assert!(
+        !config.json_reporting.output_path.as_os_str().is_empty(),
+        "Output path should be specified"
+    );
+    assert!(
+        config.json_reporting.include_metadata,
+        "Metadata should be included by default"
+    );
+    assert!(
+        config.json_reporting.validation_enabled,
+        "Validation should be enabled by default"
+    );
 
     // Validate PR automation configuration
-    assert!(config.pr_automation.auto_post_enabled, "Auto-posting should be enabled by default");
-    assert!(config.pr_automation.status_thresholds.warning_threshold > 1.0, "Warning threshold should exceed 1.0");
-    assert!(config.pr_automation.status_thresholds.error_threshold >= 1.0, "Error threshold should be at least 1.0");
-    assert!(config.pr_automation.retry_policy.max_retries > 0, "Should allow retries");
+    assert!(
+        config.pr_automation.auto_post_enabled,
+        "Auto-posting should be enabled by default"
+    );
+    assert!(
+        config.pr_automation.status_thresholds.warning_threshold > 1.0,
+        "Warning threshold should exceed 1.0"
+    );
+    assert!(
+        config.pr_automation.status_thresholds.error_threshold >= 1.0,
+        "Error threshold should be at least 1.0"
+    );
+    assert!(
+        config.pr_automation.retry_policy.max_retries > 0,
+        "Should allow retries"
+    );
 
     // Validate baseline management configuration
-    assert!(config.baseline_management.auto_promotion_enabled, "Auto-promotion should be enabled");
-    assert!(config.baseline_management.promotion_criteria.require_no_errors, "Should require no errors for promotion");
-    assert!(config.baseline_management.promotion_criteria.min_safety_margin >= 1.0, "Should require minimum safety margin");
-    assert!(config.baseline_management.retention_policy.max_baselines > 0, "Should retain some baselines");
-    assert!(config.baseline_management.retention_policy.retention_days > 0, "Should have retention period");
+    assert!(
+        config.baseline_management.auto_promotion_enabled,
+        "Auto-promotion should be enabled"
+    );
+    assert!(
+        config
+            .baseline_management
+            .promotion_criteria
+            .require_no_errors,
+        "Should require no errors for promotion"
+    );
+    assert!(
+        config
+            .baseline_management
+            .promotion_criteria
+            .min_safety_margin
+            >= 1.0,
+        "Should require minimum safety margin"
+    );
+    assert!(
+        config.baseline_management.retention_policy.max_baselines > 0,
+        "Should retain some baselines"
+    );
+    assert!(
+        config.baseline_management.retention_policy.retention_days > 0,
+        "Should have retention period"
+    );
 
     // Validate audit compliance configuration
-    assert!(config.audit_compliance.audit_enabled, "Audit should be enabled by default");
-    assert!(!config.audit_compliance.compliance_frameworks.is_empty(), "Should have compliance frameworks");
-    assert!(config.audit_compliance.evidence_retention_days > 365, "Should retain evidence for at least a year");
-    assert!(config.audit_compliance.automated_reporting, "Automated reporting should be enabled");
+    assert!(
+        config.audit_compliance.audit_enabled,
+        "Audit should be enabled by default"
+    );
+    assert!(
+        !config.audit_compliance.compliance_frameworks.is_empty(),
+        "Should have compliance frameworks"
+    );
+    assert!(
+        config.audit_compliance.evidence_retention_days > 365,
+        "Should retain evidence for at least a year"
+    );
+    assert!(
+        config.audit_compliance.automated_reporting,
+        "Automated reporting should be enabled"
+    );
 
     // Validate documentation configuration
-    assert!(config.documentation.auto_generation, "Auto-generation should be enabled");
-    assert!(!config.documentation.output_formats.is_empty(), "Should have output formats");
-    assert!(config.documentation.include_examples, "Should include examples by default");
+    assert!(
+        config.documentation.auto_generation,
+        "Auto-generation should be enabled"
+    );
+    assert!(
+        !config.documentation.output_formats.is_empty(),
+        "Should have output formats"
+    );
+    assert!(
+        config.documentation.include_examples,
+        "Should include examples by default"
+    );
 
     Ok(())
 }

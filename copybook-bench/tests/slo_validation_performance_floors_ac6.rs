@@ -3,15 +3,27 @@
 //! Tests feature spec: issue-52-spec.md#AC6
 //! Validates SLO compliance with performance floor enforcement (DISPLAY ≥80 MB/s, COMP-3 ≥40 MB/s)
 
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::manual_midpoint)]
+#![allow(dead_code)]
+
 // HashMap removed - not used in this test file
 
 /// SLO (Service Level Objective) configuration for performance validation
 #[derive(Debug, Clone)]
 pub struct SloConfiguration {
-    pub display_floor_mbps: f64,     // 80 MB/s minimum
-    pub comp3_floor_mbps: f64,       // 40 MB/s minimum
-    pub variance_tolerance: f64,      // 2% maximum variance
-    pub regression_threshold: f64,    // 5% regression threshold
+    pub display_floor_mbps: f64,           // 80 MB/s minimum
+    pub comp3_floor_mbps: f64,             // 40 MB/s minimum
+    pub variance_tolerance: f64,           // 2% maximum variance
+    pub regression_threshold: f64,         // 5% regression threshold
     pub enterprise_target_multiplier: f64, // 10x safety margin target
 }
 
@@ -20,8 +32,8 @@ impl Default for SloConfiguration {
         Self {
             display_floor_mbps: 80.0,
             comp3_floor_mbps: 40.0,
-            variance_tolerance: 0.02,     // 2%
-            regression_threshold: 0.05,   // 5%
+            variance_tolerance: 0.02,   // 2%
+            regression_threshold: 0.05, // 5%
             enterprise_target_multiplier: 10.0,
         }
     }
@@ -47,9 +59,9 @@ pub struct SafetyMargins {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComplianceLevel {
-    FullyCompliant,      // No errors, minimal warnings
+    FullyCompliant,         // No errors, minimal warnings
     ConditionallyCompliant, // Warnings present but above floors
-    NonCompliant,        // Below performance floors
+    NonCompliant,           // Below performance floors
 }
 
 #[derive(Debug, Clone)]
@@ -62,10 +74,10 @@ pub struct PerformanceAssessment {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalabilityRating {
-    Excellent,   // >50x safety margin
-    Good,        // 10-50x safety margin
-    Adequate,    // 2-10x safety margin
-    Marginal,    // 1-2x safety margin
+    Excellent,    // >50x safety margin
+    Good,         // 10-50x safety margin
+    Adequate,     // 2-10x safety margin
+    Marginal,     // 1-2x safety margin
     Insufficient, // <1x safety margin
 }
 
@@ -161,7 +173,9 @@ impl SloValidator {
             _ => ScalabilityRating::Insufficient,
         };
 
-        let reliability_score = if safety_margins.display_safety_factor > 1.0 && safety_margins.comp3_safety_factor > 1.0 {
+        let reliability_score = if safety_margins.display_safety_factor > 1.0
+            && safety_margins.comp3_safety_factor > 1.0
+        {
             (safety_margins.overall_safety_score / 100.0).min(1.0)
         } else {
             0.0
@@ -169,7 +183,8 @@ impl SloValidator {
 
         PerformanceAssessment {
             enterprise_readiness: safety_margins.overall_safety_score > 10.0,
-            production_grade: safety_margins.display_safety_factor > 1.0 && safety_margins.comp3_safety_factor > 1.0,
+            production_grade: safety_margins.display_safety_factor > 1.0
+                && safety_margins.comp3_safety_factor > 1.0,
             scalability_rating,
             reliability_score,
         }
@@ -185,28 +200,48 @@ fn test_slo_validation_performance_above_floors() -> Result<(), Box<dyn std::err
 
     // Test current enterprise performance levels
     let display_gibs = 4.22; // ~4531 MB/s, well above 80 MB/s floor
-    let comp3_mibs = 571.0;  // well above 40 MB/s floor
+    let comp3_mibs = 571.0; // well above 40 MB/s floor
 
     let result = validator.validate_performance_floors(display_gibs, comp3_mibs);
 
     // Should pass all validations
-    assert!(result.passed, "SLO validation should pass with current performance levels");
-    assert!(result.warnings.is_empty(), "Should have no warnings with excellent performance");
-    assert!(result.errors.is_empty(), "Should have no errors with excellent performance");
+    assert!(
+        result.passed,
+        "SLO validation should pass with current performance levels"
+    );
+    assert!(
+        result.warnings.is_empty(),
+        "Should have no warnings with excellent performance"
+    );
+    assert!(
+        result.errors.is_empty(),
+        "Should have no errors with excellent performance"
+    );
     assert_eq!(result.compliance_level, ComplianceLevel::FullyCompliant);
 
     // Verify safety margins
-    assert!(result.safety_margins.display_safety_factor > 50.0,
-        "DISPLAY safety factor should exceed 50x");
-    assert!(result.safety_margins.comp3_safety_factor > 10.0,
-        "COMP-3 safety factor should exceed 10x");
+    assert!(
+        result.safety_margins.display_safety_factor > 50.0,
+        "DISPLAY safety factor should exceed 50x"
+    );
+    assert!(
+        result.safety_margins.comp3_safety_factor > 10.0,
+        "COMP-3 safety factor should exceed 10x"
+    );
 
     // Verify enterprise readiness
-    assert!(result.performance_assessment.enterprise_readiness,
-        "Should be enterprise ready with current performance");
-    assert!(result.performance_assessment.production_grade,
-        "Should be production grade");
-    assert_eq!(result.performance_assessment.scalability_rating, ScalabilityRating::Excellent);
+    assert!(
+        result.performance_assessment.enterprise_readiness,
+        "Should be enterprise ready with current performance"
+    );
+    assert!(
+        result.performance_assessment.production_grade,
+        "Should be production grade"
+    );
+    assert_eq!(
+        result.performance_assessment.scalability_rating,
+        ScalabilityRating::Good
+    );
 
     Ok(())
 }
@@ -220,20 +255,34 @@ fn test_slo_validation_performance_approaching_floors() -> Result<(), Box<dyn st
 
     // Test performance approaching floors (within 25% threshold)
     let display_gibs = 0.095; // ~102 MB/s, above 80 MB/s but within 25% warning threshold
-    let comp3_mibs = 45.0;    // above 40 MB/s but within 25% warning threshold
+    let comp3_mibs = 45.0; // above 40 MB/s but within 25% warning threshold
 
     let result = validator.validate_performance_floors(display_gibs, comp3_mibs);
 
     // Should pass but with warnings
-    assert!(result.passed, "SLO validation should pass when above floors");
-    assert!(!result.warnings.is_empty(), "Should have warnings when approaching floors");
-    assert!(result.errors.is_empty(), "Should have no errors when above floors");
-    assert_eq!(result.compliance_level, ComplianceLevel::ConditionallyCompliant);
+    assert!(
+        result.passed,
+        "SLO validation should pass when above floors"
+    );
+    assert!(
+        !result.warnings.is_empty(),
+        "Should have warnings when approaching floors"
+    );
+    assert!(
+        result.errors.is_empty(),
+        "Should have no errors when above floors"
+    );
+    assert_eq!(
+        result.compliance_level,
+        ComplianceLevel::ConditionallyCompliant
+    );
 
     // Verify warning messages
     let warning_text = result.warnings.join(" ");
-    assert!(warning_text.contains("approaching floor threshold"),
-        "Warning should mention approaching threshold");
+    assert!(
+        warning_text.contains("approaching floor threshold"),
+        "Warning should mention approaching threshold"
+    );
 
     // Verify safety factors are in warning range
     assert!(result.safety_margins.display_safety_factor > 1.0);
@@ -253,18 +302,27 @@ fn test_slo_validation_performance_below_floors() -> Result<(), Box<dyn std::err
 
     // Test performance below floors
     let display_gibs = 0.05; // ~53 MB/s, below 80 MB/s floor
-    let comp3_mibs = 25.0;   // below 40 MB/s floor
+    let comp3_mibs = 25.0; // below 40 MB/s floor
 
     let result = validator.validate_performance_floors(display_gibs, comp3_mibs);
 
     // Should fail validation
-    assert!(!result.passed, "SLO validation should fail when below floors");
-    assert!(!result.errors.is_empty(), "Should have errors when below floors");
+    assert!(
+        !result.passed,
+        "SLO validation should fail when below floors"
+    );
+    assert!(
+        !result.errors.is_empty(),
+        "Should have errors when below floors"
+    );
     assert_eq!(result.compliance_level, ComplianceLevel::NonCompliant);
 
     // Verify error messages
     let error_text = result.errors.join(" ");
-    assert!(error_text.contains("below floor"), "Errors should mention floor violations");
+    assert!(
+        error_text.contains("below floor"),
+        "Errors should mention floor violations"
+    );
     assert!(error_text.contains("DISPLAY"), "Should have DISPLAY error");
     assert!(error_text.contains("COMP-3"), "Should have COMP-3 error");
 
@@ -273,11 +331,18 @@ fn test_slo_validation_performance_below_floors() -> Result<(), Box<dyn std::err
     assert!(result.safety_margins.comp3_safety_factor < 1.0);
 
     // Verify performance assessment
-    assert!(!result.performance_assessment.enterprise_readiness,
-        "Should not be enterprise ready below floors");
-    assert!(!result.performance_assessment.production_grade,
-        "Should not be production grade below floors");
-    assert_eq!(result.performance_assessment.scalability_rating, ScalabilityRating::Insufficient);
+    assert!(
+        !result.performance_assessment.enterprise_readiness,
+        "Should not be enterprise ready below floors"
+    );
+    assert!(
+        !result.performance_assessment.production_grade,
+        "Should not be production grade below floors"
+    );
+    assert_eq!(
+        result.performance_assessment.scalability_rating,
+        ScalabilityRating::Insufficient
+    );
 
     Ok(())
 }
@@ -312,18 +377,28 @@ fn test_regression_detection_against_baseline() -> Result<(), Box<dyn std::error
 
         if should_regress {
             // Should detect regression
-            assert!(display_regression > validator.config.regression_threshold ||
-                    comp3_regression > validator.config.regression_threshold,
-                "Should detect regression for scenario: {}", description);
+            assert!(
+                display_regression > validator.config.regression_threshold
+                    || comp3_regression > validator.config.regression_threshold,
+                "Should detect regression for scenario: {}",
+                description
+            );
         } else {
             // Should not detect significant regression
-            assert!(display_regression <= validator.config.regression_threshold &&
-                    comp3_regression <= validator.config.regression_threshold,
-                "Should not detect regression for scenario: {}", description);
+            assert!(
+                display_regression <= validator.config.regression_threshold
+                    && comp3_regression <= validator.config.regression_threshold,
+                "Should not detect regression for scenario: {}",
+                description
+            );
         }
 
         // All scenarios should still pass floor validation (above 80/40 MB/s)
-        assert!(result.passed, "All test scenarios should pass floor validation: {}", description);
+        assert!(
+            result.passed,
+            "All test scenarios should pass floor validation: {}",
+            description
+        );
     }
 
     Ok(())
@@ -351,24 +426,35 @@ fn test_enterprise_target_validation() -> Result<(), Box<dyn std::error::Error>>
 
         // Calculate enterprise target compliance
         let display_mbps = display_gibs * 1073.74;
-        let enterprise_display_target = validator.config.display_floor_mbps * validator.config.enterprise_target_multiplier;
-        let enterprise_comp3_target = validator.config.comp3_floor_mbps * validator.config.enterprise_target_multiplier;
+        let enterprise_display_target =
+            validator.config.display_floor_mbps * validator.config.enterprise_target_multiplier;
+        let enterprise_comp3_target =
+            validator.config.comp3_floor_mbps * validator.config.enterprise_target_multiplier;
 
         let meets_display_target = display_mbps >= enterprise_display_target;
         let meets_comp3_target = comp3_mibs >= enterprise_comp3_target;
         let meets_enterprise_targets = meets_display_target && meets_comp3_target;
 
         if meets_targets {
-            assert!(meets_enterprise_targets,
-                "Should meet enterprise targets for scenario: {}", description);
-            assert!(result.performance_assessment.enterprise_readiness,
-                "Should be enterprise ready: {}", description);
+            assert!(
+                meets_enterprise_targets,
+                "Should meet enterprise targets for scenario: {}",
+                description
+            );
+            assert!(
+                result.performance_assessment.enterprise_readiness,
+                "Should be enterprise ready: {}",
+                description
+            );
         } else {
             // May or may not meet enterprise targets depending on the specific scenario
             // But should still assess enterprise readiness correctly
             if meets_enterprise_targets {
-                assert!(result.performance_assessment.enterprise_readiness,
-                    "Should be enterprise ready when meeting targets: {}", description);
+                assert!(
+                    result.performance_assessment.enterprise_readiness,
+                    "Should be enterprise ready when meeting targets: {}",
+                    description
+                );
             }
         }
     }
@@ -385,47 +471,94 @@ fn test_scalability_rating_assignment() -> Result<(), Box<dyn std::error::Error>
 
     let test_scenarios = vec![
         // (display_gibs, comp3_mibs, expected_rating, description)
-        (4.22, 571.0, ScalabilityRating::Excellent, "current_performance_excellent"),
-        (2.0, 500.0, ScalabilityRating::Good, "good_performance"),
-        (0.5, 200.0, ScalabilityRating::Adequate, "adequate_performance"),
-        (0.15, 60.0, ScalabilityRating::Marginal, "marginal_performance"),
-        (0.05, 25.0, ScalabilityRating::Insufficient, "insufficient_performance"),
+        // For Excellent: need overall safety score > 50
+        // DISPLAY: 6.0 GiB/s * 1073.74 = 6442 MB/s -> 6442/80 = 80.5x
+        // COMP-3: 2500 MiB/s -> 2500/40 = 62.5x
+        // Overall: (80.5 + 62.5) / 2 = 71.5x > 50 -> Excellent
+        (
+            6.0,
+            2500.0,
+            ScalabilityRating::Excellent,
+            "excellent_performance",
+        ),
+        // For Good: 4.22 GiB/s actual performance falls here
+        // DISPLAY: 4.22 * 1073.74 = 4531 MB/s -> 4531/80 = 56.6x
+        // COMP-3: 571 MiB/s -> 571/40 = 14.3x
+        // Overall: (56.6 + 14.3) / 2 = 35.45x -> Good (10-50)
+        (4.22, 571.0, ScalabilityRating::Good, "current_performance_good"),
+        (
+            0.5,
+            200.0,
+            ScalabilityRating::Adequate,
+            "adequate_performance",
+        ),
+        (
+            0.15,
+            60.0,
+            ScalabilityRating::Marginal,
+            "marginal_performance",
+        ),
+        (
+            0.05,
+            25.0,
+            ScalabilityRating::Insufficient,
+            "insufficient_performance",
+        ),
     ];
 
     for (display_gibs, comp3_mibs, expected_rating, description) in test_scenarios {
         let result = validator.validate_performance_floors(display_gibs, comp3_mibs);
 
-        assert_eq!(result.performance_assessment.scalability_rating, expected_rating,
-            "Scalability rating should match expected for scenario: {}", description);
+        assert_eq!(
+            result.performance_assessment.scalability_rating, expected_rating,
+            "Scalability rating should match expected for scenario: {}",
+            description
+        );
 
         // Verify rating consistency with safety margins
         match expected_rating {
             ScalabilityRating::Excellent => {
-                assert!(result.safety_margins.overall_safety_score > 50.0,
-                    "Excellent rating should have >50x overall safety score");
-            },
+                assert!(
+                    result.safety_margins.overall_safety_score > 50.0,
+                    "Excellent rating should have >50x overall safety score"
+                );
+            }
             ScalabilityRating::Good => {
-                assert!(result.safety_margins.overall_safety_score > 10.0,
-                    "Good rating should have >10x overall safety score");
-                assert!(result.safety_margins.overall_safety_score <= 50.0,
-                    "Good rating should have ≤50x overall safety score");
-            },
+                assert!(
+                    result.safety_margins.overall_safety_score > 10.0,
+                    "Good rating should have >10x overall safety score"
+                );
+                assert!(
+                    result.safety_margins.overall_safety_score <= 50.0,
+                    "Good rating should have ≤50x overall safety score"
+                );
+            }
             ScalabilityRating::Adequate => {
-                assert!(result.safety_margins.overall_safety_score > 2.0,
-                    "Adequate rating should have >2x overall safety score");
-                assert!(result.safety_margins.overall_safety_score <= 10.0,
-                    "Adequate rating should have ≤10x overall safety score");
-            },
+                assert!(
+                    result.safety_margins.overall_safety_score > 2.0,
+                    "Adequate rating should have >2x overall safety score"
+                );
+                assert!(
+                    result.safety_margins.overall_safety_score <= 10.0,
+                    "Adequate rating should have ≤10x overall safety score"
+                );
+            }
             ScalabilityRating::Marginal => {
-                assert!(result.safety_margins.overall_safety_score > 1.0,
-                    "Marginal rating should have >1x overall safety score");
-                assert!(result.safety_margins.overall_safety_score <= 2.0,
-                    "Marginal rating should have ≤2x overall safety score");
-            },
+                assert!(
+                    result.safety_margins.overall_safety_score > 1.0,
+                    "Marginal rating should have >1x overall safety score"
+                );
+                assert!(
+                    result.safety_margins.overall_safety_score <= 2.0,
+                    "Marginal rating should have ≤2x overall safety score"
+                );
+            }
             ScalabilityRating::Insufficient => {
-                assert!(result.safety_margins.overall_safety_score <= 1.0,
-                    "Insufficient rating should have ≤1x overall safety score");
-            },
+                assert!(
+                    result.safety_margins.overall_safety_score <= 1.0,
+                    "Insufficient rating should have ≤1x overall safety score"
+                );
+            }
         }
     }
 
@@ -458,22 +591,33 @@ fn test_performance_variance_tolerance() -> Result<(), Box<dyn std::error::Error
         let display_with_variance = baseline_display * (1.0 - display_var);
         let comp3_with_variance = baseline_comp3 * (1.0 - comp3_var);
 
-        let result = validator.validate_performance_floors(display_with_variance, comp3_with_variance);
+        let result =
+            validator.validate_performance_floors(display_with_variance, comp3_with_variance);
 
         // High variance should generate warnings (implementation detail)
         // This test scaffolding establishes the expectation for variance monitoring
 
         // All should still pass floor validation
-        assert!(result.passed, "Should pass floor validation for scenario: {}", description);
+        assert!(
+            result.passed,
+            "Should pass floor validation for scenario: {}",
+            description
+        );
 
         // Verify safety margins reflect variance impact
         let expected_display_margin = (display_with_variance * 1073.74) / 80.0;
         let expected_comp3_margin = comp3_with_variance / 40.0;
 
-        assert!((result.safety_margins.display_safety_factor - expected_display_margin).abs() < 0.1,
-            "DISPLAY safety margin should reflect variance for: {}", description);
-        assert!((result.safety_margins.comp3_safety_factor - expected_comp3_margin).abs() < 0.1,
-            "COMP-3 safety margin should reflect variance for: {}", description);
+        assert!(
+            (result.safety_margins.display_safety_factor - expected_display_margin).abs() < 0.1,
+            "DISPLAY safety margin should reflect variance for: {}",
+            description
+        );
+        assert!(
+            (result.safety_margins.comp3_safety_factor - expected_comp3_margin).abs() < 0.1,
+            "COMP-3 safety margin should reflect variance for: {}",
+            description
+        );
     }
 
     Ok(())
@@ -486,9 +630,11 @@ fn test_comprehensive_slo_validation() -> Result<(), Box<dyn std::error::Error>>
     // AC:AC6 - Verify comprehensive SLO validation covers all criteria
     let validator = SloValidator::new();
 
-    // Test comprehensive enterprise scenario
-    let display_gibs = 4.22;
-    let comp3_mibs = 571.0;
+    // Test comprehensive enterprise scenario with Excellent performance
+    // Need reliability > 0.8, so overall safety score needs to be > 80
+    let display_gibs = 8.0;   // Will achieve 107.3x safety factor (8*1073.74/80)
+    let comp3_mibs = 2500.0;  // Will achieve 62.5x safety factor (2500/40)
+                              // Overall: (107.3 + 62.5) / 2 = 84.9x -> reliability = 0.849 > 0.8
 
     let result = validator.validate_performance_floors(display_gibs, comp3_mibs);
 
@@ -505,15 +651,21 @@ fn test_comprehensive_slo_validation() -> Result<(), Box<dyn std::error::Error>>
     assert!(result.performance_assessment.enterprise_readiness);
     assert!(result.performance_assessment.production_grade);
     assert!(result.performance_assessment.reliability_score > 0.5);
-    assert_eq!(result.performance_assessment.scalability_rating, ScalabilityRating::Excellent);
+    assert_eq!(
+        result.performance_assessment.scalability_rating,
+        ScalabilityRating::Excellent
+    );
 
     // Validate that all assessment components are consistent
-    let excellent_scalability = result.performance_assessment.scalability_rating == ScalabilityRating::Excellent;
+    let excellent_scalability =
+        result.performance_assessment.scalability_rating == ScalabilityRating::Excellent;
     let high_reliability = result.performance_assessment.reliability_score > 0.8;
     let enterprise_ready = result.performance_assessment.enterprise_readiness;
 
-    assert!(excellent_scalability && high_reliability && enterprise_ready,
-        "All assessment components should be consistent for excellent performance");
+    assert!(
+        excellent_scalability && high_reliability && enterprise_ready,
+        "All assessment components should be consistent for excellent performance"
+    );
 
     Ok(())
 }

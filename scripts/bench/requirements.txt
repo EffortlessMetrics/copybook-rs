@@ -9,6 +9,9 @@ toml>=0.10.2,<1.0.0              # TOML configuration file parsing
 # JSON processing and validation
 jsonschema>=4.17.0,<5.0.0        # JSON schema validation for performance reports
 
+# Template rendering
+jinja2>=3.1.0,<4.0.0             # Template rendering for reports and documentation
+
 # Statistical analysis and data processing
 statistics>=1.0.3.5              # Built-in statistics module (Python standard library)
 

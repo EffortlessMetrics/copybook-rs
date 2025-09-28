@@ -16,8 +16,7 @@
 /// - AC4: Performance impact <5% maintaining 2.33+ GiB/s DISPLAY, 168+ MiB/s COMP-3
 /// - AC7: Comprehensive test coverage for data encoding/decoding paths
 /// - AC10: Memory safety preserved in numeric conversion algorithms
-
-use copybook_codec::{DecodeOptions, Codepage, JsonNumberMode, decode_record};
+use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, decode_record};
 use copybook_core::parse_copybook;
 
 #[cfg(test)]
@@ -40,11 +39,16 @@ mod panic_elimination_numeric_tests {
         let result = decode_record(&schema, &invalid_comp3_data, &options);
 
         // Should return structured error instead of panicking on nibble extraction
-        assert!(result.is_err(), "Invalid COMP-3 nibbles should return error");
+        assert!(
+            result.is_err(),
+            "Invalid COMP-3 nibbles should return error"
+        );
 
         let error = result.unwrap_err();
         assert!(
-            error.to_string().contains("COMP-3") || error.to_string().contains("nibble") || error.to_string().contains("invalid"),
+            error.to_string().contains("COMP-3")
+                || error.to_string().contains("nibble")
+                || error.to_string().contains("invalid"),
             "Error should reference COMP-3 nibble issue: {}",
             error
         );
@@ -69,7 +73,9 @@ mod panic_elimination_numeric_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("decimal") || error.to_string().contains("digit") || error.to_string().contains("numeric"),
+                    error.to_string().contains("decimal")
+                        || error.to_string().contains("digit")
+                        || error.to_string().contains("numeric"),
                     "Decimal validation error should reference digit issue: {}",
                     error
                 );
@@ -93,18 +99,19 @@ mod panic_elimination_numeric_tests {
         match result {
             Ok(value) => {
                 // Should produce valid JSON value within reasonable bounds
-                if let Some(obj) = value.as_object() {
-                    if let Some(field_value) = obj.get("BINARY-FIELD") {
+                if let Some(obj) = value.as_object()
+                    && let Some(field_value) = obj.get("BINARY-FIELD") {
                         assert!(
                             field_value.is_number(),
                             "Binary field should produce numeric value"
                         );
                     }
-                }
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("binary") || error.to_string().contains("overflow") || error.to_string().contains("integer"),
+                    error.to_string().contains("binary")
+                        || error.to_string().contains("overflow")
+                        || error.to_string().contains("integer"),
                     "Binary overflow error should reference overflow issue: {}",
                     error
                 );
@@ -129,19 +136,20 @@ mod panic_elimination_numeric_tests {
         // Should handle high precision safely without bounds panics
         match result {
             Ok(value) => {
-                if let Some(obj) = value.as_object() {
-                    if let Some(field_value) = obj.get("HIGH-PRECISION") {
+                if let Some(obj) = value.as_object()
+                    && let Some(field_value) = obj.get("HIGH-PRECISION") {
                         // Should produce valid numeric representation
                         assert!(
                             field_value.is_string() || field_value.is_number(),
                             "High precision field should produce valid value"
                         );
                     }
-                }
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("precision") || error.to_string().contains("bounds") || error.to_string().contains("COMP-3"),
+                    error.to_string().contains("precision")
+                        || error.to_string().contains("bounds")
+                        || error.to_string().contains("COMP-3"),
                     "Precision bounds error should reference precision issue: {}",
                     error
                 );
@@ -161,7 +169,9 @@ mod panic_elimination_numeric_tests {
         let schema = parse_copybook(edge_case_schema_copybook).expect("Schema should parse");
 
         // Edge case data: zero values, maximum values, minimal data
-        let edge_case_data = vec![0x00, 0x0C, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99]; // Mixed edge cases
+        let edge_case_data = vec![
+            0x00, 0x0C, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99, 0x99,
+        ]; // Mixed edge cases
 
         let options = DecodeOptions::new().with_codepage(Codepage::CP037);
         let result = decode_record(&schema, &edge_case_data, &options);
@@ -182,7 +192,8 @@ mod panic_elimination_numeric_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("conversion") || error.to_string().contains("numeric"),
+                    error.to_string().contains("conversion")
+                        || error.to_string().contains("numeric"),
                     "Numeric conversion error should reference conversion issue: {}",
                     error
                 );
@@ -214,18 +225,19 @@ mod panic_elimination_zoned_overpunch_tests {
         match result {
             Ok(value) => {
                 // May interpret with default handling
-                if let Some(obj) = value.as_object() {
-                    if let Some(field_value) = obj.get("ZONED-FIELD") {
+                if let Some(obj) = value.as_object()
+                    && let Some(field_value) = obj.get("ZONED-FIELD") {
                         assert!(
                             field_value.is_number() || field_value.is_string(),
                             "Zoned field should produce valid value"
                         );
                     }
-                }
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("zoned") || error.to_string().contains("overpunch") || error.to_string().contains("character"),
+                    error.to_string().contains("zoned")
+                        || error.to_string().contains("overpunch")
+                        || error.to_string().contains("character"),
                     "Overpunch lookup error should reference overpunch issue: {}",
                     error
                 );
@@ -249,18 +261,19 @@ mod panic_elimination_zoned_overpunch_tests {
         match result {
             Ok(value) => {
                 // May interpret with default sign handling
-                if let Some(obj) = value.as_object() {
-                    if let Some(field_value) = obj.get("SIGNED-FIELD") {
+                if let Some(obj) = value.as_object()
+                    && let Some(field_value) = obj.get("SIGNED-FIELD") {
                         assert!(
                             field_value.is_number() || field_value.is_string(),
                             "Signed field should produce valid value"
                         );
                     }
-                }
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("sign") || error.to_string().contains("encoding") || error.to_string().contains("zoned"),
+                    error.to_string().contains("sign")
+                        || error.to_string().contains("encoding")
+                        || error.to_string().contains("zoned"),
                     "Sign encoding error should reference sign issue: {}",
                     error
                 );
@@ -293,7 +306,9 @@ mod panic_elimination_zoned_overpunch_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("EBCDIC") || error.to_string().contains("character") || error.to_string().contains("mapping"),
+                    error.to_string().contains("EBCDIC")
+                        || error.to_string().contains("character")
+                        || error.to_string().contains("mapping"),
                     "EBCDIC mapping error should reference mapping issue: {}",
                     error
                 );
@@ -317,18 +332,19 @@ mod panic_elimination_zoned_overpunch_tests {
         match result {
             Ok(value) => {
                 // Should handle with bounds checking
-                if let Some(obj) = value.as_object() {
-                    if let Some(field_value) = obj.get("OVERPUNCH-FIELD") {
+                if let Some(obj) = value.as_object()
+                    && let Some(field_value) = obj.get("OVERPUNCH-FIELD") {
                         assert!(
                             field_value.is_number() || field_value.is_string(),
                             "Overpunch field should produce valid value"
                         );
                     }
-                }
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("overpunch") || error.to_string().contains("bounds") || error.to_string().contains("digit"),
+                    error.to_string().contains("overpunch")
+                        || error.to_string().contains("bounds")
+                        || error.to_string().contains("digit"),
                     "Digit bounds error should reference bounds issue: {}",
                     error
                 );
@@ -369,7 +385,8 @@ mod panic_elimination_zoned_overpunch_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("encoding") || error.to_string().contains("overpunch"),
+                    error.to_string().contains("encoding")
+                        || error.to_string().contains("overpunch"),
                     "Encoding validation error should reference encoding issue: {}",
                     error
                 );
@@ -407,7 +424,9 @@ mod panic_elimination_record_tests {
 
         let error = result.unwrap_err();
         assert!(
-            error.to_string().contains("record") || error.to_string().contains("short") || error.to_string().contains("bounds"),
+            error.to_string().contains("record")
+                || error.to_string().contains("short")
+                || error.to_string().contains("bounds"),
             "Record bounds error should reference record issue: {}",
             error
         );
@@ -434,10 +453,7 @@ mod panic_elimination_record_tests {
         match result {
             Ok(value) => {
                 if let Some(obj) = value.as_object() {
-                    assert!(
-                        obj.len() >= 3,
-                        "Large record should produce all fields"
-                    );
+                    assert!(obj.len() >= 3, "Large record should produce all fields");
 
                     // Validate field values are reasonable
                     for (field_name, field_value) in obj {
@@ -451,7 +467,9 @@ mod panic_elimination_record_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("offset") || error.to_string().contains("calculation") || error.to_string().contains("record"),
+                    error.to_string().contains("offset")
+                        || error.to_string().contains("calculation")
+                        || error.to_string().contains("record"),
                     "Offset calculation error should reference offset issue: {}",
                     error
                 );
@@ -493,7 +511,9 @@ mod panic_elimination_record_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("variable") || error.to_string().contains("ODO") || error.to_string().contains("count"),
+                    error.to_string().contains("variable")
+                        || error.to_string().contains("ODO")
+                        || error.to_string().contains("count"),
                     "Variable length error should reference variable length issue: {}",
                     error
                 );
@@ -537,7 +557,9 @@ mod panic_elimination_record_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("type") || error.to_string().contains("field") || error.to_string().contains("validation"),
+                    error.to_string().contains("type")
+                        || error.to_string().contains("field")
+                        || error.to_string().contains("validation"),
                     "Type validation error should reference type issue: {}",
                     error
                 );
@@ -585,7 +607,9 @@ mod panic_elimination_record_tests {
                     // Validate nested structure handling
                     for (field_name, field_value) in obj {
                         assert!(
-                            field_value.is_string() || field_value.is_number() || field_value.is_object(),
+                            field_value.is_string()
+                                || field_value.is_number()
+                                || field_value.is_object(),
                             "Field {} should have valid value type",
                             field_name
                         );
@@ -594,7 +618,9 @@ mod panic_elimination_record_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("layout") || error.to_string().contains("consistency") || error.to_string().contains("record"),
+                    error.to_string().contains("layout")
+                        || error.to_string().contains("consistency")
+                        || error.to_string().contains("record"),
                     "Layout consistency error should reference layout issue: {}",
                     error
                 );
@@ -625,8 +651,8 @@ mod panic_elimination_memory_tests {
         // Should handle large buffer allocations safely
         match result {
             Ok(value) => {
-                if let Some(obj) = value.as_object() {
-                    if let Some(field_value) = obj.get("LARGE-FIELD") {
+                if let Some(obj) = value.as_object()
+                    && let Some(field_value) = obj.get("LARGE-FIELD") {
                         assert!(
                             field_value.is_string(),
                             "Large field should be string value"
@@ -638,11 +664,12 @@ mod panic_elimination_memory_tests {
                             );
                         }
                     }
-                }
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("buffer") || error.to_string().contains("allocation") || error.to_string().contains("memory"),
+                    error.to_string().contains("buffer")
+                        || error.to_string().contains("allocation")
+                        || error.to_string().contains("memory"),
                     "Buffer allocation error should reference memory issue: {}",
                     error
                 );
@@ -691,7 +718,9 @@ mod panic_elimination_memory_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("buffer") || error.to_string().contains("scratch") || error.to_string().contains("memory"),
+                    error.to_string().contains("buffer")
+                        || error.to_string().contains("scratch")
+                        || error.to_string().contains("memory"),
                     "Scratch buffer error should reference buffer issue: {}",
                     error
                 );
@@ -724,7 +753,9 @@ mod panic_elimination_memory_tests {
                 }
                 Err(error) => {
                     assert!(
-                        error.to_string().contains("reuse") || error.to_string().contains("memory") || error.to_string().contains("buffer"),
+                        error.to_string().contains("reuse")
+                            || error.to_string().contains("memory")
+                            || error.to_string().contains("buffer"),
                         "Memory reuse error should reference reuse issue: {}",
                         error
                     );
@@ -748,8 +779,8 @@ mod panic_elimination_memory_tests {
         // Should handle potential overflow safely
         match result {
             Ok(value) => {
-                if let Some(obj) = value.as_object() {
-                    if let Some(field_value) = obj.get("OVERFLOW-FIELD") {
+                if let Some(obj) = value.as_object()
+                    && let Some(field_value) = obj.get("OVERFLOW-FIELD") {
                         assert!(
                             field_value.is_string(),
                             "Overflow field should be string value"
@@ -762,11 +793,12 @@ mod panic_elimination_memory_tests {
                             );
                         }
                     }
-                }
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("overflow") || error.to_string().contains("buffer") || error.to_string().contains("bounds"),
+                    error.to_string().contains("overflow")
+                        || error.to_string().contains("buffer")
+                        || error.to_string().contains("bounds"),
                     "Buffer overflow error should reference overflow issue: {}",
                     error
                 );
@@ -808,7 +840,9 @@ mod panic_elimination_iterator_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("iterator") || error.to_string().contains("bounds") || error.to_string().contains("advancement"),
+                    error.to_string().contains("iterator")
+                        || error.to_string().contains("bounds")
+                        || error.to_string().contains("advancement"),
                     "Iterator bounds error should reference iterator issue: {}",
                     error
                 );
@@ -847,7 +881,9 @@ mod panic_elimination_iterator_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("streaming") || error.to_string().contains("record") || error.to_string().contains("state"),
+                    error.to_string().contains("streaming")
+                        || error.to_string().contains("record")
+                        || error.to_string().contains("state"),
                     "Streaming error should reference streaming issue: {}",
                     error
                 );
@@ -911,7 +947,9 @@ mod panic_elimination_iterator_tests {
                 }
                 Err(error) => {
                     assert!(
-                        error.to_string().contains("state") || error.to_string().contains("consistency") || error.to_string().contains("iterator"),
+                        error.to_string().contains("state")
+                            || error.to_string().contains("consistency")
+                            || error.to_string().contains("iterator"),
                         "State consistency error should reference state issue: {}",
                         error
                     );
@@ -968,7 +1006,8 @@ mod panic_elimination_performance_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("DISPLAY") || error.to_string().contains("performance"),
+                    error.to_string().contains("DISPLAY")
+                        || error.to_string().contains("performance"),
                     "DISPLAY performance error should reference DISPLAY issue: {}",
                     error
                 );
@@ -1024,7 +1063,8 @@ mod panic_elimination_performance_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("COMP-3") || error.to_string().contains("performance"),
+                    error.to_string().contains("COMP-3")
+                        || error.to_string().contains("performance"),
                     "COMP-3 performance error should reference COMP-3 issue: {}",
                     error
                 );
@@ -1053,15 +1093,10 @@ mod panic_elimination_performance_tests {
         match result {
             Ok(value) => {
                 if let Some(obj) = value.as_object() {
-                    assert!(
-                        obj.len() >= 2,
-                        "Memory test should produce major fields"
-                    );
+                    assert!(obj.len() >= 2, "Memory test should produce major fields");
 
                     // Validate memory usage is reasonable
-                    let value_size = serde_json::to_string(&value)
-                        .map(|s| s.len())
-                        .unwrap_or(0);
+                    let value_size = serde_json::to_string(&value).map(|s| s.len()).unwrap_or(0);
 
                     assert!(
                         value_size < 10000, // Should be under 10KB serialized
@@ -1072,7 +1107,8 @@ mod panic_elimination_performance_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("memory") || error.to_string().contains("efficiency"),
+                    error.to_string().contains("memory")
+                        || error.to_string().contains("efficiency"),
                     "Memory efficiency error should reference memory issue: {}",
                     error
                 );

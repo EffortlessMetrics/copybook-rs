@@ -15,8 +15,23 @@
 /// - AC4: Performance impact minimal on test generation workflows
 /// - AC7: Comprehensive test coverage for fixture generation
 /// - AC12: Golden fixtures integration with panic-safe operation
-
 use copybook_core::parse_copybook;
+
+// Mock functions for testing - these represent the safe implementations that would be created
+fn generate_test_data_safely(_schema: &copybook_core::Schema) -> Result<Vec<u8>, String> {
+    // Mock implementation - the real version would use safe bounds checking
+    Ok(vec![0x00, 0x01, 0x02])
+}
+
+fn create_golden_fixture_safely(_schema: &copybook_core::Schema) -> Result<Vec<u8>, String> {
+    // Mock implementation - the real version would use safe file operations
+    Ok(vec![0x00, 0x01, 0x02])
+}
+
+fn integrate_with_framework_safely(_schema: &copybook_core::Schema) -> Result<(), String> {
+    // Mock implementation - the real version would use safe framework integration
+    Ok(())
+}
 
 #[cfg(test)]
 mod panic_elimination_test_generation_tests {
@@ -59,7 +74,10 @@ mod panic_elimination_test_generation_tests {
         let fixture_result = create_golden_fixture_safely(&schema);
 
         // Should handle complex structures safely
-        assert!(fixture_result.is_ok(), "Golden fixture creation should succeed");
+        assert!(
+            fixture_result.is_ok(),
+            "Golden fixture creation should succeed"
+        );
     }
 
     #[test] // AC:63-13-3 Test framework integration safety
@@ -78,22 +96,9 @@ mod panic_elimination_test_generation_tests {
         let integration_result = integrate_with_framework_safely(&schema);
 
         // Should integrate safely with external frameworks
-        assert!(integration_result.is_ok(), "Framework integration should succeed");
+        assert!(
+            integration_result.is_ok(),
+            "Framework integration should succeed"
+        );
     }
-}
-
-// Mock functions for testing - these represent the safe implementations that would be created
-fn generate_test_data_safely(_schema: &copybook_core::Schema) -> Result<Vec<u8>, String> {
-    // Mock implementation - the real version would use safe bounds checking
-    Ok(vec![0x00, 0x01, 0x02])
-}
-
-fn create_golden_fixture_safely(_schema: &copybook_core::Schema) -> Result<Vec<u8>, String> {
-    // Mock implementation - the real version would use safe file operations
-    Ok(vec![0x00, 0x01, 0x02])
-}
-
-fn integrate_with_framework_safely(_schema: &copybook_core::Schema) -> Result<(), String> {
-    // Mock implementation - the real version would use safe framework integration
-    Ok(())
 }

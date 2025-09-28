@@ -1,3 +1,4 @@
+use std::fs;
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#cli-command-safety
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#phase-3-long-tail-cleanup
@@ -15,9 +16,7 @@
 /// - AC4: Performance impact minimal on CLI operations
 /// - AC7: Comprehensive test coverage for command handlers
 /// - AC8: User-friendly error messages with structured error taxonomy
-
 use std::process::Command;
-use std::fs;
 
 #[cfg(test)]
 mod panic_elimination_cli_command_tests {
@@ -41,7 +40,7 @@ mod panic_elimination_cli_command_tests {
 
         // Test parse command with valid input
         let output = Command::new("cargo")
-            .args(&["run", "--bin", "copybook", "--", "parse"])
+            .args(["run", "--bin", "copybook", "--", "parse"])
             .arg(&copybook_path)
             .output();
 
@@ -72,7 +71,7 @@ mod panic_elimination_cli_command_tests {
 
         // Test inspect command with nonexistent file
         let output = Command::new("cargo")
-            .args(&["run", "--bin", "copybook", "--", "inspect"])
+            .args(["run", "--bin", "copybook", "--", "inspect"])
             .arg(&nonexistent_path)
             .output();
 
@@ -114,11 +113,17 @@ mod panic_elimination_cli_command_tests {
 
         // Test decode command with invalid codepage
         let output = Command::new("cargo")
-            .args(&[
-                "run", "--bin", "copybook", "--", "decode",
-                "--format", "fixed",
-                "--codepage", "INVALID_CODEPAGE",
-                "--output"
+            .args([
+                "run",
+                "--bin",
+                "copybook",
+                "--",
+                "decode",
+                "--format",
+                "fixed",
+                "--codepage",
+                "INVALID_CODEPAGE",
+                "--output",
             ])
             .arg(&output_path)
             .arg(&copybook_path)
@@ -166,10 +171,16 @@ mod panic_elimination_cli_command_tests {
 
         // Test encode command with malformed JSON
         let output = Command::new("cargo")
-            .args(&[
-                "run", "--bin", "copybook", "--", "encode",
-                "--format", "fixed",
-                "--codepage", "cp037"
+            .args([
+                "run",
+                "--bin",
+                "copybook",
+                "--",
+                "encode",
+                "--format",
+                "fixed",
+                "--codepage",
+                "cp037",
             ])
             .arg(&copybook_path)
             .arg(&json_path)
@@ -216,10 +227,16 @@ mod panic_elimination_cli_command_tests {
 
         // Test verify command with mismatched data
         let output = Command::new("cargo")
-            .args(&[
-                "run", "--bin", "copybook", "--", "verify",
-                "--format", "fixed",
-                "--codepage", "cp037"
+            .args([
+                "run",
+                "--bin",
+                "copybook",
+                "--",
+                "verify",
+                "--format",
+                "fixed",
+                "--codepage",
+                "cp037",
             ])
             .arg(&copybook_path)
             .arg(&data_path)
@@ -238,7 +255,9 @@ mod panic_elimination_cli_command_tests {
 
                     // Should provide user-friendly error message
                     assert!(
-                        stderr_output.contains("record") || stderr_output.contains("length") || stderr_output.contains("mismatch"),
+                        stderr_output.contains("record")
+                            || stderr_output.contains("length")
+                            || stderr_output.contains("mismatch"),
                         "Verification error should provide meaningful context: {}",
                         stderr_output
                     );
@@ -280,7 +299,7 @@ mod panic_elimination_cli_audit_tests {
 
         // Test parse command that should generate audit events
         let output = Command::new("cargo")
-            .args(&["run", "--bin", "copybook", "--", "parse"])
+            .args(["run", "--bin", "copybook", "--", "parse"])
             .arg(&copybook_path)
             .output();
 
@@ -338,7 +357,7 @@ mod panic_elimination_cli_audit_tests {
 
         // Test inspect command on complex structure
         let output = Command::new("cargo")
-            .args(&["run", "--bin", "copybook", "--", "inspect"])
+            .args(["run", "--bin", "copybook", "--", "inspect"])
             .arg(&copybook_path)
             .output();
 
@@ -365,7 +384,10 @@ mod panic_elimination_cli_audit_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
             Err(e) => {
-                println!("CLI complex audit test skipped due to execution environment: {}", e);
+                println!(
+                    "CLI complex audit test skipped due to execution environment: {}",
+                    e
+                );
                 let _ = fs::remove_file(&copybook_path);
             }
         }
@@ -388,7 +410,7 @@ mod panic_elimination_cli_audit_tests {
 
         // Test parse command with context preservation
         let output = Command::new("cargo")
-            .args(&["run", "--bin", "copybook", "--", "parse"])
+            .args(["run", "--bin", "copybook", "--", "parse"])
             .arg(&copybook_path)
             .output();
 
@@ -399,7 +421,9 @@ mod panic_elimination_cli_audit_tests {
                     let stdout_output = String::from_utf8_lossy(&output.stdout);
                     // Should handle occurs arrays in context
                     assert!(
-                        stdout_output.contains("CONTEXT-DATA") || stdout_output.contains("occurs") || stdout_output.contains("array"),
+                        stdout_output.contains("CONTEXT-DATA")
+                            || stdout_output.contains("occurs")
+                            || stdout_output.contains("array"),
                         "Context preservation should handle arrays: {}",
                         stdout_output
                     );
@@ -416,7 +440,10 @@ mod panic_elimination_cli_audit_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
             Err(e) => {
-                println!("CLI context audit test skipped due to execution environment: {}", e);
+                println!(
+                    "CLI context audit test skipped due to execution environment: {}",
+                    e
+                );
                 let _ = fs::remove_file(&copybook_path);
             }
         }
@@ -435,11 +462,12 @@ mod panic_elimination_cli_audit_tests {
 
         let temp_dir = std::env::temp_dir();
         let copybook_path = temp_dir.join("test_error_audit.cpy");
-        fs::write(&copybook_path, malformed_copybook_content).expect("Should write malformed copybook");
+        fs::write(&copybook_path, malformed_copybook_content)
+            .expect("Should write malformed copybook");
 
         // Test parse command on malformed copybook
         let output = Command::new("cargo")
-            .args(&["run", "--bin", "copybook", "--", "parse"])
+            .args(["run", "--bin", "copybook", "--", "parse"])
             .arg(&copybook_path)
             .output();
 
@@ -458,10 +486,10 @@ mod panic_elimination_cli_audit_tests {
 
                     // Should provide structured error information
                     assert!(
-                        stderr_output.contains("REDEFINES") ||
-                        stderr_output.contains("NONEXISTENT") ||
-                        stderr_output.contains("DEPENDING ON") ||
-                        stderr_output.contains("MISSING-COUNTER"),
+                        stderr_output.contains("REDEFINES")
+                            || stderr_output.contains("NONEXISTENT")
+                            || stderr_output.contains("DEPENDING ON")
+                            || stderr_output.contains("MISSING-COUNTER"),
                         "Error recovery should provide specific error context: {}",
                         stderr_output
                     );
@@ -471,7 +499,10 @@ mod panic_elimination_cli_audit_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
             Err(e) => {
-                println!("CLI error audit test skipped due to execution environment: {}", e);
+                println!(
+                    "CLI error audit test skipped due to execution environment: {}",
+                    e
+                );
                 let _ = fs::remove_file(&copybook_path);
             }
         }
@@ -489,16 +520,16 @@ mod panic_elimination_cli_utils_tests {
     fn test_file_path_validation_safety() {
         // Test case: CLI operations with invalid file paths
         let invalid_paths = vec![
-            "",                           // Empty path
-            "/dev/null/nonexistent",     // Invalid directory structure
-            "///invalid///path",         // Multiple slashes
-            "\0invalid_null_path",       // Null character in path
+            "",                      // Empty path
+            "/dev/null/nonexistent", // Invalid directory structure
+            "///invalid///path",     // Multiple slashes
+            "\0invalid_null_path",   // Null character in path
         ];
 
         for invalid_path in invalid_paths {
             // Test parse command with invalid path
             let output = Command::new("cargo")
-                .args(&["run", "--bin", "copybook", "--", "parse"])
+                .args(["run", "--bin", "copybook", "--", "parse"])
                 .arg(invalid_path)
                 .output();
 
@@ -510,19 +541,26 @@ mod panic_elimination_cli_utils_tests {
                         assert!(
                             !stderr_output.contains("panic") && !stderr_output.contains("unwrap"),
                             "Path validation error should not contain panic traces for '{}': {}",
-                            invalid_path, stderr_output
+                            invalid_path,
+                            stderr_output
                         );
 
                         // Should provide user-friendly error message
                         assert!(
-                            stderr_output.contains("file") || stderr_output.contains("path") || stderr_output.contains("not found"),
+                            stderr_output.contains("file")
+                                || stderr_output.contains("path")
+                                || stderr_output.contains("not found"),
                             "Path validation should provide meaningful error for '{}': {}",
-                            invalid_path, stderr_output
+                            invalid_path,
+                            stderr_output
                         );
                     }
                 }
                 Err(e) => {
-                    println!("CLI path validation test skipped for '{}' due to execution environment: {}", invalid_path, e);
+                    println!(
+                        "CLI path validation test skipped for '{}' due to execution environment: {}",
+                        invalid_path, e
+                    );
                 }
             }
         }
@@ -544,11 +582,17 @@ mod panic_elimination_cli_utils_tests {
         fs::write(&data_path, b"1234567890").expect("Should write test data");
 
         let output = Command::new("cargo")
-            .args(&[
-                "run", "--bin", "copybook", "--", "decode",
-                "--format", "fixed",
-                "--codepage", "cp037",
-                "--output"
+            .args([
+                "run",
+                "--bin",
+                "copybook",
+                "--",
+                "decode",
+                "--format",
+                "fixed",
+                "--codepage",
+                "cp037",
+                "--output",
             ])
             .arg(&output_path)
             .arg(&readonly_path)
@@ -603,12 +647,19 @@ mod panic_elimination_cli_utils_tests {
 
         for (flag, invalid_value) in invalid_configs {
             let output = Command::new("cargo")
-                .args(&[
-                    "run", "--bin", "copybook", "--", "decode",
-                    "--format", "fixed",
-                    "--codepage", "cp037",
-                    flag, invalid_value,
-                    "--output"
+                .args([
+                    "run",
+                    "--bin",
+                    "copybook",
+                    "--",
+                    "decode",
+                    "--format",
+                    "fixed",
+                    "--codepage",
+                    "cp037",
+                    flag,
+                    invalid_value,
+                    "--output",
                 ])
                 .arg(&output_path)
                 .arg(&copybook_path)
@@ -623,19 +674,28 @@ mod panic_elimination_cli_utils_tests {
                         assert!(
                             !stderr_output.contains("panic") && !stderr_output.contains("unwrap"),
                             "Configuration parsing error for '{}={}' should not contain panic traces: {}",
-                            flag, invalid_value, stderr_output
+                            flag,
+                            invalid_value,
+                            stderr_output
                         );
 
                         // Should provide helpful error message
                         assert!(
-                            stderr_output.contains("invalid") || stderr_output.contains("argument") || stderr_output.contains(flag),
+                            stderr_output.contains("invalid")
+                                || stderr_output.contains("argument")
+                                || stderr_output.contains(flag),
                             "Configuration error should provide meaningful context for '{}={}': {}",
-                            flag, invalid_value, stderr_output
+                            flag,
+                            invalid_value,
+                            stderr_output
                         );
                     }
                 }
                 Err(e) => {
-                    println!("CLI config test skipped for '{}={}' due to execution environment: {}", flag, invalid_value, e);
+                    println!(
+                        "CLI config test skipped for '{}={}' due to execution environment: {}",
+                        flag, invalid_value, e
+                    );
                 }
             }
         }
@@ -671,21 +731,28 @@ mod panic_elimination_cli_integration_tests {
         let json_path = temp_dir.join("test_pipeline.jsonl");
         let binary_path = temp_dir.join("test_pipeline.bin");
 
-        fs::write(&copybook_path, pipeline_copybook_content).expect("Should write pipeline copybook");
+        fs::write(&copybook_path, pipeline_copybook_content)
+            .expect("Should write pipeline copybook");
         fs::write(&json_path, pipeline_json_data).expect("Should write pipeline JSON");
 
         // Step 1: Parse copybook
         let parse_output = Command::new("cargo")
-            .args(&["run", "--bin", "copybook", "--", "parse"])
+            .args(["run", "--bin", "copybook", "--", "parse"])
             .arg(&copybook_path)
             .output();
 
         // Step 2: Encode JSON to binary
         let encode_output = Command::new("cargo")
-            .args(&[
-                "run", "--bin", "copybook", "--", "encode",
-                "--format", "fixed",
-                "--codepage", "cp037"
+            .args([
+                "run",
+                "--bin",
+                "copybook",
+                "--",
+                "encode",
+                "--format",
+                "fixed",
+                "--codepage",
+                "cp037",
             ])
             .arg(&copybook_path)
             .arg(&json_path)
@@ -694,15 +761,23 @@ mod panic_elimination_cli_integration_tests {
 
         // Step 3: Verify binary data
         let verify_output = if binary_path.exists() {
-            Some(Command::new("cargo")
-                .args(&[
-                    "run", "--bin", "copybook", "--", "verify",
-                    "--format", "fixed",
-                    "--codepage", "cp037"
-                ])
-                .arg(&copybook_path)
-                .arg(&binary_path)
-                .output())
+            Some(
+                Command::new("cargo")
+                    .args([
+                        "run",
+                        "--bin",
+                        "copybook",
+                        "--",
+                        "verify",
+                        "--format",
+                        "fixed",
+                        "--codepage",
+                        "cp037",
+                    ])
+                    .arg(&copybook_path)
+                    .arg(&binary_path)
+                    .output(),
+            )
         } else {
             None
         };
@@ -720,7 +795,10 @@ mod panic_elimination_cli_integration_tests {
                 }
             }
             Err(e) => {
-                println!("CLI pipeline parse test skipped due to execution environment: {}", e);
+                println!(
+                    "CLI pipeline parse test skipped due to execution environment: {}",
+                    e
+                );
             }
         }
 
@@ -736,7 +814,10 @@ mod panic_elimination_cli_integration_tests {
                 }
             }
             Err(e) => {
-                println!("CLI pipeline encode test skipped due to execution environment: {}", e);
+                println!(
+                    "CLI pipeline encode test skipped due to execution environment: {}",
+                    e
+                );
             }
         }
 
@@ -754,7 +835,10 @@ mod panic_elimination_cli_integration_tests {
                     }
                 }
                 Err(e) => {
-                    println!("CLI pipeline verify test skipped due to execution environment: {}", e);
+                    println!(
+                        "CLI pipeline verify test skipped due to execution environment: {}",
+                        e
+                    );
                 }
             }
         }
@@ -782,7 +866,7 @@ mod panic_elimination_cli_integration_tests {
 
             // Test parse command error propagation
             let output = Command::new("cargo")
-                .args(&["run", "--bin", "copybook", "--", "parse"])
+                .args(["run", "--bin", "copybook", "--", "parse"])
                 .arg(&copybook_path)
                 .output();
 
@@ -795,7 +879,8 @@ mod panic_elimination_cli_integration_tests {
                         assert!(
                             !stderr_output.contains("panic") && !stderr_output.contains("unwrap"),
                             "Error propagation for '{}' should not contain panic traces: {}",
-                            scenario_name, stderr_output
+                            scenario_name,
+                            stderr_output
                         );
 
                         // Should provide structured error information
@@ -807,7 +892,10 @@ mod panic_elimination_cli_integration_tests {
                     }
                 }
                 Err(e) => {
-                    println!("CLI error propagation test for '{}' skipped due to execution environment: {}", scenario_name, e);
+                    println!(
+                        "CLI error propagation test for '{}' skipped due to execution environment: {}",
+                        scenario_name, e
+                    );
                 }
             }
 
@@ -837,11 +925,17 @@ mod panic_elimination_cli_integration_tests {
 
         // Test decode command with large data
         let output = Command::new("cargo")
-            .args(&[
-                "run", "--bin", "copybook", "--", "decode",
-                "--format", "fixed",
-                "--codepage", "cp037",
-                "--output"
+            .args([
+                "run",
+                "--bin",
+                "copybook",
+                "--",
+                "decode",
+                "--format",
+                "fixed",
+                "--codepage",
+                "cp037",
+                "--output",
             ])
             .arg(&output_path)
             .arg(&copybook_path)
@@ -866,7 +960,10 @@ mod panic_elimination_cli_integration_tests {
                 );
             }
             Err(e) => {
-                println!("CLI resource cleanup test skipped due to execution environment: {}", e);
+                println!(
+                    "CLI resource cleanup test skipped due to execution environment: {}",
+                    e
+                );
             }
         }
 

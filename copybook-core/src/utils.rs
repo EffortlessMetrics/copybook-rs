@@ -214,6 +214,109 @@ pub mod safe_ops {
             )
         })
     }
+
+    /// Safely convert u64 to u32 with overflow checking
+    ///
+    /// Critical for COBOL field offset calculations where overflow could
+    /// compromise mainframe data processing accuracy.
+    #[inline]
+    pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
+        u32::try_from(value).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                format!(
+                    "Integer overflow converting u64 to u32 in {}: {} exceeds u32::MAX",
+                    context, value
+                ),
+            )
+        })
+    }
+
+    /// Safely convert u64 to u16 with overflow checking
+    ///
+    /// Used for sync padding calculations and small field sizes where
+    /// overflow protection is essential for enterprise reliability.
+    #[inline]
+    pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
+        u16::try_from(value).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                format!(
+                    "Integer overflow converting u64 to u16 in {}: {} exceeds u16::MAX",
+                    context, value
+                ),
+            )
+        })
+    }
+
+    /// Safely convert usize to u32 with overflow checking
+    #[inline]
+    pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
+        u32::try_from(value).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                format!(
+                    "Integer overflow converting usize to u32 in {}: {} exceeds u32::MAX",
+                    context, value
+                ),
+            )
+        })
+    }
+
+    /// Safely access slice with bounds checking for token streams
+    ///
+    /// Essential for parser token access where bounds violations could cause
+    /// panics during COBOL copybook processing.
+    #[inline]
+    pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>
+    where
+        T: Copy,
+    {
+        slice.get(index).copied().ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!(
+                    "Slice bounds violation in {}: index {} >= length {}",
+                    context,
+                    index,
+                    slice.len()
+                ),
+            )
+        })
+    }
+
+    /// Safely parse string as u16 with context
+    ///
+    /// Used for COBOL numeric field parsing where invalid digits could cause
+    /// parse errors during copybook processing.
+    #[inline]
+    pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
+        s.parse().map_err(|_| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!("Invalid u16 value '{}' in {}", s, context),
+            )
+        })
+    }
+
+    /// Safely access string character with bounds checking
+    ///
+    /// Essential for PIC clause parsing where character access beyond string
+    /// bounds could cause panics during COBOL syntax processing.
+    #[inline]
+    pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
+        s.chars().nth(index).ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!(
+                    "String character access out of bounds in {}: index {} >= length {}",
+                    context,
+                    index,
+                    s.len()
+                ),
+            )
+        })
+    }
 }
 
 #[cfg(test)]

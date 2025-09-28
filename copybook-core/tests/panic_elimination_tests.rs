@@ -15,7 +15,6 @@
 /// - AC4: Performance impact <5% on enterprise benchmarks
 /// - AC7: Comprehensive test coverage with // AC:ID tags
 /// - AC10: Memory safety preserved with zero unsafe code
-
 use copybook_core::{ErrorCode, parse_copybook};
 
 #[cfg(test)]
@@ -33,11 +32,17 @@ mod panic_elimination_parser_tests {
         let result = parse_copybook(empty_copybook);
 
         // Should return structured error instead of panicking on token access
-        assert!(result.is_err(), "Empty copybook should return error, not panic on token access");
+        assert!(
+            result.is_err(),
+            "Empty copybook should return error, not panic on token access"
+        );
 
         let error = result.unwrap_err();
         assert!(
-            matches!(error.code, ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE),
+            matches!(
+                error.code,
+                ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+            ),
             "Token access error should use CBKP* error code, got {:?}",
             error.code
         );
@@ -78,7 +83,10 @@ mod panic_elimination_parser_tests {
         // Should parse successfully or fail safely without stack panics
         match result {
             Ok(schema) => {
-                assert!(!schema.fields.is_empty(), "Parsed schema should have fields");
+                assert!(
+                    !schema.fields.is_empty(),
+                    "Parsed schema should have fields"
+                );
             }
             Err(error) => {
                 assert!(
@@ -98,7 +106,10 @@ mod panic_elimination_parser_tests {
         let result = parse_copybook(truncated_copybook);
 
         // Should handle lookahead safely without bounds panics
-        assert!(result.is_err(), "Truncated copybook should return error for lookahead safety");
+        assert!(
+            result.is_err(),
+            "Truncated copybook should return error for lookahead safety"
+        );
 
         let error = result.unwrap_err();
         assert!(
@@ -114,16 +125,20 @@ mod panic_elimination_parser_tests {
     #[test] // AC:63-1-5 Parser recursion depth protection
     fn test_parser_recursion_depth_panic_elimination() {
         // Test case: Deeply nested structure stressing parser recursion
-        let deeply_nested = "01 ROOT.\n".to_string() +
-            &(0..50).map(|i| format!("    {:02} LEVEL-{} PIC X(1).\n", 5 + i, i))
-                    .collect::<String>();
+        let deeply_nested = "01 ROOT.\n".to_string()
+            + &(0..50)
+                .map(|i| format!("    {:02} LEVEL-{} PIC X(1).\n", 5 + i, i))
+                .collect::<String>();
 
         let result = parse_copybook(&deeply_nested);
 
         // Should handle deep recursion without stack overflow panics
         match result {
             Ok(schema) => {
-                assert!(schema.fields.len() >= 50, "Deep structure should parse all fields");
+                assert!(
+                    schema.fields.len() >= 50,
+                    "Deep structure should parse all fields"
+                );
             }
             Err(error) => {
                 assert!(
@@ -158,14 +173,20 @@ mod panic_elimination_layout_tests {
 
         // This would be internal API usage that should be safe
         // Testing conceptual safe field access pattern
-        assert!(schema.fields.len() > 0, "Schema should have fields for bounds testing");
+        assert!(
+            !schema.fields.is_empty(),
+            "Schema should have fields for bounds testing"
+        );
 
         // Safe field access pattern (using get() instead of indexing)
-        let valid_field = schema.fields.get(0);
+        let valid_field = schema.fields.first();
         assert!(valid_field.is_some(), "First field should exist");
 
         let invalid_field = schema.fields.get(999);
-        assert!(invalid_field.is_none(), "Out-of-bounds field access should return None");
+        assert!(
+            invalid_field.is_none(),
+            "Out-of-bounds field access should return None"
+        );
     }
 
     #[test] // AC:63-2-2 REDEFINES target resolution safety
@@ -180,7 +201,10 @@ mod panic_elimination_layout_tests {
         let result = parse_copybook(missing_redefines_target);
 
         // Should return structured error instead of panicking on missing target
-        assert!(result.is_err(), "Missing REDEFINES target should return error");
+        assert!(
+            result.is_err(),
+            "Missing REDEFINES target should return error"
+        );
 
         let error = result.unwrap_err();
         assert!(
@@ -215,7 +239,8 @@ mod panic_elimination_layout_tests {
                     assert!(
                         field.offset < (u32::MAX / 2),
                         "Field {} offset should be reasonable: {}",
-                        field.name, field.offset
+                        field.name,
+                        field.offset
                     );
                 }
             }
@@ -390,9 +415,9 @@ mod panic_elimination_pic_tests {
     fn test_pic_size_validation_panic_elimination() {
         // Test case: PIC with extreme size values
         let extreme_size_pics = vec![
-            "01 FIELD1 PIC X(0).",       // Zero size
-            "01 FIELD2 PIC X(999999).",  // Extremely large size
-            "01 FIELD3 PIC 9().",        // Empty parentheses
+            "01 FIELD1 PIC X(0).",      // Zero size
+            "01 FIELD2 PIC X(999999).", // Extremely large size
+            "01 FIELD3 PIC 9().",       // Empty parentheses
         ];
 
         for pic_copybook in extreme_size_pics {
@@ -410,7 +435,8 @@ mod panic_elimination_pic_tests {
                             ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
                         ),
                         "PIC size validation error should use CBKP* error code for '{}', got {:?}",
-                        pic_copybook, error.code
+                        pic_copybook,
+                        error.code
                     );
                 }
             }
@@ -421,9 +447,9 @@ mod panic_elimination_pic_tests {
     fn test_pic_type_validation_panic_elimination() {
         // Test case: PIC with invalid type combinations
         let invalid_type_pics = vec![
-            "01 FIELD1 PIC X(10) COMP.",    // Alphanumeric with COMP
-            "01 FIELD2 PIC 9(5)V99V99.",    // Multiple decimal points
-            "01 FIELD3 PIC SS9(5).",        // Multiple signs
+            "01 FIELD1 PIC X(10) COMP.", // Alphanumeric with COMP
+            "01 FIELD2 PIC 9(5)V99V99.", // Multiple decimal points
+            "01 FIELD3 PIC SS9(5).",     // Multiple signs
         ];
 
         for pic_copybook in invalid_type_pics {
@@ -441,7 +467,8 @@ mod panic_elimination_pic_tests {
                             ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
                         ),
                         "PIC type validation error should use CBKP* error code for '{}', got {:?}",
-                        pic_copybook, error.code
+                        pic_copybook,
+                        error.code
                     );
                 }
             }
@@ -471,7 +498,10 @@ mod panic_elimination_audit_tests {
         let result = parse_copybook(audit_test_copybook);
 
         // Should parse successfully for audit event structure
-        assert!(result.is_ok(), "Audit event structure should parse successfully");
+        assert!(
+            result.is_ok(),
+            "Audit event structure should parse successfully"
+        );
 
         let schema = result.unwrap();
         assert!(
@@ -482,7 +512,10 @@ mod panic_elimination_audit_tests {
         // Validate audit-related fields exist
         let has_event_id = schema.fields.iter().any(|f| f.name.contains("EVENT-ID"));
         let has_event_type = schema.fields.iter().any(|f| f.name.contains("EVENT-TYPE"));
-        assert!(has_event_id && has_event_type, "Audit structure should have event fields");
+        assert!(
+            has_event_id && has_event_type,
+            "Audit structure should have event fields"
+        );
     }
 
     #[test] // AC:63-4-2 Audit context creation safety
@@ -551,8 +584,7 @@ mod panic_elimination_audit_tests {
         match result {
             Ok(schema) => {
                 // Validate metadata elements are properly handled
-                let has_metadata = schema.fields.iter()
-                    .any(|f| f.name.contains("METADATA"));
+                let has_metadata = schema.fields.iter().any(|f| f.name.contains("METADATA"));
                 assert!(has_metadata, "Should handle metadata fields");
 
                 // Validate ODO with metadata dependency
@@ -597,7 +629,10 @@ mod panic_elimination_audit_tests {
         let result = parse_copybook(performance_test_copybook);
 
         // Should handle performance audit structures efficiently
-        assert!(result.is_ok(), "Performance audit structure should parse successfully");
+        assert!(
+            result.is_ok(),
+            "Performance audit structure should parse successfully"
+        );
 
         let schema = result.unwrap();
         assert!(
@@ -606,7 +641,9 @@ mod panic_elimination_audit_tests {
         );
 
         // Validate occurs handling
-        let has_counters = schema.fields.iter()
+        let has_counters = schema
+            .fields
+            .iter()
             .any(|f| f.name.contains("PERFORMANCE-COUNTERS"));
         assert!(has_counters, "Should handle performance counter arrays");
     }

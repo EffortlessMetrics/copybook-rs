@@ -416,7 +416,7 @@ fn test_baseline_json_serialization() -> Result<(), Box<dyn std::error::Error>> 
     let baseline = PerformanceBaseline::new_enterprise_baseline(123, git_commit.clone());
 
     let json_value = baseline.to_json()?;
-    let json_string = serde_json::to_string_pretty(&json_value)?;
+    let _json_string = serde_json::to_string_pretty(&json_value)?;
 
     // Verify JSON structure
     assert!(json_value.is_object(), "Baseline JSON must be an object");
@@ -458,6 +458,7 @@ fn test_automated_merge_trigger_simulation() -> Result<(), Box<dyn std::error::E
     let mut manager = BaselineManager::new();
 
     // Simulate merge event data
+    #[allow(dead_code)]
     struct MergeEvent {
         pr_number: u32,
         git_commit: String,

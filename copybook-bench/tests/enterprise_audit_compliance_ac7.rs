@@ -543,7 +543,7 @@ impl ComplianceEngine {
             frameworks: vec![
                 ComplianceFramework::SOX,
                 ComplianceFramework::SOC2,
-                ComplianceFramework::PCI_DSS,
+                ComplianceFramework::PciDss,
             ],
             validation_rules: Self::create_validation_rules(),
             reporting_standards: ReportingStandards {
@@ -918,7 +918,7 @@ fn test_compliance_framework_coverage() -> Result<(), Box<dyn std::error::Error>
     let supported_frameworks = vec![
         ComplianceFramework::SOX,
         ComplianceFramework::SOC2,
-        ComplianceFramework::PCI_DSS,
+        ComplianceFramework::PciDss,
     ];
 
     for framework in supported_frameworks {

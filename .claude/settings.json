@@ -7,7 +7,7 @@
           {
             "type": "command",
             "timeout": 3,
-            "command": "/bin/sh -lc 'BUF=$(cat); L=$(printf %s \"$BUF\" | LC_ALL=C tr \"[:upper:]\" \"[:lower:]\"); printf %s \"$L\" | grep -Eq \"(^|[[:space:]])(cargo|rustc|rustfmt)([[:space:]]|$)\" || exit 0; printf %s \"$L\" | grep -Eq \"(^|[[:space:]])--edition(=|[[:space:]])2021([[:space:]]|$)\" && { echo \"Drop \\\"--edition 2021\\\"; rely on Cargo.toml which is edition 2024. If you must pass it, use \\\"--edition 2024\\\".\" 1>&2; exit 2; }; exit 0'"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/rust_edition_guard.py"
           }
         ]
       }

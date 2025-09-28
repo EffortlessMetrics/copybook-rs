@@ -261,12 +261,14 @@ pub enum ArtifactType {
 
 /// Documentation generator for workflow validation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DocumentationGenerator {
     config: DocumentationConfig,
     template_engine: TemplateEngine,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TemplateEngine {
     templates: HashMap<String, String>,
     output_directory: PathBuf,
@@ -299,21 +301,21 @@ impl EndToEndWorkflowOrchestrator {
         self.execute_validation_stage(&json_report)?;
 
         // Stage 5: PR Comment Posting (if applicable)
-        let pr_comment_result = if self.execution_context.git_context.pr_number.is_some() {
+        let _pr_comment_result = if self.execution_context.git_context.pr_number.is_some() {
             Some(self.execute_pr_comment_stage(&benchmark_result)?)
         } else {
             None
         };
 
         // Stage 6: Baseline Promotion (if main branch)
-        let baseline_result = if self.execution_context.git_context.is_main_branch {
+        let _baseline_result = if self.execution_context.git_context.is_main_branch {
             Some(self.execute_baseline_promotion_stage(&benchmark_result)?)
         } else {
             None
         };
 
         // Stage 7: Audit Reporting
-        let audit_result = if self.workflow_config.audit_compliance.audit_enabled {
+        let _audit_result = if self.workflow_config.audit_compliance.audit_enabled {
             Some(self.execute_audit_reporting_stage(&benchmark_result)?)
         } else {
             None
@@ -974,7 +976,7 @@ fn test_complete_end_to_end_workflow() -> Result<(), Box<dyn std::error::Error>>
 #[test]
 fn test_workflow_stage_validation() -> Result<(), Box<dyn std::error::Error>> {
     // AC:AC10 - Verify individual workflow stages execute correctly
-    let mut orchestrator = EndToEndWorkflowOrchestrator::new();
+    let orchestrator = EndToEndWorkflowOrchestrator::new();
 
     // Test stage progression
     assert_eq!(orchestrator.state_tracker.current_stage, WorkflowStage::Initialization);

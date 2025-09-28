@@ -264,7 +264,7 @@ impl JsonReportGenerator {
         let comp3_value = metrics.comp3_mibs.unwrap_or(0.0);
 
         let warnings = metrics.calculation_warnings.clone();
-        let mut errors = metrics.extraction_errors.clone();
+        let errors = metrics.extraction_errors.clone();
 
         // Add warnings for missing metrics
         if metrics.display_gibs.is_none() {

@@ -1,0 +1,80 @@
+# copybook-rs Benchmark Infrastructure Dependencies
+# Issue #52 machine-readable benchmark reporting infrastructure
+
+# Core dependencies for Python utilities
+requests>=2.31.0,<3.0.0          # GitHub API integration for PR automation
+pyyaml>=6.0,<7.0                 # YAML configuration file parsing
+toml>=0.10.2,<1.0.0              # TOML configuration file parsing
+
+# JSON processing and validation
+jsonschema>=4.17.0,<5.0.0        # JSON schema validation for performance reports
+
+# Statistical analysis and data processing
+statistics>=1.0.3.5              # Built-in statistics module (Python standard library)
+
+# Enterprise security and compliance
+cryptography>=41.0.0,<42.0.0     # Cryptographic functions for evidence integrity
+hashlib                          # Built-in hashing (Python standard library)
+
+# Date and time handling
+datetime                         # Built-in datetime (Python standard library)
+
+# File system and path operations
+pathlib                          # Built-in path handling (Python standard library)
+
+# Command line argument parsing
+argparse                         # Built-in argument parsing (Python standard library)
+
+# System integration
+os                               # Built-in OS interface (Python standard library)
+sys                              # Built-in system interface (Python standard library)
+subprocess                      # Built-in subprocess management (Python standard library)
+
+# Optional dependencies for enhanced functionality (development/testing)
+# These are not required for core functionality but enhance development experience
+
+# Code formatting and linting (development only)
+black>=23.0.0,<24.0.0           # Code formatting
+flake8>=6.0.0,<7.0.0            # Code linting
+mypy>=1.5.0,<2.0.0              # Type checking
+
+# Testing framework (development only)
+pytest>=7.4.0,<8.0.0           # Testing framework
+pytest-cov>=4.1.0,<5.0.0       # Coverage reporting
+
+# Documentation generation (development only)
+sphinx>=7.1.0,<8.0.0           # Documentation generation
+sphinx-rtd-theme>=1.3.0,<2.0.0 # Read the Docs theme
+
+# Performance monitoring (optional)
+psutil>=5.9.0,<6.0.0           # System and process utilities
+
+# Enterprise integration (optional - would be configured per deployment)
+# slack-sdk>=3.21.0,<4.0.0     # Slack integration for alerts
+# pagerduty>=0.5.0,<1.0.0      # PagerDuty integration for critical alerts
+
+# Minimum Python version requirement
+# python_requires>=3.8
+
+# Installation notes:
+# 1. For basic functionality: pip install -r requirements.txt
+# 2. For development: pip install -r requirements.txt black flake8 mypy pytest pytest-cov
+# 3. For documentation: pip install -r requirements.txt sphinx sphinx-rtd-theme
+# 4. Enterprise deployments may require additional packages based on integration needs
+
+# Security considerations:
+# - All dependencies are pinned to major version ranges for security
+# - Regular updates should be performed to address security vulnerabilities
+# - cryptography package provides enterprise-grade security features
+# - Consider using pip-tools for more precise dependency management in production
+
+# Platform compatibility:
+# - These dependencies are compatible with Linux, macOS, and Windows
+# - Some enterprise integrations may be platform-specific
+# - Tested with Python 3.8+ on major platforms
+
+# Production deployment recommendations:
+# - Use virtual environments for isolation
+# - Pin exact versions for production stability
+# - Regular security scanning of dependencies
+# - Consider using Docker for containerized deployments

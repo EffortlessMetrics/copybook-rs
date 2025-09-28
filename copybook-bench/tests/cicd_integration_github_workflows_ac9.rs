@@ -3,7 +3,7 @@
 //! Tests feature spec: issue-52-spec.md#AC9
 //! Validates integration with existing .github/workflows/benchmark.yml
 
-use std::collections::HashMap;
+// HashMap removed - not used in this test file
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
@@ -253,11 +253,13 @@ impl CicdPipelineIntegrator {
             PerformanceMetric {
                 metric_name: "decode_display_heavy".to_string(),
                 throughput_gibs: 4.22,
+                throughput_mibs: 0.0, // Not applicable for DISPLAY-heavy benchmark
                 sample_count: 100,
                 confidence_interval: (4.20, 4.24),
             },
             PerformanceMetric {
                 metric_name: "decode_comp3_heavy".to_string(),
+                throughput_gibs: 0.0, // Not applicable for COMP-3-heavy benchmark
                 throughput_mibs: 571.0,
                 sample_count: 100,
                 confidence_interval: (568.0, 574.0),
@@ -596,10 +598,12 @@ fn test_pipeline_execution_pull_request() -> Result<(), Box<dyn std::error::Erro
     // AC:AC9 - Verify pipeline execution for pull request events
 
     // Set up mock environment for PR workflow
-    std::env::set_var("GITHUB_WORKSPACE", "/github/workspace");
-    std::env::set_var("GITHUB_TOKEN", "test_token");
-    std::env::set_var("RUNNER_OS", "Linux");
-    std::env::set_var("RUNNER_ARCH", "X64");
+    unsafe {
+        std::env::set_var("GITHUB_WORKSPACE", "/github/workspace");
+        std::env::set_var("GITHUB_TOKEN", "test_token");
+        std::env::set_var("RUNNER_OS", "Linux");
+        std::env::set_var("RUNNER_ARCH", "X64");
+    }
 
     let pr_context = GitHubWorkflowContext::mock_pull_request();
     let integrator = CicdPipelineIntegrator::new(pr_context);
@@ -608,10 +612,12 @@ fn test_pipeline_execution_pull_request() -> Result<(), Box<dyn std::error::Erro
     let result = integrator.execute_benchmark_pipeline();
 
     // Clean up environment
-    std::env::remove_var("GITHUB_WORKSPACE");
-    std::env::remove_var("GITHUB_TOKEN");
-    std::env::remove_var("RUNNER_OS");
-    std::env::remove_var("RUNNER_ARCH");
+    unsafe {
+        std::env::remove_var("GITHUB_WORKSPACE");
+        std::env::remove_var("GITHUB_TOKEN");
+        std::env::remove_var("RUNNER_OS");
+        std::env::remove_var("RUNNER_ARCH");
+    }
 
     // Note: This will fail because we don't have the actual workspace structure
     // But it tests the error handling path
@@ -668,24 +674,30 @@ fn test_cicd_environment_validation() -> Result<(), Box<dyn std::error::Error>> 
     let required_vars = ["GITHUB_WORKSPACE", "GITHUB_TOKEN", "RUNNER_OS", "RUNNER_ARCH"];
 
     // Ensure variables are not set
-    for var in &required_vars {
-        std::env::remove_var(var);
+    unsafe {
+        for var in &required_vars {
+            std::env::remove_var(var);
+        }
     }
 
     let validation_result = integrator.validate_environment();
     assert!(validation_result.is_err(), "Should fail with missing environment variables");
 
     // Set variables and test again
-    std::env::set_var("GITHUB_WORKSPACE", "/tmp/test");
-    std::env::set_var("GITHUB_TOKEN", "test_token");
-    std::env::set_var("RUNNER_OS", "Linux");
-    std::env::set_var("RUNNER_ARCH", "X64");
+    unsafe {
+        std::env::set_var("GITHUB_WORKSPACE", "/tmp/test");
+        std::env::set_var("GITHUB_TOKEN", "test_token");
+        std::env::set_var("RUNNER_OS", "Linux");
+        std::env::set_var("RUNNER_ARCH", "X64");
+    }
 
     let validation_result = integrator.validate_environment();
 
     // Clean up
-    for var in &required_vars {
-        std::env::remove_var(var);
+    unsafe {
+        for var in &required_vars {
+            std::env::remove_var(var);
+        }
     }
 
     // Will still fail due to workspace not existing, but tests environment variable validation

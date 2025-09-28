@@ -100,7 +100,7 @@ pub struct AuditComplianceConfig {
     pub automated_reporting: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DocumentationConfig {
     pub auto_generation: bool,
     pub output_formats: Vec<DocumentationFormat>,

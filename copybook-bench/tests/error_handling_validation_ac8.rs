@@ -263,7 +263,7 @@ impl JsonReportGenerator {
         let display_value = metrics.display_gibs.unwrap_or(0.0);
         let comp3_value = metrics.comp3_mibs.unwrap_or(0.0);
 
-        let mut warnings = metrics.calculation_warnings.clone();
+        let warnings = metrics.calculation_warnings.clone();
         let mut errors = metrics.extraction_errors.clone();
 
         // Add warnings for missing metrics

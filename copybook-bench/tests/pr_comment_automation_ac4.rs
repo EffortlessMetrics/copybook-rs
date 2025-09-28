@@ -3,7 +3,7 @@
 //! Tests feature spec: issue-52-spec.md#AC4
 //! Validates PR comment automation system with format "DISPLAY: X.XX GiB/s, COMP-3: XXX MiB/s [status]"
 
-use std::collections::HashMap;
+// HashMap removed - not used in this test file
 
 /// Performance report data for PR comment generation
 #[derive(Debug, Clone)]
@@ -407,23 +407,23 @@ fn test_automation_environment_handling() -> Result<(), Box<dyn std::error::Erro
     let original_token = std::env::var("GITHUB_TOKEN").ok();
 
     // Simulate GitHub token environment
-    std::env::set_var("GITHUB_TOKEN", "test_token_123");
+    unsafe { std::env::set_var("GITHUB_TOKEN", "test_token_123"); }
     let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
     assert!(!token.is_empty(), "GitHub token should be available from environment");
 
     // Test PR number extraction from CI environment
-    std::env::set_var("GITHUB_PR_NUMBER", "123");
+    unsafe { std::env::set_var("GITHUB_PR_NUMBER", "123"); }
     let pr_number_str = std::env::var("GITHUB_PR_NUMBER").unwrap_or_default();
     let pr_number: u32 = pr_number_str.parse().unwrap_or(0);
     assert!(pr_number > 0, "PR number should be parseable from environment");
 
     // Restore original environment
     if let Some(original) = original_token {
-        std::env::set_var("GITHUB_TOKEN", original);
+        unsafe { std::env::set_var("GITHUB_TOKEN", original); }
     } else {
-        std::env::remove_var("GITHUB_TOKEN");
+        unsafe { std::env::remove_var("GITHUB_TOKEN"); }
     }
-    std::env::remove_var("GITHUB_PR_NUMBER");
+    unsafe { std::env::remove_var("GITHUB_PR_NUMBER"); }
 
     Ok(())
 }

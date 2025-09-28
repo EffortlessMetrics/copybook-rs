@@ -5,7 +5,6 @@
 
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use serde_json::Value;
 
 /// Enterprise audit framework for regulatory compliance
 #[derive(Debug, Clone)]
@@ -23,10 +22,10 @@ pub struct ComplianceEngine {
     reporting_standards: ReportingStandards,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ComplianceFramework {
     SOX,        // Sarbanes-Oxley Act
-    PCI_DSS,    // Payment Card Industry Data Security Standard
+    PciDss,     // Payment Card Industry Data Security Standard
     GDPR,       // General Data Protection Regulation
     SOC2,       // Service Organization Control 2
     ISO27001,   // Information Security Management
@@ -207,7 +206,7 @@ pub struct AuditEntry {
     evidence: Vec<EvidenceRecord>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum AuditEventType {
     PerformanceValidation,
     BaselinePromotion,

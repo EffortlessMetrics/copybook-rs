@@ -3,7 +3,7 @@
 //! Tests feature spec: issue-52-spec.md#AC6
 //! Validates SLO compliance with performance floor enforcement (DISPLAY ≥80 MB/s, COMP-3 ≥40 MB/s)
 
-use std::collections::HashMap;
+// HashMap removed - not used in this test file
 
 /// SLO (Service Level Objective) configuration for performance validation
 #[derive(Debug, Clone)]
@@ -454,7 +454,7 @@ fn test_performance_variance_tolerance() -> Result<(), Box<dyn std::error::Error
         (0.05, 0.04, true, "significant_variance"),
     ];
 
-    for (display_var, comp3_var, should_warn, description) in variance_scenarios {
+    for (display_var, comp3_var, _should_warn, description) in variance_scenarios {
         let display_with_variance = baseline_display * (1.0 - display_var);
         let comp3_with_variance = baseline_comp3 * (1.0 - comp3_var);
 

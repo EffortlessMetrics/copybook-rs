@@ -3,7 +3,7 @@
 //! Tests feature spec: issue-52-spec.md#AC3
 //! Validates machine-readable benchmark reports via `PERF=1 cargo bench -p copybook-bench`
 
-use std::collections::HashMap;
+// HashMap removed - not used in this test file
 use std::time::{Duration, SystemTime};
 
 /// Mock structure representing Criterion.rs benchmark results
@@ -144,15 +144,15 @@ fn test_benchmark_execution_environment_readiness() -> Result<(), Box<dyn std::e
     let perf_env = std::env::var("PERF").unwrap_or_default();
 
     // Simulate PERF=1 environment
-    std::env::set_var("PERF", "1");
+    unsafe { std::env::set_var("PERF", "1"); }
     let perf_enabled = std::env::var("PERF").unwrap_or_default() == "1";
     assert!(perf_enabled, "PERF environment variable must be settable to 1");
 
     // Restore original environment
     if perf_env.is_empty() {
-        std::env::remove_var("PERF");
+        unsafe { std::env::remove_var("PERF"); }
     } else {
-        std::env::set_var("PERF", perf_env);
+        unsafe { std::env::set_var("PERF", perf_env); }
     }
 
     // Verify copybook-bench package path

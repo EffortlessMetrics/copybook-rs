@@ -4,7 +4,6 @@
     clippy::panic,
     clippy::assertions_on_constants
 )]
-#![allow(clippy::panic)]
 
 use copybook_core::{ErrorCode, parse_copybook};
 

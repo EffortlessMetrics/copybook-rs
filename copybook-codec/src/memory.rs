@@ -45,19 +45,43 @@ impl ScratchBuffers {
     }
 
     /// Ensure byte buffer has at least the specified capacity
+    ///
+    /// PERFORMANCE OPTIMIZATION: Branch prediction hint for common case
+    #[inline]
     pub fn ensure_byte_capacity(&mut self, capacity: usize) {
+        // Fast path: most allocations don't need to grow the buffer
         if self.byte_buffer.capacity() < capacity {
-            self.byte_buffer
-                .reserve(capacity - self.byte_buffer.capacity());
+            // Cold path: grow the buffer
+            self.grow_byte_buffer(capacity);
         }
     }
 
     /// Ensure string buffer has at least the specified capacity
+    ///
+    /// PERFORMANCE OPTIMIZATION: Branch prediction hint for common case
+    #[inline]
     pub fn ensure_string_capacity(&mut self, capacity: usize) {
+        // Fast path: most allocations don't need to grow the buffer
         if self.string_buffer.capacity() < capacity {
-            self.string_buffer
-                .reserve(capacity - self.string_buffer.capacity());
+            // Cold path: grow the buffer
+            self.grow_string_buffer(capacity);
         }
+    }
+
+    /// Cold path: grow byte buffer (separate function for better optimization)
+    #[cold]
+    #[inline(never)]
+    fn grow_byte_buffer(&mut self, capacity: usize) {
+        self.byte_buffer
+            .reserve(capacity - self.byte_buffer.capacity());
+    }
+
+    /// Cold path: grow string buffer (separate function for better optimization)
+    #[cold]
+    #[inline(never)]
+    fn grow_string_buffer(&mut self, capacity: usize) {
+        self.string_buffer
+            .reserve(capacity - self.string_buffer.capacity());
     }
 }
 
@@ -457,15 +481,18 @@ impl StreamingProcessor {
     }
 
     /// Update memory usage estimate
+    ///
+    /// PERFORMANCE OPTIMIZATION: Optimized for hot path with minimal branching
     pub fn update_memory_usage(&mut self, bytes_delta: isize) {
         if bytes_delta >= 0 {
+            // Fast path: positive delta (most common case - allocating memory)
             self.current_memory_bytes = self
                 .current_memory_bytes
-                .saturating_add(usize::try_from(bytes_delta).unwrap_or(0));
+                .saturating_add(bytes_delta as usize);
         } else {
-            self.current_memory_bytes = self
-                .current_memory_bytes
-                .saturating_sub(usize::try_from(-bytes_delta).unwrap_or(0));
+            // Fast path: negative delta (releasing memory)
+            let abs_delta = (-bytes_delta) as usize;
+            self.current_memory_bytes = self.current_memory_bytes.saturating_sub(abs_delta);
         }
     }
 

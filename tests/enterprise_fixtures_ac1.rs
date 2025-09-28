@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! AC1: Real-world COBOL copybook fixture tests
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#real-world-data-integration-framework

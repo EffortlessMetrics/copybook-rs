@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Test scaffolding for `EncodeOptions` zoned encoding extensions - Issue #48
 //!
 //! Tests COBOL encoding preservation spec: SPEC.manifest.yml#EncodeOptions-zoned_encoding_override

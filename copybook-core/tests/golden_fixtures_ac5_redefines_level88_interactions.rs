@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::too_many_lines, clippy::uninlined_format_args)]
 /*!
  * AC5: REDEFINES and Level-88 Interaction Fixtures (PASS/FAIL Scenarios)

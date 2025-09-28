@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Test scaffolding for CLI zoned encoding flags - Issue #48
 //!
 //! Tests CLI interface spec: SPEC.manifest.yml#cli-interface-new-flags

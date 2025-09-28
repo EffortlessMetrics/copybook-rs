@@ -3,6 +3,8 @@
 //! This crate contains criterion benchmarks for measuring the performance
 //! of copybook parsing and data conversion operations.
 
+#![allow(clippy::missing_inline_in_public_items)]
+
 pub mod regression;
 
 // Re-export key types for performance regression detection

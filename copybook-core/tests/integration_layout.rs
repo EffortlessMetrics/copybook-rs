@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Integration tests for layout resolution
 
 use copybook_core::{FieldKind, Occurs, parse_copybook};

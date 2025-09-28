@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::too_many_lines)]
 #![allow(
     clippy::items_after_statements,

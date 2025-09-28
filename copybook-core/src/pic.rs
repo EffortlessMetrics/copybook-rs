@@ -128,7 +128,14 @@ impl PicClause {
                             break;
                         }
                         if ch.is_ascii_digit() {
-                            count_str.push(chars.next().unwrap());
+                            if let Some(digit_char) = chars.next() {
+                                count_str.push(digit_char);
+                            } else {
+                                return Err(Error::new(
+                                    ErrorCode::CBKP001_SYNTAX,
+                                    format!("Unexpected end of digit sequence in PIC: {}", pic_str),
+                                ));
+                            }
                         } else {
                             return Err(Error::new(
                                 ErrorCode::CBKP001_SYNTAX,
@@ -264,6 +271,7 @@ fn is_edited_pic(pic_str: &str) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

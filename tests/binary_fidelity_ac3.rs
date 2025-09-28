@@ -1,3 +1,4 @@
+#![allow(clippy::panic, clippy::assertions_on_constants)]
 //! AC3: Binary fidelity round-trip tests
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#binary-fidelity-testing-framework

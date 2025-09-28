@@ -1,3 +1,10 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::assertions_on_constants
+)]
+
 //! Test scaffolding for `ZonedEncodingFormat` enum - Issue #48
 //!
 //! Tests COBOL zoned decimal encoding preservation spec: SPEC.manifest.yml#ZonedEncodingFormat

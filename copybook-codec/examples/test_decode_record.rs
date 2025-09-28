@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
@@ -14,7 +16,7 @@ fn main() {
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(4).
 ";
 
-    let schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).expect("Valid copybook should parse");
     println!("Schema LRECL: {:?}", schema.lrecl_fixed);
     println!("Schema tail_odo: {:?}", schema.tail_odo);
 
@@ -41,7 +43,7 @@ fn main() {
             println!("decode_record SUCCESS!");
             println!(
                 "JSON: {}",
-                serde_json::to_string_pretty(&json_value).unwrap()
+                serde_json::to_string_pretty(&json_value).expect("JSON serialization should work")
             );
         }
         Err(e) => {

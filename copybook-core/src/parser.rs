@@ -469,6 +469,14 @@ impl Parser {
                 // But only report as error if they appear in level number position
                 if (*n == 0) || (*n >= 50 && *n <= 99) {
                     let line_number = *line;
+                    // Convert line number safely, omitting from context if conversion fails
+                    // to avoid silently corrupting error information with u32::MAX
+                    let safe_line_number = crate::utils::safe_ops::safe_usize_to_u32(
+                        line_number,
+                        "error context line number",
+                    )
+                    .ok();
+
                     return Err(Error::new(
                         ErrorCode::CBKP001_SYNTAX,
                         format!("Invalid level number '{}'", n),
@@ -477,7 +485,7 @@ impl Parser {
                         record_index: None,
                         field_path: None,
                         byte_offset: None,
-                        line_number: Some(line_number.try_into().unwrap_or(u32::MAX)),
+                        line_number: safe_line_number,
                         details: None,
                     }));
                 } else if *n >= 1 && *n <= 49 {

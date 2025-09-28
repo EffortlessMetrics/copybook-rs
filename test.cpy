@@ -1,0 +1,2 @@
+01 RECORD.
+    05 FIELD-A PIC X(10).

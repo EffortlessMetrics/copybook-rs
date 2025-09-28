@@ -245,7 +245,7 @@ mod numeric_hotspot_safety {
         let schema = parse_copybook(copybook).expect("Valid copybook should parse");
 
         // Test case: Invalid JSON values for encoding
-        let invalid_json_values = vec![
+        let invalid_json_values = [
             json!({"DECIMAL-FIELD": "invalid_number"}),
             json!({"DECIMAL-FIELD": null}),
             json!({"DECIMAL-FIELD": {}}),

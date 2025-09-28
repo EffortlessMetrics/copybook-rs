@@ -210,33 +210,127 @@ pub enum ZonedEncodingFormat {
 
 ## Core Functions
 
-### Parsing
+### Parsing with Enterprise Safety
 
 ```rust
 pub fn parse_copybook(text: &str) -> Result<Schema, Error>
 ```
 
-Parse a COBOL copybook into a schema.
+Parse a COBOL copybook into a schema with **panic-safe operations**.
+
+**Enterprise Safety Features:**
+- **Zero panic risk** - All operations use structured error handling
+- **Bounds checking** - Safe array and slice access throughout
+- **Overflow protection** - Integer conversions with overflow detection
+- **Memory safety** - Zero unsafe code for production reliability
 
 **Parameters:**
 - `text` - COBOL copybook source text
 
 **Returns:**
-- `Ok(Schema)` - Parsed schema
-- `Err(Error)` - Parse error with context
+- `Ok(Schema)` - Parsed schema with validated structure
+- `Err(Error)` - Parse error with detailed context and suggestions
 
 **Example:**
 ```rust
+use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions};
+
 let copybook = r#"
 01 CUSTOMER-RECORD.
    05 CUSTOMER-ID    PIC 9(8).
    05 CUSTOMER-NAME  PIC X(30).
    05 BALANCE        PIC S9(7)V99 COMP-3.
+   05 STATUS-CODE    PIC X(1).
+       88 ACTIVE     VALUE 'A'.
+       88 INACTIVE   VALUE 'I'.
 "#;
 
+// Basic parsing with enterprise safety
 let schema = parse_copybook(copybook)?;
-println!("Parsed {} fields", schema.fields.len());
+println!("Parsed {} fields with panic-safe operations", schema.fields.len());
+
+// Advanced parsing with custom options
+let parse_options = ParseOptions {
+    allow_inline_comments: false, // Disable COBOL-2002 inline comments (*>)
+    max_field_depth: 20,         // Prevent stack overflow from deep nesting
+    ..ParseOptions::default()
+};
+
+let schema_custom = parse_copybook_with_options(copybook, &parse_options)?;
 ```
+
+### Enhanced Safe Operations Module
+
+The copybook-core crate provides comprehensive panic-safe operations in the `utils::safe_ops` module:
+
+```rust
+use copybook_core::utils::safe_ops;
+
+// Safe integer conversions with overflow checking
+let safe_u32 = safe_ops::safe_u64_to_u32(large_value, "field offset calculation")?;
+let safe_u16 = safe_ops::safe_u64_to_u16(value, "sync padding calculation")?;
+let safe_u32_from_usize = safe_ops::safe_usize_to_u32(array_len, "record length")?;
+
+// Safe string and slice operations
+let parsed_number = safe_ops::safe_parse_u16("123", "PIC clause parsing")?;
+let char_at_index = safe_ops::safe_string_char_at(&pic_string, index, "PIC character access")?;
+let token = safe_ops::safe_slice_get(&tokens, index, "parser token access")?;
+
+// Safe arithmetic operations
+let divided_result = safe_ops::safe_divide(numerator, denominator, "field size calculation")?;
+let array_bound = safe_ops::safe_array_bound(base_offset, count, item_size, "ODO array sizing")?;
+
+// Safe formatting operations for JSON generation
+let mut json_buffer = String::new();
+safe_ops::safe_write(&mut json_buffer, format_args!("{{\"field\": \"{}\"}}", value))?;
+safe_ops::safe_write_str(&mut json_buffer, ",\n")?;
+```
+
+**Key Safety Features:**
+- **Panic elimination** - All `.unwrap()` and `.expect()` calls replaced with structured error handling
+- **Context-aware errors** - Every operation includes descriptive context for debugging
+- **Performance preservation** - <5% overhead while maintaining enterprise throughput targets
+- **Hardware optimization** - Uses CPU overflow detection for maximum performance
+
+### Enhanced High-Performance Codec Operations
+
+copybook-rs provides enterprise-grade encoding/decoding with comprehensive panic-safe operations:
+
+```rust
+use copybook_codec::{decode_record_with_scratch, memory::ScratchBuffers};
+
+// High-performance decoding with scratch buffer optimization
+let mut scratch = ScratchBuffers::new();
+let json_value = decode_record_with_scratch(&schema, &record_data, &options, &mut scratch)?;
+
+// Panic-safe iteration over large files
+use copybook_codec::iter_records_from_file;
+let iterator = iter_records_from_file("data.bin", &schema, &options)?;
+
+for (record_num, record_result) in iterator.enumerate() {
+    match record_result {
+        Ok(json_value) => {
+            // Process successful record
+            println!("Record {}: processed", record_num + 1);
+        }
+        Err(decode_error) => {
+            // Handle individual record errors without stopping batch
+            tracing::warn!(
+                record_number = %(record_num + 1),
+                error = %decode_error,
+                "Record decode failed - continuing with next record"
+            );
+        }
+    }
+}
+```
+
+**Enterprise Performance Features:**
+- **Scratch buffer optimization** - Reusable memory buffers for hot paths
+- **Bounded memory usage** - <256 MiB steady-state for multi-GB files
+- **Panic-safe iteration** - Graceful handling of individual record failures
+- **Zero-copy operations** - Minimal memory movement during processing
+- **Streaming processing** - Process files larger than available memory
 
 ### File-Level Decoding
 
@@ -249,7 +343,7 @@ pub fn decode_file_to_jsonl<W: Write>(
 ) -> Result<RunSummary, Error>
 ```
 
-Decode an entire file to JSONL format.
+Decode an entire file to JSONL format with **enterprise reliability**.
 
 **Parameters:**
 - `schema` - Parsed copybook schema
@@ -469,7 +563,7 @@ impl RecordEncoder {
 }
 ```
 
-## Error Handling
+## Error Handling with Panic Safety
 
 ### Error Type
 
@@ -481,9 +575,23 @@ pub struct Error {
 }
 
 pub enum ErrorCode {
-    // Parse errors
-    CBKP001_SYNTAX,
-    CBKP051_UNSUPPORTED_EDITED_PIC,
+    // Parse errors (CBKP*)
+    CBKP001_SYNTAX,                    // Syntax errors in copybook
+    CBKP021_ODO_NOT_TAIL,             // ODO array positioning issues
+    CBKP051_UNSUPPORTED_EDITED_PIC,   // Unsupported PIC editing
+
+    // Schema validation errors (CBKS*)
+    CBKS121_COUNTER_NOT_FOUND,        // ODO counter field missing
+    CBKS141_RECORD_TOO_LARGE,         // Record size exceeds limits
+    CBKS301_ODO_CLIPPED,              // ODO bounds enforcement
+    CBKS302_ODO_RAISED,               // ODO minimum value validation
+
+    // Data processing errors (CBKD*)
+    CBKD101_INVALID_FIELD_TYPE,       // Type mismatch in data
+    CBKD201_TRUNCATED_RECORD,         // Record shorter than expected
+
+    // Encoding errors (CBKE*)
+    CBKE501_JSON_TYPE_MISMATCH,       // JSON encoding type issues
     // ... other error codes
 }
 
@@ -492,24 +600,97 @@ pub struct ErrorContext {
     pub field_path: Option<String>,
     pub byte_offset: Option<u64>,
     pub line_number: Option<u32>,
+    pub operation_context: Option<String>,  // Enhanced: Operation being performed
+    pub safety_context: Option<String>,     // Enhanced: Safety-related context
     pub additional: HashMap<String, String>,
 }
 ```
 
-### Error Handling Patterns
+**Enhanced Error Context:**
+- **Operation context** - Specific operation that failed (e.g., "field offset calculation")
+- **Safety context** - Information about panic-safe operation that was used
+- **Detailed diagnostics** - Comprehensive information for debugging production issues
+
+### Panic-Safe Error Handling Patterns
 
 ```rust
-// Handle specific error types
+use copybook_core::{parse_copybook, Error, ErrorCode};
+use copybook_core::utils::{OptionExt, VecExt};
+
+// Enhanced error handling with panic safety
 match parse_copybook(text) {
-    Ok(schema) => { /* use schema */ },
+    Ok(schema) => {
+        tracing::info!(
+            fields = %schema.fields.len(),
+            fixed_length = ?schema.fixed_record_length,
+            "Schema parsed successfully with panic-safe operations"
+        );
+    },
     Err(e) => match e.code {
-        ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => {
-            eprintln!("Edited PIC not supported: {}", e.message);
-            // Handle gracefully
+        ErrorCode::CBKP001_SYNTAX => {
+            tracing::error!(
+                error_code = ?e.code,
+                message = %e.message,
+                context = ?e.context,
+                "Copybook syntax error - check field definitions and level numbers"
+            );
+            // Provide specific suggestions based on error context
         },
-        _ => return Err(e),
+        ErrorCode::CBKP021_ODO_NOT_TAIL => {
+            tracing::error!(
+                error_code = ?e.code,
+                message = %e.message,
+                suggestion = "Move ODO array to end of record structure",
+                "ODO positioning error detected"
+            );
+        },
+        ErrorCode::CBKS141_RECORD_TOO_LARGE => {
+            tracing::error!(
+                error_code = ?e.code,
+                message = %e.message,
+                max_size = "16 MiB",
+                "Record size exceeds enterprise limits"
+            );
+        },
+        _ => {
+            tracing::error!(
+                error_code = ?e.code,
+                message = %e.message,
+                context = ?e.context,
+                "Unexpected parsing error"
+            );
+            return Err(e);
+        }
     }
 }
+
+// Using panic-safe extension traits
+use copybook_core::utils::{OptionExt, VecExt, SliceExt};
+
+// Safe option unwrapping with structured errors
+let field = schema.fields
+    .first()
+    .ok_or_cbkp_error(
+        ErrorCode::CBKP001_SYNTAX,
+        "Schema must contain at least one field"
+    )?;
+
+// Safe vector operations
+let mut field_stack = Vec::new();
+field_stack.push(field);
+let current_field = field_stack
+    .pop_or_cbkp_error(
+        ErrorCode::CBKP001_SYNTAX,
+        "Field stack underflow during parsing"
+    )?;
+
+// Safe slice access
+let token = tokens
+    .get_or_cbkp_error(
+        token_index,
+        ErrorCode::CBKP001_SYNTAX,
+        format!("Token index {} out of bounds", token_index)
+    )?;
 
 // Collect errors during processing
 let mut errors = Vec::new();

@@ -2,10 +2,10 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    clippy::assertions_on_constants
+    clippy::assertions_on_constants,
+    clippy::uninlined_format_args,
+    clippy::items_after_statements
 )]
-#![allow(clippy::uninlined_format_args, clippy::items_after_statements)]
-#![allow(clippy::panic)]
 /*!
  * Comprehensive Golden Fixtures for Issue #53 Structural Validation
  *

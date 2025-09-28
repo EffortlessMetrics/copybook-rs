@@ -1,15 +1,18 @@
+#![allow(clippy::expect_used)] // Test code validates production code doesn't panic
+#![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
+
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#core-parser-safety
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#phase-1-infrastructure-hardening
 ///
 /// Issue #63 - Comprehensive Panic Elimination Test Scaffolding for copybook-core
 ///
-/// This module provides comprehensive test scaffolding for eliminating 63 .unwrap()/.expect() calls
-/// in copybook-core production code. Tests target parser.rs (16), layout.rs (8), pic.rs (7),
+/// This module provides comprehensive test scaffolding for eliminating 63 `.unwrap()`/`.expect()` calls
+/// in copybook-core production code. Tests target `parser.rs` (16), `layout.rs` (8), `pic.rs` (7),
 /// and audit modules (32) with enterprise-safe error handling patterns.
 ///
 /// **AC Traceability:**
-/// - AC1: Complete elimination of 63 .unwrap()/.expect() calls in copybook-core
+/// - AC1: Complete elimination of 63 `.unwrap()`/`.expect()` calls in copybook-core
 /// - AC2: Zero breaking changes to existing public APIs
 /// - AC3: Integration with CBKP*/CBKS*/CBKD*/CBKE* error taxonomy
 /// - AC4: Performance impact <5% on enterprise benchmarks
@@ -37,15 +40,16 @@ mod panic_elimination_parser_tests {
             "Empty copybook should return error, not panic on token access"
         );
 
-        let error = result.unwrap_err();
-        assert!(
-            matches!(
-                error.code,
-                ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
-            ),
-            "Token access error should use CBKP* error code, got {:?}",
-            error.code
-        );
+        if let Err(error) = result {
+            assert!(
+                matches!(
+                    error.code,
+                    ErrorCode::CBKP001_SYNTAX | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
+                ),
+                "Token access error should use CBKP* error code, got {:?}",
+                error.code
+            );
+        }
     }
 
     #[test] // AC:63-1-2 Parser position bounds safety
@@ -111,7 +115,7 @@ mod panic_elimination_parser_tests {
             "Truncated copybook should return error for lookahead safety"
         );
 
-        let error = result.unwrap_err();
+        let error = result.expect_err("Should return error for lookahead safety");
         assert!(
             matches!(
                 error.code,
@@ -126,9 +130,11 @@ mod panic_elimination_parser_tests {
     fn test_parser_recursion_depth_panic_elimination() {
         // Test case: Deeply nested structure stressing parser recursion
         let deeply_nested = "01 ROOT.\n".to_string()
-            + &(0..50)
-                .map(|i| format!("    {:02} LEVEL-{} PIC X(1).\n", 5 + i, i))
-                .collect::<String>();
+            + &(0..50).fold(String::new(), |mut acc, i| {
+                use std::fmt::Write;
+                let _ = writeln!(acc, "    {:02} LEVEL-{} PIC X(1).", 5 + i, i);
+                acc
+            });
 
         let result = parse_copybook(&deeply_nested);
 
@@ -169,7 +175,7 @@ mod panic_elimination_layout_tests {
         let result = parse_copybook(simple_copybook);
         assert!(result.is_ok(), "Simple copybook should parse successfully");
 
-        let schema = result.unwrap();
+        let schema = result.expect("Simple copybook should parse successfully");
 
         // This would be internal API usage that should be safe
         // Testing conceptual safe field access pattern
@@ -206,7 +212,7 @@ mod panic_elimination_layout_tests {
             "Missing REDEFINES target should return error"
         );
 
-        let error = result.unwrap_err();
+        let error = result.expect_err("Missing REDEFINES target should return error");
         assert!(
             matches!(error.code, ErrorCode::CBKP001_SYNTAX),
             "REDEFINES target resolution error should use CBKP001_SYNTAX, got {:?}",
@@ -271,7 +277,7 @@ mod panic_elimination_layout_tests {
         // Should return structured error instead of panicking on counter lookup
         assert!(result.is_err(), "Invalid ODO counter should return error");
 
-        let error = result.unwrap_err();
+        let error = result.expect_err("Invalid ODO counter should return error");
         assert!(
             matches!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
             "ODO counter lookup error should use CBKS121_COUNTER_NOT_FOUND, got {:?}",
@@ -303,7 +309,7 @@ mod panic_elimination_layout_tests {
         match result {
             Ok(schema) => {
                 assert!(
-                    schema.lrecl_fixed.unwrap_or(0) > 0,
+                    schema.lrecl_fixed.map_or(0, |len| len) > 0,
                     "Complex schema should have positive length"
                 );
 
@@ -503,7 +509,7 @@ mod panic_elimination_audit_tests {
             "Audit event structure should parse successfully"
         );
 
-        let schema = result.unwrap();
+        let schema = result.expect("Audit event structure should parse successfully");
         assert!(
             schema.fields.len() >= 3,
             "Audit event structure should have at least 3 fields"
@@ -543,7 +549,7 @@ mod panic_elimination_audit_tests {
         match result {
             Ok(schema) => {
                 assert!(
-                    schema.lrecl_fixed.unwrap_or(0) > 1000,
+                    schema.lrecl_fixed.map_or(0, |len| len) > 1000,
                     "Complex audit record should have substantial length"
                 );
                 assert!(
@@ -634,7 +640,7 @@ mod panic_elimination_audit_tests {
             "Performance audit structure should parse successfully"
         );
 
-        let schema = result.unwrap();
+        let schema = result.expect("Performance audit structure should parse successfully");
         assert!(
             schema.fields.len() >= 8,
             "Performance audit should have timing and resource fields"
@@ -689,7 +695,7 @@ mod panic_elimination_integration_tests {
                     "Integration test should produce fields"
                 );
                 assert!(
-                    schema.lrecl_fixed.unwrap_or(0) > 0,
+                    schema.lrecl_fixed.map_or(0, |len| len) > 0,
                     "Integration test should calculate record length"
                 );
 
@@ -800,11 +806,10 @@ mod panic_elimination_performance_tests {
         assert!(result.is_ok(), "Performance test should parse successfully");
         assert!(
             parse_duration.as_millis() < 1000,
-            "Parser performance should be reasonable: {:?}",
-            parse_duration
+            "Parser performance should be reasonable: {parse_duration:?}"
         );
 
-        let schema = result.unwrap();
+        let schema = result.expect("Performance test should parse successfully");
         assert!(
             schema.fields.len() >= 100,
             "Performance test should parse all fields efficiently"
@@ -826,13 +831,13 @@ mod panic_elimination_performance_tests {
         // Should handle large structures efficiently
         assert!(result.is_ok(), "Memory test should parse successfully");
 
-        let schema = result.unwrap();
+        let schema = result.expect("Memory test should parse successfully");
         assert!(
             schema.fields.len() >= 500,
             "Memory test should handle large field counts"
         );
         assert!(
-            schema.lrecl_fixed.unwrap_or(0) >= 75000,
+            schema.lrecl_fixed.map_or(0, |len| len) >= 75000,
             "Memory test should calculate large record correctly"
         );
     }

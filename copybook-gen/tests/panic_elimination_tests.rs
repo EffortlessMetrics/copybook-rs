@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)] // Test code validates production code doesn't panic
+#![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
+
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#test-generation-safety
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#phase-3-long-tail-cleanup

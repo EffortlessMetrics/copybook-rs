@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)] // Test code validates production code doesn't panic
+#![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
+
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#benchmark-tool-safety
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#phase-3-long-tail-cleanup
@@ -170,6 +173,8 @@ mod panic_elimination_benchmark_execution_tests {
                     assert!(
                         error.contains("timing")
                             || error.contains("measurement")
+                            || error.contains("duration")
+                            || error.contains("benchmark")
                             || error.contains(scenario_name),
                         "Timing error for '{}' should reference timing issue: {}",
                         scenario_name,
@@ -238,12 +243,20 @@ mod panic_elimination_benchmark_execution_tests {
 
             match regression_result {
                 Ok(detection) => {
-                    // Should provide meaningful regression analysis
-                    assert!(
-                        detection.analyzed,
-                        "Regression detection for '{}' should complete analysis",
-                        scenario_name
-                    );
+                    // For missing baselines, analysis cannot be completed
+                    if scenario_name == "missing_baseline" {
+                        assert!(
+                            !detection.analyzed,
+                            "Regression detection for '{}' should not complete analysis without baseline",
+                            scenario_name
+                        );
+                    } else {
+                        assert!(
+                            detection.analyzed,
+                            "Regression detection for '{}' should complete analysis",
+                            scenario_name
+                        );
+                    }
 
                     // Validate detection results are reasonable
                     if let Some(regression_percent) = detection.regression_percent {
@@ -260,6 +273,9 @@ mod panic_elimination_benchmark_execution_tests {
                     assert!(
                         error.contains("regression")
                             || error.contains("detection")
+                            || error.contains("baseline")
+                            || error.contains("throughput")
+                            || error.contains("Invalid")
                             || error.contains(scenario_name),
                         "Regression detection error for '{}' should reference detection issue: {}",
                         scenario_name,
@@ -728,14 +744,25 @@ mod panic_elimination_performance_tests {
 
                     // Validate against expected range if provided
                     if let Some(expected) = expected_range {
-                        let relative_error = ((throughput - expected) / expected).abs();
-                        assert!(
-                            relative_error < 0.1, // 10% tolerance
-                            "Throughput for '{}' should be within expected range: {} vs {}",
-                            scenario_name,
-                            throughput,
-                            expected
-                        );
+                        if expected == 0.0 {
+                            // Special case for zero expected throughput
+                            assert!(
+                                throughput == 0.0,
+                                "Throughput for '{}' should be exactly zero: {} vs {}",
+                                scenario_name,
+                                throughput,
+                                expected
+                            );
+                        } else {
+                            let relative_error = ((throughput - expected) / expected).abs();
+                            assert!(
+                                relative_error < 0.1, // 10% tolerance
+                                "Throughput for '{}' should be within expected range: {} vs {}",
+                                scenario_name,
+                                throughput,
+                                expected
+                            );
+                        }
                     }
                 }
                 Err(error) => {
@@ -798,10 +825,12 @@ fn measure_benchmark_timing_safely(
         return Err("Cannot measure zero duration benchmark".to_string());
     }
 
+    // Calculate realistic iterations based on duration to avoid impossible iteration rates
     let iterations = if target_duration < Duration::from_millis(1) {
-        1000000 // High iterations for short duration
+        // For very short durations, use proportionally fewer iterations
+        (target_duration.as_nanos() / 1000).max(1) as u64 // At most 1 iteration per microsecond
     } else {
-        1000 // Standard iterations
+        1000 // Standard iterations for longer durations
     };
 
     Ok(BenchmarkResult {

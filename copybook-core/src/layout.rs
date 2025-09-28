@@ -144,12 +144,14 @@ fn resolve_field_layout(
     let padding_bytes = aligned_offset - context.current_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(
-            crate::utils::safe_ops::safe_u64_to_u16(padding_bytes, "sync padding calculation")?
-        );
+        field.sync_padding = Some(crate::utils::safe_ops::safe_u64_to_u16(
+            padding_bytes,
+            "sync padding calculation",
+        )?);
     }
 
-    field.offset = crate::utils::safe_ops::safe_u64_to_u32(aligned_offset, "field offset calculation")?;
+    field.offset =
+        crate::utils::safe_ops::safe_u64_to_u32(aligned_offset, "field offset calculation")?;
     context.current_offset = aligned_offset;
 
     // Record field path and offset
@@ -245,7 +247,8 @@ fn resolve_field_layout(
             group_size = group_size.max(child_end_offset - group_start_offset);
         }
 
-        field.len = crate::utils::safe_ops::safe_u64_to_u32(group_size, "group field length calculation")?;
+        field.len =
+            crate::utils::safe_ops::safe_u64_to_u32(group_size, "group field length calculation")?;
         let final_offset = group_start_offset + group_size;
         context.current_offset = final_offset;
 
@@ -294,12 +297,16 @@ fn resolve_redefines_field(
     let padding_bytes = aligned_offset - target_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(
-            crate::utils::safe_ops::safe_u64_to_u16(padding_bytes, "redefines sync padding calculation")?
-        );
+        field.sync_padding = Some(crate::utils::safe_ops::safe_u64_to_u16(
+            padding_bytes,
+            "redefines sync padding calculation",
+        )?);
     }
 
-    field.offset = crate::utils::safe_ops::safe_u64_to_u32(aligned_offset, "redefines field offset calculation")?;
+    field.offset = crate::utils::safe_ops::safe_u64_to_u32(
+        aligned_offset,
+        "redefines field offset calculation",
+    )?;
 
     // Calculate effective size including arrays
     let effective_size = match &field.occurs {
@@ -333,7 +340,10 @@ fn resolve_redefines_field(
             group_size = group_size.max(child_end_offset - aligned_offset);
         }
 
-        field.len = crate::utils::safe_ops::safe_u64_to_u32(group_size, "redefines group field length calculation")?;
+        field.len = crate::utils::safe_ops::safe_u64_to_u32(
+            group_size,
+            "redefines group field length calculation",
+        )?;
         context.current_offset = saved_offset; // Restore offset (REDEFINES doesn't advance)
 
         // Update cluster size
@@ -539,9 +549,10 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) -
             total_size = total_size.max(cluster_end);
         }
 
-        schema.lrecl_fixed = Some(
-            crate::utils::safe_ops::safe_u64_to_u32(total_size, "fixed record length calculation")?
-        );
+        schema.lrecl_fixed = Some(crate::utils::safe_ops::safe_u64_to_u32(
+            total_size,
+            "fixed record length calculation",
+        )?);
     }
 
     Ok(())

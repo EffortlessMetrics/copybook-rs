@@ -1,4 +1,7 @@
-use std::fs;
+#![allow(clippy::expect_used)] // Test code validates production code doesn't panic
+#![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
+#![allow(clippy::uninlined_format_args)] // Test output formatting for clarity
+
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#cli-command-safety
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#phase-3-long-tail-cleanup
@@ -16,6 +19,7 @@ use std::fs;
 /// - AC4: Performance impact minimal on CLI operations
 /// - AC7: Comprehensive test coverage for command handlers
 /// - AC8: User-friendly error messages with structured error taxonomy
+use std::fs;
 use std::process::Command;
 
 #[cfg(test)]

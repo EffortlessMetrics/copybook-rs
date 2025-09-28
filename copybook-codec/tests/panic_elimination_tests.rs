@@ -1,16 +1,19 @@
+#![allow(clippy::expect_used)] // Test code validates production code doesn't panic
+#![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
+
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#numeric-conversion-safety
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#phase-2-performance-hotspot-elimination
 ///
 /// Issue #63 - Comprehensive Panic Elimination Test Scaffolding for copybook-codec
 ///
-/// This module provides comprehensive test scaffolding for eliminating 134 .unwrap()/.expect() calls
-/// in copybook-codec production code. Tests target numeric.rs (21), zoned_overpunch.rs (24),
-/// record.rs (32), memory.rs (11), iterator.rs (11), and other modules (35) with enterprise-safe
+/// This module provides comprehensive test scaffolding for eliminating 134 `.unwrap()`/`.expect()` calls
+/// in copybook-codec production code. Tests target `numeric.rs` (21), `zoned_overpunch.rs` (24),
+/// `record.rs` (32), `memory.rs` (11), `iterator.rs` (11), and other modules (35) with enterprise-safe
 /// data processing patterns.
 ///
 /// **AC Traceability:**
-/// - AC1: Complete elimination of 134 .unwrap()/.expect() calls in copybook-codec
+/// - AC1: Complete elimination of 134 `.unwrap()`/`.expect()` calls in copybook-codec
 /// - AC2: Zero breaking changes to existing public APIs
 /// - AC3: Integration with CBKD*/CBKE* error taxonomy for data processing
 /// - AC4: Performance impact <5% maintaining 2.33+ GiB/s DISPLAY, 168+ MiB/s COMP-3
@@ -30,7 +33,8 @@ mod panic_elimination_numeric_tests {
     fn test_comp3_nibble_extraction_panic_elimination() {
         // Test case: COMP-3 data with invalid nibbles causing extraction panics
         let comp3_schema_copybook = "01 RECORD.\n    05 COMP3-FIELD PIC S9(5)V99 COMP-3.";
-        let schema = parse_copybook(comp3_schema_copybook).expect("Schema should parse");
+        let schema = parse_copybook(comp3_schema_copybook)
+            .expect("Schema should parse in panic elimination test");
 
         // Invalid COMP-3 data with bad nibbles (0xFF)
         let invalid_comp3_data = vec![0xFF, 0xFF, 0xFF, 0xFF]; // All invalid nibbles
@@ -44,21 +48,22 @@ mod panic_elimination_numeric_tests {
             "Invalid COMP-3 nibbles should return error"
         );
 
-        let error = result.unwrap_err();
-        assert!(
-            error.to_string().contains("COMP-3")
-                || error.to_string().contains("nibble")
-                || error.to_string().contains("invalid"),
-            "Error should reference COMP-3 nibble issue: {}",
-            error
-        );
+        if let Err(error) = result {
+            assert!(
+                error.to_string().contains("COMP-3")
+                    || error.to_string().contains("nibble")
+                    || error.to_string().contains("invalid"),
+                "Error should reference COMP-3 nibble issue: {error}"
+            );
+        }
     }
 
     #[test] // AC:63-7-2 Decimal digit validation safety
     fn test_decimal_digit_validation_panic_elimination() {
         // Test case: Decimal digit conversion with invalid characters
         let decimal_schema_copybook = "01 RECORD.\n    05 DECIMAL-FIELD PIC 9(10).";
-        let schema = parse_copybook(decimal_schema_copybook).expect("Schema should parse");
+        let schema = parse_copybook(decimal_schema_copybook)
+            .expect("Schema should parse in panic elimination test");
 
         // Invalid decimal data with non-numeric characters
         let invalid_decimal_data = b"ABC123XYZ\x00"; // Mixed alphanumeric
@@ -76,8 +81,7 @@ mod panic_elimination_numeric_tests {
                     error.to_string().contains("decimal")
                         || error.to_string().contains("digit")
                         || error.to_string().contains("numeric"),
-                    "Decimal validation error should reference digit issue: {}",
-                    error
+                    "Decimal validation error should reference digit issue: {error}"
                 );
             }
         }
@@ -100,12 +104,13 @@ mod panic_elimination_numeric_tests {
             Ok(value) => {
                 // Should produce valid JSON value within reasonable bounds
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("BINARY-FIELD") {
-                        assert!(
-                            field_value.is_number(),
-                            "Binary field should produce numeric value"
-                        );
-                    }
+                    && let Some(field_value) = obj.get("BINARY-FIELD")
+                {
+                    assert!(
+                        field_value.is_number(),
+                        "Binary field should produce numeric value"
+                    );
+                }
             }
             Err(error) => {
                 assert!(
@@ -137,13 +142,14 @@ mod panic_elimination_numeric_tests {
         match result {
             Ok(value) => {
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("HIGH-PRECISION") {
-                        // Should produce valid numeric representation
-                        assert!(
-                            field_value.is_string() || field_value.is_number(),
-                            "High precision field should produce valid value"
-                        );
-                    }
+                    && let Some(field_value) = obj.get("HIGH-PRECISION")
+                {
+                    // Should produce valid numeric representation
+                    assert!(
+                        field_value.is_string() || field_value.is_number(),
+                        "High precision field should produce valid value"
+                    );
+                }
             }
             Err(error) => {
                 assert!(
@@ -226,12 +232,13 @@ mod panic_elimination_zoned_overpunch_tests {
             Ok(value) => {
                 // May interpret with default handling
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("ZONED-FIELD") {
-                        assert!(
-                            field_value.is_number() || field_value.is_string(),
-                            "Zoned field should produce valid value"
-                        );
-                    }
+                    && let Some(field_value) = obj.get("ZONED-FIELD")
+                {
+                    assert!(
+                        field_value.is_number() || field_value.is_string(),
+                        "Zoned field should produce valid value"
+                    );
+                }
             }
             Err(error) => {
                 assert!(
@@ -262,12 +269,13 @@ mod panic_elimination_zoned_overpunch_tests {
             Ok(value) => {
                 // May interpret with default sign handling
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("SIGNED-FIELD") {
-                        assert!(
-                            field_value.is_number() || field_value.is_string(),
-                            "Signed field should produce valid value"
-                        );
-                    }
+                    && let Some(field_value) = obj.get("SIGNED-FIELD")
+                {
+                    assert!(
+                        field_value.is_number() || field_value.is_string(),
+                        "Signed field should produce valid value"
+                    );
+                }
             }
             Err(error) => {
                 assert!(
@@ -333,12 +341,13 @@ mod panic_elimination_zoned_overpunch_tests {
             Ok(value) => {
                 // Should handle with bounds checking
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("OVERPUNCH-FIELD") {
-                        assert!(
-                            field_value.is_number() || field_value.is_string(),
-                            "Overpunch field should produce valid value"
-                        );
-                    }
+                    && let Some(field_value) = obj.get("OVERPUNCH-FIELD")
+                {
+                    assert!(
+                        field_value.is_number() || field_value.is_string(),
+                        "Overpunch field should produce valid value"
+                    );
+                }
             }
             Err(error) => {
                 assert!(
@@ -652,18 +661,19 @@ mod panic_elimination_memory_tests {
         match result {
             Ok(value) => {
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("LARGE-FIELD") {
+                    && let Some(field_value) = obj.get("LARGE-FIELD")
+                {
+                    assert!(
+                        field_value.is_string(),
+                        "Large field should be string value"
+                    );
+                    if let Some(string_val) = field_value.as_str() {
                         assert!(
-                            field_value.is_string(),
-                            "Large field should be string value"
+                            string_val.len() <= 10000,
+                            "Large field should have reasonable size"
                         );
-                        if let Some(string_val) = field_value.as_str() {
-                            assert!(
-                                string_val.len() <= 10000,
-                                "Large field should have reasonable size"
-                            );
-                        }
                     }
+                }
             }
             Err(error) => {
                 assert!(
@@ -780,19 +790,20 @@ mod panic_elimination_memory_tests {
         match result {
             Ok(value) => {
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("OVERFLOW-FIELD") {
+                    && let Some(field_value) = obj.get("OVERFLOW-FIELD")
+                {
+                    assert!(
+                        field_value.is_string(),
+                        "Overflow field should be string value"
+                    );
+                    // Should truncate safely to expected size
+                    if let Some(string_val) = field_value.as_str() {
                         assert!(
-                            field_value.is_string(),
-                            "Overflow field should be string value"
+                            string_val.len() <= 1000,
+                            "Overflow field should be bounded to schema size"
                         );
-                        // Should truncate safely to expected size
-                        if let Some(string_val) = field_value.as_str() {
-                            assert!(
-                                string_val.len() <= 1000,
-                                "Overflow field should be bounded to schema size"
-                            );
-                        }
                     }
+                }
             }
             Err(error) => {
                 assert!(

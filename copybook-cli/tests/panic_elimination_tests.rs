@@ -8,12 +8,12 @@
 ///
 /// Issue #63 - Comprehensive Panic Elimination Test Scaffolding for copybook-cli
 ///
-/// This module provides comprehensive test scaffolding for eliminating 7 .unwrap()/.expect() calls
+/// This module provides comprehensive test scaffolding for eliminating 7 `.unwrap()`/`.expect()` calls
 /// in copybook-cli production code. Tests target audit.rs (4) and utils.rs (3) with enterprise-safe
 /// command handling and user-friendly error reporting.
 ///
 /// **AC Traceability:**
-/// - AC1: Complete elimination of 7 .unwrap()/.expect() calls in copybook-cli
+/// - AC1: Complete elimination of 7 `.unwrap()`/`.expect()` calls in copybook-cli
 /// - AC2: Zero breaking changes to existing CLI interfaces
 /// - AC3: Integration with CBKE* error taxonomy for CLI errors
 /// - AC4: Performance impact minimal on CLI operations
@@ -719,6 +719,7 @@ mod panic_elimination_cli_integration_tests {
     /// AC:63-16 - End-to-end CLI safety validation
 
     #[test] // AC:63-16-1 Command pipeline safety
+    #[allow(clippy::too_many_lines)] // Test infrastructure for complex pipeline validation
     fn test_command_pipeline_safety() {
         // Test case: Full CLI pipeline from parse to decode to verify
         let pipeline_copybook_content = r"

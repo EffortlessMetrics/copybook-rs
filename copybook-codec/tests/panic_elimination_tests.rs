@@ -1,5 +1,12 @@
 #![allow(clippy::expect_used)] // Test code validates production code doesn't panic
 #![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
+#![allow(clippy::uninlined_format_args)] // Test output formatting for clarity
+#![allow(clippy::too_many_lines)] // Test scaffolding requires comprehensive coverage
+#![allow(clippy::doc_markdown)] // Test documentation may reference code patterns
+#![allow(clippy::out_of_bounds_indexing)] // Test data construction with known bounds
+#![allow(clippy::single_match_else)] // Test logic flows for readability
+#![allow(clippy::useless_vec)] // Test data structures for clarity
+#![allow(clippy::unreadable_literal)] // Test constants for specific values
 
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#numeric-conversion-safety

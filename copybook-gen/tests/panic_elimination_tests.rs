@@ -1,5 +1,9 @@
 #![allow(clippy::expect_used)] // Test code validates production code doesn't panic
 #![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
+#![allow(clippy::uninlined_format_args)] // Test output formatting for clarity
+#![allow(clippy::too_many_lines)] // Test scaffolding requires comprehensive coverage
+#![allow(clippy::unnecessary_wraps)] // Test mock functions mimic real API surface
+#![allow(clippy::doc_markdown)] // Test documentation may reference code patterns
 
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
 /// Tests feature spec: issue-63-technical-specification.md#test-generation-safety

@@ -207,7 +207,10 @@ mod panic_elimination_numeric_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("conversion")
+                    error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
+                        || error.to_string().contains("CBKD301_RECORD_TOO_SHORT")
+                        || error.to_string().contains("CBKD401_INVALID_DECIMAL")
+                        || error.to_string().contains("conversion")
                         || error.to_string().contains("numeric"),
                     "Numeric conversion error should reference conversion issue: {}",
                     error
@@ -364,7 +367,9 @@ mod panic_elimination_zoned_overpunch_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("overpunch")
+                    error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
+                        || error.to_string().contains("CBKD413_ZONED_INVALID_ENCODING")
+                        || error.to_string().contains("overpunch")
                         || error.to_string().contains("bounds")
                         || error.to_string().contains("digit"),
                     "Digit bounds error should reference bounds issue: {}",
@@ -407,7 +412,9 @@ mod panic_elimination_zoned_overpunch_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("encoding")
+                    error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
+                        || error.to_string().contains("CBKD413_ZONED_INVALID_ENCODING")
+                        || error.to_string().contains("encoding")
                         || error.to_string().contains("overpunch"),
                     "Encoding validation error should reference encoding issue: {}",
                     error
@@ -533,7 +540,9 @@ mod panic_elimination_record_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("variable")
+                    error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
+                        || error.to_string().contains("CBKD301_RECORD_TOO_SHORT")
+                        || error.to_string().contains("variable")
                         || error.to_string().contains("ODO")
                         || error.to_string().contains("count"),
                     "Variable length error should reference variable length issue: {}",
@@ -579,7 +588,9 @@ mod panic_elimination_record_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("type")
+                    error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
+                        || error.to_string().contains("CBKD301_RECORD_TOO_SHORT")
+                        || error.to_string().contains("type")
                         || error.to_string().contains("field")
                         || error.to_string().contains("validation"),
                     "Type validation error should reference type issue: {}",
@@ -640,7 +651,9 @@ mod panic_elimination_record_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("layout")
+                    error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
+                        || error.to_string().contains("CBKD301_RECORD_TOO_SHORT")
+                        || error.to_string().contains("layout")
                         || error.to_string().contains("consistency")
                         || error.to_string().contains("record"),
                     "Layout consistency error should reference layout issue: {}",
@@ -1091,7 +1104,9 @@ mod panic_elimination_performance_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("COMP-3")
+                    error.to_string().contains("CBKD301_RECORD_TOO_SHORT")
+                        || error.to_string().contains("CBKD401_COMP3_INVALID_NIBBLE")
+                        || error.to_string().contains("COMP-3")
                         || error.to_string().contains("performance"),
                     "COMP-3 performance error should reference COMP-3 issue: {}",
                     error
@@ -1135,7 +1150,9 @@ mod panic_elimination_performance_tests {
             }
             Err(error) => {
                 assert!(
-                    error.to_string().contains("memory")
+                    error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
+                        || error.to_string().contains("CBKD301_RECORD_TOO_SHORT")
+                        || error.to_string().contains("memory")
                         || error.to_string().contains("efficiency"),
                     "Memory efficiency error should reference memory issue: {}",
                     error

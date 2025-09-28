@@ -17,6 +17,7 @@ pub trait OptionExt<T> {
 
 impl<T> OptionExt<T> for Option<T> {
     // PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path error handling
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn ok_or_cbkp_error(self, code: ErrorCode, message: impl Into<String>) -> Result<T> {
         match self {
@@ -28,6 +29,7 @@ impl<T> OptionExt<T> for Option<T> {
         }
     }
 
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn ok_or_error(self, error: Error) -> Result<T> {
         match self {
@@ -55,6 +57,7 @@ pub trait VecExt<T> {
 
 impl<T> VecExt<T> for Vec<T> {
     // PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path vector operations
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn pop_or_cbkp_error(&mut self, code: ErrorCode, message: impl Into<String>) -> Result<T> {
         // Fast path: check length and pop in one operation
@@ -64,9 +67,11 @@ impl<T> VecExt<T> for Vec<T> {
         }
     }
 
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn last_or_cbkp_error(&self, code: ErrorCode, message: impl Into<String>) -> Result<&T> {
         // Fast path: direct slice access when non-empty
+        #[allow(clippy::if_not_else)]
         if !self.is_empty() {
             // SAFETY: We just checked that the vector is not empty
             Ok(&self[self.len() - 1])
@@ -75,6 +80,7 @@ impl<T> VecExt<T> for Vec<T> {
         }
     }
 
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn last_mut_or_cbkp_error(
         &mut self,
@@ -82,6 +88,7 @@ impl<T> VecExt<T> for Vec<T> {
         message: impl Into<String>,
     ) -> Result<&mut T> {
         // Fast path: direct slice access when non-empty
+        #[allow(clippy::if_not_else)]
         if !self.is_empty() {
             let len = self.len();
             // SAFETY: We just checked that the vector is not empty
@@ -113,6 +120,7 @@ pub trait SliceExt<T> {
 
 impl<T> SliceExt<T> for [T] {
     // PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path slice access
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn get_or_cbkp_error(
         &self,
@@ -129,6 +137,7 @@ impl<T> SliceExt<T> for [T] {
         }
     }
 
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn get_mut_or_cbkp_error(
         &mut self,
@@ -266,6 +275,7 @@ pub mod safe_ops {
     #[inline]
     pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
         // Fast path: direct cast if value is guaranteed to fit
+        #[allow(clippy::checked_conversions)]
         if value <= u32::MAX as u64 {
             // SAFETY: We just checked the bounds above
             Ok(value as u32)
@@ -290,6 +300,7 @@ pub mod safe_ops {
     #[inline]
     pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
         // Fast path: direct cast if value is guaranteed to fit
+        #[allow(clippy::checked_conversions)]
         if value <= u16::MAX as u64 {
             // SAFETY: We just checked the bounds above
             Ok(value as u16)
@@ -311,6 +322,7 @@ pub mod safe_ops {
     #[inline]
     pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
         // Fast path: direct cast if value is guaranteed to fit
+        #[allow(clippy::checked_conversions)]
         if value <= u32::MAX as usize {
             // SAFETY: We just checked the bounds above
             Ok(value as u32)
@@ -332,6 +344,7 @@ pub mod safe_ops {
     /// panics during COBOL copybook processing.
     ///
     /// PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path access
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>
     where
@@ -357,7 +370,9 @@ pub mod safe_ops {
     /// Branch prediction hint for common success cases
     ///
     /// PERFORMANCE OPTIMIZATION: Helps CPU branch predictor optimize hot paths
+    #[allow(clippy::inline_always)]
     #[inline(always)]
+    #[allow(dead_code)]
     fn likely(condition: bool) -> bool {
         if condition {
             true
@@ -371,6 +386,7 @@ pub mod safe_ops {
     /// Mark error paths as cold for branch prediction optimization
     #[cold]
     #[inline(never)]
+    #[allow(dead_code)]
     fn cold_path() {
         // Empty function to hint that this path is unlikely
     }

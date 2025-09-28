@@ -371,7 +371,7 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
     for chunk in chunks {
         for &byte in chunk {
             let unicode_point = table[byte as usize];
-            if unicode_point >= 0x20 && unicode_point <= 0x7E {
+            if (0x20..=0x7E).contains(&unicode_point) {
                 // Fast path: ASCII-compatible range (most common case)
                 // SAFETY: We checked that unicode_point is in ASCII range [0x20, 0x7E]
                 // All values in this range are valid Unicode code points
@@ -391,7 +391,7 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
     // Handle remaining bytes with the same optimization pattern
     for &byte in remainder {
         let unicode_point = table[byte as usize];
-        if unicode_point >= 0x20 && unicode_point <= 0x7E {
+        if (0x20..=0x7E).contains(&unicode_point) {
             // Fast path: ASCII-compatible range (most common case)
             // SAFETY: We checked that unicode_point is in ASCII range [0x20, 0x7E]
             // All values in this range are valid Unicode code points

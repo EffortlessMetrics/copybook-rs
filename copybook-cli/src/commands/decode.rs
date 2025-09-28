@@ -92,7 +92,11 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
             result_summary = Some(summary);
             Ok(())
         })?;
-        result_summary.unwrap()
+        result_summary.ok_or_else(|| {
+            std::io::Error::other(
+                "Internal error: summary not populated after successful processing",
+            )
+        })?
     };
 
     // Print comprehensive summary

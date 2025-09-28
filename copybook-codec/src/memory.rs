@@ -459,13 +459,13 @@ impl StreamingProcessor {
     /// Update memory usage estimate
     pub fn update_memory_usage(&mut self, bytes_delta: isize) {
         if bytes_delta >= 0 {
-            self.current_memory_bytes = self.current_memory_bytes.saturating_add(
-                usize::try_from(bytes_delta).expect("Non-negative isize fits in usize"),
-            );
+            self.current_memory_bytes = self
+                .current_memory_bytes
+                .saturating_add(usize::try_from(bytes_delta).unwrap_or(0));
         } else {
-            self.current_memory_bytes = self.current_memory_bytes.saturating_sub(
-                usize::try_from(-bytes_delta).expect("Negated negative isize is positive"),
-            );
+            self.current_memory_bytes = self
+                .current_memory_bytes
+                .saturating_sub(usize::try_from(-bytes_delta).unwrap_or(0));
         }
     }
 
@@ -504,6 +504,7 @@ pub struct StreamingProcessorStats {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
     use std::time::Duration;

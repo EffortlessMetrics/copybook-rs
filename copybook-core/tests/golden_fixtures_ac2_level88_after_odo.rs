@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 /*!
  * AC2: Level-88 after ODO Validation Fixtures (PASS Scenarios)
  *

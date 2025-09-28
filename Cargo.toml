@@ -74,3 +74,22 @@ panic = "abort"
 [profile.dev]
 debug = true
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+# Panic prevention lints (deny rather than forbid to allow selective local overrides)
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unreachable = "deny"
+todo = "deny"
+unimplemented = "deny"
+
+# Performance lints
+missing_inline_in_public_items = "warn"
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+

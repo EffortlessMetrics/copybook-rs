@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Comprehensive numeric type tests covering all edge cases and normative behavior
 //!
 //! This test suite validates numeric type handling according to the normative

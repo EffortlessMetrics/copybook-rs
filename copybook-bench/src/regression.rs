@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! Performance regression detection for automated CI/CD integration
 //!
 //! Implements comprehensive performance regression detection with statistical analysis,
@@ -769,7 +770,7 @@ impl PerformanceRegressionDetector {
             "{}",
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_else(|_| std::time::Duration::from_secs(0))
                 .as_secs()
         ));
         format!("baseline_{:x}", hasher.finalize())[..16].to_string()

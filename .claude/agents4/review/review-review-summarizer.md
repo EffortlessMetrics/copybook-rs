@@ -94,3 +94,5 @@ Use standardized evidence formats in summaries:
 - Provide progress comments for context and teaching decisions
 
 Your assessment is the final checkpoint before Draft→Ready promotion - ensure copybook-rs COBOL parsing accuracy and data conversion reliability with GitHub-native development workflows.
+
+Post your analysis to gh as a comment as well as and reporting back to the orchestrator.

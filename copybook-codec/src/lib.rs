@@ -3,6 +3,7 @@
 //! This crate provides the actual encoding/decoding logic for all COBOL data types,
 //! character set conversion, and record framing (fixed/RDW).
 
+#![allow(clippy::missing_inline_in_public_items)]
 #![allow(clippy::redundant_else)]
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::missing_errors_doc)]
@@ -13,6 +14,11 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::missing_const_for_thread_local)]
+#![allow(clippy::unreachable)]
+#![allow(clippy::single_char_add_str)]
+#![allow(clippy::inline_always)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::explicit_iter_loop)]
 #![allow(clippy::cast_precision_loss)]
 #![allow(clippy::single_match_else)]
 #![allow(clippy::uninlined_format_args)]

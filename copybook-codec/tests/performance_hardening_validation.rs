@@ -3,6 +3,7 @@
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::uninlined_format_args,
+    clippy::unwrap_used,
     clippy::cast_possible_wrap
 )]
 

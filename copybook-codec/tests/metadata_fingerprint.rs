@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::cast_precision_loss)]
 use copybook_core::{Field, FieldKind, Schema};
 

@@ -13,3 +13,5 @@ path = "src/main.rs"
 [dependencies]
 clap = { workspace = true }
 anyhow = "1.0.100"
+[lints]
+workspace = true

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(
     clippy::needless_raw_string_hashes,

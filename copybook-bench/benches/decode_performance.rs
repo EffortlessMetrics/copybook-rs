@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::unreachable)]
 #![allow(
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,

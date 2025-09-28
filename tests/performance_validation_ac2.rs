@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! AC2: Performance validation tests
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#performance-validation-infrastructure

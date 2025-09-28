@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::assertions_on_constants)]
+
 //! AC5: Production readiness validation tests
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#enterprise-scale-testing-architecture

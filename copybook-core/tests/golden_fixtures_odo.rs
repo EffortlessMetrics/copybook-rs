@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 /*!
  * Golden Fixtures for ODO (Occurs Depending On) Structural Validation
  *

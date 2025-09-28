@@ -316,8 +316,10 @@ mod panic_elimination_cli_audit_tests {
                     // Allow for log messages before JSON output
                     let trimmed_output = stdout_output.trim_start();
                     assert!(
-                        trimmed_output.contains('{') || trimmed_output.contains('[') ||
-                        stdout_output.contains("schema") || stdout_output.contains("fields"),
+                        trimmed_output.contains('{')
+                            || trimmed_output.contains('[')
+                            || stdout_output.contains("schema")
+                            || stdout_output.contains("fields"),
                         "Parse output should contain JSON or schema information: {}",
                         stdout_output
                     );

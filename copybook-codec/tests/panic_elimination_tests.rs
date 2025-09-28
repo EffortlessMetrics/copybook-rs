@@ -39,7 +39,8 @@ mod panic_elimination_numeric_tests {
     #[test] // AC:63-7-1 COMP-3 nibble extraction safety
     fn test_comp3_nibble_extraction_panic_elimination() {
         // Test case: COMP-3 data with invalid nibbles causing extraction panics
-        let comp3_schema_copybook = "       01 RECORD.\n           05 COMP3-FIELD PIC S9(5)V99 COMP-3.";
+        let comp3_schema_copybook =
+            "       01 RECORD.\n           05 COMP3-FIELD PIC S9(5)V99 COMP-3.";
         let schema = parse_copybook(comp3_schema_copybook)
             .expect("Schema should parse in panic elimination test");
 
@@ -99,7 +100,8 @@ mod panic_elimination_numeric_tests {
     #[test] // AC:63-7-3 Binary integer overflow protection
     fn test_binary_integer_overflow_panic_elimination() {
         // Test case: Binary integer with overflow values
-        let binary_schema_copybook = "       01 RECORD.\n           05 BINARY-FIELD PIC S9(9) COMP.";
+        let binary_schema_copybook =
+            "       01 RECORD.\n           05 BINARY-FIELD PIC S9(9) COMP.";
         let schema = parse_copybook(binary_schema_copybook).expect("Schema should parse");
 
         // Binary data that could cause integer overflow (max values)
@@ -113,13 +115,14 @@ mod panic_elimination_numeric_tests {
             Ok(value) => {
                 // Should produce valid JSON value within reasonable bounds
                 if let Some(obj) = value.as_object()
-                    && let Some(field_value) = obj.get("BINARY-FIELD") {
-                        assert!(
-                            field_value.is_number() || field_value.is_string(),
-                            "Binary field should produce numeric or string value: {:?}",
-                            field_value
-                        );
-                    }
+                    && let Some(field_value) = obj.get("BINARY-FIELD")
+                {
+                    assert!(
+                        field_value.is_number() || field_value.is_string(),
+                        "Binary field should produce numeric or string value: {:?}",
+                        field_value
+                    );
+                }
             }
             Err(error) => {
                 assert!(
@@ -136,7 +139,8 @@ mod panic_elimination_numeric_tests {
     #[test] // AC:63-7-4 Numeric precision bounds safety
     fn test_numeric_precision_bounds_panic_elimination() {
         // Test case: Numeric fields with extreme precision values
-        let precision_schema_copybook = "       01 RECORD.\n           05 HIGH-PRECISION PIC S9(15)V99 COMP-3.";
+        let precision_schema_copybook =
+            "       01 RECORD.\n           05 HIGH-PRECISION PIC S9(15)V99 COMP-3.";
         let schema = parse_copybook(precision_schema_copybook).expect("Schema should parse");
 
         // High precision COMP-3 data at maximum bounds
@@ -343,7 +347,8 @@ mod panic_elimination_zoned_overpunch_tests {
     #[test] // AC:63-8-4 Overpunch digit bounds safety
     fn test_overpunch_digit_bounds_panic_elimination() {
         // Test case: Overpunch processing with out-of-bounds digit values
-        let digit_bounds_schema_copybook = "       01 RECORD.\n           05 OVERPUNCH-FIELD PIC S9(6).";
+        let digit_bounds_schema_copybook =
+            "       01 RECORD.\n           05 OVERPUNCH-FIELD PIC S9(6).";
         let schema = parse_copybook(digit_bounds_schema_copybook).expect("Schema should parse");
 
         // Data with digits that could be out of overpunch table bounds
@@ -674,7 +679,8 @@ mod panic_elimination_memory_tests {
     #[test] // AC:63-10-1 Buffer allocation bounds safety
     fn test_buffer_allocation_bounds_panic_elimination() {
         // Test case: Memory buffer allocations with extreme sizes
-        let large_buffer_schema_copybook = "       01 RECORD.\n           05 LARGE-FIELD PIC X(10000).";
+        let large_buffer_schema_copybook =
+            "       01 RECORD.\n           05 LARGE-FIELD PIC X(10000).";
         let schema = parse_copybook(large_buffer_schema_copybook).expect("Schema should parse");
 
         // Large record requiring significant buffer allocation
@@ -803,7 +809,8 @@ mod panic_elimination_memory_tests {
     #[test] // AC:63-10-4 Buffer overflow protection
     fn test_buffer_overflow_protection_panic_elimination() {
         // Test case: Potential buffer overflow scenarios
-        let overflow_schema_copybook = "       01 RECORD.\n           05 OVERFLOW-FIELD PIC X(1000).";
+        let overflow_schema_copybook =
+            "       01 RECORD.\n           05 OVERFLOW-FIELD PIC X(1000).";
         let schema = parse_copybook(overflow_schema_copybook).expect("Schema should parse");
 
         // Record data that could cause buffer overflow (oversized)

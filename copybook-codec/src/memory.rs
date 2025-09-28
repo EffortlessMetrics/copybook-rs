@@ -492,9 +492,7 @@ impl StreamingProcessor {
         } else {
             // Fast path: negative delta (releasing memory)
             let abs_delta = (-bytes_delta) as usize;
-            self.current_memory_bytes = self
-                .current_memory_bytes
-                .saturating_sub(abs_delta);
+            self.current_memory_bytes = self.current_memory_bytes.saturating_sub(abs_delta);
         }
     }
 

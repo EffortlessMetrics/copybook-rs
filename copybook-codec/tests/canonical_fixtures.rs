@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Canonical fixture tests with normalized outputs
 //!
 //! These tests store expected outputs as hex dumps for binary data

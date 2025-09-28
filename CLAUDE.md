@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 copybook-rs is a **production-ready** Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and high-performance data conversion with battle-tested reliability.
 
 **Status**: **PRODUCTION READY** - Ready for immediate enterprise deployment
-**Performance**: Exceeds enterprise targets (DISPLAY: 2.5+ GiB/s, COMP-3: 100+ MiB/s with safety margins)
+**Performance**: Strong performance with recovery (DISPLAY: 2.33 GiB/s, COMP-3: 168-176 MiB/s with panic elimination safety)
 **Quality**: 458+ tests passing, zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
 **Enterprise Assessment**: System ready for production mainframe workloads with substantial performance safety margins.

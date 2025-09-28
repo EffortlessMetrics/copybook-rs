@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Simple Audit Integration Tests for copybook-codec
 //!
 //! Tests feature spec: enterprise-audit-system-spec.md#workflow-integration

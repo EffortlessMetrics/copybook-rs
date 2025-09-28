@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::assertions_on_constants
+)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(
     clippy::needless_raw_string_hashes,
@@ -448,6 +454,6 @@ fn test_redefines_with_occurs() {
     if let Some(copybook_core::Occurs::Fixed { count }) = &items.occurs {
         assert_eq!(*count, 5);
     } else {
-        panic!("Expected fixed OCCURS");
+        panic!("Expected fixed OCCURS, got {:?}", items.occurs);
     }
 }

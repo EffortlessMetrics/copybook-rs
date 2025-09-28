@@ -77,6 +77,7 @@ pub struct ErrorReporter {
 impl ErrorReporter {
     /// Create a new error reporter with the specified mode
     #[must_use]
+    #[inline]
     pub fn new(mode: ErrorMode, max_errors: Option<u64>) -> Self {
         Self {
             mode,
@@ -88,6 +89,7 @@ impl ErrorReporter {
 
     /// Set verbose logging mode
     #[must_use]
+    #[inline]
     pub fn with_verbose_logging(mut self, verbose: bool) -> Self {
         self.verbose_logging = verbose;
         self
@@ -147,7 +149,10 @@ impl ErrorReporter {
         } else if matches!(severity, ErrorSeverity::Error) && self.max_errors.is_some() {
             Err(Error::new(
                 ErrorCode::CBKS141_RECORD_TOO_LARGE, // Reusing for "too many errors"
-                format!("Maximum error limit reached: {}", self.max_errors.unwrap()),
+                format!(
+                    "Maximum error limit reached: {}",
+                    self.max_errors.unwrap_or(0)
+                ),
             ))
         } else {
             Err(error)

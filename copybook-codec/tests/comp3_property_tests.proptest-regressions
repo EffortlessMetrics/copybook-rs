@@ -7,3 +7,4 @@
 cc 3b78686854fd29469b9dce82e5ff7415f6ee0bfc0b1f9a91a50cc61de9d99f03 # shrinks to int_digits = 1, scale = 0, neg = false
 cc 427b1fb99496c319cea8498de8dea8e71411475a73b1d39bfcfbbbaf8be426ff # shrinks to len = 1, scale = 0, neg = false
 cc fda000b50ec3bc6c5466b858dfdefcf5d19833e9bc34077100e7d636485dee11 # shrinks to int_digits = 2, scale = 2, neg = true
+cc 020224d87c0b2e9545a19be16baa37d0aad344f722ea69d8901e37fac5382736 # shrinks to int_digits = 3, scale = 1, neg = false

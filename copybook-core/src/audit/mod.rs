@@ -178,6 +178,7 @@ pub fn validate_audit_chain(events: &[AuditEvent]) -> AuditResult<bool> {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -204,6 +205,6 @@ mod tests {
     #[test]
     fn test_empty_audit_chain_validation() {
         let events = vec![];
-        assert!(validate_audit_chain(&events).unwrap());
+        assert!(validate_audit_chain(&events).expect("Failed to validate audit chain"));
     }
 }

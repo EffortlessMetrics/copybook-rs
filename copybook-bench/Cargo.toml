@@ -32,3 +32,5 @@ ac7 = []
 [[test]]
 name = "performance_regression_detection_ac7"
 required-features = ["ac7"]
+[lints]
+workspace = true

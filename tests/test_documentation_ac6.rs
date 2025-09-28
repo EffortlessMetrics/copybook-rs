@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! AC6: Enhanced test documentation
 //!
 //! Tests feature spec: test-suite-enhancement-architecture.md#enhanced-test-documentation

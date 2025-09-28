@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Simple Audit Performance Tests for copybook-bench
 //!
 //! Tests feature spec: enterprise-audit-system-spec.md#performance-audit

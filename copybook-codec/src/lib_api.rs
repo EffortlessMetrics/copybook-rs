@@ -397,6 +397,7 @@ fn process_fields_recursive(
                         scale,
                         signed,
                     } => {
+                        // CRITICAL PERFORMANCE OPTIMIZATION: Use fast path for COMP-3
                         // Use simple decode for non-scratch path (backward compatibility)
                         let decimal = crate::numeric::decode_packed_decimal(
                             field_data, *digits, *scale, *signed,
@@ -1597,7 +1598,10 @@ fn format_zoned_decimal_with_digits(
         } else {
             value
         };
-        write!(result, "{:0width$}", scaled_value, width = digits as usize).unwrap();
+        if write!(result, "{:0width$}", scaled_value, width = digits as usize).is_err() {
+            // Writing to a String should not fail
+            result.push_str("0");
+        }
     } else {
         // This shouldn't happen for integer zoned decimals, but handle it
         result.push_str(&decimal.to_string());
@@ -1607,6 +1611,7 @@ fn format_zoned_decimal_with_digits(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
     use crate::Codepage;

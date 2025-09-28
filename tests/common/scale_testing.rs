@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Enterprise-scale testing engine for copybook-rs
 //!
 //! Implements comprehensive scale testing capabilities for production-ready

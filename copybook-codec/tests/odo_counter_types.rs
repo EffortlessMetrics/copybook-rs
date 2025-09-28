@@ -1,6 +1,6 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // ODO counter type tests - currently disabled as ODO support is not implemented
 // in the main decode path (json.rs just returns max_count for ODO fields).
-
 #![allow(dead_code, unused_imports)]
 
 use copybook_codec::{

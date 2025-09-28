@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Test utilities for finding fixture files
 
 use assert_cmd::Command;
@@ -5,34 +7,37 @@ use std::path::PathBuf;
 
 /// Find the workspace root by looking for Cargo.toml
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if the current directory cannot be accessed or if the workspace root
+/// Returns an error if the current directory cannot be accessed or if the workspace root
 /// cannot be found by traversing parent directories.
-#[must_use]
-pub fn find_workspace_root() -> PathBuf {
-    let mut current = std::env::current_dir().expect("Failed to get current directory");
+pub fn find_workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let mut current =
+        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {e}"))?;
 
     loop {
         if current.join("Cargo.toml").exists()
             && current.join("copybook-cli").exists()
             && current.join("copybook-codec").exists()
         {
-            return current;
+            return Ok(current);
         }
 
         if let Some(parent) = current.parent() {
             current = parent.to_path_buf();
         } else {
-            panic!("Could not find workspace root");
+            return Err("Could not find workspace root".into());
         }
     }
 }
 
 /// Get the path to a fixture file relative to workspace root
-#[must_use]
-pub fn fixture_path(relative_path: &str) -> PathBuf {
-    find_workspace_root().join("fixtures").join(relative_path)
+///
+/// # Errors
+///
+/// Returns an error if the workspace root cannot be found.
+pub fn fixture_path(relative_path: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    Ok(find_workspace_root()?.join("fixtures").join(relative_path))
 }
 
 /// Create a copybook command with standard fixed format and CP037 codepage args

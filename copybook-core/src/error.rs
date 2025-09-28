@@ -21,6 +21,7 @@ pub struct Error {
 }
 
 impl fmt::Display for Error {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", self.code, self.message)?;
         if let Some(ref ctx) = self.context {
@@ -128,6 +129,7 @@ pub enum ErrorCode {
 }
 
 impl fmt::Display for ErrorCode {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let code_str = match self {
             ErrorCode::CBKP001_SYNTAX => "CBKP001_SYNTAX",
@@ -197,6 +199,7 @@ pub struct ErrorContext {
 }
 
 impl fmt::Display for ErrorContext {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut parts = Vec::new();
 
@@ -240,6 +243,7 @@ impl Error {
     ///     "Invalid sign zone 0xA in zoned decimal field"
     /// );
     /// ```
+    #[inline]
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,
@@ -250,6 +254,7 @@ impl Error {
 
     /// Add context information to the error
     #[must_use]
+    #[inline]
     pub fn with_context(mut self, context: ErrorContext) -> Self {
         self.context = Some(context);
         self
@@ -257,6 +262,7 @@ impl Error {
 
     /// Add record context to the error
     #[must_use]
+    #[inline]
     pub fn with_record(mut self, record_index: u64) -> Self {
         let context = self.context.get_or_insert(ErrorContext {
             record_index: None,
@@ -271,6 +277,7 @@ impl Error {
 
     /// Add field path context to the error
     #[must_use]
+    #[inline]
     pub fn with_field(mut self, field_path: impl Into<String>) -> Self {
         let context = self.context.get_or_insert(ErrorContext {
             record_index: None,
@@ -285,6 +292,7 @@ impl Error {
 
     /// Add byte offset context to the error
     #[must_use]
+    #[inline]
     pub fn with_offset(mut self, byte_offset: u64) -> Self {
         let context = self.context.get_or_insert(ErrorContext {
             record_index: None,

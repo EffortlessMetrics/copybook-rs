@@ -1,3 +1,10 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::assertions_on_constants
+)]
+
 use copybook_codec::{Codepage, DecodeOptions, decode_record};
 use copybook_core::{ErrorCode, parse_copybook};
 

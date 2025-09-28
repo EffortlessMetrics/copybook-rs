@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::assertions_on_constants
+)]
 #![cfg(feature = "comprehensive-tests")]
 //! Comprehensive RDW (Record Descriptor Word) tests covering all edge cases
 //!

@@ -6,6 +6,10 @@
 #![allow(clippy::expect_used)] // Test code: expects are acceptable for test assertions
 #![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
 #![allow(clippy::unnecessary_wraps)] // Test scaffolding requires Result types
+#![allow(clippy::unused_self)] // Test code: self methods can be non-consuming for clarity
+#![allow(clippy::needless_pass_by_value)] // Test code: pass by value is acceptable for clarity
+#![allow(clippy::match_same_arms)] // Test code: explicit matching is clearer than optimization
+#![allow(clippy::panic)] // Test code: panics are acceptable for test failure cases
 
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
@@ -117,7 +121,7 @@ impl std::fmt::Display for BenchmarkReportingError {
 
 impl std::error::Error for BenchmarkReportingError {}
 
-/// Result type alias following anyhow::Result<T> patterns
+/// Result type alias following `anyhow::Result<T>` patterns
 pub type BenchmarkResult<T> = Result<T, BenchmarkReportingError>;
 
 /// Error context for detailed diagnostics
@@ -215,6 +219,12 @@ pub struct PerformanceMetrics {
 }
 
 impl PerformanceMetrics {
+    /// Validates the performance metrics for consistency and realistic values.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BenchmarkReportingError::PerformanceExtractionError` if no metrics are available,
+    /// or `BenchmarkReportingError::MetricsCalculationError` if values are invalid or unrealistic.
     pub fn validate(&self) -> BenchmarkResult<()> {
         if self.display_gibs.is_none() && self.comp3_mibs.is_none() {
             return Err(BenchmarkReportingError::PerformanceExtractionError(
@@ -238,14 +248,12 @@ impl PerformanceMetrics {
         if let Some(comp3) = self.comp3_mibs {
             if comp3 < 0.0 {
                 return Err(BenchmarkReportingError::MetricsCalculationError(format!(
-                    "Invalid COMP-3 throughput: {}",
-                    comp3
+                    "Invalid COMP-3 throughput: {comp3}"
                 )));
             }
             if comp3 > 10000.0 {
                 return Err(BenchmarkReportingError::MetricsCalculationError(format!(
-                    "Unrealistic COMP-3 throughput: {} MiB/s",
-                    comp3
+                    "Unrealistic COMP-3 throughput: {comp3} MiB/s"
                 )));
             }
         }
@@ -259,21 +267,33 @@ pub struct JsonReportGenerator {
     error_handler: BenchmarkErrorHandler,
 }
 
+impl Default for JsonReportGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsonReportGenerator {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             error_handler: BenchmarkErrorHandler::new(),
         }
     }
 
+    /// Generates a JSON report from performance metrics.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if metrics validation fails, JSON generation fails,
+    /// or schema validation fails.
     pub fn generate_report(
         &mut self,
         metrics: &PerformanceMetrics,
     ) -> BenchmarkResult<serde_json::Value> {
         // Validate input metrics
-        metrics.validate().map_err(|e| {
+        metrics.validate().inspect_err(|e| {
             self.error_handler.handle_error(e.clone());
-            e
         })?;
 
         // Attempt JSON generation with error handling
@@ -330,8 +350,7 @@ impl JsonReportGenerator {
         for field in &required_fields {
             if !obj.contains_key(*field) {
                 return Err(BenchmarkReportingError::JsonSchemaValidationError(format!(
-                    "Missing required field: {}",
-                    field
+                    "Missing required field: {field}"
                 )));
             }
         }
@@ -365,7 +384,14 @@ impl JsonReportGenerator {
     }
 }
 
+impl Default for BenchmarkErrorHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BenchmarkErrorHandler {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             error_history: Vec::new(),
@@ -374,6 +400,11 @@ impl BenchmarkErrorHandler {
         }
     }
 
+    /// Handles an error by creating an error record and updating internal state.
+    ///
+    /// # Errors
+    ///
+    /// This function does not return errors but processes them internally.
     pub fn handle_error(&mut self, error: BenchmarkReportingError) -> ErrorRecord {
         let context = self.create_error_context(&error);
         let severity = self.determine_error_severity(&error);
@@ -428,12 +459,14 @@ impl BenchmarkErrorHandler {
             BenchmarkReportingError::BenchmarkExecutionError(_) => ErrorSeverity::Critical,
             BenchmarkReportingError::BenchmarkTimeoutError(_) => ErrorSeverity::High,
             BenchmarkReportingError::JsonGenerationError(_) => ErrorSeverity::High,
-            BenchmarkReportingError::GithubApiError(_) | BenchmarkReportingError::MetricsCalculationError(_) => ErrorSeverity::Medium,
+            BenchmarkReportingError::GithubApiError(_)
+            | BenchmarkReportingError::MetricsCalculationError(_) => ErrorSeverity::Medium,
             BenchmarkReportingError::ConfigurationError(_) => ErrorSeverity::Low,
             _ => ErrorSeverity::Medium,
         }
     }
 
+    #[must_use]
     fn get_recovery_suggestions(error: &BenchmarkReportingError) -> Vec<String> {
         match error {
             BenchmarkReportingError::BenchmarkExecutionError(_) => vec![
@@ -458,6 +491,7 @@ impl BenchmarkErrorHandler {
         }
     }
 
+    #[must_use]
     fn create_recovery_strategies() -> HashMap<String, RecoveryStrategy> {
         let mut strategies = HashMap::new();
 
@@ -506,6 +540,7 @@ impl BenchmarkErrorHandler {
         strategies
     }
 
+    #[must_use]
     fn create_escalation_rules() -> Vec<EscalationRule> {
         vec![
             EscalationRule {

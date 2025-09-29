@@ -3,6 +3,16 @@
 //! Tests feature spec: issue-52-spec.md#AC4
 //! Validates PR comment automation system with format "DISPLAY: X.XX GiB/s, COMP-3: XXX MiB/s [status]"
 
+#![allow(clippy::must_use_candidate)] // Test scaffolding functions don't need must_use
+#![allow(clippy::new_without_default)] // Test mocks can have new() without Default
+#![allow(clippy::missing_errors_doc)] // Test code doesn't need comprehensive error docs
+#![allow(clippy::unnecessary_wraps)] // Test scaffolding requires Result types
+#![allow(clippy::single_char_pattern)] // Test code: single char patterns are acceptable
+#![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
+#![allow(clippy::uninlined_format_args)] // Test code: format args can be more explicit
+#![allow(clippy::manual_string_new)] // Test code: explicit string creation is acceptable
+#![allow(clippy::const_is_empty)] // Test code: const empty checks are acceptable
+
 // HashMap removed - not used in this test file
 
 /// Performance report data for PR comment generation

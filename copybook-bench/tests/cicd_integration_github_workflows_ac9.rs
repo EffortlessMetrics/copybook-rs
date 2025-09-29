@@ -3,6 +3,16 @@
 //! Tests feature spec: issue-52-spec.md#AC9
 //! Validates integration with existing .github/workflows/benchmark.yml
 
+#![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
+#![allow(clippy::too_many_lines)] // Test scaffolding files can be long
+#![allow(clippy::unnecessary_wraps)] // Test scaffolding requires Result types
+#![allow(clippy::panic)] // Test code: panics are acceptable for test failure cases
+#![allow(clippy::match_same_arms)] // Test code: matching multiple error types is clearer
+#![allow(clippy::doc_markdown)] // Test code: documentation style can be more relaxed
+#![allow(clippy::cast_possible_truncation)] // Test code: casting for test data is acceptable
+#![allow(clippy::unused_self)] // Test code: self methods can be non-consuming for clarity
+#![allow(clippy::map_unwrap_or)] // Test code: map unwrap_or patterns are acceptable
+
 // HashMap removed - not used in this test file
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
@@ -24,7 +34,7 @@ pub struct GitHubWorkflowContext {
 }
 
 impl GitHubWorkflowContext {
-    /// Creates a GitHubWorkflowContext from environment variables.
+    /// Creates a `GitHubWorkflowContext` from environment variables.
     ///
     /// # Errors
     ///
@@ -748,7 +758,7 @@ fn test_cicd_environment_validation() -> Result<(), Box<dyn std::error::Error>> 
             // Also acceptable if other environment issues
         }
         Ok(_) => panic!("Should not succeed without proper workspace"),
-        Err(e) => panic!("Unexpected error type: {:?}", e),
+        Err(e) => panic!("Unexpected error type: {e:?}"),
     }
 
     Ok(())
@@ -1031,7 +1041,7 @@ fn test_artifact_collection() -> Result<(), Box<dyn std::error::Error>> {
 /// Tests feature spec: issue-52-spec.md#AC9-workflow-step-orchestration
 /// Validates proper orchestration of workflow steps
 #[test]
-fn test_workflow_step_orchestration() -> Result<(), Box<dyn std::error::Error>> {
+fn test_workflow_step_orchestration() {
     // AC:AC9 - Verify workflow step orchestration
 
     // Test orchestration for different event types
@@ -1050,31 +1060,25 @@ fn test_workflow_step_orchestration() -> Result<(), Box<dyn std::error::Error>> 
         if context.event_name == "pull_request" {
             assert!(
                 integrator.reporting_config.pr_comments_enabled,
-                "PR comments should be enabled for pull_request events in {}",
-                scenario_name
+                "PR comments should be enabled for pull_request events in {scenario_name}"
             );
         }
 
         if context.event_name == "push" && context.ref_name == "main" {
             assert!(
                 integrator.reporting_config.baseline_promotion_enabled,
-                "Baseline promotion should be enabled for push to main in {}",
-                scenario_name
+                "Baseline promotion should be enabled for push to main in {scenario_name}"
             );
         }
 
         // Verify configuration consistency
         assert!(
             integrator.benchmark_config.perf_mode_enabled,
-            "PERF mode should be enabled for {} scenario",
-            scenario_name
+            "PERF mode should be enabled for {scenario_name} scenario"
         );
         assert!(
             integrator.reporting_config.json_output_enabled,
-            "JSON output should be enabled for {} scenario",
-            scenario_name
+            "JSON output should be enabled for {scenario_name} scenario"
         );
     }
-
-    Ok(())
 }

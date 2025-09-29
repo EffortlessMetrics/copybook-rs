@@ -7,6 +7,9 @@
 #![allow(clippy::missing_errors_doc)] // Test code doesn't need comprehensive error docs
 #![allow(clippy::collapsible_if)] // Test readability over optimization
 #![allow(unused_variables)] // Test variables may be declared for future expansion
+#![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
+#![allow(clippy::cast_precision_loss)] // Test code: precision loss acceptable for performance calculations
+#![allow(clippy::too_many_lines)] // Test scaffolding files can be long
 
 // HashMap removed - not used in this test file
 use std::time::{Duration, SystemTime};

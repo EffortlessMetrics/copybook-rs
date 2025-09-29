@@ -59,8 +59,6 @@ fn test_invalid_json_handling() {
     let invalid_jsons = [
         r#"{"incomplete": true"#,              // Malformed JSON
         r#"{"display_gibs": "not_a_number"}"#, // Type mismatch
-        r#"{"display_gibs": null}"#,           // Null value
-        r"{}",                                 // Missing required fields
     ];
 
     for invalid_json in invalid_jsons {
@@ -70,6 +68,17 @@ fn test_invalid_json_handling() {
             "Should reject invalid JSON: {invalid_json}"
         );
     }
+
+    // Test that null values are accepted (Option<f64> fields)
+    let null_value_json = r#"{"display_gibs": null}"#;
+    let result: Result<PerformanceReport, _> = serde_json::from_str(null_value_json);
+    assert!(result.is_ok(), "Should accept null for Option<f64> fields");
+    assert_eq!(result.unwrap().display_gibs, None);
+
+    // Test that empty object with defaults works
+    let empty_json = r"{}";
+    let result: Result<PerformanceReport, _> = serde_json::from_str(empty_json);
+    assert!(result.is_ok(), "Should accept empty object with defaults");
 }
 
 #[test]

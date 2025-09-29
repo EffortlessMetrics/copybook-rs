@@ -1,0 +1,52 @@
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "commit": "3dae898abc123def456789",
+  "branch": "feat/issue-52-machine-readable-benchmark-reporting",
+  "benchmarks": [
+    {
+      "name": "decode_display_heavy/single_threaded/10000",
+      "value": 86875000.0,
+      "unit": "bytes_per_second",
+      "extra": {
+        "median": 54.888,
+        "units": "ms",
+        "variance": 4.2
+      }
+    },
+    {
+      "name": "decode_comp3_heavy/single_threaded/10000",
+      "value": 18328000.0,
+      "unit": "bytes_per_second",
+      "extra": {
+        "median": 31.220,
+        "units": "ms",
+        "variance": 8.6
+      }
+    },
+    {
+      "name": "slo_validation/display_heavy_slo_80mbps",
+      "value": 66974000.0,
+      "unit": "bytes_per_second",
+      "extra": {
+        "target": 83886080,
+        "status": "FAIL",
+        "margin": -20.1
+      }
+    },
+    {
+      "name": "slo_validation/comp3_heavy_slo_40mbps",
+      "value": 22011000.0,
+      "unit": "bytes_per_second",
+      "extra": {
+        "target": 41943040,
+        "status": "FAIL",
+        "margin": -47.5
+      }
+    }
+  ],
+  "metadata": {
+    "platform": "linux-x86_64",
+    "rust_version": "1.90.0",
+    "copybook_version": "0.3.1"
+  }
+}

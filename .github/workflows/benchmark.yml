@@ -257,6 +257,50 @@ jobs:
             console.error('Failed to post benchmark comment:', error);
           }
 
+    - name: Compare against baseline (AC5)
+      id: baseline_check
+      if: github.event_name == 'pull_request'
+      run: |
+        # Download existing baseline if available
+        gh api repos/${{ github.repository }}/actions/artifacts \
+          --jq '.artifacts[] | select(.name | startswith("baseline-main")) | select(.created_at | . != null) | .archive_download_url' \
+          --paginate | head -1 | xargs -I {} sh -c '
+          if [ -n "{}" ]; then
+            echo "Downloading latest main baseline..."
+            gh api {} > baseline.zip 2>/dev/null || true
+            if [ -s baseline.zip ]; then
+              unzip -q baseline.zip 2>/dev/null || true
+              if [ -f performance.json ]; then
+                echo "Found baseline, running comparison..."
+                cargo run --bin bench-report -p copybook-bench -- compare perf.json
+              else
+                echo "No valid baseline found in artifact"
+              fi
+            else
+              echo "Failed to download baseline"
+            fi
+          else
+            echo "No baseline artifact found"
+          fi
+        ' || echo "Baseline comparison skipped (no baseline available)"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Promote baseline (AC5)
+      if: github.ref == 'refs/heads/main' && steps.process.outputs.status == 'success'
+      run: |
+        # Promote current results to baseline
+        cargo run --bin bench-report -p copybook-bench -- baseline promote perf.json
+        echo "✅ Promoted performance baseline for main branch"
+
+    - name: Upload baseline for main branch
+      if: github.ref == 'refs/heads/main' && steps.process.outputs.status == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: baseline-main-${{ github.sha }}
+        path: target/baselines/performance.json
+        retention-days: 90
+
     - name: Fail if SLOs not met
       if: steps.process.outputs.status == 'failure'
       run: |

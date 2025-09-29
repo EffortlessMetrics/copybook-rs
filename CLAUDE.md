@@ -36,6 +36,13 @@ cargo fmt --all
 cargo bench --package copybook-bench
 PERF=1 cargo bench  # Performance mode
 
+# Benchmark reporting (Issue #52)
+cargo run --bin bench-report -p copybook-bench -- validate perf.json       # Validate performance JSON
+cargo run --bin bench-report -p copybook-bench -- baseline promote perf.json  # Promote to baseline
+cargo run --bin bench-report -p copybook-bench -- baseline show            # Show current baseline
+cargo run --bin bench-report -p copybook-bench -- compare perf.json        # Check for regressions
+cargo run --bin bench-report -p copybook-bench -- summary                  # Show performance status
+
 # Golden fixture testing
 cargo test --test golden_fixtures_comprehensive    # All golden fixtures
 cargo test --test golden_fixtures_odo             # ODO-specific fixtures

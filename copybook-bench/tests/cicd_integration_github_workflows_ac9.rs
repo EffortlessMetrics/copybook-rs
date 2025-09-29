@@ -394,7 +394,7 @@ impl CicdPipelineIntegrator {
     ) -> Result<AuditReportResult, CicdIntegrationError> {
         Ok(AuditReportResult {
             audit_id: {
-                let run_id = self.workflow_context.run_id;
+                let run_id = self.workflow_context.run_id.clone();
                 format!("AUDIT-{run_id}")
             },
             generated_at: SystemTime::now(),

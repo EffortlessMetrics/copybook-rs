@@ -3,6 +3,16 @@
 //! Comprehensive mutation testing for baseline storage, promotion,
 //! and regression detection to ensure enterprise reliability.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::needless_borrows_for_generic_args,
+    clippy::uninlined_format_args,
+    clippy::single_match_else,
+    clippy::single_char_pattern,
+    clippy::len_zero
+)] // Tests: allow common pedantic lints
+
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 use std::sync::Arc;
@@ -275,7 +285,7 @@ fn test_summary_formatting_mutations() {
     assert_eq!(summary, "No baseline established");
 
     // Test summary with complete baseline
-    let report = create_test_report(Some(4.123456), Some(567.89), "1234567890abcdef");
+    let report = create_test_report(Some(4.123_456), Some(567.89), "1234567890abcdef");
     store.promote_baseline(&report, "main", "1234567890abcdef");
 
     let summary = store.summary();

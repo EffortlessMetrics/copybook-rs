@@ -3,11 +3,21 @@
 //! Property-based and fuzzing tests for JSON schema validation to ensure
 //! robust handling of malformed, adversarial, and edge-case inputs.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::needless_borrows_for_generic_args,
+    clippy::uninlined_format_args,
+    clippy::single_match_else,
+    clippy::cast_lossless
+)] // Tests: allow common pedantic lints
+#![allow(clippy::unreachable)] // Tests may use unreachable for exhaustive match coverage
+
 use copybook_bench::reporting::PerformanceReport;
 
 #[test]
 fn test_malformed_json_fuzzing() {
-    let test_cases = vec![
+    let test_cases = [
         r#"{"display_gibs": 4.0"#,      // Unclosed brace
         r#"{"warnings": ["incomplete"#, // Unclosed array
         r#"{"display_gibs": 4.0,}"#,    // Trailing comma
@@ -17,13 +27,13 @@ fn test_malformed_json_fuzzing() {
 
     for (i, malformed_json) in test_cases.iter().enumerate() {
         let result: Result<PerformanceReport, _> = serde_json::from_str(malformed_json);
-        assert!(result.is_err(), "Malformed JSON {} should fail to parse", i);
+        assert!(result.is_err(), "Malformed JSON {i} should fail to parse");
     }
 }
 
 #[test]
 fn test_type_mismatch_fuzzing() {
-    let test_cases = vec![
+    let test_cases = [
         r#"{"display_gibs": "not_a_number"}"#,
         r#"{"timestamp": 1234567890}"#,
         r#"{"warnings": "should_be_array"}"#,
@@ -38,8 +48,7 @@ fn test_type_mismatch_fuzzing() {
                 // If it succeeds, validate it's reasonable
                 assert!(
                     report.timestamp.len() < 1000,
-                    "Timestamp should be bounded for case {}",
-                    i
+                    "Timestamp should be bounded for case {i}"
                 );
             }
             Err(_) => {
@@ -51,7 +60,7 @@ fn test_type_mismatch_fuzzing() {
 
 #[test]
 fn test_extreme_values_fuzzing() {
-    let test_cases = vec![
+    let test_cases = [
         r#"{"display_gibs": 1e308}"#,  // Very large
         r#"{"display_gibs": 1e-324}"#, // Very small
         r#"{"display_gibs": -1e400}"#, // Negative infinity
@@ -68,15 +77,13 @@ fn test_extreme_values_fuzzing() {
                 if let Some(display) = report.display_gibs {
                     assert!(
                         display.is_finite() || display.is_infinite(),
-                        "Display should be valid f64 for case {}",
-                        i
+                        "Display should be valid f64 for case {i}"
                     );
                 }
                 if let Some(comp3) = report.comp3_mibs {
                     assert!(
                         comp3.is_finite() || comp3.is_infinite(),
-                        "COMP-3 should be valid f64 for case {}",
-                        i
+                        "COMP-3 should be valid f64 for case {i}"
                     );
                 }
             }
@@ -117,19 +124,19 @@ fn test_large_data_fuzzing() {
     let mut report = PerformanceReport::new();
     report.warnings = many_warnings;
 
-    let json = serde_json::to_string(&report).expect("Should serialize");
-    let deserialized: PerformanceReport = serde_json::from_str(&json).expect("Should deserialize");
+    let json = serde_json::to_string(&report).unwrap();
+    let deserialized: PerformanceReport = serde_json::from_str(&json).unwrap();
 
     assert_eq!(deserialized.warnings.len(), 1000);
 }
 
 #[test]
 fn test_injection_resistance_fuzzing() {
-    let injection_attempts = vec![
-        r#"<script>alert('xss')</script>"#,
-        r#"'; DROP TABLE baselines; --"#,
-        r#"; rm -rf / #"#,
-        r#"../../../etc/passwd"#,
+    let injection_attempts = [
+        r"<script>alert('xss')</script>",
+        r"'; DROP TABLE baselines; --",
+        r"; rm -rf / #",
+        r"../../../etc/passwd",
     ];
 
     for (i, injection) in injection_attempts.iter().enumerate() {
@@ -142,12 +149,11 @@ fn test_injection_resistance_fuzzing() {
                 // If parsing succeeds, the injection should be treated as plain text
                 assert_eq!(
                     report.commit, *injection,
-                    "Injection {} should be stored as plain text",
-                    i
+                    "Injection {i} should be stored as plain text"
                 );
 
                 // Test that it serializes safely
-                let serialized = serde_json::to_string(&report).expect("Should serialize safely");
+                let serialized = serde_json::to_string(&report).unwrap();
                 assert!(serialized.contains("commit"));
             }
             Err(_) => {
@@ -199,17 +205,14 @@ fn test_property_based_fuzzing() {
         }
 
         // Test serialization roundtrip
-        let json = serde_json::to_string(&report).expect("Serialization should not fail");
-        let deserialized: PerformanceReport =
-            serde_json::from_str(&json).expect("Deserialization should not fail for valid JSON");
+        let json = serde_json::to_string(&report).unwrap();
+        let deserialized: PerformanceReport = serde_json::from_str(&json).unwrap();
 
         // Validate properties preserved (with floating point tolerance)
         match (deserialized.display_gibs, report.display_gibs) {
             (Some(a), Some(b)) => assert!(
                 (a - b).abs() < 1e-10,
-                "Display values should be approximately equal: {} vs {}",
-                a,
-                b
+                "Display values should be approximately equal: {a} vs {b}"
             ),
             (None, None) => {}
             _ => assert_eq!(deserialized.display_gibs, report.display_gibs),
@@ -217,9 +220,7 @@ fn test_property_based_fuzzing() {
         match (deserialized.comp3_mibs, report.comp3_mibs) {
             (Some(a), Some(b)) => assert!(
                 (a - b).abs() < 1e-10,
-                "COMP-3 values should be approximately equal: {} vs {}",
-                a,
-                b
+                "COMP-3 values should be approximately equal: {a} vs {b}"
             ),
             (None, None) => {}
             _ => assert_eq!(deserialized.comp3_mibs, report.comp3_mibs),
@@ -263,11 +264,7 @@ fn test_concurrent_json_processing() {
             thread::spawn(move || {
                 for _ in 0..20 {
                     let result: Result<PerformanceReport, _> = serde_json::from_str(&json);
-                    assert!(
-                        result.is_ok(),
-                        "Thread {} should successfully parse JSON",
-                        i
-                    );
+                    assert!(result.is_ok(), "Thread {i} should successfully parse JSON");
 
                     if let Ok(report) = result {
                         let summary = report.format_pr_summary();
@@ -279,13 +276,13 @@ fn test_concurrent_json_processing() {
         .collect();
 
     for handle in handles {
-        handle.join().expect("Thread should not panic");
+        handle.join().unwrap();
     }
 }
 
 #[test]
 fn test_unicode_fuzzing() {
-    let unicode_tests = vec![
+    let unicode_tests = [
         "🚀🔥💥⚡️",          // Emoji
         "café résumé naïve", // Accented characters
         "Здравствуй мир",    // Cyrillic
@@ -294,27 +291,22 @@ fn test_unicode_fuzzing() {
     ];
 
     for (i, unicode_text) in unicode_tests.iter().enumerate() {
-        let json = format!(r#"{{"commit": "{}"}}"#, unicode_text);
+        let json = format!(r#"{{"commit": "{unicode_text}"}}"#);
 
         let result: Result<PerformanceReport, _> = serde_json::from_str(&json);
 
-        match result {
-            Ok(report) => {
-                assert_eq!(
-                    report.commit, *unicode_text,
-                    "Unicode text {} should be preserved",
-                    i
-                );
+        if let Ok(report) = result {
+            assert_eq!(
+                report.commit, *unicode_text,
+                "Unicode text {i} should be preserved"
+            );
 
-                // Test serialization roundtrip
-                let serialized = serde_json::to_string(&report).expect("Should serialize unicode");
-                let deserialized: PerformanceReport =
-                    serde_json::from_str(&serialized).expect("Should deserialize unicode");
-                assert_eq!(deserialized.commit, *unicode_text);
-            }
-            Err(_) => {
-                // May fail due to JSON escaping issues
-            }
+            // Test serialization roundtrip
+            let serialized = serde_json::to_string(&report).unwrap();
+            let deserialized: PerformanceReport = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(deserialized.commit, *unicode_text);
+        } else {
+            // May fail due to JSON escaping issues
         }
     }
 }
@@ -333,30 +325,25 @@ fn test_edge_case_numbers() {
     ];
 
     for (name, value) in number_cases {
-        let json = format!(r#"{{"display_gibs": {}}}"#, value);
+        let json = format!(r#"{{"display_gibs": {value}}}"#);
 
         let result: Result<PerformanceReport, _> = serde_json::from_str(&json);
 
-        match result {
-            Ok(report) => {
-                assert_eq!(
-                    report.display_gibs,
-                    Some(value),
-                    "Number case '{}' should preserve value {}",
-                    name,
-                    value
-                );
+        if let Ok(report) = result {
+            assert_eq!(
+                report.display_gibs,
+                Some(value),
+                "Number case '{name}' should preserve value {value}"
+            );
 
-                // Test SLO validation with edge case numbers
-                let mut slo_report = report.clone();
-                slo_report.validate_slos(4.1, 560.0);
+            // Test SLO validation with edge case numbers
+            let mut slo_report = report.clone();
+            slo_report.validate_slos(4.1, 560.0);
 
-                // Should not panic or produce invalid state
-                assert!(["success", "warning", "failure"].contains(&slo_report.status.as_str()));
-            }
-            Err(_) => {
-                // May fail for some edge cases, which is acceptable
-            }
+            // Should not panic or produce invalid state
+            assert!(["success", "warning", "failure"].contains(&slo_report.status.as_str()));
+        } else {
+            // May fail for some edge cases, which is acceptable
         }
     }
 }

@@ -3,6 +3,15 @@
 //! Comprehensive mutation testing for the bench-report CLI tool to ensure
 //! robust command handling, argument parsing, and error conditions.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::needless_borrows_for_generic_args,
+    clippy::uninlined_format_args,
+    clippy::single_match_else,
+    clippy::used_underscore_binding
+)] // Tests: allow common pedantic lints
+
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 use std::fs;
@@ -20,7 +29,7 @@ fn cargo_bench_report(working_dir: Option<&Path>) -> Command {
         .join("Cargo.toml");
 
     let mut cmd = Command::new("cargo");
-    cmd.args(&[
+    cmd.args([
         "run",
         "--manifest-path",
         workspace_manifest.to_str().unwrap(),
@@ -39,7 +48,7 @@ fn cargo_bench_report(working_dir: Option<&Path>) -> Command {
 #[test]
 fn test_cli_help_command() {
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "bench-report", "--", "--help"])
+        .args(["run", "--bin", "bench-report", "--", "--help"])
         .output()
         .expect("Failed to execute bench-report --help");
 

@@ -22,8 +22,8 @@ fn test_performance_report_serialization() {
     assert!(json.contains("\"commit\": \"7bef3ba\""));
 
     // Validate round-trip
-    let deserialized: PerformanceReport = serde_json::from_str(&json)
-        .expect("Failed to deserialize");
+    let deserialized: PerformanceReport =
+        serde_json::from_str(&json).expect("Failed to deserialize");
 
     assert_eq!(deserialized.display_gibs, Some(4.22));
     assert_eq!(deserialized.comp3_mibs, Some(571.0));
@@ -42,8 +42,8 @@ fn test_json_schema_edge_cases() {
     report.errors = vec!["Benchmark failure".to_string()];
 
     let json = serde_json::to_string(&report).expect("Should serialize zero values");
-    let deserialized: PerformanceReport = serde_json::from_str(&json)
-        .expect("Should deserialize zero values");
+    let deserialized: PerformanceReport =
+        serde_json::from_str(&json).expect("Should deserialize zero values");
 
     assert_eq!(deserialized.display_gibs, Some(0.0));
     assert_eq!(deserialized.comp3_mibs, Some(0.0));
@@ -52,15 +52,19 @@ fn test_json_schema_edge_cases() {
 #[test]
 fn test_invalid_json_handling() {
     let invalid_jsons = vec![
-        r#"{"incomplete": true"#,  // Malformed JSON
-        r#"{"display_gibs": "not_a_number"}"#,  // Type mismatch
-        r#"{"display_gibs": null}"#,  // Null value
-        r#"{}"#,  // Missing required fields
+        r#"{"incomplete": true"#,              // Malformed JSON
+        r#"{"display_gibs": "not_a_number"}"#, // Type mismatch
+        r#"{"display_gibs": null}"#,           // Null value
+        r#"{}"#,                               // Missing required fields
     ];
 
     for invalid_json in invalid_jsons {
         let result: Result<PerformanceReport, _> = serde_json::from_str(invalid_json);
-        assert!(result.is_err(), "Should reject invalid JSON: {}", invalid_json);
+        assert!(
+            result.is_err(),
+            "Should reject invalid JSON: {}",
+            invalid_json
+        );
     }
 }
 
@@ -68,11 +72,11 @@ fn test_invalid_json_handling() {
 fn test_performance_metrics_validation() {
     // Test extreme values for mutation testing
     let test_cases = vec![
-        (Some(f64::INFINITY), Some(100.0)),  // Infinite DISPLAY performance
-        (Some(100.0), Some(f64::NEG_INFINITY)),  // Negative infinite COMP-3
-        (Some(f64::NAN), Some(50.0)),  // NaN DISPLAY
-        (Some(25.0), Some(f64::NAN)),  // NaN COMP-3
-        (None, None),  // Missing values
+        (Some(f64::INFINITY), Some(100.0)), // Infinite DISPLAY performance
+        (Some(100.0), Some(f64::NEG_INFINITY)), // Negative infinite COMP-3
+        (Some(f64::NAN), Some(50.0)),       // NaN DISPLAY
+        (Some(25.0), Some(f64::NAN)),       // NaN COMP-3
+        (None, None),                       // Missing values
     ];
 
     for (display, comp3) in test_cases {
@@ -98,11 +102,11 @@ fn test_performance_metrics_validation() {
 fn test_slo_validation_mutation() {
     // Test SLO validation with various scenarios for mutation coverage
     let test_cases = vec![
-        (Some(4.5), Some(600.0), "success"),  // Above SLOs
-        (Some(3.0), Some(500.0), "failure"),  // Below SLOs
-        (Some(4.3), Some(570.0), "warning"),  // Close to SLOs
-        (None, None, "success"),              // No metrics
-        (Some(0.0), Some(0.0), "failure"),    // Zero performance
+        (Some(4.5), Some(600.0), "success"), // Above SLOs
+        (Some(3.0), Some(500.0), "failure"), // Below SLOs
+        (Some(4.3), Some(570.0), "warning"), // Close to SLOs
+        (None, None, "success"),             // No metrics
+        (Some(0.0), Some(0.0), "failure"),   // Zero performance
     ];
 
     for (display, comp3, expected_status) in test_cases {
@@ -115,8 +119,8 @@ fn test_slo_validation_mutation() {
         report.validate_slos(4.1, 560.0);
 
         let json = serde_json::to_string(&report).expect("Should serialize");
-        let deserialized: PerformanceReport = serde_json::from_str(&json)
-            .expect("Should deserialize");
+        let deserialized: PerformanceReport =
+            serde_json::from_str(&json).expect("Should deserialize");
 
         assert_eq!(deserialized.display_gibs, display);
         assert_eq!(deserialized.comp3_mibs, comp3);

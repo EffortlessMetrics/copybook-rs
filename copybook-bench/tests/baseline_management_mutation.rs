@@ -5,9 +5,9 @@
 
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
-use tempfile::TempDir;
-use std::thread;
 use std::sync::Arc;
+use std::thread;
+use tempfile::TempDir;
 
 fn create_test_report(display: Option<f64>, comp3: Option<f64>, commit: &str) -> PerformanceReport {
     let mut report = PerformanceReport::new();
@@ -25,10 +25,11 @@ fn test_baseline_store_serialization_mutations() {
 
     // Test empty store
     let mut store = BaselineStore::new();
-    store.save(&baseline_path).expect("Failed to save empty store");
+    store
+        .save(&baseline_path)
+        .expect("Failed to save empty store");
 
-    let loaded_store = BaselineStore::load_or_create(&baseline_path)
-        .expect("Failed to load store");
+    let loaded_store = BaselineStore::load_or_create(&baseline_path).expect("Failed to load store");
     assert!(loaded_store.current.is_none());
     assert!(loaded_store.history.is_empty());
 
@@ -36,10 +37,12 @@ fn test_baseline_store_serialization_mutations() {
     let report = create_test_report(Some(4.0), Some(500.0), "baseline_commit");
     store.promote_baseline(&report, "main", "baseline_commit");
 
-    store.save(&baseline_path).expect("Failed to save store with baseline");
+    store
+        .save(&baseline_path)
+        .expect("Failed to save store with baseline");
 
-    let loaded_store = BaselineStore::load_or_create(&baseline_path)
-        .expect("Failed to load store with baseline");
+    let loaded_store =
+        BaselineStore::load_or_create(&baseline_path).expect("Failed to load store with baseline");
 
     assert!(loaded_store.current.is_some());
     let current = loaded_store.current.unwrap();
@@ -92,26 +95,33 @@ fn test_regression_detection_mutations() {
     // Test cases for comprehensive mutation coverage
     let test_cases = vec![
         // (display, comp3, threshold, expected_regressions)
-        (Some(4.0), Some(500.0), 5.0, 0),     // Exact match - no regression
+        (Some(4.0), Some(500.0), 5.0, 0), // Exact match - no regression
         // Exactly 5% - may not trigger if check is strict > (not >=)
-        (Some(3.8), Some(475.0), 5.0, 1),     // 5% regression - check if logic is > or >=
-        (Some(3.9), Some(500.0), 5.0, 0),     // 2.5% regression in DISPLAY - should pass
-        (Some(4.0), Some(476.0), 5.0, 0),     // 4.8% regression in COMP-3 - should pass
-        (Some(4.2), Some(525.0), 5.0, 0),     // Improvement - should pass
-        (Some(3.79), Some(474.0), 5.0, 2),    // Just over 5% regression - should detect both
-        (Some(0.0), Some(0.0), 5.0, 2),       // Zero performance - should detect regression
-        (None, None, 5.0, 0),                  // Missing metrics - no comparison possible
-        (Some(4.0), None, 5.0, 0),            // Mixed metrics - only compare available
-        (None, Some(500.0), 5.0, 0),          // Mixed metrics - only compare available
+        (Some(3.8), Some(475.0), 5.0, 1), // 5% regression - check if logic is > or >=
+        (Some(3.9), Some(500.0), 5.0, 0), // 2.5% regression in DISPLAY - should pass
+        (Some(4.0), Some(476.0), 5.0, 0), // 4.8% regression in COMP-3 - should pass
+        (Some(4.2), Some(525.0), 5.0, 0), // Improvement - should pass
+        (Some(3.79), Some(474.0), 5.0, 2), // Just over 5% regression - should detect both
+        (Some(0.0), Some(0.0), 5.0, 2),   // Zero performance - should detect regression
+        (None, None, 5.0, 0),             // Missing metrics - no comparison possible
+        (Some(4.0), None, 5.0, 0),        // Mixed metrics - only compare available
+        (None, Some(500.0), 5.0, 0),      // Mixed metrics - only compare available
     ];
 
     for (display, comp3, threshold, expected_count) in test_cases {
         let current = create_test_report(display, comp3, "current");
         let regressions = store.check_regression(&current, threshold);
 
-        assert_eq!(regressions.len(), expected_count,
+        assert_eq!(
+            regressions.len(),
+            expected_count,
             "Expected {} regressions for DISPLAY: {:?}, COMP-3: {:?}, but got {}: {:?}",
-            expected_count, display, comp3, regressions.len(), regressions);
+            expected_count,
+            display,
+            comp3,
+            regressions.len(),
+            regressions
+        );
 
         // Validate regression message format
         for regression in &regressions {
@@ -142,7 +152,10 @@ fn test_retention_policy_mutations() {
 
     // Should have some items in history (latest is current)
     // Note: retention policy is applied during promotion, so actual count depends on implementation
-    assert!(store.history.len() >= 1, "Should have at least some history before retention test");
+    assert!(
+        store.history.len() >= 1,
+        "Should have at least some history before retention test"
+    );
 
     // Apply retention - should remove old baselines
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -164,23 +177,30 @@ fn test_concurrent_access_mutations() {
     let baseline_path = Arc::new(temp_dir.path().join("concurrent_baseline.json"));
 
     // Test concurrent promotions
-    let handles: Vec<_> = (0..5).map(|i| {
-        let path = Arc::clone(&baseline_path);
-        thread::spawn(move || {
-            let mut store = BaselineStore::load_or_create(&*path).unwrap_or_else(|_| BaselineStore::new());
-            let report = create_test_report(Some(4.0 + f64::from(i) * 0.1), Some(500.0), &format!("commit_{}", i));
-            store.promote_baseline(&report, "main", &format!("commit_{}", i));
-            store.save(&*path).ok(); // May fail due to concurrent writes, that's expected
+    let handles: Vec<_> = (0..5)
+        .map(|i| {
+            let path = Arc::clone(&baseline_path);
+            thread::spawn(move || {
+                let mut store =
+                    BaselineStore::load_or_create(&*path).unwrap_or_else(|_| BaselineStore::new());
+                let report = create_test_report(
+                    Some(4.0 + f64::from(i) * 0.1),
+                    Some(500.0),
+                    &format!("commit_{}", i),
+                );
+                store.promote_baseline(&report, "main", &format!("commit_{}", i));
+                store.save(&*path).ok(); // May fail due to concurrent writes, that's expected
+            })
         })
-    }).collect();
+        .collect();
 
     for handle in handles {
         handle.join().expect("Thread panicked");
     }
 
     // Should still have a valid baseline after concurrent access
-    let final_store = BaselineStore::load_or_create(&*baseline_path)
-        .unwrap_or_else(|_| BaselineStore::new());
+    let final_store =
+        BaselineStore::load_or_create(&*baseline_path).unwrap_or_else(|_| BaselineStore::new());
 
     // Either we have a baseline (successful concurrent write) or we don't (file corruption)
     // Both are acceptable outcomes for this stress test
@@ -260,9 +280,9 @@ fn test_summary_formatting_mutations() {
 
     let summary = store.summary();
     assert!(summary.contains("Baseline (12345678):")); // 8-char commit
-    assert!(summary.contains("4.12 GiB/s"));          // Rounded display
-    assert!(summary.contains("568 MiB/s"));           // Rounded comp3
-    assert!(summary.contains("[main]"));              // Branch
+    assert!(summary.contains("4.12 GiB/s")); // Rounded display
+    assert!(summary.contains("568 MiB/s")); // Rounded comp3
+    assert!(summary.contains("[main]")); // Branch
 
     // Test summary with missing metrics
     let partial_report = create_test_report(None, None, "partial");

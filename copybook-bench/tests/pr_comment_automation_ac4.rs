@@ -15,6 +15,7 @@ pub struct PerformanceReportData {
 }
 
 impl PerformanceReportData {
+    #[must_use]
     pub fn new_passing() -> Self {
         Self {
             display_gibs: 4.22,
@@ -24,6 +25,7 @@ impl PerformanceReportData {
         }
     }
 
+    #[must_use]
     pub fn new_with_warnings() -> Self {
         Self {
             display_gibs: 4.15,
@@ -33,6 +35,7 @@ impl PerformanceReportData {
         }
     }
 
+    #[must_use]
     pub fn new_with_errors() -> Self {
         Self {
             display_gibs: 0.05,
@@ -50,6 +53,7 @@ impl PerformanceReportData {
 pub struct PrCommentGenerator;
 
 impl PrCommentGenerator {
+    #[must_use]
     pub fn generate_performance_comment(data: &PerformanceReportData) -> String {
         let status = Self::determine_status(data);
         let status_emoji = Self::get_status_emoji(&status);

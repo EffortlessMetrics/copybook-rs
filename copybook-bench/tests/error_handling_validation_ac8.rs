@@ -419,7 +419,7 @@ impl BenchmarkErrorHandler {
                 memory_gb: 16,
                 disk_space_gb: 100,
             },
-            recovery_suggestions: self.get_recovery_suggestions(error),
+            recovery_suggestions: Self::get_recovery_suggestions(error),
         }
     }
 
@@ -428,14 +428,13 @@ impl BenchmarkErrorHandler {
             BenchmarkReportingError::BenchmarkExecutionError(_) => ErrorSeverity::Critical,
             BenchmarkReportingError::BenchmarkTimeoutError(_) => ErrorSeverity::High,
             BenchmarkReportingError::JsonGenerationError(_) => ErrorSeverity::High,
-            BenchmarkReportingError::GithubApiError(_) => ErrorSeverity::Medium,
-            BenchmarkReportingError::MetricsCalculationError(_) => ErrorSeverity::Medium,
+            BenchmarkReportingError::GithubApiError(_) | BenchmarkReportingError::MetricsCalculationError(_) => ErrorSeverity::Medium,
             BenchmarkReportingError::ConfigurationError(_) => ErrorSeverity::Low,
             _ => ErrorSeverity::Medium,
         }
     }
 
-    fn get_recovery_suggestions(&self, error: &BenchmarkReportingError) -> Vec<String> {
+    fn get_recovery_suggestions(error: &BenchmarkReportingError) -> Vec<String> {
         match error {
             BenchmarkReportingError::BenchmarkExecutionError(_) => vec![
                 "Check benchmark dependencies are installed".to_string(),
@@ -533,10 +532,9 @@ impl BenchmarkErrorHandler {
                     }
                 }
                 EscalationTrigger::CriticalError => {
-                    if let Some(last_error) = self.error_history.last() {
-                        if last_error.severity == ErrorSeverity::Critical {
-                            // Would trigger immediate escalation
-                        }
+                    if let Some(last_error) = self.error_history.last()
+                        && last_error.severity == ErrorSeverity::Critical {
+                        // Would trigger immediate escalation
                     }
                 }
                 _ => {}
@@ -601,7 +599,7 @@ fn test_comprehensive_error_taxonomy() -> Result<(), Box<dyn std::error::Error>>
 }
 
 /// Tests feature spec: issue-52-spec.md#AC8-anyhow-result-patterns
-/// Validates proper anyhow::Result<T> patterns throughout the system
+/// Validates proper `anyhow::Result<T>` patterns throughout the system
 #[test]
 fn test_anyhow_result_patterns() -> Result<(), Box<dyn std::error::Error>> {
     // AC:AC8 - Verify proper anyhow::Result<T> patterns are used
@@ -639,7 +637,7 @@ fn test_anyhow_result_patterns() -> Result<(), Box<dyn std::error::Error>> {
         Err(BenchmarkReportingError::MetricsCalculationError(msg)) => {
             assert!(msg.contains("Invalid DISPLAY throughput"));
         }
-        _ => panic!("Expected MetricsCalculationError"),
+        _ => panic!("Expected MetricsCalculationError for test scenario"),
     }
 
     Ok(())
@@ -779,7 +777,7 @@ fn test_json_report_error_handling() -> Result<(), Box<dyn std::error::Error>> {
         Err(BenchmarkReportingError::PerformanceExtractionError(_)) => {
             // Expected error type
         }
-        _ => panic!("Expected PerformanceExtractionError for missing metrics"),
+        _ => panic!("Expected PerformanceExtractionError for missing metrics test scenario"),
     }
 
     Ok(())
@@ -955,14 +953,12 @@ fn test_comprehensive_validation_scenarios() -> Result<(), Box<dyn std::error::E
         if should_pass {
             assert!(
                 result.is_ok(),
-                "Test case '{}' should pass validation",
-                description
+                "Test case '{description}' should pass validation"
             );
         } else {
             assert!(
                 result.is_err(),
-                "Test case '{}' should fail validation",
-                description
+                "Test case '{description}' should fail validation"
             );
         }
     }

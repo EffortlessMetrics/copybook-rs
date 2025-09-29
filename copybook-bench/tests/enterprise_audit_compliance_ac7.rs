@@ -286,9 +286,9 @@ pub enum PeerComparison {
 
 #[derive(Debug, Clone)]
 pub struct SloComplianceStatus {
-    display_compliance: ComplianceStatus,
-    comp3_compliance: ComplianceStatus,
-    overall_compliance: ComplianceStatus,
+    display: ComplianceStatus,
+    comp3: ComplianceStatus,
+    overall: ComplianceStatus,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -490,9 +490,9 @@ impl EnterpriseAuditFramework {
                 },
             },
             slo_compliance: SloComplianceStatus {
-                display_compliance: ComplianceStatus::FullyCompliant,
-                comp3_compliance: ComplianceStatus::FullyCompliant,
-                overall_compliance: ComplianceStatus::FullyCompliant,
+                display: ComplianceStatus::FullyCompliant,
+                comp3: ComplianceStatus::FullyCompliant,
+                overall: ComplianceStatus::FullyCompliant,
             },
         };
 

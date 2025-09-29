@@ -212,8 +212,7 @@ fn test_display_throughput_extraction() -> Result<(), Box<dyn std::error::Error>
     // Verify precision is maintained
     assert!(
         (display_gibs - 4.22).abs() < 0.1,
-        "DISPLAY throughput should be approximately 4.22 GiB/s, got {}",
-        display_gibs
+        "DISPLAY throughput should be approximately 4.22 GiB/s, got {display_gibs}"
     );
 
     Ok(())
@@ -240,8 +239,7 @@ fn test_comp3_throughput_extraction() -> Result<(), Box<dyn std::error::Error>> 
     // Verify precision is maintained
     assert!(
         (comp3_mibs - 571.0).abs() < 50.0,
-        "COMP-3 throughput should be approximately 571 MiB/s, got {}",
-        comp3_mibs
+        "COMP-3 throughput should be approximately 571 MiB/s, got {comp3_mibs}"
     );
 
     Ok(())
@@ -259,8 +257,8 @@ fn test_json_output_generation_from_benchmarks() -> Result<(), Box<dyn std::erro
 
     // Generate JSON output
     let json_output = serde_json::json!({
-        "display_gibs": format!("{:.2}", display_gibs).parse::<f64>()?,
-        "comp3_mibs": format!("{:.1}", comp3_mibs).parse::<f64>()?,
+        "display_gibs": format!("{display_gibs:.2}").parse::<f64>()?,
+        "comp3_mibs": format!("{comp3_mibs:.1}").parse::<f64>()?,
         "warnings": Vec::<String>::new(),
         "errors": Vec::<String>::new(),
         "_metadata": {
@@ -367,25 +365,21 @@ fn test_performance_threshold_enforcement() -> Result<(), Box<dyn std::error::Er
 
     if display_gibs < display_floor_gibs {
         errors.push(format!(
-            "DISPLAY throughput {:.2} GiB/s below floor",
-            display_gibs
+            "DISPLAY throughput {display_gibs:.2} GiB/s below floor"
         ));
     } else if display_gibs < display_floor_gibs * 1.25 {
         warnings.push(format!(
-            "DISPLAY throughput {:.2} GiB/s approaching floor",
-            display_gibs
+            "DISPLAY throughput {display_gibs:.2} GiB/s approaching floor"
         ));
     }
 
     if comp3_mibs < comp3_floor_mibs {
         errors.push(format!(
-            "COMP-3 throughput {:.1} MiB/s below floor",
-            comp3_mibs
+            "COMP-3 throughput {comp3_mibs:.1} MiB/s below floor"
         ));
     } else if comp3_mibs < comp3_floor_mibs * 1.25 {
         warnings.push(format!(
-            "COMP-3 throughput {:.1} MiB/s approaching floor",
-            comp3_mibs
+            "COMP-3 throughput {comp3_mibs:.1} MiB/s approaching floor"
         ));
     }
 

@@ -152,7 +152,7 @@ impl SloValidator {
             ComplianceLevel::FullyCompliant
         };
 
-        let performance_assessment = self.assess_performance(&safety_margins);
+        let performance_assessment = Self::assess_performance(&safety_margins);
 
         SloValidationResult {
             passed: errors.is_empty(),
@@ -164,7 +164,7 @@ impl SloValidator {
         }
     }
 
-    fn assess_performance(&self, safety_margins: &SafetyMargins) -> PerformanceAssessment {
+    fn assess_performance(safety_margins: &SafetyMargins) -> PerformanceAssessment {
         let scalability_rating = match safety_margins.overall_safety_score {
             x if x > 50.0 => ScalabilityRating::Excellent,
             x if x > 10.0 => ScalabilityRating::Good,
@@ -575,8 +575,10 @@ fn test_scalability_rating_assignment() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn test_performance_variance_tolerance() -> Result<(), Box<dyn std::error::Error>> {
     // AC:AC6 - Verify performance variance tolerance (2% maximum)
-    let mut config = SloConfiguration::default();
-    config.variance_tolerance = 0.02; // 2%
+    let config = SloConfiguration {
+        variance_tolerance: 0.02, // 2%
+        ..SloConfiguration::default()
+    };
 
     let validator = SloValidator::with_config(config);
 

@@ -337,10 +337,13 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 name = "copybook-bench"
 version = "0.3.1"
 dependencies = [
+ "anyhow",
+ "chrono",
  "copybook-codec",
  "copybook-core",
  "criterion",
  "num_cpus",
+ "serde",
  "serde_json",
  "sha2",
 ]

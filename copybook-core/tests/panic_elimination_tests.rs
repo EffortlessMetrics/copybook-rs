@@ -20,13 +20,14 @@
 /// - AC4: Performance impact <5% on enterprise benchmarks
 /// - AC7: Comprehensive test coverage with // AC:ID tags
 /// - AC10: Memory safety preserved with zero unsafe code
-use copybook_core::{ErrorCode, parse_copybook, Field, Schema};
+use copybook_core::{ErrorCode, Field, Schema, parse_copybook};
 
 /// Helper function to count all fields recursively in a hierarchical schema
 fn count_all_fields(fields: &[Field]) -> usize {
-    fields.iter().map(|field| {
-        1 + count_all_fields(&field.children)
-    }).sum()
+    fields
+        .iter()
+        .map(|field| 1 + count_all_fields(&field.children))
+        .sum()
 }
 
 /// Helper function to count all fields in a schema
@@ -311,7 +312,9 @@ mod panic_elimination_layout_tests {
         );
 
         assert!(
-            error.message.contains("DEPENDING ON") || error.message.contains("MISSING-COUN") || error.message.contains("COUNTER"),
+            error.message.contains("DEPENDING ON")
+                || error.message.contains("MISSING-COUN")
+                || error.message.contains("COUNTER"),
             "Error should reference ODO counter issue: {}",
             error.message
         );

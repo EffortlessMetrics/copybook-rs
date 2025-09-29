@@ -568,7 +568,8 @@ impl BenchmarkErrorHandler {
                 }
                 EscalationTrigger::CriticalError => {
                     if let Some(last_error) = self.error_history.last()
-                        && last_error.severity == ErrorSeverity::Critical {
+                        && last_error.severity == ErrorSeverity::Critical
+                    {
                         // Would trigger immediate escalation
                     }
                 }

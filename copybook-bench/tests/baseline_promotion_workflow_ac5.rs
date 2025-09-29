@@ -130,6 +130,15 @@ impl BaselineManager {
         Self::default()
     }
 
+    /// Promotes a performance baseline to production.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BaselinePromotionError` in the following cases:
+    /// - `ValidationFailed`: Performance data contains errors or warnings
+    /// - `PerformanceFloorViolation`: Performance metrics don't meet minimum requirements
+    /// - `InvalidGitCommit`: Git commit hash is invalid or empty
+    /// - `StorageError`: Failed to store baseline data
     pub fn promote_baseline(
         &mut self,
         pr_number: u32,
@@ -173,15 +182,22 @@ impl BaselineManager {
         Ok(baseline_id)
     }
 
+    /// Validates that performance data meets criteria for baseline promotion.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BaselinePromotionError` in the following cases:
+    /// - `ValidationFailed`: Performance data contains errors or warnings
+    /// - `PerformanceFloorViolation`: Performance metrics don't meet minimum requirements
     pub fn validate_promotion_criteria(
         &self,
         performance_data: &PerformanceData,
     ) -> Result<(), BaselinePromotionError> {
         // Must have no errors
         if !performance_data.errors.is_empty() {
+            let error_count = performance_data.errors.len();
             return Err(BaselinePromotionError::ValidationFailed(format!(
-                "Cannot promote baseline with {} errors",
-                performance_data.errors.len()
+                "Cannot promote baseline with {error_count} errors"
             )));
         }
 
@@ -287,15 +303,15 @@ impl std::fmt::Display for BaselinePromotionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BaselinePromotionError::ValidationFailed(msg) => {
-                write!(f, "Validation failed: {}", msg)
+                write!(f, "Validation failed: {msg}")
             }
             BaselinePromotionError::PerformanceFloor(msg) => {
-                write!(f, "Performance floor violation: {}", msg)
+                write!(f, "Performance floor violation: {msg}")
             }
             BaselinePromotionError::GitCommitInvalid(msg) => {
-                write!(f, "Invalid git commit: {}", msg)
+                write!(f, "Invalid git commit: {msg}")
             }
-            BaselinePromotionError::StorageError(msg) => write!(f, "Storage error: {}", msg),
+            BaselinePromotionError::StorageError(msg) => write!(f, "Storage error: {msg}"),
         }
     }
 }
@@ -633,7 +649,7 @@ fn test_baseline_versioning_patterns() -> Result<(), Box<dyn std::error::Error>>
     for (i, commit) in test_commits.iter().enumerate() {
         let pr_number = (i + 1) as u32;
         let baseline_id =
-            manager.promote_baseline(pr_number, commit.to_string(), &performance_data)?;
+            manager.promote_baseline(pr_number, (*commit).to_string(), &performance_data)?;
 
         // Verify baseline ID follows pattern
         let expected_id = format!("main-{}", &commit[..8]);

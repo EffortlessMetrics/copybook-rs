@@ -679,7 +679,8 @@ impl AuditTrail {
 
     fn update_integrity_hash(&mut self) {
         // Simplified hash update for test scaffolding
-        self.integrity_hash = format!("hash_{}", self.entries.len());
+        let len = self.entries.len();
+        self.integrity_hash = format!("hash_{len}");
     }
 }
 
@@ -694,10 +695,10 @@ pub enum AuditError {
 impl std::fmt::Display for AuditError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AuditError::DataCollectionError(msg) => write!(f, "Data collection error: {}", msg),
-            AuditError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
-            AuditError::ReportGenerationError(msg) => write!(f, "Report generation error: {}", msg),
-            AuditError::ComplianceError(msg) => write!(f, "Compliance error: {}", msg),
+            AuditError::DataCollectionError(msg) => write!(f, "Data collection error: {msg}"),
+            AuditError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
+            AuditError::ReportGenerationError(msg) => write!(f, "Report generation error: {msg}"),
+            AuditError::ComplianceError(msg) => write!(f, "Compliance error: {msg}"),
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Test scaffolding for Issue #52 AC8: Error handling and comprehensive validation
 //!
 //! Tests feature spec: issue-52-spec.md#AC8
-//! Validates machine-readable reports capture benchmark warnings and errors with proper anyhow::Result<T> patterns
+//! Validates machine-readable reports capture benchmark warnings and errors with proper `anyhow::Result<T>` patterns
 
 #![allow(clippy::expect_used)] // Test code: expects are acceptable for test assertions
 #![allow(clippy::unwrap_used)] // Test code: unwraps are acceptable for test assertions
@@ -53,63 +53,63 @@ impl std::fmt::Display for BenchmarkReportingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BenchmarkReportingError::JsonGenerationError(msg) => {
-                write!(f, "JSON generation failed: {}", msg)
+                write!(f, "JSON generation failed: {msg}")
             }
             BenchmarkReportingError::JsonSchemaValidationError(msg) => {
-                write!(f, "JSON schema validation failed: {}", msg)
+                write!(f, "JSON schema validation failed: {msg}")
             }
             BenchmarkReportingError::JsonSerializationError(msg) => {
-                write!(f, "JSON serialization failed: {}", msg)
+                write!(f, "JSON serialization failed: {msg}")
             }
             BenchmarkReportingError::BenchmarkExecutionError(msg) => {
-                write!(f, "Benchmark execution failed: {}", msg)
+                write!(f, "Benchmark execution failed: {msg}")
             }
             BenchmarkReportingError::BenchmarkTimeoutError(duration) => {
-                write!(f, "Benchmark timed out after {:?}", duration)
+                write!(f, "Benchmark timed out after {duration:?}")
             }
             BenchmarkReportingError::BenchmarkDataCorruptionError(msg) => {
-                write!(f, "Benchmark data corruption detected: {}", msg)
+                write!(f, "Benchmark data corruption detected: {msg}")
             }
             BenchmarkReportingError::PerformanceExtractionError(msg) => {
-                write!(f, "Performance data extraction failed: {}", msg)
+                write!(f, "Performance data extraction failed: {msg}")
             }
             BenchmarkReportingError::MetricsCalculationError(msg) => {
-                write!(f, "Metrics calculation failed: {}", msg)
+                write!(f, "Metrics calculation failed: {msg}")
             }
             BenchmarkReportingError::StatisticalAnalysisError(msg) => {
-                write!(f, "Statistical analysis failed: {}", msg)
+                write!(f, "Statistical analysis failed: {msg}")
             }
-            BenchmarkReportingError::GithubApiError(msg) => write!(f, "GitHub API error: {}", msg),
+            BenchmarkReportingError::GithubApiError(msg) => write!(f, "GitHub API error: {msg}"),
             BenchmarkReportingError::PrCommentPostingError(msg) => {
-                write!(f, "PR comment posting failed: {}", msg)
+                write!(f, "PR comment posting failed: {msg}")
             }
             BenchmarkReportingError::BaselinePromotionError(msg) => {
-                write!(f, "Baseline promotion failed: {}", msg)
+                write!(f, "Baseline promotion failed: {msg}")
             }
             BenchmarkReportingError::SloValidationError(msg) => {
-                write!(f, "SLO validation failed: {}", msg)
+                write!(f, "SLO validation failed: {msg}")
             }
             BenchmarkReportingError::ComplianceValidationError(msg) => {
-                write!(f, "Compliance validation failed: {}", msg)
+                write!(f, "Compliance validation failed: {msg}")
             }
             BenchmarkReportingError::DataValidationError(msg) => {
-                write!(f, "Data validation failed: {}", msg)
+                write!(f, "Data validation failed: {msg}")
             }
             BenchmarkReportingError::FileSystemError(msg) => {
-                write!(f, "File system error: {}", msg)
+                write!(f, "File system error: {msg}")
             }
-            BenchmarkReportingError::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            BenchmarkReportingError::NetworkError(msg) => write!(f, "Network error: {msg}"),
             BenchmarkReportingError::ConfigurationError(msg) => {
-                write!(f, "Configuration error: {}", msg)
+                write!(f, "Configuration error: {msg}")
             }
             BenchmarkReportingError::AuditReportGenerationError(msg) => {
-                write!(f, "Audit report generation failed: {}", msg)
+                write!(f, "Audit report generation failed: {msg}")
             }
             BenchmarkReportingError::ComplianceFrameworkError(msg) => {
-                write!(f, "Compliance framework error: {}", msg)
+                write!(f, "Compliance framework error: {msg}")
             }
             BenchmarkReportingError::EvidenceCollectionError(msg) => {
-                write!(f, "Evidence collection failed: {}", msg)
+                write!(f, "Evidence collection failed: {msg}")
             }
         }
     }
@@ -225,14 +225,12 @@ impl PerformanceMetrics {
         if let Some(display) = self.display_gibs {
             if display < 0.0 {
                 return Err(BenchmarkReportingError::MetricsCalculationError(format!(
-                    "Invalid DISPLAY throughput: {}",
-                    display
+                    "Invalid DISPLAY throughput: {display}"
                 )));
             }
             if display > 100.0 {
                 return Err(BenchmarkReportingError::MetricsCalculationError(format!(
-                    "Unrealistic DISPLAY throughput: {} GiB/s",
-                    display
+                    "Unrealistic DISPLAY throughput: {display} GiB/s"
                 )));
             }
         }

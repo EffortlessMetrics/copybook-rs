@@ -194,9 +194,7 @@ fn test_warnings_array_functionality() -> Result<(), Box<dyn std::error::Error>>
 
     for (i, warning) in warnings.iter().enumerate() {
         assert_eq!(
-            json_warnings[i]
-                .as_str()
-                .expect("warning must be a string"),
+            json_warnings[i].as_str().expect("warning must be a string"),
             warning,
             "Warning message {} must be preserved",
             i
@@ -223,9 +221,7 @@ fn test_errors_array_functionality() -> Result<(), Box<dyn std::error::Error>> {
         .as_object()
         .expect("JSON value must be an object");
 
-    let json_errors = obj["errors"]
-        .as_array()
-        .expect("errors must be an array");
+    let json_errors = obj["errors"].as_array().expect("errors must be an array");
     assert_eq!(
         json_errors.len(),
         errors.len(),
@@ -234,9 +230,7 @@ fn test_errors_array_functionality() -> Result<(), Box<dyn std::error::Error>> {
 
     for (i, error) in errors.iter().enumerate() {
         assert_eq!(
-            json_errors[i]
-                .as_str()
-                .expect("error must be a string"),
+            json_errors[i].as_str().expect("error must be a string"),
             error,
             "Error message {} must be preserved",
             i
@@ -265,17 +259,19 @@ fn test_json_serialization_roundtrip() -> Result<(), Box<dyn std::error::Error>>
         .expect("parsed value must be an object");
 
     // Verify all fields are preserved
-    assert_eq!(
-        parsed_obj["display_gibs"]
-            .as_f64()
-            .expect("display_gibs must be a valid f64"),
-        4.22
+    let display_gibs = parsed_obj["display_gibs"]
+        .as_f64()
+        .expect("display_gibs must be a valid f64");
+    assert!(
+        (display_gibs - 4.22).abs() < f64::EPSILON,
+        "display_gibs expected 4.22, got {display_gibs}"
     );
-    assert_eq!(
-        parsed_obj["comp3_mibs"]
-            .as_f64()
-            .expect("comp3_mibs must be a valid f64"),
-        571.0
+    let comp3_mibs = parsed_obj["comp3_mibs"]
+        .as_f64()
+        .expect("comp3_mibs must be a valid f64");
+    assert!(
+        (comp3_mibs - 571.0).abs() < f64::EPSILON,
+        "comp3_mibs expected 571.0, got {comp3_mibs}"
     );
     assert_eq!(
         parsed_obj["warnings"]
@@ -337,9 +333,7 @@ fn test_performance_values_enterprise_ranges() -> Result<(), Box<dyn std::error:
     for (display, comp3) in floor_scenarios {
         let schema = PerformanceReportSchema::new(display, comp3);
         let json = schema.to_json()?;
-        let obj = json
-            .as_object()
-            .expect("JSON value must be an object");
+        let obj = json.as_object().expect("JSON value must be an object");
 
         assert!(
             obj["display_gibs"]
@@ -403,9 +397,7 @@ fn test_empty_arrays_handling() -> Result<(), Box<dyn std::error::Error>> {
     let warnings = obj["warnings"]
         .as_array()
         .expect("warnings must be an array");
-    let errors = obj["errors"]
-        .as_array()
-        .expect("errors must be an array");
+    let errors = obj["errors"].as_array().expect("errors must be an array");
 
     assert!(
         warnings.is_empty(),

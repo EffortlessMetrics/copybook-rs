@@ -601,7 +601,8 @@ fn test_ac6_enterprise_end_to_end_performance() {
     println!("   Total parse time: {:.2}ms", total_parse_time);
     println!("   Max memory usage: {} KiB", max_memory_usage);
     println!("   Min throughput: {:.2} MB/s", min_throughput);
-    println!("   Fixtures processed: {}", enterprise_fixtures.len());
+    let fixtures_count = enterprise_fixtures.len();
+    println!("   Fixtures processed: {fixtures_count}");
 }
 
 /// AC6 Robust: Stable performance validation with appropriate fixture size
@@ -713,7 +714,8 @@ fn test_ac6_comprehensive_coverage() {
         ac6_fixtures.len()
     );
     for (i, fixture) in ac6_fixtures.iter().enumerate() {
-        println!("   {}. {}", i + 1, fixture);
+        let index = i + 1;
+        println!("   {index}. {fixture}");
     }
 
     // Validate fixture naming consistency

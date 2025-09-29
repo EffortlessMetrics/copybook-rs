@@ -242,7 +242,7 @@ mod panic_elimination_benchmark_execution_tests {
         for (scenario_name, baseline) in baseline_scenarios {
             // Mock current performance measurements
             let current_performance = BenchmarkResult {
-                name: format!("test_{}", scenario_name),
+                name: format!("test_{scenario_name}"),
                 duration: Duration::from_millis(100),
                 iterations: 1000,
                 throughput: Some(2.0),                 // 2 GiB/s throughput
@@ -566,7 +566,7 @@ mod panic_elimination_benchmark_execution_tests {
 
                     for i in 0..benchmark_count {
                         let execution_result = execute_benchmark_with_resources_safely(
-                            &format!("{}_{}", scenario_name, i),
+                            &format!("{scenario_name}_{i}"),
                             benchmark_duration,
                             &resources,
                         );
@@ -671,7 +671,7 @@ mod panic_elimination_performance_tests {
 
         for i in 0..10 {
             let measurement_result =
-                execute_benchmark_safely(&format!("accuracy_test_{}", i), &accuracy_config);
+                execute_benchmark_safely(&format!("accuracy_test_{i}"), &accuracy_config);
 
             match measurement_result {
                 Ok(result) => {
@@ -940,7 +940,10 @@ fn aggregate_benchmark_results_safely(
     };
 
     Ok(AggregatedResults {
-        summary: format!("Aggregated {} results", results.len()),
+        summary: {
+            let len = results.len();
+            format!("Aggregated {len} results")
+        },
         mean_throughput,
         mean_memory_usage,
     })

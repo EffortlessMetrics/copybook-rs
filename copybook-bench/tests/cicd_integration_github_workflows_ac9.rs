@@ -393,7 +393,10 @@ impl CicdPipelineIntegrator {
         _benchmark_result: &BenchmarkExecutionResult,
     ) -> Result<AuditReportResult, CicdIntegrationError> {
         Ok(AuditReportResult {
-            audit_id: format!("AUDIT-{}", self.workflow_context.run_id),
+            audit_id: {
+                let run_id = self.workflow_context.run_id;
+                format!("AUDIT-{run_id}")
+            },
             generated_at: SystemTime::now(),
             report_size_bytes: 50000, // Mock size
             compliance_score: 0.95,
@@ -579,34 +582,34 @@ impl std::fmt::Display for CicdIntegrationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CicdIntegrationError::EnvironmentVariableError(msg) => {
-                write!(f, "Environment variable error: {}", msg)
+                write!(f, "Environment variable error: {msg}")
             }
             CicdIntegrationError::EnvironmentValidationError(msg) => {
-                write!(f, "Environment validation error: {}", msg)
+                write!(f, "Environment validation error: {msg}")
             }
             CicdIntegrationError::WorkspaceValidationError(msg) => {
-                write!(f, "Workspace validation error: {}", msg)
+                write!(f, "Workspace validation error: {msg}")
             }
             CicdIntegrationError::BenchmarkExecutionError(msg) => {
-                write!(f, "Benchmark execution error: {}", msg)
+                write!(f, "Benchmark execution error: {msg}")
             }
             CicdIntegrationError::JsonGenerationError(msg) => {
-                write!(f, "JSON generation error: {}", msg)
+                write!(f, "JSON generation error: {msg}")
             }
             CicdIntegrationError::PrCommentPostingError(msg) => {
-                write!(f, "PR comment posting error: {}", msg)
+                write!(f, "PR comment posting error: {msg}")
             }
             CicdIntegrationError::BaselinePromotionError(msg) => {
-                write!(f, "Baseline promotion error: {}", msg)
+                write!(f, "Baseline promotion error: {msg}")
             }
             CicdIntegrationError::AuditReportGenerationError(msg) => {
-                write!(f, "Audit report generation error: {}", msg)
+                write!(f, "Audit report generation error: {msg}")
             }
             CicdIntegrationError::PrNumberExtractionError(msg) => {
-                write!(f, "PR number extraction error: {}", msg)
+                write!(f, "PR number extraction error: {msg}")
             }
             CicdIntegrationError::ArtifactCollectionError(msg) => {
-                write!(f, "Artifact collection error: {}", msg)
+                write!(f, "Artifact collection error: {msg}")
             }
         }
     }
@@ -758,7 +761,7 @@ fn test_benchmark_execution_integration() -> Result<(), Box<dyn std::error::Erro
     // AC:AC9 - Verify benchmark execution integration
 
     let context = GitHubWorkflowContext::mock_pull_request();
-    let _integrator = CicdPipelineIntegrator::new(context);
+    let integrator = CicdPipelineIntegrator::new(context);
 
     // Test benchmark execution (mocked)
     let benchmark_result = integrator.execute_benchmarks()?;
@@ -820,7 +823,7 @@ fn test_json_report_generation_integration() -> Result<(), Box<dyn std::error::E
     // AC:AC9 - Verify JSON report generation integration
 
     let context = GitHubWorkflowContext::mock_pull_request();
-    let _integrator = CicdPipelineIntegrator::new(context);
+    let integrator = CicdPipelineIntegrator::new(context);
 
     // Mock benchmark result
     let benchmark_result = integrator.execute_benchmarks()?;
@@ -987,7 +990,7 @@ fn test_artifact_collection() -> Result<(), Box<dyn std::error::Error>> {
     // AC:AC9 - Verify artifact collection
 
     let context = GitHubWorkflowContext::mock_pull_request();
-    let _integrator = CicdPipelineIntegrator::new(context);
+    let integrator = CicdPipelineIntegrator::new(context);
 
     // Collect artifacts
     let artifacts = integrator.collect_artifacts()?;

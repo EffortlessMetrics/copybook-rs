@@ -426,7 +426,7 @@ impl EndToEndWorkflowOrchestrator {
                 comp3_margin: benchmark_metrics.comp3_mibs / 40.0,
                 overall_score: f64::midpoint(
                     (benchmark_metrics.display_gibs * 1073.74) / 80.0,
-                    benchmark_metrics.comp3_mibs / 40.0
+                    benchmark_metrics.comp3_mibs / 40.0,
                 ),
             },
             slo_compliance: benchmark_metrics.slo_compliance,
@@ -836,33 +836,33 @@ impl std::fmt::Display for WorkflowExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             WorkflowExecutionError::InitializationError(msg) => {
-                write!(f, "Initialization error: {}", msg)
+                write!(f, "Initialization error: {msg}")
             }
             WorkflowExecutionError::BenchmarkExecutionError(msg) => {
-                write!(f, "Benchmark execution error: {}", msg)
+                write!(f, "Benchmark execution error: {msg}")
             }
             WorkflowExecutionError::PerformanceFloorViolation(msg) => {
-                write!(f, "Performance floor violation: {}", msg)
+                write!(f, "Performance floor violation: {msg}")
             }
             WorkflowExecutionError::JsonGenerationError(msg) => {
-                write!(f, "JSON generation error: {}", msg)
+                write!(f, "JSON generation error: {msg}")
             }
-            WorkflowExecutionError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
-            WorkflowExecutionError::PrCommentError(msg) => write!(f, "PR comment error: {}", msg),
+            WorkflowExecutionError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
+            WorkflowExecutionError::PrCommentError(msg) => write!(f, "PR comment error: {msg}"),
             WorkflowExecutionError::BaselinePromotionError(msg) => {
-                write!(f, "Baseline promotion error: {}", msg)
+                write!(f, "Baseline promotion error: {msg}")
             }
             WorkflowExecutionError::AuditReportError(msg) => {
-                write!(f, "Audit report error: {}", msg)
+                write!(f, "Audit report error: {msg}")
             }
             WorkflowExecutionError::DocumentationError(msg) => {
-                write!(f, "Documentation error: {}", msg)
+                write!(f, "Documentation error: {msg}")
             }
             WorkflowExecutionError::EnvironmentError(msg) => {
-                write!(f, "Environment error: {}", msg)
+                write!(f, "Environment error: {msg}")
             }
             WorkflowExecutionError::ConfigurationError(msg) => {
-                write!(f, "Configuration error: {}", msg)
+                write!(f, "Configuration error: {msg}")
             }
         }
     }
@@ -944,7 +944,11 @@ impl ExecutionContext {
                     .unwrap_or_default()
                     .as_secs()
             ),
-            execution_id: format!("exec-{}", uuid::Uuid::new_v4().to_string()[..8].to_string()),
+            execution_id: {
+                let uuid_str = uuid::Uuid::new_v4().to_string();
+                let short_uuid = &uuid_str[..8];
+                format!("exec-{short_uuid}")
+            },
             started_at: SystemTime::now(),
             environment: EnvironmentContext {
                 platform: std::env::consts::OS.to_string(),

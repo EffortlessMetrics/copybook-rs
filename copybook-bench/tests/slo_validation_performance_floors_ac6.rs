@@ -485,7 +485,12 @@ fn test_scalability_rating_assignment() -> Result<(), Box<dyn std::error::Error>
         // DISPLAY: 4.22 * 1073.74 = 4531 MB/s -> 4531/80 = 56.6x
         // COMP-3: 571 MiB/s -> 571/40 = 14.3x
         // Overall: (56.6 + 14.3) / 2 = 35.45x -> Good (10-50)
-        (4.22, 571.0, ScalabilityRating::Good, "current_performance_good"),
+        (
+            4.22,
+            571.0,
+            ScalabilityRating::Good,
+            "current_performance_good",
+        ),
         (
             0.5,
             200.0,
@@ -632,9 +637,9 @@ fn test_comprehensive_slo_validation() -> Result<(), Box<dyn std::error::Error>>
 
     // Test comprehensive enterprise scenario with Excellent performance
     // Need reliability > 0.8, so overall safety score needs to be > 80
-    let display_gibs = 8.0;   // Will achieve 107.3x safety factor (8*1073.74/80)
-    let comp3_mibs = 2500.0;  // Will achieve 62.5x safety factor (2500/40)
-                              // Overall: (107.3 + 62.5) / 2 = 84.9x -> reliability = 0.849 > 0.8
+    let display_gibs = 8.0; // Will achieve 107.3x safety factor (8*1073.74/80)
+    let comp3_mibs = 2500.0; // Will achieve 62.5x safety factor (2500/40)
+    // Overall: (107.3 + 62.5) / 2 = 84.9x -> reliability = 0.849 > 0.8
 
     let result = validator.validate_performance_floors(display_gibs, comp3_mibs);
 

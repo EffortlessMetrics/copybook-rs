@@ -113,8 +113,9 @@ impl PrCommentGenerator {
         if warnings.is_empty() {
             String::new()
         } else {
-            let formatted: Vec<String> = warnings.iter().map(|w| format!("- {}", w)).collect();
-            format!("\n\n**⚠️ Warnings**:\n{}", formatted.join("\n"))
+            let formatted: Vec<String> = warnings.iter().map(|w| format!("- {w}")).collect();
+            let formatted_str = formatted.join("\n");
+            format!("\n\n**⚠️ Warnings**:\n{formatted_str}")
         }
     }
 
@@ -122,8 +123,9 @@ impl PrCommentGenerator {
         if errors.is_empty() {
             String::new()
         } else {
-            let formatted: Vec<String> = errors.iter().map(|e| format!("- {}", e)).collect();
-            format!("\n\n**❌ Errors**:\n{}", formatted.join("\n"))
+            let formatted: Vec<String> = errors.iter().map(|e| format!("- {e}")).collect();
+            let formatted_str = formatted.join("\n");
+            format!("\n\n**❌ Errors**:\n{formatted_str}")
         }
     }
 }

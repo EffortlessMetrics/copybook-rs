@@ -2314,7 +2314,8 @@ mod tests {
                 );
 
                 for failed_gate in failed_gates {
-                    println!("  Failed gate: {}", failed_gate.gate_name);
+                    let gate_name = &failed_gate.gate_name;
+                    println!("  Failed gate: {gate_name}");
                     assert!(
                         matches!(failed_gate.enforcement_action, EnforcementAction::Block),
                         "Failed gates should block the build"
@@ -2485,7 +2486,7 @@ mod tests {
         let baseline_id = comprehensive_detector
             .establish_baseline(&comprehensive_baseline_metrics, &comprehensive_environment)?;
 
-        println!("Baseline established: {}", baseline_id);
+        println!("Baseline established: {baseline_id}");
 
         // Phase 2: Test various regression scenarios
         println!("Phase 2: Testing regression detection across various scenarios...");

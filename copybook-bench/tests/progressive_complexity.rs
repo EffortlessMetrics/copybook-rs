@@ -196,7 +196,7 @@ fn test_benchmark_naming_convention() {  // AC4
         ("1MB", 1_048_576),
     ];
 
-    for (label, size) in SIZES {
+    for (label, _size) in SIZES {
         let bench_name = format!("progressive_decode_{}", label);
         assert!(bench_name.starts_with("progressive_"), "Benchmark name must start with progressive_");
         assert!(bench_name.contains(label), "Benchmark name must include size label");

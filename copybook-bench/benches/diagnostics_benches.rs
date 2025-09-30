@@ -17,7 +17,6 @@
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 use criterion::{criterion_group, criterion_main, Criterion};
-use std::path::PathBuf;
 
 /// AC5: Diagnostic benchmark for JSON parsing overhead
 ///

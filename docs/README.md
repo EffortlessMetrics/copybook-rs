@@ -1,0 +1,369 @@
+# copybook-rs Documentation Index
+
+## Overview
+
+This directory contains comprehensive documentation for copybook-rs enterprise mainframe data processing system, organized following the [Diátaxis documentation framework](https://diataxis.fr/).
+
+**Production Status**: Ready for enterprise mainframe deployments
+**Performance**: DISPLAY 2.33+ GiB/s, COMP-3 168-176 MiB/s (exceeds enterprise targets)
+**Quality**: 458+ tests passing, zero unsafe code, comprehensive error taxonomy
+
+---
+
+## Documentation Categories
+
+### 📚 Tutorials (Learning-Oriented)
+
+Step-by-step lessons for beginners learning copybook-rs.
+
+- **[Getting Started](tutorials/getting-started.md)** - Quick start guide for COBOL data processing
+- **[Enterprise Deployment](tutorials/enterprise-deployment.md)** - Production deployment guide
+
+### 🔧 How-To Guides (Task-Oriented)
+
+Practical guides for accomplishing specific tasks.
+
+- **[Error Handling in Production](how-to/error-handling-production.md)** - Structured error handling patterns
+- **[Performance Optimization](how-to/performance-optimization.md)** - COBOL data processing optimization techniques
+- **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** ⭐ **NEW** - Performance validation workflows (Issue #49)
+
+### 💡 Explanation (Understanding-Oriented)
+
+Conceptual documentation explaining architecture and design decisions.
+
+- **[Panic Elimination Architecture](explanation/panic-elimination-architecture.md)** - Enterprise production safety design
+- **[Enterprise Audit API Contracts](explanation/enterprise-audit-api-contracts.md)** - Audit system architecture
+- **[Benchmark Reporting Architecture](explanation/benchmark-reporting-architecture.md)** - Machine-readable performance monitoring (Issue #52)
+- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** ⭐ **NEW** - Regression detection and CI integration (Issue #49)
+
+### 📖 Reference (Information-Oriented)
+
+Technical specifications and API documentation.
+
+- **[Error Codes](reference/ERROR_CODES.md)** - Complete error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*)
+- **[Library API](reference/LIBRARY_API.md)** - Rust API reference
+- **[CLI Examples](reference/CLI_EXAMPLES.md)** - Command-line interface reference
+- **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** ⭐ **NEW** - Performance monitoring APIs (Issue #49)
+
+---
+
+## Issue-Specific Documentation
+
+### Issue #49: Performance Regression Monitoring ⭐ **NEW**
+
+**Status**: SPECIFICATION COMPLETE - Ready for TDD implementation
+**Priority**: AC2 (Baseline Reconciliation) FIRST, then AC1/AC3/AC4/AC5
+
+**Core Documents**:
+1. **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design rationale
+2. **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** - API specifications and contracts
+3. **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** - Step-by-step implementation guide
+4. **[Traceability Matrix](issue-49-traceability-matrix.md)** - AC-to-specification mapping
+
+**Supporting Documents**:
+- `docs/performance-measurement-methodology.md` - Baseline establishment procedures (created during AC2)
+- `docs/troubleshooting-performance.md` - Diagnostic procedures (created during AC5)
+
+**Acceptance Criteria Coverage**:
+- **AC1**: Regression Detection Validation (>5% WARNING, >10% FAILURE)
+- **AC2**: Performance Baseline Reconciliation (PRIORITY 1 - CRITICAL PATH)
+- **AC3**: CI Regression Gating Validation (PR comments, baseline promotion)
+- **AC4**: Progressive Complexity Testing (developer optimization workflows)
+- **AC5**: Enhanced Diagnostics and Monitoring (health checks, verbose logging)
+
+**Implementation Path**: AC2 → AC1 → AC3 → AC4 → AC5
+
+### Issue #52: Machine-Readable Benchmark Reporting (Foundation)
+
+**Status**: IMPLEMENTED (PR #67 merged)
+
+**Documents**:
+- **[Benchmark Reporting Architecture](explanation/benchmark-reporting-architecture.md)** - System design and JSON schema
+- **[ADR-001: Benchmark Reporting Infrastructure](adr/adr-001-benchmark-reporting-infrastructure.md)** - Architecture decision record
+
+**Key Deliverables**:
+- `PerformanceReport` JSON schema
+- `BaselineStore` with 90-day retention
+- `bench-report` CLI tool
+- GitHub Actions integration
+
+### Issue #63: Panic Elimination (Enterprise Safety)
+
+**Status**: IMPLEMENTED (PR #65 merged)
+
+**Documents**:
+- **[Panic Elimination Architecture](explanation/panic-elimination-architecture.md)** - Zero-panic enterprise safety design
+- **[ADR-003: Panic Elimination Enterprise Safety](adr/adr-003-panic-elimination-enterprise-safety.md)** - Design decisions
+- **[Technical Specification](issue-63-technical-specification.md)** - Complete requirements
+
+---
+
+## Architecture Decision Records (ADRs)
+
+Rationale for significant architectural decisions.
+
+### Benchmark and Performance
+- **[ADR-001: Benchmark Reporting Infrastructure](adr/adr-001-benchmark-reporting-infrastructure.md)** - Machine-readable performance monitoring design (Issue #52)
+- **[ADR-002: Performance Validation Strategy](adr/ADR-002-performance-validation-strategy.md)** - Performance testing approach
+- **[ADR-003: Performance Optimization Strategy](adr/ADR-003-performance-optimization-strategy.md)** - Optimization techniques
+
+### Enterprise Safety and Audit
+- **[ADR-001: Audit Event Schema Design](adr/ADR-001-audit-event-schema-design.md)** - Enterprise audit system architecture
+- **[ADR-002: Cryptographic Integrity Implementation](adr/ADR-002-cryptographic-integrity-implementation.md)** - Data integrity validation
+- **[ADR-003: Panic Elimination Enterprise Safety](adr/adr-003-panic-elimination-enterprise-safety.md)** - Zero-panic production design
+
+### Data Validation
+- **[ADR-003: Binary Fidelity Validation](adr/ADR-003-binary-fidelity-validation.md)** - Round-trip data validation
+- **[ADR-004: Multi-Framework Compliance Engine](adr/ADR-004-multi-framework-compliance-engine.md)** - Regulatory compliance architecture
+
+---
+
+## Specifications and Technical Documentation
+
+### Feature Specifications
+- **[Issue #49 Specification](issue-49-spec.md)** ⭐ **NEW** - Performance regression monitoring requirements
+- **[Issue #49 Traceability Matrix](issue-49-traceability-matrix.md)** ⭐ **NEW** - AC-to-specification mapping
+- **[Issue #52 Specification](issue-52-spec.md)** - Machine-readable benchmark reporting
+- **[Issue #63 Technical Specification](issue-63-technical-specification.md)** - Panic elimination enterprise safety
+
+### Domain Schemas
+- **[Panic Elimination Domain Schemas](panic-elimination-domain-schemas.md)** - Error handling patterns
+- **[Golden Fixtures Specification](specs/golden-fixtures-spec.md)** - Structural validation framework
+- **[Structural Performance Requirements](specs/structural-performance-requirements-spec.md)** - Performance validation
+
+### Implementation Blueprints
+- **[Panic Elimination Implementation Blueprint](panic-elimination-implementation-blueprint.md)** - Detailed implementation guide
+- **[Issue #33 Comprehensive Architectural Blueprint](issue-33-comprehensive-architectural-blueprint.md)** - System architecture
+
+---
+
+## Validation and Compliance
+
+### Production Readiness
+- **[Production Readiness Report](PRODUCTION_READINESS.md)** - Enterprise deployment validation
+- **[Performance Validation Report](../REPORT.md)** - Comprehensive performance analysis
+- **[Golden Fixtures Guide](GOLDEN_FIXTURES_GUIDE.md)** - Structural validation testing
+
+### Quality Assurance
+- **[Architecture Review Report](ARCHITECTURE_REVIEW_REPORT.md)** - System architecture validation
+- **[Troubleshooting Matrix](TROUBLESHOOTING_MATRIX.md)** - Common issues and resolutions
+- **[Binary Round-trip Fidelity](BINARY_ROUNDTRIP_FIDELITY.md)** - Data integrity validation
+
+---
+
+## Enterprise Integration
+
+### Audit and Compliance
+- **[Enterprise Audit API Contracts](enterprise-audit-api-contracts.md)** - Audit system integration
+- **[Enterprise Compliance Guide](enterprise-compliance-guide.md)** - Regulatory compliance procedures
+- **[Audit API Reference](audit-api-reference.md)** - Detailed audit API documentation
+
+### Deployment
+- **[Enterprise Deployment Tutorial](tutorials/enterprise-deployment.md)** - Production deployment guide
+- **[Release Runbook](RELEASE_RUNBOOK.md)** - Release procedures
+- **[Verification Guide](VERIFY.md)** - System validation procedures
+
+---
+
+## Developer Resources
+
+### Development Guides
+- **[Contributing Guide](../CONTRIBUTING.md)** - Contribution guidelines
+- **[Performance Optimization How-To](how-to/performance-optimization.md)** - Optimization techniques
+- **[Error Handling Production Guide](how-to/error-handling-production.md)** - Error handling patterns
+
+### Testing
+- **[Golden Fixtures Guide](GOLDEN_FIXTURES_GUIDE.md)** - Structural validation framework
+- **[Test Suite Enhancement Architecture](explanation/test-suite-enhancement-architecture.md)** - Testing infrastructure
+
+### Benchmarking ⭐ **NEW**
+- **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** - Performance validation workflows (Issue #49)
+- **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)** - Architecture and design (Issue #49)
+- **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** - API specifications (Issue #49)
+
+---
+
+## Quick Navigation
+
+### For Beginners
+1. Start with **[Getting Started Tutorial](tutorials/getting-started.md)**
+2. Read **[Production Readiness Report](PRODUCTION_READINESS.md)**
+3. Review **[CLI Examples](reference/CLI_EXAMPLES.md)**
+
+### For Developers
+1. Review **[Library API Reference](reference/LIBRARY_API.md)**
+2. Study **[Error Codes](reference/ERROR_CODES.md)**
+3. Follow **[Performance Optimization Guide](how-to/performance-optimization.md)**
+4. **⭐ NEW**: Use **[Benchmark Regression Testing](how-to/benchmark-regression-testing.md)** for performance validation
+
+### For Operations Teams
+1. Read **[Enterprise Deployment Tutorial](tutorials/enterprise-deployment.md)**
+2. Review **[Production Readiness Report](PRODUCTION_READINESS.md)**
+3. Study **[Troubleshooting Matrix](TROUBLESHOOTING_MATRIX.md)**
+4. **⭐ NEW**: Monitor performance with **[Performance Regression Monitoring](explanation/performance-regression-monitoring.md)**
+
+### For Architects
+1. Study **[Architecture Decision Records](adr/)**
+2. Review **[Architecture Review Report](ARCHITECTURE_REVIEW_REPORT.md)**
+3. Examine **[Implementation Blueprints](#implementation-blueprints)**
+4. **⭐ NEW**: Understand **[Benchmark API Contracts](reference/benchmark-api-contracts.md)** for performance monitoring
+
+---
+
+## Documentation Standards
+
+### Diátaxis Framework
+
+copybook-rs documentation follows the [Diátaxis framework](https://diataxis.fr/) for systematic documentation:
+
+- **Tutorials**: Learning-oriented lessons for beginners
+- **How-To Guides**: Task-oriented recipes for specific problems
+- **Explanation**: Understanding-oriented clarification of concepts
+- **Reference**: Information-oriented technical specifications
+
+### Documentation Quality Standards
+
+All documentation must meet these standards:
+
+1. **Clarity**: Written in clear, concise language
+2. **Accuracy**: Technically accurate and up-to-date
+3. **Completeness**: Covers all necessary information
+4. **Examples**: Includes concrete examples and code samples
+5. **Traceability**: Links to related issues, PRs, and specifications
+
+### Issue #49 Documentation Standards ⭐ **NEW**
+
+**Comprehensive Specification Coverage**:
+- **Explanation Document**: Architecture and design rationale
+- **Reference Document**: API contracts and specifications
+- **How-To Guide**: Step-by-step implementation procedures
+- **Traceability Matrix**: AC-to-specification mapping
+
+**TDD Integration**:
+- All tests tagged with `// AC:ID` for traceability
+- Test scaffolding documented in traceability matrix
+- Acceptance criteria mapped to test files
+
+**Priority Guidance**:
+- **AC2 (Baseline Reconciliation)**: CRITICAL PATH - Must complete first
+- **AC1 (Regression Detection)**: HIGH - Requires AC2 baseline
+- **AC3 (CI Integration)**: HIGH - Requires AC1 regression detection
+- **AC4 (Progressive Complexity)**: MEDIUM - Independent, developer productivity
+- **AC5 (Enhanced Diagnostics)**: MEDIUM - Independent, troubleshooting support
+
+---
+
+## Recent Updates
+
+### 2025-09-30: Issue #49 Performance Regression Monitoring ⭐ **NEW**
+
+**Added**:
+- `docs/explanation/performance-regression-monitoring.md` - Comprehensive architecture
+- `docs/reference/benchmark-api-contracts.md` - Complete API specifications
+- `docs/how-to/benchmark-regression-testing.md` - Step-by-step implementation guide
+- `docs/issue-49-traceability-matrix.md` - AC-to-specification mapping
+
+**Key Features**:
+- Regression detection thresholds (5% WARNING, 10% FAILURE)
+- Performance baseline reconciliation procedures (AC2 PRIORITY 1)
+- CI integration with PR comments and baseline promotion
+- Progressive complexity testing for developer optimization
+- Enhanced diagnostics with health checks and verbose logging
+
+**Implementation Path**: AC2 → AC1 → AC3 → AC4 → AC5
+
+### 2025-09-29: Issue #52 Machine-Readable Benchmark Reporting (PR #67 Merged)
+
+**Added**:
+- `copybook-bench` reporting infrastructure
+- `bench-report` CLI tool
+- GitHub Actions integration
+- 90-day artifact retention
+
+### 2025-09-24: Issue #63 Panic Elimination (PR #65 Merged)
+
+**Added**:
+- Zero unsafe code enforcement
+- Structured error taxonomy
+- Enterprise production safety
+
+---
+
+## Contributing to Documentation
+
+### Adding New Documentation
+
+1. **Determine Category**: Choose appropriate Diátaxis category
+2. **Create Document**: Follow category-specific template
+3. **Update Index**: Add entry to this README.md
+4. **Link Related Docs**: Add cross-references to related documentation
+5. **Review**: Ensure quality standards met
+
+### Issue-Specific Documentation Template
+
+For new issues requiring comprehensive specifications:
+
+1. **Explanation Document** (`docs/explanation/<topic>.md`):
+   - Architecture overview
+   - Design rationale
+   - System components
+   - Integration points
+
+2. **Reference Document** (`docs/reference/<topic>-api-contracts.md`):
+   - API specifications
+   - Data structures
+   - Error codes
+   - Examples
+
+3. **How-To Guide** (`docs/how-to/<topic>.md`):
+   - Step-by-step procedures
+   - Implementation checklist
+   - Validation evidence
+   - Troubleshooting
+
+4. **Traceability Matrix** (`docs/issue-<N>-traceability-matrix.md`):
+   - AC-to-specification mapping
+   - Test scaffolding
+   - Implementation priority
+   - Success criteria
+
+### Documentation Review Process
+
+1. **Technical Accuracy**: Verify all technical content is correct
+2. **Clarity**: Ensure explanations are clear and understandable
+3. **Completeness**: Check all required sections are present
+4. **Examples**: Validate code examples compile and run
+5. **Links**: Verify all cross-references are valid
+
+---
+
+## Getting Help
+
+### Documentation Issues
+
+If you find documentation issues:
+1. Open an issue on GitHub with `documentation` label
+2. Specify which document and section
+3. Provide suggestions for improvement
+
+### Documentation Requests
+
+For new documentation:
+1. Open an issue with `documentation` and `enhancement` labels
+2. Describe what documentation is needed
+3. Explain the use case
+
+### Contact
+
+- **GitHub Issues**: https://github.com/EffortlessMetrics/copybook-rs/issues
+- **Pull Requests**: https://github.com/EffortlessMetrics/copybook-rs/pulls
+
+---
+
+**Documentation Index Version**: 2.0
+**Last Updated**: 2025-09-30
+**Total Documents**: 50+ comprehensive specifications and guides
+**Recent Addition**: Issue #49 Performance Regression Monitoring ⭐
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

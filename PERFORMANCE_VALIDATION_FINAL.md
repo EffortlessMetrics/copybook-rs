@@ -1,24 +1,22 @@
 ## Performance Validation Summary
 
-| Metric | Baseline | Current | Delta | SLO Target | Status |
-|--------|----------|---------|-------|------------|---------|
-| DISPLAY Decode | Stable | 2.8 GiB/s | No regression | ≥80 MB/s | ✅ PASS (35x exceeded) |
-| COMP-3 Decode | ~142 MiB/s | 168-176 MiB/s | +18-24% | ≥40 MB/s | ✅ PASS (4.2-4.4x exceeded) |
-| COMP-3 Encode | ~87 MiB/s | 96.7 MiB/s | +11.1% | ≥40 MB/s | ✅ PASS (2.4x exceeded) |
-| COMP-3 Heavy | ~36 MiB/s | 47 MiB/s | +30.6% | ≥40 MB/s | ✅ PASS (18% exceeded) |
-| Memory Usage | Stable | <256 MiB | No leaks | <256 MiB | ✅ PASS |
+| Check | Result | Target | Delta | Status | Notes |
+|-------|--------|--------|-------|--------|-------|
+| decode_display_heavy/single_threaded/10000 | 82.9 MiB/s | 80.0 MiB/s | +3% | ⚠️ borderline | Single run clears the floor, but aggregate SLO validation still fails (see below)
+| slo_validation/display_heavy_slo_80mbps | 63.9 MiB/s | 80.0 MiB/s | -20% | ❌ fail | `test_perf.json` reports `status: FAIL` with -20.1% margin versus configured floor
+| decode_comp3_heavy/single_threaded/10000 | 17.5 MiB/s | 40.0 MiB/s | -56% | ❌ fail | Throughput remains in the teens; historic GiB/s claims removed from public docs
+| slo_validation/comp3_heavy_slo_40mbps | 21.0 MiB/s | 40.0 MiB/s | -47% | ❌ fail | `status: FAIL`; we need SIMD or algorithmic work before reintroducing marketing claims
 
-### Performance Gate Decision: ✅ PASS
+### Gate Decision
+- Verdict: ⚠️ Proceed with caution – correctness improvements land, but throughput still fails both SLOs
+- Evidence: `test_perf.json`, integrative gate summary for PR #67, local bench logs (performance-final-validation.log, comp3-final-validation.log)
 
-**Evidence**: cargo bench validation shows COMP-3 optimizations achieved +11-30% improvements while maintaining DISPLAY stability. Performance exceeds production SLO requirements with substantial safety margins.
+### Observations
+- Optimizations that previously delivered GiB/s throughput have not been revalidated on the current codebase; we now rely on measured MiB/s numbers until regression tooling catches up.
+- Memory usage stays within 256 MiB thanks to the streaming architecture.
+- Benchmark automation (Issue #52) remains outstanding; baseline promotion and regression detection are manual workflows backed by the new backlog tracker.
 
-**Impact Assessment**:
-- Panic elimination + COMP-3 fixes successfully recovered from regression
-- Production readiness confirmed: 2.8 GiB/s DISPLAY, 47 MiB/s COMP-3
-- 458+ tests passing with optimizations
-- Zero unsafe code, clippy pedantic compliance maintained
-
-**Recommendation**: Ready for promotion to docs-reviewer. Enterprise target gaps (4.1 GiB/s, 560 MiB/s) can be addressed in future performance-focused PRs with SIMD/GPU optimizations.
-
-Performance receipts: performance-final-validation.log, comp3-final-validation.log
-
+### Recommended Follow-Up
+- Prioritize regression tooling so SLO failures surface automatically in CI.
+- Revisit COMP-3 hot paths (decoder bit-manipulation, scratch buffer reuse) once correctness regressions are retired.
+- Continue publishing raw JSON metrics internally while README and other public docs focus on reliability messaging.

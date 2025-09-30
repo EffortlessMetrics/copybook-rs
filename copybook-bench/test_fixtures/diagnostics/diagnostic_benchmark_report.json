@@ -1,0 +1,49 @@
+{
+  "diagnostic_benchmark": {
+    "name": "diagnostic_self_test",
+    "purpose": "Validate benchmark infrastructure health",
+    "timestamp": "2025-01-15T10:00:00Z",
+    "tests": [
+      {
+        "name": "baseline_load_time",
+        "result": "pass",
+        "duration_ms": 2.5,
+        "threshold_ms": 100,
+        "details": "Baseline loaded in 2.5ms (well within 100ms threshold)"
+      },
+      {
+        "name": "json_parsing_accuracy",
+        "result": "pass",
+        "error_rate": 0.0,
+        "samples": 1000,
+        "details": "All 1000 JSON samples parsed correctly"
+      },
+      {
+        "name": "regression_calculation_accuracy",
+        "result": "pass",
+        "test_cases": 50,
+        "passed": 50,
+        "failed": 0,
+        "details": "All regression calculations match expected values"
+      },
+      {
+        "name": "criterion_integration",
+        "result": "pass",
+        "benchmarks_detected": 12,
+        "benchmarks_run": 12,
+        "failures": 0,
+        "details": "All Criterion benchmarks execute successfully"
+      },
+      {
+        "name": "file_io_performance",
+        "result": "pass",
+        "read_throughput_mbs": 450.2,
+        "write_throughput_mbs": 380.5,
+        "threshold_mbs": 100,
+        "details": "File I/O performance exceeds minimum thresholds"
+      }
+    ],
+    "overall_status": "pass",
+    "summary": "All diagnostic checks passed. Benchmark infrastructure healthy."
+  }
+}

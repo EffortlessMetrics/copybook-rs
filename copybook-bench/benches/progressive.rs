@@ -23,6 +23,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use std::time::Duration;
 
 /// Progressive data sizes: 1KB → 10KB → 100KB → 1MB
+#[cfg(feature = "progressive")]
 const PROGRESSIVE_SIZES: &[(usize, &str)] = &[
     (1_024, "1KB"),
     (10_240, "10KB"),
@@ -31,6 +32,7 @@ const PROGRESSIVE_SIZES: &[(usize, &str)] = &[
 ];
 
 /// Early bailout threshold: 10 seconds per size tier
+#[cfg(feature = "progressive")]
 const BAILOUT_THRESHOLD_SECS: u64 = 10;
 
 /// AC4: Progressive DISPLAY decode benchmark

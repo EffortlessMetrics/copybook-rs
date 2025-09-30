@@ -1,0 +1,21 @@
+{
+  "bailout_test": {
+    "scenario": "stuck_benchmark_simulation",
+    "trigger": "execution_time_exceeded",
+    "tier": "100KB",
+    "execution_time_sec": 12.5,
+    "timeout_threshold_sec": 10,
+    "bailout_triggered": true,
+    "bailout_reason": "Execution time 12.5s exceeded 10s threshold at 100KB tier",
+    "completed_tiers": [
+      "1KB",
+      "10KB"
+    ],
+    "failed_tier": "100KB",
+    "skipped_tiers": [
+      "1MB"
+    ],
+    "exit_code": 1,
+    "error_message": "Progressive benchmark bailed out: 100KB tier exceeded 10s timeout"
+  }
+}

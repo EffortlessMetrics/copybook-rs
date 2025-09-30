@@ -1,0 +1,36 @@
+{
+  "verbose_diagnostics": {
+    "report_id": "perf-20250115-100000",
+    "timestamp": "2025-01-15T10:00:00Z",
+    "commit": "dcb9885a",
+    "performance_metrics": {
+      "display": {
+        "raw_throughput_bytes_per_sec": 2502000000,
+        "throughput_gibs": 2.33,
+        "calculation": "2502000000 bytes/sec ÷ 1073741824 = 2.33 GiB/s",
+        "baseline_gibs": 2.30,
+        "delta_percent": 1.30,
+        "regression_check": "PASS (1.30% < 5% threshold)"
+      },
+      "comp3": {
+        "raw_throughput_bytes_per_sec": 180355072,
+        "throughput_mibs": 172.0,
+        "calculation": "180355072 bytes/sec ÷ 1048576 = 172.0 MiB/s",
+        "baseline_mibs": 168.0,
+        "delta_percent": 2.38,
+        "regression_check": "PASS (2.38% < 5% threshold)"
+      }
+    },
+    "calculation_steps": [
+      "1. Load baseline from target/baselines/performance.json",
+      "2. Parse current performance report from perf.json",
+      "3. Calculate DISPLAY delta: (2.33 - 2.30) / 2.30 * 100 = 1.30%",
+      "4. Calculate COMP-3 delta: (172.0 - 168.0) / 168.0 * 100 = 2.38%",
+      "5. Check regression thresholds: WARNING=5%, FAILURE=10%",
+      "6. Result: PASS (no thresholds exceeded)"
+    ],
+    "warnings": [],
+    "errors": [],
+    "status": "success"
+  }
+}

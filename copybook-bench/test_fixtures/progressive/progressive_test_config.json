@@ -1,0 +1,43 @@
+{
+  "progressive_tiers": [
+    {
+      "size": "1KB",
+      "bytes": 1024,
+      "record_count": 16,
+      "expected_duration_ms": 10,
+      "timeout_ms": 1000,
+      "memory_limit_mb": 10
+    },
+    {
+      "size": "10KB",
+      "bytes": 10240,
+      "record_count": 160,
+      "expected_duration_ms": 50,
+      "timeout_ms": 2000,
+      "memory_limit_mb": 20
+    },
+    {
+      "size": "100KB",
+      "bytes": 102400,
+      "record_count": 1600,
+      "expected_duration_ms": 200,
+      "timeout_ms": 5000,
+      "memory_limit_mb": 50
+    },
+    {
+      "size": "1MB",
+      "bytes": 1048576,
+      "record_count": 16384,
+      "expected_duration_ms": 500,
+      "timeout_ms": 10000,
+      "memory_limit_mb": 100
+    }
+  ],
+  "bailout_conditions": {
+    "max_duration_per_tier_sec": 10,
+    "max_memory_mb": 256,
+    "max_total_runtime_sec": 60
+  },
+  "perf_mode_only": true,
+  "scaling_factor": 10
+}

@@ -1,0 +1,29 @@
+{
+  "current": {
+    "branch": "main",
+    "commit": "dcb9885a",
+    "timestamp": "2025-01-15T10:00:00Z",
+    "display_gibs": 2.33,
+    "comp3_mibs": 172.0,
+    "sample_count": 5
+  },
+  "history": [
+    {
+      "branch": "main",
+      "commit": "14babe3f",
+      "timestamp": "2025-01-10T10:00:00Z",
+      "display_gibs": 2.30,
+      "comp3_mibs": 168.0,
+      "sample_count": 5
+    },
+    {
+      "branch": "main",
+      "commit": "4718b1a2",
+      "timestamp": "2025-01-05T10:00:00Z",
+      "display_gibs": 2.25,
+      "comp3_mibs": 165.0,
+      "sample_count": 5
+    }
+  ],
+  "updated": "2025-01-15T10:00:00Z"
+}

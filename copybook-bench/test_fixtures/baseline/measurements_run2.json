@@ -1,0 +1,43 @@
+{
+  "measurements": [
+    {
+      "run": 1,
+      "display_gibs": 2.49,
+      "comp3_mibs": 171.5,
+      "timestamp": "2025-01-16T10:00:00Z"
+    },
+    {
+      "run": 2,
+      "display_gibs": 2.51,
+      "comp3_mibs": 172.8,
+      "timestamp": "2025-01-16T10:02:00Z"
+    },
+    {
+      "run": 3,
+      "display_gibs": 2.48,
+      "comp3_mibs": 171.2,
+      "timestamp": "2025-01-16T10:04:00Z"
+    },
+    {
+      "run": 4,
+      "display_gibs": 2.52,
+      "comp3_mibs": 173.0,
+      "timestamp": "2025-01-16T10:06:00Z"
+    },
+    {
+      "run": 5,
+      "display_gibs": 2.50,
+      "comp3_mibs": 171.5,
+      "timestamp": "2025-01-16T10:08:00Z"
+    }
+  ],
+  "statistics": {
+    "display_mean": 2.50,
+    "display_stddev": 0.0158,
+    "display_cv_percent": 0.63,
+    "comp3_mean": 172.0,
+    "comp3_stddev": 0.82,
+    "comp3_cv_percent": 0.48,
+    "variance_acceptable": true
+  }
+}

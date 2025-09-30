@@ -15,6 +15,8 @@
 | docs | pass | complete (CLAUDE.md + README.md + inline); doctests: 2/2 pass; api-docs: comprehensive (baseline + reporting + CLI); cargo-doc: success; issue-52: AC1-AC10 documented; cobol-docs: stable |
 <!-- gates:end -->
 
+> **Note:** Gate telemetry reflects PR #67 snapshots from 2025-09-29. Current measurements (see `test_perf.json`) are significantly lower and should be used for any new status reporting.
+
 <!-- hoplog:start -->
 ### Hop log
 - **T1 (format-style-clippy)** (2025-09-29): format: pass (rustfmt clean), clippy: pass (0 warnings, pedantic), build: pass (11.7s)
@@ -37,11 +39,11 @@
 
 **Problem**: Implementation gap between:
 - ✅ Comprehensive test scaffolding (10 AC test files in copybook-bench/tests/)
-- ✅ Advanced performance regression detection (copybook-bench/src/regression.rs)
-- ✅ Production-ready performance levels (DISPLAY: 4.1+ GiB/s, COMP-3: 560+ MiB/s)
+- ✅ Regression analysis surface (`copybook-bench/src/regression.rs`)
+- ⚠️ Historic benchmark claims (DISPLAY 4.1+ GiB/s, COMP-3 560+ MiB/s) that no longer match current telemetry (~66–95 MiB/s DISPLAY, ~18–25 MiB/s COMP-3)
 - ❌ Missing `scripts/bench/` directory and Python utilities that tests expect
 
-**Required Implementation**:
+**Required Implementation** *(tracked in `docs/backlog/benchmark_tooling.md`)*:
 - Python utilities: bench_runner.py, json_processor.py, pr_automation.py, baseline_manager.py, audit_generator.py, slo_validator.py
 - JSON schema validation for simplified perf.json format
 - GitHub API integration for PR comment automation

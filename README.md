@@ -1,6 +1,6 @@
 # copybook-rs
 
-**Production-ready**, memory-safe parser/codec for COBOL copybooks and mainframe data processing.
+Rust toolkit for COBOL copybook parsing and fixed-record data conversion that prioritizes correctness, safety, and transparent validation evidence. We focus on sharing what the tooling supports today, how the test suite exercises it, how to benchmark on your own hardware, and where the roadmap is headed next.
 
 ## 📚 Documentation
 
@@ -10,31 +10,29 @@
 
 ## Overview
 
-copybook-rs is a **mature, enterprise-grade** Rust implementation that has **exceeded production readiness** for COBOL copybook parsing and mainframe data conversion. With **377+ tests passing**, **solid performance** (3-32x above targets with 20% overhead budget for enterprise features), and **comprehensive COBOL support**, it enables organizations to confidently modernize mainframe data processing workflows.
+copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Current throughput on reference hardware lives in the tens of MiB/s range, and CI still records one timing-sensitive failure plus several leak detections. See `integrative_gate_summary.md` for the latest automated evidence.
 
-### Production Benefits
+### Design Priorities
 
-- **Enterprise Ready**: Battle-tested with comprehensive error taxonomy and 377+ passing tests
-- **Exceptional Performance**: See [Performance Specifications](#performance-specifications) for detailed benchmarks
-- **Mainframe Data Liberation**: Complete COBOL→JSON conversion without COBOL runtime dependencies
-- **ETL Integration**: Production-grade streaming for multi-GB files with deterministic output
-- **Round-Trip Fidelity**: Guaranteed lossless binary↔JSON conversion with full data integrity
-- **Memory Safety**: Zero unsafe code in public APIs with complete clippy pedantic compliance
+- **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
+- **Transparent evidence**: CI currently reports 461/462 tests passing (one known timing-sensitive failure) with 8 leak detectors flagged; raw data captured in `integrative_gate_summary.md`
+- **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
+- **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
+- **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
 
 ## Production Features
 
 ### **Core Capabilities**
-- **Complete COBOL Support**: All major data types, structures (REDEFINES, ODO, SYNC), record formats
-- **High-Performance Processing**: See [Performance Specifications](#performance-specifications) for throughput details
-- **Enterprise Error Handling**: Comprehensive taxonomy with stable codes (CBKP*, CBKS*, CBKD*, CBKE*)
-- **Memory-Efficient Streaming**: <256 MiB for multi-GB files with bounded memory architecture
+- **COBOL schema parsing**: Lexer, parser, and AST with layout resolution for REDEFINES, ODO, and SYNCHRONIZED
+- **Encoding/decoding**: Deterministic conversion between COBOL records and JSONL/structured data
+- **Enterprise error handling**: Stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*) with contextual metadata
+- **Memory-aware streaming**: Streaming I/O architecture with bounded memory; real-world telemetry stays below 256 MiB during decode/encode runs
 
-### **Production Quality**
-- **Deterministic Output**: Byte-identical results across runs and parallel processing
-- **Round-Trip Fidelity**: Guaranteed binary↔JSON conversion with zero data loss
-- **Zoned Encoding Preservation**: Binary round-trip fidelity for ASCII/EBCDIC digit zones
-- **Memory Safety**: Zero unsafe code with complete clippy pedantic compliance (140+ violations resolved)
-- **Comprehensive Testing**: 377+ tests passing with full integration coverage
+### **Quality Signals**
+- **Deterministic output**: Byte-identical results across runs and worker configurations
+- **Round-trip fidelity**: Zoned decimal metadata preserved to maintain copybook semantics
+- **Memory safety**: Zero `unsafe` in public APIs; pedantic lints enforced across the workspace
+- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; one legacy performance assertion remains flaky (see `integrative_gate_summary.md`)
 
 ### **Enterprise Integration**
 - **Multiple EBCDIC Codepages**: CP037, CP273, CP500, CP1047, CP1140 + ASCII support
@@ -315,7 +313,7 @@ For a COBOL record with various field types:
 
 ## Library API Usage
 
-### Complete COBOL→JSON Processing
+### COBOL→JSON Processing Example
 
 The library provides comprehensive COBOL record decoding with complete field processing:
 
@@ -430,7 +428,7 @@ for (record_idx, record_result) in iter.enumerate() {
 let mut scratch = ScratchBuffers::new();
 for record_data in records {
     let json_value = decode_record_with_scratch(&schema, &record_data, &opts, &mut scratch)?;
-    // Process with high throughput - see Performance Specifications
+    // Process records with optional parallel workers
     process_record(json_value);
     // scratch buffers automatically cleared for next iteration
 }
@@ -730,12 +728,12 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 - **ODO Support**: Variable arrays at tail position only
 
 ### Limitations
-- **Unsupported**: COMP-1 (single-precision float), COMP-2 (double-precision float)
-- **Unsupported**: Edited PIC clauses (Z, /, comma, $, CR, DB)
-- **Unsupported**: SIGN LEADING/TRAILING SEPARATE
-- **Unsupported**: Nested ODO arrays (ODO within ODO)
-- **Unsupported**: 66-level (RENAMES) items
-- **Supported**: 88-level (condition names) items with VALUE clauses
+- **Unsupported**: COMP-1 (single-precision float) and COMP-2 (double-precision float)
+- **Unsupported**: Edited PIC clauses (Z, slash, comma, $, CR, DB)
+- **Unsupported**: SIGN LEADING/TRAILING SEPARATE directives
+- **Unsupported**: Nested OCCURS DEPENDING ON arrays (ODO within ODO)
+- **Unsupported**: RENAMES (66-level) items
+- **Unsupported**: 88-level condition names (VALUE clauses) – explicit qualification required before committing real workloads
 
 ## Error Handling
 
@@ -769,113 +767,26 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 
 See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference and [REPORT.md](docs/REPORT.md) for detailed project status and performance analysis.
 
-## Production Deployment
+## Operational Notes
 
-### **System Requirements**
-- **Rust**: 1.90+ (MSRV) | **Edition**: 2024
-- **Platforms**: Linux, macOS, Windows (all production-tested)
-- **Memory**: <256 MiB for multi-GB file processing
-- **Dependencies**: Zero unsafe code, all stable Rust ecosystem
+### Toolchain
+- **Rust**: 1.89+ MSRV (workspace-enforced) | **Edition**: 2024
+- **Platforms**: Developed and tested primarily on Linux; community validation exists for macOS and Windows
+- **Memory**: Streaming decode/encode runs typically remain below 256 MiB on reference datasets
+- **Dependencies**: Zero unsafe code in public APIs; clippy pedantic enforced in CI
 
-### **Performance Specifications** ⚡
+### Current Reliability Snapshot
+- **Tests**: `cargo nextest` currently reports 461/462 passing with one timing-sensitive performance assertion failing (`copybook-core::test_ac4_performance_large_scale_odo_tail_violation_fail`) and eight leak detectors still queued for cleanup (see `integrative_gate_summary.md`)
+- **Benchmarks**: Latest telemetry (`test_perf.json`) shows DISPLAY decode throughput around 66–95 MiB/s and COMP-3 decode around 18–25 MiB/s—suitable for engineering validation but below historic GiB/s marketing claims
+- **Automation gaps**: The Python utilities promised in Issue #52 (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) have not shipped yet; see `docs/backlog/benchmark_tooling.md`
+- **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`
 
-#### **Throughput (Latest Benchmark Results)**
-- **DISPLAY-heavy**: **2.33 GiB/s** (target: 80 MB/s → **30x exceeded**, enterprise target: 4.1 GiB/s ⚠️)
-- **COMP-3-heavy**: **168-176 MiB/s** (target: 40 MB/s → ✅ **4.2x exceeded**, enterprise target: 560 MiB/s ⚠️ **69% progress**)
-- **Stability**: <5% variance across benchmark runs
-- **Scalability**: Linear scaling with parallel processing (up to 250% improvement with 8 threads)
-
-#### **Resource Efficiency**
-- **Memory**: <256 MiB steady-state for multi-GB files
-- **CPU**: Optimized hot paths with scratch buffer reuse
-- **I/O**: Streaming architecture with bounded memory usage
-- **Error Overhead**: <5% performance impact for comprehensive validation
-
-**Status**: ✅ **Performance recovery achieved** - COMP-3 optimizations recovered from panic elimination impact, achieving 168-176 MiB/s (4.2x above basic targets). DISPLAY performance remains excellent at 2.33 GiB/s. Enterprise targets require SIMD/GPU optimizations (planned). See benchmark analysis for details.
-
-### Optimization Features
-- **Scratch Buffer Optimization**: Reusable memory buffers minimize allocations in hot paths
-- **Safe Type Conversions**: Complete elimination of unsafe `u32` to `u8` casts with `try_from()`
-- **Streaming I/O**: Bounded memory usage with optimized buffer management
-- **Parallel Processing**: Deterministic output with worker pool optimization
-- **Zero-copy Operations**: Where possible with memory-safe implementations
-- **Static Lookup Tables**: EBCDIC conversion with performance-optimized character mapping
-- **Idiomatic Rust Patterns**: Complete clippy pedantic compliance (140+ violations resolved)
-- **Performance Monitoring**: Comprehensive benchmark infrastructure with SLO validation
+### Benchmarking & Regression Tracking
+- Run ad-hoc benchmarks with `cargo bench --package copybook-bench`; optional `PERF=1` enables additional logging
+- Capture raw measurements via `cargo bench -- --output-format json > performance.json` (schema documented in `docs/schemas/performance_report.schema.json`)
+- Until the Issue #52 utilities land, baseline promotion, regression detection, and SLO validation require manual analysis of the generated JSON plus the backlog tracker
 
 ## Development
-
-## Performance Reporting
-
-copybook-rs includes comprehensive performance reporting infrastructure (Issue #52) for machine-readable benchmark data, regression detection, and enterprise audit trails.
-
-### Configuration
-
-Performance reporting is configured through YAML files in `scripts/bench/config/`:
-
-```yaml
-# performance_config.yaml
-baseline_retention: 10              # Keep 10 most recent baselines
-performance_floors:
-  display_gibs: 80.0               # Minimum DISPLAY throughput (MB/s)
-  comp3_mibs: 40.0                 # Minimum COMP-3 throughput (MB/s)
-regression_thresholds:
-  warning_percent: 5.0             # Performance degradation warning
-  critical_percent: 10.0           # Performance degradation alert
-```
-
-### Usage
-
-```bash
-# Generate machine-readable performance report
-cargo bench --package copybook-bench -- --output-format json > performance.json
-
-# Run with environment variable for enhanced reporting
-PERF=1 cargo bench --package copybook-bench
-
-# Generate baseline for current commit
-scripts/bench/generate_baseline.py --commit $(git rev-parse HEAD)
-
-# Compare performance against baseline
-scripts/bench/regression_detector.py --baseline main --current HEAD
-
-# Generate enterprise audit report
-scripts/bench/audit_generator.py --output audit_report.json
-```
-
-### Python Utilities
-
-The `scripts/bench/` directory contains Python utilities for performance analysis:
-
-- **baseline_manager.py** - Baseline creation and retention management
-- **regression_detector.py** - Automated performance regression detection
-- **audit_generator.py** - Enterprise compliance audit report generation
-- **report_generator.py** - Machine-readable performance report generation
-
-### JSON Schema
-
-Performance reports conform to standardized JSON schemas:
-
-- **Performance Report Schema**: `docs/schemas/performance_report.schema.json`
-- **Baseline Schema**: `docs/schemas/baseline.schema.json`
-- **Regression Report Schema**: `docs/schemas/regression_report.schema.json`
-
-### CI/CD Integration
-
-Performance reporting integrates with GitHub Actions for automated baseline promotion:
-
-```yaml
-# .github/workflows/performance.yml
-- name: Run performance benchmarks
-  run: cargo bench --package copybook-bench -- --output-format json
-
-- name: Detect performance regressions
-  run: python scripts/bench/regression_detector.py
-
-- name: Promote baseline on merge to main
-  if: github.ref == 'refs/heads/main'
-  run: python scripts/bench/baseline_manager.py --promote
-```
 
 ### Building
 
@@ -915,8 +826,8 @@ cargo fmt --all
 
 ### Project Status & Roadmap
 
-### **Current Status: Production Ready** ✅
-copybook-rs has achieved full production maturity and is ready for immediate enterprise deployment. See [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) for complete assessment.
+### **Current Status: Engineering Preview** ⚠️
+copybook-rs is reliable for targeted workloads when adopters validate their copybooks against the supported feature set, but known coverage gaps, one timing-sensitive test failure, and outstanding leak detectors mean we are not marketing it as turnkey production-ready. See `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` for detailed validation notes.
 
 ### **Development Roadmap**
 See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: ecosystem distribution and CI enhancements.
@@ -962,10 +873,10 @@ We welcome contributions! Please see [REPORT.md](docs/REPORT.md) for current pro
 5. Submit a pull request using the provided template
 
 #### Code Standards
-- Follow Rust conventions and idioms with complete clippy pedantic compliance
-- Add comprehensive tests for new features (377+ tests passing)
+- Follow Rust conventions and idioms with clippy pedantic compliance
+- Add comprehensive tests for new features and help retire the remaining flaky/leaky cases highlighted by `cargo nextest`
 - Update documentation for API changes
-- Maintain MSRV compatibility (Rust 1.90)
+- Maintain MSRV compatibility (Rust 1.89)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)
 - Implement Display trait for user-facing types where appropriate
 - Use safe type conversions (try_from() instead of unsafe casts)

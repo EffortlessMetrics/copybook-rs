@@ -18,7 +18,7 @@
 #![allow(clippy::cast_precision_loss, clippy::items_after_statements)]
 
 #[cfg(feature = "progressive")]
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 #[cfg(feature = "progressive")]
 use std::time::Duration;
 

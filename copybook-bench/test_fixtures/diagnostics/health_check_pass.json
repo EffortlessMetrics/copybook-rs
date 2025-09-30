@@ -1,0 +1,67 @@
+{
+  "health_check": {
+    "timestamp": "2025-01-15T10:00:00Z",
+    "overall_status": "pass",
+    "checks": [
+      {
+        "component": "rust_version",
+        "status": "pass",
+        "icon": "✅",
+        "message": "Rust version: 1.90.0",
+        "details": {
+          "installed": "1.90.0",
+          "required": "1.90.0",
+          "toolchain": "stable"
+        }
+      },
+      {
+        "component": "available_memory",
+        "status": "pass",
+        "icon": "✅",
+        "message": "Available memory: 28 GB",
+        "details": {
+          "total_gb": 128,
+          "available_gb": 28,
+          "required_gb": 1,
+          "usage_percent": 78
+        }
+      },
+      {
+        "component": "cpu_governor",
+        "status": "pass",
+        "icon": "✅",
+        "message": "CPU governor: performance",
+        "details": {
+          "current": "performance",
+          "recommended": "performance",
+          "governors_available": ["powersave", "performance", "ondemand"]
+        }
+      },
+      {
+        "component": "baseline_exists",
+        "status": "pass",
+        "icon": "✅",
+        "message": "Baseline exists: target/baselines/performance.json",
+        "details": {
+          "path": "target/baselines/performance.json",
+          "size_bytes": 512,
+          "last_updated": "2025-01-15T09:00:00Z",
+          "valid": true
+        }
+      },
+      {
+        "component": "criterion_config",
+        "status": "pass",
+        "icon": "✅",
+        "message": "Criterion configuration valid",
+        "details": {
+          "version": "0.5.1",
+          "measurement_time": 10,
+          "warmup_time": 3,
+          "sample_size": 100
+        }
+      }
+    ],
+    "summary": "All health checks passed"
+  }
+}

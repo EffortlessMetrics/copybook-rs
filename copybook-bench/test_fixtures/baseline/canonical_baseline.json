@@ -1,0 +1,12 @@
+{
+  "current": {
+    "branch": "main",
+    "commit": "dcb9885a",
+    "timestamp": "2025-01-15T10:00:00Z",
+    "display_gibs": 2.33,
+    "comp3_mibs": 172.0,
+    "sample_count": 5
+  },
+  "history": [],
+  "updated": "2025-01-15T10:00:00Z"
+}

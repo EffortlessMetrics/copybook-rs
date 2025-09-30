@@ -18,6 +18,14 @@ harness = false
 name = "comp3"
 harness = false
 
+[[bench]]
+name = "progressive"
+harness = false
+
+[[bench]]
+name = "diagnostics_benches"
+harness = false
+
 [dependencies]
 copybook-core = { path = "../copybook-core" }
 copybook-codec = { path = "../copybook-codec" }
@@ -34,5 +42,7 @@ tempfile = "3.8"
 
 [features]
 default = []
+# AC4: Progressive complexity benchmarks for developer profiling (PERF=1 mode)
+progressive = []
 [lints]
 workspace = true

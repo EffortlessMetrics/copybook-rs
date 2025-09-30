@@ -1,0 +1,61 @@
+{
+  "health_check": {
+    "timestamp": "2025-01-15T10:00:00Z",
+    "overall_status": "warning",
+    "checks": [
+      {
+        "component": "rust_version",
+        "status": "pass",
+        "icon": "✅",
+        "message": "Rust version: 1.90.0",
+        "details": {
+          "installed": "1.90.0",
+          "required": "1.90.0",
+          "toolchain": "stable"
+        }
+      },
+      {
+        "component": "available_memory",
+        "status": "warning",
+        "icon": "⚠️",
+        "message": "Available memory: 1.2 GB (low)",
+        "details": {
+          "total_gb": 16,
+          "available_gb": 1.2,
+          "required_gb": 1,
+          "usage_percent": 92,
+          "recommendation": "Close unnecessary applications for more reliable benchmarks"
+        }
+      },
+      {
+        "component": "cpu_governor",
+        "status": "warning",
+        "icon": "⚠️",
+        "message": "CPU governor: powersave (recommend performance)",
+        "details": {
+          "current": "powersave",
+          "recommended": "performance",
+          "governors_available": ["powersave", "performance"],
+          "how_to_fix": "sudo cpupower frequency-set -g performance"
+        }
+      },
+      {
+        "component": "baseline_exists",
+        "status": "pass",
+        "icon": "✅",
+        "message": "Baseline exists: target/baselines/performance.json",
+        "details": {
+          "path": "target/baselines/performance.json",
+          "size_bytes": 512,
+          "last_updated": "2025-01-15T09:00:00Z",
+          "valid": true
+        }
+      }
+    ],
+    "summary": "Health checks passed with warnings",
+    "warnings": [
+      "Low available memory may affect benchmark stability",
+      "CPU governor 'powersave' may reduce performance consistency"
+    ]
+  }
+}

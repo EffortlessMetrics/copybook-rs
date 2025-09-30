@@ -1,0 +1,38 @@
+{
+  "resource_monitoring": {
+    "snapshot_time": "2025-01-15T10:05:00Z",
+    "benchmark_name": "decode_display_heavy",
+    "duration_sec": 10.5,
+    "cpu_usage": {
+      "peak_percent": 92.5,
+      "average_percent": 85.3,
+      "cores_used": 8,
+      "total_cores": 16,
+      "cpu_time_sec": 89.565
+    },
+    "memory_usage": {
+      "peak_mb": 124.5,
+      "average_mb": 98.2,
+      "resident_set_size_mb": 124.5,
+      "virtual_memory_mb": 256.3,
+      "page_faults": 1247,
+      "below_256mb_limit": true
+    },
+    "disk_io": {
+      "bytes_read": 10485760,
+      "bytes_written": 524288,
+      "read_operations": 2560,
+      "write_operations": 128
+    },
+    "system_load": {
+      "load_1min": 3.42,
+      "load_5min": 2.15,
+      "load_15min": 1.82
+    },
+    "network_io": {
+      "bytes_sent": 0,
+      "bytes_received": 0,
+      "note": "No network activity (local benchmarks)"
+    }
+  }
+}

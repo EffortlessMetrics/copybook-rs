@@ -1,0 +1,45 @@
+{
+  "hardware": {
+    "cpu": {
+      "model": "AMD Ryzen 9 7950X 16-Core Processor",
+      "cores": 16,
+      "threads": 32,
+      "base_clock_ghz": 4.5,
+      "boost_clock_ghz": 5.7,
+      "cache_l1": "1 MB",
+      "cache_l2": "16 MB",
+      "cache_l3": "64 MB"
+    },
+    "memory": {
+      "total_gb": 128,
+      "type": "DDR5",
+      "speed_mhz": 5200,
+      "channels": 2
+    },
+    "storage": {
+      "type": "NVMe SSD",
+      "model": "Samsung 980 PRO",
+      "capacity_gb": 2000,
+      "read_speed_gbs": 7.0,
+      "write_speed_gbs": 5.1
+    },
+    "os": {
+      "name": "Ubuntu",
+      "version": "22.04 LTS",
+      "kernel": "6.6.87.2-microsoft-standard-WSL2"
+    }
+  },
+  "environment": {
+    "rust_version": "1.90.0",
+    "cpu_governor": "performance",
+    "turbo_boost": "enabled",
+    "hyperthreading": "enabled",
+    "power_profile": "performance"
+  },
+  "benchmark_config": {
+    "criterion_version": "0.5",
+    "measurement_time_sec": 10,
+    "warmup_time_sec": 3,
+    "sample_size": 100
+  }
+}

@@ -14,9 +14,15 @@
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac5-enhanced-diagnostics
 //! Traceability: docs/issue-49-traceability-matrix.md#ac5
 
+#![allow(
+    clippy::expect_used,
+    clippy::items_after_statements,
+    clippy::uninlined_format_args
+)]
+
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 /// AC5: Diagnostic benchmark for JSON parsing overhead
 ///
@@ -65,8 +71,8 @@ fn diagnostics_baseline_io(c: &mut Criterion) {
             store.save(&temp_path).expect("Failed to save baseline");
 
             // Load baseline
-            let _loaded = BaselineStore::load_or_create(&temp_path)
-                .expect("Failed to load baseline");
+            let _loaded =
+                BaselineStore::load_or_create(&temp_path).expect("Failed to load baseline");
         });
     });
 
@@ -85,7 +91,10 @@ fn diagnostics_filesystem_latency(c: &mut Criterion) {
 
     c.bench_function("diagnostics_filesystem_latency", |b| {
         b.iter(|| {
-            let temp_path = temp_dir.join(format!("diagnostic_fs_{}.txt", std::time::Instant::now().elapsed().as_nanos()));
+            let temp_path = temp_dir.join(format!(
+                "diagnostic_fs_{}.txt",
+                std::time::Instant::now().elapsed().as_nanos()
+            ));
 
             // Write small file
             std::fs::write(&temp_path, "test data").expect("Failed to write file");

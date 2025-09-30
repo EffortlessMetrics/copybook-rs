@@ -1,0 +1,38 @@
+{
+  "memory_profile": {
+    "test_name": "progressive_scaling_1kb_to_1mb",
+    "measurements": [
+      {
+        "tier": "1KB",
+        "bytes_processed": 1024,
+        "peak_memory_mb": 8.2,
+        "average_memory_mb": 6.5,
+        "memory_growth_rate": "baseline"
+      },
+      {
+        "tier": "10KB",
+        "bytes_processed": 10240,
+        "peak_memory_mb": 12.5,
+        "average_memory_mb": 10.8,
+        "memory_growth_rate": "1.66x"
+      },
+      {
+        "tier": "100KB",
+        "bytes_processed": 102400,
+        "peak_memory_mb": 45.3,
+        "average_memory_mb": 38.2,
+        "memory_growth_rate": "3.54x"
+      },
+      {
+        "tier": "1MB",
+        "bytes_processed": 1048576,
+        "peak_memory_mb": 95.7,
+        "average_memory_mb": 82.4,
+        "memory_growth_rate": "2.16x"
+      }
+    ],
+    "total_peak_memory_mb": 95.7,
+    "memory_efficiency": "good",
+    "below_256mb_limit": true
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "artifact_retention": {
+    "policy": "90_days",
+    "storage_location": "github_actions_artifacts",
+    "compression": "gzip",
+    "encryption": "at_rest"
+  },
+  "artifacts": [
+    {
+      "name": "performance-report-pr-123.json",
+      "size_bytes": 4096,
+      "created": "2025-01-15T11:00:00Z",
+      "expires": "2025-04-15T11:00:00Z",
+      "pr_number": 123,
+      "commit": "test1234"
+    },
+    {
+      "name": "performance-report-pr-124.json",
+      "size_bytes": 4098,
+      "created": "2025-01-16T11:00:00Z",
+      "expires": "2025-04-16T11:00:00Z",
+      "pr_number": 124,
+      "commit": "test5678"
+    }
+  ],
+  "cleanup": {
+    "schedule": "daily",
+    "next_run": "2025-01-17T00:00:00Z"
+  }
+}

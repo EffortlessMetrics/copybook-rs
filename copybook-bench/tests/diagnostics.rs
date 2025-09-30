@@ -7,6 +7,19 @@
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac5-enhanced-diagnostics
 //! Traceability: docs/issue-49-traceability-matrix.md#ac5
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::needless_range_loop,
+    clippy::assertions_on_constants,
+    clippy::if_same_then_else,
+    clippy::cast_possible_truncation,
+    clippy::bool_to_int_with_if,
+    clippy::if_not_else,
+    clippy::doc_markdown,
+    clippy::useless_format
+)]
+
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 
@@ -20,22 +33,28 @@ use copybook_bench::reporting::PerformanceReport;
 /// - CPU governor (performance recommended)
 /// - Baseline existence
 #[test]
-fn test_health_check_validation() {  // AC5
+fn test_health_check_validation() {
+    // AC5
     // Check Rust version
-    let rust_version = std::env::var("RUSTC_VERSION")
-        .unwrap_or_else(|_| "unknown".to_string());
-    assert!(!rust_version.is_empty(), "Expected Rust version to be available");
+    let rust_version = std::env::var("RUSTC_VERSION").unwrap_or_else(|_| "unknown".to_string());
+    assert!(
+        !rust_version.is_empty(),
+        "Expected Rust version to be available"
+    );
 
     // Check CPU info (platform-specific)
     #[cfg(target_os = "linux")]
     {
         let cpu_info = std::fs::read_to_string("/proc/cpuinfo");
-        assert!(cpu_info.is_ok(), "Expected CPU info to be readable on Linux");
+        assert!(
+            cpu_info.is_ok(),
+            "Expected CPU info to be readable on Linux"
+        );
     }
 
     // Check available memory (basic check)
     // In real implementation, would use sysinfo crate
-    let available_memory_mb: u64 = 4096;  // Placeholder
+    let available_memory_mb: u64 = 4096; // Placeholder
     assert!(available_memory_mb > 1024, "Expected >1GB available memory");
 
     // TODO: Implement actual health check command
@@ -53,7 +72,8 @@ fn test_health_check_validation() {  // AC5
 /// - Component status (Rust, Memory, CPU, Baseline)
 /// - Overall status summary
 #[test]
-fn test_health_check_output_format() {  // AC5
+fn test_health_check_output_format() {
+    // AC5
     // Simulate health check output
     let health_output = format!(
         "🏥 Copybook Benchmark Health Check\n\
@@ -64,11 +84,26 @@ fn test_health_check_output_format() {  // AC5
          ✅ All health checks passed\n"
     );
 
-    assert!(health_output.contains("Health Check"), "Output must include title");
-    assert!(health_output.contains("✅"), "Output must include success indicators");
-    assert!(health_output.contains("Rust version"), "Output must check Rust version");
-    assert!(health_output.contains("Available memory"), "Output must check memory");
-    assert!(health_output.contains("Baseline exists"), "Output must check baseline");
+    assert!(
+        health_output.contains("Health Check"),
+        "Output must include title"
+    );
+    assert!(
+        health_output.contains("✅"),
+        "Output must include success indicators"
+    );
+    assert!(
+        health_output.contains("Rust version"),
+        "Output must check Rust version"
+    );
+    assert!(
+        health_output.contains("Available memory"),
+        "Output must check memory"
+    );
+    assert!(
+        health_output.contains("Baseline exists"),
+        "Output must check baseline"
+    );
 
     // TODO: Test failure output format
     // TODO: Validate warning indicators
@@ -82,14 +117,17 @@ fn test_health_check_output_format() {  // AC5
 /// Validates that --verbose flag provides detailed calculation steps
 /// and diagnostic information.
 #[test]
-fn test_verbose_logging() {  // AC5
+fn test_verbose_logging() {
+    // AC5
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
     report.timestamp = chrono::Utc::now().to_rfc3339();
     report.commit = "test-commit".to_string();
     report.status = "success".to_string();
-    report.warnings.push("Warning: Performance variance detected".to_string());
+    report
+        .warnings
+        .push("Warning: Performance variance detected".to_string());
 
     // Generate verbose diagnostic output
     let diagnostic_output = format!(
@@ -129,13 +167,14 @@ fn test_verbose_logging() {  // AC5
 /// - CPU utilization
 /// - Execution time
 #[test]
-fn test_resource_monitoring() {  // AC5
+fn test_resource_monitoring() {
+    // AC5
     use std::time::Instant;
 
     let start = Instant::now();
 
     // Simulate benchmark work
-    let mut data = vec![0u8; 1_000_000];  // 1MB allocation
+    let mut data = vec![0u8; 1_000_000]; // 1MB allocation
     for i in 0..data.len() {
         data[i] = (i % 256) as u8;
     }
@@ -160,7 +199,8 @@ fn test_resource_monitoring() {  // AC5
 /// - JSON parsing overhead
 /// - File system latency
 #[test]
-fn test_diagnostic_benchmarks() {  // AC5
+fn test_diagnostic_benchmarks() {
+    // AC5
     use std::time::Instant;
 
     // Test JSON parsing overhead
@@ -168,7 +208,10 @@ fn test_diagnostic_benchmarks() {  // AC5
     let start = Instant::now();
     let _json = serde_json::to_string(&report).expect("Failed to serialize");
     let parse_elapsed = start.elapsed();
-    assert!(parse_elapsed.as_micros() < 1000, "JSON parsing should be fast (<1ms)");
+    assert!(
+        parse_elapsed.as_micros() < 1000,
+        "JSON parsing should be fast (<1ms)"
+    );
 
     // Test baseline I/O
     let temp_dir = std::env::temp_dir();
@@ -178,7 +221,10 @@ fn test_diagnostic_benchmarks() {  // AC5
     let start = Instant::now();
     store.save(&temp_path).expect("Failed to save baseline");
     let save_elapsed = start.elapsed();
-    assert!(save_elapsed.as_millis() < 100, "Baseline save should be fast (<100ms)");
+    assert!(
+        save_elapsed.as_millis() < 100,
+        "Baseline save should be fast (<100ms)"
+    );
 
     // Cleanup
     std::fs::remove_file(temp_path).ok();
@@ -198,13 +244,14 @@ fn test_diagnostic_benchmarks() {  // AC5
 /// - CPU governor check (Linux)
 /// - Baseline file check
 #[test]
-fn test_health_check_components() {  // AC5
+fn test_health_check_components() {
+    // AC5
     // Rust version check
-    let rust_version_ok = true;  // Placeholder
+    let rust_version_ok = true; // Placeholder
     assert!(rust_version_ok, "Rust version must meet MSRV (1.90+)");
 
     // Memory availability check
-    let memory_sufficient = true;  // Placeholder
+    let memory_sufficient = true; // Placeholder
     assert!(memory_sufficient, "Memory must be > 1 GB");
 
     // Baseline file check
@@ -223,7 +270,8 @@ fn test_health_check_components() {  // AC5
 ///
 /// Validates that verbose mode logs detailed regression calculation steps.
 #[test]
-fn test_verbose_regression_logging() {  // AC5
+fn test_verbose_regression_logging() {
+    // AC5
     let mut store = BaselineStore::new();
 
     let mut baseline = PerformanceReport::new();
@@ -232,7 +280,7 @@ fn test_verbose_regression_logging() {  // AC5
     store.promote_baseline(&baseline, "main", "baseline");
 
     let mut current = PerformanceReport::new();
-    current.display_gibs = Some(93.0);  // 7% regression
+    current.display_gibs = Some(93.0); // 7% regression
     current.comp3_mibs = Some(500.0);
 
     // Generate verbose logging
@@ -246,7 +294,9 @@ fn test_verbose_regression_logging() {  // AC5
         baseline.display_gibs.unwrap(),
         current.display_gibs.unwrap(),
         baseline.display_gibs.unwrap() - current.display_gibs.unwrap(),
-        ((baseline.display_gibs.unwrap() - current.display_gibs.unwrap()) / baseline.display_gibs.unwrap()) * 100.0
+        ((baseline.display_gibs.unwrap() - current.display_gibs.unwrap())
+            / baseline.display_gibs.unwrap())
+            * 100.0
     );
 
     assert!(verbose_output.contains("Regression Detection"));
@@ -265,7 +315,7 @@ fn test_verbose_regression_logging() {  // AC5
 ///
 /// Validates that troubleshooting documentation exists and is accessible.
 #[test]
-fn test_troubleshooting_documentation() {  // AC5
+fn test_troubleshooting_documentation() { // AC5
     // TODO: Check for docs/troubleshooting-performance.md
     // TODO: Validate documentation structure
     // TODO: Test common failure scenarios documented
@@ -277,7 +327,8 @@ fn test_troubleshooting_documentation() {  // AC5
 ///
 /// Validates diagnostic benchmark naming: diagnostics_{component}
 #[test]
-fn test_diagnostic_benchmark_naming() {  // AC5
+fn test_diagnostic_benchmark_naming() {
+    // AC5
     let diagnostic_benches = vec![
         "diagnostics_json_parsing",
         "diagnostics_baseline_io",
@@ -286,7 +337,10 @@ fn test_diagnostic_benchmark_naming() {  // AC5
     ];
 
     for bench_name in diagnostic_benches {
-        assert!(bench_name.starts_with("diagnostics_"), "Diagnostic benchmarks must start with diagnostics_");
+        assert!(
+            bench_name.starts_with("diagnostics_"),
+            "Diagnostic benchmarks must start with diagnostics_"
+        );
     }
 
     // TODO: Test benchmark discovery
@@ -302,7 +356,8 @@ fn test_diagnostic_benchmark_naming() {  // AC5
 /// - Warnings present: exit 0 (informational)
 /// - Critical failures: exit 1
 #[test]
-fn test_health_check_exit_codes() {  // AC5
+fn test_health_check_exit_codes() {
+    // AC5
     // All checks pass
     let all_pass = true;
     let exit_code = if all_pass { 0 } else { 1 };
@@ -310,7 +365,7 @@ fn test_health_check_exit_codes() {  // AC5
 
     // Warnings present (non-critical)
     let has_warnings = true;
-    let exit_code = if !has_warnings { 0 } else { 0 };  // Warnings are informational
+    let exit_code = if !has_warnings { 0 } else { 0 }; // Warnings are informational
     assert_eq!(exit_code, 0, "Health check with warnings should exit 0");
 
     // TODO: Test critical failure exit code (1)
@@ -326,7 +381,8 @@ fn test_health_check_exit_codes() {  // AC5
 /// - macOS: sysctl, vm_stat
 /// - Windows: GetSystemInfo
 #[test]
-fn test_resource_monitoring_platform_compatibility() {  // AC5
+fn test_resource_monitoring_platform_compatibility() {
+    // AC5
     #[cfg(target_os = "linux")]
     {
         let meminfo = std::fs::read_to_string("/proc/meminfo");
@@ -355,13 +411,17 @@ fn test_resource_monitoring_platform_compatibility() {  // AC5
 ///
 /// Validates --verbose flag parsing and application.
 #[test]
-fn test_verbose_flag_handling() {  // AC5
+fn test_verbose_flag_handling() {
+    // AC5
     // Simulate command-line flag
     let verbose = true;
 
     if verbose {
         // Verbose mode enabled
-        assert!(verbose, "Verbose mode should be enabled with --verbose flag");
+        assert!(
+            verbose,
+            "Verbose mode should be enabled with --verbose flag"
+        );
     } else {
         // Normal mode
         assert!(!verbose, "Normal mode should not include verbose output");
@@ -378,9 +438,10 @@ fn test_verbose_flag_handling() {  // AC5
 ///
 /// Validates memory usage tracking provides accurate measurements.
 #[test]
-fn test_memory_tracking_accuracy() {  // AC5
+fn test_memory_tracking_accuracy() {
+    // AC5
     // Allocate known amount of memory
-    let allocation_size = 10_000_000;  // 10 MB
+    let allocation_size = 10_000_000; // 10 MB
     let test_data = vec![0u8; allocation_size];
 
     // Validate allocation size
@@ -397,7 +458,7 @@ fn test_memory_tracking_accuracy() {  // AC5
 ///
 /// Validates diagnostic benchmark output includes component labels.
 #[test]
-fn test_diagnostic_output_validation() {  // AC5
+fn test_diagnostic_output_validation() { // AC5
     // TODO: Capture Criterion output
     // TODO: Validate component labels present
     // TODO: Test JSON output format

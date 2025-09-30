@@ -1,0 +1,12 @@
+{
+  "display_gibs": 2.05,
+  "comp3_mibs": 150.0,
+  "timestamp": "2025-01-15T11:00:00Z",
+  "commit": "failure01",
+  "status": "failure",
+  "warnings": [],
+  "errors": [
+    "DISPLAY regression: 12.02% slower than baseline (2.05 vs 2.33 GiB/s)",
+    "COMP-3 regression: 12.79% slower than baseline (150 vs 172 MiB/s)"
+  ]
+}

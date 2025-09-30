@@ -7,6 +7,16 @@
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac3-ci-integration
 //! Traceability: docs/issue-49-traceability-matrix.md#ac3
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::useless_format,
+    clippy::assertions_on_constants,
+    clippy::no_effect_underscore_binding,
+    clippy::uninlined_format_args,
+    clippy::bool_to_int_with_if
+)]
+
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 
@@ -20,14 +30,15 @@ use copybook_bench::reporting::PerformanceReport;
 /// - Current performance metrics
 /// - Regression status (PASS/WARNING/FAILURE)
 #[test]
-fn test_pr_comment_generation() {  // AC3
+fn test_pr_comment_generation() {
+    // AC3
     let mut baseline = PerformanceReport::new();
     baseline.display_gibs = Some(2.50);
     baseline.comp3_mibs = Some(172.0);
     baseline.commit = "baseline-commit".to_string();
 
     let mut current = PerformanceReport::new();
-    current.display_gibs = Some(2.40);  // 4% regression (PASS but notable)
+    current.display_gibs = Some(2.40); // 4% regression (PASS but notable)
     current.comp3_mibs = Some(172.0);
     current.commit = "current-commit".to_string();
 
@@ -39,22 +50,33 @@ fn test_pr_comment_generation() {  // AC3
     // Generate PR comment content
     let baseline_summary = store.summary();
     let current_summary = current.format_pr_summary();
-    let status = if regressions.is_empty() { "✅ PASS" } else { "⚠️ WARNING" };
+    let status = if regressions.is_empty() {
+        "✅ PASS"
+    } else {
+        "⚠️ WARNING"
+    };
 
     let comment = format!(
         "📊 Performance Comparison\n\
          Baseline: {}\n\
          Current: {}\n\
          Status: {}\n",
-        baseline_summary,
-        current_summary,
-        status
+        baseline_summary, current_summary, status
     );
 
     // Validate comment contains expected content
-    assert!(comment.contains("Performance Comparison"), "Comment must include title");
-    assert!(comment.contains("Baseline:"), "Comment must include baseline section");
-    assert!(comment.contains("Current:"), "Comment must include current section");
+    assert!(
+        comment.contains("Performance Comparison"),
+        "Comment must include title"
+    );
+    assert!(
+        comment.contains("Baseline:"),
+        "Comment must include baseline section"
+    );
+    assert!(
+        comment.contains("Current:"),
+        "Comment must include current section"
+    );
     assert!(comment.contains("Status:"), "Comment must include status");
 
     // TODO: Test WARNING comment format
@@ -69,7 +91,8 @@ fn test_pr_comment_generation() {  // AC3
 /// Validates that PR comments include detailed regression warnings with
 /// delta percentages and baseline comparison values.
 #[test]
-fn test_pr_comment_with_regressions() {  // AC3
+fn test_pr_comment_with_regressions() {
+    // AC3
     let mut store = BaselineStore::new();
 
     let mut baseline = PerformanceReport::new();
@@ -78,8 +101,8 @@ fn test_pr_comment_with_regressions() {  // AC3
     store.promote_baseline(&baseline, "main", "baseline");
 
     let mut current = PerformanceReport::new();
-    current.display_gibs = Some(93.0);  // 7% regression (WARNING)
-    current.comp3_mibs = Some(450.0);   // 10% regression (WARNING)
+    current.display_gibs = Some(93.0); // 7% regression (WARNING)
+    current.comp3_mibs = Some(450.0); // 10% regression (WARNING)
 
     let regressions = store.check_regression(&current, 5.0);
     assert_eq!(regressions.len(), 2, "Expected 2 regression warnings");
@@ -90,9 +113,18 @@ fn test_pr_comment_with_regressions() {  // AC3
         regressions.join("\n")
     );
 
-    assert!(comment.contains("Performance Regressions"), "Comment must indicate regressions");
-    assert!(comment.contains("7.00%"), "Comment must show DISPLAY regression %");
-    assert!(comment.contains("10.00%"), "Comment must show COMP-3 regression %");
+    assert!(
+        comment.contains("Performance Regressions"),
+        "Comment must indicate regressions"
+    );
+    assert!(
+        comment.contains("7.00%"),
+        "Comment must show DISPLAY regression %"
+    );
+    assert!(
+        comment.contains("10.00%"),
+        "Comment must show COMP-3 regression %"
+    );
 
     // TODO: Test FAILURE comment format (>10% regression)
     // TODO: Validate emoji/icon usage for visual clarity
@@ -105,7 +137,8 @@ fn test_pr_comment_with_regressions() {  // AC3
 /// Validates that 90-day artifact retention policy is correctly applied
 /// to baseline history for audit compliance.
 #[test]
-fn test_artifact_retention_policy() {  // AC3
+fn test_artifact_retention_policy() {
+    // AC3
     let mut store = BaselineStore::new();
 
     // Add old baseline (100 days ago) - should be removed
@@ -129,7 +162,9 @@ fn test_artifact_retention_policy() {  // AC3
 
     // Validate old baseline was removed during promotion (90-day policy)
     // The promote_baseline method applies retention policy automatically
-    let old_count = store.history.iter()
+    let old_count = store
+        .history
+        .iter()
         .filter(|b| {
             if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&b.timestamp) {
                 let age = chrono::Utc::now() - ts.with_timezone(&chrono::Utc);
@@ -153,7 +188,8 @@ fn test_artifact_retention_policy() {  // AC3
 /// Validates that baseline promotion only occurs on main branch merges,
 /// not on PR branches.
 #[test]
-fn test_baseline_promotion_on_main() {  // AC3
+fn test_baseline_promotion_on_main() {
+    // AC3
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -164,7 +200,10 @@ fn test_baseline_promotion_on_main() {  // AC3
 
     // Simulate main branch promotion
     store.promote_baseline(&report, "main", "main-commit");
-    assert!(store.current.is_some(), "Expected baseline promotion on main branch");
+    assert!(
+        store.current.is_some(),
+        "Expected baseline promotion on main branch"
+    );
 
     let baseline = store.current.as_ref().unwrap();
     assert_eq!(baseline.branch, "main");
@@ -180,14 +219,18 @@ fn test_baseline_promotion_on_main() {  // AC3
 ///
 /// Validates that baseline promotion is restricted to main branch only.
 #[test]
-fn test_baseline_no_promotion_on_feature_branch() {  // AC3
+fn test_baseline_no_promotion_on_feature_branch() {
+    // AC3
     let store = BaselineStore::new();
 
     // For feature branches, promotion should NOT occur in CI workflow
     // This is enforced by GitHub Actions conditional:
     // if: github.ref == 'refs/heads/main'
 
-    assert!(store.current.is_none(), "Feature branches should not promote baseline");
+    assert!(
+        store.current.is_none(),
+        "Feature branches should not promote baseline"
+    );
 
     // TODO: Mock GitHub Actions environment variables
     // TODO: Test conditional promotion logic
@@ -201,15 +244,19 @@ fn test_baseline_no_promotion_on_feature_branch() {  // AC3
 /// Validates that missing baseline (first-time PRs) returns NEUTRAL status
 /// without failing CI or blocking PR merge.
 #[test]
-fn test_missing_baseline_neutral_ci() {  // AC3
-    let store = BaselineStore::new();  // No baseline
+fn test_missing_baseline_neutral_ci() {
+    // AC3
+    let store = BaselineStore::new(); // No baseline
 
     let mut current = PerformanceReport::new();
     current.display_gibs = Some(2.50);
     current.comp3_mibs = Some(172.0);
 
     let regressions = store.check_regression(&current, 5.0);
-    assert!(regressions.is_empty(), "Missing baseline should return NEUTRAL");
+    assert!(
+        regressions.is_empty(),
+        "Missing baseline should return NEUTRAL"
+    );
 
     // Generate NEUTRAL status comment
     let comment = if store.current.is_none() {
@@ -218,7 +265,10 @@ fn test_missing_baseline_neutral_ci() {  // AC3
         "✅ Performance check passed"
     };
 
-    assert!(comment.contains("No baseline"), "NEUTRAL comment should indicate missing baseline");
+    assert!(
+        comment.contains("No baseline"),
+        "NEUTRAL comment should indicate missing baseline"
+    );
 
     // TODO: Validate exit code is 0 (does not fail CI)
     // TODO: Test PR comment generation for NEUTRAL status
@@ -231,7 +281,8 @@ fn test_missing_baseline_neutral_ci() {  // AC3
 /// Validates that artifacts (perf.json, baseline-main-*.zip) have correct
 /// structure and can be uploaded/downloaded correctly.
 #[test]
-fn test_artifact_structure() {  // AC3
+fn test_artifact_structure() {
+    // AC3
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -243,9 +294,18 @@ fn test_artifact_structure() {  // AC3
     let json = serde_json::to_string_pretty(&report).expect("Failed to serialize");
 
     // Validate JSON structure
-    assert!(json.contains("display_gibs"), "Artifact must contain display_gibs");
-    assert!(json.contains("comp3_mibs"), "Artifact must contain comp3_mibs");
-    assert!(json.contains("timestamp"), "Artifact must contain timestamp");
+    assert!(
+        json.contains("display_gibs"),
+        "Artifact must contain display_gibs"
+    );
+    assert!(
+        json.contains("comp3_mibs"),
+        "Artifact must contain comp3_mibs"
+    );
+    assert!(
+        json.contains("timestamp"),
+        "Artifact must contain timestamp"
+    );
     assert!(json.contains("commit"), "Artifact must contain commit");
 
     // TODO: Test baseline.json artifact format
@@ -260,7 +320,8 @@ fn test_artifact_structure() {  // AC3
 /// Validates that 30-minute timeout protection prevents stuck benchmark
 /// runners from blocking CI indefinitely.
 #[test]
-fn test_timeout_protection() {  // AC3
+fn test_timeout_protection() {
+    // AC3
     // GitHub Actions timeout is configured in workflow YAML:
     // timeout-minutes: 30
 
@@ -294,7 +355,8 @@ fn test_timeout_protection() {  // AC3
 /// - FAILURE: exit 1 (blocks PR)
 /// - NEUTRAL: exit 0 (does not block PR)
 #[test]
-fn test_ci_exit_codes() {  // AC3
+fn test_ci_exit_codes() {
+    // AC3
     let mut store = BaselineStore::new();
 
     let mut baseline = PerformanceReport::new();
@@ -311,16 +373,28 @@ fn test_ci_exit_codes() {  // AC3
 
     // Test WARNING (exit 0 - does not block)
     let mut warning_report = PerformanceReport::new();
-    warning_report.display_gibs = Some(93.0);  // 7% regression (WARNING)
+    warning_report.display_gibs = Some(93.0); // 7% regression (WARNING)
     let warning_regressions = store.check_regression(&warning_report, 5.0);
-    let warning_exit = if warning_regressions.iter().any(|r| r.contains("10.") || r.contains("15.")) { 1 } else { 0 };
+    let warning_exit = if warning_regressions
+        .iter()
+        .any(|r| r.contains("10.") || r.contains("15."))
+    {
+        1
+    } else {
+        0
+    };
     assert_eq!(warning_exit, 0, "WARNING should exit 0 (does not block PR)");
 
     // Test FAILURE (exit 1 - blocks PR)
     let mut failure_report = PerformanceReport::new();
-    failure_report.display_gibs = Some(80.0);  // 20% regression (FAILURE)
+    failure_report.display_gibs = Some(80.0); // 20% regression (FAILURE)
     let failure_regressions = store.check_regression(&failure_report, 5.0);
-    let failure_exit = if !failure_regressions.is_empty() && failure_regressions[0].contains("20.") { 1 } else { 0 };
+    let failure_exit = if !failure_regressions.is_empty() && failure_regressions[0].contains("20.")
+    {
+        1
+    } else {
+        0
+    };
     assert_eq!(failure_exit, 1, "FAILURE should exit 1 (blocks PR)");
 
     // TODO: Test NEUTRAL exit code (exit 0)
@@ -334,7 +408,8 @@ fn test_ci_exit_codes() {  // AC3
 /// Validates that PR comments are updated (not duplicated) on subsequent
 /// benchmark runs.
 #[test]
-fn test_pr_comment_updates() {  // AC3
+fn test_pr_comment_updates() {
+    // AC3
     // PR comments should be updated in place using GitHub API
     // Comment identification: search for previous comment with specific marker
 
@@ -362,12 +437,19 @@ fn test_pr_comment_updates() {  // AC3
 ///
 /// Validates artifact naming: baseline-main-{sha}.zip
 #[test]
-fn test_artifact_naming() {  // AC3
+fn test_artifact_naming() {
+    // AC3
     let commit_sha = "abc12345";
     let artifact_name = format!("baseline-main-{}", commit_sha);
 
-    assert!(artifact_name.starts_with("baseline-main-"), "Artifact name must start with baseline-main-");
-    assert!(artifact_name.contains(commit_sha), "Artifact name must include commit SHA");
+    assert!(
+        artifact_name.starts_with("baseline-main-"),
+        "Artifact name must start with baseline-main-"
+    );
+    assert!(
+        artifact_name.contains(commit_sha),
+        "Artifact name must include commit SHA"
+    );
 
     // TODO: Validate GitHub Actions artifact upload name
     // TODO: Test artifact download by name pattern

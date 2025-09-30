@@ -1,6 +1,6 @@
 # copybook-rs Roadmap
 
-**Status:** ✅ Production Ready (v0.3.0)
+**Status:** ⚠️ Engineering Preview (v0.3.1 maintenance)
 
 This roadmap tracks **what we will ship**, **how we'll measure it**, and **when it's done**. Each milestone has: Objectives → Deliverables → Exit Criteria → Risks/Mitigations.
 
@@ -9,8 +9,8 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 ## Principles (keep these stable)
 
 * **Stability first**: No breaking public behaviors without a minor+ bump; hold API freeze before v1.0.
-* **Performance budgeted**: Any change must keep ≥ **DISPLAY 4.1–4.2 GiB/s** and **COMP-3 560–580 MiB/s**, memory < **256 MiB** steady-state.
-* **Single source of truth**: Performance figures live in **README "Performance Specifications"**; other docs reference it.
+* **Performance budgeted**: Track throughput against realistic MiB/s floors and document any regressions; historic GiB/s targets are archived until we rediscover them.
+* **Single source of truth**: Raw performance receipts live in `PERFORMANCE_VALIDATION_FINAL.md` and `test_perf.json`; public docs emphasise correctness and limitations.
 * **Determinism**: Parallel decode remains deterministic; round-trip remains lossless.
 
 ---
@@ -30,12 +30,12 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
    * ✅ publish dry-run validation in CI
    * ✅ automated publish workflow for tagged releases
    * 🔄 docs.rs builds for all crates (will complete after first publish)
-2. **✅ Bench receipts in CI** (#52) — **COMPLETED**
+2. **❌ Bench receipts in CI** (#52) — **OUTSTANDING**
 
-   * ✅ criterion JSON parsing with real throughput calculation
-   * ✅ PR comment: SLO deltas and pass/fail against budgets (±5% warn, >10% fail)
-   * ✅ Upload to GitHub Actions artifacts with 14-day retention
-   * ✅ DISPLAY/COMP-3 metric extraction from benchmark results
+   * ❌ criterion JSON parsing with real throughput calculation (tooling not shipped)
+   * ❌ PR comment: SLO deltas and pass/fail against budgets (±5% warn, >10% fail)
+   * ❌ Upload to GitHub Actions artifacts with 14-day retention
+   * ❌ DISPLAY/COMP-3 metric extraction from benchmark results
 3. **✅ Golden fixtures** (#53) — **COMPLETED**
 
    * ✅ `level-88 after ODO` (pass) - validates non-storage fields after ODO
@@ -50,20 +50,19 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
    * ✅ Performance number consolidation: single source of truth
    * ✅ All duplicate perf numbers replaced with canonical links
 
-### Exit Criteria ✅ ALL MET
+### Exit Criteria ⚠️ PARTIAL
 
 * ✅ `cargo publish` sequence ready; dry-run passes for all crates
 * ✅ Version pinned (0.3.1) with exact internal dependencies
 * ✅ Golden fixtures all pass; structural constraints properly validated
-* ✅ Benchmark CI parses real throughput data and enforces SLOs
+* ❌ Benchmark CI parses real throughput data and enforces SLOs
 * ✅ Documentation audit complete: no duplicate perf numbers, working navigation
 
-### **Status: ✅ SHIPPED (v0.3.1)**
+### **Status: ⚠️ Incomplete (follow-ups required)**
 
-**Released**: 2025-09-23
-**Includes**: IndexMap deterministic JSON output, complete CI benchmarking, golden fixtures validation
-
-Ready for crates.io publishing with `cargo login` + publish sequence.
+**Released**: 2025-09-23 (v0.3.1)
+**Includes**: IndexMap deterministic JSON output, golden fixtures validation, docs navigation refresh
+**Outstanding**: Benchmark automation deliverables from Issue #52; SLO enforcement; updated public messaging reflecting current throughput
 
 ---
 
@@ -160,11 +159,11 @@ Ready for crates.io publishing with `cargo login` + publish sequence.
 
 - name: Roll up perf JSON
   run: |
-    python - << 'PY'
-    import json,glob,os,sys
+    python3 - << 'PY'
+    import json,glob
     from pathlib import Path
     reports=list(glob.glob('target/criterion/**/new/benchmark.json',recursive=True))
-    out={"display_gibs":None,"comp3_mibs":None}
+    out={"display_mib_per_s":None,"comp3_mib_per_s":None}
     # TODO: parse actual metric keys; set SLOs
     Path('perf.json').write_text(json.dumps(out))
     PY
@@ -188,11 +187,14 @@ Ready for crates.io publishing with `cargo login` + publish sequence.
 ```yaml
 - name: Enforce SLOs
   run: |
-    python - << 'PY'
+    python3 - << 'PY'
     import json,sys
-    d=json.load(open('perf.json'))
-    assert d["display_gibs"] >= 4.1, "DISPLAY throughput below 4.1 GiB/s"
-    assert d["comp3_mibs"] >= 560, "COMP-3 throughput below 560 MiB/s"
+    with open('perf.json') as fh:
+        data=json.load(fh)
+    if data.get("display_mib_per_s",0) < 80:
+        sys.exit("DISPLAY throughput below 80 MiB/s floor")
+    if data.get("comp3_mib_per_s",0) < 40:
+        sys.exit("COMP-3 throughput below 40 MiB/s floor")
     PY
 ```
 

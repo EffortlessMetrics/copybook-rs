@@ -1,10 +1,10 @@
 # Production Status Report
 
 ## Executive Summary
-**copybook-rs has achieved production maturity** and significantly **exceeds enterprise requirements** for mainframe data processing. With **127 tests passing**, **15-52x performance above targets**, and **comprehensive COBOL support**, this solution is ready for immediate deployment in production environments processing multi-GB mainframe workloads.
+copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 461/462 tests passing (one timing-sensitive failure) with eight leak detectors pending cleanup. Throughput on reference hardware ranges from ~18–25 MiB/s for COMP-3-heavy workloads to ~66–95 MiB/s for DISPLAY-heavy datasets—sufficient for engineering telemetry but well below the historic GiB/s marketing claims. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
 
 ## Overview
-The `copybook-rs` workspace delivers **enterprise-grade** mainframe data processing through 5 specialized Rust crates. This **production-ready** system provides deterministic COBOL→JSON conversion with exceptional performance characteristics that far exceed typical enterprise requirements.
+The `copybook-rs` workspace combines five Rust crates (core, codec, CLI, generator, and benchmarks) to provide deterministic COBOL→JSON processing. The focus is on transparent validation rather than performance bravado: adopters must review known COBOL feature gaps and performance limitations before committing production workloads.
 
 ## Architecture
 The project is organized as a Cargo workspace with clearly defined responsibilities:
@@ -14,21 +14,13 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 - **copybook-gen**: Test fixture and synthetic data generation utilities
 - **copybook-bench**: Performance benchmarks and validation harness
 
-## Production Validation Results
+## Validation Results
 
-### Comprehensive Test Coverage ✅
-- **Total Tests**: **127 tests** across all functional areas (100% passing)
-- **Test Status**: **Production-grade coverage** with zero failures
-- **Integration Testing**: Complete end-to-end validation across all subsystems
-- **Performance Validation**: **15-52x above enterprise targets** with consistent results
-- **Coverage Areas**:
-  - COBOL copybook parsing with complex syntax validation
-  - OCCURS DEPENDING ON arrays with tail handling
-  - Synchronized COMP field alignment following IBM mainframe standards
-  - REDEFINES with varying field sizes and memory layouts
-  - Round-trip fidelity validation (binary → JSON → binary)
-  - Error handling and recovery for malformed data
-  - Memory management and streaming I/O for large files
+### Test Coverage
+- **Workspace tests**: `cargo nextest` currently reports **461/462 passing**, with `copybook-core::golden_fixtures_ac4_sibling_after_odo_fail::test_ac4_performance_large_scale_odo_tail_violation_fail` failing due to a timing-sensitive assertion (205–215 ms observed vs 200 ms threshold)
+- **Leak detectors**: Eight leak checks remain unresolved in the parser/codec modules; cleanup is tracked in follow-up maintenance work
+- **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
+- **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
 
 ### Quality Assurance Features
 - Comprehensive error taxonomy with stable error codes (CBKP*, CBKD*, CBKE*)
@@ -36,22 +28,19 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 - Memory safety with no unsafe code in public API paths
 - Deterministic output with byte-identical results across runs
 
-## Production Performance Metrics
+## Performance Snapshot
 
-### **Enterprise-Grade Throughput** ⚡
-- **DISPLAY-heavy data**: **4.1-4.2 GiB/s** (52x above 80 MB/s enterprise target)
-- **COMP-3-heavy data**: **560-580 MiB/s** (15x above 40 MB/s enterprise target)
-- **Performance Stability**: **<5% variance** across production benchmark runs
-- **Memory efficiency**: **<256 MiB** steady-state for multi-GB enterprise workloads
-- **Parallel processing**: **Deterministic ordering** with linear scalability
+### Current Measurements
+- **DISPLAY-heavy decode**: ~66–95 MiB/s (targets historically set at 4.1 GiB/s; gap acknowledged)
+- **COMP-3-heavy decode**: ~18–25 MiB/s (targets historically set at 560 MiB/s; significant gap)
+- **SLO validation**: Latest JSON artifacts (`test_perf.json`) record failures for both throughput SLOs; performance work is queued behind correctness priorities
+- **Memory usage**: Streaming decode runs stay below 256 MiB on the reference fixture set
+- **Parallel processing**: Deterministic ordering maintained; additional scaling experiments pending once baseline throughput improves
 
-**Production Assessment**: Performance characteristics **far exceed enterprise requirements** with substantial safety margins for peak workload scenarios.
-
-### Performance Engineering Features
-- Streaming I/O with bounded memory usage
-- Zero-copy operations where possible
-- Static lookup tables for EBCDIC character conversion
-- Idiomatic Rust patterns for compiler optimizations
+### Engineering Focus
+- Preserve deterministic encode/decode behaviour while we iterate on performance
+- Capture benchmark evidence in machine-readable JSON for reproducibility
+- Avoid premature optimization until correctness issues (flaky/leaky tests, unsupported COBOL constructs) are resolved
 
 ## COBOL Feature Support
 Comprehensive support for mainframe data formats:
@@ -131,53 +120,34 @@ The copybook-rs parser now implements consistent FILLER field naming using compu
 - **Performance**: Minimal overhead during layout resolution phase
 
 ### Validation Status
-- **127 critical tests passing** including comprehensive validation of FILLER byte-offset naming
-- **Integration testing** confirmed compatibility with existing ODO and REDEFINES functionality
-- **Performance impact**: Negligible overhead measured during benchmark validation
+- `cargo nextest` maintains **461/462 passing** with a single timing-sensitive failure unrelated to the FILLER renaming feature
+- Integration suites cover ODO, REDEFINES, and RDW flows; copybook-bench adds 56 targeted tests validating Issue #52 acceptance criteria
+- Performance telemetry shows negligible overhead from the byte-offset naming work relative to baseline decode timings
 
 ## Performance Evaluation Results
 
 ### Current Assessment
-The copybook-rs workspace has completed comprehensive performance evaluation demonstrating production readiness:
+Recent benchmarking runs prioritize transparency over marketing:
 
-**Performance Targets Achievement**:
-- DISPLAY throughput: **4.1-4.2 GiB/s** (exceeds 80 MB/s target by **50-52x**)
-- COMP-3 throughput: **560-580 MiB/s** (exceeds 40 MB/s target by **14-15x**)
-- Memory usage: **<256 MiB steady-state** for multi-GB files (achieved)
-- Test coverage: **127 critical tests passing** with 100% success rate for core functionality
+- DISPLAY-heavy decode throughput sits around **66–95 MiB/s** with variance dependent on dataset mix
+- COMP-3-heavy decode throughput remains around **18–25 MiB/s**, highlighting a substantial gap to the 560 MiB/s historic target
+- SLO validation artifacts in `test_perf.json` label both throughput checks as **FAIL** with -20% to -47% deltas versus configured floors
+- Memory usage stays below **256 MiB steady-state** thanks to the streaming architecture
+- Test coverage remains broad (461/462 passing) but still hosts the timing-sensitive failure and leak detectors noted earlier
 
-**Quality Assurance**:
-- Complete clippy pedantic compliance with all 140+ violations resolved
-- Comprehensive error taxonomy with stable error codes (CBKP*, CBKD*, CBKE*)
-- Round-trip fidelity validation maintaining data integrity
-- Parser stability with infinite loop prevention and robust error handling
+## Readiness Assessment
 
-## Production Readiness Assessment
+### Status: Cautious Adoption Recommended ⚠️
 
-### **Status: PRODUCTION READY** ✅
+copybook-rs is dependable for teams that validate their copybooks against the supported feature set and can tolerate current throughput levels. However, we are not publishing "production-ready" claims until the remaining issues are addressed.
 
-copybook-rs has **achieved full production maturity** and is **ready for immediate enterprise deployment**. Key readiness indicators:
+#### Technical Signals
+- ⚠️ **Test health**: 461/462 nextest jobs pass; one timing-sensitive failure and eight leak detectors remain under investigation
+- ✅ **Memory safety**: Zero `unsafe` in public APIs; pedantic linting enforced
+- ⚠️ **Performance**: DISPLAY and COMP-3 throughput lag far behind enterprise targets; SLO checks fail
+- ⚠️ **COBOL completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES, and 88-level condition names remain unsupported
 
-#### **Technical Maturity**
-- ✅ **127 tests passing** with comprehensive functional coverage
-- ✅ **15-52x performance above targets** with consistent stability
-- ✅ **Zero unsafe code** in public APIs with complete memory safety
-- ✅ **Comprehensive error taxonomy** with stable error codes for production monitoring
-- ✅ **Complete COBOL support** for all major enterprise data processing needs
-
-#### **Enterprise Deployment Readiness**
-- ✅ **Multi-GB file processing** with bounded memory (<256 MiB)
-- ✅ **Deterministic output** ensuring audit compliance and reproducibility
-- ✅ **Round-trip fidelity** guaranteeing data integrity across conversions
-- ✅ **Production error handling** with structured context and fail-fast validation
-- ✅ **Parallel processing** with linear scalability for enterprise workloads
-
-### **Deployment Recommendation**
-
-**Organizations can confidently deploy copybook-rs in production environments** for:
-- Mainframe data migration and modernization projects
-- ETL pipelines processing legacy COBOL data formats
-- Data warehouse integration requiring COBOL→JSON conversion
-- Audit and compliance workflows requiring deterministic data processing
-
-The system provides a **modern, memory-safe alternative** to COBOL runtime environments while **exceeding performance expectations** by substantial margins.
+#### Deployment Guidance
+- Run pilots on representative copybooks and verify unsupported clauses are absent before broader rollout
+- Budget time for manual performance validation; automation scripts from Issue #52 are still outstanding
+- Keep `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` handy when communicating status to stakeholders

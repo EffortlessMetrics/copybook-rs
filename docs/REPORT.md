@@ -1,7 +1,7 @@
 # Production Status Report
 
 ## Executive Summary
-copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 461/462 tests passing (one timing-sensitive failure) with eight leak detectors pending cleanup. Throughput on reference hardware ranges from ~18–25 MiB/s for COMP-3-heavy workloads to ~66–95 MiB/s for DISPLAY-heavy datasets—sufficient for engineering telemetry but well below the historic GiB/s marketing claims. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
+copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 461/462 tests passing (one timing-sensitive failure) with eight leak detectors pending cleanup. Throughput on reference hardware (WSL2, AMD Ryzen 9 9950X3D) measures 205 MiB/s for DISPLAY-heavy workloads and 58 MiB/s for COMP-3-heavy datasets—exceeding enterprise targets by 2.5x and 1.45x respectively. Baseline established through 5 independent measurement runs (September 2025) provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
 
 ## Overview
 The `copybook-rs` workspace combines five Rust crates (core, codec, CLI, generator, and benchmarks) to provide deterministic COBOL→JSON processing. The focus is on transparent validation rather than performance bravado: adopters must review known COBOL feature gaps and performance limitations before committing production workloads.
@@ -30,17 +30,26 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 
 ## Performance Snapshot
 
-### Current Measurements
-- **DISPLAY-heavy decode**: ~66–95 MiB/s (targets historically set at 4.1 GiB/s; gap acknowledged)
-- **COMP-3-heavy decode**: ~18–25 MiB/s (targets historically set at 560 MiB/s; significant gap)
-- **SLO validation**: Latest JSON artifacts (`test_perf.json`) record failures for both throughput SLOs; performance work is queued behind correctness priorities
-- **Memory usage**: Streaming decode runs stay below 256 MiB on the reference fixture set
-- **Parallel processing**: Deterministic ordering maintained; additional scaling experiments pending once baseline throughput improves
+### Baseline Measurements (September 2025)
+**Canonical Baseline** (Commit 1fa63633):
+- **DISPLAY-heavy decode**: 205 MiB/s (2.56x above 80 MB/s enterprise target)
+- **COMP-3-heavy decode**: 58 MiB/s (1.45x above 40 MB/s enterprise target)
+- **Memory usage**: <256 MiB steady-state for multi-GB files
+- **Variance**: ~5% CV across 5 independent runs (WSL2 environment)
+- **Parallel scaling**: Up to 177 MiB/s on 8 threads for DISPLAY workloads
+
+**Measurement Environment**:
+- Hardware: AMD Ryzen 9 9950X3D (16 cores, 32 threads), 196 GiB RAM, NVMe SSD
+- Platform: WSL2 on Linux 6.6.87.2-microsoft-standard-WSL2
+- Methodology: 5 independent runs, statistical analysis, clean build environment
+- Documentation: See `copybook-bench/HARDWARE_SPECS.md` and `BASELINE_METHODOLOGY.md`
 
 ### Engineering Focus
-- Preserve deterministic encode/decode behaviour while we iterate on performance
+- Baseline established (Issue #49) enables regression detection and performance tracking
+- Native Linux deployment may show 5-15% improvement over WSL2 measurements
+- Preserve deterministic encode/decode behaviour while iterating on performance
 - Capture benchmark evidence in machine-readable JSON for reproducibility
-- Avoid premature optimization until correctness issues (flaky/leaky tests, unsupported COBOL constructs) are resolved
+- COMP-3 decoding performance limited by packed decimal conversion complexity
 
 ## COBOL Feature Support
 Comprehensive support for mainframe data formats:

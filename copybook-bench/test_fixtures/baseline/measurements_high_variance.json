@@ -1,0 +1,44 @@
+{
+  "measurements": [
+    {
+      "run": 1,
+      "display_gibs": 2.50,
+      "comp3_mibs": 172.0,
+      "timestamp": "2025-01-15T10:00:00Z"
+    },
+    {
+      "run": 2,
+      "display_gibs": 2.20,
+      "comp3_mibs": 160.0,
+      "timestamp": "2025-01-15T10:02:00Z"
+    },
+    {
+      "run": 3,
+      "display_gibs": 2.60,
+      "comp3_mibs": 180.0,
+      "timestamp": "2025-01-15T10:04:00Z"
+    },
+    {
+      "run": 4,
+      "display_gibs": 2.30,
+      "comp3_mibs": 165.0,
+      "timestamp": "2025-01-15T10:06:00Z"
+    },
+    {
+      "run": 5,
+      "display_gibs": 2.40,
+      "comp3_mibs": 170.0,
+      "timestamp": "2025-01-15T10:08:00Z"
+    }
+  ],
+  "statistics": {
+    "display_mean": 2.40,
+    "display_stddev": 0.158,
+    "display_cv_percent": 6.58,
+    "comp3_mean": 169.4,
+    "comp3_stddev": 7.89,
+    "comp3_cv_percent": 4.66,
+    "variance_acceptable": false,
+    "rejection_reason": "DISPLAY CV 6.58% exceeds 5% threshold"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "event": "baseline_promotion",
+  "trigger": "main_branch_merge",
+  "pr_number": 67,
+  "source_commit": "test1234",
+  "merge_commit": "dcb9885a",
+  "timestamp": "2025-01-15T12:00:00Z",
+  "performance_data": {
+    "display_gibs": 2.35,
+    "comp3_mibs": 174.0
+  },
+  "baseline_before": {
+    "display_gibs": 2.30,
+    "comp3_mibs": 168.0,
+    "commit": "14babe3f"
+  },
+  "baseline_after": {
+    "display_gibs": 2.35,
+    "comp3_mibs": 174.0,
+    "commit": "dcb9885a"
+  },
+  "improvements": {
+    "display_improvement_pct": 2.17,
+    "comp3_improvement_pct": 3.57
+  },
+  "workflow_status": "success",
+  "notification": {
+    "posted": true,
+    "comment_url": "https://github.com/owner/repo/pull/67#issuecomment-123456"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "workflow": {
+    "name": "Performance Benchmarks",
+    "trigger": "pull_request",
+    "jobs": {
+      "benchmark": {
+        "runs_on": "ubuntu-latest",
+        "steps": [
+          {
+            "name": "Checkout code",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "name": "Setup Rust",
+            "uses": "dtolnay/rust-toolchain@stable"
+          },
+          {
+            "name": "Run benchmarks",
+            "run": "cargo bench --package copybook-bench"
+          },
+          {
+            "name": "Generate performance report",
+            "run": "cargo run --bin bench-report -p copybook-bench -- validate perf.json"
+          },
+          {
+            "name": "Compare with baseline",
+            "run": "cargo run --bin bench-report -p copybook-bench -- compare perf.json"
+          },
+          {
+            "name": "Upload artifacts",
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "performance-report",
+              "path": "perf.json",
+              "retention_days": 90
+            }
+          },
+          {
+            "name": "Post PR comment",
+            "uses": "actions/github-script@v7",
+            "with": {
+              "script": "github.rest.issues.createComment(...)"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

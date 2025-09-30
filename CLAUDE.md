@@ -180,17 +180,34 @@ Structured error taxonomy with stable codes:
 ## Performance
 
 **Targets vs Achieved**:
-- DISPLAY-heavy: ≥80 MB/s → **2.5-3.0 GiB/s (32x exceeded)**
-- COMP-3-heavy: ≥40 MB/s → **100-120 MiB/s (3x exceeded)**
+- DISPLAY-heavy: ≥80 MB/s → **205 MiB/s (2.56x exceeded)**
+- COMP-3-heavy: ≥40 MB/s → **58 MiB/s (1.45x exceeded)**
 - Memory: <256 MiB steady-state for multi-GB files
-- Variance: <5% across benchmark runs
+- Variance: ~5% across benchmark runs (WSL2 environment)
 - Overhead budget: 20% reserved for enterprise security/audit features
+
+**Baseline Established**: 2025-09-30 (Commit 1fa63633)
+- Measurement Environment: WSL2 on AMD Ryzen 9 9950X3D (32 threads, 196 GiB RAM)
+- Sample Count: 5 independent runs with statistical analysis
+- See `copybook-bench/HARDWARE_SPECS.md` for complete hardware specifications
+- See `copybook-bench/BASELINE_METHODOLOGY.md` for measurement procedures
 
 **Benchmarking**:
 ```bash
 cargo bench --package copybook-bench           # All benchmarks
 cargo bench --package copybook-bench -- slo_validation  # SLO validation
+PERF=1 cargo bench -p copybook-bench          # Performance mode
+
+# Baseline management (Issue #49)
+cargo run --bin bench-report -p copybook-bench -- baseline show
+cargo run --bin bench-report -p copybook-bench -- baseline promote perf.json
 ```
+
+**Performance Notes**:
+- Measurements taken in WSL2 environment; native Linux may show 5-15% improvement
+- DISPLAY-heavy workloads benefit from parallel processing (up to 177 MiB/s on 8 threads)
+- COMP-3 decoding performance limited by packed decimal conversion complexity
+- Baseline provides foundation for regression detection and performance tracking
 
 ## Golden Fixtures System
 

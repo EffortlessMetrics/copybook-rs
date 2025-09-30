@@ -15,6 +15,13 @@
 
 // TODO: Implement progressive benchmarks after AC2 (baseline reconciliation) completes
 
+#![allow(clippy::cast_precision_loss, clippy::items_after_statements)]
+
+#[cfg(feature = "progressive")]
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+#[cfg(feature = "progressive")]
+use std::time::Duration;
+
 /// Progressive data sizes: 1KB → 10KB → 100KB → 1MB
 const PROGRESSIVE_SIZES: &[(usize, &str)] = &[
     (1_024, "1KB"),
@@ -38,7 +45,7 @@ fn progressive_decode_display(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(5));
 
     for (size, label) in PROGRESSIVE_SIZES {
-        let test_data = vec![0x40u8; *size];  // EBCDIC spaces
+        let test_data = vec![0x40u8; *size]; // EBCDIC spaces
         group.throughput(Throughput::Bytes(test_data.len() as u64));
 
         group.bench_with_input(BenchmarkId::from_parameter(label), &test_data, |b, data| {
@@ -74,7 +81,7 @@ fn progressive_decode_comp3(c: &mut Criterion) {
     for (size, label) in PROGRESSIVE_SIZES {
         // COMP-3 data is more compact
         let comp3_size = size / 2;
-        let test_data = vec![0x0Cu8; comp3_size];  // Positive sign nibble
+        let test_data = vec![0x0Cu8; comp3_size]; // Positive sign nibble
         group.throughput(Throughput::Bytes(test_data.len() as u64));
 
         group.bench_with_input(BenchmarkId::from_parameter(label), &test_data, |b, data| {

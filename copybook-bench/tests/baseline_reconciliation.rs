@@ -7,6 +7,17 @@
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac2-baseline-reconciliation
 //! Traceability: docs/issue-49-traceability-matrix.md#ac2
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::useless_vec,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::bool_to_int_with_if,
+    clippy::uninlined_format_args,
+    clippy::items_after_statements
+)]
+
 use copybook_bench::baseline::{BaselineStore, PerformanceBaseline};
 use copybook_bench::reporting::PerformanceReport;
 
@@ -19,21 +30,24 @@ use copybook_bench::reporting::PerformanceReport;
 /// - Baseline promotion procedure
 /// - Hardware specification documentation requirements
 #[test]
-fn test_baseline_measurement_methodology() {  // AC2
+fn test_baseline_measurement_methodology() {
+    // AC2
     // Simulate 5 baseline measurement runs
-    let measurements = vec![2.50, 2.48, 2.52, 2.49, 2.51];  // DISPLAY GiB/s
+    let measurements = vec![2.50, 2.48, 2.52, 2.49, 2.51]; // DISPLAY GiB/s
 
     // Calculate statistical variance
     let mean = measurements.iter().sum::<f64>() / measurements.len() as f64;
-    let variance = measurements.iter()
-        .map(|x| (x - mean).powi(2))
-        .sum::<f64>() / measurements.len() as f64;
+    let variance =
+        measurements.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / measurements.len() as f64;
     let std_dev = variance.sqrt();
     let coefficient_of_variation = (std_dev / mean) * 100.0;
 
     // Validate variance <5% requirement
-    assert!(coefficient_of_variation < 5.0,
-        "Expected variance <5%, got {:.2}%", coefficient_of_variation);
+    assert!(
+        coefficient_of_variation < 5.0,
+        "Expected variance <5%, got {:.2}%",
+        coefficient_of_variation
+    );
 
     // TODO: Create canonical baseline with mean values
     // TODO: Document hardware specifications
@@ -47,13 +61,16 @@ fn test_baseline_measurement_methodology() {  // AC2
 /// Validates that baseline measurements meet <5% variance requirement
 /// for statistical reliability and reproducibility.
 #[test]
-fn test_baseline_variance_threshold() {  // AC2
+fn test_baseline_variance_threshold() {
+    // AC2
     // Test acceptable variance (< 5%)
     let acceptable_measurements = vec![100.0, 98.0, 102.0, 99.5, 100.5];
     let mean = acceptable_measurements.iter().sum::<f64>() / acceptable_measurements.len() as f64;
-    let variance = acceptable_measurements.iter()
+    let variance = acceptable_measurements
+        .iter()
         .map(|x| (x - mean).powi(2))
-        .sum::<f64>() / acceptable_measurements.len() as f64;
+        .sum::<f64>()
+        / acceptable_measurements.len() as f64;
     let std_dev = variance.sqrt();
     let cv = (std_dev / mean) * 100.0;
 
@@ -74,7 +91,8 @@ fn test_baseline_variance_threshold() {  // AC2
 /// - Updates timestamp metadata
 /// - Applies retention policy
 #[test]
-fn test_baseline_promotion() {  // AC2
+fn test_baseline_promotion() {
+    // AC2
     let mut store = BaselineStore::new();
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
@@ -104,7 +122,8 @@ fn test_baseline_promotion() {  // AC2
 /// Validates that baselines persist correctly to disk and can be
 /// loaded in new sessions without data loss or corruption.
 #[test]
-fn test_baseline_persistence() {  // AC2
+fn test_baseline_persistence() {
+    // AC2
     let temp_dir = std::env::temp_dir();
     let temp_path = temp_dir.join("test_baseline_issue49_ac2.json");
 
@@ -120,11 +139,13 @@ fn test_baseline_persistence() {  // AC2
     store.save(&temp_path).expect("Failed to save baseline");
 
     // Load baseline in new session
-    let loaded_store = BaselineStore::load_or_create(&temp_path)
-        .expect("Failed to load baseline");
+    let loaded_store = BaselineStore::load_or_create(&temp_path).expect("Failed to load baseline");
 
     // Validate loaded baseline matches original
-    assert!(loaded_store.current.is_some(), "Expected baseline to be loaded");
+    assert!(
+        loaded_store.current.is_some(),
+        "Expected baseline to be loaded"
+    );
     let loaded_baseline = loaded_store.current.as_ref().unwrap();
     assert_eq!(loaded_baseline.display_gibs, Some(2.50));
     assert_eq!(loaded_baseline.comp3_mibs, Some(172.0));
@@ -145,7 +166,8 @@ fn test_baseline_persistence() {  // AC2
 /// Validates that baseline documentation includes all required
 /// metadata for reproducibility and audit compliance.
 #[test]
-fn test_baseline_documentation() {  // AC2
+fn test_baseline_documentation() {
+    // AC2
     let baseline = PerformanceBaseline {
         branch: "main".to_string(),
         commit: "abc12345".to_string(),
@@ -158,7 +180,10 @@ fn test_baseline_documentation() {  // AC2
     // Validate required fields present
     assert!(!baseline.branch.is_empty(), "Branch must be documented");
     assert!(!baseline.commit.is_empty(), "Commit must be documented");
-    assert!(!baseline.timestamp.is_empty(), "Timestamp must be documented");
+    assert!(
+        !baseline.timestamp.is_empty(),
+        "Timestamp must be documented"
+    );
     assert!(baseline.display_gibs.is_some(), "DISPLAY baseline required");
     assert!(baseline.comp3_mibs.is_some(), "COMP-3 baseline required");
     assert!(baseline.sample_count > 0, "Sample count must be > 0");
@@ -175,7 +200,7 @@ fn test_baseline_documentation() {  // AC2
 /// Validates that baseline reconciliation resolves the discrepancy
 /// between CLAUDE.md and REPORT.md performance numbers.
 #[test]
-fn test_baseline_reconciliation_complete() {  // AC2
+fn test_baseline_reconciliation_complete() { // AC2
     // TODO: Read CLAUDE.md performance numbers
     // TODO: Read REPORT.md performance numbers
     // TODO: Verify consistency between documents
@@ -195,7 +220,7 @@ fn test_baseline_reconciliation_complete() {  // AC2
 /// 4. Baseline promotion
 /// 5. Documentation update
 #[test]
-fn test_canonical_baseline_measurement() {  // AC2
+fn test_canonical_baseline_measurement() { // AC2
     // TODO: Implement clean environment validation
     // TODO: Run 5 baseline measurements
     // TODO: Calculate statistical metrics (mean, stddev, CV)
@@ -214,7 +239,8 @@ fn test_canonical_baseline_measurement() {  // AC2
 /// - Timestamp validity
 /// - Commit hash format
 #[test]
-fn test_baseline_quality_metrics() {  // AC2
+fn test_baseline_quality_metrics() {
+    // AC2
     let baseline = PerformanceBaseline {
         branch: "main".to_string(),
         commit: "abc12345".to_string(),
@@ -234,7 +260,10 @@ fn test_baseline_quality_metrics() {  // AC2
     );
 
     // Validate commit hash format (8 characters minimum)
-    assert!(baseline.commit.len() >= 8, "Commit hash must be >= 8 characters");
+    assert!(
+        baseline.commit.len() >= 8,
+        "Commit hash must be >= 8 characters"
+    );
 
     // TODO: Validate variance calculation
     // TODO: Test quality metric thresholds
@@ -248,7 +277,8 @@ fn test_baseline_quality_metrics() {  // AC2
 /// Validates that baseline measurements are reproducible across
 /// different runs with consistent environment setup.
 #[test]
-fn test_baseline_measurement_reproducibility() {  // AC2
+fn test_baseline_measurement_reproducibility() {
+    // AC2
     // Simulate two sets of measurements under identical conditions
     let run1 = vec![2.50, 2.48, 2.52, 2.49, 2.51];
     let run2 = vec![2.49, 2.51, 2.48, 2.52, 2.50];
@@ -258,7 +288,11 @@ fn test_baseline_measurement_reproducibility() {  // AC2
 
     // Validate means are within acceptable variance
     let diff_pct = ((mean1 - mean2).abs() / mean1) * 100.0;
-    assert!(diff_pct < 2.0, "Expected <2% difference between runs, got {:.2}%", diff_pct);
+    assert!(
+        diff_pct < 2.0,
+        "Expected <2% difference between runs, got {:.2}%",
+        diff_pct
+    );
 
     // TODO: Test reproducibility with different CPU governors
     // TODO: Validate reproducibility across system reboots
@@ -272,7 +306,8 @@ fn test_baseline_measurement_reproducibility() {  // AC2
 /// Validates that previous baselines are correctly archived to history
 /// when new baselines are promoted.
 #[test]
-fn test_baseline_archival() {  // AC2
+fn test_baseline_archival() {
+    // AC2
     let mut store = BaselineStore::new();
 
     // Promote first baseline
@@ -281,7 +316,11 @@ fn test_baseline_archival() {  // AC2
     report1.comp3_mibs = Some(160.0);
     store.promote_baseline(&report1, "main", "baseline-1");
 
-    assert_eq!(store.history.len(), 0, "History should be empty after first promotion");
+    assert_eq!(
+        store.history.len(),
+        0,
+        "History should be empty after first promotion"
+    );
 
     // Promote second baseline
     let mut report2 = PerformanceReport::new();
@@ -289,7 +328,11 @@ fn test_baseline_archival() {  // AC2
     report2.comp3_mibs = Some(172.0);
     store.promote_baseline(&report2, "main", "baseline-2");
 
-    assert_eq!(store.history.len(), 1, "Previous baseline should be archived");
+    assert_eq!(
+        store.history.len(),
+        1,
+        "Previous baseline should be archived"
+    );
     assert_eq!(store.history[0].commit, "baseline-1");
 
     // TODO: Test archival with multiple promotions

@@ -3,22 +3,17 @@
 //! Progressive benchmark suite with scaling data sizes (1KB → 10KB → 100KB → 1MB)
 //! for performance profiling with flamegraph, perf, and valgrind integration.
 //!
-//! **Feature-gated**: Only executes with PERF=1 environment variable
+//! **Note**: Currently scaffolded for future implementation with PERF=1 environment variable
 //!
-//! Usage:
+//! Usage (when implemented):
 //! ```bash
 //! PERF=1 cargo bench --bench progressive
-//! cargo flamegraph --bench progressive --features progressive
 //! ```
 //!
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac4-progressive-complexity
 //! Traceability: docs/issue-49-traceability-matrix.md#ac4
 
-// Feature-gate progressive benchmarks to PERF=1 mode only
-#![cfg_attr(not(feature = "progressive"), allow(dead_code))]
-
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::time::Duration;
+// TODO: Implement progressive benchmarks after AC2 (baseline reconciliation) completes
 
 /// Progressive data sizes: 1KB → 10KB → 100KB → 1MB
 const PROGRESSIVE_SIZES: &[(usize, &str)] = &[

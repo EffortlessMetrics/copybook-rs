@@ -338,7 +338,7 @@ fn test_pr_comment_updates() {  // AC3
     // PR comments should be updated in place using GitHub API
     // Comment identification: search for previous comment with specific marker
 
-    let comment_marker = "<!-- copybook-bench-performance-report -->";
+    let _comment_marker = "<!-- copybook-bench-performance-report -->";
 
     // Simulate finding existing comment (would use GitHub API)
     let existing_comment_id = None::<String>;

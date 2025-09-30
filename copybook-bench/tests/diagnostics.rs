@@ -166,7 +166,7 @@ fn test_diagnostic_benchmarks() {  // AC5
     // Test JSON parsing overhead
     let report = PerformanceReport::new();
     let start = Instant::now();
-    let json = serde_json::to_string(&report).expect("Failed to serialize");
+    let _json = serde_json::to_string(&report).expect("Failed to serialize");
     let parse_elapsed = start.elapsed();
     assert!(parse_elapsed.as_micros() < 1000, "JSON parsing should be fast (<1ms)");
 
@@ -174,7 +174,7 @@ fn test_diagnostic_benchmarks() {  // AC5
     let temp_dir = std::env::temp_dir();
     let temp_path = temp_dir.join("diagnostic_baseline_test.json");
 
-    let mut store = BaselineStore::new();
+    let store = BaselineStore::new();
     let start = Instant::now();
     store.save(&temp_path).expect("Failed to save baseline");
     let save_elapsed = start.elapsed();
@@ -209,7 +209,7 @@ fn test_health_check_components() {  // AC5
 
     // Baseline file check
     let baseline_path = std::path::PathBuf::from("target/baselines/performance.json");
-    let baseline_exists = baseline_path.exists();
+    let _baseline_exists = baseline_path.exists();
     // Note: May not exist in CI, this is informational
 
     // TODO: Implement CPU governor check (Linux-specific)

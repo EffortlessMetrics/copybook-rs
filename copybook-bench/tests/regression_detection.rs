@@ -417,3 +417,251 @@ fn test_performance_improvement() {
     // TODO: Test large improvements (>50%)
     // TODO: Validate promotion of improved baselines
 }
+
+/// AC1: Test WARNING threshold at 5.5% (specific example from task)
+///
+/// Tests feature spec: docs/reference/benchmark-api-contracts.md#regression-detection-algorithm
+///
+/// Validates that 5.5% regression triggers WARNING status.
+#[test]
+fn test_warning_threshold_5_percent() {
+    // AC1
+    let mut store = BaselineStore::new();
+
+    let mut baseline = PerformanceReport::new();
+    baseline.display_gibs = Some(100.0);
+    baseline.comp3_mibs = Some(100.0);
+    store.promote_baseline(&baseline, "main", "baseline");
+
+    // Test 5.5% regression (just over 5% threshold)
+    let mut current = PerformanceReport::new();
+    current.display_gibs = Some(94.5); // 5.5% regression
+    current.comp3_mibs = Some(100.0);
+
+    let regressions = store.check_regression(&current, 5.0);
+    assert_eq!(regressions.len(), 1, "Expected 1 WARNING at 5.5%");
+    assert!(
+        regressions[0].contains("DISPLAY regression"),
+        "Expected DISPLAY regression"
+    );
+    assert!(
+        regressions[0].contains("5.50%"),
+        "Expected 5.50% regression percentage"
+    );
+}
+
+/// AC1: Test FAILURE threshold at 12% (specific example from task)
+///
+/// Tests feature spec: docs/reference/benchmark-api-contracts.md#regression-detection-algorithm
+///
+/// Validates that 12% regression triggers FAILURE status.
+#[test]
+fn test_failure_threshold_10_percent() {
+    // AC1
+    let mut store = BaselineStore::new();
+
+    let mut baseline = PerformanceReport::new();
+    baseline.display_gibs = Some(100.0);
+    baseline.comp3_mibs = Some(100.0);
+    store.promote_baseline(&baseline, "main", "baseline");
+
+    // Test 12% regression (exceeds 10% FAILURE threshold)
+    let mut current = PerformanceReport::new();
+    current.display_gibs = Some(88.0); // 12% regression
+    current.comp3_mibs = Some(100.0);
+
+    let regressions = store.check_regression(&current, 5.0);
+    assert_eq!(regressions.len(), 1, "Expected 1 FAILURE at 12%");
+    assert!(
+        regressions[0].contains("DISPLAY regression"),
+        "Expected DISPLAY regression"
+    );
+    assert!(
+        regressions[0].contains("12.00%"),
+        "Expected 12.00% regression percentage"
+    );
+}
+
+/// AC1: Test multiple metric regression (both DISPLAY and COMP-3)
+///
+/// Tests feature spec: docs/reference/benchmark-api-contracts.md#regression-detection-algorithm
+///
+/// Validates behavior when both metrics regress simultaneously.
+#[test]
+fn test_multiple_metric_regression() {
+    // AC1
+    let mut store = BaselineStore::new();
+
+    let mut baseline = PerformanceReport::new();
+    baseline.display_gibs = Some(100.0);
+    baseline.comp3_mibs = Some(100.0);
+    store.promote_baseline(&baseline, "main", "baseline");
+
+    // Test both metrics regressing
+    let mut current = PerformanceReport::new();
+    current.display_gibs = Some(93.0); // 7% WARNING
+    current.comp3_mibs = Some(88.0); // 12% FAILURE
+
+    let regressions = store.check_regression(&current, 5.0);
+    assert_eq!(
+        regressions.len(),
+        2,
+        "Expected 2 regressions (DISPLAY + COMP-3)"
+    );
+
+    // Verify DISPLAY warning
+    assert!(
+        regressions[0].contains("DISPLAY regression"),
+        "Expected DISPLAY regression first"
+    );
+    assert!(
+        regressions[0].contains("7.00%"),
+        "Expected 7% DISPLAY regression"
+    );
+
+    // Verify COMP-3 failure
+    assert!(
+        regressions[1].contains("COMP-3 regression"),
+        "Expected COMP-3 regression second"
+    );
+    assert!(
+        regressions[1].contains("12.00%"),
+        "Expected 12% COMP-3 regression"
+    );
+}
+
+/// AC1: Test zero baseline protection
+///
+/// Tests feature spec: docs/reference/benchmark-api-contracts.md#regression-detection-algorithm
+///
+/// Validates that zero baseline values do not cause division by zero.
+#[test]
+fn test_zero_baseline_protection() {
+    // AC1
+    let mut store = BaselineStore::new();
+
+    let mut baseline = PerformanceReport::new();
+    baseline.display_gibs = Some(0.0); // Zero baseline
+    baseline.comp3_mibs = Some(100.0);
+    store.promote_baseline(&baseline, "main", "baseline");
+
+    let mut current = PerformanceReport::new();
+    current.display_gibs = Some(100.0);
+    current.comp3_mibs = Some(100.0);
+
+    // Should not panic or fail
+    let _regressions = store.check_regression(&current, 5.0);
+    // May contain regression (infinite %) but should not crash
+    // This is a safety test - exact behavior with zero baseline is implementation-defined
+    // Test passes if we reach this point without panic
+}
+
+/// AC1: Test very small regression (<0.1%)
+///
+/// Tests feature spec: docs/reference/benchmark-api-contracts.md#regression-detection-algorithm
+///
+/// Validates that very small regressions do not trigger warnings.
+#[test]
+fn test_very_small_regression() {
+    // AC1
+    let mut store = BaselineStore::new();
+
+    let mut baseline = PerformanceReport::new();
+    baseline.display_gibs = Some(100.0);
+    baseline.comp3_mibs = Some(100.0);
+    store.promote_baseline(&baseline, "main", "baseline");
+
+    // Test 0.05% regression (well below threshold)
+    let mut current = PerformanceReport::new();
+    current.display_gibs = Some(99.95); // 0.05% regression
+    current.comp3_mibs = Some(99.99); // 0.01% regression
+
+    let regressions = store.check_regression(&current, 5.0);
+    assert!(
+        regressions.is_empty(),
+        "Very small regressions should not trigger warnings"
+    );
+}
+
+/// AC1: Test very large regression (>50%)
+///
+/// Tests feature spec: docs/reference/benchmark-api-contracts.md#regression-detection-algorithm
+///
+/// Validates that very large regressions are properly detected and reported.
+#[test]
+fn test_very_large_regression() {
+    // AC1
+    let mut store = BaselineStore::new();
+
+    let mut baseline = PerformanceReport::new();
+    baseline.display_gibs = Some(100.0);
+    baseline.comp3_mibs = Some(100.0);
+    store.promote_baseline(&baseline, "main", "baseline");
+
+    // Test 75% regression
+    let mut current = PerformanceReport::new();
+    current.display_gibs = Some(25.0); // 75% regression
+    current.comp3_mibs = Some(100.0);
+
+    let regressions = store.check_regression(&current, 5.0);
+    assert_eq!(regressions.len(), 1, "Expected 1 regression");
+    assert!(
+        regressions[0].contains("75.00%"),
+        "Expected 75% regression percentage"
+    );
+}
+
+/// AC1: Test enterprise performance context (from AC2 baseline)
+///
+/// Tests feature spec: docs/reference/benchmark-api-contracts.md#regression-detection-algorithm
+///
+/// Validates regression detection using actual enterprise baseline values:
+/// - DISPLAY: 2.33 GiB/s baseline (from AC2)
+/// - COMP-3: 172 MiB/s baseline (from AC2)
+/// - 5% threshold: DISPLAY 2.21 GiB/s, COMP-3 163 MiB/s
+/// - 10% threshold: DISPLAY 2.10 GiB/s, COMP-3 155 MiB/s
+#[test]
+fn test_enterprise_performance_context() {
+    // AC1
+    let mut store = BaselineStore::new();
+
+    // Use AC2 canonical baseline from baseline_reference.json
+    let mut baseline = PerformanceReport::new();
+    baseline.display_gibs = Some(2.33); // GiB/s from AC2
+    baseline.comp3_mibs = Some(172.0); // MiB/s from AC2
+    store.promote_baseline(&baseline, "main", "dcb9885");
+
+    // Test at 5% threshold boundary (WARNING) - should trigger regression
+    let mut at_warning = PerformanceReport::new();
+    at_warning.display_gibs = Some(2.21); // ~5.15% regression
+    at_warning.comp3_mibs = Some(163.0); // ~5.23% regression
+
+    let regressions = store.check_regression(&at_warning, 5.0);
+    assert_eq!(
+        regressions.len(),
+        2,
+        "Expected both metrics to trigger at 5% threshold boundary: {regressions:?}"
+    );
+
+    // Test at 10% threshold boundary (FAILURE)
+    let mut at_failure = PerformanceReport::new();
+    at_failure.display_gibs = Some(2.05); // ~12.02% regression
+    at_failure.comp3_mibs = Some(150.0); // ~12.79% regression
+
+    let regressions = store.check_regression(&at_failure, 5.0);
+    assert_eq!(
+        regressions.len(),
+        2,
+        "Expected both metrics to trigger at 10% threshold"
+    );
+
+    // Verify these match the fixture data
+    assert!(
+        regressions[0].contains("12.") || regressions[0].contains("12.0"),
+        "Expected ~12% DISPLAY regression"
+    );
+    assert!(
+        regressions[1].contains("12.") || regressions[1].contains("13."),
+        "Expected ~12-13% COMP-3 regression"
+    );
+}

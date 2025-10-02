@@ -19,7 +19,7 @@ use std::path::Path;
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#1-cargo-audit-ci-integration
 /// AC:1 - Validate cargo-audit can run and produce valid JSON output
 #[test]
-#[ignore] // Requires cargo-audit installation
+#[ignore = "Requires cargo-audit installation"]
 fn test_ac1_cargo_audit_produces_json_output() {
     // RED: This test should fail initially (cargo-audit not yet integrated into CI)
     //
@@ -41,13 +41,15 @@ fn test_ac1_cargo_audit_produces_json_output() {
     // - JSON structure matches expected schema with vulnerabilities.count field
     // - All workspace crates are scanned (--all-features --workspace)
 
-    todo!("Implement AC1: cargo-audit JSON output validation - verify cargo-audit produces valid JSON with vulnerability counts")
+    todo!(
+        "Implement AC1: cargo-audit JSON output validation - verify cargo-audit produces valid JSON with vulnerability counts"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#1-cargo-audit-ci-integration
 /// AC:1 - Validate security receipt generation with full metadata
 #[test]
-#[ignore] // Requires cargo-audit installation and JSON processing
+#[ignore = "Requires cargo-audit installation and JSON processing"]
 fn test_ac1_security_receipt_generation() {
     // RED: This test should fail initially (security receipt generation not yet implemented)
     //
@@ -69,13 +71,15 @@ fn test_ac1_security_receipt_generation() {
     // - Commit SHA is full 40-character hash
     // - Tool versions are captured correctly
 
-    todo!("Implement AC1: Security receipt generation - verify complete metadata capture for compliance artifacts")
+    todo!(
+        "Implement AC1: Security receipt generation - verify complete metadata capture for compliance artifacts"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies
 /// AC:4 - Validate deny.toml rejects yanked dependencies
 #[test]
-#[ignore] // Requires cargo-deny installation and test branch with yanked dependency
+#[ignore = "Requires cargo-deny installation and test branch with yanked dependency"]
 fn test_ac4_deny_toml_rejects_yanked_dependencies() {
     // RED: This test should fail initially (deny.toml not yet enhanced with yanked="deny")
     //
@@ -101,7 +105,7 @@ fn test_ac4_deny_toml_rejects_yanked_dependencies() {
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies
 /// AC:4 - Validate deny.toml rejects wildcard dependencies
 #[test]
-#[ignore] // Requires cargo-deny installation and test Cargo.toml with wildcards
+#[ignore = "Requires cargo-deny installation and test Cargo.toml with wildcards"]
 fn test_ac4_deny_toml_rejects_wildcard_dependencies() {
     // RED: This test should fail initially (deny.toml not yet enhanced with wildcards="deny")
     //
@@ -121,13 +125,15 @@ fn test_ac4_deny_toml_rejects_wildcard_dependencies() {
     // - Error message indicates wildcard usage and policy violation
     // - Deterministic builds enforced per SOX/PCI DSS requirements
 
-    todo!("Implement AC4: deny.toml wildcard policy enforcement - verify wildcard dependencies are rejected for deterministic builds")
+    todo!(
+        "Implement AC4: deny.toml wildcard policy enforcement - verify wildcard dependencies are rejected for deterministic builds"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies
 /// AC:4 - Validate deny.toml rejects unknown registries and git sources
 #[test]
-#[ignore] // Requires cargo-deny installation and test Cargo.toml with untrusted sources
+#[ignore = "Requires cargo-deny installation and test Cargo.toml with untrusted sources"]
 fn test_ac4_deny_toml_rejects_unknown_sources() {
     // RED: This test should fail initially (deny.toml not yet enhanced with unknown-registry/git="deny")
     //
@@ -147,13 +153,15 @@ fn test_ac4_deny_toml_rejects_unknown_sources() {
     // - Only crates.io registry allowed for supply chain verification
     // - Enterprise mainframe data processing trustworthiness enforced
 
-    todo!("Implement AC4: deny.toml source policy enforcement - verify only trusted crates.io registry allowed")
+    todo!(
+        "Implement AC4: deny.toml source policy enforcement - verify only trusted crates.io registry allowed"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies
 /// AC:4 - Validate deny.toml unsound advisory policy
 #[test]
-#[ignore] // Requires cargo-deny installation
+#[ignore = "Requires cargo-deny installation"]
 fn test_ac4_deny_toml_rejects_unsound_advisories() {
     // RED: This test should fail initially (deny.toml not yet enhanced with unsound="deny")
     //
@@ -172,13 +180,15 @@ fn test_ac4_deny_toml_rejects_unsound_advisories() {
     // - Enterprise reliability enforced through soundness policy
     // - Policy aligns with zero unsafe code enforcement
 
-    todo!("Implement AC4: deny.toml unsound policy enforcement - verify soundness issues are rejected for enterprise reliability")
+    todo!(
+        "Implement AC4: deny.toml unsound policy enforcement - verify soundness issues are rejected for enterprise reliability"
+    )
 }
 
 /// Tests feature spec: docs/reference/security-receipt-schema.json
 /// AC:5 - Validate security receipts against JSON Schema
 #[test]
-#[ignore] // Requires JSON Schema validator (check-jsonschema)
+#[ignore = "Requires JSON Schema validator (check-jsonschema)"]
 fn test_ac5_security_receipts_validate_against_schema() {
     // RED: This test should fail initially (JSON Schema not yet created)
     //
@@ -200,7 +210,9 @@ fn test_ac5_security_receipts_validate_against_schema() {
     // - Schema enforces required fields, formats (date-time, commit SHA pattern)
     // - Compliance artifacts meet SOX/HIPAA/GDPR/PCI DSS requirements
 
-    todo!("Implement AC5: JSON Schema validation - verify security receipts validate against compliance schema")
+    todo!(
+        "Implement AC5: JSON Schema validation - verify security receipts validate against compliance schema"
+    )
 }
 
 /// Tests feature spec: docs/reference/security-receipt-schema.json
@@ -230,7 +242,9 @@ fn test_ac5_security_receipt_schema_completeness() {
 
     // Additional validation would parse JSON and verify structure
     // This is a basic file existence check for TDD red state
-    todo!("Implement AC5: Schema completeness validation - verify schema structure and required properties")
+    todo!(
+        "Implement AC5: Schema completeness validation - verify schema structure and required properties"
+    )
 }
 
 /// Tests feature spec: docs/reference/security-receipt-schema.json
@@ -261,18 +275,19 @@ fn test_ac5_test_fixtures_conform_to_schema() {
         let path = Path::new(fixture_path);
         assert!(
             path.exists(),
-            "Test fixture must exist: {} (AC5)",
-            fixture_path
+            "Test fixture must exist: {fixture_path} (AC5)"
         );
     }
 
-    todo!("Implement AC5: Test fixture schema validation - verify all fixtures conform to security-receipt-schema.json")
+    todo!(
+        "Implement AC5: Test fixture schema validation - verify all fixtures conform to security-receipt-schema.json"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#6-cargo-geiger-integration
 /// AC:6 - Validate cargo-geiger detects zero unsafe code
 #[test]
-#[ignore] // Requires cargo-geiger installation
+#[ignore = "Requires cargo-geiger installation"]
 fn test_ac6_cargo_geiger_validates_zero_unsafe() {
     // RED: This test should fail initially (cargo-geiger not yet integrated into CI)
     //
@@ -295,13 +310,15 @@ fn test_ac6_cargo_geiger_validates_zero_unsafe() {
     // - JSON output shows 0 unsafe expressions across all crates
     // - Enterprise mainframe data processing trustworthiness validated
 
-    todo!("Implement AC6: cargo-geiger zero unsafe validation - verify zero unsafe code policy across workspace")
+    todo!(
+        "Implement AC6: cargo-geiger zero unsafe validation - verify zero unsafe code policy across workspace"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md#6-cargo-geiger-integration
 /// AC:6 - Validate cargo-geiger JSON output structure
 #[test]
-#[ignore] // Requires cargo-geiger installation
+#[ignore = "Requires cargo-geiger installation"]
 fn test_ac6_cargo_geiger_json_output_structure() {
     // RED: This test should fail initially (cargo-geiger JSON structure not yet validated)
     //
@@ -321,13 +338,15 @@ fn test_ac6_cargo_geiger_json_output_structure() {
     // - All workspace crates (copybook-core, copybook-codec, etc.) present
     // - Unsafe metrics are 0 for all crates
 
-    todo!("Implement AC6: cargo-geiger JSON structure validation - verify output format for CI integration")
+    todo!(
+        "Implement AC6: cargo-geiger JSON structure validation - verify output format for CI integration"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md
 /// AC:9 - End-to-end CI integration validation
 #[test]
-#[ignore] // Requires full CI environment with GitHub Actions
+#[ignore = "Requires full CI environment with GitHub Actions"]
 fn test_ac9_end_to_end_ci_integration() {
     // RED: This test should fail initially (CI workflows not yet created/integrated)
     //
@@ -351,7 +370,9 @@ fn test_ac9_end_to_end_ci_integration() {
     // - CI overhead is within budget (<2 minutes)
     // - Security receipts validate against JSON Schema
 
-    todo!("Implement AC9: End-to-end CI integration - verify complete security scanning pipeline in GitHub Actions")
+    todo!(
+        "Implement AC9: End-to-end CI integration - verify complete security scanning pipeline in GitHub Actions"
+    )
 }
 
 /// Tests feature spec: docs/explanation/security-scanning-architecture.md
@@ -372,8 +393,8 @@ fn test_ac9_workflow_yaml_syntax_validation() {
     // - YAML parsing validation (would require YAML parser in full implementation)
 
     let workflow_files = [
-        ".github/workflows/ci.yml",  // Should have security-audit job
-        ".github/workflows/security-scan.yml",  // New weekly scan workflow
+        ".github/workflows/ci.yml",            // Should have security-audit job
+        ".github/workflows/security-scan.yml", // New weekly scan workflow
     ];
 
     for workflow_path in &workflow_files {
@@ -381,15 +402,21 @@ fn test_ac9_workflow_yaml_syntax_validation() {
         // Note: ci.yml exists, security-scan.yml should be created
         if workflow_path.contains("security-scan") {
             assert!(
-                !path.exists() || path.exists(),  // Will fail when file should exist but doesn't
+                !path.exists() || path.exists(), // Will fail when file should exist but doesn't
                 "Workflow file status for {}: {}",
                 workflow_path,
-                if path.exists() { "exists" } else { "missing (expected to be created)" }
+                if path.exists() {
+                    "exists"
+                } else {
+                    "missing (expected to be created)"
+                }
             );
         }
     }
 
-    todo!("Implement AC9: Workflow YAML syntax validation - verify all security workflows have valid YAML syntax")
+    todo!(
+        "Implement AC9: Workflow YAML syntax validation - verify all security workflows have valid YAML syntax"
+    )
 }
 
 /// Tests feature spec: tests/fixtures/security-scanning/configs/dependabot.yml
@@ -415,10 +442,16 @@ fn test_ac3_dependabot_configuration_validation() {
     assert!(
         !dependabot_path.exists() || dependabot_path.exists(),
         "Dependabot configuration status: {}",
-        if dependabot_path.exists() { "exists" } else { "missing (expected to be created)" }
+        if dependabot_path.exists() {
+            "exists"
+        } else {
+            "missing (expected to be created)"
+        }
     );
 
-    todo!("Implement AC3: Dependabot configuration validation - verify configuration syntax and grouping strategy")
+    todo!(
+        "Implement AC3: Dependabot configuration validation - verify configuration syntax and grouping strategy"
+    )
 }
 
 #[cfg(test)]
@@ -440,8 +473,7 @@ mod workflow_validation_tests {
             let path = Path::new(workflow_path);
             assert!(
                 path.exists(),
-                "Workflow test fixture must exist: {}",
-                workflow_path
+                "Workflow test fixture must exist: {workflow_path}"
             );
         }
     }
@@ -462,8 +494,7 @@ mod workflow_validation_tests {
             let path = Path::new(config_path);
             assert!(
                 path.exists(),
-                "Configuration test fixture must exist: {}",
-                config_path
+                "Configuration test fixture must exist: {config_path}"
             );
         }
     }
@@ -484,8 +515,7 @@ mod workflow_validation_tests {
             let path = Path::new(receipt_path);
             assert!(
                 path.exists(),
-                "Security receipt test fixture must exist: {}",
-                receipt_path
+                "Security receipt test fixture must exist: {receipt_path}"
             );
         }
     }
@@ -498,7 +528,7 @@ mod performance_validation_tests {
     /// Tests feature spec: docs/explanation/security-scanning-architecture.md#performance-budget--optimization
     /// AC:7 - CI performance overhead validation
     #[test]
-    #[ignore] // Requires CI timing data from GitHub Actions
+    #[ignore = "Requires CI timing data from GitHub Actions"]
     fn test_ac7_ci_performance_overhead_within_budget() {
         // RED: This test should fail initially (security jobs not yet added to CI)
         //
@@ -520,6 +550,8 @@ mod performance_validation_tests {
         // - Advisory DB caching reduces overhead
         // - cargo-geiger is optional and doesn't block PRs
 
-        todo!("Implement AC7: CI performance overhead validation - verify security jobs add <2 minutes overhead")
+        todo!(
+            "Implement AC7: CI performance overhead validation - verify security jobs add <2 minutes overhead"
+        )
     }
 }

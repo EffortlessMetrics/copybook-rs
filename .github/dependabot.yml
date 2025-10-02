@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    labels: ["deps", "security"]
+    groups:
+      security-fixes:
+        applies-to: security-updates
+        update-types: ["patch","minor","major"]
+      routine-minor-patch:
+        update-types: ["patch","minor"]
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["deps","ci"]
+    commit-message:
+      prefix: "build(deps)"

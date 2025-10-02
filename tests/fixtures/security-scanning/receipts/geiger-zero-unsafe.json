@@ -1,0 +1,69 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-10-02T16:00:00Z",
+  "commit_sha": "abc789def012abc789def012abc789def012abc7",
+  "scan_type": "pr-gate",
+  "rust_version": "1.90.0",
+  "tools": {
+    "cargo_audit": "0.21.2",
+    "cargo_deny": "0.16.0",
+    "cargo_geiger": "0.13.0"
+  },
+  "vulnerabilities": {
+    "count": 0,
+    "by_severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    },
+    "advisories": []
+  },
+  "scan_duration_ms": 48000,
+  "exit_status": "success",
+  "workflow_run_id": "1122334455",
+  "advisory_db_version": {
+    "last_commit": "f71b77f025d1c2afcd2b07a32e7127a5d138ef4a",
+    "last_updated": "2025-10-02T12:04:17Z",
+    "advisory_count": 820
+  },
+  "unsafe_code_metrics": {
+    "total_functions": 0,
+    "total_expressions": 0,
+    "crates": [
+      {
+        "name": "copybook-core",
+        "unsafe_functions": 0,
+        "unsafe_expressions": 0
+      },
+      {
+        "name": "copybook-codec",
+        "unsafe_functions": 0,
+        "unsafe_expressions": 0
+      },
+      {
+        "name": "copybook-cli",
+        "unsafe_functions": 0,
+        "unsafe_expressions": 0
+      },
+      {
+        "name": "copybook-gen",
+        "unsafe_functions": 0,
+        "unsafe_expressions": 0
+      },
+      {
+        "name": "copybook-bench",
+        "unsafe_functions": 0,
+        "unsafe_expressions": 0
+      }
+    ]
+  },
+  "compliance_metadata": {
+    "sox_compliant": true,
+    "hipaa_compliant": true,
+    "pci_dss_compliant": true,
+    "gdpr_compliant": true,
+    "retention_days": 90,
+    "audit_id": "copybook-rs-security-2025-10-02-abc789"
+  }
+}

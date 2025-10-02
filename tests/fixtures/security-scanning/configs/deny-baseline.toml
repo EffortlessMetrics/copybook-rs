@@ -1,0 +1,51 @@
+# AC:4 - Baseline deny.toml configuration for comparison testing
+# Test fixture: represents current state before enhancement
+# Specification: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies
+
+[graph]
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-pc-windows-msvc" },
+    { triple = "x86_64-apple-darwin" },
+]
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+
+# Baseline policies (before enhancement)
+# vulnerability = implicit (defaults to deny HIGH/CRITICAL)
+yanked = "warn"         # Baseline: warning only
+# unsound = not configured
+# notice = not configured
+unmaintained = "workspace"
+ignore = []
+
+[licenses]
+confidence-threshold = 0.8
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "Unicode-3.0",
+    "AGPL-3.0-or-later",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"     # Baseline: allows wildcard dependencies
+highlight = "all"
+allow = []
+deny = []
+skip = [
+    { name = "windows-sys", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows-targets", reason = "transitive, multiple versions unavoidable" },
+]
+skip-tree = []
+
+[sources]
+unknown-registry = "warn"  # Baseline: warning only
+unknown-git = "warn"       # Baseline: warning only
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

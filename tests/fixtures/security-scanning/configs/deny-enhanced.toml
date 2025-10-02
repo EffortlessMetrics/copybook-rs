@@ -1,0 +1,68 @@
+# AC:4 - Enhanced deny.toml configuration with stricter policies
+# Test fixture: represents target state with 7 enhanced policies
+# Specification: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies
+
+[graph]
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-pc-windows-msvc" },
+    { triple = "x86_64-apple-darwin" },
+]
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+
+# Enhanced policies (AC4 - 7 stricter policies)
+vulnerability = "deny"  # AC4: Explicit HIGH/CRITICAL denial (was implicit)
+yanked = "deny"         # AC4: Upgrade from "warn" - no yanked crates in production
+unsound = "deny"        # AC4: New - reject soundness issues for enterprise reliability
+notice = "warn"         # AC4: Track informational advisories for compliance reporting
+
+unmaintained = "workspace"
+
+# Time-boxed advisory ignores with justification and expiration
+ignore = [
+    # Example time-boxed ignore:
+    # { id = "RUSTSEC-2024-XXXX", reason = "False positive - feature not used", expires = "2025-12-31" }
+]
+
+[licenses]
+confidence-threshold = 0.8
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "Unicode-3.0",
+    "AGPL-3.0-or-later",
+]
+
+[bans]
+multiple-versions = "warn"
+
+# AC4: Deterministic builds required for regulatory compliance (SOX, PCI DSS)
+wildcards = "deny"      # AC4: Upgrade from "allow" - prevent non-deterministic dependency resolution
+
+highlight = "all"
+allow = []
+deny = [
+    # Deny old versions of crates with known security issues
+    { name = "openssl", version = "<0.10.55" },
+]
+skip = [
+    { name = "windows-sys", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows-targets", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows-link", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows_x86_64_gnu", reason = "transitive, multiple versions unavoidable" },
+    { name = "windows_x86_64_msvc", reason = "transitive, multiple versions unavoidable" },
+]
+skip-tree = []
+
+[sources]
+# AC4: Supply chain security for mainframe data processing trustworthiness
+unknown-registry = "deny"  # AC4: Upgrade from "warn" - only trusted crates.io registry
+unknown-git = "deny"       # AC4: Upgrade from "warn" - no untrusted git dependencies
+
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

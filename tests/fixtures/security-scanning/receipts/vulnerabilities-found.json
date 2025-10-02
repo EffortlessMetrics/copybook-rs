@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-10-02T15:30:00Z",
+  "commit_sha": "def456abc123def456abc123def456abc123def4",
+  "scan_type": "weekly-scan",
+  "rust_version": "1.90.0",
+  "tools": {
+    "cargo_audit": "0.21.2",
+    "cargo_deny": "0.16.0"
+  },
+  "vulnerabilities": {
+    "count": 2,
+    "by_severity": {
+      "critical": 0,
+      "high": 1,
+      "medium": 1,
+      "low": 0
+    },
+    "advisories": [
+      {
+        "id": "RUSTSEC-2024-0001",
+        "severity": "high",
+        "crate": "example-crate",
+        "version": "1.2.3",
+        "title": "Buffer overflow in parsing logic",
+        "url": "https://rustsec.org/advisories/RUSTSEC-2024-0001",
+        "cvss": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "patched": [">=1.2.4"]
+      },
+      {
+        "id": "RUSTSEC-2024-0002",
+        "severity": "medium",
+        "crate": "another-crate",
+        "version": "0.5.1",
+        "title": "Information disclosure via error messages",
+        "url": "https://rustsec.org/advisories/RUSTSEC-2024-0002",
+        "cvss": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+        "patched": [">=0.5.2"]
+      }
+    ]
+  },
+  "scan_duration_ms": 52000,
+  "exit_status": "vulnerabilities_found",
+  "workflow_run_id": "9876543210",
+  "advisory_db_version": {
+    "last_commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "last_updated": "2025-10-02T15:00:00Z",
+    "advisory_count": 825
+  },
+  "compliance_metadata": {
+    "sox_compliant": false,
+    "hipaa_compliant": false,
+    "pci_dss_compliant": false,
+    "gdpr_compliant": false,
+    "retention_days": 90,
+    "audit_id": "copybook-rs-security-2025-10-02-def456"
+  }
+}

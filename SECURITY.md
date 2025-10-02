@@ -101,6 +101,75 @@ copybook-rs follows these security practices:
 - **Fuzzing** - Regular fuzzing of parsing logic
 - **Security reviews** - Code review process includes security considerations
 
+## Security Scanning Infrastructure
+
+copybook-rs implements comprehensive dependency and security scanning to protect enterprise mainframe data processing systems.
+
+### Automated Security Scanning
+
+**PR Quality Gate (cargo-audit)**:
+- Every pull request triggers cargo-audit security scanning
+- Scan results uploaded as GitHub Actions artifacts (90-day retention)
+- CI fails on HIGH or CRITICAL vulnerabilities
+- Security receipts available in workflow artifacts
+
+**Weekly Proactive Scanning**:
+- Scheduled Monday 03:00 UTC via `.github/workflows/security-scan.yml`
+- Automatic GitHub issue creation/update on vulnerability detection
+- Manual trigger available via GitHub Actions workflow_dispatch
+
+**Dependency Automation (Dependabot)**:
+- Daily dependency update PRs for Cargo ecosystem
+- Weekly GitHub Actions version updates
+- Security updates grouped separately from routine patches
+- PR limits: 10 Cargo dependencies, 5 GitHub Actions
+
+### Supply Chain Security Policies
+
+Enhanced `deny.toml` policies enforce enterprise security requirements:
+
+- **Yanked crates**: Automatically rejected (`yanked = "deny"`)
+- **Wildcard dependencies**: Prohibited for deterministic builds (`wildcards = "deny"`)
+- **Unknown registries**: Only crates.io allowed (`unknown-registry = "deny"`)
+- **Unknown git sources**: Untrusted git dependencies prohibited (`unknown-git = "deny"`)
+
+### Security Receipts & Compliance
+
+**Artifact Retention**:
+- Security scan results retained for 90 days (SOX/HIPAA compliance)
+- JSON receipts include: timestamp, commit SHA, tool versions, vulnerability details
+- Available in GitHub Actions artifacts: `security-receipts-<commit-sha>`
+
+**Regulatory Compliance**:
+- **SOX**: Deterministic builds, 90-day audit trail
+- **HIPAA**: Continuous vulnerability monitoring
+- **GDPR**: Supply chain verification
+- **PCI DSS**: Proactive security scanning, yanked crate prevention
+
+### Responding to Security Findings
+
+**Automated Process**:
+1. Vulnerability detected → CI fails (PR gate) or GitHub issue created (weekly scan)
+2. Security team notified via issue assignment
+3. Fix applied within 48 hours for HIGH/CRITICAL (per existing security policy)
+4. Dependabot PR reviewed and merged, or manual patch applied
+5. Verification scan confirms vulnerability resolution
+
+**Manual Procedures**:
+- Review security receipts in workflow artifacts
+- Check "Security Alert:" prefixed issues
+- Use time-boxed ignores in `deny.toml` for false positives (with expiry dates)
+
+### Emergency Procedures
+
+**Disable Security Scanning (Critical Vulnerabilities)**:
+- Edit `.github/workflows/ci.yml`: Comment out security-audit job temporarily
+- Notify security team with justification and timeline for re-enablement
+- Document in pull request description
+
+**Rollback Procedures**:
+See `/home/steven/code/Rust/copybook-rs/docs/how-to/configure-security-scanning.md` §8 for detailed rollback instructions.
+
 ### Disclosure Timeline
 
 Our typical timeline for security vulnerability disclosure:

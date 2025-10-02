@@ -732,9 +732,49 @@ cargo-geiger-check:
 
 ---
 
-## 7. Testing & Validation
+## 7. Measuring CI Performance Overhead (AC7)
 
-### 7.1 Comprehensive Integration Test Scenarios
+**Performance Budget**: <2 minutes additional CI overhead
+
+### 7.1 Validation Procedure
+
+**Baseline Measurement** (before security enhancements):
+```bash
+# Get recent CI run without security scanning
+gh run view <baseline-run-id> --json jobs --jq '.jobs[] | {name: .name, duration: .completed_at - .started_at}'
+```
+
+**Enhanced Measurement** (after security-audit job):
+```bash
+# Get recent CI run with security scanning
+gh run view <enhanced-run-id> --json jobs --jq '.jobs[] | select(.name == "security-audit") | {duration: .completed_at - .started_at}'
+
+# Expected: ~45-60 seconds (well within <2 minute budget)
+```
+
+### 7.2 Optimization Strategies
+
+**Advisory DB Caching**:
+- Enabled via `shared-key: advisory-db` in ci.yml
+- Reduces cargo-audit overhead by ~30 seconds
+- Shared across all CI jobs using cargo
+
+**Parallel Execution**:
+- Security-audit job runs independently
+- No blocking of other CI jobs (test, fmt, clippy, etc.)
+- Total CI duration minimally impacted
+
+### 7.3 Performance Monitoring
+
+**Alert Thresholds**:
+- security-audit job duration > 120 seconds → investigate caching
+- Total CI overhead > 2 minutes → review optimization strategies
+
+---
+
+## 8. Testing & Validation
+
+### 8.1 Comprehensive Integration Test Scenarios
 
 **Scenario 1: PR Quality Gate (cargo-audit)**
 
@@ -818,7 +858,7 @@ gh run view <run-id> --log | grep "cargo-geiger"
 # Verify job passes or is optional
 ```
 
-### 7.2 Performance Budget Validation
+### 8.2 Performance Budget Validation
 
 ```bash
 # Record baseline CI duration (before security enhancements)
@@ -837,9 +877,123 @@ gh run view $ENHANCED_RUN_ID --json jobs --jq '.jobs[] | {name, startedAt, compl
 
 ---
 
-## 8. Troubleshooting
+## 9. Validating Security Receipts Against JSON Schema (AC5)
 
-### 8.1 cargo-audit Fails with Advisory Database Error
+copybook-rs security receipts conform to JSON Schema for compliance validation.
+
+### 9.1 Prerequisites
+
+```bash
+# Install JSON Schema validator
+pip install check-jsonschema
+# OR
+npm install -g ajv-cli
+```
+
+### 9.2 Validation Procedure
+
+**Validate security receipt from CI artifact**:
+```bash
+# Download artifact from GitHub Actions
+gh run download <run-id> --name security-audit-<commit-sha>
+
+# Validate against schema
+check-jsonschema \
+  --schemafile /home/steven/code/Rust/copybook-rs/docs/reference/security-receipt-schema.json \
+  security-audit-*.json
+
+# Expected output: "✅ validation success"
+```
+
+**Validate test fixtures**:
+```bash
+# Clean scan fixture (if available)
+check-jsonschema \
+  --schemafile /home/steven/code/Rust/copybook-rs/docs/reference/security-receipt-schema.json \
+  tests/fixtures/security-scanning/receipts/clean-scan.json
+
+# Vulnerabilities found fixture (if available)
+check-jsonschema \
+  --schemafile /home/steven/code/Rust/copybook-rs/docs/reference/security-receipt-schema.json \
+  tests/fixtures/security-scanning/receipts/vulnerabilities-found.json
+```
+
+### 9.3 Compliance Use Cases
+
+**SOX Audit Trail**:
+- Validate 90-day retention compliance
+- Verify timestamp, commit SHA, tool versions present
+- Confirm deterministic build metadata
+
+**HIPAA Vulnerability Response**:
+- Extract vulnerability severity and advisory IDs
+- Verify automated issue tracking integration
+- Confirm <48hr response timeline adherence
+
+---
+
+## 10. Rollback & Emergency Procedures (AC10)
+
+### 10.1 Scenario 1: False Positive Blocking PR
+
+**Symptoms**: cargo-audit fails on false positive advisory
+
+**Resolution**:
+1. Verify advisory is false positive (check RustSec database)
+2. Add time-boxed ignore to `deny.toml`:
+   ```toml
+   [advisories]
+   ignore = [
+     { id = "RUSTSEC-2024-XXXX", reason = "False positive for unused feature", expires = "2025-12-31" }
+   ]
+   ```
+3. Commit with justification in PR description
+4. Schedule follow-up to remove ignore after advisory resolution
+
+### 10.2 Scenario 2: Critical Vulnerability Requires Emergency Disable
+
+**Symptoms**: Widespread vulnerability blocking all PRs, fix not yet available
+
+**Resolution**:
+1. Temporary disable security-audit job:
+   ```yaml
+   # .github/workflows/ci.yml
+   security-audit:
+     if: false  # EMERGENCY DISABLE - Ticket #XXX
+   ```
+2. Create tracking issue for re-enablement
+3. Notify security team with timeline for fix
+4. Re-enable after vulnerability patched or mitigated
+
+### 10.3 Scenario 3: Dependabot PR Overload
+
+**Symptoms**: Too many dependency update PRs overwhelming review capacity
+
+**Resolution**:
+1. Adjust PR limits in `.github/dependabot.yml`:
+   ```yaml
+   - package-ecosystem: "cargo"
+     open-pull-requests-limit: 5  # Reduce from 10
+   ```
+2. Close non-security PRs temporarily
+3. Batch review security updates first
+4. Re-enable routine updates after backlog cleared
+
+### 10.4 Scenario 4: Weekly Scan Creating Duplicate Issues
+
+**Symptoms**: Multiple "Security Alert:" prefixed issues created
+
+**Resolution**:
+1. Check GitHub issue automation logic in security-scan.yml
+2. Manually close duplicate issues
+3. Verify issue title matching: `const title = "Security Alert: ${date}";`
+4. If persistent, disable weekly scan temporarily and investigate
+
+---
+
+## 11. Troubleshooting
+
+### 11.1 cargo-audit Fails with Advisory Database Error
 
 **Symptom**: `cargo audit fetch --force` fails with network error.
 
@@ -862,7 +1016,7 @@ cargo audit fetch --force
     done
 ```
 
-### 8.2 Dependabot PRs Overwhelming
+### 11.2 Dependabot PRs Overwhelming
 
 **Symptom**: >10 open Dependabot PRs, maintainer review burden excessive.
 
@@ -881,7 +1035,7 @@ cargo audit fetch --force
 3. Click "Pause" to temporarily disable
 4. Adjust configuration, then re-enable
 
-### 8.3 deny.toml Policy Rejection
+### 11.3 deny.toml Policy Rejection
 
 **Symptom**: `cargo deny check` fails after applying stricter policies.
 
@@ -904,7 +1058,7 @@ git revert <commit-sha>
 # Create issue tracking policy enhancement blocker
 ```
 
-### 8.4 Security Receipt Schema Validation Fails
+### 11.4 Security Receipt Schema Validation Fails
 
 **Symptom**: `check-jsonschema` fails with validation errors.
 
@@ -923,7 +1077,7 @@ check-jsonschema --schemafile docs/reference/security-receipt-schema.json \
 # - Invalid commit SHA (ensure full 40-character SHA)
 ```
 
-### 8.5 cargo-geiger Performance Issues
+### 11.5 cargo-geiger Performance Issues
 
 **Symptom**: cargo-geiger job exceeds 2-minute budget.
 
@@ -937,7 +1091,7 @@ cargo-geiger-check:
 # Remove from ci.yml, add to security-scan.yml
 ```
 
-### 8.6 CI Performance Budget Exceeded
+### 11.6 CI Performance Budget Exceeded
 
 **Symptom**: Security jobs add >2 minutes overhead to CI.
 
@@ -957,9 +1111,9 @@ gh run view <run-id> --log | grep "rust-cache"
 
 ---
 
-## Emergency Procedures
+## 12. Emergency Procedures
 
-### Emergency Disable: cargo-audit CI Gate
+### 12.1 Emergency Disable: cargo-audit CI Gate
 
 **When**: CRITICAL vulnerability requires immediate production deployment, but cargo-audit blocks CI.
 
@@ -988,7 +1142,7 @@ gh issue create --title "Re-enable cargo-audit after RUSTSEC-2024-XXXX resolutio
                 --body "Emergency disable: <justification>"
 ```
 
-### Ad-Hoc Security Receipt Generation
+### 12.2 Ad-Hoc Security Receipt Generation
 
 **When**: Compliance audit requires security receipt for specific commit.
 

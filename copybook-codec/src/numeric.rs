@@ -696,20 +696,17 @@ pub fn decode_zoned_decimal(
             if codepage == Codepage::ASCII {
                 // ASCII overpunch decoding - IBM standard overpunch table
                 let (actual_digit, sign) = match byte {
-                    0x30..=0x39 => ((byte - 0x30) as i64, false), // '0'-'9' positive
-                    0x7B => (0, false),                           // '{' = +0
-                    0x44 => (4, true), // 'D' = -4 (TODO: verify correct mapping)
-                    0x41..=0x43 | 0x45..=0x49 => ((byte - 0x40) as i64, false), // 'A'-'C','E'-'I' positive (1-3,5-9)
-                    0x7D => (3, false), // '}' = +3 (based on test)
-                    0x4A => (1, true),  // 'J' = -1
-                    0x4B => (2, true),  // 'K' = -2
-                    0x4C => (3, true),  // 'L' = -3
-                    0x4D => (0, true),  // 'M' = -0
-                    0x4E => (5, true),  // 'N' = -5
-                    0x4F => (6, true),  // 'O' = -6
-                    0x50 => (7, true),  // 'P' = -7
-                    0x51 => (8, true),  // 'Q' = -8
-                    0x52 => (9, true),  // 'R' = -9
+                    // Positive signs
+                    0x7B => (0, false), // '{' = +0
+                    0x41..=0x49 => ((byte - 0x40) as i64, false), // 'A'-'I' = +1 to +9
+
+                    // Negative signs
+                    0x7D => (0, true),  // '}' = -0
+                    0x4A..=0x52 => ((byte - 0x49) as i64, true), // 'J'-'R' = -1 to -9
+
+                    // Unsigned digits
+                    0x30..=0x39 => ((byte - 0x30) as i64, false),
+
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -860,20 +857,17 @@ pub fn decode_zoned_decimal_with_encoding(
             if codepage == Codepage::ASCII {
                 // ASCII overpunch decoding - IBM standard overpunch table
                 let (actual_digit, sign) = match byte {
-                    0x30..=0x39 => ((byte - 0x30) as i64, false), // '0'-'9' positive
-                    0x7B => (0, false),                           // '{' = +0
-                    0x44 => (4, true), // 'D' = -4 (TODO: verify correct mapping)
-                    0x41..=0x43 | 0x45..=0x49 => ((byte - 0x40) as i64, false), // 'A'-'C','E'-'I' positive (1-3,5-9)
-                    0x7D => (3, false), // '}' = +3 (based on test)
-                    0x4A => (1, true),  // 'J' = -1
-                    0x4B => (2, true),  // 'K' = -2
-                    0x4C => (3, true),  // 'L' = -3
-                    0x4D => (0, true),  // 'M' = -0
-                    0x4E => (5, true),  // 'N' = -5
-                    0x4F => (6, true),  // 'O' = -6
-                    0x50 => (7, true),  // 'P' = -7
-                    0x51 => (8, true),  // 'Q' = -8
-                    0x52 => (9, true),  // 'R' = -9
+                    // Positive signs
+                    0x7B => (0, false), // '{' = +0
+                    0x41..=0x49 => ((byte - 0x40) as i64, false), // 'A'-'I' = +1 to +9
+
+                    // Negative signs
+                    0x7D => (0, true),  // '}' = -0
+                    0x4A..=0x52 => ((byte - 0x49) as i64, true), // 'J'-'R' = -1 to -9
+
+                    // Unsigned digits
+                    0x30..=0x39 => ((byte - 0x30) as i64, false),
+
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -1406,26 +1400,18 @@ pub fn encode_zoned_decimal(
             // Last digit with sign - use ASCII overpunch for ASCII codepage
             if codepage == Codepage::ASCII {
                 let overpunch_byte = if decimal.negative {
-                    // ASCII negative overpunch characters
+                    // ASCII negative overpunch characters (J-R for 1-9, } for 0)
                     match digit {
-                        0 => 0x4D, // 'M' = -0
-                        1 => 0x4A, // 'J' = -1
-                        2 => 0x4B, // 'K' = -2
-                        3 => 0x4C, // 'L' = -3
-                        4 => 0x44, // 'D' = -4 (TODO: verify correct ASCII overpunch mapping)
-                        5 => 0x4E, // 'N' = -5
-                        6 => 0x4F, // 'O' = -6
-                        7 => 0x50, // 'P' = -7
-                        8 => 0x51, // 'Q' = -8
-                        9 => 0x52, // 'R' = -9
+                        0 => 0x7D, // '}' = -0
+                        1..=9 => 0x49 + digit,
                         _ => unreachable!(),
                     }
                 } else {
-                    // ASCII positive digits or positive overpunch
-                    if digit == 0 {
-                        0x7B // '{' = +0
-                    } else {
-                        0x30 + digit // '0' to '9' for positive
+                    // ASCII positive overpunch characters (A-I for 1-9, { for 0)
+                    match digit {
+                        0 => 0x7B, // '{' = +0
+                        1..=9 => 0x40 + digit,
+                        _ => unreachable!(),
                     }
                 };
                 result.push(overpunch_byte);
@@ -1510,26 +1496,18 @@ pub fn encode_zoned_decimal_with_format(
             // Last digit with sign - use ASCII overpunch for ASCII format
             if target_format == ZonedEncodingFormat::Ascii {
                 let overpunch_byte = if decimal.negative {
-                    // ASCII negative overpunch characters
+                    // ASCII negative overpunch characters (J-R for 1-9, } for 0)
                     match digit {
-                        0 => 0x4D, // 'M' = -0
-                        1 => 0x4A, // 'J' = -1
-                        2 => 0x4B, // 'K' = -2
-                        3 => 0x4C, // 'L' = -3
-                        4 => 0x44, // 'D' = -4
-                        5 => 0x4E, // 'N' = -5
-                        6 => 0x4F, // 'O' = -6
-                        7 => 0x50, // 'P' = -7
-                        8 => 0x51, // 'Q' = -8
-                        9 => 0x52, // 'R' = -9
+                        0 => 0x7D, // '}' = -0
+                        1..=9 => 0x49 + digit,
                         _ => unreachable!(),
                     }
                 } else {
-                    // ASCII positive digits or positive overpunch
-                    if digit == 0 {
-                        0x7B // '{' = +0
-                    } else {
-                        0x30 + digit // '0' to '9' for positive
+                    // ASCII positive overpunch characters (A-I for 1-9, { for 0)
+                    match digit {
+                        0 => 0x7B, // '{' = +0
+                        1..=9 => 0x40 + digit,
+                        _ => unreachable!(),
                     }
                 };
                 result.push(overpunch_byte);

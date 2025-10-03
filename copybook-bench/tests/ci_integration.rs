@@ -1,9 +1,9 @@
 //! AC3: CI Integration Validation Tests
-//! 
+//!
 //! Tests validation of existing CI integration functionality from Issue #52.
-//! 
+//!
 //! **Status**: Validates existing implementation (GitHub Actions workflows)
-//! 
+//!
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac3-ci-integration
 //! Traceability: docs/issue-49-traceability-matrix.md#ac3
 
@@ -316,10 +316,8 @@ fn test_artifact_retention_policy() {
     assert_eq!(old_count, 0, "Baselines >90 days should be removed");
 
     // Test GitHub Actions artifact retention configuration
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Validate baseline artifact has 90-day retention (line 302)
     assert!(
@@ -382,10 +380,8 @@ fn test_baseline_promotion_on_main() {
     assert_eq!(baseline.commit, "main-commit");
 
     // Test that feature branch does NOT promote baseline (CI workflow check)
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Validate GitHub Actions conditional promotion logic (line 290)
     assert!(
@@ -424,10 +420,8 @@ fn test_baseline_no_promotion_on_feature_branch() {
     );
 
     // Validate GitHub Actions environment variables used for conditional logic
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Test conditional promotion logic - must check github.ref
     assert!(
@@ -593,10 +587,8 @@ fn test_artifact_structure() {
     );
 
     // Validate artifact compression (.zip) and naming
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     assert!(
         workflow_yaml.contains("actions/upload-artifact@v4"),
@@ -654,10 +646,8 @@ fn test_timeout_protection() {
     // Note: GitHub Actions workflow does not have explicit timeout-minutes at job level
     // This means it uses the default GitHub Actions timeout (360 minutes for public repos)
     // The workflow is designed to complete within minutes, not hours
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Validate benchmark jobs exist and are properly configured
     assert!(
@@ -750,10 +740,8 @@ fn test_ci_exit_codes() {
     assert_eq!(neutral_exit, 0, "NEUTRAL should exit 0 (does not block PR)");
 
     // Validate exit code propagation in GitHub Actions
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Workflow uses Python script exit codes (line 154-159)
     assert!(
@@ -805,10 +793,8 @@ fn test_pr_comment_updates() {
     }
 
     // Validate GitHub API comment update logic from workflow
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Test comment identification logic (lines 228-239)
     assert!(
@@ -896,10 +882,8 @@ fn test_artifact_naming() {
     );
 
     // Validate GitHub Actions artifact upload name (line 300)
-    let workflow_yaml = std::fs::read_to_string(
-        base_path.join(".github/workflows/benchmark.yml"),
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     assert!(
         workflow_yaml.contains("name: baseline-main-${{ github.sha }}"),

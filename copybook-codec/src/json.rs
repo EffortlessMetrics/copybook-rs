@@ -1125,15 +1125,15 @@ impl<W: Write> JsonWriter<W> {
         }
         *first_field = false;
 
-        self.json_buffer.push_str("__schema_id":");
+        self.json_buffer.push_str("\"__schema_id\":");
         self.write_json_string_to_buffer(&schema.fingerprint);
-        self.json_buffer.push_str(","__record_index":");
+        self.json_buffer.push_str(",\"__record_index\":");
         self.write_json_number_to_buffer(record_index as f64).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
 
-        self.json_buffer.push_str(","__offset":");
+        self.json_buffer.push_str(",\"__offset\":");
         self.write_json_number_to_buffer(byte_offset as f64).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
 
-        self.json_buffer.push_str(","__length":");
+        self.json_buffer.push_str(",\"__length\":");
         self.write_json_number_to_buffer(record_length as f64).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
 
         Ok(())

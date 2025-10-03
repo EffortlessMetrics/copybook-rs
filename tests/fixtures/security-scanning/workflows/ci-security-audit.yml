@@ -1,0 +1,71 @@
+# AC:1 - Example cargo-audit PR gate workflow for validation testing
+# Test fixture: validates YAML syntax and cargo-audit integration patterns
+# Specification: docs/explanation/security-scanning-architecture.md#1-cargo-audit-ci-integration
+
+name: Security Audit Test Fixture
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  security-audit:
+    name: Security Audit (cargo-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies and advisory DB
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: advisory-db  # Performance optimization
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Fetch advisory database
+        run: cargo audit fetch --force
+
+      - name: Run security audit
+        id: audit
+        run: |
+          cargo audit --json --all-features --workspace --deny warnings > audit-output.json
+          echo "AUDIT_VERSION=$(cargo audit --version | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Generate security receipt
+        if: always()
+        run: |
+          # Generate compliance artifact with full metadata
+          cat > security-audit-$(date +%Y%m%d)-${{ github.sha }}.json <<'EOF'
+          {
+            "version": "1.0",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit_sha": "${{ github.sha }}",
+            "scan_type": "pr-gate",
+            "rust_version": "$(rustc --version | awk '{print $2}')",
+            "tools": {
+              "cargo_audit": "${{ env.AUDIT_VERSION }}",
+              "cargo_deny": "$(cargo deny --version 2>/dev/null | awk '{print $2}' || echo 'unknown')"
+            },
+            "vulnerabilities": $(cat audit-output.json | jq '.vulnerabilities'),
+            "exit_status": "${{ steps.audit.outcome == 'success' && 'success' || 'vulnerabilities_found' }}"
+          }
+          EOF
+
+      - name: Upload security receipt
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-${{ github.sha }}
+          path: security-audit-*.json
+          retention-days: 90  # Compliance requirement (SOX/HIPAA)

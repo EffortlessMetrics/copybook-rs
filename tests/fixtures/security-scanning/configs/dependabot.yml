@@ -1,0 +1,43 @@
+# AC:3 - Dependabot configuration example for validation testing
+# Test fixture: validates Dependabot YAML syntax and grouping patterns
+# Specification: docs/explanation/security-scanning-architecture.md#3-dependabot-configuration
+
+version: 2
+updates:
+  # Cargo dependencies - daily schedule with grouped patch updates
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "03:00"  # Off-peak UTC
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    assignees:
+      - "security-team"  # Replace with your team/user
+    reviewers:
+      - "security-team"  # Replace with your team/user
+
+  # GitHub Actions - weekly security-focused updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "ci"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"

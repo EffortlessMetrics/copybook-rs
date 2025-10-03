@@ -426,7 +426,13 @@ fn handle_special_character(
             0x09 => result.push('\t'),
             0x0A => result.push('\n'),
             0x0D => result.push('\r'),
-            _ => unreachable!("Checked above"),
+            _ => {
+                debug_assert!(false, "Invalid control character after validation");
+                return Err(Error::new(
+                    ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                    format!("Unexpected control character: U+{unicode_point:04X}"),
+                ));
+            }
         }
     } else if let Some(ch) = char::from_u32(unicode_point) {
         result.push(ch);

@@ -25,6 +25,7 @@ harness = false
 [[bench]]
 name = "diagnostics_benches"
 harness = false
+required-features = ["diagnostics"]
 
 [dependencies]
 copybook-core = { path = "../copybook-core" }
@@ -44,5 +45,7 @@ tempfile = "3.8"
 default = []
 # AC4: Progressive complexity benchmarks for developer profiling (PERF=1 mode)
 progressive = []
+# AC5: Diagnostics benchmarks for infrastructure overhead measurement (opt-in)
+diagnostics = []
 [lints]
 workspace = true

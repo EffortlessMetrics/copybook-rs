@@ -126,6 +126,12 @@ pub enum ErrorCode {
     // =============================================================================
     /// CBKF104: RDW appears to be corrupted by ASCII conversion
     CBKF104_RDW_SUSPECT_ASCII,
+
+    // =============================================================================
+    // Audit Errors (CBKA*) - Performance and compliance audit operations
+    // =============================================================================
+    /// CBKA001: Performance baseline operation error
+    CBKA001_BASELINE_ERROR,
 }
 
 impl fmt::Display for ErrorCode {
@@ -158,6 +164,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => "CBKE515_STRING_LENGTH_VIOLATION",
             ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
+            ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
         };
         write!(f, "{code_str}")
     }

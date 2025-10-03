@@ -978,8 +978,8 @@ impl Parser {
                 }
             }
 
-            // For now, we'll just parse space-separated values without comma requirement
-            // TODO: Add comma token support if needed for complex VALUE clauses
+            // Optionally consume a comma before the next value
+            self.consume(&Token::Comma);
         }
 
         if values.is_empty() {

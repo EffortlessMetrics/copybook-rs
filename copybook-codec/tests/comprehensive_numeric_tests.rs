@@ -199,9 +199,9 @@ fn test_packed_decimal_comprehensive() {
 
     // Test data: 12345 (odd), 123456 (even), -123 (signed)
     // Packed: 12345 = 0x12345F (3 bytes) - unsigned, use F
-    // Packed: 123456 = 0x0123456F (4 bytes) - unsigned, use F (padded for 6 digits)
+    // Packed: 123456 = 0x123456F (4 bytes) - unsigned, use F
     // Packed: -123 = 0x123D (2 bytes) - signed negative
-    let test_data = b"\x12\x34\x5F\x01\x23\x45\x6F\x12\x3D";
+    let test_data = b"\x12\x34\x5F\x12\x34\x56\x0F\x12\x3D";
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 

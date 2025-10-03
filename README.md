@@ -1,5 +1,8 @@
 # copybook-rs
 
+[![Security Audit](https://github.com/EffortlessMetrics/copybook-rs/workflows/Weekly%20Security%20Scan/badge.svg)](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml)
+[![Dependency Review](https://img.shields.io/badge/dependencies-Dependabot-blue.svg)](https://github.com/EffortlessMetrics/copybook-rs/blob/main/.github/dependabot.yml)
+
 Rust toolkit for COBOL copybook parsing and fixed-record data conversion that prioritizes correctness, safety, and transparent validation evidence. We focus on sharing what the tooling supports today, how the test suite exercises it, how to benchmark on your own hardware, and where the roadmap is headed next.
 
 ## 📚 Documentation
@@ -480,6 +483,17 @@ for error in errors {
     }
 }
 ```
+
+## Security & Compliance
+
+copybook-rs implements enterprise-grade security scanning and compliance infrastructure:
+
+- **Continuous Vulnerability Monitoring**: cargo-audit on every PR + weekly proactive scans
+- **Supply Chain Security**: Enhanced deny.toml policies (no yanked crates, no wildcards, trusted sources only)
+- **Automated Dependency Updates**: Dependabot with grouped security/routine updates
+- **Regulatory Compliance**: SOX, HIPAA, GDPR, PCI DSS audit trail (90-day artifact retention)
+
+See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerability response procedures.
 
 ## Enterprise Audit System
 

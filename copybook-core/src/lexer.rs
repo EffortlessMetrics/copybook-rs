@@ -130,6 +130,9 @@ pub enum Token {
     #[token(".")]
     Period,
 
+    #[token(",")]
+    Comma,
+
     #[token("(")]
     LeftParen,
 
@@ -184,6 +187,7 @@ impl fmt::Display for Token {
             Token::Number(n) => write!(f, "{}", n),
             Token::StringLiteral(s) => write!(f, "\"{}\"", s),
             Token::Period => write!(f, "."),
+            Token::Comma => write!(f, ","),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
             Token::InlineComment(s) => write!(f, "*> {}", s),

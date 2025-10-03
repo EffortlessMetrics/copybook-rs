@@ -1,0 +1,73 @@
+name: Security (weekly)
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Mondays 09:00 UTC
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  weekly-audit:
+    name: Weekly Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write  # For automated issue creation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: advisory-db
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked || true
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked || true
+
+      - name: Run cargo deny check
+        run: |
+          cargo deny check --workspace --config deny.toml
+
+      - name: Run cargo audit
+        run: |
+          cargo audit -q --json > target/security.audit.json || true
+
+      - name: Open/update roll-up issue on findings
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let txt = '';
+            try { txt = fs.readFileSync('target/security.audit.json','utf8'); } catch {}
+            const hasFindings = txt.includes('"vulnerabilities"') && !txt.includes('"list":[]');
+            const title = "Weekly Security Audit Findings";
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "security"
+            });
+            const body = hasFindings
+              ? "New vulnerabilities detected. See artifact `security.audit.json`."
+              : "No vulnerabilities detected by cargo-audit.";
+            const existing = issues.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+            } else if (hasFindings) {
+              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["security","infrastructure"] });
+            }
+
+      - name: Upload security receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-weekly-${{ github.run_id }}
+          path: target/security.audit.json
+          retention-days: 90

@@ -1,0 +1,134 @@
+# AC:2 - Example weekly security scan workflow for validation testing
+# Test fixture: validates scheduled workflow syntax and issue creation patterns
+# Specification: docs/explanation/security-scanning-architecture.md#2-weekly-security-scanning-workflow
+
+name: Weekly Security Scan Test Fixture
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'  # Weekly Monday 03:00 UTC
+  workflow_dispatch:     # Manual trigger for testing
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  weekly-security-scan:
+    name: Weekly Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write  # For automated issue creation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies and advisory DB
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: advisory-db
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Run security audit
+        id: audit
+        run: |
+          cargo audit fetch --force
+          cargo audit --json --all-features --workspace > audit.json
+
+          # Check for vulnerabilities
+          VULN_COUNT=$(cat audit.json | jq '.vulnerabilities.count')
+          echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "status=vulnerabilities_found" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update security issue
+        if: steps.audit.outputs.vuln_count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+
+            const title = `Security Alert: ${new Date().toISOString().split('T')[0]}`;
+            const body = `## 🔒 Weekly Security Scan Results\n\n` +
+              `**Vulnerabilities Found**: ${audit.vulnerabilities.count}\n\n` +
+              `### Affected Crates\n` +
+              audit.vulnerabilities.list.map(v =>
+                `- **${v.package.name}@${v.package.version}**: ${v.advisory.id} (${v.advisory.severity})\n` +
+                `  - ${v.advisory.title}\n` +
+                `  - URL: ${v.advisory.url}\n`
+              ).join('\n') +
+              `\n### Remediation Guidance\n` +
+              `1. Review vulnerability details in RustSec advisory database\n` +
+              `2. Update affected dependencies via \`cargo update\`\n` +
+              `3. If no update available, consider advisory ignore with time-boxed justification\n` +
+              `4. Escalate CRITICAL vulnerabilities per SECURITY.md procedures\n\n` +
+              `**Scan Timestamp**: ${new Date().toISOString()}\n` +
+              `**Commit**: ${process.env.GITHUB_SHA.substring(0, 8)}`;
+
+            // Find existing security alert issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security'
+            });
+
+            const existingIssue = issues.find(i => i.title.startsWith('Security Alert:'));
+
+            if (existingIssue) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: body
+              });
+              console.log(`Updated existing issue #${existingIssue.number}`);
+            } else {
+              const { data: newIssue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['security', 'vulnerability']
+              });
+              console.log(`Created new issue #${newIssue.number}`);
+            }
+
+      - name: Generate security receipt
+        if: always()
+        run: |
+          # Generate compliance artifact
+          cat > security-scan-$(date +%Y%m%d)-${{ github.sha }}.json <<'EOF'
+          {
+            "version": "1.0",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit_sha": "${{ github.sha }}",
+            "scan_type": "weekly-scan",
+            "rust_version": "$(rustc --version | awk '{print $2}')",
+            "tools": {
+              "cargo_audit": "$(cargo audit --version | awk '{print $2}')"
+            },
+            "vulnerabilities": $(cat audit.json | jq '.vulnerabilities'),
+            "exit_status": "${{ steps.audit.outputs.status }}"
+          }
+          EOF
+
+      - name: Upload security receipt
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-${{ github.sha }}
+          path: security-scan-*.json
+          retention-days: 90

@@ -19,6 +19,32 @@
 
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
+use std::path::PathBuf;
+
+/// Find workspace root by traversing upward from `CARGO_MANIFEST_DIR`
+fn find_workspace_root() -> PathBuf {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut current = manifest_dir.as_path();
+
+    while let Some(parent) = current.parent() {
+        if parent.join("Cargo.toml").exists() {
+            // Check if this is the workspace root by looking for workspace members
+            if let Ok(contents) = std::fs::read_to_string(parent.join("Cargo.toml"))
+                && contents.contains("[workspace]")
+            {
+                return parent.to_path_buf();
+            }
+        }
+        current = parent;
+    }
+
+    // Fallback: assume CARGO_MANIFEST_DIR/../.. if no workspace found
+    manifest_dir
+        .join("..")
+        .join("..")
+        .canonicalize()
+        .unwrap_or_else(|_| manifest_dir.join("..").join(".."))
+}
 
 /// AC3: Test PR comment generation format
 ///
@@ -275,6 +301,7 @@ fn test_pr_comment_with_regressions() {
 #[test]
 fn test_artifact_retention_policy() {
     // AC3
+    let base_path = find_workspace_root();
     let mut store = BaselineStore::new();
 
     // Add old baseline (100 days ago) - should be removed
@@ -314,10 +341,8 @@ fn test_artifact_retention_policy() {
     assert_eq!(old_count, 0, "Baselines >90 days should be removed");
 
     // Test GitHub Actions artifact retention configuration
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Validate baseline artifact has 90-day retention (line 302)
     assert!(
@@ -337,7 +362,7 @@ fn test_artifact_retention_policy() {
 
     // Validate retention policy metadata from fixture
     let retention_metadata = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/artifact_retention_metadata.json",
+        base_path.join("copybook-bench/test_fixtures/ci/artifact_retention_metadata.json"),
     )
     .expect("Failed to read retention metadata fixture");
 
@@ -359,6 +384,7 @@ fn test_artifact_retention_policy() {
 #[test]
 fn test_baseline_promotion_on_main() {
     // AC3
+    let base_path = find_workspace_root();
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -379,10 +405,8 @@ fn test_baseline_promotion_on_main() {
     assert_eq!(baseline.commit, "main-commit");
 
     // Test that feature branch does NOT promote baseline (CI workflow check)
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Validate GitHub Actions conditional promotion logic (line 290)
     assert!(
@@ -408,6 +432,7 @@ fn test_baseline_promotion_on_main() {
 #[test]
 fn test_baseline_no_promotion_on_feature_branch() {
     // AC3
+    let base_path = find_workspace_root();
     let store = BaselineStore::new();
 
     // For feature branches, promotion should NOT occur in CI workflow
@@ -420,10 +445,8 @@ fn test_baseline_no_promotion_on_feature_branch() {
     );
 
     // Validate GitHub Actions environment variables used for conditional logic
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Test conditional promotion logic - must check github.ref
     assert!(
@@ -472,6 +495,7 @@ fn test_baseline_no_promotion_on_feature_branch() {
 #[test]
 fn test_missing_baseline_neutral_ci() {
     // AC3
+    let base_path = find_workspace_root();
     let store = BaselineStore::new(); // No baseline
 
     let mut current = PerformanceReport::new();
@@ -505,7 +529,7 @@ fn test_missing_baseline_neutral_ci() {
 
     // Test PR comment generation for NEUTRAL status using fixture
     let neutral_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_neutral.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_neutral.md"),
     )
     .expect("Failed to read NEUTRAL comment fixture");
 
@@ -536,6 +560,7 @@ fn test_missing_baseline_neutral_ci() {
 #[test]
 fn test_artifact_structure() {
     // AC3
+    let base_path = find_workspace_root();
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -587,10 +612,8 @@ fn test_artifact_structure() {
     );
 
     // Validate artifact compression (.zip) and naming
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     assert!(
         workflow_yaml.contains("actions/upload-artifact@v4"),
@@ -625,6 +648,7 @@ fn test_artifact_structure() {
 #[test]
 fn test_timeout_protection() {
     // AC3
+    let base_path = find_workspace_root();
     // GitHub Actions timeout is configured in workflow YAML:
     // timeout-minutes: 30
 
@@ -647,10 +671,8 @@ fn test_timeout_protection() {
     // Note: GitHub Actions workflow does not have explicit timeout-minutes at job level
     // This means it uses the default GitHub Actions timeout (360 minutes for public repos)
     // The workflow is designed to complete within minutes, not hours
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Validate benchmark jobs exist and are properly configured
     assert!(
@@ -693,6 +715,7 @@ fn test_timeout_protection() {
 #[test]
 fn test_ci_exit_codes() {
     // AC3
+    let base_path = find_workspace_root();
     let mut store = BaselineStore::new();
 
     let mut baseline = PerformanceReport::new();
@@ -742,10 +765,8 @@ fn test_ci_exit_codes() {
     assert_eq!(neutral_exit, 0, "NEUTRAL should exit 0 (does not block PR)");
 
     // Validate exit code propagation in GitHub Actions
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Workflow uses Python script exit codes (line 154-159)
     assert!(
@@ -779,6 +800,7 @@ fn test_ci_exit_codes() {
 #[test]
 fn test_pr_comment_updates() {
     // AC3
+    let base_path = find_workspace_root();
     // PR comments should be updated in place using GitHub API
     // Comment identification: search for previous comment with specific marker
 
@@ -796,10 +818,8 @@ fn test_pr_comment_updates() {
     }
 
     // Validate GitHub API comment update logic from workflow
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     // Test comment identification logic (lines 228-239)
     assert!(
@@ -836,17 +856,17 @@ fn test_pr_comment_updates() {
 
     // Test fixture validation for comment formats
     let pass_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_pass.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_pass.md"),
     )
     .expect("Failed to read PASS comment fixture");
 
     let warning_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_warning.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_warning.md"),
     )
     .expect("Failed to read WARNING comment fixture");
 
     let failure_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_failure.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_failure.md"),
     )
     .expect("Failed to read FAILURE comment fixture");
 
@@ -873,6 +893,7 @@ fn test_pr_comment_updates() {
 #[test]
 fn test_artifact_naming() {
     // AC3
+    let base_path = find_workspace_root();
     let commit_sha = "abc12345";
     let artifact_name = format!("baseline-main-{}", commit_sha);
 
@@ -886,10 +907,8 @@ fn test_artifact_naming() {
     );
 
     // Validate GitHub Actions artifact upload name (line 300)
-    let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
-    )
-    .expect("Failed to read workflow YAML");
+    let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
+        .expect("Failed to read workflow YAML");
 
     assert!(
         workflow_yaml.contains("name: baseline-main-${{ github.sha }}"),

@@ -347,6 +347,9 @@ impl ErrorReporter {
             ErrorCode::CBKD413_ZONED_INVALID_ENCODING
             | ErrorCode::CBKD414_ZONED_MIXED_ENCODING
             | ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => ErrorSeverity::Error,
+
+            // Audit errors
+            ErrorCode::CBKA001_BASELINE_ERROR => ErrorSeverity::Error,
         }
     }
 

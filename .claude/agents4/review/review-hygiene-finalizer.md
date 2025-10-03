@@ -1,5 +1,5 @@
 ---
-name: review-hygiene-finalizer
+name: hygiene-finalizer
 description: Use this agent when you need to perform mechanical code hygiene checks before deeper code review. This agent should be triggered after fresh branches are created, post-rebase operations, or before submitting code for architectural review. Examples: <example>Context: User has just rebased their feature branch and wants to ensure code hygiene before review. user: 'I just rebased my feature branch with the latest main. Can you check if everything is clean before I submit for review?' assistant: 'I'll use the hygiene-finalizer agent to run mechanical hygiene checks on your rebased code.' <commentary>Since the user mentioned rebasing and wants hygiene checks, use the hygiene-finalizer agent to run formatting, clippy, and import organization checks.</commentary></example> <example>Context: User has made changes and wants to ensure mechanical cleanliness. user: 'cargo fmt --all --check' assistant: 'I'll use the hygiene-finalizer agent to run comprehensive hygiene checks including formatting, clippy, and import organization.' <commentary>The user is running format checks, which indicates they want hygiene validation. Use the hygiene-finalizer agent for complete mechanical hygiene review.</commentary></example>
 model: sonnet
 color: green

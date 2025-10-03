@@ -14,6 +14,7 @@ use copybook_core::audit::{
     AuditContext, AuditEvent, AuditEventType, AuditLogger, AuditLoggerConfig, ComplianceEngine,
     ComplianceProfile,
 };
+use copybook_core::compliance::ComplianceConfig;
 use copybook_core::parse_copybook;
 use std::collections::HashMap;
 use tempfile::tempdir;
@@ -62,7 +63,8 @@ async fn test_hipaa_compliance_validation_scaffolding() {
         )
         .with_metadata("phi_category", "medical_history");
 
-    let compliance_engine = ComplianceEngine::new().with_profiles(&[ComplianceProfile::HIPAA]);
+    let compliance_engine = ComplianceEngine::new(ComplianceConfig::default())
+        .with_profiles(&[ComplianceProfile::HIPAA]);
 
     // TODO: Implement HIPAA-specific validation logic
     let result = compliance_engine
@@ -263,8 +265,8 @@ async fn test_multi_framework_compliance_scaffolding() {
         .with_metadata("gdpr_legal_basis", "legitimate_interest")
         .with_metadata("financial_data", "true");
 
-    let compliance_engine =
-        ComplianceEngine::new().with_profiles(&[ComplianceProfile::SOX, ComplianceProfile::GDPR]);
+    let compliance_engine = ComplianceEngine::new(ComplianceConfig::default())
+        .with_profiles(&[ComplianceProfile::SOX, ComplianceProfile::GDPR]);
 
     let result = compliance_engine
         .validate_processing_operation(&context)

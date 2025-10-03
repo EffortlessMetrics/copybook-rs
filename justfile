@@ -20,6 +20,10 @@ build-release:
 test:
     cargo nextest run --workspace
 
+# Run all tests, including long-running and ignored tests
+test-all:
+    cargo nextest run --workspace --run-ignored all
+
 # Run tests with legacy cargo test (fallback)
 test-legacy:
     cargo test --workspace

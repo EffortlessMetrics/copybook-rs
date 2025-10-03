@@ -890,7 +890,7 @@ impl<W: Write> JsonWriter<W> {
 
     /// Write scalar field value directly to JSON string buffer
     fn write_scalar_field_streaming(
-        &mut self,
+        &self,
         field: &Field,
         record_data: &[u8],
         _record_index: u64,
@@ -943,7 +943,7 @@ impl<W: Write> JsonWriter<W> {
                         // Try to write as number, fall back to string
                         if let Ok(num) = decimal_str.parse::<f64>() {
                             if num.is_finite() {
-                                self.write_json_number_to_buffer(num).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                                self.write_json_number_to_buffer(num);
                             } else {
                                 self.write_json_string_to_buffer(&decimal_str);
                             }
@@ -971,7 +971,7 @@ impl<W: Write> JsonWriter<W> {
                     JsonNumberMode::Native => {
                         if let Ok(num) = decimal_str.parse::<f64>() {
                             if num.is_finite() {
-                                self.write_json_number_to_buffer(num).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                                self.write_json_number_to_buffer(num);
                             } else {
                                 self.write_json_string_to_buffer(&decimal_str);
                             }
@@ -986,7 +986,7 @@ impl<W: Write> JsonWriter<W> {
 
                 // Use JSON numbers for values up to 64-bit
                 if *bits <= 64 {
-                    self.write_json_number_to_buffer(int_value as f64).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+                    self.write_json_number_to_buffer(int_value as f64);
                 } else {
                     // Use string for larger values
                     self.write_json_string_to_buffer(&int_value.to_string());
@@ -1024,9 +1024,9 @@ impl<W: Write> JsonWriter<W> {
     }
 
     /// Write a JSON number to the buffer
-    fn write_json_number_to_buffer(&mut self, num: f64) -> std::fmt::Result {
+    fn write_json_number_to_buffer(&mut self, num: f64) {
         use std::fmt::Write;
-        write!(self.json_buffer, "{}", num)
+        write!(self.json_buffer, "{}", num).unwrap();
     }
 
     /// Write group array directly to JSON string buffer
@@ -1128,13 +1128,13 @@ impl<W: Write> JsonWriter<W> {
         self.json_buffer.push_str("\"__schema_id\":");
         self.write_json_string_to_buffer(&schema.fingerprint);
         self.json_buffer.push_str(",\"__record_index\":");
-        self.write_json_number_to_buffer(record_index as f64).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+        self.write_json_number_to_buffer(record_index as f64);
 
         self.json_buffer.push_str(",\"__offset\":");
-        self.write_json_number_to_buffer(byte_offset as f64).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+        self.write_json_number_to_buffer(byte_offset as f64);
 
         self.json_buffer.push_str(",\"__length\":");
-        self.write_json_number_to_buffer(record_length as f64).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+        self.write_json_number_to_buffer(record_length as f64);
 
         Ok(())
     }

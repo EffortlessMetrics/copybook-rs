@@ -13,13 +13,18 @@ targets = [
 db-path = "~/.cargo/advisory-db"
 # The url(s) of the advisory databases to use
 db-urls = ["https://github.com/rustsec/advisory-db"]
+
+# Enterprise mainframe data processing requires zero-tolerance for security vulnerabilities
+# AC4: Enhanced security policies for production mainframe workloads
+yanked = "deny"             # AC4: Upgrade from "warn" - no yanked crates in production
+
 # The lint level for unmaintained crates
 unmaintained = "workspace"
-# The lint level for crates that have been yanked from their source registry
-yanked = "warn"
-# A list of advisory IDs to ignore
+
+# A list of advisory IDs to ignore (use for false positives with time-boxed expiration)
 ignore = [
-    # Add any specific advisories to ignore here
+    # Time-boxed ignores with expiry dates (currently empty - good practice)
+    # Example: { id = "RUSTSEC-2024-XXXX", reason = "False positive for unused feature", expires = "2025-12-31" }
 ]
 
 [licenses]
@@ -38,8 +43,11 @@ allow = [
 [bans]
 # Lint level for when multiple versions of the same crate are detected
 multiple-versions = "warn"
-# Lint level for when a crate version requirement is `*`
-wildcards = "allow"
+
+# Deterministic builds required for regulatory compliance (SOX, PCI DSS)
+wildcards = "deny"             # AC4: Upgrade from "allow" - prevent non-deterministic dependency resolution
+allow-wildcard-paths = true    # AC4: Allow workspace path dependencies (local development)
+
 # The graph highlighting used when creating dotgraphs for crates
 highlight = "all"
 # List of crates that are allowed
@@ -61,12 +69,10 @@ skip = [
 skip-tree = []
 
 [sources]
-# Lint level for what to happen when a crate from a crate registry that is
-# not in the allow list is encountered
-unknown-registry = "warn"
-# Lint level for what to happen when a crate from a git repository that is not
-# in the allow list is encountered
-unknown-git = "warn"
+# Supply chain security for mainframe data processing trustworthiness
+unknown-registry = "deny"  # AC4: Upgrade from "warn" - only trusted crates.io registry
+unknown-git = "deny"       # AC4: Upgrade from "warn" - no untrusted git dependencies
+
 # List of allowed registries
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # List of allowed Git repositories

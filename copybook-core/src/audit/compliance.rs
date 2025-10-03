@@ -1,5 +1,5 @@
 //! Enterprise Compliance Engine
-//! 
+//!
 //! Provides comprehensive compliance validation for regulatory frameworks
 //! including SOX, HIPAA, GDPR, and PCI DSS with automated validation
 //! and remediation guidance.
@@ -36,9 +36,13 @@ impl ComplianceEngine {
         for profile in profiles {
             let validator: Box<dyn ComplianceValidator> = match profile {
                 ComplianceProfile::SOX => Box::new(SoxValidator::new(self.config.sox.clone())),
-                ComplianceProfile::HIPAA => Box::new(HipaaValidator::new(self.config.hipaa.clone())),
+                ComplianceProfile::HIPAA => {
+                    Box::new(HipaaValidator::new(self.config.hipaa.clone()))
+                }
                 ComplianceProfile::GDPR => Box::new(GdprValidator::new(self.config.gdpr.clone())),
-                ComplianceProfile::PciDss => Box::new(PciDssValidator::new(self.config.pci_dss.clone())),
+                ComplianceProfile::PciDss => {
+                    Box::new(PciDssValidator::new(self.config.pci_dss.clone()))
+                }
             };
             self.validators.insert(*profile, validator);
         }
@@ -276,8 +280,7 @@ impl SoxValidator {
     fn has_adequate_data_integrity_controls(&self, context: &AuditContext) -> bool {
         // Check if cryptographic integrity is enabled for financial data
         context.security.audit_requirements.integrity_protection
-            &&
-            matches!(
+            && matches!(
                 context.security.classification,
                 SecurityClassification::MaterialTransaction
             )
@@ -325,10 +328,12 @@ impl ComplianceValidator for SoxValidator {
     ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let mut recommendations = Vec::new();
 
-        if self.config.executive_certification_required && matches!(
-            context.security.classification,
-            SecurityClassification::MaterialTransaction
-        ) {
+        if self.config.executive_certification_required
+            && matches!(
+                context.security.classification,
+                SecurityClassification::MaterialTransaction
+            )
+        {
             recommendations.push(ComplianceRecommendation {
                 recommendation_id: "SOX-REC-001".to_string(),
                 priority: RecommendationPriority::High,
@@ -439,9 +444,10 @@ impl ComplianceValidator for HipaaValidator {
             violations.extend(self.validate_phi_protection(context));
 
             // Check minimum necessary requirement
-            if self.config.minimum_necessary_enforcement && !context
-                .metadata
-                .contains_key("minimum_necessary_justification")
+            if self.config.minimum_necessary_enforcement
+                && !context
+                    .metadata
+                    .contains_key("minimum_necessary_justification")
             {
                 warnings.push(ComplianceWarning {
                     warning_id: "HIPAA-MIN-001".to_string(),
@@ -466,7 +472,9 @@ impl ComplianceValidator for HipaaValidator {
     ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let mut recommendations = Vec::new();
 
-        if self.config.breach_notification_automation && matches!(context.security.classification, SecurityClassification::PHI) {
+        if self.config.breach_notification_automation
+            && matches!(context.security.classification, SecurityClassification::PHI)
+        {
             recommendations.push(ComplianceRecommendation {
                 recommendation_id: "HIPAA-REC-001".to_string(),
                 priority: RecommendationPriority::High,
@@ -539,8 +547,7 @@ impl GdprValidator {
 
     fn has_legal_basis_documentation(&self, context: &AuditContext) -> bool {
         context.metadata.contains_key("gdpr_legal_basis")
-            ||
-            context.metadata.contains_key("processing_purpose")
+            || context.metadata.contains_key("processing_purpose")
     }
 
     fn has_data_minimization_controls(&self, context: &AuditContext) -> bool {
@@ -592,8 +599,8 @@ impl ComplianceValidator for GdprValidator {
                     "Automated portal for data subject access, rectification, and erasure requests"
                         .to_string(),
                 implementation_effort: "4-6 weeks".to_string(),
-                compliance_benefit: "Ensures GDPR Articles 15-17 compliance for data subject rights"
-                    .to_string(),
+                compliance_benefit:
+                    "Ensures GDPR Articles 15-17 compliance for data subject rights".to_string(),
             });
         }
         Ok(recommendations)
@@ -619,7 +626,9 @@ impl ComplianceValidator for PciDssValidator {
         context: &AuditContext,
     ) -> AuditResult<ComplianceValidationResult> {
         let mut violations = Vec::new();
-        if self.config.cardholder_data_validation && context.metadata.contains_key("has_cardholder_data") {
+        if self.config.cardholder_data_validation
+            && context.metadata.contains_key("has_cardholder_data")
+        {
             // Placeholder for actual PCI DSS validation logic
             // e.g., check for PAN truncation, encryption, etc.
         }

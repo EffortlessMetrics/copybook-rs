@@ -56,8 +56,10 @@ fn test_odo_packed_counter() {
     let schema = parse_copybook(copybook).unwrap();
     let options = decode_opts();
 
-    // Packed decimal representation of 3 with two digits: 0x03 0x0F
-    let mut data = vec![0x03, 0x0F];
+    // Packed decimal representation of 3 with two digits: 0x00 0x3F
+    // PIC 9(2) COMP-3: 2 digits + 1 sign = 3 nibbles = 2 bytes
+    // Nibbles: [0][0][3][F] for value "03"
+    let mut data = vec![0x00, 0x3F];
     data.extend_from_slice(b"AAABBBCCC");
     let json = copybook_codec::decode_record(&schema, &data, &options).unwrap();
     let items = json.get("ITEMS").and_then(|v| v.as_array()).unwrap();

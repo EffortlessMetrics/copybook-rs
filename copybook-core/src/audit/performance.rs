@@ -1,4 +1,4 @@
-'''//! Performance Audit Subsystem
+//! Performance Audit Subsystem
 //!
 //! Tracks processing performance metrics, baseline management, and regression
 //! detection for copybook-rs enterprise mainframe data processing operations.
@@ -55,7 +55,9 @@ pub struct BaselineManager {
 impl BaselineManager {
     /// Creates a new BaselineManager.
     pub fn new(baseline_path: impl AsRef<Path>) -> Self {
-        Self { baseline_path: baseline_path.as_ref().to_path_buf() }
+        Self {
+            baseline_path: baseline_path.as_ref().to_path_buf(),
+        }
     }
 
     /// Loads the performance baseline from the specified file.
@@ -152,34 +154,36 @@ impl RegressionDetector {
         if (current.record_rate as f64) < (baseline.record_rate as f64) * threshold_multiplier {
             regressions.push(format!(
                 "Record rate regression: current {} recs/s < baseline {} recs/s",
-                current.record_rate,
-                baseline.record_rate
+                current.record_rate, baseline.record_rate
             ));
         }
 
-        if (current.display_throughput as f64) < (baseline.display_throughput as f64) * threshold_multiplier {
+        if (current.display_throughput as f64)
+            < (baseline.display_throughput as f64) * threshold_multiplier
+        {
             regressions.push(format!(
                 "Display throughput regression: current {} bytes/s < baseline {} bytes/s",
-                current.display_throughput,
-                baseline.display_throughput
+                current.display_throughput, baseline.display_throughput
             ));
         }
 
-        if (current.comp3_throughput as f64) < (baseline.comp3_throughput as f64) * threshold_multiplier {
+        if (current.comp3_throughput as f64)
+            < (baseline.comp3_throughput as f64) * threshold_multiplier
+        {
             regressions.push(format!(
                 "COMP-3 throughput regression: current {} bytes/s < baseline {} bytes/s",
-                current.comp3_throughput,
-                baseline.comp3_throughput
+                current.comp3_throughput, baseline.comp3_throughput
             ));
         }
 
         // For memory, a higher value is a regression
         let memory_threshold_multiplier = 1.0 + (self.threshold_percent / 100.0);
-        if (current.peak_memory_mb as f64) > (baseline.peak_memory_mb as f64) * memory_threshold_multiplier {
+        if (current.peak_memory_mb as f64)
+            > (baseline.peak_memory_mb as f64) * memory_threshold_multiplier
+        {
             regressions.push(format!(
                 "Peak memory regression: current {} MB > baseline {} MB",
-                current.peak_memory_mb,
-                baseline.peak_memory_mb
+                current.peak_memory_mb, baseline.peak_memory_mb
             ));
         }
 
@@ -192,4 +196,3 @@ impl Default for RegressionDetector {
         Self::new()
     }
 }
-''

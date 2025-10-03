@@ -1,4 +1,4 @@
-'''# Copybook-RS Justfile
+# Copybook-RS Justfile
 # Modern task runner for copybook-rs development
 
 # Set environment variables
@@ -122,4 +122,3 @@ ci-local:
 # Quick local CI (skip docs and deny for speed)
 ci-quick:
     cargo run --package xtask --bin xtask -- ci --quick
-''

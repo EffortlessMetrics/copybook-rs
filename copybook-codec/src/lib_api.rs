@@ -404,7 +404,13 @@ fn process_fields_recursive(
                         )?;
                         Value::String(decimal.to_string())
                     }
-                    FieldKind::Group => unreachable!(), // Already handled above
+                    FieldKind::Group => {
+                        debug_assert!(false, "Group fields should be handled by outer match");
+                        return Err(Error::new(
+                            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                            format!("Unexpected Group field '{}' in scalar processing path", field.name),
+                        ));
+                    }
                     FieldKind::Condition { values } => {
                         // Level-88 fields are condition names (conditional variables)
                         // In COBOL, these define named constants or ranges for their parent field
@@ -504,17 +510,16 @@ fn process_fields_recursive_with_scratch(
                             signed,
                         } => {
                             // OPTIMIZED: Use scratch buffer for string formatting
-                            let decimal_str =
-                                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
-                                    field_data,
-                                    *digits,
-                                    *scale,
-                                    *signed,
-                                    options.codepage,
-                                    field.blank_when_zero,
-                                    scratch,
-                                )?;
-                            Value::String(decimal_str)
+                            let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
+                                field_data,
+                                *digits,
+                                *scale,
+                                *signed,
+                                options.codepage,
+                                field.blank_when_zero,
+                                scratch,
+                            )?;
+                            Value::String(decimal.to_string())
                         }
                         FieldKind::BinaryInt { bits, signed } => {
                             let int_value =
@@ -531,13 +536,18 @@ fn process_fields_recursive_with_scratch(
                             signed,
                         } => {
                             // CRITICAL OPTIMIZATION: Use scratch buffer instead of decimal.to_string()
-                            let decimal_str =
-                                crate::numeric::decode_packed_decimal_to_string_with_scratch(
-                                    field_data, *digits, *scale, *signed, scratch,
-                                )?;
-                            Value::String(decimal_str)
+                            let decimal = crate::numeric::decode_packed_decimal_with_scratch(
+                                field_data, *digits, *scale, *signed, scratch,
+                            )?;
+                            Value::String(decimal.to_string())
                         }
-                        FieldKind::Group => unreachable!(), // Already handled above
+                        FieldKind::Group => {
+                            debug_assert!(false, "Group fields should be handled by outer match");
+                            return Err(Error::new(
+                                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                                format!("Unexpected Group field '{}' in scalar processing path", field.name),
+                            ));
+                        }
                         FieldKind::Condition { values } => {
                             // Level-88 fields are condition names (conditional variables)
                             // In COBOL, these define named constants or ranges for their parent field
@@ -704,7 +714,7 @@ fn process_array_field_with_scratch(
                 signed,
             } => {
                 // OPTIMIZED: Use scratch buffer for array element
-                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
                     element_data,
                     *digits,
                     *scale,
@@ -713,7 +723,7 @@ fn process_array_field_with_scratch(
                     field.blank_when_zero,
                     scratch,
                 )?;
-                Value::String(decimal_str)
+                Value::String(decimal.to_string())
             }
             FieldKind::PackedDecimal {
                 digits,
@@ -721,14 +731,14 @@ fn process_array_field_with_scratch(
                 signed,
             } => {
                 // CRITICAL OPTIMIZATION: Use scratch buffer for COMP-3 array elements
-                let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                let decimal = crate::numeric::decode_packed_decimal_with_scratch(
                     element_data,
                     *digits,
                     *scale,
                     *signed,
                     scratch,
                 )?;
-                Value::String(decimal_str)
+                Value::String(decimal.to_string())
             }
             FieldKind::BinaryInt { bits, signed } => {
                 let int_value = crate::numeric::decode_binary_int(element_data, *bits, *signed)?;
@@ -847,13 +857,14 @@ fn find_and_read_counter_field(
         } => {
             // OPTIMIZATION: Use scratch buffer for ODO counter decoding
             let mut scratch = crate::memory::ScratchBuffers::new();
-            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+            let decimal = crate::numeric::decode_packed_decimal_with_scratch(
                 field_data,
                 *digits,
                 *scale,
                 *signed,
                 &mut scratch,
             )?;
+            let decimal_str = decimal.to_string();
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,
@@ -989,14 +1000,14 @@ fn decode_scalar_field_value(
         } => {
             // OPTIMIZATION: Use scratch buffer for scalar packed decimal processing
             let mut scratch = crate::memory::ScratchBuffers::new();
-            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+            let decimal = crate::numeric::decode_packed_decimal_with_scratch(
                 field_data,
                 *digits,
                 *scale,
                 *signed,
                 &mut scratch,
             )?;
-            Ok(Value::String(decimal_str))
+            Ok(Value::String(decimal.to_string()))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars

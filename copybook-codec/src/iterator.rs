@@ -1,5 +1,5 @@
 //! Record iterator for streaming access to decoded records
-//!
+//! 
 //! This module provides iterator-based access to records for programmatic processing,
 //! allowing users to process records one at a time without loading entire files into memory.
 
@@ -136,7 +136,12 @@ impl<R: Read> RecordIterator<R> {
         
         let record_data = match self.options.format {
             RecordFormat::Fixed => {
-                let lrecl = self.schema.lrecl_fixed.unwrap() as usize;
+                let lrecl = self.schema.lrecl_fixed.ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKI001_INVALID_STATE,
+                        "Iterator entered an invalid state: Fixed format requires a fixed record length."
+                    )
+                })? as usize;
                 self.buffer.resize(lrecl, 0);
                 
                 match self.reader.read_exact(&mut self.buffer) {
@@ -386,5 +391,28 @@ mod tests {
         // Should get an error due to incomplete record
         let result = iterator.read_raw_record();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_iterator_new_fixed_format_error() {
+        // A schema without a fixed record length
+        let copybook_text = "01 SOME-GROUP. 05 SOME-FIELD PIC X(1) OCCURS 1 TO 5 TIMES DEPENDING ON ODO-COUNTER.";
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = None; // Ensure it's None
+
+        let test_data = b"";
+        let cursor = Cursor::new(test_data);
+
+        let mut options = DecodeOptions::default();
+        options.format = RecordFormat::Fixed;
+
+        // Attempting to create the iterator should fail
+        let result = RecordIterator::new(cursor, &schema, &options);
+        assert!(result.is_err());
+        
+        // Check for the correct error code
+        if let Err(e) = result {
+            assert_eq!(e.code, ErrorCode::CBKP001_SYNTAX);
+        }
     }
 }

@@ -1,9 +1,9 @@
 //! AC5: Enhanced Diagnostics and Monitoring Tests
-//!
+//! 
 //! Tests for diagnostic utilities, health checks, and verbose logging.
-//!
+//! 
 //! **Status**: NEW implementation (developer productivity feature)
-//!
+//! 
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac5-enhanced-diagnostics
 //! Traceability: docs/issue-49-traceability-matrix.md#ac5
 
@@ -422,7 +422,8 @@ fn test_verbose_flag_handling() {
             verbose,
             "Verbose mode should be enabled with --verbose flag"
         );
-    } else {
+    }
+    else {
         // Normal mode
         assert!(!verbose, "Normal mode should not include verbose output");
     }

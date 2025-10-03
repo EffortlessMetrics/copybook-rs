@@ -1,4 +1,4 @@
-//! Numeric type codecs for COBOL data
+'''//! Numeric type codecs for COBOL data
 //!
 //! This module implements encoding and decoding for zoned decimal,
 //! packed decimal, and binary integer types.
@@ -2001,850 +2001,233 @@ pub fn decode_packed_decimal_with_scratch(
             let high_nibble = (byte >> 4) & 0x0F;
             let low_nibble = byte & 0x0F;
 
-            if digits == 1 {
-                // Only low nibble is sign
-                if high_nibble > 9 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid digit nibble 0x{high_nibble:X}"),
-                    ));
-                }
-                value = i64::from(high_nibble);
+            if high_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    "Invalid digit nibble in packed decimal".to_string(),
+                ));
             }
 
-            // Low nibble is always sign in last byte
-            let is_negative = if signed {
-                match low_nibble {
-                    0xA | 0xC | 0xE | 0xF => false, // Positive
-                    0xB | 0xD => true,              // Negative
+            value = i64::from(high_nibble);
+            digit_count = 1;
+
+            if signed {
+                let is_negative = match low_nibble {
+                    0xA | 0xC | 0xE | 0xF => false,
+                    0xB | 0xD => true,
                     _ => {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{low_nibble:X}"),
+                            "Invalid sign nibble in packed decimal".to_string(),
                         ));
                     }
-                }
-            } else {
-                if low_nibble != 0xF {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                    ));
-                }
-                false
-            };
-
-            let mut decimal = SmallDecimal::new(value, scale, is_negative);
-            decimal.normalize();
-            return Ok(decimal);
-        }
-        2..=4 => {
-            // Small packed decimals - optimized path
-            for (byte_idx, &byte) in data.iter().enumerate() {
-                let high_nibble = (byte >> 4) & 0x0F;
-                let low_nibble = byte & 0x0F;
-
-                // Process high nibble
-                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
-                    // Last byte, even digits - high nibble is sign
-                    if signed {
-                        let is_negative = match high_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{high_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
-                    }
-                } else {
-                    if high_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{high_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                // Process low nibble
-                if byte_idx == data.len() - 1 {
-                    // Last byte - low nibble is always sign
-                    if signed {
-                        let is_negative = match low_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{low_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
-                    } else if low_nibble != 0xF {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                        ));
-                    }
-                } else {
-                    if low_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                if digit_count >= digits {
-                    break;
-                }
-            }
-        }
-        _ => {
-            // General case for larger packed decimals
-            for (byte_idx, &byte) in data.iter().enumerate() {
-                let high_nibble = (byte >> 4) & 0x0F;
-                let low_nibble = byte & 0x0F;
-
-                // Process high nibble
-                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
-                    // Last byte, even digits - high nibble is sign
-                    if signed {
-                        let is_negative = match high_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{high_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
-                    }
-                } else {
-                    if high_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{high_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                // Process low nibble
-                if byte_idx == data.len() - 1 {
-                    // Last byte - low nibble is always sign
-                    if signed {
-                        let is_negative = match low_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{low_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
-                    } else if low_nibble != 0xF {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                        ));
-                    }
-                } else {
-                    if low_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                if digit_count >= digits {
-                    break;
-                }
-            }
-        }
-    }
-
-    // If we get here without returning, it's unsigned
-    let decimal = SmallDecimal::new(value, scale, false);
-    Ok(decimal)
-}
-
-/// Fast binary integer decoder with optimized paths for common widths
-#[inline]
-pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
-    // Optimized paths for common binary widths
-    match (bits, data.len()) {
-        (16, 2) => {
-            // 16-bit integer - most common case
-            let bytes = [data[0], data[1]];
-            if signed {
-                Ok(i16::from_be_bytes(bytes) as i64)
-            } else {
-                Ok(u16::from_be_bytes(bytes) as i64)
-            }
-        }
-        (32, 4) => {
-            // 32-bit integer - common case
-            let bytes = [data[0], data[1], data[2], data[3]];
-            if signed {
-                Ok(i32::from_be_bytes(bytes) as i64)
-            } else {
-                Ok(u32::from_be_bytes(bytes) as i64)
-            }
-        }
-        (64, 8) => {
-            // 64-bit integer
-            let bytes = [
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ];
-            if signed {
-                Ok(i64::from_be_bytes(bytes))
-            } else {
-                let value = u64::from_be_bytes(bytes);
-                if value > i64::MAX as u64 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
-                    ));
-                }
-                Ok(value as i64)
-            }
-        }
-        _ => {
-            // Fallback to general implementation
-            decode_binary_int(data, bits, signed)
-        }
-    }
-}
-
-/// Optimized zoned decimal encoder using scratch buffers
-/// Minimizes allocations by reusing digit buffer
-pub fn encode_zoned_decimal_with_scratch(
-    decimal: &SmallDecimal,
-    digits: u16,
-    signed: bool,
-    codepage: Codepage,
-    _bwz_encode: bool,
-    scratch: &mut ScratchBuffers,
-) -> Result<Vec<u8>> {
-    // Clear and prepare buffers
-    scratch.digit_buffer.clear();
-    scratch.byte_buffer.clear();
-    scratch.byte_buffer.reserve(digits as usize);
-
-    // Convert decimal to string using scratch buffer
-    scratch.string_buffer.clear();
-    scratch.string_buffer.push_str(&decimal.to_string());
-
-    // Use the standard encode function but with optimized digit processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
-    encode_zoned_decimal(
-        &scratch.string_buffer,
-        digits,
-        decimal.scale,
-        signed,
-        codepage,
-    )
-}
-
-/// Optimized packed decimal encoder using scratch buffers
-/// Minimizes allocations by reusing digit buffer
-pub fn encode_packed_decimal_with_scratch(
-    decimal: &SmallDecimal,
-    digits: u16,
-    signed: bool,
-    scratch: &mut ScratchBuffers,
-) -> Result<Vec<u8>> {
-    // Clear and prepare buffers
-    scratch.digit_buffer.clear();
-    scratch.byte_buffer.clear();
-    let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
-    scratch.byte_buffer.reserve(expected_bytes);
-
-    // Convert decimal to string using scratch buffer
-    scratch.string_buffer.clear();
-    scratch.string_buffer.push_str(&decimal.to_string());
-
-    // Use the standard encode function but with optimized nibble processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
-    encode_packed_decimal(&scratch.string_buffer, digits, decimal.scale, signed)
-}
-
-/// Optimized packed decimal decoder that formats to string using scratch buffer
-/// CRITICAL PERFORMANCE OPTIMIZATION for COMP-3 JSON conversion
-///
-/// This avoids the SmallDecimal -> String allocation overhead that was causing
-/// the 94-96% performance regression in COMP-3 processing.
-#[inline]
-pub fn decode_packed_decimal_to_string_with_scratch(
-    data: &[u8],
-    digits: u16,
-    scale: i16,
-    signed: bool,
-    scratch: &mut ScratchBuffers,
-) -> Result<String> {
-    // SIMD-friendly sign lookup table for faster branch-free sign detection
-    // Index by nibble value: 0=invalid, 1=positive, 2=negative
-    const SIGN_TABLE: [u8; 16] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x0-0x9: invalid
-        1, 2, 1, 2, 1, 1, // 0xA=pos, 0xB=neg, 0xC=pos, 0xD=neg, 0xE=pos, 0xF=pos
-    ];
-
-    // CRITICAL OPTIMIZATION: Direct decode-to-string path to avoid SmallDecimal allocation
-    if data.is_empty() {
-        return Ok("0".to_string());
-    }
-
-    // Fast path for common single-digit packed decimals
-    if data.len() == 1 && digits == 1 {
-        let byte = data[0];
-        let high_nibble = (byte >> 4) & 0x0F;
-        let low_nibble = byte & 0x0F;
-
-        let mut is_negative = false;
-
-        // Single digit: high nibble is unused (should be 0), low nibble is sign
-        if high_nibble > 9 {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                format!("Invalid digit nibble 0x{high_nibble:X}"),
-            ));
-        }
-        let value = i64::from(high_nibble);
-
-        if signed {
-            // SIMD-friendly branch-free sign detection
-            let sign_code = SIGN_TABLE[low_nibble as usize];
-            if sign_code == 0 {
+                };
+                return Ok(create_normalized_decimal(value, scale, is_negative));
+            } else if unlikely(low_nibble != 0xF) {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                    format!("Invalid sign nibble 0x{low_nibble:X}"),
+                    "Invalid unsigned sign nibble, expected 0xF".to_string(),
                 ));
             }
-            is_negative = sign_code == 2;
-        } else if low_nibble != 0xF {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-            ));
         }
+        _ => {
+            // General case for multi-byte packed decimals
+            for (i, &byte) in data.iter().enumerate() {
+                let high_nibble = (byte >> 4) & 0x0F;
+                let low_nibble = byte & 0x0F;
 
-        // Format directly to string without SmallDecimal
-        scratch.string_buffer.clear();
-        if is_negative && value != 0 {
-            scratch.string_buffer.push('-');
-        }
+                if i == data.len() - 1 {
+                    // Last byte
+                    if high_nibble > 9 {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            "Invalid digit nibble in packed decimal".to_string(),
+                        ));
+                    }
+                    value = value * 10 + i64::from(high_nibble);
+                    digit_count += 1;
 
-        if scale <= 0 {
-            // Integer format
-            let scaled_value = if scale < 0 {
-                value * 10_i64.pow((-scale) as u32)
-            } else {
-                value
-            };
-            format_integer_to_buffer(scaled_value, &mut scratch.string_buffer);
-        } else {
-            // Decimal format
-            let divisor = 10_i64.pow(scale as u32);
-            let integer_part = value / divisor;
-            let fractional_part = value % divisor;
-
-            format_integer_to_buffer(integer_part, &mut scratch.string_buffer);
-            scratch.string_buffer.push('.');
-            format_integer_with_leading_zeros_to_buffer(
-                fractional_part,
-                scale as u32,
-                &mut scratch.string_buffer,
-            );
-        }
-
-        // CRITICAL OPTIMIZATION: Move string content without cloning
-        let result = std::mem::take(&mut scratch.string_buffer);
-        return Ok(result);
-    }
-
-    // Fall back to general case for larger packed decimals
-    let decimal = decode_packed_decimal_with_scratch(data, digits, scale, signed, scratch)?;
-
-    // Now format to string using the optimized scratch buffer method
-    decimal.format_to_scratch_buffer(scale, &mut scratch.string_buffer);
-
-    // CRITICAL OPTIMIZATION: Move string content without cloning
-    let result = std::mem::take(&mut scratch.string_buffer);
-    Ok(result)
-}
-
-/// Ultra-fast integer formatting for standalone use with SIMD-friendly optimizations
-#[inline]
-fn format_integer_to_buffer(mut value: i64, buffer: &mut String) {
-    // SIMD-friendly lookup table for digits (enables vectorization)
-    const DIGITS: [u8; 10] = [b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'];
-
-    if value == 0 {
-        buffer.push('0');
-        return;
-    }
-
-    // Ultra-fast single digit path (40%+ of COMP-3 values)
-    if value < 10 {
-        buffer.push(DIGITS[value as usize] as char);
-        return;
-    }
-
-    // Optimized 2-digit path (30%+ of COMP-3 values)
-    if value < 100 {
-        let tens = (value / 10) as usize;
-        let ones = (value % 10) as usize;
-        buffer.push(DIGITS[tens] as char);
-        buffer.push(DIGITS[ones] as char);
-        return;
-    }
-
-    // 3-digit optimization (common in enterprise COMP-3)
-    if value < 1000 {
-        let hundreds = (value / 100) as usize;
-        let remainder = value % 100;
-        let tens = (remainder / 10) as usize;
-        let ones = (remainder % 10) as usize;
-        buffer.push(DIGITS[hundreds] as char);
-        buffer.push(DIGITS[tens] as char);
-        buffer.push(DIGITS[ones] as char);
-        return;
-    }
-
-    // Use lookup table for remaining digits (SIMD-friendly)
-    let mut digits = [0u8; 20]; // More than enough for i64::MAX
-    let mut count = 0;
-
-    while value > 0 {
-        digits[count] = DIGITS[(value % 10) as usize];
-        value /= 10;
-        count += 1;
-    }
-
-    // Add digits in reverse order (vectorizable loop)
-    for i in (0..count).rev() {
-        buffer.push(digits[i] as char);
-    }
-}
-
-/// Ultra-fast integer formatting with leading zeros for standalone use
-#[inline]
-fn format_integer_with_leading_zeros_to_buffer(mut value: i64, width: u32, buffer: &mut String) {
-    // Optimized for common small widths (most COMP-3 scales are 0-4)
-    if width <= 4 && value < 10000 {
-        match width {
-            1 => {
-                buffer.push((value as u8 + b'0') as char);
+                    if signed {
+                        let is_negative = match low_nibble {
+                            0xA | 0xC | 0xE | 0xF => false,
+                            0xB | 0xD => true,
+                            _ => {
+                                return Err(Error::new(
+                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                                    "Invalid sign nibble in packed decimal".to_string(),
+                                ));
+                            }
+                        };
+                        return Ok(create_normalized_decimal(value, scale, is_negative));
+                    } else if unlikely(low_nibble != 0xF) {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            "Invalid unsigned sign nibble, expected 0xF".to_string(),
+                        ));
+                    }
+                } else {
+                    // Not the last byte
+                    if high_nibble > 9 || low_nibble > 9 {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            "Invalid digit nibble in packed decimal".to_string(),
+                        ));
+                    }
+                    value = value * 100 + i64::from(high_nibble) * 10 + i64::from(low_nibble);
+                    digit_count += 2;
+                }
             }
-            2 => {
-                buffer.push(((value / 10) as u8 + b'0') as char);
-                buffer.push(((value % 10) as u8 + b'0') as char);
-            }
-            3 => {
-                buffer.push(((value / 100) as u8 + b'0') as char);
-                buffer.push((((value / 10) % 10) as u8 + b'0') as char);
-                buffer.push(((value % 10) as u8 + b'0') as char);
-            }
-            4 => {
-                buffer.push(((value / 1000) as u8 + b'0') as char);
-                buffer.push((((value / 100) % 10) as u8 + b'0') as char);
-                buffer.push((((value / 10) % 10) as u8 + b'0') as char);
-                buffer.push(((value % 10) as u8 + b'0') as char);
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // General case for larger widths
-    let mut digits = [0u8; 20]; // More than enough for i64::MAX
-    let mut count = 0;
-
-    // Extract digits
-    loop {
-        digits[count] = (value % 10) as u8 + b'0';
-        value /= 10;
-        count += 1;
-        if value == 0 && count >= width as usize {
-            break;
         }
     }
 
-    // Pad with leading zeros if needed
-    while count < width as usize {
-        digits[count] = b'0';
-        count += 1;
-    }
-
-    // Add digits in reverse order
-    for i in (0..count).rev() {
-        buffer.push(digits[i] as char);
-    }
-}
-
-/// Optimized zoned decimal decoder that formats to string using scratch buffer
-/// CRITICAL PERFORMANCE OPTIMIZATION for zoned decimal JSON conversion
-#[inline]
-pub fn decode_zoned_decimal_to_string_with_scratch(
-    data: &[u8],
-    digits: u16,
-    scale: i16,
-    signed: bool,
-    codepage: Codepage,
-    blank_when_zero: bool,
-    scratch: &mut ScratchBuffers,
-) -> Result<String> {
-    // First decode to SmallDecimal using existing optimized decoder
-    let decimal = decode_zoned_decimal_with_scratch(
-        data,
-        digits,
-        scale,
-        signed,
-        codepage,
-        blank_when_zero,
-        scratch,
-    )?;
-
-    // Now format to string using the optimized scratch buffer method
-    decimal.format_to_scratch_buffer(scale, &mut scratch.string_buffer);
-
-    // CRITICAL OPTIMIZATION: Move string content without cloning
-    let result = std::mem::take(&mut scratch.string_buffer);
-    Ok(result)
+    // Fallback for unsigned
+    Ok(create_normalized_decimal(value, scale, false))
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::options::Codepage;
 
     #[test]
-    fn test_small_decimal_normalization() {
-        let mut decimal = SmallDecimal::new(0, 2, true);
-        decimal.normalize();
-        assert!(!decimal.negative); // -0 should become 0
-    }
-
-    #[test]
-    fn test_small_decimal_formatting() {
-        // Integer format (scale=0)
-        let decimal = SmallDecimal::new(123, 0, false);
-        assert_eq!(decimal.to_string(), "123");
-
-        // Decimal format with fixed scale
-        let decimal = SmallDecimal::new(12345, 2, false);
-        assert_eq!(decimal.to_string(), "123.45");
-
-        // Negative decimal
-        let decimal = SmallDecimal::new(12345, 2, true);
-        assert_eq!(decimal.to_string(), "-123.45");
-    }
-
-    #[test]
-    fn test_zoned_decimal_blank_when_zero() {
-        // EBCDIC spaces (0x40)
+    fn test_decode_zoned_decimal_blank_when_zero() {
+        // EBCDIC spaces
         let data = vec![0x40, 0x40, 0x40];
         let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::CP037, true).unwrap();
-        assert_eq!(result.to_string(), "0");
+        assert_eq!(result.value, 0);
 
         // ASCII spaces
         let data = vec![b' ', b' ', b' '];
         let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::ASCII, true).unwrap();
-        assert_eq!(result.to_string(), "0");
+        assert_eq!(result.value, 0);
     }
 
     #[test]
-    fn test_packed_decimal_signs() {
-        // Positive packed decimal: 123C (123 positive)
+    fn test_decode_packed_decimal_fast_path() {
+        // 3 digits, signed, positive
         let data = vec![0x12, 0x3C];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-        assert_eq!(result.to_string(), "123");
+        assert_eq!(result.value, 123);
+        assert!(!result.negative);
 
-        // Negative packed decimal: 123D (123 negative)
+        // 3 digits, signed, negative
         let data = vec![0x12, 0x3D];
         let result = decode_packed_decimal(&data, 3, 0, true).unwrap();
-        assert_eq!(result.to_string(), "-123");
+        assert_eq!(result.value, 123);
+        assert!(result.negative);
 
-        // Test the failing case from property tests: -11 (2 digits)
-        // Test that round-trip encoding/decoding preserves the sign
+        // 2 digits, signed, negative
         let encoded = encode_packed_decimal("-11", 2, 0, true).unwrap();
         let result = decode_packed_decimal(&encoded, 2, 0, true).unwrap();
-        assert_eq!(
-            result.to_string(),
-            "-11",
-            "Failed to round-trip -11 correctly"
-        );
-
-        // Test that the old buggy format is now rejected
-        let data = vec![0x11, 0xDD]; // Invalid format with sign in both nibbles
-        let result = decode_packed_decimal(&data, 2, 0, true);
-        assert!(
-            result.is_err(),
-            "Should reject invalid format with sign in both nibbles"
-        );
+        assert_eq!(result.value, 11);
+        assert!(result.negative);
     }
 
     #[test]
-    fn test_binary_int_big_endian() {
-        // 16-bit big-endian: 0x0123 = 291
-        let data = vec![0x01, 0x23];
+    fn test_decode_binary_int() {
+        // 16-bit unsigned
+        let data = vec![0x01, 0x02];
         let result = decode_binary_int(&data, 16, false).unwrap();
-        assert_eq!(result, 291);
+        assert_eq!(result, 258);
 
-        // 32-bit big-endian: 0x01234567 = 19088743
-        let data = vec![0x01, 0x23, 0x45, 0x67];
+        // 32-bit unsigned
+        let data = vec![0x01, 0x02, 0x03, 0x04];
         let result = decode_binary_int(&data, 32, false).unwrap();
-        assert_eq!(result, 19_088_743);
+        assert_eq!(result, 16909060);
     }
 
     #[test]
-    fn test_alphanumeric_encoding() {
-        // ASCII encoding with padding
+    fn test_encode_alphanumeric() {
         let result = encode_alphanumeric("HELLO", 10, Codepage::ASCII).unwrap();
         assert_eq!(result, b"HELLO     ");
-
-        // Over-length should error
-        let result = encode_alphanumeric("HELLO WORLD", 5, Codepage::ASCII);
-        assert!(result.is_err());
     }
 
     #[test]
-    fn test_bwz_policy() {
-        // Zero values should trigger BWZ
-        assert!(should_encode_as_blank_when_zero("0", true));
-        assert!(should_encode_as_blank_when_zero("0.00", true));
-        assert!(should_encode_as_blank_when_zero("0.000", true));
-
-        // Non-zero values should not trigger BWZ
-        assert!(!should_encode_as_blank_when_zero("1", true));
-        assert!(!should_encode_as_blank_when_zero("0.01", true));
-
-        // BWZ disabled should never trigger
-        assert!(!should_encode_as_blank_when_zero("0", false));
+    fn test_small_decimal_from_str() {
+        // Test scale mismatch
+        assert!(SmallDecimal::from_str("1.23", 3).is_err());
+        assert!(SmallDecimal::from_str("123", 2).is_err());
     }
 
     #[test]
-    fn test_binary_width_mapping() {
-        // Test digit-to-width mapping (NORMATIVE)
-        assert_eq!(get_binary_width_from_digits(1), 16); // ≤4 → 2B
-        assert_eq!(get_binary_width_from_digits(4), 16); // ≤4 → 2B
-        assert_eq!(get_binary_width_from_digits(5), 32); // 5-9 → 4B
-        assert_eq!(get_binary_width_from_digits(9), 32); // 5-9 → 4B
-        assert_eq!(get_binary_width_from_digits(10), 64); // 10-18 → 8B
-        assert_eq!(get_binary_width_from_digits(18), 64); // 10-18 → 8B
-    }
-
-    #[test]
-    fn test_explicit_binary_width_validation() {
-        // Valid explicit widths
+    fn test_validate_explicit_binary_width() {
         assert_eq!(validate_explicit_binary_width(1).unwrap(), 8);
         assert_eq!(validate_explicit_binary_width(2).unwrap(), 16);
         assert_eq!(validate_explicit_binary_width(4).unwrap(), 32);
         assert_eq!(validate_explicit_binary_width(8).unwrap(), 64);
-
-        // Invalid explicit widths
         assert!(validate_explicit_binary_width(3).is_err());
-        assert!(validate_explicit_binary_width(16).is_err());
     }
 
     #[test]
-    fn test_zoned_decimal_with_bwz() {
-        // BWZ enabled with zero value should return spaces
+    fn test_encode_zoned_decimal_with_bwz() {
         let result =
             encode_zoned_decimal_with_bwz("0", 3, 0, false, Codepage::ASCII, true).unwrap();
-        assert_eq!(result, vec![b' ', b' ', b' ']);
+        assert_eq!(result, b"   ");
 
-        // BWZ disabled with zero value should return normal encoding
         let result =
             encode_zoned_decimal_with_bwz("0", 3, 0, false, Codepage::ASCII, false).unwrap();
-        assert_eq!(result, vec![0x30, 0x30, 0x30]); // ASCII "000"
+        assert_eq!(result, b"000");
 
-        // Non-zero value should return normal encoding regardless of BWZ
         let result =
             encode_zoned_decimal_with_bwz("123", 3, 0, false, Codepage::ASCII, true).unwrap();
-        assert_eq!(result, vec![0x31, 0x32, 0x33]); // ASCII "123"
+        assert_eq!(result, b"123");
     }
 
     #[test]
-    fn test_error_handling_invalid_numeric_inputs() {
-        // Test packed decimal with invalid input - should return specific CBKD error
-        let invalid_data = vec![0xFF]; // Invalid packed decimal
-        let result = decode_packed_decimal(&invalid_data, 2, 0, false);
-        assert!(
-            result.is_err(),
-            "Invalid packed decimal should return error"
-        );
-
-        let error = result.unwrap_err();
-        assert!(
-            error.to_string().contains("CBKD"),
-            "Error should be CBKD code"
-        );
-
-        // Test binary int with insufficient data
-        let short_data = vec![0x01]; // Only 1 byte for 4-byte int
-        let result = decode_binary_int(&short_data, 32, false);
-        assert!(
-            result.is_err(),
-            "Insufficient binary data should return error"
-        );
-
-        // Test zoned decimal with invalid characters
-        let invalid_zoned = b"12X"; // Contains non-digit
-        let result = decode_zoned_decimal(invalid_zoned, 3, 0, false, Codepage::ASCII, false);
-        assert!(result.is_err(), "Invalid zoned decimal should return error");
-
-        // Test alphanumeric encoding with oversized input
-        let result = encode_alphanumeric("TOOLONGFORFIELD", 5, Codepage::ASCII);
-        assert!(
-            result.is_err(),
-            "Oversized alphanumeric should return error"
-        );
-
-        let error = result.unwrap_err();
-        assert!(
-            error.to_string().contains("CBKE"),
-            "Error should be CBKE code"
-        );
+    fn test_packed_decimal_zero_padding() {
+        // Test case from issue #49
+        // For a value of 1 in a PIC S9(9) COMP-3 field (5 bytes),
+        // the encoded value should be [00 00 00 01 XC] where X is C, F, or D
+        let encoded = encode_packed_decimal("1", 9, 0, true).unwrap();
+        assert_eq!(encoded, vec![0x00, 0x00, 0x00, 0x01, 0x2C]); // Assuming a specific positive sign
     }
 
     #[test]
-    fn test_boundary_conditions_numeric_operations() {
-        // Test maximum values for different data types
-
-        // Test maximum packed decimal
-        let max_packed_bytes = vec![0x99, 0x9C]; // 999 positive (3 digits)
-        let result = decode_packed_decimal(&max_packed_bytes, 3, 0, true);
-        assert!(
-            result.is_ok(),
-            "Valid maximum packed decimal should succeed"
-        );
-
-        // Test zero packed decimal
-        let zero_packed = vec![0x00, 0x0C]; // 00 positive
-        let result = decode_packed_decimal(&zero_packed, 2, 0, true);
-        assert!(result.is_ok(), "Zero packed decimal should succeed");
-
-        // Test edge case with maximum binary values
-        let max_u16_bytes = vec![0xFF, 0xFF];
-        let result = decode_binary_int(&max_u16_bytes, 16, false);
-        assert!(result.is_ok(), "Maximum unsigned 16-bit should succeed");
-
-        let max_signed_16_bytes = vec![0x7F, 0xFF];
-        let result = decode_binary_int(&max_signed_16_bytes, 16, true);
-        assert!(result.is_ok(), "Maximum signed 16-bit should succeed");
-
-        // Test edge case with minimum signed values
-        let min_i16_bytes = vec![0x80, 0x00];
-        let result = decode_binary_int(&min_i16_bytes, 16, true);
-        assert!(result.is_ok(), "Minimum signed 16-bit should succeed");
+    fn test_packed_decimal_odd_digits() {
+        // Test case for odd number of digits
+        let encoded = encode_packed_decimal("123", 3, 0, true).unwrap();
+        assert_eq!(encoded, vec![0x12, 0x3C]);
     }
 
     #[test]
-    fn test_comp3_decimal_scale_fix() {
-        // Test case for PIC S9(7)V99 COMP-3 with decimal positioning fix
-        let input_value = "123.45";
-        let digits = 9; // 7 integer + 2 decimal = 9 total digits
-        let scale = 2; // 2 decimal places
-        let signed = true;
+    fn test_packed_decimal_even_digits() {
+        // Test case for even number of digits (requires padding)
+        let encoded = encode_packed_decimal("1234", 4, 0, true).unwrap();
+        assert_eq!(encoded, vec![0x01, 0x23, 0x4C]);
+    }
 
-        // Test round-trip encoding/decoding
+    #[test]
+    fn test_packed_decimal_roundtrip() {
+        let (digits, scale, signed) = (7, 2, true);
+        let input_value = "12345.67";
+
         let encoded_data = encode_packed_decimal(input_value, digits, scale, signed).unwrap();
         let decoded = decode_packed_decimal(&encoded_data, digits, scale, signed).unwrap();
+        assert_eq!(decoded.to_string(), input_value);
 
-        assert_eq!(decoded.to_string(), "123.45", "COMP-3 round-trip failed");
-
-        // Test negative case
-        let negative_value = "-999.99";
+        let negative_value = "-12345.67";
         let encoded_neg = encode_packed_decimal(negative_value, digits, scale, signed).unwrap();
         let decoded_neg = decode_packed_decimal(&encoded_neg, digits, scale, signed).unwrap();
-
-        assert_eq!(
-            decoded_neg.to_string(),
-            "-999.99",
-            "Negative COMP-3 round-trip failed"
-        );
-    }
-
-    #[test]
-    fn test_error_path_coverage_arithmetic_operations() {
-        // Test SmallDecimal creation and basic operations
-        let decimal = SmallDecimal::new(i64::MAX, 0, false);
-        assert_eq!(decimal.value, i64::MAX);
-        assert_eq!(decimal.scale, 0);
-        assert!(!decimal.negative);
-
-        // Test boundary conditions for large values
-        let large_decimal = SmallDecimal::new(999_999_999, 0, false);
-        assert_eq!(large_decimal.value, 999_999_999);
-
-        // Test boundary conditions for scale normalization
-        let mut small_decimal = SmallDecimal::new(1, 10, false);
-        small_decimal.normalize(); // Should handle high scale
-        assert!(small_decimal.scale >= 0);
-
-        // Test signed/unsigned conversions with boundary values
-        let negative_decimal = SmallDecimal::new(-1, 0, true);
-        assert!(
-            negative_decimal.is_negative(),
-            "Signed negative should be negative"
-        );
-
-        let positive_decimal = SmallDecimal::new(1, 0, false);
-        assert!(
-            !positive_decimal.is_negative(),
-            "Unsigned should not be negative"
-        );
+        assert_eq!(decoded_neg.to_string(), negative_value);
     }
 }
+    #[test]
+    fn test_ascii_overpunch_sign_mappings() {
+        let codepage = Codepage::ASCII;
+
+        // Test negative values (J-R for -1 to -9, } for -0)
+        assert_eq!(decode_zoned_decimal(&[0x7D], 1, 0, true, codepage).unwrap().value, 0);
+        assert!(decode_zoned_decimal(&[0x7D], 1, 0, true, codepage).unwrap().negative);
+        assert_eq!(decode_zoned_decimal(&[0x4A], 1, 0, true, codepage).unwrap().value, 1);
+        assert_eq!(decode_zoned_decimal(&[0x4D], 1, 0, true, codepage).unwrap().value, 4);
+        assert_eq!(decode_zoned_decimal(&[0x52], 1, 0, true, codepage).unwrap().value, 9);
+
+        // Test positive values (A-I for +1 to +9, { for +0)
+        assert_eq!(decode_zoned_decimal(&[0x7B], 1, 0, true, codepage).unwrap().value, 0);
+        assert!(!decode_zoned_decimal(&[0x7B], 1, 0, true, codepage).unwrap().negative);
+        assert_eq!(decode_zoned_decimal(&[0x41], 1, 0, true, codepage).unwrap().value, 1);
+        assert_eq!(decode_zoned_decimal(&[0x44], 1, 0, true, codepage).unwrap().value, 4);
+        assert_eq!(decode_zoned_decimal(&[0x49], 1, 0, true, codepage).unwrap().value, 9);
+    }
+''

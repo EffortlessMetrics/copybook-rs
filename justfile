@@ -1,4 +1,4 @@
-# Copybook-RS Justfile
+'''# Copybook-RS Justfile
 # Modern task runner for copybook-rs development
 
 # Set environment variables
@@ -19,6 +19,10 @@ build-release:
 # Run all tests using cargo-nextest (preferred)
 test:
     cargo nextest run --workspace
+
+# Run all tests, including long-running and ignored tests
+test-all:
+    cargo nextest run --workspace --run-ignored all
 
 # Run tests with legacy cargo test (fallback)
 test-legacy:
@@ -118,3 +122,4 @@ ci-local:
 # Quick local CI (skip docs and deny for speed)
 ci-quick:
     cargo run --package xtask --bin xtask -- ci --quick
+''

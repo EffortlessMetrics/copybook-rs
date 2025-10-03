@@ -1,5 +1,5 @@
 //! Enterprise Compliance Engine
-//!
+//! 
 //! Provides comprehensive compliance validation for regulatory frameworks
 //! including SOX, HIPAA, GDPR, and PCI DSS with automated validation
 //! and remediation guidance.
@@ -18,12 +18,12 @@ pub struct ComplianceEngine {
 }
 
 impl ComplianceEngine {
-    /// Create a new compliance engine
-    pub fn new() -> Self {
+    /// Create a new compliance engine with a given configuration
+    pub fn new(config: ComplianceConfig) -> Self {
         Self {
             profiles: Vec::new(),
             validators: HashMap::new(),
-            config: ComplianceConfig::default(),
+            config,
         }
     }
 
@@ -32,24 +32,17 @@ impl ComplianceEngine {
     pub fn with_profiles(mut self, profiles: &[ComplianceProfile]) -> Self {
         self.profiles = profiles.to_vec();
 
-        // Initialize validators for each profile
+        // Initialize validators for each profile with its specific config
         for profile in profiles {
             let validator: Box<dyn ComplianceValidator> = match profile {
-                ComplianceProfile::SOX => Box::new(SoxValidator::new()),
-                ComplianceProfile::HIPAA => Box::new(HipaaValidator::new()),
-                ComplianceProfile::GDPR => Box::new(GdprValidator::new()),
-                ComplianceProfile::PciDss => Box::new(PciDssValidator::new()),
+                ComplianceProfile::SOX => Box::new(SoxValidator::new(self.config.sox.clone())),
+                ComplianceProfile::HIPAA => Box::new(HipaaValidator::new(self.config.hipaa.clone())),
+                ComplianceProfile::GDPR => Box::new(GdprValidator::new(self.config.gdpr.clone())),
+                ComplianceProfile::PciDss => Box::new(PciDssValidator::new(self.config.pci_dss.clone())),
             };
             self.validators.insert(*profile, validator);
         }
 
-        self
-    }
-
-    /// Set compliance configuration
-    #[must_use]
-    pub fn with_config(mut self, config: ComplianceConfig) -> Self {
-        self.config = config;
         self
     }
 
@@ -70,20 +63,19 @@ impl ComplianceEngine {
                     }
                     Err(e) => {
                         // Add a critical violation when a validator fails completely
-                        // This ensures compliance failures are tracked even if validator crashes
                         violations.push(ComplianceViolation {
                             violation_id: format!("{:?}-VALIDATOR-FAILURE", profile),
                             regulation: format!("{:?} Compliance Framework", profile),
                             severity: ComplianceSeverity::Critical,
                             title: "Compliance Validator System Failure".to_string(),
                             description: format!(
-                                "Critical failure in {:?} compliance validator: {}. \
+                                "Critical failure in {:?} compliance validator: {}. \n\
                                 Compliance status cannot be determined for this framework.",
                                 profile, e
                             ),
                             remediation: format!(
-                                "Investigate and resolve {:?} validator system issues. \
-                                Review audit logs and system health. \
+                                "Investigate and resolve {:?} validator system issues. \n\
+                                Review audit logs and system health. \n\
                                 Consider manual compliance review until validator is restored.",
                                 profile
                             ),
@@ -141,7 +133,7 @@ impl ComplianceEngine {
                     priority: RecommendationPriority::Critical,
                     title: "Restore Compliance Recommendation System".to_string(),
                     description: format!(
-                        "The compliance recommendation system failed: {}. \
+                        "The compliance recommendation system failed: {}. \n\
                         Manual compliance analysis is required.",
                         e
                     ),
@@ -181,7 +173,7 @@ impl ComplianceEngine {
                             priority: RecommendationPriority::Critical,
                             title: format!("Restore {:?} Compliance Monitoring", profile),
                             description: format!(
-                                "The {:?} compliance validator failed to generate recommendations due to: {}. \
+                                "The {:?} compliance validator failed to generate recommendations due to: {}. \n\
                                 Manual compliance review is recommended until validator is restored.",
                                 profile, e
                             ),
@@ -208,7 +200,7 @@ impl ComplianceEngine {
 
 impl Default for ComplianceEngine {
     fn default() -> Self {
-        Self::new()
+        Self::new(ComplianceConfig::default())
     }
 }
 
@@ -241,15 +233,12 @@ pub trait ComplianceValidator: Send + Sync {
 /// SOX compliance validator
 #[derive(Default)]
 pub struct SoxValidator {
-    #[allow(dead_code)]
     config: SoxConfig,
 }
 
 impl SoxValidator {
-    pub fn new() -> Self {
-        Self {
-            config: SoxConfig::default(),
-        }
+    pub fn new(config: SoxConfig) -> Self {
+        Self { config }
     }
 
     fn validate_financial_data_controls(&self, context: &AuditContext) -> Vec<ComplianceViolation> {
@@ -287,7 +276,8 @@ impl SoxValidator {
     fn has_adequate_data_integrity_controls(&self, context: &AuditContext) -> bool {
         // Check if cryptographic integrity is enabled for financial data
         context.security.audit_requirements.integrity_protection
-            && matches!(
+            &&
+            matches!(
                 context.security.classification,
                 SecurityClassification::MaterialTransaction
             )
@@ -307,8 +297,9 @@ impl ComplianceValidator for SoxValidator {
         let mut violations = Vec::new();
         let mut warnings = Vec::new();
 
-        // Validate financial data processing controls
-        violations.extend(self.validate_financial_data_controls(context));
+        if self.config.financial_data_validation {
+            violations.extend(self.validate_financial_data_controls(context));
+        }
 
         // Check audit trail requirements
         if context.security.audit_requirements.retention_days < 2555 {
@@ -334,7 +325,7 @@ impl ComplianceValidator for SoxValidator {
     ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let mut recommendations = Vec::new();
 
-        if matches!(
+        if self.config.executive_certification_required && matches!(
             context.security.classification,
             SecurityClassification::MaterialTransaction
         ) {
@@ -351,16 +342,18 @@ impl ComplianceValidator for SoxValidator {
             });
         }
 
-        recommendations.push(ComplianceRecommendation {
-            recommendation_id: "SOX-REC-002".to_string(),
-            priority: RecommendationPriority::Medium,
-            title: "Quarterly Compliance Reporting".to_string(),
-            description: "Implement automated quarterly compliance reporting for SOX audits"
-                .to_string(),
-            implementation_effort: "1-2 weeks".to_string(),
-            compliance_benefit: "Streamlines SOX audit process and reduces compliance burden"
-                .to_string(),
-        });
+        if self.config.quarterly_reporting {
+            recommendations.push(ComplianceRecommendation {
+                recommendation_id: "SOX-REC-002".to_string(),
+                priority: RecommendationPriority::Medium,
+                title: "Quarterly Compliance Reporting".to_string(),
+                description: "Implement automated quarterly compliance reporting for SOX audits"
+                    .to_string(),
+                implementation_effort: "1-2 weeks".to_string(),
+                compliance_benefit: "Streamlines SOX audit process and reduces compliance burden"
+                    .to_string(),
+            });
+        }
 
         Ok(recommendations)
     }
@@ -369,15 +362,12 @@ impl ComplianceValidator for SoxValidator {
 /// HIPAA compliance validator
 #[derive(Default)]
 pub struct HipaaValidator {
-    #[allow(dead_code)]
     config: HipaaConfig,
 }
 
 impl HipaaValidator {
-    pub fn new() -> Self {
-        Self {
-            config: HipaaConfig::default(),
-        }
+    pub fn new(config: HipaaConfig) -> Self {
+        Self { config }
     }
 
     fn validate_phi_protection(&self, context: &AuditContext) -> Vec<ComplianceViolation> {
@@ -401,7 +391,7 @@ impl HipaaValidator {
         }
 
         // HIPAA Security Rule: Technical Safeguards
-        if !self.has_adequate_technical_safeguards(context) {
+        if self.config.phi_encryption_required && !self.has_adequate_technical_safeguards(context) {
             violations.push(ComplianceViolation {
                 violation_id: "HIPAA-TECH-001".to_string(),
                 regulation: "HIPAA Security Rule §164.312".to_string(),
@@ -449,7 +439,7 @@ impl ComplianceValidator for HipaaValidator {
             violations.extend(self.validate_phi_protection(context));
 
             // Check minimum necessary requirement
-            if !context
+            if self.config.minimum_necessary_enforcement && !context
                 .metadata
                 .contains_key("minimum_necessary_justification")
             {
@@ -476,7 +466,7 @@ impl ComplianceValidator for HipaaValidator {
     ) -> AuditResult<Vec<ComplianceRecommendation>> {
         let mut recommendations = Vec::new();
 
-        if matches!(context.security.classification, SecurityClassification::PHI) {
+        if self.config.breach_notification_automation && matches!(context.security.classification, SecurityClassification::PHI) {
             recommendations.push(ComplianceRecommendation {
                 recommendation_id: "HIPAA-REC-001".to_string(),
                 priority: RecommendationPriority::High,
@@ -496,15 +486,12 @@ impl ComplianceValidator for HipaaValidator {
 /// GDPR compliance validator
 #[derive(Default)]
 pub struct GdprValidator {
-    #[allow(dead_code)]
     config: GdprConfig,
 }
 
 impl GdprValidator {
-    pub fn new() -> Self {
-        Self {
-            config: GdprConfig::default(),
-        }
+    pub fn new(config: GdprConfig) -> Self {
+        Self { config }
     }
 
     fn validate_data_protection_principles(
@@ -514,7 +501,7 @@ impl GdprValidator {
         let mut violations = Vec::new();
 
         // GDPR Article 5: Principles of data processing
-        if !self.has_legal_basis_documentation(context) {
+        if self.config.legal_basis_validation && !self.has_legal_basis_documentation(context) {
             violations.push(ComplianceViolation {
                 violation_id: "GDPR-ART5-001".to_string(),
                 regulation: "GDPR Article 5(1)(a)".to_string(),
@@ -552,7 +539,8 @@ impl GdprValidator {
 
     fn has_legal_basis_documentation(&self, context: &AuditContext) -> bool {
         context.metadata.contains_key("gdpr_legal_basis")
-            || context.metadata.contains_key("processing_purpose")
+            ||
+            context.metadata.contains_key("processing_purpose")
     }
 
     fn has_data_minimization_controls(&self, context: &AuditContext) -> bool {
@@ -594,18 +582,20 @@ impl ComplianceValidator for GdprValidator {
         &self,
         _context: &AuditContext,
     ) -> AuditResult<Vec<ComplianceRecommendation>> {
-        let recommendations = vec![ComplianceRecommendation {
-            recommendation_id: "GDPR-REC-001".to_string(),
-            priority: RecommendationPriority::High,
-            title: "Implement Data Subject Rights Portal".to_string(),
-            description:
-                "Automated portal for data subject access, rectification, and erasure requests"
+        let mut recommendations = Vec::new();
+        if self.config.data_subject_rights_automation {
+            recommendations.push(ComplianceRecommendation {
+                recommendation_id: "GDPR-REC-001".to_string(),
+                priority: RecommendationPriority::High,
+                title: "Implement Data Subject Rights Portal".to_string(),
+                description:
+                    "Automated portal for data subject access, rectification, and erasure requests"
+                        .to_string(),
+                implementation_effort: "4-6 weeks".to_string(),
+                compliance_benefit: "Ensures GDPR Articles 15-17 compliance for data subject rights"
                     .to_string(),
-            implementation_effort: "4-6 weeks".to_string(),
-            compliance_benefit: "Ensures GDPR Articles 15-17 compliance for data subject rights"
-                .to_string(),
-        }];
-
+            });
+        }
         Ok(recommendations)
     }
 }
@@ -613,15 +603,12 @@ impl ComplianceValidator for GdprValidator {
 /// PCI DSS compliance validator (placeholder)
 #[derive(Default)]
 pub struct PciDssValidator {
-    #[allow(dead_code)]
     config: PciDssConfig,
 }
 
 impl PciDssValidator {
-    pub fn new() -> Self {
-        Self {
-            config: PciDssConfig::default(),
-        }
+    pub fn new(config: PciDssConfig) -> Self {
+        Self { config }
     }
 }
 
@@ -629,11 +616,15 @@ impl PciDssValidator {
 impl ComplianceValidator for PciDssValidator {
     async fn validate_operation(
         &self,
-        _context: &AuditContext,
+        context: &AuditContext,
     ) -> AuditResult<ComplianceValidationResult> {
-        // PCI DSS validation would be implemented here
+        let mut violations = Vec::new();
+        if self.config.cardholder_data_validation && context.metadata.contains_key("has_cardholder_data") {
+            // Placeholder for actual PCI DSS validation logic
+            // e.g., check for PAN truncation, encryption, etc.
+        }
         Ok(ComplianceValidationResult {
-            violations: Vec::new(),
+            violations,
             warnings: Vec::new(),
         })
     }
@@ -654,6 +645,10 @@ pub struct ComplianceConfig {
     pub review_interval_days: Option<u32>,
     pub auto_remediation: bool,
     pub notification_endpoints: Vec<String>,
+    pub sox: SoxConfig,
+    pub hipaa: HipaaConfig,
+    pub gdpr: GdprConfig,
+    pub pci_dss: PciDssConfig,
 }
 
 impl Default for ComplianceConfig {
@@ -663,6 +658,10 @@ impl Default for ComplianceConfig {
             review_interval_days: Some(90),
             auto_remediation: false,
             notification_endpoints: Vec::new(),
+            sox: SoxConfig::default(),
+            hipaa: HipaaConfig::default(),
+            gdpr: GdprConfig::default(),
+            pci_dss: PciDssConfig::default(),
         }
     }
 }
@@ -832,7 +831,7 @@ mod tests {
 
     #[test]
     fn test_compliance_engine_creation() {
-        let engine = ComplianceEngine::new()
+        let engine = ComplianceEngine::default()
             .with_profiles(&[ComplianceProfile::SOX, ComplianceProfile::HIPAA]);
 
         assert_eq!(engine.profiles.len(), 2);
@@ -845,7 +844,7 @@ mod tests {
         let context = AuditContext::new()
             .with_security_classification(SecurityClassification::MaterialTransaction);
 
-        let sox_validator = SoxValidator::new();
+        let sox_validator = SoxValidator::new(SoxConfig::default());
         let result = sox_validator
             .validate_operation(&context)
             .await
@@ -859,7 +858,7 @@ mod tests {
     async fn test_hipaa_compliance_validation() {
         let context = AuditContext::new().with_security_classification(SecurityClassification::PHI);
 
-        let hipaa_validator = HipaaValidator::new();
+        let hipaa_validator = HipaaValidator::new(HipaaConfig::default());
         let result = hipaa_validator
             .validate_operation(&context)
             .await
@@ -904,7 +903,7 @@ mod tests {
 
     #[test]
     fn test_calculate_next_review_date_arithmetic() {
-        let engine = ComplianceEngine::new();
+        let engine = ComplianceEngine::default();
 
         // Test default 90-day calculation
         let review_date = engine.calculate_next_review_date();
@@ -931,7 +930,7 @@ mod tests {
             review_interval_days: Some(365), // 1 year
             ..Default::default()
         };
-        let custom_engine = ComplianceEngine::new().with_config(custom_config);
+        let custom_engine = ComplianceEngine::new(custom_config);
         let custom_review_date = custom_engine.calculate_next_review_date();
 
         let parsed_custom_date = chrono::DateTime::parse_from_rfc3339(&custom_review_date)
@@ -956,7 +955,7 @@ mod tests {
             .with_security_classification(SecurityClassification::MaterialTransaction);
         context_compliant.security.audit_requirements.retention_days = 2555; // Exactly the threshold
 
-        let sox_validator = SoxValidator::new();
+        let sox_validator = SoxValidator::new(SoxConfig::default());
         let result = sox_validator
             .validate_operation(&context_compliant)
             .await

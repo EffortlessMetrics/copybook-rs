@@ -1,9 +1,9 @@
 //! AC3: CI Integration Validation Tests
-//!
+//! 
 //! Tests validation of existing CI integration functionality from Issue #52.
-//!
+//! 
 //! **Status**: Validates existing implementation (GitHub Actions workflows)
-//!
+//! 
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac3-ci-integration
 //! Traceability: docs/issue-49-traceability-matrix.md#ac3
 
@@ -19,6 +19,7 @@
 
 use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
+use std::path::PathBuf;
 
 /// AC3: Test PR comment generation format
 ///
@@ -275,6 +276,7 @@ fn test_pr_comment_with_regressions() {
 #[test]
 fn test_artifact_retention_policy() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut store = BaselineStore::new();
 
     // Add old baseline (100 days ago) - should be removed
@@ -315,7 +317,7 @@ fn test_artifact_retention_policy() {
 
     // Test GitHub Actions artifact retention configuration
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 
@@ -337,7 +339,7 @@ fn test_artifact_retention_policy() {
 
     // Validate retention policy metadata from fixture
     let retention_metadata = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/artifact_retention_metadata.json",
+        base_path.join("copybook-bench/test_fixtures/ci/artifact_retention_metadata.json"),
     )
     .expect("Failed to read retention metadata fixture");
 
@@ -359,6 +361,7 @@ fn test_artifact_retention_policy() {
 #[test]
 fn test_baseline_promotion_on_main() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -380,7 +383,7 @@ fn test_baseline_promotion_on_main() {
 
     // Test that feature branch does NOT promote baseline (CI workflow check)
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 
@@ -408,6 +411,7 @@ fn test_baseline_promotion_on_main() {
 #[test]
 fn test_baseline_no_promotion_on_feature_branch() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let store = BaselineStore::new();
 
     // For feature branches, promotion should NOT occur in CI workflow
@@ -421,7 +425,7 @@ fn test_baseline_no_promotion_on_feature_branch() {
 
     // Validate GitHub Actions environment variables used for conditional logic
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 
@@ -472,6 +476,7 @@ fn test_baseline_no_promotion_on_feature_branch() {
 #[test]
 fn test_missing_baseline_neutral_ci() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let store = BaselineStore::new(); // No baseline
 
     let mut current = PerformanceReport::new();
@@ -505,7 +510,7 @@ fn test_missing_baseline_neutral_ci() {
 
     // Test PR comment generation for NEUTRAL status using fixture
     let neutral_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_neutral.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_neutral.md"),
     )
     .expect("Failed to read NEUTRAL comment fixture");
 
@@ -536,6 +541,7 @@ fn test_missing_baseline_neutral_ci() {
 #[test]
 fn test_artifact_structure() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -588,7 +594,7 @@ fn test_artifact_structure() {
 
     // Validate artifact compression (.zip) and naming
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 
@@ -625,6 +631,7 @@ fn test_artifact_structure() {
 #[test]
 fn test_timeout_protection() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     // GitHub Actions timeout is configured in workflow YAML:
     // timeout-minutes: 30
 
@@ -648,7 +655,7 @@ fn test_timeout_protection() {
     // This means it uses the default GitHub Actions timeout (360 minutes for public repos)
     // The workflow is designed to complete within minutes, not hours
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 
@@ -693,6 +700,7 @@ fn test_timeout_protection() {
 #[test]
 fn test_ci_exit_codes() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut store = BaselineStore::new();
 
     let mut baseline = PerformanceReport::new();
@@ -743,7 +751,7 @@ fn test_ci_exit_codes() {
 
     // Validate exit code propagation in GitHub Actions
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 
@@ -779,6 +787,7 @@ fn test_ci_exit_codes() {
 #[test]
 fn test_pr_comment_updates() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     // PR comments should be updated in place using GitHub API
     // Comment identification: search for previous comment with specific marker
 
@@ -797,7 +806,7 @@ fn test_pr_comment_updates() {
 
     // Validate GitHub API comment update logic from workflow
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 
@@ -836,17 +845,17 @@ fn test_pr_comment_updates() {
 
     // Test fixture validation for comment formats
     let pass_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_pass.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_pass.md"),
     )
     .expect("Failed to read PASS comment fixture");
 
     let warning_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_warning.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_warning.md"),
     )
     .expect("Failed to read WARNING comment fixture");
 
     let failure_fixture = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/copybook-bench/test_fixtures/ci/pr_comment_failure.md",
+        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_failure.md"),
     )
     .expect("Failed to read FAILURE comment fixture");
 
@@ -873,6 +882,7 @@ fn test_pr_comment_updates() {
 #[test]
 fn test_artifact_naming() {
     // AC3
+    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let commit_sha = "abc12345";
     let artifact_name = format!("baseline-main-{}", commit_sha);
 
@@ -887,7 +897,7 @@ fn test_artifact_naming() {
 
     // Validate GitHub Actions artifact upload name (line 300)
     let workflow_yaml = std::fs::read_to_string(
-        "/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml",
+        base_path.join(".github/workflows/benchmark.yml"),
     )
     .expect("Failed to read workflow YAML");
 

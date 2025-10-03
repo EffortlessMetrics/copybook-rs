@@ -152,19 +152,22 @@ docs(cli): update decode command examples
 
 ### Running Tests
 
-```bash
-# All tests
-cargo test --workspace
+We use `just` to provide simple commands for running tests. The test suite is split into two main categories:
 
-# Specific crate
-cargo test -p copybook-core
+1.  **Standard Tests**: These are fast-running unit and integration tests that verify the core functionality. They are run on every pull request.
+2.  **Ignored Tests**: These are long-running tests for performance, stress, and other comprehensive validation scenarios. They are marked with `#[ignore]` to avoid slowing down the development cycle.
 
-# Golden fixtures
-cargo test --test golden_fixtures_comprehensive
+-   To run the standard test suite, use:
+    ```bash
+    just test
+    ```
 
-# With strict comments mode
-COPYBOOK_TEST_STRICT_COMMENTS=1 cargo test -p copybook-core
-```
+-   To run the **entire** test suite, including the long-running ignored tests, use:
+    ```bash
+    just test-all
+    ```
+
+It is recommended to run `just test-all` before submitting a pull request for a significant change, especially if it might impact performance.
 
 ### Adding Tests
 

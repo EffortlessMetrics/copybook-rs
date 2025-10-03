@@ -898,9 +898,16 @@ We welcome contributions! Please see [REPORT.md](docs/REPORT.md) for current pro
 
 ## License
 
-Licensed under either of
+This project is licensed under the **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later).
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+See [LICENSE](LICENSE) for the full license text.
 
-at your option.
+### Why AGPL-3.0?
+
+copybook-rs is designed for enterprise mainframe data processing with strong copyleft protections to ensure improvements benefit the community. The AGPL ensures that modifications made in cloud/SaaS deployments are shared back.
+
+### Contributor License Agreement (CLA)
+
+Contributors must sign a CLA before their contributions can be accepted. See [CLA.md](CLA.md) for details.
+
+**For commercial licensing or alternative arrangements**, please contact the maintainers.

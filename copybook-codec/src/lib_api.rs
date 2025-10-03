@@ -408,7 +408,10 @@ fn process_fields_recursive(
                         debug_assert!(false, "Group fields should be handled by outer match");
                         return Err(Error::new(
                             ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                            format!("Unexpected Group field '{}' in scalar processing path", field.name),
+                            format!(
+                                "Unexpected Group field '{}' in scalar processing path",
+                                field.name
+                            ),
                         ));
                     }
                     FieldKind::Condition { values } => {
@@ -545,7 +548,10 @@ fn process_fields_recursive_with_scratch(
                             debug_assert!(false, "Group fields should be handled by outer match");
                             return Err(Error::new(
                                 ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                                format!("Unexpected Group field '{}' in scalar processing path", field.name),
+                                format!(
+                                    "Unexpected Group field '{}' in scalar processing path",
+                                    field.name
+                                ),
                             ));
                         }
                         FieldKind::Condition { values } => {

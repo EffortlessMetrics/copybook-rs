@@ -143,6 +143,7 @@ impl RegressionDetector {
     }
 
     /// Compares current metrics against a baseline to detect regressions.
+    #[allow(clippy::cast_precision_loss)]
     pub fn check_regression(
         &self,
         current: &ThroughputMetrics,

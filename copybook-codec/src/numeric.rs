@@ -1404,26 +1404,14 @@ pub fn encode_zoned_decimal(
                     match digit {
                         0 => 0x7D, // '}' = -0
                         1..=9 => 0x49 + digit,
-                        _ => {
-                            debug_assert!(false, "Invalid digit > 9 after validation");
-                            return Err(Error::new(
-                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                format!("Invalid digit value: {digit}"),
-                            ));
-                        }
+                        _ => unreachable!("digit validated to be 0-9"),
                     }
                 } else {
                     // ASCII positive overpunch characters (A-I for 1-9, { for 0)
                     match digit {
                         0 => 0x7B, // '{' = +0
                         1..=9 => 0x40 + digit,
-                        _ => {
-                            debug_assert!(false, "Invalid digit > 9 after validation");
-                            return Err(Error::new(
-                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                format!("Invalid digit value: {digit}"),
-                            ));
-                        }
+                        _ => unreachable!("digit validated to be 0-9"),
                     }
                 };
                 result.push(overpunch_byte);
@@ -1512,26 +1500,14 @@ pub fn encode_zoned_decimal_with_format(
                     match digit {
                         0 => 0x7D, // '}' = -0
                         1..=9 => 0x49 + digit,
-                        _ => {
-                            debug_assert!(false, "Invalid digit > 9 after validation");
-                            return Err(Error::new(
-                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                format!("Invalid digit value: {digit}"),
-                            ));
-                        }
+                        _ => unreachable!("digit validated to be 0-9"),
                     }
                 } else {
                     // ASCII positive overpunch characters (A-I for 1-9, { for 0)
                     match digit {
                         0 => 0x7B, // '{' = +0
                         1..=9 => 0x40 + digit,
-                        _ => {
-                            debug_assert!(false, "Invalid digit > 9 after validation");
-                            return Err(Error::new(
-                                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                                format!("Invalid digit value: {digit}"),
-                            ));
-                        }
+                        _ => unreachable!("digit validated to be 0-9"),
                     }
                 };
                 result.push(overpunch_byte);

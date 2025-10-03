@@ -689,7 +689,8 @@ async fn run_compliance_validation(
         profiles.push(profile);
     }
 
-    let compliance_engine = ComplianceEngine::new().with_profiles(&profiles);
+    let compliance_engine = ComplianceEngine::new(copybook_core::compliance::ComplianceConfig::default())
+        .with_profiles(&profiles);
 
     // Run compliance validation
     // Parse copybook to validate it

@@ -2325,7 +2325,11 @@ fn test_ascii_overpunch_encode_table() {
         };
 
         assert_eq!(encoded.len(), 1);
-        assert_eq!(encoded[0], expected, "Positive digit {} should encode to 0x{:02X}", digit, expected);
+        assert_eq!(
+            encoded[0], expected,
+            "Positive digit {} should encode to 0x{:02X}",
+            digit, expected
+        );
     }
 
     // Negative digits 0-9
@@ -2351,7 +2355,11 @@ fn test_ascii_overpunch_encode_table() {
         };
 
         assert_eq!(encoded.len(), 1);
-        assert_eq!(encoded[0], expected, "Negative digit {} should encode to 0x{:02X}", digit, expected);
+        assert_eq!(
+            encoded[0], expected,
+            "Negative digit {} should encode to 0x{:02X}",
+            digit, expected
+        );
     }
 }
 
@@ -2366,7 +2374,11 @@ fn test_ascii_overpunch_roundtrip() {
         let encoded = encode_zoned_decimal(&value, 1, 0, true, codepage).unwrap();
         let decoded = decode_zoned_decimal(&encoded, 1, 0, true, codepage, false).unwrap();
 
-        assert_eq!(decoded.value, digit as i64, "Roundtrip failed for +{}", digit);
+        assert_eq!(
+            decoded.value, digit as i64,
+            "Roundtrip failed for +{}",
+            digit
+        );
         assert!(!decoded.negative, "Roundtrip sign mismatch for +{}", digit);
     }
 
@@ -2376,7 +2388,11 @@ fn test_ascii_overpunch_roundtrip() {
         let encoded = encode_zoned_decimal(&value, 1, 0, true, codepage).unwrap();
         let decoded = decode_zoned_decimal(&encoded, 1, 0, true, codepage, false).unwrap();
 
-        assert_eq!(decoded.value, digit as i64, "Roundtrip failed for -{}", digit);
+        assert_eq!(
+            decoded.value, digit as i64,
+            "Roundtrip failed for -{}",
+            digit
+        );
         assert!(decoded.negative, "Roundtrip sign mismatch for -{}", digit);
     }
 
@@ -2394,8 +2410,17 @@ fn test_ascii_overpunch_roundtrip() {
         let decoded = decode_zoned_decimal(&encoded, digits, 0, true, codepage, false).unwrap();
 
         let expected_value: i64 = value.parse().unwrap();
-        assert_eq!(decoded.value, expected_value.abs(), "Roundtrip value mismatch for {}", value);
-        assert_eq!(decoded.negative, should_be_negative, "Roundtrip sign mismatch for {}", value);
+        assert_eq!(
+            decoded.value,
+            expected_value.abs(),
+            "Roundtrip value mismatch for {}",
+            value
+        );
+        assert_eq!(
+            decoded.negative, should_be_negative,
+            "Roundtrip sign mismatch for {}",
+            value
+        );
     }
 }
 

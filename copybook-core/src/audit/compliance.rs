@@ -625,7 +625,7 @@ impl ComplianceValidator for PciDssValidator {
         &self,
         context: &AuditContext,
     ) -> AuditResult<ComplianceValidationResult> {
-        let mut violations = Vec::new();
+        let violations = Vec::new();
         if self.config.cardholder_data_validation
             && context.metadata.contains_key("has_cardholder_data")
         {

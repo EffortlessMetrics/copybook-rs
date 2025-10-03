@@ -63,8 +63,8 @@ async fn test_hipaa_compliance_validation_scaffolding() {
         )
         .with_metadata("phi_category", "medical_history");
 
-    let compliance_engine =
-        ComplianceEngine::new(ComplianceConfig::default()).with_profiles(&[ComplianceProfile::HIPAA]);
+    let compliance_engine = ComplianceEngine::new(ComplianceConfig::default())
+        .with_profiles(&[ComplianceProfile::HIPAA]);
 
     // TODO: Implement HIPAA-specific validation logic
     let result = compliance_engine

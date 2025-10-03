@@ -21,6 +21,31 @@ use copybook_bench::baseline::BaselineStore;
 use copybook_bench::reporting::PerformanceReport;
 use std::path::PathBuf;
 
+/// Find workspace root by traversing upward from `CARGO_MANIFEST_DIR`
+fn find_workspace_root() -> PathBuf {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut current = manifest_dir.as_path();
+
+    while let Some(parent) = current.parent() {
+        if parent.join("Cargo.toml").exists() {
+            // Check if this is the workspace root by looking for workspace members
+            if let Ok(contents) = std::fs::read_to_string(parent.join("Cargo.toml"))
+                && contents.contains("[workspace]")
+            {
+                return parent.to_path_buf();
+            }
+        }
+        current = parent;
+    }
+
+    // Fallback: assume CARGO_MANIFEST_DIR/../.. if no workspace found
+    manifest_dir
+        .join("..")
+        .join("..")
+        .canonicalize()
+        .unwrap_or_else(|_| manifest_dir.join("..").join(".."))
+}
+
 /// AC3: Test PR comment generation format
 ///
 /// Tests feature spec: docs/reference/benchmark-api-contracts.md#ci-integration-contracts
@@ -276,7 +301,7 @@ fn test_pr_comment_with_regressions() {
 #[test]
 fn test_artifact_retention_policy() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     let mut store = BaselineStore::new();
 
     // Add old baseline (100 days ago) - should be removed
@@ -359,7 +384,7 @@ fn test_artifact_retention_policy() {
 #[test]
 fn test_baseline_promotion_on_main() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -407,7 +432,7 @@ fn test_baseline_promotion_on_main() {
 #[test]
 fn test_baseline_no_promotion_on_feature_branch() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     let store = BaselineStore::new();
 
     // For feature branches, promotion should NOT occur in CI workflow
@@ -470,7 +495,7 @@ fn test_baseline_no_promotion_on_feature_branch() {
 #[test]
 fn test_missing_baseline_neutral_ci() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     let store = BaselineStore::new(); // No baseline
 
     let mut current = PerformanceReport::new();
@@ -535,7 +560,7 @@ fn test_missing_baseline_neutral_ci() {
 #[test]
 fn test_artifact_structure() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     let mut report = PerformanceReport::new();
     report.display_gibs = Some(2.50);
     report.comp3_mibs = Some(172.0);
@@ -623,7 +648,7 @@ fn test_artifact_structure() {
 #[test]
 fn test_timeout_protection() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     // GitHub Actions timeout is configured in workflow YAML:
     // timeout-minutes: 30
 
@@ -690,7 +715,7 @@ fn test_timeout_protection() {
 #[test]
 fn test_ci_exit_codes() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     let mut store = BaselineStore::new();
 
     let mut baseline = PerformanceReport::new();
@@ -775,7 +800,7 @@ fn test_ci_exit_codes() {
 #[test]
 fn test_pr_comment_updates() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     // PR comments should be updated in place using GitHub API
     // Comment identification: search for previous comment with specific marker
 
@@ -868,7 +893,7 @@ fn test_pr_comment_updates() {
 #[test]
 fn test_artifact_naming() {
     // AC3
-    let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let base_path = find_workspace_root();
     let commit_sha = "abc12345";
     let artifact_name = format!("baseline-main-{}", commit_sha);
 

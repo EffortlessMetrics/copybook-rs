@@ -556,10 +556,29 @@ impl DecodeProcessor {
     ) -> Result<Option<usize>, Error> {
         // Read RDW header (4 bytes)
         let mut rdw_header = [0u8; 4];
-        match reader.read_exact(&mut rdw_header) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(None),
-            Err(e) => return Err(Error::new(ErrorCode::CBKR221_RDW_UNDERFLOW, e.to_string())),
+
+        // CRITICAL FIX: Distinguish between clean EOF (no bytes read) and truncated header (partial bytes)
+        // Use manual reading to detect partial reads
+        use std::io::Read;
+        let mut bytes_read = 0;
+        while bytes_read < 4 {
+            match reader.read(&mut rdw_header[bytes_read..]) {
+                Ok(0) => {
+                    // EOF
+                    if bytes_read == 0 {
+                        // Clean EOF - no data read yet
+                        return Ok(None);
+                    } else {
+                        // Partial RDW header - error
+                        return Err(Error::new(
+                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            format!("Truncated RDW header: only {} of 4 bytes available", bytes_read),
+                        ));
+                    }
+                }
+                Ok(n) => bytes_read += n,
+                Err(e) => return Err(Error::new(ErrorCode::CBKR221_RDW_UNDERFLOW, e.to_string())),
+            }
         }
 
         // Check for corruption in RDW header

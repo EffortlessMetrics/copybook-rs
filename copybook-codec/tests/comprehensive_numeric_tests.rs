@@ -137,8 +137,8 @@ fn test_blank_when_zero_comprehensive() {
     let output_str = String::from_utf8(output).unwrap();
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
-    assert_eq!(json_record["BWZ-RECORD"]["BWZ-FIELD"], "0");
-    assert_eq!(json_record["BWZ-RECORD"]["NORMAL-FIELD"], "12345");
+    assert_eq!(json_record["BWZ-FIELD"], "0");
+    assert_eq!(json_record["NORMAL-FIELD"], "12345");
 
     // Test normal numeric value in BWZ field
     let normal_data = b"0012312345";
@@ -149,8 +149,8 @@ fn test_blank_when_zero_comprehensive() {
     let output_str = String::from_utf8(output).unwrap();
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
-    assert_eq!(json_record["BWZ-RECORD"]["BWZ-FIELD"], "123");
-    assert_eq!(json_record["BWZ-RECORD"]["NORMAL-FIELD"], "12345");
+    assert_eq!(json_record["BWZ-FIELD"], "123");
+    assert_eq!(json_record["NORMAL-FIELD"], "12345");
 }
 
 #[test]
@@ -199,9 +199,9 @@ fn test_packed_decimal_comprehensive() {
 
     // Test data: 12345 (odd), 123456 (even), -123 (signed)
     // Packed: 12345 = 0x12345F (3 bytes) - unsigned, use F
-    // Packed: 123456 = 0x123456F (4 bytes) - unsigned, use F
+    // Packed: 123456 = 0x0123456F (4 bytes) - unsigned, use F (padded for 6 digits)
     // Packed: -123 = 0x123D (2 bytes) - signed negative
-    let test_data = b"\x12\x34\x5F\x12\x34\x56\x0F\x12\x3D";
+    let test_data = b"\x12\x34\x5F\x01\x23\x45\x6F\x12\x3D";
     let input = Cursor::new(test_data);
     let mut output = Vec::new();
 
@@ -209,9 +209,9 @@ fn test_packed_decimal_comprehensive() {
     let output_str = String::from_utf8(output).unwrap();
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
-    assert_eq!(json_record["PACKED-RECORD"]["PACKED-ODD"], "12345");
-    assert_eq!(json_record["PACKED-RECORD"]["PACKED-EVEN"], "123456");
-    assert_eq!(json_record["PACKED-RECORD"]["PACKED-SIGNED"], "-123");
+    assert_eq!(json_record["PACKED-ODD"], "12345");
+    assert_eq!(json_record["PACKED-EVEN"], "123456");
+    assert_eq!(json_record["PACKED-SIGNED"], "-123");
 }
 
 #[test]
@@ -275,10 +275,10 @@ fn test_binary_signed_unsigned_edges() {
     let output_str = String::from_utf8(output).unwrap();
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
-    assert_eq!(json_record["BINARY-RECORD"]["UNSIGNED-16"], "65535");
-    assert_eq!(json_record["BINARY-RECORD"]["SIGNED-16"], "32767");
-    assert_eq!(json_record["BINARY-RECORD"]["UNSIGNED-32"], "4294967295");
-    assert_eq!(json_record["BINARY-RECORD"]["SIGNED-32"], "2147483647");
+    assert_eq!(json_record["UNSIGNED-16"], "65535");
+    assert_eq!(json_record["SIGNED-16"], "32767");
+    assert_eq!(json_record["UNSIGNED-32"], "4294967295");
+    assert_eq!(json_record["SIGNED-32"], "2147483647");
 
     // Test minimum signed values
     // 16-bit: min signed = -32768 (0x8000)
@@ -291,10 +291,10 @@ fn test_binary_signed_unsigned_edges() {
     let output_str = String::from_utf8(output).unwrap();
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
-    assert_eq!(json_record["BINARY-RECORD"]["UNSIGNED-16"], "0");
-    assert_eq!(json_record["BINARY-RECORD"]["SIGNED-16"], "-32768");
-    assert_eq!(json_record["BINARY-RECORD"]["UNSIGNED-32"], "0");
-    assert_eq!(json_record["BINARY-RECORD"]["SIGNED-32"], "-2147483648");
+    assert_eq!(json_record["UNSIGNED-16"], "0");
+    assert_eq!(json_record["SIGNED-16"], "-32768");
+    assert_eq!(json_record["UNSIGNED-32"], "0");
+    assert_eq!(json_record["SIGNED-32"], "-2147483648");
 }
 
 #[test]
@@ -333,10 +333,10 @@ fn test_fixed_scale_rendering_normative() {
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
     // Should render with exactly the specified scale
-    assert_eq!(json_record["DECIMAL-FIELDS"]["SCALE-0"], "1234"); // No decimal point for scale 0 (01234 -> 1234)
-    assert_eq!(json_record["DECIMAL-FIELDS"]["SCALE-2"], "12345.00"); // Always 2 decimal places (1234500 with scale 2 -> 12345.00)
-    assert_eq!(json_record["DECIMAL-FIELDS"]["SCALE-4"], "123.4500"); // Always 4 decimal places (1234500 with scale 4 -> 123.4500)
-    assert_eq!(json_record["DECIMAL-FIELDS"]["NEGATIVE-SCALE"], "-12.34"); // Negative with scale (1234 with scale 2 -> 12.34)
+    assert_eq!(json_record["SCALE-0"], "1234"); // No decimal point for scale 0 (01234 -> 1234)
+    assert_eq!(json_record["SCALE-2"], "12345.00"); // Always 2 decimal places (1234500 with scale 2 -> 12345.00)
+    assert_eq!(json_record["SCALE-4"], "123.4500"); // Always 4 decimal places (1234500 with scale 4 -> 123.4500)
+    assert_eq!(json_record["NEGATIVE-SCALE"], "-12.34"); // Negative with scale (1234 with scale 2 -> 12.34)
 }
 
 #[test]
@@ -406,8 +406,8 @@ fn test_alphanumeric_handling_normative() {
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
     // Should preserve all spaces exactly
-    assert_eq!(json_record["ALPHA-RECORD"]["FIELD1"], "  HELLO   ");
-    assert_eq!(json_record["ALPHA-RECORD"]["FIELD2"], "WORLD");
+    assert_eq!(json_record["FIELD1"], "  HELLO   ");
+    assert_eq!(json_record["FIELD2"], "WORLD");
 }
 
 #[test]

@@ -449,9 +449,28 @@ impl<R: Read> RDWRecordReader<R> {
                 }
             }
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                // True EOF - no more data
-                debug!("Reached EOF after {} RDW records", self.record_count);
-                Ok(None)
+                // In strict mode, a truncated RDW header is an error
+                // In lenient mode, treat it as EOF
+                if self.strict_mode {
+                    Err(Error::new(
+                        ErrorCode::CBKR221_RDW_UNDERFLOW,
+                        "Incomplete RDW header: expected 4 bytes".to_string(),
+                    )
+                    .with_context(ErrorContext {
+                        record_index: Some(self.record_count + 1),
+                        field_path: None,
+                        byte_offset: Some(0),
+                        line_number: None,
+                        details: Some("File ends with incomplete RDW header".to_string()),
+                    }))
+                } else {
+                    // Lenient mode: treat truncated header as EOF
+                    debug!(
+                        "Reached EOF after {} RDW records (truncated header ignored)",
+                        self.record_count
+                    );
+                    Ok(None)
+                }
             }
             Err(e) => Err(Error::new(
                 ErrorCode::CBKF104_RDW_SUSPECT_ASCII,

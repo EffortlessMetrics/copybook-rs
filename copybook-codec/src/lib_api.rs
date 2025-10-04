@@ -1381,16 +1381,21 @@ pub fn decode_file_to_jsonl(
                     }
                 }
 
-                // For RDW records, we need to provide the full raw data including header
-                let full_raw_data =
-                    if matches!(options.emit_raw, crate::options::RawMode::RecordRDW) {
+                // For RDW records, provide raw data based on emit_raw mode
+                let full_raw_data = match options.emit_raw {
+                    crate::options::RawMode::RecordRDW => {
+                        // Include RDW header + payload
                         let mut full_data = Vec::new();
                         full_data.extend_from_slice(&rdw_record.header);
                         full_data.extend_from_slice(&rdw_record.payload);
                         Some(full_data)
-                    } else {
-                        None
-                    };
+                    }
+                    crate::options::RawMode::Record => {
+                        // Include payload only (no RDW header)
+                        Some(rdw_record.payload.clone())
+                    }
+                    _ => None,
+                };
 
                 match decode_record_with_scratch_and_raw(
                     schema,

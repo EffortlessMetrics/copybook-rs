@@ -234,11 +234,12 @@ fn decode_record_with_scratch_and_raw(
     let mut json_obj = Map::new();
 
     // Emit raw data if requested
+    // AC:1 - Fix field naming inconsistency: use "__raw_b64" instead of "_raw"
     if let Some(raw_bytes) = raw_data {
         match options.emit_raw {
             crate::options::RawMode::Record | crate::options::RawMode::RecordRDW => {
                 json_obj.insert(
-                    "_raw".to_string(),
+                    "__raw_b64".to_string(),
                     Value::String(base64::engine::general_purpose::STANDARD.encode(&raw_bytes)),
                 );
             }
@@ -440,22 +441,20 @@ fn process_fields_recursive_with_scratch(
     for field in fields {
         match &field.kind {
             FieldKind::Group => {
-                // For group fields, create nested object
-                let mut group_obj = serde_json::Map::new();
-                process_fields_recursive_with_scratch(
-                    &field.children,
-                    data,
-                    &mut group_obj,
-                    options,
-                    scratch,
-                )?;
-
+                // For group fields with OCCURS, process as array
                 if let Some(occurs) = &field.occurs {
                     process_array_field_with_scratch(
                         field, occurs, data, json_obj, options, fields, scratch,
                     )?;
                 } else {
-                    json_obj.insert(field.name.clone(), Value::Object(group_obj));
+                    // For group fields without OCCURS, flatten children into parent object
+                    process_fields_recursive_with_scratch(
+                        &field.children,
+                        data,
+                        json_obj,
+                        options,
+                        scratch,
+                    )?;
                 }
             }
             _ => {
@@ -472,7 +471,25 @@ fn process_fields_recursive_with_scratch(
                     )?;
                 } else {
                     let field_start = field.offset as usize;
-                    let field_end = field_start + field.len as usize;
+                    let mut field_end = field_start + field.len as usize;
+
+                    // AC:3 - For RDW records, allow variable-length fields (same logic as process_fields_recursive)
+                    // Check bounds
+                    if field_start > data.len() {
+                        return Err(Error::new(
+                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                            format!("Field '{}' starts beyond record boundary", field.name),
+                        ));
+                    }
+
+                    // For RDW records, allow partial fields but ensure we don't go beyond data
+                    if options.format == RecordFormat::RDW {
+                        field_end = field_end.min(data.len());
+                    }
+
+                    if field_start >= field_end {
+                        continue; // Skip this field if no data available (RDW variable-length)
+                    }
 
                     if field_end > data.len() {
                         return Err(Error::new(
@@ -504,17 +521,28 @@ fn process_fields_recursive_with_scratch(
                             signed,
                         } => {
                             // OPTIMIZED: Use scratch buffer for string formatting
-                            let decimal_str =
-                                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
-                                    field_data,
+                            // AC:5 - Apply same digit formatting as non-scratch path for consistency
+                            let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
+                                field_data,
+                                *digits,
+                                *scale,
+                                *signed,
+                                options.codepage,
+                                field.blank_when_zero,
+                                scratch,
+                            )?;
+                            let formatted = if *scale == 0 {
+                                format_zoned_decimal_with_digits(
+                                    &decimal,
                                     *digits,
-                                    *scale,
-                                    *signed,
-                                    options.codepage,
                                     field.blank_when_zero,
-                                    scratch,
-                                )?;
-                            Value::String(decimal_str)
+                                )
+                            } else {
+                                decimal
+                                    .format_to_scratch_buffer(*scale, &mut scratch.string_buffer);
+                                std::mem::take(&mut scratch.string_buffer)
+                            };
+                            Value::String(formatted)
                         }
                         FieldKind::BinaryInt { bits, signed } => {
                             let int_value =
@@ -704,7 +732,8 @@ fn process_array_field_with_scratch(
                 signed,
             } => {
                 // OPTIMIZED: Use scratch buffer for array element
-                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                // AC:6 - Apply same digit formatting as non-scratch path for array elements
+                let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
                     element_data,
                     *digits,
                     *scale,
@@ -713,7 +742,13 @@ fn process_array_field_with_scratch(
                     field.blank_when_zero,
                     scratch,
                 )?;
-                Value::String(decimal_str)
+                let formatted = if *scale == 0 {
+                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+                } else {
+                    decimal.format_to_scratch_buffer(*scale, &mut scratch.string_buffer);
+                    std::mem::take(&mut scratch.string_buffer)
+                };
+                Value::String(formatted)
             }
             FieldKind::PackedDecimal {
                 digits,

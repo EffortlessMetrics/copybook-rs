@@ -19,7 +19,7 @@ jobs:
       contents: read
       pull-requests: write  # For PR comments
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0  # Full history for comparison
 

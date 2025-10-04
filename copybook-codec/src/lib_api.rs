@@ -1331,7 +1331,19 @@ pub fn decode_file_to_jsonl(
             while let Some(record_data) = reader.read_record()? {
                 summary.bytes_processed += record_data.len() as u64;
 
-                match decode_record_with_scratch(schema, &record_data, options, &mut scratch) {
+                // Provide raw data for Fixed format when emit_raw is RawMode::Record
+                let raw_data_for_decode = match options.emit_raw {
+                    crate::options::RawMode::Record => Some(record_data.clone()),
+                    _ => None,
+                };
+
+                match decode_record_with_scratch_and_raw(
+                    schema,
+                    &record_data,
+                    options,
+                    raw_data_for_decode,
+                    &mut scratch,
+                ) {
                     Ok(json_value) => {
                         serde_json::to_writer(&mut output, &json_value).map_err(|e| {
                             Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())

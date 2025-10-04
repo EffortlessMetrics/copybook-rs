@@ -190,9 +190,9 @@ pub enum JsonNumberMode {
 
 pub enum RawMode {
     Off,         // No raw capture
-    Record,      // Capture entire record
-    Field,       // Capture individual fields
-    RecordRdw,   // Capture record + RDW header
+    Record,      // Capture entire record (payload only) as "__raw_b64" field
+    Field,       // Capture individual fields as "__raw_b64" in each field object
+    RecordRdw,   // Capture record + RDW header as "__raw_b64" field
 }
 
 pub enum UnmappablePolicy {
@@ -207,6 +207,61 @@ pub enum ZonedEncodingFormat {
     Auto,     // Automatic detection from data
 }
 ```
+
+### Raw Data Field Naming Convention
+
+When `emit_raw` is enabled in `DecodeOptions`, copybook-rs adds a **`__raw_b64`** field to the JSON output containing the base64-encoded raw binary data. This field name is **consistent across all `RawMode` variants**:
+
+**Field Naming Standard (Issue #102)**:
+- **Field Name**: Always `__raw_b64` (double underscore prefix, base64 suffix)
+- **Format**: Base64-encoded binary data (RFC 4648 standard encoding)
+- **Consistency**: Same field name for `RawMode::Record`, `RawMode::RecordRdw`, and `RawMode::Field`
+
+**RawMode Behavior**:
+```rust
+// RawMode::Record - Captures record payload only (no RDW header)
+let opts = DecodeOptions::new()
+    .with_emit_raw(RawMode::Record);
+// JSON output: { "FIELD1": "value", "__raw_b64": "AAABBBCCC..." }
+
+// RawMode::RecordRdw - Captures full record INCLUDING 4-byte RDW header
+let opts = DecodeOptions::new()
+    .with_emit_raw(RawMode::RecordRdw);
+// JSON output: { "FIELD1": "value", "__raw_b64": "AAAAAAhBBBCCC..." }
+// First 4 bytes are RDW header (big-endian length + reserved bytes)
+
+// RawMode::Field - Captures individual field raw data
+let opts = DecodeOptions::new()
+    .with_emit_raw(RawMode::Field);
+// JSON output: { "FIELD1": { "value": "decoded", "__raw_b64": "AAA..." } }
+```
+
+**Roundtrip Encoding**:
+When `use_raw` is enabled in `EncodeOptions`, the encoder looks for the `__raw_b64` field in the JSON input and uses it for binary output, enabling **bit-exact roundtrip fidelity**:
+
+```rust
+// Decode with raw preservation
+let decode_opts = DecodeOptions::new()
+    .with_emit_raw(RawMode::RecordRdw);
+let json_value = decode_record(&schema, &original_data, &decode_opts)?;
+
+// Encode using raw data (preserves reserved bytes, avoids recomputation)
+let encode_opts = EncodeOptions::new()
+    .with_use_raw(true);
+let encoded_data = encode_record(&schema, &json_value, &encode_opts)?;
+
+// Verify bit-exact roundtrip
+assert_eq!(original_data, encoded_data);
+```
+
+**RDW-Specific Considerations**:
+- **Reserved Bytes**: `RawMode::RecordRdw` preserves bytes 2-3 of RDW header (reserved, typically zero)
+- **Length Recomputation**: When `use_raw=false`, encoder recomputes RDW length from payload size
+- **Truncation Detection**: Fixed-format records validate expected length against actual data
+- **Error Codes**:
+  - `CBKR211_RDW_RESERVED_NONZERO` - Non-zero reserved bytes warning (lenient mode)
+  - `CBKR311_RDW_UNDERFLOW` - Incomplete RDW header or payload
+  - `CBKE501_JSON_TYPE_MISMATCH` - Invalid base64 in `__raw_b64` field
 
 ## Core Functions
 

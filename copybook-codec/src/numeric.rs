@@ -1222,8 +1222,13 @@ fn decode_packed_decimal_fast_path(
                         ));
                     }
                     value = value * 10 + i64::from(high_nibble);
+                    digit_pos += 1;
                 }
-                digit_pos += 1;
+                // CRITICAL FIX: Only increment digit_pos for padding if we're NOT skipping it
+                // This was causing digit_pos to be off by 1 for even-digit fields
+                else {
+                    // Padding nibble - don't increment digit_pos, it's not a digit
+                }
 
                 // Low nibble: always a digit in prefix bytes
                 if unlikely(low_nibble > 9) {
@@ -1240,7 +1245,7 @@ fn decode_packed_decimal_fast_path(
             let last_high = (*last_byte >> 4) & 0x0F;
             let sign_nibble = *last_byte & 0x0F;
 
-            // Process final digit if not padding
+            // Process final digit if we haven't reached digit_count yet
             if likely(digit_pos < digit_count) {
                 if unlikely(last_high > 9) {
                     return Err(Error::new(
@@ -2067,22 +2072,24 @@ pub fn decode_packed_decimal_with_scratch(
                 let low_nibble = byte & 0x0F;
 
                 // Process high nibble
-                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
-                    // Last byte, even digits - high nibble is sign
-                    if signed {
-                        let is_negative = match high_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{high_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
+                // CRITICAL FIX: In COMP-3, the sign is ALWAYS in the low nibble of the last byte.
+                // For even-digit fields, the FIRST nibble is padding (0), not the last high nibble.
+                // Only skip processing if this is the FIRST byte AND we have padding (odd total nibbles).
+                let is_first_byte = byte_idx == 0;
+                let is_last_byte = byte_idx == data.len() - 1;
+                let total_nibbles = digits + 1; // digits + sign
+                let has_padding = (total_nibbles & 1) == 1; // odd total nibbles means padding
+
+                if is_first_byte && has_padding {
+                    // Skip padding nibble at start
+                    if high_nibble != 0 {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Expected padding nibble 0, got 0x{high_nibble:X}"),
+                        ));
                     }
-                } else {
+                } else if !(is_last_byte && digit_count >= digits) {
+                    // Process as digit unless we've already processed all digits
                     if high_nibble > 9 {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -2153,22 +2160,24 @@ pub fn decode_packed_decimal_with_scratch(
                 let low_nibble = byte & 0x0F;
 
                 // Process high nibble
-                if byte_idx == data.len() - 1 && digits.is_multiple_of(2) {
-                    // Last byte, even digits - high nibble is sign
-                    if signed {
-                        let is_negative = match high_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{high_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
+                // CRITICAL FIX: In COMP-3, the sign is ALWAYS in the low nibble of the last byte.
+                // For even-digit fields, the FIRST nibble is padding (0), not the last high nibble.
+                // Only skip processing if this is the FIRST byte AND we have padding (odd total nibbles).
+                let is_first_byte = byte_idx == 0;
+                let is_last_byte = byte_idx == data.len() - 1;
+                let total_nibbles = digits + 1; // digits + sign
+                let has_padding = (total_nibbles & 1) == 1; // odd total nibbles means padding
+
+                if is_first_byte && has_padding {
+                    // Skip padding nibble at start
+                    if high_nibble != 0 {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Expected padding nibble 0, got 0x{high_nibble:X}"),
+                        ));
                     }
-                } else {
+                } else if !(is_last_byte && digit_count >= digits) {
+                    // Process as digit unless we've already processed all digits
                     if high_nibble > 9 {
                         return Err(Error::new(
                             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,

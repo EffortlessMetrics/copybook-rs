@@ -19,7 +19,7 @@ jobs:
       contents: read
       pull-requests: write  # For PR comments
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0  # Full history for comparison
 
@@ -183,7 +183,7 @@ jobs:
 
     - name: Comment PR with benchmark results
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const fs = require('fs');

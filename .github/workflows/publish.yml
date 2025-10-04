@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -83,7 +83,7 @@ jobs:
         echo "✅ copybook-cli published successfully"
 
     - name: Create GitHub Release
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const tag = '${{ github.ref_name || github.event.inputs.tag }}';

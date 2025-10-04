@@ -23,7 +23,7 @@ jobs:
           - beta
         features: ["", "comp3_fast", "audit"]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
@@ -41,7 +41,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt
@@ -52,7 +52,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy
@@ -66,8 +66,8 @@ jobs:
     name: Cargo Deny
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: EmbarkStudios/cargo-deny-action@v1
+    - uses: actions/checkout@v5
+    - uses: EmbarkStudios/cargo-deny-action@v2
       with:
         log-level: warn
         command: check
@@ -77,7 +77,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
     - name: Check documentation
@@ -89,7 +89,7 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: llvm-tools-preview
@@ -99,7 +99,7 @@ jobs:
     - name: Generate code coverage
       run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         files: lcov.info
         fail_ci_if_error: true
@@ -108,7 +108,7 @@ jobs:
     name: Strict Comments Mode
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
     - name: Run core tests with strict comments mode
@@ -120,7 +120,7 @@ jobs:
     name: Publish Dry Run
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
     - name: Dry run publish (copybook-core)
@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable

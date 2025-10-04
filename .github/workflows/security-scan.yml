@@ -43,7 +43,7 @@ jobs:
           cargo audit -q --json > target/security.audit.json || true
 
       - name: Open/update roll-up issue on findings
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');

@@ -251,19 +251,22 @@ mod panic_elimination_cli_command_tests {
                 // Should handle data mismatch safely with structured error
                 if !output.status.success() {
                     let stderr_output = String::from_utf8_lossy(&output.stderr);
+                    let stdout_output = String::from_utf8_lossy(&output.stdout);
+                    let combined_output = format!("{}{}", stderr_output, stdout_output);
+                    let combined_lower = combined_output.to_lowercase();
                     assert!(
-                        !stderr_output.contains("panic") && !stderr_output.contains("unwrap"),
+                        !combined_lower.contains("panic") && !combined_lower.contains("unwrap"),
                         "Verification error should not contain panic traces: {}",
-                        stderr_output
+                        combined_output
                     );
 
                     // Should provide user-friendly error message
                     assert!(
-                        stderr_output.contains("record")
-                            || stderr_output.contains("length")
-                            || stderr_output.contains("mismatch"),
+                        combined_lower.contains("record")
+                            || combined_lower.contains("length")
+                            || combined_lower.contains("mismatch"),
                         "Verification error should provide meaningful context: {}",
-                        stderr_output
+                        combined_output
                     );
                 }
 

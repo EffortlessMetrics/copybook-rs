@@ -1,4 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(
     clippy::items_after_statements,
     clippy::too_many_lines,
@@ -10,9 +9,12 @@
     clippy::bool_assert_comparison
 )]
 
+use anyhow::{Context, Result};
 use copybook_codec::{DecodeOptions, decode_record};
 use copybook_core::parse_copybook;
 use std::time::Instant;
+
+type TestResult = Result<()>;
 
 const ZONED_HEAVY_COPYBOOK: &str = r"
        01  ZONED-RECORD.
@@ -24,8 +26,9 @@ const ZONED_HEAVY_COPYBOOK: &str = r"
 ";
 
 #[test]
-fn test_performance_regression_preserve_zoned_encoding() {
-    let schema = parse_copybook(ZONED_HEAVY_COPYBOOK).unwrap();
+fn test_performance_regression_preserve_zoned_encoding() -> TestResult {
+    let schema = parse_copybook(ZONED_HEAVY_COPYBOOK)
+        .context("failed to parse performance regression copybook fixture")?;
 
     // Create test data: 5 fields × 9 bytes each = 45 bytes total
     let mut zoned_data = Vec::new();
@@ -54,14 +57,14 @@ fn test_performance_regression_preserve_zoned_encoding() {
     // Test default (should be fast)
     let start = Instant::now();
     for _ in 0..ITERATIONS {
-        let _result = decode_record(&schema, &zoned_data, &options_default).unwrap();
+        decode_record(&schema, &zoned_data, &options_default)?;
     }
     let default_time = start.elapsed();
 
     // Test with preserve enabled (may be slower)
     let start = Instant::now();
     for _ in 0..ITERATIONS {
-        let _result = decode_record(&schema, &zoned_data, &options_preserve).unwrap();
+        decode_record(&schema, &zoned_data, &options_preserve)?;
     }
     let preserve_time = start.elapsed();
 
@@ -84,11 +87,13 @@ fn test_performance_regression_preserve_zoned_encoding() {
         slowdown_factor,
         max_overhead
     );
+    Ok(())
 }
 
 #[test]
-fn test_default_behavior_unchanged() {
-    let schema = parse_copybook(ZONED_HEAVY_COPYBOOK).unwrap();
+fn test_default_behavior_unchanged() -> TestResult {
+    let schema = parse_copybook(ZONED_HEAVY_COPYBOOK)
+        .context("failed to parse performance regression copybook fixture")?;
 
     let mut zoned_data = Vec::new();
     for _field in 0..5 {
@@ -106,11 +111,14 @@ fn test_default_behavior_unchanged() {
     );
 
     // Verify that it works correctly
-    let result = decode_record(&schema, &zoned_data, &options_default).unwrap();
+    let result = decode_record(&schema, &zoned_data, &options_default)?;
     println!("Default decode result: {}", result);
 
     // Should be a JSON object with 5 fields
     assert!(result.is_object());
-    let obj = result.as_object().unwrap();
+    let obj = result
+        .as_object()
+        .context("decoded JSON value was not an object")?;
     assert_eq!(obj.len(), 5);
+    Ok(())
 }

@@ -5,6 +5,7 @@
 
 use crate::memory::ScratchBuffers;
 use crate::options::{Codepage, ZonedEncodingFormat};
+use crate::zoned_overpunch::{ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte};
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::Write;
 use tracing::warn;
@@ -197,7 +198,7 @@ impl ZonedEncodingInfo {
 
         // Check for specific ASCII overpunch characters first
         match byte {
-            // ASCII overpunch positive: '{' and '}'
+            // ASCII overpunch sign bytes: '{' (+0) and '}' (-0)
             0x7B | 0x7D => return Some(ZonedEncodingFormat::Ascii),
             // ASCII overpunch characters: A-I (0x41-0x49) and J-R (0x4A-0x52)
             0x41..=0x52 => return Some(ZonedEncodingFormat::Ascii),
@@ -1175,7 +1176,12 @@ fn decode_packed_decimal_fast_path(
             let digit_count = digits as usize;
 
             // PERFORMANCE CRITICAL: Process all bytes except last in tight loop
-            let (last_byte, prefix_bytes) = data.split_last().unwrap();
+            let Some((last_byte, prefix_bytes)) = data.split_last() else {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    "Packed decimal data is empty".to_string(),
+                ));
+            };
             let mut digit_pos = 0;
 
             // Process prefix bytes (all digits)
@@ -1380,44 +1386,21 @@ pub fn encode_zoned_decimal(
         if i == digit_bytes.len() - 1 && signed {
             // Last digit with sign - use ASCII overpunch for ASCII codepage
             if codepage == Codepage::ASCII {
-                let overpunch_byte = if decimal.negative {
-                    // ASCII negative overpunch characters
-                    match digit {
-                        0 => 0x4D, // 'M' = -0
-                        1 => 0x4A, // 'J' = -1
-                        2 => 0x4B, // 'K' = -2
-                        3 => 0x4C, // 'L' = -3
-                        4 => 0x44, // 'D' = -4 (TODO: verify correct ASCII overpunch mapping)
-                        5 => 0x4E, // 'N' = -5
-                        6 => 0x4F, // 'O' = -6
-                        7 => 0x50, // 'P' = -7
-                        8 => 0x51, // 'Q' = -8
-                        9 => 0x52, // 'R' = -9
-                        _ => unreachable!(),
-                    }
-                } else {
-                    // ASCII positive digits or positive overpunch
-                    if digit == 0 {
-                        0x7B // '{' = +0
-                    } else {
-                        0x30 + digit // '0' to '9' for positive
-                    }
-                };
+                let overpunch_byte = encode_overpunch_byte(
+                    digit,
+                    decimal.negative,
+                    Codepage::ASCII,
+                    ZeroSignPolicy::Positive,
+                )?;
                 result.push(overpunch_byte);
             } else {
-                // EBCDIC zone encoding
-                let zone = if signed {
-                    // For signed fields, use 0xC for positive, 0xD for negative
-                    if decimal.negative {
-                        0xD // Negative sign
-                    } else {
-                        0xC // EBCDIC positive sign for signed fields
-                    }
-                } else {
-                    // For unsigned fields, always use 0xF
-                    0xF // EBCDIC unsigned (0xF0-0xF9)
-                };
-                result.push((zone << 4) | digit);
+                let overpunch_byte = encode_overpunch_byte(
+                    digit,
+                    decimal.negative,
+                    codepage,
+                    ZeroSignPolicy::Positive,
+                )?;
+                result.push(overpunch_byte);
             }
         } else {
             // Regular digit
@@ -1484,44 +1467,26 @@ pub fn encode_zoned_decimal_with_format(
         if i == digit_bytes.len() - 1 && signed {
             // Last digit with sign - use ASCII overpunch for ASCII format
             if target_format == ZonedEncodingFormat::Ascii {
-                let overpunch_byte = if decimal.negative {
-                    // ASCII negative overpunch characters
-                    match digit {
-                        0 => 0x4D, // 'M' = -0
-                        1 => 0x4A, // 'J' = -1
-                        2 => 0x4B, // 'K' = -2
-                        3 => 0x4C, // 'L' = -3
-                        4 => 0x44, // 'D' = -4
-                        5 => 0x4E, // 'N' = -5
-                        6 => 0x4F, // 'O' = -6
-                        7 => 0x50, // 'P' = -7
-                        8 => 0x51, // 'Q' = -8
-                        9 => 0x52, // 'R' = -9
-                        _ => unreachable!(),
-                    }
-                } else {
-                    // ASCII positive digits or positive overpunch
-                    if digit == 0 {
-                        0x7B // '{' = +0
-                    } else {
-                        0x30 + digit // '0' to '9' for positive
-                    }
-                };
+                let overpunch_byte = encode_overpunch_byte(
+                    digit,
+                    decimal.negative,
+                    Codepage::ASCII,
+                    ZeroSignPolicy::Positive,
+                )?;
                 result.push(overpunch_byte);
             } else {
-                // EBCDIC zone encoding
-                let zone = if signed {
-                    // For signed fields, use 0xC for positive, 0xD for negative
-                    if decimal.negative {
-                        0xD // Negative sign
-                    } else {
-                        0xC // EBCDIC positive sign for signed fields
-                    }
+                let encode_codepage = if codepage == Codepage::ASCII {
+                    Codepage::CP037
                 } else {
-                    // For unsigned fields, always use 0xF
-                    0xF // EBCDIC unsigned (0xF0-0xF9)
+                    codepage
                 };
-                result.push((zone << 4) | digit);
+                let overpunch_byte = encode_overpunch_byte(
+                    digit,
+                    decimal.negative,
+                    encode_codepage,
+                    ZeroSignPolicy::Positive,
+                )?;
+                result.push(overpunch_byte);
             }
         } else {
             // Regular digit

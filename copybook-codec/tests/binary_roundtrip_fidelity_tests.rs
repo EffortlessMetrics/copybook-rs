@@ -173,15 +173,9 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
         ])
         .output()?;
 
-    // TODO: When preservation is implemented, this should succeed (exit code 0)
-    // For now, this will likely fail because current behavior always outputs EBCDIC
-    // assert!(cmp_output.status.success(),
-    //        "Round-trip files should be byte-identical when preservation is implemented");
-
-    // Current expected behavior: files differ due to no preservation
     assert!(
-        !cmp_output.status.success(),
-        "Files should differ without preservation - expected current behavior"
+        cmp_output.status.success(),
+        "Round-trip files should be byte-identical when preservation is implemented"
     );
 
     Ok(())

@@ -595,6 +595,7 @@ mod panic_elimination_record_tests {
                 assert!(
                     error.to_string().contains("CBKD411_ZONED_BAD_SIGN")
                         || error.to_string().contains("CBKD301_RECORD_TOO_SHORT")
+                        || error.to_string().contains("CBKC301_INVALID_EBCDIC_BYTE")
                         || error.to_string().contains("type")
                         || error.to_string().contains("field")
                         || error.to_string().contains("validation"),

@@ -39,6 +39,12 @@ fn test_cbkd413_zoned_invalid_encoding() {
     );
     assert_eq!(existing_error.code, ErrorCode::CBKD411_ZONED_BAD_SIGN);
 
+    let overflow_error = Error::new(
+        ErrorCode::CBKD410_ZONED_OVERFLOW,
+        "Test overflow error code",
+    );
+    assert_eq!(overflow_error.code, ErrorCode::CBKD410_ZONED_OVERFLOW);
+
     // Test new error code
     let new_error = Error::new(
         ErrorCode::CBKD413_ZONED_INVALID_ENCODING,
@@ -79,6 +85,9 @@ fn test_cbkd415_zoned_encoding_detection_failed() {
     // Test error code taxonomy consistency
     let error_string = format!("{}", ErrorCode::CBKD411_ZONED_BAD_SIGN);
     assert_eq!(error_string, "CBKD411_ZONED_BAD_SIGN");
+
+    let overflow_string = format!("{}", ErrorCode::CBKD410_ZONED_OVERFLOW);
+    assert_eq!(overflow_string, "CBKD410_ZONED_OVERFLOW");
 
     // Test new error code
     let new_error = Error::new(
@@ -144,6 +153,9 @@ fn test_error_code_stability() {
     // Verify error code string representation follows pattern
     let error_string = format!("{}", ErrorCode::CBKD411_ZONED_BAD_SIGN);
     assert_eq!(error_string, "CBKD411_ZONED_BAD_SIGN");
+
+    let overflow_string = format!("{}", ErrorCode::CBKD410_ZONED_OVERFLOW);
+    assert_eq!(overflow_string, "CBKD410_ZONED_OVERFLOW");
 
     // Test new error codes
     let _new_error_413 = Error::new(ErrorCode::CBKD413_ZONED_INVALID_ENCODING, "Test error");

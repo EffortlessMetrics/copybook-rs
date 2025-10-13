@@ -430,7 +430,15 @@ fn process_fields_recursive(
                         let formatted = decimal.to_string();
                         Value::String(formatted)
                     }
-                    FieldKind::Group => unreachable!(), // Already handled above
+                    FieldKind::Group => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                            format!(
+                                "Field '{}' is a group and cannot be decoded as a scalar",
+                                field.name
+                            ),
+                        ));
+                    }
                     FieldKind::Condition { values } => {
                         // Level-88 fields are condition names (conditional variables)
                         // In COBOL, these define named constants or ranges for their parent field
@@ -578,7 +586,15 @@ fn process_fields_recursive_with_scratch(
                                 )?;
                             Value::String(decimal_str)
                         }
-                        FieldKind::Group => unreachable!(), // Already handled above
+                        FieldKind::Group => {
+                            return Err(Error::new(
+                                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                                format!(
+                                    "Field '{}' is a group and cannot be decoded as a scalar",
+                                    field.name
+                                ),
+                            ));
+                        }
                         FieldKind::Condition { values } => {
                             // Level-88 fields are condition names (conditional variables)
                             // In COBOL, these define named constants or ranges for their parent field

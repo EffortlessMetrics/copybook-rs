@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 //! Encoding and decoding codecs for COBOL data types.
 //!
 //! This crate provides the encoding/decoding logic for COBOL record layouts,

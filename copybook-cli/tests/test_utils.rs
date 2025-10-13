@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 //! Test utilities for finding fixture files
 
 use assert_cmd::Command;
@@ -71,4 +69,54 @@ where
 /// Convert a path to a UTF-8 string with a descriptive error if conversion fails.
 pub fn path_to_str<'a>(path: &'a Path) -> TestResult<&'a str> {
     require_some(path.to_str(), format!("Path {:?} is not valid UTF-8", path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn workspace_root_contains_workspace_manifests() {
+        let root = find_workspace_root().expect("workspace root should be discoverable");
+        assert!(root.join("Cargo.toml").exists(), "workspace root missing Cargo.toml");
+        assert!(root.join("copybook-cli").exists(), "workspace root missing copybook-cli crate");
+    }
+
+    #[test]
+    fn fixture_path_points_inside_fixtures_directory() {
+        let path = fixture_path("copybooks/simple.cpy").expect("fixture path should resolve");
+        assert!(path.ends_with("fixtures/copybooks/simple.cpy"));
+    }
+
+    #[test]
+    fn copybook_cmd_appends_standard_arguments() {
+        let cmd = copybook_cmd(&["inspect", "dummy"]).expect("command should build");
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(args[0], "inspect");
+        assert_eq!(args[1], "dummy");
+        assert!(args.contains(&"--format".to_string()));
+        assert!(args.contains(&"fixed".to_string()));
+        assert!(args.contains(&"--codepage".to_string()));
+        assert!(args.contains(&"cp037".to_string()));
+    }
+
+    #[test]
+    fn require_some_transforms_missing_value_into_error() {
+        let value = require_some(Some(42), "value should exist").expect("some should succeed");
+        assert_eq!(value, 42);
+
+        let err = require_some::<i32, _>(None, "missing value").expect_err("none should error");
+        assert!(err.to_string().contains("missing value"));
+    }
+
+    #[test]
+    fn path_to_str_converts_utf8_paths() {
+        let path = PathBuf::from("fixtures");
+        let s = path_to_str(&path).expect("path should convert");
+        assert_eq!(s, "fixtures");
+    }
 }

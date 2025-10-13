@@ -131,10 +131,10 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
             "fixed",
             "--codepage",
             "ascii",
-            copybook_path.to_str().unwrap(),
-            original_data_path.to_str().unwrap(),
             "--output",
             json_path.to_str().unwrap(),
+            copybook_path.to_str().unwrap(),
+            original_data_path.to_str().unwrap(),
         ])
         .output();
 
@@ -154,9 +154,10 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
             "fixed",
             "--codepage",
             "ascii",
+            "--output",
+            roundtrip_data_path.to_str().unwrap(),
             copybook_path.to_str().unwrap(),
             json_path.to_str().unwrap(),
-            roundtrip_data_path.to_str().unwrap(),
         ])
         .output();
 

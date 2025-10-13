@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 //! Command-line interface for copybook-rs
 //!
 //! This binary provides a user-friendly CLI for parsing copybooks and

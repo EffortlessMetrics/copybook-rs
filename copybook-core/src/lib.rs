@@ -4,6 +4,7 @@
 //! processing, including AST construction, layout resolution, and schema validation.
 //!
 
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 // Allow missing inline for public methods in this library - too many methods to inline individually
 #![allow(clippy::missing_inline_in_public_items)]
 #![allow(clippy::missing_errors_doc)]

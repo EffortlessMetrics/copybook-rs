@@ -299,25 +299,12 @@ static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
 ];
 
 /// ASCII zoned decimal sign mapping
-/// Maps zone nibble to (`is_signed`, `is_negative`)
-static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [
-    (true, false), // 0x0: '{' = +0 overpunch
-    (true, false), // 0x1: 'A' = +1 overpunch
-    (true, false), // 0x2: 'B' = +2 overpunch
-    (true, false), // 0x3: '}' = +3 overpunch
-    (true, false), // 0x4: 'D' = +4 overpunch
-    (true, false), // 0x5: 'E' = +5 overpunch
-    (true, false), // 0x6: 'F' = +6 overpunch
-    (true, false), // 0x7: 'G' = +7 overpunch
-    (true, true),  // 0x8: 'H' = -0 overpunch
-    (true, true),  // 0x9: 'I' = -1 overpunch
-    (true, true),  // 0xA: 'J' = -2 overpunch
-    (true, true),  // 0xB: 'K' = -3 overpunch
-    (true, true),  // 0xC: 'L' = -4 overpunch
-    (true, true),  // 0xD: 'M' = -5 overpunch
-    (true, true),  // 0xE: 'N' = -6 overpunch
-    (true, true),  // 0xF: 'O' = -7 overpunch
-];
+///
+/// ASCII overpunch handling requires full-byte inspection rather than just the
+/// zone nibble. Mark all entries as unsigned so any accidental use of this
+/// table will trigger validation errors in the numeric codec, forcing the code
+/// to route through the dedicated ASCII overpunch tables instead.
+static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [(false, false); 16];
 
 /// Get the appropriate lookup table for the given codepage
 fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {

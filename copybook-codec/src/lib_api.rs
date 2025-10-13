@@ -1592,45 +1592,49 @@ fn format_zoned_decimal_with_digits(
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
     use crate::Codepage;
     use crate::iterator::RecordIterator;
-    use copybook_core::parse_copybook;
+    use copybook_core::{parse_copybook, Error, ErrorCode, Result};
     use std::io::Cursor;
 
     #[test]
-    fn test_decode_record() {
+    fn test_decode_record() -> Result<()> {
         let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let schema = parse_copybook(copybook_text)?;
         let options = DecodeOptions {
             codepage: Codepage::ASCII, // Fix: Use ASCII for ASCII test data
             ..DecodeOptions::default()
         };
         let data = b"001ALICE";
 
-        let result = decode_record(&schema, data, &options).unwrap();
-        println!("Result: {}", serde_json::to_string_pretty(&result).unwrap());
+        let result = decode_record(&schema, data, &options)?;
         assert!(result.is_object());
-        // Let's be more flexible about the metadata field names
-        assert!(result.is_object() && result.as_object().unwrap().len() > 1);
+        let object = result.as_object().ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                "decoded record should be an object".to_string(),
+            )
+        })?;
+        assert!(object.len() > 1);
+        Ok(())
     }
 
     #[test]
-    fn test_encode_record() {
+    fn test_encode_record() -> Result<()> {
         let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let schema = parse_copybook(copybook_text)?;
         let options = EncodeOptions::default();
 
         let mut json_obj = serde_json::Map::new();
@@ -1638,42 +1642,44 @@ mod tests {
         json_obj.insert("NAME".into(), Value::String("HELLO".into()));
         let json = Value::Object(json_obj);
 
-        let result = encode_record(&schema, &json, &options).unwrap();
+        let result = encode_record(&schema, &json, &options)?;
         assert!(!result.is_empty());
         // The result should be a properly encoded binary record
         // For this basic test, just verify it's the expected length
         assert_eq!(result.len(), 8); // 3 digits for ID + 5 chars for NAME
+        Ok(())
     }
 
     #[test]
-    fn test_record_iterator() {
+    fn test_record_iterator() -> Result<()> {
         let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let schema = parse_copybook(copybook_text)?;
         let options = DecodeOptions::default();
 
         // Create test data
         let test_data = vec![0u8; 16]; // Two 8-byte records
         let cursor = Cursor::new(test_data);
 
-        let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+        let iterator = RecordIterator::new(cursor, &schema, &options)?;
         assert_eq!(iterator.current_record_index(), 0);
         assert!(!iterator.is_eof());
+        Ok(())
     }
 
     #[test]
-    fn test_decode_file_to_jsonl() {
+    fn test_decode_file_to_jsonl() -> Result<()> {
         let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let schema = parse_copybook(copybook_text)?;
         let options = DecodeOptions {
             codepage: Codepage::ASCII, // Fix: Use ASCII for ASCII test data
             ..DecodeOptions::default()
@@ -1686,20 +1692,21 @@ mod tests {
         // Create output buffer
         let mut output = Vec::new();
 
-        let summary = decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
+        let summary = decode_file_to_jsonl(&schema, input, &mut output, &options)?;
         assert!(summary.records_processed > 0);
         assert!(!output.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn test_encode_jsonl_to_file() {
+    fn test_encode_jsonl_to_file() -> Result<()> {
         let copybook_text = r"
             01 RECORD.
                05 ID PIC 9(3).
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let schema = parse_copybook(copybook_text)?;
         let options = EncodeOptions::default();
 
         // Create test JSONL input
@@ -1709,8 +1716,9 @@ mod tests {
         // Create output buffer
         let mut output = Vec::new();
 
-        let summary = encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
+        let summary = encode_jsonl_to_file(&schema, input, &mut output, &options)?;
         assert_eq!(summary.records_processed, 2);
         assert!(!output.is_empty());
+        Ok(())
     }
 }

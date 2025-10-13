@@ -105,12 +105,13 @@ pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use std::fs;
     use tempfile::tempdir;
 
     #[test]
-    fn test_atomic_write_success() {
-        let temp_dir = tempdir().unwrap();
+    fn test_atomic_write_success() -> Result<()> {
+        let temp_dir = tempdir()?;
         let target_path = temp_dir.path().join("test.txt");
 
         let result = atomic_write(&target_path, |writer| writer.write_all(b"Hello, world!"));
@@ -118,13 +119,14 @@ mod tests {
         assert!(result.is_ok());
         assert!(target_path.exists());
 
-        let content = fs::read_to_string(&target_path).unwrap();
+        let content = fs::read_to_string(&target_path)?;
         assert_eq!(content, "Hello, world!");
+        Ok(())
     }
 
     #[test]
-    fn test_atomic_write_failure_leaves_no_file() {
-        let temp_dir = tempdir().unwrap();
+    fn test_atomic_write_failure_leaves_no_file() -> Result<()> {
+        let temp_dir = tempdir()?;
         let target_path = temp_dir.path().join("test.txt");
 
         let result = atomic_write(&target_path, |_writer| {
@@ -133,6 +135,7 @@ mod tests {
 
         assert!(result.is_err());
         assert!(!target_path.exists());
+        Ok(())
     }
 
     #[test]
@@ -144,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn test_temp_path_for() {
+    fn test_temp_path_for() -> Result<()> {
         let target = Path::new("/path/to/output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("/path/to/output.jsonl.tmp"));
@@ -152,5 +155,6 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+        Ok(())
     }
 }

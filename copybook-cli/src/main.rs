@@ -3,6 +3,7 @@
 //! This binary provides a user-friendly CLI for parsing copybooks and
 //! converting mainframe data files.
 
+use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use std::path::PathBuf;
@@ -320,11 +321,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sample,
             strict_comments,
         } => {
+            let value = max_errors.unwrap_or(10);
+            let normalized_max_errors = match u32::try_from(value) {
+                Ok(valid) => valid,
+                Err(_) => {
+                    return Err(anyhow!(
+                        "--max-errors must be between 0 and {} (received {value})",
+                        u32::MAX
+                    )
+                    .into());
+                }
+            };
+
             let opts = crate::commands::verify::VerifyOptions {
                 format,
                 codepage,
                 strict,
-                max_errors: u32::try_from(max_errors.unwrap_or(10)).unwrap_or(10),
+                max_errors: normalized_max_errors,
                 sample: sample.unwrap_or(5),
                 strict_comments,
             };

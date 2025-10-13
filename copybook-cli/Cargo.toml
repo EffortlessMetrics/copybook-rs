@@ -36,6 +36,7 @@ tempfile.workspace = true
 md5 = "0.8.0"
 serde.workspace = true
 chrono.workspace = true
+anyhow.workspace = true
 
 [features]
 default = []

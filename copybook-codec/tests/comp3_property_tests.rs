@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
-
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_record, encode_record,
 };
@@ -25,10 +23,16 @@ mod comp3_roundtrip_tests {
 
             // Create schema for S9(9)V9(4) COMP-3 field (safe for i64 limits)
             // S9(9)V9(4) = 13 digits total, which is well within i64 range
-            let schema = copybook_core::parse_copybook("
+            let schema = match copybook_core::parse_copybook("
            01 REC.
               05 A PIC S9(9)V9(4) COMP-3.
-        ").unwrap();
+        ") {
+                Ok(schema) => schema,
+                Err(err) => {
+                    prop_assert!(false, "Failed to parse COMP-3 schema: {err}");
+                    unreachable!();
+                }
+            };
 
             let enc = EncodeOptions::new()
                 .with_format(RecordFormat::Fixed)
@@ -59,18 +63,45 @@ mod comp3_roundtrip_tests {
             let v = serde_json::json!({"A": s});
 
             // Encode to binary
-            let encoded = encode_record(&schema, &v, &enc).unwrap();
+            let encoded = match encode_record(&schema, &v, &enc) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    prop_assert!(false, "Failed to encode COMP-3 test data: {err}");
+                    unreachable!();
+                }
+            };
 
             // Decode back to JSON
-            let decoded = decode_record(&schema, &encoded, &dec).unwrap();
+            let decoded = match decode_record(&schema, &encoded, &dec) {
+                Ok(value) => value,
+                Err(err) => {
+                    prop_assert!(false, "Failed to decode COMP-3 test data: {err}");
+                    unreachable!();
+                }
+            };
 
             // The decoded value should match the canonical form
             // (accounting for leading zeros and normalization)
             assert!(decoded.get("A").is_some(), "Field A should exist in decoded result");
 
             // Check that the decoded value is a valid number string
-            let decoded_str = decoded["A"].as_str().unwrap();
-            let _: f64 = decoded_str.parse().unwrap();
+            let decoded_value = match decoded.get("A") {
+                Some(value) => value,
+                None => {
+                    prop_assert!(false, "Field A should exist in decoded result");
+                    unreachable!();
+                }
+            };
+            let decoded_str = match decoded_value.as_str() {
+                Some(text) => text,
+                None => {
+                    prop_assert!(false, "Field A should decode as a string");
+                    unreachable!();
+                }
+            };
+            if decoded_str.parse::<f64>().is_err() {
+                prop_assert!(false, "Decoded field A should parse as f64: {decoded_str}");
+            }
         }
     }
 
@@ -91,7 +122,13 @@ mod comp3_roundtrip_tests {
               05 A PIC S9({digits}) COMP-3.
         ");
 
-            let schema = copybook_core::parse_copybook(&schema_text).unwrap();
+            let schema = match copybook_core::parse_copybook(&schema_text) {
+                Ok(schema) => schema,
+                Err(err) => {
+                    prop_assert!(false, "Failed to parse COMP-3 schema: {err}");
+                    unreachable!();
+                }
+            };
 
             let enc = EncodeOptions::new()
                 .with_format(RecordFormat::Fixed)
@@ -121,18 +158,55 @@ mod comp3_roundtrip_tests {
             let v = serde_json::json!({"A": s});
 
             // Encode to binary
-            let encoded = encode_record(&schema, &v, &enc).unwrap();
+            let encoded = match encode_record(&schema, &v, &enc) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    prop_assert!(false, "Failed to encode COMP-3 test data: {err}");
+                    unreachable!();
+                }
+            };
 
             // Decode back to JSON
-            let decoded = decode_record(&schema, &encoded, &dec).unwrap();
+            let decoded = match decode_record(&schema, &encoded, &dec) {
+                Ok(value) => value,
+                Err(err) => {
+                    prop_assert!(false, "Failed to decode COMP-3 test data: {err}");
+                    unreachable!();
+                }
+            };
 
             // Verify the round-trip preserves the value
             assert!(decoded.get("A").is_some());
-            let decoded_str = decoded["A"].as_str().unwrap();
+            let decoded_value = match decoded.get("A") {
+                Some(value) => value,
+                None => {
+                    prop_assert!(false, "Field A should exist in decoded result");
+                    unreachable!();
+                }
+            };
+            let decoded_str = match decoded_value.as_str() {
+                Some(text) => text,
+                None => {
+                    prop_assert!(false, "Field A should decode as a string");
+                    unreachable!();
+                }
+            };
 
             // Both should parse to the same numeric value
-            let original_val: f64 = s.parse().unwrap();
-            let decoded_val: f64 = decoded_str.parse().unwrap();
+            let original_val: f64 = match s.parse() {
+                Ok(value) => value,
+                Err(err) => {
+                    prop_assert!(false, "Failed to parse original value {s}: {err}");
+                    unreachable!();
+                }
+            };
+            let decoded_val: f64 = match decoded_str.parse() {
+                Ok(value) => value,
+                Err(err) => {
+                    prop_assert!(false, "Failed to parse decoded value {decoded_str}: {err}");
+                    unreachable!();
+                }
+            };
             assert!((original_val - decoded_val).abs() < f64::EPSILON);
         }
     }
@@ -158,7 +232,13 @@ mod comp3_roundtrip_tests {
               05 A PIC S9({int_digits})V9({scale}) COMP-3.
         ");
 
-            let schema = copybook_core::parse_copybook(&schema_text).unwrap();
+            let schema = match copybook_core::parse_copybook(&schema_text) {
+                Ok(schema) => schema,
+                Err(err) => {
+                    prop_assert!(false, "Failed to parse COMP-3 schema: {err}");
+                    unreachable!();
+                }
+            };
 
             let enc = EncodeOptions::new()
                 .with_format(RecordFormat::Fixed)
@@ -188,18 +268,55 @@ mod comp3_roundtrip_tests {
             let v = serde_json::json!({"A": s});
 
             // Encode to binary
-            let encoded = encode_record(&schema, &v, &enc).unwrap();
+            let encoded = match encode_record(&schema, &v, &enc) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    prop_assert!(false, "Failed to encode COMP-3 test data: {err}");
+                    unreachable!();
+                }
+            };
 
             // Decode back to JSON
-            let decoded = decode_record(&schema, &encoded, &dec).unwrap();
+            let decoded = match decode_record(&schema, &encoded, &dec) {
+                Ok(value) => value,
+                Err(err) => {
+                    prop_assert!(false, "Failed to decode COMP-3 test data: {err}");
+                    unreachable!();
+                }
+            };
 
             // Verify round-trip
             assert!(decoded.get("A").is_some());
-            let decoded_str = decoded["A"].as_str().unwrap();
+            let decoded_value = match decoded.get("A") {
+                Some(value) => value,
+                None => {
+                    prop_assert!(false, "Field A should exist in decoded result");
+                    unreachable!();
+                }
+            };
+            let decoded_str = match decoded_value.as_str() {
+                Some(text) => text,
+                None => {
+                    prop_assert!(false, "Field A should decode as a string");
+                    unreachable!();
+                }
+            };
 
             // Should parse to same numeric value
-            let original_val: f64 = s.parse().unwrap();
-            let decoded_val: f64 = decoded_str.parse().unwrap();
+            let original_val: f64 = match s.parse() {
+                Ok(value) => value,
+                Err(err) => {
+                    prop_assert!(false, "Failed to parse original value {s}: {err}");
+                    unreachable!();
+                }
+            };
+            let decoded_val: f64 = match decoded_str.parse() {
+                Ok(value) => value,
+                Err(err) => {
+                    prop_assert!(false, "Failed to parse decoded value {decoded_str}: {err}");
+                    unreachable!();
+                }
+            };
             assert!((original_val - decoded_val).abs() < f64::EPSILON);
         }
     }

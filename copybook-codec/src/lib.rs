@@ -13,9 +13,11 @@ pub mod options;
 pub mod record;
 pub mod zoned_overpunch;
 
+pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
+
 pub use lib_api::{
-    RecordIterator, RunSummary, decode_file_to_jsonl, decode_record, decode_record_with_scratch,
-    encode_jsonl_to_file, encode_record, iter_records, iter_records_from_file,
+    RunSummary, decode_file_to_jsonl, decode_record, decode_record_with_scratch,
+    encode_jsonl_to_file, encode_record,
 };
 
 pub use numeric::{SmallDecimal, ZonedEncodingInfo};

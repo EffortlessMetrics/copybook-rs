@@ -1541,106 +1541,6 @@ pub fn encode_jsonl_to_file(
     Ok(summary)
 }
 
-/// Simple record iterator for programmatic access
-///
-/// This provides streaming access to decoded records without loading entire files into memory.
-pub struct RecordIterator<R: Read> {
-    reader: R,
-    schema: Schema,
-    options: DecodeOptions,
-    record_index: u64,
-    eof_reached: bool,
-    buffer: Vec<u8>,
-}
-
-impl<R: Read> RecordIterator<R> {
-    /// Create a new record iterator
-    pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
-        let record_length = schema.lrecl_fixed.unwrap_or(1024) as usize;
-
-        Ok(Self {
-            reader,
-            schema: schema.clone(),
-            options: options.clone(),
-            record_index: 0,
-            eof_reached: false,
-            buffer: vec![0u8; record_length],
-        })
-    }
-
-    /// Get the current record index (1-based)
-    pub fn current_record_index(&self) -> u64 {
-        self.record_index
-    }
-
-    /// Check if the iterator has reached EOF
-    pub fn is_eof(&self) -> bool {
-        self.eof_reached
-    }
-
-    /// Get a reference to the schema
-    pub fn schema(&self) -> &Schema {
-        &self.schema
-    }
-
-    /// Get a reference to the options
-    pub fn options(&self) -> &DecodeOptions {
-        &self.options
-    }
-}
-
-impl<R: Read> Iterator for RecordIterator<R> {
-    type Item = Result<Value>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.eof_reached {
-            return None;
-        }
-
-        // Try to read a record
-        match self.reader.read_exact(&mut self.buffer) {
-            Ok(()) => {
-                self.record_index += 1;
-
-                // Decode the record
-                match decode_record(&self.schema, &self.buffer, &self.options) {
-                    Ok(json_value) => Some(Ok(json_value)),
-                    Err(e) => Some(Err(e)),
-                }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                self.eof_reached = true;
-                None
-            }
-            Err(e) => Some(Err(Error::new(
-                ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                e.to_string(),
-            ))),
-        }
-    }
-}
-
-/// Convenience function to create a record iterator from a file path
-pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
-    file_path: P,
-    schema: &Schema,
-    options: &DecodeOptions,
-) -> Result<RecordIterator<std::fs::File>> {
-    let file = std::fs::File::open(file_path)
-        .map_err(|e| Error::new(ErrorCode::CBKF104_RDW_SUSPECT_ASCII, e.to_string()))?;
-
-    RecordIterator::new(file, schema, options)
-}
-
-/// Convenience function to create a record iterator from any readable source
-pub fn iter_records<R: Read>(
-    reader: R,
-    schema: &Schema,
-    options: &DecodeOptions,
-) -> Result<RecordIterator<R>> {
-    RecordIterator::new(reader, schema, options)
-}
-
 /// Helper function to format zoned decimal with proper digit padding
 fn format_zoned_decimal_with_digits(
     decimal: &crate::numeric::SmallDecimal,
@@ -1696,6 +1596,7 @@ fn format_zoned_decimal_with_digits(
 mod tests {
     use super::*;
     use crate::Codepage;
+    use crate::iterator::RecordIterator;
     use copybook_core::parse_copybook;
     use std::io::Cursor;
 

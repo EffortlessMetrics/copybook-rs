@@ -994,26 +994,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_compliance_validation() {
+    async fn test_compliance_validation() -> anyhow::Result<()> {
         use std::io::Write;
-        use tempfile::NamedTempFile;
+        use tempfile::{tempdir, NamedTempFile};
 
         let compliance = "sox";
 
         // Create temporary copybook file
-        let mut temp_file = NamedTempFile::new().unwrap();
+        let mut temp_file = NamedTempFile::new()?;
         writeln!(
             temp_file,
             r"       01 TEST-RECORD.
            05 TEST-FIELD           PIC X(10)."
-        )
-        .unwrap();
+        )?;
         let copybook_path = temp_file.path().to_path_buf();
 
-        let output_path = tempfile::NamedTempFile::new().unwrap().path().to_path_buf();
+        let temp_dir = tempdir()?;
+        let output_path = temp_dir.path().join("compliance.json");
         let audit_context = AuditContext::new();
 
-        let result = run_compliance_validation(
+        let exit_code = run_compliance_validation(
             compliance,
             &copybook_path,
             None,
@@ -1026,11 +1026,9 @@ mod tests {
             false,
             audit_context,
         )
-        .await;
+        .await?;
 
-        // Should return error code for non-compliant operations
-        assert!(result.is_ok(), "Result should be Ok, got: {result:?}");
-        let exit_code = result.unwrap();
         assert_eq!(exit_code, 3); // Compliance failure
+        Ok(())
     }
 }

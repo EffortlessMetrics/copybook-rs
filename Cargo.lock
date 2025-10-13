@@ -345,6 +345,7 @@ dependencies = [
 name = "copybook-codec"
 version = "0.3.1"
 dependencies = [
+ "anyhow",
  "base64",
  "clap",
  "copybook-core",

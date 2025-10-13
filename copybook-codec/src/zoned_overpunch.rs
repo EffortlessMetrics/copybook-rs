@@ -34,8 +34,10 @@ pub struct OverpunchMapping {
     pub byte_value: u8,
 }
 
-/// ASCII positive overpunch lookup table (O(1) access)
-/// Maps digit (0-9) to positive overpunch character
+/// ASCII overpunch for the *last* digit in a field.
+/// +0..+9 encode to `{`, `A`..`I`; -0..-9 encode to `}`, `J`..`R`.
+/// Non-final digits MUST be bare ASCII `0`..`9`; helpers enforce this.
+/// Maps digit (0-9) to positive overpunch character.
 static ASCII_POSITIVE_OVERPUNCH: [u8; 10] = [
     b'{', // 0 -> '{'
     b'A', // 1 -> 'A'

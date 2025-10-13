@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Test utilities for finding fixture files
 
 use assert_cmd::Command;
@@ -68,8 +70,5 @@ where
 
 /// Convert a path to a UTF-8 string with a descriptive error if conversion fails.
 pub fn path_to_str<'a>(path: &'a Path) -> TestResult<&'a str> {
-    require_some(
-        path.to_str(),
-        format!("Path {:?} is not valid UTF-8", path),
-    )
+    require_some(path.to_str(), format!("Path {:?} is not valid UTF-8", path))
 }

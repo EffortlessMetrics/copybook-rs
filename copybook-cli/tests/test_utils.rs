@@ -76,21 +76,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn workspace_root_contains_workspace_manifests() {
-        let root = find_workspace_root().expect("workspace root should be discoverable");
+    fn workspace_root_contains_workspace_manifests() -> TestResult<()> {
+        let root = find_workspace_root()?;
         assert!(root.join("Cargo.toml").exists(), "workspace root missing Cargo.toml");
         assert!(root.join("copybook-cli").exists(), "workspace root missing copybook-cli crate");
+        Ok(())
     }
 
     #[test]
-    fn fixture_path_points_inside_fixtures_directory() {
-        let path = fixture_path("copybooks/simple.cpy").expect("fixture path should resolve");
+    fn fixture_path_points_inside_fixtures_directory() -> TestResult<()> {
+        let path = fixture_path("copybooks/simple.cpy")?;
         assert!(path.ends_with("fixtures/copybooks/simple.cpy"));
+        Ok(())
     }
 
     #[test]
-    fn copybook_cmd_appends_standard_arguments() {
-        let cmd = copybook_cmd(&["inspect", "dummy"]).expect("command should build");
+    fn copybook_cmd_appends_standard_arguments() -> TestResult<()> {
+        let cmd = copybook_cmd(&["inspect", "dummy"])?;
         let args: Vec<String> = cmd
             .get_args()
             .map(|arg| arg.to_string_lossy().into_owned())
@@ -102,21 +104,28 @@ mod tests {
         assert!(args.contains(&"fixed".to_string()));
         assert!(args.contains(&"--codepage".to_string()));
         assert!(args.contains(&"cp037".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn require_some_transforms_missing_value_into_error() {
-        let value = require_some(Some(42), "value should exist").expect("some should succeed");
+    fn require_some_transforms_missing_value_into_error() -> TestResult<()> {
+        let value = require_some(Some(42), "value should exist")?;
         assert_eq!(value, 42);
 
-        let err = require_some::<i32, _>(None, "missing value").expect_err("none should error");
-        assert!(err.to_string().contains("missing value"));
+        match require_some::<i32, _>(None, "missing value") {
+            Ok(_) => Err("expected error when value is missing".into()),
+            Err(err) => {
+                assert!(err.to_string().contains("missing value"));
+                Ok(())
+            }
+        }
     }
 
     #[test]
-    fn path_to_str_converts_utf8_paths() {
+    fn path_to_str_converts_utf8_paths() -> TestResult<()> {
         let path = PathBuf::from("fixtures");
-        let s = path_to_str(&path).expect("path should convert");
+        let s = path_to_str(&path)?;
         assert_eq!(s, "fixtures");
+        Ok(())
     }
 }

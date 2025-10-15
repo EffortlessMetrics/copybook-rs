@@ -306,6 +306,8 @@ fn process_fields_recursive(
 ) -> Result<()> {
     use copybook_core::FieldKind;
 
+    let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
+
     for (field_index, field) in fields.iter().enumerate() {
         // Check if this field has an OCCURS clause
         if let Some(occurs) = &field.occurs {
@@ -387,11 +389,12 @@ fn process_fields_recursive(
                     FieldKind::BinaryInt { bits, signed } => {
                         let int_value =
                             crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-                        if *signed {
-                            Value::String(format!("{}", int_value as i64))
-                        } else {
-                            Value::String(format!("{int_value}"))
-                        }
+                        let scratch =
+                            scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
+                        let formatted = crate::numeric::format_binary_int_to_string_with_scratch(
+                            int_value, scratch,
+                        );
+                        Value::String(formatted)
                     }
                     FieldKind::PackedDecimal {
                         digits,

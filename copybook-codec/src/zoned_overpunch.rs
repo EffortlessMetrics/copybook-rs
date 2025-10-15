@@ -10,6 +10,9 @@
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
 
+#[cfg(test)]
+const DEFAULT_PROPTEST_CASE_COUNT: u32 = 512;
+
 /// Zero sign policy for overpunch encoding
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZeroSignPolicy {
@@ -265,7 +268,7 @@ mod tests {
     fn proptest_case_count() -> u32 {
         option_env!("PROPTEST_CASES")
             .and_then(|s| s.parse().ok())
-            .unwrap_or(512)
+            .unwrap_or(DEFAULT_PROPTEST_CASE_COUNT)
     }
 
     fn zoned_overpunch_proptest_config() -> ProptestConfig {
@@ -275,15 +278,15 @@ mod tests {
             ..ProptestConfig::default()
         };
 
-        if let Ok(seed_value) = std::env::var("PROPTEST_SEED") {
-            if !seed_value.is_empty() {
-                let parsed_seed = seed_value.parse::<u64>().unwrap_or_else(|_| {
-                    let mut hasher = DefaultHasher::new();
-                    seed_value.hash(&mut hasher);
-                    hasher.finish()
-                });
-                cfg.rng_seed = RngSeed::Fixed(parsed_seed);
-            }
+        if let Ok(seed_value) = std::env::var("PROPTEST_SEED")
+            && !seed_value.is_empty()
+        {
+            let parsed_seed = seed_value.parse::<u64>().unwrap_or_else(|_| {
+                let mut hasher = DefaultHasher::new();
+                seed_value.hash(&mut hasher);
+                hasher.finish()
+            });
+            cfg.rng_seed = RngSeed::Fixed(parsed_seed);
         }
 
         cfg

@@ -9,6 +9,10 @@ use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::Write;
 use tracing::warn;
 
+/// Nibble zones for ASCII/EBCDIC digits (high bits in zoned bytes).
+const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39
+const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
+
 // CRITICAL PERFORMANCE OPTIMIZATION: Inline hints for hot paths
 #[allow(dead_code)]
 #[allow(clippy::inline_always)]
@@ -683,8 +687,8 @@ pub fn decode_zoned_decimal(
     let mut value = 0i64;
     let mut is_negative = false;
     let expected_zone = match codepage {
-        Codepage::ASCII => 0x3,
-        _ => 0xF,
+        Codepage::ASCII => ASCII_DIGIT_ZONE,
+        _ => EBCDIC_DIGIT_ZONE,
     };
 
     for (i, &byte) in data.iter().enumerate() {
@@ -1418,8 +1422,8 @@ pub fn encode_zoned_decimal(
         } else {
             // Regular digit
             let zone = match codepage {
-                Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
-                _ => 0xF,               // EBCDIC digits (0xF0-0xF9)
+                Codepage::ASCII => ASCII_DIGIT_ZONE,
+                _ => EBCDIC_DIGIT_ZONE,
             };
             result.push((zone << 4) | digit);
         }
@@ -1522,8 +1526,8 @@ pub fn encode_zoned_decimal_with_format(
         } else {
             // Regular digit
             let zone = match target_format {
-                ZonedEncodingFormat::Ascii => 0x3, // ASCII digits (0x30-0x39)
-                _ => 0xF,                          // EBCDIC digits (0xF0-0xF9)
+                ZonedEncodingFormat::Ascii => ASCII_DIGIT_ZONE,
+                _ => EBCDIC_DIGIT_ZONE,
             };
             result.push((zone << 4) | digit);
         }
@@ -1898,8 +1902,8 @@ pub fn decode_zoned_decimal_with_scratch(
 
     // Optimized digit processing using scratch buffer
     let expected_zone = match codepage {
-        Codepage::ASCII => 0x3, // ASCII digits (0x30-0x39)
-        _ => 0xF,               // EBCDIC digits (0xF0-0xF9)
+        Codepage::ASCII => ASCII_DIGIT_ZONE,
+        _ => EBCDIC_DIGIT_ZONE,
     };
 
     // Process each digit with optimized zone checking
@@ -2662,15 +2666,15 @@ mod tests {
             ..ProptestConfig::default()
         };
 
-        if let Ok(seed_value) = std::env::var("PROPTEST_SEED") {
-            if !seed_value.is_empty() {
-                let parsed_seed = seed_value.parse::<u64>().unwrap_or_else(|_| {
-                    let mut hasher = DefaultHasher::new();
-                    seed_value.hash(&mut hasher);
-                    hasher.finish()
-                });
-                cfg.rng_seed = RngSeed::Fixed(parsed_seed);
-            }
+        if let Ok(seed_value) = std::env::var("PROPTEST_SEED")
+            && !seed_value.is_empty()
+        {
+            let parsed_seed = seed_value.parse::<u64>().unwrap_or_else(|_| {
+                let mut hasher = DefaultHasher::new();
+                seed_value.hash(&mut hasher);
+                hasher.finish()
+            });
+            cfg.rng_seed = RngSeed::Fixed(parsed_seed);
         }
 
         cfg

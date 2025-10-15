@@ -8,7 +8,7 @@ use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
 use std::io::{BufRead, BufReader, Read};
 
-const ERR_LRECL_MISSING: &str =
+const FIXED_FORMAT_LRECL_MISSING: &str =
     "Fixed format requires a fixed record length (LRECL).";
 
 /// Iterator over records in a data file, yielding decoded JSON values
@@ -127,7 +127,7 @@ impl<R: Read> RecordIterator<R> {
                 let lrecl = self.schema.lrecl_fixed.ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKI001_INVALID_STATE,
-                        ERR_LRECL_MISSING,
+                        FIXED_FORMAT_LRECL_MISSING,
                     )
                 })? as usize;
                 self.buffer.resize(lrecl, 0);
@@ -400,7 +400,7 @@ mod tests {
         assert!(first.is_err());
         if let Err(e) = first {
             assert_eq!(e.code, ErrorCode::CBKI001_INVALID_STATE);
-            assert_eq!(e.message, ERR_LRECL_MISSING);
+            assert_eq!(e.message, FIXED_FORMAT_LRECL_MISSING);
         }
     }
 }

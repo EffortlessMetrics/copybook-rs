@@ -43,7 +43,7 @@ jobs:
       - name: Property tests (fast deterministic)
         env:
           PROPTEST_CASES: "256"
-          PROPTEST_SEED: "copybook-rs-pr90"
+          PROPTEST_SEED: ${{ env.PROPTEST_SEED || 'copybook-rs-perf' }}
         run: |
           cargo test -p copybook-codec \
             prop_zoned_digit_buffer_contains_only_digits \

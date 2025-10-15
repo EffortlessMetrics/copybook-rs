@@ -2,7 +2,10 @@
 setlocal enabledelayedexpansion
 set PERF=1
 set RUSTFLAGS=-C target-cpu=native
-cargo bench -p copybook-bench -- --output-format json > target\perf.json
+if "%BENCH_FILTER%"=="" (
+  set "BENCH_FILTER=slo_validation"
+)
+cargo bench -p copybook-bench -- %BENCH_FILTER% --output-format json --quiet > target\perf.json
 if not exist scripts\bench mkdir scripts\bench
 copy /Y target\perf.json scripts\bench\perf.json >NUL
 echo ✅ receipts: scripts\bench\perf.json

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run only the SLO validation benchmarks to capture throughput receipts.
+# Run only the SLO validation benchmarks to capture throughput receipts by default.
+# Allow callers to widen scope by exporting BENCH_FILTER.
+BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
 RUSTFLAGS="-C target-cpu=native" PERF=1 \
-  cargo bench -p copybook-bench -- slo_validation --quiet
+  cargo bench -p copybook-bench -- "${BENCH_FILTER}" --quiet
 
 python3 <<'PY'
 import datetime

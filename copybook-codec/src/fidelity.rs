@@ -930,19 +930,20 @@ pub mod utils {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use copybook_core::parse_copybook;
 
     #[test]
-    fn test_fidelity_validator_creation() {
+    fn test_fidelity_validator_creation() -> Result<()> {
         let copybook = "01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).";
-        let schema = parse_copybook(copybook).unwrap();
+        let schema = parse_copybook(copybook)?;
         let validator = BinaryFidelityValidator::new(schema, CodecOptions::default());
 
         // Basic validation that the validator was created
         assert!(!validator.schema.fields.is_empty());
+        Ok(())
     }
 
     #[test]
@@ -956,9 +957,9 @@ mod tests {
     }
 
     #[test]
-    fn test_byte_differences() {
+    fn test_byte_differences() -> Result<()> {
         let copybook = "01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).";
-        let schema = parse_copybook(copybook).unwrap();
+        let schema = parse_copybook(copybook)?;
         let validator = BinaryFidelityValidator::new(schema, CodecOptions::default());
 
         let original = b"hello world";
@@ -969,6 +970,7 @@ mod tests {
         assert_eq!(differences[0].offset, 5);
         assert_eq!(differences[0].original_byte, b' ');
         assert_eq!(differences[0].round_trip_byte, b'_');
+        Ok(())
     }
 
     #[test]
@@ -989,23 +991,25 @@ mod tests {
     }
 
     #[test]
-    fn test_utils_standard_validator() {
+    fn test_utils_standard_validator() -> Result<()> {
         let copybook = "01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).";
-        let schema = parse_copybook(copybook).unwrap();
+        let schema = parse_copybook(copybook)?;
         let validator = utils::create_standard_validator(schema);
 
         assert!(!validator.schema.fields.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn test_field_size_calculation() {
+    fn test_field_size_calculation() -> Result<()> {
         let copybook = "01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).";
-        let schema = parse_copybook(copybook).unwrap();
+        let schema = parse_copybook(copybook)?;
         let validator = BinaryFidelityValidator::new(schema, CodecOptions::default());
 
         if let Some(field) = validator.schema.fields.first() {
             let size = BinaryFidelityValidator::get_field_size(field);
             assert!(size > 0);
         }
+        Ok(())
     }
 }

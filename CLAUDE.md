@@ -180,6 +180,8 @@ Structured error taxonomy with stable codes:
 
 ## Performance
 
+**CI Gating**: Perf workflow enforces throughput floors (DISPLAY ≥ 80 MiB/s, COMP-3 ≥ 40 MiB/s); baseline comparisons remain advisory.
+
 **Targets vs Achieved**:
 - DISPLAY-heavy: ≥80 MB/s → **205 MiB/s (2.56x exceeded)**
 - COMP-3-heavy: ≥40 MB/s → **58 MiB/s (1.45x exceeded)**

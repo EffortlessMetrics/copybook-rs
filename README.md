@@ -798,6 +798,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 ### Benchmarking & Regression Tracking
 - Run ad-hoc benchmarks with `cargo bench --package copybook-bench`; `just bench-json` mirrors receipts for CI
 - Receipts land in `scripts/bench/perf.json` via `just bench-json`, `bash scripts/bench.sh`, or `scripts\bench.bat` (schema: `docs/schemas/performance_report.schema.json`)
+- Perf receipts are machine-readable and attached to pull requests as `perf-json` artifacts with 90-day retention
 - Until the Issue #52 utilities land, baseline promotion, regression detection, and SLO validation require manual analysis of the generated JSON plus the backlog tracker
 
 ### Performance receipts (deterministic)

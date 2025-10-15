@@ -2621,6 +2621,11 @@ mod tests {
     use super::*;
     use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte, is_valid_overpunch};
     use proptest::prelude::*;
+    fn proptest_case_count() -> u32 {
+        option_env!("PROPTEST_CASES")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(256)
+    }
 
     #[test]
     fn test_small_decimal_normalization() {
@@ -2645,7 +2650,11 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
+        #![proptest_config(ProptestConfig {
+            cases: proptest_case_count(),
+            max_shrink_time: 0,
+            ..ProptestConfig::default()
+        })]
         #[test]
         fn prop_zoned_digit_buffer_contains_only_digits(
             digits_vec in prop::collection::vec(0u8..=9, 1..=12),

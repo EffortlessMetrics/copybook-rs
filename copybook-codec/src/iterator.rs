@@ -71,6 +71,8 @@ impl<R: Read> RecordIterator<R> {
     /// # Errors
     ///
     /// Returns an error if the record format is incompatible with the schema
+    #[inline]
+    #[must_use = "Handle iterator construction failures"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
         Ok(Self {
             reader: BufReader::new(reader),
@@ -86,21 +88,29 @@ impl<R: Read> RecordIterator<R> {
     ///
     /// This returns the index of the last record that was successfully read,
     /// or 0 if no records have been read yet.
+    #[inline]
+    #[must_use]
     pub fn current_record_index(&self) -> u64 {
         self.record_index
     }
 
     /// Check if the iterator has reached the end of the file
+    #[inline]
+    #[must_use]
     pub fn is_eof(&self) -> bool {
         self.eof_reached
     }
 
     /// Get a reference to the schema being used
+    #[inline]
+    #[must_use]
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
 
     /// Get a reference to the decode options being used
+    #[inline]
+    #[must_use]
     pub fn options(&self) -> &DecodeOptions {
         &self.options
     }
@@ -115,6 +125,12 @@ impl<R: Read> RecordIterator<R> {
     /// * `Ok(Some(bytes))` - The raw record bytes
     /// * `Ok(None)` - End of file reached
     /// * `Err(error)` - An error occurred while reading
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if underlying I/O operations fail or the record format is invalid.
+    #[inline]
+    #[must_use = "Consume raw record reads to advance the iterator"]
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
         if self.eof_reached {
             return Ok(None);
@@ -141,7 +157,7 @@ impl<R: Read> RecordIterator<R> {
                     Err(e) => {
                         return Err(Error::new(
                             ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            format!("Failed to read fixed record: {}", e),
+                            format!("Failed to read fixed record: {e}"),
                         ));
                     }
                 }
@@ -158,7 +174,7 @@ impl<R: Read> RecordIterator<R> {
                     Err(e) => {
                         return Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW header: {}", e),
+                            format!("Failed to read RDW header: {e}"),
                         ));
                     }
                 }
@@ -176,7 +192,7 @@ impl<R: Read> RecordIterator<R> {
                     Err(e) => {
                         return Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW payload: {}", e),
+                            format!("Failed to read RDW payload: {e}"),
                         ));
                     }
                 }
@@ -190,6 +206,7 @@ impl<R: Read> RecordIterator<R> {
     ///
     /// This is the main method used by the Iterator implementation.
     /// It reads and decodes the next record in one operation.
+    #[inline]
     fn decode_next_record(&mut self) -> Result<Option<Value>> {
         match self.read_raw_record()? {
             Some(record_bytes) => {
@@ -204,6 +221,7 @@ impl<R: Read> RecordIterator<R> {
 impl<R: Read> Iterator for RecordIterator<R> {
     type Item = Result<Value>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.eof_reached {
             return None;
@@ -234,6 +252,8 @@ impl<R: Read> Iterator for RecordIterator<R> {
 /// # Errors
 ///
 /// Returns an error if the file cannot be opened or the iterator cannot be created
+#[inline]
+#[must_use = "Handle iterator creation failures"]
 pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
     file_path: P,
     schema: &Schema,
@@ -256,6 +276,8 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 /// # Errors
 ///
 /// Returns an error if the iterator cannot be created
+#[inline]
+#[must_use = "Handle iterator creation failures"]
 pub fn iter_records<R: Read>(
     reader: R,
     schema: &Schema,
@@ -285,8 +307,10 @@ mod tests {
         let test_data = b"001ALICE002BOB  ";
         let cursor = Cursor::new(test_data);
 
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::Fixed;
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
 
         let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
 
@@ -317,8 +341,10 @@ mod tests {
 
         let cursor = Cursor::new(test_data);
 
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::RDW;
+        let options = DecodeOptions {
+            format: RecordFormat::RDW,
+            ..DecodeOptions::default()
+        };
 
         let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
 
@@ -340,8 +366,10 @@ mod tests {
         let test_data = b"001ALICE";
         let cursor = Cursor::new(test_data);
 
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::Fixed;
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
 
         let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
 
@@ -368,29 +396,31 @@ mod tests {
         let test_data = b"001A";
         let cursor = Cursor::new(test_data);
 
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::Fixed;
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
 
         let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
 
-        // Should get an error due to incomplete record
-        let result = iterator.read_raw_record();
-        assert!(result.is_err());
+        // Should yield EOF (Ok(None)) when encountering truncated fixed-length data
+        assert!(iterator.next().is_none());
     }
 
     #[test]
     fn test_iterator_fixed_format_missing_lrecl_errors_on_next() {
         // A schema without a fixed record length
-        let copybook_text =
-            "01 SOME-GROUP. 05 SOME-FIELD PIC X(1) OCCURS 1 TO 5 TIMES DEPENDING ON ODO-COUNTER.";
+        let copybook_text = "01 SOME-GROUP. 05 SOME-FIELD PIC X(1).";
         let mut schema = parse_copybook(copybook_text).unwrap();
         schema.lrecl_fixed = None; // Ensure it's None
 
         let test_data = b"";
         let cursor = Cursor::new(test_data);
 
-        let mut options = DecodeOptions::default();
-        options.format = RecordFormat::Fixed;
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
 
         let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
 

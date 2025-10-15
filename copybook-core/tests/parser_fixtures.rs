@@ -148,9 +148,8 @@ fn test_edited_pic_error_detection() -> TestResult {
     ];
 
     for edited_pic in edited_pics {
-        let error = match parse_copybook(edited_pic) {
-            Ok(_) => bail!("Should fail for: {edited_pic}"),
-            Err(error) => error,
+        let Err(error) = parse_copybook(edited_pic) else {
+            bail!("Should fail for: {edited_pic}");
         };
         assert!(matches!(
             error.code,
@@ -171,9 +170,8 @@ fn test_sign_clause_as_edited_pic() -> TestResult {
     ];
 
     for sign_clause in sign_clauses {
-        let error = match parse_copybook(sign_clause) {
-            Ok(_) => bail!("Should fail for: {sign_clause}"),
-            Err(error) => error,
+        let Err(error) = parse_copybook(sign_clause) else {
+            bail!("Should fail for: {sign_clause}");
         };
         assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
     }

@@ -539,7 +539,7 @@ mod tests {
     type TestResult = Result<()>;
 
     #[test]
-    fn test_scratch_buffers() -> TestResult {
+    fn test_scratch_buffers() {
         let mut buffers = ScratchBuffers::new();
 
         // Test digit buffer
@@ -552,8 +552,6 @@ mod tests {
         assert_eq!(buffers.digit_buffer.len(), 0);
         assert_eq!(buffers.byte_buffer.len(), 0);
         assert_eq!(buffers.string_buffer.len(), 0);
-
-        Ok(())
     }
 
     #[test]
@@ -624,7 +622,7 @@ mod tests {
     }
 
     #[test]
-    fn test_streaming_processor() -> TestResult {
+    fn test_streaming_processor() {
         let mut processor = StreamingProcessor::new(1); // 1 MB limit
 
         assert!(!processor.is_memory_pressure());
@@ -638,8 +636,6 @@ mod tests {
         let stats = processor.stats();
         assert_eq!(stats.records_processed, 1);
         assert_eq!(stats.bytes_processed, 1024);
-
-        Ok(())
     }
 
     #[test]
@@ -688,8 +684,7 @@ mod tests {
             let expected: Vec<i32> = test_data.iter().map(|x| x * x).collect();
             assert_eq!(
                 results, expected,
-                "Results differ for {} workers",
-                num_workers
+                "Results differ for {num_workers} workers"
             );
         }
 

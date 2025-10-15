@@ -5,6 +5,7 @@
 
 use crate::options::{Codepage, UnmappablePolicy};
 use copybook_core::{Error, ErrorCode, Result};
+use std::convert::TryFrom;
 use tracing::warn;
 
 // EBCDIC to Unicode lookup tables for supported code pages
@@ -279,7 +280,7 @@ static CP1140_TO_UNICODE: [u32; 256] = [
 // These map the zone nibble (high 4 bits) to sign information
 
 /// EBCDIC zoned decimal sign mapping
-/// Maps zone nibble to (is_signed, is_negative)
+/// Maps zone nibble to (`is_signed`, `is_negative`)
 static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
     (false, false), // 0x0_: unsigned
     (false, false), // 0x1_: unsigned
@@ -320,6 +321,8 @@ fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {
 }
 
 /// Get the appropriate zoned sign table for the given codepage
+#[must_use]
+#[inline]
 pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
     match codepage {
         Codepage::ASCII => &ASCII_ZONED_SIGNS,
@@ -332,6 +335,8 @@ pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
 /// # Errors
 ///
 /// Returns an error if the EBCDIC data contains invalid bytes that cannot be converted
+#[inline]
+#[must_use = "Handle potential conversion failures"]
 pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy) -> Result<String> {
     // ASCII pass-through mode (transparent 8-bit, not Windows-1252)
     if codepage == Codepage::ASCII {
@@ -417,6 +422,8 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
 /// # Errors
 ///
 /// Returns an error if the UTF-8 text contains characters that cannot be mapped to the target codepage
+#[inline]
+#[must_use = "Handle potential conversion failures"]
 pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     // ASCII pass-through mode (transparent 8-bit, not Windows-1252)
     if codepage == Codepage::ASCII {
@@ -432,9 +439,15 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
 
     // Build reverse lookup table (Unicode -> EBCDIC)
     let mut reverse_table = std::collections::HashMap::new();
-    for (ebcdic_byte, &unicode_point) in table.iter().enumerate() {
+    for (ebcdic_index, &unicode_point) in table.iter().enumerate() {
         if let Some(ch) = char::from_u32(unicode_point) {
-            reverse_table.insert(ch, ebcdic_byte as u8);
+            let ebcdic_byte = u8::try_from(ebcdic_index).map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                    format!("EBCDIC byte index {ebcdic_index} exceeds u8 range"),
+                )
+            })?;
+            reverse_table.insert(ch, ebcdic_byte);
         }
     }
 

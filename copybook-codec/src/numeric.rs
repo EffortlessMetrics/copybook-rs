@@ -677,12 +677,11 @@ pub fn decode_zoned_decimal(
             // Track this warning in RunSummary
             crate::lib_api::increment_warning_counter();
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     let mut value = 0i64;
@@ -795,12 +794,11 @@ pub fn decode_zoned_decimal_with_encoding(
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             crate::lib_api::increment_warning_counter();
             return Ok((SmallDecimal::zero(scale), None));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     // Detect encoding if preservation is enabled
@@ -1850,12 +1848,11 @@ pub fn decode_zoned_decimal_with_scratch(
             warn!("CBKD412_ZONED_BLANK_IS_ZERO: Zoned field is blank, decoding as zero");
             crate::lib_api::increment_warning_counter();
             return Ok(SmallDecimal::zero(scale));
-        } else {
-            return Err(Error::new(
-                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
-            ));
         }
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Zoned field contains all spaces but BLANK WHEN ZERO not specified",
+        ));
     }
 
     // Clear and prepare digit buffer for reuse
@@ -2692,7 +2689,7 @@ mod tests {
             ],
             policy in prop_oneof![Just(ZeroSignPolicy::Positive), Just(ZeroSignPolicy::Preferred)],
         ) {
-            let digit_count = digits_vec.len() as u16;
+            let digit_count = u16::try_from(digits_vec.len()).expect("vector length <= 12");
             let mut bytes = Vec::with_capacity(digits_vec.len());
 
             for digit in digits_vec.iter().take(digits_vec.len().saturating_sub(1)) {

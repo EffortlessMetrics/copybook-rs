@@ -30,7 +30,7 @@ mod comp3_roundtrip_tests {
                 Ok(schema) => schema,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse COMP-3 schema: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -67,7 +67,7 @@ mod comp3_roundtrip_tests {
                 Ok(bytes) => bytes,
                 Err(err) => {
                     prop_assert!(false, "Failed to encode COMP-3 test data: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -76,7 +76,7 @@ mod comp3_roundtrip_tests {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "Failed to decode COMP-3 test data: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -89,14 +89,14 @@ mod comp3_roundtrip_tests {
                 Some(value) => value,
                 None => {
                     prop_assert!(false, "Field A should exist in decoded result");
-                    unreachable!();
+                    return;
                 }
             };
             let decoded_str = match decoded_value.as_str() {
                 Some(text) => text,
                 None => {
                     prop_assert!(false, "Field A should decode as a string");
-                    unreachable!();
+                    return;
                 }
             };
             if decoded_str.parse::<f64>().is_err() {
@@ -126,7 +126,7 @@ mod comp3_roundtrip_tests {
                 Ok(schema) => schema,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse COMP-3 schema: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -162,7 +162,7 @@ mod comp3_roundtrip_tests {
                 Ok(bytes) => bytes,
                 Err(err) => {
                     prop_assert!(false, "Failed to encode COMP-3 test data: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -171,7 +171,7 @@ mod comp3_roundtrip_tests {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "Failed to decode COMP-3 test data: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -181,14 +181,14 @@ mod comp3_roundtrip_tests {
                 Some(value) => value,
                 None => {
                     prop_assert!(false, "Field A should exist in decoded result");
-                    unreachable!();
+                    return;
                 }
             };
             let decoded_str = match decoded_value.as_str() {
                 Some(text) => text,
                 None => {
                     prop_assert!(false, "Field A should decode as a string");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -197,14 +197,14 @@ mod comp3_roundtrip_tests {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse original value {s}: {err}");
-                    unreachable!();
+                    return;
                 }
             };
             let decoded_val: f64 = match decoded_str.parse() {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse decoded value {decoded_str}: {err}");
-                    unreachable!();
+                    return;
                 }
             };
             assert!((original_val - decoded_val).abs() < f64::EPSILON);
@@ -236,7 +236,7 @@ mod comp3_roundtrip_tests {
                 Ok(schema) => schema,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse COMP-3 schema: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -272,7 +272,7 @@ mod comp3_roundtrip_tests {
                 Ok(bytes) => bytes,
                 Err(err) => {
                     prop_assert!(false, "Failed to encode COMP-3 test data: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -281,7 +281,7 @@ mod comp3_roundtrip_tests {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "Failed to decode COMP-3 test data: {err}");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -291,14 +291,14 @@ mod comp3_roundtrip_tests {
                 Some(value) => value,
                 None => {
                     prop_assert!(false, "Field A should exist in decoded result");
-                    unreachable!();
+                    return;
                 }
             };
             let decoded_str = match decoded_value.as_str() {
                 Some(text) => text,
                 None => {
                     prop_assert!(false, "Field A should decode as a string");
-                    unreachable!();
+                    return;
                 }
             };
 
@@ -307,14 +307,14 @@ mod comp3_roundtrip_tests {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse original value {s}: {err}");
-                    unreachable!();
+                    return;
                 }
             };
             let decoded_val: f64 = match decoded_str.parse() {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse decoded value {decoded_str}: {err}");
-                    unreachable!();
+                    return;
                 }
             };
             assert!((original_val - decoded_val).abs() < f64::EPSILON);

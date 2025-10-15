@@ -6,6 +6,7 @@ use crate::options::RawMode;
 use crate::options::RecordFormat;
 use copybook_core::error::ErrorContext;
 use copybook_core::{Error, ErrorCode, Result, Schema};
+use std::convert::TryFrom;
 use std::io::{ErrorKind, Read, Write};
 use tracing::{debug, warn};
 
@@ -23,6 +24,10 @@ impl<R: Read> FixedRecordReader<R> {
     /// # Errors
     ///
     /// Returns an error if LRECL is not provided or is zero
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines)]
+    #[inline]
+    #[must_use = "Initialize a fixed record reader or propagate configuration errors"]
     pub fn new(input: R, lrecl: Option<u32>) -> Result<Self> {
         let lrecl = lrecl
             .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
@@ -46,6 +51,8 @@ impl<R: Read> FixedRecordReader<R> {
     /// # Errors
     ///
     /// Returns an error if the record cannot be read due to I/O errors
+    #[inline]
+    #[must_use = "Differentiate end-of-file from read errors"]
     pub fn read_record(&mut self) -> Result<Option<Vec<u8>>> {
         // Try to read one byte first to check for EOF
         let mut first_byte = [0u8; 1];
@@ -128,6 +135,8 @@ impl<R: Read> FixedRecordReader<R> {
     /// # Errors
     ///
     /// Returns an error if the record length doesn't match schema expectations
+    #[inline]
+    #[must_use = "Propagate record length validation failures"]
     pub fn validate_record_length(&self, schema: &Schema, record_data: &[u8]) -> Result<()> {
         // For fixed records, the data length should match LRECL
         if record_data.len() != self.lrecl as usize {
@@ -168,12 +177,14 @@ impl<R: Read> FixedRecordReader<R> {
 
     /// Get the current record count
     #[must_use]
+    #[inline]
     pub fn record_count(&self) -> u64 {
         self.record_count
     }
 
     /// Get the configured LRECL
     #[must_use]
+    #[inline]
     pub fn lrecl(&self) -> u32 {
         self.lrecl
     }
@@ -193,6 +204,8 @@ impl<W: Write> FixedRecordWriter<W> {
     /// # Errors
     ///
     /// Returns an error if LRECL is not provided or is zero
+    #[inline]
+    #[must_use = "Create a fixed record writer or surface configuration errors"]
     pub fn new(output: W, lrecl: Option<u32>) -> Result<Self> {
         let lrecl = lrecl
             .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
@@ -216,6 +229,8 @@ impl<W: Write> FixedRecordWriter<W> {
     /// # Errors
     ///
     /// Returns an error if the record cannot be written due to I/O errors
+    #[inline]
+    #[must_use = "Propagate write failures to callers"]
     pub fn write_record(&mut self, data: &[u8]) -> Result<()> {
         let data_len = data.len();
         let lrecl = self.lrecl as usize;
@@ -223,10 +238,7 @@ impl<W: Write> FixedRecordWriter<W> {
         if data_len > lrecl {
             return Err(Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!(
-                    "Record too long: {} bytes exceeds LRECL of {}",
-                    data_len, lrecl
-                ),
+                format!("Record too long: {data_len} bytes exceeds LRECL of {lrecl}"),
             )
             .with_context(ErrorContext {
                 record_index: Some(self.record_count + 1),
@@ -263,7 +275,7 @@ impl<W: Write> FixedRecordWriter<W> {
                 .with_context(ErrorContext {
                     record_index: Some(self.record_count + 1),
                     field_path: None,
-                    byte_offset: Some(data_len as u64),
+                    byte_offset: Some(u64::try_from(data_len).unwrap_or(u64::MAX)),
                     line_number: None,
                     details: Some("Error writing record padding".to_string()),
                 })
@@ -287,6 +299,8 @@ impl<W: Write> FixedRecordWriter<W> {
     /// # Errors
     ///
     /// Returns an error if the flush operation fails
+    #[inline]
+    #[must_use = "Ensure flush errors are handled by the caller"]
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(
@@ -298,12 +312,14 @@ impl<W: Write> FixedRecordWriter<W> {
 
     /// Get the current record count
     #[must_use]
+    #[inline]
     pub fn record_count(&self) -> u64 {
         self.record_count
     }
 
     /// Get the configured LRECL
     #[must_use]
+    #[inline]
     pub fn lrecl(&self) -> u32 {
         self.lrecl
     }
@@ -319,6 +335,7 @@ pub struct RDWRecordReader<R: Read> {
 
 impl<R: Read> RDWRecordReader<R> {
     /// Create a new RDW record reader
+    #[inline]
     pub fn new(input: R, strict_mode: bool) -> Self {
         Self {
             input,
@@ -332,13 +349,15 @@ impl<R: Read> RDWRecordReader<R> {
     /// # Errors
     ///
     /// Returns an error if the record cannot be read due to I/O errors or format issues
+    #[inline]
+    #[must_use = "Handle RDW read outcomes to detect truncation or corruption"]
     pub fn read_record(&mut self) -> Result<Option<RDWRecord>> {
         // Read the 4-byte RDW header
         let mut rdw_header = [0u8; 4];
         match self.input.read_exact(&mut rdw_header) {
             Ok(()) => {
                 // Parse RDW header
-                let length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as u32;
+                let length = u32::from(u16::from_be_bytes([rdw_header[0], rdw_header[1]]));
                 let reserved = u16::from_be_bytes([rdw_header[2], rdw_header[3]]);
 
                 self.record_count += 1;
@@ -351,26 +370,25 @@ impl<R: Read> RDWRecordReader<R> {
                 if reserved != 0 {
                     let error = Error::new(
                         ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
-                        format!("RDW reserved bytes are non-zero: {:04X}", reserved),
+                        format!("RDW reserved bytes are non-zero: {reserved:04X}"),
                     )
                     .with_context(ErrorContext {
                         record_index: Some(self.record_count),
                         field_path: None,
                         byte_offset: Some(2), // Reserved bytes are at offset 2-3
                         line_number: None,
-                        details: Some(format!("Expected 0000, got {:04X}", reserved)),
+                        details: Some(format!("Expected 0000, got {reserved:04X}")),
                     });
 
                     if self.strict_mode {
                         return Err(error);
-                    } else {
-                        warn!(
-                            "RDW reserved bytes non-zero (record {}): {:04X}",
-                            self.record_count, reserved
-                        );
-                        // Increment warning counter for summary
-                        crate::lib_api::increment_warning_counter();
                     }
+                    warn!(
+                        "RDW reserved bytes non-zero (record {}): {:04X}",
+                        self.record_count, reserved
+                    );
+                    // Increment warning counter for summary
+                    crate::lib_api::increment_warning_counter();
                 }
 
                 // Check for ASCII transfer corruption heuristic
@@ -425,7 +443,7 @@ impl<R: Read> RDWRecordReader<R> {
                     Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
                         Err(Error::new(
                             ErrorCode::CBKR221_RDW_UNDERFLOW,
-                            format!("Incomplete RDW record payload: expected {} bytes", length),
+                            format!("Incomplete RDW record payload: expected {length} bytes"),
                         )
                         .with_context(ErrorContext {
                             record_index: Some(self.record_count),
@@ -491,6 +509,8 @@ impl<R: Read> RDWRecordReader<R> {
     /// # Errors
     ///
     /// Returns an error if zero-length record is invalid for the schema
+    #[inline]
+    #[must_use = "Propagate schema validation failures for zero-length records"]
     pub fn validate_zero_length_record(&self, schema: &Schema) -> Result<()> {
         // Zero-length records are valid only when schema fixed prefix == 0
 
@@ -500,10 +520,7 @@ impl<R: Read> RDWRecordReader<R> {
         if min_size > 0 {
             return Err(Error::new(
                 ErrorCode::CBKR221_RDW_UNDERFLOW,
-                format!(
-                    "Zero-length RDW record invalid: schema requires minimum {} bytes",
-                    min_size
-                ),
+                format!("Zero-length RDW record invalid: schema requires minimum {min_size} bytes"),
             )
             .with_context(ErrorContext {
                 record_index: Some(self.record_count),
@@ -582,6 +599,7 @@ impl<R: Read> RDWRecordReader<R> {
 
     /// Get the current record count
     #[must_use]
+    #[inline]
     pub fn record_count(&self) -> u64 {
         self.record_count
     }
@@ -596,6 +614,7 @@ pub struct RDWRecordWriter<W: Write> {
 
 impl<W: Write> RDWRecordWriter<W> {
     /// Create a new RDW record writer
+    #[inline]
     pub fn new(output: W) -> Self {
         Self {
             output,
@@ -608,6 +627,8 @@ impl<W: Write> RDWRecordWriter<W> {
     /// # Errors
     ///
     /// Returns an error if the record cannot be written due to I/O errors
+    #[inline]
+    #[must_use = "Propagate RDW write failures to callers"]
     pub fn write_record(&mut self, record: &RDWRecord) -> Result<()> {
         // Write the RDW header
         self.output.write_all(&record.header).map_err(|e| {
@@ -654,6 +675,8 @@ impl<W: Write> RDWRecordWriter<W> {
     /// # Errors
     ///
     /// Returns an error if the record cannot be written due to I/O errors
+    #[inline]
+    #[must_use = "Surface RDW payload write errors"]
     pub fn write_record_from_payload(
         &mut self,
         payload: &[u8],
@@ -661,12 +684,11 @@ impl<W: Write> RDWRecordWriter<W> {
     ) -> Result<()> {
         let length = payload.len();
 
-        if length > u16::MAX as usize {
-            return Err(Error::new(
+        let length_u16 = u16::try_from(length).map_err(|_| {
+            Error::new(
                 ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                 format!(
-                    "RDW payload too large: {} bytes exceeds maximum of {}",
-                    length,
+                    "RDW payload too large: {length} bytes exceeds maximum of {}",
                     u16::MAX
                 ),
             )
@@ -676,11 +698,11 @@ impl<W: Write> RDWRecordWriter<W> {
                 byte_offset: None,
                 line_number: None,
                 details: Some("RDW length field is 16-bit".to_string()),
-            }));
-        }
+            })
+        })?;
 
         // Create RDW header
-        let length_bytes = (length as u16).to_be_bytes();
+        let length_bytes = length_u16.to_be_bytes();
         let reserved_bytes = preserve_reserved.unwrap_or(0).to_be_bytes();
         let header = [
             length_bytes[0],
@@ -713,6 +735,7 @@ impl<W: Write> RDWRecordWriter<W> {
 
     /// Get the current record count
     #[must_use]
+    #[inline]
     pub fn record_count(&self) -> u64 {
         self.record_count
     }
@@ -730,8 +753,9 @@ pub struct RDWRecord {
 impl RDWRecord {
     /// Create a new RDW record from payload
     #[must_use]
+    #[inline]
     pub fn new(payload: Vec<u8>) -> Self {
-        let length = payload.len().min(u16::MAX as usize) as u16;
+        let length = u16::try_from(payload.len()).unwrap_or(u16::MAX);
         let length_bytes = length.to_be_bytes();
         let header = [length_bytes[0], length_bytes[1], 0, 0]; // Reserved bytes are zero
 
@@ -740,8 +764,9 @@ impl RDWRecord {
 
     /// Create a new RDW record with preserved reserved bytes
     #[must_use]
+    #[inline]
     pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
-        let length = payload.len().min(u16::MAX as usize) as u16;
+        let length = u16::try_from(payload.len()).unwrap_or(u16::MAX);
         let length_bytes = length.to_be_bytes();
         let reserved_bytes = reserved.to_be_bytes();
         let header = [
@@ -756,19 +781,22 @@ impl RDWRecord {
 
     /// Get the length from the RDW header
     #[must_use]
+    #[inline]
     pub fn length(&self) -> u16 {
         u16::from_be_bytes([self.header[0], self.header[1]])
     }
 
     /// Get the reserved bytes from the RDW header
     #[must_use]
+    #[inline]
     pub fn reserved(&self) -> u16 {
         u16::from_be_bytes([self.header[2], self.header[3]])
     }
 
     /// Update the length field to match the payload size
+    #[inline]
     pub fn recompute_length(&mut self) {
-        let length = self.payload.len().min(u16::MAX as usize) as u16;
+        let length = u16::try_from(self.payload.len()).unwrap_or(u16::MAX);
         let length_bytes = length.to_be_bytes();
         self.header[0] = length_bytes[0];
         self.header[1] = length_bytes[1];
@@ -776,6 +804,7 @@ impl RDWRecord {
 
     /// Get the complete record data (header + payload)
     #[must_use]
+    #[inline]
     pub fn as_bytes(&self) -> Vec<u8> {
         let mut result = Vec::with_capacity(4 + self.payload.len());
         result.extend_from_slice(&self.header);
@@ -785,6 +814,7 @@ impl RDWRecord {
 
     /// Get the record data for specific raw modes
     #[must_use]
+    #[inline]
     pub fn get_data_for_raw_mode(&self, raw_mode: RawMode) -> Vec<u8> {
         match raw_mode {
             RawMode::RecordRDW => self.as_bytes(), // Include RDW header
@@ -798,6 +828,8 @@ impl RDWRecord {
 /// # Errors
 ///
 /// Returns an error if the record cannot be read due to I/O errors or format issues
+#[inline]
+#[must_use = "Handle record read results to observe EOF and errors"]
 pub fn read_record(
     input: &mut impl Read,
     format: RecordFormat,
@@ -817,12 +849,13 @@ pub fn read_record(
         }
     }
 }
-
 /// Write a single record to output (legacy interface)
 ///
 /// # Errors
 ///
 /// Returns an error if the record cannot be written due to I/O errors
+#[inline]
+#[must_use = "Propagate record write errors to callers"]
 pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) -> Result<()> {
     match format {
         RecordFormat::Fixed => {

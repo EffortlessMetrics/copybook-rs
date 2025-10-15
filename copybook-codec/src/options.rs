@@ -1,4 +1,5 @@
 //! Configuration options for encoding and decoding operations
+#![allow(clippy::missing_inline_in_public_items)]
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -332,6 +333,7 @@ impl DecodeOptions {
 
     /// Set the record format
     #[must_use]
+    #[inline]
     pub fn with_format(mut self, format: RecordFormat) -> Self {
         self.format = format;
         self
@@ -339,6 +341,7 @@ impl DecodeOptions {
 
     /// Set the codepage
     #[must_use]
+    #[inline]
     pub fn with_codepage(mut self, codepage: Codepage) -> Self {
         self.codepage = codepage;
         self
@@ -346,6 +349,7 @@ impl DecodeOptions {
 
     /// Set the JSON number mode
     #[must_use]
+    #[inline]
     pub fn with_json_number_mode(mut self, mode: JsonNumberMode) -> Self {
         self.json_number_mode = mode;
         self
@@ -353,6 +357,7 @@ impl DecodeOptions {
 
     /// Enable or disable FILLER field emission
     #[must_use]
+    #[inline]
     pub fn with_emit_filler(mut self, emit_filler: bool) -> Self {
         self.emit_filler = emit_filler;
         self
@@ -360,6 +365,7 @@ impl DecodeOptions {
 
     /// Enable or disable metadata emission
     #[must_use]
+    #[inline]
     pub fn with_emit_meta(mut self, emit_meta: bool) -> Self {
         self.emit_meta = emit_meta;
         self
@@ -367,6 +373,7 @@ impl DecodeOptions {
 
     /// Set the raw data capture mode
     #[must_use]
+    #[inline]
     pub fn with_emit_raw(mut self, emit_raw: RawMode) -> Self {
         self.emit_raw = emit_raw;
         self
@@ -374,6 +381,7 @@ impl DecodeOptions {
 
     /// Enable or disable strict mode
     #[must_use]
+    #[inline]
     pub fn with_strict_mode(mut self, strict_mode: bool) -> Self {
         self.strict_mode = strict_mode;
         self
@@ -381,6 +389,7 @@ impl DecodeOptions {
 
     /// Set the maximum number of errors before stopping
     #[must_use]
+    #[inline]
     pub fn with_max_errors(mut self, max_errors: Option<u64>) -> Self {
         self.max_errors = max_errors;
         self
@@ -388,6 +397,7 @@ impl DecodeOptions {
 
     /// Set the policy for unmappable characters
     #[must_use]
+    #[inline]
     pub fn with_unmappable_policy(mut self, policy: UnmappablePolicy) -> Self {
         self.on_decode_unmappable = policy;
         self
@@ -395,6 +405,7 @@ impl DecodeOptions {
 
     /// Set the number of threads for parallel processing
     #[must_use]
+    #[inline]
     pub fn with_threads(mut self, threads: usize) -> Self {
         self.threads = threads;
         self
@@ -408,6 +419,7 @@ impl DecodeOptions {
     /// format (ASCII vs EBCDIC) for use during subsequent encoding operations.
     /// This ensures byte-level consistency in encode/decode cycles.
     #[must_use]
+    #[inline]
     pub fn with_preserve_zoned_encoding(mut self, preserve_zoned_encoding: bool) -> Self {
         self.preserve_zoned_encoding = preserve_zoned_encoding;
         self
@@ -418,6 +430,7 @@ impl DecodeOptions {
     /// This format is used as a fallback when auto-detection cannot determine
     /// the encoding from the data (e.g., all-zero fields, mixed encodings).
     #[must_use]
+    #[inline]
     pub fn with_preferred_zoned_encoding(
         mut self,
         preferred_zoned_encoding: ZonedEncodingFormat,
@@ -452,6 +465,7 @@ impl EncodeOptions {
 
     /// Set the record format
     #[must_use]
+    #[inline]
     pub fn with_format(mut self, format: RecordFormat) -> Self {
         self.format = format;
         self
@@ -459,6 +473,7 @@ impl EncodeOptions {
 
     /// Set the codepage
     #[must_use]
+    #[inline]
     pub fn with_codepage(mut self, codepage: Codepage) -> Self {
         self.codepage = codepage;
         self
@@ -466,6 +481,7 @@ impl EncodeOptions {
 
     /// Enable or disable raw data usage
     #[must_use]
+    #[inline]
     pub fn with_use_raw(mut self, use_raw: bool) -> Self {
         self.use_raw = use_raw;
         self
@@ -473,6 +489,7 @@ impl EncodeOptions {
 
     /// Enable or disable BLANK WHEN ZERO encoding
     #[must_use]
+    #[inline]
     pub fn with_bwz_encode(mut self, bwz_encode: bool) -> Self {
         self.bwz_encode = bwz_encode;
         self
@@ -480,6 +497,7 @@ impl EncodeOptions {
 
     /// Enable or disable strict mode
     #[must_use]
+    #[inline]
     pub fn with_strict_mode(mut self, strict_mode: bool) -> Self {
         self.strict_mode = strict_mode;
         self
@@ -487,6 +505,7 @@ impl EncodeOptions {
 
     /// Set the maximum number of errors before stopping
     #[must_use]
+    #[inline]
     pub fn with_max_errors(mut self, max_errors: Option<u64>) -> Self {
         self.max_errors = max_errors;
         self
@@ -494,6 +513,7 @@ impl EncodeOptions {
 
     /// Set the number of threads for parallel processing
     #[must_use]
+    #[inline]
     pub fn with_threads(mut self, threads: usize) -> Self {
         self.threads = threads;
         self
@@ -501,6 +521,7 @@ impl EncodeOptions {
 
     /// Enable or disable number coercion
     #[must_use]
+    #[inline]
     pub fn with_coerce_numbers(mut self, coerce_numbers: bool) -> Self {
         self.coerce_numbers = coerce_numbers;
         self
@@ -512,6 +533,7 @@ impl EncodeOptions {
     /// overriding any preserved format from decode operations. Use `None` to
     /// disable override and respect preserved formats.
     #[must_use]
+    #[inline]
     pub fn with_zoned_encoding_override(
         mut self,
         zoned_encoding_override: Option<ZonedEncodingFormat>,
@@ -524,12 +546,14 @@ impl EncodeOptions {
     ///
     /// Equivalent to `with_zoned_encoding_override(Some(format))`.
     #[must_use]
+    #[inline]
     pub fn with_zoned_encoding_format(mut self, format: ZonedEncodingFormat) -> Self {
         self.zoned_encoding_override = Some(format);
         self
     }
 }
 impl fmt::Display for RecordFormat {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Fixed => write!(f, "fixed"),
@@ -539,6 +563,7 @@ impl fmt::Display for RecordFormat {
 }
 
 impl fmt::Display for Codepage {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ASCII => write!(f, "ascii"),
@@ -552,6 +577,7 @@ impl fmt::Display for Codepage {
 }
 
 impl fmt::Display for JsonNumberMode {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Lossless => write!(f, "lossless"),
@@ -561,6 +587,7 @@ impl fmt::Display for JsonNumberMode {
 }
 
 impl fmt::Display for RawMode {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Off => write!(f, "off"),
@@ -572,6 +599,7 @@ impl fmt::Display for RawMode {
 }
 
 impl fmt::Display for UnmappablePolicy {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Error => write!(f, "error"),

@@ -193,6 +193,8 @@ impl fmt::Display for RunSummary {
 /// # Errors
 ///
 /// Returns an error if the data cannot be decoded according to the schema
+#[inline]
+#[must_use = "Use the decoded value or handle the decoding error"]
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
     decode_record_with_raw_data(schema, data, options, None)
 }
@@ -212,6 +214,8 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 /// # Errors
 ///
 /// Returns an error if the data cannot be decoded according to the schema
+#[inline]
+#[must_use = "Use the decoded value or handle the decoding error"]
 pub fn decode_record_with_scratch(
     schema: &Schema,
     data: &[u8],
@@ -258,6 +262,8 @@ fn decode_record_with_scratch_and_raw(
 /// # Errors
 ///
 /// Returns an error if field decoding fails or the raw payload is inconsistent with the schema.
+#[inline]
+#[must_use = "Use the decoded value or handle the decoding error"]
 pub fn decode_record_with_raw_data(
     schema: &Schema,
     data: &[u8],
@@ -990,6 +996,8 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 /// # Errors
 ///
 /// Returns an error if the JSON data cannot be encoded according to the schema
+#[inline]
+#[must_use = "Use the encoded bytes or handle the encoding error"]
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
     // Check if we should use raw data
     if options.use_raw
@@ -1306,6 +1314,8 @@ fn encode_binary_int_field(
 /// # Errors
 ///
 /// Returns an error if the input cannot be read, decoded, or written.
+#[inline]
+#[must_use = "Use the resulting run summary or handle the decoding error"]
 pub fn decode_file_to_jsonl(
     schema: &Schema,
     input: impl Read,
@@ -1474,6 +1484,8 @@ pub fn increment_warning_counter() {
 /// # Errors
 ///
 /// Returns an error if the JSONL cannot be encoded or written
+#[inline]
+#[must_use = "Use the resulting run summary or handle the encoding error"]
 pub fn encode_jsonl_to_file(
     schema: &Schema,
     input: impl Read,

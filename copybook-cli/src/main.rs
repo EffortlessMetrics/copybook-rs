@@ -309,7 +309,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Audit { audit_command } => {
             // Run audit command asynchronously
             let runtime = tokio::runtime::Runtime::new()?;
-            runtime.block_on(crate::commands::audit::run(audit_command))
+            runtime
+                .block_on(crate::commands::audit::run(audit_command))
+                .map_err(|err| -> Box<dyn std::error::Error> { err })
         }
         Commands::Verify {
             copybook,

@@ -1027,7 +1027,8 @@ mod tests {
             false,
             audit_context,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow::Error::msg(err.to_string()))?;
 
         assert_eq!(exit_code, 3); // Compliance failure
         Ok(())

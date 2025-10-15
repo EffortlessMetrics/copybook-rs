@@ -1,0 +1,60 @@
+name: Perf Receipts
+on:
+  pull_request:
+    paths:
+      - "copybook-bench/**"
+      - "copybook-codec/**"
+      - "scripts/bench.sh"
+      - "scripts/bench.bat"
+      - "scripts/guard-hotpaths.sh"
+      - "justfile"
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
+
+      - name: Hot-path guard
+        run: bash scripts/guard-hotpaths.sh
+
+      - name: Hygiene and build
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic
+          cargo build --workspace --release
+          cargo nextest run --workspace
+
+      - name: Run benches (JSON)
+        run: bash scripts/bench.sh
+
+      - name: Upload perf receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-json
+          path: scripts/bench/perf.json
+          retention-days: 90
+
+      - name: Summarize SLOs (simple parser)
+        id: slo
+        run: |
+          DISP=$(jq -r '.benchmarks[]?.throughput_mib | select(.!=null)' scripts/bench/perf.json | sort -nr | head -1)
+          COMP=$(jq -r '.benchmarks[]?.comp3_throughput_mib | select(.!=null)' scripts/bench/perf.json | sort -nr | head -1)
+          echo "display=${DISP:-0}" >> "$GITHUB_OUTPUT"
+          echo "comp3=${COMP:-0}" >> "$GITHUB_OUTPUT"
+
+      - name: Gate on SLOs
+        env:
+          DISPLAY_MIB: ${{ steps.slo.outputs.display || '0' }}
+          COMP3_MIB: ${{ steps.slo.outputs.comp3 || '0' }}
+        run: |
+          awk -v d="$DISPLAY_MIB" -v c="$COMP3_MIB" 'BEGIN{
+            if (d<80 || c<40) {print "SLO FAIL: display=" d " comp3=" c; exit 1}
+            else {print "SLO PASS: display=" d " comp3=" c}
+          }'

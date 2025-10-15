@@ -549,9 +549,12 @@ copybook inspect schema.cpy --show-metadata | grep LRECL
 ```
 
 **Solution:**
-1. Ensure the copybook or generated schema populates `lrecl_fixed`.
-2. For programmatic schemas, assign `schema.lrecl_fixed = Some(<length>)` before constructing a fixed-format iterator.
-3. Retry iteration; lazy validation will now proceed without triggering CBKI001.
+- Populate `schema.lrecl_fixed` before iterating in fixed mode; downstream retries will succeed once the length is set.
+- If the copybook truly varies per record, switch to `RecordFormat::Variable` (or provide an ODO-derived length) instead of forcing fixed mode.
+
+**CBKI001_INVALID_STATE** on first `next()` with `RecordFormat::Fixed`:
+- Cause: `schema.lrecl_fixed` is `None` (variable schema, ODO present, or not set).
+- Fix: Fixed format? Set `schema.lrecl_fixed` or change `RecordFormat` to `Variable` / supply ODO length. Error text: `Fixed format requires a fixed record length (LRECL).`
 
 ## Getting Additional Help
 

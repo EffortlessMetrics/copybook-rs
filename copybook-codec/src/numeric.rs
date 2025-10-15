@@ -2645,6 +2645,7 @@ mod tests {
     }
 
     proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
         #[test]
         fn prop_zoned_digit_buffer_contains_only_digits(
             digits_vec in prop::collection::vec(0u8..=9, 1..=12),

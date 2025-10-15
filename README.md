@@ -796,9 +796,20 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 - **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`
 
 ### Benchmarking & Regression Tracking
-- Run ad-hoc benchmarks with `cargo bench --package copybook-bench`; optional `PERF=1` enables additional logging
-- Capture PR receipts with `PERF=1 cargo bench -p copybook-bench -- --output-format json > target/perf.json` followed by `mkdir -p scripts/bench && cp target/perf.json scripts/bench/perf.json` (schema documented in `docs/schemas/performance_report.schema.json`)
+- Run ad-hoc benchmarks with `cargo bench --package copybook-bench`; `just bench-json` mirrors receipts for CI
+- Receipts land in `scripts/bench/perf.json` via `just bench-json`, `bash scripts/bench.sh`, or `scripts\bench.bat` (schema: `docs/schemas/performance_report.schema.json`)
 - Until the Issue #52 utilities land, baseline promotion, regression detection, and SLO validation require manual analysis of the generated JSON plus the backlog tracker
+
+### Performance receipts (deterministic)
+```bash
+# Linux/macOS
+bash scripts/bench.sh
+
+# Windows
+scripts\bench.bat
+```
+
+Artifacts: `scripts/bench/perf.json` (90-day retention in CI). Targets: DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s.
 
 ## Development
 
@@ -826,8 +837,8 @@ cargo test --workspace
 cargo test --workspace -- --nocapture
 
 # Run performance benchmarks (JSON receipts)
-PERF=1 cargo bench -p copybook-bench -- --output-format json > target/perf.json
-mkdir -p scripts/bench && cp target/perf.json scripts/bench/perf.json
+just bench-json
+# or: bash scripts/bench.sh / scripts\bench.bat
 
 # Run clippy
 cargo clippy --workspace -- -D warnings -W clippy::pedantic

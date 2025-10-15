@@ -52,18 +52,17 @@ docs:
 docs-open:
     cargo doc --workspace --no-deps --open
 
-# Run performance benchmarks (requires PERF=1)
-bench:
-    #!/usr/bin/env bash
-    if [ "$PERF" != "1" ]; then
-        echo "PERF environment variable not set to 1. Benchmarks are gated behind this flag."
-        echo "Run with: PERF=1 just bench"
-        exit 1
-    fi
-    cargo bench -p copybook-bench -- --output-format json > target/perf.json
+# Produce machine-readable receipts and mirror to CI path
+bench-json:
+    RUSTFLAGS="-C target-cpu=native" PERF=1 \
+      cargo bench -p copybook-bench -- --output-format json > target/perf.json
     mkdir -p scripts/bench
     cp target/perf.json scripts/bench/perf.json
-    echo "Benchmark receipts available at scripts/bench/perf.json"
+    @echo "✅ receipts: scripts/bench/perf.json"
+
+# Run performance benchmarks (JSON receipts)
+bench:
+    @just bench-json
 
 # Quick CI checks (build, test, lint) - legacy version
 ci-quick-legacy:
@@ -94,17 +93,8 @@ test-crate crate:
 
 # Run a specific crate's benchmarks
 bench-crate crate:
-    #!/usr/bin/env bash
-    if [ "$PERF" != "1" ]; then
-        echo "PERF environment variable not set to 1. Benchmarks are gated behind this flag."
-        echo "Run with: PERF=1 just bench-crate {{crate}}"
-        exit 1
-    fi
     if [ "{{crate}}" = "copybook-bench" ]; then
-        cargo bench -p {{crate}} -- --output-format json > target/perf.json
-        mkdir -p scripts/bench
-        cp target/perf.json scripts/bench/perf.json
-        echo "Benchmark receipts available at scripts/bench/perf.json"
+        just bench-json
     else
         cargo bench -p {{crate}}
     fi

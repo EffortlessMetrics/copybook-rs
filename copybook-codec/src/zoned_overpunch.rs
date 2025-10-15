@@ -260,6 +260,7 @@ mod tests {
     use proptest::prelude::*;
 
     proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
         #[test]
         fn prop_encode_decode_parity(
             digit in 0u8..=9,

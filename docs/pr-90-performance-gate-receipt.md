@@ -370,7 +370,7 @@ change: [−4.9868% −1.9427% +1.3170%] (p = 0.23 > 0.05)
 
 ### Benchmark Artifacts
 
-**Location**: `/home/steven/code/Rust/copybook-rs/target/criterion/`
+**Location**: `target/criterion/`
 **Format**: Criterion.rs HTML reports + JSON metrics
 **Baseline Persistence**: ✅ Results suitable for comparative analysis
 

@@ -520,29 +520,17 @@ fn process_fields_recursive_with_scratch(
                             scale,
                             signed,
                         } => {
-                            // OPTIMIZED: Use scratch buffer for string formatting
-                            // AC:5 - Apply same digit formatting as non-scratch path for consistency
-                            let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
-                                field_data,
-                                *digits,
-                                *scale,
-                                *signed,
-                                options.codepage,
-                                field.blank_when_zero,
-                                scratch,
-                            )?;
-                            let formatted = if *scale == 0 {
-                                format_zoned_decimal_with_digits(
-                                    &decimal,
+                            let decimal_str =
+                                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                                    field_data,
                                     *digits,
+                                    *scale,
+                                    *signed,
+                                    options.codepage,
                                     field.blank_when_zero,
-                                )
-                            } else {
-                                decimal
-                                    .format_to_scratch_buffer(*scale, &mut scratch.string_buffer);
-                                std::mem::take(&mut scratch.string_buffer)
-                            };
-                            Value::String(formatted)
+                                    scratch,
+                                )?;
+                            Value::String(decimal_str)
                         }
                         FieldKind::BinaryInt { bits, signed } => {
                             let int_value =
@@ -733,7 +721,7 @@ fn process_array_field_with_scratch(
             } => {
                 // OPTIMIZED: Use scratch buffer for array element
                 // AC:6 - Apply same digit formatting as non-scratch path for array elements
-                let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
+                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     element_data,
                     *digits,
                     *scale,
@@ -742,13 +730,7 @@ fn process_array_field_with_scratch(
                     field.blank_when_zero,
                     scratch,
                 )?;
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.format_to_scratch_buffer(*scale, &mut scratch.string_buffer);
-                    std::mem::take(&mut scratch.string_buffer)
-                };
-                Value::String(formatted)
+                Value::String(decimal_str)
             }
             FieldKind::PackedDecimal {
                 digits,
@@ -839,17 +821,17 @@ fn find_and_read_counter_field(
             scale,
             signed,
         } => {
-            let decimal = crate::numeric::decode_zoned_decimal(
+            let mut scratch = crate::memory::ScratchBuffers::new();
+            let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                 field_data,
                 *digits,
                 *scale,
                 *signed,
                 options.codepage,
                 counter_field.blank_when_zero,
+                &mut scratch,
             )?;
 
-            // Convert to u32, ensuring it's non-negative
-            let decimal_str = decimal.to_string();
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,

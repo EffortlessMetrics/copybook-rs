@@ -45,4 +45,4 @@
 
 ---
 
-**Receipt**: `/home/steven/code/Rust/copybook-rs/docs/pr-90-regression-detector-receipt.md`
+**Receipt**: `docs/pr-90-regression-detector-receipt.md`

@@ -168,7 +168,7 @@ Enhanced `deny.toml` policies enforce enterprise security requirements:
 - Document in pull request description
 
 **Rollback Procedures**:
-See `/home/steven/code/Rust/copybook-rs/docs/how-to/configure-security-scanning.md` §8 for detailed rollback instructions.
+See `docs/how-to/configure-security-scanning.md` §8 for detailed rollback instructions.
 
 ### Disclosure Timeline
 

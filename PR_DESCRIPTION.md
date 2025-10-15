@@ -247,10 +247,10 @@ ea2088e fix(copybook-codec): correct __raw_b64 field naming for RDW format (Issu
 
 ## References
 
-- **Issue #102 Specification:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-spec.md`
-- **Technical Analysis:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-technical-analysis.md`
-- **Spec Gate Receipt:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-spec-gate-receipt.md`
-- **Docs Finalizer Receipt:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-docs-finalizer-receipt.md`
+- **Issue #102 Specification:** `docs/issue-102-spec.md`
+- **Technical Analysis:** `docs/issue-102-technical-analysis.md`
+- **Spec Gate Receipt:** `docs/issue-102-spec-gate-receipt.md`
+- **Docs Finalizer Receipt:** `docs/issue-102-docs-finalizer-receipt.md`
 
 ## Generative Flow Evidence
 

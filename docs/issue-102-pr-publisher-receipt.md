@@ -302,10 +302,10 @@ docs: CLAUDE.md updated; LIBRARY_API.md enhanced; audit trail complete
 - **Issue #102:** https://github.com/EffortlessMetrics/copybook-rs/issues/102
 - **PR #105:** https://github.com/EffortlessMetrics/copybook-rs/pull/105
 - **Issue #104:** https://github.com/EffortlessMetrics/copybook-rs/issues/104 (Generative Flow Tracking)
-- **Specification:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-spec.md`
-- **Technical Analysis:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-technical-analysis.md`
-- **Spec Gate Receipt:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-spec-gate-receipt.md`
-- **Docs Finalizer Receipt:** `/home/steven/code/Rust/copybook-rs/docs/issue-102-docs-finalizer-receipt.md`
+- **Specification:** `docs/issue-102-spec.md`
+- **Technical Analysis:** `docs/issue-102-technical-analysis.md`
+- **Spec Gate Receipt:** `docs/issue-102-spec-gate-receipt.md`
+- **Docs Finalizer Receipt:** `docs/issue-102-docs-finalizer-receipt.md`
 
 ---
 

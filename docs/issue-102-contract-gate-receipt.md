@@ -40,15 +40,15 @@ All changes in PR #105 are **internal implementation fixes** within the `copyboo
 **Result**: ✅ Compiles successfully
 
 ```
-Checking copybook-codec v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-codec)
+Checking copybook-codec v0.3.1 (copybook-codec)
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.63s
 ```
 
 ### 2. Public API Export Analysis
 
 **Analyzed Files**:
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/options.rs`
+- `copybook-codec/src/lib.rs`
+- `copybook-codec/src/options.rs`
 
 **Public Exports (Unchanged)**:
 ```rust
@@ -428,7 +428,7 @@ Routing: NEXT → tests-runner (for comprehensive test execution)
 
 **Alternative Documentation**:
 - This receipt serves as comprehensive contract validation documentation
-- File: `/home/steven/code/Rust/copybook-rs/docs/issue-102-contract-gate-receipt.md`
+- File: `docs/issue-102-contract-gate-receipt.md`
 - Status: ✅ Created and committed to repository
 
 ---

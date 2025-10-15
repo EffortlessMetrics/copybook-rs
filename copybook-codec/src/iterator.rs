@@ -4,9 +4,12 @@
 //! allowing users to process records one at a time without loading entire files into memory.
 
 use crate::options::{DecodeOptions, RecordFormat};
-use copybook_core::{Schema, Error, ErrorCode, Result};
+use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
+
+const ERR_LRECL_MISSING: &str =
+    "Fixed format requires a fixed record length (LRECL).";
 
 /// Iterator over records in a data file, yielding decoded JSON values
 /// 
@@ -69,21 +72,6 @@ impl<R: Read> RecordIterator<R> {
     /// 
     /// Returns an error if the record format is incompatible with the schema
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
-        // Validate format compatibility with schema
-        match options.format {
-            RecordFormat::Fixed => {
-                if schema.lrecl_fixed.is_none() {
-                    return Err(Error::new(
-                        ErrorCode::CBKP001_SYNTAX,
-                        "Schema does not specify fixed record length (LRECL) but fixed format requested"
-                    ));
-                }
-            }
-            RecordFormat::RDW => {
-                // RDW format is always compatible
-            }
-        }
-
         Ok(Self {
             reader: BufReader::new(reader),
             schema: schema.clone(),
@@ -139,7 +127,7 @@ impl<R: Read> RecordIterator<R> {
                 let lrecl = self.schema.lrecl_fixed.ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKI001_INVALID_STATE,
-                        "Iterator entered an invalid state: Fixed format requires a fixed record length."
+                        ERR_LRECL_MISSING,
                     )
                 })? as usize;
                 self.buffer.resize(lrecl, 0);
@@ -394,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn test_iterator_new_fixed_format_error() {
+    fn test_iterator_fixed_format_missing_lrecl_errors_on_next() {
         // A schema without a fixed record length
         let copybook_text = "01 SOME-GROUP. 05 SOME-FIELD PIC X(1) OCCURS 1 TO 5 TIMES DEPENDING ON ODO-COUNTER.";
         let mut schema = parse_copybook(copybook_text).unwrap();
@@ -406,13 +394,13 @@ mod tests {
         let mut options = DecodeOptions::default();
         options.format = RecordFormat::Fixed;
 
-        // Attempting to create the iterator should fail
-        let result = RecordIterator::new(cursor, &schema, &options);
-        assert!(result.is_err());
-        
-        // Check for the correct error code
-        if let Err(e) = result {
-            assert_eq!(e.code, ErrorCode::CBKP001_SYNTAX);
+        let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        let first = iterator.next().unwrap();
+        assert!(first.is_err());
+        if let Err(e) = first {
+            assert_eq!(e.code, ErrorCode::CBKI001_INVALID_STATE);
+            assert_eq!(e.message, ERR_LRECL_MISSING);
         }
     }
 }

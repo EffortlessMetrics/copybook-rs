@@ -38,26 +38,26 @@ PR #90 contains **zero public API changes** to the `copybook-codec` crate. All m
 
 ```
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
-Generated /home/steven/code/Rust/copybook-rs/target/doc/copybook_codec/index.html
+Generated target/doc/copybook_codec/index.html
 ```
 
 **Command**: `cargo check --workspace --release`
 **Result**: ✅ Compiles successfully
 
 ```
-Checking copybook-codec v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-codec)
-Checking copybook-gen v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-gen)
-Checking copybook-bench v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-bench)
-Checking copybook-cli v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-cli)
+Checking copybook-codec v0.3.1 (copybook-codec)
+Checking copybook-gen v0.3.1 (copybook-gen)
+Checking copybook-bench v0.3.1 (copybook-bench)
+Checking copybook-cli v0.3.1 (copybook-cli)
 Finished `release` profile [optimized] target(s) in 5.44s
 ```
 
 ### 2. Public API Export Analysis
 
 **Analyzed Files**:
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/options.rs`
+- `copybook-codec/src/lib.rs`
+- `copybook-codec/src/lib_api.rs`
+- `copybook-codec/src/options.rs`
 
 **Public Exports (Unchanged)**:
 ```rust

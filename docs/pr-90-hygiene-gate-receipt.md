@@ -47,11 +47,11 @@
 
 **Validation Output**:
 ```
-    Checking copybook-core v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-core)
-    Checking copybook-codec v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-codec)
-    Checking copybook-bench v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-bench)
-    Checking copybook-gen v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-gen)
-    Checking copybook-cli v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-cli)
+    Checking copybook-core v0.3.1 (copybook-core)
+    Checking copybook-codec v0.3.1 (copybook-codec)
+    Checking copybook-bench v0.3.1 (copybook-bench)
+    Checking copybook-gen v0.3.1 (copybook-gen)
+    Checking copybook-cli v0.3.1 (copybook-cli)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.80s
 ```
 
@@ -271,11 +271,11 @@ git show <commit-hash> --stat --format="%H %s%n%b"
 
 ### Clippy Output (Full)
 ```
-    Checking copybook-core v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-core)
-    Checking copybook-codec v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-codec)
-    Checking copybook-bench v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-bench)
-    Checking copybook-gen v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-gen)
-    Checking copybook-cli v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-cli)
+    Checking copybook-core v0.3.1 (copybook-core)
+    Checking copybook-codec v0.3.1 (copybook-codec)
+    Checking copybook-bench v0.3.1 (copybook-bench)
+    Checking copybook-gen v0.3.1 (copybook-gen)
+    Checking copybook-cli v0.3.1 (copybook-cli)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.80s
 ```
 
@@ -287,10 +287,10 @@ Result: 0 matches
 
 ### Workspace Check Output
 ```
-Checking copybook-codec v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-codec)
-Checking copybook-bench v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-bench)
-Checking copybook-gen v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-gen)
-Checking copybook-cli v0.3.1 (/home/steven/code/Rust/copybook-rs/copybook-cli)
+Checking copybook-codec v0.3.1 (copybook-codec)
+Checking copybook-bench v0.3.1 (copybook-bench)
+Checking copybook-gen v0.3.1 (copybook-gen)
+Checking copybook-cli v0.3.1 (copybook-cli)
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.57s
 ```
 

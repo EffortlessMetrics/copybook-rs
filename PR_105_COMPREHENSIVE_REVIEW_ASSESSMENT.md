@@ -49,23 +49,23 @@ security: cargo audit: 0 vulnerabilities; unsafe blocks: 0/production
 
 ### 1. Correctness Improvements ✅
 - **Field Naming Consistency**: Unified `__raw_b64` field naming across all code paths (Fixed, RDW, scratch/non-scratch)
-  - File: `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs:241`
+  - File: `copybook-codec/src/lib_api.rs:241`
   - AC:1 from Issue #102 spec fully satisfied
 
 - **COMP-3 Even-Digit Fix**: Corrected packed decimal decoding for even-digit fields
-  - File: `/home/steven/code/Rust/copybook-rs/copybook-codec/src/numeric.rs:1220-1231`
+  - File: `copybook-codec/src/numeric.rs:1220-1231`
   - Bug: Previously treated first high nibble as sign (incorrect)
   - Fix: Correctly identifies padding nibble (0x0) in first position, sign in last byte low nibble
   - Impact: PIC S9(4) COMP-3 now decodes correctly (e.g., `[0x00, 0x12, 0x3C]` → 123 instead of error)
 
 ### 2. RDW Format Enhancements ✅
 - **Strict Mode Validation**: Added proper error context for truncated RDW headers
-  - File: `/home/steven/code/Rust/copybook-rs/copybook-codec/src/record.rs:451-474`
+  - File: `copybook-codec/src/record.rs:451-474`
   - Strict mode: Returns `CBKR221_RDW_UNDERFLOW` with context
   - Lenient mode: Treats as EOF (backward compatible)
 
 - **Variable-Length Field Handling**: Aligned RDW field boundary checks across scratch and non-scratch paths
-  - File: `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs:1334-1346, 1396-1409`
+  - File: `copybook-codec/src/lib_api.rs:1334-1346, 1396-1409`
   - Supports `RawMode::Record` (payload only) and `RawMode::RecordRDW` (header+payload)
 
 ### 3. Test Coverage Excellence ✅
@@ -77,16 +77,16 @@ security: cargo audit: 0 vulnerabilities; unsafe blocks: 0/production
 - **New Test Coverage**:
   - `test_rdw_truncated_header`: Validates `CBKD201_RDW_HEADER_TOO_SHORT` error code
   - Corrected test data encoding in `comprehensive_numeric_tests.rs` and `odo_counter_types.rs`
-  - File: `/home/steven/code/Rust/copybook-rs/copybook-codec/tests/comprehensive_rdw_tests.rs`
+  - File: `copybook-codec/tests/comprehensive_rdw_tests.rs`
 
 ### 4. Documentation Standards ✅
 - **API Documentation Updated**:
-  - File: `/home/steven/code/Rust/copybook-rs/docs/reference/LIBRARY_API.md`
+  - File: `docs/reference/LIBRARY_API.md`
   - Comprehensive `__raw_b64` field naming examples added
   - RawMode variant behavior clearly documented
 
 - **Audit Trail Maintained**:
-  - File: `/home/steven/code/Rust/copybook-rs/copybook-core/audit.jsonl`
+  - File: `copybook-core/audit.jsonl`
   - Complete traceability for Issue #102 implementation
 
 ### 5. Performance Maintained ✅
@@ -113,7 +113,7 @@ security: cargo audit: 0 vulnerabilities; unsafe blocks: 0/production
 
 #### 1. Field Naming Inconsistency (RESOLVED)
 - **Original Issue**: `lib_api.rs` used `"_raw"` while processor expected `"__raw_b64"`
-- **Auto-Fix Applied**: String constant changed in `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs:241`
+- **Auto-Fix Applied**: String constant changed in `copybook-codec/src/lib_api.rs:241`
 - **Validation**: All 527 tests pass, including RDW comprehensive suite
 - **Residual Risk**: NONE - Breaking change is intentional API correction
 
@@ -264,11 +264,11 @@ security: cargo audit: 0 vulnerabilities; unsafe blocks: 0/production
   - bc6d2f4: Policy gatekeeper validation
 
 ### File Paths (Absolute)
-- Core Logic: `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs`
-- COMP-3 Fix: `/home/steven/code/Rust/copybook-rs/copybook-codec/src/numeric.rs`
-- RDW Validation: `/home/steven/code/Rust/copybook-rs/copybook-codec/src/record.rs`
-- Tests: `/home/steven/code/Rust/copybook-rs/copybook-codec/tests/comprehensive_rdw_tests.rs`
-- Docs: `/home/steven/code/Rust/copybook-rs/docs/reference/LIBRARY_API.md`
+- Core Logic: `copybook-codec/src/lib_api.rs`
+- COMP-3 Fix: `copybook-codec/src/numeric.rs`
+- RDW Validation: `copybook-codec/src/record.rs`
+- Tests: `copybook-codec/tests/comprehensive_rdw_tests.rs`
+- Docs: `docs/reference/LIBRARY_API.md`
 
 ### Test Results
 ```bash
@@ -286,7 +286,7 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.55s
 
 # Documentation
 cargo doc --workspace --no-deps
-Generated /home/steven/code/Rust/copybook-rs/target/doc/copybook_bench/index.html and 6 other files
+Generated target/doc/copybook_bench/index.html and 6 other files
 ```
 
 ### Performance Metrics

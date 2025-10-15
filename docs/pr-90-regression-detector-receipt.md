@@ -41,7 +41,7 @@
 
 ### Baseline Status
 
-**Baseline Location**: `/home/steven/code/Rust/copybook-rs/target/baselines/performance.json`
+**Baseline Location**: `target/baselines/performance.json`
 **Baseline Status**: ⚠️ **NOT ESTABLISHED** (baseline file does not exist)
 **Reference Baseline**: 2025-09-30 (Commit 1fa63633) - documented in BASELINE_METHODOLOGY.md
 
@@ -342,14 +342,14 @@
 
 ### Artifact Locations
 
-**Criterion.rs Results**: `/home/steven/code/Rust/copybook-rs/target/criterion/`
+**Criterion.rs Results**: `target/criterion/`
 - HTML reports: ✅ Generated
 - JSON metrics: ✅ Available for comparative analysis
 - Baseline persistence: ✅ Suitable for historical comparison
 
 **Performance Reports**:
-- **Benchmark runner**: `/home/steven/code/Rust/copybook-rs/docs/pr-90-performance-gate-receipt.md`
-- **Regression detector**: `/home/steven/code/Rust/copybook-rs/docs/pr-90-regression-detector-receipt.md`
+- **Benchmark runner**: `docs/pr-90-performance-gate-receipt.md`
+- **Regression detector**: `docs/pr-90-regression-detector-receipt.md`
 
 ---
 
@@ -483,7 +483,7 @@ cargo run --bin bench-report -p copybook-bench -- baseline show
 # Check baseline status
 cargo run --bin bench-report -p copybook-bench -- baseline show
 # Output: 📊 No baseline established
-#         Baseline file: /home/steven/code/Rust/copybook-rs/target/baselines/performance.json
+#         Baseline file: target/baselines/performance.json
 #         History entries: 0
 
 # Validate test performance JSON
@@ -492,11 +492,11 @@ cargo run --bin bench-report -p copybook-bench -- validate test_perf.json
 #         Status: success
 
 # Check baselines directory
-ls -la /home/steven/code/Rust/copybook-rs/copybook-bench/baselines/
+ls -la copybook-bench/baselines/
 # Output: No such file or directory (baseline not established)
 
 # Create baselines directory
-mkdir -p /home/steven/code/Rust/copybook-rs/target/baselines/
+mkdir -p target/baselines/
 ```
 
 ### Benchmark Data Sources

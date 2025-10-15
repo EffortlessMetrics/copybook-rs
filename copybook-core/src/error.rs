@@ -44,6 +44,7 @@ impl fmt::Display for Error {
 /// - **CBKD**: Data decoding and field validation
 /// - **CBKE**: Encoding and JSON serialization
 /// - **CBKF**: File format and structure validation
+/// - **CBKI**: Iterator and infrastructure state validation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)] // These are stable external error codes
 pub enum ErrorCode {
@@ -108,6 +109,12 @@ pub enum ErrorCode {
     CBKD415_ZONED_ENCODING_AMBIGUOUS,
 
     // =============================================================================
+    // Infrastructure Errors (CBKI*) - Iterator and internal state validation
+    // =============================================================================
+    /// CBKI001: Iterator or decoder encountered an invalid internal state
+    CBKI001_INVALID_STATE,
+
+    // =============================================================================
     // Encode Errors (CBKE*) - JSON to binary encoding validation
     // =============================================================================
     /// CBKE501: JSON value type doesn't match expected field type
@@ -158,6 +165,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKD413_ZONED_INVALID_ENCODING => "CBKD413_ZONED_INVALID_ENCODING",
             ErrorCode::CBKD414_ZONED_MIXED_ENCODING => "CBKD414_ZONED_MIXED_ENCODING",
             ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => "CBKD415_ZONED_ENCODING_AMBIGUOUS",
+            ErrorCode::CBKI001_INVALID_STATE => "CBKI001_INVALID_STATE",
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH => "CBKE501_JSON_TYPE_MISMATCH",
             ErrorCode::CBKE505_SCALE_MISMATCH => "CBKE505_SCALE_MISMATCH",
             ErrorCode::CBKE510_NUMERIC_OVERFLOW => "CBKE510_NUMERIC_OVERFLOW",

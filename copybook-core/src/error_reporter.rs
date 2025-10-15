@@ -348,6 +348,9 @@ impl ErrorReporter {
             | ErrorCode::CBKD414_ZONED_MIXED_ENCODING
             | ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => ErrorSeverity::Error,
 
+            // Iterator/internal state errors are fatal
+            ErrorCode::CBKI001_INVALID_STATE => ErrorSeverity::Fatal,
+
             // Audit errors
             ErrorCode::CBKA001_BASELINE_ERROR => ErrorSeverity::Error,
         }

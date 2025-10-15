@@ -9,7 +9,8 @@ use serde_json::Value;
 use std::io::{BufRead, BufReader, Read};
 
 const FIXED_FORMAT_LRECL_MISSING: &str =
-    "Fixed format requires a fixed record length (LRECL).";
+    "Fixed format requires a fixed record length (LRECL). \
+     Set `schema.lrecl_fixed` or use `RecordFormat::Variable`.";
 
 /// Iterator over records in a data file, yielding decoded JSON values
 /// 

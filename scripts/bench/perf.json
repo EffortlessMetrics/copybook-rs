@@ -1,28 +1,28 @@
 {
-  "timestamp": "2025-10-15T18:26:42Z",
-  "commit": "9c09edf",
+  "timestamp": "2025-10-15T19:42:41Z",
+  "commit": "a92e649",
   "toolchain": "cargo bench (criterion)",
   "status": "pass",
-  "display_mibps": 188.3751252722147,
-  "display_gibps": 0.18396008327364716,
-  "comp3_mibps": 53.71633577642179,
+  "display_mibps": 156.3557694951574,
+  "display_gibps": 0.15269118114761465,
+  "comp3_mibps": 52.03993967193606,
   "benchmarks": [
     {
       "name": "slo_validation/display_heavy_slo_80mbps",
-      "mean_ns": 25313170.065,
+      "mean_ns": 30496933.995,
       "bytes_processed": 5000000,
-      "mean_mibps": 188.3751252722147
+      "mean_mibps": 156.3557694951574
     },
     {
       "name": "slo_validation/comp3_heavy_slo_40mbps",
-      "mean_ns": 10652338.466000004,
+      "mean_ns": 10995489.108,
       "bytes_processed": 600000,
-      "mean_mibps": 53.71633577642179
+      "mean_mibps": 52.03993967193606
     }
   ],
   "summary": {
-    "display_mibps": 188.3751252722147,
-    "comp3_mibps": 53.71633577642179,
+    "display_mibps": 156.3557694951574,
+    "comp3_mibps": 52.03993967193606,
     "max_rss_mib": 4
   }
 }

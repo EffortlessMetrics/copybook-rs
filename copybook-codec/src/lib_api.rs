@@ -264,9 +264,16 @@ pub fn decode_record_with_raw_data(
     use serde_json::Map;
 
     let mut json_obj = Map::new();
+    let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
 
     // Recursively process all fields
-    process_fields_recursive(&schema.fields, data, &mut json_obj, options)?;
+    process_fields_recursive(
+        &schema.fields,
+        data,
+        &mut json_obj,
+        options,
+        &mut scratch_buffers,
+    )?;
 
     // Add raw data if requested
     match options.emit_raw {
@@ -303,22 +310,35 @@ fn process_fields_recursive(
     data: &[u8],
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
+    scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
 ) -> Result<()> {
     use copybook_core::FieldKind;
-
-    let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
 
     for (field_index, field) in fields.iter().enumerate() {
         // Check if this field has an OCCURS clause
         if let Some(occurs) = &field.occurs {
-            process_array_field(field, occurs, data, json_obj, options, fields)?;
+            process_array_field(
+                field,
+                occurs,
+                data,
+                json_obj,
+                options,
+                fields,
+                scratch_buffers,
+            )?;
             continue;
         }
 
         match &field.kind {
             FieldKind::Group => {
                 // Process children fields recursively
-                process_fields_recursive(&field.children, data, json_obj, options)?;
+                process_fields_recursive(
+                    &field.children,
+                    data,
+                    json_obj,
+                    options,
+                    scratch_buffers,
+                )?;
             }
             _ => {
                 // Process scalar field
@@ -389,6 +409,7 @@ fn process_fields_recursive(
                     FieldKind::BinaryInt { bits, signed } => {
                         let int_value =
                             crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+                        // Initialize scratch once per walk and reuse across hot conversions.
                         let scratch =
                             scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
                         let formatted = crate::numeric::format_binary_int_to_string_with_scratch(
@@ -587,6 +608,7 @@ fn process_array_field(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     all_fields: &[copybook_core::Field],
+    scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
 ) -> Result<()> {
     use copybook_core::{FieldKind, Occurs};
 
@@ -637,7 +659,13 @@ fn process_array_field(
                 // For group fields, create a modified field with adjusted offsets for this element
                 let mut element_obj = serde_json::Map::new();
                 let adjusted_children = adjust_field_offsets(&field.children, element_start);
-                process_fields_recursive(&adjusted_children, data, &mut element_obj, options)?;
+                process_fields_recursive(
+                    &adjusted_children,
+                    data,
+                    &mut element_obj,
+                    options,
+                    scratch_buffers,
+                )?;
                 Value::Object(element_obj)
             }
             _ => {

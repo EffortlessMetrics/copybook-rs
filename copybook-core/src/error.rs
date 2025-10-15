@@ -41,10 +41,10 @@ impl fmt::Display for Error {
 /// - **CBKS**: Schema validation and ODO processing
 /// - **CBKR**: Record format and RDW processing
 /// - **CBKC**: Character conversion and encoding
-/// - **CBKD**: Data decoding and field validation
-/// - **CBKE**: Encoding and JSON serialization
-/// - **CBKF**: File format and structure validation
-/// - **CBKI**: Iterator and infrastructure state validation
+/// - **CBKD**: Data decoding and field validation  
+/// - **CBKE**: Encoding and JSON serialization  
+/// - **CBKF**: File format and structure validation  
+/// - **CBKI**: Iterator and infrastructure state validation (e.g., fixed-format without LRECL -> `CBKI001_INVALID_STATE`)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)] // These are stable external error codes
 pub enum ErrorCode {

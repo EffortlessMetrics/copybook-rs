@@ -2455,8 +2455,16 @@ pub fn decode_packed_decimal_to_string_with_scratch(
     Ok(result)
 }
 
-/// Format a binary integer using the reusable scratch string buffer.
-/// Preserves negative signs without relying on `to_string` allocations.
+/// Format a binary integer into the caller-owned scratch buffer.
+///
+/// ## Why scratch?
+/// Avoids hot-path allocations in codec routes that emit integers frequently
+/// (zoned/packed/binary). This writes into `scratch` and returns that buffer,
+/// so callers must reuse the same `ScratchBuffers` instance across a walk.
+///
+/// ## Contract
+/// - No allocations on the hot path
+/// - Returns the scratch-backed `String` (valid until next reuse/clear)
 #[inline]
 pub fn format_binary_int_to_string_with_scratch(
     value: i64,

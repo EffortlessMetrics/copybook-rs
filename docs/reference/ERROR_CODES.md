@@ -311,6 +311,21 @@ Array length: 150
 Bounds: min=1, max=100
 ```
 
+### Iterator and Infrastructure Errors (CBKI*)
+
+Iterator pipelines emit these errors when runtime configuration is inconsistent or missing required context.
+
+#### CBKI001_INVALID_STATE
+**Description**: Iterator detected an invalid state (e.g., fixed-format without configured LRECL)
+**Severity**: Fatal
+**Context**: Record format, iterator index, configuration hint
+**Resolution**: Set `schema.lrecl_fixed` or switch to `RecordFormat::Variable` before iterating
+
+```
+Error: CBKI001_INVALID_STATE on first record
+Fixed format iterator requires LRECL; set schema.lrecl_fixed or use RecordFormat::Variable
+```
+
 ### File I/O Errors (CBKF*)
 
 Errors in file operations and transfer corruption detection.

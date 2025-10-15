@@ -10,7 +10,8 @@
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
 
-#[cfg(test)]
+// Visible in tests; harmless in non-test builds. Keep pedantic quiet.
+#[allow(dead_code)]
 const DEFAULT_PROPTEST_CASE_COUNT: u32 = 512;
 
 /// Zero sign policy for overpunch encoding

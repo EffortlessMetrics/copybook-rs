@@ -810,6 +810,8 @@ bash scripts/bench.sh
 scripts\bench.bat
 ```
 
+Set `BENCH_FILTER=all` (or any Criterion filter) to widen coverage while keeping receipts in `scripts/bench/perf.json`.
+
 Artifacts: `scripts/bench/perf.json` (90-day retention in CI). Targets: DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s.
 
 ## Development

@@ -48,12 +48,12 @@
 - **Strategy**: Replace 30,000+ line Python framework with 500-line Rust solution
 
 **Key Files Added**:
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/src/reporting.rs` (155 lines)
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs` (229 lines)
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/src/bin/bench-report.rs` (259 lines)
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/tests/json_fuzzing_tests.rs` (349 lines)
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/tests/cli_tool_mutation_testing.rs` (468 lines)
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/tests/baseline_management_mutation.rs` (304 lines)
+- `copybook-bench/src/reporting.rs` (155 lines)
+- `copybook-bench/src/baseline.rs` (229 lines)
+- `copybook-bench/src/bin/bench-report.rs` (259 lines)
+- `copybook-bench/tests/json_fuzzing_tests.rs` (349 lines)
+- `copybook-bench/tests/cli_tool_mutation_testing.rs` (468 lines)
+- `copybook-bench/tests/baseline_management_mutation.rs` (304 lines)
 
 **Major Removals**:
 - Python utilities suite (~5,000 lines)

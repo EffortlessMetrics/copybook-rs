@@ -33,7 +33,7 @@
 - **Rust-Native Solution**: Replaced 30K+ Python framework with 500-line focused Rust implementation
 - **Zero Dependencies**: No external Python/Ruby/Node dependencies for benchmark infrastructure
 - **Clean Separation**: `reporting.rs`, `baseline.rs`, `bench-report` CLI with clear responsibilities
-- **Evidence**: `/home/steven/code/Rust/copybook-rs/copybook-bench/src/{reporting.rs,baseline.rs,bin/bench-report.rs}`
+- **Evidence**: `copybook-bench/src/{reporting.rs,baseline.rs,bin/bench-report.rs}`
 
 ### Implementation Quality ✅
 - **Production-Ready CLI**: `bench-report` tool with 4 subcommands (validate, baseline promote/show, compare, summary)
@@ -55,7 +55,7 @@
 - **PR Automation**: Automatic PR comments with performance tables and SLO status
 - **Artifact Management**: 14-day benchmark retention, 90-day baseline retention
 - **Baseline Promotion**: Automatic promotion on main branch merges
-- **Evidence**: `/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml` (308 lines, comprehensive)
+- **Evidence**: `.github/workflows/benchmark.yml` (308 lines, comprehensive)
 
 ### Documentation Standards ✅
 - **PR Description**: 98-line comprehensive description with AC mapping

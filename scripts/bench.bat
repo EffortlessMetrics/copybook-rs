@@ -1,21 +1,24 @@
 @echo off
-REM Run performance benchmarks on Windows
-REM Usage: scripts\bench.bat
-
-echo Running copybook-rs performance benchmarks...
-echo This requires PERF=1 environment variable to enable criterion benchmarks
-
-if not "%PERF%"=="1" (
-    echo PERF environment variable not set to 1. Benchmarks are gated behind this flag.
-    echo Run with: set PERF=1 ^&^& scripts\bench.bat
-    exit /b 1
+setlocal enabledelayedexpansion
+set PERF=1
+set RUSTFLAGS=-C target-cpu=native
+if "%BENCH_FILTER%"=="" (
+  set "BENCH_FILTER=slo_validation"
 )
+cargo bench -p copybook-bench -- %BENCH_FILTER% --output-format json --quiet > target\perf.json
+if not exist scripts\bench mkdir scripts\bench
+copy /Y target\perf.json scripts\bench\perf.json >NUL
+echo ✅ receipts: scripts\bench\perf.json
 
-echo Building benchmark crate...
-cargo build --release -p copybook-bench
-
-echo Running benchmarks...
-cargo bench -p copybook-bench
-
-echo Benchmark results saved to target\criterion\
-echo Open target\criterion\report\index.html to view detailed results
+powershell -NoProfile -Command ^
+  "if (Test-Path scripts/bench/perf.json) { " ^
+  "  \$proc = Get-Process -Id \$PID; " ^
+  "  \$rssMB = [math]::Round((\$proc.WorkingSet64 / 1MB), 0); " ^
+  "  \$summary = @{display_mibps=0; comp3_mibps=0; max_rss_mib=\$rssMB} | ConvertTo-Json; " ^
+  "  \$perf = Get-Content scripts/bench/perf.json | ConvertFrom-Json; " ^
+  "  \$perf | Add-Member -Name summary -Value (\$summary | ConvertFrom-Json) -MemberType NoteProperty -Force; " ^
+  "  \$perf | ConvertTo-Json -Depth 10 | Set-Content scripts/bench/perf.json; " ^
+  "  Write-Host '✅ appended summary to scripts/bench/perf.json'; " ^
+  "} else { " ^
+  "  Write-Warning 'perf.json missing; skipping summary append'; " ^
+  "}"

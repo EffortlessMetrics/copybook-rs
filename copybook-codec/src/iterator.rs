@@ -1,12 +1,16 @@
 //! Record iterator for streaming access to decoded records
-//!
+//! 
 //! This module provides iterator-based access to records for programmatic processing,
 //! allowing users to process records one at a time without loading entire files into memory.
 
 use crate::options::{DecodeOptions, RecordFormat};
-use copybook_core::{Schema, Error, ErrorCode, Result};
+use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
+
+const FIXED_FORMAT_LRECL_MISSING: &str =
+    "Fixed format requires a fixed record length (LRECL). \
+     Set `schema.lrecl_fixed` or use `RecordFormat::Variable`.";
 
 /// Iterator over records in a data file, yielding decoded JSON values
 /// 
@@ -69,21 +73,6 @@ impl<R: Read> RecordIterator<R> {
     /// 
     /// Returns an error if the record format is incompatible with the schema
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
-        // Validate format compatibility with schema
-        match options.format {
-            RecordFormat::Fixed => {
-                if schema.lrecl_fixed.is_none() {
-                    return Err(Error::new(
-                        ErrorCode::CBKP001_SYNTAX,
-                        "Schema does not specify fixed record length (LRECL) but fixed format requested"
-                    ));
-                }
-            }
-            RecordFormat::RDW => {
-                // RDW format is always compatible
-            }
-        }
-
         Ok(Self {
             reader: BufReader::new(reader),
             schema: schema.clone(),
@@ -136,7 +125,12 @@ impl<R: Read> RecordIterator<R> {
         
         let record_data = match self.options.format {
             RecordFormat::Fixed => {
-                let lrecl = self.schema.lrecl_fixed.unwrap() as usize;
+                let lrecl = self.schema.lrecl_fixed.ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKI001_INVALID_STATE,
+                        FIXED_FORMAT_LRECL_MISSING,
+                    )
+                })? as usize;
                 self.buffer.resize(lrecl, 0);
                 
                 match self.reader.read_exact(&mut self.buffer) {
@@ -386,5 +380,28 @@ mod tests {
         // Should get an error due to incomplete record
         let result = iterator.read_raw_record();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_iterator_fixed_format_missing_lrecl_errors_on_next() {
+        // A schema without a fixed record length
+        let copybook_text = "01 SOME-GROUP. 05 SOME-FIELD PIC X(1) OCCURS 1 TO 5 TIMES DEPENDING ON ODO-COUNTER.";
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = None; // Ensure it's None
+
+        let test_data = b"";
+        let cursor = Cursor::new(test_data);
+
+        let mut options = DecodeOptions::default();
+        options.format = RecordFormat::Fixed;
+
+        let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        let first = iterator.next().unwrap();
+        assert!(first.is_err());
+        if let Err(e) = first {
+            assert_eq!(e.code, ErrorCode::CBKI001_INVALID_STATE);
+            assert_eq!(e.message, FIXED_FORMAT_LRECL_MISSING);
+        }
     }
 }

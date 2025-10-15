@@ -34,6 +34,7 @@ pub mod memory;
 pub mod numeric;
 pub mod options;
 pub mod record;
+pub mod zoned_overpunch;
 
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,

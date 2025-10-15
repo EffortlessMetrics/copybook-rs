@@ -149,7 +149,7 @@ Remove existing benchmark artifacts and ensure clean state:
 
 ```bash
 # Navigate to workspace root
-cd /home/steven/code/Rust/copybook-rs
+cd $HOME/code/Rust/copybook-rs
 
 # Remove existing benchmark artifacts
 echo "Removing existing benchmark artifacts..."

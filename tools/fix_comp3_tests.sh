@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FILE="/home/steven/code/Rust/copybook-rs/copybook-codec/tests/comp3_property_tests.rs"
+FILE="copybook-codec/tests/comp3_property_tests.rs"
 
 # Replace EncodeOptions struct literals
 sed -i 's/let enc = EncodeOptions {$/let enc = EncodeOptions::new()/' "$FILE"

@@ -53,7 +53,7 @@ docs/
 **Validation Results:**
 ```bash
 $ cargo doc --workspace --no-deps
-✅ Generated /home/steven/code/Rust/copybook-rs/target/doc/copybook_bench/index.html and 5 other files
+✅ Generated target/doc/copybook_bench/index.html and 5 other files
 
 $ cargo test --doc --workspace
 ✅ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out

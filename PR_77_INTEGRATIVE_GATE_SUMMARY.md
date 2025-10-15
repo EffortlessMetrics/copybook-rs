@@ -333,12 +333,12 @@ rust_versions: 1.90.0/stable/beta (all failed)
 
 ## Evidence Files
 
-- `/home/steven/code/Rust/copybook-rs/docs/issue-102-spec.md`
-- `/home/steven/code/Rust/copybook-rs/docs/issue-102-technical-analysis.md`
-- `/home/steven/code/Rust/copybook-rs/docs/issue-102-spec-gate-receipt.md`
-- `/home/steven/code/Rust/copybook-rs/docs/issue-102-docs-finalizer-receipt.md`
-- `/home/steven/code/Rust/copybook-rs/docs/issue-102-pr-publisher-receipt.md`
-- `/home/steven/code/Rust/copybook-rs/docs/issue-104-policy-gatekeeper-receipt.md`
+- `docs/issue-102-spec.md`
+- `docs/issue-102-technical-analysis.md`
+- `docs/issue-102-spec-gate-receipt.md`
+- `docs/issue-102-docs-finalizer-receipt.md`
+- `docs/issue-102-pr-publisher-receipt.md`
+- `docs/issue-104-policy-gatekeeper-receipt.md`
 - PR Description: https://github.com/EffortlessMetrics/copybook-rs/pull/105
 - CI Run: https://github.com/EffortlessMetrics/copybook-rs/actions/runs/18236728479
 

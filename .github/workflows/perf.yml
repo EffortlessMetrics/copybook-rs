@@ -1,0 +1,117 @@
+name: Perf Receipts
+on:
+  pull_request:
+    paths:
+      - "copybook-bench/**"
+      - "copybook-codec/**"
+      - "scripts/bench.sh"
+      - "scripts/bench.bat"
+      - "scripts/guard-hotpaths.sh"
+      - "justfile"
+
+jobs:
+  perf:
+    concurrency:
+      group: perf-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      - name: Hot-path guard
+        run: bash scripts/guard-hotpaths.sh
+
+      - name: Hygiene and build
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic
+          cargo build --workspace --release
+          cargo nextest run --workspace
+
+      - name: Property tests (fast deterministic)
+        env:
+          PROPTEST_CASES: "256"
+          PROPTEST_SEED: ${{ env.PROPTEST_SEED || 'copybook-rs-perf' }}
+        run: |
+          cargo test -p copybook-codec \
+            prop_zoned_digit_buffer_contains_only_digits \
+            zoned_overpunch \
+            -- --nocapture
+
+      - name: Run benches (JSON)
+        run: bash scripts/bench.sh
+
+      - name: Upload perf receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-json
+          path: scripts/bench/perf.json
+          retention-days: 90
+
+      - name: Summarize SLOs (robust jq)
+        id: slo
+        shell: bash
+        run: |
+          f=scripts/bench/perf.json
+          disp=$(jq -r '
+            [
+              .display_mibps?,
+              .metrics?.display_mibps?,
+              (.benchmarks[]? | .display_mibps?),
+              (.benchmarks[]? | .throughput_mib? | select(. != null))
+            ] | map(select(. != null)) | (max // 0)
+          ' "$f")
+
+          comp=$(jq -r '
+            [
+              .comp3_mibps?,
+              .metrics?.comp3_mibps?,
+              (.benchmarks[]? | .comp3_mibps?),
+              (.benchmarks[]? | .comp3_throughput_mib?),
+              (.benchmarks[]? | .throughput_mib? | select(. != null and . < 200))
+            ] | map(select(. != null)) | (max // 0)
+          ' "$f")
+
+          echo "display=$disp" >> "$GITHUB_OUTPUT"
+          echo "comp3=$comp"   >> "$GITHUB_OUTPUT"
+
+      - name: Gate on SLOs
+        env:
+          DISPLAY_MIB: ${{ steps.slo.outputs.display }}
+          COMP3_MIB: ${{ steps.slo.outputs.comp3 }}
+        run: |
+          disp="${DISPLAY_MIB:-0}"
+          comp="${COMP3_MIB:-0}"
+          rss=$(jq -r '.summary.max_rss_mib // 0' scripts/bench/perf.json)
+          echo "display=$disp comp3=$comp max_rss_mib=$rss"
+          awk -v d="$disp" -v c="$comp" -v r="$rss" 'BEGIN{
+            if (d<80 || c<40 || r>256) {print "SLO FAIL: display=" d " comp3=" c " max_rss_mib=" r; exit 1}
+            else {print "SLO PASS: display=" d " comp3=" c " max_rss_mib=" r}
+          }'
+
+      - name: Job summary
+        if: ${{ always() }}
+        run: |
+          if [[ ! -f scripts/bench/perf.json ]]; then
+            echo "### Numeric Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Receipts missing; see step logs for details." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "### Numeric Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
+          echo "- DISPLAY: **${{ steps.slo.outputs.display }} MiB/s**  (floor ≥ 80)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- COMP-3:  **${{ steps.slo.outputs.comp3 }} MiB/s**  (floor ≥ 40)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Max RSS: **$(jq -r '.summary.max_rss_mib // \"n/a\"' scripts/bench/perf.json) MiB**  (ceiling ≤ 256)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: \`scripts/bench/perf.json\` (90-day retention)" >> "$GITHUB_STEP_SUMMARY"

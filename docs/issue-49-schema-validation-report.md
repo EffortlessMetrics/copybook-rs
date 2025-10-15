@@ -35,25 +35,25 @@
 ### Documents Validated
 
 1. **Explanation Document** (Understanding-Oriented):
-   - **File**: `/home/steven/code/Rust/copybook-rs/docs/explanation/performance-regression-monitoring.md`
+   - **File**: `docs/explanation/performance-regression-monitoring.md`
    - **Lines**: 1177 lines
    - **Diátaxis Category**: ✅ Explanation
    - **Coverage**: All ACs (AC1-AC5) with architectural context
 
 2. **API Contract Reference** (Information-Oriented):
-   - **File**: `/home/steven/code/Rust/copybook-rs/docs/reference/benchmark-api-contracts.md`
+   - **File**: `docs/reference/benchmark-api-contracts.md`
    - **Lines**: 1035 lines
    - **Diátaxis Category**: ✅ Reference
    - **Coverage**: All ACs (AC1-AC5) with API specifications
 
 3. **How-To Guide** (Task-Oriented):
-   - **File**: `/home/steven/code/Rust/copybook-rs/docs/how-to/benchmark-regression-testing.md`
+   - **File**: `docs/how-to/benchmark-regression-testing.md`
    - **Lines**: 1537 lines
    - **Diátaxis Category**: ✅ How-To
    - **Coverage**: All ACs (AC1-AC5) with step-by-step procedures
 
 4. **Traceability Matrix**:
-   - **File**: `/home/steven/code/Rust/copybook-rs/docs/issue-49-traceability-matrix.md`
+   - **File**: `docs/issue-49-traceability-matrix.md`
    - **Lines**: 907 lines
    - **Coverage**: AC-to-specification mapping with test tags
 
@@ -152,7 +152,7 @@ if regression_pct > 10.0 {
 
 **Implementation Verification**: ✅ **IMPLEMENTED**
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:113-118
+// copybook-bench/src/baseline.rs:113-118
 let regression_pct = (baseline_display - current_display) / baseline_display * 100.0;
 if regression_pct > threshold {
     regressions.push(format!(
@@ -224,7 +224,7 @@ Rust: Toolchain version, target triple
 
 **Implementation Verification**: ✅ **IMPLEMENTED**
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/benches/decode_performance.rs:14
+// copybook-bench/benches/decode_performance.rs:14
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 // Throughput measurement configured:
@@ -254,10 +254,10 @@ group.throughput(Throughput::Bytes(test_data.len() as u64));
 
 **Implementation Verification**: ✅ **IMPLEMENTED**
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/benches/decode_performance.rs:223
+// copybook-bench/benches/decode_performance.rs:223
 group.throughput(Throughput::Bytes(test_data.len() as u64));
 
-// /home/steven/code/Rust/copybook-rs/copybook-bench/benches/comp3.rs:38
+// copybook-bench/benches/comp3.rs:38
 g.throughput(Throughput::Bytes(json.len() as u64));
 ```
 
@@ -272,10 +272,10 @@ g.throughput(Throughput::Bytes(json.len() as u64));
 
 **Implementation Verification**: ✅ **IMPLEMENTED**
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/benches/decode_performance.rs:15
+// copybook-bench/benches/decode_performance.rs:15
 use std::hint::black_box;
 
-// /home/steven/code/Rust/copybook-rs/copybook-bench/benches/comp3.rs:11
+// copybook-bench/benches/comp3.rs:11
 use std::hint::black_box;
 ```
 
@@ -290,7 +290,7 @@ use std::hint::black_box;
 
 **Implementation Verification**: ✅ **DETERMINISTIC**
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/benches/decode_performance.rs:69-82
+// copybook-bench/benches/decode_performance.rs:69-82
 fn generate_display_heavy_data(record_count: usize) -> Vec<u8> {
     let mut data = Vec::new();
     for i in 0..record_count {
@@ -347,10 +347,10 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.50s
 
 **BaselineStore Retention**:
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:100
+// copybook-bench/src/baseline.rs:100
 self.apply_retention_policy(90);
 
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:136-148
+// copybook-bench/src/baseline.rs:136-148
 fn apply_retention_policy(&mut self, retention_days: i64) {
     let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days);
     self.history.retain(|baseline| {
@@ -399,7 +399,7 @@ fn apply_retention_policy(&mut self, retention_days: i64) {
 
 **Implementation Verification**: ✅ **IMPLEMENTED**
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/reporting.rs:9-30
+// copybook-bench/src/reporting.rs:9-30
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PerformanceReport {
     pub display_gibs: Option<f64>,
@@ -478,7 +478,7 @@ edition = "2024"
 
 **Issue #52 Implementation**:
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/reporting.rs:9-30
+// copybook-bench/src/reporting.rs:9-30
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PerformanceReport {
     pub display_gibs: Option<f64>,
@@ -521,7 +521,7 @@ pub struct PerformanceReport {
 
 **Issue #52 Implementation**:
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:38-151
+// copybook-bench/src/baseline.rs:38-151
 impl BaselineStore {
     pub fn new() -> Self;
     pub fn load_or_create<P: AsRef<Path>>(path: P) -> anyhow::Result<Self>;
@@ -554,7 +554,7 @@ impl BaselineStore {
 
 **Proof of Implementation**:
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:104-134
+// copybook-bench/src/baseline.rs:104-134
 pub fn check_regression(&self, report: &PerformanceReport, threshold: f64) -> Vec<String> {
     let mut regressions = Vec::new();
 
@@ -611,7 +611,7 @@ COMMANDS:
 
 **Proof of Implementation**:
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/bin/bench-report.rs:156-196
+// copybook-bench/src/bin/bench-report.rs:156-196
 fn compare_performance(args: &[String]) -> Result<()> {
     // ... load report and baseline ...
     let regressions = store.check_regression(&report, 5.0); // 5% threshold
@@ -1433,20 +1433,20 @@ pub enum BenchmarkError {
 ### 12.1 File Locations
 
 **Specification Documents**:
-- `/home/steven/code/Rust/copybook-rs/docs/explanation/performance-regression-monitoring.md`
-- `/home/steven/code/Rust/copybook-rs/docs/reference/benchmark-api-contracts.md`
-- `/home/steven/code/Rust/copybook-rs/docs/how-to/benchmark-regression-testing.md`
-- `/home/steven/code/Rust/copybook-rs/docs/issue-49-traceability-matrix.md`
+- `docs/explanation/performance-regression-monitoring.md`
+- `docs/reference/benchmark-api-contracts.md`
+- `docs/how-to/benchmark-regression-testing.md`
+- `docs/issue-49-traceability-matrix.md`
 
 **Issue #52 Foundation Implementation**:
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs` (151 lines)
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/src/reporting.rs` (156 lines)
-- `/home/steven/code/Rust/copybook-rs/copybook-bench/src/bin/bench-report.rs` (260 lines)
-- `/home/steven/code/Rust/copybook-rs/.github/workflows/benchmark.yml` (308 lines)
+- `copybook-bench/src/baseline.rs` (151 lines)
+- `copybook-bench/src/reporting.rs` (156 lines)
+- `copybook-bench/src/bin/bench-report.rs` (260 lines)
+- `.github/workflows/benchmark.yml` (308 lines)
 
 **Existing Documentation**:
-- `/home/steven/code/Rust/copybook-rs/CLAUDE.md` (258 lines)
-- `/home/steven/code/Rust/copybook-rs/docs/REPORT.md` (100 lines)
+- `CLAUDE.md` (258 lines)
+- `docs/REPORT.md` (100 lines)
 
 ### 12.2 Test Execution Results
 
@@ -1486,7 +1486,7 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.50s
 
 **check_regression() Implementation** (AC1):
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:104-134
+// copybook-bench/src/baseline.rs:104-134
 pub fn check_regression(&self, report: &PerformanceReport, threshold: f64) -> Vec<String> {
     let mut regressions = Vec::new();
     if let Some(baseline) = &self.current {
@@ -1502,7 +1502,7 @@ pub fn check_regression(&self, report: &PerformanceReport, threshold: f64) -> Ve
 
 **compare CLI Command Implementation** (AC1):
 ```rust
-// /home/steven/code/Rust/copybook-rs/copybook-bench/src/bin/bench-report.rs:156-196
+// copybook-bench/src/bin/bench-report.rs:156-196
 fn compare_performance(args: &[String]) -> Result<()> {
     let regressions = store.check_regression(&report, 5.0); // 5% threshold
     if regressions.is_empty() {

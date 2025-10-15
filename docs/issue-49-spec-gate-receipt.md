@@ -81,8 +81,8 @@ Specifications for Issue #49 have been **successfully finalized and committed** 
 - ✅ Validation evidence requirements defined
 
 **Existing Implementation**:
-- `BaselineStore::check_regression()` - `/home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:104-134`
-- `bench-report compare` CLI - `/home/steven/code/Rust/copybook-rs/copybook-bench/src/bin/bench-report.rs:156-196`
+- `BaselineStore::check_regression()` - `copybook-bench/src/baseline.rs:104-134`
+- `bench-report compare` CLI - `copybook-bench/src/bin/bench-report.rs:156-196`
 
 **Test Approach**: Validation tests for existing functionality
 

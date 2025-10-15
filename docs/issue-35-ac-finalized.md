@@ -269,10 +269,10 @@ unsafe_code = "forbid"
 
 ## Specification References
 
-- **Primary Specification**: `/home/steven/code/Rust/copybook-rs/docs/issue-35-spec.md`
-- **Technical Approach**: `/home/steven/code/Rust/copybook-rs/docs/issue-35-technical-approach.md`
+- **Primary Specification**: `docs/issue-35-spec.md`
+- **Technical Approach**: `docs/issue-35-technical-approach.md`
 - **GitHub Issue**: https://github.com/EffortlessMetrics/copybook-rs/issues/35
-- **This Document**: `/home/steven/code/Rust/copybook-rs/docs/issue-35-ac-finalized.md`
+- **This Document**: `docs/issue-35-ac-finalized.md`
 
 ## Routing Decision
 

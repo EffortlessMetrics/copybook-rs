@@ -182,7 +182,7 @@ cargo run --bin bench-report -p copybook-bench -- compare perf.json
 **Expected Impact**: Zero performance regression (field name is string literal constant)
 
 #### Phase 8: Documentation Update (AC10)
-**File**: `/home/steven/code/Rust/copybook-rs/CLAUDE.md`
+**File**: `CLAUDE.md`
 **Section**: Library API or CLI Usage
 
 **Content to Add**:

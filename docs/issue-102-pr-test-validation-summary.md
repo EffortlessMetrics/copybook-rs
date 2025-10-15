@@ -145,9 +145,9 @@ workspace: 5/5 crates validated (core/codec/cli/gen/bench)
 
 ## Documentation Artifacts
 
-1. **Comprehensive Receipt**: `/home/steven/code/Rust/copybook-rs/docs/issue-102-tests-gate-receipt.md`
-2. **Contract Validation**: `/home/steven/code/Rust/copybook-rs/docs/issue-102-contract-gate-receipt.md`
-3. **Test Summary**: `/home/steven/code/Rust/copybook-rs/docs/issue-102-pr-test-validation-summary.md`
+1. **Comprehensive Receipt**: `docs/issue-102-tests-gate-receipt.md`
+2. **Contract Validation**: `docs/issue-102-contract-gate-receipt.md`
+3. **Test Summary**: `docs/issue-102-pr-test-validation-summary.md`
 
 ---
 

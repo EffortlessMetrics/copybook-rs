@@ -23,6 +23,7 @@ Quick reference matrix for diagnosing and resolving copybook-rs issues, organize
 | CBKE501 | Encode | Fatal | Fix JSON type | [Encode Errors](#encode-errors) |
 | CBKE521 | Encode | Fatal | Fix array length | [Encode Errors](#encode-errors) |
 | CBKF104 | File | Warning | Check transfer mode | [File Errors](#file-errors) |
+| CBKI001 | Iterator | Fatal | Provide LRECL before iterating | [Iterator Errors](#iterator-errors) |
 
 ## Parse Errors
 
@@ -532,6 +533,28 @@ copybook decode schema.cpy data.bin --output copybook.jsonl
 copybook parse schema.cpy --output schema.json
 copybook verify schema.cpy data.bin --format fixed
 ```
+
+## Iterator Errors
+
+### CBKI001_INVALID_STATE
+
+**Symptoms:**
+- "Fixed format requires a fixed record length (LRECL)."
+- `RecordIterator::next()` fails on the first call.
+
+**Diagnosis:**
+```bash
+# Confirm the schema exposes a fixed LRECL
+copybook inspect schema.cpy --show-metadata | grep LRECL
+```
+
+**Solution:**
+- Populate `schema.lrecl_fixed` before iterating in fixed mode; downstream retries will succeed once the length is set.
+- If the copybook truly varies per record, switch to `RecordFormat::Variable` (or provide an ODO-derived length) instead of forcing fixed mode.
+
+**CBKI001_INVALID_STATE** on first `next()` with `RecordFormat::Fixed`:
+- Cause: `schema.lrecl_fixed` is `None` (variable schema, ODO present, or not set).
+- Fix: Fixed format? Set `schema.lrecl_fixed` or change `RecordFormat` to `Variable` / supply ODO length. Error text: `Fixed format requires a fixed record length (LRECL).`
 
 ## Getting Additional Help
 

@@ -93,7 +93,7 @@ contract: cargo check: workspace ok; docs: 0/0 examples pass; api: none
 **Status**: PASS (none)
 
 **Artifacts**:
-- 📄 Full Receipt: `/home/steven/code/Rust/copybook-rs/docs/issue-102-contract-gate-receipt.md`
+- 📄 Full Receipt: `docs/issue-102-contract-gate-receipt.md`
 - 📊 Evidence: Compilation clean, tests passing, API surface stable
 - 🔍 Validation: 529 tests, 0 API changes, 0 error code changes
 

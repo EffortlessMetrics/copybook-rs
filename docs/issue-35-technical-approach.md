@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document provides a comprehensive technical approach for implementing enterprise-grade dependency and security scanning infrastructure for copybook-rs. The analysis validates the specification in `/home/steven/code/Rust/copybook-rs/docs/issue-35-spec.md` and provides detailed implementation guidance aligned with copybook-rs enterprise mainframe data processing requirements.
+This document provides a comprehensive technical approach for implementing enterprise-grade dependency and security scanning infrastructure for copybook-rs. The analysis validates the specification in `docs/issue-35-spec.md` and provides detailed implementation guidance aligned with copybook-rs enterprise mainframe data processing requirements.
 
 **Status**: ✅ Specification validated, technical approach approved
 **Risk Level**: LOW - All tooling validated, architecture patterns proven
@@ -1313,7 +1313,7 @@ Clean ✅
 
 **Author**: copybook-rs spec-analyzer agent (generative flow)
 **Date**: 2025-09-30
-**Specification**: /home/steven/code/Rust/copybook-rs/docs/issue-35-spec.md
+**Specification**: docs/issue-35-spec.md
 **Status**: Technical approach validated, ready for finalization
 **Next Agent**: spec-finalizer
 **Validation**: All acceptance criteria reviewed, technical feasibility confirmed, enterprise alignment validated

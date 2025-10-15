@@ -34,13 +34,14 @@ cargo fmt --all
 
 # Benchmarks
 cargo bench --package copybook-bench
-PERF=1 cargo bench  # Performance mode
+PERF=1 cargo bench -p copybook-bench -- --output-format json > target/perf.json
+mkdir -p scripts/bench && cp target/perf.json scripts/bench/perf.json
 
 # Benchmark reporting (Issue #52)
-cargo run --bin bench-report -p copybook-bench -- validate perf.json       # Validate performance JSON
-cargo run --bin bench-report -p copybook-bench -- baseline promote perf.json  # Promote to baseline
+cargo run --bin bench-report -p copybook-bench -- validate scripts/bench/perf.json       # Validate performance JSON
+cargo run --bin bench-report -p copybook-bench -- baseline promote scripts/bench/perf.json  # Promote to baseline
 cargo run --bin bench-report -p copybook-bench -- baseline show            # Show current baseline
-cargo run --bin bench-report -p copybook-bench -- compare perf.json        # Check for regressions
+cargo run --bin bench-report -p copybook-bench -- compare scripts/bench/perf.json        # Check for regressions
 cargo run --bin bench-report -p copybook-bench -- summary                  # Show performance status
 
 # Golden fixture testing
@@ -178,6 +179,8 @@ Structured error taxonomy with stable codes:
 - Workspace dependencies for consistent versions
 
 ## Performance
+
+**CI Gating**: Perf workflow enforces throughput floors (DISPLAY ≥ 80 MiB/s, COMP-3 ≥ 40 MiB/s); baseline comparisons remain advisory.
 
 **Targets vs Achieved**:
 - DISPLAY-heavy: ≥80 MB/s → **205 MiB/s (2.56x exceeded)**

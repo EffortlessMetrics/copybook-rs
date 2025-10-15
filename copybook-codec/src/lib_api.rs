@@ -264,9 +264,16 @@ pub fn decode_record_with_raw_data(
     use serde_json::Map;
 
     let mut json_obj = Map::new();
+    let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
 
     // Recursively process all fields
-    process_fields_recursive(&schema.fields, data, &mut json_obj, options)?;
+    process_fields_recursive(
+        &schema.fields,
+        data,
+        &mut json_obj,
+        options,
+        &mut scratch_buffers,
+    )?;
 
     // Add raw data if requested
     match options.emit_raw {
@@ -303,20 +310,35 @@ fn process_fields_recursive(
     data: &[u8],
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
+    scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
 ) -> Result<()> {
     use copybook_core::FieldKind;
 
     for (field_index, field) in fields.iter().enumerate() {
         // Check if this field has an OCCURS clause
         if let Some(occurs) = &field.occurs {
-            process_array_field(field, occurs, data, json_obj, options, fields)?;
+            process_array_field(
+                field,
+                occurs,
+                data,
+                json_obj,
+                options,
+                fields,
+                scratch_buffers,
+            )?;
             continue;
         }
 
         match &field.kind {
             FieldKind::Group => {
                 // Process children fields recursively
-                process_fields_recursive(&field.children, data, json_obj, options)?;
+                process_fields_recursive(
+                    &field.children,
+                    data,
+                    json_obj,
+                    options,
+                    scratch_buffers,
+                )?;
             }
             _ => {
                 // Process scalar field
@@ -387,11 +409,13 @@ fn process_fields_recursive(
                     FieldKind::BinaryInt { bits, signed } => {
                         let int_value =
                             crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-                        if *signed {
-                            Value::String((int_value as i64).to_string())
-                        } else {
-                            Value::String(int_value.to_string())
-                        }
+                        // Initialize scratch once per walk and reuse across hot conversions.
+                        let scratch =
+                            scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
+                        let formatted = crate::numeric::format_binary_int_to_string_with_scratch(
+                            int_value, scratch,
+                        );
+                        Value::String(formatted)
                     }
                     FieldKind::PackedDecimal {
                         digits,
@@ -403,7 +427,8 @@ fn process_fields_recursive(
                         let decimal = crate::numeric::decode_packed_decimal(
                             field_data, *digits, *scale, *signed,
                         )?;
-                        Value::String(decimal.to_string())
+                        let formatted = decimal.to_string();
+                        Value::String(formatted)
                     }
                     FieldKind::Group => unreachable!(), // Already handled above
                     FieldKind::Condition { values } => {
@@ -411,7 +436,7 @@ fn process_fields_recursive(
                         // In COBOL, these define named constants or ranges for their parent field
                         // Return a structured representation for API consistency
                         if values.is_empty() {
-                            Value::String("CONDITION".to_string())
+                            Value::String("CONDITION".to_owned())
                         } else {
                             Value::String(format!("CONDITION({})", values.join("|")))
                         }
@@ -520,45 +545,33 @@ fn process_fields_recursive_with_scratch(
                             scale,
                             signed,
                         } => {
-                            // OPTIMIZED: Use scratch buffer for string formatting
-                            // AC:5 - Apply same digit formatting as non-scratch path for consistency
-                            let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
-                                field_data,
-                                *digits,
-                                *scale,
-                                *signed,
-                                options.codepage,
-                                field.blank_when_zero,
-                                scratch,
-                            )?;
-                            let formatted = if *scale == 0 {
-                                format_zoned_decimal_with_digits(
-                                    &decimal,
+                            let decimal_str =
+                                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                                    field_data,
                                     *digits,
+                                    *scale,
+                                    *signed,
+                                    options.codepage,
                                     field.blank_when_zero,
-                                )
-                            } else {
-                                decimal
-                                    .format_to_scratch_buffer(*scale, &mut scratch.string_buffer);
-                                std::mem::take(&mut scratch.string_buffer)
-                            };
-                            Value::String(formatted)
+                                    scratch,
+                                )?;
+                            Value::String(decimal_str)
                         }
                         FieldKind::BinaryInt { bits, signed } => {
                             let int_value =
                                 crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-                            if *signed {
-                                Value::String((int_value as i64).to_string())
-                            } else {
-                                Value::String(int_value.to_string())
-                            }
+                            let formatted =
+                                crate::numeric::format_binary_int_to_string_with_scratch(
+                                    int_value, scratch,
+                                );
+                            Value::String(formatted)
                         }
                         FieldKind::PackedDecimal {
                             digits,
                             scale,
                             signed,
                         } => {
-                            // CRITICAL OPTIMIZATION: Use scratch buffer instead of decimal.to_string()
+                            // CRITICAL OPTIMIZATION: Use scratch buffer instead of allocating per format
                             let decimal_str =
                                 crate::numeric::decode_packed_decimal_to_string_with_scratch(
                                     field_data, *digits, *scale, *signed, scratch,
@@ -571,7 +584,7 @@ fn process_fields_recursive_with_scratch(
                             // In COBOL, these define named constants or ranges for their parent field
                             // Return a structured representation for API consistency
                             if values.is_empty() {
-                                Value::String("CONDITION".to_string())
+                                Value::String("CONDITION".to_owned())
                             } else {
                                 Value::String(format!("CONDITION({})", values.join("|")))
                             }
@@ -595,6 +608,7 @@ fn process_array_field(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     all_fields: &[copybook_core::Field],
+    scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
 ) -> Result<()> {
     use copybook_core::{FieldKind, Occurs};
 
@@ -645,7 +659,13 @@ fn process_array_field(
                 // For group fields, create a modified field with adjusted offsets for this element
                 let mut element_obj = serde_json::Map::new();
                 let adjusted_children = adjust_field_offsets(&field.children, element_start);
-                process_fields_recursive(&adjusted_children, data, &mut element_obj, options)?;
+                process_fields_recursive(
+                    &adjusted_children,
+                    data,
+                    &mut element_obj,
+                    options,
+                    scratch_buffers,
+                )?;
                 Value::Object(element_obj)
             }
             _ => {
@@ -733,7 +753,7 @@ fn process_array_field_with_scratch(
             } => {
                 // OPTIMIZED: Use scratch buffer for array element
                 // AC:6 - Apply same digit formatting as non-scratch path for array elements
-                let decimal = crate::numeric::decode_zoned_decimal_with_scratch(
+                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     element_data,
                     *digits,
                     *scale,
@@ -742,13 +762,7 @@ fn process_array_field_with_scratch(
                     field.blank_when_zero,
                     scratch,
                 )?;
-                let formatted = if *scale == 0 {
-                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
-                } else {
-                    decimal.format_to_scratch_buffer(*scale, &mut scratch.string_buffer);
-                    std::mem::take(&mut scratch.string_buffer)
-                };
-                Value::String(formatted)
+                Value::String(decimal_str)
             }
             FieldKind::PackedDecimal {
                 digits,
@@ -767,11 +781,9 @@ fn process_array_field_with_scratch(
             }
             FieldKind::BinaryInt { bits, signed } => {
                 let int_value = crate::numeric::decode_binary_int(element_data, *bits, *signed)?;
-                if *signed {
-                    Value::String((int_value as i64).to_string())
-                } else {
-                    Value::String(int_value.to_string())
-                }
+                let formatted =
+                    crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
+                Value::String(formatted)
             }
             FieldKind::Group => {
                 // For group arrays, each element should be an object with child fields
@@ -795,7 +807,7 @@ fn process_array_field_with_scratch(
                 // Level-88 fields are condition names, not data arrays
                 // Return structured representation for API consistency
                 if values.is_empty() {
-                    Value::String("CONDITION_ARRAY".to_string())
+                    Value::String("CONDITION_ARRAY".to_owned())
                 } else {
                     Value::String(format!("CONDITION_ARRAY({})", values.join("|")))
                 }
@@ -839,17 +851,17 @@ fn find_and_read_counter_field(
             scale,
             signed,
         } => {
-            let decimal = crate::numeric::decode_zoned_decimal(
+            let mut scratch = crate::memory::ScratchBuffers::new();
+            let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                 field_data,
                 *digits,
                 *scale,
                 *signed,
                 options.codepage,
                 counter_field.blank_when_zero,
+                &mut scratch,
             )?;
 
-            // Convert to u32, ensuring it's non-negative
-            let decimal_str = decimal.to_string();
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,
@@ -1011,11 +1023,12 @@ fn decode_scalar_field_value(
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-            if *signed {
-                Ok(Value::String((int_value as i64).to_string()))
+            let formatted = if *signed {
+                format!("{}", int_value as i64)
             } else {
-                Ok(Value::String(int_value.to_string()))
-            }
+                format!("{int_value}")
+            };
+            Ok(Value::String(formatted))
         }
         FieldKind::PackedDecimal {
             digits,
@@ -1044,7 +1057,7 @@ fn decode_scalar_field_value(
             // Level-88 fields are condition names, not data scalars
             // Return structured representation for API consistency
             if values.is_empty() {
-                Ok(Value::String("CONDITION".to_string()))
+                Ok(Value::String("CONDITION".to_owned()))
             } else {
                 Ok(Value::String(format!("CONDITION({})", values.join("|"))))
             }
@@ -1704,8 +1717,8 @@ mod tests {
         let options = EncodeOptions::default();
 
         let mut json_obj = serde_json::Map::new();
-        json_obj.insert("ID".to_string(), Value::String("123".to_string()));
-        json_obj.insert("NAME".to_string(), Value::String("HELLO".to_string()));
+        json_obj.insert("ID".into(), Value::String("123".into()));
+        json_obj.insert("NAME".into(), Value::String("HELLO".into()));
         let json = Value::Object(json_obj);
 
         let result = encode_record(&schema, &json, &options).unwrap();

@@ -100,12 +100,12 @@ All enterprise build quality gates satisfied for PR #105:
 
 ### CLI Binary Details
 
-**Binary Path**: `/home/steven/code/Rust/copybook-rs/target/release/copybook`
+**Binary Path**: `target/release/copybook`
 **Status**: ✅ **VALID**
 
 **File Information**:
 ```
-File: /home/steven/code/Rust/copybook-rs/target/release/copybook
+File: target/release/copybook
 Type: ELF 64-bit LSB pie executable, x86-64
 Size: 2.1 MiB
 Architecture: x86-64
@@ -116,7 +116,7 @@ Debug: Not stripped (BuildID: cbf25ad1c3eb573a09e900a78edb3f131109da93)
 
 **Binary Execution Test**:
 ```bash
-$ /home/steven/code/Rust/copybook-rs/target/release/copybook --version
+$ target/release/copybook --version
 copybook 0.3.1
 ```
 
@@ -501,17 +501,17 @@ cargo build --workspace --release
 # ✅ Finished `release` profile [optimized] target(s) in 0.17s
 
 # Binary Artifact Validation
-ls -lh /home/steven/code/Rust/copybook-rs/target/release/copybook
+ls -lh target/release/copybook
 # ✅ -rwxr-xr-x 2 steven steven 2.1M Oct  3 21:36 copybook
 
-file /home/steven/code/Rust/copybook-rs/target/release/copybook
+file target/release/copybook
 # ✅ ELF 64-bit LSB pie executable, x86-64, dynamically linked
 
-/home/steven/code/Rust/copybook-rs/target/release/copybook --version
+target/release/copybook --version
 # ✅ copybook 0.3.1
 
 # Library Artifact Validation
-ls -lh /home/steven/code/Rust/copybook-rs/target/release/*.rlib | grep copybook
+ls -lh target/release/*.rlib | grep copybook
 # ✅ libcopybook_bench.rlib   (597K)
 # ✅ libcopybook_codec.rlib   (1.5M)
 # ✅ libcopybook_core.rlib    (2.2M)

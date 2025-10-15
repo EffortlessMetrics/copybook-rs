@@ -46,7 +46,7 @@ multiple-versions = "warn"
 
 # Deterministic builds required for regulatory compliance (SOX, PCI DSS)
 wildcards = "deny"             # AC4: Upgrade from "allow" - prevent non-deterministic dependency resolution
-allow-wildcard-paths = true    # AC4: Allow workspace path dependencies (local development)
+allow-wildcard-paths = true    # AC4: Permit local workspace path deps only; crate version wildcards remain denied
 
 # The graph highlighting used when creating dotgraphs for crates
 highlight = "all"

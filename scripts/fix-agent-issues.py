@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 # Base directory for review agents
-AGENTS_DIR = Path("/home/steven/code/Rust/copybook-rs/.claude/agents4/review/")
+AGENTS_DIR = Path(".claude/agents4/review/")
 
 def fix_agent_file(filepath):
     """Fix specific issues in agent files."""

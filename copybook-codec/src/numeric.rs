@@ -5,7 +5,7 @@
 
 use crate::memory::ScratchBuffers;
 use crate::options::{Codepage, ZonedEncodingFormat};
-use crate::zoned_overpunch::{ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte};
+use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte};
 use copybook_core::{Error, ErrorCode, Result};
 use std::fmt::Write;
 use tracing::warn;

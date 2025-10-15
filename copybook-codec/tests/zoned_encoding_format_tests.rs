@@ -241,7 +241,7 @@ proptest! {
             Ok(schema) => schema,
             Err(err) => {
                 prop_assert!(false, "Failed to parse copybook: {err}");
-                unreachable!();
+                return;
             }
         };
 
@@ -257,7 +257,7 @@ proptest! {
             Ok(value) => value,
             Err(err) => {
                 prop_assert!(false, "ASCII zoned decimal decode failed: {err}");
-                unreachable!();
+                return;
             }
         };
         let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + i64::from(d));
@@ -271,7 +271,7 @@ proptest! {
                 Ok(parsed) => parsed,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse decoded value '{str_val}': {err}");
-                    unreachable!();
+                    return;
                 }
             };
             prop_assert_eq!(parsed, expected_number, "String value should match expected number");
@@ -286,7 +286,7 @@ proptest! {
             Ok(schema) => schema,
             Err(err) => {
                 prop_assert!(false, "Failed to parse copybook: {err}");
-                unreachable!();
+                return;
             }
         };
 
@@ -302,7 +302,7 @@ proptest! {
             Ok(value) => value,
             Err(err) => {
                 prop_assert!(false, "EBCDIC zoned decimal decode failed: {err}");
-                unreachable!();
+                return;
             }
         };
         let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + i64::from(d));
@@ -316,7 +316,7 @@ proptest! {
                 Ok(parsed) => parsed,
                 Err(err) => {
                     prop_assert!(false, "Failed to parse decoded value '{str_val}': {err}");
-                    unreachable!();
+                    return;
                 }
             };
             prop_assert_eq!(parsed, expected_number, "String value should match expected number");
@@ -333,7 +333,7 @@ proptest! {
             Ok(schema) => schema,
             Err(err) => {
                 prop_assert!(false, "Failed to parse copybook: {err}");
-                unreachable!();
+                return;
             }
         };
 
@@ -371,7 +371,7 @@ proptest! {
             Ok(schema) => schema,
             Err(err) => {
                 prop_assert!(false, "Failed to parse copybook: {err}");
-                unreachable!();
+                return;
             }
         };
 
@@ -391,7 +391,7 @@ proptest! {
                 Ok(value) => value,
                 Err(err) => {
                     prop_assert!(false, "{encoding_name} decode failed: {err}");
-                    unreachable!();
+                    return;
                 }
             };
             // Verify the field exists and has a reasonable value
@@ -420,7 +420,7 @@ proptest! {
             Ok(schema) => schema,
             Err(err) => {
                 prop_assert!(false, "Failed to parse copybook: {err}");
-                unreachable!();
+                return;
             }
         };
 

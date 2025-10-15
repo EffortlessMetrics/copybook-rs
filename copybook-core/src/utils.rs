@@ -442,10 +442,10 @@ mod tests {
     fn test_option_ext_none() {
         let opt: Option<i32> = None;
         let result = opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test error");
-        match result {
-            Err(error) => assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX),
-            Ok(value) => panic!("expected error but received value {value}"),
-        }
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
     }
 
     #[test]
@@ -469,10 +469,10 @@ mod tests {
         assert_eq!(parsed, 123);
 
         let result = safe_ops::parse_usize("invalid", "test");
-        match result {
-            Err(error) => assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX),
-            Ok(value) => panic!("expected parse failure but succeeded with {value}"),
-        }
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
 
         Ok(())
     }
@@ -483,10 +483,10 @@ mod tests {
         assert_eq!(quotient, 5);
 
         let result = safe_ops::safe_divide(10, 0, "test");
-        match result {
-            Err(error) => assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX),
-            Ok(value) => panic!("expected divide failure but succeeded with {value}"),
-        }
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
 
         Ok(())
     }

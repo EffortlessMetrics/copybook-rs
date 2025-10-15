@@ -7,6 +7,7 @@ use crate::memory::ScratchBuffers;
 use crate::options::{Codepage, ZonedEncodingFormat};
 use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte};
 use copybook_core::{Error, ErrorCode, Result};
+use std::convert::TryFrom;
 use std::fmt::Write;
 use tracing::warn;
 
@@ -16,8 +17,7 @@ const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
 
 // CRITICAL PERFORMANCE OPTIMIZATION: Inline hints for hot paths
 #[allow(dead_code)]
-#[allow(clippy::inline_always)]
-#[inline(always)]
+#[inline]
 pub(crate) fn likely(b: bool) -> bool {
     // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
     // The true case is expected to be taken most of the time (likely path)
@@ -30,8 +30,7 @@ pub(crate) fn likely(b: bool) -> bool {
     }
 }
 
-#[allow(clippy::inline_always)]
-#[inline(always)]
+#[inline]
 pub(crate) fn unlikely(b: bool) -> bool {
     // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
     // Use explicit cold annotation to hint that error paths are unlikely
@@ -53,8 +52,7 @@ fn cold_branch_hint() {
 }
 
 // PERFORMANCE OPTIMIZATION: Inline decimal construction for hot paths
-#[allow(clippy::inline_always)]
-#[inline(always)]
+#[inline]
 fn create_normalized_decimal(value: i64, scale: i16, is_negative: bool) -> SmallDecimal {
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize();
@@ -137,6 +135,8 @@ impl ZonedEncodingInfo {
     /// # Arguments
     /// * `detected_format` - The overall encoding format determined for the field
     /// * `has_mixed_encoding` - Whether mixed encoding patterns were detected
+    #[inline]
+    #[must_use]
     pub fn new(detected_format: ZonedEncodingFormat, has_mixed_encoding: bool) -> Self {
         Self {
             detected_format,
@@ -159,6 +159,8 @@ impl ZonedEncodingInfo {
     ///
     /// # Errors
     /// Returns an error if the analysis cannot be completed (currently never fails)
+    #[inline]
+    #[must_use = "Use the detection result to inspect encoding metadata"]
     pub fn detect_from_data(data: &[u8]) -> Result<Self> {
         if data.is_empty() {
             return Ok(Self::new(ZonedEncodingFormat::Auto, false));
@@ -198,10 +200,8 @@ impl ZonedEncodingInfo {
 
         // Check for specific ASCII overpunch characters first
         match byte {
-            // ASCII overpunch sign bytes: '{' (+0) and '}' (-0)
-            0x7B | 0x7D => return Some(ZonedEncodingFormat::Ascii),
-            // ASCII overpunch characters: A-I (0x41-0x49) and J-R (0x4A-0x52)
-            0x41..=0x52 => return Some(ZonedEncodingFormat::Ascii),
+            // ASCII overpunch sign bytes and overpunch characters (A-I, J-R)
+            0x7B | 0x7D | 0x41..=0x52 => return Some(ZonedEncodingFormat::Ascii),
             _ => {}
         }
 
@@ -227,7 +227,9 @@ pub struct SmallDecimal {
 }
 
 impl SmallDecimal {
-    /// Create a new SmallDecimal
+    /// Create a new `SmallDecimal`.
+    #[inline]
+    #[must_use]
     pub fn new(value: i64, scale: i16, negative: bool) -> Self {
         Self {
             value,
@@ -237,6 +239,8 @@ impl SmallDecimal {
     }
 
     /// Create a zero value with the given scale
+    #[inline]
+    #[must_use]
     pub fn zero(scale: i16) -> Self {
         Self {
             value: 0,
@@ -246,6 +250,7 @@ impl SmallDecimal {
     }
 
     /// Normalize -0 to 0 (NORMATIVE)
+    #[inline]
     pub fn normalize(&mut self) {
         if self.value == 0 {
             self.negative = false;
@@ -258,6 +263,8 @@ impl SmallDecimal {
     /// Special case: zero values with scale > 0 are normalized to "0" (no decimal places)
     /// to address packed decimal zero representation inconsistency.
     #[allow(clippy::inherent_to_string)] // Intentional - this is a specific numeric formatting
+    #[inline]
+    #[must_use = "Use the formatted string output"]
     pub fn to_string(&self) -> String {
         // Handle zero normalization special case first
         if self.is_zero_value() && self.scale > 0 {
@@ -295,7 +302,7 @@ impl SmallDecimal {
     fn append_integer_format(&self, result: &mut String) {
         let scaled_value = if self.scale < 0 {
             // Scale extension: multiply by 10^(-scale)
-            self.value * 10_i64.pow((-self.scale) as u32)
+            self.value * 10_i64.pow(scale_abs_to_u32(self.scale))
         } else {
             // Normal integer format (scale = 0)
             self.value
@@ -309,19 +316,17 @@ impl SmallDecimal {
 
     /// Append decimal format with exactly `scale` digits after decimal point
     fn append_decimal_format(&self, result: &mut String) {
-        let divisor = 10_i64.pow(self.scale as u32);
+        let divisor = 10_i64.pow(scale_abs_to_u32(self.scale));
         let integer_part = self.value / divisor;
         let fractional_part = self.value % divisor;
 
         // Writing to String should never fail, but handle gracefully for panic elimination
-        if write!(
-            result,
-            "{integer_part}.{:0width$}",
-            fractional_part,
-            width = self.scale as usize
-        )
-        .is_err()
-        {
+        let width = usize::try_from(self.scale).unwrap_or_else(|_| {
+            debug_assert!(false, "scale should be positive when formatting decimal");
+            0
+        });
+
+        if write!(result, "{integer_part}.{fractional_part:0width$}").is_err() {
             // Fallback: append a placeholder if formatting somehow fails
             result.push_str("ERR");
         }
@@ -329,7 +334,7 @@ impl SmallDecimal {
 
     /// Parse decimal from string with strict scale validation
     ///
-    /// Parses a string representation into a SmallDecimal with the specified scale.
+    /// Parses a string representation into a `SmallDecimal` with the specified scale.
     /// Performs strict validation to ensure the input format matches expectations.
     ///
     /// # Arguments
@@ -344,6 +349,8 @@ impl SmallDecimal {
     /// # Errors
     /// Returns `CBKE505_SCALE_MISMATCH` for scale mismatches or
     /// `CBKE501_JSON_TYPE_MISMATCH` for invalid numeric format.
+    #[inline]
+    #[must_use = "Use the parsed `SmallDecimal` or propagate the parsing error"]
     pub fn from_str(s: &str, expected_scale: i16) -> Result<Self> {
         let trimmed = s.trim();
         if trimmed.is_empty() {
@@ -361,7 +368,7 @@ impl SmallDecimal {
 
     /// Extract sign information from the numeric string
     ///
-    /// Returns (is_negative, numeric_part_without_sign)
+    /// Returns (`is_negative`, `numeric_part_without_sign`).
     fn extract_sign(s: &str) -> (bool, &str) {
         if let Some(without_minus) = s.strip_prefix('-') {
             (true, without_minus)
@@ -381,7 +388,17 @@ impl SmallDecimal {
         let fractional_part = &numeric_part[dot_pos + 1..];
 
         // Validate scale matches exactly (NORMATIVE)
-        if fractional_part.len() != expected_scale as usize {
+        let expected_len = usize::try_from(expected_scale).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKE505_SCALE_MISMATCH,
+                format!(
+                    "Scale mismatch: expected {expected_scale} decimal places, got {}",
+                    fractional_part.len()
+                ),
+            )
+        })?;
+
+        if fractional_part.len() != expected_len {
             return Err(Error::new(
                 ErrorCode::CBKE505_SCALE_MISMATCH,
                 format!(
@@ -437,7 +454,7 @@ impl SmallDecimal {
         fractional_value: i64,
         scale: i16,
     ) -> Result<i64> {
-        let divisor = 10_i64.pow(scale as u32);
+        let divisor = 10_i64.pow(scale_abs_to_u32(scale));
         integer_value
             .checked_mul(divisor)
             .and_then(|v| v.checked_add(fractional_value))
@@ -451,6 +468,8 @@ impl SmallDecimal {
 
     /// Format as string with fixed scale (NORMATIVE)
     /// Always render with exactly `scale` digits after decimal
+    #[inline]
+    #[must_use]
     pub fn to_fixed_scale_string(&self, scale: i16) -> String {
         let mut result = String::new();
 
@@ -461,7 +480,7 @@ impl SmallDecimal {
         if scale <= 0 {
             // Integer format (scale=0) or scale extension
             let scaled_value = if scale < 0 {
-                self.value * 10_i64.pow((-scale) as u32)
+                self.value * 10_i64.pow(scale_abs_to_u32(scale))
             } else {
                 self.value
             };
@@ -471,19 +490,17 @@ impl SmallDecimal {
             }
         } else {
             // Decimal format with exactly `scale` digits after decimal
-            let divisor = 10_i64.pow(scale as u32);
+            let divisor = 10_i64.pow(scale_abs_to_u32(scale));
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
 
             // Writing to String should never fail, but handle gracefully for panic elimination
-            if write!(
-                result,
-                "{integer_part}.{:0width$}",
-                fractional_part,
-                width = scale as usize
-            )
-            .is_err()
-            {
+            let width = usize::try_from(scale).unwrap_or_else(|_| {
+                debug_assert!(false, "scale should be positive in decimal formatting");
+                0
+            });
+
+            if write!(result, "{integer_part}.{fractional_part:0width$}").is_err() {
                 result.push_str("ERR");
             }
         }
@@ -493,6 +510,7 @@ impl SmallDecimal {
 
     /// High-performance format using scratch buffer (zero-allocation optimization)
     /// CRITICAL for COMP-3 JSON conversion performance
+    #[inline]
     pub fn format_to_scratch_buffer(&self, scale: i16, scratch_buffer: &mut String) {
         scratch_buffer.clear();
 
@@ -503,7 +521,7 @@ impl SmallDecimal {
         if scale <= 0 {
             // Integer format (scale=0) or scale extension
             let scaled_value = if scale < 0 {
-                self.value * 10_i64.pow((-scale) as u32)
+                self.value * 10_i64.pow(scale_abs_to_u32(scale))
             } else {
                 self.value
             };
@@ -511,14 +529,18 @@ impl SmallDecimal {
             Self::format_integer_manual(scaled_value, scratch_buffer);
         } else {
             // Decimal format with exactly `scale` digits after decimal
-            let divisor = 10_i64.pow(scale as u32);
+            let divisor = 10_i64.pow(scale_abs_to_u32(scale));
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
 
             // CRITICAL OPTIMIZATION: Manual decimal formatting to avoid write!() overhead
             Self::format_integer_manual(integer_part, scratch_buffer);
             scratch_buffer.push('.');
-            Self::format_integer_with_leading_zeros(fractional_part, scale as u32, scratch_buffer);
+            Self::format_integer_with_leading_zeros(
+                fractional_part,
+                scale_abs_to_u32(scale),
+                scratch_buffer,
+            );
         }
     }
 
@@ -534,12 +556,12 @@ impl SmallDecimal {
         if value < 100 {
             // Fast path for 1-2 digit numbers (very common in COMP-3)
             if value < 10 {
-                buffer.push((value as u8 + b'0') as char);
+                push_digit(buffer, value);
             } else {
-                let tens = (value / 10) as u8;
-                let ones = (value % 10) as u8;
-                buffer.push((tens + b'0') as char);
-                buffer.push((ones + b'0') as char);
+                let tens = value / 10;
+                let ones = value % 10;
+                push_digit(buffer, tens);
+                push_digit(buffer, ones);
             }
             return;
         }
@@ -549,14 +571,14 @@ impl SmallDecimal {
         let mut count = 0;
 
         while value > 0 {
-            digits[count] = (value % 10) as u8 + b'0';
+            digits[count] = digit_from_value(value % 10);
             value /= 10;
             count += 1;
         }
 
         // Add digits in reverse order
         for i in (0..count).rev() {
-            buffer.push(digits[i] as char);
+            buffer.push(char::from(b'0' + digits[i]));
         }
     }
 
@@ -567,22 +589,22 @@ impl SmallDecimal {
         if width <= 4 && value < 10000 {
             match width {
                 1 => {
-                    buffer.push((value as u8 + b'0') as char);
+                    push_digit(buffer, value);
                 }
                 2 => {
-                    buffer.push(((value / 10) as u8 + b'0') as char);
-                    buffer.push(((value % 10) as u8 + b'0') as char);
+                    push_digit(buffer, value / 10);
+                    push_digit(buffer, value % 10);
                 }
                 3 => {
-                    buffer.push(((value / 100) as u8 + b'0') as char);
-                    buffer.push((((value / 10) % 10) as u8 + b'0') as char);
-                    buffer.push(((value % 10) as u8 + b'0') as char);
+                    push_digit(buffer, value / 100);
+                    push_digit(buffer, (value / 10) % 10);
+                    push_digit(buffer, value % 10);
                 }
                 4 => {
-                    buffer.push(((value / 1000) as u8 + b'0') as char);
-                    buffer.push((((value / 100) % 10) as u8 + b'0') as char);
-                    buffer.push((((value / 10) % 10) as u8 + b'0') as char);
-                    buffer.push(((value % 10) as u8 + b'0') as char);
+                    push_digit(buffer, value / 1000);
+                    push_digit(buffer, (value / 100) % 10);
+                    push_digit(buffer, (value / 10) % 10);
+                    push_digit(buffer, value % 10);
                 }
                 _ => {}
             }
@@ -592,40 +614,47 @@ impl SmallDecimal {
         // General case for larger widths
         let mut digits = [0u8; 20]; // More than enough for i64::MAX
         let mut count = 0;
+        let target_width = usize::try_from(width).unwrap_or(usize::MAX);
 
         // Extract digits
         loop {
-            digits[count] = (value % 10) as u8 + b'0';
+            digits[count] = digit_from_value(value % 10);
             value /= 10;
             count += 1;
-            if value == 0 && count >= width as usize {
+            if value == 0 && count >= target_width {
                 break;
             }
         }
 
         // Pad with leading zeros if needed
-        while count < width as usize {
-            digits[count] = b'0';
+        while count < target_width {
+            digits[count] = 0;
             count += 1;
         }
 
         // Add digits in reverse order
         for i in (0..count).rev() {
-            buffer.push(digits[i] as char);
+            buffer.push(char::from(b'0' + digits[i]));
         }
     }
 
     /// Get the scale of this decimal
+    #[inline]
+    #[must_use]
     pub fn scale(&self) -> i16 {
         self.scale
     }
 
     /// Check if this decimal is negative
+    #[inline]
+    #[must_use]
     pub fn is_negative(&self) -> bool {
         self.negative && self.value != 0
     }
 
     /// Get the total number of digits in this decimal
+    #[inline]
+    #[must_use]
     pub fn total_digits(&self) -> u16 {
         if self.value == 0 {
             return 1;
@@ -641,13 +670,35 @@ impl SmallDecimal {
     }
 }
 
+#[inline]
+fn digit_from_value(value: i64) -> u8 {
+    match u8::try_from(value) {
+        Ok(digit) if digit <= 9 => digit,
+        _ => {
+            debug_assert!(false, "digit out of range: {value}");
+            0
+        }
+    }
+}
+
+#[inline]
+fn push_digit(buffer: &mut String, digit: i64) {
+    buffer.push(char::from(b'0' + digit_from_value(digit)));
+}
+
+#[inline]
+fn scale_abs_to_u32(scale: i16) -> u32 {
+    u32::from(scale.unsigned_abs())
+}
+
 /// Decode zoned decimal field with comprehensive error context
 ///
 /// # Errors
 ///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 #[inline]
+#[must_use = "Use the decoded decimal or handle the decoding error"]
 pub fn decode_zoned_decimal(
     data: &[u8],
     digits: u16,
@@ -656,7 +707,7 @@ pub fn decode_zoned_decimal(
     codepage: Codepage,
     blank_when_zero: bool,
 ) -> Result<SmallDecimal> {
-    if unlikely(data.len() != digits as usize) {
+    if unlikely(data.len() != usize::from(digits)) {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
             "Zoned decimal data length mismatch".to_string(),
@@ -760,7 +811,9 @@ pub fn decode_zoned_decimal(
 /// # Errors
 ///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
-/// All errors include proper context information (record_index, field_path, byte_offset).
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+#[inline]
+#[must_use = "Use the decoded decimal or encoded metadata result"]
 pub fn decode_zoned_decimal_with_encoding(
     data: &[u8],
     digits: u16,
@@ -770,7 +823,7 @@ pub fn decode_zoned_decimal_with_encoding(
     blank_when_zero: bool,
     preserve_encoding: bool,
 ) -> Result<(SmallDecimal, Option<ZonedEncodingInfo>)> {
-    if data.len() != digits as usize {
+    if data.len() != usize::from(digits) {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
             format!(
@@ -939,8 +992,9 @@ pub fn decode_zoned_decimal_with_encoding(
 /// # Errors
 ///
 /// Returns an error if the packed decimal data contains invalid nibbles.
-/// All errors include proper context information (record_index, field_path, byte_offset).
-#[inline(always)]
+/// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+#[inline]
+#[must_use = "Use the returned `SmallDecimal` or propagate the decoding error"]
 pub fn decode_packed_decimal(
     data: &[u8],
     digits: u16,
@@ -948,7 +1002,7 @@ pub fn decode_packed_decimal(
     signed: bool,
 ) -> Result<SmallDecimal> {
     // CRITICAL PERFORMANCE OPTIMIZATION: Ultra-fast path with minimal safety overhead
-    let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
+    let expected_bytes = usize::from((digits + 1).div_ceil(2));
     // PERFORMANCE CRITICAL: Single branch validation optimized for happy path
     if likely(data.len() == expected_bytes && !data.is_empty() && digits <= 18) {
         // ULTRA-FAST PATH: Most common enterprise cases with minimal validation
@@ -971,8 +1025,7 @@ pub fn decode_packed_decimal(
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
             format!(
-                "COMP-3 field with {} digits exceeds maximum supported precision (18 digits max for current implementation)",
-                digits
+                "COMP-3 field with {digits} digits exceeds maximum supported precision (18 digits max for current implementation)"
             ),
         ));
     }
@@ -985,7 +1038,7 @@ pub fn decode_packed_decimal(
 ///
 /// This function is highly optimized for the 95% case of enterprise COBOL processing
 /// where COMP-3 fields are 1-5 bytes and well-formed.
-#[inline(always)]
+#[inline]
 fn decode_packed_decimal_fast_path(
     data: &[u8],
     digits: u16,
@@ -1171,7 +1224,7 @@ fn decode_packed_decimal_fast_path(
             // Minimal branching, streamlined validation, optimized for throughput
             let total_nibbles = digits + 1;
             let has_padding = (total_nibbles & 1) == 1;
-            let digit_count = digits as usize;
+            let digit_count = usize::from(digits);
 
             // PERFORMANCE CRITICAL: Process all bytes except last in tight loop
             let Some((last_byte, prefix_bytes)) = data.split_last() else {
@@ -1183,7 +1236,7 @@ fn decode_packed_decimal_fast_path(
             let mut digit_pos = 0;
 
             // Process prefix bytes (all digits)
-            for &byte in prefix_bytes.iter() {
+            for &byte in prefix_bytes {
                 let high_nibble = (byte >> 4) & 0x0F;
                 let low_nibble = byte & 0x0F;
 
@@ -1265,8 +1318,10 @@ fn decode_packed_decimal_fast_path(
 /// # Errors
 ///
 /// Returns an error if the binary data is invalid or the field size is unsupported
+#[inline]
+#[must_use = "Use the decoded integer or propagate the parsing error"]
 pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
-    let expected_bytes = (bits / 8) as usize;
+    let expected_bytes = usize::from(bits / 8);
     if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, // Reusing error code for binary validation
@@ -1289,9 +1344,9 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u16::from_be_bytes([data[0], data[1]]);
             if signed {
-                Ok(i16::from_be_bytes([data[0], data[1]]) as i64)
+                Ok(i64::from(i16::from_be_bytes([data[0], data[1]])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         32 => {
@@ -1303,9 +1358,11 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             }
             let value = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
             if signed {
-                Ok(i32::from_be_bytes([data[0], data[1], data[2], data[3]]) as i64)
+                Ok(i64::from(i32::from_be_bytes([
+                    data[0], data[1], data[2], data[3],
+                ])))
             } else {
-                Ok(value as i64)
+                Ok(i64::from(value))
             }
         }
         64 => {
@@ -1326,13 +1383,19 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
             } else {
                 // For unsigned 64-bit, we need to be careful about overflow
                 let value = u64::from_be_bytes(bytes);
-                if value > i64::MAX as u64 {
+                let max_i64 = u64::try_from(i64::MAX).unwrap_or(u64::MAX);
+                if value > max_i64 {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                         format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
                     ));
                 }
-                Ok(value as i64)
+                i64::try_from(value).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
+                    )
+                })
             }
         }
         _ => Err(Error::new(
@@ -1347,6 +1410,8 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
 /// # Errors
 ///
 /// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_zoned_decimal(
     value: &str,
     digits: u16,
@@ -1359,16 +1424,17 @@ pub fn encode_zoned_decimal(
 
     // Convert to string representation of digits
     let abs_value = decimal.value.abs();
-    let digit_str = format!("{:0width$}", abs_value, width = digits as usize);
+    let width = usize::from(digits);
+    let digit_str = format!("{abs_value:0width$}");
 
-    if digit_str.len() > digits as usize {
+    if digit_str.len() > width {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
-    let mut result = Vec::with_capacity(digits as usize);
+    let mut result = Vec::with_capacity(width);
     let digit_bytes = digit_str.as_bytes();
 
     // Encode each digit
@@ -1420,6 +1486,8 @@ pub fn encode_zoned_decimal(
 /// # Errors
 ///
 /// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_zoned_decimal_with_format(
     value: &str,
     digits: u16,
@@ -1433,12 +1501,13 @@ pub fn encode_zoned_decimal_with_format(
 
     // Convert to string representation of digits
     let abs_value = decimal.value.abs();
-    let digit_str = format!("{:0width$}", abs_value, width = digits as usize);
+    let width = usize::from(digits);
+    let digit_str = format!("{abs_value:0width$}");
 
-    if digit_str.len() > digits as usize {
+    if digit_str.len() > width {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
@@ -1449,7 +1518,7 @@ pub fn encode_zoned_decimal_with_format(
         _ => ZonedEncodingFormat::Ebcdic,
     });
 
-    let mut result = Vec::with_capacity(digits as usize);
+    let mut result = Vec::with_capacity(width);
     let digit_bytes = digit_str.as_bytes();
 
     // Encode each digit
@@ -1504,6 +1573,8 @@ pub fn encode_zoned_decimal_with_format(
 /// # Errors
 ///
 /// Returns an error if the value cannot be encoded as a packed decimal with the specified parameters
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_packed_decimal(
     value: &str,
     digits: u16,
@@ -1519,7 +1590,7 @@ pub fn encode_packed_decimal(
 
     // Fast path for zero
     if abs_value == 0 {
-        let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
+        let expected_bytes = usize::from((digits + 1).div_ceil(2));
         let mut result = vec![0u8; expected_bytes];
         // Set sign in last byte
         let sign_nibble = if signed {
@@ -1538,20 +1609,21 @@ pub fn encode_packed_decimal(
 
     // Extract digits in reverse order using fast division
     while temp_value > 0 {
-        digit_buffer[digit_count] = (temp_value % 10) as u8;
+        digit_buffer[digit_count] = digit_from_value(temp_value % 10);
         temp_value /= 10;
         digit_count += 1;
     }
 
     // Validate digit count
-    if unlikely(digit_count > digits as usize) {
+    let digits_usize = usize::from(digits);
+    if unlikely(digit_count > digits_usize) {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {} digits", digits),
+            format!("Value too large for {digits} digits"),
         ));
     }
 
-    let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
+    let expected_bytes = usize::from((digits + 1).div_ceil(2));
     let mut result = Vec::with_capacity(expected_bytes);
 
     // CRITICAL FIX: Handle digit positioning correctly for even/odd digit counts
@@ -1561,7 +1633,7 @@ pub fn encode_packed_decimal(
     // - If digits is odd: no padding, digits fill completely, then sign
 
     let has_padding = digits.is_multiple_of(2); // Even digit count requires padding
-    let total_nibbles = digits as usize + 1 + usize::from(has_padding);
+    let total_nibbles = digits_usize + 1 + usize::from(has_padding);
 
     for byte_idx in 0..expected_bytes {
         let mut byte_val = 0u8;
@@ -1586,9 +1658,9 @@ pub fn encode_packed_decimal(
 
                 // CRITICAL FIX: Right-align digits in COMP-3 field (leading zeros, not trailing)
                 // For field width of 'digits', actual digits should occupy the rightmost positions
-                if digit_idx >= (digits as usize - digit_count) {
+                if digit_idx >= (digits_usize - digit_count) {
                     // This position should contain an actual digit
-                    let actual_digit_idx = digit_idx - (digits as usize - digit_count);
+                    let actual_digit_idx = digit_idx - (digits_usize - digit_count);
                     if actual_digit_idx < digit_count {
                         // Digits are stored in reverse order (least significant first)
                         let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
@@ -1619,9 +1691,9 @@ pub fn encode_packed_decimal(
 
             // CRITICAL FIX: Right-align digits in COMP-3 field (leading zeros, not trailing)
             // For field width of 'digits', actual digits should occupy the rightmost positions
-            if digit_idx >= (digits as usize - digit_count) {
+            if digit_idx >= (digits_usize - digit_count) {
                 // This position should contain an actual digit
-                let actual_digit_idx = digit_idx - (digits as usize - digit_count);
+                let actual_digit_idx = digit_idx - (digits_usize - digit_count);
                 if actual_digit_idx < digit_count {
                     // Digits are stored in reverse order (least significant first)
                     let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
@@ -1643,57 +1715,59 @@ pub fn encode_packed_decimal(
 /// # Errors
 ///
 /// Returns an error if the value is out of range for the specified bit width
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>> {
     match bits {
         16 => {
             if signed {
-                if value < i16::MIN as i64 || value > i16::MAX as i64 {
-                    return Err(Error::new(
+                let int_value = i16::try_from(value).map_err(|_| {
+                    Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 16-bit integer"),
-                    ));
-                }
-                Ok((value as i16).to_be_bytes().to_vec())
+                    )
+                })?;
+                Ok(int_value.to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u16::MAX as i64 {
-                    return Err(Error::new(
+                let int_value = u16::try_from(value).map_err(|_| {
+                    Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 16-bit integer"),
-                    ));
-                }
-                Ok((value as u16).to_be_bytes().to_vec())
+                    )
+                })?;
+                Ok(int_value.to_be_bytes().to_vec())
             }
         }
         32 => {
             if signed {
-                if value < i32::MIN as i64 || value > i32::MAX as i64 {
-                    return Err(Error::new(
+                let int_value = i32::try_from(value).map_err(|_| {
+                    Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for signed 32-bit integer"),
-                    ));
-                }
-                Ok((value as i32).to_be_bytes().to_vec())
+                    )
+                })?;
+                Ok(int_value.to_be_bytes().to_vec())
             } else {
-                if value < 0 || value > u32::MAX as i64 {
-                    return Err(Error::new(
+                let int_value = u32::try_from(value).map_err(|_| {
+                    Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} out of range for unsigned 32-bit integer"),
-                    ));
-                }
-                Ok((value as u32).to_be_bytes().to_vec())
+                    )
+                })?;
+                Ok(int_value.to_be_bytes().to_vec())
             }
         }
         64 => {
             if signed {
                 Ok(value.to_be_bytes().to_vec())
             } else {
-                if value < 0 {
-                    return Err(Error::new(
+                let int_value = u64::try_from(value).map_err(|_| {
+                    Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
                         format!("Value {value} cannot be negative for unsigned 64-bit integer"),
-                    ));
-                }
-                Ok((value as u64).to_be_bytes().to_vec())
+                    )
+                })?;
+                Ok(int_value.to_be_bytes().to_vec())
             }
         }
         _ => Err(Error::new(
@@ -1708,6 +1782,8 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
 /// # Errors
 ///
 /// Returns an error if the text is too long for the field
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> Result<Vec<u8>> {
     // Convert UTF-8 to target encoding
     let encoded_bytes = crate::charset::utf8_to_ebcdic(text, codepage)?;
@@ -1737,6 +1813,8 @@ pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> 
 /// Apply BLANK WHEN ZERO encoding policy
 ///
 /// Returns true if the value should be encoded as spaces instead of zeros
+#[inline]
+#[must_use]
 pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
     if !bwz_encode {
         return false;
@@ -1766,6 +1844,8 @@ pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
 /// # Errors
 ///
 /// Returns an error if the value cannot be encoded
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_zoned_decimal_with_bwz(
     value: &str,
     digits: u16,
@@ -1780,7 +1860,7 @@ pub fn encode_zoned_decimal_with_bwz(
             Codepage::ASCII => b' ',
             _ => 0x40, // EBCDIC space
         };
-        return Ok(vec![space_byte; digits as usize]);
+        return Ok(vec![space_byte; usize::from(digits)]);
     }
 
     encode_zoned_decimal(value, digits, scale, signed, codepage)
@@ -1789,18 +1869,24 @@ pub fn encode_zoned_decimal_with_bwz(
 /// Get binary width mapping based on PIC digits (NORMATIVE)
 ///
 /// Maps digits to width: ≤4→2B, 5-9→4B, 10-18→8B
+#[inline]
+#[must_use]
 pub fn get_binary_width_from_digits(digits: u16) -> u16 {
     match digits {
         1..=4 => 16,   // 2 bytes
         5..=9 => 32,   // 4 bytes
-        10..=18 => 64, // 8 bytes
-        _ => 64,       // Default to 8 bytes for larger values
+        _ => 64, // 8 bytes for larger values
     }
 }
 
 /// Validate explicit USAGE BINARY(n) width (NORMATIVE)
 ///
 /// Accept explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
+///
+/// # Errors
+/// Returns an error when the requested width is not one of the supported values.
+#[inline]
+#[must_use = "Use the validated width or propagate the configuration error"]
 pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
     match width_bytes {
         1 => Ok(8),  // 1 byte = 8 bits
@@ -1814,8 +1900,133 @@ pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
     }
 }
 
+#[inline]
+const fn zoned_space_byte(codepage: Codepage) -> u8 {
+    match codepage {
+        Codepage::ASCII => b' ',
+        _ => 0x40,
+    }
+}
+
+#[inline]
+const fn zoned_expected_zone(codepage: Codepage) -> u8 {
+    match codepage {
+        Codepage::ASCII => ASCII_DIGIT_ZONE,
+        _ => EBCDIC_DIGIT_ZONE,
+    }
+}
+
+#[inline]
+const fn zoned_zone_label(codepage: Codepage) -> &'static str {
+    match codepage {
+        Codepage::ASCII => "ASCII",
+        _ => "EBCDIC",
+    }
+}
+
+#[inline]
+fn zoned_validate_non_final_byte(
+    byte: u8,
+    index: usize,
+    expected_zone: u8,
+    codepage: Codepage,
+) -> Result<u8> {
+    let zone = (byte >> 4) & 0x0F;
+    let digit = byte & 0x0F;
+
+    if digit > 9 {
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            format!("Invalid digit nibble 0x{digit:X} at position {index}"),
+        ));
+    }
+
+    if zone != expected_zone {
+        let zone_label = zoned_zone_label(codepage);
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            format!(
+                "Invalid {zone_label} zone 0x{zone:X} at position {index}, expected 0x{expected_zone:X}"
+            ),
+        ));
+    }
+
+    Ok(digit)
+}
+
+#[inline]
+fn zoned_handle_last_byte(
+    byte: u8,
+    signed: bool,
+    expected_zone: u8,
+    codepage: Codepage,
+) -> Result<(u8, bool)> {
+    let (digit, negative) = crate::zoned_overpunch::decode_overpunch_byte(byte, codepage)?;
+
+    if signed {
+        return Ok((digit, negative));
+    }
+
+    let zone = (byte >> 4) & 0x0F;
+    if zone != expected_zone {
+        let zone_label = zoned_zone_label(codepage);
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            format!(
+                "Unsigned {zone_label} zoned decimal cannot contain sign zone 0x{zone:X} in last byte"
+            ),
+        ));
+    }
+
+    if negative {
+        return Err(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Unsigned zoned decimal contains negative overpunch",
+        ));
+    }
+
+    Ok((digit, false))
+}
+
+#[inline]
+fn zoned_process_digits(
+    data: &[u8],
+    signed: bool,
+    expected_zone: u8,
+    codepage: Codepage,
+    scratch: &mut ScratchBuffers,
+) -> Result<(i64, bool)> {
+    let mut value = 0i64;
+    let mut is_negative = false;
+
+    if data.is_empty() {
+        return Ok((0, false));
+    }
+
+    let last_index = data.len() - 1;
+    for (index, &byte) in data.iter().enumerate() {
+        if index == last_index {
+            let (digit, negative) = zoned_handle_last_byte(byte, signed, expected_zone, codepage)?;
+            scratch.digit_buffer.push(digit);
+            value = value.saturating_mul(10).saturating_add(i64::from(digit));
+            is_negative = negative;
+        } else {
+            let digit = zoned_validate_non_final_byte(byte, index, expected_zone, codepage)?;
+            scratch.digit_buffer.push(digit);
+            value = value.saturating_mul(10).saturating_add(i64::from(digit));
+        }
+    }
+
+    Ok((value, is_negative))
+}
+
 /// Optimized zoned decimal decoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+///
+/// # Errors
+/// Returns an error when the input length, digit zones, or sign encoding are invalid.
+#[inline]
+#[must_use = "Use the decoded decimal or handle the decoding error"]
 pub fn decode_zoned_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -1825,7 +2036,7 @@ pub fn decode_zoned_decimal_with_scratch(
     blank_when_zero: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<SmallDecimal> {
-    if data.len() != digits as usize {
+    if data.len() != usize::from(digits) {
         return Err(Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
             format!(
@@ -1837,10 +2048,7 @@ pub fn decode_zoned_decimal_with_scratch(
     }
 
     // Check for BLANK WHEN ZERO (all spaces) - optimized check
-    let space_byte = match codepage {
-        Codepage::ASCII => b' ',
-        _ => 0x40, // EBCDIC space
-    };
+    let space_byte = zoned_space_byte(codepage);
 
     let is_all_spaces = data.iter().all(|&b| b == space_byte);
     if is_all_spaces {
@@ -1857,76 +2065,11 @@ pub fn decode_zoned_decimal_with_scratch(
 
     // Clear and prepare digit buffer for reuse
     scratch.digit_buffer.clear();
-    scratch.digit_buffer.reserve(digits as usize);
+    scratch.digit_buffer.reserve(usize::from(digits));
 
-    let mut value = 0i64;
-    let mut is_negative = false;
-
-    // Optimized digit processing using scratch buffer
-    let expected_zone = match codepage {
-        Codepage::ASCII => ASCII_DIGIT_ZONE,
-        _ => EBCDIC_DIGIT_ZONE,
-    };
-
-    // Process each digit with optimized zone checking
-    for (i, &byte) in data.iter().enumerate() {
-        if i == data.len() - 1 {
-            let (digit, negative) = crate::zoned_overpunch::decode_overpunch_byte(byte, codepage)?;
-
-            if signed {
-                is_negative = negative;
-            } else {
-                let zone = (byte >> 4) & 0x0F;
-                let zone_label = match codepage {
-                    Codepage::ASCII => "ASCII",
-                    _ => "EBCDIC",
-                };
-                if zone != expected_zone {
-                    return Err(Error::new(
-                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                        format!(
-                            "Unsigned {zone_label} zoned decimal cannot contain sign zone 0x{zone:X} in last byte"
-                        ),
-                    ));
-                }
-                if negative {
-                    return Err(Error::new(
-                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                        "Unsigned zoned decimal contains negative overpunch",
-                    ));
-                }
-            }
-
-            scratch.digit_buffer.push(digit);
-            value = value.saturating_mul(10).saturating_add(i64::from(digit));
-        } else {
-            let zone = (byte >> 4) & 0x0F;
-            let digit = byte & 0x0F;
-
-            if digit > 9 {
-                return Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!("Invalid digit nibble 0x{digit:X} at position {i}"),
-                ));
-            }
-
-            if zone != expected_zone {
-                let zone_label = match codepage {
-                    Codepage::ASCII => "ASCII",
-                    _ => "EBCDIC",
-                };
-                return Err(Error::new(
-                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!(
-                        "Invalid {zone_label} zone 0x{zone:X} at position {i}, expected 0x{expected_zone:X}"
-                    ),
-                ));
-            }
-
-            scratch.digit_buffer.push(digit);
-            value = value.saturating_mul(10).saturating_add(i64::from(digit));
-        }
-    }
+    let expected_zone = zoned_expected_zone(codepage);
+    let (value, is_negative) =
+        zoned_process_digits(data, signed, expected_zone, codepage, scratch)?;
 
     debug_assert!(
         scratch.digit_buffer.iter().all(|&d| d <= 9),
@@ -1938,9 +2081,148 @@ pub fn decode_zoned_decimal_with_scratch(
     Ok(decimal)
 }
 
+#[inline]
+fn packed_decode_single_byte(
+    byte: u8,
+    digits: u16,
+    scale: i16,
+    signed: bool,
+) -> Result<SmallDecimal> {
+    let high_nibble = (byte >> 4) & 0x0F;
+    let low_nibble = byte & 0x0F;
+    let mut value = 0i64;
+
+    if digits == 1 {
+        if high_nibble > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid digit nibble 0x{high_nibble:X}"),
+            ));
+        }
+        value = i64::from(high_nibble);
+    }
+
+    let is_negative = if signed {
+        match low_nibble {
+            0xA | 0xC | 0xE | 0xF => false,
+            0xB | 0xD => true,
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid sign nibble 0x{low_nibble:X}"),
+                ));
+            }
+        }
+    } else {
+        if low_nibble != 0xF {
+            return Err(Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+            ));
+        }
+        false
+    };
+
+    let mut decimal = SmallDecimal::new(value, scale, is_negative);
+    decimal.normalize();
+    Ok(decimal)
+}
+
+#[inline]
+fn packed_decode_multi_byte(
+    data: &[u8],
+    digits: u16,
+    scale: i16,
+    signed: bool,
+) -> Result<SmallDecimal> {
+    let mut value = 0i64;
+    let mut digit_count = 0;
+    let total_nibbles = digits + 1;
+    let has_padding = (total_nibbles & 1) == 1;
+
+    for (byte_idx, &byte) in data.iter().enumerate() {
+        let high_nibble = (byte >> 4) & 0x0F;
+        let low_nibble = byte & 0x0F;
+        let is_first_byte = byte_idx == 0;
+        let is_last_byte = byte_idx == data.len() - 1;
+
+        if is_first_byte && has_padding {
+            if high_nibble != 0 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Expected padding nibble 0, got 0x{high_nibble:X}"),
+                ));
+            }
+        } else if !(is_last_byte && digit_count >= digits) {
+            if high_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{high_nibble:X}"),
+                ));
+            }
+            value = value
+                .checked_mul(10)
+                .and_then(|v| v.checked_add(i64::from(high_nibble)))
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        "Numeric overflow during zoned decimal conversion",
+                    )
+                })?;
+            digit_count += 1;
+        }
+
+        if is_last_byte {
+            if signed {
+                let is_negative = match low_nibble {
+                    0xC | 0xF => false,
+                    0xD => true,
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                            format!("Invalid sign nibble 0x{low_nibble:X}"),
+                        ));
+                    }
+                };
+                return Ok(create_normalized_decimal(value, scale, is_negative));
+            }
+            if low_nibble != 0xF {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
+                ));
+            }
+        } else {
+            if low_nibble > 9 {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    format!("Invalid digit nibble 0x{low_nibble:X}"),
+                ));
+            }
+            value = value
+                .checked_mul(10)
+                .and_then(|v| v.checked_add(i64::from(low_nibble)))
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                        "Numeric overflow during zoned decimal conversion",
+                    )
+                })?;
+            digit_count += 1;
+        }
+
+        if digit_count >= digits {
+            break;
+        }
+    }
+
+    Ok(SmallDecimal::new(value, scale, false))
+}
+
 /// Optimized packed decimal decoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
 #[inline]
+#[must_use = "Use the decoded decimal or propagate the decoding error"]
 pub fn decode_packed_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -1948,7 +2230,7 @@ pub fn decode_packed_decimal_with_scratch(
     signed: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<SmallDecimal> {
-    let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
+    let expected_bytes = usize::from((digits + 1).div_ceil(2));
     if data.len() != expected_bytes {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -1968,250 +2250,26 @@ pub fn decode_packed_decimal_with_scratch(
     // Use the original implementation - the "optimized" path actually hurts performance
     // Clear and prepare digit buffer for reuse
     scratch.digit_buffer.clear();
-    scratch.digit_buffer.reserve(digits as usize);
+    scratch.digit_buffer.reserve(usize::from(digits));
 
-    let mut value = 0i64;
-    let mut digit_count = 0;
+    // Optimized nibble processing - unify handling for multi-byte cases
+    let decimal = if data.len() == 1 {
+        packed_decode_single_byte(data[0], digits, scale, signed)?
+    } else {
+        packed_decode_multi_byte(data, digits, scale, signed)?
+    };
 
-    // Optimized nibble processing - unroll loop for common cases
-    match data.len() {
-        1 => {
-            // Single byte case - common for small packed decimals
-            let byte = data[0];
-            let high_nibble = (byte >> 4) & 0x0F;
-            let low_nibble = byte & 0x0F;
-
-            if digits == 1 {
-                // Only low nibble is sign
-                if high_nibble > 9 {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid digit nibble 0x{high_nibble:X}"),
-                    ));
-                }
-                value = i64::from(high_nibble);
-            }
-
-            // Low nibble is always sign in last byte
-            let is_negative = if signed {
-                match low_nibble {
-                    0xA | 0xC | 0xE | 0xF => false, // Positive
-                    0xB | 0xD => true,              // Negative
-                    _ => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid sign nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                }
-            } else {
-                if low_nibble != 0xF {
-                    return Err(Error::new(
-                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                        format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                    ));
-                }
-                false
-            };
-
-            debug_assert!(
-                scratch.digit_buffer.iter().all(|&d| d <= 9),
-                "scratch digit buffer must contain only logical digits"
-            );
-
-            let mut decimal = SmallDecimal::new(value, scale, is_negative);
-            decimal.normalize();
-            return Ok(decimal);
-        }
-        2..=4 => {
-            // Small packed decimals - optimized path
-            for (byte_idx, &byte) in data.iter().enumerate() {
-                let high_nibble = (byte >> 4) & 0x0F;
-                let low_nibble = byte & 0x0F;
-
-                // Process high nibble
-                // CRITICAL FIX: In COMP-3, the sign is ALWAYS in the low nibble of the last byte.
-                // For even-digit fields, the FIRST nibble is padding (0), not the last high nibble.
-                // Only skip processing if this is the FIRST byte AND we have padding (odd total nibbles).
-                let is_first_byte = byte_idx == 0;
-                let is_last_byte = byte_idx == data.len() - 1;
-                let total_nibbles = digits + 1; // digits + sign
-                let has_padding = (total_nibbles & 1) == 1; // odd total nibbles means padding
-
-                if is_first_byte && has_padding {
-                    // Skip padding nibble at start
-                    if high_nibble != 0 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Expected padding nibble 0, got 0x{high_nibble:X}"),
-                        ));
-                    }
-                } else if !(is_last_byte && digit_count >= digits) {
-                    // Process as digit unless we've already processed all digits
-                    if high_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{high_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                // Process low nibble
-                if byte_idx == data.len() - 1 {
-                    // Last byte - low nibble is always sign
-                    if signed {
-                        let is_negative = match low_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{low_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
-                    } else if low_nibble != 0xF {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                        ));
-                    }
-                } else {
-                    if low_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                if digit_count >= digits {
-                    break;
-                }
-            }
-        }
-        _ => {
-            // General case for larger packed decimals
-            for (byte_idx, &byte) in data.iter().enumerate() {
-                let high_nibble = (byte >> 4) & 0x0F;
-                let low_nibble = byte & 0x0F;
-
-                // Process high nibble
-                // CRITICAL FIX: In COMP-3, the sign is ALWAYS in the low nibble of the last byte.
-                // For even-digit fields, the FIRST nibble is padding (0), not the last high nibble.
-                // Only skip processing if this is the FIRST byte AND we have padding (odd total nibbles).
-                let is_first_byte = byte_idx == 0;
-                let is_last_byte = byte_idx == data.len() - 1;
-                let total_nibbles = digits + 1; // digits + sign
-                let has_padding = (total_nibbles & 1) == 1; // odd total nibbles means padding
-
-                if is_first_byte && has_padding {
-                    // Skip padding nibble at start
-                    if high_nibble != 0 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Expected padding nibble 0, got 0x{high_nibble:X}"),
-                        ));
-                    }
-                } else if !(is_last_byte && digit_count >= digits) {
-                    // Process as digit unless we've already processed all digits
-                    if high_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{high_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(high_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                // Process low nibble
-                if byte_idx == data.len() - 1 {
-                    // Last byte - low nibble is always sign
-                    if signed {
-                        let is_negative = match low_nibble {
-                            0xC | 0xF => false,
-                            0xD => true,
-                            _ => {
-                                return Err(Error::new(
-                                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                                    format!("Invalid sign nibble 0x{low_nibble:X}"),
-                                ));
-                            }
-                        };
-                        return Ok(create_normalized_decimal(value, scale, is_negative));
-                    } else if low_nibble != 0xF {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid unsigned sign nibble 0x{low_nibble:X}, expected 0xF"),
-                        ));
-                    }
-                } else {
-                    if low_nibble > 9 {
-                        return Err(Error::new(
-                            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                            format!("Invalid digit nibble 0x{low_nibble:X}"),
-                        ));
-                    }
-                    value = value
-                        .checked_mul(10)
-                        .and_then(|v| v.checked_add(i64::from(low_nibble)))
-                        .ok_or_else(|| {
-                            Error::new(
-                                ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                                "Numeric overflow during zoned decimal conversion",
-                            )
-                        })?;
-                    digit_count += 1;
-                }
-
-                if digit_count >= digits {
-                    break;
-                }
-            }
-        }
-    }
-
-    // If we get here without returning, it's unsigned
     debug_assert!(
         scratch.digit_buffer.iter().all(|&d| d <= 9),
         "scratch digit buffer must contain only logical digits"
     );
-    let decimal = SmallDecimal::new(value, scale, false);
+
     Ok(decimal)
 }
 
 /// Fast binary integer decoder with optimized paths for common widths
 #[inline]
+#[must_use = "Use the decoded integer or propagate the parsing error"]
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     // Optimized paths for common binary widths
     match (bits, data.len()) {
@@ -2219,18 +2277,18 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
             // 16-bit integer - most common case
             let bytes = [data[0], data[1]];
             if signed {
-                Ok(i16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i16::from_be_bytes(bytes)))
             } else {
-                Ok(u16::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u16::from_be_bytes(bytes)))
             }
         }
         (32, 4) => {
             // 32-bit integer - common case
             let bytes = [data[0], data[1], data[2], data[3]];
             if signed {
-                Ok(i32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(i32::from_be_bytes(bytes)))
             } else {
-                Ok(u32::from_be_bytes(bytes) as i64)
+                Ok(i64::from(u32::from_be_bytes(bytes)))
             }
         }
         (64, 8) => {
@@ -2242,13 +2300,19 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
                 Ok(i64::from_be_bytes(bytes))
             } else {
                 let value = u64::from_be_bytes(bytes);
-                if value > i64::MAX as u64 {
+                let max_i64 = u64::try_from(i64::MAX).unwrap_or(u64::MAX);
+                if value > max_i64 {
                     return Err(Error::new(
                         ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                         format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
                     ));
                 }
-                Ok(value as i64)
+                i64::try_from(value).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                        format!("Unsigned 64-bit value {value} exceeds i64::MAX"),
+                    )
+                })
             }
         }
         _ => {
@@ -2260,6 +2324,8 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
 
 /// Optimized zoned decimal encoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_zoned_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,
@@ -2271,7 +2337,7 @@ pub fn encode_zoned_decimal_with_scratch(
     // Clear and prepare buffers
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
-    scratch.byte_buffer.reserve(digits as usize);
+    scratch.byte_buffer.reserve(usize::from(digits));
 
     // Convert decimal to string using scratch buffer
     scratch.string_buffer.clear();
@@ -2291,6 +2357,8 @@ pub fn encode_zoned_decimal_with_scratch(
 
 /// Optimized packed decimal encoder using scratch buffers
 /// Minimizes allocations by reusing digit buffer
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
 pub fn encode_packed_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,
@@ -2300,7 +2368,7 @@ pub fn encode_packed_decimal_with_scratch(
     // Clear and prepare buffers
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
-    let expected_bytes = ((digits + 1).div_ceil(2)) as usize;
+    let expected_bytes = usize::from((digits + 1).div_ceil(2));
     scratch.byte_buffer.reserve(expected_bytes);
 
     // Convert decimal to string using scratch buffer
@@ -2319,6 +2387,7 @@ pub fn encode_packed_decimal_with_scratch(
 /// This avoids the SmallDecimal -> String allocation overhead that was causing
 /// the 94-96% performance regression in COMP-3 processing.
 #[inline]
+#[must_use = "Use the decoded string or propagate the decoding error"]
 pub fn decode_packed_decimal_to_string_with_scratch(
     data: &[u8],
     digits: u16,
@@ -2357,7 +2426,7 @@ pub fn decode_packed_decimal_to_string_with_scratch(
 
         if signed {
             // SIMD-friendly branch-free sign detection
-            let sign_code = SIGN_TABLE[low_nibble as usize];
+            let sign_code = SIGN_TABLE[usize::from(low_nibble)];
             if sign_code == 0 {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
@@ -2381,14 +2450,14 @@ pub fn decode_packed_decimal_to_string_with_scratch(
         if scale <= 0 {
             // Integer format
             let scaled_value = if scale < 0 {
-                value * 10_i64.pow((-scale) as u32)
+                value * 10_i64.pow(scale_abs_to_u32(scale))
             } else {
                 value
             };
             format_integer_to_buffer(scaled_value, &mut scratch.string_buffer);
         } else {
             // Decimal format
-            let divisor = 10_i64.pow(scale as u32);
+            let divisor = 10_i64.pow(scale_abs_to_u32(scale));
             let integer_part = value / divisor;
             let fractional_part = value % divisor;
 
@@ -2396,7 +2465,7 @@ pub fn decode_packed_decimal_to_string_with_scratch(
             scratch.string_buffer.push('.');
             format_integer_with_leading_zeros_to_buffer(
                 fractional_part,
-                scale as u32,
+                scale_abs_to_u32(scale),
                 &mut scratch.string_buffer,
             );
         }
@@ -2428,6 +2497,7 @@ pub fn decode_packed_decimal_to_string_with_scratch(
 /// - No allocations on the hot path
 /// - Returns the scratch-backed `String` (valid until next reuse/clear)
 #[inline]
+#[must_use = "Use the formatted string or continue mutating the scratch buffer"]
 pub fn format_binary_int_to_string_with_scratch(
     value: i64,
     scratch: &mut ScratchBuffers,
@@ -2451,116 +2521,20 @@ pub fn format_binary_int_to_string_with_scratch(
 
 /// Ultra-fast integer formatting for standalone use with SIMD-friendly optimizations
 #[inline]
-fn format_integer_to_buffer(mut value: i64, buffer: &mut String) {
-    // SIMD-friendly lookup table for digits (enables vectorization)
-    const DIGITS: [u8; 10] = [b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'];
-
-    if value == 0 {
-        buffer.push('0');
-        return;
-    }
-
-    // Ultra-fast single digit path (40%+ of COMP-3 values)
-    if value < 10 {
-        buffer.push(DIGITS[value as usize] as char);
-        return;
-    }
-
-    // Optimized 2-digit path (30%+ of COMP-3 values)
-    if value < 100 {
-        let tens = (value / 10) as usize;
-        let ones = (value % 10) as usize;
-        buffer.push(DIGITS[tens] as char);
-        buffer.push(DIGITS[ones] as char);
-        return;
-    }
-
-    // 3-digit optimization (common in enterprise COMP-3)
-    if value < 1000 {
-        let hundreds = (value / 100) as usize;
-        let remainder = value % 100;
-        let tens = (remainder / 10) as usize;
-        let ones = (remainder % 10) as usize;
-        buffer.push(DIGITS[hundreds] as char);
-        buffer.push(DIGITS[tens] as char);
-        buffer.push(DIGITS[ones] as char);
-        return;
-    }
-
-    // Use lookup table for remaining digits (SIMD-friendly)
-    let mut digits = [0u8; 20]; // More than enough for i64::MAX
-    let mut count = 0;
-
-    while value > 0 {
-        digits[count] = DIGITS[(value % 10) as usize];
-        value /= 10;
-        count += 1;
-    }
-
-    // Add digits in reverse order (vectorizable loop)
-    for i in (0..count).rev() {
-        buffer.push(digits[i] as char);
-    }
+fn format_integer_to_buffer(value: i64, buffer: &mut String) {
+    SmallDecimal::format_integer_manual(value, buffer);
 }
 
 /// Ultra-fast integer formatting with leading zeros for standalone use
 #[inline]
-fn format_integer_with_leading_zeros_to_buffer(mut value: i64, width: u32, buffer: &mut String) {
-    // Optimized for common small widths (most COMP-3 scales are 0-4)
-    if width <= 4 && value < 10000 {
-        match width {
-            1 => {
-                buffer.push((value as u8 + b'0') as char);
-            }
-            2 => {
-                buffer.push(((value / 10) as u8 + b'0') as char);
-                buffer.push(((value % 10) as u8 + b'0') as char);
-            }
-            3 => {
-                buffer.push(((value / 100) as u8 + b'0') as char);
-                buffer.push((((value / 10) % 10) as u8 + b'0') as char);
-                buffer.push(((value % 10) as u8 + b'0') as char);
-            }
-            4 => {
-                buffer.push(((value / 1000) as u8 + b'0') as char);
-                buffer.push((((value / 100) % 10) as u8 + b'0') as char);
-                buffer.push((((value / 10) % 10) as u8 + b'0') as char);
-                buffer.push(((value % 10) as u8 + b'0') as char);
-            }
-            _ => {}
-        }
-        return;
-    }
-
-    // General case for larger widths
-    let mut digits = [0u8; 20]; // More than enough for i64::MAX
-    let mut count = 0;
-
-    // Extract digits
-    loop {
-        digits[count] = (value % 10) as u8 + b'0';
-        value /= 10;
-        count += 1;
-        if value == 0 && count >= width as usize {
-            break;
-        }
-    }
-
-    // Pad with leading zeros if needed
-    while count < width as usize {
-        digits[count] = b'0';
-        count += 1;
-    }
-
-    // Add digits in reverse order
-    for i in (0..count).rev() {
-        buffer.push(digits[i] as char);
-    }
+fn format_integer_with_leading_zeros_to_buffer(value: i64, width: u32, buffer: &mut String) {
+    SmallDecimal::format_integer_with_leading_zeros(value, width, buffer);
 }
 
 /// Optimized zoned decimal decoder that formats to string using scratch buffer
 /// CRITICAL PERFORMANCE OPTIMIZATION for zoned decimal JSON conversion
 #[inline]
+#[must_use = "Use the formatted string or propagate the decoding error"]
 pub fn decode_zoned_decimal_to_string_with_scratch(
     data: &[u8],
     digits: u16,
@@ -2593,7 +2567,7 @@ pub fn decode_zoned_decimal_to_string_with_scratch(
             }
 
             let magnitude = if decimal.scale < 0 {
-                decimal.value * 10_i64.pow((-decimal.scale) as u32)
+                decimal.value * 10_i64.pow(scale_abs_to_u32(decimal.scale))
             } else {
                 decimal.value
             };

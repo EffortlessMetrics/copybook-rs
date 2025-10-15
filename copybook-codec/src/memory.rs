@@ -28,6 +28,7 @@ pub struct ScratchBuffers {
 
 impl ScratchBuffers {
     /// Create new scratch buffers with reasonable initial capacity
+    #[inline]
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -38,6 +39,7 @@ impl ScratchBuffers {
     }
 
     /// Clear all buffers for reuse
+    #[inline]
     pub fn clear(&mut self) {
         self.digit_buffer.clear();
         self.byte_buffer.clear();
@@ -86,6 +88,7 @@ impl ScratchBuffers {
 }
 
 impl Default for ScratchBuffers {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -102,6 +105,7 @@ pub struct SequencedRecord<T> {
 
 impl<T> SequencedRecord<T> {
     /// Create a new sequenced record
+    #[inline]
     pub fn new(sequence_id: u64, data: T) -> Self {
         Self { sequence_id, data }
     }
@@ -131,6 +135,7 @@ impl<T> SequenceRing<T> {
     /// # Arguments
     /// * `channel_capacity` - Maximum number of records in flight
     /// * `max_window_size` - Maximum reordering window size
+    #[inline]
     #[must_use]
     pub fn new(channel_capacity: usize, max_window_size: usize) -> Self {
         let (sender, receiver) = bounded(channel_capacity);
@@ -146,6 +151,7 @@ impl<T> SequenceRing<T> {
     }
 
     /// Get a sender for workers to submit processed records
+    #[inline]
     #[must_use]
     pub fn sender(&self) -> Sender<SequencedRecord<T>> {
         self.sender.clone()
@@ -158,6 +164,8 @@ impl<T> SequenceRing<T> {
     /// # Errors
     ///
     /// Returns an error if the channel is disconnected
+    #[inline]
+    #[must_use = "Handle the result to observe channel shutdown or emitted data"]
     pub fn recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::RecvError> {
         loop {
             // Check if we have the next expected record in the reorder buffer
@@ -223,6 +231,8 @@ impl<T> SequenceRing<T> {
     /// # Errors
     ///
     /// Returns an error if the channel is disconnected or would block
+    #[inline]
+    #[must_use = "Inspect the result to detect channel closure or pending records"]
     pub fn try_recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::TryRecvError> {
         // Check if we have the next expected record in the reorder buffer
         if let Some(record) = self.reorder_buffer.remove(&self.next_sequence_id) {
@@ -257,6 +267,7 @@ impl<T> SequenceRing<T> {
     }
 
     /// Get statistics about the sequence ring
+    #[inline]
     #[must_use]
     pub fn stats(&self) -> SequenceRingStats {
         SequenceRingStats {
@@ -306,6 +317,8 @@ where
     /// * `channel_capacity` - Maximum records in flight
     /// * `max_window_size` - Maximum reordering window
     /// * `worker_fn` - Function to process each record
+    #[inline]
+    #[must_use]
     pub fn new<F>(
         num_workers: usize,
         channel_capacity: usize,
@@ -371,6 +384,7 @@ where
     /// # Errors
     ///
     /// Returns an error if the worker channel is disconnected
+    #[inline]
     pub fn submit(
         &mut self,
         input: Input,
@@ -386,6 +400,8 @@ where
     /// # Errors
     ///
     /// Returns an error if the channel is disconnected
+    #[inline]
+    #[must_use = "React to the outcome to avoid blocking the worker pipeline"]
     pub fn recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::RecvError> {
         self.output_ring.recv_ordered()
     }
@@ -396,6 +412,8 @@ where
     /// # Errors
     ///
     /// Returns an error if the channel is disconnected or would block
+    #[inline]
+    #[must_use = "Use the result to detect when more work remains in the channel"]
     pub fn try_recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::TryRecvError> {
         self.output_ring.try_recv_ordered()
     }
@@ -406,6 +424,7 @@ where
     /// # Errors
     ///
     /// Returns an error if any worker thread panicked
+    #[inline]
     pub fn shutdown(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Close input channel
         drop(self.input_sender);
@@ -421,6 +440,7 @@ where
     }
 
     /// Get statistics about the worker pool
+    #[inline]
     #[must_use]
     pub fn stats(&self) -> WorkerPoolStats {
         WorkerPoolStats {
@@ -458,6 +478,7 @@ pub struct StreamingProcessor {
 
 impl StreamingProcessor {
     /// Create a new streaming processor with memory limit
+    #[inline]
     #[must_use]
     pub fn new(max_memory_mb: usize) -> Self {
         Self {
@@ -469,12 +490,14 @@ impl StreamingProcessor {
     }
 
     /// Create with default 256 MiB limit
+    #[inline]
     #[must_use]
     pub fn with_default_limit() -> Self {
         Self::new(256)
     }
 
     /// Check if we're approaching memory limit
+    #[inline]
     #[must_use]
     pub fn is_memory_pressure(&self) -> bool {
         self.current_memory_bytes > (self.max_memory_bytes * 80 / 100) // 80% threshold
@@ -483,26 +506,25 @@ impl StreamingProcessor {
     /// Update memory usage estimate
     ///
     /// PERFORMANCE OPTIMIZATION: Optimized for hot path with minimal branching
+    #[inline]
     pub fn update_memory_usage(&mut self, bytes_delta: isize) {
-        if bytes_delta >= 0 {
-            // Fast path: positive delta (most common case - allocating memory)
-            self.current_memory_bytes = self
-                .current_memory_bytes
-                .saturating_add(bytes_delta as usize);
+        if let Ok(increase) = usize::try_from(bytes_delta) {
+            self.current_memory_bytes = self.current_memory_bytes.saturating_add(increase);
         } else {
-            // Fast path: negative delta (releasing memory)
-            let abs_delta = (-bytes_delta) as usize;
-            self.current_memory_bytes = self.current_memory_bytes.saturating_sub(abs_delta);
+            let decrease = bytes_delta.unsigned_abs();
+            self.current_memory_bytes = self.current_memory_bytes.saturating_sub(decrease);
         }
     }
 
     /// Record processing of a record
+    #[inline]
     pub fn record_processed(&mut self, record_size: usize) {
         self.records_processed += 1;
         self.bytes_processed += record_size as u64;
     }
 
     /// Get processing statistics
+    #[inline]
     #[must_use]
     pub fn stats(&self) -> StreamingProcessorStats {
         StreamingProcessorStats {

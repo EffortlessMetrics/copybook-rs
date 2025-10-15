@@ -257,6 +257,46 @@ pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_encode_decode_parity(
+            digit in 0u8..=9,
+            is_negative in any::<bool>(),
+            codepage in prop_oneof![
+                Just(Codepage::ASCII),
+                Just(Codepage::CP037),
+                Just(Codepage::CP273),
+                Just(Codepage::CP500),
+                Just(Codepage::CP1047),
+                Just(Codepage::CP1140),
+            ],
+            policy in prop_oneof![Just(ZeroSignPolicy::Positive), Just(ZeroSignPolicy::Preferred)],
+        ) {
+            let encoded = encode_overpunch_byte(digit, is_negative, codepage, policy)
+                .expect("encoding should succeed for digits 0-9");
+
+            prop_assert!(is_valid_overpunch(encoded, codepage));
+
+            let (decoded_digit, decoded_negative) =
+                decode_overpunch_byte(encoded, codepage).expect("decode must succeed for encoded byte");
+
+            prop_assert_eq!(decoded_digit, digit);
+
+            let expected_negative = if codepage.is_ebcdic()
+                && policy == ZeroSignPolicy::Preferred
+                && digit == 0
+            {
+                // Preferred-zero policy always decodes as positive regardless of requested sign
+                false
+            } else {
+                is_negative
+            };
+
+            prop_assert_eq!(decoded_negative, expected_negative);
+        }
+    }
 
     #[test]
     fn test_ascii_overpunch_encode_decode() {

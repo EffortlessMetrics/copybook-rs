@@ -23,6 +23,7 @@ Quick reference matrix for diagnosing and resolving copybook-rs issues, organize
 | CBKE501 | Encode | Fatal | Fix JSON type | [Encode Errors](#encode-errors) |
 | CBKE521 | Encode | Fatal | Fix array length | [Encode Errors](#encode-errors) |
 | CBKF104 | File | Warning | Check transfer mode | [File Errors](#file-errors) |
+| CBKI001 | Iterator | Fatal | Provide LRECL before iterating | [Iterator Errors](#iterator-errors) |
 
 ## Parse Errors
 
@@ -532,6 +533,25 @@ copybook decode schema.cpy data.bin --output copybook.jsonl
 copybook parse schema.cpy --output schema.json
 copybook verify schema.cpy data.bin --format fixed
 ```
+
+## Iterator Errors
+
+### CBKI001_INVALID_STATE
+
+**Symptoms:**
+- "Fixed format requires a fixed record length (LRECL)."
+- `RecordIterator::next()` fails on the first call.
+
+**Diagnosis:**
+```bash
+# Confirm the schema exposes a fixed LRECL
+copybook inspect schema.cpy --show-metadata | grep LRECL
+```
+
+**Solution:**
+1. Ensure the copybook or generated schema populates `lrecl_fixed`.
+2. For programmatic schemas, assign `schema.lrecl_fixed = Some(<length>)` before constructing a fixed-format iterator.
+3. Retry iteration; lazy validation will now proceed without triggering CBKI001.
 
 ## Getting Additional Help
 

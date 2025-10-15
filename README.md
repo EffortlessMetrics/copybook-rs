@@ -791,13 +791,13 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### Current Reliability Snapshot
 - **Tests**: `cargo nextest` currently reports 461/462 passing with one timing-sensitive performance assertion failing (`copybook-core::test_ac4_performance_large_scale_odo_tail_violation_fail`) and eight leak detectors still queued for cleanup (see `integrative_gate_summary.md`)
-- **Benchmarks**: Latest telemetry (`test_perf.json`) shows DISPLAY decode throughput around 66–95 MiB/s and COMP-3 decode around 18–25 MiB/s—suitable for engineering validation but below historic GiB/s marketing claims
+- **Benchmarks**: Latest telemetry (`scripts/bench/perf.json`) shows DISPLAY decode throughput around 66–95 MiB/s and COMP-3 decode around 18–25 MiB/s—suitable for engineering validation but below historic GiB/s marketing claims
 - **Automation gaps**: The Python utilities promised in Issue #52 (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) have not shipped yet; see `docs/backlog/benchmark_tooling.md`
 - **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`
 
 ### Benchmarking & Regression Tracking
 - Run ad-hoc benchmarks with `cargo bench --package copybook-bench`; optional `PERF=1` enables additional logging
-- Capture raw measurements via `cargo bench -- --output-format json > performance.json` (schema documented in `docs/schemas/performance_report.schema.json`)
+- Capture PR receipts with `PERF=1 cargo bench -p copybook-bench -- --output-format json > target/perf.json` followed by `mkdir -p scripts/bench && cp target/perf.json scripts/bench/perf.json` (schema documented in `docs/schemas/performance_report.schema.json`)
 - Until the Issue #52 utilities land, baseline promotion, regression detection, and SLO validation require manual analysis of the generated JSON plus the backlog tracker
 
 ## Development
@@ -825,11 +825,9 @@ cargo test --workspace
 # Run with coverage
 cargo test --workspace -- --nocapture
 
-# Run performance benchmarks
-cargo bench --package copybook-bench
-
-# Run with performance environment variable
-PERF=1 cargo bench
+# Run performance benchmarks (JSON receipts)
+PERF=1 cargo bench -p copybook-bench -- --output-format json > target/perf.json
+mkdir -p scripts/bench && cp target/perf.json scripts/bench/perf.json
 
 # Run clippy
 cargo clippy --workspace -- -D warnings -W clippy::pedantic

@@ -14,8 +14,14 @@ if not "%PERF%"=="1" (
 echo Building benchmark crate...
 cargo build --release -p copybook-bench
 
-echo Running benchmarks...
-cargo bench -p copybook-bench
+echo Running benchmarks (JSON receipts enabled)...
+cargo bench -p copybook-bench -- --output-format json > target\perf.json
 
-echo Benchmark results saved to target\criterion\
-echo Open target\criterion\report\index.html to view detailed results
+echo Bridging receipts to scripts\bench\perf.json for CI upload...
+if not exist scripts\bench (
+    mkdir scripts\bench
+)
+copy /Y target\perf.json scripts\bench\perf.json >nul
+
+echo Benchmark receipts available at scripts\bench\perf.json
+echo Criterion reports remain under target\criterion\

@@ -16,8 +16,12 @@ fi
 echo "Building benchmark crate..."
 cargo build --release -p copybook-bench
 
-echo "Running benchmarks..."
-cargo bench -p copybook-bench
+echo "Running benchmarks (JSON receipts enabled)..."
+cargo bench -p copybook-bench -- --output-format json > target/perf.json
 
-echo "Benchmark results saved to target/criterion/"
-echo "Open target/criterion/report/index.html to view detailed results"
+echo "Bridging receipts to scripts/bench/perf.json for CI upload..."
+mkdir -p scripts/bench
+cp target/perf.json scripts/bench/perf.json
+
+echo "Benchmark receipts available at scripts/bench/perf.json"
+echo "Criterion reports remain under target/criterion/"

@@ -60,7 +60,10 @@ bench:
         echo "Run with: PERF=1 just bench"
         exit 1
     fi
-    cargo bench -p copybook-bench
+    cargo bench -p copybook-bench -- --output-format json > target/perf.json
+    mkdir -p scripts/bench
+    cp target/perf.json scripts/bench/perf.json
+    echo "Benchmark receipts available at scripts/bench/perf.json"
 
 # Quick CI checks (build, test, lint) - legacy version
 ci-quick-legacy:
@@ -97,7 +100,14 @@ bench-crate crate:
         echo "Run with: PERF=1 just bench-crate {{crate}}"
         exit 1
     fi
-    cargo bench -p {{crate}}
+    if [ "{{crate}}" = "copybook-bench" ]; then
+        cargo bench -p {{crate}} -- --output-format json > target/perf.json
+        mkdir -p scripts/bench
+        cp target/perf.json scripts/bench/perf.json
+        echo "Benchmark receipts available at scripts/bench/perf.json"
+    else
+        cargo bench -p {{crate}}
+    fi
 
 # Generate test coverage report
 coverage:

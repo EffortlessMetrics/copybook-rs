@@ -1962,6 +1962,11 @@ pub fn decode_zoned_decimal_with_scratch(
         }
     }
 
+    debug_assert!(
+        scratch.digit_buffer.iter().all(|&d| d <= 9),
+        "scratch digit buffer must contain only logical digits"
+    );
+
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
     decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
     Ok(decimal)
@@ -2042,6 +2047,11 @@ pub fn decode_packed_decimal_with_scratch(
                 }
                 false
             };
+
+            debug_assert!(
+                scratch.digit_buffer.iter().all(|&d| d <= 9),
+                "scratch digit buffer must contain only logical digits"
+            );
 
             let mut decimal = SmallDecimal::new(value, scale, is_negative);
             decimal.normalize();
@@ -2226,6 +2236,10 @@ pub fn decode_packed_decimal_with_scratch(
     }
 
     // If we get here without returning, it's unsigned
+    debug_assert!(
+        scratch.digit_buffer.iter().all(|&d| d <= 9),
+        "scratch digit buffer must contain only logical digits"
+    );
     let decimal = SmallDecimal::new(value, scale, false);
     Ok(decimal)
 }
@@ -2605,6 +2619,8 @@ pub fn decode_zoned_decimal_to_string_with_scratch(
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte, is_valid_overpunch};
+    use proptest::prelude::*;
 
     #[test]
     fn test_small_decimal_normalization() {
@@ -2626,6 +2642,67 @@ mod tests {
         // Negative decimal
         let decimal = SmallDecimal::new(12345, 2, true);
         assert_eq!(decimal.to_string(), "-123.45");
+    }
+
+    proptest! {
+        #[test]
+        fn prop_zoned_digit_buffer_contains_only_digits(
+            digits_vec in prop::collection::vec(0u8..=9, 1..=12),
+            signed in any::<bool>(),
+            allow_negative in any::<bool>(),
+            codepage in prop_oneof![
+                Just(Codepage::ASCII),
+                Just(Codepage::CP037),
+                Just(Codepage::CP273),
+                Just(Codepage::CP500),
+                Just(Codepage::CP1047),
+                Just(Codepage::CP1140),
+            ],
+            policy in prop_oneof![Just(ZeroSignPolicy::Positive), Just(ZeroSignPolicy::Preferred)],
+        ) {
+            let digit_count = digits_vec.len() as u16;
+            let mut bytes = Vec::with_capacity(digits_vec.len());
+
+            for digit in digits_vec.iter().take(digits_vec.len().saturating_sub(1)) {
+                let byte = if codepage.is_ascii() {
+                    0x30 + digit
+                } else {
+                    0xF0 + digit
+                };
+                bytes.push(byte);
+            }
+
+            let is_negative = signed && allow_negative;
+            let last_digit = *digits_vec.last().expect("vector is non-empty");
+            let last_byte = if signed {
+                let encoded = encode_overpunch_byte(last_digit, is_negative, codepage, policy)
+                    .expect("valid overpunch for digit 0-9");
+                prop_assume!(is_valid_overpunch(encoded, codepage));
+                encoded
+            } else {
+                if codepage.is_ascii() {
+                    0x30 + last_digit
+                } else {
+                    0xF0 + last_digit
+                }
+            };
+            bytes.push(last_byte);
+
+            let mut scratch = ScratchBuffers::new();
+            let _ = decode_zoned_decimal_with_scratch(
+                &bytes,
+                digit_count,
+                0,
+                signed,
+                codepage,
+                false,
+                &mut scratch,
+            ).expect("decoding constructed zoned bytes should succeed");
+
+            prop_assert_eq!(scratch.digit_buffer.len(), digits_vec.len());
+            prop_assert!(scratch.digit_buffer.iter().all(|&d| d <= 9));
+            prop_assert_eq!(&scratch.digit_buffer[..], &digits_vec[..]);
+        }
     }
 
     #[test]

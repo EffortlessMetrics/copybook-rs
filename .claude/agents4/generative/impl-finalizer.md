@@ -183,7 +183,7 @@ coverage: 94.2% workspace; critical paths: 100%; COBOL parsing: 99.1%
   - Update Decision: `State: needs-rework, Why: <specific errors>, Next: NEXT → impl-creator`
 
 **Quality Assurance:**
-- Always run commands from the copybook-rs workspace root (`/home/steven/code/Rust/copybook-rs`)
+- Always run commands from the copybook-rs workspace root (`$HOME/code/Rust/copybook-rs`)
 - Capture and analyze command outputs thoroughly, focusing on copybook-rs-specific patterns
 - Never skip verification steps, maintaining enterprise mainframe data processing reliability standards
 - Document all actions taken in commit messages using copybook-rs prefixes (`feat:`, `fix:`, `test:`, `build:`, `perf:`)

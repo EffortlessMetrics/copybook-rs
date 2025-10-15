@@ -31,7 +31,7 @@
 
 ### Binary Artifact Validation
 
-**CLI Binary**: `/home/steven/code/Rust/copybook-rs/target/release/copybook`
+**CLI Binary**: `target/release/copybook`
 - **Type**: ELF 64-bit LSB pie executable, x86-64
 - **Size**: 2.1 MiB
 - **Version**: copybook 0.3.1
@@ -139,13 +139,13 @@ cargo build --workspace --release
 # ✅ Finished `release` profile [optimized] target(s) in 0.17s
 
 # Binary artifact validation
-ls -lh /home/steven/code/Rust/copybook-rs/target/release/copybook
+ls -lh target/release/copybook
 # ✅ -rwxr-xr-x 2 steven steven 2.1M Oct  3 21:36 copybook
 
-file /home/steven/code/Rust/copybook-rs/target/release/copybook
+file target/release/copybook
 # ✅ ELF 64-bit LSB pie executable, x86-64
 
-/home/steven/code/Rust/copybook-rs/target/release/copybook --version
+target/release/copybook --version
 # ✅ copybook 0.3.1
 
 # Workspace crate enumeration
@@ -157,8 +157,8 @@ cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name 
 
 ## Evidence Artifacts
 
-**Build Gate Receipt**: `/home/steven/code/Rust/copybook-rs/docs/issue-102-build-gate-receipt.md`
-**Build Validation Summary**: `/home/steven/code/Rust/copybook-rs/docs/issue-102-build-validation-summary.md` (this file)
+**Build Gate Receipt**: `docs/issue-102-build-gate-receipt.md`
+**Build Validation Summary**: `docs/issue-102-build-validation-summary.md` (this file)
 
 **Evidence Format**:
 ```
@@ -175,7 +175,7 @@ workspace: core/codec/cli/gen/bench all compiled; deps: resolved
 **Gate**: `build`
 **Status**: ✅ **PASS**
 **Evidence**: `build: workspace release ok`
-**Receipt**: `/home/steven/code/Rust/copybook-rs/docs/issue-102-build-gate-receipt.md`
+**Receipt**: `docs/issue-102-build-gate-receipt.md`
 **Timestamp**: 2025-10-04 01:34:00 UTC
 
 ---

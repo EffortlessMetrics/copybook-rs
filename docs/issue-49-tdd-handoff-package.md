@@ -142,8 +142,8 @@ graph TD
 - **Blocks**: AC3
 - **Test Approach**: Validation tests for existing functionality
 - **Existing Implementation**:
-  - `BaselineStore::check_regression()` - `/home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:104-134`
-  - `bench-report compare` CLI - `/home/steven/code/Rust/copybook-rs/copybook-bench/src/bin/bench-report.rs:156-196`
+  - `BaselineStore::check_regression()` - `copybook-bench/src/baseline.rs:104-134`
+  - `bench-report compare` CLI - `copybook-bench/src/bin/bench-report.rs:156-196`
 
 **AC3 (CI Integration)**:
 - **Status**: Partially implemented in Issue #52
@@ -1156,8 +1156,8 @@ cargo test --workspace && cargo clippy --workspace -- -D warnings -D clippy::ped
 ### Integration with Issue #52 Foundation
 
 **AC1 & AC3 Core Functionality Already Implemented**:
-- `BaselineStore::check_regression()` - `/home/steven/code/Rust/copybook-rs/copybook-bench/src/baseline.rs:104-134`
-- `bench-report compare` CLI - `/home/steven/code/Rust/copybook-rs/copybook-bench/src/bin/bench-report.rs:156-196`
+- `BaselineStore::check_regression()` - `copybook-bench/src/baseline.rs:104-134`
+- `bench-report compare` CLI - `copybook-bench/src/bin/bench-report.rs:156-196`
 - GitHub Actions baseline comparison - `.github/workflows/benchmark.yml:260-285`
 
 **Test Approach for AC1 & AC3**:

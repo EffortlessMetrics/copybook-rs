@@ -274,7 +274,7 @@ The implementation is **production-ready** and meets copybook-rs governance requ
 - **Governance Validation**: All 6 governance checks passed
 - **Security Scanning**: cargo audit (0 vulnerabilities), cargo deny (licenses ok)
 - **Quality Gates**: format ✅, clippy ✅, tests ✅, build ✅, docs ✅, security ✅
-- **Documentation**: /home/steven/code/Rust/copybook-rs/docs/reference/LIBRARY_API.md (+61 lines)
+- **Documentation**: docs/reference/LIBRARY_API.md (+61 lines)
 - **Test Coverage**: 529 passing tests (54 ignored), 0 failures
 - **Zero Unsafe Code**: 0 production unsafe blocks validated
 

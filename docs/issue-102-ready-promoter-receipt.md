@@ -109,7 +109,7 @@ https://github.com/EffortlessMetrics/copybook-rs/pull/105
 
 ### 5. Promotion Receipt ✅
 
-**Receipt Location**: `/home/steven/code/Rust/copybook-rs/docs/issue-102-ready-promoter-receipt.md`
+**Receipt Location**: `docs/issue-102-ready-promoter-receipt.md`
 
 **Documentation**:
 - Promotion criteria validation (gates, additional criteria, conditional passes)

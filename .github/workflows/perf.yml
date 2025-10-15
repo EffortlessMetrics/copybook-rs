@@ -41,7 +41,14 @@ jobs:
           cargo nextest run --workspace
 
       - name: Property tests (fast deterministic)
-        run: PROPTEST_CASES=256 cargo test -p copybook-codec prop_zoned_digit_buffer_contains_only_digits zoned_overpunch
+        env:
+          PROPTEST_CASES: "256"
+          PROPTEST_SEED: "copybook-rs-pr90"
+        run: |
+          cargo test -p copybook-codec \
+            prop_zoned_digit_buffer_contains_only_digits \
+            zoned_overpunch \
+            -- --nocapture
 
       - name: Run benches (JSON)
         run: bash scripts/bench.sh
@@ -85,16 +92,26 @@ jobs:
           DISPLAY_MIB: ${{ steps.slo.outputs.display }}
           COMP3_MIB: ${{ steps.slo.outputs.comp3 }}
         run: |
-          display="${DISPLAY_MIB:-0}"
-          comp3="${COMP3_MIB:-0}"
-          awk -v d="$display" -v c="$comp3" 'BEGIN{
-            if (d<80 || c<40) {print "SLO FAIL: display=" d " comp3=" c; exit 1}
-            else {print "SLO PASS: display=" d " comp3=" c}
+          disp="${DISPLAY_MIB:-0}"
+          comp="${COMP3_MIB:-0}"
+          rss=$(jq -r '.summary.max_rss_mib // 0' scripts/bench/perf.json)
+          echo "display=$disp comp3=$comp max_rss_mib=$rss"
+          awk -v d="$disp" -v c="$comp" -v r="$rss" 'BEGIN{
+            if (d<80 || c<40 || r>256) {print "SLO FAIL: display=" d " comp3=" c " max_rss_mib=" r; exit 1}
+            else {print "SLO PASS: display=" d " comp3=" c " max_rss_mib=" r}
           }'
 
       - name: Job summary
-        if: ${{ success() }}
+        if: ${{ always() }}
         run: |
-          echo "### Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
-          echo "- DISPLAY: ${{ steps.slo.outputs.display }} MiB/s (>= 80)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- COMP-3:  ${{ steps.slo.outputs.comp3 }} MiB/s (>= 40)" >> "$GITHUB_STEP_SUMMARY"
+          if [[ ! -f scripts/bench/perf.json ]]; then
+            echo "### Numeric Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Receipts missing; see step logs for details." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "### Numeric Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
+          echo "- DISPLAY: **${{ steps.slo.outputs.display }} MiB/s**  (floor ≥ 80)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- COMP-3:  **${{ steps.slo.outputs.comp3 }} MiB/s**  (floor ≥ 40)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Max RSS: **$(jq -r '.summary.max_rss_mib // \"n/a\"' scripts/bench/perf.json) MiB**  (ceiling ≤ 256)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: \`scripts/bench/perf.json\` (90-day retention)" >> "$GITHUB_STEP_SUMMARY"

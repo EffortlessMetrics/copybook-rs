@@ -258,9 +258,39 @@ pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn proptest_case_count() -> u32 {
+        option_env!("PROPTEST_CASES")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(512)
+    }
+
+    fn zoned_overpunch_proptest_config() -> ProptestConfig {
+        let mut cfg = ProptestConfig {
+            cases: proptest_case_count(),
+            max_shrink_time: 0,
+            ..ProptestConfig::default()
+        };
+
+        if let Ok(seed_value) = std::env::var("PROPTEST_SEED") {
+            if !seed_value.is_empty() {
+                let parsed_seed = seed_value.parse::<u64>().unwrap_or_else(|_| {
+                    let mut hasher = DefaultHasher::new();
+                    seed_value.hash(&mut hasher);
+                    hasher.finish()
+                });
+                cfg.rng_seed = RngSeed::Fixed(parsed_seed);
+            }
+        }
+
+        cfg
+    }
 
     proptest! {
-        #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
+        #![proptest_config(zoned_overpunch_proptest_config())]
         #[test]
         fn prop_encode_decode_parity(
             digit in 0u8..=9,

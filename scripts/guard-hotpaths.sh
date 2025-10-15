@@ -3,30 +3,34 @@ set -euo pipefail
 
 fail=0
 
-if matches=$(rg -n 'Value::String\([^)]*to_string' copybook-codec/src/lib_api.rs); then
-  echo "$matches"
-  echo "❌ lib_api.rs: Value::String(..to_string(..)) found" >&2
-  fail=1
+if matches=$(rg -n 'Value::String\([^)]*to_string\(' copybook-codec/src/lib_api.rs || true); then
+  if [[ -n "${matches}" ]]; then
+    printf '%s\n' "${matches}"
+    echo "❌ Value::String(..to_string(..)) in lib_api.rs" >&2
+    fail=1
+  fi
 fi
 
-if rg -q 'decode_(packed|zoned)_decimal_' copybook-codec/src/lib_api.rs; then
-  while IFS= read -r line; do
-    file=${line%%:*}
-    rest=${line#*:}
-    lineno=${rest%%:*}
-    start=$((lineno > 2 ? lineno - 2 : 1))
-    end=$((lineno + 2))
-    if sed -n "${start},${end}p" "$file" | rg -q '\.to_string\('; then
-      sed -n "${start},${end}p" "$file"
-      echo "❌ lib_api.rs: to_string() adjacent to decode_*_decimal_*" >&2
-      fail=1
-      break
-    fi
-  done <<<"$(rg -n 'decode_(packed|zoned)_decimal_.*' copybook-codec/src/lib_api.rs)"
-fi
+declare -A seen=()
+while IFS=: read -r file line _; do
+  [[ -z "${file:-}" || -z "${line:-}" ]] && continue
+  key="${file}:${line}"
+  if [[ -n "${seen[$key]:-}" ]]; then
+    continue
+  fi
+  seen["$key"]=1
 
-if [ "$fail" -ne 0 ]; then
+  start=$(( line > 2 ? line - 2 : 1 ))
+  end=$(( line + 2 ))
+  if sed -n "${start},${end}p" "$file" | rg -n '\.to_string\(' >/dev/null; then
+    sed -n "${start},${end}p" "$file"
+    echo "❌ to_string() adjacent to decimal decode in $file" >&2
+    fail=1
+  fi
+done < <(rg -n --with-filename 'decode_(packed|zoned)_decimal_' copybook-codec/src/lib_api.rs || true)
+
+if (( fail == 0 )); then
+  echo "✅ Hot-path allocation guard clean"
+else
   exit 1
 fi
-
-echo "✅ Hot-path allocation guard clean"

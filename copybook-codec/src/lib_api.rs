@@ -388,9 +388,9 @@ fn process_fields_recursive(
                         let int_value =
                             crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
                         if *signed {
-                            Value::String((int_value as i64).to_string())
+                            Value::String(format!("{}", int_value as i64))
                         } else {
-                            Value::String(int_value.to_string())
+                            Value::String(format!("{int_value}"))
                         }
                     }
                     FieldKind::PackedDecimal {
@@ -403,7 +403,8 @@ fn process_fields_recursive(
                         let decimal = crate::numeric::decode_packed_decimal(
                             field_data, *digits, *scale, *signed,
                         )?;
-                        Value::String(decimal.to_string())
+                        let formatted = decimal.to_string();
+                        Value::String(formatted)
                     }
                     FieldKind::Group => unreachable!(), // Already handled above
                     FieldKind::Condition { values } => {
@@ -411,7 +412,7 @@ fn process_fields_recursive(
                         // In COBOL, these define named constants or ranges for their parent field
                         // Return a structured representation for API consistency
                         if values.is_empty() {
-                            Value::String("CONDITION".to_string())
+                            Value::String("CONDITION".to_owned())
                         } else {
                             Value::String(format!("CONDITION({})", values.join("|")))
                         }
@@ -535,18 +536,18 @@ fn process_fields_recursive_with_scratch(
                         FieldKind::BinaryInt { bits, signed } => {
                             let int_value =
                                 crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-                            if *signed {
-                                Value::String((int_value as i64).to_string())
-                            } else {
-                                Value::String(int_value.to_string())
-                            }
+                            let formatted =
+                                crate::numeric::format_binary_int_to_string_with_scratch(
+                                    int_value, scratch,
+                                );
+                            Value::String(formatted)
                         }
                         FieldKind::PackedDecimal {
                             digits,
                             scale,
                             signed,
                         } => {
-                            // CRITICAL OPTIMIZATION: Use scratch buffer instead of decimal.to_string()
+                            // CRITICAL OPTIMIZATION: Use scratch buffer instead of allocating per format
                             let decimal_str =
                                 crate::numeric::decode_packed_decimal_to_string_with_scratch(
                                     field_data, *digits, *scale, *signed, scratch,
@@ -559,7 +560,7 @@ fn process_fields_recursive_with_scratch(
                             // In COBOL, these define named constants or ranges for their parent field
                             // Return a structured representation for API consistency
                             if values.is_empty() {
-                                Value::String("CONDITION".to_string())
+                                Value::String("CONDITION".to_owned())
                             } else {
                                 Value::String(format!("CONDITION({})", values.join("|")))
                             }
@@ -749,11 +750,9 @@ fn process_array_field_with_scratch(
             }
             FieldKind::BinaryInt { bits, signed } => {
                 let int_value = crate::numeric::decode_binary_int(element_data, *bits, *signed)?;
-                if *signed {
-                    Value::String((int_value as i64).to_string())
-                } else {
-                    Value::String(int_value.to_string())
-                }
+                let formatted =
+                    crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
+                Value::String(formatted)
             }
             FieldKind::Group => {
                 // For group arrays, each element should be an object with child fields
@@ -777,7 +776,7 @@ fn process_array_field_with_scratch(
                 // Level-88 fields are condition names, not data arrays
                 // Return structured representation for API consistency
                 if values.is_empty() {
-                    Value::String("CONDITION_ARRAY".to_string())
+                    Value::String("CONDITION_ARRAY".to_owned())
                 } else {
                     Value::String(format!("CONDITION_ARRAY({})", values.join("|")))
                 }
@@ -993,11 +992,12 @@ fn decode_scalar_field_value(
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-            if *signed {
-                Ok(Value::String((int_value as i64).to_string()))
+            let formatted = if *signed {
+                format!("{}", int_value as i64)
             } else {
-                Ok(Value::String(int_value.to_string()))
-            }
+                format!("{int_value}")
+            };
+            Ok(Value::String(formatted))
         }
         FieldKind::PackedDecimal {
             digits,
@@ -1026,7 +1026,7 @@ fn decode_scalar_field_value(
             // Level-88 fields are condition names, not data scalars
             // Return structured representation for API consistency
             if values.is_empty() {
-                Ok(Value::String("CONDITION".to_string()))
+                Ok(Value::String("CONDITION".to_owned()))
             } else {
                 Ok(Value::String(format!("CONDITION({})", values.join("|"))))
             }
@@ -1686,8 +1686,8 @@ mod tests {
         let options = EncodeOptions::default();
 
         let mut json_obj = serde_json::Map::new();
-        json_obj.insert("ID".to_string(), Value::String("123".to_string()));
-        json_obj.insert("NAME".to_string(), Value::String("HELLO".to_string()));
+        json_obj.insert("ID".into(), Value::String("123".into()));
+        json_obj.insert("NAME".into(), Value::String("HELLO".into()));
         let json = Value::Object(json_obj);
 
         let result = encode_record(&schema, &json, &options).unwrap();

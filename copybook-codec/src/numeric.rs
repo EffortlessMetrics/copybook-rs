@@ -2451,6 +2451,30 @@ pub fn decode_packed_decimal_to_string_with_scratch(
     Ok(result)
 }
 
+/// Format a binary integer using the reusable scratch string buffer.
+/// Preserves negative signs without relying on `to_string` allocations.
+#[inline]
+pub fn format_binary_int_to_string_with_scratch(
+    value: i64,
+    scratch: &mut ScratchBuffers,
+) -> String {
+    scratch.string_buffer.clear();
+
+    if value < 0 {
+        scratch.string_buffer.push('-');
+        if value == i64::MIN {
+            // Avoid overflow when negating i64::MIN
+            scratch.string_buffer.push_str("9223372036854775808");
+            return std::mem::take(&mut scratch.string_buffer);
+        }
+        format_integer_to_buffer(-value, &mut scratch.string_buffer);
+    } else {
+        format_integer_to_buffer(value, &mut scratch.string_buffer);
+    }
+
+    std::mem::take(&mut scratch.string_buffer)
+}
+
 /// Ultra-fast integer formatting for standalone use with SIMD-friendly optimizations
 #[inline]
 fn format_integer_to_buffer(mut value: i64, buffer: &mut String) {
@@ -2621,10 +2645,35 @@ mod tests {
     use super::*;
     use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte, is_valid_overpunch};
     use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
     fn proptest_case_count() -> u32 {
         option_env!("PROPTEST_CASES")
             .and_then(|s| s.parse().ok())
             .unwrap_or(256)
+    }
+
+    fn numeric_proptest_config() -> ProptestConfig {
+        let mut cfg = ProptestConfig {
+            cases: proptest_case_count(),
+            max_shrink_time: 0,
+            ..ProptestConfig::default()
+        };
+
+        if let Ok(seed_value) = std::env::var("PROPTEST_SEED") {
+            if !seed_value.is_empty() {
+                let parsed_seed = seed_value.parse::<u64>().unwrap_or_else(|_| {
+                    let mut hasher = DefaultHasher::new();
+                    seed_value.hash(&mut hasher);
+                    hasher.finish()
+                });
+                cfg.rng_seed = RngSeed::Fixed(parsed_seed);
+            }
+        }
+
+        cfg
     }
 
     #[test]
@@ -2650,11 +2699,7 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: proptest_case_count(),
-            max_shrink_time: 0,
-            ..ProptestConfig::default()
-        })]
+        #![proptest_config(numeric_proptest_config())]
         #[test]
         fn prop_zoned_digit_buffer_contains_only_digits(
             digits_vec in prop::collection::vec(0u8..=9, 1..=12),
@@ -2689,12 +2734,10 @@ mod tests {
                     .expect("valid overpunch for digit 0-9");
                 prop_assume!(is_valid_overpunch(encoded, codepage));
                 encoded
+            } else if codepage.is_ascii() {
+                0x30 + last_digit
             } else {
-                if codepage.is_ascii() {
-                    0x30 + last_digit
-                } else {
-                    0xF0 + last_digit
-                }
+                0xF0 + last_digit
             };
             bytes.push(last_byte);
 

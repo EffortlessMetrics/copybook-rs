@@ -78,8 +78,14 @@ mod tests {
     #[test]
     fn workspace_root_contains_workspace_manifests() -> TestResult<()> {
         let root = find_workspace_root()?;
-        assert!(root.join("Cargo.toml").exists(), "workspace root missing Cargo.toml");
-        assert!(root.join("copybook-cli").exists(), "workspace root missing copybook-cli crate");
+        assert!(
+            root.join("Cargo.toml").exists(),
+            "workspace root missing Cargo.toml"
+        );
+        assert!(
+            root.join("copybook-cli").exists(),
+            "workspace root missing copybook-cli crate"
+        );
         Ok(())
     }
 

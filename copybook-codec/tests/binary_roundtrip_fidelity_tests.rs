@@ -122,7 +122,10 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
                 .args(["build", "-p", "copybook-cli"])
                 .status()
                 .expect("failed to invoke cargo to build copybook-cli");
-            assert!(status.success(), "building copybook-cli binary should succeed");
+            assert!(
+                status.success(),
+                "building copybook-cli binary should succeed"
+            );
             debug_path = project_root.join("target/debug/copybook");
             release_path = project_root.join("target/release/copybook");
         }

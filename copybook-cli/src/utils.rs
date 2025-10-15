@@ -46,7 +46,6 @@ where
 /// This generates a temporary file name in the same directory as the target file
 /// with a .tmp suffix and random component.
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 fn temp_path_for(target: &Path) -> PathBuf {
     let mut temp_name = target
         .file_name()
@@ -102,7 +101,6 @@ pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
     use anyhow::Result;

@@ -2,11 +2,11 @@
 
 | Check | Result | Target | Delta | Status | Notes |
 |-------|--------|--------|-------|--------|-------|
-| slo_validation/display_heavy_slo_80mbps | 181.98 MiB/s | 80.0 MiB/s | +128% | ✅ pass | Mean throughput from `scripts/bench/perf.json` (criterion `slo_validation` group) |
-| slo_validation/comp3_heavy_slo_40mbps | 52.02 MiB/s | 40.0 MiB/s | +30% | ✅ pass | Mean throughput from `scripts/bench/perf.json` (criterion `slo_validation` group) |
+| slo_validation/display_heavy_slo_80mbps | 169.19 MiB/s | 80.0 MiB/s | +111% | ✅ pass | Mean throughput from `scripts/bench/perf.json` (criterion `slo_validation` group) |
+| slo_validation/comp3_heavy_slo_40mbps | 49.48 MiB/s | 40.0 MiB/s | +24% | ✅ pass | Mean throughput from `scripts/bench/perf.json` (criterion `slo_validation` group) |
 
 ### Gate Decision
-- Verdict: ✅ Ready – throughput floors cleared with comfortable headroom
+- Verdict: ✅ Ready – throughput floors cleared with comfortable headroom (DISPLAY 169.19 MiB/s, COMP-3 49.48 MiB/s)
 - Evidence: `scripts/bench/perf.json` (generated via `scripts/bench.sh`), local `cargo bench -p copybook-bench -- slo_validation --quiet` output
 
 ### Observations

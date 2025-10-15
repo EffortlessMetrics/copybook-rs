@@ -59,10 +59,11 @@ impl<R: Read> FixedRecordReader<R> {
         match self.input.read_exact(&mut first_byte) {
             Ok(()) => {
                 // We got the first byte, now read the rest
-                let mut buffer = vec![0u8; self.lrecl as usize];
+                let lrecl_len = self.lrecl_usize()?;
+                let mut buffer = vec![0u8; lrecl_len];
                 buffer[0] = first_byte[0];
 
-                if self.lrecl > 1 {
+                if lrecl_len > 1 {
                     match self.input.read_exact(&mut buffer[1..]) {
                         Ok(()) => {
                             self.record_count += 1;
@@ -139,7 +140,8 @@ impl<R: Read> FixedRecordReader<R> {
     #[must_use = "Propagate record length validation failures"]
     pub fn validate_record_length(&self, schema: &Schema, record_data: &[u8]) -> Result<()> {
         // For fixed records, the data length should match LRECL
-        if record_data.len() != self.lrecl as usize {
+        let lrecl_len = self.lrecl_usize()?;
+        if record_data.len() != lrecl_len {
             return Err(Error::new(
                 ErrorCode::CBKR221_RDW_UNDERFLOW,
                 format!(
@@ -188,6 +190,16 @@ impl<R: Read> FixedRecordReader<R> {
     pub fn lrecl(&self) -> u32 {
         self.lrecl
     }
+
+    #[inline]
+    fn lrecl_usize(&self) -> Result<usize> {
+        usize::try_from(self.lrecl).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                "LRECL exceeds platform addressable size",
+            )
+        })
+    }
 }
 
 /// Fixed record writer for writing fixed-length records
@@ -233,7 +245,7 @@ impl<W: Write> FixedRecordWriter<W> {
     #[must_use = "Propagate write failures to callers"]
     pub fn write_record(&mut self, data: &[u8]) -> Result<()> {
         let data_len = data.len();
-        let lrecl = self.lrecl as usize;
+        let lrecl = self.lrecl_usize()?;
 
         if data_len > lrecl {
             return Err(Error::new(
@@ -322,6 +334,16 @@ impl<W: Write> FixedRecordWriter<W> {
     #[inline]
     pub fn lrecl(&self) -> u32 {
         self.lrecl
+    }
+
+    #[inline]
+    fn lrecl_usize(&self) -> Result<usize> {
+        usize::try_from(self.lrecl).map_err(|_| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                "LRECL exceeds platform addressable size",
+            )
+        })
     }
 }
 
@@ -428,7 +450,13 @@ impl<R: Read> RDWRecordReader<R> {
                 }
 
                 // Read the payload
-                let mut payload = vec![0u8; length as usize];
+                let payload_len = usize::try_from(length).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKR221_RDW_UNDERFLOW,
+                        format!("RDW length {length} exceeds platform limits"),
+                    )
+                })?;
+                let mut payload = vec![0u8; payload_len];
                 match self.input.read_exact(&mut payload) {
                     Ok(()) => {
                         debug!(
@@ -836,17 +864,23 @@ pub fn read_record(
     lrecl: Option<u32>,
 ) -> Result<Option<Vec<u8>>> {
     match format {
-        RecordFormat::Fixed => {
-            let mut reader = FixedRecordReader::new(input, lrecl)?;
-            reader.read_record()
-        }
-        RecordFormat::RDW => {
-            let mut reader = RDWRecordReader::new(input, false); // Default to lenient mode
-            match reader.read_record()? {
-                Some(rdw_record) => Ok(Some(rdw_record.payload)),
-                None => Ok(None),
-            }
-        }
+        RecordFormat::Fixed => read_fixed_record_legacy(input, lrecl),
+        RecordFormat::RDW => read_rdw_record_legacy(input),
+    }
+}
+
+#[inline]
+fn read_fixed_record_legacy(input: &mut impl Read, lrecl: Option<u32>) -> Result<Option<Vec<u8>>> {
+    let mut reader = FixedRecordReader::new(input, lrecl)?;
+    reader.read_record()
+}
+
+#[inline]
+fn read_rdw_record_legacy(input: &mut impl Read) -> Result<Option<Vec<u8>>> {
+    let mut reader = RDWRecordReader::new(input, false);
+    match reader.read_record()? {
+        Some(rdw_record) => Ok(Some(rdw_record.payload)),
+        None => Ok(None),
     }
 }
 /// Write a single record to output (legacy interface)
@@ -1257,7 +1291,7 @@ mod tests {
         let mut writer = RDWRecordWriter::new(&mut output);
 
         // Create payload larger than u16::MAX
-        let large_payload = vec![0u8; (u16::MAX as usize) + 1];
+        let large_payload = vec![0u8; usize::from(u16::MAX) + 1];
         let result = writer.write_record_from_payload(&large_payload, None);
 
         assert!(result.is_err());

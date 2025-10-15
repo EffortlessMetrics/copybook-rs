@@ -237,13 +237,8 @@ proptest! {
     #[test]
     fn prop_ascii_zone_decoding_robustness(digits in prop::collection::vec(0u8..=9, 1..=10)) {
         let copybook = format!("01 FIELD PIC 9({}).", digits.len());
-        let schema = match parse_copybook(&copybook) {
-            Ok(schema) => schema,
-            Err(err) => {
-                prop_assert!(false, "Failed to parse copybook: {err}");
-                return;
-            }
-        };
+        let schema = parse_copybook(&copybook)
+            .map_err(|err| TestCaseError::fail(format!("Failed to parse copybook: {err}")))?;
 
         // Convert digits to ASCII zoned decimal (0x30 + digit)
         let ascii_data: Vec<u8> = digits.iter().map(|&d| 0x30 + d).collect();
@@ -253,13 +248,10 @@ proptest! {
             .with_codepage(Codepage::ASCII);
 
         // Current implementation should handle ASCII zoned decimals correctly
-        let decoded = match copybook_codec::decode_record(&schema, &ascii_data, &options) {
-            Ok(value) => value,
-            Err(err) => {
-                prop_assert!(false, "ASCII zoned decimal decode failed: {err}");
-                return;
-            }
-        };
+        let decoded = copybook_codec::decode_record(&schema, &ascii_data, &options)
+            .map_err(|err| TestCaseError::fail(format!(
+                "ASCII zoned decimal decode failed: {err}"
+            )))?;
         let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + i64::from(d));
 
         // Verify the numeric value is correctly decoded
@@ -267,13 +259,11 @@ proptest! {
         if let Some(num) = field_value.as_i64() {
             prop_assert_eq!(num, expected_number, "Decoded value should match expected number");
         } else if let Some(str_val) = field_value.as_str() {
-            let parsed: i64 = match str_val.parse() {
-                Ok(parsed) => parsed,
-                Err(err) => {
-                    prop_assert!(false, "Failed to parse decoded value '{str_val}': {err}");
-                    return;
-                }
-            };
+            let parsed: i64 = str_val.parse().map_err(|err| {
+                TestCaseError::fail(format!(
+                    "Failed to parse decoded value '{str_val}': {err}"
+                ))
+            })?;
             prop_assert_eq!(parsed, expected_number, "String value should match expected number");
         }
     }
@@ -282,13 +272,8 @@ proptest! {
     #[test]
     fn prop_ebcdic_zone_decoding_robustness(digits in prop::collection::vec(0u8..=9, 1..=10)) {
         let copybook = format!("01 FIELD PIC 9({}).", digits.len());
-        let schema = match parse_copybook(&copybook) {
-            Ok(schema) => schema,
-            Err(err) => {
-                prop_assert!(false, "Failed to parse copybook: {err}");
-                return;
-            }
-        };
+        let schema = parse_copybook(&copybook)
+            .map_err(|err| TestCaseError::fail(format!("Failed to parse copybook: {err}")))?;
 
         // Convert digits to EBCDIC zoned decimal (0xF0 + digit)
         let ebcdic_data: Vec<u8> = digits.iter().map(|&d| 0xF0 + d).collect();
@@ -298,13 +283,10 @@ proptest! {
             .with_codepage(Codepage::CP037); // EBCDIC codepage
 
         // Current implementation should handle EBCDIC zoned decimals correctly
-        let decoded = match copybook_codec::decode_record(&schema, &ebcdic_data, &options) {
-            Ok(value) => value,
-            Err(err) => {
-                prop_assert!(false, "EBCDIC zoned decimal decode failed: {err}");
-                return;
-            }
-        };
+        let decoded = copybook_codec::decode_record(&schema, &ebcdic_data, &options)
+            .map_err(|err| TestCaseError::fail(format!(
+                "EBCDIC zoned decimal decode failed: {err}"
+            )))?;
         let expected_number: i64 = digits.iter().fold(0, |acc, &d| acc * 10 + i64::from(d));
 
         // Verify the numeric value is correctly decoded
@@ -312,13 +294,11 @@ proptest! {
         if let Some(num) = field_value.as_i64() {
             prop_assert_eq!(num, expected_number, "Decoded value should match expected number");
         } else if let Some(str_val) = field_value.as_str() {
-            let parsed: i64 = match str_val.parse() {
-                Ok(parsed) => parsed,
-                Err(err) => {
-                    prop_assert!(false, "Failed to parse decoded value '{str_val}': {err}");
-                    return;
-                }
-            };
+            let parsed: i64 = str_val.parse().map_err(|err| {
+                TestCaseError::fail(format!(
+                    "Failed to parse decoded value '{str_val}': {err}"
+                ))
+            })?;
             prop_assert_eq!(parsed, expected_number, "String value should match expected number");
         }
     }
@@ -329,13 +309,8 @@ proptest! {
         invalid_zones in prop::collection::vec((0x00u8..=0x2Fu8).prop_union(0x3Au8..=0xEFu8), 1..=5)
     ) {
         let copybook = format!("01 FIELD PIC 9({}).", invalid_zones.len());
-        let schema = match parse_copybook(&copybook) {
-            Ok(schema) => schema,
-            Err(err) => {
-                prop_assert!(false, "Failed to parse copybook: {err}");
-                return;
-            }
-        };
+        let schema = parse_copybook(&copybook)
+            .map_err(|err| TestCaseError::fail(format!("Failed to parse copybook: {err}")))?;
 
         let options = DecodeOptions::new()
             .with_format(RecordFormat::Fixed)
@@ -367,13 +342,8 @@ proptest! {
         let truncated_digits = &digits[..actual_size];
 
         let copybook = format!("01 FIELD PIC 9({actual_size}).");
-        let schema = match parse_copybook(&copybook) {
-            Ok(schema) => schema,
-            Err(err) => {
-                prop_assert!(false, "Failed to parse copybook: {err}");
-                return;
-            }
-        };
+        let schema = parse_copybook(&copybook)
+            .map_err(|err| TestCaseError::fail(format!("Failed to parse copybook: {err}")))?;
 
         // Test both ASCII and EBCDIC encodings
         let ascii_data: Vec<u8> = truncated_digits.iter().map(|&d| 0x30 + d).collect();
@@ -387,13 +357,10 @@ proptest! {
                 .with_format(RecordFormat::Fixed)
                 .with_codepage(codepage);
 
-            let decoded = match copybook_codec::decode_record(&schema, data, &options) {
-                Ok(value) => value,
-                Err(err) => {
-                    prop_assert!(false, "{encoding_name} decode failed: {err}");
-                    return;
-                }
-            };
+            let decoded = copybook_codec::decode_record(&schema, data, &options)
+                .map_err(|err| TestCaseError::fail(format!(
+                    "{encoding_name} decode failed: {err}"
+                )))?;
             // Verify the field exists and has a reasonable value
             prop_assert!(
                 decoded.get("FIELD").is_some(),
@@ -416,13 +383,8 @@ proptest! {
             display_chars.len(),
             zoned_digits.len()
         );
-        let schema = match parse_copybook(&copybook) {
-            Ok(schema) => schema,
-            Err(err) => {
-                prop_assert!(false, "Failed to parse copybook: {err}");
-                return;
-            }
-        };
+        let schema = parse_copybook(&copybook)
+            .map_err(|err| TestCaseError::fail(format!("Failed to parse copybook: {err}")))?;
 
         // Build test data: display field + zoned decimal field
         let mut test_data = Vec::new();

@@ -33,24 +33,28 @@ pub enum ZonedEncodingFormat {
 impl ZonedEncodingFormat {
     /// Check if this is ASCII encoding
     #[must_use]
+    #[inline]
     pub const fn is_ascii(self) -> bool {
         matches!(self, Self::Ascii)
     }
 
     /// Check if this is EBCDIC encoding
     #[must_use]
+    #[inline]
     pub const fn is_ebcdic(self) -> bool {
         matches!(self, Self::Ebcdic)
     }
 
     /// Check if this is auto-detection mode
     #[must_use]
+    #[inline]
     pub const fn is_auto(self) -> bool {
         matches!(self, Self::Auto)
     }
 
     /// Get a human-readable description of the encoding format
     #[must_use]
+    #[inline]
     pub const fn description(self) -> &'static str {
         match self {
             Self::Ascii => "ASCII digit zones (0x30-0x39)",
@@ -69,6 +73,7 @@ impl ZonedEncodingFormat {
     /// - `0xF`: EBCDIC digit zone (0xF0-0xF9 range)
     /// - Others: Invalid or non-standard zones
     #[must_use]
+    #[inline]
     pub fn detect_from_byte(byte: u8) -> Option<Self> {
         use zone_constants::{ASCII_ZONE, EBCDIC_ZONE, ZONE_MASK};
 
@@ -211,18 +216,21 @@ pub enum Codepage {
 impl Codepage {
     /// Check if this is an ASCII codepage
     #[must_use]
+    #[inline]
     pub const fn is_ascii(self) -> bool {
         matches!(self, Self::ASCII)
     }
 
     /// Check if this is an EBCDIC codepage
     #[must_use]
+    #[inline]
     pub const fn is_ebcdic(self) -> bool {
         !self.is_ascii()
     }
 
     /// Get the numeric code page identifier
     #[must_use]
+    #[inline]
     pub const fn code_page_number(self) -> Option<u16> {
         match self {
             Self::ASCII => None,
@@ -236,6 +244,7 @@ impl Codepage {
 
     /// Get a human-readable description of the codepage
     #[must_use]
+    #[inline]
     pub const fn description(self) -> &'static str {
         match self {
             Self::ASCII => "ASCII encoding",
@@ -260,18 +269,21 @@ pub enum JsonNumberMode {
 impl JsonNumberMode {
     /// Check if this mode uses lossless string representation
     #[must_use]
+    #[inline]
     pub const fn is_lossless(self) -> bool {
         matches!(self, Self::Lossless)
     }
 
     /// Check if this mode uses native JSON numbers
     #[must_use]
+    #[inline]
     pub const fn is_native(self) -> bool {
         matches!(self, Self::Native)
     }
 
     /// Get a human-readable description of the mode
     #[must_use]
+    #[inline]
     pub const fn description(self) -> &'static str {
         match self {
             Self::Lossless => "Lossless string representation for decimals",
@@ -327,6 +339,7 @@ impl Default for DecodeOptions {
 impl DecodeOptions {
     /// Create new decode options with default values
     #[must_use]
+    #[inline]
     pub fn new() -> Self {
         Self::default()
     }
@@ -459,6 +472,7 @@ impl Default for EncodeOptions {
 impl EncodeOptions {
     /// Create new encode options with default values
     #[must_use]
+    #[inline]
     pub fn new() -> Self {
         Self::default()
     }

@@ -1,18 +1,20 @@
 //! Core library API implementation for task 9.1
+#![allow(clippy::missing_inline_in_public_items)]
 //!
 //! This module provides the main library functions required by R11:
-//! - parse_copybook (already exists in copybook-core)
-//! - decode_record
-//! - encode_record
-//! - decode_file_to_jsonl
-//! - encode_jsonl_to_file
-//! - RecordIterator (for programmatic access)
+//! - `parse_copybook` (already exists in copybook-core)
+//! - `decode_record`
+//! - `encode_record`
+//! - `decode_file_to_jsonl`
+//! - `encode_jsonl_to_file`
+//! - `RecordIterator` (for programmatic access)
 
 use crate::options::{DecodeOptions, EncodeOptions, RecordFormat};
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 
@@ -21,20 +23,20 @@ fn validate_odo_bounds(count: u32, min: u32, max: u32) -> Result<()> {
     if count > max {
         return Err(Error::new(
             ErrorCode::CBKS301_ODO_CLIPPED,
-            format!("ODO count {} exceeds maximum {}", count, max),
+            format!("ODO count {count} exceeds maximum {max}"),
         ));
     }
     if count < min {
         return Err(Error::new(
             ErrorCode::CBKS302_ODO_RAISED,
-            format!("ODO count {} is below minimum {}", count, min),
+            format!("ODO count {count} is below minimum {min}"),
         ));
     }
     Ok(())
 }
 
 thread_local! {
-    static WARNING_COUNTER: RefCell<u64> = RefCell::new(0);
+    static WARNING_COUNTER: RefCell<u64> = const { RefCell::new(0) };
 }
 
 /// Summary of processing run with comprehensive statistics
@@ -169,11 +171,9 @@ impl fmt::Display for RunSummary {
         writeln!(f, "  Throughput: {:.2} MB/s", self.throughput_mbps)?;
         writeln!(f, "  Threads used: {}", self.threads_used)?;
         if let Some(peak_memory) = self.peak_memory_bytes {
-            writeln!(
-                f,
-                "  Peak memory: {:.2} MB",
-                peak_memory as f64 / (1024.0 * 1024.0)
-            )?;
+            #[allow(clippy::cast_precision_loss)]
+            let peak_mb = peak_memory as f64 / (1024.0 * 1024.0);
+            writeln!(f, "  Peak memory: {peak_mb:.2} MB")?;
         }
         if !self.schema_fingerprint.is_empty() {
             writeln!(f, "  Schema fingerprint: {}", self.schema_fingerprint)?;
@@ -254,6 +254,10 @@ fn decode_record_with_scratch_and_raw(
 }
 
 /// Decode a record with optional raw data for RDW format
+///
+/// # Errors
+///
+/// Returns an error if field decoding fails or the raw payload is inconsistent with the schema.
 pub fn decode_record_with_raw_data(
     schema: &Schema,
     data: &[u8],
@@ -314,24 +318,22 @@ fn process_fields_recursive(
 ) -> Result<()> {
     use copybook_core::FieldKind;
 
-    for (field_index, field) in fields.iter().enumerate() {
-        // Check if this field has an OCCURS clause
-        if let Some(occurs) = &field.occurs {
-            process_array_field(
-                field,
-                occurs,
-                data,
-                json_obj,
-                options,
-                fields,
-                scratch_buffers,
-            )?;
-            continue;
-        }
+    let total_fields = fields.len();
 
-        match &field.kind {
-            FieldKind::Group => {
-                // Process children fields recursively
+    for (field_index, field) in fields.iter().enumerate() {
+        match (&field.kind, &field.occurs) {
+            (_, Some(occurs)) => {
+                process_array_field(
+                    field,
+                    occurs,
+                    data,
+                    json_obj,
+                    options,
+                    fields,
+                    scratch_buffers,
+                )?;
+            }
+            (FieldKind::Group, None) => {
                 process_fields_recursive(
                     &field.children,
                     data,
@@ -341,117 +343,15 @@ fn process_fields_recursive(
                 )?;
             }
             _ => {
-                // Process scalar field
-                let field_start = field.offset as usize;
-                let mut field_end = field_start + field.len as usize;
-
-                // For RDW records, if this is the last field, it's alphanumeric, and there's more data available,
-                // extend the field to consume all remaining data (common COBOL pattern)
-                if options.format == RecordFormat::RDW
-                    && field_index == fields.len() - 1
-                    && matches!(field.kind, copybook_core::FieldKind::Alphanum { .. })
-                    && data.len() > field_end
-                {
-                    field_end = data.len();
-                }
-
-                // Check bounds
-                if field_start > data.len() {
-                    return Err(Error::new(
-                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                        format!("Field '{}' starts beyond record boundary", field.name),
-                    ));
-                }
-
-                // For RDW records, allow partial fields but ensure we don't go beyond data
-                field_end = field_end.min(data.len());
-
-                if field_start >= field_end {
-                    continue; // Skip this field if no data available
-                }
-
-                let field_data = &data[field_start..field_end];
-
-                let field_value = match &field.kind {
-                    FieldKind::Alphanum { .. } => {
-                        let text = crate::charset::ebcdic_to_utf8(
-                            field_data,
-                            options.codepage,
-                            options.on_decode_unmappable,
-                        )?;
-                        Value::String(text)
-                    }
-                    FieldKind::ZonedDecimal {
-                        digits,
-                        scale,
-                        signed,
-                    } => {
-                        let decimal = crate::numeric::decode_zoned_decimal(
-                            field_data,
-                            *digits,
-                            *scale,
-                            *signed,
-                            options.codepage,
-                            field.blank_when_zero,
-                        )?;
-                        // Use proper digit formatting for integer zoned decimals
-                        let formatted = if *scale == 0 {
-                            format_zoned_decimal_with_digits(
-                                &decimal,
-                                *digits,
-                                field.blank_when_zero,
-                            )
-                        } else {
-                            decimal.to_string()
-                        };
-                        Value::String(formatted)
-                    }
-                    FieldKind::BinaryInt { bits, signed } => {
-                        let int_value =
-                            crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-                        // Initialize scratch once per walk and reuse across hot conversions.
-                        let scratch =
-                            scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
-                        let formatted = crate::numeric::format_binary_int_to_string_with_scratch(
-                            int_value, scratch,
-                        );
-                        Value::String(formatted)
-                    }
-                    FieldKind::PackedDecimal {
-                        digits,
-                        scale,
-                        signed,
-                    } => {
-                        // CRITICAL PERFORMANCE OPTIMIZATION: Use fast path for COMP-3
-                        // Use simple decode for non-scratch path (backward compatibility)
-                        let decimal = crate::numeric::decode_packed_decimal(
-                            field_data, *digits, *scale, *signed,
-                        )?;
-                        let formatted = decimal.to_string();
-                        Value::String(formatted)
-                    }
-                    FieldKind::Group => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                            format!(
-                                "Field '{}' is a group and cannot be decoded as a scalar",
-                                field.name
-                            ),
-                        ));
-                    }
-                    FieldKind::Condition { values } => {
-                        // Level-88 fields are condition names (conditional variables)
-                        // In COBOL, these define named constants or ranges for their parent field
-                        // Return a structured representation for API consistency
-                        if values.is_empty() {
-                            Value::String("CONDITION".to_owned())
-                        } else {
-                            Value::String(format!("CONDITION({})", values.join("|")))
-                        }
-                    }
-                };
-
-                json_obj.insert(field.name.clone(), field_value);
+                process_scalar_field_standard(
+                    field,
+                    field_index,
+                    total_fields,
+                    data,
+                    json_obj,
+                    options,
+                    scratch_buffers,
+                )?;
             }
         }
     }
@@ -469,150 +369,126 @@ fn process_fields_recursive_with_scratch(
     scratch: &mut crate::memory::ScratchBuffers,
 ) -> Result<()> {
     use copybook_core::FieldKind;
-    use serde_json::Value;
 
     for field in fields {
-        match &field.kind {
-            FieldKind::Group => {
-                // For group fields with OCCURS, process as array
-                if let Some(occurs) = &field.occurs {
-                    process_array_field_with_scratch(
-                        field, occurs, data, json_obj, options, fields, scratch,
-                    )?;
-                } else {
-                    // For group fields without OCCURS, flatten children into parent object
-                    process_fields_recursive_with_scratch(
-                        &field.children,
-                        data,
-                        json_obj,
-                        options,
-                        scratch,
-                    )?;
-                }
+        if is_filler_field(field) && !options.emit_filler {
+            continue;
+        }
+
+        match (&field.kind, &field.occurs) {
+            (_, Some(occurs)) => {
+                process_array_field_with_scratch(
+                    field, occurs, data, json_obj, options, fields, scratch,
+                )?;
+            }
+            (FieldKind::Group, None) => {
+                process_fields_recursive_with_scratch(
+                    &field.children,
+                    data,
+                    json_obj,
+                    options,
+                    scratch,
+                )?;
             }
             _ => {
-                // Skip FILLER fields unless explicitly requested
-                if (field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_"))
-                    && !options.emit_filler
-                {
-                    continue;
-                }
-
-                if let Some(occurs) = &field.occurs {
-                    process_array_field_with_scratch(
-                        field, occurs, data, json_obj, options, fields, scratch,
-                    )?;
-                } else {
-                    let field_start = field.offset as usize;
-                    let mut field_end = field_start + field.len as usize;
-
-                    // AC:3 - For RDW records, allow variable-length fields (same logic as process_fields_recursive)
-                    // Check bounds
-                    if field_start > data.len() {
-                        return Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            format!("Field '{}' starts beyond record boundary", field.name),
-                        ));
-                    }
-
-                    // For RDW records, allow partial fields but ensure we don't go beyond data
-                    if options.format == RecordFormat::RDW {
-                        field_end = field_end.min(data.len());
-                    }
-
-                    if field_start >= field_end {
-                        continue; // Skip this field if no data available (RDW variable-length)
-                    }
-
-                    if field_end > data.len() {
-                        return Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            format!(
-                                "Field '{}' at offset {} with length {} exceeds data length {}",
-                                field.name,
-                                field.offset,
-                                field.len,
-                                data.len()
-                            ),
-                        ));
-                    }
-
-                    let field_data = &data[field_start..field_end];
-
-                    let field_value = match &field.kind {
-                        FieldKind::Alphanum { .. } => {
-                            let text = crate::charset::ebcdic_to_utf8(
-                                field_data,
-                                options.codepage,
-                                options.on_decode_unmappable,
-                            )?;
-                            Value::String(text)
-                        }
-                        FieldKind::ZonedDecimal {
-                            digits,
-                            scale,
-                            signed,
-                        } => {
-                            let decimal_str =
-                                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
-                                    field_data,
-                                    *digits,
-                                    *scale,
-                                    *signed,
-                                    options.codepage,
-                                    field.blank_when_zero,
-                                    scratch,
-                                )?;
-                            Value::String(decimal_str)
-                        }
-                        FieldKind::BinaryInt { bits, signed } => {
-                            let int_value =
-                                crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-                            let formatted =
-                                crate::numeric::format_binary_int_to_string_with_scratch(
-                                    int_value, scratch,
-                                );
-                            Value::String(formatted)
-                        }
-                        FieldKind::PackedDecimal {
-                            digits,
-                            scale,
-                            signed,
-                        } => {
-                            // CRITICAL OPTIMIZATION: Use scratch buffer instead of allocating per format
-                            let decimal_str =
-                                crate::numeric::decode_packed_decimal_to_string_with_scratch(
-                                    field_data, *digits, *scale, *signed, scratch,
-                                )?;
-                            Value::String(decimal_str)
-                        }
-                        FieldKind::Group => {
-                            return Err(Error::new(
-                                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                                format!(
-                                    "Field '{}' is a group and cannot be decoded as a scalar",
-                                    field.name
-                                ),
-                            ));
-                        }
-                        FieldKind::Condition { values } => {
-                            // Level-88 fields are condition names (conditional variables)
-                            // In COBOL, these define named constants or ranges for their parent field
-                            // Return a structured representation for API consistency
-                            if values.is_empty() {
-                                Value::String("CONDITION".to_owned())
-                            } else {
-                                Value::String(format!("CONDITION({})", values.join("|")))
-                            }
-                        }
-                    };
-
-                    json_obj.insert(field.name.clone(), field_value);
-                }
+                process_scalar_field_with_scratch(field, data, json_obj, options, scratch)?;
             }
         }
     }
 
+    Ok(())
+}
+
+#[inline]
+fn process_scalar_field_standard(
+    field: &copybook_core::Field,
+    field_index: usize,
+    total_fields: usize,
+    data: &[u8],
+    json_obj: &mut serde_json::Map<String, Value>,
+    options: &DecodeOptions,
+    scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
+) -> Result<()> {
+    let field_start = field.offset as usize;
+    let mut field_end = field_start + field.len as usize;
+
+    if options.format == RecordFormat::RDW
+        && field_index + 1 == total_fields
+        && matches!(field.kind, copybook_core::FieldKind::Alphanum { .. })
+        && data.len() > field_end
+    {
+        field_end = data.len();
+    }
+
+    if field_start > data.len() {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!(
+                "Field '{name}' starts beyond record boundary",
+                name = field.name
+            ),
+        ));
+    }
+
+    field_end = field_end.min(data.len());
+
+    if field_start >= field_end {
+        return Ok(());
+    }
+
+    let field_data = &data[field_start..field_end];
+    let value = decode_scalar_field_value_standard(field, field_data, options, scratch_buffers)?;
+
+    json_obj.insert(field.name.clone(), value);
+    Ok(())
+}
+
+#[inline]
+fn process_scalar_field_with_scratch(
+    field: &copybook_core::Field,
+    data: &[u8],
+    json_obj: &mut serde_json::Map<String, Value>,
+    options: &DecodeOptions,
+    scratch: &mut crate::memory::ScratchBuffers,
+) -> Result<()> {
+    let field_start = field.offset as usize;
+    let mut field_end = field_start + field.len as usize;
+
+    if field_start > data.len() {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!(
+                "Field '{name}' starts beyond record boundary",
+                name = field.name
+            ),
+        ));
+    }
+
+    if options.format == RecordFormat::RDW {
+        field_end = field_end.min(data.len());
+    }
+
+    if field_start >= field_end {
+        return Ok(());
+    }
+
+    if field_end > data.len() {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!(
+                "Field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
+                name = field.name,
+                offset = field.offset,
+                length = field.len,
+                data_len = data.len()
+            ),
+        ));
+    }
+
+    let field_data = &data[field_start..field_end];
+    let value = decode_scalar_field_value_with_scratch(field, field_data, options, scratch)?;
+
+    json_obj.insert(field.name.clone(), value);
     Ok(())
 }
 
@@ -674,7 +550,13 @@ fn process_array_field(
             FieldKind::Group => {
                 // For group fields, create a modified field with adjusted offsets for this element
                 let mut element_obj = serde_json::Map::new();
-                let adjusted_children = adjust_field_offsets(&field.children, element_start);
+                let element_base_offset = u32::try_from(element_start).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        format!("Array element offset {element_start} exceeds supported range"),
+                    )
+                })?;
+                let adjusted_children = adjust_field_offsets(&field.children, element_base_offset);
                 process_fields_recursive(
                     &adjusted_children,
                     data,
@@ -684,9 +566,10 @@ fn process_array_field(
                 )?;
                 Value::Object(element_obj)
             }
+            FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
             _ => {
                 let element_data = &data[element_start..element_end];
-                decode_scalar_field_value(field, element_data, options)?
+                decode_scalar_field_value_standard(field, element_data, options, scratch_buffers)?
             }
         };
 
@@ -754,60 +637,20 @@ fn process_array_field_with_scratch(
         let element_data = &data[element_offset..element_offset + element_size];
 
         let element_value = match &field.kind {
-            FieldKind::Alphanum { .. } => {
-                let text = crate::charset::ebcdic_to_utf8(
-                    element_data,
-                    options.codepage,
-                    options.on_decode_unmappable,
-                )?;
-                Value::String(text)
-            }
-            FieldKind::ZonedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                // OPTIMIZED: Use scratch buffer for array element
-                // AC:6 - Apply same digit formatting as non-scratch path for array elements
-                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
-                    element_data,
-                    *digits,
-                    *scale,
-                    *signed,
-                    options.codepage,
-                    field.blank_when_zero,
-                    scratch,
-                )?;
-                Value::String(decimal_str)
-            }
-            FieldKind::PackedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                // CRITICAL OPTIMIZATION: Use scratch buffer for COMP-3 array elements
-                let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
-                    element_data,
-                    *digits,
-                    *scale,
-                    *signed,
-                    scratch,
-                )?;
-                Value::String(decimal_str)
-            }
-            FieldKind::BinaryInt { bits, signed } => {
-                let int_value = crate::numeric::decode_binary_int(element_data, *bits, *signed)?;
-                let formatted =
-                    crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
-                Value::String(formatted)
-            }
             FieldKind::Group => {
                 // For group arrays, each element should be an object with child fields
                 let mut group_obj = serde_json::Map::new();
 
                 // Create a temporary field for processing group element
+                let element_offset_u32 = u32::try_from(element_offset).map_err(|_| {
+                    Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        format!("Array element offset {element_offset} exceeds supported range"),
+                    )
+                })?;
+
                 let mut element_field = field.clone();
-                element_field.offset = element_offset as u32;
+                element_field.offset = element_offset_u32;
                 element_field.occurs = None; // Remove OCCURS for individual element
 
                 process_fields_recursive_with_scratch(
@@ -819,15 +662,8 @@ fn process_array_field_with_scratch(
                 )?;
                 Value::Object(group_obj)
             }
-            FieldKind::Condition { values } => {
-                // Level-88 fields are condition names, not data arrays
-                // Return structured representation for API consistency
-                if values.is_empty() {
-                    Value::String("CONDITION_ARRAY".to_owned())
-                } else {
-                    Value::String(format!("CONDITION_ARRAY({})", values.join("|")))
-                }
-            }
+            FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
+            _ => decode_scalar_field_value_with_scratch(field, element_data, options, scratch)?,
         };
 
         array_values.push(element_value);
@@ -854,7 +690,7 @@ fn find_and_read_counter_field(
     if field_end > data.len() {
         return Err(Error::new(
             ErrorCode::CBKD301_RECORD_TOO_SHORT,
-            format!("Counter field '{}' extends beyond record", counter_path),
+            format!("Counter field '{counter_path}' extends beyond record"),
         ));
     }
 
@@ -881,10 +717,7 @@ fn find_and_read_counter_field(
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!(
-                        "ODO counter '{}' has invalid value: {}",
-                        counter_path, decimal_str
-                    ),
+                    format!("ODO counter '{counter_path}' has invalid value: {decimal_str}"),
                 )
             })?;
 
@@ -895,13 +728,15 @@ fn find_and_read_counter_field(
             if int_value < 0 {
                 return Err(Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!(
-                        "ODO counter '{}' has negative value: {}",
-                        counter_path, int_value
-                    ),
+                    format!("ODO counter '{counter_path}' has negative value: {int_value}"),
                 ));
             }
-            Ok(int_value as u32)
+            Ok(u32::try_from(int_value).map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                    format!("ODO counter '{counter_path}' exceeds supported range: {int_value}"),
+                )
+            })?)
         }
         copybook_core::FieldKind::PackedDecimal {
             digits,
@@ -920,17 +755,14 @@ fn find_and_read_counter_field(
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
                     ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                    format!(
-                        "ODO counter '{}' has invalid value: {}",
-                        counter_path, decimal_str
-                    ),
+                    format!("ODO counter '{counter_path}' has invalid value: {decimal_str}"),
                 )
             })?;
             Ok(count)
         }
         _ => Err(Error::new(
             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!("ODO counter '{}' has unsupported type", counter_path),
+            format!("ODO counter '{counter_path}' has unsupported type"),
         )),
     }
 }
@@ -952,20 +784,20 @@ fn find_field_by_path<'a>(
 
     Err(Error::new(
         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-        format!("ODO counter field '{}' not found", path),
+        format!("ODO counter field '{path}' not found"),
     ))
 }
 
 /// Adjust field offsets for array element processing
 fn adjust_field_offsets(
     fields: &[copybook_core::Field],
-    base_offset: usize,
+    base_offset: u32,
 ) -> Vec<copybook_core::Field> {
     fields
         .iter()
         .map(|field| {
             let mut adjusted_field = field.clone();
-            adjusted_field.offset = base_offset as u32;
+            adjusted_field.offset = base_offset;
             if !adjusted_field.children.is_empty() {
                 adjusted_field.children =
                     adjust_field_offsets(&adjusted_field.children, base_offset);
@@ -975,11 +807,17 @@ fn adjust_field_offsets(
         .collect()
 }
 
-/// Decode a scalar field value from raw data
-fn decode_scalar_field_value(
+#[inline]
+fn is_filler_field(field: &copybook_core::Field) -> bool {
+    field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_")
+}
+
+/// Decode a scalar field value from raw data (standard path)
+fn decode_scalar_field_value_standard(
     field: &copybook_core::Field,
     field_data: &[u8],
     options: &DecodeOptions,
+    scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
 ) -> Result<Value> {
     use copybook_core::FieldKind;
 
@@ -1039,11 +877,9 @@ fn decode_scalar_field_value(
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
-            let formatted = if *signed {
-                format!("{}", int_value as i64)
-            } else {
-                format!("{int_value}")
-            };
+            let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
+            let formatted =
+                crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
             Ok(Value::String(formatted))
         }
         FieldKind::PackedDecimal {
@@ -1051,33 +887,95 @@ fn decode_scalar_field_value(
             scale,
             signed,
         } => {
-            // OPTIMIZATION: Use scratch buffer for scalar packed decimal processing
-            let mut scratch = crate::memory::ScratchBuffers::new();
-            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
-                field_data,
-                *digits,
-                *scale,
-                *signed,
-                &mut scratch,
-            )?;
-            Ok(Value::String(decimal_str))
+            let decimal =
+                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
+            Ok(Value::String(decimal.to_string()))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
             Err(Error::new(
                 ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                format!("Cannot process group field '{}' as scalar", field.name),
+                format!(
+                    "Cannot process group field '{name}' as scalar",
+                    name = field.name
+                ),
             ))
         }
         FieldKind::Condition { values } => {
             // Level-88 fields are condition names, not data scalars
             // Return structured representation for API consistency
-            if values.is_empty() {
-                Ok(Value::String("CONDITION".to_owned()))
-            } else {
-                Ok(Value::String(format!("CONDITION({})", values.join("|"))))
-            }
+            Ok(condition_value(values, "CONDITION"))
         }
+    }
+}
+
+/// Decode a scalar field value using shared scratch buffers
+fn decode_scalar_field_value_with_scratch(
+    field: &copybook_core::Field,
+    field_data: &[u8],
+    options: &DecodeOptions,
+    scratch: &mut crate::memory::ScratchBuffers,
+) -> Result<Value> {
+    use copybook_core::FieldKind;
+
+    match &field.kind {
+        FieldKind::Alphanum { .. } => {
+            let text = crate::charset::ebcdic_to_utf8(
+                field_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            Ok(Value::String(text))
+        }
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                field_data,
+                *digits,
+                *scale,
+                *signed,
+                options.codepage,
+                field.blank_when_zero,
+                scratch,
+            )?;
+            Ok(Value::String(decimal_str))
+        }
+        FieldKind::BinaryInt { bits, signed } => {
+            let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+            let formatted =
+                crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
+            Ok(Value::String(formatted))
+        }
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                field_data, *digits, *scale, *signed, scratch,
+            )?;
+            Ok(Value::String(decimal_str))
+        }
+        FieldKind::Group => Err(Error::new(
+            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+            format!(
+                "Cannot process group field '{name}' as scalar",
+                name = field.name
+            ),
+        )),
+        FieldKind::Condition { values } => Ok(condition_value(values, "CONDITION")),
+    }
+}
+
+#[inline]
+fn condition_value(values: &[String], prefix: &str) -> Value {
+    if values.is_empty() {
+        Value::String(prefix.to_owned())
+    } else {
+        Value::String(format!("{prefix}({})", values.join("|")))
     }
 }
 
@@ -1105,7 +1003,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             .map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 in __raw_b64: {}", e),
+                    format!("Invalid base64 in __raw_b64: {e}"),
                 )
             })?;
 
@@ -1129,7 +1027,11 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
 
                     if should_recompute {
                         // Recompute length header
-                        let new_length = field_payload.len().min(u16::MAX as usize) as u16;
+                        let capped_len = field_payload.len().min(u16::MAX as usize);
+                        let new_length = match u16::try_from(capped_len) {
+                            Ok(len) => len,
+                            Err(_) => u16::MAX,
+                        };
                         let length_bytes = new_length.to_be_bytes();
                         rdw_record[0] = length_bytes[0];
                         rdw_record[1] = length_bytes[1];
@@ -1198,143 +1100,212 @@ fn encode_fields_recursive(
     let mut current_offset = offset;
 
     for field in fields {
-        match &field.kind {
-            copybook_core::FieldKind::Group => {
-                // Recursively encode group fields
-                if let Some(sub_obj) = json_obj.get(&field.name).and_then(|v| v.as_object()) {
-                    current_offset = encode_fields_recursive(
-                        &field.children,
-                        sub_obj,
-                        buffer,
-                        current_offset,
-                        options,
-                    )?;
-                } else {
-                    current_offset = encode_fields_recursive(
-                        &field.children,
-                        json_obj,
-                        buffer,
-                        current_offset,
-                        options,
-                    )?;
-                }
-            }
-            copybook_core::FieldKind::Alphanum { .. } => {
-                if let Some(value) = json_obj.get(&field.name)
-                    && let Some(text) = value.as_str()
-                {
-                    let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
-                    let field_len = field.len as usize;
-                    let copy_len = bytes.len().min(field_len);
-
-                    if current_offset + field_len <= buffer.len() {
-                        buffer[current_offset..current_offset + copy_len]
-                            .copy_from_slice(&bytes[..copy_len]);
-                        // Pad with spaces if needed
-                        for i in copy_len..field_len {
-                            buffer[current_offset + i] = b' ';
-                        }
-                    }
-                }
-                current_offset += field.len as usize;
-            }
-            copybook_core::FieldKind::ZonedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                if let Some(value) = json_obj.get(&field.name)
-                    && let Some(text) = value.as_str()
-                {
-                    // Check if we have a zoned encoding override
-                    let encoded = if options.zoned_encoding_override.is_some() {
-                        crate::numeric::encode_zoned_decimal_with_format(
-                            text,
-                            *digits,
-                            *scale,
-                            *signed,
-                            options.codepage,
-                            options.zoned_encoding_override,
-                        )?
-                    } else {
-                        // Use standard encoding (maintains backward compatibility)
-                        crate::numeric::encode_zoned_decimal(
-                            text,
-                            *digits,
-                            *scale,
-                            *signed,
-                            options.codepage,
-                        )?
-                    };
-                    let field_len = field.len as usize;
-                    if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
-                        buffer[current_offset..current_offset + field_len]
-                            .copy_from_slice(&encoded);
-                    }
-                }
-                current_offset += field.len as usize;
-            }
-            copybook_core::FieldKind::PackedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                if let Some(value) = json_obj.get(&field.name)
-                    && let Some(text) = value.as_str()
-                {
-                    let encoded =
-                        crate::numeric::encode_packed_decimal(text, *digits, *scale, *signed)?;
-                    let field_len = field.len as usize;
-                    if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
-                        buffer[current_offset..current_offset + field_len]
-                            .copy_from_slice(&encoded);
-                    }
-                }
-                current_offset += field.len as usize;
-            }
-            copybook_core::FieldKind::BinaryInt { bits, signed } => {
-                if let Some(value) = json_obj.get(&field.name)
-                    && let Some(text) = value.as_str()
-                    && let Ok(num) = text.parse::<i64>()
-                {
-                    let encoded = crate::numeric::encode_binary_int(num, *bits, *signed)?;
-                    let field_len = field.len as usize;
-                    if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
-                        buffer[current_offset..current_offset + field_len]
-                            .copy_from_slice(&encoded);
-                    }
-                }
-                current_offset += field.len as usize;
-            }
-            copybook_core::FieldKind::Condition { .. } => {
-                // Level-88 fields don't encode to binary - they're metadata only
-                // Skip without consuming any space in the buffer
-            }
-        }
+        current_offset = encode_single_field(field, json_obj, buffer, current_offset, options)?;
     }
 
     Ok(current_offset)
 }
 
+#[inline]
+fn encode_single_field(
+    field: &copybook_core::Field,
+    json_obj: &serde_json::Map<String, Value>,
+    buffer: &mut [u8],
+    current_offset: usize,
+    options: &EncodeOptions,
+) -> Result<usize> {
+    use copybook_core::FieldKind;
+
+    match &field.kind {
+        FieldKind::Group => encode_group_field(field, json_obj, buffer, current_offset, options),
+        FieldKind::Alphanum { .. } => {
+            encode_alphanum_field(field, json_obj, buffer, current_offset, options)
+        }
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => encode_zoned_decimal_field(
+            field,
+            json_obj,
+            buffer,
+            current_offset,
+            options,
+            DecimalSpec {
+                digits: *digits,
+                scale: *scale,
+                signed: *signed,
+            },
+        ),
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => encode_packed_decimal_field(
+            field,
+            json_obj,
+            buffer,
+            current_offset,
+            DecimalSpec {
+                digits: *digits,
+                scale: *scale,
+                signed: *signed,
+            },
+        ),
+        FieldKind::BinaryInt { bits, signed } => encode_binary_int_field(
+            field,
+            json_obj,
+            buffer,
+            current_offset,
+            BinarySpec {
+                bits: *bits,
+                signed: *signed,
+            },
+        ),
+        FieldKind::Condition { .. } => Ok(current_offset),
+    }
+}
+
+#[inline]
+fn encode_group_field(
+    field: &copybook_core::Field,
+    json_obj: &serde_json::Map<String, Value>,
+    buffer: &mut [u8],
+    current_offset: usize,
+    options: &EncodeOptions,
+) -> Result<usize> {
+    if let Some(sub_obj) = json_obj.get(&field.name).and_then(|v| v.as_object()) {
+        encode_fields_recursive(&field.children, sub_obj, buffer, current_offset, options)
+    } else {
+        encode_fields_recursive(&field.children, json_obj, buffer, current_offset, options)
+    }
+}
+
+#[inline]
+fn encode_alphanum_field(
+    field: &copybook_core::Field,
+    json_obj: &serde_json::Map<String, Value>,
+    buffer: &mut [u8],
+    current_offset: usize,
+    options: &EncodeOptions,
+) -> Result<usize> {
+    let field_len = field.len as usize;
+
+    if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+        let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
+        let copy_len = bytes.len().min(field_len);
+
+        if current_offset + field_len <= buffer.len() {
+            buffer[current_offset..current_offset + copy_len].copy_from_slice(&bytes[..copy_len]);
+            buffer[current_offset + copy_len..current_offset + field_len].fill(b' ');
+        }
+    }
+
+    Ok(current_offset + field_len)
+}
+
+#[derive(Copy, Clone)]
+struct DecimalSpec {
+    digits: u16,
+    scale: i16,
+    signed: bool,
+}
+
+#[inline]
+fn encode_zoned_decimal_field(
+    field: &copybook_core::Field,
+    json_obj: &serde_json::Map<String, Value>,
+    buffer: &mut [u8],
+    current_offset: usize,
+    options: &EncodeOptions,
+    spec: DecimalSpec,
+) -> Result<usize> {
+    let field_len = field.len as usize;
+
+    if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+        let encoded = if options.zoned_encoding_override.is_some() {
+            crate::numeric::encode_zoned_decimal_with_format(
+                text,
+                spec.digits,
+                spec.scale,
+                spec.signed,
+                options.codepage,
+                options.zoned_encoding_override,
+            )?
+        } else {
+            crate::numeric::encode_zoned_decimal(
+                text,
+                spec.digits,
+                spec.scale,
+                spec.signed,
+                options.codepage,
+            )?
+        };
+
+        if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
+            buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
+        }
+    }
+
+    Ok(current_offset + field_len)
+}
+
+#[inline]
+fn encode_packed_decimal_field(
+    field: &copybook_core::Field,
+    json_obj: &serde_json::Map<String, Value>,
+    buffer: &mut [u8],
+    current_offset: usize,
+    spec: DecimalSpec,
+) -> Result<usize> {
+    let field_len = field.len as usize;
+
+    if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+        let encoded =
+            crate::numeric::encode_packed_decimal(text, spec.digits, spec.scale, spec.signed)?;
+        if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
+            buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
+        }
+    }
+
+    Ok(current_offset + field_len)
+}
+
+#[derive(Copy, Clone)]
+struct BinarySpec {
+    bits: u16,
+    signed: bool,
+}
+
+#[inline]
+fn encode_binary_int_field(
+    field: &copybook_core::Field,
+    json_obj: &serde_json::Map<String, Value>,
+    buffer: &mut [u8],
+    current_offset: usize,
+    spec: BinarySpec,
+) -> Result<usize> {
+    let field_len = field.len as usize;
+
+    if let Some(num) = json_obj
+        .get(&field.name)
+        .and_then(|value| value.as_str())
+        .and_then(|text| text.parse::<i64>().ok())
+    {
+        let encoded = crate::numeric::encode_binary_int(num, spec.bits, spec.signed)?;
+        if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
+            buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
+        }
+    }
+
+    Ok(current_offset + field_len)
+}
+
 /// Decode a file to JSONL format
-///
-/// # Arguments
-///
-/// * `schema` - The parsed copybook schema
-/// * `input` - Input stream to read from
-/// * `output` - Output stream to write to
-/// * `options` - Decoding options
 ///
 /// # Errors
 ///
-/// Returns an error if the file cannot be decoded or written
-/// Increment warning counter (thread-local)
-pub fn increment_warning_counter() {
-    WARNING_COUNTER.with(|counter| {
-        *counter.borrow_mut() += 1;
-    });
-}
-
+/// Returns an error if the input cannot be read, decoded, or written.
 pub fn decode_file_to_jsonl(
     schema: &Schema,
     input: impl Read,
@@ -1344,137 +1315,151 @@ pub fn decode_file_to_jsonl(
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
 
-    // Reset warning counter at start
     WARNING_COUNTER.with(|counter| {
         *counter.borrow_mut() = 0;
     });
 
     match options.format {
         RecordFormat::Fixed => {
-            // Handle fixed-length records with optimized reader
-            let mut reader = crate::record::FixedRecordReader::new(input, schema.lrecl_fixed)?;
-
-            // CRITICAL PERFORMANCE OPTIMIZATION: Use scratch buffers for COMP-3 performance
-            let mut scratch = crate::memory::ScratchBuffers::new();
-
-            while let Some(record_data) = reader.read_record()? {
-                summary.bytes_processed += record_data.len() as u64;
-
-                // Provide raw data for Fixed format when emit_raw is RawMode::Record
-                let raw_data_for_decode = match options.emit_raw {
-                    crate::options::RawMode::Record => Some(record_data.clone()),
-                    _ => None,
-                };
-
-                match decode_record_with_scratch_and_raw(
-                    schema,
-                    &record_data,
-                    options,
-                    raw_data_for_decode,
-                    &mut scratch,
-                ) {
-                    Ok(json_value) => {
-                        serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                        })?;
-                        writeln!(output).map_err(|e| {
-                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                        })?;
-                        summary.records_processed += 1;
-                    }
-                    Err(e) => {
-                        summary.records_with_errors += 1;
-                        if options.strict_mode {
-                            return Err(e);
-                        }
-                    }
-                }
-            }
+            process_fixed_records(schema, input, &mut output, options, &mut summary)?;
         }
         RecordFormat::RDW => {
-            // Handle RDW variable-length records with optimized reader
-            let mut reader = crate::record::RDWRecordReader::new(input, options.strict_mode);
+            process_rdw_records(schema, input, &mut output, options, &mut summary)?;
+        }
+    }
 
-            // CRITICAL PERFORMANCE OPTIMIZATION: Use scratch buffers for COMP-3 performance
-            let mut scratch = crate::memory::ScratchBuffers::new();
+    let elapsed_ms = start_time.elapsed().as_millis();
+    summary.processing_time_ms = match u64::try_from(elapsed_ms) {
+        Ok(milliseconds) => milliseconds,
+        Err(_) => u64::MAX,
+    };
+    summary.calculate_throughput();
+    summary.warnings = WARNING_COUNTER.with(|counter| *counter.borrow());
 
-            while let Some(rdw_record) = reader.read_record()? {
-                summary.bytes_processed += rdw_record.payload.len() as u64;
+    Ok(summary)
+}
 
-                // Validate RDW payload length against schema requirements
-                if let Some(schema_lrecl) = schema.lrecl_fixed
-                    && rdw_record.payload.len() < schema_lrecl as usize
-                {
-                    let error = Error::new(
-                        ErrorCode::CBKR221_RDW_UNDERFLOW,
-                        format!(
-                            "RDW payload too short: {} bytes, schema requires {} bytes",
-                            rdw_record.payload.len(),
-                            schema_lrecl
-                        ),
-                    );
+fn process_fixed_records<R: Read, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
+    let mut scratch = crate::memory::ScratchBuffers::new();
 
-                    summary.records_with_errors += 1;
-                    if options.strict_mode {
-                        return Err(error);
-                    } else {
-                        continue; // Skip this record in lenient mode
-                    }
-                }
+    while let Some(record_data) = reader.read_record()? {
+        summary.bytes_processed += record_data.len() as u64;
 
-                // For RDW records, provide raw data based on emit_raw mode
-                let full_raw_data = match options.emit_raw {
-                    crate::options::RawMode::RecordRDW => {
-                        // Include RDW header + payload
-                        let mut full_data = Vec::new();
-                        full_data.extend_from_slice(&rdw_record.header);
-                        full_data.extend_from_slice(&rdw_record.payload);
-                        Some(full_data)
-                    }
-                    crate::options::RawMode::Record => {
-                        // Include payload only (no RDW header)
-                        Some(rdw_record.payload.clone())
-                    }
-                    _ => None,
-                };
+        let raw_data_for_decode = match options.emit_raw {
+            crate::options::RawMode::Record => Some(record_data.clone()),
+            _ => None,
+        };
 
-                match decode_record_with_scratch_and_raw(
-                    schema,
-                    &rdw_record.payload,
-                    options,
-                    full_raw_data,
-                    &mut scratch,
-                ) {
-                    Ok(json_value) => {
-                        serde_json::to_writer(&mut output, &json_value).map_err(|e| {
-                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                        })?;
-                        writeln!(output).map_err(|e| {
-                            Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string())
-                        })?;
-                        summary.records_processed += 1;
-                    }
-                    Err(e) => {
-                        summary.records_with_errors += 1;
-                        if options.strict_mode {
-                            return Err(e);
-                        }
-                    }
+        match decode_record_with_scratch_and_raw(
+            schema,
+            &record_data,
+            options,
+            raw_data_for_decode,
+            &mut scratch,
+        ) {
+            Ok(json_value) => {
+                write_json_record(output, &json_value)?;
+                summary.records_processed += 1;
+            }
+            Err(error) => {
+                summary.records_with_errors += 1;
+                if options.strict_mode {
+                    return Err(error);
                 }
             }
         }
     }
 
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
-    summary.calculate_throughput();
-    summary.schema_fingerprint = "placeholder_fingerprint".to_string();
+    Ok(())
+}
 
-    // Set warning count from thread-local counter
+fn process_rdw_records<R: Read, W: Write>(
+    schema: &Schema,
+    reader: R,
+    output: &mut W,
+    options: &DecodeOptions,
+    summary: &mut RunSummary,
+) -> Result<()> {
+    let mut reader = crate::record::RDWRecordReader::new(reader, options.strict_mode);
+    let mut scratch = crate::memory::ScratchBuffers::new();
+
+    while let Some(rdw_record) = reader.read_record()? {
+        summary.bytes_processed += rdw_record.payload.len() as u64;
+
+        if let Some(schema_lrecl) = schema.lrecl_fixed
+            && rdw_record.payload.len() < schema_lrecl as usize
+        {
+            let error = Error::new(
+                ErrorCode::CBKR221_RDW_UNDERFLOW,
+                format!(
+                    "RDW payload too short: {} bytes, schema requires {} bytes",
+                    rdw_record.payload.len(),
+                    schema_lrecl
+                ),
+            );
+
+            summary.records_with_errors += 1;
+            if options.strict_mode {
+                return Err(error);
+            }
+            continue;
+        }
+
+        let full_raw_data = match options.emit_raw {
+            crate::options::RawMode::RecordRDW => {
+                let mut full_data =
+                    Vec::with_capacity(rdw_record.header.len() + rdw_record.payload.len());
+                full_data.extend_from_slice(&rdw_record.header);
+                full_data.extend_from_slice(&rdw_record.payload);
+                Some(full_data)
+            }
+            crate::options::RawMode::Record => Some(rdw_record.payload.clone()),
+            _ => None,
+        };
+
+        match decode_record_with_scratch_and_raw(
+            schema,
+            &rdw_record.payload,
+            options,
+            full_raw_data,
+            &mut scratch,
+        ) {
+            Ok(json_value) => {
+                write_json_record(output, &json_value)?;
+                summary.records_processed += 1;
+            }
+            Err(error) => {
+                summary.records_with_errors += 1;
+                if options.strict_mode {
+                    return Err(error);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[inline]
+fn write_json_record<W: Write>(output: &mut W, value: &Value) -> Result<()> {
+    serde_json::to_writer(&mut *output, value)
+        .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+    writeln!(output).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+    Ok(())
+}
+
+/// Increment warning counter (thread-local)
+pub fn increment_warning_counter() {
     WARNING_COUNTER.with(|counter| {
-        summary.warnings = *counter.borrow();
+        *counter.borrow_mut() += 1;
     });
-
-    Ok(summary)
 }
 
 /// Encode JSONL to binary file
@@ -1516,25 +1501,25 @@ pub fn encode_jsonl_to_file(
             .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
 
         // Encode to binary
-        match encode_record(schema, &json_value, options) {
-            Ok(binary_data) => {
-                output
-                    .write_all(&binary_data)
-                    .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-                summary.bytes_processed += binary_data.len() as u64;
-            }
-            Err(_) => {
-                summary.records_with_errors += 1;
-                // In lenient mode, continue processing
-                if options.strict_mode {
-                    break;
-                }
+        if let Ok(binary_data) = encode_record(schema, &json_value, options) {
+            output
+                .write_all(&binary_data)
+                .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+            summary.bytes_processed += binary_data.len() as u64;
+        } else {
+            summary.records_with_errors += 1;
+            if options.strict_mode {
+                break;
             }
         }
     }
 
     summary.records_processed = record_count;
-    summary.processing_time_ms = start_time.elapsed().as_millis() as u64;
+    let elapsed_ms = start_time.elapsed().as_millis();
+    summary.processing_time_ms = match u64::try_from(elapsed_ms) {
+        Ok(milliseconds) => milliseconds,
+        Err(_) => u64::MAX,
+    };
     summary.calculate_throughput();
     summary.schema_fingerprint = "placeholder_fingerprint".to_string();
 
@@ -1575,13 +1560,14 @@ fn format_zoned_decimal_with_digits(
     // For integer scale, pad with leading zeros to maintain field width
     if decimal.scale <= 0 {
         let scaled_value = if decimal.scale < 0 {
-            value * 10_i64.pow((-decimal.scale) as u32)
+            let exponent = u32::from(decimal.scale.unsigned_abs());
+            value * 10_i64.pow(exponent)
         } else {
             value
         };
         if write!(result, "{:0width$}", scaled_value, width = digits as usize).is_err() {
             // Writing to a String should not fail
-            result.push_str("0");
+            result.push('0');
         }
     } else {
         // This shouldn't happen for integer zoned decimals, but handle it

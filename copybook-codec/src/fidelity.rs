@@ -8,6 +8,7 @@ use copybook_core::{Field, FieldKind, Schema};
 use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 /// Binary fidelity validator for round-trip consistency testing
 pub struct BinaryFidelityValidator {
@@ -224,6 +225,8 @@ pub struct EdgeCaseValidationResult {
 
 impl BinaryFidelityValidator {
     /// Create new binary fidelity validator
+    #[inline]
+    #[allow(clippy::must_use_candidate)]
     pub fn new(schema: Schema, options: CodecOptions) -> Self {
         Self {
             schema,
@@ -235,13 +238,20 @@ impl BinaryFidelityValidator {
     }
 
     /// Create validator with custom precision configuration
-    #[must_use]
+    #[inline]
+    #[must_use = "Preserve the updated precision configuration"]
     pub fn with_precision_config(mut self, config: PrecisionConfig) -> Self {
         self.precision_config = config;
         self
     }
 
     /// Validate complete round-trip fidelity for all field types
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if encoding or decoding fails, or if fidelity analysis cannot be completed.
+    #[inline]
+    #[must_use = "Consume the fidelity result and handle potential analysis failures"]
     pub fn validate_comprehensive_fidelity(
         &mut self,
         original_data: &[u8],
@@ -294,7 +304,10 @@ impl BinaryFidelityValidator {
         };
 
         let performance_impact = Some(PerformanceImpact {
-            validation_time_ms: validation_time.as_millis() as u64,
+            validation_time_ms: match validation_time.as_millis().try_into() {
+                Ok(ms) => ms,
+                Err(_) => u64::MAX,
+            },
             memory_overhead_bytes: Self::estimate_memory_overhead(original_data),
             throughput_impact_percent: Self::calculate_throughput_impact(validation_time),
         });
@@ -435,7 +448,7 @@ impl BinaryFidelityValidator {
                 Ok(()) => passed += 1,
                 Err(e) => {
                     failed += 1;
-                    failure_details.push(format!("{}: {}", case_name, e));
+                    failure_details.push(format!("{case_name}: {e}"));
                 }
             }
         }
@@ -591,9 +604,7 @@ impl BinaryFidelityValidator {
             FieldKind::ZonedDecimal { .. }
             | FieldKind::PackedDecimal { .. }
             | FieldKind::BinaryInt { .. } => true,
-            FieldKind::Alphanum { .. } => false,
-            FieldKind::Group => false,
-            FieldKind::Condition { .. } => false, // Level-88 fields are not numeric
+            FieldKind::Alphanum { .. } | FieldKind::Group | FieldKind::Condition { .. } => false, // Level-88 fields are not numeric
         }
     }
 
@@ -641,9 +652,9 @@ impl BinaryFidelityValidator {
                     CobolFieldType::Display
                 }
             }
-            FieldKind::Alphanum { .. } => CobolFieldType::Display,
-            FieldKind::Group => CobolFieldType::Display,
-            FieldKind::Condition { .. } => CobolFieldType::Display, // Level-88 fields treated as display
+            FieldKind::Alphanum { .. } | FieldKind::Group | FieldKind::Condition { .. } => {
+                CobolFieldType::Display
+            } // Level-88 fields treated as display
         }
     }
 
@@ -772,13 +783,14 @@ impl BinaryFidelityValidator {
     /// Calculate throughput impact percentage
     fn calculate_throughput_impact(validation_time: std::time::Duration) -> f64 {
         // Simplified calculation based on validation time
-        let validation_ms = validation_time.as_millis() as f64;
+        let validation_ms = validation_time.as_secs_f64() * 1_000.0;
         (validation_ms / 1000.0) * 100.0 // Convert to percentage impact
     }
 }
 
 /// Default precision configuration
 impl Default for PrecisionConfig {
+    #[inline]
     fn default() -> Self {
         let mut tolerance_settings = HashMap::new();
 
@@ -831,6 +843,7 @@ impl Default for PrecisionConfig {
 
 /// Default codec options
 impl Default for CodecOptions {
+    #[inline]
     fn default() -> Self {
         Self {
             decode_options: DecodeOptions::default(),
@@ -847,11 +860,15 @@ pub mod utils {
     };
 
     /// Create fidelity validator with standard configuration
+    #[inline]
+    #[must_use = "Use the returned validator to execute fidelity checks"]
     pub fn create_standard_validator(schema: Schema) -> BinaryFidelityValidator {
         BinaryFidelityValidator::new(schema, CodecOptions::default())
     }
 
     /// Create fidelity validator for financial data with strict precision
+    #[inline]
+    #[must_use = "Use the returned validator to execute fidelity checks"]
     pub fn create_financial_validator(schema: Schema) -> BinaryFidelityValidator {
         let mut precision_config = PrecisionConfig::default();
         precision_config.business_rules.financial_precision_required = true;
@@ -870,6 +887,12 @@ pub mod utils {
     }
 
     /// Validate multiple records for batch fidelity testing
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if validating any record fails.
+    #[inline]
+    #[must_use = "Inspect batch fidelity results to detect failures"]
     pub fn validate_batch_fidelity(
         validator: &mut BinaryFidelityValidator,
         records: &[Vec<u8>],
@@ -885,6 +908,9 @@ pub mod utils {
     }
 
     /// Calculate overall fidelity metrics for batch results
+    #[inline]
+    #[allow(clippy::cast_precision_loss)]
+    #[must_use = "Review batch metrics to interpret fidelity outcomes"]
     pub fn calculate_batch_metrics(results: &[FidelityResult]) -> BatchFidelityMetrics {
         let total_records = results.len();
         let perfect_records = results
@@ -900,19 +926,31 @@ pub mod utils {
             .filter(|r| matches!(r.status, FidelityStatus::Failed { .. }))
             .count();
 
-        let average_validation_time = results
+        let total_validation_time: u64 = results
             .iter()
             .filter_map(|r| r.performance_impact.as_ref())
             .map(|p| p.validation_time_ms)
-            .sum::<u64>()
-            / total_records as u64;
+            .sum();
+        let total_records_u64 = match u64::try_from(total_records) {
+            Ok(count) => count,
+            Err(_) => u64::MAX,
+        };
+        let average_validation_time = if total_records_u64 == 0 {
+            0
+        } else {
+            total_validation_time / total_records_u64
+        };
 
         BatchFidelityMetrics {
             total_records,
             perfect_records,
             within_tolerance_records,
             failed_records,
-            perfect_rate: perfect_records as f64 / total_records as f64,
+            perfect_rate: if total_records == 0 {
+                0.0
+            } else {
+                perfect_records as f64 / total_records as f64
+            },
             average_validation_time_ms: average_validation_time,
         }
     }

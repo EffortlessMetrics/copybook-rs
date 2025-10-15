@@ -414,7 +414,9 @@ pub enum ValidationDepth {
 
 /// Run the audit command with comprehensive enterprise capabilities
 #[allow(clippy::too_many_lines)]
-pub async fn run(audit_command: AuditCommand) -> Result<i32, Box<dyn std::error::Error>> {
+pub async fn run(
+    audit_command: AuditCommand,
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
     // Initialize audit context
     let audit_context = AuditContext::new()
         .with_operation_id("cli_audit_operation")
@@ -619,7 +621,7 @@ fn run_audit_report(
     _include_lineage: bool,
     _include_recommendations: bool,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
     println!("Generating comprehensive audit report...");
 
     // Parse copybook to validate it
@@ -665,7 +667,7 @@ async fn run_compliance_validation(
     _report_violations: bool,
     _include_recommendations: bool,
     audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
     println!("Running compliance validation...");
 
     // Parse compliance frameworks from comma-separated string
@@ -758,7 +760,7 @@ fn run_lineage_analysis(
     _impact_analysis: bool,
     _confidence_threshold: f64,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
     println!("Analyzing data lineage...");
 
     // Parse source copybook
@@ -809,7 +811,7 @@ fn run_performance_audit(
     _include_regression_analysis: bool,
     _iterations: u32,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
     println!("Running performance audit...");
 
     // Parse copybook
@@ -866,7 +868,7 @@ fn run_security_audit(
     validation_depth: ValidationDepth,
     threat_assessment: bool,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
     println!("Running security audit...");
 
     // Parse copybook
@@ -927,7 +929,7 @@ fn run_audit_health_check(
     check_interval: u32,
     continuous: bool,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
     println!("Running audit health check...");
 
     // Create health report

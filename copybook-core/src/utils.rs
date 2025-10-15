@@ -427,7 +427,7 @@ pub mod safe_ops {
 
 #[cfg(test)]
 mod tests {
-    use super::{safe_ops, OptionExt, VecExt};
+    use super::{OptionExt, VecExt, safe_ops};
     use crate::error::{ErrorCode, Result};
 
     #[test]

@@ -4,8 +4,8 @@
 //! This test suite validates the parser's handling of various COBOL copybook formats
 //! and syntax variations according to the normative grammar rules.
 
-use anyhow::{bail, Context as _, Result};
-use copybook_core::{parse_copybook, ErrorCode};
+use anyhow::{Context as _, Result, bail};
+use copybook_core::{ErrorCode, parse_copybook};
 
 type TestResult<T = ()> = Result<T>;
 
@@ -67,10 +67,7 @@ fn test_column_7_continuation() -> TestResult {
         .fields
         .first()
         .context("continued field should be present")?;
-    assert_eq!(
-        record.name,
-        "VERY-LONG-FIELD-NAME-THAT-NEEDS-CONTINUATION"
-    );
+    assert_eq!(record.name, "VERY-LONG-FIELD-NAME-THAT-NEEDS-CONTINUATION");
     Ok(())
 }
 
@@ -115,10 +112,7 @@ fn test_fixed_form_comments() -> TestResult {
 ";
 
     let schema = parse_copybook(with_comments)?;
-    let record = schema
-        .fields
-        .first()
-        .context("record should exist")?;
+    let record = schema.fields.first().context("record should exist")?;
     assert_eq!(record.name, "RECORD-NAME");
     assert_eq!(record.children.len(), 1);
     Ok(())
@@ -132,15 +126,9 @@ fn test_inline_comment_handling() -> TestResult {
 ";
 
     let schema = parse_copybook(with_inline)?;
-    let record = schema
-        .fields
-        .first()
-        .context("record should exist")?;
+    let record = schema.fields.first().context("record should exist")?;
     assert_eq!(record.name, "RECORD-NAME");
-    let field = record
-        .children
-        .first()
-        .context("field should exist")?;
+    let field = record.children.first().context("field should exist")?;
     assert_eq!(field.name, "FIELD-NAME");
     Ok(())
 }
@@ -222,15 +210,9 @@ fn test_sequence_area_ignored() -> TestResult {
 ";
 
     let schema = parse_copybook(with_sequence)?;
-    let record = schema
-        .fields
-        .first()
-        .context("record should exist")?;
+    let record = schema.fields.first().context("record should exist")?;
     assert_eq!(record.name, "RECORD-NAME");
-    let field = record
-        .children
-        .first()
-        .context("field should exist")?;
+    let field = record.children.first().context("field should exist")?;
     assert_eq!(field.name, "FIELD-NAME");
     Ok(())
 }
@@ -244,15 +226,9 @@ fn test_page_break_handling() -> TestResult {
 ";
 
     let schema = parse_copybook(with_page_break)?;
-    let record = schema
-        .fields
-        .first()
-        .context("record should exist")?;
+    let record = schema.fields.first().context("record should exist")?;
     assert_eq!(record.name, "RECORD-NAME");
-    let field = record
-        .children
-        .first()
-        .context("field should exist")?;
+    let field = record.children.first().context("field should exist")?;
     assert_eq!(field.name, "FIELD-NAME");
     Ok(())
 }
@@ -267,10 +243,7 @@ fn test_mixed_comment_styles_error() -> TestResult {
 
     // This should parse successfully - both comment styles are valid
     let schema = parse_copybook(mixed_comments)?;
-    let record = schema
-        .fields
-        .first()
-        .context("record should exist")?;
+    let record = schema.fields.first().context("record should exist")?;
     assert_eq!(record.name, "RECORD-NAME");
     Ok(())
 }
@@ -320,10 +293,7 @@ fn test_empty_lines_and_whitespace() -> TestResult {
 ";
 
     let schema = parse_copybook(with_empty_lines)?;
-    let record = schema
-        .fields
-        .first()
-        .context("record should exist")?;
+    let record = schema.fields.first().context("record should exist")?;
     assert_eq!(record.name, "RECORD-NAME");
     assert_eq!(record.children.len(), 1);
     Ok(())

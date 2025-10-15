@@ -1596,7 +1596,7 @@ mod tests {
     use super::*;
     use crate::Codepage;
     use crate::iterator::RecordIterator;
-    use copybook_core::{parse_copybook, Error, ErrorCode, Result};
+    use copybook_core::{Error, ErrorCode, Result, parse_copybook};
     use std::io::Cursor;
 
     #[test]

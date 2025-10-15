@@ -9,13 +9,7 @@ use predicates::prelude::*;
 use serde_json::Value;
 use std::fs;
 use tempfile::TempDir;
-use test_utils::{
-    copybook_cmd,
-    fixture_path,
-    path_to_str,
-    require_some,
-    TestResult,
-};
+use test_utils::{TestResult, copybook_cmd, fixture_path, path_to_str, require_some};
 
 /// Test parse command with golden fixture
 #[test]
@@ -105,10 +99,7 @@ fn test_cli_verify_report_schema() -> TestResult<()> {
 
 /// Helper function to validate `VerifyReport` JSON structure
 fn validate_verify_report_schema(report: &Value) -> TestResult<()> {
-    let obj = require_some(
-        report.as_object(),
-        "Report should be a JSON object",
-    )?;
+    let obj = require_some(report.as_object(), "Report should be a JSON object")?;
 
     assert!(obj.contains_key("report_version"), "Missing report_version");
     assert!(
@@ -216,10 +207,7 @@ fn validate_cli_opts(cli_opts: &Value) -> TestResult<()> {
 
     assert!(obj.contains_key("max_errors"), "Missing max_errors");
     assert!(obj["max_errors"].is_u64(), "max_errors should be integer");
-    let max_errors = require_some(
-        obj["max_errors"].as_u64(),
-        "max_errors should be integer",
-    )?;
+    let max_errors = require_some(obj["max_errors"].as_u64(), "max_errors should be integer")?;
     assert!(max_errors >= 1, "max_errors should be >= 1");
 
     assert!(obj.contains_key("sample"), "Missing sample");

@@ -995,7 +995,7 @@ mod tests {
     #[tokio::test]
     async fn test_compliance_validation() -> anyhow::Result<()> {
         use std::io::Write;
-        use tempfile::{tempdir, NamedTempFile};
+        use tempfile::{NamedTempFile, tempdir};
 
         let compliance = "sox";
 

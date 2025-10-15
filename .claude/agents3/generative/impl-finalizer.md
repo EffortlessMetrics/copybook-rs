@@ -134,7 +134,7 @@ Routing
   - Update Ledger: rebuild Gates table row: `| impl-validation | fail | <specific error details> |`
 
 **Quality Assurance:**
-- Always run commands from the copybook-rs workspace root (`/home/steven/code/Rust/copybook-rs`)
+- Always run commands from the copybook-rs workspace root (`$HOME/code/Rust/copybook-rs`)
 - Capture and analyze command outputs thoroughly, focusing on copybook-rs-specific patterns
 - Never skip verification steps, maintaining enterprise-scale reliability standards
 - Document all actions taken in commit messages using copybook-rs prefixes (`feat:`, `fix:`, `test:`, `build:`)

@@ -326,16 +326,16 @@ All pre-publication validation gates passed. Ready for PR creation with:
 - **Check Run**: GitHub check run for `generative:gate:prep`
 - **Progress Comment**: Issue #102 final validation status
 - **Modified Files**:
-  - /home/steven/code/Rust/copybook-rs/CLAUDE.md
-  - /home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs
-  - /home/steven/code/Rust/copybook-rs/copybook-codec/src/numeric.rs
-  - /home/steven/code/Rust/copybook-rs/copybook-codec/src/processor.rs
-  - /home/steven/code/Rust/copybook-rs/copybook-codec/src/record.rs
-  - /home/steven/code/Rust/copybook-rs/copybook-codec/tests/comprehensive_numeric_tests.rs
-  - /home/steven/code/Rust/copybook-rs/copybook-codec/tests/comprehensive_rdw_tests.rs
-  - /home/steven/code/Rust/copybook-rs/copybook-codec/tests/odo_counter_types.rs
-  - /home/steven/code/Rust/copybook-rs/copybook-core/audit.jsonl
-  - /home/steven/code/Rust/copybook-rs/docs/reference/LIBRARY_API.md
+  - CLAUDE.md
+  - copybook-codec/src/lib_api.rs
+  - copybook-codec/src/numeric.rs
+  - copybook-codec/src/processor.rs
+  - copybook-codec/src/record.rs
+  - copybook-codec/tests/comprehensive_numeric_tests.rs
+  - copybook-codec/tests/comprehensive_rdw_tests.rs
+  - copybook-codec/tests/odo_counter_types.rs
+  - copybook-core/audit.jsonl
+  - docs/reference/LIBRARY_API.md
 
 ## Next Steps
 

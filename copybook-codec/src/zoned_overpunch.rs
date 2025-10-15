@@ -10,6 +10,10 @@
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
 
+// Visible in tests; harmless in non-test builds. Keep pedantic quiet.
+#[allow(dead_code)]
+const DEFAULT_PROPTEST_CASE_COUNT: u32 = 512;
+
 /// Zero sign policy for overpunch encoding
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZeroSignPolicy {
@@ -257,6 +261,77 @@ pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn proptest_case_count() -> u32 {
+        option_env!("PROPTEST_CASES")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_PROPTEST_CASE_COUNT)
+    }
+
+    fn zoned_overpunch_proptest_config() -> ProptestConfig {
+        let mut cfg = ProptestConfig {
+            cases: proptest_case_count(),
+            max_shrink_time: 0,
+            ..ProptestConfig::default()
+        };
+
+        if let Ok(seed_value) = std::env::var("PROPTEST_SEED")
+            && !seed_value.is_empty()
+        {
+            let parsed_seed = seed_value.parse::<u64>().unwrap_or_else(|_| {
+                let mut hasher = DefaultHasher::new();
+                seed_value.hash(&mut hasher);
+                hasher.finish()
+            });
+            cfg.rng_seed = RngSeed::Fixed(parsed_seed);
+        }
+
+        cfg
+    }
+
+    proptest! {
+        #![proptest_config(zoned_overpunch_proptest_config())]
+        #[test]
+        fn prop_encode_decode_parity(
+            digit in 0u8..=9,
+            is_negative in any::<bool>(),
+            codepage in prop_oneof![
+                Just(Codepage::ASCII),
+                Just(Codepage::CP037),
+                Just(Codepage::CP273),
+                Just(Codepage::CP500),
+                Just(Codepage::CP1047),
+                Just(Codepage::CP1140),
+            ],
+            policy in prop_oneof![Just(ZeroSignPolicy::Positive), Just(ZeroSignPolicy::Preferred)],
+        ) {
+            let encoded = encode_overpunch_byte(digit, is_negative, codepage, policy)
+                .expect("encoding should succeed for digits 0-9");
+
+            prop_assert!(is_valid_overpunch(encoded, codepage));
+
+            let (decoded_digit, decoded_negative) =
+                decode_overpunch_byte(encoded, codepage).expect("decode must succeed for encoded byte");
+
+            prop_assert_eq!(decoded_digit, digit);
+
+            let expected_negative = if codepage.is_ebcdic()
+                && policy == ZeroSignPolicy::Preferred
+                && digit == 0
+            {
+                // Preferred-zero policy always decodes as positive regardless of requested sign
+                false
+            } else {
+                is_negative
+            };
+
+            prop_assert_eq!(decoded_negative, expected_negative);
+        }
+    }
 
     #[test]
     fn test_ascii_overpunch_encode_decode() {

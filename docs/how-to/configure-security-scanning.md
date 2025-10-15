@@ -899,7 +899,7 @@ gh run download <run-id> --name security-audit-<commit-sha>
 
 # Validate against schema
 check-jsonschema \
-  --schemafile /home/steven/code/Rust/copybook-rs/docs/reference/security-receipt-schema.json \
+  --schemafile docs/reference/security-receipt-schema.json \
   security-audit-*.json
 
 # Expected output: "✅ validation success"
@@ -909,12 +909,12 @@ check-jsonschema \
 ```bash
 # Clean scan fixture (if available)
 check-jsonschema \
-  --schemafile /home/steven/code/Rust/copybook-rs/docs/reference/security-receipt-schema.json \
+  --schemafile docs/reference/security-receipt-schema.json \
   tests/fixtures/security-scanning/receipts/clean-scan.json
 
 # Vulnerabilities found fixture (if available)
 check-jsonschema \
-  --schemafile /home/steven/code/Rust/copybook-rs/docs/reference/security-receipt-schema.json \
+  --schemafile docs/reference/security-receipt-schema.json \
   tests/fixtures/security-scanning/receipts/vulnerabilities-found.json
 ```
 

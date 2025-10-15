@@ -320,12 +320,12 @@ Ready for final review
 ## Artifacts
 
 **Files reviewed:**
-- `/home/steven/code/Rust/copybook-rs/CLAUDE.md`
-- `/home/steven/code/Rust/copybook-rs/docs/reference/LIBRARY_API.md`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/numeric.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/record.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/processor.rs`
+- `CLAUDE.md`
+- `docs/reference/LIBRARY_API.md`
+- `copybook-codec/src/numeric.rs`
+- `copybook-codec/src/lib_api.rs`
+- `copybook-codec/src/record.rs`
+- `copybook-codec/src/processor.rs`
 
 **Validation commands executed:**
 ```bash

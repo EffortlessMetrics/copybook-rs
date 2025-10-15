@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 # Base directory for review agents
-AGENTS_DIR = Path("/home/steven/code/Rust/copybook-rs/.claude/agents4/review/")
+AGENTS_DIR = Path(".claude/agents4/review/")
 
 # Mapping of BitNet.rs terms to copybook-rs terms
 REPLACEMENTS = {

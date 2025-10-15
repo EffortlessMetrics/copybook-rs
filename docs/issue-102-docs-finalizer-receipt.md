@@ -163,7 +163,7 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 
 ### Link Validation
 ```bash
-ls -la /home/steven/code/Rust/copybook-rs/docs/REPORT.md
+ls -la docs/REPORT.md
 # -rw-r--r-- 1 steven steven 9756 Oct  3 05:17 docs/REPORT.md
 ```
 
@@ -259,10 +259,10 @@ The documentation is **production-ready** and meets copybook-rs enterprise stand
 
 - **Issue #104 Ledger Comment**: https://github.com/EffortlessMetrics/copybook-rs/issues/104#issuecomment-3367572922
 - **Documentation Files Validated**:
-  - /home/steven/code/Rust/copybook-rs/CLAUDE.md
-  - /home/steven/code/Rust/copybook-rs/docs/reference/LIBRARY_API.md
-  - /home/steven/code/Rust/copybook-rs/README.md
-  - /home/steven/code/Rust/copybook-rs/docs/REPORT.md
+  - CLAUDE.md
+  - docs/reference/LIBRARY_API.md
+  - README.md
+  - docs/REPORT.md
 
 ## Next Steps
 

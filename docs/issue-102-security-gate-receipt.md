@@ -55,10 +55,10 @@ advisories ok, bans ok, licenses ok, sources ok
 ### 2. Unsafe Code Detection
 
 **Modified Files Scanned**:
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/lib_api.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/numeric.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/record.rs`
-- `/home/steven/code/Rust/copybook-rs/copybook-codec/src/processor.rs`
+- `copybook-codec/src/lib_api.rs`
+- `copybook-codec/src/numeric.rs`
+- `copybook-codec/src/record.rs`
+- `copybook-codec/src/processor.rs`
 
 **Status**: ✅ **ZERO unsafe blocks detected**
 
@@ -351,8 +351,8 @@ issue_102_security: ✅ POSITIVE (RDW truncation detection, COMP-3 validation en
 - **PR #105**: https://github.com/EffortlessMetrics/copybook-rs/pull/105
 - **Commit**: `cdd65b7d0c3870af1ec7b372af01397a58370f40`
 - **Previous Gates**:
-  - Build Gate: `/home/steven/code/Rust/copybook-rs/docs/issue-102-build-gate-receipt.md`
-  - Tests Gate: `/home/steven/code/Rust/copybook-rs/docs/issue-102-tests-gate-receipt.md`
+  - Build Gate: `docs/issue-102-build-gate-receipt.md`
+  - Tests Gate: `docs/issue-102-tests-gate-receipt.md`
 
 ---
 

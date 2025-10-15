@@ -531,13 +531,15 @@ pub struct StreamingProcessorStats {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use anyhow::{Context, Result, anyhow};
     use std::time::Duration;
 
+    type TestResult = Result<()>;
+
     #[test]
-    fn test_scratch_buffers() {
+    fn test_scratch_buffers() -> TestResult {
         let mut buffers = ScratchBuffers::new();
 
         // Test digit buffer
@@ -550,26 +552,45 @@ mod tests {
         assert_eq!(buffers.digit_buffer.len(), 0);
         assert_eq!(buffers.byte_buffer.len(), 0);
         assert_eq!(buffers.string_buffer.len(), 0);
+
+        Ok(())
     }
 
     #[test]
-    fn test_sequence_ring_ordered() {
+    fn test_sequence_ring_ordered() -> TestResult {
         let mut ring = SequenceRing::new(10, 5);
         let sender = ring.sender();
 
         // Send records out of order
-        sender.send(SequencedRecord::new(2, "second")).unwrap();
-        sender.send(SequencedRecord::new(1, "first")).unwrap();
-        sender.send(SequencedRecord::new(3, "third")).unwrap();
+        sender
+            .send(SequencedRecord::new(2, "second"))
+            .context("sending second record")?;
+        sender
+            .send(SequencedRecord::new(1, "first"))
+            .context("sending first record")?;
+        sender
+            .send(SequencedRecord::new(3, "third"))
+            .context("sending third record")?;
 
         // Should receive in order
-        assert_eq!(ring.recv_ordered().unwrap(), Some("first"));
-        assert_eq!(ring.recv_ordered().unwrap(), Some("second"));
-        assert_eq!(ring.recv_ordered().unwrap(), Some("third"));
+        assert_eq!(
+            ring.recv_ordered().context("receiving first record")?,
+            Some("first")
+        );
+        assert_eq!(
+            ring.recv_ordered().context("receiving second record")?,
+            Some("second")
+        );
+        assert_eq!(
+            ring.recv_ordered().context("receiving third record")?,
+            Some("third")
+        );
+
+        Ok(())
     }
 
     #[test]
-    fn test_worker_pool() {
+    fn test_worker_pool() -> TestResult {
         let pool = WorkerPool::new(
             2,  // 2 workers
             10, // channel capacity
@@ -583,20 +604,27 @@ mod tests {
 
         // Submit work
         for i in 1..=5 {
-            pool.submit(i).unwrap();
+            pool.submit(i).context("submitting work item")?;
         }
 
         // Receive results in order
         for i in 1..=5 {
-            let result = pool.recv_ordered().unwrap().unwrap();
+            let result = pool
+                .recv_ordered()
+                .context("receiving result")?
+                .context("worker pool returned None")?;
             assert_eq!(result, i * 2);
         }
 
-        pool.shutdown().unwrap();
+        pool.shutdown()
+            .map_err(|error| anyhow!(error))
+            .context("shutting down worker pool")?;
+
+        Ok(())
     }
 
     #[test]
-    fn test_streaming_processor() {
+    fn test_streaming_processor() -> TestResult {
         let mut processor = StreamingProcessor::new(1); // 1 MB limit
 
         assert!(!processor.is_memory_pressure());
@@ -610,10 +638,12 @@ mod tests {
         let stats = processor.stats();
         assert_eq!(stats.records_processed, 1);
         assert_eq!(stats.bytes_processed, 1024);
+
+        Ok(())
     }
 
     #[test]
-    fn test_deterministic_ordering() {
+    fn test_deterministic_ordering() -> TestResult {
         // Test that different numbers of workers produce identical output
         let test_data: Vec<i32> = (1..=20).collect(); // Reduced size for faster testing
 
@@ -637,17 +667,22 @@ mod tests {
 
             // Submit all work
             for &input in &test_data {
-                pool.submit(input).unwrap();
+                pool.submit(input)
+                    .with_context(|| format!("submitting input {input}"))?;
             }
 
             // Collect results
             for _ in 0..test_data.len() {
-                if let Ok(Some(result)) = pool.recv_ordered() {
-                    results.push(result);
+                match pool.recv_ordered() {
+                    Ok(Some(result)) => results.push(result),
+                    Ok(None) => break,
+                    Err(error) => return Err(error).context("receiving ordered result"),
                 }
             }
 
-            pool.shutdown().unwrap();
+            pool.shutdown()
+                .map_err(|error| anyhow!(error))
+                .context("shutting down worker pool")?;
 
             // Results should be in the same order regardless of worker count
             let expected: Vec<i32> = test_data.iter().map(|x| x * x).collect();
@@ -657,5 +692,7 @@ mod tests {
                 num_workers
             );
         }
+
+        Ok(())
     }
 }

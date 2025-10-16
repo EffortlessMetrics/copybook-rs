@@ -3,41 +3,69 @@
 // It asserts that HELP/TYPE descriptors are present and that the CBKF family
 // counter increments for a malformed RDW header.
 
+use std::io::ErrorKind;
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
 use std::{thread, time::Duration};
 
-fn pick_free_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0")
-        .expect("bind ephemeral")
-        .local_addr()
-        .expect("addr")
-        .port()
+fn pick_free_port() -> std::io::Result<u16> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let addr = listener.local_addr()?;
+    Ok(addr.port())
 }
 
 #[test]
-#[ignore] // run only when explicitly requested or in the metrics smoke workflow
-fn metrics_shows_descriptors_and_cbkf_on_short_error() {
+#[ignore = "run only when explicitly requested or in the metrics smoke workflow"]
+fn metrics_shows_descriptors_and_cbkf_on_short_error() -> Result<(), Box<dyn std::error::Error>> {
     // --- Prepare a small malformed RDW: len=0x0010 but only 4 body bytes ---
-    let bad = tempfile::NamedTempFile::new().expect("temp");
-    std::fs::write(bad.path(), [0x00, 0x10, 0xAA, 0xBB, 0xCC, 0xDD]).expect("write bad rdw");
+    let bad = tempfile::NamedTempFile::new()?;
+    std::fs::write(bad.path(), [0x00, 0x10, 0xAA, 0xBB, 0xCC, 0xDD])?;
 
-    let copybook = tempfile::NamedTempFile::new().expect("temp copybook");
+    let copybook = tempfile::NamedTempFile::new()?;
     std::fs::write(
         copybook.path(),
         "       01 TEST-REC.\n           05 FIELD PIC X(04).\n",
-    )
-    .expect("write copybook");
+    )?;
 
     // --- Pick a free port for /metrics ---
-    let port = pick_free_port();
+    let port = pick_free_port()?;
     let addr = format!("127.0.0.1:{port}");
 
     // --- Spawn CLI with exporter and a brief grace window for scrapes ---
     // CARGO_BIN_EXE_copybook is set by Cargo for integration tests targeting the bin.
     let bin = env!("CARGO_BIN_EXE_copybook");
-    let output_dir = tempfile::tempdir().expect("temp dir");
+    let output_dir = tempfile::tempdir()?;
     let output_path = output_dir.path().join("out.jsonl");
+    let output_arg = output_path
+        .to_str()
+        .ok_or_else(|| {
+            std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!("output path is not UTF-8: {output_path:?}"),
+            )
+        })?
+        .to_owned();
+    let copybook_arg = copybook
+        .path()
+        .to_str()
+        .ok_or_else(|| {
+            std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!("copybook path is not UTF-8: {:?}", copybook.path()),
+            )
+        })?
+        .to_owned();
+    let bad_arg = bad
+        .path()
+        .to_str()
+        .ok_or_else(|| {
+            std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!("RDW path is not UTF-8: {:?}", bad.path()),
+            )
+        })?
+        .to_owned();
+
     let mut child = Command::new(bin)
         .args([
             "--metrics-listen",
@@ -50,27 +78,23 @@ fn metrics_shows_descriptors_and_cbkf_on_short_error() {
             "--codepage",
             "ascii",
             "--output",
-            output_path.to_str().expect("output path"),
-            copybook.path().to_str().unwrap(),
-            bad.path().to_str().unwrap(),
+            &output_arg,
+            &copybook_arg,
+            &bad_arg,
         ])
         .stdout(Stdio::null())
         .stderr(Stdio::inherit())
-        .spawn()
-        .expect("spawn copybook");
+        .spawn()?;
 
     // Give the exporter a moment to bind before the first scrape.
     thread::sleep(Duration::from_millis(300));
     assert!(
-        child.try_wait().expect("child status check").is_none(),
+        child.try_wait()?.is_none(),
         "copybook process exited before metrics scrape"
     );
 
     // --- Scrape /metrics once during the grace window ---
-    let body = reqwest::blocking::get(format!("http://127.0.0.1:{port}/metrics"))
-        .expect("scrape")
-        .text()
-        .expect("metrics body");
+    let body = reqwest::blocking::get(format!("http://127.0.0.1:{port}/metrics"))?.text()?;
 
     // HELP/TYPE descriptors should always be present after describe_metrics_once().
     assert!(
@@ -86,6 +110,8 @@ fn metrics_shows_descriptors_and_cbkf_on_short_error() {
     );
 
     // Exit code should map to 4 for CBKF family.
-    let status = child.wait().expect("wait");
+    let status = child.wait()?;
     assert_eq!(status.code(), Some(4), "exit code should be 4 (CBKF)");
+
+    Ok(())
 }

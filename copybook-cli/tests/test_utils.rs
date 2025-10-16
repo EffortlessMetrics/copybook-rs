@@ -1,9 +1,11 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
-
 //! Test utilities for finding fixture files
 
 use assert_cmd::Command;
-use std::path::PathBuf;
+use std::error::Error;
+use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
+
+pub type TestResult<T> = Result<T, Box<dyn Error>>;
 
 /// Find the workspace root by looking for Cargo.toml
 ///
@@ -11,9 +13,12 @@ use std::path::PathBuf;
 ///
 /// Returns an error if the current directory cannot be accessed or if the workspace root
 /// cannot be found by traversing parent directories.
-pub fn find_workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let mut current =
-        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {e}"))?;
+pub fn find_workspace_root() -> TestResult<PathBuf> {
+    let mut current = std::env::current_dir().map_err(|e| {
+        let mut message = String::new();
+        let _ = write!(&mut message, "Failed to get current directory: {e}");
+        message
+    })?;
 
     loop {
         if current.join("Cargo.toml").exists()
@@ -36,22 +41,109 @@ pub fn find_workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
 /// # Errors
 ///
 /// Returns an error if the workspace root cannot be found.
-pub fn fixture_path(relative_path: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn fixture_path(relative_path: &str) -> TestResult<PathBuf> {
     Ok(find_workspace_root()?.join("fixtures").join(relative_path))
 }
 
 /// Create a copybook command with standard fixed format and CP037 codepage args
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if the copybook binary cannot be found in the cargo target directory.
-#[must_use]
-pub fn copybook_cmd(args: &[&str]) -> Command {
-    let mut cmd = Command::cargo_bin("copybook").unwrap();
+/// Returns an error if the `copybook` binary cannot be located.
+pub fn copybook_cmd(args: &[&str]) -> TestResult<Command> {
+    let mut cmd = Command::cargo_bin("copybook")?;
     cmd.args(args)
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
         .arg("cp037");
-    cmd
+    Ok(cmd)
+}
+
+/// Convert an `Option<T>` into a [`TestResult`] with a helpful error message.
+///
+/// # Errors
+/// Returns an error when `value` is `None`.
+pub fn require_some<T, S>(value: Option<T>, context: S) -> TestResult<T>
+where
+    S: Into<String>,
+{
+    value
+        .ok_or_else(|| std::io::Error::other(context.into()))
+        .map_err(Into::into)
+}
+
+/// Convert a path to a UTF-8 string with a descriptive error if conversion fails.
+///
+/// # Errors
+/// Returns an error when the provided `path` is not valid UTF-8.
+pub fn path_to_str(path: &Path) -> TestResult<&str> {
+    let mut message = String::new();
+    let _ = write!(&mut message, "Path {} is not valid UTF-8", path.display());
+    require_some(path.to_str(), message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn workspace_root_contains_workspace_manifests() -> TestResult<()> {
+        let root = find_workspace_root()?;
+        assert!(
+            root.join("Cargo.toml").exists(),
+            "workspace root missing Cargo.toml"
+        );
+        assert!(
+            root.join("copybook-cli").exists(),
+            "workspace root missing copybook-cli crate"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn fixture_path_points_inside_fixtures_directory() -> TestResult<()> {
+        let path = fixture_path("copybooks/simple.cpy")?;
+        assert!(path.ends_with("fixtures/copybooks/simple.cpy"));
+        Ok(())
+    }
+
+    #[test]
+    fn copybook_cmd_appends_standard_arguments() -> TestResult<()> {
+        let cmd = copybook_cmd(&["inspect", "dummy"])?;
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(args[0], "inspect");
+        assert_eq!(args[1], "dummy");
+        assert!(args.contains(&"--format".to_string()));
+        assert!(args.contains(&"fixed".to_string()));
+        assert!(args.contains(&"--codepage".to_string()));
+        assert!(args.contains(&"cp037".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn require_some_transforms_missing_value_into_error() -> TestResult<()> {
+        let value = require_some(Some(42), "value should exist")?;
+        assert_eq!(value, 42);
+
+        match require_some::<i32, _>(None, "missing value") {
+            Ok(_) => Err("expected error when value is missing".into()),
+            Err(err) => {
+                assert!(err.to_string().contains("missing value"));
+                Ok(())
+            }
+        }
+    }
+
+    #[test]
+    fn path_to_str_converts_utf8_paths() -> TestResult<()> {
+        let path = PathBuf::from("fixtures");
+        let s = path_to_str(&path)?;
+        assert_eq!(s, "fixtures");
+        Ok(())
+    }
 }

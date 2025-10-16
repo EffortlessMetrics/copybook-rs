@@ -1,8 +1,10 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 //! Command-line interface for copybook-rs
 //!
 //! This binary provides a user-friendly CLI for parsing copybooks and
 //! converting mainframe data files.
 
+use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use std::path::PathBuf;
@@ -307,7 +309,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Audit { audit_command } => {
             // Run audit command asynchronously
             let runtime = tokio::runtime::Runtime::new()?;
-            runtime.block_on(crate::commands::audit::run(audit_command))
+            runtime
+                .block_on(crate::commands::audit::run(audit_command))
+                .map_err(|err| -> Box<dyn std::error::Error> { err })
         }
         Commands::Verify {
             copybook,
@@ -320,11 +324,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sample,
             strict_comments,
         } => {
+            let value = max_errors.unwrap_or(10);
+            let Ok(normalized_max_errors) = u32::try_from(value) else {
+                return Err(anyhow!(
+                    "--max-errors must be between 0 and {} (received {value})",
+                    u32::MAX
+                )
+                .into());
+            };
+
             let opts = crate::commands::verify::VerifyOptions {
                 format,
                 codepage,
                 strict,
-                max_errors: u32::try_from(max_errors.unwrap_or(10)).unwrap_or(10),
+                max_errors: normalized_max_errors,
                 sample: sample.unwrap_or(5),
                 strict_comments,
             };

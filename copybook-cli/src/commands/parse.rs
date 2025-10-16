@@ -10,7 +10,7 @@ pub fn run(
     output: Option<PathBuf>,
     strict: bool,
     strict_comments: bool,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> anyhow::Result<i32> {
     info!("Parsing copybook: {:?}", copybook);
 
     if strict_comments {

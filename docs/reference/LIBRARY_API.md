@@ -192,9 +192,9 @@ pub enum JsonNumberMode {
 
 pub enum RawMode {
     Off,         // No raw capture
-    Record,      // Capture entire record (payload only) as "__raw_b64" field
-    Field,       // Capture individual fields as "__raw_b64" in each field object
-    RecordRdw,   // Capture record + RDW header as "__raw_b64" field
+    Record,      // Capture entire record (payload only) as `raw_b64` on the envelope
+    Field,       // Capture individual fields as `<field>_raw_b64`
+    RecordRdw,   // Capture record + RDW header as `raw_b64`
 }
 
 pub enum UnmappablePolicy {
@@ -210,36 +210,46 @@ pub enum ZonedEncodingFormat {
 }
 ```
 
-### Raw Data Field Naming Convention
+### JSON Envelope & Raw Data
 
-When `emit_raw` is enabled in `DecodeOptions`, copybook-rs adds a **`__raw_b64`** field to the JSON output containing the base64-encoded raw binary data. This field name is **consistent across all `RawMode` variants**:
+Decoded records are wrapped in a stable JSON envelope:
 
-**Field Naming Standard (Issue #102)**:
-- **Field Name**: Always `__raw_b64` (double underscore prefix, base64 suffix)
-- **Format**: Base64-encoded binary data (RFC 4648 standard encoding)
-- **Consistency**: Same field name for `RawMode::Record`, `RawMode::RecordRdw`, and `RawMode::Field`
+```json
+{
+  "schema": "copybook.v1",
+  "record_index": 0,
+  "codepage": "cp037",
+  "fields": { "FIELD1": "value" }
+}
+```
 
-**RawMode Behavior**:
+- `schema` – Versioned schema identifier (`copybook.v1`)
+- `record_index` – Zero-based record sequence number
+- `codepage` – Decoder code page (e.g., `cp037`)
+- `fields` – Map of decoded field values (nested for groups)
+- `schema_fingerprint`, `offset`, `length` – Added when `emit_meta` is enabled
+
+When `emit_raw` is enabled, record-level payloads are emitted as **`raw_b64`** (with the legacy
+`__raw_b64` still present for backwards compatibility). Field-level capture uses the
+`<field>_raw_b64` naming pattern:
+
 ```rust
-// RawMode::Record - Captures record payload only (no RDW header)
-let opts = DecodeOptions::new()
-    .with_emit_raw(RawMode::Record);
-// JSON output: { "FIELD1": "value", "__raw_b64": "AAABBBCCC..." }
+// RawMode::Record - capture record payload only
+let opts = DecodeOptions::new().with_emit_raw(RawMode::Record);
+// JSON excerpt: { "raw_b64": "AAABBBCCC..." }
 
-// RawMode::RecordRdw - Captures full record INCLUDING 4-byte RDW header
-let opts = DecodeOptions::new()
-    .with_emit_raw(RawMode::RecordRdw);
-// JSON output: { "FIELD1": "value", "__raw_b64": "AAAAAAhBBBCCC..." }
-// First 4 bytes are RDW header (big-endian length + reserved bytes)
+// RawMode::RecordRdw - capture payload + 4-byte RDW header
+let opts = DecodeOptions::new().with_emit_raw(RawMode::RecordRdw);
+// JSON excerpt: { "raw_b64": "AAAAAAhBBBCCC..." }
 
-// RawMode::Field - Captures individual field raw data
-let opts = DecodeOptions::new()
-    .with_emit_raw(RawMode::Field);
-// JSON output: { "FIELD1": { "value": "decoded", "__raw_b64": "AAA..." } }
+// RawMode::Field - capture individual field payloads
+let opts = DecodeOptions::new().with_emit_raw(RawMode::Field);
+// JSON excerpt: { "fields": { "FIELD1": "decoded", "FIELD1_raw_b64": "AAA..." } }
 ```
 
 **Roundtrip Encoding**:
-When `use_raw` is enabled in `EncodeOptions`, the encoder looks for the `__raw_b64` field in the JSON input and uses it for binary output, enabling **bit-exact roundtrip fidelity**:
+When `use_raw` is enabled in `EncodeOptions`, the encoder consumes `raw_b64` (or the legacy
+`__raw_b64`) from the JSON input to produce **bit-exact** output:
 
 ```rust
 // Decode with raw preservation
@@ -263,7 +273,7 @@ assert_eq!(original_data, encoded_data);
 - **Error Codes**:
   - `CBKR211_RDW_RESERVED_NONZERO` - Non-zero reserved bytes warning (lenient mode)
   - `CBKR311_RDW_UNDERFLOW` - Incomplete RDW header or payload
-  - `CBKE501_JSON_TYPE_MISMATCH` - Invalid base64 in `__raw_b64` field
+  - `CBKE501_JSON_TYPE_MISMATCH` - Invalid base64 in `raw_b64` / `__raw_b64`
 
 ## Core Functions
 

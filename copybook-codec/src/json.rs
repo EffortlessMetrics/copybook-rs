@@ -11,12 +11,14 @@
 )]
 
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
+use crate::JSON_SCHEMA_VERSION;
 use base64::{engine::general_purpose, Engine as _};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::io::Write;
+use core::fmt::Write as _;
 
 /// Streaming JSON writer for deterministic output
 pub struct JsonWriter<W: Write> {
@@ -46,6 +48,8 @@ impl<W: Write> JsonWriter<W> {
     /// # Errors
     ///
     /// Returns an error if the record cannot be written or JSON serialization fails
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record(
         &mut self,
         record_data: &[u8],
@@ -53,36 +57,27 @@ impl<W: Write> JsonWriter<W> {
         byte_offset: u64,
     ) -> Result<()> {
         // Create JSON object in schema order (pre-order traversal)
-        let mut json_obj = IndexMap::new();
+        let mut fields_obj = IndexMap::new();
 
         // Process fields in schema order
         self.process_fields_recursive(
             &self.schema.fields,
             record_data,
-            &mut json_obj,
+            &mut fields_obj,
             record_index,
             byte_offset,
         )?;
 
-        // Add metadata if requested
-        if self.options.emit_meta {
-            self.add_metadata(
-                &mut json_obj,
-                schema,
-                record_index,
-                byte_offset,
-                record_data.len(),
-            )?;
-        }
+        let record_value = self.build_record_envelope(
+            fields_obj,
+            &self.schema,
+            record_index,
+            byte_offset,
+            record_data.len(),
+            record_data,
+        )?;
 
-        // Add raw data if requested
-        if matches!(self.options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
-            self.add_raw_data(&mut json_obj, record_data)?;
-        }
-
-        // Write JSON line
-        let json_value = Value::Object(json_obj.into_iter().collect());
-        serde_json::to_writer(&mut self.writer, &json_value).map_err(|e| {
+        serde_json::to_writer(&mut self.writer, &record_value).map_err(|e| {
             Error::new(
                 ErrorCode::CBKC201_JSON_WRITE_ERROR,
                 format!("JSON write error: {}", e),
@@ -106,6 +101,8 @@ impl<W: Write> JsonWriter<W> {
     /// # Errors
     ///
     /// Returns an error if the record cannot be written or JSON serialization fails
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record_streaming(
         &mut self,
         record_data: &[u8],
@@ -115,32 +112,41 @@ impl<W: Write> JsonWriter<W> {
         // Clear and prepare JSON buffer
         self.json_buffer.clear();
         self.json_buffer.push('{');
+        self.json_buffer.push_str("\"schema\":");
+        self.write_json_string_to_buffer(JSON_SCHEMA_VERSION);
 
-        let mut first_field = true;
+        let _ = write!(self.json_buffer, ",\"record_index\":{record_index}");
 
-        // Process fields in schema order directly to JSON string
+        self.json_buffer.push_str(",\"codepage\":");
+        self.write_json_string_to_buffer(&self.options.codepage.to_string());
+
+        self.json_buffer.push_str(",\"fields\":{");
+        let mut fields_first = true;
         self.write_fields_streaming(
             &self.schema.fields,
             record_data,
-            &mut first_field,
+            &mut fields_first,
             record_index,
             byte_offset,
         )?;
+        self.json_buffer.push('}');
 
-        // Add metadata if requested
         if self.options.emit_meta {
-            self.write_metadata_streaming(
-                &mut first_field,
-                schema,
-                record_index,
-                byte_offset,
-                record_data.len(),
-            )?;
+            self.json_buffer.push_str(",\"schema_fingerprint\":");
+            self.write_json_string_to_buffer(&self.schema.fingerprint);
+
+            let _ = write!(self.json_buffer, ",\"offset\":{byte_offset}");
+            let _ = write!(
+                self.json_buffer,
+                ",\"length\":{}",
+                record_data.len()
+            );
         }
 
-        // Add raw data if requested
         if matches!(self.options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
-            self.write_raw_data_streaming(record_data, &mut first_field)?;
+            let encoded = general_purpose::STANDARD.encode(record_data);
+            self.json_buffer.push_str(",\"raw_b64\":");
+            self.write_json_string_to_buffer(&encoded);
         }
 
         self.json_buffer.push('}');
@@ -252,6 +258,58 @@ impl<W: Write> JsonWriter<W> {
         Ok(())
     }
 
+    fn build_record_envelope(
+        &self,
+        fields: IndexMap<String, Value>,
+        schema: &Schema,
+        record_index: u64,
+        byte_offset: u64,
+        record_length: usize,
+        record_data: &[u8],
+    ) -> Result<Value> {
+        let mut root = IndexMap::new();
+        root.insert(
+            "schema".to_string(),
+            Value::String(JSON_SCHEMA_VERSION.to_string()),
+        );
+        root.insert(
+            "record_index".to_string(),
+            Value::Number(serde_json::Number::from(record_index)),
+        );
+        root.insert(
+            "codepage".to_string(),
+            Value::String(self.options.codepage.to_string()),
+        );
+        root.insert(
+            "fields".to_string(),
+            Value::Object(fields.into_iter().collect()),
+        );
+
+        if self.options.emit_meta {
+            if !schema.fingerprint.is_empty() {
+                root.insert(
+                    "schema_fingerprint".to_string(),
+                    Value::String(schema.fingerprint.clone()),
+                );
+            }
+            root.insert(
+                "offset".to_string(),
+                Value::Number(serde_json::Number::from(byte_offset)),
+            );
+            root.insert(
+                "length".to_string(),
+                Value::Number(serde_json::Number::from(record_length)),
+            );
+        }
+
+        if matches!(self.options.emit_raw, RawMode::Record | RawMode::RecordRDW) {
+            let encoded = general_purpose::STANDARD.encode(record_data);
+            root.insert("raw_b64".to_string(), Value::String(encoded));
+        }
+
+        Ok(Value::Object(root.into_iter().collect()))
+    }
+
     /// Write alphanumeric field value directly to JSON buffer
     fn write_alphanum_value_streaming(
         &mut self,
@@ -274,8 +332,7 @@ impl<W: Write> JsonWriter<W> {
                 '\r' => self.json_buffer.push_str("\\r"),
                 '\t' => self.json_buffer.push_str("\\t"),
                 c if c.is_control() => {
-                    #[allow(clippy::format_push_string)]
-                    self.json_buffer.push_str(&format!("\\u{:04x}", c as u32));
+                    let _ = write!(self.json_buffer, "\\u{c:04x}");
                 }
                 c => self.json_buffer.push(c),
             }
@@ -365,59 +422,6 @@ impl<W: Write> JsonWriter<W> {
                 }
             }
         }
-        Ok(())
-    }
-
-    /// Write metadata fields directly to JSON buffer
-    fn write_metadata_streaming(
-        &mut self,
-        first_field: &mut bool,
-        schema: &Schema,
-        record_index: u64,
-        byte_offset: u64,
-        record_length: usize,
-    ) -> Result<()> {
-        // Add schema fingerprint
-        if !*first_field {
-            self.json_buffer.push(',');
-        }
-        *first_field = false;
-
-        self.json_buffer.push_str("\"__schema_id\":\"");
-        self.json_buffer.push_str(&schema.fingerprint);
-        self.json_buffer.push('"');
-
-        // Add record index
-        self.json_buffer.push_str(",\"__record_index\":");
-        self.json_buffer.push_str(&record_index.to_string());
-
-        // Add byte offset
-        self.json_buffer.push_str(",\"__offset\":");
-        self.json_buffer.push_str(&byte_offset.to_string());
-
-        // Add record length
-        self.json_buffer.push_str(",\"__length\":");
-        self.json_buffer.push_str(&record_length.to_string());
-
-        Ok(())
-    }
-
-    /// Write raw data field directly to JSON buffer
-    fn write_raw_data_streaming(
-        &mut self,
-        record_data: &[u8],
-        first_field: &mut bool,
-    ) -> Result<()> {
-        if !*first_field {
-            self.json_buffer.push(',');
-        }
-        *first_field = false;
-
-        self.json_buffer.push_str("\"__raw_b64\":\"");
-        let encoded = general_purpose::STANDARD.encode(record_data);
-        self.json_buffer.push_str(&encoded);
-        self.json_buffer.push('"');
-
         Ok(())
     }
 
@@ -740,35 +744,6 @@ impl<W: Write> JsonWriter<W> {
         }
     }
 
-    /// Add metadata to JSON object
-    fn add_metadata(
-        &self,
-        json_obj: &mut IndexMap<String, Value>,
-        schema: &Schema,
-        record_index: u64,
-        byte_offset: u64,
-        record_length: usize,
-    ) -> Result<()> {
-        json_obj.insert(
-            "__schema_id".to_string(),
-            Value::String(schema.fingerprint.clone()),
-        );
-        json_obj.insert(
-            "__record_index".to_string(),
-            Value::Number(record_index.into()),
-        );
-        json_obj.insert("__offset".to_string(), Value::Number(byte_offset.into()));
-        json_obj.insert("__length".to_string(), Value::Number(record_length.into()));
-        Ok(())
-    }
-
-    /// Add raw record data
-    fn add_raw_data(&self, json_obj: &mut IndexMap<String, Value>, record_data: &[u8]) -> Result<()> {
-        let encoded = general_purpose::STANDARD.encode(record_data);
-        json_obj.insert("__raw_b64".to_string(), Value::String(encoded));
-        Ok(())
-    }
-
     /// Add field-level raw data
     fn add_field_raw_data(
         &self,
@@ -1030,7 +1005,7 @@ impl<W: Write> JsonWriter<W> {
                 '\r' => self.json_buffer.push_str("\\r"),
                 '\t' => self.json_buffer.push_str("\\t"),
                 c if c.is_control() => {
-                    self.json_buffer.push_str(&format!("\\u{:04x}", c as u32));
+                    let _ = write!(self.json_buffer, "\\u{c:04x}");
                 }
                 c => self.json_buffer.push(c),
             }
@@ -1125,73 +1100,12 @@ impl<W: Write> JsonWriter<W> {
         Ok(())
     }
 
-    /// Write metadata directly to JSON string buffer
-    fn write_record_metadata(
-        &mut self,
-        schema: &Schema,
-        record_index: u64,
-        byte_offset: u64,
-        record_length: usize,
-        first_field: &mut bool,
-    ) -> Result<()> {
-        // Add comma separator if not first field
-        if !*first_field {
-            self.json_buffer.push(',');
-        }
-        *first_field = false;
-
-        self.json_buffer.push_str("\"__schema_id\":");
-        self.write_json_string_to_buffer(&schema.fingerprint);
-        self.json_buffer.push_str(",\"__record_index\":");
-        self.write_json_number_to_buffer(record_index as f64).map_err(|_| {
-            Error::new(
-                ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                "failed to format number into JSON buffer".to_string(),
-            )
-        })?;
-
-        self.json_buffer.push_str(",\"__offset\":");
-        self.write_json_number_to_buffer(byte_offset as f64).map_err(|_| {
-            Error::new(
-                ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                "failed to format number into JSON buffer".to_string(),
-            )
-        })?;
-
-        self.json_buffer.push_str(",\"__length\":");
-        self.write_json_number_to_buffer(record_length as f64).map_err(|_| {
-            Error::new(
-                ErrorCode::CBKC201_JSON_WRITE_ERROR,
-                "failed to format number into JSON buffer".to_string(),
-            )
-        })?;
-
-        Ok(())
-    }
-
-    /// Write raw data directly to JSON string buffer
-    fn write_raw_data_streaming(
-        &mut self,
-        record_data: &[u8],
-        first_field: &mut bool,
-    ) -> Result<()> {
-        // Add comma separator if not first field
-        if !*first_field {
-            self.json_buffer.push(',');
-        }
-        *first_field = false;
-
-        let encoded = general_purpose::STANDARD.encode(record_data);
-        self.json_buffer.push_str("\"__raw_b64\":");
-        self.write_json_string_to_buffer(&encoded);
-
-        Ok(())
-    }
-
     /// Finish writing and flush
     ///
     /// # Errors
     /// Returns an error if the underlying writer cannot be flushed.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn finish(mut self) -> Result<W> {
         self.writer.flush().map_err(|e| {
             Error::new(
@@ -1220,6 +1134,8 @@ impl JsonEncoder {
     /// # Errors
     ///
     /// Returns an error if the JSON cannot be encoded according to the schema
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn encode_record(&self, schema: &Schema, json: &Value) -> Result<Vec<u8>> {
         // Calculate maximum record size
         let max_record_size = self.calculate_max_record_size(schema)?;
@@ -2254,7 +2170,9 @@ impl JsonEncoder {
     /// Extract raw data from JSON record
     fn extract_raw_data(&self, json: &Value) -> Result<Option<Vec<u8>>> {
         if let Value::Object(obj) = json {
-            if let Some(Value::String(raw_b64)) = obj.get("__raw_b64") {
+            if let Some(Value::String(raw_b64)) =
+                obj.get("raw_b64").or_else(|| obj.get("__raw_b64"))
+            {
                 let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                     Error::new(
                         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -2360,7 +2278,9 @@ impl JsonEncoder {
         &self,
         json_obj: &IndexMap<String, Value>,
     ) -> Result<Option<Vec<u8>>> {
-        if let Some(Value::String(raw_b64)) = json_obj.get("__raw_b64") {
+        if let Some(Value::String(raw_b64)) =
+            json_obj.get("raw_b64").or_else(|| json_obj.get("__raw_b64"))
+        {
             let raw_data = general_purpose::STANDARD.decode(raw_b64).map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -2442,6 +2362,11 @@ impl<W: Write> OrderedJsonWriter<W> {
     }
 
     /// Write a record with sequence ID for ordering
+    ///
+    /// # Errors
+    /// Returns an error if the underlying writer cannot encode the record.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record_with_sequence(
         &mut self,
         record_data: &[u8],
@@ -2458,6 +2383,8 @@ impl<W: Write> OrderedJsonWriter<W> {
     ///
     /// # Errors
     /// Returns an error if the inner writer cannot be finished.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn finish(self) -> Result<W> {
         self.inner.finish()
     }

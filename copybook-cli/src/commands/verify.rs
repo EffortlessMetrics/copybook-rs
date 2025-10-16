@@ -4,6 +4,7 @@
 
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
 use crate::utils::{atomic_write, read_file_or_stdin};
+use anyhow::bail;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
@@ -57,7 +58,7 @@ pub fn run(
     input: &PathBuf,
     report: Option<PathBuf>,
     opts: &VerifyOptions,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> anyhow::Result<i32> {
     info!("Verifying data file: {:?}", input);
 
     if opts.strict_comments {
@@ -108,10 +109,7 @@ pub fn run(
                     );
                 }
             } else {
-                return Err(
-                    "Fixed format requires LRECL from schema, but schema has no fixed length"
-                        .into(),
-                );
+                bail!("Fixed format requires LRECL from schema, but schema has no fixed length");
             }
         }
         RecordFormat::RDW => {

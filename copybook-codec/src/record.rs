@@ -27,7 +27,7 @@ impl<R: Read> FixedRecordReader<R> {
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::too_many_lines)]
     #[inline]
-    #[must_use = "Initialize a fixed record reader or propagate configuration errors"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn new(input: R, lrecl: Option<u32>) -> Result<Self> {
         let lrecl = lrecl
             .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
@@ -52,7 +52,7 @@ impl<R: Read> FixedRecordReader<R> {
     ///
     /// Returns an error if the record cannot be read due to I/O errors
     #[inline]
-    #[must_use = "Differentiate end-of-file from read errors"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn read_record(&mut self) -> Result<Option<Vec<u8>>> {
         // Try to read one byte first to check for EOF
         let mut first_byte = [0u8; 1];
@@ -137,7 +137,7 @@ impl<R: Read> FixedRecordReader<R> {
     ///
     /// Returns an error if the record length doesn't match schema expectations
     #[inline]
-    #[must_use = "Propagate record length validation failures"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn validate_record_length(&self, schema: &Schema, record_data: &[u8]) -> Result<()> {
         // For fixed records, the data length should match LRECL
         let lrecl_len = self.lrecl_usize()?;
@@ -217,7 +217,7 @@ impl<W: Write> FixedRecordWriter<W> {
     ///
     /// Returns an error if LRECL is not provided or is zero
     #[inline]
-    #[must_use = "Create a fixed record writer or surface configuration errors"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn new(output: W, lrecl: Option<u32>) -> Result<Self> {
         let lrecl = lrecl
             .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
@@ -242,7 +242,7 @@ impl<W: Write> FixedRecordWriter<W> {
     ///
     /// Returns an error if the record cannot be written due to I/O errors
     #[inline]
-    #[must_use = "Propagate write failures to callers"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record(&mut self, data: &[u8]) -> Result<()> {
         let data_len = data.len();
         let lrecl = self.lrecl_usize()?;
@@ -312,7 +312,7 @@ impl<W: Write> FixedRecordWriter<W> {
     ///
     /// Returns an error if the flush operation fails
     #[inline]
-    #[must_use = "Ensure flush errors are handled by the caller"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(
@@ -386,7 +386,7 @@ impl<R: Read> RDWRecordReader<R> {
     // - Preserve EOF→Ok(None) semantics in the caller; only malformed RDW is an Err.
     // - After extraction, remove #[allow(clippy::too_many_lines)] and add #[inline] on the helpers.
     #[allow(clippy::too_many_lines)]
-    #[must_use = "Handle RDW read outcomes to detect truncation or corruption"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn read_record(&mut self) -> Result<Option<RDWRecord>> {
         // Read the 4-byte RDW header
         let mut rdw_header = [0u8; 4];
@@ -552,7 +552,7 @@ impl<R: Read> RDWRecordReader<R> {
     ///
     /// Returns an error if zero-length record is invalid for the schema
     #[inline]
-    #[must_use = "Propagate schema validation failures for zero-length records"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn validate_zero_length_record(&self, schema: &Schema) -> Result<()> {
         // Zero-length records are valid only when schema fixed prefix == 0
 
@@ -670,7 +670,7 @@ impl<W: Write> RDWRecordWriter<W> {
     ///
     /// Returns an error if the record cannot be written due to I/O errors
     #[inline]
-    #[must_use = "Propagate RDW write failures to callers"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record(&mut self, record: &RDWRecord) -> Result<()> {
         // Write the RDW header
         self.output.write_all(&record.header).map_err(|e| {
@@ -718,7 +718,7 @@ impl<W: Write> RDWRecordWriter<W> {
     ///
     /// Returns an error if the record cannot be written due to I/O errors
     #[inline]
-    #[must_use = "Surface RDW payload write errors"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record_from_payload(
         &mut self,
         payload: &[u8],
@@ -872,7 +872,7 @@ impl RDWRecord {
 ///
 /// Returns an error if the record cannot be read due to I/O errors or format issues
 #[inline]
-#[must_use = "Handle record read results to observe EOF and errors"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn read_record(
     input: &mut impl Read,
     format: RecordFormat,
@@ -904,7 +904,7 @@ fn read_rdw_record_legacy(input: &mut impl Read) -> Result<Option<Vec<u8>>> {
 ///
 /// Returns an error if the record cannot be written due to I/O errors
 #[inline]
-#[must_use = "Propagate record write errors to callers"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) -> Result<()> {
     match format {
         RecordFormat::Fixed => {

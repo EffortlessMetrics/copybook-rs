@@ -220,6 +220,7 @@ pub mod audit {
 ///
 /// Returns an error if the copybook contains syntax errors or unsupported features
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn parse_copybook(text: &str) -> Result<Schema> {
     parser::parse(text)
 }
@@ -230,6 +231,7 @@ pub fn parse_copybook(text: &str) -> Result<Schema> {
 ///
 /// Returns an error if the copybook contains syntax errors or unsupported features
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     parser::parse_with_options(text, options)
 }

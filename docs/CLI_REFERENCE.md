@@ -106,8 +106,8 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 
 **Output Control:**
 - `--emit-filler` - Include FILLER fields in output
-- `--emit-meta` - Include metadata fields (__schema_id, __record_index, etc.)
-- `--emit-raw <MODE>` - Capture raw bytes: off, record, field, record+rdw (default: off)
+- `--emit-meta` - Add metadata keys (`schema_fingerprint`, `record_index`, `offset`, `length`)
+- `--emit-raw <MODE>` - Capture raw bytes (`raw_b64`): off, record, field, record+rdw (default: off)
 - `--json-number <MODE>` - JSON number format: lossless, native (default: lossless)
 
 **Performance:**
@@ -178,7 +178,7 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 - `--codepage <CP>` - Character encoding: cp037, cp273, cp500, cp1047, cp1140, ascii (default: cp037)
 
 **Encoding Options:**
-- `--use-raw` - Use raw bytes from __raw_b64 fields when available
+- `--use-raw` - Use raw bytes from `raw_b64` when available
 - `--bwz-encode` - Encode zero values as spaces for BLANK WHEN ZERO fields
 
 **Zoned Decimal Encoding (Experimental):**
@@ -418,16 +418,21 @@ Binary field sizes are determined by PIC digits: ≤4→16b, 5–9→32b, 10–1
 
 ### Special Fields
 
+**Envelope (always present):**
+- `schema` - JSONL schema version (currently `copybook.v1`)
+- `record_index` - Zero-based record number
+- `codepage` - Code page identifier used for decoding
+- `fields` - Object containing decoded field values
+
 **Metadata (--emit-meta):**
-- `__schema_id` - Schema fingerprint (SHA-256)
-- `__record_index` - Zero-based record number
-- `__offset` - Byte offset in file
-- `__length` - Record length in bytes
+- `schema_fingerprint` - Schema fingerprint (SHA-256)
+- `offset` - Byte offset in file
+- `length` - Record length in bytes
 
 **Raw Bytes (--emit-raw):**
-- `__raw_b64` - Base64-encoded raw bytes
-- Used for round-trip fidelity
-- Modes: record, field, record+rdw
+- `raw_b64` - Base64-encoded raw record bytes (record/record+rdw modes)
+- `<field>_raw_b64` - Base64 payload for individual fields (field mode)
+- Enables byte-perfect round trips when re-encoding
 
 **FILLER Fields (--emit-filler):**
 - `_filler_<offset>` - FILLER field at byte offset

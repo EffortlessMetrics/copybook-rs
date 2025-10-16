@@ -16,6 +16,8 @@ use crate::{Error, Result};
 /// # Errors
 ///
 /// Returns an error if the copybook contains syntax errors or unsupported features
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn parse(text: &str) -> Result<Schema> {
     parse_with_options(text, &ParseOptions::default())
 }
@@ -25,6 +27,8 @@ pub fn parse(text: &str) -> Result<Schema> {
 /// # Errors
 ///
 /// Returns an error if the copybook contains syntax errors or unsupported features
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     if text.trim().is_empty() {
         return Err(error!(ErrorCode::CBKP001_SYNTAX, "Empty copybook text"));

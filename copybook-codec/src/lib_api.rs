@@ -9,6 +9,7 @@
 //! - `encode_jsonl_to_file`
 //! - `RecordIterator` (for programmatic access)
 
+use crate::JSON_SCHEMA_VERSION;
 use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
 use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
@@ -20,6 +21,7 @@ use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 
 /// Pedantic tripwire: intentionally triggers `uninlined_format_args`
+#[allow(clippy::format_in_format_args)]
 pub fn redundant_inline() {
     println!("{}", format!("hi"));
 }
@@ -39,6 +41,67 @@ fn validate_odo_bounds(count: u32, min: u32, max: u32) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn build_json_envelope(
+    fields: serde_json::Map<String, Value>,
+    schema: &Schema,
+    options: &DecodeOptions,
+    record_index: u64,
+    record_length: usize,
+    raw_b64: Option<String>,
+) -> Value {
+    let mut root = serde_json::Map::new();
+    root.insert(
+        "schema".to_string(),
+        Value::String(JSON_SCHEMA_VERSION.to_string()),
+    );
+    root.insert(
+        "record_index".to_string(),
+        Value::Number(serde_json::Number::from(record_index)),
+    );
+    root.insert(
+        "codepage".to_string(),
+        Value::String(options.codepage.to_string()),
+    );
+
+    let flat_fields = fields.clone();
+    root.insert("fields".to_string(), Value::Object(fields));
+    for (key, value) in flat_fields {
+        root.insert(key, value);
+    }
+
+    if options.emit_meta {
+        if !schema.fingerprint.is_empty() {
+            root.insert(
+                "schema_fingerprint".to_string(),
+                Value::String(schema.fingerprint.clone()),
+            );
+            root.insert(
+                "__schema_id".to_string(),
+                Value::String(schema.fingerprint.clone()),
+            );
+        }
+        root.insert(
+            "length".to_string(),
+            Value::Number(serde_json::Number::from(record_length)),
+        );
+        root.insert(
+            "__record_index".to_string(),
+            Value::Number(serde_json::Number::from(record_index)),
+        );
+        root.insert(
+            "__length".to_string(),
+            Value::Number(serde_json::Number::from(record_length)),
+        );
+    }
+
+    if let Some(raw) = raw_b64 {
+        root.insert("raw_b64".to_string(), Value::String(raw.clone()));
+        root.insert("__raw_b64".to_string(), Value::String(raw));
+    }
+
+    Value::Object(root)
 }
 
 thread_local! {
@@ -200,7 +263,7 @@ impl fmt::Display for RunSummary {
 ///
 /// Returns an error if the data cannot be decoded according to the schema
 #[inline]
-#[must_use = "Use the decoded value or handle the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
     decode_record_with_raw_data(schema, data, options, None)
 }
@@ -241,26 +304,28 @@ fn decode_record_with_scratch_and_raw(
 ) -> Result<Value> {
     use serde_json::Map;
 
-    let mut json_obj = Map::new();
+    let mut fields_map = Map::new();
+    let mut record_raw = None;
 
-    // Emit raw data if requested
-    // AC:1 - Fix field naming inconsistency: use "__raw_b64" instead of "_raw"
-    if let Some(raw_bytes) = raw_data {
-        match options.emit_raw {
-            crate::options::RawMode::Record | crate::options::RawMode::RecordRDW => {
-                json_obj.insert(
-                    "__raw_b64".to_string(),
-                    Value::String(base64::engine::general_purpose::STANDARD.encode(&raw_bytes)),
-                );
-            }
-            _ => {}
-        }
+    if let Some(raw_bytes) = raw_data.filter(|_| {
+        matches!(
+            options.emit_raw,
+            crate::options::RawMode::Record | crate::options::RawMode::RecordRDW
+        )
+    }) {
+        record_raw = Some(base64::engine::general_purpose::STANDARD.encode(raw_bytes));
     }
 
-    // Use optimized field processing with scratch buffers for COMP-3 performance
-    process_fields_recursive_with_scratch(&schema.fields, data, &mut json_obj, options, scratch)?;
+    process_fields_recursive_with_scratch(&schema.fields, data, &mut fields_map, options, scratch)?;
 
-    Ok(Value::Object(json_obj))
+    Ok(build_json_envelope(
+        fields_map,
+        schema,
+        options,
+        0,
+        data.len(),
+        record_raw,
+    ))
 }
 
 /// Decode a record with optional raw data for RDW format
@@ -279,46 +344,43 @@ pub fn decode_record_with_raw_data(
     use crate::options::RawMode;
     use serde_json::Map;
 
-    let mut json_obj = Map::new();
+    let mut fields_map = Map::new();
     let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
 
-    // Recursively process all fields
     process_fields_recursive(
         &schema.fields,
         data,
-        &mut json_obj,
+        &mut fields_map,
         options,
         &mut scratch_buffers,
     )?;
 
-    // Add raw data if requested
+    let mut record_raw = None;
     match options.emit_raw {
-        RawMode::Off => {} // No raw data
-        RawMode::Record => {
-            // Capture just the record payload
+        RawMode::Off => {}
+        RawMode::Record | RawMode::Field => {
             let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-            json_obj.insert("__raw_b64".to_string(), Value::String(raw_b64));
-        }
-        RawMode::Field => {
-            // Field-level raw capture would be more complex - not implemented yet
-            // For now, treat like Record
-            let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-            json_obj.insert("__raw_b64".to_string(), Value::String(raw_b64));
+            record_raw = Some(raw_b64);
         }
         RawMode::RecordRDW => {
-            // Capture record + RDW header if available
             if let Some(full_raw) = raw_data_with_header {
                 let raw_b64 = base64::engine::general_purpose::STANDARD.encode(full_raw);
-                json_obj.insert("__raw_b64".to_string(), Value::String(raw_b64));
+                record_raw = Some(raw_b64);
             } else {
-                // Fallback to just record data
                 let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-                json_obj.insert("__raw_b64".to_string(), Value::String(raw_b64));
+                record_raw = Some(raw_b64);
             }
         }
     }
 
-    Ok(Value::Object(json_obj))
+    Ok(build_json_envelope(
+        fields_map,
+        schema,
+        options,
+        0,
+        data.len(),
+        record_raw,
+    ))
 }
 
 fn process_fields_recursive(
@@ -1005,13 +1067,32 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 ///
 /// Returns an error if the JSON data cannot be encoded according to the schema
 #[inline]
-#[must_use = "Use the encoded bytes or handle the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
+    let root_obj = json.as_object().ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            "Expected JSON object for record envelope",
+        )
+    })?;
+    let fields_value = if let Some(fields_val) = root_obj.get("fields") {
+        fields_val.as_object().ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                "`fields` must be a JSON object",
+            )
+        })?;
+        fields_val
+    } else {
+        json
+    };
+
     // Check if we should use raw data
     if options.use_raw
-        && let Some(obj) = json.as_object()
-        && let Some(raw_b64) = obj.get("__raw_b64")
-        && let Some(raw_str) = raw_b64.as_str()
+        && let Some(raw_b64_value) = root_obj
+            .get("raw_b64")
+            .or_else(|| root_obj.get("__raw_b64"))
+        && let Some(raw_str) = raw_b64_value.as_str()
     {
         // Decode base64 raw data
         let raw_data = base64::engine::general_purpose::STANDARD
@@ -1019,7 +1100,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             .map_err(|e| {
                 Error::new(
                     ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!("Invalid base64 in __raw_b64: {e}"),
+                    format!("Invalid base64 in raw_b64: {e}"),
                 )
             })?;
 
@@ -1036,7 +1117,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
                     let mut should_recompute = false;
 
                     // Encode the fields to see if payload changed
-                    let field_payload = encode_fields_to_bytes(schema, json, options)?;
+                    let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
                     if field_payload != payload {
                         should_recompute = true;
                     }
@@ -1069,11 +1150,11 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     // No raw data or not using raw - encode from fields
     match options.format {
         RecordFormat::Fixed => {
-            let payload = encode_fields_to_bytes(schema, json, options)?;
+            let payload = encode_fields_to_bytes(schema, fields_value, options)?;
             Ok(payload)
         }
         RecordFormat::RDW => {
-            let payload = encode_fields_to_bytes(schema, json, options)?;
+            let payload = encode_fields_to_bytes(schema, fields_value, options)?;
 
             // Create RDW record
             let rdw_record = crate::record::RDWRecord::new(payload);
@@ -1293,10 +1374,11 @@ fn resolve_preserved_zoned_format(
 ) -> Option<ZonedEncodingFormat> {
     let candidates = [field_path, field_name];
     for key in candidates {
-        if let Some(value) = metadata.get(key) {
-            if let Some(format) = parse_zoned_encoding_metadata_value(value) {
-                return Some(format);
-            }
+        if let Some(format) = metadata
+            .get(key)
+            .and_then(parse_zoned_encoding_metadata_value)
+        {
+            return Some(format);
         }
     }
     None
@@ -1354,6 +1436,7 @@ fn zero_sign_policy_for(format: ZonedEncodingFormat) -> ZeroSignPolicy {
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn encode_zoned_decimal_field(
     field: &copybook_core::Field,
     field_path: &str,

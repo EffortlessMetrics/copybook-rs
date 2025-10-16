@@ -14,6 +14,9 @@ pub mod options;
 pub mod record;
 pub mod zoned_overpunch;
 
+/// Stable JSONL schema identifier for decoder output.
+pub const JSON_SCHEMA_VERSION: &str = "copybook.v1";
+
 pub use iterator::{RecordIterator, iter_records, iter_records_from_file};
 
 pub use lib_api::{

@@ -4,60 +4,85 @@
   "title": "COBOL Record Format Schema",
   "description": "JSON schema for decoded COBOL record format",
   "type": "object",
-  "patternProperties": {
-    "^[A-Z][A-Z0-9_-]*(__dup[0-9]+)?$": {
-      "description": "Field names follow COBOL conventions with duplicate disambiguation"
-    },
-    "^_filler_[0-9]+$": {
-      "description": "FILLER fields with byte offset"
-    },
-    "^__raw_b64$": {
+  "properties": {
+    "schema": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9+/]*={0,2}$",
-      "description": "Base64-encoded raw record data"
+      "const": "copybook.v1"
     },
-    "^__schema_id$": {
+    "record_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "0-based record number"
+    },
+    "codepage": {
+      "type": "string",
+      "description": "Code page identifier used for decoding"
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Byte offset in source stream (when available)"
+    },
+    "length": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Decoded record length in bytes"
+    },
+    "schema_fingerprint": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$",
-      "description": "Schema fingerprint"
+      "description": "Stable schema fingerprint"
     },
-    "^__record_index$": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "1-based record number"
+    "raw_b64": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+      "description": "Base64-encoded record bytes (when `emit_raw` is enabled)"
     },
-    "^__offset$": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Byte offset in file"
+    "fields": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Z][A-Z0-9_-]*(__dup[0-9]+)?$": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "boolean" },
+            { "type": "null" },
+            {
+              "type": "array",
+              "items": { "type": "object" }
+            },
+            { "type": "object" }
+          ]
+        },
+        "^_filler_[0-9]+$": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "boolean" },
+            { "type": "null" }
+          ],
+          "description": "FILLER fields with byte offset naming"
+        },
+        ".*_raw_b64$": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "description": "Field-level base64 payload when `emit_raw=Field`"
+        },
+        "^_encoding_metadata$": {
+          "type": "object",
+          "description": "Optional encoding metadata (e.g., preserved zoned format)"
+        }
+      },
+      "additionalProperties": true
     },
-    "^__length$": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Record length in bytes"
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Optional error diagnostics captured during decoding"
     }
   },
-  "additionalProperties": {
-    "oneOf": [
-      {
-        "type": "string",
-        "description": "Alphanumeric or decimal fields"
-      },
-      {
-        "type": "number",
-        "description": "Binary integer fields"
-      },
-      {
-        "type": "array",
-        "items": {
-          "type": "object"
-        },
-        "description": "OCCURS arrays"
-      },
-      {
-        "type": "object",
-        "description": "Group fields or nested structures"
-      }
-    ]
-  }
+  "required": ["schema", "record_index", "codepage", "fields"],
+  "additionalProperties": false
 }

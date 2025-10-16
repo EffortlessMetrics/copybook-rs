@@ -12,6 +12,7 @@
 use anyhow::{Context, Result};
 use copybook_codec::{DecodeOptions, decode_record};
 use copybook_core::parse_copybook;
+use serde_json::Value;
 use std::time::Instant;
 
 type TestResult = Result<()>;
@@ -114,11 +115,14 @@ fn test_default_behavior_unchanged() -> TestResult {
     let result = decode_record(&schema, &zoned_data, &options_default)?;
     println!("Default decode result: {}", result);
 
-    // Should be a JSON object with 5 fields
-    assert!(result.is_object());
+    // Envelope should expose fields object with expected length
     let obj = result
         .as_object()
         .context("decoded JSON value was not an object")?;
-    assert_eq!(obj.len(), 5);
+    let fields = obj
+        .get("fields")
+        .and_then(Value::as_object)
+        .context("decoded JSON missing fields object")?;
+    assert_eq!(fields.len(), 5);
     Ok(())
 }

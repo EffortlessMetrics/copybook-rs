@@ -16,9 +16,11 @@ concurrency:
 permissions:
   contents: read
   checks: write
+  pull-requests: write
 
 jobs:
   perf:
+    if: ${{ !contains(github.event.pull_request.title || '', '[docs]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -146,17 +148,32 @@ jobs:
               }
             });
 
+      - name: Label perf success
+        if: ${{ success() && github.event.pull_request.number }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const core = require('@actions/core');
+            const label = 'ready:perf-ok';
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: [label],
+              });
+            } catch (error) {
+              core.warning(`Unable to add ${label}: ${error.message}`);
+            }
+
       - name: Job summary
         if: ${{ always() }}
         run: |
-          if [[ ! -f scripts/bench/perf.json ]]; then
-            echo "### Numeric Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
-            echo "- Receipts missing; see step logs for details." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+          echo "### Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f scripts/bench/perf.json ]]; then
+            echo "- DISPLAY: ${{ steps.slo.outputs.display }} MiB/s (>= 80)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- COMP-3:  ${{ steps.slo.outputs.comp3 }} MiB/s (>= 40)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Max RSS: $(jq -r '.summary.max_rss_mib // "n/a"' scripts/bench/perf.json) MiB (<= 256)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Receipts missing; see logs for details." >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "### Numeric Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
-          echo "- DISPLAY: **${{ steps.slo.outputs.display }} MiB/s**  (floor ≥ 80)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- COMP-3:  **${{ steps.slo.outputs.comp3 }} MiB/s**  (floor ≥ 40)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Max RSS: **$(jq -r '.summary.max_rss_mib // \"n/a\"' scripts/bench/perf.json) MiB**  (ceiling ≤ 256)" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Artifact: \`scripts/bench/perf.json\` (90-day retention)" >> "$GITHUB_STEP_SUMMARY"

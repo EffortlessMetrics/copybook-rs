@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # Run only the SLO validation benchmarks to capture throughput receipts by default.
+# tripwire: no-op change to trigger perf workflow without affecting behavior.
 # Allow callers to widen scope by exporting BENCH_FILTER.
 BENCH_FILTER="${BENCH_FILTER:-slo_validation}"
 RUSTFLAGS="-C target-cpu=native" PERF=1 \

@@ -32,6 +32,7 @@ sha2.workspace = true
 smallvec.workspace = true
 crossbeam-channel.workspace = true
 indexmap.workspace = true
+metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true
@@ -45,6 +46,7 @@ comprehensive-tests = []
 # COMP-3 fast path optimizations
 comp3_fast = []
 comp3_unsafe = []
+metrics = ["dep:metrics"]
 audit = ["copybook-core/audit"]
 
 [lints]

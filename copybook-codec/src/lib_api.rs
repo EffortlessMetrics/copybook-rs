@@ -19,6 +19,7 @@ use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
+use tracing::info;
 
 /// Pedantic tripwire: intentionally triggers `uninlined_format_args`
 #[allow(clippy::format_in_format_args)]
@@ -106,6 +107,45 @@ fn build_json_envelope(
 
 thread_local! {
     static WARNING_COUNTER: RefCell<u64> = const { RefCell::new(0) };
+}
+
+#[cfg(feature = "metrics")]
+mod telemetry {
+    use metrics::{counter, gauge, histogram};
+
+    #[inline]
+    pub fn record_read(bytes: usize) {
+        counter!("records_read_total").increment(1);
+        counter!("bytes_read_total").increment(bytes as u64);
+    }
+
+    #[inline]
+    pub fn record_error(family: &'static str) {
+        counter!("decode_errors_total", "family" => family).increment(1);
+    }
+
+    #[inline]
+    pub fn record_completion(duration_seconds: f64, throughput_mibps: f64) {
+        if duration_seconds.is_finite() && duration_seconds >= 0.0 {
+            histogram!("decode_time_seconds_total").record(duration_seconds);
+        }
+        counter!("decode_time_seconds_count").increment(1);
+        if throughput_mibps.is_finite() {
+            gauge!("throughput_mibps_gauge").set(throughput_mibps);
+        }
+    }
+}
+
+#[cfg(not(feature = "metrics"))]
+mod telemetry {
+    #[inline]
+    pub fn record_read(_bytes: usize) {}
+
+    #[inline]
+    pub fn record_error(_family: &'static str) {}
+
+    #[inline]
+    pub fn record_completion(_duration_seconds: f64, _throughput_mibps: f64) {}
 }
 
 /// Summary of processing run with comprehensive statistics
@@ -1546,6 +1586,7 @@ pub fn decode_file_to_jsonl(
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
+    summary.set_schema_fingerprint(schema.fingerprint.clone());
 
     WARNING_COUNTER.with(|counter| {
         *counter.borrow_mut() = 0;
@@ -1567,6 +1608,21 @@ pub fn decode_file_to_jsonl(
     };
     summary.calculate_throughput();
     summary.warnings = WARNING_COUNTER.with(|counter| *counter.borrow());
+    telemetry::record_completion(summary.processing_time_seconds(), summary.throughput_mbps);
+    info!(
+        target: "copybook::decode",
+        records_processed = summary.records_processed,
+        records_with_errors = summary.records_with_errors,
+        warnings = summary.warnings,
+        bytes_processed = summary.bytes_processed,
+        elapsed_ms = summary.processing_time_ms,
+        throughput_mibps = summary.throughput_mbps,
+        schema_fingerprint = %summary.schema_fingerprint,
+        codepage = %options.codepage,
+        format = ?options.format,
+        strict_mode = options.strict_mode,
+        raw_mode = ?options.emit_raw,
+    );
 
     Ok(summary)
 }
@@ -1583,6 +1639,7 @@ fn process_fixed_records<R: Read, W: Write>(
 
     while let Some(record_data) = reader.read_record()? {
         summary.bytes_processed += record_data.len() as u64;
+        telemetry::record_read(record_data.len());
 
         let raw_data_for_decode = match options.emit_raw {
             crate::options::RawMode::Record => Some(record_data.clone()),
@@ -1602,6 +1659,8 @@ fn process_fixed_records<R: Read, W: Write>(
             }
             Err(error) => {
                 summary.records_with_errors += 1;
+                let family = error.family_prefix();
+                telemetry::record_error(family);
                 if options.strict_mode {
                     return Err(error);
                 }
@@ -1624,6 +1683,7 @@ fn process_rdw_records<R: Read, W: Write>(
 
     while let Some(rdw_record) = reader.read_record()? {
         summary.bytes_processed += rdw_record.payload.len() as u64;
+        telemetry::record_read(rdw_record.payload.len());
 
         if let Some(schema_lrecl) = schema.lrecl_fixed
             && rdw_record.payload.len() < schema_lrecl as usize
@@ -1638,6 +1698,8 @@ fn process_rdw_records<R: Read, W: Write>(
             );
 
             summary.records_with_errors += 1;
+            let family = error.family_prefix();
+            telemetry::record_error(family);
             if options.strict_mode {
                 return Err(error);
             }
@@ -1669,6 +1731,8 @@ fn process_rdw_records<R: Read, W: Write>(
             }
             Err(error) => {
                 summary.records_with_errors += 1;
+                let family = error.family_prefix();
+                telemetry::record_error(family);
                 if options.strict_mode {
                     return Err(error);
                 }
@@ -1681,9 +1745,18 @@ fn process_rdw_records<R: Read, W: Write>(
 
 #[inline]
 fn write_json_record<W: Write>(output: &mut W, value: &Value) -> Result<()> {
-    serde_json::to_writer(&mut *output, value)
-        .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-    writeln!(output).map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
+    if let Err(e) = serde_json::to_writer(&mut *output, value) {
+        let error = Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string());
+        telemetry::record_error(error.family_prefix());
+        return Err(error);
+    }
+
+    if let Err(e) = writeln!(output) {
+        let error = Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string());
+        telemetry::record_error(error.family_prefix());
+        return Err(error);
+    }
+
     Ok(())
 }
 
@@ -1716,6 +1789,7 @@ pub fn encode_jsonl_to_file(
 ) -> Result<RunSummary> {
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
+    summary.set_schema_fingerprint(schema.fingerprint.clone());
 
     let reader = BufReader::new(input);
     let mut record_count = 0u64;
@@ -1755,7 +1829,6 @@ pub fn encode_jsonl_to_file(
         Err(_) => u64::MAX,
     };
     summary.calculate_throughput();
-    summary.schema_fingerprint = "placeholder_fingerprint".to_string();
 
     Ok(summary)
 }

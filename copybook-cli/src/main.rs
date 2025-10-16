@@ -15,6 +15,9 @@ use std::process::ExitCode;
 #[cfg(feature = "metrics")]
 use clap::Args;
 
+#[cfg(feature = "metrics")]
+use std::net::SocketAddr;
+
 #[derive(Parser)]
 #[command(name = "copybook")]
 #[command(about = "Modern COBOL copybook parser and data converter")]
@@ -37,7 +40,7 @@ struct Cli {
 pub struct MetricsOpts {
     /// Expose Prometheus metrics at this address (e.g. 0.0.0.0:9300)
     #[arg(long)]
-    pub metrics_listen: Option<std::net::SocketAddr>,
+    pub metrics_listen: Option<SocketAddr>,
 }
 
 #[derive(Subcommand)]
@@ -382,36 +385,46 @@ fn run() -> anyhow::Result<ExitCode> {
 
 #[cfg(feature = "metrics")]
 fn install_prometheus(
-    addr: std::net::SocketAddr,
+    addr: SocketAddr,
 ) -> (
     metrics_exporter_prometheus::PrometheusHandle,
-    tokio::task::JoinHandle<()>,
+    std::thread::JoinHandle<()>,
 ) {
     use metrics_exporter_prometheus::PrometheusBuilder;
-    use std::sync::OnceLock;
+    use std::sync::mpsc;
 
-    static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    let (handle_tx, handle_rx) = mpsc::channel();
 
-    let builder = PrometheusBuilder::new().with_http_listener(addr);
-    let (recorder, exporter) = builder
-        .build()
-        .expect("failed to build Prometheus exporter");
-    let handle = recorder.handle();
-
-    metrics::set_global_recorder(recorder).expect("failed to install Prometheus recorder");
-
-    let runtime = RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
+    let join_handle = std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .expect("failed to build metrics runtime")
+            .expect("failed to build Tokio runtime for metrics exporter");
+
+        let builder = PrometheusBuilder::new().with_http_listener(addr);
+        let enter = runtime.enter();
+        let (recorder, exporter) = builder
+            .build()
+            .expect("failed to build Prometheus exporter");
+        drop(enter);
+
+        let handle = recorder.handle();
+        metrics::set_global_recorder(recorder).expect("failed to install Prometheus recorder");
+
+        if handle_tx.send(handle).is_err() {
+            return;
+        }
+
+        runtime.block_on(async move {
+            if let Err(err) = exporter.await {
+                tracing::error!(error = ?err, "metrics exporter terminated unexpectedly");
+            }
+        });
     });
 
-    let join_handle = runtime.spawn(async move {
-        if let Err(err) = exporter.await {
-            tracing::error!(error = ?err, "metrics exporter terminated unexpectedly");
-        }
-    });
+    let handle = handle_rx
+        .recv()
+        .expect("failed to receive Prometheus handle from exporter thread");
 
     (handle, join_handle)
 }
@@ -421,7 +434,7 @@ fn metrics_start_if_requested(
     opts: &MetricsOpts,
 ) -> Option<(
     metrics_exporter_prometheus::PrometheusHandle,
-    tokio::task::JoinHandle<()>,
+    std::thread::JoinHandle<()>,
 )> {
     opts.metrics_listen.map(|addr| {
         let handles = install_prometheus(addr);

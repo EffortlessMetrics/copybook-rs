@@ -86,8 +86,6 @@ pub enum ErrorCode {
     // =============================================================================
     /// CBKR211: RDW reserved bytes contain non-zero values
     CBKR211_RDW_RESERVED_NONZERO,
-    /// CBKR221: RDW length field indicates underflow condition
-    CBKR221_RDW_UNDERFLOW,
 
     // =============================================================================
     // Character Conversion Errors (CBKC*) - EBCDIC/ASCII conversion
@@ -144,6 +142,8 @@ pub enum ErrorCode {
     // =============================================================================
     /// CBKF104: RDW appears to be corrupted by ASCII conversion
     CBKF104_RDW_SUSPECT_ASCII,
+    /// CBKF221: RDW length field indicates underflow condition
+    CBKF221_RDW_UNDERFLOW,
 
     // =============================================================================
     // Audit Errors (CBKA*) - Performance and compliance audit operations
@@ -165,7 +165,6 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKS301_ODO_CLIPPED => "CBKS301_ODO_CLIPPED",
             ErrorCode::CBKS302_ODO_RAISED => "CBKS302_ODO_RAISED",
             ErrorCode::CBKR211_RDW_RESERVED_NONZERO => "CBKR211_RDW_RESERVED_NONZERO",
-            ErrorCode::CBKR221_RDW_UNDERFLOW => "CBKR221_RDW_UNDERFLOW",
             ErrorCode::CBKC201_JSON_WRITE_ERROR => "CBKC201_JSON_WRITE_ERROR",
             ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => "CBKC301_INVALID_EBCDIC_BYTE",
             ErrorCode::CBKD101_INVALID_FIELD_TYPE => "CBKD101_INVALID_FIELD_TYPE",
@@ -184,6 +183,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => "CBKE515_STRING_LENGTH_VIOLATION",
             ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
+            ErrorCode::CBKF221_RDW_UNDERFLOW => "CBKF221_RDW_UNDERFLOW",
             ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
         };
         write!(f, "{code_str}")
@@ -204,7 +204,7 @@ impl ErrorCode {
             | Self::CBKS141_RECORD_TOO_LARGE
             | Self::CBKS301_ODO_CLIPPED
             | Self::CBKS302_ODO_RAISED => "CBKS",
-            Self::CBKR211_RDW_RESERVED_NONZERO | Self::CBKR221_RDW_UNDERFLOW => "CBKR",
+            Self::CBKR211_RDW_RESERVED_NONZERO => "CBKR",
             Self::CBKC201_JSON_WRITE_ERROR | Self::CBKC301_INVALID_EBCDIC_BYTE => "CBKC",
             Self::CBKD101_INVALID_FIELD_TYPE
             | Self::CBKD301_RECORD_TOO_SHORT
@@ -221,7 +221,7 @@ impl ErrorCode {
             | Self::CBKE510_NUMERIC_OVERFLOW
             | Self::CBKE515_STRING_LENGTH_VIOLATION
             | Self::CBKE521_ARRAY_LEN_OOB => "CBKE",
-            Self::CBKF104_RDW_SUSPECT_ASCII => "CBKF",
+            Self::CBKF104_RDW_SUSPECT_ASCII | Self::CBKF221_RDW_UNDERFLOW => "CBKF",
             Self::CBKA001_BASELINE_ERROR => "CBKA",
         }
     }

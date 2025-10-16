@@ -43,6 +43,9 @@ clap = { version = "4.5.49", features = ["derive"] }
 tokio = { version = "1.48.0", features = ["full"] }
 tempfile = "3.23.0"
 
+# Telemetry dependencies
+metrics = "0.24.2"
+
 # Parsing dependencies
 logos = "0.15.1"
 
@@ -92,4 +95,3 @@ cast_lossless = "allow"
 cast_possible_truncation = "allow"
 cast_precision_loss = "allow"
 cast_sign_loss = "allow"
-

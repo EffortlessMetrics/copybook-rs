@@ -51,9 +51,7 @@ fn test_odo_array_valid_count() -> Result<()> {
         None => assert_eq!(json_value["ARRAY-COUNT"].as_str(), Some("3")),
     }
     assert_eq!(
-        json_value["DYNAMIC-ARRAY"]
-            .as_array()
-            .map(|items| items.len()),
+        json_value["DYNAMIC-ARRAY"].as_array().map(Vec::len),
         Some(3)
     );
     Ok(())

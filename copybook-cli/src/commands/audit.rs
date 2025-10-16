@@ -667,7 +667,7 @@ async fn run_compliance_validation(
     _report_violations: bool,
     _include_recommendations: bool,
     audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<i32, Box<dyn std::error::Error + Send + Sync + 'static>> {
     println!("Running compliance validation...");
 
     // Parse compliance frameworks from comma-separated string

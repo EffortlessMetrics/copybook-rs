@@ -111,6 +111,27 @@ Each line is a standalone JSON object containing `"schema":"copybook.v1"`,
 `record_index`, `codepage`, and a nested `fields` object. See
 `docs/jsonl-schema.md` for the full schema and worked examples.
 
+### Telemetry (optional, feature-gated)
+
+Build the CLI with metrics and expose Prometheus `/metrics`:
+
+```bash
+cargo build -p copybook-cli --features metrics --release
+./target/release/copybook decode --metrics-listen 0.0.0.0:9300 ...
+# http://localhost:9300/metrics
+```
+
+Exported series:
+
+- `copybook_records_total{format,codepage,zero_policy}`
+- `copybook_bytes_total{format,codepage,zero_policy}`
+- `copybook_decode_errors_total{family}`
+- `copybook_decode_seconds{format,codepage}`
+- `copybook_throughput_mibps{format,codepage}`
+
+The library stays recorder-agnostic. When compiled with `--features metrics` **and** a global recorder is installed,
+counters are emitted; otherwise metrics calls are no-ops.
+
 ## Detailed Usage Examples
 
 ### Working with Fixed-Length Records

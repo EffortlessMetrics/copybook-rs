@@ -12,6 +12,9 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+#[cfg(feature = "metrics")]
+use clap::Args;
+
 #[derive(Parser)]
 #[command(name = "copybook")]
 #[command(about = "Modern COBOL copybook parser and data converter")]
@@ -23,6 +26,18 @@ struct Cli {
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
+
+    #[cfg(feature = "metrics")]
+    #[command(flatten)]
+    metrics: MetricsOpts,
+}
+
+#[cfg(feature = "metrics")]
+#[derive(Args, Debug, Clone)]
+pub struct MetricsOpts {
+    /// Expose Prometheus metrics at this address (e.g. 0.0.0.0:9300)
+    #[arg(long)]
+    pub metrics_listen: Option<std::net::SocketAddr>,
 }
 
 #[derive(Subcommand)]
@@ -229,6 +244,9 @@ fn main() -> ExitCode {
 fn run() -> anyhow::Result<ExitCode> {
     let cli = Cli::parse();
 
+    #[cfg(feature = "metrics")]
+    let _metrics_server = metrics_start_if_requested(&cli.metrics);
+
     // Initialize tracing
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
@@ -360,6 +378,79 @@ fn run() -> anyhow::Result<ExitCode> {
     let status = exit_status?;
     let exit_code = u8::try_from(status).unwrap_or(1);
     Ok(ExitCode::from(exit_code))
+}
+
+#[cfg(feature = "metrics")]
+fn install_prometheus(
+    addr: std::net::SocketAddr,
+) -> (
+    metrics_exporter_prometheus::PrometheusHandle,
+    tokio::task::JoinHandle<()>,
+) {
+    use metrics_exporter_prometheus::PrometheusBuilder;
+    use std::sync::OnceLock;
+
+    static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+
+    let builder = PrometheusBuilder::new().with_http_listener(addr);
+    let (recorder, exporter) = builder
+        .build()
+        .expect("failed to build Prometheus exporter");
+    let handle = recorder.handle();
+
+    metrics::set_global_recorder(recorder).expect("failed to install Prometheus recorder");
+
+    let runtime = RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to build metrics runtime")
+    });
+
+    let join_handle = runtime.spawn(async move {
+        if let Err(err) = exporter.await {
+            tracing::error!(error = ?err, "metrics exporter terminated unexpectedly");
+        }
+    });
+
+    (handle, join_handle)
+}
+
+#[cfg(feature = "metrics")]
+fn metrics_start_if_requested(
+    opts: &MetricsOpts,
+) -> Option<(
+    metrics_exporter_prometheus::PrometheusHandle,
+    tokio::task::JoinHandle<()>,
+)> {
+    opts.metrics_listen.map(|addr| {
+        let handles = install_prometheus(addr);
+        describe_metrics();
+        handles
+    })
+}
+
+#[cfg(feature = "metrics")]
+fn describe_metrics() {
+    use metrics::{describe_counter, describe_gauge, describe_histogram};
+
+    describe_counter!(
+        "copybook_records_total",
+        "Records decoded by the copybook CLI"
+    );
+    describe_counter!("copybook_bytes_total", "Bytes decoded by the copybook CLI");
+    describe_counter!(
+        "copybook_decode_errors_total",
+        "Decode errors grouped by error family"
+    );
+    describe_histogram!(
+        "copybook_decode_seconds",
+        "Decode wall time per file (seconds)"
+    );
+    describe_gauge!(
+        "copybook_throughput_mibps",
+        "MiB/s throughput for last completed file"
+    );
 }
 
 fn map_error_to_exit_code(err: &AnyhowError) -> ExitCode {

@@ -111,41 +111,113 @@ thread_local! {
 
 #[cfg(feature = "metrics")]
 mod telemetry {
+    use crate::options::{Codepage, DecodeOptions, RecordFormat, ZonedEncodingFormat};
     use metrics::{counter, gauge, histogram};
 
     #[inline]
-    pub fn record_read(bytes: usize) {
-        counter!("records_read_total").increment(1);
-        counter!("bytes_read_total").increment(bytes as u64);
+    pub fn record_read(bytes: usize, options: &DecodeOptions) {
+        let format_label = format_label(options.format);
+        let codepage_label = codepage_label(options.codepage);
+        let zero_policy_label = zero_policy_label(options);
+
+        counter!(
+            "copybook_records_total",
+            "format" => format_label,
+            "codepage" => codepage_label,
+            "zero_policy" => zero_policy_label
+        )
+        .increment(1);
+        counter!(
+            "copybook_bytes_total",
+            "format" => format_label,
+            "codepage" => codepage_label,
+            "zero_policy" => zero_policy_label
+        )
+        .increment(bytes as u64);
     }
 
     #[inline]
     pub fn record_error(family: &'static str) {
-        counter!("decode_errors_total", "family" => family).increment(1);
+        counter!("copybook_decode_errors_total", "family" => family).increment(1);
     }
 
     #[inline]
-    pub fn record_completion(duration_seconds: f64, throughput_mibps: f64) {
+    pub fn record_completion(
+        duration_seconds: f64,
+        throughput_mibps: f64,
+        options: &DecodeOptions,
+    ) {
+        let format_label = format_label(options.format);
+        let codepage_label = codepage_label(options.codepage);
+
         if duration_seconds.is_finite() && duration_seconds >= 0.0 {
-            histogram!("decode_time_seconds_total").record(duration_seconds);
+            histogram!(
+                "copybook_decode_seconds",
+                "format" => format_label,
+                "codepage" => codepage_label
+            )
+            .record(duration_seconds);
         }
-        counter!("decode_time_seconds_count").increment(1);
+
         if throughput_mibps.is_finite() {
-            gauge!("throughput_mibps_gauge").set(throughput_mibps);
+            gauge!(
+                "copybook_throughput_mibps",
+                "format" => format_label,
+                "codepage" => codepage_label
+            )
+            .set(throughput_mibps);
+        }
+    }
+
+    #[inline]
+    fn zero_policy_label(options: &DecodeOptions) -> &'static str {
+        if options.preserve_zoned_encoding {
+            "preserved"
+        } else if options.preferred_zoned_encoding != ZonedEncodingFormat::Auto {
+            "override"
+        } else {
+            "preferred"
+        }
+    }
+
+    #[inline]
+    fn format_label(format: RecordFormat) -> &'static str {
+        match format {
+            RecordFormat::Fixed => "fixed",
+            RecordFormat::RDW => "rdw",
+        }
+    }
+
+    #[inline]
+    fn codepage_label(codepage: Codepage) -> &'static str {
+        match codepage {
+            Codepage::ASCII => "ascii",
+            Codepage::CP037 => "cp037",
+            Codepage::CP273 => "cp273",
+            Codepage::CP500 => "cp500",
+            Codepage::CP1047 => "cp1047",
+            Codepage::CP1140 => "cp1140",
         }
     }
 }
 
 #[cfg(not(feature = "metrics"))]
 mod telemetry {
+    use crate::options::DecodeOptions;
+
     #[inline]
-    pub fn record_read(_bytes: usize) {}
+    pub fn record_read(_bytes: usize, _options: &DecodeOptions) {}
 
     #[inline]
     pub fn record_error(_family: &'static str) {}
 
     #[inline]
-    pub fn record_completion(_duration_seconds: f64, _throughput_mibps: f64) {}
+    pub fn record_completion(
+        _duration_seconds: f64,
+        _throughput_mibps: f64,
+        _options: &DecodeOptions,
+    ) {
+    }
 }
 
 /// Summary of processing run with comprehensive statistics
@@ -1608,7 +1680,11 @@ pub fn decode_file_to_jsonl(
     };
     summary.calculate_throughput();
     summary.warnings = WARNING_COUNTER.with(|counter| *counter.borrow());
-    telemetry::record_completion(summary.processing_time_seconds(), summary.throughput_mbps);
+    telemetry::record_completion(
+        summary.processing_time_seconds(),
+        summary.throughput_mbps,
+        options,
+    );
     info!(
         target: "copybook::decode",
         records_processed = summary.records_processed,
@@ -1639,7 +1715,7 @@ fn process_fixed_records<R: Read, W: Write>(
 
     while let Some(record_data) = reader.read_record()? {
         summary.bytes_processed += record_data.len() as u64;
-        telemetry::record_read(record_data.len());
+        telemetry::record_read(record_data.len(), options);
 
         let raw_data_for_decode = match options.emit_raw {
             crate::options::RawMode::Record => Some(record_data.clone()),
@@ -1683,7 +1759,7 @@ fn process_rdw_records<R: Read, W: Write>(
 
     while let Some(rdw_record) = reader.read_record()? {
         summary.bytes_processed += rdw_record.payload.len() as u64;
-        telemetry::record_read(rdw_record.payload.len());
+        telemetry::record_read(rdw_record.payload.len(), options);
 
         if let Some(schema_lrecl) = schema.lrecl_fixed
             && rdw_record.payload.len() < schema_lrecl as usize

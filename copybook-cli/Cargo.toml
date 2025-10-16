@@ -25,23 +25,30 @@ name = "copybook"
 path = "src/main.rs"
 
 [dependencies]
-copybook-core = { workspace = true }
-copybook-codec = { workspace = true }
 clap.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tokio.workspace = true
 tempfile.workspace = true
 md5 = "0.8.0"
 serde.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
+copybook-core = { workspace = true }
+copybook-codec = { workspace = true }
+tokio = { workspace = true, optional = true }
+metrics = { workspace = true, optional = true }
+metrics-exporter-prometheus = { version = "0.17", optional = true, features = ["http-listener"] }
 
 [features]
 default = []
-audit = ["copybook-core/audit"]
-metrics = ["copybook-codec/metrics"]
+audit = ["copybook-core/audit", "dep:tokio"]
+metrics = [
+    "copybook-codec/metrics",
+    "dep:metrics",
+    "dep:metrics-exporter-prometheus",
+    "dep:tokio",
+]
 
 [dev-dependencies]
 proptest.workspace = true

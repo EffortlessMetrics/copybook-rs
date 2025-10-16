@@ -119,6 +119,23 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ---
 
+## Telemetry Rollout (Phase 6)
+
+**Why:** make runtime behavior observable with a rollback lever.
+
+**Plan**
+- [x] Feature-gate metrics; exporter behind `--metrics-listen`
+- [x] Emit low-cardinality series in decode path
+- [x] README + Library API docs
+- [ ] Staging rollout (enable flag; Prom scrape)
+- [ ] Dashboards (QPS, bytes/s, error rate, MiB/s)
+- [ ] Alerts (error burst, throughput drop)
+- [ ] Perf sanity on staging (MiB/s, RSS in-band)
+
+**Exit:** `/metrics` reachable; Prom scraping; dashboards green; SLO receipts steady; builds clean with/without metrics.
+
+---
+
 ## Project board & labels
 
 * **Board columns**: Backlog → In Progress → In Review → Bench Verified → Done

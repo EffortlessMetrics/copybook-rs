@@ -5,6 +5,8 @@
 
 use crate::options::{Codepage, UnmappablePolicy};
 use copybook_core::{Error, ErrorCode, Result};
+use std::convert::TryFrom;
+use tracing::warn;
 
 // EBCDIC to Unicode lookup tables for supported code pages
 // Each table maps EBCDIC byte values (0-255) to Unicode code points
@@ -299,25 +301,12 @@ static EBCDIC_ZONED_SIGNS: [(bool, bool); 16] = [
 ];
 
 /// ASCII zoned decimal sign mapping
-/// Maps zone nibble to (`is_signed`, `is_negative`)
-static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [
-    (true, false), // 0x0: '{' = +0 overpunch
-    (true, false), // 0x1: 'A' = +1 overpunch
-    (true, false), // 0x2: 'B' = +2 overpunch
-    (true, false), // 0x3: '}' = +3 overpunch
-    (true, false), // 0x4: 'D' = +4 overpunch
-    (true, false), // 0x5: 'E' = +5 overpunch
-    (true, false), // 0x6: 'F' = +6 overpunch
-    (true, false), // 0x7: 'G' = +7 overpunch
-    (true, true),  // 0x8: 'H' = -0 overpunch
-    (true, true),  // 0x9: 'I' = -1 overpunch
-    (true, true),  // 0xA: 'J' = -2 overpunch
-    (true, true),  // 0xB: 'K' = -3 overpunch
-    (true, true),  // 0xC: 'L' = -4 overpunch
-    (true, true),  // 0xD: 'M' = -5 overpunch
-    (true, true),  // 0xE: 'N' = -6 overpunch
-    (true, true),  // 0xF: 'O' = -7 overpunch
-];
+///
+/// ASCII overpunch handling relies on byte-level inspection rather than the
+/// zone nibble alone. Mark all entries as unsigned so any accidental use of the
+/// table will surface as a validation error and force callers through the
+/// dedicated ASCII overpunch helpers in `numeric`.
+static ASCII_ZONED_SIGNS: [(bool, bool); 16] = [(false, false); 16];
 
 /// Get the appropriate lookup table for the given codepage
 fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {
@@ -333,6 +322,7 @@ fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {
 
 /// Get the appropriate zoned sign table for the given codepage
 #[must_use]
+#[inline]
 pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
     match codepage {
         Codepage::ASCII => &ASCII_ZONED_SIGNS,
@@ -345,6 +335,8 @@ pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
 /// # Errors
 ///
 /// Returns an error if the EBCDIC data contains invalid bytes that cannot be converted
+#[inline]
+#[must_use = "Handle potential conversion failures"]
 pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy) -> Result<String> {
     // ASCII pass-through mode (transparent 8-bit, not Windows-1252)
     if codepage == Codepage::ASCII {
@@ -358,100 +350,71 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
         )
     })?;
 
-    // CRITICAL PERFORMANCE OPTIMIZATION: Hot-path optimized EBCDIC conversion
-    // Pre-allocate exact capacity and minimize allocations
-
     let mut result = String::with_capacity(data.len());
 
-    // SIMD-friendly optimization: Process in chunks for better CPU utilization
-    let chunks = data.chunks_exact(8);
-    let remainder = chunks.remainder();
+    for &byte in data {
+        let unicode_point = table[byte as usize];
 
-    // Process 8-byte chunks for better throughput
-    for chunk in chunks {
-        for &byte in chunk {
-            let unicode_point = table[byte as usize];
-            if (0x20..=0x7E).contains(&unicode_point) {
-                // Fast path: ASCII-compatible range (most common case)
-                // SAFETY: We checked that unicode_point is in ASCII range [0x20, 0x7E]
-                // All values in this range are valid Unicode code points
-                if let Some(ch) = char::from_u32(unicode_point) {
-                    result.push(ch);
-                } else {
-                    // This should never happen for ASCII range, but handle safely
-                    handle_special_character(&mut result, unicode_point, byte, policy)?;
+        // Check for unmappable characters (control characters < 0x20 except tab, LF, CR)
+        if unicode_point < 0x20
+            && unicode_point != 0x09
+            && unicode_point != 0x0A
+            && unicode_point != 0x0D
+        {
+            match policy {
+                UnmappablePolicy::Error => {
+                    return Err(Error::new(
+                        ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                        format!("Unmappable EBCDIC byte: 0x{byte:02X} -> U+{unicode_point:04X}"),
+                    ));
                 }
-            } else {
-                // Slower path: Handle special characters
-                handle_special_character(&mut result, unicode_point, byte, policy)?;
+                UnmappablePolicy::Replace => {
+                    warn!(
+                        "CBKC301_INVALID_EBCDIC_BYTE: Unmappable EBCDIC byte 0x{:02X}, replacing with U+FFFD",
+                        byte
+                    );
+                    result.push('\u{FFFD}'); // Unicode replacement character
+                    continue;
+                }
+                UnmappablePolicy::Skip => {
+                    warn!(
+                        "CBKC301_INVALID_EBCDIC_BYTE: Unmappable EBCDIC byte 0x{:02X}, skipping",
+                        byte
+                    );
+                    continue;
+                }
             }
         }
-    }
 
-    // Handle remaining bytes with the same optimization pattern
-    for &byte in remainder {
-        let unicode_point = table[byte as usize];
-        if (0x20..=0x7E).contains(&unicode_point) {
-            // Fast path: ASCII-compatible range (most common case)
-            // SAFETY: We checked that unicode_point is in ASCII range [0x20, 0x7E]
-            // All values in this range are valid Unicode code points
-            if let Some(ch) = char::from_u32(unicode_point) {
-                result.push(ch);
-            } else {
-                // This should never happen for ASCII range, but handle safely
-                handle_special_character(&mut result, unicode_point, byte, policy)?;
-            }
+        // Convert Unicode code point to char
+        if let Some(ch) = char::from_u32(unicode_point) {
+            result.push(ch);
         } else {
-            // Slower path: Handle special characters
-            handle_special_character(&mut result, unicode_point, byte, policy)?;
+            match policy {
+                UnmappablePolicy::Error => {
+                    return Err(Error::new(
+                        ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                        format!("Invalid Unicode code point: U+{unicode_point:04X}"),
+                    ));
+                }
+                UnmappablePolicy::Replace => {
+                    warn!(
+                        "CBKC301_INVALID_EBCDIC_BYTE: Invalid Unicode code point U+{:04X}, replacing with U+FFFD",
+                        unicode_point
+                    );
+                    result.push('\u{FFFD}');
+                }
+                UnmappablePolicy::Skip => {
+                    warn!(
+                        "CBKC301_INVALID_EBCDIC_BYTE: Invalid Unicode code point U+{:04X}, skipping",
+                        unicode_point
+                    );
+                }
+            }
         }
     }
 
     Ok(result)
-}
-
-/// Handle special EBCDIC characters that require careful processing
-///
-/// PERFORMANCE OPTIMIZATION: Separate function for cold path to keep hot path optimized
-#[cold]
-fn handle_special_character(
-    result: &mut String,
-    unicode_point: u32,
-    byte: u8,
-    policy: UnmappablePolicy,
-) -> Result<()> {
-    if unicode_point == 0x09 || unicode_point == 0x0A || unicode_point == 0x0D {
-        // Valid control characters: tab, LF, CR
-        match unicode_point {
-            0x09 => result.push('\t'),
-            0x0A => result.push('\n'),
-            0x0D => result.push('\r'),
-            _ => {
-                debug_assert!(false, "Invalid control character after validation");
-                return Err(Error::new(
-                    ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
-                    format!("Unexpected control character: U+{unicode_point:04X}"),
-                ));
-            }
-        }
-    } else if let Some(ch) = char::from_u32(unicode_point) {
-        result.push(ch);
-    } else {
-        // Invalid Unicode code point or unmappable character
-        match policy {
-            UnmappablePolicy::Error => {
-                return Err(Error::new(
-                    ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
-                    format!("Unmappable EBCDIC byte: 0x{byte:02X} -> U+{unicode_point:04X}"),
-                ));
-            }
-            UnmappablePolicy::Replace => {
-                result.push('\u{FFFD}');
-            }
-            UnmappablePolicy::Skip => { /* skip */ }
-        }
-    }
-    Ok(())
 }
 
 /// Convert UTF-8 string to EBCDIC bytes
@@ -459,6 +422,8 @@ fn handle_special_character(
 /// # Errors
 ///
 /// Returns an error if the UTF-8 text contains characters that cannot be mapped to the target codepage
+#[inline]
+#[must_use = "Handle potential conversion failures"]
 pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
     // ASCII pass-through mode (transparent 8-bit, not Windows-1252)
     if codepage == Codepage::ASCII {
@@ -474,10 +439,15 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
 
     // Build reverse lookup table (Unicode -> EBCDIC)
     let mut reverse_table = std::collections::HashMap::new();
-    for (ebcdic_byte, &unicode_point) in table.iter().enumerate() {
+    for (ebcdic_index, &unicode_point) in table.iter().enumerate() {
         if let Some(ch) = char::from_u32(unicode_point) {
-            // enumerate() guarantees ebcdic_byte is in range 0..256, which fits in u8
-            reverse_table.insert(ch, ebcdic_byte as u8);
+            let ebcdic_byte = u8::try_from(ebcdic_index).map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                    format!("EBCDIC byte index {ebcdic_index} exceeds u8 range"),
+                )
+            })?;
+            reverse_table.insert(ch, ebcdic_byte);
         }
     }
 

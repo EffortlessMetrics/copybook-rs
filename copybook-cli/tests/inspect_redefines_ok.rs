@@ -1,11 +1,12 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+mod test_utils;
 
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
 use std::process::Command;
+use test_utils::{TestResult, path_to_str};
 
 #[test]
-fn redefines_views_load() -> Result<(), Box<dyn std::error::Error>> {
+fn redefines_views_load() -> TestResult<()> {
     // Two views at same level share bytes
     let cpy = r"
 01 REC.
@@ -17,8 +18,10 @@ fn redefines_views_load() -> Result<(), Box<dyn std::error::Error>> {
     let f = tmp.child("redefines_ok.cpy");
     f.write_str(cpy)?;
 
+    let copybook_str = path_to_str(f.path())?;
+
     Command::cargo_bin("copybook")?
-        .args(["inspect", f.path().to_str().unwrap()])
+        .args(["inspect", copybook_str])
         .assert()
         .success();
 

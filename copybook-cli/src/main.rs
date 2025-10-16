@@ -325,15 +325,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             strict_comments,
         } => {
             let value = max_errors.unwrap_or(10);
-            let normalized_max_errors = match u32::try_from(value) {
-                Ok(valid) => valid,
-                Err(_) => {
-                    return Err(anyhow!(
-                        "--max-errors must be between 0 and {} (received {value})",
-                        u32::MAX
-                    )
-                    .into());
-                }
+            let Ok(normalized_max_errors) = u32::try_from(value) else {
+                return Err(anyhow!(
+                    "--max-errors must be between 0 and {} (received {value})",
+                    u32::MAX
+                )
+                .into());
             };
 
             let opts = crate::commands::verify::VerifyOptions {

@@ -52,13 +52,17 @@ docs:
 docs-open:
     cargo doc --workspace --no-deps --open
 
-# Produce machine-readable receipts and mirror to CI path
+# Pedantic scan and summary
+pedantic:
+    bash scripts/clippy-pedantic-diff.sh scan
+
+# Compare to saved baseline
+pedantic-compare:
+    bash scripts/clippy-pedantic-diff.sh compare /tmp/pedantic_base.log /tmp/pedantic_curr.log
+
+# Fast perf receipts (SLO suite)
 bench-json:
-    RUSTFLAGS="-C target-cpu=native" PERF=1 \
-      cargo bench -p copybook-bench -- --output-format json > target/perf.json
-    mkdir -p scripts/bench
-    cp target/perf.json scripts/bench/perf.json
-    @echo "✅ receipts: scripts/bench/perf.json"
+    BENCH_FILTER=${BENCH_FILTER:-slo_validation} bash scripts/bench.sh
 
 # Run performance benchmarks (JSON receipts)
 bench:

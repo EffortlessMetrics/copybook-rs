@@ -190,6 +190,7 @@ fn test_redefines_encode_ambiguity_error() -> TestResult {
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: true,
@@ -233,6 +234,7 @@ fn test_redefines_encode_single_view_allowed() -> TestResult {
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: false,
@@ -292,6 +294,7 @@ fn test_redefines_raw_data_precedence() -> TestResult {
     let encode_options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: true, // Use raw data precedence
         bwz_encode: false,
         strict_mode: false,
@@ -344,6 +347,7 @@ fn test_redefines_round_trip_preservation() -> TestResult {
     let encode_options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: true,
         bwz_encode: false,
         strict_mode: false,

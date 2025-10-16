@@ -319,6 +319,7 @@ fn test_odo_encode_counter_update() {
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: false,
@@ -387,6 +388,7 @@ fn test_odo_array_length_out_of_bounds_encode() {
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: true, // Strict mode

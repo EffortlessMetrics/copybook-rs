@@ -6,6 +6,15 @@
 //! Overpunch encoding combines the last digit with sign information:
 //! - ASCII: uses letters A-I for positive digits 1-9, J-R for negative digits 1-9
 //! - EBCDIC: uses zone nibbles 0xC (positive) and 0xD (negative)
+//!
+//! ### Overpunch rules (cheatsheet)
+//! - ASCII last-digit:
+//!   - +0..+9 → `{'`, `A`..`I`
+//!   - -0..-9 → `'}'`, `J`..`R`
+//! - EBCDIC last-digit zone:
+//!   - Positive → `0xC`
+//!   - Negative → `0xD`
+//!   - Preferred-zero policy (EBCDIC) → `0xF` for zero regardless of sign
 
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};

@@ -65,7 +65,12 @@ impl DecodeProcessor {
         }
     }
 
-    /// Process a file with comprehensive error handling and reporting
+    /// Process a file with comprehensive error handling and reporting.
+    ///
+    /// # Errors
+    /// Returns an error if decoding fails for any record or if I/O operations encounter failures.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn process_file<R: Read, W: Write>(
         &mut self,
         schema: &Schema,
@@ -929,7 +934,12 @@ impl EncodeProcessor {
         }
     }
 
-    /// Process JSONL file to binary with comprehensive error handling
+    /// Process JSONL input to binary with comprehensive error handling.
+    ///
+    /// # Errors
+    /// Returns an error if encoding fails for any record or if I/O operations encounter failures.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn process_file<R: Read, W: Write>(
         &mut self,
         schema: &Schema,

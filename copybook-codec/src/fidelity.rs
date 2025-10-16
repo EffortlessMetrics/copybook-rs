@@ -248,10 +248,9 @@ impl BinaryFidelityValidator {
     /// Validate complete round-trip fidelity for all field types
     ///
     /// # Errors
-    ///
     /// Returns an error if encoding or decoding fails, or if fidelity analysis cannot be completed.
     #[inline]
-    #[must_use = "Consume the fidelity result and handle potential analysis failures"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn validate_comprehensive_fidelity(
         &mut self,
         original_data: &[u8],
@@ -889,10 +888,9 @@ pub mod utils {
     /// Validate multiple records for batch fidelity testing
     ///
     /// # Errors
-    ///
     /// Returns an error if validating any record fails.
     #[inline]
-    #[must_use = "Inspect batch fidelity results to detect failures"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn validate_batch_fidelity(
         validator: &mut BinaryFidelityValidator,
         records: &[Vec<u8>],

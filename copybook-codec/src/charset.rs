@@ -333,8 +333,7 @@ pub fn get_zoned_sign_table(codepage: Codepage) -> &'static [(bool, bool); 16] {
 /// Convert EBCDIC bytes to UTF-8 string
 ///
 /// # Errors
-///
-/// Returns an error if the EBCDIC data contains invalid bytes that cannot be converted
+/// Returns an error if the EBCDIC data contains invalid bytes that cannot be converted.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy) -> Result<String> {
@@ -420,8 +419,7 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
 /// Convert UTF-8 string to EBCDIC bytes
 ///
 /// # Errors
-///
-/// Returns an error if the UTF-8 text contains characters that cannot be mapped to the target codepage
+/// Returns an error if the UTF-8 text contains characters that cannot be mapped to the target codepage.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {

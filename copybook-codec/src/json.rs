@@ -46,7 +46,6 @@ impl<W: Write> JsonWriter<W> {
     /// Write a single record as JSON line
     ///
     /// # Errors
-    ///
     /// Returns an error if the record cannot be written or JSON serialization fails
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
@@ -99,7 +98,6 @@ impl<W: Write> JsonWriter<W> {
     /// Avoids intermediate Map allocations for better performance
     ///
     /// # Errors
-    ///
     /// Returns an error if the record cannot be written or JSON serialization fails
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
@@ -1132,8 +1130,7 @@ impl JsonEncoder {
     /// Encode a JSON value to binary record
     ///
     /// # Errors
-    ///
-    /// Returns an error if the JSON cannot be encoded according to the schema
+    /// Returns an error if the JSON cannot be encoded according to the schema.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn encode_record(&self, schema: &Schema, json: &Value) -> Result<Vec<u8>> {

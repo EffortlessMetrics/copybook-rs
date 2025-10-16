@@ -496,14 +496,15 @@ cargo run -p copybook-cli --features metrics -- decode ...
 
 Once enabled, every `decode_file_to_jsonl` invocation updates the following series:
 
-- `records_read_total` (counter; +1 per record)
-- `bytes_read_total` (counter; +N per record payload)
-- `decode_errors_total{family="CBKD|CBKC|CBKF|CBKI|…"}` (counter; tagged with error family prefix)
-- `decode_time_seconds_total` (histogram; file-level runtime in seconds)
-- `decode_time_seconds_count` (counter; number of completed decode runs)
-- `throughput_mibps_gauge` (gauge; last-run MiB/s throughput)
+- `copybook_records_total{format,codepage,zero_policy}` (counter; +1 per decoded record)
+- `copybook_bytes_total{format,codepage,zero_policy}` (counter; +N per record payload)
+- `copybook_decode_errors_total{family}` (counter; tagged with the `CBK*` family prefix)
+- `copybook_decode_seconds{format,codepage}` (histogram; file-level runtime in seconds)
+- `copybook_throughput_mibps{format,codepage}` (gauge; last-run MiB/s throughput)
 
-Even without the feature, the library now emits an `INFO` log with target `copybook::decode` summarising each run’s totals and options. Hook it up to `tracing-subscriber` or your existing logging pipeline to capture receipts alongside the metrics stream.
+When built with the `metrics` feature and a global recorder is installed, the codec emits low-cardinality counters and a per-file timing histogram. When the feature is disabled or no recorder is installed, metrics calls are no-ops and introduce no overhead.
+
+Even without the feature, the library emits an `INFO` log with target `copybook::decode` summarising each run’s totals and options. Hook it up to `tracing-subscriber` or your existing logging pipeline to capture receipts alongside the metrics stream.
 
 ### File-Level Encoding
 

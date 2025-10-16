@@ -69,8 +69,7 @@ impl<R: Read> RecordIterator<R> {
     /// * `options` - Decoding options
     ///
     /// # Errors
-    ///
-    /// Returns an error if the record format is incompatible with the schema
+    /// Returns an error if the record format is incompatible with the schema.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
@@ -127,7 +126,6 @@ impl<R: Read> RecordIterator<R> {
     /// * `Err(error)` - An error occurred while reading
     ///
     /// # Errors
-    ///
     /// Returns an error if underlying I/O operations fail or the record format is invalid.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
@@ -250,10 +248,9 @@ impl<R: Read> Iterator for RecordIterator<R> {
 /// * `options` - Decoding options
 ///
 /// # Errors
-///
-/// Returns an error if the file cannot be opened or the iterator cannot be created
+/// Returns an error if the file cannot be opened or the iterator cannot be created.
 #[inline]
-#[must_use = "Handle iterator creation failures"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
     file_path: P,
     schema: &Schema,
@@ -274,10 +271,9 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 /// * `options` - Decoding options
 ///
 /// # Errors
-///
-/// Returns an error if the iterator cannot be created
+/// Returns an error if the iterator cannot be created.
 #[inline]
-#[must_use = "Handle iterator creation failures"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn iter_records<R: Read>(
     reader: R,
     schema: &Schema,

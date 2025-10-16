@@ -16,6 +16,7 @@ use tracing::{debug, warn};
 /// Returns an error if the header is malformed or cannot be read.
 /// EOF/short header handling is done by the caller (see `rdw_try_peek_len`).
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub(crate) fn rdw_read_len<R: BufRead>(r: &mut R) -> Result<u16> {
     let buf = r.fill_buf().map_err(|e| {
         Error::new(
@@ -45,6 +46,7 @@ pub(crate) fn rdw_read_len<R: BufRead>(r: &mut R) -> Result<u16> {
 /// # Errors
 /// Returns an error if fewer than `len` bytes are currently available in the buffer.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub(crate) fn rdw_slice_body<R: BufRead>(r: &mut R, len: u16) -> Result<&[u8]> {
     let need = usize::from(len);
     if need == 0 {
@@ -84,7 +86,11 @@ pub(crate) fn rdw_validate_and_finish(body: &[u8]) -> &[u8] {
 /// Helper for EOF/short-header detection used by readers/iterators.
 /// - 0 or 1 buffered bytes → `Ok(None)` (treat as EOF/short read, not an error)
 /// - ≥ 2 bytes             → `Ok(Some(()))` (caller may proceed to `rdw_read_len`)
+///
+/// # Errors
+/// Returns an error if the RDW header cannot be peeked from the underlying reader.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub(crate) fn rdw_try_peek_len<R: BufRead>(r: &mut R) -> Result<Option<()>> {
     let buf = r.fill_buf().map_err(|e| {
         Error::new(
@@ -110,8 +116,7 @@ impl<R: Read> FixedRecordReader<R> {
     /// Create a new fixed record reader
     ///
     /// # Errors
-    ///
-    /// Returns an error if LRECL is not provided or is zero
+    /// Returns an error if LRECL is not provided or is zero.
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::too_many_lines)]
     #[inline]
@@ -137,8 +142,7 @@ impl<R: Read> FixedRecordReader<R> {
     /// Read the next record
     ///
     /// # Errors
-    ///
-    /// Returns an error if the record cannot be read due to I/O errors
+    /// Returns an error if the record cannot be read due to I/O errors.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn read_record(&mut self) -> Result<Option<Vec<u8>>> {
@@ -222,8 +226,7 @@ impl<R: Read> FixedRecordReader<R> {
     /// Validate record length against schema
     ///
     /// # Errors
-    ///
-    /// Returns an error if the record length doesn't match schema expectations
+    /// Returns an error if the record length doesn't match schema expectations.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn validate_record_length(&self, schema: &Schema, record_data: &[u8]) -> Result<()> {
@@ -302,8 +305,7 @@ impl<W: Write> FixedRecordWriter<W> {
     /// Create a new fixed record writer
     ///
     /// # Errors
-    ///
-    /// Returns an error if LRECL is not provided or is zero
+    /// Returns an error if LRECL is not provided or is zero.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(output: W, lrecl: Option<u32>) -> Result<Self> {
@@ -327,8 +329,7 @@ impl<W: Write> FixedRecordWriter<W> {
     /// Write a record with proper padding
     ///
     /// # Errors
-    ///
-    /// Returns an error if the record cannot be written due to I/O errors
+    /// Returns an error if the record cannot be written due to I/O errors.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record(&mut self, data: &[u8]) -> Result<()> {
@@ -397,8 +398,7 @@ impl<W: Write> FixedRecordWriter<W> {
     /// Flush the output
     ///
     /// # Errors
-    ///
-    /// Returns an error if the flush operation fails
+    /// Returns an error if the flush operation fails.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn flush(&mut self) -> Result<()> {
@@ -555,8 +555,7 @@ impl<R: Read> RDWRecordReader<R> {
     /// Read the next RDW record
     ///
     /// # Errors
-    ///
-    /// Returns an error if the record cannot be read due to I/O errors or format issues
+    /// Returns an error if the record cannot be read due to I/O errors or format issues.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn read_record(&mut self) -> Result<Option<RDWRecord>> {
@@ -673,8 +672,7 @@ impl<R: Read> RDWRecordReader<R> {
     /// Validate zero-length record against schema
     ///
     /// # Errors
-    ///
-    /// Returns an error if zero-length record is invalid for the schema
+    /// Returns an error if zero-length record is invalid for the schema.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn validate_zero_length_record(&self, schema: &Schema) -> Result<()> {
@@ -791,8 +789,7 @@ impl<W: Write> RDWRecordWriter<W> {
     /// Write an RDW record
     ///
     /// # Errors
-    ///
-    /// Returns an error if the record cannot be written due to I/O errors
+    /// Returns an error if the record cannot be written due to I/O errors.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record(&mut self, record: &RDWRecord) -> Result<()> {
@@ -839,8 +836,7 @@ impl<W: Write> RDWRecordWriter<W> {
     /// Write a record from payload data, generating the RDW header
     ///
     /// # Errors
-    ///
-    /// Returns an error if the record cannot be written due to I/O errors
+    /// Returns an error if the record cannot be written due to I/O errors.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn write_record_from_payload(
@@ -888,9 +884,9 @@ impl<W: Write> RDWRecordWriter<W> {
     /// Flush the output
     ///
     /// # Errors
-    ///
-    /// Returns an error if the flush operation fails
+    /// Returns an error if the flush operation fails.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(
@@ -993,8 +989,7 @@ impl RDWRecord {
 /// Read a single record from input (legacy interface)
 ///
 /// # Errors
-///
-/// Returns an error if the record cannot be read due to I/O errors or format issues
+/// Returns an error if the record cannot be read due to I/O errors or format issues.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn read_record(
@@ -1025,8 +1020,7 @@ fn read_rdw_record_legacy(input: &mut impl Read) -> Result<Option<Vec<u8>>> {
 /// Write a single record to output (legacy interface)
 ///
 /// # Errors
-///
-/// Returns an error if the record cannot be written due to I/O errors
+/// Returns an error if the record cannot be written due to I/O errors.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) -> Result<()> {

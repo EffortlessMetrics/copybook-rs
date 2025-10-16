@@ -133,10 +133,11 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
-        /// Preserve decoded zoned format; wins over preferred.
+        /// Preserve zoned encoding detected during decode; wins over preferred.
         #[arg(long)]
         preserve_zoned_encoding: bool,
-        /// Preferred zoned format when not preserved/overridden (e.g., prefer 0xF zero in EBCDIC).
+        /// Preferred zoned encoding when neither preserved nor overridden.
+        /// Example: prefer EBCDIC 'F' zero punch (default `auto` respects codec defaults).
         #[arg(long, value_enum, default_value = "auto")]
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
     },
@@ -182,7 +183,7 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
-        /// Force zoned format (ascii|ebcdic), ignoring preserved/preferred.
+        /// Force zoned encoding format (ascii|ebcdic), ignoring preserved/preferred.
         #[arg(long, value_enum)]
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
     },
@@ -430,8 +431,9 @@ fn install_prometheus(
             {
                 Ok(rt) => rt,
                 Err(err) => {
-                    let _ = pre_runtime_tx
-                        .send(Err(anyhow!("failed to build Tokio runtime for metrics exporter: {err}")));
+                    let _ = pre_runtime_tx.send(Err(anyhow!(
+                        "failed to build Tokio runtime for metrics exporter: {err}"
+                    )));
                     return;
                 }
             };
@@ -449,9 +451,8 @@ fn install_prometheus(
 
                 let handle = recorder.handle();
                 if let Err(err) = metrics::set_global_recorder(recorder) {
-                    let _ = handle_tx.send(Err(anyhow!(
-                        "failed to install Prometheus recorder: {err}"
-                    )));
+                    let _ = handle_tx
+                        .send(Err(anyhow!("failed to install Prometheus recorder: {err}")));
                     return;
                 }
 
@@ -472,9 +473,9 @@ fn install_prometheus(
         })
     };
 
-    let handle = handle_rx
-        .recv()
-        .map_err(|err| anyhow!("failed to receive Prometheus handle from exporter thread: {err}"))??;
+    let handle = handle_rx.recv().map_err(|err| {
+        anyhow!("failed to receive Prometheus handle from exporter thread: {err}")
+    })??;
 
     Ok((handle, join_handle))
 }
@@ -504,10 +505,12 @@ impl Drop for MetricsGraceGuard {
 #[cfg(feature = "metrics")]
 fn metrics_start_if_requested(
     opts: &MetricsOpts,
-) -> anyhow::Result<Option<(
-    metrics_exporter_prometheus::PrometheusHandle,
-    std::thread::JoinHandle<()>,
-)>> {
+) -> anyhow::Result<
+    Option<(
+        metrics_exporter_prometheus::PrometheusHandle,
+        std::thread::JoinHandle<()>,
+    )>,
+> {
     opts.metrics_listen.map(install_prometheus).transpose()
 }
 

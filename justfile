@@ -60,7 +60,7 @@ pedantic:
 pedantic-compare:
     bash scripts/clippy-pedantic-diff.sh compare /tmp/pedantic_base.log /tmp/pedantic_curr.log
 
-# Fast perf receipts (SLO suite)
+# Fast perf receipts (SLO suite); set BENCH_FILTER=all to widen
 bench-json:
     BENCH_FILTER=${BENCH_FILTER:-slo_validation} bash scripts/bench.sh
 
@@ -97,11 +97,7 @@ test-crate crate:
 
 # Run a specific crate's benchmarks
 bench-crate crate:
-    if [ "{{crate}}" = "copybook-bench" ]; then
-        just bench-json
-    else
-        cargo bench -p {{crate}}
-    fi
+    if [ "{{crate}}" = "copybook-bench" ]; then just bench-json; else cargo bench -p {{crate}}; fi
 
 # Generate test coverage report
 coverage:

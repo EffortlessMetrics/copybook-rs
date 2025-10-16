@@ -158,7 +158,7 @@ impl ZonedEncodingInfo {
     /// - Per-byte format detection for detailed analysis
     ///
     /// # Errors
-    /// Returns an error if the analysis cannot be completed (currently never fails)
+    /// Returns an error if the analysis cannot be completed (currently never fails).
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn detect_from_data(data: &[u8]) -> Result<Self> {
@@ -690,14 +690,16 @@ fn scale_abs_to_u32(scale: i16) -> u32 {
     u32::from(scale.unsigned_abs())
 }
 
-/// Decode zoned decimal field with comprehensive error context
+/// Decode a zoned decimal using the configured code page with detailed error context.
+///
+/// # Policy
+/// Applies the codec default: ASCII uses `ZeroSignPolicy::Positive`; EBCDIC zeros normalize via `ZeroSignPolicy::Preferred`.
 ///
 /// # Errors
-///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 #[inline]
-#[must_use = "Use the decoded decimal or handle the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal(
     data: &[u8],
     digits: u16,
@@ -805,14 +807,16 @@ pub fn decode_zoned_decimal(
 
 /// Decode zoned decimal field with encoding detection and preservation
 ///
-/// Returns both the decoded decimal and encoding information for preservation
+/// Returns both the decoded decimal and encoding information for preservation.
+///
+/// # Policy
+/// Mirrors [`decode_zoned_decimal`], defaulting to preferred-zero handling for EBCDIC unless a preserved format dictates otherwise.
 ///
 /// # Errors
-///
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 #[inline]
-#[must_use = "Use the decoded decimal or encoded metadata result"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_with_encoding(
     data: &[u8],
     digits: u16,
@@ -990,11 +994,10 @@ fn zoned_decode_digits_with_encoding(
 /// Decode packed decimal field with comprehensive error context
 ///
 /// # Errors
-///
 /// Returns an error if the packed decimal data contains invalid nibbles.
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
 #[inline]
-#[must_use = "Use the returned `SmallDecimal` or propagate the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_packed_decimal(
     data: &[u8],
     digits: u16,
@@ -1299,8 +1302,7 @@ fn decode_packed_fast_general(
 /// Decode binary integer field
 ///
 /// # Errors
-///
-/// Returns an error if the binary data is invalid or the field size is unsupported
+/// Returns an error if the binary data is invalid or the field size is unsupported.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
@@ -1388,13 +1390,15 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     }
 }
 
-/// Encode zoned decimal field
+/// Encode a zoned decimal using the configured code page defaults.
+///
+/// # Policy
+/// Applies `ZeroSignPolicy::Positive` for ASCII and `ZeroSignPolicy::Preferred` for EBCDIC when no overrides are provided.
 ///
 /// # Errors
-///
-/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters
+/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters.
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal(
     value: &str,
     digits: u16,
@@ -1419,15 +1423,15 @@ pub fn encode_zoned_decimal(
     )
 }
 
-/// Encode zoned decimal field with encoding format override support
+/// Encode a zoned decimal using an explicit encoding override when supplied.
 ///
-/// Supports explicit encoding format override for round-trip preservation
+/// # Policy
+/// Resolves `ZeroSignPolicy` from `encoding_override` first; when unset or `Auto`, falls back to the code page defaults.
 ///
 /// # Errors
-///
-/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters
+/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters.
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_format(
     value: &str,
     digits: u16,
@@ -1459,12 +1463,15 @@ pub fn encode_zoned_decimal_with_format(
     )
 }
 
-/// Encode zoned decimal field with explicit encoding format and zero sign policy
+/// Encode a zoned decimal using a caller-resolved format and zero-sign policy.
+///
+/// # Policy
+/// Callers provide the resolved policy in precedence order: override → preserved → preferred for the target code page.
 ///
 /// # Errors
-/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters
+/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters.
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_format_and_policy(
     value: &str,
     digits: u16,
@@ -1550,10 +1557,9 @@ pub fn encode_zoned_decimal_with_format_and_policy(
 /// Encode packed decimal field
 ///
 /// # Errors
-///
 /// Returns an error if the value cannot be encoded as a packed decimal with the specified parameters
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_packed_decimal(
     value: &str,
     digits: u16,
@@ -1692,8 +1698,7 @@ pub fn encode_packed_decimal(
 /// Encode binary integer field
 ///
 /// # Errors
-///
-/// Returns an error if the value is out of range for the specified bit width
+/// Returns an error if the value is out of range for the specified bit width.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>> {
@@ -1759,8 +1764,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
 /// Encode alphanumeric field with space padding
 ///
 /// # Errors
-///
-/// Returns an error if the text is too long for the field
+/// Returns an error if the text is too long for the field.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> Result<Vec<u8>> {
@@ -1821,10 +1825,9 @@ pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
 /// Encode zoned decimal with BWZ policy
 ///
 /// # Errors
-///
-/// Returns an error if the value cannot be encoded
+/// Returns an error if the value cannot be encoded.
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_bwz(
     value: &str,
     digits: u16,
@@ -1993,7 +1996,7 @@ fn zoned_ensure_unsigned(
 /// # Errors
 /// Returns an error if zone nibbles or the last-byte overpunch are invalid.
 #[inline]
-#[must_use = "Use the decoded decimal or handle the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -2245,7 +2248,7 @@ fn packed_decode_multi_byte(
 /// # Errors
 /// Returns an error when the packed decimal data has an invalid length or contains bad digit/sign nibbles.
 #[inline]
-#[must_use = "Use the decoded decimal or propagate the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_packed_decimal_with_scratch(
     data: &[u8],
     digits: u16,
@@ -2358,7 +2361,7 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
 /// # Errors
 /// Returns an error when the decimal value cannot be represented with the requested digits or encoding.
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,
@@ -2394,7 +2397,7 @@ pub fn encode_zoned_decimal_with_scratch(
 /// # Errors
 /// Returns an error when the decimal value cannot be encoded into the requested packed representation.
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_packed_decimal_with_scratch(
     decimal: &SmallDecimal,
     digits: u16,
@@ -2426,7 +2429,7 @@ pub fn encode_packed_decimal_with_scratch(
 /// # Errors
 /// Returns an error when the packed decimal bytes are malformed for the requested digits or scale.
 #[inline]
-#[must_use = "Use the decoded string or propagate the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_packed_decimal_to_string_with_scratch(
     data: &[u8],
     digits: u16,
@@ -2573,10 +2576,13 @@ fn format_integer_with_leading_zeros_to_buffer(value: i64, width: u32, buffer: &
 /// Optimized zoned decimal decoder that formats to string using scratch buffer
 /// CRITICAL PERFORMANCE OPTIMIZATION for zoned decimal JSON conversion
 ///
+/// # Policy
+/// Mirrors [`decode_zoned_decimal_with_scratch`], inheriting its default preferred-zero handling for EBCDIC data.
+///
 /// # Errors
 /// Returns an error when the zoned decimal bytes are invalid for the requested digits or scale.
 #[inline]
-#[must_use = "Use the formatted string or propagate the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_to_string_with_scratch(
     data: &[u8],
     digits: u16,

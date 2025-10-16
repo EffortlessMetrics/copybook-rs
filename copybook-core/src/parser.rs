@@ -14,8 +14,7 @@ use crate::{Error, Result};
 /// Parse a COBOL copybook text into a schema
 ///
 /// # Errors
-///
-/// Returns an error if the copybook contains syntax errors or unsupported features
+/// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse(text: &str) -> Result<Schema> {
@@ -25,8 +24,7 @@ pub fn parse(text: &str) -> Result<Schema> {
 /// Parse a COBOL copybook text into a schema with specific options
 ///
 /// # Errors
-///
-/// Returns an error if the copybook contains syntax errors or unsupported features
+/// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {

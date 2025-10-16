@@ -217,8 +217,7 @@ pub mod audit {
 /// Parse a COBOL copybook into a structured schema
 ///
 /// # Errors
-///
-/// Returns an error if the copybook contains syntax errors or unsupported features
+/// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_copybook(text: &str) -> Result<Schema> {
@@ -228,8 +227,7 @@ pub fn parse_copybook(text: &str) -> Result<Schema> {
 /// Parse a COBOL copybook with specific options
 ///
 /// # Errors
-///
-/// Returns an error if the copybook contains syntax errors or unsupported features
+/// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {

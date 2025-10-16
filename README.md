@@ -219,30 +219,42 @@ copybook decode schema.cpy data.bin \
   --on-decode-unmappable replace  # or error, skip
 ```
 
-### Zoned Decimal Encoding Preservation
+### Zoned Policy Examples
 
-copybook-rs supports **binary round-trip fidelity** for zoned decimal fields, preserving the original encoding format (ASCII vs EBCDIC digit zones) during decode/encode cycles. This is essential for enterprise mainframe data processing where byte-perfect data integrity is required.
+Zoned decimal formatting resolves in this order: `--zoned-encoding-override` → `--preserve-zoned-encoding` → `--preferred-zoned-encoding` (default `auto` honors the codec's preferred-zero policy for EBCDIC data).
 
-```bash
-# Preserve original zoned decimal encoding format during decode
-# Note: CLI flags not yet implemented - use library API
-copybook decode schema.cpy data.bin \
-  --codepage cp037 \
-  --preserve-zoned-encoding \
-  --output data.jsonl
+- **Preferred** (default fallback):
 
-# Override zoned decimal encoding format during encode
-copybook encode schema.cpy data.jsonl \
-  --codepage cp037 \
-  --zoned-encoding-override ebcdic \
-  --output data.bin
+  ```bash
+  copybook encode schema.cpy data.jsonl \
+    --format rdw \
+    --preferred-zoned-encoding ebcdic \
+    --output data.bin
+  ```
 
-# Auto-detect encoding format with preferred fallback
-copybook decode schema.cpy data.bin \
-  --codepage cp037 \
-  --preferred-zoned-encoding auto \
-  --output data.jsonl
-```
+  Uses F-zone zeros for EBCDIC data even when no preservation metadata is available.
+
+- **Preserve** (round-trip original form):
+
+  ```bash
+  copybook decode schema.cpy data.bin \
+    --format rdw \
+    --preserve-zoned-encoding \
+    --output data.jsonl
+  ```
+
+  Captures the source zone nibbles and replays them during subsequent encodes.
+
+- **Override** (force format):
+
+  ```bash
+  copybook encode schema.cpy data.jsonl \
+    --format rdw \
+    --zoned-encoding-override ascii \
+    --output data.bin
+  ```
+
+  Forces ASCII sign zones regardless of preserved metadata or preferred fallback.
 
 ### Advanced Options
 

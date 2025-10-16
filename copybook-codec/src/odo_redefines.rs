@@ -36,10 +36,10 @@ pub struct RedefinesContext {
 /// In strict mode: treat out-of-bounds ODO as fatal error and abort immediately
 ///
 /// # Errors
-///
-/// Returns fatal error in strict mode for out-of-bounds values.
-/// Returns warnings in lenient mode for clamped values.
+/// Returns an error when the counter is out of bounds in strict mode or cannot be safely clamped in lenient mode.
 #[allow(clippy::too_many_arguments)]
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn validate_odo_counter(
     counter_value: u32,
     min_count: u32,
@@ -141,8 +141,9 @@ pub fn validate_odo_counter(
 /// and that counter fields are not inside REDEFINES or ODO regions.
 ///
 /// # Errors
-///
-/// Returns error if ODO constraints are violated.
+/// Returns an error if ODO constraints are violated.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn validate_odo_tail_position(
     schema: &Schema,
     odo_field_path: &str,
@@ -254,8 +255,9 @@ pub fn build_redefines_context(schema: &Schema, json_data: &Value) -> RedefinesC
 /// 3. Else → error `CBKE501_JSON_TYPE_MISMATCH` (ambiguous write)
 ///
 /// # Errors
-///
 /// Returns `CBKE501_JSON_TYPE_MISMATCH` with cluster path context for ambiguous writes.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn validate_redefines_encoding(
     context: &RedefinesContext,
     cluster_path: &str,
@@ -341,7 +343,6 @@ pub fn validate_redefines_encoding(
 /// including suggestions for common naming issues.
 ///
 /// # Errors
-///
 /// Returns `CBKS121_COUNTER_NOT_FOUND` with detailed context and suggestions.
 pub fn handle_missing_counter_field(
     counter_path: &str,
@@ -500,6 +501,11 @@ pub fn create_comprehensive_error_context(
 ///
 /// This function combines ODO counter validation with proper error context
 /// and handles both strict and lenient modes according to normative behavior.
+///
+/// # Errors
+/// Returns an error when the decoded counter value falls outside the declared ODO bounds.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn validate_odo_decode(
     counter_value: u32,
     min_count: u32,
@@ -523,6 +529,11 @@ pub fn validate_odo_decode(
 ///
 /// This function validates ODO array lengths during encoding and ensures
 /// proper error context is included in all error reports.
+///
+/// # Errors
+/// Returns an error if the array length is outside the declared ODO bounds.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn validate_odo_encode(
     array_length: usize,
     min_count: u32,

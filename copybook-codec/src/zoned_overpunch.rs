@@ -153,8 +153,9 @@ pub const fn decode_ebcdic_overpunch_zone(zone: u8) -> Option<(bool, bool)> {
 /// Encode overpunch byte for the given digit, sign, and codepage
 ///
 /// # Errors
-/// Returns an error if the digit is invalid or the encoding fails
+/// Returns an error if the digit is invalid or the encoding fails.
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_overpunch_byte(
     digit: u8,
     is_negative: bool,
@@ -193,7 +194,7 @@ pub fn encode_overpunch_byte(
 /// Decode overpunch byte to extract digit and sign information
 ///
 /// # Errors
-/// Returns an error if the byte is not a valid overpunch character
+/// Returns an error if the byte is not a valid overpunch character.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)> {

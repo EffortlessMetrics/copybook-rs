@@ -21,13 +21,16 @@ const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record l
 /// ```rust,no_run
 /// use copybook_codec::{RecordIterator, DecodeOptions};
 /// use copybook_core::parse_copybook;
-/// use std::fs::File;
+/// # use std::io::Cursor;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let copybook_text = "01 RECORD.\n   05 ID PIC 9(5).\n   05 NAME PIC X(20).";
-/// let schema = parse_copybook(copybook_text)?;
-/// let file = File::open("data.bin")?;
+/// let mut schema = parse_copybook(copybook_text)?;
+/// schema.lrecl_fixed = Some(25);
 /// let options = DecodeOptions::default();
+/// # let record_bytes = b"00001ALICE               ";
+/// # let file = Cursor::new(&record_bytes[..]);
+/// // let file = std::fs::File::open("data.bin")?;
 ///
 /// let mut iterator = RecordIterator::new(file, &schema, &options)?;
 ///

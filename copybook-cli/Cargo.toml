@@ -38,7 +38,7 @@ copybook-core = { workspace = true }
 copybook-codec = { workspace = true }
 tokio = { workspace = true, optional = true }
 metrics = { workspace = true, optional = true }
-metrics-exporter-prometheus = { version = "0.17", optional = true, features = ["http-listener"] }
+metrics-exporter-prometheus = { version = "0.17.2", optional = true, features = ["http-listener"] }
 
 [features]
 default = []
@@ -55,5 +55,6 @@ proptest.workspace = true
 assert_cmd = "2.0.17"
 assert_fs = "1.1.3"
 predicates = "3.1.3"
+reqwest = { version = "0.12.24", features = ["blocking"] }
 [lints]
 workspace = true

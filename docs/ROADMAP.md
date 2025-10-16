@@ -121,6 +121,8 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ## Telemetry Rollout (Phase 6)
 
+**Status:** In review — local gating complete; staging rollout and dashboards pending.
+
 **Why:** make runtime behavior observable with a rollback lever.
 
 **Plan**

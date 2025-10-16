@@ -145,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn test_temp_path_for() -> Result<()> {
+    fn test_temp_path_for() {
         let target = Path::new("/path/to/output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("/path/to/output.jsonl.tmp"));
@@ -153,6 +153,5 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
-        Ok(())
     }
 }

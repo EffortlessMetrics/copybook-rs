@@ -372,6 +372,20 @@ impl<R: Read> RDWRecordReader<R> {
     ///
     /// Returns an error if the record cannot be read due to I/O errors or format issues
     #[inline]
+    // TODO(RDW-split): This function is intentionally long for now to minimize churn
+    // while we lock the semantics with tests. The plan is to extract these pieces:
+    //   1) rdw_read_len(cursor) -> Result<u16, Error>
+    //      - Read the 2-byte RDW length; prove range; return u16.
+    //   2) rdw_slice_body(cursor, len: u16) -> Result<Vec<u8>, Error>
+    //      - Borrow or allocate the exact payload slice; perform bounds checks.
+    //   3) rdw_validate_and_finish(header: [u8; 4], body: Vec<u8>) -> Result<RDWRecord, Error>
+    //      - Any footer/CRC/shape validations; returns the final record.
+    //
+    // Notes:
+    // - Keep "prove-then-cast" for usize→u16 (no truncation lints).
+    // - Preserve EOF→Ok(None) semantics in the caller; only malformed RDW is an Err.
+    // - After extraction, remove #[allow(clippy::too_many_lines)] and add #[inline] on the helpers.
+    #[allow(clippy::too_many_lines)]
     #[must_use = "Handle RDW read outcomes to detect truncation or corruption"]
     pub fn read_record(&mut self) -> Result<Option<RDWRecord>> {
         // Read the 4-byte RDW header
@@ -752,6 +766,7 @@ impl<W: Write> RDWRecordWriter<W> {
     /// # Errors
     ///
     /// Returns an error if the flush operation fails
+    #[inline]
     pub fn flush(&mut self) -> Result<()> {
         self.output.flush().map_err(|e| {
             Error::new(

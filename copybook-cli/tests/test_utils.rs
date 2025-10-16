@@ -2,6 +2,7 @@
 
 use assert_cmd::Command;
 use std::error::Error;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 pub type TestResult<T> = Result<T, Box<dyn Error>>;
@@ -13,8 +14,11 @@ pub type TestResult<T> = Result<T, Box<dyn Error>>;
 /// Returns an error if the current directory cannot be accessed or if the workspace root
 /// cannot be found by traversing parent directories.
 pub fn find_workspace_root() -> TestResult<PathBuf> {
-    let mut current =
-        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {e}"))?;
+    let mut current = std::env::current_dir().map_err(|e| {
+        let mut message = String::new();
+        let _ = write!(&mut message, "Failed to get current directory: {e}");
+        message
+    })?;
 
     loop {
         if current.join("Cargo.toml").exists()
@@ -57,18 +61,26 @@ pub fn copybook_cmd(args: &[&str]) -> TestResult<Command> {
 }
 
 /// Convert an `Option<T>` into a [`TestResult`] with a helpful error message.
+///
+/// # Errors
+/// Returns an error when `value` is `None`.
 pub fn require_some<T, S>(value: Option<T>, context: S) -> TestResult<T>
 where
     S: Into<String>,
 {
     value
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, context.into()))
+        .ok_or_else(|| std::io::Error::other(context.into()))
         .map_err(Into::into)
 }
 
 /// Convert a path to a UTF-8 string with a descriptive error if conversion fails.
-pub fn path_to_str<'a>(path: &'a Path) -> TestResult<&'a str> {
-    require_some(path.to_str(), format!("Path {:?} is not valid UTF-8", path))
+///
+/// # Errors
+/// Returns an error when the provided `path` is not valid UTF-8.
+pub fn path_to_str(path: &Path) -> TestResult<&str> {
+    let mut message = String::new();
+    let _ = write!(&mut message, "Path {} is not valid UTF-8", path.display());
+    require_some(path.to_str(), message)
 }
 
 #[cfg(test)]

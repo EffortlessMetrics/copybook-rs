@@ -140,6 +140,8 @@ pub enum ErrorCode {
     // =============================================================================
     // File/Format Errors (CBKF*) - File structure and format validation
     // =============================================================================
+    /// CBKF102: RDW length field references incomplete or oversized payload
+    CBKF102_RECORD_LENGTH_INVALID,
     /// CBKF104: RDW appears to be corrupted by ASCII conversion
     CBKF104_RDW_SUSPECT_ASCII,
     /// CBKF221: RDW length field indicates underflow condition
@@ -182,6 +184,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKE510_NUMERIC_OVERFLOW => "CBKE510_NUMERIC_OVERFLOW",
             ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => "CBKE515_STRING_LENGTH_VIOLATION",
             ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID => "CBKF102_RECORD_LENGTH_INVALID",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
             ErrorCode::CBKF221_RDW_UNDERFLOW => "CBKF221_RDW_UNDERFLOW",
             ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
@@ -221,7 +224,9 @@ impl ErrorCode {
             | Self::CBKE510_NUMERIC_OVERFLOW
             | Self::CBKE515_STRING_LENGTH_VIOLATION
             | Self::CBKE521_ARRAY_LEN_OOB => "CBKE",
-            Self::CBKF104_RDW_SUSPECT_ASCII | Self::CBKF221_RDW_UNDERFLOW => "CBKF",
+            Self::CBKF102_RECORD_LENGTH_INVALID
+            | Self::CBKF104_RDW_SUSPECT_ASCII
+            | Self::CBKF221_RDW_UNDERFLOW => "CBKF",
             Self::CBKA001_BASELINE_ERROR => "CBKA",
         }
     }

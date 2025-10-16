@@ -9,6 +9,8 @@ This phase focuses on hardening the software by completing stubbed-out features,
 
 ## Phase 2: Hardening for Production
 
+**Status:** ✅ Done — landing pedantic RDW iterator hardening and telemetry alignment closes the phase.
+
 ### Theme: Feature Completion, Robustness, and Maintainability
 
 The goal of this phase is to prepare the software for a full production launch with confidence in its performance, security, and long-term health.

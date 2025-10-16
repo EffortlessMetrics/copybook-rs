@@ -1,0 +1,63 @@
+name: Pedantic Diff Guard
+
+on:
+  pull_request:
+    paths:
+      - "copybook-codec/**"
+      - "copybook-core/**"
+      - "copybook-cli/**"
+      - "scripts/clippy-pedantic-diff.sh"
+      - "scripts/guard-hotpaths.sh"
+      - "justfile"
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  pedantic-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run pedantic scan (do not fail; produce log)
+        run: |
+          cargo clippy --workspace --all-targets --all-features -W clippy::pedantic 2>&1 | tee /tmp/pedantic_full.log || true
+
+      - name: Fail on pedantic in changed files
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.sha }}"
+          git diff --name-only "$BASE" "$HEAD" \
+            | rg '\.rs$' -N > /tmp/changed_rs.txt || true
+
+          if [ ! -s /tmp/changed_rs.txt ]; then
+            echo "No Rust changes detected; skipping diff guard."
+            exit 0
+          fi
+
+          rg -n 'clippy::' /tmp/pedantic_full.log > /tmp/pedantic_hits.txt || true
+          awk -F: '{print $1}' /tmp/pedantic_hits.txt | sort -u > /tmp/pedantic_files.txt
+
+          comm -12 <(sort /tmp/changed_rs.txt) <(sort /tmp/pedantic_files.txt) > /tmp/pedantic_changed_hits.txt || true
+
+          if [ -s /tmp/pedantic_changed_hits.txt ]; then
+            echo "❌ New pedantic warnings in changed files:"
+            while read -r f; do
+              rg -n "$f" /tmp/pedantic_hits.txt
+            done < /tmp/pedantic_changed_hits.txt
+            exit 1
+          fi
+
+          echo "✅ No new pedantic warnings in changed files."
+
+      - name: Hot-path allocation guard
+        run: bash scripts/guard-hotpaths.sh

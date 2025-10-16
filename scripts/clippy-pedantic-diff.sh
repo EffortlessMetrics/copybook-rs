@@ -6,7 +6,7 @@ BASE="${2:-/tmp/pedantic_base.log}"
 CURR="${3:-/tmp/pedantic_curr.log}"
 
 run_clippy() {
-  cargo clippy --workspace --all-targets --all-features -- -W clippy::pedantic 2>&1 | tee "$1" >/dev/null
+  cargo clippy --workspace --all-targets --all-features -W clippy::pedantic 2>&1 | tee "$1" >/dev/null
 }
 
 summarize() {

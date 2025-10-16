@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: copybook-cli
+  namespace: staging
+  labels:
+    app: copybook-cli
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: copybook-cli
+  template:
+    metadata:
+      labels:
+        app: copybook-cli
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9300"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: copybook-cli
+          image: ghcr.io/effortlessmetrics/copybook-cli:latest-metrics
+          args:
+            - decode
+            - --metrics-listen
+            - 0.0.0.0:9300
+            # add your job args here:
+            # - --format
+            # - rdw
+            # - --codepage
+            # - cp037
+            # - --input
+            # - /data/in/customers.rdw
+            # - --output
+            # - /data/out/customers.jsonl
+          ports:
+            - name: metrics
+              containerPort: 9300
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "2"
+              memory: "512Mi"

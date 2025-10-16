@@ -1,10 +1,16 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::assertions_on_constants
+)]
+
 //! Golden fixture tests for copybook-rs
 //!
 //! These tests verify that the library produces consistent, expected outputs
 //! for well-known inputs. They serve as regression tests and documentation
 //! of the expected behavior.
 
-use anyhow::{Context, Result};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     decode_file_to_jsonl, encode_jsonl_to_file,
@@ -16,15 +22,15 @@ use std::io::Cursor;
 
 /// Test that verifies COMP-3 round-trip encoding and decoding works correctly
 #[test]
-fn test_comp3_roundtrip_golden() -> Result<()> {
+fn test_comp3_roundtrip_golden() {
     let copybook_text = fs::read_to_string("../fixtures/copybooks/comp3_test.cpy")
-        .context("Failed to read COMP-3 test copybook")?;
+        .expect("Failed to read COMP-3 test copybook");
 
-    let schema = parse_copybook(&copybook_text).context("Failed to parse COMP-3 test copybook")?;
+    let schema = parse_copybook(&copybook_text).expect("Failed to parse COMP-3 test copybook");
 
     // Read test JSONL data
     let jsonl_data = fs::read_to_string("../fixtures/data/comp3_test.jsonl")
-        .context("Failed to read COMP-3 test JSONL")?;
+        .expect("Failed to read COMP-3 test JSONL");
 
     // Configure encode options
     let encode_options = EncodeOptions::new()
@@ -43,7 +49,7 @@ fn test_comp3_roundtrip_golden() -> Result<()> {
     let input_cursor = Cursor::new(jsonl_data.as_bytes());
     let encode_summary =
         encode_jsonl_to_file(&schema, input_cursor, &mut binary_output, &encode_options)
-            .context("Failed to encode COMP-3 test data")?;
+            .expect("Failed to encode COMP-3 test data");
 
     // Verify encoding succeeded
     assert_eq!(encode_summary.records_processed, 2);
@@ -69,21 +75,20 @@ fn test_comp3_roundtrip_golden() -> Result<()> {
     let binary_cursor = Cursor::new(&binary_output);
     let decode_summary =
         decode_file_to_jsonl(&schema, binary_cursor, &mut decoded_output, &decode_options)
-            .context("Failed to decode COMP-3 test data")?;
+            .expect("Failed to decode COMP-3 test data");
 
     // Verify decoding succeeded
     assert_eq!(decode_summary.records_processed, 2);
     assert_eq!(decode_summary.records_with_errors, 0);
 
     // Parse the decoded JSONL and verify content
-    let decoded_jsonl =
-        String::from_utf8(decoded_output).context("Invalid UTF-8 in decoded output")?;
+    let decoded_jsonl = String::from_utf8(decoded_output).expect("Invalid UTF-8 in decoded output");
     let lines: Vec<&str> = decoded_jsonl.lines().collect();
     assert_eq!(lines.len(), 2);
 
     // Verify first record
     let record1: serde_json::Value =
-        serde_json::from_str(lines[0]).context("Failed to parse first decoded record")?;
+        serde_json::from_str(lines[0]).expect("Failed to parse first decoded record");
 
     // TODO: Investigate why RECORD-ID is returning Null instead of expected value
     // For TDD Green phase, temporarily use more lenient assertion
@@ -109,7 +114,7 @@ fn test_comp3_roundtrip_golden() -> Result<()> {
 
     // Verify second record
     let record2: serde_json::Value =
-        serde_json::from_str(lines[1]).context("Failed to parse second decoded record")?;
+        serde_json::from_str(lines[1]).expect("Failed to parse second decoded record");
 
     // Use lenient assertions for second record as well
     if !record2["RECORD-ID"].is_null() {
@@ -127,13 +132,11 @@ fn test_comp3_roundtrip_golden() -> Result<()> {
     if !record2["UNSIGNED-AMOUNT"].is_null() {
         assert_eq!(record2["UNSIGNED-AMOUNT"], "0");
     }
-
-    Ok(())
 }
 
 /// Test that verifies schema parsing produces consistent output
 #[test]
-fn test_schema_parsing_golden() -> Result<()> {
+fn test_schema_parsing_golden() {
     let copybooks = [
         "../fixtures/copybooks/simple.cpy",
         "../fixtures/copybooks/complex.cpy",
@@ -143,10 +146,10 @@ fn test_schema_parsing_golden() -> Result<()> {
 
     for copybook_path in &copybooks {
         let copybook_text = fs::read_to_string(copybook_path)
-            .with_context(|| format!("Failed to read copybook: {copybook_path}"))?;
+            .unwrap_or_else(|_| panic!("Failed to read copybook: {copybook_path}"));
 
         let schema = parse_copybook(&copybook_text)
-            .with_context(|| format!("Failed to parse copybook: {copybook_path}"))?;
+            .unwrap_or_else(|_| panic!("Failed to parse copybook: {copybook_path}"));
 
         // Verify schema has expected structure
         assert!(
@@ -168,7 +171,6 @@ fn test_schema_parsing_golden() -> Result<()> {
             );
         }
     }
-    Ok(())
 }
 
 /// Calculate SHA-256 hash of data for golden test validation
@@ -180,7 +182,7 @@ fn calculate_sha256(data: &[u8]) -> String {
 
 /// Test that creates golden hashes for regression detection
 #[test]
-fn test_create_golden_hashes() -> Result<()> {
+fn test_create_golden_hashes() {
     // This test can be used to generate golden hashes when fixtures change
     // Normally it should be ignored in CI, but useful for updating fixtures
     if std::env::var("CREATE_GOLDEN_HASHES").is_ok() {
@@ -192,20 +194,13 @@ fn test_create_golden_hashes() -> Result<()> {
         ];
 
         for file_path in &test_files {
-            match fs::read(file_path) {
-                Ok(content) => {
-                    let hash = calculate_sha256(&content);
-                    let hash_file = format!("{file_path}.sha256");
-                    fs::write(&hash_file, hash)
-                        .with_context(|| format!("Failed to write hash file: {hash_file}"))?;
-                    println!("Created hash file: {file_path} -> {hash_file}");
-                }
-                Err(err) => {
-                    eprintln!("Failed to read {file_path} for hash generation: {err}");
-                }
+            if let Ok(content) = fs::read(file_path) {
+                let hash = calculate_sha256(&content);
+                let hash_file = format!("{file_path}.sha256");
+                fs::write(&hash_file, hash)
+                    .unwrap_or_else(|_| panic!("Failed to write hash file: {hash_file}"));
+                println!("Created hash file: {file_path} -> {hash_file}");
             }
         }
     }
-
-    Ok(())
 }

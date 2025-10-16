@@ -187,17 +187,17 @@ fn ascii_char_or_dot(byte: u8) -> char {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
-    use anyhow::{anyhow, Result};
 
     #[test]
-    fn test_rdw_ascii_corruption_detection() -> Result<()> {
+    fn test_rdw_ascii_corruption_detection() {
         // Test ASCII digits in length field
         let rdw_with_ascii = [b'1', b'2', 0x00, 0x00];
-        let result = detect_rdw_ascii_corruption(&rdw_with_ascii)
-            .ok_or_else(|| anyhow!("expected ASCII corruption to be detected"))?;
-        assert_eq!(result.code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII);
+        let result = detect_rdw_ascii_corruption(&rdw_with_ascii);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII);
 
         // Test normal RDW
         let normal_rdw = [0x00, 0x50, 0x00, 0x00]; // Length 80, no reserved data
@@ -208,7 +208,6 @@ mod tests {
         let rdw_with_reserved_ascii = [0x00, 0x50, b'A', b'B'];
         let result = detect_rdw_ascii_corruption(&rdw_with_reserved_ascii);
         assert!(result.is_some());
-        Ok(())
     }
 
     #[test]

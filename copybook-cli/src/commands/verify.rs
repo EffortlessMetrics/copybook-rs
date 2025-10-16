@@ -187,10 +187,7 @@ pub fn run(
                 let error_offset = error.context.as_ref().and_then(|ctx| ctx.byte_offset);
                 let hex_data = record_bytes.as_ref().map(|bytes| {
                     if let Some(off) = error_offset {
-                        match usize::try_from(off) {
-                            Ok(offset) => hex_window(bytes, offset, HEX_CTX),
-                            Err(_) => hex_bytes(bytes, HEX_FALLBACK),
-                        }
+                        hex_window(bytes, usize::try_from(off).unwrap_or(0), HEX_CTX)
                     } else {
                         hex_bytes(bytes, HEX_FALLBACK)
                     }

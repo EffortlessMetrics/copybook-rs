@@ -161,16 +161,13 @@ impl BatchProcessor {
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
             if path.extension().map_or(false, |ext| ext == "dat") {
-                if let Some(stem) = path.file_stem() {
-                    let output_name = format!("{}.jsonl", stem.to_string_lossy());
-                    let output_path = output_dir.join(output_name);
-                    files.push((path, output_path));
-                } else {
-                    tracing::warn!(
-                        "Skipping batch input without valid filename stem: {}",
-                        path.display()
-                    );
-                }
+                let output_path = output_dir.join(
+                    path.file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string() + ".jsonl"
+                );
+                files.push((path, output_path));
             }
         }
 

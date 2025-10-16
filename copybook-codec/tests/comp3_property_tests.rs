@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_record, encode_record,
 };
@@ -26,10 +28,7 @@ mod comp3_roundtrip_tests {
             let schema = copybook_core::parse_copybook("
            01 REC.
               05 A PIC S9(9)V9(4) COMP-3.
-        ")
-            .map_err(|err| TestCaseError::fail(format!(
-                "Failed to parse COMP-3 schema: {err}"
-            )))?;
+        ").unwrap();
 
             let enc = EncodeOptions::new()
                 .with_format(RecordFormat::Fixed)
@@ -60,31 +59,18 @@ mod comp3_roundtrip_tests {
             let v = serde_json::json!({"A": s});
 
             // Encode to binary
-            let encoded = encode_record(&schema, &v, &enc)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to encode COMP-3 test data: {err}"
-                )))?;
+            let encoded = encode_record(&schema, &v, &enc).unwrap();
 
             // Decode back to JSON
-            let decoded = decode_record(&schema, &encoded, &dec)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to decode COMP-3 test data: {err}"
-                )))?;
+            let decoded = decode_record(&schema, &encoded, &dec).unwrap();
 
             // The decoded value should match the canonical form
             // (accounting for leading zeros and normalization)
-            let decoded_value = decoded.get("A").ok_or_else(|| {
-                TestCaseError::fail("Field A should exist in decoded result".to_string())
-            })?;
+            assert!(decoded.get("A").is_some(), "Field A should exist in decoded result");
 
-            let decoded_str = decoded_value.as_str().ok_or_else(|| {
-                TestCaseError::fail("Field A should decode as a string".to_string())
-            })?;
-
-            prop_assert!(
-                decoded_str.parse::<f64>().is_ok(),
-                "Decoded field A should parse as f64: {decoded_str}"
-            );
+            // Check that the decoded value is a valid number string
+            let decoded_str = decoded["A"].as_str().unwrap();
+            let _: f64 = decoded_str.parse().unwrap();
         }
     }
 
@@ -105,10 +91,7 @@ mod comp3_roundtrip_tests {
               05 A PIC S9({digits}) COMP-3.
         ");
 
-            let schema = copybook_core::parse_copybook(&schema_text)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to parse COMP-3 schema: {err}"
-                )))?;
+            let schema = copybook_core::parse_copybook(&schema_text).unwrap();
 
             let enc = EncodeOptions::new()
                 .with_format(RecordFormat::Fixed)
@@ -138,36 +121,18 @@ mod comp3_roundtrip_tests {
             let v = serde_json::json!({"A": s});
 
             // Encode to binary
-            let encoded = encode_record(&schema, &v, &enc)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to encode COMP-3 test data: {err}"
-                )))?;
+            let encoded = encode_record(&schema, &v, &enc).unwrap();
 
             // Decode back to JSON
-            let decoded = decode_record(&schema, &encoded, &dec)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to decode COMP-3 test data: {err}"
-                )))?;
+            let decoded = decode_record(&schema, &encoded, &dec).unwrap();
 
             // Verify the round-trip preserves the value
-            let decoded_value = decoded.get("A").ok_or_else(|| {
-                TestCaseError::fail("Field A should exist in decoded result".to_string())
-            })?;
-            let decoded_str = decoded_value.as_str().ok_or_else(|| {
-                TestCaseError::fail("Field A should decode as a string".to_string())
-            })?;
+            assert!(decoded.get("A").is_some());
+            let decoded_str = decoded["A"].as_str().unwrap();
 
             // Both should parse to the same numeric value
-            let original_val: f64 = s.parse().map_err(|err| {
-                TestCaseError::fail(format!(
-                    "Failed to parse original value {s}: {err}"
-                ))
-            })?;
-            let decoded_val: f64 = decoded_str.parse().map_err(|err| {
-                TestCaseError::fail(format!(
-                    "Failed to parse decoded value {decoded_str}: {err}"
-                ))
-            })?;
+            let original_val: f64 = s.parse().unwrap();
+            let decoded_val: f64 = decoded_str.parse().unwrap();
             assert!((original_val - decoded_val).abs() < f64::EPSILON);
         }
     }
@@ -193,10 +158,7 @@ mod comp3_roundtrip_tests {
               05 A PIC S9({int_digits})V9({scale}) COMP-3.
         ");
 
-            let schema = copybook_core::parse_copybook(&schema_text)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to parse COMP-3 schema: {err}"
-                )))?;
+            let schema = copybook_core::parse_copybook(&schema_text).unwrap();
 
             let enc = EncodeOptions::new()
                 .with_format(RecordFormat::Fixed)
@@ -226,36 +188,18 @@ mod comp3_roundtrip_tests {
             let v = serde_json::json!({"A": s});
 
             // Encode to binary
-            let encoded = encode_record(&schema, &v, &enc)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to encode COMP-3 test data: {err}"
-                )))?;
+            let encoded = encode_record(&schema, &v, &enc).unwrap();
 
             // Decode back to JSON
-            let decoded = decode_record(&schema, &encoded, &dec)
-                .map_err(|err| TestCaseError::fail(format!(
-                    "Failed to decode COMP-3 test data: {err}"
-                )))?;
+            let decoded = decode_record(&schema, &encoded, &dec).unwrap();
 
             // Verify round-trip
-            let decoded_value = decoded.get("A").ok_or_else(|| {
-                TestCaseError::fail("Field A should exist in decoded result".to_string())
-            })?;
-            let decoded_str = decoded_value.as_str().ok_or_else(|| {
-                TestCaseError::fail("Field A should decode as a string".to_string())
-            })?;
+            assert!(decoded.get("A").is_some());
+            let decoded_str = decoded["A"].as_str().unwrap();
 
             // Should parse to same numeric value
-            let original_val: f64 = s.parse().map_err(|err| {
-                TestCaseError::fail(format!(
-                    "Failed to parse original value {s}: {err}"
-                ))
-            })?;
-            let decoded_val: f64 = decoded_str.parse().map_err(|err| {
-                TestCaseError::fail(format!(
-                    "Failed to parse decoded value {decoded_str}: {err}"
-                ))
-            })?;
+            let original_val: f64 = s.parse().unwrap();
+            let decoded_val: f64 = decoded_str.parse().unwrap();
             assert!((original_val - decoded_val).abs() < f64::EPSILON);
         }
     }

@@ -12,13 +12,7 @@ fn main() {
    05 VARIABLE-ARRAY OCCURS 1 TO 5 TIMES DEPENDING ON COUNTER PIC X(4).
 "#;
 
-    let schema = match parse_copybook(copybook) {
-        Ok(schema) => schema,
-        Err(error) => {
-            eprintln!("Failed to parse copybook schema: {error}");
-            return;
-        }
-    };
+    let schema = parse_copybook(copybook).unwrap();
     println!("Schema LRECL: {:?}", schema.lrecl_fixed);
     println!("Schema tail_odo: {:?}", schema.tail_odo);
 
@@ -42,13 +36,10 @@ fn main() {
     match copybook_codec::decode_record(&schema, test_data, &options) {
         Ok(json_value) => {
             println!("decode_record SUCCESS!");
-            match serde_json::to_string_pretty(&json_value) {
-                Ok(pretty) => println!("JSON: {pretty}"),
-                Err(error) => eprintln!("Failed to format JSON output: {error}"),
-            }
+            println!("JSON: {}", serde_json::to_string_pretty(&json_value).unwrap());
         }
-        Err(error) => {
-            eprintln!("decode_record FAILED: {error}");
+        Err(e) => {
+            println!("decode_record FAILED: {:?}", e);
         }
     }
 }

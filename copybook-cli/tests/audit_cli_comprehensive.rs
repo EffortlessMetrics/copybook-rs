@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Comprehensive CLI Audit Command Tests
 //!
 //! Tests feature spec: enterprise-audit-system-spec.md#cli-integration
@@ -15,19 +17,16 @@
 
 #![cfg(feature = "audit")]
 
-mod test_utils;
-
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
 use tempfile::tempdir;
-use test_utils::TestResult;
 
 /// Tests feature spec: enterprise-audit-system-spec.md#cli-integration
 /// Test audit report command with comprehensive enterprise scenarios (AC7)
 #[test]
-fn test_audit_report_comprehensive() -> TestResult<()> {
-    let temp_dir = tempdir()?;
+fn test_audit_report_comprehensive() {
+    let temp_dir = tempdir().unwrap();
     let copybook_file = temp_dir.path().join("financial_sox.cpy");
     let output_file = temp_dir.path().join("audit_report.json");
 
@@ -39,9 +38,10 @@ fn test_audit_report_comprehensive() -> TestResult<()> {
            05 TRANSACTION-AMOUNT   PIC S9(13)V99 COMP-3.
            05 AUDIT-TRAIL-REF      PIC X(32).
     ",
-    )?;
+    )
+    .unwrap();
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("report")
         .arg("--compliance")
@@ -59,7 +59,7 @@ fn test_audit_report_comprehensive() -> TestResult<()> {
 
     // Verify output file exists and contains expected structure
     assert!(output_file.exists());
-    let _report_content = fs::read_to_string(&output_file)?;
+    let _report_content = fs::read_to_string(&output_file).unwrap();
 
     // TODO: Verify comprehensive report structure when implemented
     // assert!(report_content.contains("\"compliance_summary\""));
@@ -68,14 +68,13 @@ fn test_audit_report_comprehensive() -> TestResult<()> {
     // assert!(report_content.contains("\"data_lineage\""));
 
     println!("Audit report test passed (implementation pending)");
-    Ok(())
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#compliance-validation
 /// Test audit validate command with multiple compliance frameworks (AC3, AC7)
 #[test]
-fn test_audit_validate_multi_compliance() -> TestResult<()> {
-    let temp_dir = tempdir()?;
+fn test_audit_validate_multi_compliance() {
+    let temp_dir = tempdir().unwrap();
     let copybook_file = temp_dir.path().join("healthcare_hipaa.cpy");
     let validation_report = temp_dir.path().join("validation_report.json");
 
@@ -92,9 +91,10 @@ fn test_audit_validate_multi_compliance() -> TestResult<()> {
            05 CONSENT-STATUS       PIC X(1).
                88 CONSENT-OBTAINED VALUE 'Y'.
     ",
-    )?;
+    )
+    .unwrap();
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("validate")
         .arg("--compliance")
@@ -114,17 +114,16 @@ fn test_audit_validate_multi_compliance() -> TestResult<()> {
 
     // Verify validation report generated
     if validation_report.exists() {
-        let report_content = fs::read_to_string(&validation_report)?;
+        let report_content = fs::read_to_string(&validation_report).unwrap();
         println!("Validation report generated: {report_content}");
     }
-    Ok(())
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#data-lineage
 /// Test audit lineage command with field-level tracking (AC6, AC7)
 #[test]
-fn test_audit_lineage_field_level() -> TestResult<()> {
-    let temp_dir = tempdir()?;
+fn test_audit_lineage_field_level() {
+    let temp_dir = tempdir().unwrap();
     let source_copybook = temp_dir.path().join("source_schema.cpy");
     let lineage_report = temp_dir.path().join("lineage_report.json");
 
@@ -140,9 +139,10 @@ fn test_audit_lineage_field_level() -> TestResult<()> {
                88 ACTIVE-STATUS    VALUE 'AC'.
                88 INACTIVE-STATUS  VALUE 'IN'.
     ",
-    )?;
+    )
+    .unwrap();
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("lineage")
         .arg("--source-system")
@@ -163,7 +163,7 @@ fn test_audit_lineage_field_level() -> TestResult<()> {
 
     // Verify lineage report structure
     if lineage_report.exists() {
-        let _lineage_content = fs::read_to_string(&lineage_report)?;
+        let _lineage_content = fs::read_to_string(&lineage_report).unwrap();
 
         // TODO: Verify comprehensive lineage structure when implemented
         // assert!(lineage_content.contains("\"field_mappings\""));
@@ -172,14 +172,13 @@ fn test_audit_lineage_field_level() -> TestResult<()> {
 
         println!("Lineage report test passed (implementation pending)");
     }
-    Ok(())
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#performance-audit
 /// Test audit performance command with baseline validation (AC4, AC7, AC11)
 #[test]
-fn test_audit_performance_baseline() -> TestResult<()> {
-    let temp_dir = tempdir()?;
+fn test_audit_performance_baseline() {
+    let temp_dir = tempdir().unwrap();
     let performance_copybook = temp_dir.path().join("performance_test.cpy");
     let baseline_file = temp_dir.path().join("performance_baseline.json");
     let performance_report = temp_dir.path().join("performance_report.json");
@@ -198,10 +197,11 @@ fn test_audit_performance_baseline() -> TestResult<()> {
                10 TRANSACTION-AMOUNT   PIC S9(11)V99 COMP-3.
                10 INTEREST-RATE        PIC S9(3)V9999 COMP-3.
     ",
-    )?;
+    )
+    .unwrap();
 
     // Test baseline establishment
-    let mut baseline_cmd = Command::cargo_bin("copybook")?;
+    let mut baseline_cmd = Command::cargo_bin("copybook").unwrap();
     baseline_cmd
         .arg("audit")
         .arg("performance")
@@ -219,7 +219,7 @@ fn test_audit_performance_baseline() -> TestResult<()> {
     baseline_cmd.assert().success();
 
     // Test performance validation against baseline
-    let mut validation_cmd = Command::cargo_bin("copybook")?;
+    let mut validation_cmd = Command::cargo_bin("copybook").unwrap();
     validation_cmd
         .arg("audit")
         .arg("performance")
@@ -236,7 +236,7 @@ fn test_audit_performance_baseline() -> TestResult<()> {
 
     // Verify performance report generated
     if performance_report.exists() {
-        let _report_content = fs::read_to_string(&performance_report)?;
+        let _report_content = fs::read_to_string(&performance_report).unwrap();
 
         // TODO: Verify performance metrics when implemented
         // assert!(report_content.contains("\"display_throughput_gbps\""));
@@ -245,14 +245,13 @@ fn test_audit_performance_baseline() -> TestResult<()> {
 
         println!("Performance audit test passed (implementation pending)");
     }
-    Ok(())
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#security-audit
 /// Test audit security command with access pattern analysis (AC5, AC7)
 #[test]
-fn test_audit_security_comprehensive() -> TestResult<()> {
-    let temp_dir = tempdir()?;
+fn test_audit_security_comprehensive() {
+    let temp_dir = tempdir().unwrap();
     let security_copybook = temp_dir.path().join("security_test.cpy");
     let security_report = temp_dir.path().join("security_report.json");
     let access_log = temp_dir.path().join("access_log.jsonl");
@@ -270,15 +269,16 @@ fn test_audit_security_comprehensive() -> TestResult<()> {
                88 ENCRYPTED        VALUE 'Y'.
                88 UNENCRYPTED      VALUE 'N'.
     ",
-    )?;
+    )
+    .unwrap();
 
     // Create mock access log
     fs::write(&access_log, "
 {\"timestamp\": \"2024-09-25T10:00:00Z\", \"user\": \"test_user\", \"action\": \"read\", \"resource\": \"sensitive_record\"}
 {\"timestamp\": \"2024-09-25T10:01:00Z\", \"user\": \"test_user\", \"action\": \"write\", \"resource\": \"sensitive_record\"}
-    ")?;
+    ").unwrap();
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("security")
         .arg("--access-log")
@@ -295,7 +295,7 @@ fn test_audit_security_comprehensive() -> TestResult<()> {
 
     // Verify security report structure
     if security_report.exists() {
-        let _report_content = fs::read_to_string(&security_report)?;
+        let _report_content = fs::read_to_string(&security_report).unwrap();
 
         // TODO: Verify security analysis structure when implemented
         // assert!(report_content.contains("\"sensitive_fields\""));
@@ -304,28 +304,24 @@ fn test_audit_security_comprehensive() -> TestResult<()> {
 
         println!("Security audit test passed (implementation pending)");
     }
-    Ok(())
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#audit-trail-integrity
 /// Test audit health command with integrity validation (AC10, AC7)
 #[test]
-fn test_audit_health_integrity() -> TestResult<()> {
-    let temp_dir = tempdir()?;
+fn test_audit_health_integrity() {
+    let temp_dir = tempdir().unwrap();
     let audit_log = temp_dir.path().join("audit_trail.jsonl");
     let health_report = temp_dir.path().join("health_report.json");
 
     // Create mock audit trail
     fs::write(&audit_log, "
-{\"event_id\": \"audit-001\", \"timestamp\": \"2024-09-25T10:00:00Z\", \"integrity_hash\": \"a1b2c3d4\", \"previous_hash\": null
-}
-{\"event_id\": \"audit-002\", \"timestamp\": \"2024-09-25T10:01:00Z\", \"integrity_hash\": \"e5f6g7h8\", \"previous_hash\": \"a1
-b2c3d4\"}
-{\"event_id\": \"audit-003\", \"timestamp\": \"2024-09-25T10:02:00Z\", \"integrity_hash\": \"i9j0k1l2\", \"previous_hash\": \"e5
-f6g7h8\"}
-    ")?;
+{\"event_id\": \"audit-001\", \"timestamp\": \"2024-09-25T10:00:00Z\", \"integrity_hash\": \"a1b2c3d4\", \"previous_hash\": null}
+{\"event_id\": \"audit-002\", \"timestamp\": \"2024-09-25T10:01:00Z\", \"integrity_hash\": \"e5f6g7h8\", \"previous_hash\": \"a1b2c3d4\"}
+{\"event_id\": \"audit-003\", \"timestamp\": \"2024-09-25T10:02:00Z\", \"integrity_hash\": \"i9j0k1l2\", \"previous_hash\": \"e5f6g7h8\"}
+    ").unwrap();
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("health")
         .arg("--audit-log")
@@ -342,7 +338,7 @@ f6g7h8\"}
 
     // Verify health report generated
     if health_report.exists() {
-        let _report_content = fs::read_to_string(&health_report)?;
+        let _report_content = fs::read_to_string(&health_report).unwrap();
 
         // TODO: Verify health check structure when implemented
         // assert!(report_content.contains("\"chain_integrity_valid\""));
@@ -351,30 +347,30 @@ f6g7h8\"}
 
         println!("Health check test passed (implementation pending)");
     }
-    Ok(())
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#cli-integration
 /// Test audit command error handling and validation
 #[test]
-fn test_audit_command_error_handling() -> TestResult<()> {
+fn test_audit_command_error_handling() {
     // Test missing arguments
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit").arg("validate");
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("required arguments"));
 
     // Test invalid compliance profile
-    let temp_dir = tempdir()?;
+    let temp_dir = tempdir().unwrap();
     let copybook_file = temp_dir.path().join("test.cpy");
     fs::write(
         &copybook_file,
         "01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).",
-    )?;
+    )
+    .unwrap();
 
     let output_file = temp_dir.path().join("validation_output.json");
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("validate")
         .arg("--compliance")
@@ -389,7 +385,7 @@ fn test_audit_command_error_handling() -> TestResult<()> {
 
     // Test nonexistent file
     let output_file2 = temp_dir.path().join("report_output.json");
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("report")
         .arg("--output")
@@ -399,14 +395,13 @@ fn test_audit_command_error_handling() -> TestResult<()> {
     cmd.assert()
         .failure()
         .stderr(predicate::str::contains("No such file"));
-    Ok(())
 }
 
 /// Tests feature spec: enterprise-audit-system-spec.md#enterprise-integration
 /// Test audit command with SIEM integration options (AC8)
 #[test]
-fn test_audit_siem_integration() -> TestResult<()> {
-    let temp_dir = tempdir()?;
+fn test_audit_siem_integration() {
+    let temp_dir = tempdir().unwrap();
     let copybook_file = temp_dir.path().join("siem_test.cpy");
     let siem_output = temp_dir.path().join("siem_events.cef");
 
@@ -421,10 +416,11 @@ fn test_audit_siem_integration() -> TestResult<()> {
                88 LOW-SECURITY     VALUE 'L'.
            05 THREAT-INDICATOR     PIC X(50).
     ",
-    )?;
+    )
+    .unwrap();
 
     let security_report = temp_dir.path().join("security_report.json");
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = Command::cargo_bin("copybook").unwrap();
     cmd.arg("audit")
         .arg("security")
         .arg("--siem-format")
@@ -443,8 +439,7 @@ fn test_audit_siem_integration() -> TestResult<()> {
 
     // TODO: Verify CEF format output when implemented
     if siem_output.exists() {
-        let _cef_content = fs::read_to_string(&siem_output)?;
+        let _cef_content = fs::read_to_string(&siem_output).unwrap();
         println!("SIEM integration test generated CEF output (implementation pending)");
     }
-    Ok(())
 }

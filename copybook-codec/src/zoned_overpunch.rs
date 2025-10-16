@@ -9,7 +9,6 @@
 
 use crate::options::Codepage;
 use copybook_core::{Error, ErrorCode, Result};
-use std::convert::TryFrom;
 
 // Visible in tests; harmless in non-test builds. Keep pedantic quiet.
 #[allow(dead_code)]
@@ -35,10 +34,8 @@ pub struct OverpunchMapping {
     pub byte_value: u8,
 }
 
-/// ASCII overpunch for the *last* digit in a field.
-/// +0..+9 encode to `{`, `A`..`I`; -0..-9 encode to `}`, `J`..`R`.
-/// Non-final digits MUST be bare ASCII `0`..`9`; helpers enforce this.
-/// Maps digit (0-9) to positive overpunch character.
+/// ASCII positive overpunch lookup table (O(1) access)
+/// Maps digit (0-9) to positive overpunch character
 static ASCII_POSITIVE_OVERPUNCH: [u8; 10] = [
     b'{', // 0 -> '{'
     b'A', // 1 -> 'A'
@@ -114,7 +111,6 @@ static ASCII_OVERPUNCH_DECODE: [Option<(u8, bool)>; 256] = {
 /// EBCDIC overpunch encoding: (digit, `is_negative`) -> zone nibble
 /// Returns the zone nibble (high 4 bits) for the given digit and sign
 #[must_use]
-#[inline]
 pub fn encode_ebcdic_overpunch_zone(digit: u8, is_negative: bool, policy: ZeroSignPolicy) -> u8 {
     debug_assert!(digit <= 9, "Digit must be 0-9");
 
@@ -132,12 +128,12 @@ pub fn encode_ebcdic_overpunch_zone(digit: u8, is_negative: bool, policy: ZeroSi
 /// EBCDIC overpunch decoding: zone nibble -> (`is_signed`, `is_negative`)
 /// Returns None for invalid zone nibbles
 #[must_use]
-#[inline]
 pub const fn decode_ebcdic_overpunch_zone(zone: u8) -> Option<(bool, bool)> {
     match zone {
-        0xC | 0xF => Some((true, false)), // Positive (preferred for zero)
-        0xD => Some((true, true)),        // Negative
-        _ => None,                        // Invalid zone for signed field
+        0xC => Some((true, false)), // Positive
+        0xD => Some((true, true)),  // Negative
+        0xF => Some((true, false)), // Preferred positive (often used for zero)
+        _ => None,                  // Invalid zone for signed field
     }
 }
 
@@ -145,7 +141,6 @@ pub const fn decode_ebcdic_overpunch_zone(zone: u8) -> Option<(bool, bool)> {
 ///
 /// # Errors
 /// Returns an error if the digit is invalid or the encoding fails
-#[inline]
 pub fn encode_overpunch_byte(
     digit: u8,
     is_negative: bool,
@@ -185,7 +180,6 @@ pub fn encode_overpunch_byte(
 ///
 /// # Errors
 /// Returns an error if the byte is not a valid overpunch character
-#[inline]
 pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)> {
     if codepage == Codepage::ASCII {
         if let Some((digit, is_negative)) = ASCII_OVERPUNCH_DECODE[byte as usize] {
@@ -227,7 +221,6 @@ pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)>
 
 /// Check if a byte is a valid overpunch character for the given codepage
 #[must_use]
-#[inline]
 pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
     if codepage == Codepage::ASCII {
         ASCII_OVERPUNCH_DECODE[byte as usize].is_some()
@@ -240,13 +233,18 @@ pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
 
 /// Get all valid overpunch bytes for testing purposes
 #[must_use]
-#[inline]
 pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
     if codepage == Codepage::ASCII {
         ASCII_OVERPUNCH_DECODE
             .iter()
             .enumerate()
-            .filter_map(|(byte, mapping)| mapping.and_then(|_| u8::try_from(byte).ok()))
+            .filter_map(|(byte, mapping)| {
+                if mapping.is_some() {
+                    Some(u8::try_from(byte).unwrap_or(0))
+                } else {
+                    None
+                }
+            })
             .collect()
     } else {
         let mut bytes = Vec::new();

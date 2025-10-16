@@ -1,12 +1,11 @@
-mod test_utils;
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
 use std::process::Command;
-use test_utils::{TestResult, path_to_str};
 
 #[test]
-fn odo_copybook_loads_in_both_modes() -> TestResult<()> {
+fn odo_copybook_loads_in_both_modes() -> Result<(), Box<dyn std::error::Error>> {
     // Counter precedes array; simple 0..3 bound
     let cpy = r"
 01 REC.
@@ -19,17 +18,15 @@ fn odo_copybook_loads_in_both_modes() -> TestResult<()> {
     let f = tmp.child("odo_ok.cpy");
     f.write_str(cpy)?;
 
-    let copybook_str = path_to_str(f.path())?;
-
     // Test that ODO copybook loads successfully (lenient mode)
     Command::cargo_bin("copybook")?
-        .args(["inspect", copybook_str])
+        .args(["inspect", f.path().to_str().unwrap()])
         .assert()
         .success();
 
     // strict
     Command::cargo_bin("copybook")?
-        .args(["inspect", "--strict", copybook_str])
+        .args(["inspect", "--strict", f.path().to_str().unwrap()])
         .assert()
         .success();
 

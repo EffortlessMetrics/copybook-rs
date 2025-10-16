@@ -1,12 +1,11 @@
-mod test_utils;
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
 use std::process::Command;
-use test_utils::{TestResult, path_to_str};
 
 #[test]
-fn fixed_form_sequence_and_continuation_are_handled() -> TestResult<()> {
+fn fixed_form_sequence_and_continuation_are_handled() -> Result<(), Box<dyn std::error::Error>> {
     // Columns: 1-6 seq, 7 indicator, 8-72 code, 73-80 id/comment
     // Includes column-7 continuation and trailing id area numbers.
     let cpy = "\
@@ -19,10 +18,8 @@ fn fixed_form_sequence_and_continuation_are_handled() -> TestResult<()> {
     let f = tmp.child("fixed_form_ok.cpy");
     f.write_str(cpy)?;
 
-    let copybook_str = path_to_str(f.path())?;
-
     Command::cargo_bin("copybook")?
-        .args(["inspect", copybook_str])
+        .args(["inspect", f.path().to_str().unwrap()])
         .assert()
         .success();
 

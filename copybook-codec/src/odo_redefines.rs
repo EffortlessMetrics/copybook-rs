@@ -579,12 +579,10 @@ pub fn validate_odo_encode(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
-    use anyhow::{Context, Result};
     use copybook_core::{Field, FieldKind, Schema};
-
-    type TestResult = Result<()>;
 
     fn create_test_schema_with_odo() -> Schema {
         let mut schema = Schema::new();
@@ -634,65 +632,54 @@ mod tests {
     }
 
     #[test]
-    fn test_odo_validation_within_bounds() -> TestResult {
+    fn test_odo_validation_within_bounds() {
         let result =
-            validate_odo_counter(3, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
+            validate_odo_counter(3, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false).unwrap();
 
         assert_eq!(result.actual_count, 3);
         assert!(!result.was_clamped);
         assert!(result.warning.is_none());
-
-        Ok(())
     }
 
     #[test]
-    fn test_odo_validation_strict_mode_over_max() -> TestResult {
-        let error = validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, true)
-            .err()
-            .context("expected ODO validation to fail in strict mode")?;
+    fn test_odo_validation_strict_mode_over_max() {
+        let result = validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, true);
 
+        assert!(result.is_err());
+        let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKS301_ODO_CLIPPED);
+        assert!(error.context.is_some());
 
-        let context = error
-            .context
-            .context("expected error context for strict ODO failure")?;
+        let context = error.context.unwrap();
         assert_eq!(context.record_index, Some(1));
         assert_eq!(context.field_path, Some("ROOT.ARRAY".to_string()));
         assert_eq!(context.byte_offset, Some(3));
-
-        Ok(())
     }
 
     #[test]
-    fn test_odo_validation_lenient_mode_clamp_max() -> TestResult {
+    fn test_odo_validation_lenient_mode_clamp_max() {
         let result =
-            validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
+            validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false).unwrap();
 
         assert_eq!(result.actual_count, 5);
         assert!(result.was_clamped);
+        assert!(result.warning.is_some());
 
-        let warning = result
-            .warning
-            .context("expected warning when lenient mode clamps to max")?;
+        let warning = result.warning.unwrap();
         assert_eq!(warning.code, ErrorCode::CBKS301_ODO_CLIPPED);
-
-        Ok(())
     }
 
     #[test]
-    fn test_odo_validation_lenient_mode_raise_min() -> TestResult {
+    fn test_odo_validation_lenient_mode_raise_min() {
         let result =
-            validate_odo_counter(0, 1, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
+            validate_odo_counter(0, 1, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false).unwrap();
 
         assert_eq!(result.actual_count, 1);
         assert!(result.was_clamped);
+        assert!(result.warning.is_some());
 
-        let warning = result
-            .warning
-            .context("expected warning when lenient mode raises to min")?;
+        let warning = result.warning.unwrap();
         assert_eq!(warning.code, ErrorCode::CBKS302_ODO_RAISED);
-
-        Ok(())
     }
 
     #[test]
@@ -705,7 +692,7 @@ mod tests {
     }
 
     #[test]
-    fn test_odo_tail_position_validation_counter_after_array() -> TestResult {
+    fn test_odo_tail_position_validation_counter_after_array() {
         let mut schema = create_test_schema_with_odo();
 
         // Swap offsets to make counter come after array
@@ -714,27 +701,24 @@ mod tests {
 
         let result = validate_odo_tail_position(&schema, "ROOT.ARRAY", "ROOT.COUNTER");
 
-        let error = result
-            .err()
-            .context("expected failure when counter trails array")?;
+        assert!(result.is_err());
+        let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
-        Ok(())
     }
 
     #[test]
-    fn test_missing_counter_field_handling() -> TestResult {
+    fn test_missing_counter_field_handling() {
         let schema = Schema::new(); // Empty schema
 
         let error = handle_missing_counter_field("NONEXISTENT", "ROOT.ARRAY", &schema, 1, 10);
 
         assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
-        let context = error
-            .context
-            .context("expected context describing missing counter field")?;
+        assert!(error.context.is_some());
+
+        let context = error.context.unwrap();
         assert_eq!(context.record_index, Some(1));
         assert_eq!(context.field_path, Some("ROOT.ARRAY".to_string()));
         assert_eq!(context.byte_offset, Some(10));
-        Ok(())
     }
 
     #[test]

@@ -1,10 +1,6 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::cast_precision_loss)]
-
-use anyhow::{Context, Result};
 use copybook_core::{Field, FieldKind, Schema};
-use serde_json::Value;
-
-type TestResult = Result<()>;
 
 struct DummyWriter {
     json_buffer: String,
@@ -69,7 +65,7 @@ impl DummyWriter {
 }
 
 #[test]
-fn test_streaming_metadata_fingerprint_matches_schema() -> TestResult {
+fn test_streaming_metadata_fingerprint_matches_schema() {
     let field = Field {
         path: "ROOT.A".to_string(),
         name: "A".to_string(),
@@ -91,13 +87,6 @@ fn test_streaming_metadata_fingerprint_matches_schema() -> TestResult {
     writer.write_record_metadata(schema.fingerprint.as_str(), 0, 0, 0, &mut first);
 
     let json_str = format!("{{{}}}", writer.json_buffer);
-    let value: Value = serde_json::from_str(&json_str).context("parsing metadata JSON")?;
-
-    let fingerprint = value
-        .get("__schema_id")
-        .and_then(Value::as_str)
-        .context("missing __schema_id field")?;
-    assert_eq!(fingerprint, schema.fingerprint);
-
-    Ok(())
+    let value: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+    assert_eq!(value["__schema_id"].as_str().unwrap(), schema.fingerprint);
 }

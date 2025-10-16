@@ -1,12 +1,11 @@
-mod test_utils;
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use assert_cmd::prelude::*;
 use assert_fs::prelude::*;
 use std::process::Command;
-use test_utils::{TestResult, path_to_str};
 
 #[test]
-fn edited_pic_is_a_hard_error() -> TestResult<()> {
+fn edited_pic_is_a_hard_error() -> Result<(), Box<dyn std::error::Error>> {
     // Edited picture (unsupported): ZZ9.99
     let cpy = r"
 01 REC.
@@ -17,10 +16,8 @@ fn edited_pic_is_a_hard_error() -> TestResult<()> {
     let f = tmp.child("edited_pic.cpy");
     f.write_str(cpy)?;
 
-    let copybook_str = path_to_str(f.path())?;
-
     let output = Command::cargo_bin("copybook")?
-        .args(["inspect", copybook_str])
+        .args(["inspect", f.path().to_str().unwrap()])
         .output()?;
 
     assert!(!output.status.success());

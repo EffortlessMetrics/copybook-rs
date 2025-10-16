@@ -4,7 +4,6 @@
 //! processing, including AST construction, layout resolution, and schema validation.
 //!
 
-#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 // Allow missing inline for public methods in this library - too many methods to inline individually
 #![allow(clippy::missing_inline_in_public_items)]
 #![allow(clippy::missing_errors_doc)]
@@ -69,18 +68,8 @@
 //!                88  RUSH-ORDER      VALUE 99999999.
 //! "#;
 //!
-//! // Parse with default options and handle any errors gracefully
-//! let schema_default = match parse_copybook(copybook_text) {
-//!     Ok(schema) => schema,
-//!     Err(error) => {
-//!         eprintln!("Failed to parse copybook: {error}");
-//!         return;
-//!     }
-//! };
-//! println!(
-//!     "Default parsing produced {} top-level fields",
-//!     schema_default.fields.len()
-//! );
+//! // Parse with default options
+//! let schema = parse_copybook(copybook_text).unwrap();
 //!
 //! // Parse with custom options for enhanced validation
 //! let options = ParseOptions {
@@ -88,16 +77,10 @@
 //!     strict: true,
 //!     ..Default::default()
 //! };
-//! let schema_strict = match parse_copybook_with_options(copybook_text, &options) {
-//!     Ok(schema) => schema,
-//!     Err(error) => {
-//!         eprintln!("Strict parsing failed: {error}");
-//!         return;
-//!     }
-//! };
+//! let schema = parse_copybook_with_options(copybook_text, &options).unwrap();
 //!
 //! // Examine the parsed schema including Level-88 conditions
-//! for field in &schema_strict.fields {
+//! for field in &schema.fields {
 //!     match &field.kind {
 //!         FieldKind::Condition { values } => {
 //!             println!("Level-88 condition '{}' with values: {:?}", field.name, values);
@@ -106,10 +89,8 @@
 //!             println!("Group field: {}", field.name);
 //!         }
 //!         _ => {
-//!             println!(
-//!                 "Data field: {} (offset: {}, size: {})",
-//!                 field.name, field.offset, field.len
-//!             );
+//!             println!("Data field: {} (offset: {}, size: {})",
+//!                      field.name, field.offset, field.len);
 //!         }
 //!     }
 //! }

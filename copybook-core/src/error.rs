@@ -97,8 +97,6 @@ pub enum ErrorCode {
     CBKD301_RECORD_TOO_SHORT,
     /// CBKD401: Invalid packed decimal nibble value
     CBKD401_COMP3_INVALID_NIBBLE,
-    /// CBKD410: Zoned decimal value exceeded numeric capacity
-    CBKD410_ZONED_OVERFLOW,
     /// CBKD411: Invalid zoned decimal sign zone
     CBKD411_ZONED_BAD_SIGN,
     /// CBKD412: Zoned field contains all spaces (BLANK WHEN ZERO processing)
@@ -162,7 +160,6 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKD101_INVALID_FIELD_TYPE => "CBKD101_INVALID_FIELD_TYPE",
             ErrorCode::CBKD301_RECORD_TOO_SHORT => "CBKD301_RECORD_TOO_SHORT",
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE => "CBKD401_COMP3_INVALID_NIBBLE",
-            ErrorCode::CBKD410_ZONED_OVERFLOW => "CBKD410_ZONED_OVERFLOW",
             ErrorCode::CBKD411_ZONED_BAD_SIGN => "CBKD411_ZONED_BAD_SIGN",
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => "CBKD412_ZONED_BLANK_IS_ZERO",
             ErrorCode::CBKD413_ZONED_INVALID_ENCODING => "CBKD413_ZONED_INVALID_ENCODING",

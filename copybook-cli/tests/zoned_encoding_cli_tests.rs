@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Test scaffolding for CLI zoned encoding flags - Issue #48
 //!
 //! Tests CLI interface spec: SPEC.manifest.yml#cli-interface-new-flags
@@ -7,38 +9,16 @@
 //! - AC6: CLI encode command supports --zoned-encoding flag
 //! - CLI argument parsing and validation
 
-mod test_utils;
-
 use assert_cmd::Command;
 use std::fs;
+// use std::path::Path; // TODO: Remove when not needed
+use std::error::Error;
 use tempfile::TempDir;
-use test_utils::{TestResult, path_to_str};
-
-fn command_output<'a, I>(args: I) -> TestResult<std::process::Output>
-where
-    I: IntoIterator<Item = &'a str>,
-{
-    Ok(Command::cargo_bin("copybook")?.args(args).output()?)
-}
-
-fn assert_cli_failure<'a, I>(args: I, context: &str) -> TestResult<()>
-where
-    I: IntoIterator<Item = &'a str>,
-{
-    let output = command_output(args)?;
-    assert!(
-        !output.status.success(),
-        "{context}: stdout: {} stderr: {}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    Ok(())
-}
 
 /// AC5: Test CLI decode command --preserve-encoding flag support
 /// Tests CLI interface spec: SPEC.manifest.yml#decode-command-preserve-encoding
 #[test]
-fn test_decode_preserve_encoding_flag() -> TestResult<()> {
+fn test_decode_preserve_encoding_flag() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let data_path = temp_dir.path().join("test.bin");
@@ -50,28 +30,36 @@ fn test_decode_preserve_encoding_flag() -> TestResult<()> {
     // Create test data with ASCII zoned decimal
     fs::write(&data_path, b"\x31\x32\x33")?; // ASCII "123"
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-
-    // TODO: Verify output contains encoding metadata when flag is working
-    // When implemented, should succeed and preserve ASCII encoding in output JSON
-
-    assert_cli_failure(
-        [
+    // TODO: This should work when --preserve-encoding flag is implemented
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
             "decode",
             "--preserve-encoding", // This flag should be implemented
             "--format",
             "fixed",
             "--codepage",
             "ascii",
-            copybook_str.as_str(),
-            data_str.as_str(),
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
             "--output",
-            output_str.as_str(),
-        ],
-        "--preserve-encoding flag not yet implemented - expected TDD Red phase failure",
-    )?;
+            output_path.to_str().unwrap(),
+        ])
+        .output();
+
+    // For now, this should fail because the flag doesn't exist
+    // When implemented, should succeed and preserve ASCII encoding in output JSON
+
+    // TODO: Verify output contains encoding metadata when flag is working
+    // assert!(output.is_ok());
+    // let output_content = fs::read_to_string(&output_path)?;
+    // assert!(output_content.contains("ascii"), "Output should contain ASCII encoding metadata");
+
+    // Expected failure until flag is implemented
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "--preserve-encoding flag not yet implemented - expected TDD Red phase failure"
+    );
 
     Ok(())
 }
@@ -79,7 +67,7 @@ fn test_decode_preserve_encoding_flag() -> TestResult<()> {
 /// AC5: Test CLI decode command --preferred-zoned-encoding flag support
 /// Tests CLI interface spec: SPEC.manifest.yml#decode-command-preferred-zoned-encoding
 #[test]
-fn test_decode_preferred_zoned_encoding_flag() -> TestResult<()> {
+fn test_decode_preferred_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let data_path = temp_dir.path().join("test.bin");
@@ -91,29 +79,80 @@ fn test_decode_preferred_zoned_encoding_flag() -> TestResult<()> {
     // Create test data with ambiguous zones (all zeros)
     fs::write(&data_path, b"\x00\x00\x00")?; // Zeros - ambiguous encoding
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
+    // Test ASCII preference
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            "--preserve-encoding",
+            "--preferred-zoned-encoding",
+            "ascii", // This flag should be implemented
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output();
 
-    for preference in ["ascii", "ebcdic", "auto"] {
-        assert_cli_failure(
-            [
-                "decode",
-                "--preserve-encoding",
-                "--preferred-zoned-encoding",
-                preference, // This flag should be implemented
-                "--format",
-                "fixed",
-                "--codepage",
-                "cp037",
-                copybook_str.as_str(),
-                data_str.as_str(),
-                "--output",
-                output_str.as_str(),
-            ],
-            "--preferred-zoned-encoding flag not yet implemented - expected TDD Red phase failure",
-        )?;
-    }
+    // Expected failure until flag is implemented
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "--preferred-zoned-encoding flag not yet implemented - expected TDD Red phase failure"
+    );
+
+    // Test EBCDIC preference
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            "--preserve-encoding",
+            "--preferred-zoned-encoding",
+            "ebcdic", // This flag should be implemented
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output();
+
+    // Expected failure until flag is implemented
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "--preferred-zoned-encoding flag not yet implemented - expected TDD Red phase failure"
+    );
+
+    // Test Auto preference
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            "--preserve-encoding",
+            "--preferred-zoned-encoding",
+            "auto", // This flag should be implemented
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output();
+
+    // Expected failure until flag is implemented
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "--preferred-zoned-encoding flag not yet implemented - expected TDD Red phase failure"
+    );
 
     Ok(())
 }
@@ -121,7 +160,7 @@ fn test_decode_preferred_zoned_encoding_flag() -> TestResult<()> {
 /// AC6: Test CLI encode command --zoned-encoding flag support
 /// Tests CLI interface spec: SPEC.manifest.yml#encode-command-zoned-encoding
 #[test]
-fn test_encode_zoned_encoding_flag() -> TestResult<()> {
+fn test_encode_zoned_encoding_flag() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let input_path = temp_dir.path().join("input.jsonl");
@@ -133,27 +172,51 @@ fn test_encode_zoned_encoding_flag() -> TestResult<()> {
     // Create test JSON input
     fs::write(&input_path, r#"{"ZONED-FIELD": "123"}"#)?;
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let input_str = path_to_str(&input_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
+    // Test ASCII encoding override
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "encode",
+            "--zoned-encoding",
+            "ascii", // This flag should be implemented
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            copybook_path.to_str().unwrap(),
+            input_path.to_str().unwrap(),
+            output_path.to_str().unwrap(),
+        ])
+        .output();
 
-    for encoding in ["ascii", "ebcdic", "auto"] {
-        assert_cli_failure(
-            [
-                "encode",
-                "--zoned-encoding",
-                encoding, // This flag should be implemented
-                "--format",
-                "fixed",
-                "--codepage",
-                "cp037",
-                copybook_str.as_str(),
-                input_str.as_str(),
-                output_str.as_str(),
-            ],
-            "--zoned-encoding flag not yet implemented - expected TDD Red phase failure",
-        )?;
-    }
+    // Expected failure until flag is implemented
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "--zoned-encoding flag not yet implemented - expected TDD Red phase failure"
+    );
+
+    // Test EBCDIC encoding override
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "encode",
+            "--zoned-encoding",
+            "ebcdic", // This flag should be implemented
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            copybook_path.to_str().unwrap(),
+            input_path.to_str().unwrap(),
+            output_path.to_str().unwrap(),
+        ])
+        .output();
+
+    // Expected failure until flag is implemented
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "--zoned-encoding flag not yet implemented - expected TDD Red phase failure"
+    );
 
     Ok(())
 }
@@ -161,7 +224,7 @@ fn test_encode_zoned_encoding_flag() -> TestResult<()> {
 /// Test CLI argument validation for invalid encoding format values
 /// Tests CLI interface spec: SPEC.manifest.yml#cli-argument-validation
 #[test]
-fn test_cli_encoding_format_validation() -> TestResult<()> {
+fn test_cli_encoding_format_validation() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let data_path = temp_dir.path().join("test.bin");
@@ -171,14 +234,10 @@ fn test_cli_encoding_format_validation() -> TestResult<()> {
     fs::write(&copybook_path, "01 FIELD PIC 9(1).")?;
     fs::write(&data_path, b"\x31")?;
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-
-    // Should fail with validation error when flag is implemented
-    // For now, will fail because flag doesn't exist
-    assert_cli_failure(
-        [
+    // Test invalid preferred-zoned-encoding value
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
             "decode",
             "--preserve-encoding",
             "--preferred-zoned-encoding",
@@ -187,13 +246,19 @@ fn test_cli_encoding_format_validation() -> TestResult<()> {
             "fixed",
             "--codepage",
             "ascii",
-            copybook_str.as_str(),
-            data_str.as_str(),
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
             "--output",
-            output_str.as_str(),
-        ],
-        "Invalid encoding format value should be rejected - expected failure",
-    )?;
+            output_path.to_str().unwrap(),
+        ])
+        .output();
+
+    // Should fail with validation error when flag is implemented
+    // For now, will fail because flag doesn't exist
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "Invalid encoding format value should be rejected - expected failure"
+    );
 
     Ok(())
 }
@@ -201,7 +266,7 @@ fn test_cli_encoding_format_validation() -> TestResult<()> {
 /// Test CLI help text includes new zoned encoding flags
 /// Tests CLI interface spec: SPEC.manifest.yml#cli-help-documentation
 #[test]
-fn test_cli_help_includes_zoned_encoding_flags() -> TestResult<()> {
+fn test_cli_help_includes_zoned_encoding_flags() -> Result<(), Box<dyn Error>> {
     // Test decode command help
     let decode_help = Command::new(env!("CARGO_BIN_EXE_copybook"))
         .args(["decode", "--help"])
@@ -251,7 +316,7 @@ fn test_cli_help_includes_zoned_encoding_flags() -> TestResult<()> {
 /// Test CLI flag combination validation
 /// Tests CLI interface spec: SPEC.manifest.yml#cli-flag-combinations
 #[test]
-fn test_cli_flag_combination_validation() -> TestResult<()> {
+fn test_cli_flag_combination_validation() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let data_path = temp_dir.path().join("test.bin");
@@ -261,14 +326,10 @@ fn test_cli_flag_combination_validation() -> TestResult<()> {
     fs::write(&copybook_path, "01 FIELD PIC 9(1).")?;
     fs::write(&data_path, b"\x31")?;
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-
-    // Should fail with validation error when flags are implemented
-    // For now, will fail because flags don't exist
-    assert_cli_failure(
-        [
+    // Test that --preferred-zoned-encoding requires --preserve-encoding
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
             "decode",
             "--preferred-zoned-encoding",
             "ascii", // Without --preserve-encoding
@@ -276,13 +337,19 @@ fn test_cli_flag_combination_validation() -> TestResult<()> {
             "fixed",
             "--codepage",
             "ascii",
-            copybook_str.as_str(),
-            data_str.as_str(),
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
             "--output",
-            output_str.as_str(),
-        ],
-        "--preferred-zoned-encoding without --preserve-encoding should fail - expected failure",
-    )?;
+            output_path.to_str().unwrap(),
+        ])
+        .output();
+
+    // Should fail with validation error when flags are implemented
+    // For now, will fail because flags don't exist
+    assert!(
+        output.is_err() || !output.unwrap().status.success(),
+        "--preferred-zoned-encoding without --preserve-encoding should fail - expected failure"
+    );
 
     Ok(())
 }
@@ -290,7 +357,7 @@ fn test_cli_flag_combination_validation() -> TestResult<()> {
 /// Test CLI integration with existing copybook-rs workflows
 /// Tests CLI interface spec: SPEC.manifest.yml#existing-workflows-unchanged
 #[test]
-fn test_cli_backward_compatibility() -> TestResult<()> {
+fn test_cli_backward_compatibility() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let data_path = temp_dir.path().join("test.bin");
@@ -300,22 +367,21 @@ fn test_cli_backward_compatibility() -> TestResult<()> {
     fs::write(&copybook_path, "01 ZONED-FIELD PIC 9(3).")?;
     fs::write(&data_path, b"\xF1\xF2\xF3")?; // EBCDIC "123"
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-
     // Test that existing decode command works without new flags
-    let output = command_output([
-        "decode",
-        "--format",
-        "fixed",
-        "--codepage",
-        "cp037",
-        copybook_str.as_str(),
-        data_str.as_str(),
-        "--output",
-        output_str.as_str(),
-    ])?;
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()?;
 
     // Should succeed - existing functionality unchanged
     assert!(
@@ -337,7 +403,7 @@ fn test_cli_backward_compatibility() -> TestResult<()> {
 /// Test CLI error messages for zoned encoding issues
 /// Tests CLI interface spec: SPEC.manifest.yml#cli-error-messages
 #[test]
-fn test_cli_zoned_encoding_error_messages() -> TestResult<()> {
+fn test_cli_zoned_encoding_error_messages() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let data_path = temp_dir.path().join("test.bin");
@@ -348,23 +414,22 @@ fn test_cli_zoned_encoding_error_messages() -> TestResult<()> {
     fs::write(&data_path, b"\x31\x32\xFF")?; // Invalid zone in last byte
 
     // TODO: When implemented, should produce clear error message for mixed/invalid encoding
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-
-    let _output = command_output([
-        "decode",
-        // TODO: Add when implemented
-        // "--preserve-encoding",
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        copybook_str.as_str(),
-        data_str.as_str(),
-        "--output",
-        output_str.as_str(),
-    ])?;
+    let _output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            // TODO: Add when implemented
+            // "--preserve-encoding",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()?;
 
     // For now, will use current error handling
     // TODO: When zoned encoding detection is implemented, verify error codes
@@ -379,7 +444,7 @@ fn test_cli_zoned_encoding_error_messages() -> TestResult<()> {
 
 /// Test CLI with realistic enterprise customer record processing
 #[test]
-fn test_cli_enterprise_customer_record_processing() -> TestResult<()> {
+fn test_cli_enterprise_customer_record_processing() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("customer.cpy");
     let data_path = temp_dir.path().join("customer.bin");
@@ -407,23 +472,22 @@ fn test_cli_enterprise_customer_record_processing() -> TestResult<()> {
     fs::write(&data_path, &customer_data)?;
 
     // Test decode command with enterprise parameters
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-
-    let output = command_output([
-        "decode",
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        "--json-number",
-        "lossless",
-        copybook_str.as_str(),
-        data_str.as_str(),
-        "--output",
-        output_str.as_str(),
-    ])?;
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--json-number",
+            "lossless",
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()?;
 
     assert!(
         output.status.success(),
@@ -451,7 +515,7 @@ fn test_cli_enterprise_customer_record_processing() -> TestResult<()> {
 
 /// Test CLI performance and throughput with large datasets
 #[test]
-fn test_cli_large_dataset_performance() -> TestResult<()> {
+fn test_cli_large_dataset_performance() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("large_record.cpy");
     let data_path = temp_dir.path().join("large_data.bin");
@@ -484,23 +548,22 @@ fn test_cli_large_dataset_performance() -> TestResult<()> {
 
     // Test decode with performance monitoring
     let start_time = std::time::Instant::now();
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-
-    let output = command_output([
-        "decode",
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        "--threads",
-        "4", // Use parallel processing
-        copybook_str.as_str(),
-        data_str.as_str(),
-        "--output",
-        output_str.as_str(),
-    ])?;
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            "--threads",
+            "4", // Use parallel processing
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+            "--output",
+            output_path.to_str().unwrap(),
+        ])
+        .output()?;
     let decode_time = start_time.elapsed();
 
     assert!(
@@ -522,7 +585,7 @@ fn test_cli_large_dataset_performance() -> TestResult<()> {
 
 /// Test CLI error handling and recovery for enterprise resilience
 #[test]
-fn test_cli_enterprise_error_handling_resilience() -> TestResult<()> {
+fn test_cli_enterprise_error_handling_resilience() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("test.cpy");
     let output_path = temp_dir.path().join("output.jsonl");
@@ -530,33 +593,31 @@ fn test_cli_enterprise_error_handling_resilience() -> TestResult<()> {
     // Test various error conditions that might occur in enterprise environments
     let empty_path = temp_dir.path().join("empty.bin");
     fs::write(&empty_path, b"")?;
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let output_str = path_to_str(&output_path)?.to_owned();
-    let empty_path_str = path_to_str(&empty_path)?.to_owned();
+    let empty_path_str = empty_path.to_str().unwrap();
 
-    let error_test_cases = vec![
-        (
-            "nonexistent_file".to_string(),
-            "nonexistent_data.bin".to_string(),
-        ),
-        ("empty_file".to_string(), empty_path_str.clone()),
+    let error_test_cases = [
+        ("nonexistent_file", "nonexistent_data.bin"),
+        ("empty_file", empty_path_str),
     ];
 
     // Create a valid copybook
     fs::write(&copybook_path, "01 FIELD PIC 9(5).")?;
 
     for (test_name, data_file) in error_test_cases {
-        let output = command_output([
-            "decode",
-            "--format",
-            "fixed",
-            "--codepage",
-            "ascii",
-            copybook_str.as_str(),
-            data_file.as_str(),
-            "--output",
-            output_str.as_str(),
-        ])?;
+        let output = Command::cargo_bin("copybook")
+            .unwrap()
+            .args([
+                "decode",
+                "--format",
+                "fixed",
+                "--codepage",
+                "ascii",
+                copybook_path.to_str().unwrap(),
+                data_file,
+                "--output",
+                output_path.to_str().unwrap(),
+            ])
+            .output()?;
 
         // Should handle errors gracefully with informative messages
         if !output.status.success() {
@@ -578,7 +639,7 @@ fn test_cli_enterprise_error_handling_resilience() -> TestResult<()> {
 
 /// Test CLI validation commands for enterprise data quality
 #[test]
-fn test_cli_data_validation_enterprise_patterns() -> TestResult<()> {
+fn test_cli_data_validation_enterprise_patterns() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("validation.cpy");
     let data_path = temp_dir.path().join("validation.bin");
@@ -597,11 +658,11 @@ fn test_cli_data_validation_enterprise_patterns() -> TestResult<()> {
     test_data.extend_from_slice(&[0x12, 0x34, 0x5C]); // COMP-3 field
     fs::write(&data_path, &test_data)?;
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let data_str = path_to_str(&data_path)?.to_owned();
-
     // Test parse command for schema validation
-    let parse_output = command_output(["parse", copybook_str.as_str()])?;
+    let parse_output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["parse", copybook_path.to_str().unwrap()])
+        .output()?;
 
     assert!(
         parse_output.status.success(),
@@ -618,7 +679,10 @@ fn test_cli_data_validation_enterprise_patterns() -> TestResult<()> {
     );
 
     // Test inspect command for layout validation
-    let inspect_output = command_output(["inspect", copybook_str.as_str()])?;
+    let inspect_output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args(["inspect", copybook_path.to_str().unwrap()])
+        .output()?;
 
     assert!(
         inspect_output.status.success(),
@@ -631,15 +695,18 @@ fn test_cli_data_validation_enterprise_patterns() -> TestResult<()> {
     );
 
     // Test verify command for data validation
-    let verify_output = command_output([
-        "verify",
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        copybook_str.as_str(),
-        data_str.as_str(),
-    ])?;
+    let verify_output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "verify",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            copybook_path.to_str().unwrap(),
+            data_path.to_str().unwrap(),
+        ])
+        .output()?;
 
     // Verify should either succeed (if data is valid) or provide meaningful error
     let verify_stderr = String::from_utf8_lossy(&verify_output.stderr);
@@ -656,7 +723,7 @@ fn test_cli_data_validation_enterprise_patterns() -> TestResult<()> {
 
 /// Test CLI round-trip operations for data integrity validation
 #[test]
-fn test_cli_roundtrip_data_integrity_validation() -> TestResult<()> {
+fn test_cli_roundtrip_data_integrity_validation() -> Result<(), Box<dyn Error>> {
     let temp_dir = TempDir::new()?;
     let copybook_path = temp_dir.path().join("roundtrip.cpy");
     let original_data_path = temp_dir.path().join("original.bin");
@@ -677,23 +744,21 @@ fn test_cli_roundtrip_data_integrity_validation() -> TestResult<()> {
     original_data.push(b'A'); // Status field
     fs::write(&original_data_path, &original_data)?;
 
-    let copybook_str = path_to_str(&copybook_path)?.to_owned();
-    let original_data_str = path_to_str(&original_data_path)?.to_owned();
-    let json_str = path_to_str(&json_path)?.to_owned();
-    let roundtrip_str = path_to_str(&roundtrip_data_path)?.to_owned();
-
     // Step 1: Decode binary to JSON
-    let decode_output = command_output([
-        "decode",
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        copybook_str.as_str(),
-        original_data_str.as_str(),
-        "--output",
-        json_str.as_str(),
-    ])?;
+    let decode_output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "decode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            copybook_path.to_str().unwrap(),
+            original_data_path.to_str().unwrap(),
+            "--output",
+            json_path.to_str().unwrap(),
+        ])
+        .output()?;
 
     assert!(
         decode_output.status.success(),
@@ -713,16 +778,19 @@ fn test_cli_roundtrip_data_integrity_validation() -> TestResult<()> {
     );
 
     // Step 2: Encode JSON back to binary
-    let encode_output = command_output([
-        "encode",
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-        copybook_str.as_str(),
-        json_str.as_str(),
-        roundtrip_str.as_str(),
-    ])?;
+    let encode_output = Command::cargo_bin("copybook")
+        .unwrap()
+        .args([
+            "encode",
+            "--format",
+            "fixed",
+            "--codepage",
+            "ascii",
+            copybook_path.to_str().unwrap(),
+            json_path.to_str().unwrap(),
+            roundtrip_data_path.to_str().unwrap(),
+        ])
+        .output()?;
 
     // Note: Encoding may not be implemented yet, so we handle both success and expected failure
     if encode_output.status.success() {

@@ -157,13 +157,11 @@ impl<T> SequenceRing<T> {
         self.sender.clone()
     }
 
-    /// Receive the next record in sequence order
-    /// Blocks until the next expected record is available
-    /// Receive records in sequence order
+    /// Receive the next record in sequence order.
+    /// Blocks until the next expected record is available.
     ///
     /// # Errors
-    ///
-    /// Returns an error if the channel is disconnected
+    /// Returns an error if the channel is disconnected.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::RecvError> {
@@ -226,11 +224,10 @@ impl<T> SequenceRing<T> {
         }
     }
 
-    /// Try to receive the next record without blocking
+    /// Try to receive the next record without blocking.
     ///
     /// # Errors
-    ///
-    /// Returns an error if the channel is disconnected or would block
+    /// Returns an error if the channel is disconnected or would block.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn try_recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::TryRecvError> {
@@ -382,8 +379,7 @@ where
     /// Submit input for processing
     ///
     /// # Errors
-    ///
-    /// Returns an error if the worker channel is disconnected
+    /// Returns an error if the worker channel is disconnected.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn submit(
@@ -395,36 +391,30 @@ where
         self.input_sender.send(sequenced_input)
     }
 
-    /// Receive the next processed result in order
-    /// Receive processed records in sequence order
+    /// Receive the next processed result in order.
     ///
     /// # Errors
-    ///
-    /// Returns an error if the channel is disconnected
+    /// Returns an error if the channel is disconnected.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::RecvError> {
         self.output_ring.recv_ordered()
     }
 
-    /// Try to receive the next processed result without blocking
-    /// Try to receive processed records in sequence order (non-blocking)
+    /// Try to receive the next processed result without blocking.
     ///
     /// # Errors
-    ///
-    /// Returns an error if the channel is disconnected or would block
+    /// Returns an error if the channel is disconnected or would block.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn try_recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::TryRecvError> {
         self.output_ring.try_recv_ordered()
     }
 
-    /// Close the input channel and wait for all workers to finish
-    /// Shutdown the worker pool and wait for all workers to finish
+    /// Close the input channel and wait for all workers to finish.
     ///
     /// # Errors
-    ///
-    /// Returns an error if any worker thread panicked
+    /// Returns an error if any worker thread panicked.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn shutdown(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

@@ -10,7 +10,7 @@
 //! - `RecordIterator` (for programmatic access)
 
 use crate::JSON_SCHEMA_VERSION;
-use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
+use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
 use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
@@ -372,8 +372,7 @@ impl fmt::Display for RunSummary {
 /// * `options` - Decoding options
 ///
 /// # Errors
-///
-/// Returns an error if the data cannot be decoded according to the schema
+/// Returns an error if the data cannot be decoded according to the schema.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
@@ -393,10 +392,9 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 /// * `scratch` - Reusable scratch buffers for optimization
 ///
 /// # Errors
-///
-/// Returns an error if the data cannot be decoded according to the schema
+/// Returns an error if the data cannot be decoded according to the schema.
 #[inline]
-#[must_use = "Use the decoded value or handle the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_record_with_scratch(
     schema: &Schema,
     data: &[u8],
@@ -443,10 +441,9 @@ fn decode_record_with_scratch_and_raw(
 /// Decode a record with optional raw data for RDW format
 ///
 /// # Errors
-///
 /// Returns an error if field decoding fails or the raw payload is inconsistent with the schema.
 #[inline]
-#[must_use = "Use the decoded value or handle the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_record_with_raw_data(
     schema: &Schema,
     data: &[u8],
@@ -1176,8 +1173,7 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 /// * `options` - Encoding options
 ///
 /// # Errors
-///
-/// Returns an error if the JSON data cannot be encoded according to the schema
+/// Returns an error if the JSON data cannot be encoded according to the schema.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
@@ -1516,37 +1512,6 @@ fn parse_zoned_encoding_format_str(value: &str) -> Option<ZonedEncodingFormat> {
     }
 }
 
-fn resolve_zoned_encoding_format(
-    override_format: Option<ZonedEncodingFormat>,
-    preserved_format: Option<ZonedEncodingFormat>,
-    preferred_format: ZonedEncodingFormat,
-    codepage: Codepage,
-) -> ZonedEncodingFormat {
-    let candidate = override_format
-        .or(preserved_format)
-        .unwrap_or(preferred_format);
-
-    match candidate {
-        ZonedEncodingFormat::Ascii => ZonedEncodingFormat::Ascii,
-        ZonedEncodingFormat::Ebcdic => ZonedEncodingFormat::Ebcdic,
-        ZonedEncodingFormat::Auto => {
-            if codepage.is_ascii() {
-                ZonedEncodingFormat::Ascii
-            } else {
-                ZonedEncodingFormat::Ebcdic
-            }
-        }
-    }
-}
-
-fn zero_sign_policy_for(format: ZonedEncodingFormat) -> ZeroSignPolicy {
-    if matches!(format, ZonedEncodingFormat::Ebcdic) {
-        ZeroSignPolicy::Preferred
-    } else {
-        ZeroSignPolicy::Positive
-    }
-}
-
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn encode_zoned_decimal_field(
@@ -1564,13 +1529,26 @@ fn encode_zoned_decimal_field(
     if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
         let preserved_format = encoding_metadata
             .and_then(|meta| resolve_preserved_zoned_format(meta, field_path, &field.name));
-        let resolved_format = resolve_zoned_encoding_format(
-            options.zoned_encoding_override,
-            preserved_format,
-            options.preferred_zoned_encoding,
-            options.codepage,
-        );
-        let zero_policy = zero_sign_policy_for(resolved_format);
+        let resolved_format = options
+            .zoned_encoding_override
+            .or(preserved_format)
+            .unwrap_or(options.preferred_zoned_encoding);
+        let effective_format = match resolved_format {
+            ZonedEncodingFormat::Ascii => ZonedEncodingFormat::Ascii,
+            ZonedEncodingFormat::Ebcdic => ZonedEncodingFormat::Ebcdic,
+            ZonedEncodingFormat::Auto => {
+                if options.codepage.is_ascii() {
+                    ZonedEncodingFormat::Ascii
+                } else {
+                    ZonedEncodingFormat::Ebcdic
+                }
+            }
+        };
+        let zero_policy = match effective_format {
+            ZonedEncodingFormat::Ascii => ZeroSignPolicy::Positive,
+            ZonedEncodingFormat::Ebcdic => ZeroSignPolicy::Preferred,
+            ZonedEncodingFormat::Auto => unreachable!("Auto resolved to final zoned format"),
+        };
 
         let encoded = crate::numeric::encode_zoned_decimal_with_format_and_policy(
             text,
@@ -1578,7 +1556,7 @@ fn encode_zoned_decimal_field(
             spec.scale,
             spec.signed,
             options.codepage,
-            Some(resolved_format),
+            Some(effective_format),
             zero_policy,
         )?;
 
@@ -1646,10 +1624,9 @@ fn encode_binary_int_field(
 /// Decode a file to JSONL format
 ///
 /// # Errors
-///
 /// Returns an error if the input cannot be read, decoded, or written.
 #[inline]
-#[must_use = "Use the resulting run summary or handle the decoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_file_to_jsonl(
     schema: &Schema,
     input: impl Read,
@@ -1853,10 +1830,9 @@ pub fn increment_warning_counter() {
 /// * `options` - Encoding options
 ///
 /// # Errors
-///
-/// Returns an error if the JSONL cannot be encoded or written
+/// Returns an error if the JSONL cannot be encoded or written.
 #[inline]
-#[must_use = "Use the resulting run summary or handle the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_jsonl_to_file(
     schema: &Schema,
     input: impl Read,

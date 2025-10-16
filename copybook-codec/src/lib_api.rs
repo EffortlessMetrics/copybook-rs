@@ -18,6 +18,11 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 
+/// Pedantic tripwire: intentionally triggers `uninlined_format_args`
+pub fn redundant_inline() {
+    println!("{}", format!("hi"));
+}
+
 /// Shared helper for ODO bounds validation used by both decode and verify paths
 fn validate_odo_bounds(count: u32, min: u32, max: u32) -> Result<()> {
     if count > max {
@@ -883,6 +888,8 @@ fn decode_scalar_field_value_standard(
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
+            // tripwire: hot-path allocation guard should catch this
+            let _bad = Value::String(int_value.to_string());
             let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
             let formatted =
                 crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);

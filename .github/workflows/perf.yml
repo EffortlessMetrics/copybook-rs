@@ -63,7 +63,19 @@ jobs:
       - name: Annotate perf with host info
         run: bash scripts/perf-annotate-host.sh
 
-      - name: Upload perf receipts
+      - name: Stamp telemetry checklist with commit hash
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          sed -i "s/<GIT_SHORT_SHA>/${SHA}/g" docs/telemetry-launch-checklist.md
+
+      - name: Upload stamped telemetry checklist (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: telemetry-launch-checklist
+          path: docs/telemetry-launch-checklist.md
+          retention-days: 30
+
+      - name: Upload perf receipts (90 days)
         uses: actions/upload-artifact@v4
         with:
           name: perf-json
@@ -94,81 +106,71 @@ jobs:
             ] | map(select(. != null)) | (max // 0)
           ' "$f")
 
+          rss=$(jq -r '.summary.max_rss_mib // 0' "$f")
+
           echo "display=$disp" >> "$GITHUB_OUTPUT"
           echo "comp3=$comp"   >> "$GITHUB_OUTPUT"
+          echo "rss=$rss"      >> "$GITHUB_OUTPUT"
+          DISP="$disp" COMP="$comp" RSS="$rss" python - <<'PY' >> "$GITHUB_OUTPUT"
+import os
+disp = float(os.environ.get("DISP", "0"))
+comp = float(os.environ.get("COMP", "0"))
+rss = float(os.environ.get("RSS", "0"))
+ok = disp >= 80 and comp >= 40 and rss <= 256
+print(f"ok={'true' if ok else 'false'}")
+PY
 
-      - name: Gate on SLOs
-        env:
-          DISPLAY_MIB: ${{ steps.slo.outputs.display }}
-          COMP3_MIB: ${{ steps.slo.outputs.comp3 }}
-        run: |
-          disp="${DISPLAY_MIB:-0}"
-          comp="${COMP3_MIB:-0}"
-          rss=$(jq -r '.summary.max_rss_mib // 0' scripts/bench/perf.json)
-          echo "display=$disp comp3=$comp max_rss_mib=$rss"
-          awk -v d="$disp" -v c="$comp" -v r="$rss" 'BEGIN{
-            if (d<80 || c<40 || r>256) {print "SLO FAIL: display=" d " comp3=" c " max_rss_mib=" r; exit 1}
-            else {print "SLO PASS: display=" d " comp3=" c " max_rss_mib=" r}
-          }'
-
-      - name: Publish check-run (Throughput SLOs)
-        if: ${{ success() }}
+      - name: Publish Throughput badge (neutral on fail)
+        id: throughput
         uses: actions/github-script@v7
         env:
           DISPLAY_MIB: ${{ steps.slo.outputs.display }}
           COMP3_MIB: ${{ steps.slo.outputs.comp3 }}
+          MAX_RSS: ${{ steps.slo.outputs.rss }}
         with:
           script: |
             const fs = require('fs');
             const core = require('@actions/core');
             const path = 'scripts/bench/perf.json';
-            let maxRss = 'n/a';
-            let hostLine = '';
-            try {
-              const data = JSON.parse(fs.readFileSync(path, 'utf8'));
-              const summary = data.summary || {};
-              if (summary.max_rss_mib != null) {
-                maxRss = summary.max_rss_mib;
+            const summary = (() => {
+              try {
+                const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+                return data.summary || {};
+              } catch (error) {
+                core.warning(`Failed to read ${path}: ${error}`);
+                return {};
               }
-              const parts = [];
-              if (summary.host_cpu) {
-                parts.push(summary.host_cpu);
-              }
-              if (summary.host_cores != null) {
-                parts.push(`${summary.host_cores}c`);
-              }
-              if (summary.host_os || summary.host_kernel) {
-                const os = summary.host_os || 'unknown';
-                const kernel = summary.host_kernel || 'unknown';
-                parts.push(`${os}/${kernel}`);
-              }
-              hostLine = parts.filter(Boolean).join(' • ');
-            } catch (error) {
-              core.warning(`Failed to read ${path}: ${error}`);
-            }
-
-            const display = process.env.DISPLAY_MIB || '0';
-            const comp3 = process.env.COMP3_MIB || '0';
-            const hostSummary = hostLine ? `Host: ${hostLine}\n` : '';
+            })();
+            const display = Number(process.env.DISPLAY_MIB || 0);
+            const comp = Number(process.env.COMP3_MIB || 0);
+            const rss = Number(process.env.MAX_RSS || (summary.max_rss_mib ?? 0));
+            const host = [
+              summary.host_cpu,
+              summary.host_cores != null ? `${summary.host_cores}c` : null,
+              summary.host_os && summary.host_kernel ? `${summary.host_os}/${summary.host_kernel}` :
+                (summary.host_os || summary.host_kernel || null)
+            ].filter(Boolean).join(' • ');
+            const ok = display >= 80 && comp >= 40 && rss <= 256;
             await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               name: 'review:gate:throughput',
               head_sha: context.sha,
               status: 'completed',
-              conclusion: 'success',
+              conclusion: ok ? 'success' : 'neutral',
               output: {
                 title: 'Throughput SLOs',
                 summary:
                   `DISPLAY: ${display} MiB/s (>=80)\n` +
-                  `COMP-3:  ${comp3} MiB/s (>=40)\n` +
-                  `Max RSS: ${maxRss} MiB (<=256)\n` +
-                  hostSummary
+                  `COMP-3:  ${comp} MiB/s (>=40)\n` +
+                  `Max RSS: ${rss} MiB (<=256)\n` +
+                  (host ? `Host: ${host}\n` : '')
               }
             });
+            core.setOutput('ok', ok ? 'true' : 'false');
 
       - name: Label perf success
-        if: ${{ success() && github.event.pull_request.number }}
+        if: ${{ success() && steps.throughput.outputs.ok == 'true' && github.event.pull_request.number }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -187,12 +189,24 @@ jobs:
 
       - name: Job summary
         if: ${{ always() }}
+        env:
+          PERF_OK: ${{ steps.throughput.outputs.ok }}
         run: |
           echo "### Throughput SLOs" >> "$GITHUB_STEP_SUMMARY"
           if [[ -f scripts/bench/perf.json ]]; then
             echo "- DISPLAY: ${{ steps.slo.outputs.display }} MiB/s (>= 80)" >> "$GITHUB_STEP_SUMMARY"
             echo "- COMP-3:  ${{ steps.slo.outputs.comp3 }} MiB/s (>= 40)" >> "$GITHUB_STEP_SUMMARY"
             echo "- Max RSS: $(jq -r '.summary.max_rss_mib // "n/a"' scripts/bench/perf.json) MiB (<= 256)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Host: $(jq -r '.summary | [
+                .host_cpu,
+                (if .host_cores != null then (.host_cores|tostring + "c") else empty end),
+                (if .host_os or .host_kernel then [( .host_os // ""), ( .host_kernel // "" )] | join("/") else empty end)
+              ] | map(select(. != "")) | join(" • ") // "n/a"' scripts/bench/perf.json)" >> "$GITHUB_STEP_SUMMARY"
+            status="neutral"
+            if [[ "${PERF_OK}" == "true" ]]; then
+              status="success"
+            fi
+            echo "- Check-run conclusion: ${status}" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "- Receipts missing; see logs for details." >> "$GITHUB_STEP_SUMMARY"
           fi

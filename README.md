@@ -134,6 +134,11 @@ Short error runs can finish before a scrape lands; use `--metrics-grace-ms 2000`
 The library stays recorder-agnostic. When compiled with `--features metrics` **and** a global recorder is installed,
 counters are emitted; otherwise metrics calls are no-ops.
 
+## Operations & Observability
+
+- **Telemetry rollout / launch readiness**: see [`docs/telemetry-launch-checklist.md`](docs/telemetry-launch-checklist.md) for the end-to-end operator flow (staging build/deploy, Prometheus/Grafana, alerts, perf receipts, shadow/soak, roadmap flip).
+- **Feature flags**: telemetry is feature-gated (`--features metrics`) and off by default; the exporter binds only with `--metrics-listen <addr>`.
+
 ## Detailed Usage Examples
 
 ### Working with Fixed-Length Records

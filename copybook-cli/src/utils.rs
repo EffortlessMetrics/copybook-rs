@@ -46,7 +46,6 @@ where
 /// This generates a temporary file name in the same directory as the target file
 /// with a .tmp suffix and random component.
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 fn temp_path_for(target: &Path) -> PathBuf {
     let mut temp_name = target
         .file_name()
@@ -102,15 +101,15 @@ pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use std::fs;
     use tempfile::tempdir;
 
     #[test]
-    fn test_atomic_write_success() {
-        let temp_dir = tempdir().unwrap();
+    fn test_atomic_write_success() -> Result<()> {
+        let temp_dir = tempdir()?;
         let target_path = temp_dir.path().join("test.txt");
 
         let result = atomic_write(&target_path, |writer| writer.write_all(b"Hello, world!"));
@@ -118,13 +117,14 @@ mod tests {
         assert!(result.is_ok());
         assert!(target_path.exists());
 
-        let content = fs::read_to_string(&target_path).unwrap();
+        let content = fs::read_to_string(&target_path)?;
         assert_eq!(content, "Hello, world!");
+        Ok(())
     }
 
     #[test]
-    fn test_atomic_write_failure_leaves_no_file() {
-        let temp_dir = tempdir().unwrap();
+    fn test_atomic_write_failure_leaves_no_file() -> Result<()> {
+        let temp_dir = tempdir()?;
         let target_path = temp_dir.path().join("test.txt");
 
         let result = atomic_write(&target_path, |_writer| {
@@ -133,6 +133,7 @@ mod tests {
 
         assert!(result.is_err());
         assert!(!target_path.exists());
+        Ok(())
     }
 
     #[test]

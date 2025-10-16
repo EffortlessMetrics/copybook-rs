@@ -426,58 +426,68 @@ pub mod safe_ops {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::{OptionExt, VecExt, safe_ops};
-    use crate::error::ErrorCode;
+    use crate::error::{ErrorCode, Result};
 
     #[test]
-    fn test_option_ext_some() {
+    fn test_option_ext_some() -> Result<()> {
         let opt = Some(42);
-        assert_eq!(
-            opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test")
-                .unwrap(),
-            42
-        );
+        let value = opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test")?;
+        assert_eq!(value, 42);
+        Ok(())
     }
 
     #[test]
     fn test_option_ext_none() {
         let opt: Option<i32> = None;
         let result = opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test error");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX);
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
     }
 
     #[test]
-    fn test_vec_ext_pop() {
+    fn test_vec_ext_pop() -> Result<()> {
         let mut vec = vec![1, 2, 3];
-        assert_eq!(
-            vec.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test")
-                .unwrap(),
-            3
-        );
+        let value = vec.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test")?;
+        assert_eq!(value, 3);
+        Ok(())
+    }
 
+    #[test]
+    fn test_vec_ext_pop_empty() {
         let mut empty_vec: Vec<i32> = vec![];
         let result = empty_vec.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test error");
-        assert!(result.is_err());
+        assert!(matches!(result, Err(error) if error.code == ErrorCode::CBKP001_SYNTAX));
     }
 
     #[test]
-    fn test_safe_parse() {
-        assert_eq!(safe_ops::parse_usize("123", "test").unwrap(), 123);
+    fn test_safe_parse() -> Result<()> {
+        let parsed = safe_ops::parse_usize("123", "test")?;
+        assert_eq!(parsed, 123);
 
         let result = safe_ops::parse_usize("invalid", "test");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX);
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
+
+        Ok(())
     }
 
     #[test]
-    fn test_safe_divide() {
-        assert_eq!(safe_ops::safe_divide(10, 2, "test").unwrap(), 5);
+    fn test_safe_divide() -> Result<()> {
+        let quotient = safe_ops::safe_divide(10, 2, "test")?;
+        assert_eq!(quotient, 5);
 
         let result = safe_ops::safe_divide(10, 0, "test");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX);
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
+
+        Ok(())
     }
 }

@@ -13,6 +13,7 @@ use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
@@ -110,17 +111,32 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
 
     // Decode with current implementation (no preservation yet)
     let binary_path = std::env::var("CARGO_BIN_EXE_copybook").unwrap_or_else(|_| {
-        // Fallback to the built binary, try debug first then release
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-        let project_root = std::path::Path::new(&manifest_dir).parent().unwrap();
-        let debug_path = project_root.join("target/debug/copybook");
-        let release_path = project_root.join("target/release/copybook");
+        let project_root = Path::new(&manifest_dir).parent().unwrap();
+        let mut debug_path = project_root.join("target/debug/copybook");
+        let mut release_path = project_root.join("target/release/copybook");
 
-        if debug_path.exists() {
-            debug_path.to_string_lossy().to_string()
-        } else {
-            release_path.to_string_lossy().to_string()
+        if !debug_path.exists() && !release_path.exists() {
+            let status = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
+                .current_dir(project_root)
+                .args(["build", "-p", "copybook-cli"])
+                .status()
+                .expect("failed to invoke cargo to build copybook-cli");
+            assert!(
+                status.success(),
+                "building copybook-cli binary should succeed"
+            );
+            debug_path = project_root.join("target/debug/copybook");
+            release_path = project_root.join("target/release/copybook");
         }
+
+        debug_path
+            .exists()
+            .then_some(debug_path)
+            .or_else(|| release_path.exists().then_some(release_path))
+            .expect("copybook CLI binary should exist after build")
+            .to_string_lossy()
+            .into_owned()
     });
 
     let decode_output = Command::new(&binary_path)
@@ -131,17 +147,18 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
             "fixed",
             "--codepage",
             "ascii",
-            copybook_path.to_str().unwrap(),
-            original_data_path.to_str().unwrap(),
             "--output",
             json_path.to_str().unwrap(),
+            copybook_path.to_str().unwrap(),
+            original_data_path.to_str().unwrap(),
         ])
         .output();
 
     // For now, this will use current behavior (no preservation)
     // TODO: When preservation is implemented, verify it works
+    let decode_output = decode_output.expect("failed to invoke copybook CLI for decode");
     assert!(
-        decode_output.is_ok(),
+        decode_output.status.success(),
         "Decode should work with current implementation"
     );
 
@@ -154,14 +171,16 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
             "fixed",
             "--codepage",
             "ascii",
+            "--output",
+            roundtrip_data_path.to_str().unwrap(),
             copybook_path.to_str().unwrap(),
             json_path.to_str().unwrap(),
-            roundtrip_data_path.to_str().unwrap(),
         ])
         .output();
 
+    let encode_output = encode_output.expect("failed to invoke copybook CLI for encode");
     assert!(
-        encode_output.is_ok(),
+        encode_output.status.success(),
         "Encode should work with current implementation"
     );
 
@@ -173,15 +192,9 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
         ])
         .output()?;
 
-    // TODO: When preservation is implemented, this should succeed (exit code 0)
-    // For now, this will likely fail because current behavior always outputs EBCDIC
-    // assert!(cmp_output.status.success(),
-    //        "Round-trip files should be byte-identical when preservation is implemented");
-
-    // Current expected behavior: files differ due to no preservation
     assert!(
-        !cmp_output.status.success(),
-        "Files should differ without preservation - expected current behavior"
+        cmp_output.status.success(),
+        "Round-trip files should be byte-identical when preservation is implemented"
     );
 
     Ok(())

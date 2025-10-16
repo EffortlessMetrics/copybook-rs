@@ -327,6 +327,7 @@ impl ErrorReporter {
             ErrorCode::CBKD101_INVALID_FIELD_TYPE
             | ErrorCode::CBKD301_RECORD_TOO_SHORT
             | ErrorCode::CBKD401_COMP3_INVALID_NIBBLE
+            | ErrorCode::CBKD410_ZONED_OVERFLOW
             | ErrorCode::CBKD411_ZONED_BAD_SIGN => ErrorSeverity::Error,
 
             // BLANK WHEN ZERO is informational

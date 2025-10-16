@@ -7,8 +7,96 @@ use crate::options::RecordFormat;
 use copybook_core::error::ErrorContext;
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use std::convert::TryFrom;
-use std::io::{ErrorKind, Read, Write};
+use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use tracing::{debug, warn};
+
+/// Read a 2-byte big-endian RDW *body length* and consume the header.
+///
+/// # Errors
+/// Returns an error if the header is malformed or cannot be read.
+/// EOF/short header handling is done by the caller (see `rdw_try_peek_len`).
+#[inline]
+pub(crate) fn rdw_read_len<R: BufRead>(r: &mut R) -> Result<u16> {
+    let buf = r.fill_buf().map_err(|e| {
+        Error::new(
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            format!("I/O error peeking RDW length: {e}"),
+        )
+    })?;
+    if buf.len() < 2 {
+        return Err(Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            format!(
+                "Incomplete RDW header: expected 2 bytes for length (have {})",
+                buf.len()
+            ),
+        ));
+    }
+
+    let hi = buf[0];
+    let lo = buf[1];
+    r.consume(2);
+
+    Ok(u16::from_be_bytes([hi, lo]))
+}
+
+/// Borrow the RDW body slice for `len` bytes without consuming.
+///
+/// # Errors
+/// Returns an error if fewer than `len` bytes are currently available in the buffer.
+#[inline]
+pub(crate) fn rdw_slice_body<R: BufRead>(r: &mut R, len: u16) -> Result<&[u8]> {
+    let need = usize::from(len);
+    if need == 0 {
+        return Ok(&[]);
+    }
+
+    let buf = r.fill_buf().map_err(|e| {
+        Error::new(
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            format!("I/O error reading RDW payload: {e}"),
+        )
+    })?;
+
+    if buf.len() < need {
+        return Err(Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            format!(
+                "Incomplete RDW record payload: expected {} bytes (have {})",
+                need,
+                buf.len()
+            ),
+        ));
+    }
+
+    Ok(&buf[..need])
+}
+
+/// Validate the RDW body slice (placeholder; extend with CRC/terminator later).
+///
+/// # Errors
+/// Returns an error if additional format checks fail (currently none).
+#[inline]
+pub(crate) fn rdw_validate_and_finish(body: &[u8]) -> &[u8] {
+    body
+}
+
+/// Helper for EOF/short-header detection used by readers/iterators.
+/// - 0 or 1 buffered bytes → `Ok(None)` (treat as EOF/short read, not an error)
+/// - ≥ 2 bytes             → `Ok(Some(()))` (caller may proceed to `rdw_read_len`)
+#[inline]
+pub(crate) fn rdw_try_peek_len<R: BufRead>(r: &mut R) -> Result<Option<()>> {
+    let buf = r.fill_buf().map_err(|e| {
+        Error::new(
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            format!("I/O error peeking RDW header: {e}"),
+        )
+    })?;
+    if buf.len() <= 1 {
+        return Ok(None);
+    }
+    Ok(Some(()))
+}
 
 /// Fixed record reader for processing fixed-length records
 #[derive(Debug)]
@@ -350,20 +438,118 @@ impl<W: Write> FixedRecordWriter<W> {
 /// RDW (Record Descriptor Word) record reader for processing variable-length records
 #[derive(Debug)]
 pub struct RDWRecordReader<R: Read> {
-    input: R,
+    input: BufReader<R>,
     record_count: u64,
     strict_mode: bool,
 }
+
+const RDW_READER_BUF_CAPACITY: usize = (u16::MAX as usize) + 4;
 
 impl<R: Read> RDWRecordReader<R> {
     /// Create a new RDW record reader
     #[inline]
     pub fn new(input: R, strict_mode: bool) -> Self {
         Self {
-            input,
+            input: BufReader::with_capacity(RDW_READER_BUF_CAPACITY, input),
             record_count: 0,
             strict_mode,
         }
+    }
+
+    #[inline]
+    fn peek_header(&mut self) -> Result<Option<[u8; 4]>> {
+        let peek = rdw_try_peek_len(&mut self.input).map_err(|error| {
+            error.with_context(ErrorContext {
+                record_index: Some(self.record_count + 1),
+                field_path: None,
+                byte_offset: Some(0),
+                line_number: None,
+                details: Some("Unable to peek RDW header".to_string()),
+            })
+        })?;
+
+        if peek.is_none() {
+            let buf = self.input.fill_buf().map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                    format!("I/O error reading RDW header: {e}"),
+                )
+                .with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: Some(0),
+                    line_number: None,
+                    details: Some("Unable to read RDW header".to_string()),
+                })
+            })?;
+
+            if buf.is_empty() {
+                debug!("Reached EOF after {} RDW records", self.record_count);
+                return Ok(None);
+            }
+
+            if self.strict_mode {
+                return Err(Error::new(
+                    ErrorCode::CBKF221_RDW_UNDERFLOW,
+                    "Incomplete RDW header: expected 4 bytes".to_string(),
+                )
+                .with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: Some(0),
+                    line_number: None,
+                    details: Some("File ends with incomplete RDW header".to_string()),
+                }));
+            }
+
+            debug!(
+                "Reached EOF after {} RDW records (truncated header ignored)",
+                self.record_count
+            );
+            let remaining = buf.len();
+            self.input.consume(remaining);
+            return Ok(None);
+        }
+
+        let buf = self.input.fill_buf().map_err(|e| {
+            Error::new(
+                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                format!("I/O error reading RDW header: {e}"),
+            )
+            .with_context(ErrorContext {
+                record_index: Some(self.record_count + 1),
+                field_path: None,
+                byte_offset: Some(0),
+                line_number: None,
+                details: Some("Unable to read RDW header".to_string()),
+            })
+        })?;
+
+        if buf.len() < 4 {
+            if self.strict_mode {
+                return Err(Error::new(
+                    ErrorCode::CBKF221_RDW_UNDERFLOW,
+                    "Incomplete RDW header: expected 4 bytes".to_string(),
+                )
+                .with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: Some(0),
+                    line_number: None,
+                    details: Some("File ends with incomplete RDW header".to_string()),
+                }));
+            }
+
+            debug!(
+                "Reached EOF after {} RDW records (truncated header ignored)",
+                self.record_count
+            );
+            let remaining = buf.len();
+            self.input.consume(remaining);
+            return Ok(None);
+        }
+
+        Ok(Some([buf[0], buf[1], buf[2], buf[3]]))
     }
 
     /// Read the next RDW record
@@ -372,178 +558,116 @@ impl<R: Read> RDWRecordReader<R> {
     ///
     /// Returns an error if the record cannot be read due to I/O errors or format issues
     #[inline]
-    // TODO(RDW-split): This function is intentionally long for now to minimize churn
-    // while we lock the semantics with tests. The plan is to extract these pieces:
-    //   1) rdw_read_len(cursor) -> Result<u16, Error>
-    //      - Read the 2-byte RDW length; prove range; return u16.
-    //   2) rdw_slice_body(cursor, len: u16) -> Result<Vec<u8>, Error>
-    //      - Borrow or allocate the exact payload slice; perform bounds checks.
-    //   3) rdw_validate_and_finish(header: [u8; 4], body: Vec<u8>) -> Result<RDWRecord, Error>
-    //      - Any footer/CRC/shape validations; returns the final record.
-    //
-    // Notes:
-    // - Keep "prove-then-cast" for usize→u16 (no truncation lints).
-    // - Preserve EOF→Ok(None) semantics in the caller; only malformed RDW is an Err.
-    // - After extraction, remove #[allow(clippy::too_many_lines)] and add #[inline] on the helpers.
-    #[allow(clippy::too_many_lines)]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn read_record(&mut self) -> Result<Option<RDWRecord>> {
-        // Read the 4-byte RDW header
-        let mut rdw_header = [0u8; 4];
-        match self.input.read_exact(&mut rdw_header) {
-            Ok(()) => {
-                // Parse RDW header
-                let length = u32::from(u16::from_be_bytes([rdw_header[0], rdw_header[1]]));
-                let reserved = u16::from_be_bytes([rdw_header[2], rdw_header[3]]);
+        let Some(header) = self.peek_header()? else {
+            return Ok(None);
+        };
 
-                self.record_count += 1;
-                debug!(
-                    "Read RDW header for record {}: length={}, reserved={:04X}",
-                    self.record_count, length, reserved
-                );
-
-                // Validate reserved bytes
-                if reserved != 0 {
-                    let error = Error::new(
-                        ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
-                        format!("RDW reserved bytes are non-zero: {reserved:04X}"),
-                    )
-                    .with_context(ErrorContext {
-                        record_index: Some(self.record_count),
-                        field_path: None,
-                        byte_offset: Some(2), // Reserved bytes are at offset 2-3
-                        line_number: None,
-                        details: Some(format!("Expected 0000, got {reserved:04X}")),
-                    });
-
-                    if self.strict_mode {
-                        return Err(error);
-                    }
-                    warn!(
-                        "RDW reserved bytes non-zero (record {}): {:04X}",
-                        self.record_count, reserved
-                    );
-                    // Increment warning counter for summary
-                    crate::lib_api::increment_warning_counter();
-                }
-
-                // Check for ASCII transfer corruption heuristic
-                if Self::is_suspect_ascii_corruption(rdw_header) {
-                    warn!(
-                        "RDW appears to be ASCII-corrupted (record {}): {:02X} {:02X} {:02X} {:02X}",
-                        self.record_count,
-                        rdw_header[0],
-                        rdw_header[1],
-                        rdw_header[2],
-                        rdw_header[3]
-                    );
-                    // For ASCII corruption, return an error instead of just warning
-                    return Err(Error::new(
-                        ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                        format!(
-                            "RDW appears to be ASCII-corrupted: {:02X} {:02X} {:02X} {:02X}",
-                            rdw_header[0], rdw_header[1], rdw_header[2], rdw_header[3]
-                        ),
-                    )
-                    .with_context(ErrorContext {
-                        record_index: Some(self.record_count),
-                        field_path: None,
-                        byte_offset: Some(0), // Header bytes are at offset 0-3
-                        line_number: None,
-                        details: Some("Suspected ASCII transfer corruption".to_string()),
-                    }));
-                }
-
-                // Handle zero-length records
-                if length == 0 {
-                    debug!("Zero-length RDW record {}", self.record_count);
-                    return Ok(Some(RDWRecord {
-                        header: rdw_header,
-                        payload: Vec::new(),
-                    }));
-                }
-
-                // Read the payload
-                let payload_len = usize::try_from(length).map_err(|_| {
-                    Error::new(
-                        ErrorCode::CBKF221_RDW_UNDERFLOW,
-                        format!("RDW length {length} exceeds platform limits"),
-                    )
-                })?;
-                let mut payload = vec![0u8; payload_len];
-                match self.input.read_exact(&mut payload) {
-                    Ok(()) => {
-                        debug!(
-                            "Read RDW record {} payload: {} bytes",
-                            self.record_count, length
-                        );
-                        Ok(Some(RDWRecord {
-                            header: rdw_header,
-                            payload,
-                        }))
-                    }
-                    Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                        Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
-                            format!("Incomplete RDW record payload: expected {length} bytes"),
-                        )
-                        .with_context(ErrorContext {
-                            record_index: Some(self.record_count),
-                            field_path: None,
-                            byte_offset: Some(4), // Payload starts after 4-byte header
-                            line_number: None,
-                            details: Some("File ends with incomplete RDW payload".to_string()),
-                        }))
-                    }
-                    Err(e) => Err(Error::new(
-                        ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                        format!("I/O error reading RDW payload: {e}"),
-                    )
-                    .with_context(ErrorContext {
-                        record_index: Some(self.record_count),
-                        field_path: None,
-                        byte_offset: Some(4),
-                        line_number: None,
-                        details: None,
-                    })),
-                }
+        let length = match rdw_read_len(&mut self.input) {
+            Ok(len) => len,
+            Err(error) => {
+                return Err(error.with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: Some(0),
+                    line_number: None,
+                    details: Some("Unable to read RDW body length".to_string()),
+                }));
             }
-            Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                // In strict mode, a truncated RDW header is an error
-                // In lenient mode, treat it as EOF
-                if self.strict_mode {
-                    Err(Error::new(
-                        ErrorCode::CBKF221_RDW_UNDERFLOW,
-                        "Incomplete RDW header: expected 4 bytes".to_string(),
-                    )
-                    .with_context(ErrorContext {
-                        record_index: Some(self.record_count + 1),
-                        field_path: None,
-                        byte_offset: Some(0),
-                        line_number: None,
-                        details: Some("File ends with incomplete RDW header".to_string()),
-                    }))
-                } else {
-                    // Lenient mode: treat truncated header as EOF
-                    debug!(
-                        "Reached EOF after {} RDW records (truncated header ignored)",
-                        self.record_count
-                    );
-                    Ok(None)
-                }
-            }
-            Err(e) => Err(Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error reading RDW header: {e}"),
+        };
+
+        // Consume reserved bytes so the buffer now points at the body
+        self.input.consume(2);
+        let reserved = u16::from_be_bytes([header[2], header[3]]);
+
+        self.record_count += 1;
+        debug!(
+            "Read RDW header for record {}: length={}, reserved={:04X}",
+            self.record_count,
+            u32::from(length),
+            reserved
+        );
+
+        // Validate reserved bytes
+        if reserved != 0 {
+            let error = Error::new(
+                ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+                format!("RDW reserved bytes are non-zero: {reserved:04X}"),
             )
             .with_context(ErrorContext {
-                record_index: Some(self.record_count + 1),
+                record_index: Some(self.record_count),
                 field_path: None,
-                byte_offset: None,
+                byte_offset: Some(2), // Reserved bytes are at offset 2-3
                 line_number: None,
-                details: None,
-            })),
+                details: Some(format!("Expected 0000, got {reserved:04X}")),
+            });
+
+            if self.strict_mode {
+                return Err(error);
+            }
+            warn!(
+                "RDW reserved bytes non-zero (record {}): {:04X}",
+                self.record_count, reserved
+            );
+            // Increment warning counter for summary
+            crate::lib_api::increment_warning_counter();
         }
+
+        // Check for ASCII transfer corruption heuristic
+        if Self::is_suspect_ascii_corruption(header) {
+            warn!(
+                "RDW appears to be ASCII-corrupted (record {}): {:02X} {:02X} {:02X} {:02X}",
+                self.record_count, header[0], header[1], header[2], header[3]
+            );
+            // For ASCII corruption, return an error instead of just warning
+            return Err(Error::new(
+                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                format!(
+                    "RDW appears to be ASCII-corrupted: {:02X} {:02X} {:02X} {:02X}",
+                    header[0], header[1], header[2], header[3]
+                ),
+            )
+            .with_context(ErrorContext {
+                record_index: Some(self.record_count),
+                field_path: None,
+                byte_offset: Some(0), // Header bytes are at offset 0-3
+                line_number: None,
+                details: Some("Suspected ASCII transfer corruption".to_string()),
+            }));
+        }
+
+        // Handle zero-length records
+        if length == 0 {
+            debug!("Zero-length RDW record {}", self.record_count);
+            return Ok(Some(RDWRecord {
+                header,
+                payload: Vec::new(),
+            }));
+        }
+
+        let payload_len = usize::from(length);
+        let body_slice = match rdw_slice_body(&mut self.input, length) {
+            Ok(slice) => slice,
+            Err(error) => {
+                return Err(error.with_context(ErrorContext {
+                    record_index: Some(self.record_count),
+                    field_path: None,
+                    byte_offset: Some(4), // Payload starts after 4-byte header
+                    line_number: None,
+                    details: Some("File ends with incomplete RDW payload".to_string()),
+                }));
+            }
+        };
+
+        let payload = rdw_validate_and_finish(body_slice).to_vec();
+        self.input.consume(payload_len);
+
+        debug!(
+            "Read RDW record {} payload: {} bytes",
+            self.record_count, length
+        );
+        Ok(Some(RDWRecord { header, payload }))
     }
 
     /// Validate zero-length record against schema
@@ -929,7 +1053,7 @@ pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) 
 mod tests {
     use super::*;
     use copybook_core::Schema;
-    use std::io::Cursor;
+    use std::io::{BufRead, Cursor};
 
     #[test]
     fn test_fixed_record_reader_basic() {
@@ -1096,6 +1220,54 @@ mod tests {
     }
 
     #[test]
+    fn rdw_eof_short_header_is_none() {
+        let mut cur = Cursor::new(Vec::<u8>::new());
+        assert!(rdw_try_peek_len(&mut cur).unwrap().is_none());
+
+        let mut cur = Cursor::new(vec![0x00]);
+        assert!(rdw_try_peek_len(&mut cur).unwrap().is_none());
+    }
+
+    #[test]
+    fn rdw_malformed_len_body_too_short_is_cbkf102() {
+        // Header says 0x0010 (16 bytes), body has only 4 → CBKF102
+        let mut cur = Cursor::new(vec![0x00, 0x10, 0xAA, 0xBB, 0xCC, 0xDD]);
+
+        // Peek: we have ≥ 2 bytes
+        assert!(rdw_try_peek_len(&mut cur).unwrap().is_some());
+        let len = rdw_read_len(&mut cur).unwrap();
+        assert_eq!(len, 16);
+
+        // Skip reserved bytes to position at the payload
+        cur.consume(2);
+
+        let err = rdw_slice_body(&mut cur, len).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(
+            err.message.contains("Incomplete RDW record payload"),
+            "message: {}",
+            err.message
+        );
+    }
+
+    #[test]
+    fn rdw_round_trip_ok() {
+        // Header 0x0003 with zero reserved bytes and payload "ABC"
+        let mut cur = Cursor::new(vec![0x00, 0x03, 0x00, 0x00, b'A', b'B', b'C']);
+
+        assert!(rdw_try_peek_len(&mut cur).unwrap().is_some());
+        let len = rdw_read_len(&mut cur).unwrap();
+        assert_eq!(len, 3);
+
+        // Skip reserved before borrowing the body
+        cur.consume(2);
+
+        let body = rdw_slice_body(&mut cur, len).unwrap();
+        let body = rdw_validate_and_finish(body);
+        assert_eq!(body, b"ABC");
+    }
+
+    #[test]
     fn test_rdw_record_new() {
         let record = RDWRecord::new(b"hello".to_vec());
         assert_eq!(record.length(), 5);
@@ -1230,7 +1402,7 @@ mod tests {
         let result = reader.read_record();
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
     }
 
     #[test]

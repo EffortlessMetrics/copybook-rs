@@ -129,6 +129,8 @@ Exported series:
 - `copybook_decode_seconds{format,codepage}`
 - `copybook_throughput_mibps{format,codepage}`
 
+Short error runs can finish before a scrape lands; use `--metrics-grace-ms 2000` (or another small hold period) so Prometheus always sees the HELP/TYPE lines and the final error counter sample.
+
 The library stays recorder-agnostic. When compiled with `--features metrics` **and** a global recorder is installed,
 counters are emitted; otherwise metrics calls are no-ops.
 

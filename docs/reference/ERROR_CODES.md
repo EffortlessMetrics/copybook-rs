@@ -330,6 +330,18 @@ Fixed format iterator requires LRECL; set schema.lrecl_fixed or use RecordFormat
 
 Errors in file operations and transfer corruption detection.
 
+#### CBKF102_RECORD_LENGTH_INVALID
+**Description**: RDW header length references an incomplete or oversized payload
+**Severity**: Fatal
+**Context**: Record number, byte offset, expected vs available bytes
+**Resolution**: Verify binary transfer mode, ensure RDW length matches payload size, re-run with `--emit-raw` to inspect truncated data
+
+```
+Error: CBKF102_RECORD_LENGTH_INVALID at record 42
+Expected payload: 64 bytes
+Available payload: 17 bytes (file truncated or RDW corrupted)
+```
+
 #### CBKF104_RDW_SUSPECT_ASCII
 **Description**: RDW header suggests ASCII transfer corruption
 **Severity**: Warning
@@ -489,6 +501,7 @@ Possible text-mode transfer corruption
 | CBKR101 | Record | Fatal | Fixed record error |
 | CBKR201 | Record | Fatal | RDW read error |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
+| CBKF102 | File | Fatal | RDW length invalid |
 | CBKF221 | File | Fatal | RDW underflow |
 | CBKC201 | Charset | Fatal | JSON write error |
 | CBKC301 | Charset | Warning/Fatal | Invalid EBCDIC byte |

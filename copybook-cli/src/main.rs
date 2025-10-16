@@ -257,7 +257,7 @@ fn run() -> anyhow::Result<ExitCode> {
     let metrics_opts = cli.metrics.clone();
 
     #[cfg(feature = "metrics")]
-    let metrics_server = metrics_start_if_requested(&metrics_opts);
+    let metrics_server = metrics_start_if_requested(&metrics_opts)?;
 
     #[cfg(feature = "metrics")]
     if metrics_server.is_some() {
@@ -399,11 +399,9 @@ fn run() -> anyhow::Result<ExitCode> {
     };
 
     #[cfg(feature = "metrics")]
-    if let Err(err) = &exit_status {
-        if let Some((handle, _)) = &metrics_server {
-            let records_processed = metrics_records_total(handle);
-            bump_error_if_pre_run(err, records_processed);
-        }
+    if let (Err(err), Some((handle, _))) = (&exit_status, &metrics_server) {
+        let records_processed = metrics_records_total(handle);
+        bump_error_if_pre_run(err, records_processed);
     }
 
     let status = exit_status?;
@@ -415,45 +413,70 @@ fn run() -> anyhow::Result<ExitCode> {
 #[cfg(feature = "metrics")]
 fn install_prometheus(
     addr: SocketAddr,
-) -> (
+) -> anyhow::Result<(
     metrics_exporter_prometheus::PrometheusHandle,
     std::thread::JoinHandle<()>,
-) {
+)> {
     use metrics_exporter_prometheus::PrometheusBuilder;
     use std::sync::mpsc;
 
     let (handle_tx, handle_rx) = mpsc::channel();
-
-    let join_handle = std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("failed to build Tokio runtime for metrics exporter");
-
-        runtime.block_on(async move {
-            let builder = PrometheusBuilder::new().with_http_listener(addr);
-            let (recorder, exporter) = builder
+    let join_handle = {
+        let pre_runtime_tx = handle_tx.clone();
+        std::thread::spawn(move || {
+            let runtime = match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
                 .build()
-                .expect("failed to build Prometheus exporter");
+            {
+                Ok(rt) => rt,
+                Err(err) => {
+                    let _ = pre_runtime_tx
+                        .send(Err(anyhow!("failed to build Tokio runtime for metrics exporter: {err}")));
+                    return;
+                }
+            };
 
-            let handle = recorder.handle();
-            metrics::set_global_recorder(recorder).expect("failed to install Prometheus recorder");
+            runtime.block_on(async move {
+                let builder = PrometheusBuilder::new().with_http_listener(addr);
+                let (recorder, exporter) = match builder.build() {
+                    Ok(pair) => pair,
+                    Err(err) => {
+                        let _ = handle_tx
+                            .send(Err(anyhow!("failed to build Prometheus exporter: {err}")));
+                        return;
+                    }
+                };
 
-            handle_tx
-                .send(handle)
-                .expect("failed to send Prometheus handle from exporter thread");
+                let handle = recorder.handle();
+                if let Err(err) = metrics::set_global_recorder(recorder) {
+                    let _ = handle_tx.send(Err(anyhow!(
+                        "failed to install Prometheus recorder: {err}"
+                    )));
+                    return;
+                }
 
-            if let Err(err) = exporter.await {
-                tracing::error!(error = ?err, "metrics exporter terminated unexpectedly");
-            }
-        });
-    });
+                if handle_tx.send(Ok(handle)).is_err() {
+                    tracing::warn!(
+                        "metrics exporter handle receiver dropped before initialization"
+                    );
+                    return;
+                }
+
+                if let Err(err) = exporter.await {
+                    tracing::error!(
+                        error = ?err,
+                        "metrics exporter terminated unexpectedly"
+                    );
+                }
+            });
+        })
+    };
 
     let handle = handle_rx
         .recv()
-        .expect("failed to receive Prometheus handle from exporter thread");
+        .map_err(|err| anyhow!("failed to receive Prometheus handle from exporter thread: {err}"))??;
 
-    (handle, join_handle)
+    Ok((handle, join_handle))
 }
 
 #[cfg(feature = "metrics")]
@@ -481,15 +504,15 @@ impl Drop for MetricsGraceGuard {
 #[cfg(feature = "metrics")]
 fn metrics_start_if_requested(
     opts: &MetricsOpts,
-) -> Option<(
+) -> anyhow::Result<Option<(
     metrics_exporter_prometheus::PrometheusHandle,
     std::thread::JoinHandle<()>,
-)> {
-    opts.metrics_listen.map(install_prometheus)
+)>> {
+    opts.metrics_listen.map(install_prometheus).transpose()
 }
 
 #[cfg(feature = "metrics")]
-fn metrics_records_total(handle: &metrics_exporter_prometheus::PrometheusHandle) -> Option<u64> {
+fn metrics_records_total(handle: &metrics_exporter_prometheus::PrometheusHandle) -> Option<f64> {
     let snapshot = handle.render();
     let mut saw_zero_entry = false;
 
@@ -497,19 +520,20 @@ fn metrics_records_total(handle: &metrics_exporter_prometheus::PrometheusHandle)
         if line.starts_with('#') {
             continue;
         }
-        if line.starts_with("copybook_records_total") {
-            if let Some(value_str) = line.split_whitespace().last() {
-                if let Ok(value) = value_str.parse::<f64>() {
-                    if value > 0.0 {
-                        return Some(value as u64);
-                    }
-                    saw_zero_entry = true;
-                }
+        if line.starts_with("copybook_records_total")
+            && let Some(value_str) = line.split_whitespace().last()
+            && let Ok(value) = value_str.parse::<f64>()
+        {
+            if value > 0.0 {
+                return Some(value);
+            }
+            if value == 0.0 {
+                saw_zero_entry = true;
             }
         }
     }
 
-    if saw_zero_entry { Some(0) } else { None }
+    if saw_zero_entry { Some(0.0) } else { None }
 }
 
 #[cfg(feature = "metrics")]
@@ -540,8 +564,8 @@ fn describe_metrics_once() {
 }
 
 #[cfg(feature = "metrics")]
-fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<u64>) {
-    if matches!(records_processed, Some(0) | None) {
+fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<f64>) {
+    if records_processed.unwrap_or(0.0) <= f64::EPSILON {
         let family = normalized_family_prefix(err).unwrap_or("CBKI");
         metrics::counter!("copybook_decode_errors_total", "family" => family).increment(1);
     }

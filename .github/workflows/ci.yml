@@ -37,6 +37,23 @@ jobs:
       if: matrix.features != ''
       run: cargo test --workspace --features ${{ matrix.features }}
 
+  rdw-iterator-tests:
+    name: RDW iterator tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run RDW iterator smoke
+      run: cargo test -p copybook-codec --lib -- rdw_
+    - name: Publish RDW test summary
+      run: |
+        set -eo pipefail
+        echo "### RDW iterator tests" >> "$GITHUB_STEP_SUMMARY"
+        cargo test -p copybook-codec --lib -- rdw_ -- --nocapture 2>&1 | tail -200 >> "$GITHUB_STEP_SUMMARY"
+
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest

@@ -324,6 +324,7 @@ impl ErrorReporter {
                     ErrorSeverity::Warning
                 }
             }
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID => ErrorSeverity::Error,
             ErrorCode::CBKF221_RDW_UNDERFLOW => ErrorSeverity::Error,
 
             // Character conversion warnings

@@ -40,6 +40,7 @@ fn create_test_encode_options(strict: bool) -> EncodeOptions {
     EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: strict,

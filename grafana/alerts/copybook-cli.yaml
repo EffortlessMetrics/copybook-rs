@@ -1,0 +1,19 @@
+groups:
+  - name: copybook-cli
+    rules:
+      - alert: CopybookErrorBurst
+        expr: sum(rate(copybook_decode_errors_total[5m])) by (family) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Errors detected by family
+          description: Errors by family exceeded zero for 10 minutes.
+      - alert: CopybookThroughputDrop
+        expr: avg_over_time(copybook_throughput_mibps[15m]) by (format, codepage) < 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Throughput below floor
+          description: MiB/s dropped below the configured floor for 15 minutes.

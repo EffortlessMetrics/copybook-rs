@@ -121,7 +121,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ## Telemetry Rollout (Phase 6)
 
-**Status:** In review — local gating complete; staging rollout and dashboards pending.
+**Status:** Done — staging exporter live; dashboards + alerts active.
 
 **Why:** make runtime behavior observable with a rollback lever.
 
@@ -129,10 +129,10 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 - [x] Feature-gate metrics; exporter behind `--metrics-listen`
 - [x] Emit low-cardinality series in decode path
 - [x] README + Library API docs
-- [ ] Staging rollout (enable flag; Prom scrape)
-- [ ] Dashboards (QPS, bytes/s, error rate, MiB/s)
-- [ ] Alerts (error burst, throughput drop)
-- [ ] Perf sanity on staging (MiB/s, RSS in-band)
+- [x] Staging rollout (enable flag; Prom scrape)
+- [x] Dashboards (QPS, bytes/s, error rate, MiB/s)
+- [x] Alerts (error burst, throughput drop)
+- [x] Perf sanity on staging (MiB/s, RSS in-band)
 
 **Exit:** `/metrics` reachable; Prom scraping; dashboards green; SLO receipts steady; builds clean with/without metrics.
 

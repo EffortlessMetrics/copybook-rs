@@ -31,6 +31,15 @@ impl fmt::Display for Error {
     }
 }
 
+impl Error {
+    /// Return the CBK* family prefix associated with this error.
+    #[inline]
+    #[must_use]
+    pub const fn family_prefix(&self) -> &'static str {
+        self.code.family_prefix()
+    }
+}
+
 /// Stable error codes for programmatic error handling
 ///
 /// The copybook-rs error taxonomy uses a structured approach with stable error codes
@@ -178,6 +187,43 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
         };
         write!(f, "{code_str}")
+    }
+}
+
+impl ErrorCode {
+    /// Return the 4-character family prefix (e.g., `CBKD`) for this error code.
+    #[inline]
+    #[must_use]
+    pub const fn family_prefix(self) -> &'static str {
+        match self {
+            Self::CBKP001_SYNTAX
+            | Self::CBKP011_UNSUPPORTED_CLAUSE
+            | Self::CBKP021_ODO_NOT_TAIL
+            | Self::CBKP051_UNSUPPORTED_EDITED_PIC => "CBKP",
+            Self::CBKS121_COUNTER_NOT_FOUND
+            | Self::CBKS141_RECORD_TOO_LARGE
+            | Self::CBKS301_ODO_CLIPPED
+            | Self::CBKS302_ODO_RAISED => "CBKS",
+            Self::CBKR211_RDW_RESERVED_NONZERO | Self::CBKR221_RDW_UNDERFLOW => "CBKR",
+            Self::CBKC201_JSON_WRITE_ERROR | Self::CBKC301_INVALID_EBCDIC_BYTE => "CBKC",
+            Self::CBKD101_INVALID_FIELD_TYPE
+            | Self::CBKD301_RECORD_TOO_SHORT
+            | Self::CBKD401_COMP3_INVALID_NIBBLE
+            | Self::CBKD410_ZONED_OVERFLOW
+            | Self::CBKD411_ZONED_BAD_SIGN
+            | Self::CBKD412_ZONED_BLANK_IS_ZERO
+            | Self::CBKD413_ZONED_INVALID_ENCODING
+            | Self::CBKD414_ZONED_MIXED_ENCODING
+            | Self::CBKD415_ZONED_ENCODING_AMBIGUOUS => "CBKD",
+            Self::CBKI001_INVALID_STATE => "CBKI",
+            Self::CBKE501_JSON_TYPE_MISMATCH
+            | Self::CBKE505_SCALE_MISMATCH
+            | Self::CBKE510_NUMERIC_OVERFLOW
+            | Self::CBKE515_STRING_LENGTH_VIOLATION
+            | Self::CBKE521_ARRAY_LEN_OOB => "CBKE",
+            Self::CBKF104_RDW_SUSPECT_ASCII => "CBKF",
+            Self::CBKA001_BASELINE_ERROR => "CBKA",
+        }
     }
 }
 

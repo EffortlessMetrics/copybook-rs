@@ -72,7 +72,7 @@ impl<R: Read> RecordIterator<R> {
     ///
     /// Returns an error if the record format is incompatible with the schema
     #[inline]
-    #[must_use = "Handle iterator construction failures"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
         Ok(Self {
             reader: BufReader::new(reader),
@@ -130,7 +130,7 @@ impl<R: Read> RecordIterator<R> {
     ///
     /// Returns an error if underlying I/O operations fail or the record format is invalid.
     #[inline]
-    #[must_use = "Consume raw record reads to advance the iterator"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
         if self.eof_reached {
             return Ok(None);

@@ -11,7 +11,7 @@ pub fn run(
     codepage: Codepage,
     strict: bool,
     strict_comments: bool,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> anyhow::Result<i32> {
     info!("Inspecting copybook: {:?}", copybook);
 
     if strict_comments {

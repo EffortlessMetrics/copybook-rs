@@ -165,7 +165,7 @@ impl<T> SequenceRing<T> {
     ///
     /// Returns an error if the channel is disconnected
     #[inline]
-    #[must_use = "Handle the result to observe channel shutdown or emitted data"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::RecvError> {
         loop {
             // Check if we have the next expected record in the reorder buffer
@@ -232,7 +232,7 @@ impl<T> SequenceRing<T> {
     ///
     /// Returns an error if the channel is disconnected or would block
     #[inline]
-    #[must_use = "Inspect the result to detect channel closure or pending records"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn try_recv_ordered(&mut self) -> Result<Option<T>, crossbeam_channel::TryRecvError> {
         // Check if we have the next expected record in the reorder buffer
         if let Some(record) = self.reorder_buffer.remove(&self.next_sequence_id) {
@@ -385,6 +385,7 @@ where
     ///
     /// Returns an error if the worker channel is disconnected
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn submit(
         &mut self,
         input: Input,
@@ -401,7 +402,7 @@ where
     ///
     /// Returns an error if the channel is disconnected
     #[inline]
-    #[must_use = "React to the outcome to avoid blocking the worker pipeline"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::RecvError> {
         self.output_ring.recv_ordered()
     }
@@ -413,7 +414,7 @@ where
     ///
     /// Returns an error if the channel is disconnected or would block
     #[inline]
-    #[must_use = "Use the result to detect when more work remains in the channel"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn try_recv_ordered(&mut self) -> Result<Option<Output>, crossbeam_channel::TryRecvError> {
         self.output_ring.try_recv_ordered()
     }
@@ -425,6 +426,7 @@ where
     ///
     /// Returns an error if any worker thread panicked
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn shutdown(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Close input channel
         drop(self.input_sender);

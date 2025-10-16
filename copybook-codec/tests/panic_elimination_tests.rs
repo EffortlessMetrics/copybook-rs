@@ -432,6 +432,7 @@ mod panic_elimination_zoned_overpunch_tests {
 #[cfg(test)]
 mod panic_elimination_record_tests {
     use super::*;
+    use serde_json::Value;
 
     /// Tests record.rs panic elimination (32 instances)
     /// AC:63-9 - Record processing with safe field extraction and bounds checking
@@ -487,10 +488,17 @@ mod panic_elimination_record_tests {
         match result {
             Ok(value) => {
                 if let Some(obj) = value.as_object() {
-                    assert!(obj.len() >= 3, "Large record should produce all fields");
+                    let fields_obj = obj.get("fields").and_then(Value::as_object).unwrap_or(obj);
+                    assert!(
+                        fields_obj.len() >= 3,
+                        "Large record should produce all fields"
+                    );
 
                     // Validate field values are reasonable
-                    for (field_name, field_value) in obj {
+                    for (field_name, field_value) in fields_obj {
+                        if field_name.ends_with("_raw_b64") {
+                            continue;
+                        }
                         assert!(
                             field_value.is_string(),
                             "Field {} should be string value",

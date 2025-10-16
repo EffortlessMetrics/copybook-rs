@@ -1,9 +1,9 @@
 //! Encode command implementation
 
-use crate::utils::{atomic_write, determine_exit_code, emit_fatal, read_file_or_stdin};
+use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
+use anyhow::{anyhow, bail};
 use copybook_codec::{Codepage, EncodeOptions, RecordFormat};
 use copybook_core::{ParseOptions, parse_copybook_with_options};
-use std::error::Error;
 use std::fs;
 use std::path::Path;
 use tracing::info;
@@ -29,7 +29,7 @@ pub fn run(
     input: &Path,
     output: &Path,
     options: &EncodeCliOptions,
-) -> Result<i32, Box<dyn std::error::Error>> {
+) -> anyhow::Result<i32> {
     info!("Encoding JSONL file: {:?}", input);
 
     if options.strict_comments {
@@ -68,44 +68,23 @@ pub fn run(
         .with_coerce_numbers(options.coerce_numbers)
         .with_zoned_encoding_override(options.zoned_encoding_override);
 
-    // Encode file using atomic write with better error handling
-    let encode_result: Result<copybook_codec::RunSummary, Box<dyn std::error::Error>> = {
-        let mut result_summary = None;
-        let atomic_result = atomic_write(output, |output_writer| {
-            let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
-            let summary = copybook_codec::encode_jsonl_to_file(
-                &schema,
-                input_file,
-                output_writer,
-                &encode_options,
-            )
-            .map_err(std::io::Error::other)?;
-            result_summary = Some(summary);
-            Ok(())
-        });
+    let mut summary = None;
+    atomic_write(output, |output_writer| {
+        let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
+        let run_summary = copybook_codec::encode_jsonl_to_file(
+            &schema,
+            input_file,
+            output_writer,
+            &encode_options,
+        )
+        .map_err(std::io::Error::other)?;
+        summary = Some(run_summary);
+        Ok(())
+    })?;
 
-        match atomic_result {
-            Ok(()) => result_summary.ok_or_else(|| {
-                Box::new(std::io::Error::other(
-                    "Internal error: summary not populated after successful processing",
-                )) as Box<dyn std::error::Error>
-            }),
-            Err(e) => {
-                // Check if this is an encoding error we should surface
-                if let Some(source) = e.source()
-                    && let Some(encode_error) = source.downcast_ref::<copybook_core::Error>()
-                {
-                    // Use emit_fatal for structured copybook errors
-                    let exit_code = emit_fatal(encode_error);
-                    return Ok(exit_code);
-                }
-                // Generic I/O error
-                return Err(Box::new(e));
-            }
-        }
-    };
-
-    let summary = encode_result?;
+    let summary = summary.ok_or_else(|| {
+        anyhow!("Internal error: summary not populated after successful processing")
+    })?;
 
     // Print comprehensive summary
     println!("=== Encode Summary ===");
@@ -144,8 +123,7 @@ pub fn run(
             "Encoding failed with {} error(s) in fail-fast mode",
             summary.records_with_errors
         );
-        let exit_code = emit_fatal(&std::io::Error::other(error_msg));
-        return Ok(exit_code);
+        bail!("{error_msg}");
     }
 
     info!("Encode completed successfully");

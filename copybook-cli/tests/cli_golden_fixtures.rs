@@ -383,9 +383,9 @@ fn test_cli_encode_fail_fast() -> TestResult<()> {
         .arg("--fail-fast");
 
     // Should fail with detailed error message
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("Fatal error"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "Encoding failed with 1 error(s) in fail-fast mode",
+    ));
 
     Ok(())
 }

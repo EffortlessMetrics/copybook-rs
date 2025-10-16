@@ -4,10 +4,13 @@
 //! This binary provides a user-friendly CLI for parsing copybooks and
 //! converting mainframe data files.
 
-use anyhow::anyhow;
+use anyhow::{Error as AnyhowError, anyhow};
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
+use copybook_core::Error as CoreError;
+use std::convert::TryFrom;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 #[derive(Parser)]
 #[command(name = "copybook")]
@@ -106,11 +109,11 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
-        /// Preserve zoned decimal encoding format for round-trip fidelity
+        /// Preserve decoded zoned format; wins over preferred.
         #[arg(long)]
         preserve_zoned_encoding: bool,
-        /// Preferred zoned encoding format for ambiguous detection
-        #[arg(long, default_value = "auto")]
+        /// Preferred zoned format when not preserved/overridden (e.g., prefer 0xF zero in EBCDIC).
+        #[arg(long, value_enum, default_value = "auto")]
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
     },
     /// Encode JSONL to binary data
@@ -155,8 +158,8 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
-        /// Override zoned decimal encoding format (ascii, ebcdic)
-        #[arg(long)]
+        /// Force zoned format (ascii|ebcdic), ignoring preserved/preferred.
+        #[arg(long, value_enum)]
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
     },
     /// Enterprise audit system for regulatory compliance
@@ -212,8 +215,18 @@ Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
     },
 }
 
+fn main() -> ExitCode {
+    match run() {
+        Ok(code) => code,
+        Err(err) => {
+            eprintln!("{err}");
+            map_error_to_exit_code(&err)
+        }
+    }
+}
+
 #[allow(clippy::too_many_lines)]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn run() -> anyhow::Result<ExitCode> {
     let cli = Cli::parse();
 
     // Initialize tracing
@@ -222,7 +235,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(format!("copybook={level}"))
         .init();
 
-    let result = match cli.command {
+    let exit_status = match cli.command {
         Commands::Parse {
             copybook,
             output,
@@ -311,7 +324,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let runtime = tokio::runtime::Runtime::new()?;
             runtime
                 .block_on(crate::commands::audit::run(audit_command))
-                .map_err(|err| -> Box<dyn std::error::Error> { err })
+                .map_err(|err| anyhow!(err))
         }
         Commands::Verify {
             copybook,
@@ -325,13 +338,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             strict_comments,
         } => {
             let value = max_errors.unwrap_or(10);
-            let Ok(normalized_max_errors) = u32::try_from(value) else {
-                return Err(anyhow!(
+            let normalized_max_errors = u32::try_from(value).map_err(|_| {
+                anyhow!(
                     "--max-errors must be between 0 and {} (received {value})",
                     u32::MAX
                 )
-                .into());
-            };
+            })?;
 
             let opts = crate::commands::verify::VerifyOptions {
                 format,
@@ -345,15 +357,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    match result {
-        Ok(exit_code) => {
-            std::process::exit(exit_code);
+    let status = exit_status?;
+    let exit_code = u8::try_from(status).unwrap_or(1);
+    Ok(ExitCode::from(exit_code))
+}
+
+fn map_error_to_exit_code(err: &AnyhowError) -> ExitCode {
+    if let Some(prefix) = extract_family_prefix(err) {
+        match prefix {
+            "CBKD" => ExitCode::from(2),
+            "CBKE" => ExitCode::from(3),
+            "CBKF" => ExitCode::from(4),
+            "CBKI" => ExitCode::from(5),
+            _ => ExitCode::from(1),
         }
-        Err(e) => {
-            let exit_code = crate::utils::emit_fatal(e.as_ref());
-            std::process::exit(exit_code);
+    } else {
+        ExitCode::from(1)
+    }
+}
+
+fn extract_family_prefix(err: &AnyhowError) -> Option<&'static str> {
+    if let Some(core) = err.downcast_ref::<CoreError>() {
+        return Some(core.family_prefix());
+    }
+    for cause in err.chain() {
+        if let Some(core) = cause.downcast_ref::<CoreError>() {
+            return Some(core.family_prefix());
         }
     }
+    None
 }
 
 mod commands {

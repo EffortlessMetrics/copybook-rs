@@ -47,6 +47,11 @@ pub enum PicKind {
 
 impl PicClause {
     /// Parse a PIC clause string
+    ///
+    /// # Errors
+    /// Returns an error if the PIC clause is invalid or uses unsupported features.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn parse(pic_str: &str) -> Result<Self> {
         let pic_str = pic_str.trim();
 

@@ -59,9 +59,9 @@ impl LayoutContext {
 /// - Overflow protection with u64 arithmetic
 ///
 /// # Errors
-///
-/// Returns an error if the layout cannot be resolved due to invalid field configurations
-/// or if the theoretical maximum record size exceeds the limit.
+/// Returns an error if field configuration is invalid or the record size exceeds limits.
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
     let mut context = LayoutContext::new();
 

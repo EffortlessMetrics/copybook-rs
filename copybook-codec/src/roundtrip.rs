@@ -79,6 +79,11 @@ impl RoundTripConfig {
     }
 
     /// Run the round-trip test
+    ///
+    /// # Errors
+    /// Returns an error if hashing or encoding steps encounter unexpected failures.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn run(&self) -> Result<RoundTripResult> {
         let mut errors = Vec::new();
         

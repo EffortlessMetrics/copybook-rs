@@ -127,3 +127,9 @@ jq -s '.[0] * { summary: .[1] }' "${TMP_JSON}" "${SUMMARY_JSON}" > "${TMP_JSON}.
 mv "${TMP_JSON}.tmp" "${TMP_JSON}"
 rm -f "${SUMMARY_JSON}"
 echo "✅ appended summary to ${TMP_JSON}"
+
+if [[ -x "scripts/soak-aggregate.sh" ]]; then
+  bash scripts/soak-aggregate.sh
+else
+  echo "⚠️ scripts/soak-aggregate.sh missing or not executable; skipping percentile aggregate."
+fi

@@ -1765,7 +1765,7 @@ fn process_rdw_records<R: Read, W: Write>(
             && rdw_record.payload.len() < schema_lrecl as usize
         {
             let error = Error::new(
-                ErrorCode::CBKR221_RDW_UNDERFLOW,
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
                 format!(
                     "RDW payload too short: {} bytes, schema requires {} bytes",
                     rdw_record.payload.len(),

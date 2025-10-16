@@ -61,7 +61,7 @@ security: cargo audit: 0 vulnerabilities; unsafe blocks: 0/production
 ### 2. RDW Format Enhancements ✅
 - **Strict Mode Validation**: Added proper error context for truncated RDW headers
   - File: `copybook-codec/src/record.rs:451-474`
-  - Strict mode: Returns `CBKR221_RDW_UNDERFLOW` with context
+  - Strict mode: Returns `CBKF221_RDW_UNDERFLOW` with context
   - Lenient mode: Treats as EOF (backward compatible)
 
 - **Variable-Length Field Handling**: Aligned RDW field boundary checks across scratch and non-scratch paths
@@ -145,7 +145,7 @@ security: cargo audit: 0 vulnerabilities; unsafe blocks: 0/production
    - **Detection**: Compile-time safe (string constant), runtime detectable via missing field
 
 **Additive Changes**:
-1. **RDW Strict Mode Error**: New `CBKR221_RDW_UNDERFLOW` error code for truncated headers
+1. **RDW Strict Mode Error**: New `CBKF221_RDW_UNDERFLOW` error code for truncated headers
    - **Impact**: More precise error reporting in strict mode
    - **Backward Compatibility**: Lenient mode unchanged (treats as EOF)
 
@@ -167,7 +167,7 @@ security: cargo audit: 0 vulnerabilities; unsafe blocks: 0/production
 - **DISPLAY**: Maintained >99% threshold (validated via comprehensive tests)
 - **COMP-3**: **IMPROVED** - Even-digit fields now decode correctly (was: buggy, now: correct)
 - **COMP**: Unchanged, all tests passing
-- **Error Code Stability**: All error codes stable, one new code added (`CBKR221_RDW_UNDERFLOW`)
+- **Error Code Stability**: All error codes stable, one new code added (`CBKF221_RDW_UNDERFLOW`)
 
 ### Data Conversion Performance ✅
 - **Throughput**:

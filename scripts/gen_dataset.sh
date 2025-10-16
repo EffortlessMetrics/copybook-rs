@@ -242,7 +242,7 @@ with OUTPUT.open("wb") as fh:
     for idx in range(record_count):
         record = build_record(idx, rng)
         if FORMAT == "rdw":
-            rdw_length = len(record) + 4
+            rdw_length = len(record)
             if rdw_length > 0xFFFF:
                 raise SystemExit("Record length exceeds RDW 64 KiB limit")
             fh.write(rdw_length.to_bytes(2, "big"))

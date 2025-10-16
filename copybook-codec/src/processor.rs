@@ -571,13 +571,13 @@ impl DecodeProcessor {
                     } else {
                         // Partial RDW header - error
                         return Err(Error::new(
-                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            ErrorCode::CBKF221_RDW_UNDERFLOW,
                             format!("Truncated RDW header: only {} of 4 bytes available", bytes_read),
                         ));
                     }
                 }
                 Ok(n) => bytes_read += n,
-                Err(e) => return Err(Error::new(ErrorCode::CBKR221_RDW_UNDERFLOW, e.to_string())),
+                Err(e) => return Err(Error::new(ErrorCode::CBKF221_RDW_UNDERFLOW, e.to_string())),
             }
         }
 
@@ -602,7 +602,7 @@ impl DecodeProcessor {
         // Validate record length
         if record_length == 0 {
             return Err(Error::new(
-                ErrorCode::CBKR221_RDW_UNDERFLOW,
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
                 "RDW record length is zero",
             ));
         }

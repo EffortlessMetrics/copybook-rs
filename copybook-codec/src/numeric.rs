@@ -1403,50 +1403,21 @@ pub fn encode_zoned_decimal(
     signed: bool,
     codepage: Codepage,
 ) -> Result<Vec<u8>> {
-    // Parse the input value with scale validation (NORMATIVE)
-    let decimal = SmallDecimal::from_str(value, scale)?;
+    let zero_policy = if codepage.is_ascii() {
+        ZeroSignPolicy::Positive
+    } else {
+        ZeroSignPolicy::Preferred
+    };
 
-    // Convert to string representation of digits
-    let abs_value = decimal.value.abs();
-    let width = usize::from(digits);
-    let digit_str = format!("{abs_value:0width$}");
-
-    if digit_str.len() > width {
-        return Err(Error::new(
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!("Value too large for {digits} digits"),
-        ));
-    }
-
-    let mut result = Vec::with_capacity(width);
-    let digit_bytes = digit_str.as_bytes();
-
-    // Encode each digit
-    for (i, &ascii_digit) in digit_bytes.iter().enumerate() {
-        let digit = ascii_digit - b'0';
-        if digit > 9 {
-            return Err(Error::new(
-                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!("Invalid digit character: {}", ascii_digit as char),
-            ));
-        }
-
-        if i == digit_bytes.len() - 1 && signed {
-            // Last digit with sign - use ASCII overpunch for ASCII codepage
-            let overpunch_byte =
-                encode_overpunch_byte(digit, decimal.negative, codepage, ZeroSignPolicy::Positive)?;
-            result.push(overpunch_byte);
-        } else {
-            // Regular digit
-            let zone = match codepage {
-                Codepage::ASCII => ASCII_DIGIT_ZONE,
-                _ => EBCDIC_DIGIT_ZONE,
-            };
-            result.push((zone << 4) | digit);
-        }
-    }
-
-    Ok(result)
+    encode_zoned_decimal_with_format_and_policy(
+        value,
+        digits,
+        scale,
+        signed,
+        codepage,
+        None,
+        zero_policy,
+    )
 }
 
 /// Encode zoned decimal field with encoding format override support
@@ -1466,6 +1437,44 @@ pub fn encode_zoned_decimal_with_format(
     codepage: Codepage,
     encoding_override: Option<ZonedEncodingFormat>,
 ) -> Result<Vec<u8>> {
+    let zero_policy = match encoding_override {
+        Some(ZonedEncodingFormat::Ascii) => ZeroSignPolicy::Positive,
+        Some(ZonedEncodingFormat::Ebcdic) => ZeroSignPolicy::Preferred,
+        Some(ZonedEncodingFormat::Auto) | None => {
+            if codepage.is_ascii() {
+                ZeroSignPolicy::Positive
+            } else {
+                ZeroSignPolicy::Preferred
+            }
+        }
+    };
+
+    encode_zoned_decimal_with_format_and_policy(
+        value,
+        digits,
+        scale,
+        signed,
+        codepage,
+        encoding_override,
+        zero_policy,
+    )
+}
+
+/// Encode zoned decimal field with explicit encoding format and zero sign policy
+///
+/// # Errors
+/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters
+#[inline]
+#[must_use = "Use the encoded bytes or propagate the encoding error"]
+pub fn encode_zoned_decimal_with_format_and_policy(
+    value: &str,
+    digits: u16,
+    scale: i16,
+    signed: bool,
+    codepage: Codepage,
+    encoding_override: Option<ZonedEncodingFormat>,
+    zero_policy: ZeroSignPolicy,
+) -> Result<Vec<u8>> {
     // Parse the input value with scale validation (NORMATIVE)
     let decimal = SmallDecimal::from_str(value, scale)?;
 
@@ -1483,10 +1492,17 @@ pub fn encode_zoned_decimal_with_format(
 
     // Determine the encoding format to use
     // Precedence: explicit override > codepage default
-    let target_format = encoding_override.unwrap_or(match codepage {
+    let mut target_format = encoding_override.unwrap_or(match codepage {
         Codepage::ASCII => ZonedEncodingFormat::Ascii,
         _ => ZonedEncodingFormat::Ebcdic,
     });
+    if target_format == ZonedEncodingFormat::Auto {
+        target_format = if codepage.is_ascii() {
+            ZonedEncodingFormat::Ascii
+        } else {
+            ZonedEncodingFormat::Ebcdic
+        };
+    }
 
     let mut result = Vec::with_capacity(width);
     let digit_bytes = digit_str.as_bytes();
@@ -1502,7 +1518,6 @@ pub fn encode_zoned_decimal_with_format(
         }
 
         if i == digit_bytes.len() - 1 && signed {
-            // Last digit with sign - use ASCII overpunch for ASCII format
             if target_format == ZonedEncodingFormat::Ascii {
                 let overpunch_byte = encode_overpunch_byte(
                     digit,
@@ -1517,16 +1532,11 @@ pub fn encode_zoned_decimal_with_format(
                 } else {
                     codepage
                 };
-                let overpunch_byte = encode_overpunch_byte(
-                    digit,
-                    decimal.negative,
-                    encode_codepage,
-                    ZeroSignPolicy::Positive,
-                )?;
+                let overpunch_byte =
+                    encode_overpunch_byte(digit, decimal.negative, encode_codepage, zero_policy)?;
                 result.push(overpunch_byte);
             }
         } else {
-            // Regular digit
             let zone = match target_format {
                 ZonedEncodingFormat::Ascii => ASCII_DIGIT_ZONE,
                 _ => EBCDIC_DIGIT_ZONE,
@@ -1975,11 +1985,14 @@ fn zoned_ensure_unsigned(
     Ok(false)
 }
 
-/// Optimized zoned decimal decoder using scratch buffers
-/// Minimizes allocations by reusing digit buffer
+/// Decode a zoned decimal using the configured code page and policy while reusing scratch buffers.
+///
+/// # Policy
+/// Defaults to *preferred zero sign* (`ZeroSignPolicy::Preferred`) for EBCDIC zeros unless
+/// `preserve_zoned_encoding` captured an explicit format at decode.
 ///
 /// # Errors
-/// Returns an error when the input length, digit zones, or sign encoding are invalid.
+/// Returns an error if zone nibbles or the last-byte overpunch are invalid.
 #[inline]
 #[must_use = "Use the decoded decimal or handle the decoding error"]
 pub fn decode_zoned_decimal_with_scratch(
@@ -2336,8 +2349,12 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
     }
 }
 
-/// Optimized zoned decimal encoder using scratch buffers
-/// Minimizes allocations by reusing digit buffer
+/// Encode a zoned decimal using the configured code page and a caller-resolved policy while
+/// reusing scratch buffers.
+///
+/// # Policy
+/// Callers typically resolve policy using `zoned_encoding_override` → preserved metadata →
+/// `preferred_zoned_encoding`, matching the documented library behavior for zoned decimals.
 ///
 /// # Errors
 /// Returns an error when the decimal value cannot be represented with the requested digits or encoding.

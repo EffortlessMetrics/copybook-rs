@@ -474,8 +474,36 @@ let output = std::fs::File::create("output.jsonl")?;
 let summary = decode_file_to_jsonl(&schema, Path::new("data.bin"), &opts, output)?;
 
 println!("Processed {} records with {} errors",
-         summary.records_processed, summary.error_count);
+         summary.records_processed, summary.records_with_errors);
 ```
+
+### Telemetry & Metrics (opt-in)
+
+Enable the `metrics` cargo feature on `copybook-codec` when you want the decoder to emit counters and gauges that can be scraped by any [`metrics`](https://crates.io/crates/metrics) compatible recorder:
+
+```toml
+[dependencies]
+copybook-codec = { version = "0.3", features = ["metrics"] }
+```
+
+The CLI forwards the same feature:
+
+```bash
+cargo install copybook-cli --features metrics
+# or inside the workspace
+cargo run -p copybook-cli --features metrics -- decode ...
+```
+
+Once enabled, every `decode_file_to_jsonl` invocation updates the following series:
+
+- `records_read_total` (counter; +1 per record)
+- `bytes_read_total` (counter; +N per record payload)
+- `decode_errors_total{family="CBKD|CBKC|CBKF|CBKI|…"}` (counter; tagged with error family prefix)
+- `decode_time_seconds_total` (histogram; file-level runtime in seconds)
+- `decode_time_seconds_count` (counter; number of completed decode runs)
+- `throughput_mibps_gauge` (gauge; last-run MiB/s throughput)
+
+Even without the feature, the library now emits an `INFO` log with target `copybook::decode` summarising each run’s totals and options. Hook it up to `tracing-subscriber` or your existing logging pipeline to capture receipts alongside the metrics stream.
 
 ### File-Level Encoding
 

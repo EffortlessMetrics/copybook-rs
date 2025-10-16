@@ -41,6 +41,7 @@ anyhow.workspace = true
 [features]
 default = []
 audit = ["copybook-core/audit"]
+metrics = ["copybook-codec/metrics"]
 
 [dev-dependencies]
 proptest.workspace = true

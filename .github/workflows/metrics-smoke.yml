@@ -1,0 +1,21 @@
+name: Metrics Smoke (on-demand)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI with metrics
+        run: cargo build -p copybook-cli --features metrics
+
+      - name: Run metrics smoke (ignored test)
+        env:
+          RUST_LOG: info
+        run: cargo test -p copybook-cli --features metrics --test metrics_smoke -- --ignored --nocapture

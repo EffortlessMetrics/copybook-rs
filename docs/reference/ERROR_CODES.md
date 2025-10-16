@@ -160,14 +160,14 @@ Warning: CBKR211_RDW_RESERVED_NONZERO at record 100
 Reserved bytes: 0x1234 (expected 0x0000)
 ```
 
-#### CBKR221_RDW_UNDERFLOW
+#### CBKF221_RDW_UNDERFLOW
 **Description**: RDW length less than minimum record size
 **Severity**: Fatal
 **Context**: Record number, RDW length, minimum required
 **Resolution**: Check data integrity or record format
 
 ```
-Error: CBKR221_RDW_UNDERFLOW at record 200
+Error: CBKF221_RDW_UNDERFLOW at record 200
 RDW length: 50 bytes
 Minimum required: 120 bytes
 ```
@@ -489,7 +489,7 @@ Possible text-mode transfer corruption
 | CBKR101 | Record | Fatal | Fixed record error |
 | CBKR201 | Record | Fatal | RDW read error |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
-| CBKR221 | Record | Fatal | RDW underflow |
+| CBKF221 | File | Fatal | RDW underflow |
 | CBKC201 | Charset | Fatal | JSON write error |
 | CBKC301 | Charset | Warning/Fatal | Invalid EBCDIC byte |
 | CBKD101 | Decode | Fatal | Invalid field type |

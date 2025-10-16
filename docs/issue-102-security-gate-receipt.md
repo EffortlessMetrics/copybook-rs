@@ -177,7 +177,7 @@ advisories ok, bans ok, licenses ok, sources ok
 
 **Stable Error Codes Used in Issue #102 Fixes**:
 - `CBKP001_SYNTAX`: Schema validation errors (iterator.rs)
-- `CBKR221_RDW_UNDERFLOW`: Truncated RDW header detection (record.rs, processor.rs) - **NEW in Issue #102**
+- `CBKF221_RDW_UNDERFLOW`: Truncated RDW header detection (record.rs, processor.rs) - **NEW in Issue #102**
 - `CBKD401_COMP3_INVALID_NIBBLE`: Packed decimal validation (numeric.rs)
 - `CBKD411_ZONED_BAD_SIGN`: Zoned decimal sign validation (numeric.rs)
 - `CBKD413_ZONED_INVALID_ENCODING`: Encoding validation (numeric.rs)
@@ -192,7 +192,7 @@ advisories ok, bans ok, licenses ok, sources ok
 ```rust
 // processor.rs: RDW truncated header detection
 return Err(Error::new(
-    ErrorCode::CBKR221_RDW_UNDERFLOW,
+    ErrorCode::CBKF221_RDW_UNDERFLOW,
     format!(
         "Truncated RDW header at record {} (byte offset {}): expected 4 bytes, got {}",
         self.record_index, self.bytes_read, header_buf.len()

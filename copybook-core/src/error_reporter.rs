@@ -324,7 +324,7 @@ impl ErrorReporter {
                     ErrorSeverity::Warning
                 }
             }
-            ErrorCode::CBKR221_RDW_UNDERFLOW => ErrorSeverity::Error,
+            ErrorCode::CBKF221_RDW_UNDERFLOW => ErrorSeverity::Error,
 
             // Character conversion warnings
             ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => ErrorSeverity::Warning,

@@ -60,6 +60,9 @@ jobs:
       - name: Run benches (JSON)
         run: bash scripts/bench.sh
 
+      - name: Annotate perf with host info
+        run: bash scripts/perf-annotate-host.sh
+
       - name: Upload perf receipts
         uses: actions/upload-artifact@v4
         with:
@@ -120,18 +123,33 @@ jobs:
             const core = require('@actions/core');
             const path = 'scripts/bench/perf.json';
             let maxRss = 'n/a';
+            let hostLine = '';
             try {
               const data = JSON.parse(fs.readFileSync(path, 'utf8'));
               const summary = data.summary || {};
               if (summary.max_rss_mib != null) {
                 maxRss = summary.max_rss_mib;
               }
+              const parts = [];
+              if (summary.host_cpu) {
+                parts.push(summary.host_cpu);
+              }
+              if (summary.host_cores != null) {
+                parts.push(`${summary.host_cores}c`);
+              }
+              if (summary.host_os || summary.host_kernel) {
+                const os = summary.host_os || 'unknown';
+                const kernel = summary.host_kernel || 'unknown';
+                parts.push(`${os}/${kernel}`);
+              }
+              hostLine = parts.filter(Boolean).join(' • ');
             } catch (error) {
               core.warning(`Failed to read ${path}: ${error}`);
             }
 
             const display = process.env.DISPLAY_MIB || '0';
             const comp3 = process.env.COMP3_MIB || '0';
+            const hostSummary = hostLine ? `Host: ${hostLine}\n` : '';
             await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -144,7 +162,8 @@ jobs:
                 summary:
                   `DISPLAY: ${display} MiB/s (>=80)\n` +
                   `COMP-3:  ${comp3} MiB/s (>=40)\n` +
-                  `Max RSS: ${maxRss} MiB (<=256)`
+                  `Max RSS: ${maxRss} MiB (<=256)\n` +
+                  hostSummary
               }
             });
 

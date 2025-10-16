@@ -41,6 +41,9 @@ pub struct MetricsOpts {
     /// Expose Prometheus metrics at this address (e.g. 0.0.0.0:9300)
     #[arg(long)]
     pub metrics_listen: Option<SocketAddr>,
+    /// Optional delay after run completion so scrapes can observe final metrics
+    #[arg(long, default_value_t = 0)]
+    pub metrics_grace_ms: u64,
 }
 
 #[derive(Subcommand)]
@@ -248,15 +251,21 @@ fn run() -> anyhow::Result<ExitCode> {
     let cli = Cli::parse();
 
     #[cfg(feature = "metrics")]
-    let _metrics_server = metrics_start_if_requested(&cli.metrics);
+    let metrics_opts = cli.metrics.clone();
+
+    #[cfg(feature = "metrics")]
+    let _metrics_server = metrics_start_if_requested(&metrics_opts);
+
+    let verbose = cli.verbose;
+    let command = cli.command;
 
     // Initialize tracing
-    let level = if cli.verbose { "debug" } else { "info" };
+    let level = if verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
         .with_env_filter(format!("copybook={level}"))
         .init();
 
-    let exit_status = match cli.command {
+    let exit_status = match command {
         Commands::Parse {
             copybook,
             output,
@@ -380,6 +389,12 @@ fn run() -> anyhow::Result<ExitCode> {
 
     let status = exit_status?;
     let exit_code = u8::try_from(status).unwrap_or(1);
+
+    #[cfg(feature = "metrics")]
+    if metrics_opts.metrics_listen.is_some() && metrics_opts.metrics_grace_ms > 0 {
+        std::thread::sleep(std::time::Duration::from_millis(metrics_opts.metrics_grace_ms));
+    }
+
     Ok(ExitCode::from(exit_code))
 }
 
@@ -401,21 +416,20 @@ fn install_prometheus(
             .build()
             .expect("failed to build Tokio runtime for metrics exporter");
 
-        let builder = PrometheusBuilder::new().with_http_listener(addr);
-        let enter = runtime.enter();
-        let (recorder, exporter) = builder
-            .build()
-            .expect("failed to build Prometheus exporter");
-        drop(enter);
-
-        let handle = recorder.handle();
-        metrics::set_global_recorder(recorder).expect("failed to install Prometheus recorder");
-
-        if handle_tx.send(handle).is_err() {
-            return;
-        }
-
         runtime.block_on(async move {
+            let builder = PrometheusBuilder::new().with_http_listener(addr);
+            let (recorder, exporter) = builder
+                .build()
+                .expect("failed to build Prometheus exporter");
+
+            let handle = recorder.handle();
+            metrics::set_global_recorder(recorder)
+                .expect("failed to install Prometheus recorder");
+
+            handle_tx
+                .send(handle)
+                .expect("failed to send Prometheus handle from exporter thread");
+
             if let Err(err) = exporter.await {
                 tracing::error!(error = ?err, "metrics exporter terminated unexpectedly");
             }

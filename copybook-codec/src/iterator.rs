@@ -173,7 +173,7 @@ impl<R: Read> RecordIterator<R> {
                     }
                     Err(e) => {
                         return Err(Error::new(
-                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            ErrorCode::CBKF221_RDW_UNDERFLOW,
                             format!("Failed to read RDW header: {e}"),
                         ));
                     }
@@ -191,7 +191,7 @@ impl<R: Read> RecordIterator<R> {
                     }
                     Err(e) => {
                         return Err(Error::new(
-                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            ErrorCode::CBKF221_RDW_UNDERFLOW,
                             format!("Failed to read RDW payload: {e}"),
                         ));
                     }

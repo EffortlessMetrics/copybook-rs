@@ -323,7 +323,7 @@ Memory: <256 MiB steady-state → Validated: <256 MiB ✅
 ✅ CBKS302_ODO_RAISED - ODO minimum validation
 ✅ CBKD301_RECORD_TOO_SHORT - Record boundary validation
 ✅ CBKD401_COMP3_INVALID_NIBBLE - Packed decimal validation ⭐ Issue #102
-✅ CBKR221_RDW_UNDERFLOW - RDW header/payload truncation ⭐ Issue #102
+✅ CBKF221_RDW_UNDERFLOW - RDW header/payload truncation ⭐ Issue #102
 ```
 
 **Error Code Stability**: ✅ **MAINTAINED**

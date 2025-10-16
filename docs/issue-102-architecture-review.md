@@ -93,7 +93,7 @@ if is_first_byte && has_padding {
 **Files:** `copybook-codec/src/processor.rs` (lines 560-582), `copybook-codec/src/record.rs` (lines 451-474)
 
 **Architecture Alignment:**
-- **Error Taxonomy:** Proper CBKR221_RDW_UNDERFLOW error emission with context
+- **Error Taxonomy:** Proper CBKF221_RDW_UNDERFLOW error emission with context
 - **Strict/Lenient Modes:** Respects error handling modes:
   - Strict mode: Returns error for truncated headers
   - Lenient mode: Treats truncated headers as EOF
@@ -109,7 +109,7 @@ match reader.read(&mut rdw_header[bytes_read..]) {
             return Ok(None); // Clean EOF
         } else {
             return Err(Error::new(
-                ErrorCode::CBKR221_RDW_UNDERFLOW,
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
                 format!("Truncated RDW header: only {} of 4 bytes available", bytes_read),
             ));
         }
@@ -117,7 +117,7 @@ match reader.read(&mut rdw_header[bytes_read..]) {
 ```
 
 **Validation:**
-- ✅ Error code stable: CBKR221_RDW_UNDERFLOW (existing code)
+- ✅ Error code stable: CBKF221_RDW_UNDERFLOW (existing code)
 - ✅ Error context includes: record_index, byte_offset, details
 - ✅ No breaking changes to RDW parsing: big-endian length field preserved
 - ✅ Reserved bytes validation unchanged (strict vs lenient)
@@ -147,7 +147,7 @@ copybook-cli (CLI orchestration)
 ## Error Taxonomy Stability
 
 **Error Codes Validated:**
-- ✅ `CBKR221_RDW_UNDERFLOW`: Truncated RDW header/payload (stable)
+- ✅ `CBKF221_RDW_UNDERFLOW`: Truncated RDW header/payload (stable)
 - ✅ `CBKR211_RDW_RESERVED_NONZERO`: Reserved bytes non-zero (stable)
 - ✅ `CBKD401_COMP3_INVALID_NIBBLE`: Invalid packed decimal nibble (stable)
 - ✅ `CBKE501_JSON_TYPE_MISMATCH`: Invalid base64 in __raw_b64 (stable)

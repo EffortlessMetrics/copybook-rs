@@ -76,7 +76,7 @@ impl<R: Read> FixedRecordReader<R> {
                         Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
                             // Partial record - this is an error
                             Err(Error::new(
-                                ErrorCode::CBKR221_RDW_UNDERFLOW,
+                                ErrorCode::CBKF221_RDW_UNDERFLOW,
                                 format!(
                                     "Incomplete record at end of file: expected {} bytes",
                                     self.lrecl
@@ -143,7 +143,7 @@ impl<R: Read> FixedRecordReader<R> {
         let lrecl_len = self.lrecl_usize()?;
         if record_data.len() != lrecl_len {
             return Err(Error::new(
-                ErrorCode::CBKR221_RDW_UNDERFLOW,
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
                 format!(
                     "Record length mismatch: expected {}, got {}",
                     self.lrecl,
@@ -466,7 +466,7 @@ impl<R: Read> RDWRecordReader<R> {
                 // Read the payload
                 let payload_len = usize::try_from(length).map_err(|_| {
                     Error::new(
-                        ErrorCode::CBKR221_RDW_UNDERFLOW,
+                        ErrorCode::CBKF221_RDW_UNDERFLOW,
                         format!("RDW length {length} exceeds platform limits"),
                     )
                 })?;
@@ -484,7 +484,7 @@ impl<R: Read> RDWRecordReader<R> {
                     }
                     Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
                         Err(Error::new(
-                            ErrorCode::CBKR221_RDW_UNDERFLOW,
+                            ErrorCode::CBKF221_RDW_UNDERFLOW,
                             format!("Incomplete RDW record payload: expected {length} bytes"),
                         )
                         .with_context(ErrorContext {
@@ -513,7 +513,7 @@ impl<R: Read> RDWRecordReader<R> {
                 // In lenient mode, treat it as EOF
                 if self.strict_mode {
                     Err(Error::new(
-                        ErrorCode::CBKR221_RDW_UNDERFLOW,
+                        ErrorCode::CBKF221_RDW_UNDERFLOW,
                         "Incomplete RDW header: expected 4 bytes".to_string(),
                     )
                     .with_context(ErrorContext {
@@ -561,7 +561,7 @@ impl<R: Read> RDWRecordReader<R> {
 
         if min_size > 0 {
             return Err(Error::new(
-                ErrorCode::CBKR221_RDW_UNDERFLOW,
+                ErrorCode::CBKF221_RDW_UNDERFLOW,
                 format!("Zero-length RDW record invalid: schema requires minimum {min_size} bytes"),
             )
             .with_context(ErrorContext {
@@ -960,7 +960,7 @@ mod tests {
         let result = reader.read_record();
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
     }
 
     #[test]
@@ -1053,7 +1053,7 @@ mod tests {
         let result = reader.validate_record_length(&schema, wrong_record);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
     }
 
     #[test]
@@ -1230,7 +1230,7 @@ mod tests {
         let result = reader.read_record();
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
     }
 
     #[test]
@@ -1333,7 +1333,7 @@ mod tests {
         let result = reader.validate_zero_length_record(&schema);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
 
         let prefix = RDWRecordReader::<Cursor<Vec<u8>>>::calculate_schema_fixed_prefix(&schema);
         assert_eq!(prefix, 5);
@@ -1379,7 +1379,7 @@ mod tests {
         let result = reader.validate_zero_length_record(&schema);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
 
         let prefix = RDWRecordReader::<Cursor<Vec<u8>>>::calculate_schema_fixed_prefix(&schema);
         assert_eq!(prefix, 2);

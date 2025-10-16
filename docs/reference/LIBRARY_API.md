@@ -210,7 +210,44 @@ pub enum ZonedEncodingFormat {
 }
 ```
 
-### JSON Envelope & Raw Data
+## Codepage Notes
+
+copybook-rs ships with an explicit allowlist of production codepages. The encoder/decoder
+refuses to instantiate for any value outside the `Codepage` enum and returns
+`ErrorCode::CBKC301_INVALID_EBCDIC_BYTE` with the message `Unsupported codepage: <NAME>`.
+This ensures unsupported locales fail fast instead of silently corrupting data.
+
+| Codepage | Family | Default zoned digits* | Notes |
+| -------- | ------ | --------------------- | ----- |
+| `ascii`  | ASCII  | ASCII zones (`0x3?` / `0x7?`) | Transparent 8-bit path; no translation table required. |
+| `cp037`  | EBCDIC | EBCDIC zones (`0xF?` / `0xD?`) | U.S./Canada baseline; soak SLO target for throughput. |
+| `cp273`  | EBCDIC | EBCDIC zones (`0xF?` / `0xD?`) | German variant with umlaut support (AE/OE/UE). |
+| `cp500`  | EBCDIC | EBCDIC zones (`0xF?` / `0xD?`) | International set (Latin-1 superset of CP037). |
+| `cp1047` | EBCDIC | EBCDIC zones (`0xF?` / `0xD?`) | Open Systems variant; matches z/OS USS defaults. |
+| `cp1140` | EBCDIC | EBCDIC zones (`0xF?` / `0xD?`) | Euro-enabled CP037 successor (0x9F maps to EUR sign). |
+
+\*Zoned digit defaults apply when `preferred_zoned_encoding` is left at `Auto`. ASCII jobs
+emit `0x3`/`0x7` sign zones; EBCDIC jobs use `0xF`/`0xD`.
+
+### Preserving and Overriding Zoned Formats
+
+- `DecodeOptions::preserve_zoned_encoding = true` captures the original zoned digit family
+  (ASCII vs. EBCDIC) in the metadata. Subsequent encodes reuse the preserved format.
+- `EncodeOptions::preferred_zoned_encoding = Auto` selects ASCII zones when `codepage == Ascii`
+  and EBCDIC zones otherwise. Override with `Ascii` or `Ebcdic` to force a specific style.
+- `EncodeOptions::zoned_encoding_override = Some(...)` wins over both preserved metadata
+  and `preferred_zoned_encoding`. This is how the soak matrix exercises
+  `override-ascii` / `override-ebcdic` scenarios regardless of the decoded input.
+
+### Choosing Codepages at Runtime
+
+Both `DecodeOptions` and `EncodeOptions` accept a `Codepage` value. Higher-level callers
+should validate user-supplied strings before reaching the codec layer. The CLI, for example,
+maps command-line `--codepage` arguments into the enum and surfaces a validation error if the
+value is not recognised. Library consumers should adopt the same pattern to guarantee that
+unsupported codepages never reach the decoding core.
+
+## JSON Envelope & Raw Data
 
 Decoded records are wrapped in a stable JSON envelope:
 

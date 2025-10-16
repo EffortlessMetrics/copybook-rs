@@ -502,6 +502,8 @@ Once enabled, every `decode_file_to_jsonl` invocation updates the following seri
 - `copybook_decode_seconds{format,codepage}` (histogram; file-level runtime in seconds)
 - `copybook_throughput_mibps{format,codepage}` (gauge; last-run MiB/s throughput)
 
+Labels stay bounded: `format`, `codepage`, and `zero_policy` (plus `family` for errors). The CLI keeps the feature off by default and only binds the HTTP exporter when invoked with `--metrics-listen <addr>`, so builds without the feature or runs without the flag behave identically to previous releases.
+
 When built with the `metrics` feature and a global recorder is installed, the codec emits low-cardinality counters and a per-file timing histogram. When the feature is disabled or no recorder is installed, metrics calls are no-ops and introduce no overhead.
 
 Even without the feature, the library emits an `INFO` log with target `copybook::decode` summarising each run’s totals and options. Hook it up to `tracing-subscriber` or your existing logging pipeline to capture receipts alongside the metrics stream.

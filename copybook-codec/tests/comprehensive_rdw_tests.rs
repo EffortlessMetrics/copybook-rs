@@ -287,7 +287,7 @@ fn test_rdw_zero_length_record() {
         // Should fail with underflow error
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
     }
 }
 
@@ -306,7 +306,7 @@ fn test_rdw_underflow_error() {
     assert!(result.is_err(), "Should fail with underflow");
 
     let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKR221_RDW_UNDERFLOW);
+    assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
 }
 
 #[test]
@@ -491,7 +491,7 @@ fn test_rdw_partial_read_handling() {
     let error = result.unwrap_err();
     assert!(matches!(
         error.code,
-        ErrorCode::CBKR221_RDW_UNDERFLOW | ErrorCode::CBKD301_RECORD_TOO_SHORT
+        ErrorCode::CBKF221_RDW_UNDERFLOW | ErrorCode::CBKD301_RECORD_TOO_SHORT
     ));
 }
 

@@ -430,7 +430,7 @@ done
 # Verify CBKR* error codes intact
 cargo test --package copybook-core error
 grep -r "CBKR211_RDW_RESERVED_NONZERO" copybook-core/src/
-grep -r "CBKR221_RDW_UNDERFLOW" copybook-core/src/
+grep -r "CBKF221_RDW_UNDERFLOW" copybook-core/src/
 ```
 
 **Performance Validation**:
@@ -649,7 +649,7 @@ Each test assertion tagged with `// AC:ID` for traceability:
 
 **Existing Implementations**:
 ```rust
-Error::new(ErrorCode::CBKR221_RDW_UNDERFLOW, message)
+Error::new(ErrorCode::CBKF221_RDW_UNDERFLOW, message)
     .with_context(ErrorContext {
         record_index: Some(record_num),
         byte_offset: Some(current_offset),
@@ -716,7 +716,7 @@ cargo test --package copybook-codec record::tests::test_rdw
 4. Add context if missing
 
 **Error Codes to Check**:
-- `CBKR221_RDW_UNDERFLOW`: Incomplete RDW header or payload
+- `CBKF221_RDW_UNDERFLOW`: Incomplete RDW header or payload
 
 ---
 
@@ -809,7 +809,7 @@ diff /tmp/rdw_test.bin /tmp/rdw_roundtrip.bin && echo "✅ ROUNDTRIP PASS" || ec
 # Verify CBKR* error codes
 cargo test --package copybook-core error
 grep -r "CBKR211_RDW_RESERVED_NONZERO" copybook-core/src/error.rs
-grep -r "CBKR221_RDW_UNDERFLOW" copybook-core/src/error.rs
+grep -r "CBKF221_RDW_UNDERFLOW" copybook-core/src/error.rs
 ```
 
 ---

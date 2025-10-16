@@ -161,7 +161,7 @@ The codec component handles the actual conversion between binary data and struct
 - Bytes 2-3: reserved (expected 0x0000)
 - **Reserved byte policy**: Non-zero → warning CBKR211_RDW_RESERVED_NONZERO (fatal in strict mode)
 - **ASCII transfer detection**: Heuristic for ASCII digit patterns → CBKF104_RDW_SUSPECT_ASCII
-- **Zero-length records**: Valid only when schema fixed prefix == 0; else CBKR221_RDW_UNDERFLOW
+- **Zero-length records**: Valid only when schema fixed prefix == 0; else CBKF221_RDW_UNDERFLOW
 - **Raw RDW preservation**: `--emit-raw=record+rdw` preserves reserved bytes for round-trip
 
 ### 3. CLI Interface (copybook-cli)

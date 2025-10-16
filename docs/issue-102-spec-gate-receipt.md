@@ -333,7 +333,7 @@ cargo bench --package copybook-bench
 ### Key Metrics
 - **Tests**: 37 RDW tests (21 unit + 16 comprehensive)
 - **Performance Targets**: DISPLAY ≥ 2.33 GiB/s, COMP-3 ≥ 168 MiB/s
-- **Error Codes**: CBKR211, CBKR221 (RDW-specific)
+- **Error Codes**: CBKR211, CBKF221 (RDW-specific)
 - **Failing Tests**: 6 → 0 (expected after fix)
 
 ---

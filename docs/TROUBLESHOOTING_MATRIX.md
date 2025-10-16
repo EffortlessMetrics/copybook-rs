@@ -15,7 +15,7 @@ Quick reference matrix for diagnosing and resolving copybook-rs issues, organize
 | CBKS301 | Schema | Warning | Check ODO bounds | [Schema Errors](#schema-errors) |
 | CBKS302 | Schema | Warning | Check ODO bounds | [Schema Errors](#schema-errors) |
 | CBKR211 | Record | Warning/Fatal | Check RDW format | [Record Errors](#record-errors) |
-| CBKR221 | Record | Fatal | Check record length | [Record Errors](#record-errors) |
+| CBKF221 | File | Fatal | Check record length | [File Errors](#file-errors) |
 | CBKC301 | Charset | Warning/Fatal | Check codepage | [Character Errors](#character-errors) |
 | CBKD401 | Decode | Fatal/Warning | Check COMP-3 data | [Data Errors](#data-errors) |
 | CBKD411 | Decode | Fatal/Warning | Check sign zone | [Data Errors](#data-errors) |
@@ -220,7 +220,7 @@ hexdump -C data.bin | head -10
 | Lenient processing | Use default mode (warnings only) |
 | Strict validation | Use `--strict` to fail on non-zero |
 
-### CBKR221_RDW_UNDERFLOW
+### CBKF221_RDW_UNDERFLOW
 
 **Symptoms:**
 - "RDW length less than minimum record size"

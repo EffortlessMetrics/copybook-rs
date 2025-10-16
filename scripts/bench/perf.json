@@ -1,31 +1,36 @@
 {
-  "timestamp": "2025-10-16T04:15:09Z",
-  "commit": "d031e95",
+  "timestamp": "2025-10-16T05:26:46Z",
+  "commit": "29720d0",
   "toolchain": "cargo bench (criterion)",
   "status": "pass",
-  "display_mibps": 3115.137519706788,
-  "display_gibps": 3.0421264840886604,
-  "comp3_mibps": 24.580632771239006,
+  "display_mibps": 2806.7894300674466,
+  "display_gibps": 2.741005302800241,
+  "comp3_mibps": 23.058018653756434,
   "benchmarks": [
     {
       "name": "slo_validation/display_heavy_slo_80mbps",
-      "mean_ns": 1530709.8167788344,
+      "mean_ns": 1698870.435719386,
       "bytes_processed": 5000000,
-      "mean_mibps": 3115.137519706788
+      "mean_mibps": 2806.7894300674466
     },
     {
       "name": "slo_validation/comp3_heavy_slo_40mbps",
-      "mean_ns": 23278676.150000006,
+      "mean_ns": 24815861.173333332,
       "bytes_processed": 600000,
-      "mean_mibps": 24.580632771239006
+      "mean_mibps": 23.058018653756434
     }
   ],
   "summary": {
-    "display_mibps": 3115.137519706788,
-    "comp3_mibps": 24.580632771239006,
+    "display_mibps": 2806.7894300674466,
+    "comp3_mibps": 23.058018653756434,
     "max_rss_mib": 4,
-    "p50_mibps": 26.612245936653785,
-    "p90_mibps": 3267.09351422763,
-    "p99_mibps": 3340.7229095490047
+    "p50_mibps": 25.013184703390902,
+    "p90_mibps": 3047.7802448848493,
+    "p99_mibps": 3142.4195996691014,
+    "host_cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "host_cores": 32,
+    "host_kernel": "6.6.87.2-microsoft-standard-WSL2",
+    "host_os": "Linux",
+    "ts": "2025-10-16T01:26:49-04:00"
   }
 }

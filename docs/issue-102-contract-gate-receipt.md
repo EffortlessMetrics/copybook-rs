@@ -167,7 +167,7 @@ json_obj.insert("__raw_b64".to_string(), Value::String(raw_b64));
 **Error Codes Used (Verified Stable)**:
 - `CBKD301_RECORD_TOO_SHORT` - Record boundary validation (existing)
 - `CBKD401_COMP3_INVALID_NIBBLE` - Packed decimal validation (existing)
-- `CBKR221_RDW_UNDERFLOW` - RDW header/payload truncation (existing)
+- `CBKF221_RDW_UNDERFLOW` - RDW header/payload truncation (existing)
 - `CBKS121_COUNTER_NOT_FOUND` - ODO counter validation (existing)
 - `CBKS301_ODO_CLIPPED` - ODO bounds enforcement (existing)
 - `CBKS302_ODO_RAISED` - ODO minimum validation (existing)

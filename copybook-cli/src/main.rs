@@ -18,6 +18,9 @@ use clap::Args;
 #[cfg(feature = "metrics")]
 use std::net::SocketAddr;
 
+#[cfg(feature = "metrics")]
+use std::sync::Once;
+
 #[derive(Parser)]
 #[command(name = "copybook")]
 #[command(about = "Modern COBOL copybook parser and data converter")]
@@ -254,7 +257,15 @@ fn run() -> anyhow::Result<ExitCode> {
     let metrics_opts = cli.metrics.clone();
 
     #[cfg(feature = "metrics")]
-    let _metrics_server = metrics_start_if_requested(&metrics_opts);
+    let metrics_server = metrics_start_if_requested(&metrics_opts);
+
+    #[cfg(feature = "metrics")]
+    if metrics_server.is_some() {
+        describe_metrics_once();
+    }
+
+    #[cfg(feature = "metrics")]
+    let _metrics_guard = metrics_grace_guard(&metrics_opts);
 
     let verbose = cli.verbose;
     let command = cli.command;
@@ -387,13 +398,16 @@ fn run() -> anyhow::Result<ExitCode> {
         }
     };
 
+    #[cfg(feature = "metrics")]
+    if let Err(err) = &exit_status {
+        if let Some((handle, _)) = &metrics_server {
+            let records_processed = metrics_records_total(handle);
+            bump_error_if_pre_run(err, records_processed);
+        }
+    }
+
     let status = exit_status?;
     let exit_code = u8::try_from(status).unwrap_or(1);
-
-    #[cfg(feature = "metrics")]
-    if metrics_opts.metrics_listen.is_some() && metrics_opts.metrics_grace_ms > 0 {
-        std::thread::sleep(std::time::Duration::from_millis(metrics_opts.metrics_grace_ms));
-    }
 
     Ok(ExitCode::from(exit_code))
 }
@@ -423,8 +437,7 @@ fn install_prometheus(
                 .expect("failed to build Prometheus exporter");
 
             let handle = recorder.handle();
-            metrics::set_global_recorder(recorder)
-                .expect("failed to install Prometheus recorder");
+            metrics::set_global_recorder(recorder).expect("failed to install Prometheus recorder");
 
             handle_tx
                 .send(handle)
@@ -444,65 +457,152 @@ fn install_prometheus(
 }
 
 #[cfg(feature = "metrics")]
+struct MetricsGraceGuard(Option<std::time::Duration>);
+
+#[cfg(feature = "metrics")]
+fn metrics_grace_guard(opts: &MetricsOpts) -> MetricsGraceGuard {
+    let duration = if opts.metrics_listen.is_some() && opts.metrics_grace_ms > 0 {
+        Some(std::time::Duration::from_millis(opts.metrics_grace_ms))
+    } else {
+        None
+    };
+    MetricsGraceGuard(duration)
+}
+
+#[cfg(feature = "metrics")]
+impl Drop for MetricsGraceGuard {
+    fn drop(&mut self) {
+        if let Some(duration) = self.0.take() {
+            std::thread::sleep(duration);
+        }
+    }
+}
+
+#[cfg(feature = "metrics")]
 fn metrics_start_if_requested(
     opts: &MetricsOpts,
 ) -> Option<(
     metrics_exporter_prometheus::PrometheusHandle,
     std::thread::JoinHandle<()>,
 )> {
-    opts.metrics_listen.map(|addr| {
-        let handles = install_prometheus(addr);
-        describe_metrics();
-        handles
-    })
+    opts.metrics_listen.map(install_prometheus)
 }
 
 #[cfg(feature = "metrics")]
-fn describe_metrics() {
+fn metrics_records_total(handle: &metrics_exporter_prometheus::PrometheusHandle) -> Option<u64> {
+    let snapshot = handle.render();
+    let mut saw_zero_entry = false;
+
+    for line in snapshot.lines() {
+        if line.starts_with('#') {
+            continue;
+        }
+        if line.starts_with("copybook_records_total") {
+            if let Some(value_str) = line.split_whitespace().last() {
+                if let Ok(value) = value_str.parse::<f64>() {
+                    if value > 0.0 {
+                        return Some(value as u64);
+                    }
+                    saw_zero_entry = true;
+                }
+            }
+        }
+    }
+
+    if saw_zero_entry { Some(0) } else { None }
+}
+
+#[cfg(feature = "metrics")]
+fn describe_metrics_once() {
     use metrics::{describe_counter, describe_gauge, describe_histogram};
 
-    describe_counter!(
-        "copybook_records_total",
-        "Records decoded by the copybook CLI"
-    );
-    describe_counter!("copybook_bytes_total", "Bytes decoded by the copybook CLI");
-    describe_counter!(
-        "copybook_decode_errors_total",
-        "Decode errors grouped by error family"
-    );
-    describe_histogram!(
-        "copybook_decode_seconds",
-        "Decode wall time per file (seconds)"
-    );
-    describe_gauge!(
-        "copybook_throughput_mibps",
-        "MiB/s throughput for last completed file"
-    );
+    static METRICS_ONCE: Once = Once::new();
+
+    METRICS_ONCE.call_once(|| {
+        describe_counter!(
+            "copybook_records_total",
+            "Records decoded by the copybook CLI"
+        );
+        describe_counter!("copybook_bytes_total", "Bytes decoded by the copybook CLI");
+        describe_counter!(
+            "copybook_decode_errors_total",
+            "Decode errors grouped by error family"
+        );
+        describe_histogram!(
+            "copybook_decode_seconds",
+            "Decode wall time per file (seconds)"
+        );
+        describe_gauge!(
+            "copybook_throughput_mibps",
+            "MiB/s throughput for last completed file"
+        );
+    });
+}
+
+#[cfg(feature = "metrics")]
+fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<u64>) {
+    if matches!(records_processed, Some(0) | None) {
+        let family = normalized_family_prefix(err).unwrap_or("CBKI");
+        metrics::counter!("copybook_decode_errors_total", "family" => family).increment(1);
+    }
 }
 
 fn map_error_to_exit_code(err: &AnyhowError) -> ExitCode {
-    if let Some(prefix) = extract_family_prefix(err) {
-        match prefix {
-            "CBKD" => ExitCode::from(2),
-            "CBKE" => ExitCode::from(3),
-            "CBKF" => ExitCode::from(4),
-            "CBKI" => ExitCode::from(5),
-            _ => ExitCode::from(1),
-        }
-    } else {
-        ExitCode::from(1)
+    match normalized_family_prefix(err) {
+        Some("CBKD") => ExitCode::from(2),
+        Some("CBKE") => ExitCode::from(3),
+        Some("CBKF") => ExitCode::from(4),
+        Some("CBKI") => ExitCode::from(5),
+        _ => ExitCode::from(1),
     }
 }
 
-fn extract_family_prefix(err: &AnyhowError) -> Option<&'static str> {
-    if let Some(core) = err.downcast_ref::<CoreError>() {
-        return Some(core.family_prefix());
+fn normalized_family_prefix(err: &AnyhowError) -> Option<&'static str> {
+    match extract_family_prefix(err).as_deref() {
+        Some("CBKD") => Some("CBKD"),
+        Some("CBKE") => Some("CBKE"),
+        Some("CBKF") => Some("CBKF"),
+        Some("CBKI") => Some("CBKI"),
+        _ => None,
     }
+}
+
+fn extract_family_prefix(err: &AnyhowError) -> Option<String> {
+    fn walk(error: &(dyn std::error::Error + 'static)) -> Option<String> {
+        if let Some(core) = error.downcast_ref::<CoreError>() {
+            return Some(core.family_prefix().to_string());
+        }
+        if let Some(source) = error.source() {
+            return walk(source);
+        }
+        None
+    }
+
+    fn parse_prefix_from_str(message: &str) -> Option<String> {
+        let token = message.split_whitespace().next()?.trim_end_matches(':');
+        if token.len() < 4 || !token.starts_with("CBK") {
+            return None;
+        }
+        Some(token[..4].to_string())
+    }
+
+    if let Some(prefix) = walk(err.as_ref()) {
+        return Some(prefix);
+    }
+
+    if let Some(prefix) = parse_prefix_from_str(&err.to_string()) {
+        return Some(prefix);
+    }
+
     for cause in err.chain() {
-        if let Some(core) = cause.downcast_ref::<CoreError>() {
-            return Some(core.family_prefix());
+        if let Some(prefix) = walk(cause) {
+            return Some(prefix);
+        }
+        if let Some(prefix) = parse_prefix_from_str(&cause.to_string()) {
+            return Some(prefix);
         }
     }
+
     None
 }
 
@@ -518,3 +618,20 @@ mod commands {
 }
 
 mod utils;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use copybook_core::ErrorCode;
+
+    #[test]
+    fn maps_cbkf_family_to_exit_code() {
+        let core_error = CoreError::new(
+            ErrorCode::CBKF221_RDW_UNDERFLOW,
+            "RDW payload underflow detected",
+        );
+        let io_error = std::io::Error::other(core_error);
+        let anyhow_error: AnyhowError = io_error.into();
+        assert_eq!(map_error_to_exit_code(&anyhow_error), ExitCode::from(4));
+    }
+}

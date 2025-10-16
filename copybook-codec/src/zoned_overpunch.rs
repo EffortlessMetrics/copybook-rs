@@ -195,6 +195,7 @@ pub fn encode_overpunch_byte(
 /// # Errors
 /// Returns an error if the byte is not a valid overpunch character
 #[inline]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)> {
     if codepage == Codepage::ASCII {
         if let Some((digit, is_negative)) = ASCII_OVERPUNCH_DECODE[byte as usize] {

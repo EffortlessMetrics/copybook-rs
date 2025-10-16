@@ -6,6 +6,7 @@
 use crate::error::{Error, ErrorCode};
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Write as _;
 use tracing::{debug, error, warn};
 
 /// Error handling mode configuration
@@ -100,14 +101,14 @@ impl ErrorReporter {
     /// Returns `Ok(())` if processing should continue, `Err(error)` if it should stop
     ///
     /// # Errors
-    ///
-    /// Returns an error if the maximum error limit is reached or if processing
-    /// should stop due to error severity and mode settings.
+    /// Returns an error when processing must halt because of severity or error limits.
     ///
     /// # Panics
     ///
     /// Panics if `max_errors` is configured but becomes `None` during processing,
     /// which should never happen in normal operation.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn report_error(&mut self, error: Error) -> Result<(), Error> {
         let severity = self.determine_severity(&error);
         let report = ErrorReport {
@@ -244,20 +245,22 @@ impl ErrorReporter {
         let mut report = String::new();
 
         report.push_str("=== Error Summary ===\n");
-        report.push_str(&format!(
-            "Total records processed: {}\n",
+        let _ = writeln!(
+            report,
+            "Total records processed: {}",
             self.summary.total_records
-        ));
-        report.push_str(&format!(
-            "Records with errors: {}\n",
+        );
+        let _ = writeln!(
+            report,
+            "Records with errors: {}",
             self.summary.records_with_errors
-        ));
+        );
 
         if !self.summary.error_counts.is_empty() {
             report.push_str("\nError counts by severity:\n");
             for (severity, count) in &self.summary.error_counts {
                 if *count > 0 {
-                    report.push_str(&format!("  {:?}: {}\n", severity, count));
+                    let _ = writeln!(report, "  {:?}: {}", severity, count);
                 }
             }
         }
@@ -266,20 +269,23 @@ impl ErrorReporter {
             report.push_str("\nError counts by code:\n");
             for (code, count) in &self.summary.error_codes {
                 if *count > 0 {
-                    report.push_str(&format!("  {}: {}\n", code, count));
+                    let _ = writeln!(report, "  {}: {}", code, count);
                 }
             }
         }
 
         if self.summary.corruption_warnings > 0 {
-            report.push_str(&format!(
-                "\nTransfer corruption warnings: {}\n",
+            report.push('\n');
+            let _ = writeln!(
+                report,
+                "Transfer corruption warnings: {}",
                 self.summary.corruption_warnings
-            ));
+            );
         }
 
         if let Some(ref first_error) = self.summary.first_error {
-            report.push_str(&format!("\nFirst error: {}\n", first_error.error));
+            report.push('\n');
+            let _ = writeln!(report, "First error: {}", first_error.error);
         }
 
         report

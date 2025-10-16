@@ -161,7 +161,11 @@ pub mod safe_ops {
     use std::fmt::Write;
 
     /// Safely convert a string to usize, returning an error on failure
+    ///
+    /// # Errors
+    /// Returns an error if the string cannot be parsed as an unsigned integer.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
         s.parse().map_err(|_| {
             Error::new(
@@ -172,7 +176,11 @@ pub mod safe_ops {
     }
 
     /// Safely convert a string to isize, returning an error on failure
+    ///
+    /// # Errors
+    /// Returns an error if the string cannot be parsed as a signed integer.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
         s.parse().map_err(|_| {
             Error::new(
@@ -183,7 +191,11 @@ pub mod safe_ops {
     }
 
     /// Safely divide two numbers, checking for division by zero
+    ///
+    /// # Errors
+    /// Returns an error if the denominator is zero.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_divide(numerator: usize, denominator: usize, context: &str) -> Result<usize> {
         if denominator == 0 {
             return Err(Error::new(
@@ -205,6 +217,7 @@ pub mod safe_ops {
     /// # Errors
     /// Returns `CBKP021_ODO_NOT_TAIL` for overflow conditions with detailed context.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_array_bound(
         base: usize,
         count: usize,
@@ -239,7 +252,11 @@ pub mod safe_ops {
     ///
     /// # Performance
     /// Zero allocation overhead beyond normal string formatting.
+    ///
+    /// # Errors
+    /// Returns an error if formatting into the buffer fails.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_write(buffer: &mut String, args: std::fmt::Arguments<'_>) -> Result<()> {
         buffer.write_fmt(args).map_err(|e| {
             Error::new(
@@ -256,7 +273,11 @@ pub mod safe_ops {
     ///
     /// # Performance
     /// Single bounds check and direct memory copy for maximum efficiency.
+    ///
+    /// # Errors
+    /// Returns an error if writing to the buffer fails.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_write_str(buffer: &mut String, s: &str) -> Result<()> {
         buffer.write_str(s).map_err(|e| {
             Error::new(
@@ -272,7 +293,11 @@ pub mod safe_ops {
     /// compromise mainframe data processing accuracy.
     ///
     /// PERFORMANCE OPTIMIZATION: Fast path for common case where values fit in u32
+    ///
+    /// # Errors
+    /// Returns an error if the value exceeds the u32 range.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
         // Fast path: direct cast if value is guaranteed to fit
         #[allow(clippy::checked_conversions)]
@@ -297,7 +322,11 @@ pub mod safe_ops {
     /// overflow protection is essential for enterprise reliability.
     ///
     /// PERFORMANCE OPTIMIZATION: Fast path for common case where values fit in u16
+    ///
+    /// # Errors
+    /// Returns an error if the value exceeds the u16 range.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
         // Fast path: direct cast if value is guaranteed to fit
         #[allow(clippy::checked_conversions)]
@@ -319,7 +348,11 @@ pub mod safe_ops {
     /// Safely convert usize to u32 with overflow checking
     ///
     /// PERFORMANCE OPTIMIZATION: Fast path for common case where values fit in u32
+    ///
+    /// # Errors
+    /// Returns an error if the value exceeds the u32 range.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
         // Fast path: direct cast if value is guaranteed to fit
         #[allow(clippy::checked_conversions)]
@@ -344,8 +377,12 @@ pub mod safe_ops {
     /// panics during COBOL copybook processing.
     ///
     /// PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path access
+    ///
+    /// # Errors
+    /// Returns an error if the requested index is out of bounds.
     #[allow(clippy::inline_always)]
     #[inline(always)]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>
     where
         T: Copy,
@@ -395,7 +432,11 @@ pub mod safe_ops {
     ///
     /// Used for COBOL numeric field parsing where invalid digits could cause
     /// parse errors during copybook processing.
+    ///
+    /// # Errors
+    /// Returns an error if the string cannot be parsed as a u16.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
         s.parse().map_err(|_| {
             Error::new(
@@ -409,7 +450,11 @@ pub mod safe_ops {
     ///
     /// Essential for PIC clause parsing where character access beyond string
     /// bounds could cause panics during COBOL syntax processing.
+    ///
+    /// # Errors
+    /// Returns an error if the index is out of bounds for the string.
     #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
         s.chars().nth(index).ok_or_else(|| {
             Error::new(

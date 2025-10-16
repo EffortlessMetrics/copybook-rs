@@ -160,7 +160,7 @@ impl ZonedEncodingInfo {
     /// # Errors
     /// Returns an error if the analysis cannot be completed (currently never fails)
     #[inline]
-    #[must_use = "Use the detection result to inspect encoding metadata"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn detect_from_data(data: &[u8]) -> Result<Self> {
         if data.is_empty() {
             return Ok(Self::new(ZonedEncodingFormat::Auto, false));
@@ -347,10 +347,9 @@ impl SmallDecimal {
     /// - Empty/whitespace strings are treated as zero
     ///
     /// # Errors
-    /// Returns `CBKE505_SCALE_MISMATCH` for scale mismatches or
-    /// `CBKE501_JSON_TYPE_MISMATCH` for invalid numeric format.
+    /// Returns an error if the numeric format is invalid or the scale mismatches.
     #[inline]
-    #[must_use = "Use the parsed `SmallDecimal` or propagate the parsing error"]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn from_str(s: &str, expected_scale: i16) -> Result<Self> {
         let trimmed = s.trim();
         if trimmed.is_empty() {
@@ -1303,7 +1302,7 @@ fn decode_packed_fast_general(
 ///
 /// Returns an error if the binary data is invalid or the field size is unsupported
 #[inline]
-#[must_use = "Use the decoded integer or propagate the parsing error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     let expected_bytes = usize::from(bits / 8);
     if data.len() != expected_bytes {
@@ -1696,7 +1695,7 @@ pub fn encode_packed_decimal(
 ///
 /// Returns an error if the value is out of range for the specified bit width
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>> {
     match bits {
         16 => {
@@ -1763,7 +1762,7 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
 ///
 /// Returns an error if the text is too long for the field
 #[inline]
-#[must_use = "Use the encoded bytes or propagate the encoding error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> Result<Vec<u8>> {
     // Convert UTF-8 to target encoding
     let encoded_bytes = crate::charset::utf8_to_ebcdic(text, codepage)?;
@@ -1866,7 +1865,7 @@ pub fn get_binary_width_from_digits(digits: u16) -> u16 {
 /// # Errors
 /// Returns an error when the requested width is not one of the supported values.
 #[inline]
-#[must_use = "Use the validated width or propagate the configuration error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
     match width_bytes {
         1 => Ok(8),  // 1 byte = 8 bits
@@ -2296,7 +2295,7 @@ pub fn decode_packed_decimal_with_scratch(
 /// # Errors
 /// Returns an error when the provided data exceeds the supported range for the requested width.
 #[inline]
-#[must_use = "Use the decoded integer or propagate the parsing error"]
+#[must_use = "Handle the Result or propagate the error"]
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
     // Optimized paths for common binary widths
     match (bits, data.len()) {

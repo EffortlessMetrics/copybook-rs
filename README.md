@@ -95,6 +95,22 @@ copybook verify customer.cpy customer-data.bin \
   --report validation-report.json
 ```
 
+### Example: Decode to JSONL (stable schema)
+
+```bash
+# Decode an RDW file into JSONL with the versioned envelope
+copybook decode \
+  --codepage cp037 \
+  --format rdw \
+  --preferred-zoned-encoding preferred \
+  --input ./data/customers.rdw \
+  --output ./out/customers.jsonl
+```
+
+Each line is a standalone JSON object containing `"schema":"copybook.v1"`,
+`record_index`, `codepage`, and a nested `fields` object. See
+`docs/jsonl-schema.md` for the full schema and worked examples.
+
 ## Detailed Usage Examples
 
 ### Working with Fixed-Length Records

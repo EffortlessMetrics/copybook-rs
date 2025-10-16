@@ -34,9 +34,10 @@ impl PerformanceAuditor {
     ///
     /// * `current_metrics` - The performance metrics of the current run.
     ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of regression messages. The vector is empty if no regression is detected.
+    /// # Errors
+    /// Returns an error if the baseline file cannot be loaded or parsed.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn audit(&self, current_metrics: &ThroughputMetrics) -> Result<Vec<String>> {
         let baseline = self.baseline_manager.load_baseline()?;
         let regressions = self
@@ -61,6 +62,11 @@ impl BaselineManager {
     }
 
     /// Loads the performance baseline from the specified file.
+    ///
+    /// # Errors
+    /// Returns an error if the baseline file cannot be read or parsed.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn load_baseline(&self) -> Result<PerformanceBaseline> {
         let data = fs::read_to_string(&self.baseline_path).map_err(|e| {
             Error::new(
@@ -78,6 +84,11 @@ impl BaselineManager {
     }
 
     /// Saves a performance baseline to the specified file.
+    ///
+    /// # Errors
+    /// Returns an error if the baseline file cannot be serialized or written.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
     pub fn save_baseline(&self, baseline: &PerformanceBaseline) -> Result<()> {
         let data = serde_json::to_string_pretty(baseline).map_err(|e| {
             Error::new(

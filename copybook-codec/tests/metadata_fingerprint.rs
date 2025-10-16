@@ -20,7 +20,6 @@ impl DummyWriter {
     fn write_record_metadata(
         &mut self,
         schema_fingerprint: &str,
-        record_index: u64,
         byte_offset: u64,
         record_length: usize,
         first_field: &mut bool,
@@ -30,16 +29,13 @@ impl DummyWriter {
         }
         *first_field = false;
 
-        self.json_buffer.push_str("\"__schema_id\":");
+        self.json_buffer.push_str("\"schema_fingerprint\":");
         self.write_json_string_to_buffer(schema_fingerprint);
 
-        self.json_buffer.push_str(",\"__record_index\":");
-        self.write_json_number_to_buffer(record_index as f64);
-
-        self.json_buffer.push_str(",\"__offset\":");
+        self.json_buffer.push_str(",\"offset\":");
         self.write_json_number_to_buffer(byte_offset as f64);
 
-        self.json_buffer.push_str(",\"__length\":");
+        self.json_buffer.push_str(",\"length\":");
         self.write_json_number_to_buffer(record_length as f64);
     }
 
@@ -88,15 +84,15 @@ fn test_streaming_metadata_fingerprint_matches_schema() -> TestResult {
 
     let mut writer = DummyWriter::new();
     let mut first = true;
-    writer.write_record_metadata(schema.fingerprint.as_str(), 0, 0, 0, &mut first);
+    writer.write_record_metadata(schema.fingerprint.as_str(), 0, 0, &mut first);
 
     let json_str = format!("{{{}}}", writer.json_buffer);
     let value: Value = serde_json::from_str(&json_str).context("parsing metadata JSON")?;
 
     let fingerprint = value
-        .get("__schema_id")
+        .get("schema_fingerprint")
         .and_then(Value::as_str)
-        .context("missing __schema_id field")?;
+        .context("missing schema_fingerprint field")?;
     assert_eq!(fingerprint, schema.fingerprint);
 
     Ok(())

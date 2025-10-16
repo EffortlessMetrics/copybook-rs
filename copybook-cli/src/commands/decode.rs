@@ -1,6 +1,7 @@
 //! Decode command implementation
 
 use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
+use anyhow::bail;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
@@ -30,7 +31,7 @@ pub struct DecodeArgs<'a> {
     pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
 }
 
-pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn run(args: &DecodeArgs) -> anyhow::Result<i32> {
     info!("Decoding data file: {:?}", args.input);
 
     if args.strict_comments {
@@ -41,9 +42,7 @@ pub fn run(args: &DecodeArgs) -> Result<i32, Box<dyn std::error::Error>> {
     if args.preferred_zoned_encoding != copybook_codec::ZonedEncodingFormat::Auto
         && !args.preserve_zoned_encoding
     {
-        return Err(
-            "--preferred-zoned-encoding requires --preserve-zoned-encoding to be enabled".into(),
-        );
+        bail!("--preferred-zoned-encoding requires --preserve-zoned-encoding to be enabled");
     }
 
     // Read copybook file or stdin

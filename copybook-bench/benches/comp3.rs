@@ -19,6 +19,7 @@ fn make_opts() -> (EncodeOptions, DecodeOptions) {
     let enc = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::CP037,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: true,

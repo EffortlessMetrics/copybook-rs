@@ -135,6 +135,7 @@ fn test_redefines_encode_error_context() {
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: true,
@@ -182,6 +183,7 @@ fn test_missing_counter_field_error() {
     let options = EncodeOptions {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: false,
         bwz_encode: false,
         strict_mode: true,

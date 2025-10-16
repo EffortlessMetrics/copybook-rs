@@ -141,6 +141,8 @@ pub struct EncodeOptions {
     pub format: RecordFormat,
     /// Character encoding
     pub codepage: Codepage,
+    /// Fallback zoned decimal encoding format when no override or metadata applies
+    pub preferred_zoned_encoding: ZonedEncodingFormat,
     /// Whether to use raw data when available
     pub use_raw: bool,
     /// BLANK WHEN ZERO encoding policy
@@ -458,6 +460,7 @@ impl Default for EncodeOptions {
         Self {
             format: RecordFormat::Fixed,
             codepage: Codepage::CP037,
+            preferred_zoned_encoding: ZonedEncodingFormat::Auto,
             use_raw: false,
             bwz_encode: false,
             strict_mode: false,
@@ -506,6 +509,17 @@ impl EncodeOptions {
     #[inline]
     pub fn with_bwz_encode(mut self, bwz_encode: bool) -> Self {
         self.bwz_encode = bwz_encode;
+        self
+    }
+
+    /// Set the preferred zoned encoding fallback when overrides and preserved formats are absent
+    #[must_use]
+    #[inline]
+    pub fn with_preferred_zoned_encoding(
+        mut self,
+        preferred_zoned_encoding: ZonedEncodingFormat,
+    ) -> Self {
+        self.preferred_zoned_encoding = preferred_zoned_encoding;
         self
     }
 

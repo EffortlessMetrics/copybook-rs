@@ -158,12 +158,14 @@ pub struct EncodeOptions {
     pub max_errors: Option<u32>,
     pub use_raw: bool,
     pub bwz_encode: bool,
+    pub preferred_zoned_encoding: ZonedEncodingFormat,
     pub zoned_encoding_override: Option<ZonedEncodingFormat>,
 }
 ```
 
 **Zoned Encoding Configuration:**
 
+- `preferred_zoned_encoding`: Fallback encoding format when neither preserved metadata nor an explicit override selects a format. `Auto` resolves according to the active `codepage`.
 - `zoned_encoding_override`: Explicit override for zoned decimal encoding format. When `Some(format)`, forces all zoned decimal fields to use the specified format, overriding any preserved format from decode operations. When `None`, respects preserved formats from decode metadata.
 
 ### Enums

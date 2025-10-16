@@ -39,6 +39,7 @@ fn create_rdw_encode_options(use_raw: bool, strict: bool) -> EncodeOptions {
     EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw,
         bwz_encode: false,
         strict_mode: strict,

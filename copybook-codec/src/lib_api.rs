@@ -9,7 +9,8 @@
 //! - `encode_jsonl_to_file`
 //! - `RecordIterator` (for programmatic access)
 
-use crate::options::{DecodeOptions, EncodeOptions, RecordFormat};
+use crate::options::{Codepage, DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
+use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
@@ -1098,7 +1099,18 @@ fn encode_fields_to_bytes(
     let mut buffer = vec![0u8; record_length];
 
     if let Some(obj) = json.as_object() {
-        encode_fields_recursive(&schema.fields, obj, &mut buffer, 0, options)?;
+        let encoding_metadata = obj
+            .get("_encoding_metadata")
+            .and_then(|value| value.as_object());
+        encode_fields_recursive(
+            &schema.fields,
+            obj,
+            encoding_metadata,
+            "",
+            &mut buffer,
+            0,
+            options,
+        )?;
     }
 
     Ok(buffer)
@@ -1108,6 +1120,8 @@ fn encode_fields_to_bytes(
 fn encode_fields_recursive(
     fields: &[copybook_core::Field],
     json_obj: &serde_json::Map<String, Value>,
+    encoding_metadata: Option<&serde_json::Map<String, Value>>,
+    path_prefix: &str,
     buffer: &mut [u8],
     offset: usize,
     options: &EncodeOptions,
@@ -1115,7 +1129,21 @@ fn encode_fields_recursive(
     let mut current_offset = offset;
 
     for field in fields {
-        current_offset = encode_single_field(field, json_obj, buffer, current_offset, options)?;
+        let field_path = if path_prefix.is_empty() {
+            field.name.clone()
+        } else {
+            format!("{path_prefix}.{}", field.name)
+        };
+
+        current_offset = encode_single_field(
+            field,
+            &field_path,
+            json_obj,
+            encoding_metadata,
+            buffer,
+            current_offset,
+            options,
+        )?;
     }
 
     Ok(current_offset)
@@ -1124,7 +1152,9 @@ fn encode_fields_recursive(
 #[inline]
 fn encode_single_field(
     field: &copybook_core::Field,
+    field_path: &str,
     json_obj: &serde_json::Map<String, Value>,
+    encoding_metadata: Option<&serde_json::Map<String, Value>>,
     buffer: &mut [u8],
     current_offset: usize,
     options: &EncodeOptions,
@@ -1132,7 +1162,15 @@ fn encode_single_field(
     use copybook_core::FieldKind;
 
     match &field.kind {
-        FieldKind::Group => encode_group_field(field, json_obj, buffer, current_offset, options),
+        FieldKind::Group => encode_group_field(
+            field,
+            field_path,
+            json_obj,
+            encoding_metadata,
+            buffer,
+            current_offset,
+            options,
+        ),
         FieldKind::Alphanum { .. } => {
             encode_alphanum_field(field, json_obj, buffer, current_offset, options)
         }
@@ -1142,7 +1180,9 @@ fn encode_single_field(
             signed,
         } => encode_zoned_decimal_field(
             field,
+            field_path,
             json_obj,
+            encoding_metadata,
             buffer,
             current_offset,
             options,
@@ -1158,6 +1198,7 @@ fn encode_single_field(
             signed,
         } => encode_packed_decimal_field(
             field,
+            field_path,
             json_obj,
             buffer,
             current_offset,
@@ -1169,6 +1210,7 @@ fn encode_single_field(
         ),
         FieldKind::BinaryInt { bits, signed } => encode_binary_int_field(
             field,
+            field_path,
             json_obj,
             buffer,
             current_offset,
@@ -1184,15 +1226,33 @@ fn encode_single_field(
 #[inline]
 fn encode_group_field(
     field: &copybook_core::Field,
+    field_path: &str,
     json_obj: &serde_json::Map<String, Value>,
+    encoding_metadata: Option<&serde_json::Map<String, Value>>,
     buffer: &mut [u8],
     current_offset: usize,
     options: &EncodeOptions,
 ) -> Result<usize> {
     if let Some(sub_obj) = json_obj.get(&field.name).and_then(|v| v.as_object()) {
-        encode_fields_recursive(&field.children, sub_obj, buffer, current_offset, options)
+        encode_fields_recursive(
+            &field.children,
+            sub_obj,
+            encoding_metadata,
+            field_path,
+            buffer,
+            current_offset,
+            options,
+        )
     } else {
-        encode_fields_recursive(&field.children, json_obj, buffer, current_offset, options)
+        encode_fields_recursive(
+            &field.children,
+            json_obj,
+            encoding_metadata,
+            field_path,
+            buffer,
+            current_offset,
+            options,
+        )
     }
 }
 
@@ -1226,10 +1286,79 @@ struct DecimalSpec {
     signed: bool,
 }
 
+fn resolve_preserved_zoned_format(
+    metadata: &serde_json::Map<String, Value>,
+    field_path: &str,
+    field_name: &str,
+) -> Option<ZonedEncodingFormat> {
+    let candidates = [field_path, field_name];
+    for key in candidates {
+        if let Some(value) = metadata.get(key) {
+            if let Some(format) = parse_zoned_encoding_metadata_value(value) {
+                return Some(format);
+            }
+        }
+    }
+    None
+}
+
+fn parse_zoned_encoding_metadata_value(value: &Value) -> Option<ZonedEncodingFormat> {
+    match value {
+        Value::String(s) => parse_zoned_encoding_format_str(s),
+        Value::Object(map) => map
+            .get("zoned_encoding")
+            .and_then(Value::as_str)
+            .and_then(parse_zoned_encoding_format_str),
+        _ => None,
+    }
+}
+
+fn parse_zoned_encoding_format_str(value: &str) -> Option<ZonedEncodingFormat> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "ascii" => Some(ZonedEncodingFormat::Ascii),
+        "ebcdic" => Some(ZonedEncodingFormat::Ebcdic),
+        "auto" => Some(ZonedEncodingFormat::Auto),
+        _ => None,
+    }
+}
+
+fn resolve_zoned_encoding_format(
+    override_format: Option<ZonedEncodingFormat>,
+    preserved_format: Option<ZonedEncodingFormat>,
+    preferred_format: ZonedEncodingFormat,
+    codepage: Codepage,
+) -> ZonedEncodingFormat {
+    let candidate = override_format
+        .or(preserved_format)
+        .unwrap_or(preferred_format);
+
+    match candidate {
+        ZonedEncodingFormat::Ascii => ZonedEncodingFormat::Ascii,
+        ZonedEncodingFormat::Ebcdic => ZonedEncodingFormat::Ebcdic,
+        ZonedEncodingFormat::Auto => {
+            if codepage.is_ascii() {
+                ZonedEncodingFormat::Ascii
+            } else {
+                ZonedEncodingFormat::Ebcdic
+            }
+        }
+    }
+}
+
+fn zero_sign_policy_for(format: ZonedEncodingFormat) -> ZeroSignPolicy {
+    if matches!(format, ZonedEncodingFormat::Ebcdic) {
+        ZeroSignPolicy::Preferred
+    } else {
+        ZeroSignPolicy::Positive
+    }
+}
+
 #[inline]
 fn encode_zoned_decimal_field(
     field: &copybook_core::Field,
+    field_path: &str,
     json_obj: &serde_json::Map<String, Value>,
+    encoding_metadata: Option<&serde_json::Map<String, Value>>,
     buffer: &mut [u8],
     current_offset: usize,
     options: &EncodeOptions,
@@ -1238,24 +1367,25 @@ fn encode_zoned_decimal_field(
     let field_len = field.len as usize;
 
     if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
-        let encoded = if options.zoned_encoding_override.is_some() {
-            crate::numeric::encode_zoned_decimal_with_format(
-                text,
-                spec.digits,
-                spec.scale,
-                spec.signed,
-                options.codepage,
-                options.zoned_encoding_override,
-            )?
-        } else {
-            crate::numeric::encode_zoned_decimal(
-                text,
-                spec.digits,
-                spec.scale,
-                spec.signed,
-                options.codepage,
-            )?
-        };
+        let preserved_format = encoding_metadata
+            .and_then(|meta| resolve_preserved_zoned_format(meta, field_path, &field.name));
+        let resolved_format = resolve_zoned_encoding_format(
+            options.zoned_encoding_override,
+            preserved_format,
+            options.preferred_zoned_encoding,
+            options.codepage,
+        );
+        let zero_policy = zero_sign_policy_for(resolved_format);
+
+        let encoded = crate::numeric::encode_zoned_decimal_with_format_and_policy(
+            text,
+            spec.digits,
+            spec.scale,
+            spec.signed,
+            options.codepage,
+            Some(resolved_format),
+            zero_policy,
+        )?;
 
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
             buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
@@ -1268,6 +1398,7 @@ fn encode_zoned_decimal_field(
 #[inline]
 fn encode_packed_decimal_field(
     field: &copybook_core::Field,
+    _field_path: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
@@ -1295,6 +1426,7 @@ struct BinarySpec {
 #[inline]
 fn encode_binary_int_field(
     field: &copybook_core::Field,
+    _field_path: &str,
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,

@@ -1,5 +1,6 @@
 //! Encode command implementation
 
+use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
 use anyhow::{anyhow, bail};
 use copybook_codec::{Codepage, EncodeOptions, RecordFormat};
@@ -29,7 +30,7 @@ pub fn run(
     input: &Path,
     output: &Path,
     options: &EncodeCliOptions,
-) -> anyhow::Result<i32> {
+) -> anyhow::Result<ExitCode> {
     info!("Encoding JSONL file: {:?}", input);
 
     if options.strict_comments {
@@ -129,6 +130,10 @@ pub fn run(
     info!("Encode completed successfully");
 
     // Return appropriate exit code based on normative specification
-    let exit_code = determine_exit_code(summary.has_warnings(), summary.has_errors());
+    let exit_code = determine_exit_code(
+        summary.has_warnings(),
+        summary.has_errors(),
+        ExitCode::Encode,
+    );
     Ok(exit_code)
 }

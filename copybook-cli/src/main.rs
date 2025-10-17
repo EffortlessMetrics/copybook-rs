@@ -4,13 +4,16 @@
 //! This binary provides a user-friendly CLI for parsing copybooks and
 //! converting mainframe data files.
 
+use crate::exit_codes::ExitCode;
 use anyhow::{Error as AnyhowError, anyhow};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use copybook_core::Error as CoreError;
+use std::borrow::Cow;
 use std::convert::TryFrom;
+use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
-use std::process::ExitCode;
+use std::process::ExitCode as ProcessExitCode;
 
 #[cfg(feature = "metrics")]
 use clap::Args;
@@ -47,6 +50,30 @@ pub struct MetricsOpts {
     /// Optional delay after run completion so scrapes can observe final metrics
     #[arg(long, default_value_t = 0)]
     pub metrics_grace_ms: u64,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+enum ZonedEncodingPreference {
+    /// Prefer default zero policy based on target code page.
+    #[value(alias = "preferred-zero")]
+    Preferred,
+    /// Force ASCII zoned encoding format.
+    Ascii,
+    /// Force EBCDIC zoned encoding format.
+    Ebcdic,
+    /// Defer to automatic detection when metadata supplies a format.
+    Auto,
+}
+
+impl From<ZonedEncodingPreference> for copybook_codec::ZonedEncodingFormat {
+    fn from(value: ZonedEncodingPreference) -> Self {
+        match value {
+            ZonedEncodingPreference::Preferred => Self::Auto,
+            ZonedEncodingPreference::Ascii => Self::Ascii,
+            ZonedEncodingPreference::Ebcdic => Self::Ebcdic,
+            ZonedEncodingPreference::Auto => Self::Auto,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -87,7 +114,8 @@ enum Commands {
     },
     /// Decode binary data to JSONL
     #[command(
-        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
+        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable.\n\
+Zoned policy: override → preserved → preferred."
     )]
     Decode {
         /// Copybook file path
@@ -137,13 +165,14 @@ enum Commands {
         #[arg(long)]
         preserve_zoned_encoding: bool,
         /// Preferred zoned encoding when neither preserved nor overridden.
-        /// Example: prefer EBCDIC 'F' zero punch (default `auto` respects codec defaults).
-        #[arg(long, value_enum, default_value = "auto")]
-        preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
+        /// Example: prefer EBCDIC 'F' zero punch for zero.
+        #[arg(long, value_enum, default_value_t = ZonedEncodingPreference::Preferred)]
+        preferred_zoned_encoding: ZonedEncodingPreference,
     },
     /// Encode JSONL to binary data
     #[command(
-        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable."
+        after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable.\n\
+Zoned policy: override → preserved → preferred."
     )]
     Encode {
         /// Copybook file path
@@ -240,19 +269,53 @@ Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
     },
 }
 
-fn main() -> ExitCode {
-    match run() {
-        Ok(code) => code,
-        Err(err) => {
+fn main() -> ProcessExitCode {
+    match std::panic::catch_unwind(AssertUnwindSafe(|| run())) {
+        Ok(Ok(code)) => ProcessExitCode::from(code),
+        Ok(Err(err)) => {
+            let exit_code = map_error_to_exit_code(&err);
             eprintln!("{err}");
-            map_error_to_exit_code(&err)
+            tracing::error!(
+                code = exit_code.tag(),
+                code_i = exit_code.as_i32(),
+                error = ?err,
+                "copybook CLI terminated with an error"
+            );
+            ProcessExitCode::from(exit_code)
+        }
+        Err(panic_payload) => {
+            if panic_caused_by_std_pipe(panic_payload.as_ref()) {
+                return ProcessExitCode::from(ExitCode::Ok);
+            }
+            let panic_msg = extract_panic_message(panic_payload.as_ref());
+            eprintln!("panic: {panic_msg}");
+            tracing::error!(
+                code = ExitCode::Internal.tag(),
+                code_i = ExitCode::Internal.as_i32(),
+                message = %panic_msg,
+                "copybook CLI panicked"
+            );
+            ProcessExitCode::from(ExitCode::Internal)
         }
     }
 }
 
 #[allow(clippy::too_many_lines)]
 fn run() -> anyhow::Result<ExitCode> {
-    let cli = Cli::parse();
+    if std::env::var("COPYBOOK_TEST_PANIC")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+    {
+        panic!("COPYBOOK_TEST_PANIC triggered");
+    }
+
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => {
+            let _ = err.print();
+            return Ok(ExitCode::Encode);
+        }
+    };
 
     #[cfg(feature = "metrics")]
     let metrics_opts = cli.metrics.clone();
@@ -307,7 +370,7 @@ fn run() -> anyhow::Result<ExitCode> {
             threads,
             strict_comments,
             preserve_zoned_encoding,
-            preferred_zoned_encoding,
+            preferred_zoned_encoding: preferred_zoned_encoding_cli,
         } => crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
             copybook: &copybook,
             input: &input,
@@ -325,7 +388,7 @@ fn run() -> anyhow::Result<ExitCode> {
             threads,
             strict_comments,
             preserve_zoned_encoding,
-            preferred_zoned_encoding,
+            preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
         }),
         Commands::Encode {
             copybook,
@@ -406,9 +469,8 @@ fn run() -> anyhow::Result<ExitCode> {
     }
 
     let status = exit_status?;
-    let exit_code = u8::try_from(status).unwrap_or(1);
 
-    Ok(ExitCode::from(exit_code))
+    Ok(status)
 }
 
 #[cfg(feature = "metrics")]
@@ -569,68 +631,101 @@ fn describe_metrics_once() {
 #[cfg(feature = "metrics")]
 fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<f64>) {
     if records_processed.unwrap_or(0.0) <= f64::EPSILON {
-        let family = normalized_family_prefix(err).unwrap_or("CBKI");
+        let dominant = dominant_exit_code(err);
+        let family = match dominant {
+            ExitCode::Data => ExitCode::Data.tag(),
+            ExitCode::Encode => ExitCode::Encode.tag(),
+            ExitCode::Format => ExitCode::Format.tag(),
+            ExitCode::Internal => ExitCode::Internal.tag(),
+            _ => ExitCode::Internal.tag(),
+        };
         metrics::counter!("copybook_decode_errors_total", "family" => family).increment(1);
     }
 }
 
 fn map_error_to_exit_code(err: &AnyhowError) -> ExitCode {
-    match normalized_family_prefix(err) {
-        Some("CBKD") => ExitCode::from(2),
-        Some("CBKE") => ExitCode::from(3),
-        Some("CBKF") => ExitCode::from(4),
-        Some("CBKI") => ExitCode::from(5),
-        _ => ExitCode::from(1),
+    match dominant_exit_code(err) {
+        ExitCode::Ok | ExitCode::Unknown => ExitCode::Internal,
+        code => code,
     }
 }
 
-fn normalized_family_prefix(err: &AnyhowError) -> Option<&'static str> {
-    match extract_family_prefix(err).as_deref() {
-        Some("CBKD") => Some("CBKD"),
-        Some("CBKE") => Some("CBKE"),
-        Some("CBKF") => Some("CBKF"),
-        Some("CBKI") => Some("CBKI"),
-        _ => None,
+fn dominant_exit_code(err: &AnyhowError) -> ExitCode {
+    let mut best = ExitCode::Unknown;
+    let mut best_precedence = best.precedence();
+
+    for prefix in collect_family_prefixes(err) {
+        if let Some(code) = ExitCode::from_family_prefix(&prefix) {
+            let precedence = code.precedence();
+            if precedence > best_precedence {
+                best = code;
+                best_precedence = precedence;
+            }
+        }
     }
+
+    best
 }
 
-fn extract_family_prefix(err: &AnyhowError) -> Option<String> {
-    fn walk(error: &(dyn std::error::Error + 'static)) -> Option<String> {
-        if let Some(core) = error.downcast_ref::<CoreError>() {
-            return Some(core.family_prefix().to_string());
-        }
-        if let Some(source) = error.source() {
-            return walk(source);
-        }
-        None
-    }
-
-    fn parse_prefix_from_str(message: &str) -> Option<String> {
-        let token = message.split_whitespace().next()?.trim_end_matches(':');
-        if token.len() < 4 || !token.starts_with("CBK") {
-            return None;
-        }
-        Some(token[..4].to_string())
-    }
-
-    if let Some(prefix) = walk(err.as_ref()) {
-        return Some(prefix);
-    }
-
-    if let Some(prefix) = parse_prefix_from_str(&err.to_string()) {
-        return Some(prefix);
-    }
-
+fn collect_family_prefixes(err: &AnyhowError) -> Vec<String> {
+    let mut prefixes = Vec::new();
     for cause in err.chain() {
-        if let Some(prefix) = walk(cause) {
-            return Some(prefix);
+        if let Some(core) = cause.downcast_ref::<CoreError>() {
+            prefixes.push(core.family_prefix().to_string());
         }
         if let Some(prefix) = parse_prefix_from_str(&cause.to_string()) {
-            return Some(prefix);
+            prefixes.push(prefix);
         }
     }
+    prefixes
+}
 
-    None
+fn parse_prefix_from_str(message: &str) -> Option<String> {
+    let token = message.split_whitespace().next()?.trim_end_matches(':');
+    if token.len() < 4 || !token.starts_with("CBK") {
+        return None;
+    }
+    Some(token[..4].to_string())
+}
+
+fn panic_caused_by_std_pipe(panic_payload: &dyn std::any::Any) -> bool {
+    if let Some(io_err) = panic_payload.downcast_ref::<std::io::Error>() {
+        return is_broken_pipe(io_err);
+    }
+    if let Some(&msg) = panic_payload.downcast_ref::<&str>() {
+        return message_is_pipe_closed(msg);
+    }
+    if let Some(msg) = panic_payload.downcast_ref::<String>() {
+        return message_is_pipe_closed(msg);
+    }
+    false
+}
+
+fn extract_panic_message(panic_payload: &dyn std::any::Any) -> Cow<'_, str> {
+    if let Some(&msg) = panic_payload.downcast_ref::<&str>() {
+        return Cow::Borrowed(msg);
+    }
+    if let Some(msg) = panic_payload.downcast_ref::<String>() {
+        return Cow::Borrowed(msg.as_str());
+    }
+    Cow::Borrowed("unknown panic")
+}
+
+fn is_broken_pipe(err: &std::io::Error) -> bool {
+    use std::io::ErrorKind;
+
+    if err.kind() == ErrorKind::BrokenPipe {
+        return true;
+    }
+    match err.raw_os_error() {
+        Some(32) | Some(109) | Some(232) => true, // POSIX EPIPE (32), Windows ERROR_BROKEN_PIPE (109), Windows ERROR_NO_DATA (232)
+        _ => false,
+    }
+}
+
+fn message_is_pipe_closed<S: AsRef<str>>(message: S) -> bool {
+    let lower = message.as_ref().to_lowercase();
+    lower.contains("broken pipe") || lower.contains("pipe is being closed")
 }
 
 mod commands {
@@ -644,12 +739,14 @@ mod commands {
     pub mod verify_report;
 }
 
+mod exit_codes;
 mod utils;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use copybook_core::ErrorCode;
+    use proptest::prelude::*;
 
     #[test]
     fn maps_cbkf_family_to_exit_code() {
@@ -659,6 +756,119 @@ mod tests {
         );
         let io_error = std::io::Error::other(core_error);
         let anyhow_error: AnyhowError = io_error.into();
-        assert_eq!(map_error_to_exit_code(&anyhow_error), ExitCode::from(4));
+        assert_eq!(map_error_to_exit_code(&anyhow_error), ExitCode::Format);
+    }
+
+    #[test]
+    fn selects_highest_precedence_exit_code_from_error_chain() {
+        let data_error = CoreError::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Record too short");
+        let format_error =
+            CoreError::new(ErrorCode::CBKF221_RDW_UNDERFLOW, "RDW underflow detected");
+        let internal_error =
+            CoreError::new(ErrorCode::CBKI001_INVALID_STATE, "Iterator invalid state");
+
+        let chained = AnyhowError::from(data_error)
+            .context(format_error.to_string())
+            .context(internal_error.to_string());
+
+        assert_eq!(map_error_to_exit_code(&chained), ExitCode::Internal);
+    }
+
+    #[test]
+    fn exit_code_precedence_is_deterministic() {
+        let scenarios = vec![
+            (vec![ExitCode::Data, ExitCode::Encode], ExitCode::Encode),
+            (vec![ExitCode::Data, ExitCode::Format], ExitCode::Format),
+            (
+                vec![ExitCode::Format, ExitCode::Internal],
+                ExitCode::Internal,
+            ),
+            (
+                vec![ExitCode::Encode, ExitCode::Internal, ExitCode::Data],
+                ExitCode::Internal,
+            ),
+        ];
+
+        for (inputs, expected) in scenarios {
+            let err = build_error_stack(&inputs);
+            assert_eq!(map_error_to_exit_code(&err), expected);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn exit_code_precedence_respects_permutations(codes in proptest::collection::vec(
+            proptest::sample::select(vec![
+                ExitCode::Data,
+                ExitCode::Encode,
+                ExitCode::Format,
+                ExitCode::Internal,
+            ]),
+            1..5
+        )) {
+            let expected = *codes.iter().max_by_key(|code| code.precedence()).expect("non-empty sequence");
+            for perm in permutations(&codes) {
+                let err = build_error_stack(&perm);
+                prop_assert_eq!(map_error_to_exit_code(&err), expected);
+            }
+        }
+    }
+
+    fn permutations(codes: &[ExitCode]) -> Vec<Vec<ExitCode>> {
+        let mut out = Vec::new();
+        let mut current = Vec::with_capacity(codes.len());
+        let mut used = vec![false; codes.len()];
+        backtrack(codes, &mut used, &mut current, &mut out);
+        out
+    }
+
+    fn backtrack(
+        codes: &[ExitCode],
+        used: &mut [bool],
+        current: &mut Vec<ExitCode>,
+        out: &mut Vec<Vec<ExitCode>>,
+    ) {
+        if current.len() == codes.len() {
+            out.push(current.clone());
+            return;
+        }
+        for (idx, code) in codes.iter().enumerate() {
+            if used[idx] {
+                continue;
+            }
+            used[idx] = true;
+            current.push(*code);
+            backtrack(codes, used, current, out);
+            current.pop();
+            used[idx] = false;
+        }
+    }
+
+    fn sample_core_error(code: ExitCode) -> CoreError {
+        match code {
+            ExitCode::Data => {
+                CoreError::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Record too short")
+            }
+            ExitCode::Encode => {
+                CoreError::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "JSON type mismatch")
+            }
+            ExitCode::Format => CoreError::new(ErrorCode::CBKF221_RDW_UNDERFLOW, "RDW underflow"),
+            ExitCode::Internal => {
+                CoreError::new(ErrorCode::CBKI001_INVALID_STATE, "Iterator invalid state")
+            }
+            _ => CoreError::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Record too short"),
+        }
+    }
+
+    fn build_error_stack(codes: &[ExitCode]) -> AnyhowError {
+        let mut iter = codes.iter();
+        let first = iter
+            .next()
+            .expect("at least one exit code required for stack");
+        let mut err = AnyhowError::from(sample_core_error(*first));
+        for code in iter {
+            err = err.context(sample_core_error(*code).to_string());
+        }
+        err
     }
 }

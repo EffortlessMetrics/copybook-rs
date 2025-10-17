@@ -265,24 +265,33 @@ fn test_cli_flag_combination_validation() -> TestResult<()> {
     let data_str = path_to_str(&data_path)?.to_owned();
     let output_str = path_to_str(&output_path)?.to_owned();
 
-    // Should fail with validation error when flags are implemented
-    // For now, will fail because flags don't exist
-    assert_cli_failure(
-        [
-            "decode",
-            "--preferred-zoned-encoding",
-            "ascii", // Without --preserve-encoding
-            "--format",
-            "fixed",
-            "--codepage",
-            "ascii",
-            copybook_str.as_str(),
-            data_str.as_str(),
-            "--output",
-            output_str.as_str(),
-        ],
-        "--preferred-zoned-encoding without --preserve-encoding should fail - expected failure",
-    )?;
+    let output = command_output([
+        "decode",
+        "--preferred-zoned-encoding",
+        "ascii",
+        "--format",
+        "fixed",
+        "--codepage",
+        "ascii",
+        copybook_str.as_str(),
+        data_str.as_str(),
+        "--output",
+        output_str.as_str(),
+    ])?;
+
+    assert!(
+        output.status.success(),
+        "expected compatibility mode success\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr_text = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr_text.contains("subcode=401"),
+        "compatibility warning should surface subcode=401: {}",
+        stderr_text
+    );
 
     Ok(())
 }

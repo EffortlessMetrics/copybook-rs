@@ -7,12 +7,14 @@
 
 use std::fmt;
 use std::fmt::Formatter;
+use std::str::FromStr;
 
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Operation exit codes surfaced by the `copybook` CLI.
 #[repr(i32)]
+#[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ExitCode {
     /// Successful run (no warnings that demand attention).
@@ -54,6 +56,23 @@ impl ExitCode {
             ExitCode::Encode => "CBKE",
             ExitCode::Format => "CBKF",
             ExitCode::Internal => "CBKI",
+            #[allow(unreachable_patterns)]
+            _ => "CBK?",
+        }
+    }
+
+    /// Family identifier used by observability consumers.
+    #[must_use]
+    pub const fn family(self) -> &'static str {
+        match self {
+            ExitCode::Ok => "ok",
+            ExitCode::Unknown => "unknown",
+            ExitCode::Data => "decode",
+            ExitCode::Encode => "policy",
+            ExitCode::Format => "io",
+            ExitCode::Internal => "internal",
+            #[allow(unreachable_patterns)]
+            _ => "unknown",
         }
     }
 
@@ -99,6 +118,12 @@ impl ExitCode {
     /// Precedence rule (highest wins): CBKI > CBKF > CBKE > CBKD > Unknown/OK.
     #[must_use]
     pub const fn precedence(self) -> u8 {
+        self.precedence_rank()
+    }
+
+    /// Ranking helper for dashboards (higher rank wins).
+    #[must_use]
+    pub const fn precedence_rank(self) -> u8 {
         match self {
             ExitCode::Internal => 4,
             ExitCode::Format => 3,
@@ -106,6 +131,8 @@ impl ExitCode {
             ExitCode::Data => 1,
             ExitCode::Unknown => 0,
             ExitCode::Ok => 0,
+            #[allow(unreachable_patterns)]
+            _ => 0,
         }
     }
 
@@ -136,6 +163,38 @@ impl ExitCode {
 impl fmt::Display for ExitCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.tag())
+    }
+}
+
+impl FromStr for ExitCode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "OK" => Ok(ExitCode::Ok),
+            "CBK?" => Ok(ExitCode::Unknown),
+            "CBKD" => Ok(ExitCode::Data),
+            "CBKE" => Ok(ExitCode::Encode),
+            "CBKF" => Ok(ExitCode::Format),
+            "CBKI" => Ok(ExitCode::Internal),
+            _ => Err(()),
+        }
+    }
+}
+
+impl std::convert::TryFrom<i32> for ExitCode {
+    type Error = ();
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(ExitCode::Ok),
+            1 => Ok(ExitCode::Unknown),
+            2 => Ok(ExitCode::Data),
+            3 => Ok(ExitCode::Encode),
+            4 => Ok(ExitCode::Format),
+            5 => Ok(ExitCode::Internal),
+            _ => Err(()),
+        }
     }
 }
 
@@ -226,33 +285,38 @@ impl<'de> Deserialize<'de> for ExitCode {
 mod tests {
     use super::*;
     use serde_json::{from_str, to_string};
+    use std::io;
+
+    type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
     #[test]
-    fn readme_exit_code_table_matches_source_of_truth() {
+    fn readme_exit_code_table_matches_source_of_truth() -> TestResult<()> {
         let readme = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../README.md"));
         let mut rows = readme
             .lines()
             .skip_while(|line| *line != "| Code | Tag  | Meaning (1-liner) | Test |");
 
-        let header = rows.next();
+        let header = rows
+            .next()
+            .ok_or_else(|| io::Error::other("exit code table header missing"))?;
         assert_eq!(
-            header,
-            Some("| Code | Tag  | Meaning (1-liner) | Test |"),
+            header, "| Code | Tag  | Meaning (1-liner) | Test |",
             "exit code table header missing"
         );
 
-        let separator = rows.next();
+        let separator = rows
+            .next()
+            .ok_or_else(|| io::Error::other("exit code table separator missing"))?;
         assert_eq!(
-            separator,
-            Some("|----:|:----:|--------------------|------|"),
+            separator, "|----:|:----:|--------------------|------|",
             "exit code table separator missing"
         );
 
         for code in ExitCode::documented_codes() {
             let details = code.details();
-            let readme_row = rows
-                .next()
-                .unwrap_or_else(|| panic!("missing README row for {}", details.tag));
+            let readme_row = rows.next().ok_or_else(|| {
+                io::Error::other(format!("missing README row for {}", details.tag))
+            })?;
             let cells: Vec<_> = readme_row
                 .trim()
                 .trim_matches('|')
@@ -283,19 +347,20 @@ mod tests {
                 details.tag
             );
         }
+        Ok(())
     }
 
     #[test]
-    fn exit_code_serializes_to_tag() {
-        assert_eq!(to_string(&ExitCode::Format).unwrap(), "\"CBKF\"");
+    fn exit_code_serializes_to_tag() -> TestResult<()> {
+        let serialized = to_string(&ExitCode::Format)?;
+        assert_eq!(serialized, "\"CBKF\"");
+        Ok(())
     }
 
     #[test]
-    fn exit_code_deserializes_from_tag_or_number() {
-        assert_eq!(
-            from_str::<ExitCode>("\"CBKI\"").unwrap(),
-            ExitCode::Internal
-        );
-        assert_eq!(from_str::<ExitCode>("4").unwrap(), ExitCode::Format);
+    fn exit_code_deserializes_from_tag_or_number() -> TestResult<()> {
+        assert_eq!(from_str::<ExitCode>("\"CBKI\"")?, ExitCode::Internal);
+        assert_eq!(from_str::<ExitCode>("4")?, ExitCode::Format);
+        Ok(())
     }
 }

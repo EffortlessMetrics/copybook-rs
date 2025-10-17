@@ -1,5 +1,3 @@
-#![allow(clippy::expect_used)] // Test code validates production code doesn't panic
-#![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
 #![allow(clippy::uninlined_format_args)] // Test output formatting for clarity
 
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
@@ -19,6 +17,9 @@
 /// - AC4: Performance impact minimal on CLI operations
 /// - AC7: Comprehensive test coverage for command handlers
 /// - AC8: User-friendly error messages with structured error taxonomy
+mod common;
+
+use common::{TestResult, write_file};
 use std::fs;
 use std::process::Command;
 
@@ -30,7 +31,7 @@ mod panic_elimination_cli_command_tests {
     /// AC:63-13 - CLI command execution with safe argument processing
 
     #[test] // AC:63-13-1 Parse command argument safety
-    fn test_parse_command_argument_safety() {
+    fn test_parse_command_argument_safety() -> TestResult<()> {
         // Test case: Parse command with invalid arguments that could cause panics
         let test_copybook_content = r"
        01 TEST-RECORD.
@@ -40,7 +41,7 @@ mod panic_elimination_cli_command_tests {
         // Create temporary test files
         let temp_dir = std::env::temp_dir();
         let copybook_path = temp_dir.join("test_parse_safety.cpy");
-        fs::write(&copybook_path, test_copybook_content).expect("Should write test copybook");
+        write_file(&copybook_path, test_copybook_content)?;
 
         // Test parse command with valid input
         let output = Command::new("cargo")
@@ -66,10 +67,11 @@ mod panic_elimination_cli_command_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-13-2 Inspect command file handling safety
-    fn test_inspect_command_file_handling_safety() {
+    fn test_inspect_command_file_handling_safety() -> TestResult<()> {
         // Test case: Inspect command with missing or invalid files
         let nonexistent_path = std::env::temp_dir().join("nonexistent_file.cpy");
 
@@ -99,10 +101,11 @@ mod panic_elimination_cli_command_tests {
                 println!("CLI test skipped due to execution environment: {}", e);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-13-3 Decode command option validation safety
-    fn test_decode_command_option_validation_safety() {
+    fn test_decode_command_option_validation_safety() -> TestResult<()> {
         // Test case: Decode command with invalid option combinations
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(10).";
         let test_data = vec![b'T'; 10];
@@ -112,8 +115,8 @@ mod panic_elimination_cli_command_tests {
         let data_path = temp_dir.join("test_decode_safety.bin");
         let output_path = temp_dir.join("test_decode_safety.jsonl");
 
-        fs::write(&copybook_path, test_copybook_content).expect("Should write test copybook");
-        fs::write(&data_path, &test_data).expect("Should write test data");
+        write_file(&copybook_path, test_copybook_content)?;
+        write_file(&data_path, &test_data)?;
 
         // Test decode command with invalid codepage
         let output = Command::new("cargo")
@@ -157,10 +160,11 @@ mod panic_elimination_cli_command_tests {
                 let _ = fs::remove_file(&data_path);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-13-4 Encode command data processing safety
-    fn test_encode_command_data_processing_safety() {
+    fn test_encode_command_data_processing_safety() -> TestResult<()> {
         // Test case: Encode command with malformed JSON data
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(10).";
         let invalid_json_data = r#"{"FIELD": "valid"} invalid json follows"#;
@@ -170,8 +174,8 @@ mod panic_elimination_cli_command_tests {
         let json_path = temp_dir.join("test_encode_safety.jsonl");
         let output_path = temp_dir.join("test_encode_safety.bin");
 
-        fs::write(&copybook_path, test_copybook_content).expect("Should write test copybook");
-        fs::write(&json_path, invalid_json_data).expect("Should write test JSON");
+        write_file(&copybook_path, test_copybook_content)?;
+        write_file(&json_path, invalid_json_data)?;
 
         // Test encode command with malformed JSON
         let output = Command::new("cargo")
@@ -214,10 +218,11 @@ mod panic_elimination_cli_command_tests {
                 let _ = fs::remove_file(&json_path);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-13-5 Verify command integration safety
-    fn test_verify_command_integration_safety() {
+    fn test_verify_command_integration_safety() -> TestResult<()> {
         // Test case: Verify command with mismatched copybook and data
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(20)."; // Expects 20 bytes
         let test_data = vec![b'T'; 10]; // Only 10 bytes
@@ -226,8 +231,8 @@ mod panic_elimination_cli_command_tests {
         let copybook_path = temp_dir.join("test_verify_safety.cpy");
         let data_path = temp_dir.join("test_verify_safety.bin");
 
-        fs::write(&copybook_path, test_copybook_content).expect("Should write test copybook");
-        fs::write(&data_path, &test_data).expect("Should write test data");
+        write_file(&copybook_path, test_copybook_content)?;
+        write_file(&data_path, &test_data)?;
 
         // Test verify command with mismatched data
         let output = Command::new("cargo")
@@ -280,6 +285,7 @@ mod panic_elimination_cli_command_tests {
                 let _ = fs::remove_file(&data_path);
             }
         }
+        Ok(())
     }
 }
 
@@ -291,7 +297,7 @@ mod panic_elimination_cli_audit_tests {
     /// AC:63-14 - CLI audit integration with safe event processing
 
     #[test] // AC:63-14-1 Audit event generation safety
-    fn test_audit_event_generation_safety() {
+    fn test_audit_event_generation_safety() -> TestResult<()> {
         // Test case: CLI operations that generate audit events
         let test_copybook_content = r"
        01 AUDIT-TEST-RECORD.
@@ -302,7 +308,7 @@ mod panic_elimination_cli_audit_tests {
 
         let temp_dir = std::env::temp_dir();
         let copybook_path = temp_dir.join("test_audit_safety.cpy");
-        fs::write(&copybook_path, test_copybook_content).expect("Should write test copybook");
+        write_file(&copybook_path, test_copybook_content)?;
 
         // Test parse command that should generate audit events
         let output = Command::new("cargo")
@@ -343,10 +349,11 @@ mod panic_elimination_cli_audit_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-14-2 Audit serialization safety
-    fn test_audit_serialization_safety() {
+    fn test_audit_serialization_safety() -> TestResult<()> {
         // Test case: Complex operations that stress audit serialization
         let complex_copybook_content = r"
        01 COMPLEX-AUDIT-RECORD.
@@ -366,7 +373,7 @@ mod panic_elimination_cli_audit_tests {
 
         let temp_dir = std::env::temp_dir();
         let copybook_path = temp_dir.join("test_complex_audit.cpy");
-        fs::write(&copybook_path, complex_copybook_content).expect("Should write complex copybook");
+        write_file(&copybook_path, complex_copybook_content)?;
 
         // Test inspect command on complex structure
         let output = Command::new("cargo")
@@ -404,10 +411,11 @@ mod panic_elimination_cli_audit_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-14-3 Audit context preservation safety
-    fn test_audit_context_preservation_safety() {
+    fn test_audit_context_preservation_safety() -> TestResult<()> {
         // Test case: Operations that require audit context preservation
         let context_copybook_content = r"
        01 CONTEXT-RECORD.
@@ -419,7 +427,7 @@ mod panic_elimination_cli_audit_tests {
 
         let temp_dir = std::env::temp_dir();
         let copybook_path = temp_dir.join("test_context_audit.cpy");
-        fs::write(&copybook_path, context_copybook_content).expect("Should write context copybook");
+        write_file(&copybook_path, context_copybook_content)?;
 
         // Test parse command with context preservation
         let output = Command::new("cargo")
@@ -460,10 +468,11 @@ mod panic_elimination_cli_audit_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-14-4 Audit error recovery safety
-    fn test_audit_error_recovery_safety() {
+    fn test_audit_error_recovery_safety() -> TestResult<()> {
         // Test case: Error conditions that trigger audit error recovery
         let malformed_copybook_content = r"
        01 MALFORMED-RECORD.
@@ -475,8 +484,7 @@ mod panic_elimination_cli_audit_tests {
 
         let temp_dir = std::env::temp_dir();
         let copybook_path = temp_dir.join("test_error_audit.cpy");
-        fs::write(&copybook_path, malformed_copybook_content)
-            .expect("Should write malformed copybook");
+        write_file(&copybook_path, malformed_copybook_content)?;
 
         // Test parse command on malformed copybook
         let output = Command::new("cargo")
@@ -519,6 +527,7 @@ mod panic_elimination_cli_audit_tests {
                 let _ = fs::remove_file(&copybook_path);
             }
         }
+        Ok(())
     }
 }
 
@@ -530,7 +539,7 @@ mod panic_elimination_cli_utils_tests {
     /// AC:63-15 - CLI utility functions with safe file operations
 
     #[test] // AC:63-15-1 File path validation safety
-    fn test_file_path_validation_safety() {
+    fn test_file_path_validation_safety() -> TestResult<()> {
         // Test case: CLI operations with invalid file paths
         let invalid_paths = vec![
             "",                      // Empty path
@@ -577,22 +586,23 @@ mod panic_elimination_cli_utils_tests {
                 }
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-15-2 File I/O operation safety
-    fn test_file_io_operation_safety() {
+    fn test_file_io_operation_safety() -> TestResult<()> {
         // Test case: CLI operations with file I/O that could fail
         let temp_dir = std::env::temp_dir();
         let readonly_path = temp_dir.join("readonly_test.cpy");
 
         // Create a test file
         let test_content = "       01 RECORD.\n           05 FIELD PIC X(10).";
-        fs::write(&readonly_path, test_content).expect("Should write test file");
+        write_file(&readonly_path, test_content)?;
 
         // Test decode operation that requires output file creation
         let output_path = temp_dir.join("readonly_output.jsonl");
         let data_path = temp_dir.join("test_data.bin");
-        fs::write(&data_path, b"1234567890").expect("Should write test data");
+        write_file(&data_path, b"1234567890")?;
 
         let output = Command::new("cargo")
             .args([
@@ -635,10 +645,11 @@ mod panic_elimination_cli_utils_tests {
                 let _ = fs::remove_file(&data_path);
             }
         }
+        Ok(())
     }
 
     #[test] // AC:63-15-3 Configuration parsing safety
-    fn test_configuration_parsing_safety() {
+    fn test_configuration_parsing_safety() -> TestResult<()> {
         // Test case: CLI configuration parsing with invalid values
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(10).";
         let test_data = vec![b'T'; 10];
@@ -648,8 +659,8 @@ mod panic_elimination_cli_utils_tests {
         let data_path = temp_dir.join("test_config_safety.bin");
         let output_path = temp_dir.join("test_config_safety.jsonl");
 
-        fs::write(&copybook_path, test_copybook_content).expect("Should write test copybook");
-        fs::write(&data_path, &test_data).expect("Should write test data");
+        write_file(&copybook_path, test_copybook_content)?;
+        write_file(&data_path, &test_data)?;
 
         // Test decode command with invalid configuration values
         let invalid_configs = vec![
@@ -717,6 +728,7 @@ mod panic_elimination_cli_utils_tests {
         let _ = fs::remove_file(&copybook_path);
         let _ = fs::remove_file(&data_path);
         let _ = fs::remove_file(&output_path);
+        Ok(())
     }
 }
 
@@ -729,7 +741,7 @@ mod panic_elimination_cli_integration_tests {
 
     #[test] // AC:63-16-1 Command pipeline safety
     #[allow(clippy::too_many_lines)] // Test infrastructure for complex pipeline validation
-    fn test_command_pipeline_safety() {
+    fn test_command_pipeline_safety() -> TestResult<()> {
         // Test case: Full CLI pipeline from parse to decode to verify
         let pipeline_copybook_content = r"
        01 PIPELINE-RECORD.
@@ -745,9 +757,8 @@ mod panic_elimination_cli_integration_tests {
         let json_path = temp_dir.join("test_pipeline.jsonl");
         let binary_path = temp_dir.join("test_pipeline.bin");
 
-        fs::write(&copybook_path, pipeline_copybook_content)
-            .expect("Should write pipeline copybook");
-        fs::write(&json_path, pipeline_json_data).expect("Should write pipeline JSON");
+        write_file(&copybook_path, pipeline_copybook_content)?;
+        write_file(&json_path, pipeline_json_data)?;
 
         // Step 1: Parse copybook
         let parse_output = Command::new("cargo")
@@ -861,10 +872,11 @@ mod panic_elimination_cli_integration_tests {
         let _ = fs::remove_file(&copybook_path);
         let _ = fs::remove_file(&json_path);
         let _ = fs::remove_file(&binary_path);
+        Ok(())
     }
 
     #[test] // AC:63-16-2 Error propagation safety
-    fn test_error_propagation_safety() {
+    fn test_error_propagation_safety() -> TestResult<()> {
         // Test case: Error propagation through CLI layers without panics
         let error_test_scenarios = vec![
             ("empty_copybook", ""),
@@ -876,7 +888,7 @@ mod panic_elimination_cli_integration_tests {
             let temp_dir = std::env::temp_dir();
             let copybook_path = temp_dir.join(format!("test_error_{}.cpy", scenario_name));
 
-            fs::write(&copybook_path, copybook_content).expect("Should write test copybook");
+            write_file(&copybook_path, copybook_content)?;
 
             // Test parse command error propagation
             let output = Command::new("cargo")
@@ -916,10 +928,11 @@ mod panic_elimination_cli_integration_tests {
             // Clean up test file
             let _ = fs::remove_file(&copybook_path);
         }
+        Ok(())
     }
 
     #[test] // AC:63-16-3 Resource cleanup safety
-    fn test_resource_cleanup_safety() {
+    fn test_resource_cleanup_safety() -> TestResult<()> {
         // Test case: Resource cleanup during error conditions
         let cleanup_copybook_content = r"
        01 CLEANUP-RECORD.
@@ -931,11 +944,11 @@ mod panic_elimination_cli_integration_tests {
         let large_data_path = temp_dir.join("test_cleanup.bin");
         let output_path = temp_dir.join("test_cleanup.jsonl");
 
-        fs::write(&copybook_path, cleanup_copybook_content).expect("Should write cleanup copybook");
+        write_file(&copybook_path, cleanup_copybook_content)?;
 
         // Create large data file that might stress resource management
         let large_data = vec![b'C'; 10000];
-        fs::write(&large_data_path, &large_data).expect("Should write large data");
+        write_file(&large_data_path, &large_data)?;
 
         // Test decode command with large data
         let output = Command::new("cargo")
@@ -985,5 +998,6 @@ mod panic_elimination_cli_integration_tests {
         let _ = fs::remove_file(&copybook_path);
         let _ = fs::remove_file(&large_data_path);
         let _ = fs::remove_file(&output_path);
+        Ok(())
     }
 }

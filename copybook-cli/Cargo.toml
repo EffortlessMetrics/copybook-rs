@@ -44,6 +44,7 @@ metrics-exporter-prometheus = { version = "0.17.2", optional = true, features = 
 [features]
 default = []
 audit = ["copybook-core/audit", "dep:tokio"]
+soak = []
 metrics = [
     "copybook-codec/metrics",
     "dep:metrics",

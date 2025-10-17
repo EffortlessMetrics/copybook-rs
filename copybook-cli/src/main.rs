@@ -404,9 +404,9 @@ fn run() -> anyhow::Result<ExitCode> {
                 ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
             ) {
                 let op = if matches!(kind, ClapErrorKind::DisplayVersion) {
-                    "cli_version"
+                    "version"
                 } else {
-                    "cli_help"
+                    "help"
                 };
                 emit_exit_diagnostics_stage(
                     ExitCode::Ok,
@@ -459,7 +459,7 @@ fn run() -> anyhow::Result<ExitCode> {
     let command = cli.command;
 
     // Initialize tracing
-    let default_directive = if verbose { "debug" } else { "info" };
+    let default_directive = if verbose { "debug" } else { "warn" };
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
     tracing_subscriber::fmt()

@@ -1,8 +1,9 @@
 //! Decode command implementation
 
 use crate::exit_codes::ExitCode;
+use crate::subcode;
 use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
-use crate::{emit_exit_diagnostics, write_stdout_all};
+use crate::{Stage, emit_exit_diagnostics_stage, write_stdout_all};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
@@ -45,12 +46,13 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         && !args.preserve_zoned_encoding
     {
         let preferred = args.preferred_zoned_encoding;
-        let subcode = Some(401);
+        let subcode = Some(subcode::POLICY_PREFERRED_WITHOUT_PRESERVE);
         let op_path = Some(args.input.as_path());
         if args.strict_policy {
-            emit_exit_diagnostics(
+            emit_exit_diagnostics_stage(
                 ExitCode::Encode,
                 "--preferred-zoned-encoding requires --preserve-zoned-encoding in strict mode",
+                Stage::Execute,
                 "decode",
                 op_path,
                 None,
@@ -62,9 +64,10 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
             return Ok(ExitCode::Encode);
         }
 
-        emit_exit_diagnostics(
+        emit_exit_diagnostics_stage(
             ExitCode::Encode,
             "compat: prefer --preserve-zoned-encoding when using --preferred-zoned-encoding (future strict mode will fail)",
+            Stage::Execute,
             "decode",
             op_path,
             None,

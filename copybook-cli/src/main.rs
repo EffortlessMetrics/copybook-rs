@@ -7,7 +7,7 @@
 use crate::exit_codes::ExitCode;
 use anyhow::{Error as AnyhowError, anyhow};
 use clap::error::ErrorKind as ClapErrorKind;
-use clap::{ArgAction, Parser, Subcommand, ValueEnum};
+use clap::{ColorChoice, Parser, Subcommand, ValueEnum};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use copybook_core::Error as CoreError;
 use std::borrow::Cow;
@@ -33,8 +33,24 @@ use std::sync::Once;
 
 static INVOCATION_ID: OnceLock<String> = OnceLock::new();
 
+/// Bump when log schema fields change.
+pub const LOG_SCHEMA: u8 = 1;
+
+pub mod subcode {
+    /// Policy compatibility warning: `--preferred-zoned-encoding` without preservation.
+    ///
+    /// Reserved ranges:
+    /// - `2xx`: deprecations
+    /// - `4xx`: policy compatibility and enforcement (reserved for operator-facing guardrails)
+    /// - `5xx`: internal escalations / invariants
+    pub const POLICY_PREFERRED_WITHOUT_PRESERVE: u16 = 401;
+}
+
 fn invocation_id() -> &'static str {
     INVOCATION_ID.get_or_init(|| {
+        if let Ok(from_env) = std::env::var("COPYBOOK_INVOCATION_ID") {
+            return from_env;
+        }
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -44,7 +60,7 @@ fn invocation_id() -> &'static str {
 }
 
 #[derive(Parser)]
-#[command(name = "copybook")]
+#[command(name = "copybook", color = ColorChoice::Never)]
 #[command(about = "Modern COBOL copybook parser and data converter")]
 #[command(version)]
 struct Cli {
@@ -55,14 +71,18 @@ struct Cli {
     #[arg(short, long)]
     verbose: bool,
 
-    /// Enforce strict policy checks. Precedence: --strict-policy > --no-strict-policy > COPYBOOK_STRICT_POLICY.
-    #[arg(long, action = ArgAction::SetTrue, conflicts_with = "no_strict_policy")]
+    /// Enforce policy checks. Precedence: --strict-policy > --no-strict-policy > COPYBOOK_STRICT_POLICY.
+    #[arg(
+        long,
+        action = clap::ArgAction::SetTrue,
+        conflicts_with = "no_strict_policy"
+    )]
     strict_policy: bool,
 
-    /// Disable strict policy checks, even if COPYBOOK_STRICT_POLICY=1.
+    /// Disable strict checks for this run, even if COPYBOOK_STRICT_POLICY=1.
     #[arg(
         long = "no-strict-policy",
-        action = ArgAction::SetTrue,
+        action = clap::ArgAction::SetTrue,
         conflicts_with = "strict_policy"
     )]
     no_strict_policy: bool,
@@ -72,26 +92,11 @@ struct Cli {
     metrics: MetricsOpts,
 }
 
-#[derive(Clone, Default)]
-struct StderrTelemetryWriter;
+struct BrokenPipeSafeStderr(std::io::Stderr);
 
-struct ResilientStderr {
-    inner: std::io::Stderr,
-}
-
-impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for StderrTelemetryWriter {
-    type Writer = ResilientStderr;
-
-    fn make_writer(&'a self) -> Self::Writer {
-        ResilientStderr {
-            inner: std::io::stderr(),
-        }
-    }
-}
-
-impl Write for ResilientStderr {
+impl Write for BrokenPipeSafeStderr {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match self.inner.write(buf) {
+        match self.0.write(buf) {
             Ok(written) => Ok(written),
             Err(err) if is_consumer_closed(&err) => Ok(buf.len()),
             Err(err) => Err(err),
@@ -99,7 +104,7 @@ impl Write for ResilientStderr {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        match self.inner.flush() {
+        match self.0.flush() {
             Ok(()) => Ok(()),
             Err(err) if is_consumer_closed(&err) => Ok(()),
             Err(err) => Err(err),
@@ -342,9 +347,10 @@ fn main() -> ProcessExitCode {
             let exit_code = map_error_to_exit_code(&err);
             let stderr_line = format!("{err}\n");
             let _ = write_stderr_all(stderr_line.as_bytes());
-            emit_exit_diagnostics(
+            emit_exit_diagnostics_stage(
                 exit_code,
                 "copybook CLI terminated with an error",
+                Stage::Finalize,
                 "cli_run",
                 None,
                 err.downcast_ref::<io::Error>(),
@@ -362,9 +368,10 @@ fn main() -> ProcessExitCode {
             let panic_msg = extract_panic_message(panic_payload.as_ref());
             let panic_line = format!("panic: {panic_msg}\n");
             let _ = write_stderr_all(panic_line.as_bytes());
-            emit_exit_diagnostics(
+            emit_exit_diagnostics_stage(
                 ExitCode::Internal,
                 "copybook CLI panicked",
+                Stage::Panic,
                 "panic",
                 None,
                 None,
@@ -396,9 +403,40 @@ fn run() -> anyhow::Result<ExitCode> {
                 kind,
                 ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
             ) {
+                let op = if matches!(kind, ClapErrorKind::DisplayVersion) {
+                    "cli_version"
+                } else {
+                    "cli_help"
+                };
+                emit_exit_diagnostics_stage(
+                    ExitCode::Ok,
+                    "completed",
+                    Stage::Finalize,
+                    op,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Level::INFO,
+                    0,
+                );
                 return Ok(ExitCode::Ok);
             }
-            return Ok(ExitCode::Encode);
+            let exit_code = ExitCode::Encode;
+            let message = err.to_string();
+            emit_exit_diagnostics_stage(
+                exit_code,
+                &message,
+                Stage::Parse,
+                "cli_parse",
+                None,
+                None,
+                Some(&err),
+                None,
+                Level::ERROR,
+                exit_code.as_i32(),
+            );
+            return Ok(exit_code);
         }
     };
 
@@ -426,8 +464,8 @@ fn run() -> anyhow::Result<ExitCode> {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
     tracing_subscriber::fmt()
         .with_env_filter(env_filter)
-        .with_writer(StderrTelemetryWriter::default())
         .with_ansi(false)
+        .with_writer(|| BrokenPipeSafeStderr(std::io::stderr()))
         .init();
 
     let help_requested =
@@ -445,19 +483,25 @@ fn run() -> anyhow::Result<ExitCode> {
         );
     }
 
-    let exit_status = match command {
+    let (exit_status, exit_op): (anyhow::Result<ExitCode>, &'static str) = match command {
         Commands::Parse {
             copybook,
             output,
             strict,
             strict_comments,
-        } => crate::commands::parse::run(&copybook, output, strict, strict_comments),
+        } => (
+            crate::commands::parse::run(&copybook, output, strict, strict_comments),
+            "parse",
+        ),
         Commands::Inspect {
             copybook,
             codepage,
             strict,
             strict_comments,
-        } => crate::commands::inspect::run(&copybook, codepage, strict, strict_comments),
+        } => (
+            crate::commands::inspect::run(&copybook, codepage, strict, strict_comments),
+            "inspect",
+        ),
         Commands::Decode {
             copybook,
             input,
@@ -476,26 +520,29 @@ fn run() -> anyhow::Result<ExitCode> {
             strict_comments,
             preserve_zoned_encoding,
             preferred_zoned_encoding: preferred_zoned_encoding_cli,
-        } => crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
-            copybook: &copybook,
-            input: &input,
-            output: &output,
-            format,
-            codepage,
-            json_number,
-            strict,
-            max_errors,
-            fail_fast,
-            emit_filler,
-            emit_meta,
-            emit_raw,
-            on_decode_unmappable,
-            threads,
-            strict_comments,
-            preserve_zoned_encoding,
-            preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
-            strict_policy,
-        }),
+        } => (
+            crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
+                copybook: &copybook,
+                input: &input,
+                output: &output,
+                format,
+                codepage,
+                json_number,
+                strict,
+                max_errors,
+                fail_fast,
+                emit_filler,
+                emit_meta,
+                emit_raw,
+                on_decode_unmappable,
+                threads,
+                strict_comments,
+                preserve_zoned_encoding,
+                preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
+                strict_policy,
+            }),
+            "decode",
+        ),
         Commands::Encode {
             copybook,
             input,
@@ -511,31 +558,37 @@ fn run() -> anyhow::Result<ExitCode> {
             coerce_numbers,
             strict_comments,
             zoned_encoding_override,
-        } => crate::commands::encode::run(
-            &copybook,
-            &input,
-            &output,
-            &crate::commands::encode::EncodeCliOptions {
-                format,
-                codepage,
-                use_raw,
-                bwz_encode,
-                strict,
-                max_errors,
-                fail_fast,
-                threads,
-                coerce_numbers,
-                strict_comments,
-                zoned_encoding_override,
-            },
+        } => (
+            crate::commands::encode::run(
+                &copybook,
+                &input,
+                &output,
+                &crate::commands::encode::EncodeCliOptions {
+                    format,
+                    codepage,
+                    use_raw,
+                    bwz_encode,
+                    strict,
+                    max_errors,
+                    fail_fast,
+                    threads,
+                    coerce_numbers,
+                    strict_comments,
+                    zoned_encoding_override,
+                },
+            ),
+            "encode",
         ),
         #[cfg(feature = "audit")]
         Commands::Audit { audit_command } => {
             // Run audit command asynchronously
             let runtime = tokio::runtime::Runtime::new()?;
-            runtime
-                .block_on(crate::commands::audit::run(audit_command))
-                .map_err(|err| anyhow!(err))
+            (
+                runtime
+                    .block_on(crate::commands::audit::run(audit_command))
+                    .map_err(|err| anyhow!(err)),
+                "audit",
+            )
         }
         Commands::Verify {
             copybook,
@@ -564,7 +617,10 @@ fn run() -> anyhow::Result<ExitCode> {
                 sample: sample.unwrap_or(5),
                 strict_comments,
             };
-            crate::commands::verify::run(&copybook, &input, report, &opts)
+            (
+                crate::commands::verify::run(&copybook, &input, report, &opts),
+                "verify",
+            )
         }
     };
 
@@ -575,6 +631,34 @@ fn run() -> anyhow::Result<ExitCode> {
     }
 
     let status = exit_status?;
+
+    if status != ExitCode::Ok {
+        emit_exit_diagnostics_stage(
+            status,
+            "command completed with non-zero exit code",
+            Stage::Execute,
+            exit_op,
+            None,
+            None,
+            None,
+            None,
+            Level::ERROR,
+            status.as_i32(),
+        );
+    } else {
+        emit_exit_diagnostics_stage(
+            ExitCode::Ok,
+            "completed",
+            Stage::Finalize,
+            exit_op,
+            None,
+            None,
+            None,
+            None,
+            Level::INFO,
+            0,
+        );
+    }
 
     Ok(status)
 }
@@ -794,6 +878,54 @@ fn parse_prefix_from_str(message: &str) -> Option<String> {
     Some(token[..4].to_string())
 }
 
+#[non_exhaustive]
+#[derive(Copy, Clone)]
+pub(crate) enum Stage {
+    Parse,
+    Execute,
+    Finalize,
+    Panic,
+}
+
+impl Stage {
+    #[inline]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Stage::Parse => "parse",
+            Stage::Execute => "execute",
+            Stage::Finalize => "finalize",
+            Stage::Panic => "panic",
+        }
+    }
+}
+
+#[inline]
+pub(crate) fn emit_exit_diagnostics_stage(
+    exit: ExitCode,
+    msg: &str,
+    stage: Stage,
+    op: &str,
+    path: Option<&Path>,
+    io_error: Option<&io::Error>,
+    error: Option<&(dyn StdError + 'static)>,
+    subcode: Option<u16>,
+    severity: Level,
+    effective_exit: i32,
+) {
+    emit_exit_diagnostics(
+        exit,
+        msg,
+        op,
+        path,
+        io_error,
+        error,
+        subcode,
+        stage.as_str(),
+        severity,
+        effective_exit,
+    );
+}
+
 pub(crate) fn emit_exit_diagnostics(
     exit: ExitCode,
     msg: &str,
@@ -802,6 +934,7 @@ pub(crate) fn emit_exit_diagnostics(
     io_error: Option<&io::Error>,
     error: Option<&(dyn StdError + 'static)>,
     subcode: Option<u16>,
+    op_stage: &str,
     severity: Level,
     effective_exit: i32,
 ) {
@@ -811,46 +944,45 @@ pub(crate) fn emit_exit_diagnostics(
     let subcode_label = subcode
         .map(|value| value.to_string())
         .unwrap_or_else(|| "n/a".to_string());
+    let severity_tag = match severity {
+        Level::ERROR => "ERROR",
+        Level::WARN => "WARN",
+        Level::INFO => "INFO",
+        Level::DEBUG => "DEBUG",
+        Level::TRACE => "TRACE",
+    };
+
+    macro_rules! log_diagnostic {
+        ($macro:ident) => {
+            tracing::$macro!(
+                log_schema = LOG_SCHEMA,
+                op_stage = %op_stage,
+                invocation_id = %invocation_id(),
+                severity_tag = %severity_tag,
+                code_tag = %exit,
+                code = exit.as_i32(),
+                family = %exit.family(),
+                precedence_rank = exit.precedence_rank(),
+                subcode = %subcode_label,
+                subcode_numeric = ?subcode,
+                effective_exit = effective_exit,
+                errno = ?errno,
+                err_kind = ?err_kind,
+                op = %op,
+                path = ?path,
+                io_error = ?io_error,
+                error = ?error,
+                "{msg}"
+            )
+        };
+    }
 
     match severity {
-        Level::WARN => {
-            tracing::warn!(
-                invocation_id = %invocation_id(),
-                code_tag = %exit,
-                code = exit.as_i32(),
-                family = %exit.family(),
-                precedence_rank = exit.precedence_rank(),
-                subcode = %subcode_label,
-                subcode_numeric = ?subcode,
-                effective_exit = effective_exit,
-                errno = ?errno,
-                err_kind = ?err_kind,
-                op = %op,
-                path = ?path,
-                io_error = ?io_error,
-                error = ?error,
-                "{msg}"
-            );
-        }
-        _ => {
-            tracing::error!(
-                invocation_id = %invocation_id(),
-                code_tag = %exit,
-                code = exit.as_i32(),
-                family = %exit.family(),
-                precedence_rank = exit.precedence_rank(),
-                subcode = %subcode_label,
-                subcode_numeric = ?subcode,
-                effective_exit = effective_exit,
-                errno = ?errno,
-                err_kind = ?err_kind,
-                op = %op,
-                path = ?path,
-                io_error = ?io_error,
-                error = ?error,
-                "{msg}"
-            );
-        }
+        Level::ERROR => log_diagnostic!(error),
+        Level::WARN => log_diagnostic!(warn),
+        Level::INFO => log_diagnostic!(info),
+        Level::DEBUG => log_diagnostic!(debug),
+        Level::TRACE => log_diagnostic!(trace),
     }
 }
 
@@ -919,7 +1051,7 @@ pub(crate) fn write_stdout_line(line: &str) -> Result<(), io::Error> {
     write_stdout_all(buffer.as_bytes())
 }
 
-#[cfg_attr(not(feature = "audit"), allow(dead_code))]
+#[cfg_attr(not(feature = "audit"), allow(dead_code))] // audit CLI helper retained for enterprise workflows (tracked in ROADMAP phase 6)
 pub(crate) fn write_stderr_line(line: &str) -> Result<(), io::Error> {
     let mut buffer = String::with_capacity(line.len() + 1);
     buffer.push_str(line);

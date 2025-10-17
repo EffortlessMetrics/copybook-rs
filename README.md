@@ -115,6 +115,8 @@ reason about precedence:
 code_tag=CBKE code=3 family=policy precedence_rank=2 op=decode path=missing.bin errno=null err_kind=NotFound copybook CLI terminated with an error
 ```
 
+- **Policy controls:** Precedence is `--strict-policy` → `--no-strict-policy` → `COPYBOOK_STRICT_POLICY`.
+
 ### Example: Decode to JSONL (stable schema)
 
 ```bash

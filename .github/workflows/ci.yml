@@ -153,8 +153,10 @@ jobs:
     - uses: Swatinem/rust-cache@v2
     - name: Run clippy
       run: cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic
+    - name: Clippy (tests enforce no unwrap/expect)
+      run: cargo clippy --workspace --tests --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
     - name: Enforce panic prevention lints
-      run: cargo clippy --all-targets --workspace -- -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
+      run: cargo clippy --all-targets --workspace -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
 
   deny:
     name: Cargo Deny

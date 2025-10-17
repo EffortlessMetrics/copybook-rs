@@ -2,9 +2,11 @@
 
 use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
+use crate::{write_stderr_all, write_stdout_all};
 use anyhow::{anyhow, bail};
 use copybook_codec::{Codepage, EncodeOptions, RecordFormat};
 use copybook_core::{ParseOptions, parse_copybook_with_options};
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use tracing::info;
@@ -88,34 +90,71 @@ pub fn run(
     })?;
 
     // Print comprehensive summary
-    println!("=== Encode Summary ===");
-    println!("Records processed: {}", summary.records_processed);
+    let mut summary_output = String::new();
+    writeln!(&mut summary_output, "=== Encode Summary ===")?;
+    writeln!(
+        &mut summary_output,
+        "Records processed: {}",
+        summary.records_processed
+    )?;
     if summary.records_with_errors > 0 {
-        println!("Records with errors: {}", summary.records_with_errors);
+        writeln!(
+            &mut summary_output,
+            "Records with errors: {}",
+            summary.records_with_errors
+        )?;
     }
     if summary.warnings > 0 {
-        println!("Warnings: {}", summary.warnings);
+        writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
     }
-    println!("Processing time: {}ms", summary.processing_time_ms);
-    println!("Bytes processed: {}", summary.bytes_processed);
-    println!("Throughput: {:.2} MB/s", summary.throughput_mbps);
+    writeln!(
+        &mut summary_output,
+        "Processing time: {}ms",
+        summary.processing_time_ms
+    )?;
+    writeln!(
+        &mut summary_output,
+        "Bytes processed: {}",
+        summary.bytes_processed
+    )?;
+    writeln!(
+        &mut summary_output,
+        "Throughput: {:.2} MB/s",
+        summary.throughput_mbps
+    )?;
+    write_stdout_all(summary_output.as_bytes())?;
 
     // Provide detailed feedback about encode status
     if summary.records_processed == 0 && summary.records_with_errors > 0 {
-        eprintln!();
-        eprintln!("ERROR: No records were successfully encoded.");
-        eprintln!(
+        let mut err_output = String::new();
+        err_output.push('\n');
+        writeln!(
+            &mut err_output,
+            "ERROR: No records were successfully encoded."
+        )?;
+        writeln!(
+            &mut err_output,
             "All {} records failed to encode. Use --fail-fast=false to see details of additional errors.",
             summary.records_with_errors
-        );
-        eprintln!("Consider checking your input data format and copybook compatibility.");
+        )?;
+        writeln!(
+            &mut err_output,
+            "Consider checking your input data format and copybook compatibility."
+        )?;
+        write_stderr_all(err_output.as_bytes())?;
     } else if summary.records_with_errors > 0 && !options.fail_fast {
-        eprintln!();
-        eprintln!(
+        let mut err_output = String::new();
+        err_output.push('\n');
+        writeln!(
+            &mut err_output,
             "WARNING: {} records failed to encode but were skipped in lenient mode.",
             summary.records_with_errors
-        );
-        eprintln!("Use --fail-fast to stop on first error for detailed error information.");
+        )?;
+        writeln!(
+            &mut err_output,
+            "Use --fail-fast to stop on first error for detailed error information."
+        )?;
+        write_stderr_all(err_output.as_bytes())?;
     }
 
     // Check for fatal errors when fail-fast is enabled

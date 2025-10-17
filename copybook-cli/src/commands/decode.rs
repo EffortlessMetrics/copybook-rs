@@ -2,13 +2,15 @@
 
 use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
+use crate::{emit_exit_diagnostics, write_stdout_all};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::{ParseOptions, parse_copybook_with_options};
+use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
-use tracing::info;
+use tracing::{Level, info};
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct DecodeArgs<'a> {
@@ -29,6 +31,7 @@ pub struct DecodeArgs<'a> {
     pub strict_comments: bool,
     pub preserve_zoned_encoding: bool,
     pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
+    pub strict_policy: bool,
 }
 
 pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
@@ -36,6 +39,45 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
 
     if args.strict_comments {
         info!("Inline comments (*>) disabled (COBOL-85 compatibility)");
+    }
+
+    if args.preferred_zoned_encoding != copybook_codec::ZonedEncodingFormat::Auto
+        && !args.preserve_zoned_encoding
+    {
+        let preferred = args.preferred_zoned_encoding;
+        let subcode = Some(401);
+        let op_path = Some(args.input.as_path());
+        if args.strict_policy {
+            emit_exit_diagnostics(
+                ExitCode::Encode,
+                "--preferred-zoned-encoding requires --preserve-zoned-encoding in strict mode",
+                "decode",
+                op_path,
+                None,
+                None,
+                subcode,
+                Level::ERROR,
+                ExitCode::Encode.as_i32(),
+            );
+            return Ok(ExitCode::Encode);
+        }
+
+        emit_exit_diagnostics(
+            ExitCode::Encode,
+            "compat: prefer --preserve-zoned-encoding when using --preferred-zoned-encoding (future strict mode will fail)",
+            "decode",
+            op_path,
+            None,
+            None,
+            subcode,
+            Level::WARN,
+            ExitCode::Ok.as_i32(),
+        );
+        tracing::warn!(
+            preferred = ?preferred,
+            preserve_zoned_encoding = args.preserve_zoned_encoding,
+            "preferred zoned encoding requested without preservation; continuing in compatibility mode"
+        );
     }
 
     // Read copybook file or stdin
@@ -92,22 +134,49 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     };
 
     // Print comprehensive summary
-    println!("=== Decode Summary ===");
-    println!("Records processed: {}", summary.records_processed);
-    println!("Records with errors: {}", summary.records_with_errors);
-    println!("Warnings: {}", summary.warnings);
-    println!("Processing time: {}ms", summary.processing_time_ms);
-    println!("Bytes processed: {}", summary.bytes_processed);
-    println!("Throughput: {:.2} MB/s", summary.throughput_mbps);
+    let mut summary_output = String::new();
+    writeln!(&mut summary_output, "=== Decode Summary ===")?;
+    writeln!(
+        &mut summary_output,
+        "Records processed: {}",
+        summary.records_processed
+    )?;
+    writeln!(
+        &mut summary_output,
+        "Records with errors: {}",
+        summary.records_with_errors
+    )?;
+    writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
+    writeln!(
+        &mut summary_output,
+        "Processing time: {}ms",
+        summary.processing_time_ms
+    )?;
+    writeln!(
+        &mut summary_output,
+        "Bytes processed: {}",
+        summary.bytes_processed
+    )?;
+    writeln!(
+        &mut summary_output,
+        "Throughput: {:.2} MB/s",
+        summary.throughput_mbps
+    )?;
 
     if summary.has_warnings() {
-        println!("Warnings: {}", summary.warnings);
+        writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
     }
 
     // Print error summary if available
     if summary.has_errors() {
-        println!("Records with errors: {}", summary.records_with_errors);
+        writeln!(
+            &mut summary_output,
+            "Records with errors: {}",
+            summary.records_with_errors
+        )?;
     }
+
+    write_stdout_all(summary_output.as_bytes())?;
 
     info!("Decode completed successfully");
 

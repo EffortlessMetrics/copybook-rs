@@ -18,7 +18,7 @@ pub trait OptionExt<T> {
 impl<T> OptionExt<T> for Option<T> {
     // PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path error handling
     #[allow(clippy::inline_always)]
-    #[inline(always)]
+    #[inline]
     fn ok_or_cbkp_error(self, code: ErrorCode, message: impl Into<String>) -> Result<T> {
         match self {
             Some(value) => Ok(value),
@@ -371,17 +371,11 @@ pub mod safe_ops {
         }
     }
 
-    /// Safely access slice with bounds checking for token streams
-    ///
-    /// Essential for parser token access where bounds violations could cause
-    /// panics during COBOL copybook processing.
-    ///
-    /// PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path access
+    /// Access a slice index with explicit parser-aware bounds checking.
     ///
     /// # Errors
-    /// Returns an error if the requested index is out of bounds.
-    #[allow(clippy::inline_always)]
-    #[inline(always)]
+    /// Returns an error when the requested index is out of bounds.
+    #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>
     where

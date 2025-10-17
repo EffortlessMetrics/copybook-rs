@@ -4,6 +4,7 @@
 //! compliance validation, performance assessment, security auditing, and
 //! complete data lineage reporting.
 
+use crate::exit_codes::ExitCode;
 use chrono;
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, RecordFormat};
@@ -416,7 +417,7 @@ pub enum ValidationDepth {
 #[allow(clippy::too_many_lines)]
 pub async fn run(
     audit_command: AuditCommand,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     // Initialize audit context
     let audit_context = AuditContext::new()
         .with_operation_id("cli_audit_operation")
@@ -621,7 +622,7 @@ fn run_audit_report(
     _include_lineage: bool,
     _include_recommendations: bool,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     println!("Generating comprehensive audit report...");
 
     // Parse copybook to validate it
@@ -647,7 +648,7 @@ fn run_audit_report(
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
     println!("✅ Audit report generated: {}", _output.display());
 
-    Ok(0)
+    Ok(ExitCode::Ok)
 }
 
 #[allow(
@@ -667,7 +668,7 @@ async fn run_compliance_validation(
     _report_violations: bool,
     _include_recommendations: bool,
     audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync + 'static>> {
     println!("Running compliance validation...");
 
     // Parse compliance frameworks from comma-separated string
@@ -685,7 +686,7 @@ async fn run_compliance_validation(
             _ => {
                 eprintln!("❌ invalid compliance profile: '{name}'");
                 eprintln!("Supported profiles: sox, hipaa, gdpr, pci");
-                return Ok(2); // Invalid compliance framework
+                return Ok(ExitCode::Data); // Invalid compliance framework
             }
         };
         profiles.push(profile);
@@ -728,7 +729,7 @@ async fn run_compliance_validation(
 
     if compliance_result.is_compliant() {
         println!("✅ All compliance validations passed");
-        Ok(0)
+        Ok(ExitCode::Ok)
     } else {
         println!("❌ Compliance violations detected:");
         for violation in &compliance_result.violations {
@@ -737,7 +738,7 @@ async fn run_compliance_validation(
                 violation.violation_id, violation.title, violation.description
             );
         }
-        Ok(3) // Compliance failure exit code
+        Ok(ExitCode::Encode) // Compliance failure exit code
     }
 }
 
@@ -760,7 +761,7 @@ fn run_lineage_analysis(
     _impact_analysis: bool,
     _confidence_threshold: f64,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     println!("Analyzing data lineage...");
 
     // Parse source copybook
@@ -788,7 +789,7 @@ fn run_lineage_analysis(
 
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
     println!("✅ Lineage analysis completed: {}", _output.display());
-    Ok(0)
+    Ok(ExitCode::Ok)
 }
 
 #[allow(
@@ -811,7 +812,7 @@ fn run_performance_audit(
     _include_regression_analysis: bool,
     _iterations: u32,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     println!("Running performance audit...");
 
     // Parse copybook
@@ -845,7 +846,7 @@ fn run_performance_audit(
 
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
     println!("✅ Performance audit completed: {}", _output.display());
-    Ok(0)
+    Ok(ExitCode::Ok)
 }
 
 #[allow(
@@ -868,7 +869,7 @@ fn run_security_audit(
     validation_depth: ValidationDepth,
     threat_assessment: bool,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     println!("Running security audit...");
 
     // Parse copybook
@@ -912,7 +913,7 @@ fn run_security_audit(
     }
 
     println!("✅ Security audit completed: {}", output.display());
-    Ok(0)
+    Ok(ExitCode::Ok)
 }
 
 #[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
@@ -929,7 +930,7 @@ fn run_audit_health_check(
     check_interval: u32,
     continuous: bool,
     _audit_context: AuditContext,
-) -> Result<i32, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     println!("Running audit health check...");
 
     // Create health report
@@ -967,7 +968,7 @@ fn run_audit_health_check(
     } else {
         println!("✅ Audit health check completed successfully");
     }
-    Ok(0)
+    Ok(ExitCode::Ok)
 }
 
 #[cfg(test)]

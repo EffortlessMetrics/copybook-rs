@@ -13,5 +13,16 @@ trap cleanup EXIT
 
 jq -S 'del(.schema, .record_index)' "$OLD" > "$tmp_old"
 jq -S 'del(.schema, .record_index)' "$NEW" > "$tmp_new"
+diff_output="$(diff -u "$tmp_old" "$tmp_new" || true)"
+head_lines="$(printf '%s\n' "$diff_output" | head -200)"
 echo "## Diff (first 200 lines):"
-diff -u "$tmp_old" "$tmp_new" | head -200 || true
+printf '%s\n' "$head_lines"
+
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  {
+    echo "### Shadow Diff (first 200 lines)"
+    echo '```diff'
+    printf '%s\n' "$head_lines"
+    echo '```'
+  } >> "${GITHUB_STEP_SUMMARY}"
+fi

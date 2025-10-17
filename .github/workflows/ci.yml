@@ -46,13 +46,90 @@ jobs:
       with:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
-    - name: Run RDW iterator smoke
+    - name: Zoned parity proptests (ASCII/CP037)
+      env:
+        PROPTEST_CASES: "512"
+        PROPTEST_SEED: "copybook-rs-perf"
+      run: cargo test -p copybook-codec --test prop_zoned_parity -- --nocapture
+    - name: RDW iterator smoke
       run: cargo test -p copybook-codec --lib -- rdw_
-    - name: Publish RDW test summary
+    - name: Phase 4 test summary
+      env:
+        PROPTEST_CASES: "512"
+        PROPTEST_SEED: "copybook-rs-perf"
       run: |
-        set -eo pipefail
-        echo "### RDW iterator tests" >> "$GITHUB_STEP_SUMMARY"
-        cargo test -p copybook-codec --lib -- rdw_ -- --nocapture 2>&1 | tail -200 >> "$GITHUB_STEP_SUMMARY"
+        python3 - <<'PY'
+        import os
+        from pathlib import Path
+
+        cases = os.getenv("PROPTEST_CASES", "512")
+        seed = os.getenv("PROPTEST_SEED", "copybook-rs-perf")
+        summary_path = os.getenv("GITHUB_STEP_SUMMARY")
+        readme = Path("README.md")
+        header = "| Code | Tag  | Meaning (1-liner) | Test |"
+        expected_rows = [
+            ("2", "CBKD", "Data quality failure", "exit_code_mapping::exit_code_cbkd_is_2"),
+            ("3", "CBKE", "Encode/validation failure", "exit_code_mapping::exit_code_cbke_is_3"),
+            ("4", "CBKF", "Record format/RDW failure", "exit_code_mapping::exit_code_cbkf_is_4"),
+            ("5", "CBKI", "Internal orchestration error", "exit_code_mapping::exit_code_cbki_is_5"),
+        ]
+
+        lines = readme.read_text(encoding="utf-8").splitlines()
+        table_start = next((idx for idx, line in enumerate(lines) if line.strip() == header), None)
+        table_lines = []
+        if table_start is None:
+            print(f"::warning file={readme},line=1::Exit code table header missing in README.md")
+        else:
+            idx = table_start
+            while idx < len(lines) and lines[idx].strip().startswith("|"):
+                table_lines.append(lines[idx])
+                idx += 1
+            for offset, expected in enumerate(expected_rows, start=1):
+                line_no = table_start + offset + 1
+                if table_start + offset >= len(lines):
+                    print(f"::warning file={readme},line={line_no}::Missing exit code row for {expected[1]}")
+                    continue
+                cells = [cell.strip() for cell in lines[table_start + offset].strip().strip('|').split('|')]
+                if len(cells) != 4:
+                    print(f"::warning file={readme},line={line_no}::Unexpected column count ({len(cells)}) in exit code table")
+                    continue
+                if tuple(cells) != expected:
+                    print(f"::warning file={readme},line={line_no}::Expected {expected} but found {tuple(cells)}")
+        if not table_lines:
+            table_lines = [
+                header,
+                "|----:|:----:|--------------------|------|",
+                *[
+                    f"| {code} | {tag} | {meaning} | {test} |"
+                    for code, tag, meaning, test in expected_rows
+                ],
+            ]
+        if summary_path:
+            with Path(summary_path).open("a", encoding="utf-8") as fh:
+                fh.write("### Phase 4 signal\n")
+                fh.write(f"- Zoned parity (cases={cases}, seed={seed})\n")
+                fh.write("- RDW iterator: green\n")
+                fh.write("\n#### Exit Code Matrix\n")
+                for line in table_lines:
+                    fh.write(f"{line}\n")
+                fh.write("\n")
+        PY
+
+  exit-code-matrix:
+    name: Exit code mapping
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v5
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run exit code mapping tests
+      shell: bash
+      run: cargo test -p copybook-cli --test exit_code_mapping -- --nocapture
 
   fmt:
     name: Rustfmt
@@ -132,6 +209,15 @@ jobs:
       run: cargo test --package copybook-core
       env:
         COPYBOOK_TEST_STRICT_COMMENTS: "1"
+
+  result-docs-advisory:
+    name: Result Docs Advisory
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v5
+    - name: Check public Result docs
+      run: bash scripts/check-public-result-docs.sh
 
   publish-dry-run:
     name: Publish Dry Run

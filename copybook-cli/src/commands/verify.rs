@@ -5,12 +5,14 @@
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
 use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, read_file_or_stdin};
+use crate::write_stdout_all;
 use anyhow::bail;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
 };
 use copybook_core::{ParseOptions, parse_copybook_with_options};
+use std::fmt::Write as _;
 use std::fs::{File, metadata};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::PathBuf;
@@ -234,30 +236,43 @@ pub fn run(
     verify_report.set_records_total(records_total);
 
     // Print summary to stdout
-    println!("Verification Summary:");
-    println!("  File: {}", input.display());
-    println!("  Format: {:?}", opts.format);
-    println!("  Codepage: {:?}", opts.codepage);
-    println!("  File Size: {file_size} bytes");
-    println!("  Records Total: {}", verify_report.records_total);
+    let mut summary_output = String::new();
+    writeln!(&mut summary_output, "Verification Summary:")?;
+    writeln!(&mut summary_output, "  File: {}", input.display())?;
+    writeln!(&mut summary_output, "  Format: {:?}", opts.format)?;
+    writeln!(&mut summary_output, "  Codepage: {:?}", opts.codepage)?;
+    writeln!(&mut summary_output, "  File Size: {file_size} bytes")?;
+    writeln!(
+        &mut summary_output,
+        "  Records Total: {}",
+        verify_report.records_total
+    )?;
     if verify_report.errors_total > 0 {
-        println!(
+        writeln!(
+            &mut summary_output,
             "  Errors: {} (showing first {})",
             verify_report.errors_total,
             verify_report.errors.len()
-        );
+        )?;
         if verify_report.truncated {
-            println!(
+            writeln!(
+                &mut summary_output,
                 "  Warning: Error list truncated at {} errors",
                 verify_report.cli_opts.max_errors
-            );
+            )?;
         }
         for error in &verify_report.errors {
-            println!("    Record {}: {} - {}", error.index, error.code, error.msg);
+            writeln!(
+                &mut summary_output,
+                "    Record {}: {} - {}",
+                error.index, error.code, error.msg
+            )?;
         }
     } else {
-        println!("  Status: PASS - No validation errors");
+        writeln!(&mut summary_output, "  Status: PASS - No validation errors")?;
     }
+
+    write_stdout_all(summary_output.as_bytes())?;
 
     // Write detailed report if requested
     if let Some(report_path) = report {

@@ -106,6 +106,15 @@ When multiple error families surface, the CLI returns the highest-precedence cod
 | 4 | CBKF | Record format/RDW failure | exit_code_mapping::exit_code_cbkf_is_4 |
 | 5 | CBKI | Internal orchestration error | exit_code_mapping::exit_code_cbki_is_5 |
 
+#### Structured failure log
+
+Every fatal path also emits a machine-parseable line so dashboards and CI can
+reason about precedence:
+
+```text
+code_tag=CBKE code=3 family=policy precedence_rank=2 op=decode path=missing.bin errno=null err_kind=NotFound copybook CLI terminated with an error
+```
+
 ### Example: Decode to JSONL (stable schema)
 
 ```bash

@@ -1,4 +1,4 @@
-#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+#![deny(clippy::unwrap_used, clippy::expect_used)]
 //! Command-line interface for copybook-rs
 //!
 //! This binary provides a user-friendly CLI for parsing copybooks and
@@ -6,14 +6,21 @@
 
 use crate::exit_codes::ExitCode;
 use anyhow::{Error as AnyhowError, anyhow};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::error::ErrorKind as ClapErrorKind;
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
 use copybook_core::Error as CoreError;
 use std::borrow::Cow;
 use std::convert::TryFrom;
+use std::error::Error as StdError;
+use std::io::{self, ErrorKind, Write};
 use std::panic::AssertUnwindSafe;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
+use std::sync::OnceLock;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tracing::Level;
+use tracing_subscriber::EnvFilter;
 
 #[cfg(feature = "metrics")]
 use clap::Args;
@@ -23,6 +30,18 @@ use std::net::SocketAddr;
 
 #[cfg(feature = "metrics")]
 use std::sync::Once;
+
+static INVOCATION_ID: OnceLock<String> = OnceLock::new();
+
+fn invocation_id() -> &'static str {
+    INVOCATION_ID.get_or_init(|| {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        format!("pid{}-ts{}", std::process::id(), nanos)
+    })
+}
 
 #[derive(Parser)]
 #[command(name = "copybook")]
@@ -36,9 +55,56 @@ struct Cli {
     #[arg(short, long)]
     verbose: bool,
 
+    /// Enforce strict policy checks. Precedence: --strict-policy > --no-strict-policy > COPYBOOK_STRICT_POLICY.
+    #[arg(long, action = ArgAction::SetTrue, conflicts_with = "no_strict_policy")]
+    strict_policy: bool,
+
+    /// Disable strict policy checks, even if COPYBOOK_STRICT_POLICY=1.
+    #[arg(
+        long = "no-strict-policy",
+        action = ArgAction::SetTrue,
+        conflicts_with = "strict_policy"
+    )]
+    no_strict_policy: bool,
+
     #[cfg(feature = "metrics")]
     #[command(flatten)]
     metrics: MetricsOpts,
+}
+
+#[derive(Clone, Default)]
+struct StderrTelemetryWriter;
+
+struct ResilientStderr {
+    inner: std::io::Stderr,
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for StderrTelemetryWriter {
+    type Writer = ResilientStderr;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        ResilientStderr {
+            inner: std::io::stderr(),
+        }
+    }
+}
+
+impl Write for ResilientStderr {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        match self.inner.write(buf) {
+            Ok(written) => Ok(written),
+            Err(err) if is_consumer_closed(&err) => Ok(buf.len()),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self.inner.flush() {
+            Ok(()) => Ok(()),
+            Err(err) if is_consumer_closed(&err) => Ok(()),
+            Err(err) => Err(err),
+        }
+    }
 }
 
 #[cfg(feature = "metrics")]
@@ -274,12 +340,18 @@ fn main() -> ProcessExitCode {
         Ok(Ok(code)) => ProcessExitCode::from(code),
         Ok(Err(err)) => {
             let exit_code = map_error_to_exit_code(&err);
-            eprintln!("{err}");
-            tracing::error!(
-                code = exit_code.tag(),
-                code_i = exit_code.as_i32(),
-                error = ?err,
-                "copybook CLI terminated with an error"
+            let stderr_line = format!("{err}\n");
+            let _ = write_stderr_all(stderr_line.as_bytes());
+            emit_exit_diagnostics(
+                exit_code,
+                "copybook CLI terminated with an error",
+                "cli_run",
+                None,
+                err.downcast_ref::<io::Error>(),
+                Some(err.as_ref()),
+                None,
+                Level::ERROR,
+                exit_code.as_i32(),
             );
             ProcessExitCode::from(exit_code)
         }
@@ -288,12 +360,18 @@ fn main() -> ProcessExitCode {
                 return ProcessExitCode::from(ExitCode::Ok);
             }
             let panic_msg = extract_panic_message(panic_payload.as_ref());
-            eprintln!("panic: {panic_msg}");
-            tracing::error!(
-                code = ExitCode::Internal.tag(),
-                code_i = ExitCode::Internal.as_i32(),
-                message = %panic_msg,
-                "copybook CLI panicked"
+            let panic_line = format!("panic: {panic_msg}\n");
+            let _ = write_stderr_all(panic_line.as_bytes());
+            emit_exit_diagnostics(
+                ExitCode::Internal,
+                "copybook CLI panicked",
+                "panic",
+                None,
+                None,
+                None,
+                None,
+                Level::ERROR,
+                ExitCode::Internal.as_i32(),
             );
             ProcessExitCode::from(ExitCode::Internal)
         }
@@ -312,7 +390,14 @@ fn run() -> anyhow::Result<ExitCode> {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(err) => {
+            let kind = err.kind();
             let _ = err.print();
+            if matches!(
+                kind,
+                ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
+            ) {
+                return Ok(ExitCode::Ok);
+            }
             return Ok(ExitCode::Encode);
         }
     };
@@ -331,14 +416,34 @@ fn run() -> anyhow::Result<ExitCode> {
     #[cfg(feature = "metrics")]
     let _metrics_guard = metrics_grace_guard(&metrics_opts);
 
+    let strict_policy = effective_strict_policy(&cli);
     let verbose = cli.verbose;
     let command = cli.command;
 
     // Initialize tracing
-    let level = if verbose { "debug" } else { "info" };
+    let default_directive = if verbose { "debug" } else { "info" };
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
     tracing_subscriber::fmt()
-        .with_env_filter(format!("copybook={level}"))
+        .with_env_filter(env_filter)
+        .with_writer(StderrTelemetryWriter::default())
+        .with_ansi(false)
         .init();
+
+    let help_requested =
+        std::env::args_os().any(|arg| arg == "--help" || arg == "-h" || arg == "-?" || arg == "/?");
+    let version_requested = std::env::args_os().any(|arg| arg == "--version" || arg == "-V");
+    if !(help_requested || version_requested) {
+        tracing::info!(
+            invocation_id = %invocation_id(),
+            version = env!("CARGO_PKG_VERSION"),
+            commit = option_env!("GIT_SHA").unwrap_or("unknown"),
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            strict_policy,
+            "copybook-cli start"
+        );
+    }
 
     let exit_status = match command {
         Commands::Parse {
@@ -389,6 +494,7 @@ fn run() -> anyhow::Result<ExitCode> {
             strict_comments,
             preserve_zoned_encoding,
             preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
+            strict_policy,
         }),
         Commands::Encode {
             copybook,
@@ -688,17 +794,111 @@ fn parse_prefix_from_str(message: &str) -> Option<String> {
     Some(token[..4].to_string())
 }
 
+pub(crate) fn emit_exit_diagnostics(
+    exit: ExitCode,
+    msg: &str,
+    op: &str,
+    path: Option<&Path>,
+    io_error: Option<&io::Error>,
+    error: Option<&(dyn StdError + 'static)>,
+    subcode: Option<u16>,
+    severity: Level,
+    effective_exit: i32,
+) {
+    let (errno, err_kind) = io_error
+        .map(|err| (err.raw_os_error(), Some(err.kind())))
+        .unwrap_or((None, None));
+    let subcode_label = subcode
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "n/a".to_string());
+
+    match severity {
+        Level::WARN => {
+            tracing::warn!(
+                invocation_id = %invocation_id(),
+                code_tag = %exit,
+                code = exit.as_i32(),
+                family = %exit.family(),
+                precedence_rank = exit.precedence_rank(),
+                subcode = %subcode_label,
+                subcode_numeric = ?subcode,
+                effective_exit = effective_exit,
+                errno = ?errno,
+                err_kind = ?err_kind,
+                op = %op,
+                path = ?path,
+                io_error = ?io_error,
+                error = ?error,
+                "{msg}"
+            );
+        }
+        _ => {
+            tracing::error!(
+                invocation_id = %invocation_id(),
+                code_tag = %exit,
+                code = exit.as_i32(),
+                family = %exit.family(),
+                precedence_rank = exit.precedence_rank(),
+                subcode = %subcode_label,
+                subcode_numeric = ?subcode,
+                effective_exit = effective_exit,
+                errno = ?errno,
+                err_kind = ?err_kind,
+                op = %op,
+                path = ?path,
+                io_error = ?io_error,
+                error = ?error,
+                "{msg}"
+            );
+        }
+    }
+}
+
+fn effective_strict_policy(cli: &Cli) -> bool {
+    if cli.strict_policy {
+        true
+    } else if cli.no_strict_policy {
+        false
+    } else {
+        env_flag("COPYBOOK_STRICT_POLICY")
+    }
+}
+
+fn env_flag(name: &str) -> bool {
+    std::env::var(name)
+        .ok()
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}
+
 fn panic_caused_by_std_pipe(panic_payload: &dyn std::any::Any) -> bool {
-    if let Some(io_err) = panic_payload.downcast_ref::<std::io::Error>() {
-        return is_broken_pipe(io_err);
+    let message = if let Some(&msg) = panic_payload.downcast_ref::<&str>() {
+        msg
+    } else if let Some(msg) = panic_payload.downcast_ref::<String>() {
+        msg.as_str()
+    } else {
+        return false;
+    };
+
+    let lower = message.to_ascii_lowercase();
+    let is_std_stream =
+        lower.contains("failed printing to stdout") || lower.contains("failed printing to stderr");
+    if !is_std_stream {
+        return false;
     }
-    if let Some(&msg) = panic_payload.downcast_ref::<&str>() {
-        return message_is_pipe_closed(msg);
-    }
-    if let Some(msg) = panic_payload.downcast_ref::<String>() {
-        return message_is_pipe_closed(msg);
-    }
-    false
+
+    let is_broken_pipe = lower.contains("broken pipe")
+        || lower.contains("os error 32")
+        || lower.contains("error_broken_pipe")
+        || lower.contains("error_no_data");
+    let is_write_zero = lower.contains("write zero") || lower.contains("writezero");
+
+    is_broken_pipe || is_write_zero
 }
 
 fn extract_panic_message(panic_payload: &dyn std::any::Any) -> Cow<'_, str> {
@@ -711,21 +911,45 @@ fn extract_panic_message(panic_payload: &dyn std::any::Any) -> Cow<'_, str> {
     Cow::Borrowed("unknown panic")
 }
 
-fn is_broken_pipe(err: &std::io::Error) -> bool {
-    use std::io::ErrorKind;
+#[cfg(feature = "audit")]
+pub(crate) fn write_stdout_line(line: &str) -> Result<(), io::Error> {
+    let mut buffer = String::with_capacity(line.len() + 1);
+    buffer.push_str(line);
+    buffer.push('\n');
+    write_stdout_all(buffer.as_bytes())
+}
 
-    if err.kind() == ErrorKind::BrokenPipe {
-        return true;
-    }
-    match err.raw_os_error() {
-        Some(32) | Some(109) | Some(232) => true, // POSIX EPIPE (32), Windows ERROR_BROKEN_PIPE (109), Windows ERROR_NO_DATA (232)
-        _ => false,
+#[cfg_attr(not(feature = "audit"), allow(dead_code))]
+pub(crate) fn write_stderr_line(line: &str) -> Result<(), io::Error> {
+    let mut buffer = String::with_capacity(line.len() + 1);
+    buffer.push_str(line);
+    buffer.push('\n');
+    write_stderr_all(buffer.as_bytes())
+}
+
+pub(crate) fn write_stdout_all(bytes: &[u8]) -> Result<(), io::Error> {
+    let mut stdout = io::stdout().lock();
+    match stdout.write_all(bytes) {
+        Ok(()) => Ok(()),
+        Err(err) if is_consumer_closed(&err) => Ok(()),
+        Err(err) => Err(err),
     }
 }
 
-fn message_is_pipe_closed<S: AsRef<str>>(message: S) -> bool {
-    let lower = message.as_ref().to_lowercase();
-    lower.contains("broken pipe") || lower.contains("pipe is being closed")
+pub(crate) fn write_stderr_all(bytes: &[u8]) -> Result<(), io::Error> {
+    let mut stderr = io::stderr().lock();
+    match stderr.write_all(bytes) {
+        Ok(()) => Ok(()),
+        Err(err) if is_consumer_closed(&err) => Ok(()),
+        Err(err) => Err(err),
+    }
+}
+
+#[inline]
+fn is_consumer_closed(err: &io::Error) -> bool {
+    matches!(err.kind(), ErrorKind::BrokenPipe | ErrorKind::WriteZero)
+        || err.raw_os_error() == Some(109)
+        || err.raw_os_error() == Some(232)
 }
 
 mod commands {
@@ -806,7 +1030,12 @@ mod tests {
             ]),
             1..5
         )) {
-            let expected = *codes.iter().max_by_key(|code| code.precedence()).expect("non-empty sequence");
+            let mut expected = codes[0];
+            for code in &codes[1..] {
+                if code.precedence() > expected.precedence() {
+                    expected = *code;
+                }
+            }
             for perm in permutations(&codes) {
                 let err = build_error_stack(&perm);
                 prop_assert_eq!(map_error_to_exit_code(&err), expected);
@@ -861,12 +1090,12 @@ mod tests {
     }
 
     fn build_error_stack(codes: &[ExitCode]) -> AnyhowError {
-        let mut iter = codes.iter();
-        let first = iter
-            .next()
-            .expect("at least one exit code required for stack");
-        let mut err = AnyhowError::from(sample_core_error(*first));
-        for code in iter {
+        assert!(
+            !codes.is_empty(),
+            "at least one exit code required for stack"
+        );
+        let mut err = AnyhowError::from(sample_core_error(codes[0]));
+        for code in &codes[1..] {
             err = err.context(sample_core_error(*code).to_string());
         }
         err

@@ -2,6 +2,7 @@
 
 use crate::exit_codes::ExitCode;
 use crate::utils::read_file_or_stdin;
+use crate::write_stdout_all;
 use copybook_codec::Codepage;
 use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::path::PathBuf;
@@ -33,17 +34,17 @@ pub fn run(
     let schema = parse_copybook_with_options(&copybook_text, &options)?;
 
     // Display human-readable layout
-    println!("Copybook Layout");
-    println!("===============");
-    println!("Codepage: {codepage:?}");
-    println!("Fixed LRECL: {:?}", schema.lrecl_fixed);
-    println!();
-
-    println!(
-        "{:<40} {:<8} {:<8} {:<12} {:<20}",
+    let mut output = String::new();
+    output.push_str("Copybook Layout\n");
+    output.push_str("===============\n");
+    output.push_str(&format!("Codepage: {codepage:?}\n"));
+    output.push_str(&format!("Fixed LRECL: {:?}\n", schema.lrecl_fixed));
+    output.push('\n');
+    output.push_str(&format!(
+        "{:<40} {:<8} {:<8} {:<12} {:<20}\n",
         "Field Path", "Offset", "Length", "Type", "Details"
-    );
-    println!("{:-<88}", "");
+    ));
+    output.push_str(&format!("{:-<88}\n", ""));
 
     for field in schema.all_fields() {
         let type_str = match &field.kind {
@@ -94,11 +95,13 @@ pub fn run(
             String::new()
         };
 
-        println!(
-            "{:<40} {:<8} {:<8} {:<12} {:<20}",
+        output.push_str(&format!(
+            "{:<40} {:<8} {:<8} {:<12} {:<20}\n",
             field.path, field.offset, field.len, type_str, details
-        );
+        ));
     }
+
+    write_stdout_all(output.as_bytes())?;
 
     info!("Inspect completed successfully");
     Ok(ExitCode::Ok)

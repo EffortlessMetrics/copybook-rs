@@ -5,6 +5,7 @@
 //! complete data lineage reporting.
 
 use crate::exit_codes::ExitCode;
+use crate::{write_stderr_line, write_stdout_line};
 use chrono;
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, RecordFormat};
@@ -623,7 +624,7 @@ fn run_audit_report(
     _include_recommendations: bool,
     _audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
-    println!("Generating comprehensive audit report...");
+    write_stdout_line("Generating comprehensive audit report...")?;
 
     // Parse copybook to validate it
     let copybook_text = std::fs::read_to_string(_copybook)?;
@@ -646,7 +647,7 @@ fn run_audit_report(
 
     // Write report to output file
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
-    println!("✅ Audit report generated: {}", _output.display());
+    write_stdout_line(&format!("✅ Audit report generated: {}", _output.display()))?;
 
     Ok(ExitCode::Ok)
 }
@@ -669,7 +670,7 @@ async fn run_compliance_validation(
     _include_recommendations: bool,
     audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    println!("Running compliance validation...");
+    write_stdout_line("Running compliance validation...")?;
 
     // Parse compliance frameworks from comma-separated string
     let framework_names: Vec<&str> = compliance.split(',').map(str::trim).collect();
@@ -684,8 +685,8 @@ async fn run_compliance_validation(
             "gdpr" => ComplianceProfile::GDPR,
             "pci" | "pcidss" | "pci_dss" => ComplianceProfile::PciDss,
             _ => {
-                eprintln!("❌ invalid compliance profile: '{name}'");
-                eprintln!("Supported profiles: sox, hipaa, gdpr, pci");
+                write_stderr_line(&format!("❌ invalid compliance profile: '{name}'"))?;
+                write_stderr_line("Supported profiles: sox, hipaa, gdpr, pci")?;
                 return Ok(ExitCode::Data); // Invalid compliance framework
             }
         };
@@ -728,15 +729,15 @@ async fn run_compliance_validation(
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
 
     if compliance_result.is_compliant() {
-        println!("✅ All compliance validations passed");
+        write_stdout_line("✅ All compliance validations passed")?;
         Ok(ExitCode::Ok)
     } else {
-        println!("❌ Compliance violations detected:");
+        write_stdout_line("❌ Compliance violations detected:")?;
         for violation in &compliance_result.violations {
-            println!(
+            write_stdout_line(&format!(
                 "   {} - {}: {}",
                 violation.violation_id, violation.title, violation.description
-            );
+            ))?;
         }
         Ok(ExitCode::Encode) // Compliance failure exit code
     }
@@ -762,7 +763,7 @@ fn run_lineage_analysis(
     _confidence_threshold: f64,
     _audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
-    println!("Analyzing data lineage...");
+    write_stdout_line("Analyzing data lineage...")?;
 
     // Parse source copybook
     let source_text = std::fs::read_to_string(_source_copybook)?;
@@ -788,7 +789,10 @@ fn run_lineage_analysis(
     });
 
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
-    println!("✅ Lineage analysis completed: {}", _output.display());
+    write_stdout_line(&format!(
+        "✅ Lineage analysis completed: {}",
+        _output.display()
+    ))?;
     Ok(ExitCode::Ok)
 }
 
@@ -813,7 +817,7 @@ fn run_performance_audit(
     _iterations: u32,
     _audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
-    println!("Running performance audit...");
+    write_stdout_line("Running performance audit...")?;
 
     // Parse copybook
     let copybook_text = std::fs::read_to_string(_copybook)?;
@@ -845,7 +849,10 @@ fn run_performance_audit(
     });
 
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
-    println!("✅ Performance audit completed: {}", _output.display());
+    write_stdout_line(&format!(
+        "✅ Performance audit completed: {}",
+        _output.display()
+    ))?;
     Ok(ExitCode::Ok)
 }
 
@@ -870,7 +877,7 @@ fn run_security_audit(
     threat_assessment: bool,
     _audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
-    println!("Running security audit...");
+    write_stdout_line("Running security audit...")?;
 
     // Parse copybook
     let copybook_text = std::fs::read_to_string(_copybook)?;
@@ -912,7 +919,10 @@ fn run_security_audit(
         std::fs::write(events_path, siem_data)?;
     }
 
-    println!("✅ Security audit completed: {}", output.display());
+    write_stdout_line(&format!(
+        "✅ Security audit completed: {}",
+        output.display()
+    ))?;
     Ok(ExitCode::Ok)
 }
 
@@ -931,7 +941,7 @@ fn run_audit_health_check(
     continuous: bool,
     _audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
-    println!("Running audit health check...");
+    write_stdout_line("Running audit health check...")?;
 
     // Create health report
     let report = serde_json::json!({
@@ -964,9 +974,12 @@ fn run_audit_health_check(
 
     if let Some(output_path) = output {
         std::fs::write(output_path, serde_json::to_string_pretty(&report)?)?;
-        println!("✅ Health report generated: {}", output_path.display());
+        write_stdout_line(&format!(
+            "✅ Health report generated: {}",
+            output_path.display()
+        ))?;
     } else {
-        println!("✅ Audit health check completed successfully");
+        write_stdout_line("✅ Audit health check completed successfully")?;
     }
     Ok(ExitCode::Ok)
 }

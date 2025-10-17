@@ -2,6 +2,7 @@
 
 use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, read_file_or_stdin};
+use crate::write_stdout_all;
 use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::path::PathBuf;
 use tracing::info;
@@ -40,7 +41,9 @@ pub fn run(
             atomic_write(path, |writer| writer.write_all(json.as_bytes()))?;
         }
         None => {
-            println!("{json}");
+            let mut json_with_newline = json;
+            json_with_newline.push('\n');
+            write_stdout_all(json_with_newline.as_bytes())?;
         }
     }
 

@@ -1,5 +1,6 @@
 //! Parse command implementation
 
+use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, read_file_or_stdin};
 use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::path::PathBuf;
@@ -10,7 +11,7 @@ pub fn run(
     output: Option<PathBuf>,
     strict: bool,
     strict_comments: bool,
-) -> anyhow::Result<i32> {
+) -> anyhow::Result<ExitCode> {
     info!("Parsing copybook: {:?}", copybook);
 
     if strict_comments {
@@ -44,5 +45,5 @@ pub fn run(
     }
 
     info!("Parse completed successfully");
-    Ok(0)
+    Ok(ExitCode::Ok)
 }

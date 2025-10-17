@@ -147,18 +147,10 @@ impl ZonedEncodingInfo {
 
     /// Analyze zoned decimal data bytes to detect encoding patterns
     ///
-    /// Examines each byte's zone nibble to identify the encoding format and detect
-    /// any mixed encoding patterns that would indicate data corruption or
-    /// inconsistent processing.
-    ///
-    /// # Returns
-    /// A comprehensive analysis including:
-    /// - Overall detected format (ASCII, EBCDIC, or Auto for ambiguous cases)
-    /// - Mixed encoding flag if inconsistent patterns are found
-    /// - Per-byte format detection for detailed analysis
+    /// Analyze bytes to identify the zoned encoding mix for downstream encode.
     ///
     /// # Errors
-    /// Returns an error if the analysis cannot be completed (currently never fails).
+    /// Returns an error if detection fails (currently never fails).
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn detect_from_data(data: &[u8]) -> Result<Self> {
@@ -332,22 +324,10 @@ impl SmallDecimal {
         }
     }
 
-    /// Parse decimal from string with strict scale validation
-    ///
-    /// Parses a string representation into a `SmallDecimal` with the specified scale.
-    /// Performs strict validation to ensure the input format matches expectations.
-    ///
-    /// # Arguments
-    /// * `s` - The string to parse (may contain decimal point)
-    /// * `expected_scale` - The required number of decimal places
-    ///
-    /// # Validation Rules (NORMATIVE)
-    /// - Decimal places must match `expected_scale` exactly
-    /// - Integer inputs are only valid when `expected_scale` is 0
-    /// - Empty/whitespace strings are treated as zero
+    /// Parse a decimal string into a `SmallDecimal` using the expected scale.
     ///
     /// # Errors
-    /// Returns an error if the numeric format is invalid or the scale mismatches.
+    /// Returns an error when the text violates the expected numeric format.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn from_str(s: &str, expected_scale: i16) -> Result<Self> {

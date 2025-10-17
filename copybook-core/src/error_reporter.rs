@@ -96,17 +96,15 @@ impl ErrorReporter {
         self
     }
 
-    /// Report an error and determine if processing should continue
+    /// Report an error and determine if processing should continue.
     ///
-    /// Returns `Ok(())` if processing should continue, `Err(error)` if it should stop
-    ///
-    /// # Errors
-    /// Returns an error when processing must halt because of severity or error limits.
+    /// Returns `Ok(())` when work may proceed and `Err(error)` when it must stop.
     ///
     /// # Panics
+    /// Panics if `max_errors` is configured but becomes `None` during processing.
     ///
-    /// Panics if `max_errors` is configured but becomes `None` during processing,
-    /// which should never happen in normal operation.
+    /// # Errors
+    /// Returns an error when severity or error limits require halting processing.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn report_error(&mut self, error: Error) -> Result<(), Error> {

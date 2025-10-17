@@ -5,12 +5,35 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  schedule:
+    - cron: "23 3 * * *"
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
+  nightly-soak:
+    name: Nightly soak
+    if: github.event_name == 'schedule'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v5
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Pre-fetch dependencies
+      run: cargo fetch
+    - name: Soak tests (ignored, serial)
+      env:
+        COPYBOOK_TEST_SLOW: "1"
+      run: |
+        cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
+
   test:
     name: Test Suite
     runs-on: ${{ matrix.os }}

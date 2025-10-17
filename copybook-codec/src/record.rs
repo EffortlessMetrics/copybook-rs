@@ -113,21 +113,24 @@ pub struct FixedRecordReader<R: Read> {
 }
 
 impl<R: Read> FixedRecordReader<R> {
-    /// Create a new fixed record reader
+    #[allow(clippy::too_many_lines)]
+    /// Create a new fixed record reader.
     ///
     /// # Errors
-    /// Returns an error if LRECL is not provided or is zero.
-    #[allow(clippy::too_many_lines)]
-    #[allow(clippy::too_many_lines)]
+    /// Returns an error if no LRECL is provided or if it is zero.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(input: R, lrecl: Option<u32>) -> Result<Self> {
-        let lrecl = lrecl
-            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
+        let lrecl = lrecl.ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKI001_INVALID_STATE,
+                "Fixed format requires LRECL",
+            )
+        })?;
 
         if lrecl == 0 {
             return Err(Error::new(
-                ErrorCode::CBKP001_SYNTAX,
+                ErrorCode::CBKI001_INVALID_STATE,
                 "LRECL must be greater than zero",
             ));
         }
@@ -309,12 +312,16 @@ impl<W: Write> FixedRecordWriter<W> {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(output: W, lrecl: Option<u32>) -> Result<Self> {
-        let lrecl = lrecl
-            .ok_or_else(|| Error::new(ErrorCode::CBKP001_SYNTAX, "Fixed format requires LRECL"))?;
+        let lrecl = lrecl.ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKI001_INVALID_STATE,
+                "Fixed format requires LRECL",
+            )
+        })?;
 
         if lrecl == 0 {
             return Err(Error::new(
-                ErrorCode::CBKP001_SYNTAX,
+                ErrorCode::CBKI001_INVALID_STATE,
                 "LRECL must be greater than zero",
             ));
         }

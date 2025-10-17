@@ -1,5 +1,6 @@
 //! Versioned verification report structures with stable contract
 
+use crate::exit_codes::ExitCode;
 use serde::Serialize;
 
 /// Versioned verification report for stable API contract
@@ -117,11 +118,11 @@ impl VerifyReport {
     }
 
     /// Get the exit code based on errors
-    pub fn exit_code(&self) -> i32 {
+    pub fn exit_code(&self) -> ExitCode {
         if self.errors_total > 0 {
-            3 // Validation errors
+            ExitCode::Encode // Validation errors align with CBKE taxonomy
         } else {
-            0 // Success
+            ExitCode::Ok // Success
         }
     }
 }

@@ -1,5 +1,6 @@
 //! Decode command implementation
 
+use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
@@ -30,7 +31,7 @@ pub struct DecodeArgs<'a> {
     pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
 }
 
-pub fn run(args: &DecodeArgs) -> anyhow::Result<i32> {
+pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     info!("Decoding data file: {:?}", args.input);
 
     if args.strict_comments {
@@ -111,6 +112,7 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<i32> {
     info!("Decode completed successfully");
 
     // Return appropriate exit code based on normative specification
-    let exit_code = determine_exit_code(summary.has_warnings(), summary.has_errors());
+    let exit_code =
+        determine_exit_code(summary.has_warnings(), summary.has_errors(), ExitCode::Data);
     Ok(exit_code)
 }

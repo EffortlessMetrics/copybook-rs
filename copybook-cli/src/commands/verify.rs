@@ -3,6 +3,7 @@
 //! The verify command validates data file structure against copybook schema without output generation
 
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
+use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, read_file_or_stdin};
 use anyhow::bail;
 use copybook_codec::{
@@ -58,7 +59,7 @@ pub fn run(
     input: &PathBuf,
     report: Option<PathBuf>,
     opts: &VerifyOptions,
-) -> anyhow::Result<i32> {
+) -> anyhow::Result<ExitCode> {
     info!("Verifying data file: {:?}", input);
 
     if opts.strict_comments {

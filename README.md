@@ -95,6 +95,17 @@ copybook verify customer.cpy customer-data.bin \
   --report validation-report.json
 ```
 
+### CLI Exit Codes
+
+When multiple error families surface, the CLI returns the highest-precedence code (`CBKI` > `CBKF` > `CBKE` > `CBKD`).
+
+| Code | Tag  | Meaning (1-liner) | Test |
+|----:|:----:|--------------------|------|
+| 2 | CBKD | Data quality failure | exit_code_mapping::exit_code_cbkd_is_2 |
+| 3 | CBKE | Encode/validation failure | exit_code_mapping::exit_code_cbke_is_3 |
+| 4 | CBKF | Record format/RDW failure | exit_code_mapping::exit_code_cbkf_is_4 |
+| 5 | CBKI | Internal orchestration error | exit_code_mapping::exit_code_cbki_is_5 |
+
 ### Example: Decode to JSONL (stable schema)
 
 ```bash
@@ -219,22 +230,23 @@ copybook decode schema.cpy data.bin \
   --on-decode-unmappable replace  # or error, skip
 ```
 
-### Zoned Policy Examples
+> **Zoned policy chain**  
+> `override → preserved → preferred`  
+> If no override is set and no format was preserved from decode, the codec defaults
+> to **preferred-zero** for EBCDIC (F-zero). ASCII uses **positive** zero.
 
-Zoned decimal formatting resolves in this order: `--zoned-encoding-override` → `--preserve-zoned-encoding` → `--preferred-zoned-encoding` (default `auto` honors the codec's preferred-zero policy for EBCDIC data).
+### Zoned policy examples
 
-- **Preferred** (default fallback):
+- Preferred (default)
 
   ```bash
   copybook encode schema.cpy data.jsonl \
     --format rdw \
-    --preferred-zoned-encoding ebcdic \
+    --preferred-zoned-encoding preferred \
     --output data.bin
   ```
 
-  Uses F-zone zeros for EBCDIC data even when no preservation metadata is available.
-
-- **Preserve** (round-trip original form):
+- Preserve (round-trip)
 
   ```bash
   copybook decode schema.cpy data.bin \
@@ -243,9 +255,7 @@ Zoned decimal formatting resolves in this order: `--zoned-encoding-override` →
     --output data.jsonl
   ```
 
-  Captures the source zone nibbles and replays them during subsequent encodes.
-
-- **Override** (force format):
+- Override (force)
 
   ```bash
   copybook encode schema.cpy data.jsonl \
@@ -253,8 +263,6 @@ Zoned decimal formatting resolves in this order: `--zoned-encoding-override` →
     --zoned-encoding-override ascii \
     --output data.bin
   ```
-
-  Forces ASCII sign zones regardless of preserved metadata or preferred fallback.
 
 ### Advanced Options
 
@@ -864,6 +872,13 @@ bash scripts/bench.sh
 
 # Windows
 scripts\bench.bat
+```
+
+```bash
+# Capture host metadata + percentiles for receipts
+bash scripts/perf-annotate-host.sh
+bash scripts/soak-aggregate.sh
+jq '.summary' scripts/bench/perf.json
 ```
 
 Set `BENCH_FILTER=all` (or any Criterion filter) to widen coverage while keeping receipts in `scripts/bench/perf.json`.

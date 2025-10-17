@@ -1,5 +1,6 @@
 //! Inspect command implementation
 
+use crate::exit_codes::ExitCode;
 use crate::utils::read_file_or_stdin;
 use copybook_codec::Codepage;
 use copybook_core::{ParseOptions, parse_copybook_with_options};
@@ -11,7 +12,7 @@ pub fn run(
     codepage: Codepage,
     strict: bool,
     strict_comments: bool,
-) -> anyhow::Result<i32> {
+) -> anyhow::Result<ExitCode> {
     info!("Inspecting copybook: {:?}", copybook);
 
     if strict_comments {
@@ -100,5 +101,5 @@ pub fn run(
     }
 
     info!("Inspect completed successfully");
-    Ok(0)
+    Ok(ExitCode::Ok)
 }

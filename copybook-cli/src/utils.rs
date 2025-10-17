@@ -1,5 +1,6 @@
 //! Utility functions for CLI operations
 
+use crate::exit_codes::ExitCode;
 use std::io::{self, Read, Write};
 use std::path::Path;
 #[cfg(test)]
@@ -59,17 +60,23 @@ fn temp_path_for(target: &Path) -> PathBuf {
         PathBuf::from(temp_name)
     }
 }
-/// Determine exit code based on processing results
+/// Determine exit code based on processing results.
 ///
-/// According to the normative specification:
-/// - warnings → 0 (success with warnings)
-/// - any errors → 1 (completed with errors)
-/// - fatal → 2 (unable to continue)
-///
-/// This function implements the "warnings → 0; any errors → 1" part.
-/// Fatal errors (exit code 2) are handled at the main level when operations fail completely.
-pub fn determine_exit_code(_has_warnings: bool, has_errors: bool) -> i32 {
-    i32::from(has_errors)
+/// Warnings never flip the exit code today; we still pass the flag through so that
+/// future summary logic can surface it without changing call sites. When errors are
+/// present the provided `failure_code` is returned (ensuring decode uses `CBKD`, encode
+/// uses `CBKE`, etc.). Otherwise we return [`ExitCode::Ok`].
+pub fn determine_exit_code(
+    has_warnings: bool,
+    has_errors: bool,
+    failure_code: ExitCode,
+) -> ExitCode {
+    let _ = has_warnings; // Currently informational only.
+    if has_errors {
+        failure_code
+    } else {
+        ExitCode::Ok
+    }
 }
 
 /// Read file content from path or stdin if path is "-"
@@ -132,10 +139,22 @@ mod tests {
 
     #[test]
     fn test_determine_exit_code() {
-        assert_eq!(determine_exit_code(false, false), 0); // No warnings, no errors
-        assert_eq!(determine_exit_code(true, false), 0); // Warnings only
-        assert_eq!(determine_exit_code(false, true), 1); // Errors only
-        assert_eq!(determine_exit_code(true, true), 1); // Both warnings and errors
+        assert_eq!(
+            determine_exit_code(false, false, ExitCode::Data),
+            ExitCode::Ok
+        ); // No warnings, no errors
+        assert_eq!(
+            determine_exit_code(true, false, ExitCode::Data),
+            ExitCode::Ok
+        ); // Warnings only
+        assert_eq!(
+            determine_exit_code(false, true, ExitCode::Data),
+            ExitCode::Data
+        ); // Errors only
+        assert_eq!(
+            determine_exit_code(true, true, ExitCode::Encode),
+            ExitCode::Encode
+        ); // Both warnings and errors adopt failure variant
     }
 
     #[test]

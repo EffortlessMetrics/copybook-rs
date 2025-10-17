@@ -62,6 +62,17 @@ jobs:
 
       - name: Annotate perf with host info
         run: bash scripts/perf-annotate-host.sh
+      - name: Perf headline (summary)
+        run: |
+          jq -r '
+            (.summary // {}) as $s
+            | ([
+                $s.host_cpu,
+                (if $s.host_cores != null then ($s.host_cores|tostring + "c") else empty end),
+                (if ($s.host_os // "") != "" or ($s.host_kernel // "") != "" then [($s.host_os // ""), ($s.host_kernel // "")] | join("/") else empty end)
+              ] | map(select(. != "")) | join(" • ")) as $host
+            | "DISPLAY: \($s.display_mibps // "n/a") MiB/s\nCOMP-3: \($s.comp3_mibps // "n/a") MiB/s\nMax RSS: \($s.max_rss_mib // "n/a") MiB\nHost: \($host // "n/a")\nP50/P90/P99: \($s.p50_mibps // "n/a")/\($s.p90_mibps // "n/a")/\($s.p99_mibps // "n/a") MiB/s"
+          ' scripts/bench/perf.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Stamp telemetry checklist with commit hash
         run: |

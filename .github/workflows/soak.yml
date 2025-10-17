@@ -1,13 +1,9 @@
 name: Soak
 
 on:
-  workflow_dispatch:
-    inputs:
-      minutes:
-        description: "Bench minutes (approx)"
-        default: "20"
+  workflow_dispatch: {}
   schedule:
-    - cron: "0 5 * * 6"
+    - cron: "0 3 * * 6"
 
 concurrency:
   group: soak-${{ github.ref }}
@@ -23,43 +19,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: cp037-rdw-display
-            codepage: cp037
-            format: rdw
-            workload: display-heavy
-            size: 1GiB
-            zoned_policy: preferred
-          - name: cp273-rdw-comp3
-            codepage: cp273
-            format: rdw
-            workload: comp3-heavy
-            size: 100MiB
-            zoned_policy: override-ebcdic
-          - name: cp500-rdw-mixed
-            codepage: cp500
-            format: rdw
-            workload: mixed
-            size: 5GiB
-            zoned_policy: preserved
-          - name: cp1047-fixed-display
-            codepage: cp1047
-            format: fixed
-            workload: display-heavy
-            size: 1GiB
-            zoned_policy: override-ascii
-          - name: cp1140-fixed-comp3
-            codepage: cp1140
-            format: fixed
-            workload: comp3-heavy
-            size: 100MiB
-            zoned_policy: preferred
-          - name: ascii-fixed-mixed
-            codepage: ascii
-            format: fixed
-            workload: mixed
-            size: 100MiB
-            zoned_policy: override-ascii
+        format: [fixed, rdw]
+        workload: [mixed, display-heavy, comp3-heavy]
+        size: [128MiB, 256MiB]
+        codepage: [cp037, cp273, cp500, cp1047, cp1140]
 
     steps:
       - uses: actions/checkout@v4
@@ -68,30 +31,48 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Generate synthetic dataset
+      - name: Build release
+        run: cargo build --workspace --release
+
+      - name: Generate dataset
         env:
           WORKLOAD: ${{ matrix.workload }}
-          ZONED_POLICY: ${{ matrix.zoned_policy }}
-          SOAK_SEED: soak-${{ matrix.name }}
+          ZONED_POLICY: preferred
+          SOAK_SEED: soak-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}
         run: |
-          mkdir -p ./target/soak
-          ./scripts/gen_dataset.sh "${{ matrix.format }}" "${{ matrix.codepage }}" "${{ matrix.size }}" "./target/soak/${{ matrix.name }}.bin"
+          DATASET="/tmp/dataset-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}.bin"
+          scripts/gen_dataset.sh "${{ matrix.format }}" "${{ matrix.codepage }}" "${{ matrix.size }}" "${DATASET}"
+          echo "DATASET=${DATASET}" >> "$GITHUB_ENV"
 
-      - name: Benches (wide run)
+      - name: Run benches (BENCH_FILTER=all)
         env:
           BENCH_FILTER: all
-          CODEPAGE: ${{ matrix.codepage }}
-          FORMAT: ${{ matrix.format }}
-          WORKLOAD: ${{ matrix.workload }}
-        run: bash scripts/bench.sh
+        run: |
+          : "${DATASET:?missing dataset path}"
+          BENCH_INPUT="${DATASET}" bash scripts/bench.sh
+
+      - name: Annotate perf with host info
+        run: bash scripts/perf-annotate-host.sh
 
       - name: Aggregate percentiles
         run: bash scripts/soak-aggregate.sh
 
-      - name: Upload soak receipts
+      - name: Perf headline (summary)
+        run: |
+          jq -r '
+            (.summary // {}) as $s
+            | ([
+                $s.host_cpu,
+                (if $s.host_cores != null then ($s.host_cores|tostring + "c") else empty end),
+                (if ($s.host_os // "") != "" or ($s.host_kernel // "") != "" then [($s.host_os // ""), ($s.host_kernel // "")] | join("/") else empty end)
+              ] | map(select(. != "")) | join(" • ")) as $host
+            | "DISPLAY: \($s.display_mibps // "n/a") MiB/s\nCOMP-3: \($s.comp3_mibps // "n/a") MiB/s\nMax RSS: \($s.max_rss_mib // "n/a") MiB\nHost: \($host // "n/a")\nP50/P90/P99: \($s.p50_mibps // "n/a")/\($s.p90_mibps // "n/a")/\($s.p99_mibps // "n/a") MiB/s"
+          ' scripts/bench/perf.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload perf artifact
         uses: actions/upload-artifact@v4
         with:
-          name: soak-${{ matrix.name }}
+          name: perf-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}
           path: scripts/bench/perf.json
           retention-days: 90
 
@@ -100,12 +81,19 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const perf = JSON.parse(fs.readFileSync('scripts/bench/perf.json','utf8'));
+            const path = 'scripts/bench/perf.json';
+            const perf = JSON.parse(fs.readFileSync(path, 'utf8'));
             const summary = perf.summary || {};
+            const hostParts = [
+              summary.host_cpu,
+              summary.host_cores != null ? `${summary.host_cores}c` : null,
+              summary.host_os && summary.host_kernel ? `${summary.host_os}/${summary.host_kernel}` :
+                (summary.host_os || summary.host_kernel || null),
+            ].filter(Boolean).join(' • ');
             await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              name: `soak:${{ matrix.format }}:${{ matrix.codepage }}`,
+              name: `soak:${{ matrix.format }}:${{ matrix.workload }}:${{ matrix.size }}:${{ matrix.codepage }}`,
               head_sha: context.sha,
               status: "completed",
               conclusion: "success",
@@ -115,6 +103,7 @@ jobs:
                   `DISPLAY: ${summary.display_mibps ?? 'n/a'} MiB/s\n` +
                   `COMP-3:  ${summary.comp3_mibps ?? 'n/a'} MiB/s\n` +
                   `Max RSS: ${summary.max_rss_mib ?? 'n/a'} MiB\n` +
-                  `p50: ${summary.p50_mibps ?? 'n/a'} • p90: ${summary.p90_mibps ?? 'n/a'} • p99: ${summary.p99_mibps ?? 'n/a'}`
+                  `P50/P90/P99: ${summary.p50_mibps ?? 'n/a'}/${summary.p90_mibps ?? 'n/a'}/${summary.p99_mibps ?? 'n/a'} MiB/s\n` +
+                  (hostParts ? `Host: ${hostParts}` : '')
               }
             });

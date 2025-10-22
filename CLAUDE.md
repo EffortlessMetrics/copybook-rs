@@ -8,7 +8,7 @@ copybook-rs is a **production-ready** Rust workspace for enterprise mainframe da
 
 **Status**: **PRODUCTION READY** - Ready for immediate enterprise deployment
 **Performance**: Strong performance with recovery (DISPLAY: 2.33 GiB/s, COMP-3: 168-176 MiB/s with panic elimination safety)
-**Quality**: 529 tests passing (54 ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
+**Quality**: 615 tests passing (54 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
 **Enterprise Assessment**: System ready for production mainframe workloads with substantial performance safety margins.
 
@@ -222,7 +222,7 @@ The Golden Fixtures framework provides comprehensive structural validation for e
 - **Enterprise Scenarios**: Production mainframe patterns from banking, insurance, retail, manufacturing
 - **Performance Integration**: Automated performance regression detection with baselines
 - **SHA-256 Verification**: Cryptographic validation of test outputs for consistency
-- **Comprehensive Coverage**: 529 tests (54 ignored) including edge cases and enterprise production scenarios
+- **Comprehensive Coverage**: 615 tests (54 skipped) including edge cases and enterprise production scenarios
 
 ### Usage Patterns
 

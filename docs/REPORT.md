@@ -1,7 +1,7 @@
 # Production Status Report
 
 ## Executive Summary
-copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 461/462 tests passing (one timing-sensitive failure) with eight leak detectors pending cleanup. Throughput on reference hardware (WSL2, AMD Ryzen 9 9950X3D) measures 205 MiB/s for DISPLAY-heavy workloads and 58 MiB/s for COMP-3-heavy datasets—exceeding enterprise targets by 2.5x and 1.45x respectively. Baseline established through 5 independent measurement runs (September 2025) provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
+copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 615 tests passing (54 skipped). Throughput on reference hardware (WSL2, AMD Ryzen 9 9950X3D) measures 205 MiB/s for DISPLAY-heavy workloads and 58 MiB/s for COMP-3-heavy datasets—exceeding enterprise targets by 2.5x and 1.45x respectively. Baseline established through 5 independent measurement runs (September 2025) provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
 
 ## Overview
 The `copybook-rs` workspace combines five Rust crates (core, codec, CLI, generator, and benchmarks) to provide deterministic COBOL→JSON processing. The focus is on transparent validation rather than performance bravado: adopters must review known COBOL feature gaps and performance limitations before committing production workloads.
@@ -17,8 +17,7 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 ## Validation Results
 
 ### Test Coverage
-- **Workspace tests**: `cargo nextest` currently reports **461/462 passing**, with `copybook-core::golden_fixtures_ac4_sibling_after_odo_fail::test_ac4_performance_large_scale_odo_tail_violation_fail` failing due to a timing-sensitive assertion (205–215 ms observed vs 200 ms threshold)
-- **Leak detectors**: Eight leak checks remain unresolved in the parser/codec modules; cleanup is tracked in follow-up maintenance work
+- **Workspace tests**: `cargo nextest` reports **615 tests passing (54 skipped)**
 - **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
 - **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
 
@@ -129,7 +128,7 @@ The copybook-rs parser now implements consistent FILLER field naming using compu
 - **Performance**: Minimal overhead during layout resolution phase
 
 ### Validation Status
-- `cargo nextest` maintains **461/462 passing** with a single timing-sensitive failure unrelated to the FILLER renaming feature
+- `cargo nextest` maintains **615 tests passing (54 skipped)**
 - Integration suites cover ODO, REDEFINES, and RDW flows; copybook-bench adds 56 targeted tests validating Issue #52 acceptance criteria
 - Performance telemetry shows negligible overhead from the byte-offset naming work relative to baseline decode timings
 
@@ -142,7 +141,7 @@ Recent benchmarking runs prioritize transparency over marketing:
 - COMP-3-heavy decode throughput remains around **18–25 MiB/s**, highlighting a substantial gap to the 560 MiB/s historic target
 - SLO validation artifacts in `test_perf.json` label both throughput checks as **FAIL** with -20% to -47% deltas versus configured floors
 - Memory usage stays below **256 MiB steady-state** thanks to the streaming architecture
-- Test coverage remains broad (461/462 passing) but still hosts the timing-sensitive failure and leak detectors noted earlier
+- Test coverage remains broad with 615 tests passing (54 skipped)
 
 ## Readiness Assessment
 
@@ -151,7 +150,7 @@ Recent benchmarking runs prioritize transparency over marketing:
 copybook-rs is dependable for teams that validate their copybooks against the supported feature set and can tolerate current throughput levels. However, we are not publishing "production-ready" claims until the remaining issues are addressed.
 
 #### Technical Signals
-- ⚠️ **Test health**: 461/462 nextest jobs pass; one timing-sensitive failure and eight leak detectors remain under investigation
+- ⚠️ **Test health**: 615 tests passing (54 skipped)
 - ✅ **Memory safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ⚠️ **Performance**: DISPLAY and COMP-3 throughput lag far behind enterprise targets; SLO checks fail
 - ⚠️ **COBOL completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES, and 88-level condition names remain unsupported

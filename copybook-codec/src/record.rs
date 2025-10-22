@@ -1094,7 +1094,7 @@ mod tests {
         let result = FixedRecordReader::new(Cursor::new(data), Some(0));
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
     }
 
     #[test]
@@ -1103,7 +1103,7 @@ mod tests {
         let result = FixedRecordReader::new(Cursor::new(data), None);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
     }
 
     #[test]
@@ -1143,7 +1143,7 @@ mod tests {
         let result = FixedRecordWriter::new(&mut output, Some(0));
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
     }
 
     #[test]
@@ -1152,7 +1152,7 @@ mod tests {
         let result = FixedRecordWriter::new(&mut output, None);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+        assert_eq!(error.code, ErrorCode::CBKI001_INVALID_STATE);
     }
 
     #[test]

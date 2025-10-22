@@ -18,7 +18,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI currently reports 461/462 tests passing (one known timing-sensitive failure) with 8 leak detectors flagged; raw data captured in `integrative_gate_summary.md`
+- **Transparent evidence**: CI reports 615/615 tests passing (54 skipped); raw data captured in `integrative_gate_summary.md`
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
@@ -865,7 +865,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 - **Dependencies**: Zero unsafe code in public APIs; clippy pedantic enforced in CI
 
 ### Current Reliability Snapshot
-- **Tests**: `cargo nextest` currently reports 461/462 passing with one timing-sensitive performance assertion failing (`copybook-core::test_ac4_performance_large_scale_odo_tail_violation_fail`) and eight leak detectors still queued for cleanup (see `integrative_gate_summary.md`)
+- **Tests**: `cargo nextest` reports 615/615 passing (54 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (see `integrative_gate_summary.md`)
 - **Benchmarks**: Latest telemetry (`scripts/bench/perf.json`) shows DISPLAY decode throughput around 66–95 MiB/s and COMP-3 decode around 18–25 MiB/s—suitable for engineering validation but below historic GiB/s marketing claims
 - **Automation gaps**: The Python utilities promised in Issue #52 (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) have not shipped yet; see `docs/backlog/benchmark_tooling.md`
 - **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`

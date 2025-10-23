@@ -40,7 +40,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ### **Enterprise Integration**
 - **Multiple EBCDIC Codepages**: CP037, CP273, CP500, CP1047, CP1140 + ASCII support
 - **Flexible Record Formats**: Fixed-length and variable (RDW) with validation
-- **CLI + Library API**: Production-ready interfaces for both automation and integration
+- **CLI + Library API**: Production-ready interfaces; Engineering Preview for feature completeness (see [ROADMAP.md](docs/ROADMAP.md) for known limitations: #44, #51, #72, #86)
 - **Verification & Validation**: Built-in data quality auditing without conversion overhead
 
 ## Architecture
@@ -934,11 +934,28 @@ cargo fmt --all
 
 ### Project Status & Roadmap
 
-### **Current Status: Engineering Preview** ⚠️
-copybook-rs is reliable for targeted workloads when adopters validate their copybooks against the supported feature set, but known coverage gaps, one timing-sensitive test failure, and outstanding leak detectors mean we are not marketing it as turnkey production-ready. See `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` for detailed validation notes.
+### **Current Status: Engineering Preview (v0.3.1)** ⚠️
+
+**Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
+
+copybook-rs is suitable for teams that validate their copybooks against the supported feature set, but known limitations mean cautious adoption is recommended:
+
+- ⚠️ **Feature Coverage**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES (66-level), and condition names (88-level) remain unsupported
+- ⚠️ **Performance Variance**: Current measurements (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) show WSL2 environmental variance; baseline (205 MiB/s, 58 MiB/s) established under controlled conditions
+- ⚠️ **Automation Gaps**: Benchmark tooling from Issue #52 not yet shipped; manual performance validation required
+- ✅ **Quality Signals**: 615 tests passing (54 skipped), zero unsafe code, comprehensive error taxonomy
+- ✅ **Interface Stability**: CLI and library APIs are production-ready; feature completeness remains in preview
+
+**Adoption Recommendations**:
+1. Validate representative copybooks against supported features before deployment
+2. Run pilot workloads to verify throughput meets requirements
+3. Review [REPORT.md](docs/REPORT.md) for detailed readiness assessment
+4. Consult [ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
+
+See `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` for detailed validation evidence.
 
 ### **Development Roadmap**
-See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: ecosystem distribution and CI enhancements.
+See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: v0.5.0 dialect features and benchmark automation (Issue #52).
 
 ## Repository Structure
 

@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-copybook-rs is a **production-ready** Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and high-performance data conversion with battle-tested reliability.
+copybook-rs is a Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and data conversion with focus on correctness and safety.
 
-**Status**: **PRODUCTION READY** - Ready for immediate enterprise deployment
+**Status**: **Engineering Preview** (v0.3.1 maintenance) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
 **Quality**: 615 tests passing (54 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
-**Enterprise Assessment**: System ready for production mainframe workloads with substantial performance safety margins.
+**Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
-See [REPORT.md](docs/REPORT.md) for complete production readiness analysis and [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
+See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
 
 ## Workspace Structure
 
@@ -275,3 +275,31 @@ Golden fixtures maintain strict performance requirements aligned with establishe
 - **Regression Detection**: Automated baseline comparison with <2% tolerance
 
 Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for complete performance analysis.
+
+## Known Limitations & Roadmap
+
+**Current Status**: Engineering Preview (v0.3.1 maintenance) - ROADMAP.md is the canonical status source.
+
+### Unsupported COBOL Features
+- COMP-1/COMP-2 floating-point types (rare in practice)
+- Edited PIC clauses (Z, /, comma, $, CR, DB)
+- SIGN LEADING/TRAILING SEPARATE directives
+- Nested OCCURS DEPENDING ON arrays
+- 66-level (RENAMES) and 88-level (condition names) items
+
+### Performance Considerations
+- Baseline established at 205 MiB/s (DISPLAY) and 58 MiB/s (COMP-3) on reference hardware
+- WSL2 environment introduces 10-30% overhead versus native Linux
+- Current measurements show variance (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) based on system load
+- See [docs/ROADMAP.md](docs/ROADMAP.md) for performance improvement plans
+
+### Outstanding Work
+- Benchmark automation tooling from Issue #52 not yet shipped
+- SLO enforcement and regression detection require manual analysis
+- See [docs/ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability plans
+
+### Adoption Recommendations
+- Validate representative copybooks against supported feature set before production deployment
+- Run pilot workloads to verify throughput meets requirements
+- Review [docs/REPORT.md](docs/REPORT.md) for detailed readiness assessment
+- Consult [docs/ROADMAP.md](docs/ROADMAP.md) for upcoming features and release timeline

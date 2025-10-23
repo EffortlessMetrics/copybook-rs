@@ -12,6 +12,8 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
+**MSRV**: Rust 1.90 enforced at workspace level and validated in CI (see .github/workflows/ci.yml).
+
 See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
 
 ## Workspace Structure
@@ -32,7 +34,7 @@ cargo test --workspace
 cargo clippy --workspace -- -D warnings -W clippy::pedantic
 cargo fmt --all
 
-# Benchmarks
+# Benchmarks (output to canonical location: scripts/bench/perf.json)
 cargo bench --package copybook-bench
 PERF=1 cargo bench -p copybook-bench -- --output-format json > target/perf.json
 mkdir -p scripts/bench && cp target/perf.json scripts/bench/perf.json
@@ -175,7 +177,7 @@ Structured error taxonomy with stable codes:
 
 ## Requirements
 
-- Rust 1.89+ (MSRV), Edition 2024
+- Rust 1.90+ (MSRV), Edition 2024
 - Workspace dependencies for consistent versions
 
 ## Performance

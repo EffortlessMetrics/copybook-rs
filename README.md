@@ -817,12 +817,12 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 - **ODO Support**: Variable arrays at tail position only
 
 ### Limitations
+- **Supported**: Level-88 condition names (VALUE clauses) with full parse and codec support
 - **Unsupported**: COMP-1 (single-precision float) and COMP-2 (double-precision float)
 - **Unsupported**: Edited PIC clauses (Z, slash, comma, $, CR, DB)
 - **Unsupported**: SIGN LEADING/TRAILING SEPARATE directives
 - **Unsupported**: Nested OCCURS DEPENDING ON arrays (ODO within ODO)
 - **Unsupported**: RENAMES (66-level) items
-- **Unsupported**: 88-level condition names (VALUE clauses) – explicit qualification required before committing real workloads
 
 ## Error Handling
 

@@ -88,6 +88,7 @@ Comprehensive support for mainframe data formats:
 - Hierarchical level numbers (01-49)
 - REDEFINES for multiple storage views
 - OCCURS and OCCURS DEPENDING ON for arrays
+- Level-88 condition values (VALUE clauses) with non-storage semantics
 - SYNCHRONIZED field alignment
 - BLANK WHEN ZERO special value handling
 - **FILLER Byte-Offset Naming**: FILLER fields named using computed byte offsets (_filler_00000XXX) for consistent JSON output

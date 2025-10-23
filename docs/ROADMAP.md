@@ -2,6 +2,8 @@
 
 **Status:** ⚠️ Engineering Preview (v0.3.1 maintenance)
 
+> **Canonical Status Source**: This file is the authoritative reference for copybook-rs project status, adoption guidance, and development timeline. For detailed technical assessment, see [REPORT.md](REPORT.md).
+
 This roadmap tracks **what we will ship**, **how we'll measure it**, and **when it's done**. Each milestone has: Objectives → Deliverables → Exit Criteria → Risks/Mitigations.
 
 ---

@@ -1,5 +1,11 @@
 # Production Status Report
 
+---
+**Status**: ⚠️ **Engineering Preview (v0.3.1)** - See [ROADMAP.md](ROADMAP.md) for adoption guidance
+**Readiness**: Cautious Adoption Recommended - See [Readiness Assessment](#readiness-assessment) below
+**Canonical Status Source**: [ROADMAP.md](ROADMAP.md) is the authoritative project status reference
+---
+
 ## Executive Summary
 copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 615 tests passing (54 skipped). Throughput on reference hardware (WSL2, AMD Ryzen 9 9950X3D) measures 205 MiB/s for DISPLAY-heavy workloads and 58 MiB/s for COMP-3-heavy datasets—exceeding enterprise targets by 2.5x and 1.45x respectively. Baseline established through 5 independent measurement runs (September 2025) provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
 
@@ -18,7 +24,7 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 
 ### Test Coverage
 - **Workspace tests**: `cargo nextest` reports **615 tests passing (54 skipped)**
-- **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
+- **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
 - **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
 
 ### Quality Assurance Features
@@ -124,9 +130,9 @@ Comprehensive support for mainframe data formats:
 ## Documentation References
 
 For additional technical information:
-- **[README.md](README.md)**: User-facing documentation, installation guide, and API usage examples  
-- **[CLAUDE.md](CLAUDE.md)**: Development commands, testing procedures, and contributor guidance
-- **[ERROR_CODES.md](docs/ERROR_CODES.md)**: Comprehensive error code taxonomy and troubleshooting guide
+- **[README.md](../README.md)**: User-facing documentation, installation guide, and API usage examples
+- **[CLAUDE.md](../CLAUDE.md)**: Development commands, testing procedures, and contributor guidance
+- **[ERROR_CODES.md](reference/ERROR_CODES.md)**: Comprehensive error code taxonomy and troubleshooting guide
 
 ## Recent Feature Implementation: FILLER Byte-Offset Naming
 
@@ -147,7 +153,7 @@ The copybook-rs parser now implements consistent FILLER field naming using compu
 
 ### Validation Status
 - `cargo nextest` maintains **615 tests passing (54 skipped)**
-- Integration suites cover ODO, REDEFINES, and RDW flows; copybook-bench adds 56 targeted tests validating Issue #52 acceptance criteria
+- Integration suites cover ODO, REDEFINES, and RDW flows; copybook-bench adds 56 targeted tests validating Issue #52 acceptance criteria
 - Performance telemetry shows negligible overhead from the byte-offset naming work relative to baseline decode timings
 
 ## Performance Evaluation Results
@@ -172,17 +178,37 @@ Recent benchmarking runs prioritize transparency over marketing:
 
 ## Readiness Assessment
 
-### Status: Cautious Adoption Recommended ⚠️
+### Status: ⚠️ Engineering Preview (v0.3.1) - Cautious Adoption Recommended
 
-copybook-rs is dependable for teams that validate their copybooks against the supported feature set and can tolerate current throughput levels. However, we are not publishing "production-ready" claims until the remaining issues are addressed.
+**Official Status**: See [ROADMAP.md](ROADMAP.md) for canonical project status and development timeline.
+
+copybook-rs is suitable for teams that validate their copybooks against the supported feature set and can tolerate current performance characteristics. The project maintains Engineering Preview status (not production-ready) until remaining limitations are addressed.
 
 #### Technical Signals
-- ⚠️ **Test health**: 615 tests passing (54 skipped)
-- ✅ **Memory safety**: Zero `unsafe` in public APIs; pedantic linting enforced
-- ⚠️ **Performance**: DISPLAY and COMP-3 throughput lag far behind enterprise targets; SLO checks fail
-- ⚠️ **COBOL completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES, and 88-level condition names remain unsupported
+- ⚠️ **Test Health**: 615 tests passing (54 skipped) - comprehensive coverage with some ignored edge cases
+- ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
+- ⚠️ **Performance Variance**: Current measurements (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) show WSL2 environmental variance; baseline (205 MiB/s, 58 MiB/s) established under controlled conditions
+- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES (66-level), and condition names (88-level) remain unsupported
+- ⚠️ **Automation Gaps**: Benchmark tooling from Issue #52 not yet shipped; manual performance validation required
 
 #### Deployment Guidance
-- Run pilots on representative copybooks and verify unsupported clauses are absent before broader rollout
-- Budget time for manual performance validation; automation scripts from Issue #52 are still outstanding
-- Keep `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` handy when communicating status to stakeholders
+1. **Pre-Deployment Validation**:
+   - Run pilots on representative copybooks
+   - Verify unsupported COBOL clauses are absent from your schemas
+   - Validate throughput meets your requirements on target hardware
+
+2. **Performance Expectations**:
+   - Budget time for manual performance validation
+   - Automation scripts from Issue #52 are still outstanding
+   - Native Linux deployment may show 5-15% improvement over WSL2 measurements
+
+3. **Documentation Resources**:
+   - Keep `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` handy when communicating status to stakeholders
+   - Review [ROADMAP.md](ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
+   - Consult [ERROR_CODES.md](reference/ERROR_CODES.md) for comprehensive error taxonomy
+
+#### Recommended Use Cases
+- ✅ **Pilot Projects**: Teams evaluating COBOL data processing alternatives
+- ✅ **Development/Testing**: Non-production environments with supported COBOL features
+- ✅ **Controlled Rollouts**: Production use with comprehensive pilot validation and feature verification
+- ⚠️ **Full Production**: Requires validation of feature coverage and performance requirements

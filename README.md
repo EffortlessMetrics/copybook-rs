@@ -13,7 +13,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 ## Overview
 
-copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Current throughput on reference hardware lives in the tens of MiB/s range, and CI still records one timing-sensitive failure plus several leak detections. See `integrative_gate_summary.md` for the latest automated evidence.
+copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Baseline performance on reference hardware (AMD Ryzen 9 9950X3D, WSL2): DISPLAY-heavy decode at 205 MiB/s, COMP-3-heavy decode at 58 MiB/s (baseline established 2025-09-30, commit 1fa63633; see [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) and [docs/REPORT.md](docs/REPORT.md)). See `integrative_gate_summary.md` for the latest automated evidence.
 
 ### Design Priorities
 
@@ -866,7 +866,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### Current Reliability Snapshot
 - **Tests**: `cargo nextest` reports 615/615 passing (54 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (see `integrative_gate_summary.md`)
-- **Benchmarks**: Latest telemetry (`scripts/bench/perf.json`) shows DISPLAY decode throughput around 66–95 MiB/s and COMP-3 decode around 18–25 MiB/s—suitable for engineering validation but below historic GiB/s marketing claims
+- **Benchmarks**: Baseline established September 2025 (commit 1fa63633): DISPLAY-heavy decode at 205 MiB/s, COMP-3-heavy decode at 58 MiB/s on reference hardware (AMD Ryzen 9 9950X3D, WSL2). Recent measurements show variance of 66–95 MiB/s (DISPLAY) and 18–25 MiB/s (COMP-3), expected in WSL2 environment. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) and [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for measurement details.
 - **Automation gaps**: The Python utilities promised in Issue #52 (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) have not shipped yet; see `docs/backlog/benchmark_tooling.md`
 - **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`
 
@@ -894,7 +894,7 @@ jq '.summary' scripts/bench/perf.json
 
 Set `BENCH_FILTER=all` (or any Criterion filter) to widen coverage while keeping receipts in `scripts/bench/perf.json`.
 
-Artifacts: `scripts/bench/perf.json` (90-day retention in CI). Targets: DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s.
+Artifacts: `scripts/bench/perf.json` (90-day retention in CI). Targets: DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s. Baseline (commit 1fa63633): DISPLAY 205 MiB/s, COMP-3 58 MiB/s. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md).
 
 ## Development
 

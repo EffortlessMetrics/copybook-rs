@@ -7,12 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 copybook-rs is a **production-ready** Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and high-performance data conversion with battle-tested reliability.
 
 **Status**: **PRODUCTION READY** - Ready for immediate enterprise deployment
-**Performance**: Strong performance with recovery (DISPLAY: 2.33 GiB/s, COMP-3: 168-176 MiB/s with panic elimination safety)
+**Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
 **Quality**: 615 tests passing (54 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
 **Enterprise Assessment**: System ready for production mainframe workloads with substantial performance safety margins.
 
-See [REPORT.md](docs/REPORT.md) for complete production readiness analysis.
+See [REPORT.md](docs/REPORT.md) for complete production readiness analysis and [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
 
 ## Workspace Structure
 
@@ -266,12 +266,12 @@ The golden fixtures comprehensively test structural error conditions:
 
 ### Performance Standards
 
-Golden fixtures maintain strict performance requirements:
+Golden fixtures maintain strict performance requirements aligned with established baselines:
 
-- **DISPLAY-heavy**: 2.5+ GiB/s throughput (32x enterprise target)
-- **COMP-3-heavy**: 100+ MiB/s throughput (3x enterprise target)
+- **DISPLAY-heavy**: 205 MiB/s baseline (2.56x enterprise target of 80 MiB/s)
+- **COMP-3-heavy**: 58 MiB/s baseline (1.45x enterprise target of 40 MiB/s)
 - **Memory**: <256 MiB steady-state for multi-GB fixture sets
-- **Variance**: <5% performance variance across runs
+- **Variance**: ~5% (DISPLAY), ~8% (COMP-3) across benchmark runs
 - **Regression Detection**: Automated baseline comparison with <2% tolerance
 
-See `docs/golden-fixtures-spec.md` for complete architectural specification.
+Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for complete performance analysis.

@@ -768,26 +768,29 @@ fn test_ci_exit_codes() {
     let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
         .expect("Failed to read workflow YAML");
 
-    // Workflow uses Python script exit codes (line 154-159)
+    // Workflow updated to advisory-only per Issues #74, #75
+    // Historic SLOs (4.1 GiB/s DISPLAY, 560 MiB/s COMP-3) are advisory; see perf.yml for neutral gates
     assert!(
-        workflow_yaml.contains("sys.exit(1)"),
-        "Workflow must exit 1 on SLO failure"
+        workflow_yaml.contains("Advisory SLO status (neutral gate)"),
+        "Workflow must have advisory SLO status step"
     );
 
-    // Final SLO check step (lines 304-308) fails workflow on errors
+    // Final SLO check step exits 0 (advisory only, does not block)
     assert!(
-        workflow_yaml.contains("name: Fail if SLOs not met"),
-        "Workflow must have final SLO check step"
-    );
-    assert!(
-        workflow_yaml.contains("exit 1"),
-        "Final step must exit 1 to block PR on failure"
+        workflow_yaml.contains("exit 0"),
+        "Advisory step must exit 0 (neutral, does not block PR)"
     );
 
-    // Verify step conditions preserve exit codes
+    // Verify step conditions check for failure status
     assert!(
         workflow_yaml.contains("if: steps.process.outputs.status == 'failure'"),
-        "Final step must check process status output"
+        "Advisory step must check process status output"
+    );
+
+    // Verify advisory messaging
+    assert!(
+        workflow_yaml.contains("advisory") || workflow_yaml.contains("ADVISORY"),
+        "Workflow must indicate advisory status"
     );
 }
 

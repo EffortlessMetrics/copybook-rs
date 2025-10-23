@@ -117,7 +117,7 @@ Comprehensive support for mainframe data formats:
 ## Development and Maintenance Status
 
 ### Code Quality
-- Rust Edition 2024 with MSRV 1.90+
+- Rust Edition 2024 with MSRV 1.90 (aligned with CI test matrix)
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase
@@ -166,7 +166,7 @@ Recent benchmarking runs prioritize transparency over marketing:
 - COMP-3-heavy decode throughput remains around **18–25 MiB/s** with similar environmental variance
 - These measurements reflect typical WSL2 performance variance from the established baseline (205 MiB/s DISPLAY, 58 MiB/s COMP-3)
 - Baseline was established from 5 independent runs under controlled conditions; day-to-day measurements vary with system load and thermal conditions
-- SLO validation artifacts in `test_perf.json` may show variance relative to configured floors depending on measurement environment
+- SLO validation artifacts in `scripts/bench/perf.json` may show variance relative to configured floors depending on measurement environment
 - Memory usage stays below **256 MiB steady-state** thanks to the streaming architecture
 - Test coverage remains broad with 615 tests passing (54 skipped)
 

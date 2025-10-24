@@ -1,3 +1,6 @@
+#![allow(clippy::if_not_else, clippy::unnecessary_wraps)]
+#![allow(clippy::ignore_without_reason)]
+#![allow(clippy::panic)]
 #![allow(clippy::uninlined_format_args)] // Test output formatting for clarity
 
 /// Tests feature spec: issue-63-spec.md#ac1-complete-panic-elimination
@@ -1097,3 +1100,6 @@ mod panic_elimination_cli_integration_tests {
         Ok(())
     }
 }
+
+#[allow(clippy::if_not_else, clippy::unnecessary_wraps)]
+mod clippy_allows_for_tests {}

@@ -1,3 +1,4 @@
+#![allow(clippy::ignore_without_reason)]
 // AC:1,4,5,6,9 - Security Scanning Infrastructure Integration Tests
 // Specification: docs/explanation/security-scanning-architecture.md
 // Issue: #35 - Dependency & Security Scanning Infrastructure

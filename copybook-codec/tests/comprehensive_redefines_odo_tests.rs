@@ -1,3 +1,4 @@
+#![allow(clippy::panic)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(
@@ -251,8 +252,10 @@ fn test_odo_driver_precedes_array() {
 
     let result = parse_copybook(invalid_odo);
     assert!(result.is_err());
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
+        Ok(_) => panic!("expected error CBKS121_COUNTER_NOT_FOUND"),
+    }
 }
 
 #[test]
@@ -267,8 +270,10 @@ fn test_odo_tail_position_validation() {
 
     let result = parse_copybook(invalid_odo_not_tail);
     assert!(result.is_err());
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL),
+        Ok(_) => panic!("expected error CBKP021_ODO_NOT_TAIL"),
+    }
 
     // Valid: ODO at tail
     let valid_odo_tail = r#"
@@ -299,8 +304,10 @@ fn test_odo_counter_in_redefines_error() {
 
     let result = parse_copybook(invalid_counter_in_redefines);
     assert!(result.is_err());
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
+        Ok(_) => panic!("expected error CBKS121_COUNTER_NOT_FOUND"),
+    }
 }
 
 #[test]
@@ -463,8 +470,10 @@ fn test_odo_not_nested_under_odo() {
 
     let result = parse_copybook(invalid_nested_odo);
     assert!(result.is_err());
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL),
+        Ok(_) => panic!("expected error CBKP021_ODO_NOT_TAIL"),
+    }
 }
 
 #[test]
@@ -480,13 +489,17 @@ fn test_comprehensive_error_context() {
     let result = parse_copybook(invalid_copybook);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
+    match result {
+        Err(error) => {
+            assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
 
-    // Should have context information
-    if let Some(context) = &error.context {
-        assert!(context.field_path.is_some());
-        assert!(context.details.is_some() || context.line_number.is_some());
+            // Should have context information
+            if let Some(context) = &error.context {
+                assert!(context.field_path.is_some());
+                assert!(context.details.is_some() || context.line_number.is_some());
+            }
+        }
+        Ok(_) => panic!("expected error CBKS121_COUNTER_NOT_FOUND"),
     }
 }
 

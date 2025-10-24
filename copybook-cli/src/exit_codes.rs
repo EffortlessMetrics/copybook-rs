@@ -51,13 +51,11 @@ impl ExitCode {
     pub const fn tag(self) -> &'static str {
         match self {
             ExitCode::Ok => "OK",
-            ExitCode::Unknown => "CBK?",
             ExitCode::Data => "CBKD",
             ExitCode::Encode => "CBKE",
             ExitCode::Format => "CBKF",
             ExitCode::Internal => "CBKI",
-            #[allow(unreachable_patterns)]
-            _ => "CBK?",
+            ExitCode::Unknown => "CBK?",
         }
     }
 
@@ -66,13 +64,11 @@ impl ExitCode {
     pub const fn family(self) -> &'static str {
         match self {
             ExitCode::Ok => "ok",
-            ExitCode::Unknown => "unknown",
             ExitCode::Data => "decode",
             ExitCode::Encode => "policy",
             ExitCode::Format => "io",
             ExitCode::Internal => "internal",
-            #[allow(unreachable_patterns)]
-            _ => "unknown",
+            ExitCode::Unknown => "unknown",
         }
     }
 
@@ -93,8 +89,7 @@ impl ExitCode {
     #[must_use]
     pub const fn verification_test(self) -> &'static str {
         match self {
-            ExitCode::Ok => "n/a",
-            ExitCode::Unknown => "n/a",
+            ExitCode::Ok | ExitCode::Unknown => "n/a",
             ExitCode::Data => "exit_code_mapping::exit_code_cbkd_is_2",
             ExitCode::Encode => "exit_code_mapping::exit_code_cbke_is_3",
             ExitCode::Format => "exit_code_mapping::exit_code_cbkf_is_4",
@@ -129,10 +124,7 @@ impl ExitCode {
             ExitCode::Format => 3,
             ExitCode::Encode => 2,
             ExitCode::Data => 1,
-            ExitCode::Unknown => 0,
-            ExitCode::Ok => 0,
-            #[allow(unreachable_patterns)]
-            _ => 0,
+            ExitCode::Unknown | ExitCode::Ok => 0,
         }
     }
 
@@ -226,7 +218,7 @@ impl<'de> Deserialize<'de> for ExitCode {
     {
         struct ExitCodeVisitor;
 
-        impl<'de> Visitor<'de> for ExitCodeVisitor {
+        impl Visitor<'_> for ExitCodeVisitor {
             type Value = ExitCode;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -321,7 +313,7 @@ mod tests {
                 .trim()
                 .trim_matches('|')
                 .split('|')
-                .map(|cell| cell.trim())
+                .map(str::trim)
                 .collect();
             assert_eq!(
                 cells.len(),

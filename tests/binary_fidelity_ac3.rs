@@ -1,3 +1,4 @@
+#![allow(clippy::ignore_without_reason)]
 #![allow(clippy::panic, clippy::assertions_on_constants)]
 //! AC3: Binary fidelity round-trip tests
 //!

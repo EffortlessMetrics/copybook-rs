@@ -817,7 +817,7 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 - **ODO Support**: Variable arrays at tail position only
 
 ### Limitations
-- **Supported**: Level-88 condition names (VALUE clauses) with full parse and codec support
+- **Fully Supported**: Level-88 condition values (VALUE clauses) with complete parse, codec, and structural validation (see docs/reference/COBOL_SUPPORT_MATRIX.md for test evidence)
 - **Unsupported**: COMP-1 (single-precision float) and COMP-2 (double-precision float)
 - **Unsupported**: Edited PIC clauses (Z, slash, comma, $, CR, DB)
 - **Unsupported**: SIGN LEADING/TRAILING SEPARATE directives
@@ -853,6 +853,11 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 ### Encoding Errors (CBKE*)
 - `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type or REDEFINES ambiguity
 - `CBKE521_ARRAY_LEN_OOB`: Array length out of bounds
+
+### Record Format Errors (CBKR*)
+- `CBKR101_FIXED_RECORD_ERROR`: Error processing fixed-length record
+- `CBKR201_RDW_READ_ERROR`: Error reading Record Descriptor Word header
+- `CBKR211_RDW_RESERVED_NONZERO`: RDW reserved bytes contain non-zero values (warning)
 
 See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference and [REPORT.md](docs/REPORT.md) for detailed project status and performance analysis.
 
@@ -942,10 +947,10 @@ cargo fmt --all
 
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set, but known limitations mean cautious adoption is recommended:
 
-- ⚠️ **Feature Coverage**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES (66-level), and condition names (88-level) remain unsupported
-- ⚠️ **Performance Variance**: Measurements show environmental variance in WSL2; see perf workflow artifacts and `scripts/bench/perf.json` for current receipts (policy: accuracy-first)
-- ⚠️ **Automation Gaps**: Benchmark tooling from Issue #52 not yet shipped; manual performance validation required
-- ✅ **Quality Signals**: 615 tests passing (54 skipped), zero unsafe code, comprehensive error taxonomy
+- ⚠️ **Feature Coverage**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, and RENAMES (66-level) remain unsupported; Level-88 condition values fully supported
+- ⚠️ **Performance Variance**: Measurements show environmental variance in WSL2; see perf workflow artifacts and `scripts/bench/perf.json` for current receipts (advisory-only policy per Issues #74, #75)
+- ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management, comparison, and validation commands
+- ✅ **Quality Signals**: 615 tests passing (54 skipped), zero unsafe code, comprehensive error taxonomy including CBKR* family
 - ✅ **Interface Stability**: CLI and library APIs are production-ready; feature completeness remains in preview
 
 **Adoption Recommendations**:

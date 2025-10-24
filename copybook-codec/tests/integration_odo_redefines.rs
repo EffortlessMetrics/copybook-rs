@@ -1,3 +1,4 @@
+#![allow(clippy::panic)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]
 //! Integration tests for ODO and REDEFINES error handling
@@ -100,16 +101,19 @@ fn test_comprehensive_error_context() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-
-    // Verify error has context
-    if let Some(context) = &error.context {
-        // Should have record index, field path, and byte offset
-        assert!(
-            context.record_index.is_some()
-                || context.field_path.is_some()
-                || context.byte_offset.is_some()
-        );
+    match result {
+        Err(error) => {
+            // Verify error has context
+            if let Some(context) = &error.context {
+                // Should have record index, field path, and byte offset
+                assert!(
+                    context.record_index.is_some()
+                        || context.field_path.is_some()
+                        || context.byte_offset.is_some()
+                );
+            }
+        }
+        Ok(_) => panic!("expected error"),
     }
 }
 
@@ -151,14 +155,17 @@ fn test_redefines_encode_error_context() {
     let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
+    match result {
+        Err(error) => {
+            // Should be a type mismatch error with context
+            assert_eq!(error.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
 
-    // Should be a type mismatch error with context
-    assert_eq!(error.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
-
-    // Should have context information
-    if let Some(context) = &error.context {
-        assert!(context.field_path.is_some() || context.record_index.is_some());
+            // Should have context information
+            if let Some(context) = &error.context {
+                assert!(context.field_path.is_some() || context.record_index.is_some());
+            }
+        }
+        Ok(_) => panic!("expected error CBKE501_JSON_TYPE_MISMATCH"),
     }
 }
 
@@ -199,12 +206,15 @@ fn test_missing_counter_field_error() {
     let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-
-    // Should indicate missing field
-    assert!(
-        error.message.contains("missing")
-            || error.message.contains("COUNTER")
-            || error.message.contains("required")
-    );
+    match result {
+        Err(error) => {
+            // Should indicate missing field
+            assert!(
+                error.message.contains("missing")
+                    || error.message.contains("COUNTER")
+                    || error.message.contains("required")
+            );
+        }
+        Ok(_) => panic!("expected error"),
+    }
 }

@@ -1,17 +1,10 @@
 [package]
 name = "xtask"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2024"
 publish = false
 
-[[bin]]
-name = "xtask"
-path = "src/main.rs"
-
 [dependencies]
-clap = { workspace = true }
-anyhow = "1.0.100"
-[lints]
-workspace = true
+anyhow = "1"
+roxmltree = "0.20"
+regex = "1"

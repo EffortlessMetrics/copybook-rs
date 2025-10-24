@@ -167,6 +167,7 @@ Structured error taxonomy with stable codes:
 - `CBKS*`: Schema validation (ODO counters, record limits)
 - `CBKD*`: Data errors (invalid decimals, truncated records)
 - `CBKE*`: Encoding errors (type mismatches, bounds)
+- `CBKR*`: Record format errors (RDW processing, fixed-length records)
 
 ### Performance Features
 - Scratch buffer optimization for hot paths
@@ -287,17 +288,22 @@ Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. S
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE directives
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) and 88-level (condition names) items
+- 66-level (RENAMES) items
+
+**Note**: Level-88 condition values are fully supported (parse + codec + structural validation). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
 
 ### Performance Considerations
-- Baseline established at 205 MiB/s (DISPLAY) and 58 MiB/s (COMP-3) on reference hardware
+- Baseline established at 205 MiB/s (DISPLAY) and 58 MiB/s (COMP-3) on reference hardware (commit 1fa63633)
 - WSL2 environment introduces 10-30% overhead versus native Linux
 - Current measurements show variance (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) based on system load
+- Advisory-only performance policy active (Issues #74, #75); historic SLOs (4.1 GiB/s DISPLAY, 560 MiB/s COMP-3) replaced with empirical baseline
+- CI enforces realistic throughput floors (DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s)
 - See [docs/ROADMAP.md](docs/ROADMAP.md) for performance improvement plans
 
 ### Outstanding Work
-- Benchmark automation tooling from Issue #52 not yet shipped
-- SLO enforcement and regression detection require manual analysis
+- `bench-report` CLI tool available in copybook-bench for baseline management (Issue #52)
+- Benchmark automation includes: baseline promote/show, compare, validate, summary commands
+- Performance tracking infrastructure active; regression detection advisory-only (Issues #74, #75)
 - See [docs/ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability plans
 
 ### Adoption Recommendations

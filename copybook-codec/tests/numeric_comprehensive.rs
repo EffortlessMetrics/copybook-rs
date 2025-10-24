@@ -167,11 +167,13 @@ fn test_zoned_invalid_zone_error() {
     let result = copybook_codec::decode_record(&schema, invalid_data, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert!(
-        error.message.to_lowercase().contains("invalid")
-            || error.message.to_lowercase().contains("zone")
-    );
+    match result {
+        Err(error) => assert!(
+            error.message.to_lowercase().contains("invalid")
+                || error.message.to_lowercase().contains("zone")
+        ),
+        Ok(_) => panic!("expected error"),
+    }
 }
 
 #[test]
@@ -353,11 +355,13 @@ fn test_packed_decimal_invalid_nibble() {
     let result = copybook_codec::decode_record(&schema, invalid_data, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert!(
-        error.message.to_lowercase().contains("invalid")
-            || error.message.to_lowercase().contains("nibble")
-    );
+    match result {
+        Err(error) => assert!(
+            error.message.to_lowercase().contains("invalid")
+                || error.message.to_lowercase().contains("nibble")
+        ),
+        Ok(_) => panic!("expected error"),
+    }
 }
 
 #[test]

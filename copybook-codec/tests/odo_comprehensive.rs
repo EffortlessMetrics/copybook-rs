@@ -37,8 +37,10 @@ fn test_odo_driver_in_redefines_rejection() {
     let result = parse_copybook(copybook);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
+        Ok(_) => panic!("expected error CBKS121_COUNTER_NOT_FOUND"),
+    }
 }
 
 #[test]
@@ -53,8 +55,10 @@ fn test_odo_driver_after_array_rejection() {
     let result = parse_copybook(copybook);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
+        Ok(_) => panic!("expected error CBKS121_COUNTER_NOT_FOUND"),
+    }
 }
 
 #[test]
@@ -70,8 +74,10 @@ fn test_odo_not_at_tail_rejection() {
     let result = parse_copybook(copybook);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKP021_ODO_NOT_TAIL),
+        Ok(_) => panic!("expected error CBKP021_ODO_NOT_TAIL"),
+    }
 }
 
 #[test]
@@ -151,8 +157,10 @@ fn test_odo_strict_mode_clamp_fatal() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert!(error.message.contains("ODO") || error.message.contains("clipped"));
+    match result {
+        Err(error) => assert!(error.message.contains("ODO") || error.message.contains("clipped")),
+        Ok(_) => panic!("expected error"),
+    }
 }
 
 #[test]
@@ -405,14 +413,16 @@ fn test_odo_array_length_out_of_bounds_encode() {
     let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    assert!(
-        error.message.contains("array")
-            || error.message.contains("length")
-            || error.message.contains("bounds")
-            || error.message.contains("record errors")
-            || error.message.contains("boundary")
-    );
+    match result {
+        Err(error) => assert!(
+            error.message.contains("array")
+                || error.message.contains("length")
+                || error.message.contains("bounds")
+                || error.message.contains("record errors")
+                || error.message.contains("boundary")
+        ),
+        Ok(_) => panic!("expected error"),
+    }
 }
 
 #[test]
@@ -429,9 +439,13 @@ fn test_nested_odo_rejection() {
     let result = parse_copybook(copybook);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-    // Should reject nested ODO
-    assert!(error.message.contains("ODO") || error.message.contains("nested"));
+    match result {
+        Err(error) => {
+            // Should reject nested ODO
+            assert!(error.message.contains("ODO") || error.message.contains("nested"));
+        }
+        Ok(_) => panic!("expected error"),
+    }
 }
 
 #[test]
@@ -545,12 +559,15 @@ fn test_odo_comprehensive_error_context() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-
-    // Verify error includes context when available
-    if let Some(ctx) = &error.context {
-        assert!(ctx.record_index.is_some()); // Should have record index
-        assert!(ctx.field_path.is_some()); // Should have field path
-        assert!(ctx.byte_offset.is_some()); // Should have byte offset
+    match result {
+        Err(error) => {
+            // Verify error includes context when available
+            if let Some(ctx) = &error.context {
+                assert!(ctx.record_index.is_some()); // Should have record index
+                assert!(ctx.field_path.is_some()); // Should have field path
+                assert!(ctx.byte_offset.is_some()); // Should have byte offset
+            }
+        }
+        Ok(_) => panic!("expected error"),
     }
 }

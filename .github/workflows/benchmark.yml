@@ -156,12 +156,12 @@ jobs:
         print(f"::set-output name=display_gibs::{results['display_gibs'] or 'N/A'}")
         print(f"::set-output name=comp3_mibs::{results['comp3_mibs'] or 'N/A'}")
 
-        # Exit with error if SLOs failed
+        # Report status (advisory only per #74, #75)
         if results["status"] == "failure":
-            print("❌ Benchmark SLOs failed!")
+            print("⚠️ Historic benchmark SLOs not met (advisory only)!")
             for error in results["errors"]:
                 print(f"   {error}")
-            sys.exit(1)
+            print("   See perf.yml for neutral gates with realistic floors")
         elif results["warnings"]:
             print("⚠️  Benchmark warnings:")
             for warning in results["warnings"]:
@@ -306,12 +306,12 @@ jobs:
         path: target/baselines/performance.json
         retention-days: 90
 
-    - name: Fail if SLOs not met
+    - name: Advisory SLO status (neutral gate)
       if: steps.process.outputs.status == 'failure'
       run: |
-        echo "❌ Benchmark SLOs failed - see results above"
+        echo "⚠️ Historic SLO targets not met (advisory only)"
         echo "NOTE: This workflow uses historic aspirational targets (4.1 GiB/s DISPLAY, 560 MiB/s COMP-3)."
         echo "Current policy (refs #74, #75): perf gates are NEUTRAL/ADVISORY (accuracy-first)."
         echo "Active workflow perf.yml uses realistic floors with neutral status."
         echo "See copybook-bench/BASELINE_METHODOLOGY.md for established baseline (205 MiB/s DISPLAY, 58 MiB/s COMP-3)."
-        exit 1
+        echo "Legacy SLOs are advisory; see perf.yml (neutral)" && exit 0

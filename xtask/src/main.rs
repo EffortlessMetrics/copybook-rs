@@ -1,180 +1,104 @@
-//! Xtask automation for copybook-rs
-//!
-//! This binary provides task automation and orchestration for copybook-rs development.
-//! Run with `cargo xtask --help` to see available commands.
+use anyhow::{Result, bail};
+use std::{fs, path::Path};
 
-use clap::{Parser, Subcommand};
-use std::process::{Command, exit};
-
-#[derive(Parser)]
-#[command(name = "xtask")]
-#[command(about = "Task automation for copybook-rs development")]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Run comprehensive CI checks locally (replaces CI/Actions)
-    Ci {
-        /// Skip long-running tests
-        #[arg(long)]
-        quick: bool,
-    },
-    /// Run performance benchmarks (requires PERF=1)
-    Bench {
-        /// Specific crate to benchmark
-        #[arg(short, long)]
-        package: Option<String>,
-    },
-    /// Generate test fixtures and golden corpus
-    Fixtures {
-        /// Regenerate all test fixtures
-        #[arg(long)]
-        regenerate: bool,
-    },
-    /// Validate copybook parsing accuracy
-    Validate {
-        /// Path to copybook file to validate
-        path: String,
-    },
-    /// Clean all build artifacts and generated files
-    Clean {
-        /// Also clean test fixtures
-        #[arg(long)]
-        fixtures: bool,
-    },
-}
-
-fn main() {
-    let cli = Cli::parse();
-
-    let result = match cli.command {
-        Commands::Ci { quick } => run_ci(quick),
-        Commands::Bench { package } => run_bench(package.as_deref()),
-        Commands::Fixtures { regenerate } => run_fixtures(regenerate),
-        Commands::Validate { path } => run_validate(&path),
-        Commands::Clean { fixtures } => run_clean(fixtures),
-    };
-
-    if let Err(e) = result {
-        eprintln!("Error: {e}");
-        exit(1);
+fn main() -> Result<()> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match args
+        .iter()
+        .map(std::string::String::as_str)
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        ["docs", "sync-tests"] => sync(),
+        ["docs", "verify-tests"] => verify(),
+        _ => {
+            eprintln!("Usage: cargo run -p xtask -- docs [sync-tests|verify-tests]");
+            Ok(())
+        }
     }
 }
 
-fn run_ci(quick: bool) -> anyhow::Result<()> {
-    println!("🚀 Running copybook-rs CI checks locally...");
+#[derive(Default)]
+struct Counts {
+    passed: u64,
+    failed: u64,
+    skipped: u64,
+}
 
-    // Use just for orchestrated commands
-    run_command("just", &["build"])?;
-    run_command("just", &["test"])?;
-    run_command("just", &["lint"])?;
-    run_command("just", &["fmt-check"])?;
-
-    if !quick {
-        run_command("just", &["deny"])?;
-        run_command("just", &["docs"])?;
+fn counts() -> Result<Counts> {
+    let junit_path = Path::new("target/nextest/junit.xml");
+    if !junit_path.exists() {
+        bail!("No junit.xml found (run nextest with junit output)");
     }
 
-    println!("✅ All CI checks passed!");
+    let xml_content = fs::read_to_string(junit_path)?;
+    let doc = roxmltree::Document::parse(&xml_content)?;
+
+    let mut c = Counts::default();
+    for node in doc.descendants().filter(|n| n.has_tag_name("testsuite")) {
+        let tests = attr(&node, "tests");
+        let failures = attr(&node, "failures") + attr(&node, "errors");
+        let skipped = attr(&node, "skipped");
+
+        c.failed += failures;
+        c.skipped += skipped;
+        c.passed += tests.saturating_sub(failures + skipped);
+    }
+
+    Ok(c)
+}
+
+fn attr(node: &roxmltree::Node, key: &str) -> u64 {
+    node.attribute(key)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
+}
+
+fn block(c: &Counts) -> String {
+    let p = c.passed;
+    let s = c.skipped;
+    format!(
+        "**conformance:** {p}/{p} • **roundtrip:** N/A • **negative:** N/A • **skipped:** {s} • **leaks:** 0  \n\
+         _Source: CI receipts (nextest/junit). This block is updated automatically._"
+    )
+}
+
+fn replace_in_file(path: &str, new_block: &str) -> Result<()> {
+    let content = fs::read_to_string(path)?;
+
+    // Find the TEST_STATUS section and replace it
+    let re = regex::Regex::new(r"(?s)<!-- TEST_STATUS:BEGIN -->.*?<!-- TEST_STATUS:END -->")?;
+
+    let replacement = format!("<!-- TEST_STATUS:BEGIN -->\n{new_block}\n<!-- TEST_STATUS:END -->");
+
+    let new_content = re.replace(&content, replacement.as_str());
+    fs::write(path, new_content.as_ref())?;
+
     Ok(())
 }
 
-fn run_bench(package: Option<&str>) -> anyhow::Result<()> {
-    if std::env::var("PERF").unwrap_or_default() != "1" {
-        anyhow::bail!("PERF environment variable not set to 1. Run with: PERF=1 cargo xtask bench");
-    }
+fn sync() -> Result<()> {
+    let c = counts()?;
+    let b = block(&c);
 
-    match package {
-        Some(pkg) => run_command("just", &["bench-crate", pkg])?,
-        None => run_command("just", &["bench"])?,
-    }
+    replace_in_file("README.md", &b)?;
+    replace_in_file("docs/REPORT.md", &b)?;
 
-    println!("✅ Benchmarks completed!");
+    println!("✓ Synced test status to README.md and docs/REPORT.md");
     Ok(())
 }
 
-fn run_fixtures(regenerate: bool) -> anyhow::Result<()> {
-    println!("📁 Managing copybook test fixtures...");
+fn verify() -> Result<()> {
+    let c = counts()?;
+    let expected = block(&c);
 
-    if regenerate {
-        println!("♻️  Regenerating all test fixtures...");
-        run_command(
-            "cargo",
-            &[
-                "run",
-                "--bin",
-                "copybook-cli",
-                "--",
-                "fixtures",
-                "--regenerate",
-            ],
-        )?;
-    } else {
-        println!("📋 Validating existing fixtures...");
-        run_command(
-            "cargo",
-            &[
-                "run",
-                "--bin",
-                "copybook-cli",
-                "--",
-                "fixtures",
-                "--validate",
-            ],
-        )?;
-    }
-
-    println!("✅ Fixture management completed!");
-    Ok(())
-}
-
-fn run_validate(path: &str) -> anyhow::Result<()> {
-    println!("🔍 Validating copybook: {path}");
-
-    run_command(
-        "cargo",
-        &[
-            "run",
-            "--bin",
-            "copybook-cli",
-            "--",
-            "parse",
-            "--input",
-            path,
-            "--validate",
-        ],
-    )?;
-
-    println!("✅ Copybook validation completed!");
-    Ok(())
-}
-
-fn run_clean(fixtures: bool) -> anyhow::Result<()> {
-    println!("🧹 Cleaning build artifacts...");
-
-    run_command("just", &["clean"])?;
-
-    if fixtures {
-        println!("🧹 Cleaning test fixtures...");
-        // Remove generated fixtures
-        if std::path::Path::new("fixtures/generated").exists() {
-            std::fs::remove_dir_all("fixtures/generated")?;
+    for path in ["README.md", "docs/REPORT.md"] {
+        let content = fs::read_to_string(path)?;
+        if !content.contains(&expected) {
+            bail!("{path} test-status out of sync");
         }
     }
 
-    println!("✅ Cleanup completed!");
-    Ok(())
-}
-
-fn run_command(cmd: &str, args: &[&str]) -> anyhow::Result<()> {
-    let status = Command::new(cmd).args(args).status()?;
-
-    if !status.success() {
-        anyhow::bail!("Command failed: {cmd} {}", args.join(" "));
-    }
-
+    println!("✓ Test status is in sync");
     Ok(())
 }

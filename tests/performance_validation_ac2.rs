@@ -1,3 +1,4 @@
+#![allow(clippy::ignore_without_reason)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 //! AC2: Performance validation tests

@@ -36,15 +36,12 @@ pub fn run(
     let json = serde_json::to_string_pretty(&schema)?;
 
     // Write output
-    match output {
-        Some(path) => {
-            atomic_write(path, |writer| writer.write_all(json.as_bytes()))?;
-        }
-        None => {
-            let mut json_with_newline = json;
-            json_with_newline.push('\n');
-            write_stdout_all(json_with_newline.as_bytes())?;
-        }
+    if let Some(path) = output {
+        atomic_write(path, |writer| writer.write_all(json.as_bytes()))?;
+    } else {
+        let mut json_with_newline = json;
+        json_with_newline.push('\n');
+        write_stdout_all(json_with_newline.as_bytes())?;
     }
 
     info!("Parse completed successfully");

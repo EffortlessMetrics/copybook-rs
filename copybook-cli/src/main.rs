@@ -71,7 +71,7 @@ struct Cli {
     #[arg(short, long)]
     verbose: bool,
 
-    /// Enforce policy checks. Precedence: --strict-policy > --no-strict-policy > COPYBOOK_STRICT_POLICY.
+    /// Enforce policy checks. Precedence: --strict-policy > --no-strict-policy > `COPYBOOK_STRICT_POLICY`.
     #[arg(
         long,
         action = clap::ArgAction::SetTrue,
@@ -79,7 +79,7 @@ struct Cli {
     )]
     strict_policy: bool,
 
-    /// Disable strict checks for this run, even if COPYBOOK_STRICT_POLICY=1.
+    /// Disable strict checks for this run, even if `COPYBOOK_STRICT_POLICY=1`.
     #[arg(
         long = "no-strict-policy",
         action = clap::ArgAction::SetTrue,
@@ -139,10 +139,9 @@ enum ZonedEncodingPreference {
 impl From<ZonedEncodingPreference> for copybook_codec::ZonedEncodingFormat {
     fn from(value: ZonedEncodingPreference) -> Self {
         match value {
-            ZonedEncodingPreference::Preferred => Self::Auto,
+            ZonedEncodingPreference::Preferred | ZonedEncodingPreference::Auto => Self::Auto,
             ZonedEncodingPreference::Ascii => Self::Ascii,
             ZonedEncodingPreference::Ebcdic => Self::Ebcdic,
-            ZonedEncodingPreference::Auto => Self::Auto,
         }
     }
 }
@@ -338,27 +337,31 @@ Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
         #[arg(long)]
         strict_comments: bool,
     },
+    /// Display COBOL support matrix or check copybook compatibility
+    Support {
+        #[command(flatten)]
+        args: crate::commands::support::SupportArgs,
+    },
 }
 
 fn main() -> ProcessExitCode {
-    match std::panic::catch_unwind(AssertUnwindSafe(|| run())) {
+    match std::panic::catch_unwind(AssertUnwindSafe(run)) {
         Ok(Ok(code)) => ProcessExitCode::from(code),
         Ok(Err(err)) => {
             let exit_code = map_error_to_exit_code(&err);
             let stderr_line = format!("{err}\n");
             let _ = write_stderr_all(stderr_line.as_bytes());
-            emit_exit_diagnostics_stage(
+            let diagnostics = ExitDiagnostics::new(
                 exit_code,
                 "copybook CLI terminated with an error",
-                Stage::Finalize,
                 "cli_run",
-                None,
-                err.downcast_ref::<io::Error>(),
-                Some(err.as_ref()),
-                None,
+                "", // op_stage will be overridden by emit_exit_diagnostics_stage
                 Level::ERROR,
                 exit_code.as_i32(),
-            );
+            )
+            .with_io_error(err.downcast_ref::<io::Error>())
+            .with_error(Some(err.as_ref()));
+            emit_exit_diagnostics_stage(&diagnostics, Stage::Finalize);
             ProcessExitCode::from(exit_code)
         }
         Err(panic_payload) => {
@@ -368,18 +371,15 @@ fn main() -> ProcessExitCode {
             let panic_msg = extract_panic_message(panic_payload.as_ref());
             let panic_line = format!("panic: {panic_msg}\n");
             let _ = write_stderr_all(panic_line.as_bytes());
-            emit_exit_diagnostics_stage(
+            let diagnostics = ExitDiagnostics::new(
                 ExitCode::Internal,
                 "copybook CLI panicked",
-                Stage::Panic,
                 "panic",
-                None,
-                None,
-                None,
-                None,
+                "", // op_stage will be overridden by emit_exit_diagnostics_stage
                 Level::ERROR,
                 ExitCode::Internal.as_i32(),
             );
+            emit_exit_diagnostics_stage(&diagnostics, Stage::Panic);
             ProcessExitCode::from(ExitCode::Internal)
         }
     }
@@ -387,6 +387,7 @@ fn main() -> ProcessExitCode {
 
 #[allow(clippy::too_many_lines)]
 fn run() -> anyhow::Result<ExitCode> {
+    #[allow(clippy::panic)]
     if std::env::var("COPYBOOK_TEST_PANIC")
         .map(|v| v == "1")
         .unwrap_or(false)
@@ -408,34 +409,29 @@ fn run() -> anyhow::Result<ExitCode> {
                 } else {
                     "help"
                 };
-                emit_exit_diagnostics_stage(
+                let diagnostics = ExitDiagnostics::new(
                     ExitCode::Ok,
                     "completed",
-                    Stage::Finalize,
                     op,
-                    None,
-                    None,
-                    None,
-                    None,
+                    "", // op_stage will be overridden by emit_exit_diagnostics_stage
                     Level::INFO,
                     0,
                 );
+                emit_exit_diagnostics_stage(&diagnostics, Stage::Finalize);
                 return Ok(ExitCode::Ok);
             }
             let exit_code = ExitCode::Encode;
             let message = err.to_string();
-            emit_exit_diagnostics_stage(
+            let diagnostics = ExitDiagnostics::new(
                 exit_code,
                 &message,
-                Stage::Parse,
                 "cli_parse",
-                None,
-                None,
-                Some(&err),
-                None,
+                "", // op_stage will be overridden by emit_exit_diagnostics_stage
                 Level::ERROR,
                 exit_code.as_i32(),
-            );
+            )
+            .with_error(Some(&err));
+            emit_exit_diagnostics_stage(&diagnostics, Stage::Parse);
             return Ok(exit_code);
         }
     };
@@ -622,6 +618,7 @@ fn run() -> anyhow::Result<ExitCode> {
                 "verify",
             )
         }
+        Commands::Support { args } => (crate::commands::support::run(&args), "support"),
     };
 
     #[cfg(feature = "metrics")]
@@ -632,33 +629,32 @@ fn run() -> anyhow::Result<ExitCode> {
 
     let status = exit_status?;
 
-    if status != ExitCode::Ok {
-        emit_exit_diagnostics_stage(
-            status,
-            "command completed with non-zero exit code",
-            Stage::Execute,
-            exit_op,
-            None,
-            None,
-            None,
-            None,
-            Level::ERROR,
-            status.as_i32(),
-        );
-    } else {
-        emit_exit_diagnostics_stage(
+    let diagnostics = if status == ExitCode::Ok {
+        ExitDiagnostics::new(
             ExitCode::Ok,
             "completed",
-            Stage::Finalize,
             exit_op,
-            None,
-            None,
-            None,
-            None,
+            "", // op_stage will be overridden by emit_exit_diagnostics_stage
             Level::INFO,
             0,
-        );
-    }
+        )
+    } else {
+        ExitDiagnostics::new(
+            status,
+            "command completed with non-zero exit code",
+            exit_op,
+            "", // op_stage will be overridden by emit_exit_diagnostics_stage
+            Level::ERROR,
+            status.as_i32(),
+        )
+    };
+
+    let stage = if status == ExitCode::Ok {
+        Stage::Finalize
+    } else {
+        Stage::Execute
+    };
+    emit_exit_diagnostics_stage(&diagnostics, stage);
 
     Ok(status)
 }
@@ -826,8 +822,7 @@ fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<f64>) {
             ExitCode::Data => ExitCode::Data.tag(),
             ExitCode::Encode => ExitCode::Encode.tag(),
             ExitCode::Format => ExitCode::Format.tag(),
-            ExitCode::Internal => ExitCode::Internal.tag(),
-            _ => ExitCode::Internal.tag(),
+            ExitCode::Internal | ExitCode::Ok | ExitCode::Unknown => ExitCode::Internal.tag(),
         };
         metrics::counter!("copybook_decode_errors_total", "family" => family).increment(1);
     }
@@ -878,6 +873,73 @@ fn parse_prefix_from_str(message: &str) -> Option<String> {
     Some(token[..4].to_string())
 }
 
+/// Parameters for exit diagnostics logging.
+pub(crate) struct ExitDiagnostics<'a> {
+    exit: ExitCode,
+    msg: &'a str,
+    op: &'a str,
+    path: Option<&'a Path>,
+    io_error: Option<&'a io::Error>,
+    error: Option<&'a (dyn StdError + 'static)>,
+    subcode: Option<u16>,
+    op_stage: &'a str,
+    severity: Level,
+    effective_exit: i32,
+}
+
+impl<'a> ExitDiagnostics<'a> {
+    /// Create a new `ExitDiagnostics` with required parameters.
+    pub fn new(
+        exit: ExitCode,
+        msg: &'a str,
+        op: &'a str,
+        op_stage: &'a str,
+        severity: Level,
+        effective_exit: i32,
+    ) -> Self {
+        Self {
+            exit,
+            msg,
+            op,
+            path: None,
+            io_error: None,
+            error: None,
+            subcode: None,
+            op_stage,
+            severity,
+            effective_exit,
+        }
+    }
+
+    /// Set the path parameter.
+    #[must_use]
+    pub fn with_path(mut self, path: Option<&'a Path>) -> Self {
+        self.path = path;
+        self
+    }
+
+    /// Set the `io_error` parameter.
+    #[must_use]
+    pub fn with_io_error(mut self, io_error: Option<&'a io::Error>) -> Self {
+        self.io_error = io_error;
+        self
+    }
+
+    /// Set the error parameter.
+    #[must_use]
+    pub fn with_error(mut self, error: Option<&'a (dyn StdError + 'static)>) -> Self {
+        self.error = error;
+        self
+    }
+
+    /// Set the subcode parameter.
+    #[must_use]
+    pub fn with_subcode(mut self, subcode: Option<u16>) -> Self {
+        self.subcode = subcode;
+        self
+    }
+}
+
 #[non_exhaustive]
 #[derive(Copy, Clone)]
 pub(crate) enum Stage {
@@ -900,19 +962,8 @@ impl Stage {
 }
 
 #[inline]
-pub(crate) fn emit_exit_diagnostics_stage(
-    exit: ExitCode,
-    msg: &str,
-    stage: Stage,
-    op: &str,
-    path: Option<&Path>,
-    io_error: Option<&io::Error>,
-    error: Option<&(dyn StdError + 'static)>,
-    subcode: Option<u16>,
-    severity: Level,
-    effective_exit: i32,
-) {
-    emit_exit_diagnostics(
+pub(crate) fn emit_exit_diagnostics_stage(diagnostics: &ExitDiagnostics<'_>, stage: Stage) {
+    let ExitDiagnostics {
         exit,
         msg,
         op,
@@ -920,30 +971,36 @@ pub(crate) fn emit_exit_diagnostics_stage(
         io_error,
         error,
         subcode,
-        stage.as_str(),
+        op_stage: _,
         severity,
         effective_exit,
-    );
+    } = *diagnostics;
+
+    let stage_diagnostics =
+        ExitDiagnostics::new(exit, msg, op, stage.as_str(), severity, effective_exit)
+            .with_path(path)
+            .with_io_error(io_error)
+            .with_error(error)
+            .with_subcode(subcode);
+    emit_exit_diagnostics(&stage_diagnostics);
 }
 
-pub(crate) fn emit_exit_diagnostics(
-    exit: ExitCode,
-    msg: &str,
-    op: &str,
-    path: Option<&Path>,
-    io_error: Option<&io::Error>,
-    error: Option<&(dyn StdError + 'static)>,
-    subcode: Option<u16>,
-    op_stage: &str,
-    severity: Level,
-    effective_exit: i32,
-) {
-    let (errno, err_kind) = io_error
-        .map(|err| (err.raw_os_error(), Some(err.kind())))
-        .unwrap_or((None, None));
-    let subcode_label = subcode
-        .map(|value| value.to_string())
-        .unwrap_or_else(|| "n/a".to_string());
+pub(crate) fn emit_exit_diagnostics(diagnostics: &ExitDiagnostics<'_>) {
+    let ExitDiagnostics {
+        exit,
+        msg,
+        op,
+        path,
+        io_error,
+        error,
+        subcode,
+        op_stage,
+        severity,
+        effective_exit,
+    } = *diagnostics;
+    let (errno, err_kind) =
+        io_error.map_or((None, None), |err| (err.raw_os_error(), Some(err.kind())));
+    let subcode_label = subcode.map_or_else(|| "n/a".to_string(), |value| value.to_string());
     let severity_tag = match severity {
         Level::ERROR => "ERROR",
         Level::WARN => "WARN",
@@ -997,15 +1054,12 @@ fn effective_strict_policy(cli: &Cli) -> bool {
 }
 
 fn env_flag(name: &str) -> bool {
-    std::env::var(name)
-        .ok()
-        .map(|value| {
-            matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        })
-        .unwrap_or(false)
+    std::env::var(name).ok().is_some_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
 }
 
 fn panic_caused_by_std_pipe(panic_payload: &dyn std::any::Any) -> bool {
@@ -1091,6 +1145,7 @@ mod commands {
     pub mod encode;
     pub mod inspect;
     pub mod parse;
+    pub mod support;
     pub mod verify;
     pub mod verify_report;
 }

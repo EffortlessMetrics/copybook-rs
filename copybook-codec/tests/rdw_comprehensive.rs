@@ -1,3 +1,4 @@
+#![allow(clippy::panic)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(
@@ -125,8 +126,10 @@ fn test_rdw_reserved_nonzero_strict_fatal() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err()); // Should fail in strict mode
 
-    let error = result.unwrap_err();
-    assert!(error.message.contains("reserved") || error.message.contains("RDW"));
+    match result {
+        Err(error) => assert!(error.message.contains("reserved") || error.message.contains("RDW")),
+        Ok(_) => panic!("expected error"),
+    }
 }
 
 #[test]
@@ -302,13 +305,15 @@ fn test_rdw_zero_length_record_invalid() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err()); // Should fail - zero length invalid for fixed schema
 
-    let error = result.unwrap_err();
-    assert!(
-        error.message.contains("underflow")
-            || error.message.contains("length")
-            || error.message.contains("record errors")
-            || error.message.contains("payload")
-    );
+    match result {
+        Err(error) => assert!(
+            error.message.contains("underflow")
+                || error.message.contains("length")
+                || error.message.contains("record errors")
+                || error.message.contains("payload")
+        ),
+        Ok(_) => panic!("expected error"),
+    }
 }
 
 #[test]

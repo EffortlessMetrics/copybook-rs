@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+
 use copybook_codec::options::Codepage;
 use copybook_codec::zoned_overpunch::{
     ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte,

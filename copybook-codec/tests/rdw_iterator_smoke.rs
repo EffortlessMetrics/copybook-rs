@@ -1,3 +1,4 @@
+#![allow(clippy::expect_used)]
 use copybook_codec::record::RDWRecordReader;
 use copybook_core::ErrorCode;
 use std::io::Cursor;

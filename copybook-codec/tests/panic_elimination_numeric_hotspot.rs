@@ -1,3 +1,4 @@
+#![allow(clippy::panic)]
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#numeric-conversion-safety-implementation
 /// Issue #33 - Numeric Hotspot Unit Tests
 ///
@@ -43,12 +44,14 @@ mod numeric_hotspot_safety {
             "Invalid packed decimal should return error"
         );
 
-        let error = result.unwrap_err();
-        assert!(
-            matches!(error.code, ErrorCode::CBKD401_COMP3_INVALID_NIBBLE),
-            "Invalid packed decimal should use CBKD401_COMP3_INVALID_NIBBLE, got {:?}",
-            error.code
-        );
+        match result {
+            Err(error) => assert!(
+                matches!(error.code, ErrorCode::CBKD401_COMP3_INVALID_NIBBLE),
+                "Invalid packed decimal should use CBKD401_COMP3_INVALID_NIBBLE, got {:?}",
+                error.code
+            ),
+            Ok(_) => panic!("expected error CBKD401_COMP3_INVALID_NIBBLE"),
+        }
 
         // Test case 2: Edge case packed decimal values
         let edge_case_data = vec![

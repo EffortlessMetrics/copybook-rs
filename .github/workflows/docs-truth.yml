@@ -1,0 +1,14 @@
+name: docs-truth
+on: [pull_request]
+jobs:
+  docs-truth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: forbid unlinked perf marketing
+        run: |
+          set -euo pipefail
+          rg -n --ignore-case -e 'production[-\s]?ready|[0-9]+(\.[0-9]+)?\s*GiB/s|[0-9]+\s*x' README.md docs/REPORT.md \
+            | awk '!/receipt|artifact|perf\.json|baseline|check-run|badge/' \
+            | (! tee /dev/stderr | grep .)
+          echo "docs-truth: OK"

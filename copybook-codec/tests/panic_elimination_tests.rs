@@ -1,3 +1,4 @@
+#![allow(clippy::panic)]
 #![allow(clippy::expect_used)] // Test code validates production code doesn't panic
 #![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
 #![allow(clippy::uninlined_format_args)] // Test output formatting for clarity
@@ -457,14 +458,16 @@ mod panic_elimination_record_tests {
         // Should return structured error instead of panicking on bounds access
         assert!(result.is_err(), "Short record should return bounds error");
 
-        let error = result.unwrap_err();
-        assert!(
-            error.to_string().contains("record")
-                || error.to_string().contains("short")
-                || error.to_string().contains("bounds"),
-            "Record bounds error should reference record issue: {}",
-            error
-        );
+        match result {
+            Err(error) => assert!(
+                error.to_string().contains("record")
+                    || error.to_string().contains("short")
+                    || error.to_string().contains("bounds"),
+                "Record bounds error should reference record issue: {}",
+                error
+            ),
+            Ok(_) => panic!("expected error"),
+        }
     }
 
     #[test] // AC:63-9-2 Field offset calculation safety

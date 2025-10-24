@@ -3,7 +3,7 @@
 use crate::exit_codes::ExitCode;
 use crate::subcode;
 use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
-use crate::{Stage, emit_exit_diagnostics_stage, write_stdout_all};
+use crate::{ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stdout_all};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
@@ -35,6 +35,7 @@ pub struct DecodeArgs<'a> {
     pub strict_policy: bool,
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     info!("Decoding data file: {:?}", args.input);
 
@@ -49,33 +50,31 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         let subcode = Some(subcode::POLICY_PREFERRED_WITHOUT_PRESERVE);
         let op_path = Some(args.input.as_path());
         if args.strict_policy {
-            emit_exit_diagnostics_stage(
+            let diagnostics = ExitDiagnostics::new(
                 ExitCode::Encode,
                 "--preferred-zoned-encoding requires --preserve-zoned-encoding in strict mode",
-                Stage::Execute,
                 "decode",
-                op_path,
-                None,
-                None,
-                subcode,
+                "", // op_stage will be overridden by emit_exit_diagnostics_stage
                 Level::ERROR,
                 ExitCode::Encode.as_i32(),
-            );
+            )
+            .with_path(op_path)
+            .with_subcode(subcode);
+            emit_exit_diagnostics_stage(&diagnostics, Stage::Execute);
             return Ok(ExitCode::Encode);
         }
 
-        emit_exit_diagnostics_stage(
+        let diagnostics = ExitDiagnostics::new(
             ExitCode::Encode,
             "compat: prefer --preserve-zoned-encoding when using --preferred-zoned-encoding (future strict mode will fail)",
-            Stage::Execute,
             "decode",
-            op_path,
-            None,
-            None,
-            subcode,
+            "", // op_stage will be overridden by emit_exit_diagnostics_stage
             Level::WARN,
             ExitCode::Ok.as_i32(),
-        );
+        )
+        .with_path(op_path)
+        .with_subcode(subcode);
+        emit_exit_diagnostics_stage(&diagnostics, Stage::Execute);
         tracing::warn!(
             preferred = ?preferred,
             preserve_zoned_encoding = args.preserve_zoned_encoding,

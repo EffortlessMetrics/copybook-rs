@@ -1,3 +1,6 @@
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::while_let_on_iterator)]
+#![allow(clippy::panic)]
 mod common;
 
 use common::{TestResult, bin, write_file};

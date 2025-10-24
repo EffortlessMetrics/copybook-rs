@@ -1044,7 +1044,7 @@ mod tests {
         .await
         .map_err(|err| anyhow::Error::msg(err.to_string()))?;
 
-        assert_eq!(exit_code, 3); // Compliance failure
+        assert_eq!(exit_code, ExitCode::Encode); // Compliance failure
         Ok(())
     }
 }

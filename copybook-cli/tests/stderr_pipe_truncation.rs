@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::panic)]
 mod common;
 
 use assert_cmd::cargo::cargo_bin;

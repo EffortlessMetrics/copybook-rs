@@ -23,7 +23,9 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 ## Validation Results
 
 ### Test Coverage
+<!-- TEST_STATUS:BEGIN -->
 - **Workspace tests**: `cargo nextest` reports **615 tests passing (54 skipped)**
+<!-- TEST_STATUS:END -->
 - **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
 - **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
 
@@ -108,7 +110,9 @@ Comprehensive support for mainframe data formats:
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) and 88-level (condition names) items
+- 66-level (RENAMES) items
+
+**Note**: Level-88 condition values are fully supported with comprehensive parse, codec, and structural validation. See [COBOL_SUPPORT_MATRIX.md](reference/COBOL_SUPPORT_MATRIX.md) for test evidence (6 tests in AC2, 8 tests in AC5, 638+838 lines of golden fixtures).
 
 ### Data Quality Considerations
 - Test fixture data is synthetic and may not capture all production edge cases
@@ -189,8 +193,9 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 - ⚠️ **Test Health**: 615 tests passing (54 skipped) - comprehensive coverage with some ignored edge cases
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ⚠️ **Performance Variance**: Current measurements (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) show WSL2 environmental variance; baseline (205 MiB/s, 58 MiB/s) established under controlled conditions
-- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES (66-level), and condition names (88-level) remain unsupported
-- ⚠️ **Automation Gaps**: Benchmark tooling from Issue #52 not yet shipped; manual performance validation required
+- ⚠️ **Performance Policy**: Advisory-only status (Issues #74, #75); historic SLOs (4.1 GiB/s DISPLAY, 560 MiB/s COMP-3) replaced with empirical baseline; CI enforces realistic floors (≥80 MiB/s DISPLAY, ≥40 MiB/s COMP-3)
+- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, and RENAMES (66-level) remain unsupported; Level-88 condition values fully supported
+- ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management (promote/show), comparison, validation, and summary commands
 
 #### Deployment Guidance
 1. **Pre-Deployment Validation**:

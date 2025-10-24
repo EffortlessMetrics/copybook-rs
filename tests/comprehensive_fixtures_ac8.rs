@@ -1,3 +1,4 @@
+#![allow(clippy::ignore_without_reason)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::assertions_on_constants)]
 
 //! AC8: Comprehensive real-world test fixtures

@@ -1,3 +1,5 @@
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::panic)]
 use assert_cmd::Command;
 use std::error::Error;
 use std::fs;

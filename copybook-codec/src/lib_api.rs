@@ -1544,10 +1544,14 @@ fn encode_zoned_decimal_field(
                 }
             }
         };
+        #[allow(clippy::panic)]
         let zero_policy = match effective_format {
             ZonedEncodingFormat::Ascii => ZeroSignPolicy::Positive,
             ZonedEncodingFormat::Ebcdic => ZeroSignPolicy::Preferred,
-            ZonedEncodingFormat::Auto => unreachable!("Auto resolved to final zoned format"),
+            ZonedEncodingFormat::Auto => {
+                // SAFETY: Auto is resolved to Ascii or Ebcdic at line 1539-1544
+                panic!("Auto resolved to final zoned format in prior match")
+            }
         };
 
         let encoded = crate::numeric::encode_zoned_decimal_with_format_and_policy(

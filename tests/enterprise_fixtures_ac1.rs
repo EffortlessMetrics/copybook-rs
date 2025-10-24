@@ -1,3 +1,4 @@
+#![allow(clippy::ignore_without_reason)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 //! AC1: Real-world COBOL copybook fixture tests

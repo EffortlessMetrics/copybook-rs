@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Test scaffolding for CLI zoned encoding flags - Issue #48
 //!
 //! Tests CLI interface spec: SPEC.manifest.yml#cli-interface-new-flags

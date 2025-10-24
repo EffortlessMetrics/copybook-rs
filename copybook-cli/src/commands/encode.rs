@@ -27,6 +27,7 @@ pub struct EncodeCliOptions {
     pub zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn run(
     copybook: &Path,
     input: &Path,

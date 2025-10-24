@@ -104,8 +104,10 @@ fn test_rdw_reserved_bytes_nonzero_warning() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &strict_options);
     assert!(result.is_err(), "Should fail in strict mode");
 
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKR211_RDW_RESERVED_NONZERO);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKR211_RDW_RESERVED_NONZERO),
+        Ok(_) => panic!("expected error CBKR211_RDW_RESERVED_NONZERO"),
+    }
 }
 
 #[test]
@@ -259,8 +261,10 @@ fn test_rdw_suspect_ascii_heuristic() {
         );
     } else {
         // Or might fail with appropriate error
-        let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII);
+        match result {
+            Err(error) => assert_eq!(error.code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII),
+            Ok(_) => panic!("expected error CBKF104_RDW_SUSPECT_ASCII"),
+        }
     }
 }
 
@@ -286,8 +290,10 @@ fn test_rdw_zero_length_record() {
     } else {
         // Should fail with underflow error
         assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+        match result {
+            Err(error) => assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW),
+            Ok(_) => panic!("expected error CBKF221_RDW_UNDERFLOW"),
+        }
     }
 }
 
@@ -305,8 +311,10 @@ fn test_rdw_underflow_error() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err(), "Should fail with underflow");
 
-    let error = result.unwrap_err();
-    assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKF221_RDW_UNDERFLOW),
+        Ok(_) => panic!("expected error CBKF221_RDW_UNDERFLOW"),
+    }
 }
 
 #[test]
@@ -440,12 +448,15 @@ fn test_rdw_error_context() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err());
 
-    let error = result.unwrap_err();
-
-    // Should have context information
-    if let Some(context) = &error.context {
-        // Should indicate record number or byte offset
-        assert!(context.record_index.is_some() || context.byte_offset.is_some());
+    match result {
+        Err(error) => {
+            // Should have context information
+            if let Some(context) = &error.context {
+                // Should indicate record number or byte offset
+                assert!(context.record_index.is_some() || context.byte_offset.is_some());
+            }
+        }
+        Ok(_) => panic!("expected error"),
     }
 }
 
@@ -488,11 +499,13 @@ fn test_rdw_partial_read_handling() {
     assert!(result.is_err(), "Should fail with partial read");
 
     // Should get appropriate error (could be underflow or read error)
-    let error = result.unwrap_err();
-    assert!(matches!(
-        error.code,
-        ErrorCode::CBKF221_RDW_UNDERFLOW | ErrorCode::CBKD301_RECORD_TOO_SHORT
-    ));
+    match result {
+        Err(error) => assert!(matches!(
+            error.code,
+            ErrorCode::CBKF221_RDW_UNDERFLOW | ErrorCode::CBKD301_RECORD_TOO_SHORT
+        )),
+        Ok(_) => panic!("expected error CBKF221_RDW_UNDERFLOW or CBKD301_RECORD_TOO_SHORT"),
+    }
 }
 
 #[test]

@@ -233,3 +233,5 @@ pub fn parse_copybook(text: &str) -> Result<Schema> {
 pub fn parse_copybook_with_options(text: &str, options: &ParseOptions) -> Result<Schema> {
     parser::parse_with_options(text, options)
 }
+
+// ci: trigger CI Quick check for docs-only PR #121

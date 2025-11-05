@@ -63,7 +63,7 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-nextest
+          tool: cargo-nextest,cargo-deny
 
       - uses: Swatinem/rust-cache@v2
 

@@ -269,11 +269,22 @@ Your PR should include:
 - [ ] Performance benchmarks validate (if applicable)
 - [ ] Breaking changes documented with migration guide
 
+### Benchmark Triggers
+
+Performance benchmarks are **opt-in** to reduce CI costs and execution time:
+
+- To run benchmarks on a PR, add the `perf:run` label
+- Benchmark results are advisory—PRs do not block on performance gates
+- Benchmark receipts (`perf.json`) are uploaded as artifacts:
+  - **PR runs**: 7-day retention
+  - **main branch**: 90-day retention
+- See [Performance Requirements](#performance-requirements) for current baselines
+
 ### Review Process
 
 - All changes require review from maintainers
 - Automated CI must pass
-- Performance benchmarks must validate
+- Performance benchmarks must validate (when triggered)
 - Documentation must be updated for user-facing changes
 
 ## Release Process
@@ -297,12 +308,14 @@ We follow semantic versioning (semver):
 
 ### Performance Requirements
 
-copybook-rs maintains strict performance targets:
+copybook-rs maintains established performance baselines (as of 2025-09-30, commit 1fa63633):
 
-- **DISPLAY-heavy**: ≥ 2.5 GiB/s throughput
-- **COMP-3-heavy**: ≥ 100 MiB/s throughput
+- **DISPLAY-heavy**: 205 MiB/s baseline (CI floor: ≥ 80 MiB/s)
+- **COMP-3-heavy**: 58 MiB/s baseline (CI floor: ≥ 40 MiB/s)
 - **Memory**: < 256 MiB steady-state for multi-GB files
-- **Variance**: < 5% across benchmark runs
+- **Variance**: ~5% (DISPLAY), ~8% (COMP-3) across benchmark runs
+
+Performance gates are **neutral/advisory** with realistic floors. See `copybook-bench/BASELINE_METHODOLOGY.md` for measurement procedures and `docs/REPORT.md` for detailed analysis.
 
 Changes that regress performance require justification and optimization.
 

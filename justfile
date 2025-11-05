@@ -8,6 +8,16 @@ set dotenv-load := true
 default:
     @just --list
 
+# Local-first CI scripts (match GitHub Actions workflows)
+quick:
+    bash scripts/ci/quick.sh
+
+sec:
+    bash scripts/ci/security.sh
+
+bench-ci:
+    bash scripts/ci/bench.sh
+
 # Build all workspace crates
 build:
     cargo build --workspace

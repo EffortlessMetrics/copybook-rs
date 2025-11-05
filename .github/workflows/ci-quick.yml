@@ -48,6 +48,15 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Fetch PR base for security diff
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin \
+            ${{ github.event.pull_request.base.sha }}:refs/remotes/origin/base
+          echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> $GITHUB_ENV
+          echo "HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

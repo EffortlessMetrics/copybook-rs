@@ -14,9 +14,12 @@ echo "==> Running cargo build --workspace --release"
 cargo build --workspace --release
 
 # Keep PRs fast & deterministic; bound jobs
-echo "==> Running cargo nextest (CI profile)"
-export NEXTEST_PROFILE=ci
-cargo nextest run --workspace --panic-abort -j "$(nproc --ignore=2)" --failure-output=immediate
+echo "==> Running cargo nextest (portable, leave 2 cores free)"
+# Determine parallel jobs portably (Linux/macOS/Windows)
+if command -v nproc >/dev/null 2>&1; then JOBS=$(nproc); else JOBS=$( (sysctl -n hw.ncpu 2>/dev/null || echo 2) ); fi
+JOBS=$(( JOBS>2 ? JOBS-2 : 1 ))
+# Abort on panic via RUSTFLAGS (nextest doesn't take --panic-abort)
+RUSTFLAGS="-C panic=abort" cargo nextest run --workspace -j "$JOBS" --failure-output=immediate
 
 # Doc tests (fail on warnings)
 echo "==> Running doc tests"

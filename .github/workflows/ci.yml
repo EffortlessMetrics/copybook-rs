@@ -3,10 +3,12 @@ name: CI
 on:
   push:
     branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  # Disabled for PRs - use CI Quick workflow instead
+  # pull_request:
+  #   branches: [ main, develop ]
   schedule:
     - cron: "23 3 * * *"
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always

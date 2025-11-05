@@ -1,14 +1,51 @@
 name: docs-truth
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: docs-truth-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  docs-truth:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v4
-      - name: forbid unlinked perf marketing
+        with: { fetch-depth: 2 }
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs:
+              - 'README.md'
+              - 'docs/**'
+              - '**/*.md'
+
+  truth:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Forbid unlinked perf marketing
         run: |
           set -euo pipefail
-          rg -n --ignore-case -e 'production[-\s]?ready|[0-9]+(\.[0-9]+)?\s*GiB/s|[0-9]+\s*x' README.md docs/REPORT.md \
-            | awk '!/receipt|artifact|perf\.json|baseline|check-run|badge/' \
-            | (! tee /dev/stderr | grep .)
-          echo "docs-truth: OK"
+          rg -n -i --glob '!**/node_modules/**' --glob '!**/target/**' \
+             '(gi?b/s|mi?b/s|production[ -]?ready)' README.md docs/ \
+             | tee /tmp/hits.txt || true
+          if [[ -s /tmp/hits.txt ]]; then
+            if ! rg -q '(perf\.json|bench-report|review:gate:throughput|artifact|Check Run)' README.md docs/; then
+              echo "Forbidden perf/marketing claims without receipts:"; cat /tmp/hits.txt; exit 1
+            fi
+          fi

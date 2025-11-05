@@ -123,13 +123,13 @@ jobs:
           echo "comp3=$comp"   >> "$GITHUB_OUTPUT"
           echo "rss=$rss"      >> "$GITHUB_OUTPUT"
           DISP="$disp" COMP="$comp" RSS="$rss" python - <<'PY' >> "$GITHUB_OUTPUT"
-import os
-disp = float(os.environ.get("DISP", "0"))
-comp = float(os.environ.get("COMP", "0"))
-rss = float(os.environ.get("RSS", "0"))
-ok = disp >= 80 and comp >= 40 and rss <= 256
-print(f"ok={'true' if ok else 'false'}")
-PY
+          import os
+          disp = float(os.environ.get("DISP", "0"))
+          comp = float(os.environ.get("COMP", "0"))
+          rss = float(os.environ.get("RSS", "0"))
+          ok = disp >= 80 and comp >= 40 and rss <= 256
+          print(f"ok={'true' if ok else 'false'}")
+          PY
 
       - name: Publish Throughput badge (neutral on fail)
         id: throughput

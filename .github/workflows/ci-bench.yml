@@ -1,0 +1,60 @@
+name: CI Bench (Receipts)
+on:
+  workflow_dispatch:
+    inputs:
+      retention:
+        description: 'Artifact retention days (PR: 7, main: 90)'
+        default: '7'
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: ci-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'perf:run')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run benches and produce perf.json
+        run: bash scripts/ci/bench.sh
+
+      - name: Upload perf.json (short retention on PRs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-${{ github.sha }}
+          path: target/perf.json
+          retention-days: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 90 || github.event.inputs.retention || 7 }}
+
+      - name: Summarize compare (non-fatal)
+        run: |
+          if [ -f target/perf.json ]; then
+            echo "## Benchmark Receipts" >> "$GITHUB_STEP_SUMMARY"
+            echo "Perf data captured in \`perf-${{ github.sha }}\` artifact" >> "$GITHUB_STEP_SUMMARY"
+
+            # Try to run compare if bench-report exists
+            if [ -f ./target/release/bench-report ]; then
+              ./target/release/bench-report compare target/perf.json >> "$GITHUB_STEP_SUMMARY" 2>&1 || {
+                echo "⚠️ Baseline comparison unavailable or failed (non-fatal)" >> "$GITHUB_STEP_SUMMARY"
+              }
+            fi
+          else
+            echo "⚠️ perf.json not generated" >> "$GITHUB_STEP_SUMMARY"
+          fi

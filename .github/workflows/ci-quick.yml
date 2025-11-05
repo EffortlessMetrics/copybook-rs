@@ -1,0 +1,72 @@
+name: CI Quick
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-quick-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'crates/**'
+              - 'copybook-*/**'
+              - 'Cargo.*'
+              - 'rust-toolchain*'
+              - 'scripts/ci/**'
+
+  test:
+    if: needs.changes.outputs.rust == 'true'
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Quick gates (fmt→clippy→build→nextest→doctests)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || 'HEAD' }}
+        run: |
+          bash scripts/ci/quick.sh
+
+      - name: Security (deny; audit only if Cargo.lock changed)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || 'HEAD' }}
+        run: |
+          bash scripts/ci/security.sh

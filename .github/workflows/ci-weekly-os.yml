@@ -1,0 +1,74 @@
+name: CI Weekly OS
+on:
+  schedule:
+    - cron: '23 3 * * 6'  # Weekly, Saturday 03:23 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ci-weekly-os
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run quick gates
+        run: bash scripts/ci/quick.sh
+
+  # Optional & infrequent to control costs
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 25
+    if: github.event_name == 'workflow_dispatch'  # run only on demand
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run quick gates
+        run: bash scripts/ci/quick.sh
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run quick gates
+        shell: bash
+        run: bash scripts/ci/quick.sh

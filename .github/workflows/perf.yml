@@ -1,6 +1,7 @@
 name: Perf Receipts
 on:
-  pull_request:
+  push:
+    branches: [main]
     paths:
       - "copybook-bench/**"
       - "copybook-codec/**"
@@ -8,6 +9,7 @@ on:
       - "scripts/bench.bat"
       - "scripts/guard-hotpaths.sh"
       - "justfile"
+  workflow_dispatch:
 
 concurrency:
   group: perf-${{ github.ref }}

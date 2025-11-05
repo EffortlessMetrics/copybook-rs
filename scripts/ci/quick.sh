@@ -18,8 +18,8 @@ echo "==> Running cargo nextest (portable, leave 2 cores free)"
 # Determine parallel jobs portably (Linux/macOS/Windows)
 if command -v nproc >/dev/null 2>&1; then JOBS=$(nproc); else JOBS=$( (sysctl -n hw.ncpu 2>/dev/null || echo 2) ); fi
 JOBS=$(( JOBS>2 ? JOBS-2 : 1 ))
-# Abort on panic via RUSTFLAGS (nextest doesn't take --panic-abort)
-RUSTFLAGS="-C panic=abort" cargo nextest run --workspace -j "$JOBS" --failure-output=immediate
+# Run tests with bounded parallelism (panic=abort requires nightly -Zpanic_abort_tests)
+cargo nextest run --workspace -j "$JOBS" --failure-output=immediate
 
 # Doc tests (fail on warnings)
 echo "==> Running doc tests"

@@ -82,6 +82,9 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
     // Detect and set tail ODO information
     detect_tail_odo(schema, &context);
 
+    // Resolve RENAMES (level-66) aliases
+    resolve_renames_aliases(&mut schema.fields)?;
+
     // Check for record size overflow
     if context.current_offset > MAX_RECORD_SIZE {
         return Err(error!(
@@ -605,6 +608,90 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
             array_path: array_field_name,
         });
     }
+}
+
+fn head_ident_of_qname(q: &str) -> &str {
+    // QNAME ::= IDENT ('OF' IDENT)* — we only need the head IDENT in PR A.
+    q.split_whitespace().next().unwrap_or(q)
+}
+
+fn find_sibling_index_by_qname(siblings: &[crate::schema::Field], qname: &str) -> Option<usize> {
+    let needle = head_ident_of_qname(qname).trim();
+    siblings
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.level != 66 && f.level != 88) // non-storage only
+        .find(|(_, f)| f.name.trim().eq_ignore_ascii_case(needle))
+        .map(|(i, _)| i)
+}
+
+/// Resolve RENAMES (level-66) aliases (post-order).
+/// PR A scope: same-scope resolution + contiguous slice → (offset, length, members).
+fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
+    use crate::error::ErrorCode;
+    use crate::schema::{FieldKind, ResolvedRenames};
+
+    // 1) Recurse first (post-order)
+    for f in fields.iter_mut() {
+        if !f.children.is_empty() {
+            resolve_renames_aliases(&mut f.children)?;
+        }
+    }
+
+    // 2) Resolve at this scope
+    let mut resolutions: Vec<(usize, u32, u32, Vec<String>)> = Vec::new();
+    for (idx, field) in fields.iter().enumerate() {
+        if let FieldKind::Renames {
+            ref from_field,
+            ref thru_field,
+        } = field.kind
+        {
+            let from_i = find_sibling_index_by_qname(fields, from_field).ok_or_else(|| {
+                error!(
+                    ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
+                    "RENAMES from field '{}' not found", from_field
+                )
+            })?;
+            let thru_i = find_sibling_index_by_qname(fields, thru_field).ok_or_else(|| {
+                error!(
+                    ErrorCode::CBKS602_RENAME_UNKNOWN_THRU,
+                    "RENAMES thru field '{}' not found", thru_field
+                )
+            })?;
+
+            if from_i > thru_i {
+                return Err(error!(
+                    ErrorCode::CBKS604_RENAME_REVERSED_RANGE,
+                    "RENAMES from '{}' comes after thru '{}'", from_field, thru_field
+                ));
+            }
+
+            // Compute (offset, length) and members (storage-bearing only).
+            let offset = fields[from_i].offset;
+            let end_offset = fields[thru_i].offset + fields[thru_i].len;
+            let length = end_offset - offset;
+            let mut members = Vec::new();
+            for i in from_i..=thru_i {
+                let lvl = fields[i].level;
+                if lvl != 66 && lvl != 88 {
+                    members.push(fields[i].path.clone());
+                }
+            }
+
+            resolutions.push((idx, offset, length, members));
+        }
+    }
+
+    // Second pass: apply resolutions
+    for (idx, offset, length, members) in resolutions {
+        fields[idx].resolved_renames = Some(ResolvedRenames {
+            offset,
+            length,
+            members,
+        });
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

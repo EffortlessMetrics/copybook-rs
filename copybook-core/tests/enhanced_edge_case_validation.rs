@@ -564,12 +564,60 @@ fn test_parsing_performance_characteristics() {
     );
 }
 
+/// Test VALUE clause range syntax errors (validates existing protection)
+#[test]
+fn test_level88_value_range_without_start() {
+    // Test that VALUE THRU 5 (without a start value) is properly rejected
+    // by the existing "requires at least one value" check
+    let copybook = "
+01 RECORD.
+   05 STATUS-CODE PIC X(3).
+   88 INVALID-RANGE VALUE THRU '999'.
+";
+
+    let result = parse_copybook(copybook);
+    assert!(
+        result.is_err(),
+        "VALUE range without start value should be rejected"
+    );
+
+    let err = result.unwrap_err();
+    let err_msg = err.to_string();
+    assert!(
+        err_msg.contains("VALUE clause requires at least one value"),
+        "Error should indicate VALUE clause requires value, got: {}",
+        err_msg
+    );
+
+    // Also test with THROUGH variant
+    let copybook_through = "
+01 RECORD.
+   05 STATUS-CODE PIC 9(3).
+   88 INVALID-RANGE VALUE THROUGH 100.
+";
+
+    let result_through = parse_copybook(copybook_through);
+    assert!(
+        result_through.is_err(),
+        "VALUE range (THROUGH) without start value should be rejected"
+    );
+
+    let err_through = result_through.unwrap_err();
+    let err_msg_through = err_through.to_string();
+    assert!(
+        err_msg_through.contains("VALUE clause requires at least one value"),
+        "Error should indicate VALUE clause requires value, got: {}",
+        err_msg_through
+    );
+}
+
 /// Meta-test to ensure comprehensive edge case coverage
 #[test]
 fn test_comprehensive_edge_case_coverage() {
     let edge_case_tests = [
         "test_level88_extreme_boundary_conditions",
         "test_level88_maximum_value_conditions",
+        "test_level88_value_range_without_start",
         "test_odo_extreme_boundary_values",
         "test_odo_invalid_configurations",
         "test_complex_redefines_overlapping_structures",
@@ -583,7 +631,7 @@ fn test_comprehensive_edge_case_coverage() {
 
     assert_eq!(
         edge_case_tests.len(),
-        11,
+        12,
         "Should have comprehensive edge case test coverage"
     );
 

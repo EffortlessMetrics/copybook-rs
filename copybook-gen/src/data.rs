@@ -169,8 +169,8 @@ fn fill_field_data(
                 invalid,
             );
         }
-        FieldKind::Group | FieldKind::Condition { .. } => {
-            // Groups and Level-88 fields are filled by their child fields or are metadata only
+        FieldKind::Group | FieldKind::Condition { .. } | FieldKind::Renames { .. } => {
+            // Groups, Level-88, and Level-66 RENAMES fields are filled by their child fields or are metadata only (parse-only Slice-1)
         }
     }
 
@@ -458,8 +458,8 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
                 }
             }
         }
-        FieldKind::Group | FieldKind::Condition { .. } => {
-            // Groups and Level-88 fields are handled by child fields or are metadata only
+        FieldKind::Group | FieldKind::Condition { .. } | FieldKind::Renames { .. } => {
+            // Groups, Level-88, and Level-66 RENAMES fields are handled by child fields or are metadata only (parse-only Slice-1)
         }
     }
 }

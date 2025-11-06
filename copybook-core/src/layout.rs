@@ -425,6 +425,7 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size
         FieldKind::Condition { .. } => (0, 1u64), // Level-88 fields don't consume storage
+        FieldKind::Renames { .. } => (0, 1u64), // Level-66 fields don't consume storage
     };
 
     let alignment = if synchronized && natural_alignment > 1 {

@@ -1091,6 +1091,17 @@ fn decode_scalar_field_value_standard(
             // Return structured representation for API consistency
             Ok(condition_value(values, "CONDITION"))
         }
+        FieldKind::Renames { .. } => {
+            // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
+            // Slice-2 will resolve alias ranges and project into concrete fields.
+            Err(Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!(
+                    "Cannot decode RENAMES field '{name}' as scalar (parse-only in Slice-1)",
+                    name = field.name
+                ),
+            ))
+        }
     }
 }
 
@@ -1152,6 +1163,17 @@ fn decode_scalar_field_value_with_scratch(
             ),
         )),
         FieldKind::Condition { values } => Ok(condition_value(values, "CONDITION")),
+        FieldKind::Renames { .. } => {
+            // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
+            // Slice-2 will resolve alias ranges and project into concrete fields.
+            Err(Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!(
+                    "Cannot decode RENAMES field '{name}' as scalar (parse-only in Slice-1)",
+                    name = field.name
+                ),
+            ))
+        }
     }
 }
 
@@ -1409,6 +1431,11 @@ fn encode_single_field(
             },
         ),
         FieldKind::Condition { .. } => Ok(current_offset),
+        FieldKind::Renames { .. } => {
+            // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
+            // Slice-2 will resolve alias ranges and project into concrete fields.
+            Ok(current_offset)
+        }
     }
 }
 

@@ -8,20 +8,6 @@ set dotenv-load := true
 default:
     @just --list
 
-# Local-first CI scripts (match GitHub Actions workflows)
-
-# Run quick CI checks (fmt → clippy → build → nextest → doctests)
-quick:
-    bash scripts/ci/quick.sh
-
-# Run security checks (cargo-deny always; cargo-audit when Cargo.lock changes)
-sec:
-    bash scripts/ci/security.sh
-
-# Run benchmarks and generate perf.json receipts (advisory; opt-in)
-bench-ci:
-    bash scripts/ci/bench.sh
-
 # Build all workspace crates
 build:
     cargo build --workspace

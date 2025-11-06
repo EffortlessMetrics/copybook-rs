@@ -34,7 +34,7 @@
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
 | Nested ODO | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
-| RENAMES (66-level) | ❌ Not Supported | N/A | Not implemented - see roadmap |
+| RENAMES (66-level) | ⚠️ Partially Supported | `renames_parser_tests.rs` (11 tests) | Parse support only (Issue #122 Slice-1); resolver/projection deferred to Slice-2 |
 
 ## Sign Handling
 
@@ -116,6 +116,46 @@ FieldKind::Condition { values } => condition_value(values, "CONDITION")
 **Layout Impact**: Level-88 fields consume zero bytes (`(0, 1u64)` in layout calculation), correctly implementing COBOL non-storage semantics.
 
 **Known Limitations**: None. Full support for Level-88 condition values including complex interactions with ODO and REDEFINES.
+
+## RENAMES (Level-66) - Support Status
+
+**Status**: ⚠️ **Partially Supported** (parse-only; Issue #122 Slice-1)
+
+**Evidence**:
+- **Parse Support**: `FieldKind::Renames { from_field: String, thru_field: String }` in schema AST
+- **Syntax Parsing**: Full support for `66 NAME RENAMES FROM THRU|THROUGH TO .` syntax
+- **Keyword Variants**: Both THRU and THROUGH accepted (COBOL synonyms)
+- **Test Coverage**: 11 comprehensive tests (`renames_parser_tests.rs`)
+  - 7 positive tests (basic syntax, keyword variants, field name patterns)
+  - 4 negative tests (missing keywords, wrong level, missing period)
+
+**API Integration**:
+```rust
+// Schema definition includes Level-66 RENAMES
+pub enum FieldKind {
+    Renames { from_field: String, thru_field: String },
+    // ... other field types
+}
+
+// Example: Parse RENAMES declaration
+// 66 CUSTOMER-HEADER RENAMES CUSTOMER-ID THRU CUSTOMER-NAME.
+```
+
+**Layout Impact**: Level-66 fields consume zero bytes (`(0, 1u64)` in layout calculation), implementing COBOL non-storage semantics for alias declarations.
+
+**Current Limitations**:
+- **Resolver/Projection Not Implemented**: Slice-1 provides parse-only support
+  - Field range validation deferred to Slice-2
+  - Qualified names (e.g., `FIELD OF GROUP`) deferred to Slice-2
+  - Memory aliasing projection deferred to Slice-2
+- **Codec Integration**: Not yet implemented; RENAMES fields are parsed but not resolved during encode/decode
+
+**Roadmap**:
+- **Slice-2** (Issue #122): Implement resolver/projection logic
+  - Validate from/thru field existence
+  - Calculate byte ranges for renamed regions
+  - Integrate with codec for encode/decode operations
+  - Support qualified field names
 
 ## Test Infrastructure Summary
 

@@ -101,6 +101,13 @@ pub enum FieldKind {
         /// Condition values (e.g., VALUE 'A', VALUE 1 THROUGH 5)
         values: Vec<String>,
     },
+    /// Level-66 RENAMES field (field aliasing/regrouping)
+    Renames {
+        /// Starting field name in the range
+        from_field: String,
+        /// Ending field name in the range
+        thru_field: String,
+    },
 }
 
 /// Array occurrence information
@@ -239,6 +246,10 @@ impl Schema {
             }
             FieldKind::Group => "Group".to_string(),
             FieldKind::Condition { values } => format!("Condition({values:?})"),
+            FieldKind::Renames {
+                from_field,
+                thru_field,
+            } => format!("Renames({from_field},{thru_field})"),
         };
         field_obj.insert("kind".to_string(), Value::String(kind_str));
 

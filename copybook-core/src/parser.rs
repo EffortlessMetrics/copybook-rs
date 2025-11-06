@@ -391,6 +391,7 @@ impl Parser {
             | FieldKind::BinaryInt { .. }
             | FieldKind::PackedDecimal { .. } => true,
             FieldKind::Condition { .. } => false, // Level-88 fields don't have storage
+            FieldKind::Renames { .. } => false,   // Level-66 fields don't have storage
         }
     }
 
@@ -441,9 +442,10 @@ impl Parser {
                 token: Token::Level66,
                 ..
             }) => {
-                // Skip 66-level (rename) entries
-                self.skip_to_period();
-                return Ok(None);
+                // Parse 66-level (RENAMES) entries
+                let level = 66;
+                self.advance();
+                level
             }
             Some(TokenPos {
                 token: Token::Level77,
@@ -548,6 +550,14 @@ impl Parser {
             ));
         }
 
+        // Validate that level-66 fields have RENAMES clause
+        if level == 66 && !matches!(field.kind, FieldKind::Renames { .. }) {
+            return Err(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!("Level-66 field '{}' must have RENAMES clause", field.name),
+            ));
+        }
+
         Ok(Some(field))
     }
 
@@ -573,6 +583,23 @@ impl Parser {
             }) => {
                 self.advance();
                 self.parse_redefines_clause(field)?;
+            }
+            Some(TokenPos {
+                token: Token::Renames,
+                ..
+            }) => {
+                // RENAMES clause (level-66 only)
+                if field.level == 66 {
+                    self.parse_renames(field)?;
+                } else {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        format!(
+                            "RENAMES clause can only be used with level-66, not level {}",
+                            field.level
+                        ),
+                    ));
+                }
             }
             Some(TokenPos {
                 token: Token::Occurs,
@@ -950,34 +977,55 @@ impl Parser {
             }
 
             // Check for THROUGH/THRU ranges or additional values
-            if let Some(TokenPos {
-                token: Token::Through,
-                ..
-            }) = self.current_token()
-            {
-                self.advance();
-                match self.current_token() {
-                    Some(TokenPos {
-                        token: Token::StringLiteral(s),
-                        ..
-                    }) => {
-                        // Replace last value with range notation
-                        if let Some(last) = values.last_mut() {
-                            *last = format!("{} THROUGH {}", last, s);
-                        }
-                        self.advance();
-                    }
-                    Some(TokenPos {
-                        token: Token::Number(n),
-                        ..
-                    }) => {
-                        if let Some(last) = values.last_mut() {
-                            *last = format!("{} THROUGH {}", last, n);
-                        }
-                        self.advance();
-                    }
-                    _ => break,
+            let range_keyword = match self.current_token() {
+                Some(TokenPos {
+                    token: Token::Through,
+                    ..
+                }) => {
+                    self.advance();
+                    "THROUGH"
                 }
+                Some(TokenPos {
+                    token: Token::Thru, ..
+                }) => {
+                    self.advance();
+                    "THRU"
+                }
+                _ => {
+                    // No range keyword, continue to next value/comma
+                    if let Some(TokenPos {
+                        token: Token::Comma,
+                        ..
+                    }) = self.current_token()
+                    {
+                        self.advance();
+                    }
+                    continue;
+                }
+            };
+
+            // Parse the range end value
+            match self.current_token() {
+                Some(TokenPos {
+                    token: Token::StringLiteral(s),
+                    ..
+                }) => {
+                    // Replace last value with range notation
+                    if let Some(last) = values.last_mut() {
+                        *last = format!("{} {} {}", last, range_keyword, s);
+                    }
+                    self.advance();
+                }
+                Some(TokenPos {
+                    token: Token::Number(n),
+                    ..
+                }) => {
+                    if let Some(last) = values.last_mut() {
+                        *last = format!("{} {} {}", last, range_keyword, n);
+                    }
+                    self.advance();
+                }
+                _ => break,
             }
 
             // Optionally consume a comma before the next value
@@ -993,6 +1041,84 @@ impl Parser {
 
         // Set field kind to Condition
         field.kind = FieldKind::Condition { values };
+
+        Ok(())
+    }
+
+    /// Parse Level-66 RENAMES clause
+    ///
+    /// Syntax: 66 NAME RENAMES from-field THROUGH|THRU thru-field.
+    fn parse_renames(&mut self, field: &mut Field) -> Result<()> {
+        // Expect RENAMES keyword
+        match self.current_token() {
+            Some(TokenPos {
+                token: Token::Renames,
+                ..
+            }) => {
+                self.advance();
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Expected RENAMES keyword after level-66 field name",
+                ));
+            }
+        }
+
+        // Parse from-field name
+        let from_field = match self.current_token() {
+            Some(TokenPos {
+                token: Token::Identifier(name),
+                ..
+            }) => {
+                let name = name.clone();
+                self.advance();
+                name
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Expected field name after RENAMES",
+                ));
+            }
+        };
+
+        // Expect THROUGH or THRU keyword
+        match self.current_token() {
+            Some(TokenPos { token: Token::Through | Token::Thru, .. }) => {
+                self.advance();
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Expected THROUGH or THRU keyword after from-field in RENAMES",
+                ));
+            }
+        }
+
+        // Parse thru-field name
+        let thru_field = match self.current_token() {
+            Some(TokenPos {
+                token: Token::Identifier(name),
+                ..
+            }) => {
+                let name = name.clone();
+                self.advance();
+                name
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Expected field name after THROUGH in RENAMES",
+                ));
+            }
+        };
+
+        // Set field kind to Renames
+        field.kind = FieldKind::Renames {
+            from_field,
+            thru_field,
+        };
 
         Ok(())
     }
@@ -1065,16 +1191,6 @@ impl Parser {
             }
         }
         Ok(())
-    }
-
-    /// Skip to the next period
-    fn skip_to_period(&mut self) {
-        while !self.is_at_end() && !self.check(&Token::Period) {
-            self.advance();
-        }
-        if self.check(&Token::Period) {
-            self.advance();
-        }
     }
 
     /// Skip comments and newlines

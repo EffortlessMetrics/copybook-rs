@@ -81,6 +81,12 @@ pub fn run(
             copybook_core::FieldKind::Condition { values } => {
                 format!("LEVEL-88: {values:?}")
             }
+            copybook_core::FieldKind::Renames {
+                from_field,
+                thru_field,
+            } => {
+                format!("RENAMES {from_field} THRU {thru_field}")
+            }
         };
 
         let details = if let Some(ref occurs) = field.occurs {

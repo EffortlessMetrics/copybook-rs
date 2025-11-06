@@ -172,7 +172,7 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
     // TODO: When encoding detection is implemented, ensure it maintains high throughput
     // For now, verify current implementation meets baseline expectations
     assert!(
-        throughput_gib_per_s > 0.01,
+        throughput_gib_per_s >= 0.01,
         "Throughput should be reasonable even without optimizations: {throughput_gib_per_s:.2} GiB/s"
     );
 
@@ -253,7 +253,7 @@ fn test_comp3_throughput_with_minimal_regression() -> Result<(), Box<dyn Error>>
     // Verify reasonable performance (different thresholds for debug vs release)
     let reasonable_threshold = if cfg!(debug_assertions) { 1.0 } else { 10.0 };
     assert!(
-        throughput_mib_per_s > reasonable_threshold,
+        throughput_mib_per_s >= reasonable_threshold,
         "COMP-3 throughput should be reasonable: {throughput_mib_per_s:.2} MiB/s"
     );
 
@@ -533,7 +533,7 @@ fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
 
     // Verify reasonable performance even at scale
     assert!(
-        throughput_mb_per_s > 1.0,
+        throughput_mb_per_s >= 1.0,
         "Large-scale throughput should be reasonable: {throughput_mb_per_s:.2} MB/s"
     );
 

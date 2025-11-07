@@ -671,10 +671,10 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
             let end_offset = fields[thru_i].offset + fields[thru_i].len;
             let length = end_offset - offset;
             let mut members = Vec::new();
-            for i in from_i..=thru_i {
-                let lvl = fields[i].level;
+            for field in &fields[from_i..=thru_i] {
+                let lvl = field.level;
                 if lvl != 66 && lvl != 88 {
-                    members.push(fields[i].path.clone());
+                    members.push(field.path.clone());
                 }
             }
 

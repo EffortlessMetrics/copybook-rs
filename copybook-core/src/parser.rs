@@ -136,9 +136,42 @@ impl Parser {
             // Set initial path
             field.path = field.name.clone();
 
+            // Special handling for level-88 (condition values) and level-66 (RENAMES)
+            if field.level == 88 {
+                // Level-88 is a child of the immediately preceding field
+                if let Some(parent) = stack.last_mut() {
+                    field.path = format!("{}.{}", parent.path, field.name);
+                    parent.children.push(field);
+                } else {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Level-88 condition must follow a data field".to_string(),
+                    ));
+                }
+                continue;
+            }
+
+            // Level-66 (RENAMES) is a non-storage sibling under the same parent group
+            let is_renames = field.level == 66;
+
+            // For RENAMES, determine the level to pop to (same level as preceding fields)
+            let renames_pop_level = if is_renames {
+                stack.last().map(|f| f.level)
+            } else {
+                None
+            };
+
             // Pop fields from stack that are at same or higher level
             while let Some(top) = stack.last() {
-                if top.level >= field.level {
+                let should_pop = if let Some(pop_level) = renames_pop_level {
+                    // For RENAMES: pop fields at same level as the immediately preceding field
+                    top.level >= pop_level
+                } else {
+                    // Normal numeric comparison for regular fields
+                    top.level >= field.level
+                };
+
+                if should_pop {
                     let mut completed_field = stack.pop_or_cbkp_error(
                         ErrorCode::CBKP001_SYNTAX,
                         "Parser stack underflow: expected field to pop but stack was empty",
@@ -160,6 +193,20 @@ impl Parser {
                 } else {
                     break;
                 }
+            }
+
+            // Level-66 goes into parent's children as a sibling, not on the stack
+            if is_renames {
+                if let Some(parent) = stack.last_mut() {
+                    field.path = format!("{}.{}", parent.path, field.name);
+                    parent.children.push(field);
+                } else {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Level-66 RENAMES must be within a group (01-49 level parent)".to_string(),
+                    ));
+                }
+                continue;
             }
 
             // Update path if we have a parent
@@ -1045,9 +1092,63 @@ impl Parser {
         Ok(())
     }
 
+    /// Parse a qualified name (QNAME): IDENT (OF IDENT)*
+    fn parse_qualified_name(&mut self) -> Result<String> {
+        let mut parts = Vec::new();
+
+        // Parse first identifier
+        match self.current_token() {
+            Some(TokenPos {
+                token: Token::Identifier(name),
+                ..
+            }) => {
+                parts.push(name.clone());
+                self.advance();
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Expected identifier in qualified name",
+                ));
+            }
+        }
+
+        // Parse optional "OF IDENT" sequences
+        loop {
+            match self.current_token() {
+                Some(TokenPos {
+                    token: Token::Identifier(name),
+                    ..
+                }) if name.eq_ignore_ascii_case("OF") => {
+                    self.advance(); // consume OF
+                    match self.current_token() {
+                        Some(TokenPos {
+                            token: Token::Identifier(next_name),
+                            ..
+                        }) => {
+                            parts.push("OF".to_string());
+                            parts.push(next_name.clone());
+                            self.advance();
+                        }
+                        _ => {
+                            return Err(Error::new(
+                                ErrorCode::CBKP001_SYNTAX,
+                                "Expected identifier after OF in qualified name",
+                            ));
+                        }
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        Ok(parts.join(" "))
+    }
+
     /// Parse Level-66 RENAMES clause
     ///
     /// Syntax: 66 NAME RENAMES from-field THROUGH|THRU thru-field.
+    /// Field names can be qualified: IDENT (OF IDENT)*
     fn parse_renames(&mut self, field: &mut Field) -> Result<()> {
         // Expect RENAMES keyword
         match self.current_token() {
@@ -1065,27 +1166,15 @@ impl Parser {
             }
         }
 
-        // Parse from-field name
-        let from_field = match self.current_token() {
-            Some(TokenPos {
-                token: Token::Identifier(name),
-                ..
-            }) => {
-                let name = name.clone();
-                self.advance();
-                name
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorCode::CBKP001_SYNTAX,
-                    "Expected field name after RENAMES",
-                ));
-            }
-        };
+        // Parse from-field qualified name
+        let from_field = self.parse_qualified_name()?;
 
         // Expect THROUGH or THRU keyword
         match self.current_token() {
-            Some(TokenPos { token: Token::Through | Token::Thru, .. }) => {
+            Some(TokenPos {
+                token: Token::Through | Token::Thru,
+                ..
+            }) => {
                 self.advance();
             }
             _ => {
@@ -1096,23 +1185,8 @@ impl Parser {
             }
         }
 
-        // Parse thru-field name
-        let thru_field = match self.current_token() {
-            Some(TokenPos {
-                token: Token::Identifier(name),
-                ..
-            }) => {
-                let name = name.clone();
-                self.advance();
-                name
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorCode::CBKP001_SYNTAX,
-                    "Expected field name after THROUGH in RENAMES",
-                ));
-            }
-        };
+        // Parse thru-field qualified name
+        let thru_field = self.parse_qualified_name()?;
 
         // Set field kind to Renames
         field.kind = FieldKind::Renames {

@@ -152,14 +152,36 @@ impl Parser {
             }
 
             // Level-66 (RENAMES) is a non-storage sibling under the same parent group
+            // Level-77 is an independent item (not within any group)
             let is_renames = field.level == 66;
+            let is_independent = field.level == 77;
 
-            // Special handling for RENAMES: pop non-group frames, keep parent group on stack
+            // Special handling for level-77: pop everything and add to result
+            if is_independent {
+                // Pop all fields from stack to result
+                while let Some(mut completed_field) = stack.pop() {
+                    if !completed_field.children.is_empty() {
+                        completed_field.kind = FieldKind::Group;
+                    }
+                    if let Some(parent) = stack.last_mut() {
+                        completed_field.path = format!("{}.{}", parent.path, completed_field.name);
+                        parent.children.push(completed_field);
+                    } else {
+                        result.push(completed_field);
+                    }
+                }
+                // Add level-77 directly to result (not to stack, it's independent)
+                result.push(field);
+                continue;
+            }
+
+            // Special handling for RENAMES: pop sibling fields, keep parent on stack
             if is_renames {
-                // Pop non-group frames so the parent group is on top
+                // Pop fields until we reach a parent group level (01-49)
+                // Level 66 must be within a group, so keep popping until we find level 1-49
                 while let Some(top) = stack.last() {
-                    // Keep the parent group on the stack; only pop non-groups
-                    if matches!(top.kind, FieldKind::Group) {
+                    // Keep parent group levels (01-49) on stack
+                    if top.level >= 1 && top.level <= 49 {
                         break;
                     }
                     let mut completed_field = stack.pop_or_cbkp_error(

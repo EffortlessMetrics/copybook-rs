@@ -301,6 +301,9 @@ impl ErrorReporter {
             // Schema errors can be fatal or errors depending on context
             ErrorCode::CBKS121_COUNTER_NOT_FOUND
             | ErrorCode::CBKS141_RECORD_TOO_LARGE
+            | ErrorCode::CBKS601_RENAME_UNKNOWN_FROM
+            | ErrorCode::CBKS602_RENAME_UNKNOWN_THRU
+            | ErrorCode::CBKS604_RENAME_REVERSED_RANGE
             | ErrorCode::CBKE505_SCALE_MISMATCH
             | ErrorCode::CBKE510_NUMERIC_OVERFLOW
             | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => ErrorSeverity::Fatal,

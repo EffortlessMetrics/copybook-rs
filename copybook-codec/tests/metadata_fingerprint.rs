@@ -78,6 +78,7 @@ fn test_streaming_metadata_fingerprint_matches_schema() -> TestResult {
         sync_padding: None,
         synchronized: false,
         blank_when_zero: false,
+        resolved_renames: None,
         children: vec![],
     };
     let schema = Schema::from_fields(vec![field]);

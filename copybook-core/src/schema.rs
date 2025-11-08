@@ -57,6 +57,8 @@ pub struct Field {
     pub synchronized: bool,
     /// Whether field has BLANK WHEN ZERO
     pub blank_when_zero: bool,
+    /// Resolved RENAMES information (for level-66 fields only)
+    pub resolved_renames: Option<ResolvedRenames>,
     /// Child fields (for groups)
     pub children: Vec<Field>,
 }
@@ -108,6 +110,17 @@ pub enum FieldKind {
         /// Ending field name in the range
         thru_field: String,
     },
+}
+
+/// Resolved RENAMES (level-66) alias information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResolvedRenames {
+    /// Byte offset of the aliased range
+    pub offset: u32,
+    /// Total byte length of the aliased range
+    pub length: u32,
+    /// Paths of fields covered by this alias (in document order)
+    pub members: Vec<String>,
 }
 
 /// Array occurrence information
@@ -362,6 +375,7 @@ impl Field {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
+            resolved_renames: None,
             children: Vec::new(),
         }
     }
@@ -381,6 +395,7 @@ impl Field {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
+            resolved_renames: None,
             children: Vec::new(),
         }
     }

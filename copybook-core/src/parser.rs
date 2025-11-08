@@ -154,24 +154,40 @@ impl Parser {
             // Level-66 (RENAMES) is a non-storage sibling under the same parent group
             let is_renames = field.level == 66;
 
-            // For RENAMES, determine the level to pop to (same level as preceding fields)
-            let renames_pop_level = if is_renames {
-                stack.last().map(|f| f.level)
-            } else {
-                None
-            };
+            // Special handling for RENAMES: pop non-group frames, keep parent group on stack
+            if is_renames {
+                // Pop non-group frames so the parent group is on top
+                while let Some(top) = stack.last() {
+                    // Keep the parent group on the stack; only pop non-groups
+                    if matches!(top.kind, FieldKind::Group) {
+                        break;
+                    }
+                    let mut completed_field = stack.pop_or_cbkp_error(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Parser stack underflow while attaching RENAMES",
+                    )?;
+                    if let Some(parent) = stack.last_mut() {
+                        completed_field.path = format!("{}.{}", parent.path, completed_field.name);
+                        parent.children.push(completed_field);
+                    } else {
+                        result.push(completed_field);
+                    }
+                }
 
-            // Pop fields from stack that are at same or higher level
+                let parent = stack.last_mut().ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Level-66 RENAMES must be within a group (01-49 level parent)".to_string(),
+                    )
+                })?;
+                field.path = format!("{}.{}", parent.path, field.name);
+                parent.children.push(field);
+                continue;
+            }
+
+            // Pop fields from stack that are at same or higher level (normal fields)
             while let Some(top) = stack.last() {
-                let should_pop = if let Some(pop_level) = renames_pop_level {
-                    // For RENAMES: pop fields at same level as the immediately preceding field
-                    top.level >= pop_level
-                } else {
-                    // Normal numeric comparison for regular fields
-                    top.level >= field.level
-                };
-
-                if should_pop {
+                if top.level >= field.level {
                     let mut completed_field = stack.pop_or_cbkp_error(
                         ErrorCode::CBKP001_SYNTAX,
                         "Parser stack underflow: expected field to pop but stack was empty",
@@ -193,20 +209,6 @@ impl Parser {
                 } else {
                     break;
                 }
-            }
-
-            // Level-66 goes into parent's children as a sibling, not on the stack
-            if is_renames {
-                if let Some(parent) = stack.last_mut() {
-                    field.path = format!("{}.{}", parent.path, field.name);
-                    parent.children.push(field);
-                } else {
-                    return Err(Error::new(
-                        ErrorCode::CBKP001_SYNTAX,
-                        "Level-66 RENAMES must be within a group (01-49 level parent)".to_string(),
-                    ));
-                }
-                continue;
             }
 
             // Update path if we have a parent

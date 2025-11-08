@@ -668,12 +668,21 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
 
             // Compute (offset, length) and members (storage-bearing only).
             let offset = fields[from_i].offset;
-            let end_offset = fields[thru_i].offset + fields[thru_i].len;
-            let length = end_offset - offset;
+            let end_offset_u64 = (fields[thru_i].offset as u64) + (fields[thru_i].len as u64);
+            let length: u32 = (end_offset_u64 - (offset as u64))
+                .try_into()
+                .map_err(|_| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "RENAMES alias '{}' exceeds maximum size",
+                        field.name
+                    )
+                })?;
             let mut members = Vec::new();
             for field in &fields[from_i..=thru_i] {
                 let lvl = field.level;
                 if lvl != 66 && lvl != 88 {
+                    // storage-bearing only (exclude non-storage fields: 66, 88)
                     members.push(field.path.clone());
                 }
             }

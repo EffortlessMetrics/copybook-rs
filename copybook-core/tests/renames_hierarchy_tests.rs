@@ -4,6 +4,7 @@
 //! of the aliased fields under the same parent group, not at schema root.
 
 #![allow(clippy::unwrap_used)]
+#![allow(clippy::expect_used)]
 
 use copybook_core::{FieldKind, parse_copybook};
 

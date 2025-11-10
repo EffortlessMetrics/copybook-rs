@@ -152,56 +152,42 @@ impl Parser {
             }
 
             // Level-66 (RENAMES) is a non-storage sibling under the same parent group
-            // Level-77 is an independent item (not within any group)
             let is_renames = field.level == 66;
-            let is_independent = field.level == 77;
-
-            // Special handling for level-77: pop everything and add to result
-            if is_independent {
-                // Pop all fields from stack to result
-                while let Some(mut completed_field) = stack.pop() {
-                    if !completed_field.children.is_empty() {
-                        completed_field.kind = FieldKind::Group;
-                    }
-                    if let Some(parent) = stack.last_mut() {
-                        completed_field.path = format!("{}.{}", parent.path, completed_field.name);
-                        parent.children.push(completed_field);
-                    } else {
-                        result.push(completed_field);
-                    }
-                }
-                // Add level-77 directly to result (not to stack, it's independent)
-                result.push(field);
-                continue;
-            }
 
             // Special handling for RENAMES: pop sibling fields, keep parent on stack
             if is_renames {
-                // Pop fields until we reach a parent group level (01-49)
-                // Level 66 must be within a group, so keep popping until we find level 1-49
+                // Pop all fields until we reach level-01
+                // Collect them to add as siblings alongside the RENAMES field
+                let mut popped_fields = Vec::new();
                 while let Some(top) = stack.last() {
-                    // Keep parent group levels (01-49) on stack
-                    if top.level >= 1 && top.level <= 49 {
+                    // Keep only level-01 on stack
+                    if top.level == 1 {
                         break;
                     }
                     let mut completed_field = stack.pop_or_cbkp_error(
                         ErrorCode::CBKP001_SYNTAX,
                         "Parser stack underflow while attaching RENAMES",
                     )?;
-                    if let Some(parent) = stack.last_mut() {
-                        completed_field.path = format!("{}.{}", parent.path, completed_field.name);
-                        parent.children.push(completed_field);
-                    } else {
-                        result.push(completed_field);
+                    if !completed_field.children.is_empty() {
+                        completed_field.kind = FieldKind::Group;
                     }
+                    popped_fields.push(completed_field);
                 }
 
                 let parent = stack.last_mut().ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKP001_SYNTAX,
-                        "Level-66 RENAMES must be within a group (01-49 level parent)".to_string(),
+                        "Level-66 RENAMES must be within a level-01 record group".to_string(),
                     )
                 })?;
+
+                // Add all popped fields as children of the parent (in reverse order to maintain original order)
+                for mut f in popped_fields.into_iter().rev() {
+                    f.path = format!("{}.{}", parent.path, f.name);
+                    parent.children.push(f);
+                }
+
+                // Add the RENAMES field itself
                 field.path = format!("{}.{}", parent.path, field.name);
                 parent.children.push(field);
                 continue;
@@ -246,6 +232,12 @@ impl Parser {
             // If this field has children, make it a group
             if !field.children.is_empty() {
                 field.kind = FieldKind::Group;
+            }
+
+            // Level-77 is an independent item, always goes to result (not under a parent)
+            if field.level == 77 {
+                result.push(field);
+                continue;
             }
 
             // Add to parent or result

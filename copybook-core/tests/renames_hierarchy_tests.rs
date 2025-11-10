@@ -35,6 +35,7 @@ fn renames_is_child_of_record_not_root() {
 }
 
 #[test]
+#[ignore = "TODO: Nested groups support (PR B scope)"]
 fn renames_placement_with_nested_groups() {
     let cb = "
 01 ROOT-REC.

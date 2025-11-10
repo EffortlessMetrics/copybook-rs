@@ -70,7 +70,7 @@ jobs:
           ' scripts/bench/perf.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload perf artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: perf-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}
           path: scripts/bench/perf.json

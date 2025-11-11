@@ -10,8 +10,8 @@
 
 mod test_utils;
 
-use assert_cmd::cargo::cargo_bin_cmd;
 use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use std::fs;
 use tempfile::TempDir;
 use test_utils::{TestResult, path_to_str};

@@ -43,6 +43,11 @@ allow = [
     "AGPL-3.0-or-later",
 ]
 
+# Add exceptions surgically for crates that include OpenSSL text
+exceptions = [
+    { name = "aws-lc-sys", version = "*", allow = ["OpenSSL"] },
+]
+
 [bans]
 # Lint level for when multiple versions of the same crate are detected
 multiple-versions = "warn"

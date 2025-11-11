@@ -103,6 +103,7 @@ fn test_encoding_detection_overhead_within_limits() -> Result<(), Box<dyn Error>
 
 /// AC10: Test DISPLAY throughput ≥4.1 GiB/s with encoding detection
 /// Tests performance spec: SPEC.manifest.yml#display-throughput-targets
+#[cfg_attr(not(feature = "perf"), ignore = "perf-only")]
 #[test]
 fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error>> {
     // Create large DISPLAY data for throughput testing
@@ -189,6 +190,7 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
 
 /// AC10: Test COMP-3 throughput ≥560 MiB/s with minimal regression
 /// Tests performance spec: SPEC.manifest.yml#comp3-throughput-targets
+#[cfg_attr(not(feature = "perf"), ignore = "perf-only")]
 #[test]
 fn test_comp3_throughput_with_minimal_regression() -> Result<(), Box<dyn Error>> {
     // Create COMP-3 heavy data for throughput testing

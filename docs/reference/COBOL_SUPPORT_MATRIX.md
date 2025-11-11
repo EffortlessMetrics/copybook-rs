@@ -96,8 +96,9 @@ See [ERROR_CODES.md](ERROR_CODES.md) for complete reference.
 - **Parse Support**: `FieldKind::Condition { values: Vec<String> }` in schema AST
 - **Codec Support**: Non-storage semantic handling in decode/encode paths
 - **Structural Validation**: Level-88 allowed after ODO (non-storage element)
+- **VALUE Clause Syntax**: Both space-separated and comma-separated VALUE lists supported (ANSI COBOL-85 §4.1.2.4.3, IBM Enterprise COBOL) - Issue #86
 - **Golden Fixtures**: 638 lines (`golden_fixtures_ac2_level88_after_odo.rs`) + 838 lines (`golden_fixtures_ac5_redefines_level88_interactions.rs`)
-- **Test Results**: 6 passing tests in AC2, 8 passing tests in AC5
+- **Test Results**: 6 passing tests in AC2, 8 passing tests in AC5, 10 additional comma syntax tests (`test_level88_comma_support.rs`)
 - **Enterprise Scenarios**: Healthcare, banking, inventory management with condition values
 
 **API Integration**:

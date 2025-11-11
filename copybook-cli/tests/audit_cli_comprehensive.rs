@@ -399,12 +399,10 @@ fn test_audit_command_error_handling() -> TestResult<()> {
     // Platform-agnostic file not found error check
     // Unix: "No such file"
     // Windows: "The system cannot find the file specified"
-    cmd.assert()
-        .failure()
-        .stderr(
-            predicate::str::contains("No such file")
-                .or(predicate::str::contains("cannot find the file"))
-        );
+    cmd.assert().failure().stderr(
+        predicate::str::contains("No such file")
+            .or(predicate::str::contains("cannot find the file")),
+    );
     Ok(())
 }
 

@@ -62,7 +62,8 @@ jobs:
         tool: nextest@0.9.11
         checksum: true
     - name: Guard nextest pin
-      if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
+      if: runner.os == 'Linux' && matrix.rust == 'stable' && matrix.features == ''
+      shell: bash
       run: |
         set -euo pipefail
         grep -qE '^\s+tool:\s*nextest@0\.9\.11\s*$' .github/workflows/ci.yml || {
@@ -71,7 +72,8 @@ jobs:
         }
         echo "✅ Nextest pinned to 0.9.11"
     - name: Guard bench exclusion in Test Suite
-      if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
+      if: runner.os == 'Linux' && matrix.rust == 'stable' && matrix.features == ''
+      shell: bash
       run: |
         set -euo pipefail
 

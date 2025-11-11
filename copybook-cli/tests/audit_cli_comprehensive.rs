@@ -396,9 +396,13 @@ fn test_audit_command_error_handling() -> TestResult<()> {
         .arg(&output_file2)
         .arg("nonexistent_file.cpy");
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("No such file"));
+    // Platform-agnostic file not found error check
+    // Unix: "No such file"
+    // Windows: "The system cannot find the file specified"
+    cmd.assert().failure().stderr(
+        predicate::str::contains("No such file")
+            .or(predicate::str::contains("cannot find the file")),
+    );
     Ok(())
 }
 

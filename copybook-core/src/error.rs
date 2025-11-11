@@ -80,6 +80,22 @@ pub enum ErrorCode {
     CBKS301_ODO_CLIPPED,
     /// CBKS302: ODO count raised to minimum required value (warning)
     CBKS302_ODO_RAISED,
+    /// CBKS601: RENAMES from field not found in scope
+    CBKS601_RENAME_UNKNOWN_FROM,
+    /// CBKS602: RENAMES thru field not found in scope
+    CBKS602_RENAME_UNKNOWN_THRU,
+    /// CBKS603: RENAMES range is not contiguous (gap between from and thru)
+    CBKS603_RENAME_NOT_CONTIGUOUS,
+    /// CBKS604: RENAMES range is reversed (from comes after thru)
+    CBKS604_RENAME_REVERSED_RANGE,
+    /// CBKS605: RENAMES from field crosses group boundary
+    CBKS605_RENAME_FROM_CROSSES_GROUP,
+    /// CBKS606: RENAMES thru field crosses group boundary
+    CBKS606_RENAME_THRU_CROSSES_GROUP,
+    /// CBKS607: RENAMES range crosses OCCURS boundary
+    CBKS607_RENAME_CROSSES_OCCURS,
+    /// CBKS608: RENAMES qualified name not found
+    CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND,
 
     // =============================================================================
     // Record Errors (CBKR*) - Record format and RDW processing
@@ -166,6 +182,16 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKS141_RECORD_TOO_LARGE => "CBKS141_RECORD_TOO_LARGE",
             ErrorCode::CBKS301_ODO_CLIPPED => "CBKS301_ODO_CLIPPED",
             ErrorCode::CBKS302_ODO_RAISED => "CBKS302_ODO_RAISED",
+            ErrorCode::CBKS601_RENAME_UNKNOWN_FROM => "CBKS601_RENAME_UNKNOWN_FROM",
+            ErrorCode::CBKS602_RENAME_UNKNOWN_THRU => "CBKS602_RENAME_UNKNOWN_THRU",
+            ErrorCode::CBKS603_RENAME_NOT_CONTIGUOUS => "CBKS603_RENAME_NOT_CONTIGUOUS",
+            ErrorCode::CBKS604_RENAME_REVERSED_RANGE => "CBKS604_RENAME_REVERSED_RANGE",
+            ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP => "CBKS605_RENAME_FROM_CROSSES_GROUP",
+            ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP => "CBKS606_RENAME_THRU_CROSSES_GROUP",
+            ErrorCode::CBKS607_RENAME_CROSSES_OCCURS => "CBKS607_RENAME_CROSSES_OCCURS",
+            ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND => {
+                "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND"
+            }
             ErrorCode::CBKR211_RDW_RESERVED_NONZERO => "CBKR211_RDW_RESERVED_NONZERO",
             ErrorCode::CBKC201_JSON_WRITE_ERROR => "CBKC201_JSON_WRITE_ERROR",
             ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => "CBKC301_INVALID_EBCDIC_BYTE",
@@ -206,7 +232,15 @@ impl ErrorCode {
             Self::CBKS121_COUNTER_NOT_FOUND
             | Self::CBKS141_RECORD_TOO_LARGE
             | Self::CBKS301_ODO_CLIPPED
-            | Self::CBKS302_ODO_RAISED => "CBKS",
+            | Self::CBKS302_ODO_RAISED
+            | Self::CBKS601_RENAME_UNKNOWN_FROM
+            | Self::CBKS602_RENAME_UNKNOWN_THRU
+            | Self::CBKS603_RENAME_NOT_CONTIGUOUS
+            | Self::CBKS604_RENAME_REVERSED_RANGE
+            | Self::CBKS605_RENAME_FROM_CROSSES_GROUP
+            | Self::CBKS606_RENAME_THRU_CROSSES_GROUP
+            | Self::CBKS607_RENAME_CROSSES_OCCURS
+            | Self::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND => "CBKS",
             Self::CBKR211_RDW_RESERVED_NONZERO => "CBKR",
             Self::CBKC201_JSON_WRITE_ERROR | Self::CBKC301_INVALID_EBCDIC_BYTE => "CBKC",
             Self::CBKD101_INVALID_FIELD_TYPE

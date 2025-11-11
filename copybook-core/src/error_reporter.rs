@@ -303,7 +303,12 @@ impl ErrorReporter {
             | ErrorCode::CBKS141_RECORD_TOO_LARGE
             | ErrorCode::CBKS601_RENAME_UNKNOWN_FROM
             | ErrorCode::CBKS602_RENAME_UNKNOWN_THRU
+            | ErrorCode::CBKS603_RENAME_NOT_CONTIGUOUS
             | ErrorCode::CBKS604_RENAME_REVERSED_RANGE
+            | ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP
+            | ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP
+            | ErrorCode::CBKS607_RENAME_CROSSES_OCCURS
+            | ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
             | ErrorCode::CBKE505_SCALE_MISMATCH
             | ErrorCode::CBKE510_NUMERIC_OVERFLOW
             | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => ErrorSeverity::Fatal,

@@ -9,11 +9,11 @@
 //! - AC8: Default behavior remains unchanged for backward compatibility
 //! - Byte-perfect data integrity for enterprise mainframe workflows
 
+use assert_cmd::cargo::cargo_bin_cmd;
 use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
 use std::fs;
-use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
@@ -110,36 +110,8 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
     fs::write(&original_data_path, b"\x31\x32\x33\x34\x35")?; // ASCII "12345"
 
     // Decode with current implementation (no preservation yet)
-    let binary_path = std::env::var("CARGO_BIN_EXE_copybook").unwrap_or_else(|_| {
-        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-        let project_root = Path::new(&manifest_dir).parent().unwrap();
-        let mut debug_path = project_root.join("target/debug/copybook");
-        let mut release_path = project_root.join("target/release/copybook");
-
-        if !debug_path.exists() && !release_path.exists() {
-            let status = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
-                .current_dir(project_root)
-                .args(["build", "-p", "copybook-cli"])
-                .status()
-                .expect("failed to invoke cargo to build copybook-cli");
-            assert!(
-                status.success(),
-                "building copybook-cli binary should succeed"
-            );
-            debug_path = project_root.join("target/debug/copybook");
-            release_path = project_root.join("target/release/copybook");
-        }
-
-        debug_path
-            .exists()
-            .then_some(debug_path)
-            .or_else(|| release_path.exists().then_some(release_path))
-            .expect("copybook CLI binary should exist after build")
-            .to_string_lossy()
-            .into_owned()
-    });
-
-    let decode_output = Command::new(&binary_path)
+    // Use cargo_bin_cmd! for robust cross-platform CLI path resolution
+    let decode_output = cargo_bin_cmd!("copybook")
         .args([
             "decode",
             // "--preserve-encoding", // TODO: Add when implemented
@@ -163,7 +135,7 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
     );
 
     // Encode with current implementation (no preservation yet)
-    let encode_output = Command::new(&binary_path)
+    let encode_output = cargo_bin_cmd!("copybook")
         .args([
             "encode",
             // "--zoned-encoding", "ascii", // TODO: Add when implemented

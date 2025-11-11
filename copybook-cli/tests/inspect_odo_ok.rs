@@ -1,8 +1,7 @@
 mod test_utils;
 
-use assert_cmd::prelude::*;
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
-use std::process::Command;
 use test_utils::{TestResult, path_to_str};
 
 #[test]
@@ -22,13 +21,13 @@ fn odo_copybook_loads_in_both_modes() -> TestResult<()> {
     let copybook_str = path_to_str(f.path())?;
 
     // Test that ODO copybook loads successfully (lenient mode)
-    Command::cargo_bin("copybook")?
+    cargo_bin_cmd!("copybook")
         .args(["inspect", copybook_str])
         .assert()
         .success();
 
     // strict
-    Command::cargo_bin("copybook")?
+    cargo_bin_cmd!("copybook")
         .args(["inspect", "--strict", copybook_str])
         .assert()
         .success();

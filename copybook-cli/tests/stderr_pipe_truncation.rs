@@ -2,7 +2,6 @@
 #![allow(clippy::panic)]
 mod common;
 
-use assert_cmd::cargo::cargo_bin;
 use common::TestResult;
 use os_pipe::pipe;
 use std::path::PathBuf;
@@ -32,8 +31,7 @@ fn inspect_success_with_closed_stderr_pipe_exits_zero() -> TestResult<()> {
     drop(reader);
 
     let copybook = simple_copybook_fixture();
-    let bin = cargo_bin("copybook");
-    let mut cmd = Command::new(bin);
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_copybook"));
     cmd.arg("inspect")
         .arg(&copybook)
         .stdout(Stdio::null())
@@ -53,8 +51,7 @@ fn run_decode_with_closed_stderr(strict_policy: bool) -> TestResult<ExitStatus> 
     let temp_dir = TempDir::new()?;
     let output = temp_dir.path().join("decode-output.jsonl");
 
-    let bin = cargo_bin("copybook");
-    let mut cmd = Command::new(bin);
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_copybook"));
     if strict_policy {
         cmd.arg("--strict-policy");
     }

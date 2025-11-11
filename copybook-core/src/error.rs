@@ -3,6 +3,8 @@
 //! This module defines a comprehensive error taxonomy with stable error codes
 //! for all failure modes in the copybook processing system.
 
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::fmt;
 use thiserror::Error;
 
@@ -10,25 +12,24 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Main error type for copybook operations
+///
+/// Uses `Cow<'static, str>` for zero-allocation static messages while supporting
+/// dynamic error messages when needed. The `#[error]` attribute provides automatic
+/// Display implementation following the format: `{code}: {message} ({context})`.
 #[derive(Error, Debug, Clone, PartialEq)]
+#[error("{code}: {message}{}", .context.as_ref().map(|c| format!(" ({})", c)).unwrap_or_default())]
 pub struct Error {
     /// Stable error code for programmatic handling
     pub code: ErrorCode,
+
     /// Human-readable error message
-    pub message: String,
+    ///
+    /// Uses `Cow<'static, str>` to avoid allocations for static error messages
+    /// while supporting dynamic formatting when needed.
+    pub message: Cow<'static, str>,
+
     /// Optional context information
     pub context: Option<ErrorContext>,
-}
-
-impl fmt::Display for Error {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.code, self.message)?;
-        if let Some(ref ctx) = self.context {
-            write!(f, " ({ctx})")?;
-        }
-        Ok(())
-    }
 }
 
 impl Error {
@@ -50,11 +51,14 @@ impl Error {
 /// - **CBKS**: Schema validation and ODO processing
 /// - **CBKR**: Record format and RDW processing
 /// - **CBKC**: Character conversion and encoding
-/// - **CBKD**: Data decoding and field validation  
-/// - **CBKE**: Encoding and JSON serialization  
-/// - **CBKF**: File format and structure validation  
+/// - **CBKD**: Data decoding and field validation
+/// - **CBKE**: Encoding and JSON serialization
+/// - **CBKF**: File format and structure validation
 /// - **CBKI**: Iterator and infrastructure state validation (e.g., fixed-format without LRECL -> `CBKI001_INVALID_STATE`)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// Implements `Serialize`/`Deserialize` for error code persistence and API responses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[allow(non_camel_case_types)] // These are stable external error codes
 pub enum ErrorCode {
     // =============================================================================
@@ -333,21 +337,32 @@ impl Error {
     /// should be chosen from the stable `ErrorCode` taxonomy to enable
     /// programmatic error handling.
     ///
+    /// Uses `Cow<'static, str>` internally to avoid allocations for static
+    /// error messages while supporting dynamic formatting when needed.
+    ///
     /// # Arguments
     /// * `code` - Stable error code from the copybook-rs taxonomy
-    /// * `message` - Human-readable error description
+    /// * `message` - Human-readable error description (static or dynamic)
     ///
     /// # Example
     /// ```rust
     /// use copybook_core::{Error, ErrorCode};
     ///
-    /// let error = Error::new(
+    /// // Static message (zero allocation)
+    /// let error1 = Error::new(
     ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
-    ///     "Invalid sign zone 0xA in zoned decimal field"
+    ///     "Invalid sign zone in zoned decimal field"
+    /// );
+    ///
+    /// // Dynamic message (allocated)
+    /// let field_name = "AMOUNT";
+    /// let error2 = Error::new(
+    ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
+    ///     format!("Invalid sign zone in field {}", field_name)
     /// );
     /// ```
     #[inline]
-    pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
+    pub fn new(code: ErrorCode, message: impl Into<Cow<'static, str>>) -> Self {
         Self {
             code,
             message: message.into(),
@@ -418,4 +433,83 @@ macro_rules! error {
     ($code:expr, $fmt:expr, $($arg:tt)*) => {
         $crate::error::Error::new($code, format!($fmt, $($arg)*))
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_code_serialization() {
+        let code = ErrorCode::CBKD411_ZONED_BAD_SIGN;
+        let json = serde_json::to_string(&code).unwrap();
+        assert_eq!(json, "\"CBKD411_ZONED_BAD_SIGN\"");
+
+        let deserialized: ErrorCode = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, code);
+    }
+
+    #[test]
+    fn test_error_display_format() {
+        let error = Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Invalid sign zone in field",
+        );
+        let display = format!("{}", error);
+        assert_eq!(
+            display,
+            "CBKD411_ZONED_BAD_SIGN: Invalid sign zone in field"
+        );
+    }
+
+    #[test]
+    fn test_error_with_context_display() {
+        let error =
+            Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Test error").with_field("AMOUNT");
+        let display = format!("{}", error);
+        assert!(display.contains("CBKD411_ZONED_BAD_SIGN: Test error"));
+        assert!(display.contains("field AMOUNT"));
+    }
+
+    #[test]
+    fn test_cow_static_message_no_allocation() {
+        let error = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Static message");
+        // Verify it's a borrowed variant
+        match &error.message {
+            Cow::Borrowed(_) => {} // Good - no allocation
+            Cow::Owned(_) => panic!("Expected Borrowed, got Owned"),
+        }
+    }
+
+    #[test]
+    fn test_cow_dynamic_message_allocated() {
+        let field = "AMOUNT";
+        let error = Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            format!("Dynamic message for field {}", field),
+        );
+        // Verify it's an owned variant
+        match &error.message {
+            Cow::Owned(_) => {} // Good - allocated as expected
+            Cow::Borrowed(_) => panic!("Expected Owned, got Borrowed"),
+        }
+    }
+
+    #[test]
+    fn test_error_macro_static() {
+        let err = error!(ErrorCode::CBKP001_SYNTAX, "Empty copybook");
+        assert_eq!(err.code, ErrorCode::CBKP001_SYNTAX);
+        assert_eq!(err.message, "Empty copybook");
+    }
+
+    #[test]
+    fn test_error_macro_formatted() {
+        let field = "CUSTOMER_ID";
+        let err = error!(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            "Field {} missing", field
+        );
+        assert_eq!(err.code, ErrorCode::CBKD301_RECORD_TOO_SHORT);
+        assert!(err.message.contains("CUSTOMER_ID"));
+    }
 }

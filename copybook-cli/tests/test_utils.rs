@@ -47,18 +47,14 @@ pub fn fixture_path(relative_path: &str) -> TestResult<PathBuf> {
 }
 
 /// Create a copybook command with standard fixed format and CP037 codepage args
-///
-/// # Errors
-///
-/// Returns an error if the `copybook` binary cannot be located.
-pub fn copybook_cmd(args: &[&str]) -> TestResult<Command> {
+pub fn copybook_cmd(args: &[&str]) -> Command {
     let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args(args)
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
         .arg("cp037");
-    Ok(cmd)
+    cmd
 }
 
 /// Convert an `Option<T>` into a [`TestResult`] with a helpful error message.
@@ -111,7 +107,7 @@ mod tests {
 
     #[test]
     fn copybook_cmd_appends_standard_arguments() -> TestResult<()> {
-        let cmd = copybook_cmd(&["inspect", "dummy"])?;
+        let cmd = copybook_cmd(&["inspect", "dummy"]);
         let args: Vec<String> = cmd
             .get_args()
             .map(|arg| arg.to_string_lossy().into_owned())

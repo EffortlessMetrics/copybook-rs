@@ -9,8 +9,8 @@ use std::path::Path;
 pub type TestResult<T> = Result<T, Box<dyn Error>>;
 
 #[allow(dead_code)] // shared test helper: some suites only rely on write_file
-pub fn bin() -> TestResult<Command> {
-    Ok(cargo_bin_cmd!("copybook"))
+pub fn bin() -> Command {
+    cargo_bin_cmd!("copybook")
 }
 
 #[allow(dead_code)] // shared test helper: silences per-binary unused warnings

@@ -7,7 +7,7 @@ const CBKE: i32 = 3;
 
 #[test]
 fn unknown_flag_maps_to_cbke_exit_code() -> TestResult<()> {
-    bin()?
+    bin()
         .arg("--no-such-flag")
         .assert()
         .failure()
@@ -18,7 +18,7 @@ fn unknown_flag_maps_to_cbke_exit_code() -> TestResult<()> {
 
 #[test]
 fn unknown_subcommand_maps_to_cbke_exit_code() -> TestResult<()> {
-    bin()?
+    bin()
         .arg("nope")
         .assert()
         .failure()
@@ -29,7 +29,7 @@ fn unknown_subcommand_maps_to_cbke_exit_code() -> TestResult<()> {
 
 #[test]
 fn missing_required_argument_maps_to_cbke_exit_code() -> TestResult<()> {
-    bin()?
+    bin()
         .arg("decode")
         .assert()
         .failure()

@@ -54,7 +54,7 @@ fn test_cli_verify_valid_data() -> TestResult<()> {
     let copybook = fixture_path("copybooks/simple.cpy")?;
     let copybook_str = path_to_str(&copybook)?;
     let data_str = path_to_str(&data_file)?;
-    let mut cmd = copybook_cmd(&["verify", copybook_str, data_str])?;
+    let mut cmd = copybook_cmd(&["verify", copybook_str, data_str]);
 
     let output = cmd.output()?;
     let exit_code = require_some(
@@ -78,7 +78,7 @@ fn test_cli_verify_report_schema() -> TestResult<()> {
     let copybook = fixture_path("copybooks/simple.cpy")?;
     let copybook_str = path_to_str(&copybook)?;
     let data_str = path_to_str(&data_file)?;
-    let mut cmd = copybook_cmd(&["verify", copybook_str, data_str])?;
+    let mut cmd = copybook_cmd(&["verify", copybook_str, data_str]);
     cmd.arg("--report").arg(&report_file);
 
     let output = cmd.output()?;

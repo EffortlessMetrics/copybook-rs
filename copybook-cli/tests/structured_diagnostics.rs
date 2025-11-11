@@ -75,7 +75,7 @@ fn honors_env_invocation_id() -> TestResult<()> {
     let copybook_path = tmp.path().join("schema.cpy");
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.env("RUST_LOG", "info")
         .env("COPYBOOK_INVOCATION_ID", "run-123")
         .arg("parse")
@@ -89,7 +89,7 @@ fn honors_env_invocation_id() -> TestResult<()> {
 #[test]
 fn parse_failure_emits_structured_diagnostics() -> TestResult<()> {
     let missing_path = TempDir::new()?.path().join("missing.cpy");
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.arg("parse").arg(&missing_path);
     let assert = cmd.assert().failure();
     let output = assert.get_output();
@@ -102,7 +102,7 @@ fn parse_failure_emits_structured_diagnostics() -> TestResult<()> {
 #[test]
 fn inspect_failure_emits_structured_diagnostics() -> TestResult<()> {
     let missing_path = TempDir::new()?.path().join("missing.cpy");
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.arg("inspect").arg(&missing_path);
     let assert = cmd.assert().failure();
     let output = assert.get_output();
@@ -122,7 +122,7 @@ fn decode_failure_emits_structured_diagnostics() -> TestResult<()> {
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.arg("--strict-policy")
         .arg("decode")
         .arg("--format")
@@ -152,7 +152,7 @@ fn encode_failure_emits_structured_diagnostics() -> TestResult<()> {
 
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.arg("encode")
         .arg(&copybook_path)
         .arg(&input_path)
@@ -178,7 +178,7 @@ fn verify_failure_emits_structured_diagnostics() -> TestResult<()> {
 
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.arg("verify")
         .arg(&copybook_path)
         .arg(&input_path)
@@ -201,7 +201,7 @@ fn inspect_success_emits_completion_record() -> TestResult<()> {
 
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.env("RUST_LOG", "info");
     cmd.arg("inspect").arg(&copybook_path);
 

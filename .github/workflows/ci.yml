@@ -63,7 +63,7 @@ jobs:
       run: |
         cargo nextest run --workspace --profile ci --failure-output=immediate --status-level=fail
         cargo nextest archive --workspace --profile ci --archive-file target/nextest/partial-archive.tar.zst
-        cargo nextest report junit --archive-file target/nextest/partial-archive.tar.zst --output-file target/nextest/junit.xml
+        cargo nextest r junit --archive-file target/nextest/partial-archive.tar.zst --output-file target/nextest/junit.xml
     - name: Sync test status to docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: cargo run -p xtask -- docs sync-tests
@@ -234,11 +234,15 @@ jobs:
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Generate code coverage
       run: cargo llvm-cov --workspace --exclude copybook-bench --lcov --output-path lcov.info
+    # Make upload non-blocking and always run
     - name: Upload coverage to Codecov
+      if: always()
       uses: codecov/codecov-action@v5
       with:
         files: lcov.info
-        fail_ci_if_error: true
+        flags: unit
+        fail_ci_if_error: false
+        verbose: true
 
   strict-comments:
     name: Strict Comments Mode

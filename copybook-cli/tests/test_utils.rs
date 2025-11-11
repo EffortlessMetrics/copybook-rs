@@ -1,5 +1,6 @@
 //! Test utilities for finding fixture files
 
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_cmd::Command;
 use std::error::Error;
 use std::fmt::Write as _;
@@ -51,7 +52,7 @@ pub fn fixture_path(relative_path: &str) -> TestResult<PathBuf> {
 ///
 /// Returns an error if the `copybook` binary cannot be located.
 pub fn copybook_cmd(args: &[&str]) -> TestResult<Command> {
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args(args)
         .arg("--format")
         .arg("fixed")

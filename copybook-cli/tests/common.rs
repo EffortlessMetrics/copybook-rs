@@ -1,5 +1,6 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::panic)]
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_cmd::Command;
 use std::error::Error;
 use std::fs;
@@ -9,7 +10,7 @@ pub type TestResult<T> = Result<T, Box<dyn Error>>;
 
 #[allow(dead_code)] // shared test helper: some suites only rely on write_file
 pub fn bin() -> TestResult<Command> {
-    Ok(Command::cargo_bin("copybook")?)
+    Ok(cargo_bin_cmd!("copybook"))
 }
 
 #[allow(dead_code)] // shared test helper: silences per-binary unused warnings

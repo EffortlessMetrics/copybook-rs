@@ -145,7 +145,7 @@ jobs:
 
       - name: Publish Throughput badge (neutral on fail)
         id: throughput
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           DISPLAY_MIB: ${{ steps.slo.outputs.display }}
           COMP3_MIB: ${{ steps.slo.outputs.comp3 }}
@@ -194,7 +194,7 @@ jobs:
 
       - name: Label perf success
         if: ${{ success() && steps.throughput.outputs.ok == 'true' && github.event.pull_request.number }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const core = require('@actions/core');

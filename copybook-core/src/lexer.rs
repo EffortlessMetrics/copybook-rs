@@ -691,7 +691,10 @@ mod tests {
         let mut lexer3 = Lexer::new(r#""A","#);
         let tokens3 = lexer3.tokenize();
         let comma_token = tokens3.iter().find(|t| matches!(t.token, Token::Comma));
-        assert!(comma_token.is_some(), "Comma after string literal should be Token::Comma");
+        assert!(
+            comma_token.is_some(),
+            "Comma after string literal should be Token::Comma"
+        );
     }
 
     /// Test commas with spaces in realistic VALUE clause (Issue #86)

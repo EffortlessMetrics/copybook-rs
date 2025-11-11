@@ -14,7 +14,7 @@
  * widely used in mainframe production copybooks for improved readability.
  */
 
-use copybook_core::{parse_copybook, FieldKind};
+use copybook_core::{FieldKind, parse_copybook};
 
 /// Test 1: Comma-separated string literals
 ///
@@ -66,7 +66,11 @@ fn test_level88_comma_separated_numeric_values() {
     let level88 = &account_field.children[0];
 
     if let FieldKind::Condition { values } = &level88.kind {
-        assert_eq!(values.len(), 5, "Should parse all 5 comma-separated numeric values");
+        assert_eq!(
+            values.len(),
+            5,
+            "Should parse all 5 comma-separated numeric values"
+        );
         assert_eq!(values, &vec!["1", "2", "3", "4", "5"]);
     } else {
         panic!("Expected FieldKind::Condition for numeric values");
@@ -92,7 +96,11 @@ fn test_level88_mixed_separators() {
     let level88 = &status_field.children[0];
 
     if let FieldKind::Condition { values } = &level88.kind {
-        assert_eq!(values.len(), 4, "Should parse mixed comma/space separated values");
+        assert_eq!(
+            values.len(),
+            4,
+            "Should parse mixed comma/space separated values"
+        );
         assert_eq!(values, &vec!["A", "R", "T", "W"]);
     } else {
         panic!("Expected FieldKind::Condition for mixed separators");

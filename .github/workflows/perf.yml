@@ -1,18 +1,12 @@
 name: Perf Receipts
 on:
-  # Run on demand, nightly, and on merges to main
+  # Run on demand, nightly, release tags, and opt-in PRs
   workflow_dispatch:
   schedule:
     - cron: '0 3 * * *'   # nightly at 03:00 UTC
   push:
-    branches: [ "main" ]
-    paths:
-      - "copybook-bench/**"
-      - "copybook-codec/**"
-      - "scripts/bench.sh"
-      - "scripts/bench.bat"
-      - "scripts/guard-hotpaths.sh"
-      - "justfile"
+    tags:
+      - 'v*'   # run on version tags (e.g., v0.3.1, v1.0.0)
   # Opt-in for PRs via 'run-perf' label
   pull_request:
     types: [labeled]

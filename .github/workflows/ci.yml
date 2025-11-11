@@ -58,12 +58,11 @@ jobs:
     - name: Install nextest
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       uses: taiki-e/install-action@nextest
-    - name: Run tests (nextest + junit for test-truth binding)
+    - name: Run tests (nextest)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: |
         cargo nextest run --workspace --profile ci --failure-output=immediate --status-level=fail
         cargo nextest archive --workspace --profile ci --archive-file target/nextest/partial-archive.tar.zst
-        cargo nextest r junit --archive-file target/nextest/partial-archive.tar.zst --output-file target/nextest/junit.xml
     - name: Sync test status to docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: cargo run -p xtask -- docs sync-tests

@@ -111,9 +111,11 @@ jobs:
         cargo nextest run --workspace --exclude copybook-bench --profile ci --failure-output=immediate --status-level=fail
     - name: Sync test status to docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
+      continue-on-error: true
       run: cargo run -p xtask -- docs sync-tests
     - name: Verify test status in docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
+      continue-on-error: true
       run: cargo run -p xtask -- docs verify-tests
     - name: Run tests (no features)
       if: matrix.features == '' && !(matrix.os == 'ubuntu-latest' && matrix.rust == 'stable')

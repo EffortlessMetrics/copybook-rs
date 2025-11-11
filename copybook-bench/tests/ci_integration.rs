@@ -616,7 +616,7 @@ fn test_artifact_structure() {
         .expect("Failed to read workflow YAML");
 
     assert!(
-        workflow_yaml.contains("actions/upload-artifact@v4"),
+        workflow_yaml.contains("actions/upload-artifact@v5"),
         "Workflow must use upload-artifact action"
     );
     assert!(

@@ -3,16 +3,16 @@
 //! This test suite validates:
 //! - Basic RENAMES syntax parsing (66 NAME RENAMES FROM THRU/THROUGH TO .)
 //! - Both THRU and THROUGH keyword variants
-
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
-#![allow(clippy::panic)]
-#![allow(clippy::single_char_pattern)]
 //! - Proper error handling for invalid RENAMES syntax
 //!
 //! Note: Resolver/projection logic for RENAMES is deferred to Slice-2.
 //! These tests only verify that the parser accepts valid RENAMES syntax
 //! and produces appropriate AST nodes.
+
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::panic)]
+#![allow(clippy::single_char_pattern)]
 
 use copybook_core::{parse_copybook, schema::FieldKind};
 

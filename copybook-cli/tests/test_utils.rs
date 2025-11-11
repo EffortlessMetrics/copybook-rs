@@ -47,6 +47,7 @@ pub fn fixture_path(relative_path: &str) -> TestResult<PathBuf> {
 }
 
 /// Create a copybook command with standard fixed format and CP037 codepage args
+#[must_use]
 pub fn copybook_cmd(args: &[&str]) -> Command {
     let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args(args)
@@ -106,6 +107,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unnecessary_wraps)]
     fn copybook_cmd_appends_standard_arguments() -> TestResult<()> {
         let cmd = copybook_cmd(&["inspect", "dummy"]);
         let args: Vec<String> = cmd

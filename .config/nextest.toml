@@ -3,3 +3,6 @@ failure-output = "immediate-final"
 status-level   = "all"
 retries        = 0
 slow-timeout   = "120s"
+
+[[profile.ci.junit]]
+path = "junit.xml"

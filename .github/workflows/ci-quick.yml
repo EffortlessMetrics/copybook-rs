@@ -80,3 +80,17 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || 'HEAD' }}
         run: |
           bash scripts/ci/security.sh
+
+  testExpected:
+    name: testExpected
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: always()
+    steps:
+      - name: Mirror test result to satisfy legacy required check
+        run: |
+          if [ "${{ needs.test.result }}" = "success" ]; then
+            echo "ok"
+          else
+            echo "upstream 'test' failed"; exit 1
+          fi

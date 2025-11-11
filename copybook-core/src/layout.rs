@@ -82,6 +82,9 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
     // Detect and set tail ODO information
     detect_tail_odo(schema, &context);
 
+    // Resolve RENAMES (level-66) aliases
+    resolve_renames_aliases(&mut schema.fields)?;
+
     // Check for record size overflow
     if context.current_offset > MAX_RECORD_SIZE {
         return Err(error!(
@@ -425,6 +428,7 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (
         }
         FieldKind::Group => (0, 1u64), // Groups don't have inherent size
         FieldKind::Condition { .. } => (0, 1u64), // Level-88 fields don't consume storage
+        FieldKind::Renames { .. } => (0, 1u64), // Level-66 fields don't consume storage
     };
 
     let alignment = if synchronized && natural_alignment > 1 {
@@ -604,6 +608,155 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
             array_path: array_field_name,
         });
     }
+}
+
+fn head_ident_of_qname(q: &str) -> &str {
+    // QNAME ::= IDENT ('OF' IDENT)* — current implementation uses only the head IDENT.
+    q.split_whitespace().next().unwrap_or(q)
+}
+
+fn find_sibling_index_by_qname(siblings: &[crate::schema::Field], qname: &str) -> Option<usize> {
+    let needle = head_ident_of_qname(qname).trim();
+    siblings
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.level != 66 && f.level != 88) // storage-bearing fields only
+        .find(|(_, f)| f.name.trim().eq_ignore_ascii_case(needle))
+        .map(|(i, _)| i)
+}
+
+/// Resolve RENAMES (level-66) aliases (post-order).
+/// Current implementation: same-scope resolution + contiguous slice → (offset, length, members).
+fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
+    use crate::error::ErrorCode;
+    use crate::schema::{FieldKind, ResolvedRenames};
+
+    // 1) Recurse first (post-order)
+    for f in fields.iter_mut() {
+        if !f.children.is_empty() {
+            resolve_renames_aliases(&mut f.children)?;
+        }
+    }
+
+    // 2) Resolve at this scope
+    let mut resolutions: Vec<(usize, u32, u32, Vec<String>)> = Vec::new();
+    for (idx, field) in fields.iter().enumerate() {
+        if let FieldKind::Renames {
+            ref from_field,
+            ref thru_field,
+        } = field.kind
+        {
+            let from_i = find_sibling_index_by_qname(fields, from_field).ok_or_else(|| {
+                error!(
+                    ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
+                    "RENAMES from field '{}' not found", from_field
+                )
+            })?;
+            let thru_i = find_sibling_index_by_qname(fields, thru_field).ok_or_else(|| {
+                error!(
+                    ErrorCode::CBKS602_RENAME_UNKNOWN_THRU,
+                    "RENAMES thru field '{}' not found", thru_field
+                )
+            })?;
+
+            if from_i > thru_i {
+                return Err(error!(
+                    ErrorCode::CBKS604_RENAME_REVERSED_RANGE,
+                    "RENAMES from '{}' comes after thru '{}'", from_field, thru_field
+                ));
+            }
+
+            // Validate no OCCURS boundary: check for OCCURS within the range
+            // This must be checked first before other validations
+            for f in &fields[from_i..=thru_i] {
+                if matches!(f.occurs, Some(Occurs::Fixed { .. } | Occurs::ODO { .. })) {
+                    return Err(error!(
+                        ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
+                        "RENAMES range from '{}' to '{}' crosses OCCURS boundary at field '{}'",
+                        from_field,
+                        thru_field,
+                        f.name
+                    ));
+                }
+            }
+
+            // Helper: check if a field has storage-bearing children (not just level-88)
+            let has_storage_children = |field: &Field| {
+                field
+                    .children
+                    .iter()
+                    .any(|child| child.level != 88 && child.level != 66)
+            };
+
+            // Validate no cross-branch: from/thru must not span across groups
+            // Check if from is a group with storage-bearing children
+            if has_storage_children(&fields[from_i]) {
+                return Err(error!(
+                    ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+                    "RENAMES from field '{}' is a group with storage-bearing children; cannot span groups",
+                    from_field
+                ));
+            }
+            // Check if thru is a group with storage-bearing children
+            if has_storage_children(&fields[thru_i]) {
+                return Err(error!(
+                    ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP,
+                    "RENAMES thru field '{}' is a group with storage-bearing children; cannot span groups",
+                    thru_field
+                ));
+            }
+            // Check if any field in between is a group with storage-bearing children (would create cross-branch)
+            if from_i + 1 < thru_i {
+                for f in &fields[(from_i + 1)..thru_i] {
+                    if has_storage_children(f) {
+                        return Err(error!(
+                            ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+                            "RENAMES range from '{}' to '{}' crosses group boundary at field '{}'",
+                            from_field,
+                            thru_field,
+                            f.name
+                        ));
+                    }
+                }
+            }
+
+            // Note: We do NOT enforce strict byte-level contiguity (CBKS603).
+            // COBOL RENAMES requires fields to be in source order within the same group,
+            // but REDEFINES can create overlapping offsets which is valid.
+            // The key validations are: same group, no OCCURS, no cross-branch, from before thru.
+
+            // Compute (offset, length) and members (storage-bearing only).
+            let offset = fields[from_i].offset;
+            let end_offset_u64 = (fields[thru_i].offset as u64) + (fields[thru_i].len as u64);
+            let length: u32 = (end_offset_u64 - (offset as u64)).try_into().map_err(|_| {
+                error!(
+                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                    "RENAMES alias '{}' exceeds maximum size", field.name
+                )
+            })?;
+            let mut members = Vec::new();
+            for field in &fields[from_i..=thru_i] {
+                let lvl = field.level;
+                if lvl != 66 && lvl != 88 {
+                    // storage-bearing only (exclude non-storage fields: 66, 88)
+                    members.push(field.path.clone());
+                }
+            }
+
+            resolutions.push((idx, offset, length, members));
+        }
+    }
+
+    // Second pass: apply resolutions
+    for (idx, offset, length, members) in resolutions {
+        fields[idx].resolved_renames = Some(ResolvedRenames {
+            offset,
+            length,
+            members,
+        });
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

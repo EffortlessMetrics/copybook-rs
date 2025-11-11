@@ -9,7 +9,7 @@
 //! - AC8: Default behavior remains unchanged for backward compatibility
 //! - Byte-perfect data integrity for enterprise mainframe workflows
 
-use assert_cmd::cargo::cargo_bin_cmd;
+use assert_cmd::Command as AssertCommand;
 use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
@@ -110,8 +110,9 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
     fs::write(&original_data_path, b"\x31\x32\x33\x34\x35")?; // ASCII "12345"
 
     // Decode with current implementation (no preservation yet)
-    // Use cargo_bin_cmd! for robust cross-platform CLI path resolution
-    let decode_output = cargo_bin_cmd!("copybook")
+    // Use assert_cmd::Command::cargo_bin() for robust cross-platform CLI path resolution
+    let decode_output = AssertCommand::cargo_bin("copybook")
+        .expect("failed to find copybook binary")
         .args([
             "decode",
             // "--preserve-encoding", // TODO: Add when implemented
@@ -135,7 +136,8 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
     );
 
     // Encode with current implementation (no preservation yet)
-    let encode_output = cargo_bin_cmd!("copybook")
+    let encode_output = AssertCommand::cargo_bin("copybook")
+        .expect("failed to find copybook binary")
         .args([
             "encode",
             // "--zoned-encoding", "ascii", // TODO: Add when implemented

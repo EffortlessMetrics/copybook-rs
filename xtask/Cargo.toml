@@ -7,5 +7,5 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-roxmltree = "0.20"
+roxmltree = "0.21"
 regex = "1"

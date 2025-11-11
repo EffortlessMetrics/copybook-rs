@@ -940,6 +940,18 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 cargo fmt --all
 ```
 
+### CI at a Glance
+
+- **Blocking**: Quick (lint/build/test) and Test Suite (excludes `copybook-bench`)
+- **Non-blocking**: Coverage upload (best-effort), Perf/Bench receipts, Nightly "Comprehensive"
+- **Guards**:
+  - `nextest` pinned via `taiki-e/install-action@v2` (checksum enabled)
+  - All blocking test commands must include `--exclude copybook-bench`
+- **Perf tests**: live in dedicated workflows. To run locally:
+  ```bash
+  cargo test -p copybook-bench --features perf -- --ignored
+  ```
+
 ### Project Status & Roadmap
 
 ### **Current Status: Engineering Preview (v0.3.1)** ⚠️

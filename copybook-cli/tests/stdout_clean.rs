@@ -9,7 +9,7 @@ use std::str;
 fn parse_emits_valid_json_on_stdout_only() -> TestResult<()> {
     let copybook_path = test_utils::fixture_path("copybooks/simple.cpy")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     let assert = cmd.arg("parse").arg(&copybook_path).assert().success();
     let output = assert.get_output();
     let stdout = str::from_utf8(&output.stdout)?;

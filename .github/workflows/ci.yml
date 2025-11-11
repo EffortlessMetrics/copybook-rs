@@ -86,16 +86,12 @@ jobs:
         export LC_ALL=C
         file=".github/workflows/ci.yml"
 
-        # Check that all four test commands include --exclude copybook-bench
+        # Check that all test commands include --exclude copybook-bench
         missing=0
 
         # nextest run
         grep -Eq '^[[:space:]]+cargo nextest run.*--exclude[[:space:]]+copybook-bench([[:space:]]|$)' "$file" || {
           echo "::error::Missing --exclude copybook-bench in 'cargo nextest run'"; missing=1; }
-
-        # nextest archive
-        grep -Eq '^[[:space:]]+cargo nextest archive.*--exclude[[:space:]]+copybook-bench([[:space:]]|$)' "$file" || {
-          echo "::error::Missing --exclude copybook-bench in 'cargo nextest archive'"; missing=1; }
 
         # cargo test: require ≥2 invocations with --exclude
         ct_count=$(grep -Ec 'run:[[:space:]]+cargo test .*--exclude[[:space:]]+copybook-bench' "$file" || echo 0)
@@ -113,7 +109,6 @@ jobs:
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: |
         cargo nextest run --workspace --exclude copybook-bench --profile ci --failure-output=immediate --status-level=fail
-        cargo nextest archive --workspace --exclude copybook-bench --profile ci --archive-file target/nextest/partial-archive.tar.zst
     - name: Sync test status to docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: cargo run -p xtask -- docs sync-tests

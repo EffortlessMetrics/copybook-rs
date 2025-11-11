@@ -135,7 +135,7 @@ pub enum Token {
     #[token(".")]
     Period,
 
-    // Comma must outrank EditedPic so 88 VALUE lists with commas parse (see Issue #86).
+    // Comma must have higher priority than EditedPic so 88 VALUE lists with commas parse (see Issue #86).
     #[token(",", priority = 4)]
     Comma,
 

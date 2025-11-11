@@ -132,15 +132,12 @@ fn test_level88_comma_with_ranges() {
     let level88 = &priority_field.children[0];
 
     if let FieldKind::Condition { values } = &level88.kind {
-        assert!(values.len() >= 3, "Should parse at least 3 values");
-        assert_eq!(values[0], "1");
-        assert_eq!(values[1], "2");
-        // Third value should be a range
-        assert!(
-            values[2].contains("THRU") || values[2].contains("THROUGH"),
-            "Expected range syntax, got: {}",
-            values[2]
+        assert_eq!(
+            values.len(),
+            3,
+            "Should parse exactly 3 values: two singles and one range"
         );
+        assert_eq!(values, &vec!["1", "2", "3 THRU 5"]);
     } else {
         panic!("Expected FieldKind::Condition for range values");
     }
@@ -262,36 +259,31 @@ fn test_multiple_level88_comma_separated_same_parent() {
 /// Test 8: Trailing comma handling
 ///
 /// **Purpose**: Validates that trailing commas are handled gracefully
-/// **COBOL Compliance**: Trailing comma is typically a syntax error
+/// **COBOL Compliance**: Parser accepts trailing commas defensively
 /// **Enterprise Context**: Defensive parsing for malformed copybooks
 #[test]
 fn test_level88_trailing_comma() {
-    // This test documents current behavior - trailing comma may be accepted
-    // depending on parser implementation. Adjust expected behavior as needed.
+    // Parser accepts trailing commas gracefully (defensive parsing)
     const COPYBOOK: &str = r#"
 01 STATUS-FIELD PIC X(1).
    88 IS-VALID VALUE "A", "B", "C",.
 "#;
 
-    // Attempt to parse - document whether this is accepted or rejected
-    let result = parse_copybook(COPYBOOK);
+    let schema = parse_copybook(COPYBOOK).unwrap();
+    let level88 = &schema.fields[0].children[0];
 
-    // Current expectation: trailing comma before period should be ignored/accepted
-    // If your parser rejects this, adjust the test accordingly
-    if result.is_ok() {
-        let schema = result.unwrap();
-        let level88 = &schema.fields[0].children[0];
-        if let FieldKind::Condition { values } = &level88.kind {
-            assert!(
-                values.len() >= 3,
-                "Should parse at least 3 values despite trailing comma"
-            );
-        }
-        println!("✅ Trailing comma handled gracefully (accepted)");
+    if let FieldKind::Condition { values } = &level88.kind {
+        assert_eq!(
+            values.len(),
+            3,
+            "Trailing comma should not create empty value"
+        );
+        assert_eq!(values, &vec!["A", "B", "C"]);
     } else {
-        println!("⚠️  Trailing comma rejected as syntax error (expected behavior)");
-        // This is also valid behavior - document it
+        panic!("Expected FieldKind::Condition for trailing comma test");
     }
+
+    println!("✅ Trailing comma handled gracefully (accepted, ignored)");
 }
 
 /// Test 9: Single value with comma (edge case)

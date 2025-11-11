@@ -49,6 +49,9 @@ pub enum Token {
     #[token("REDEFINES", ignore(case))]
     Redefines,
 
+    #[token("RENAMES", ignore(case))]
+    Renames,
+
     #[token("OCCURS", ignore(case))]
     Occurs,
 
@@ -71,8 +74,10 @@ pub enum Token {
     #[token("VALUE", ignore(case))]
     Value,
 
-    #[token("THROUGH", ignore(case))]
     #[token("THRU", ignore(case))]
+    Thru,
+
+    #[token("THROUGH", ignore(case))]
     Through,
 
     #[token("SIGN", ignore(case))]
@@ -166,6 +171,7 @@ impl fmt::Display for Token {
             Token::Comp3 => write!(f, "COMP-3"),
             Token::Binary => write!(f, "BINARY"),
             Token::Redefines => write!(f, "REDEFINES"),
+            Token::Renames => write!(f, "RENAMES"),
             Token::Occurs => write!(f, "OCCURS"),
             Token::Depending => write!(f, "DEPENDING"),
             Token::On => write!(f, "ON"),
@@ -173,6 +179,7 @@ impl fmt::Display for Token {
             Token::Times => write!(f, "TIMES"),
             Token::Synchronized => write!(f, "SYNCHRONIZED"),
             Token::Value => write!(f, "VALUE"),
+            Token::Thru => write!(f, "THRU"),
             Token::Through => write!(f, "THROUGH"),
             Token::Sign => write!(f, "SIGN"),
             Token::Leading => write!(f, "LEADING"),

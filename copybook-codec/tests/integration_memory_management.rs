@@ -26,6 +26,7 @@ fn create_test_schema() -> Schema {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
+            resolved_renames: None,
             children: vec![],
         }],
         lrecl_fixed: Some(5),

@@ -603,7 +603,10 @@ impl BinaryFidelityValidator {
             FieldKind::ZonedDecimal { .. }
             | FieldKind::PackedDecimal { .. }
             | FieldKind::BinaryInt { .. } => true,
-            FieldKind::Alphanum { .. } | FieldKind::Group | FieldKind::Condition { .. } => false, // Level-88 fields are not numeric
+            FieldKind::Alphanum { .. }
+            | FieldKind::Group
+            | FieldKind::Condition { .. }
+            | FieldKind::Renames { .. } => false, // Level-88 and Level-66 RENAMES are not numeric (parse-only Slice-1)
         }
     }
 
@@ -654,6 +657,11 @@ impl BinaryFidelityValidator {
             FieldKind::Alphanum { .. } | FieldKind::Group | FieldKind::Condition { .. } => {
                 CobolFieldType::Display
             } // Level-88 fields treated as display
+            FieldKind::Renames { .. } => {
+                // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
+                // Slice-2 will resolve alias ranges and project into concrete fields.
+                CobolFieldType::Display
+            }
         }
     }
 

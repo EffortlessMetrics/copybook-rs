@@ -34,7 +34,7 @@
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
 | Nested ODO | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
-| RENAMES (66-level) | ❌ Not Supported | N/A | Not implemented - see roadmap |
+| RENAMES (66-level) | ✅ Same-scope resolution | `renames_parser_tests.rs` (11 tests), `renames_hierarchy_tests.rs` (3 tests), `renames_resolver_positive_tests.rs` (4 tests), `renames_resolver_negative_tests.rs` (12 tests) | Parse ✅, Resolver validations ✅ (CBKS601/602/604/605/606/607/608), Codec projection ⏳ (deferred) |
 
 ## Sign Handling
 
@@ -116,6 +116,53 @@ FieldKind::Condition { values } => condition_value(values, "CONDITION")
 **Layout Impact**: Level-88 fields consume zero bytes (`(0, 1u64)` in layout calculation), correctly implementing COBOL non-storage semantics.
 
 **Known Limitations**: None. Full support for Level-88 condition values including complex interactions with ODO and REDEFINES.
+
+## RENAMES (Level-66) - Support Status
+
+**Status**: ✅ **Same-scope resolution** (parse ✅, resolver validations ✅, codec projection ⏳)
+
+**Evidence**:
+- **Parse Support**: `FieldKind::Renames { from_field: String, thru_field: String }` in schema AST
+- **Syntax Parsing**: Full support for `66 NAME RENAMES FROM THRU|THROUGH TO .` syntax including qualified names `IDENT (OF IDENT)*`
+- **Hierarchy**: Level-66 as non-storage siblings under parent group; Level-88 as children of preceding field
+- **Resolver Validations**: Comprehensive error detection (CBKS601/602/604/605/606/607/608)
+- **Test Coverage**: 30 comprehensive tests across 4 test suites
+  - Parser: 11 tests (syntax, keyword variants, qualified names)
+  - Hierarchy: 3 tests (level-66/88 placement)
+  - Resolver positive: 4 tests (THRU/THROUGH, QNAME)
+  - Resolver negative: 12 tests (all error codes)
+
+**API Integration**:
+```rust
+// Schema definition includes Level-66 RENAMES
+pub enum FieldKind {
+    Renames { from_field: String, thru_field: String },
+    // ... other field types
+}
+
+// Example: Parse RENAMES with qualified names
+// 66 CUSTOMER-HEADER RENAMES CUSTOMER-ID OF RECORD-A THRU CUSTOMER-NAME OF RECORD-A.
+```
+
+**Resolver Error Codes**:
+- **CBKS601**: Unknown `from` field
+- **CBKS602**: Unknown `thru` field
+- **CBKS604**: Reversed range (from after thru in source order)
+- **CBKS605/606**: Cross-group boundaries (from/thru have storage-bearing children)
+- **CBKS607**: OCCURS boundary violation (array in RENAMES range)
+- **CBKS608**: Qualified name resolution failure
+- **CBKS603**: Defined but NOT enforced (REDEFINES overlaps valid; source-order only)
+
+**Layout Impact**: Level-66 fields consume zero bytes, implementing COBOL non-storage semantics. Resolver computes `(offset, length)` and populates `resolved_renames.members` with storage-bearing child paths.
+
+**Current Limitations**:
+- **Nested group attach**: Level-66 currently attaches under level-01; nested group (level 02-49) detection deferred to follow-up
+- **Codec projection**: Read-side projection to composite JSON not yet implemented
+- **Write-side storage**: RENAMES fields remain non-storage in encode paths
+
+**Roadmap**:
+- **Follow-up PR**: Nested group attach with resolver-based span logic
+- **Later slice**: Codec read-side projection + CLI JSON metadata
 
 ## Test Infrastructure Summary
 

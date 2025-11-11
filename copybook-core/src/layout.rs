@@ -611,7 +611,7 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
 }
 
 fn head_ident_of_qname(q: &str) -> &str {
-    // QNAME ::= IDENT ('OF' IDENT)* — we only need the head IDENT in PR A.
+    // QNAME ::= IDENT ('OF' IDENT)* — current implementation uses only the head IDENT.
     q.split_whitespace().next().unwrap_or(q)
 }
 
@@ -620,13 +620,13 @@ fn find_sibling_index_by_qname(siblings: &[crate::schema::Field], qname: &str) -
     siblings
         .iter()
         .enumerate()
-        .filter(|(_, f)| f.level != 66 && f.level != 88) // non-storage only
+        .filter(|(_, f)| f.level != 66 && f.level != 88) // storage-bearing fields only
         .find(|(_, f)| f.name.trim().eq_ignore_ascii_case(needle))
         .map(|(i, _)| i)
 }
 
 /// Resolve RENAMES (level-66) aliases (post-order).
-/// PR A scope: same-scope resolution + contiguous slice → (offset, length, members).
+/// Current implementation: same-scope resolution + contiguous slice → (offset, length, members).
 fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
     use crate::error::ErrorCode;
     use crate::schema::{FieldKind, ResolvedRenames};

@@ -35,7 +35,7 @@ fn renames_is_child_of_record_not_root() {
 }
 
 #[test]
-#[ignore = "TODO: Nested groups support (PR B scope)"]
+#[ignore = "TODO: Parser needs enhancement to handle nested groups with level-66 (PR B follow-up)"]
 fn renames_placement_with_nested_groups() {
     let cb = "
 01 ROOT-REC.

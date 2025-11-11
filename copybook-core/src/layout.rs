@@ -666,6 +666,65 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                 ));
             }
 
+            // Validate no OCCURS boundary: check for OCCURS within the range
+            // This must be checked first before other validations
+            for f in &fields[from_i..=thru_i] {
+                if matches!(f.occurs, Some(Occurs::Fixed { .. } | Occurs::ODO { .. })) {
+                    return Err(error!(
+                        ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
+                        "RENAMES range from '{}' to '{}' crosses OCCURS boundary at field '{}'",
+                        from_field,
+                        thru_field,
+                        f.name
+                    ));
+                }
+            }
+
+            // Helper: check if a field has storage-bearing children (not just level-88)
+            let has_storage_children = |field: &Field| {
+                field
+                    .children
+                    .iter()
+                    .any(|child| child.level != 88 && child.level != 66)
+            };
+
+            // Validate no cross-branch: from/thru must not span across groups
+            // Check if from is a group with storage-bearing children
+            if has_storage_children(&fields[from_i]) {
+                return Err(error!(
+                    ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+                    "RENAMES from field '{}' is a group with storage-bearing children; cannot span groups",
+                    from_field
+                ));
+            }
+            // Check if thru is a group with storage-bearing children
+            if has_storage_children(&fields[thru_i]) {
+                return Err(error!(
+                    ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP,
+                    "RENAMES thru field '{}' is a group with storage-bearing children; cannot span groups",
+                    thru_field
+                ));
+            }
+            // Check if any field in between is a group with storage-bearing children (would create cross-branch)
+            if from_i + 1 < thru_i {
+                for f in &fields[(from_i + 1)..thru_i] {
+                    if has_storage_children(f) {
+                        return Err(error!(
+                            ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+                            "RENAMES range from '{}' to '{}' crosses group boundary at field '{}'",
+                            from_field,
+                            thru_field,
+                            f.name
+                        ));
+                    }
+                }
+            }
+
+            // Note: We do NOT enforce strict byte-level contiguity (CBKS603).
+            // COBOL RENAMES requires fields to be in source order within the same group,
+            // but REDEFINES can create overlapping offsets which is valid.
+            // The key validations are: same group, no OCCURS, no cross-branch, from before thru.
+
             // Compute (offset, length) and members (storage-bearing only).
             let offset = fields[from_i].offset;
             let end_offset_u64 = (fields[thru_i].offset as u64) + (fields[thru_i].len as u64);

@@ -512,6 +512,9 @@ fn test_comprehensive_boundary_conditions() {
 ";
 
     let result = parse_copybook(LEVEL_BOUNDARIES);
+    if let Err(ref e) = result {
+        eprintln!("Error: {}", e);
+    }
     assert!(result.is_ok(), "All valid level numbers should be accepted");
 }
 

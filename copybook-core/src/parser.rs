@@ -154,16 +154,19 @@ impl Parser {
             // Level-66 (RENAMES) is a non-storage sibling under the same parent group
             let is_renames = field.level == 66;
 
-            // Special handling for RENAMES: pop sibling fields, keep parent on stack
+            // Special handling for RENAMES: attach under nearest enclosing group
             if is_renames {
-                // Pop all fields until we reach level-01
-                // Collect them to add as siblings alongside the RENAMES field
+                // Pop sibling leaf fields until we reach the parent group.
+                // For now, use simplified logic: pop until level-01.
+                // Future enhancement: detect nested groups by checking if stack top
+                // has children (indicating it's an established group).
                 let mut popped_fields = Vec::new();
                 while let Some(top) = stack.last() {
-                    // Keep only level-01 on stack
+                    // Stop at level-01 (always keep it on stack)
                     if top.level == 1 {
                         break;
                     }
+                    // Pop leaf fields
                     let mut completed_field = stack.pop_or_cbkp_error(
                         ErrorCode::CBKP001_SYNTAX,
                         "Parser stack underflow while attaching RENAMES",
@@ -177,17 +180,17 @@ impl Parser {
                 let parent = stack.last_mut().ok_or_else(|| {
                     Error::new(
                         ErrorCode::CBKP001_SYNTAX,
-                        "Level-66 RENAMES must be within a level-01 record group".to_string(),
+                        "Level-66 RENAMES must be within a record group".to_string(),
                     )
                 })?;
 
-                // Add all popped fields as children of the parent (in reverse order to maintain original order)
+                // Re-attach popped sibling fields before the RENAMES (reverse order to maintain original order)
                 for mut f in popped_fields.into_iter().rev() {
                     f.path = format!("{}.{}", parent.path, f.name);
                     parent.children.push(f);
                 }
 
-                // Add the RENAMES field itself
+                // Add the RENAMES field itself as a sibling
                 field.path = format!("{}.{}", parent.path, field.name);
                 parent.children.push(field);
                 continue;

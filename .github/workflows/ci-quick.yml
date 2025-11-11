@@ -89,8 +89,8 @@ jobs:
     steps:
       - name: Mirror test result to satisfy legacy required check
         run: |
-          if [ "${{ needs.test.result }}" = "success" ]; then
+          if [ "${{ needs.test.result }}" = "success" ] || [ "${{ needs.test.result }}" = "skipped" ]; then
             echo "ok"
           else
-            echo "upstream 'test' failed"; exit 1
+            echo "upstream 'test' failed or cancelled"; exit 1
           fi

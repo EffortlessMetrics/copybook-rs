@@ -1,8 +1,7 @@
 mod test_utils;
 
-use assert_cmd::prelude::*;
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
-use std::process::Command;
 use test_utils::{TestResult, path_to_str};
 
 #[test]
@@ -21,7 +20,7 @@ fn fixed_form_sequence_and_continuation_are_handled() -> TestResult<()> {
 
     let copybook_str = path_to_str(f.path())?;
 
-    Command::cargo_bin("copybook")?
+    cargo_bin_cmd!("copybook")
         .args(["inspect", copybook_str])
         .assert()
         .success();

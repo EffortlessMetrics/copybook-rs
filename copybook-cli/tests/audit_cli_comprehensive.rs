@@ -17,7 +17,7 @@
 
 mod test_utils;
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use std::fs;
 use tempfile::tempdir;
@@ -41,7 +41,7 @@ fn test_audit_report_comprehensive() -> TestResult<()> {
     ",
     )?;
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("report")
         .arg("--compliance")
@@ -94,7 +94,7 @@ fn test_audit_validate_multi_compliance() -> TestResult<()> {
     ",
     )?;
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("validate")
         .arg("--compliance")
@@ -142,7 +142,7 @@ fn test_audit_lineage_field_level() -> TestResult<()> {
     ",
     )?;
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("lineage")
         .arg("--source-system")
@@ -201,7 +201,7 @@ fn test_audit_performance_baseline() -> TestResult<()> {
     )?;
 
     // Test baseline establishment
-    let mut baseline_cmd = Command::cargo_bin("copybook")?;
+    let mut baseline_cmd = cargo_bin_cmd!("copybook");
     baseline_cmd
         .arg("audit")
         .arg("performance")
@@ -219,7 +219,7 @@ fn test_audit_performance_baseline() -> TestResult<()> {
     baseline_cmd.assert().success();
 
     // Test performance validation against baseline
-    let mut validation_cmd = Command::cargo_bin("copybook")?;
+    let mut validation_cmd = cargo_bin_cmd!("copybook");
     validation_cmd
         .arg("audit")
         .arg("performance")
@@ -278,7 +278,7 @@ fn test_audit_security_comprehensive() -> TestResult<()> {
 {\"timestamp\": \"2024-09-25T10:01:00Z\", \"user\": \"test_user\", \"action\": \"write\", \"resource\": \"sensitive_record\"}
     ")?;
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("security")
         .arg("--access-log")
@@ -325,7 +325,7 @@ b2c3d4\"}
 f6g7h8\"}
     ")?;
 
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("health")
         .arg("--audit-log")
@@ -359,7 +359,7 @@ f6g7h8\"}
 #[test]
 fn test_audit_command_error_handling() -> TestResult<()> {
     // Test missing arguments
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit").arg("validate");
     cmd.assert()
         .failure()
@@ -374,7 +374,7 @@ fn test_audit_command_error_handling() -> TestResult<()> {
     )?;
 
     let output_file = temp_dir.path().join("validation_output.json");
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("validate")
         .arg("--compliance")
@@ -389,7 +389,7 @@ fn test_audit_command_error_handling() -> TestResult<()> {
 
     // Test nonexistent file
     let output_file2 = temp_dir.path().join("report_output.json");
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("report")
         .arg("--output")
@@ -424,7 +424,7 @@ fn test_audit_siem_integration() -> TestResult<()> {
     )?;
 
     let security_report = temp_dir.path().join("security_report.json");
-    let mut cmd = Command::cargo_bin("copybook")?;
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
         .arg("security")
         .arg("--siem-format")

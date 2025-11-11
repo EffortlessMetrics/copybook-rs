@@ -49,7 +49,7 @@ fn skip_if_soak_disabled() -> bool {
 #[test]
 fn panic_elimination_cli_smoke() -> TestResult<()> {
     let missing_path = std::env::temp_dir().join("panic_elimination_smoke_missing.cpy");
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.env("RUST_LOG", "error");
     cmd.arg("inspect").arg(&missing_path);
     let assert = cmd.assert().failure();

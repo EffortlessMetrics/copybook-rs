@@ -11,6 +11,7 @@
 mod test_utils;
 
 use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use std::fs;
 use tempfile::TempDir;
 use test_utils::{TestResult, path_to_str};
@@ -19,7 +20,7 @@ fn command_output<'a, I>(args: I) -> TestResult<std::process::Output>
 where
     I: IntoIterator<Item = &'a str>,
 {
-    Ok(Command::cargo_bin("copybook")?.args(args).output()?)
+    Ok(cargo_bin_cmd!("copybook").args(args).output()?)
 }
 
 fn assert_cli_failure<'a, I>(args: I, context: &str) -> TestResult<()>

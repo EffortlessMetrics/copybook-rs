@@ -55,9 +55,56 @@ jobs:
     - uses: Swatinem/rust-cache@v2
       with:
         key: ${{ matrix.features }}
-    - name: Install nextest
+    - name: Install nextest (pinned)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
-      uses: taiki-e/install-action@nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: nextest@0.9.11
+        checksum: true
+    - name: Guard nextest pin
+      if: ${{ runner.os == 'Linux' && matrix.rust == 'stable' && matrix.features == '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        export LC_ALL=C
+        file=".github/workflows/ci.yml"
+        # Require explicit semver pin (e.g., nextest@0.9.11), disallow floating tags.
+        if ! grep -Eq '^[[:space:]]*tool:[[:space:]]*nextest@[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*$' "$file"; then
+          echo "::error::nextest must be pinned to an explicit semver (e.g., nextest@0.9.11) in $file"
+          exit 1
+        fi
+        echo "✅ nextest uses an explicit semver pin"
+    - name: Guard bench exclusion in Test Suite
+      if: ${{ runner.os == 'Linux' && matrix.rust == 'stable' && matrix.features == '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        export LC_ALL=C
+        file=".github/workflows/ci.yml"
+
+        # Check that all four test commands include --exclude copybook-bench
+        missing=0
+
+        # nextest run
+        grep -Eq '^[[:space:]]+cargo nextest run.*--exclude[[:space:]]+copybook-bench([[:space:]]|$)' "$file" || {
+          echo "::error::Missing --exclude copybook-bench in 'cargo nextest run'"; missing=1; }
+
+        # nextest archive
+        grep -Eq '^[[:space:]]+cargo nextest archive.*--exclude[[:space:]]+copybook-bench([[:space:]]|$)' "$file" || {
+          echo "::error::Missing --exclude copybook-bench in 'cargo nextest archive'"; missing=1; }
+
+        # cargo test: require ≥2 invocations with --exclude
+        ct_count=$(grep -Ec 'run:[[:space:]]+cargo test .*--exclude[[:space:]]+copybook-bench' "$file" || echo 0)
+        if [ "$ct_count" -lt 2 ]; then
+          echo "::error::Expected at least two 'cargo test' commands with --exclude copybook-bench (found $ct_count)"
+          missing=1
+        fi
+
+        if [ "$missing" -ne 0 ]; then
+          echo "::error::Bench exclusion guard failed"; exit 1
+        fi
+
+        echo "✅ All Test Suite commands properly exclude copybook-bench"
     - name: Run tests (nextest)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: |

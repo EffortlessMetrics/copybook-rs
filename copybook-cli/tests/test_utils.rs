@@ -1,6 +1,7 @@
 //! Test utilities for finding fixture files
 
 use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use std::error::Error;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -46,18 +47,15 @@ pub fn fixture_path(relative_path: &str) -> TestResult<PathBuf> {
 }
 
 /// Create a copybook command with standard fixed format and CP037 codepage args
-///
-/// # Errors
-///
-/// Returns an error if the `copybook` binary cannot be located.
-pub fn copybook_cmd(args: &[&str]) -> TestResult<Command> {
-    let mut cmd = Command::cargo_bin("copybook")?;
+#[must_use]
+pub fn copybook_cmd(args: &[&str]) -> Command {
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args(args)
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
         .arg("cp037");
-    Ok(cmd)
+    cmd
 }
 
 /// Convert an `Option<T>` into a [`TestResult`] with a helpful error message.
@@ -109,8 +107,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unnecessary_wraps)]
     fn copybook_cmd_appends_standard_arguments() -> TestResult<()> {
-        let cmd = copybook_cmd(&["inspect", "dummy"])?;
+        let cmd = copybook_cmd(&["inspect", "dummy"]);
         let args: Vec<String> = cmd
             .get_args()
             .map(|arg| arg.to_string_lossy().into_owned())

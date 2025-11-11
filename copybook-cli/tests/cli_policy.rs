@@ -37,7 +37,7 @@ fn preferred_without_preserve_warns_by_default() -> TestResult<()> {
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     decode_args(&mut cmd, &copybook_path, &data_path, &output_path)
         .assert()
         .success()
@@ -60,7 +60,7 @@ fn strict_flag_overrides_env_off() -> TestResult<()> {
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.env("COPYBOOK_STRICT_POLICY", "0")
         .arg("--strict-policy");
     decode_args(&mut cmd, &copybook_path, &data_path, &output_path)
@@ -85,7 +85,7 @@ fn preferred_without_preserve_respects_strict_policy_env() -> TestResult<()> {
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.env("COPYBOOK_STRICT_POLICY", "1");
     decode_args(&mut cmd, &copybook_path, &data_path, &output_path)
         .assert()
@@ -109,7 +109,7 @@ fn no_strict_flag_overrides_env_on() -> TestResult<()> {
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.env("COPYBOOK_STRICT_POLICY", "1")
         .arg("--no-strict-policy");
     decode_args(&mut cmd, &copybook_path, &data_path, &output_path)
@@ -131,7 +131,7 @@ fn compat_warning_logs_warn_with_subcode_and_effective_exit() -> TestResult<()> 
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     decode_args(&mut cmd, &copybook_path, &data_path, &output_path)
         .assert()
         .success()
@@ -154,7 +154,7 @@ fn strict_failure_logs_error_with_subcode_and_effective_exit() -> TestResult<()>
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let mut cmd = bin()?;
+    let mut cmd = bin();
     cmd.arg("--strict-policy");
     decode_args(&mut cmd, &copybook_path, &data_path, &output_path)
         .assert()

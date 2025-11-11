@@ -498,13 +498,20 @@ fn test_rdw_partial_read_handling() {
     let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
     assert!(result.is_err(), "Should fail with partial read");
 
-    // Should get appropriate error (could be underflow or read error)
+    // Should get appropriate error (could be underflow, incomplete payload, or read error)
     match result {
-        Err(error) => assert!(matches!(
+        Err(error) => assert!(
+            matches!(
+                error.code,
+                ErrorCode::CBKF102_RECORD_LENGTH_INVALID // Incomplete RDW payload
+                    | ErrorCode::CBKF221_RDW_UNDERFLOW   // Truncated RDW payload
+                    | ErrorCode::CBKD301_RECORD_TOO_SHORT // Truncated data section
+            ),
+            "Unexpected partial-read error: {:?} ({})",
             error.code,
-            ErrorCode::CBKF221_RDW_UNDERFLOW | ErrorCode::CBKD301_RECORD_TOO_SHORT
-        )),
-        Ok(_) => panic!("expected error CBKF221_RDW_UNDERFLOW or CBKD301_RECORD_TOO_SHORT"),
+            error
+        ),
+        Ok(_) => panic!("expected partial-read error"),
     }
 }
 

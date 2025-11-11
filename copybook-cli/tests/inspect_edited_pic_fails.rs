@@ -1,8 +1,7 @@
 mod test_utils;
 
-use assert_cmd::prelude::*;
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
-use std::process::Command;
 use test_utils::{TestResult, path_to_str};
 
 #[test]
@@ -19,7 +18,7 @@ fn edited_pic_is_a_hard_error() -> TestResult<()> {
 
     let copybook_str = path_to_str(f.path())?;
 
-    let output = Command::cargo_bin("copybook")?
+    let output = cargo_bin_cmd!("copybook")
         .args(["inspect", copybook_str])
         .output()?;
 

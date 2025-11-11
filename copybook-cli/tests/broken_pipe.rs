@@ -2,7 +2,6 @@
 #![allow(clippy::panic)]
 mod common;
 
-use assert_cmd::cargo::cargo_bin;
 use common::{TestResult, write_file};
 use os_pipe::pipe;
 use std::io::Read;
@@ -34,11 +33,10 @@ fn stdout_broken_pipe_is_ok_windows() -> TestResult<()> {
 
 #[cfg(any(unix, windows))]
 fn stdout_broken_pipe_is_ok() -> TestResult<()> {
-    let bin = cargo_bin("copybook");
     let (mut reader, writer) = pipe()?;
     let copybook = simple_copybook_fixture();
 
-    let mut cmd = Command::new(bin);
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_copybook"));
     cmd.arg("parse")
         .arg(&copybook)
         .stdout(Stdio::from(writer))
@@ -82,10 +80,9 @@ fn stderr_broken_pipe_respects_exit_code() -> TestResult<()> {
     write_file(&copybook_path, "01 RECORD.\n  05 FIELD PIC X(4).")?;
     write_file(&data_path, b"DATA")?;
 
-    let bin = cargo_bin("copybook");
     let (mut reader, writer) = pipe()?;
 
-    let mut cmd = Command::new(bin);
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_copybook"));
     cmd.env("COPYBOOK_STRICT_POLICY", "1");
     cmd.arg("decode")
         .arg("--format")

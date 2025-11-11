@@ -949,7 +949,7 @@ cargo fmt --all
   - All blocking test commands must include `--exclude copybook-bench`
 - **Perf tests**: live in dedicated workflows. To run locally:
   ```bash
-  cargo test -p copybook-bench --features perf -- --ignored
+  cargo test -p copybook-bench --features perf
   ```
 
 ### Project Status & Roadmap

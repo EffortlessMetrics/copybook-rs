@@ -135,7 +135,7 @@ pub enum Token {
     #[token(".")]
     Period,
 
-    #[token(",")]
+    #[token(",", priority = 4)]
     Comma,
 
     #[token("(")]
@@ -587,5 +587,130 @@ mod tests {
             .iter()
             .find(|t| matches!(t.token, Token::EditedPic(_)));
         assert!(pic_token.is_some());
+    }
+
+    /// Test comma tokenization priority (Issue #86)
+    ///
+    /// Verifies that standalone commas are tokenized as Token::Comma,
+    /// not captured by the EditedPic regex pattern.
+    #[test]
+    fn test_comma_tokenization_priority() {
+        let input = ",";
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize();
+
+        assert_eq!(
+            tokens[0].token,
+            Token::Comma,
+            "Standalone comma should tokenize as Token::Comma, not EditedPic"
+        );
+    }
+
+    /// Test comma in Level-88 VALUE clause context (Issue #86)
+    ///
+    /// Verifies that commas between values are correctly tokenized
+    /// in Level-88 VALUE clauses.
+    #[test]
+    fn test_comma_in_level88_value_clause() {
+        let input = r#"88 IS-VALID VALUE "A", "B", "C"."#;
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize();
+
+        let comma_tokens: Vec<_> = tokens
+            .iter()
+            .filter(|t| matches!(t.token, Token::Comma))
+            .collect();
+
+        assert_eq!(
+            comma_tokens.len(),
+            2,
+            "Should find 2 comma tokens in Level-88 VALUE clause"
+        );
+
+        // Ensure commas are not captured as EditedPic
+        let edited_pic_commas: Vec<_> = tokens
+            .iter()
+            .filter(|t| matches!(&t.token, Token::EditedPic(s) if s == ","))
+            .collect();
+
+        assert_eq!(
+            edited_pic_commas.len(),
+            0,
+            "Commas should not be tokenized as EditedPic"
+        );
+    }
+
+    /// Test edited PIC patterns still detected correctly (Issue #86)
+    ///
+    /// Ensures that genuine edited PIC patterns (containing Z or 9 with commas)
+    /// are still properly detected after the comma priority fix.
+    #[test]
+    fn test_edited_pic_still_detected_after_comma_fix() {
+        let input = "PIC Z,ZZZ.99";
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize();
+
+        let edited_pic = tokens
+            .iter()
+            .find(|t| matches!(t.token, Token::EditedPic(_)));
+
+        assert!(
+            edited_pic.is_some(),
+            "Genuine edited PIC patterns (Z,ZZZ.99) should still be detected"
+        );
+
+        if let Some(token_pos) = edited_pic {
+            if let Token::EditedPic(pattern) = &token_pos.token {
+                assert!(
+                    pattern.contains(','),
+                    "EditedPic should capture comma in Z,ZZZ pattern"
+                );
+            }
+        }
+    }
+
+    /// Test comma vs EditedPic disambiguation (Issue #86)
+    ///
+    /// Verifies that the lexer correctly distinguishes between:
+    /// - Standalone commas (Token::Comma) in VALUE clauses
+    /// - Commas within edited PIC patterns (Token::EditedPic)
+    #[test]
+    fn test_comma_vs_edited_pic_disambiguation() {
+        // Standalone comma should be Token::Comma
+        let mut lexer1 = Lexer::new(",");
+        let tokens1 = lexer1.tokenize();
+        assert!(matches!(tokens1[0].token, Token::Comma));
+
+        // Comma in edited PIC should be part of EditedPic token
+        let mut lexer2 = Lexer::new("Z,ZZZ");
+        let tokens2 = lexer2.tokenize();
+        assert!(matches!(tokens2[0].token, Token::EditedPic(_)));
+
+        // Comma after string literal should be Token::Comma
+        let mut lexer3 = Lexer::new(r#""A","#);
+        let tokens3 = lexer3.tokenize();
+        let comma_token = tokens3.iter().find(|t| matches!(t.token, Token::Comma));
+        assert!(comma_token.is_some(), "Comma after string literal should be Token::Comma");
+    }
+
+    /// Test commas with spaces in realistic VALUE clause (Issue #86)
+    ///
+    /// Verifies that commas in realistic COBOL VALUE clauses are properly
+    /// tokenized (commas are typically followed by spaces in COBOL).
+    #[test]
+    fn test_commas_with_spaces_realistic_cobol() {
+        let input = r#"VALUE "A", "B", "C""#;
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize();
+
+        let comma_count = tokens
+            .iter()
+            .filter(|t| matches!(t.token, Token::Comma))
+            .count();
+
+        assert_eq!(
+            comma_count, 2,
+            "Should find 2 commas in realistic COBOL VALUE clause"
+        );
     }
 }

@@ -392,6 +392,7 @@ fn test_cli_encode_fail_fast() -> TestResult<()> {
 
 /// Test help messages are correct
 #[test]
+#[allow(clippy::unnecessary_wraps)]
 fn test_cli_help_messages() -> TestResult<()> {
     let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("--help");
@@ -469,6 +470,7 @@ fn test_cli_strict_comments_flag_rejects_inline_comments() -> TestResult<()> {
 
 /// Test that stdin ("-") works with inline comments by default
 #[test]
+#[allow(clippy::unnecessary_wraps)]
 fn test_cli_strict_comments_stdin_path() -> TestResult<()> {
     let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("inspect")
@@ -481,6 +483,7 @@ fn test_cli_strict_comments_stdin_path() -> TestResult<()> {
 
 /// Test that stdin ("-") rejects inline comments with --strict-comments
 #[test]
+#[allow(clippy::unnecessary_wraps)]
 fn test_cli_strict_comments_stdin_rejected() -> TestResult<()> {
     let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("inspect")

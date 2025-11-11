@@ -135,6 +135,7 @@ pub enum Token {
     #[token(".")]
     Period,
 
+    // Comma must outrank EditedPic so 88 VALUE lists with commas parse (see Issue #86).
     #[token(",", priority = 4)]
     Comma,
 
@@ -711,6 +712,34 @@ mod tests {
         assert_eq!(
             comma_count, 2,
             "Should find 2 commas in realistic COBOL VALUE clause"
+        );
+    }
+
+    /// Test comma inside string literal is not tokenized (Issue #86)
+    ///
+    /// Verifies that commas appearing within quoted string literals
+    /// are not tokenized as Token::Comma, distinguishing between
+    /// literal content and VALUE clause separators.
+    #[test]
+    fn test_comma_inside_string_literal_not_tokenized() {
+        let mut lx = Lexer::new(r#""A,B""#);
+        let toks = lx.tokenize();
+
+        assert!(
+            !toks.iter().any(|t| matches!(t.token, Token::Comma)),
+            "Comma inside a quoted literal must not tokenize as Token::Comma"
+        );
+
+        // Verify we got exactly one StringLiteral token containing "A,B"
+        let string_tokens: Vec<_> = toks
+            .iter()
+            .filter(|t| matches!(&t.token, Token::StringLiteral(s) if s == "A,B"))
+            .collect();
+
+        assert_eq!(
+            string_tokens.len(),
+            1,
+            "Should find exactly one StringLiteral token containing 'A,B'"
         );
     }
 }

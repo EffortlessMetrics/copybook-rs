@@ -48,6 +48,7 @@
 //! - **Robustness**: Enhanced handling of edge cases and malformed input
 //! - **Performance**: Efficient parsing with minimal memory allocation
 //! - **Standards Compliance**: Adherence to COBOL copybook syntax standards
+//! - **Safety**: Zero unsafe code with comprehensive validation
 //!
 //! ## Usage Example
 //!

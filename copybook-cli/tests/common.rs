@@ -1,7 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::panic)]
-use assert_cmd::cargo::cargo_bin_cmd;
 use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

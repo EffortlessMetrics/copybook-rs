@@ -1,7 +1,7 @@
 //! Test utilities for finding fixture files
 
-use assert_cmd::cargo::cargo_bin_cmd;
 use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use std::error::Error;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};

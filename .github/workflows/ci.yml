@@ -61,11 +61,49 @@ jobs:
       with:
         tool: nextest@0.9.11
         checksum: true
+    - name: Guard nextest pin
+      if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
+      run: |
+        set -euo pipefail
+        grep -qE '^\s+tool:\s*nextest@0\.9\.11\s*$' .github/workflows/ci.yml || {
+          echo "::error::Expected nextest to be pinned to '0.9.11' in ci.yml Install step"
+          exit 1
+        }
+        echo "✅ Nextest pinned to 0.9.11"
     - name: Guard bench exclusion in Test Suite
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: |
-        grep -q -- '--exclude copybook-bench' .github/workflows/ci.yml \
-          || (echo "::error::Bench exclusion missing in Test Suite"; exit 1)
+        set -euo pipefail
+
+        # Check that all three test commands include --exclude copybook-bench
+        # (nextest run, nextest archive, and two cargo test variants)
+        missing=0
+
+        # Check nextest run command
+        grep -qE '^\s+cargo nextest run.*--exclude copybook-bench' .github/workflows/ci.yml || {
+          echo "::error::Missing --exclude copybook-bench in 'cargo nextest run' command"
+          missing=1
+        }
+
+        # Check nextest archive command
+        grep -qE '^\s+cargo nextest archive.*--exclude copybook-bench' .github/workflows/ci.yml || {
+          echo "::error::Missing --exclude copybook-bench in 'cargo nextest archive' command"
+          missing=1
+        }
+
+        # Check cargo test commands (should have at least 2 occurrences)
+        count=$(grep -cE '^\s+run: cargo test.*--exclude copybook-bench' .github/workflows/ci.yml || echo 0)
+        if [ "$count" -lt 2 ]; then
+          echo "::error::Expected at least 2 'cargo test' commands with --exclude copybook-bench, found $count"
+          missing=1
+        fi
+
+        if [ "$missing" -eq 1 ]; then
+          echo "::error::Bench exclusion guard failed. Ensure all Test Suite commands exclude copybook-bench."
+          exit 1
+        fi
+
+        echo "✅ All Test Suite commands properly exclude copybook-bench"
     - name: Run tests (nextest)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: |

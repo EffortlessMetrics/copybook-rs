@@ -300,7 +300,7 @@ jobs:
 
     - name: Upload security receipts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: security-receipts-${{ github.sha }}
         path: target/security.audit.json

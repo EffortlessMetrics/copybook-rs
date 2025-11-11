@@ -47,5 +47,7 @@ default = []
 progressive = []
 # AC5: Diagnostics benchmarks for infrastructure overhead measurement (opt-in)
 diagnostics = []
+# Performance-only tests: throughput assertions for dedicated perf workflow
+perf = []
 [lints]
 workspace = true

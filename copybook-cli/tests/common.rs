@@ -9,6 +9,7 @@ use std::path::Path;
 pub type TestResult<T> = Result<T, Box<dyn Error>>;
 
 #[allow(dead_code)] // shared test helper: some suites only rely on write_file
+#[must_use]
 pub fn bin() -> Command {
     cargo_bin_cmd!("copybook")
 }

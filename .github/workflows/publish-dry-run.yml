@@ -1,0 +1,69 @@
+name: Publish Dry Run
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to test (e.g., v0.3.1)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  publish-dry-run:
+    name: Publish Dry Run
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - uses: dtolnay/rust-toolchain@stable
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: publish-dry-run
+
+    - name: Verify tag context
+      run: |
+        echo "Testing publish dry run for tag: ${{ github.ref_name || github.event.inputs.tag || 'manual trigger' }}"
+        echo "This validates that all crates can be packaged and published in the correct order."
+
+    - name: Dry run publish (copybook-core)
+      run: |
+        echo "📦 Testing copybook-core packaging..."
+        cargo publish -p copybook-core --dry-run
+        echo "✅ copybook-core dry-run successful"
+
+    - name: Dry run publish (copybook-codec)
+      run: |
+        echo "📦 Testing copybook-codec packaging..."
+        cargo publish -p copybook-codec --dry-run
+        echo "✅ copybook-codec dry-run successful"
+
+    - name: Dry run publish (copybook-cli)
+      run: |
+        echo "📦 Testing copybook-cli packaging..."
+        cargo publish -p copybook-cli --dry-run
+        echo "✅ copybook-cli dry-run successful"
+
+    - name: Summary
+      if: success()
+      run: |
+        echo "🎉 All crates passed dry-run publish validation!"
+        echo ""
+        echo "Publish order verified:"
+        echo "  1. copybook-core (no workspace deps)"
+        echo "  2. copybook-codec (depends on copybook-core)"
+        echo "  3. copybook-cli (depends on copybook-core + copybook-codec)"
+        echo ""
+        echo "Ready for actual publish via publish.yml workflow."

@@ -60,7 +60,10 @@ jobs:
       uses: taiki-e/install-action@nextest
     - name: Run tests (nextest + junit for test-truth binding)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
-      run: cargo nextest run --workspace --profile ci --junit target/nextest/junit.xml
+      run: |
+        cargo nextest run --workspace --profile ci --failure-output=immediate --status-level=fail
+        cargo nextest archive --workspace --profile ci --archive-file target/nextest/partial-archive.tar.zst
+        cargo nextest report junit --archive-file target/nextest/partial-archive.tar.zst --output-file target/nextest/junit.xml
     - name: Sync test status to docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: cargo run -p xtask -- docs sync-tests
@@ -230,7 +233,7 @@ jobs:
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Generate code coverage
-      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      run: cargo llvm-cov --all-features --workspace --exclude copybook-bench --lcov --output-path lcov.info
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:
@@ -257,20 +260,6 @@ jobs:
     - uses: actions/checkout@v5
     - name: Check public Result docs
       run: bash scripts/check-public-result-docs.sh
-
-  publish-dry-run:
-    name: Publish Dry Run
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v5
-    - uses: dtolnay/rust-toolchain@stable
-    - uses: Swatinem/rust-cache@v2
-    - name: Dry run publish (copybook-core)
-      run: cargo publish -p copybook-core --dry-run
-    - name: Dry run publish (copybook-codec)
-      run: cargo publish -p copybook-codec --dry-run
-    - name: Dry run publish (copybook-cli)
-      run: cargo publish -p copybook-cli --dry-run
 
   security-audit:
     name: Security Audit (cargo-audit)

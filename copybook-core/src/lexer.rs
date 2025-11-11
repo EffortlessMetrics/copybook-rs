@@ -660,13 +660,13 @@ mod tests {
             "Genuine edited PIC patterns (Z,ZZZ.99) should still be detected"
         );
 
-        if let Some(token_pos) = edited_pic {
-            if let Token::EditedPic(pattern) = &token_pos.token {
-                assert!(
-                    pattern.contains(','),
-                    "EditedPic should capture comma in Z,ZZZ pattern"
-                );
-            }
+        if let Some(token_pos) = edited_pic
+            && let Token::EditedPic(pattern) = &token_pos.token
+        {
+            assert!(
+                pattern.contains(','),
+                "EditedPic should capture comma in Z,ZZZ pattern"
+            );
         }
     }
 

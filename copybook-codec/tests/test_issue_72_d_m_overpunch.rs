@@ -10,16 +10,16 @@
 //! - Positive digits 0-9 map to: {, A, B, C, D, E, F, G, H, I
 //! - Negative digits 0-9 map to: }, J, K, L, M, N, O, P, Q, R
 
-use copybook_codec::zoned_overpunch::{
-    decode_overpunch_byte, encode_overpunch_byte, ZeroSignPolicy,
-};
 use copybook_codec::Codepage;
+use copybook_codec::zoned_overpunch::{
+    ZeroSignPolicy, decode_overpunch_byte, encode_overpunch_byte,
+};
 
 #[test]
 fn test_issue_72_d_character_positive_4() {
     // Test that 'D' (0x44) decodes to +4
-    let (digit, is_negative) = decode_overpunch_byte(0x44, Codepage::ASCII)
-        .expect("Failed to decode 'D' character");
+    let (digit, is_negative) =
+        decode_overpunch_byte(0x44, Codepage::ASCII).expect("Failed to decode 'D' character");
 
     assert_eq!(digit, 4, "'D' should decode to digit 4");
     assert!(!is_negative, "'D' should be positive (not negative)");
@@ -35,8 +35,8 @@ fn test_issue_72_d_character_positive_4() {
 #[test]
 fn test_issue_72_m_character_negative_4() {
     // Test that 'M' (0x4D) decodes to -4
-    let (digit, is_negative) = decode_overpunch_byte(0x4D, Codepage::ASCII)
-        .expect("Failed to decode 'M' character");
+    let (digit, is_negative) =
+        decode_overpunch_byte(0x4D, Codepage::ASCII).expect("Failed to decode 'M' character");
 
     assert_eq!(digit, 4, "'M' should decode to digit 4");
     assert!(is_negative, "'M' should be negative");
@@ -66,8 +66,9 @@ fn test_issue_72_complete_positive_overpunch_table() {
     ];
 
     for (digit, expected_byte) in expected {
-        let encoded = encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive)
-            .unwrap_or_else(|_| panic!("Failed to encode positive digit {digit}"));
+        let encoded =
+            encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive)
+                .unwrap_or_else(|_| panic!("Failed to encode positive digit {digit}"));
 
         assert_eq!(
             encoded, expected_byte,
@@ -78,8 +79,14 @@ fn test_issue_72_complete_positive_overpunch_table() {
         let (decoded_digit, is_negative) = decode_overpunch_byte(encoded, Codepage::ASCII)
             .unwrap_or_else(|_| panic!("Failed to decode byte 0x{encoded:02X}"));
 
-        assert_eq!(decoded_digit, digit, "Round-trip failed for positive digit {digit}");
-        assert!(!is_negative, "Positive digit {digit} should not be negative");
+        assert_eq!(
+            decoded_digit, digit,
+            "Round-trip failed for positive digit {digit}"
+        );
+        assert!(
+            !is_negative,
+            "Positive digit {digit} should not be negative"
+        );
     }
 }
 
@@ -112,7 +119,10 @@ fn test_issue_72_complete_negative_overpunch_table() {
         let (decoded_digit, is_negative) = decode_overpunch_byte(encoded, Codepage::ASCII)
             .unwrap_or_else(|_| panic!("Failed to decode byte 0x{encoded:02X}"));
 
-        assert_eq!(decoded_digit, digit, "Round-trip failed for negative digit {digit}");
+        assert_eq!(
+            decoded_digit, digit,
+            "Round-trip failed for negative digit {digit}"
+        );
 
         // Note: -0 normalizes to +0 in some contexts, so we only check is_negative for non-zero
         if digit != 0 {
@@ -132,8 +142,14 @@ fn test_issue_72_roundtrip_all_digits() {
         let (pos_digit, pos_negative) = decode_overpunch_byte(pos_encoded, Codepage::ASCII)
             .expect("Decode positive should succeed");
 
-        assert_eq!(pos_digit, digit, "Positive round-trip failed for digit {digit}");
-        assert!(!pos_negative, "Positive digit {digit} should not be negative");
+        assert_eq!(
+            pos_digit, digit,
+            "Positive round-trip failed for digit {digit}"
+        );
+        assert!(
+            !pos_negative,
+            "Positive digit {digit} should not be negative"
+        );
 
         // Negative
         let neg_encoded =
@@ -142,7 +158,10 @@ fn test_issue_72_roundtrip_all_digits() {
         let (neg_digit, neg_negative) = decode_overpunch_byte(neg_encoded, Codepage::ASCII)
             .expect("Decode negative should succeed");
 
-        assert_eq!(neg_digit, digit, "Negative round-trip failed for digit {digit}");
+        assert_eq!(
+            neg_digit, digit,
+            "Negative round-trip failed for digit {digit}"
+        );
         if digit != 0 {
             assert!(neg_negative, "Negative digit {digit} should be negative");
         }

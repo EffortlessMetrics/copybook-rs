@@ -356,7 +356,14 @@ fn test_enterprise_configuration_scaffolding() {
             retention_days: 2555, // 7 years for SOX compliance
             max_rotated_files: 365,
             compress_rotated: true,
-            archive_path: Some("/tmp/claude/audit_archive".to_string().into()),
+            archive_path: Some(
+                std::env::temp_dir()
+                    .join("claude")
+                    .join("audit_archive")
+                    .to_string_lossy()
+                    .to_string()
+                    .into(),
+            ),
             max_file_size_mb: 1024, // 1GB rotation threshold
         }),
         ..Default::default()

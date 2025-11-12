@@ -266,10 +266,10 @@ fn test_baseline_persistence() {  // AC2
     let report = create_report(4.22, 571.0);
     store.promote_baseline(&report, "main", "abc12345");
 
-    let temp_path = "/tmp/test_baseline.json";
-    store.save(temp_path).unwrap();
+    let temp_path = std::env::temp_dir().join("test_baseline.json");
+    store.save(&temp_path).unwrap();
 
-    let loaded = BaselineStore::load_or_create(temp_path).unwrap();
+    let loaded = BaselineStore::load_or_create(&temp_path).unwrap();
     assert_eq!(loaded.current.unwrap().display_gibs, Some(4.22));
 }
 ```

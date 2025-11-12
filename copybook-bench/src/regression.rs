@@ -997,8 +997,12 @@ impl BaselineRepository {
     pub fn new() -> Self {
         Self {
             storage_backend: StorageBackend::FileSystem {
-                root_path: std::env::var("BASELINE_STORAGE_PATH")
-                    .unwrap_or_else(|_| "/tmp/copybook-baselines".to_string()),
+                root_path: std::env::var("BASELINE_STORAGE_PATH").unwrap_or_else(|_| {
+                    std::env::temp_dir()
+                        .join("copybook-baselines")
+                        .to_string_lossy()
+                        .to_string()
+                }),
             },
             baseline_metadata: HashMap::new(),
             retention_policy: BaselineRetentionPolicy {

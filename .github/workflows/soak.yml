@@ -40,7 +40,7 @@ jobs:
           ZONED_POLICY: preferred
           SOAK_SEED: soak-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}
         run: |
-          DATASET="/tmp/dataset-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}.bin"
+          DATASET="${RUNNER_TEMP}/dataset-${{ matrix.format }}-${{ matrix.workload }}-${{ matrix.size }}-${{ matrix.codepage }}.bin"
           scripts/gen_dataset.sh "${{ matrix.format }}" "${{ matrix.codepage }}" "${{ matrix.size }}" "${DATASET}"
           echo "DATASET=${DATASET}" >> "$GITHUB_ENV"
 

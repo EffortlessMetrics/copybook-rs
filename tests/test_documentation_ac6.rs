@@ -1063,7 +1063,10 @@ impl Default for StorageLocation {
     fn default() -> Self {
         Self {
             location_type: LocationType::Local,
-            location_path: "/tmp/test_documentation".to_string(),
+            location_path: std::env::temp_dir()
+                .join("test_documentation")
+                .to_string_lossy()
+                .to_string(),
             encryption_enabled: true,
             replication_factor: 1,
         }
@@ -1073,7 +1076,10 @@ impl Default for StorageLocation {
 impl Default for OutputConfiguration {
     fn default() -> Self {
         Self {
-            output_directory: "/tmp/test_reports".to_string(),
+            output_directory: std::env::temp_dir()
+                .join("test_reports")
+                .to_string_lossy()
+                .to_string(),
             file_naming_convention: "{report_type}_{timestamp}".to_string(),
             compression_enabled: false,
             encryption_enabled: true,

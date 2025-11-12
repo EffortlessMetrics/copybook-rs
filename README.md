@@ -819,11 +819,11 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 
 ### Limitations
 - **Fully Supported**: Level-88 condition values (VALUE clauses) with complete parse, codec, and structural validation (see docs/reference/COBOL_SUPPORT_MATRIX.md for test evidence)
+- **Partially Supported**: Level-66 RENAMES — parser + same-scope resolver complete (PR #129), codec projection pending (Issue #110)
 - **Unsupported**: COMP-1 (single-precision float) and COMP-2 (double-precision float)
 - **Unsupported**: Edited PIC clauses (Z, slash, comma, $, CR, DB)
 - **Unsupported**: SIGN LEADING/TRAILING SEPARATE directives
 - **Unsupported**: Nested OCCURS DEPENDING ON arrays (ODO within ODO)
-- **Unsupported**: RENAMES (66-level) items
 
 ## Error Handling
 

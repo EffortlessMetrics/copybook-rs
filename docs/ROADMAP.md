@@ -32,12 +32,14 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
    * ✅ publish dry-run validation in CI
    * ✅ automated publish workflow for tagged releases
    * 🔄 docs.rs builds for all crates (will complete after first publish)
-2. **❌ Bench receipts in CI** (#52) — **OUTSTANDING**
+2. **🔄 Bench receipts in CI** (#52, #66) — **80% COMPLETE**
 
-   * ❌ criterion JSON parsing with real throughput calculation (tooling not shipped)
-   * ❌ PR comment: SLO deltas and pass/fail against budgets (±5% warn, >10% fail)
-   * ❌ Upload to GitHub Actions artifacts with 14-day retention
-   * ❌ DISPLAY/COMP-3 metric extraction from benchmark results
+   * ✅ `bench-report` CLI tool implemented (validate, baseline promote/show, compare, summary)
+   * ✅ JSON schema validation with serde
+   * ✅ Performance floors established (DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s)
+   * ⏳ PR comment automation pending (1-1.5 days remaining)
+   * ✅ Upload to GitHub Actions artifacts with 90-day retention
+   * ✅ DISPLAY/COMP-3 metric extraction from benchmark results
 3. **✅ Golden fixtures** (#53) — **COMPLETED**
 
    * ✅ `level-88 after ODO` (pass) - validates non-storage fields after ODO
@@ -52,13 +54,23 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
    * ✅ Performance number consolidation: single source of truth
    * ✅ All duplicate perf numbers replaced with canonical links
 
+5. **✅ RENAMES Foundation** (#122, #128, #129) — **COMPLETED**
+
+   * ✅ Parser: Level-66 RENAMES syntax parsing with THRU/THROUGH keywords
+   * ✅ Resolver: Same-scope resolution with comprehensive validations (8 error codes: CBKS601-608)
+   * ✅ Test Coverage: 30 tests (28 passing, 2 deferred for nested groups)
+   * ✅ Documentation: COBOL Support Matrix, Grammar reference, exploration reports
+   * ⏳ Nested group attach pending (Issue #133, 6-8 hours)
+   * ⏳ Codec projection pending (Issue #110, 9-12 days)
+
 ### Exit Criteria ⚠️ PARTIAL
 
 * ✅ `cargo publish` sequence ready; dry-run passes for all crates
 * ✅ Version pinned (0.3.1) with exact internal dependencies
 * ✅ Golden fixtures all pass; structural constraints properly validated
-* ❌ Benchmark CI parses real throughput data and enforces SLOs
+* 🔄 Benchmark CI 80% complete; PR automation pending
 * ✅ Documentation audit complete: no duplicate perf numbers, working navigation
+* ✅ RENAMES parser + same-scope resolver complete
 
 ### **Status: ⚠️ Incomplete (follow-ups required)**
 
@@ -68,15 +80,48 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ---
 
-## Milestone v0.5.0 — Dialects & Optimizations (Q1 2026)
+## Milestone v0.5.0 — Quality & Feature Completion (Q1 2026)
 
 ### Objectives
 
-* Add a safe, explicit knob for ODO bounds across COBOL dialects; squeeze throughput without changing outputs.
+* Complete RENAMES support; establish quality infrastructure (fuzz, mutation testing); add dialect flexibility for ODO bounds.
 
 ### Deliverables
 
-1. **Dialect lever** (#51)
+1. **Quality Infrastructure** (Phase 1 Priority)
+
+   * **Determinism Harness** (#112 Phase 1) — 1-2 days
+     - BLAKE3 cryptographic verification
+     - `copybook determinism-check` CLI command
+     - CI gate for enterprise audit compliance
+
+   * **Enhanced Property Testing** (#112 Phase 2) — 2-3 days
+     - 200+ property tests for COBOL invariants
+     - PIC clause domain properties, ODO bounds, sign handling
+     - Nightly CI with 10,000 cases
+
+   * **Fuzz Testing** (#112 Phase 3) — 2-3 days
+     - cargo-fuzz infrastructure with 6 targets
+     - Corpus seeding from golden fixtures
+     - Nightly CI fuzz smoke test
+
+   * **Support Matrix CLI** (#111) — 2.5 days
+     - `copybook support --matrix` for feature detection
+     - Self-qualification before migration
+     - Exit codes for CI integration
+
+2. **RENAMES Completion** (#110, #133)
+
+   * **Nested Group Attach** (#133) — 6-8 hours
+     - Level-66 under levels 02-49 (not just 01)
+     - Un-ignore 2 existing tests
+
+   * **Codec Projection** (#110) — 9-12 days
+     - Read-side decode (composite JSON)
+     - Write-side encode (field distribution)
+     - Round-trip validation with golden fixtures
+
+3. **Dialect lever** (#51) — 2-3 weeks
 
    * Config:
 
@@ -86,19 +131,57 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
      ```
    * CLI flag and env var mapping (`--dialect-odo-lower-bound`, `COPYBOOK_DIALECT_ODO_LOWER`)
    * Golden fixtures for each setting; docs examples and migration notes
-2. **Perf tune (SIMD/I/O)**
 
-   * Target +10–20% p95 throughput maintained under budgets; no API/behavior changes
+4. **Infrastructure Improvements**
+
+   * **Benchmark Container** (#113) — 1.5-2.5 days
+     - Containerized bench-report Docker image
+     - Operator runbook documentation
+     - CI integration for reproducible benchmarks
+
+   * **Cross-platform Paths** (#88) — 4-6 hours
+     - Fix 5 remaining hardcoded Unix paths
+     - Portable `PathBuf` patterns
 
 ### Exit Criteria
 
-* Same inputs under each dialect mode produce **documented** and **tested** outcomes
-* No regressions vs v0.3.0 budgets; CI receipts show deltas ≤ 5% except where improved
-* Default behavior unchanged (back-compat preserved)
+* ✅ Determinism harness operational with CI gate
+* ✅ Fuzz testing discovering crashes (0 crashes target)
+* ✅ Property tests validating COBOL invariants (200+ properties)
+* ✅ RENAMES fully supported (parse + resolve + codec)
+* ✅ Support Matrix CLI enables self-qualification
+* ✅ Benchmark container with operator runbook
+* ✅ Cross-platform test compatibility
+* ✅ Dialect lever with comprehensive fixtures
+* ✅ No regressions vs v0.3.1 budgets; CI receipts show deltas ≤ 5%
+* ✅ Default behavior unchanged (back-compat preserved)
+
+### Recommended Implementation Order
+
+**Week 1-2: Quick Wins**
+- Issue #133 (RENAMES nested groups) — 6-8 hours
+- Issue #88 (hardcoded paths) — 4-6 hours
+- Issue #66 (benchmark PR comments) — 1-1.5 days
+- Issue #111 (Support Matrix CLI) — 2.5 days
+
+**Week 3-4: Quality Infrastructure**
+- Issue #112 Phase 1 (Determinism) — 1-2 days
+- Issue #112 Phase 2 (Property tests) — 2-3 days
+- Issue #113 (Benchmark container) — 1.5-2.5 days
+
+**Week 5-8: Feature Completion**
+- Issue #112 Phase 3 (Fuzz testing) — 2-3 days
+- Issue #110 (RENAMES codec) — 9-12 days
+
+**Week 9-12: Dialect Flexibility**
+- Issue #51 (ODO lower bound) — 2-3 weeks
 
 ### Risks & Mitigations
 
-* **Behavior drift for existing users** → default remains current `"n"`; strong docs + examples
+* **Determinism gate false positives** → Document platform-specific cases, manual overrides
+* **Fuzz corpus growth** → Time-boxed runs, automated minimization
+* **RENAMES codec performance** → <5% overhead target, scratch buffer optimization
+* **Behavior drift for existing users** → Default remains current `"n"`; strong docs + examples
 
 ---
 

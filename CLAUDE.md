@@ -288,7 +288,12 @@ Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. S
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE directives
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) items
+
+### Partially Supported COBOL Features
+- **Level-66 (RENAMES)**: Parse + same-scope resolver ✅ complete (PR #129); codec projection pending (Issue #110)
+  - Same-scope aliasing: Fully supported with comprehensive validation (8 error codes)
+  - Nested group attach: Pending (Issue #133, 6-8 hours effort)
+  - Decode/encode projection: Pending (Issue #110, 9-12 days effort)
 
 **Note**: Level-88 condition values are fully supported (parse + codec + structural validation). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
 

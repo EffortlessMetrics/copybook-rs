@@ -4,7 +4,6 @@
 //! for all failure modes in the copybook processing system.
 
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::fmt;
 use thiserror::Error;
 
@@ -13,23 +12,30 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Main error type for copybook operations
 ///
-/// Uses `Cow<'static, str>` for zero-allocation static messages while supporting
-/// dynamic error messages when needed. The `#[error]` attribute provides automatic
-/// Display implementation following the format: `{code}: {message} ({context})`.
+/// Uses thiserror for clean error handling with manual Display implementation
+/// to avoid allocations in hot paths.
 #[derive(Error, Debug, Clone, PartialEq)]
-#[error("{code}: {message}{}", .context.as_ref().map(|c| format!(" ({})", c)).unwrap_or_default())]
 pub struct Error {
     /// Stable error code for programmatic handling
     pub code: ErrorCode,
 
     /// Human-readable error message
-    ///
-    /// Uses `Cow<'static, str>` to avoid allocations for static error messages
-    /// while supporting dynamic formatting when needed.
-    pub message: Cow<'static, str>,
+    pub message: String,
 
     /// Optional context information
     pub context: Option<ErrorContext>,
+}
+
+// Manual Display implementation to avoid allocations when context is None
+impl fmt::Display for Error {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.code, self.message)?;
+        if let Some(ref ctx) = self.context {
+            write!(f, " ({ctx})")?;
+        }
+        Ok(())
+    }
 }
 
 impl Error {
@@ -337,24 +343,21 @@ impl Error {
     /// should be chosen from the stable `ErrorCode` taxonomy to enable
     /// programmatic error handling.
     ///
-    /// Uses `Cow<'static, str>` internally to avoid allocations for static
-    /// error messages while supporting dynamic formatting when needed.
-    ///
     /// # Arguments
     /// * `code` - Stable error code from the copybook-rs taxonomy
-    /// * `message` - Human-readable error description (static or dynamic)
+    /// * `message` - Human-readable error description
     ///
     /// # Example
     /// ```rust
     /// use copybook_core::{Error, ErrorCode};
     ///
-    /// // Static message (zero allocation)
+    /// // Static message
     /// let error1 = Error::new(
     ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
     ///     "Invalid sign zone in zoned decimal field"
     /// );
     ///
-    /// // Dynamic message (allocated)
+    /// // Dynamic message
     /// let field_name = "AMOUNT";
     /// let error2 = Error::new(
     ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -365,35 +368,7 @@ impl Error {
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,
-            message: Cow::Owned(message.into()),
-            context: None,
-        }
-    }
-
-    /// Create a new error with a static message (zero-allocation).
-    ///
-    /// This constructor is optimized for static string literals and avoids
-    /// heap allocation by using `Cow::Borrowed`.
-    ///
-    /// # Arguments
-    /// * `code` - Stable error code from the copybook-rs taxonomy
-    /// * `message` - Static string literal
-    ///
-    /// # Example
-    /// ```rust
-    /// use copybook_core::{Error, ErrorCode};
-    ///
-    /// // Zero allocation for static messages
-    /// let error = Error::new_static(
-    ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
-    ///     "Invalid sign zone in zoned decimal field"
-    /// );
-    /// ```
-    #[inline]
-    pub const fn new_static(code: ErrorCode, message: &'static str) -> Self {
-        Self {
-            code,
-            message: Cow::Borrowed(message),
+            message: message.into(),
             context: None,
         }
     }
@@ -464,6 +439,7 @@ macro_rules! error {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)] // Allow unwrap in tests for brevity
 mod tests {
     use super::*;
 
@@ -483,7 +459,7 @@ mod tests {
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
             "Invalid sign zone in field",
         );
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert_eq!(
             display,
             "CBKD411_ZONED_BAD_SIGN: Invalid sign zone in field"
@@ -494,42 +470,27 @@ mod tests {
     fn test_error_with_context_display() {
         let error =
             Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Test error").with_field("AMOUNT");
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(display.contains("CBKD411_ZONED_BAD_SIGN: Test error"));
         assert!(display.contains("field AMOUNT"));
     }
 
     #[test]
-    fn test_cow_static_message_no_allocation() {
-        // Using new_static for zero-allocation static messages
-        let error = Error::new_static(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Static message");
-        // Verify it's a borrowed variant
-        match &error.message {
-            Cow::Borrowed(_) => {} // Good - no allocation
-            Cow::Owned(_) => panic!("Expected Borrowed, got Owned"),
-        }
+    fn test_error_static_message() {
+        let error = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Static message");
+        assert_eq!(error.message, "Static message");
+        assert_eq!(error.code, ErrorCode::CBKD411_ZONED_BAD_SIGN);
+        assert!(error.context.is_none());
     }
 
     #[test]
-    fn test_cow_dynamic_message_allocated() {
+    fn test_error_dynamic_message() {
         let field = "AMOUNT";
         let error = Error::new(
             ErrorCode::CBKD411_ZONED_BAD_SIGN,
-            format!("Dynamic message for field {}", field),
+            format!("Dynamic message for field {field}"),
         );
-        // Verify it's an owned variant
-        match &error.message {
-            Cow::Owned(_) => {} // Good - allocated as expected
-            Cow::Borrowed(_) => panic!("Expected Owned, got Borrowed"),
-        }
-    }
-
-    #[test]
-    fn test_new_with_string_literal() {
-        // new() with string literal goes through Into<String>, so it's Owned
-        let error = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "String literal");
-        // This will be Owned because we call .into() on &str → String
-        assert!(matches!(error.message, Cow::Owned(_)));
+        assert_eq!(error.message, "Dynamic message for field AMOUNT");
     }
 
     #[test]

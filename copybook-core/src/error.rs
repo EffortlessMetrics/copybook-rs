@@ -362,10 +362,38 @@ impl Error {
     /// );
     /// ```
     #[inline]
-    pub fn new(code: ErrorCode, message: impl Into<Cow<'static, str>>) -> Self {
+    pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,
-            message: message.into(),
+            message: Cow::Owned(message.into()),
+            context: None,
+        }
+    }
+
+    /// Create a new error with a static message (zero-allocation).
+    ///
+    /// This constructor is optimized for static string literals and avoids
+    /// heap allocation by using `Cow::Borrowed`.
+    ///
+    /// # Arguments
+    /// * `code` - Stable error code from the copybook-rs taxonomy
+    /// * `message` - Static string literal
+    ///
+    /// # Example
+    /// ```rust
+    /// use copybook_core::{Error, ErrorCode};
+    ///
+    /// // Zero allocation for static messages
+    /// let error = Error::new_static(
+    ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
+    ///     "Invalid sign zone in zoned decimal field"
+    /// );
+    /// ```
+    #[inline]
+    pub const fn new_static(code: ErrorCode, message: &'static str) -> Self {
+        Self {
+            code,
+            message: Cow::Borrowed(message),
             context: None,
         }
     }
@@ -473,7 +501,8 @@ mod tests {
 
     #[test]
     fn test_cow_static_message_no_allocation() {
-        let error = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Static message");
+        // Using new_static for zero-allocation static messages
+        let error = Error::new_static(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Static message");
         // Verify it's a borrowed variant
         match &error.message {
             Cow::Borrowed(_) => {} // Good - no allocation
@@ -493,6 +522,14 @@ mod tests {
             Cow::Owned(_) => {} // Good - allocated as expected
             Cow::Borrowed(_) => panic!("Expected Owned, got Borrowed"),
         }
+    }
+
+    #[test]
+    fn test_new_with_string_literal() {
+        // new() with string literal goes through Into<String>, so it's Owned
+        let error = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "String literal");
+        // This will be Owned because we call .into() on &str → String
+        assert!(matches!(error.message, Cow::Owned(_)));
     }
 
     #[test]

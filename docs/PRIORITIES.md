@@ -2,6 +2,7 @@
 
 **Last Updated**: 2025-11-12
 **Source**: Comprehensive research of 35 open GitHub issues
+**Authority**: This document is the source of truth for prioritization. When in conflict with issue labels or other docs, this document wins.
 
 This document tracks actionable implementation priorities based on comprehensive issue research. All priorities are informed by effort estimates, dependencies, and enterprise impact analysis.
 

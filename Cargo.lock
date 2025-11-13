@@ -442,6 +442,7 @@ name = "copybook-codec"
 version = "0.3.1"
 dependencies = [
  "anyhow",
+ "assert_cmd",
  "base64",
  "clap",
  "copybook-core",
@@ -449,6 +450,7 @@ dependencies = [
  "hex",
  "indexmap",
  "metrics",
+ "predicates",
  "proptest",
  "serde",
  "serde_json",
@@ -3088,8 +3090,13 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "copybook-bench",
+ "num_cpus",
  "regex",
  "roxmltree",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

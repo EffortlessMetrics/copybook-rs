@@ -1,6 +1,8 @@
 use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
+mod perf;
+
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args
@@ -11,8 +13,14 @@ fn main() -> Result<()> {
     {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
+        ["perf"] => perf::run(false, None),
+        ["perf", "--enforce"] => perf::run(true, None),
+        ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
+        ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         _ => {
-            eprintln!("Usage: cargo run -p xtask -- docs [sync-tests|verify-tests]");
+            eprintln!("Usage:");
+            eprintln!("  cargo run -p xtask -- docs [sync-tests|verify-tests]");
+            eprintln!("  cargo run -p xtask -- perf [--enforce] [--out-dir <path>]");
             Ok(())
         }
     }

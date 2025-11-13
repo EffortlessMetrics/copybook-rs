@@ -1,38 +1,83 @@
-//! Support command for feature matrix and copybook validation
+//! Support command for COBOL feature matrix
+//!
+//! Provides CLI access to the feature support matrix defined in `copybook-core::support_matrix`.
 
 use crate::exit_codes::ExitCode;
-use std::path::PathBuf;
+use anyhow::{Result, bail};
+use copybook_core::support_matrix::{self, FeatureSupport, SupportStatus};
 
 #[derive(clap::Args)]
 pub struct SupportArgs {
-    /// Display COBOL support matrix
+    /// Output as JSON instead of a table
     #[arg(long)]
-    pub matrix: bool,
+    pub json: bool,
 
-    /// Check copybook file for unsupported constructs
+    /// Check a single feature by ID (e.g. "level-88")
     #[arg(long)]
-    pub check: Option<PathBuf>,
+    pub check: Option<String>,
 }
 
-pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
-    if args.matrix {
-        // TODO: Load from docs/reference/COBOL_SUPPORT_MATRIX.md when available
-        println!("# COBOL Support Matrix");
-        println!();
-        println!("Feature support matrix not yet implemented.");
-        println!("See docs/reference/COBOL_SUPPORT_MATRIX.md for current status.");
-        return Ok(ExitCode::Ok);
+pub fn run(args: &SupportArgs) -> Result<ExitCode> {
+    let all = support_matrix::all_features();
+
+    if let Some(id) = args.check.as_deref() {
+        return run_check(id, all);
     }
 
-    if let Some(path) = &args.check {
-        let _text = std::fs::read_to_string(path)?;
-        // TODO: Implement real construct detection using parser
-        println!("Copybook validation not yet implemented.");
-        println!("Placeholder for feature detection in: {}", path.display());
-        return Ok(ExitCode::Ok);
+    if args.json {
+        output_json(all)?;
+    } else {
+        output_table(all)?;
     }
 
-    // No flags provided
-    eprintln!("Error: Either --matrix or --check <file> must be specified");
-    Ok(ExitCode::Encode)
+    Ok(ExitCode::Ok)
+}
+
+fn run_check(id: &str, _all: &[FeatureSupport]) -> Result<ExitCode> {
+    if let Some(feature) = support_matrix::find_feature(id) {
+        // Simple rule: only `supported` is success; everything else is non-zero exit.
+        match feature.status {
+            SupportStatus::Supported => Ok(ExitCode::Ok),
+            _status => {
+                eprintln!(
+                    "❌ Feature '{}' not fully supported (status: {:?}). See {}",
+                    id,
+                    feature.status,
+                    feature.doc_ref.unwrap_or("project documentation"),
+                );
+                Ok(ExitCode::Encode) // Use non-zero exit code (policy/validation failure)
+            }
+        }
+    } else {
+        bail!("Unknown feature id '{id}'. Run `copybook support` to see valid IDs.");
+    }
+}
+
+fn output_json(all: &[FeatureSupport]) -> Result<()> {
+    let json = serde_json::to_string_pretty(all)?;
+    println!("{json}");
+    Ok(())
+}
+
+fn output_table(all: &[FeatureSupport]) -> Result<()> {
+    // Simple fixed-width columns
+    println!("{:<24}  {:<12}  DESCRIPTION", "FEATURE", "STATUS");
+    println!("{:-<24}  {:-<12}  {:-<60}", "", "", "");
+
+    for f in all {
+        let id = serde_plain::to_string(&f.id).unwrap_or_else(|_| "<invalid>".into());
+        let status = format!("{:?}", f.status);
+        println!(
+            "{:<24}  {:<12}  {}",
+            id,
+            status.to_lowercase(),
+            f.description,
+        );
+    }
+
+    println!();
+    println!("Use 'copybook support --check <feature-id>' to check a specific feature.");
+    println!("Use 'copybook support --json' for machine-readable output.");
+
+    Ok(())
 }

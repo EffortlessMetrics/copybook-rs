@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use copybook_core::support_matrix;
 use std::{fs, path::Path};
 
 fn main() -> Result<()> {
@@ -11,8 +12,11 @@ fn main() -> Result<()> {
     {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
+        ["docs", "verify-support-matrix"] => verify_support_matrix(),
         _ => {
-            eprintln!("Usage: cargo run -p xtask -- docs [sync-tests|verify-tests]");
+            eprintln!(
+                "Usage: cargo run -p xtask -- docs [sync-tests|verify-tests|verify-support-matrix]"
+            );
             Ok(())
         }
     }
@@ -100,5 +104,39 @@ fn verify() -> Result<()> {
     }
 
     println!("✓ Test status is in sync");
+    Ok(())
+}
+
+fn verify_support_matrix() -> Result<()> {
+    let doc_path = "docs/reference/COBOL_SUPPORT_MATRIX.md";
+    let doc_content = fs::read_to_string(doc_path)?;
+
+    let all_features = support_matrix::all_features();
+    let mut missing = Vec::new();
+
+    for feature in all_features {
+        let id =
+            serde_plain::to_string(&feature.id).unwrap_or_else(|_| format!("{:?}", feature.id));
+
+        // Check if the feature ID appears anywhere in the doc
+        // We're lenient: just check for the kebab-case ID string
+        if !doc_content.contains(&id) {
+            missing.push(id);
+        }
+    }
+
+    if !missing.is_empty() {
+        bail!(
+            "Support matrix drift detected!\n\
+             The following features are in the registry but not documented in {doc_path}:\n  - {}\n\n\
+             Add these features to the appropriate tables in {doc_path}.",
+            missing.join("\n  - ")
+        );
+    }
+
+    println!(
+        "✓ Support matrix registry ↔ docs in sync ({} features verified)",
+        all_features.len()
+    );
     Ok(())
 }

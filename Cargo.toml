@@ -29,6 +29,7 @@ copybook-codec = { version = "=0.3.1", path = "copybook-codec" }
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.145", features = ["preserve_order"] }
+serde_plain = "1.0.2"
 thiserror = "2.0.17"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }

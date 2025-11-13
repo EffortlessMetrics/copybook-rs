@@ -125,6 +125,7 @@ pub mod lexer;
 pub mod parser;
 pub mod pic;
 pub mod schema;
+pub mod support_matrix;
 pub mod utils;
 
 pub use error::{Error, ErrorCode, ErrorContext, Result};

@@ -13,9 +13,16 @@ fn main() -> Result<()> {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
+        ["perf", "--summarize-last"] => perf_summarize_last(),
+        ["perf", "--summarize"] => perf_summarize_last(), // Alias for convenience
         _ => {
             eprintln!(
-                "Usage: cargo run -p xtask -- docs [sync-tests|verify-tests|verify-support-matrix]"
+                "Usage: cargo run -p xtask -- [docs|perf] <subcommand>\n\
+                 \n\
+                 docs sync-tests                 Sync test status from junit.xml\n\
+                 docs verify-tests               Verify test status is in sync\n\
+                 docs verify-support-matrix      Verify support matrix registry ↔ docs\n\
+                 perf --summarize-last           Summarize latest perf.json with SLO comparison"
             );
             Ok(())
         }
@@ -138,5 +145,106 @@ fn verify_support_matrix() -> Result<()> {
         "✓ Support matrix registry ↔ docs in sync ({} features verified)",
         all_features.len()
     );
+    Ok(())
+}
+
+fn perf_summarize_last() -> Result<()> {
+    // Try to find the latest perf.json, preferring scripts/bench/perf.json (canonical)
+    let canonical = Path::new("scripts/bench/perf.json");
+    let perf_path = if canonical.exists() {
+        canonical.to_path_buf()
+    } else {
+        // Try to find the latest in target/benchmarks/
+        let benchmarks_dir = Path::new("target/benchmarks");
+        if !benchmarks_dir.exists() {
+            bail!("No perf.json found. Run benchmarks first:\n  bash scripts/bench.sh");
+        }
+
+        // Find the most recent timestamp directory
+        let mut dirs: Vec<_> = fs::read_dir(benchmarks_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .collect();
+
+        if dirs.is_empty() {
+            bail!("No benchmark runs found in target/benchmarks/");
+        }
+
+        // Sort by name (which should be timestamps)
+        dirs.sort_by_key(|d| d.path());
+
+        // Try to find perf.json in the latest directory
+        let latest_dir = &dirs.last().unwrap().path();
+        let latest_perf = latest_dir.join("perf.json");
+
+        if !latest_perf.exists() {
+            bail!(
+                "No perf.json found in latest benchmark run: {}",
+                latest_dir.display()
+            );
+        }
+
+        latest_perf
+    };
+
+    // Parse the JSON
+    let json_content = fs::read_to_string(perf_path)?;
+    let data: serde_json::Value = serde_json::from_str(&json_content)?;
+
+    // Extract metrics
+    let display_mibps = data["display_mibps"]
+        .as_f64()
+        .or_else(|| data["summary"]["display_mibps"].as_f64())
+        .unwrap_or(0.0);
+
+    let comp3_mibps = data["comp3_mibps"]
+        .as_f64()
+        .or_else(|| data["summary"]["comp3_mibps"].as_f64())
+        .unwrap_or(0.0);
+
+    // SLO thresholds (from perf.yml)
+    const DISPLAY_SLO: f64 = 80.0; // MiB/s
+    const COMP3_SLO: f64 = 40.0; // MiB/s
+
+    // Calculate delta vs SLO
+    let display_delta_pct = if DISPLAY_SLO > 0.0 {
+        ((display_mibps - DISPLAY_SLO) / DISPLAY_SLO) * 100.0
+    } else {
+        0.0
+    };
+
+    let comp3_delta_pct = if COMP3_SLO > 0.0 {
+        ((comp3_mibps - COMP3_SLO) / COMP3_SLO) * 100.0
+    } else {
+        0.0
+    };
+
+    // Format deltas with + or - prefix
+    let display_delta_str = if display_delta_pct >= 0.0 {
+        format!("+{:.1}%", display_delta_pct)
+    } else {
+        format!("{:.1}%", display_delta_pct)
+    };
+
+    let comp3_delta_str = if comp3_delta_pct >= 0.0 {
+        format!("+{:.1}%", comp3_delta_pct)
+    } else {
+        format!("{:.1}%", comp3_delta_pct)
+    };
+
+    // Emit compact summary
+    println!(
+        "DISPLAY: {:.1} MiB/s (SLO {} MiB/s, {}) | COMP-3: {:.1} MiB/s (SLO {} MiB/s, {})",
+        display_mibps, DISPLAY_SLO, display_delta_str, comp3_mibps, COMP3_SLO, comp3_delta_str,
+    );
+
+    // Also emit status check
+    let ok = display_mibps >= DISPLAY_SLO && comp3_mibps >= COMP3_SLO;
+    if ok {
+        println!("✓ All SLOs met");
+    } else {
+        println!("⚠ SLOs not met");
+    }
+
     Ok(())
 }

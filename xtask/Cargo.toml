@@ -11,3 +11,4 @@ roxmltree = "0.21"
 regex = "1"
 copybook-core = { path = "../copybook-core" }
 serde_plain = "1.0.2"
+serde_json = "1.0"

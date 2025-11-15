@@ -1,8 +1,13 @@
 [package]
 name = "xtask"
-version = "0.1.0"
-edition = "2024"
-license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Project automation xtasks for copybook-rs"
 publish = false
 
 [[bin]]

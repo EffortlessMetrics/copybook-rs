@@ -430,6 +430,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serde_plain",
  "serial_test",
  "tempfile",
  "tokio",
@@ -3105,6 +3106,7 @@ dependencies = [
  "roxmltree",
  "serde_json",
  "serde_plain",
+ "tempfile",
 ]
 
 [[package]]

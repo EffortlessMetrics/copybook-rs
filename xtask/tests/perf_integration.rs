@@ -53,7 +53,11 @@ fn test_summarize_with_synthetic_perf_json() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Verify output contains expected metrics
-    assert!(stdout.contains("DISPLAY: 205.0 MiB/s"), "stdout: {}", stdout);
+    assert!(
+        stdout.contains("DISPLAY: 205.0 MiB/s"),
+        "stdout: {}",
+        stdout
+    );
     assert!(stdout.contains("COMP-3: 58.0 MiB/s"), "stdout: {}", stdout);
     assert!(stdout.contains("SLO 80 MiB/s"), "stdout: {}", stdout);
     assert!(stdout.contains("SLO 40 MiB/s"), "stdout: {}", stdout);
@@ -169,7 +173,11 @@ fn test_summarize_nested_summary_structure() {
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("DISPLAY: 100.0 MiB/s"), "stdout: {}", stdout);
+    assert!(
+        stdout.contains("DISPLAY: 100.0 MiB/s"),
+        "stdout: {}",
+        stdout
+    );
     assert!(stdout.contains("COMP-3: 50.0 MiB/s"), "stdout: {}", stdout);
 }
 

@@ -4,7 +4,7 @@
 
 | Script | When to Use | What It Validates | Time |
 |--------|------------|-------------------|------|
-| `./scripts/ci/offline-semantic.sh` | **WSL/unstable environments** (default) | Format, drift detection, semantic tests | ~1-2 min |
+| `./scripts/ci/offline-semantic.sh` | **WSL/unstable environments** (default) | Format, drift detection, semantic tests (+ perf summary if available) | ~1-2 min |
 | `./scripts/ci/quick.sh` | Stable systems, opportunistic hygiene | Above + clippy pedantic, broader tests | ~3-5 min |
 | `./scripts/ci/offline-all.sh` | Pre-merge, stable systems only | Full CI including benchmarks | ~8-15 min |
 
@@ -41,22 +41,54 @@ cargo run -p xtask -- docs verify-support-matrix  # should pass
 #### Perf Receipt Changes
 ```bash
 # 1. Test malformed JSON
-echo '{"bad": json}' | cargo run -p xtask -- perf --summarize-last
-# Expected: clear error, not silent failure
+# Backup any existing perf.json
+[ -f scripts/bench/perf.json ] && cp scripts/bench/perf.json scripts/bench/perf.json.bak
+
+# Write deliberately invalid JSON
+cat > scripts/bench/perf.json << 'EOF'
+{"bad": "json",}
+EOF
+
+# Run perf summary – should fail with clear parse error
+cargo run -p xtask -- perf --summarize-last || echo "✅ perf summary failed as expected on malformed JSON"
+
+# Restore original if it existed
+[ -f scripts/bench/perf.json.bak ] && mv scripts/bench/perf.json.bak scripts/bench/perf.json
 
 # 2. Test boundary cases (80.0 pass, 79.9 fail)
-# Create synthetic receipts with exact SLO values
-cat > /tmp/perf-pass.json <<EOF
-{"display_mibps": 80.0, "comp3_mibps": 40.0}
+# Backup current perf.json (if present)
+[ -f scripts/bench/perf.json ] && cp scripts/bench/perf.json scripts/bench/perf.json.bak
+
+# 80.0 MiB/s should PASS
+cat > scripts/bench/perf.json << EOF
+{
+  "display_mibps": 80.0,
+  "comp3_mibps": 40.0,
+  "status": "test",
+  "commit": "boundary-pass",
+  "timestamp": "$(date -Iseconds)",
+  "toolchain": "$(rustc --version | cut -d' ' -f2)"
+}
 EOF
 
-cat > /tmp/perf-fail.json <<EOF
-{"display_mibps": 79.9, "comp3_mibps": 40.0}
+cargo run -p xtask -- perf --summarize-last  # expect ✅ SLO pass
+
+# 79.9 MiB/s should FAIL
+cat > scripts/bench/perf.json << EOF
+{
+  "display_mibps": 79.9,
+  "comp3_mibps": 40.0,
+  "status": "test",
+  "commit": "boundary-fail",
+  "timestamp": "$(date -Iseconds)",
+  "toolchain": "$(rustc --version | cut -d' ' -f2)"
+}
 EOF
 
-# Verify SLO logic
-cargo run -p xtask -- perf --summarize-last  # with pass → "All SLOs met"
-cargo run -p xtask -- perf --summarize-last  # with fail → "SLOs not met"
+cargo run -p xtask -- perf --summarize-last && echo "❌ expected failure but got success"
+
+# Restore original perf.json
+[ -f scripts/bench/perf.json.bak ] && mv scripts/bench/perf.json.bak scripts/bench/perf.json
 
 # 3. Manual math verification
 # Open Python REPL and verify:

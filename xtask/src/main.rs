@@ -1,6 +1,7 @@
 use anyhow::{Result, bail};
 use copybook_core::support_matrix;
 use std::{fs, path::Path};
+use xtask::perf;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -187,64 +188,16 @@ fn perf_summarize_last() -> Result<()> {
         latest_perf
     };
 
-    // Parse the JSON
+    // Parse the JSON using pure function
     let json_content = fs::read_to_string(perf_path)?;
-    let data: serde_json::Value = serde_json::from_str(&json_content)?;
+    let snapshot = perf::parse_perf_receipt(&json_content)?;
 
-    // Extract metrics
-    let display_mibps = data["display_mibps"]
-        .as_f64()
-        .or_else(|| data["summary"]["display_mibps"].as_f64())
-        .unwrap_or(0.0);
+    // Evaluate SLO compliance
+    let status = perf::evaluate_slo(&snapshot);
 
-    let comp3_mibps = data["comp3_mibps"]
-        .as_f64()
-        .or_else(|| data["summary"]["comp3_mibps"].as_f64())
-        .unwrap_or(0.0);
-
-    // SLO thresholds (from perf.yml)
-    const DISPLAY_SLO: f64 = 80.0; // MiB/s
-    const COMP3_SLO: f64 = 40.0; // MiB/s
-
-    // Calculate delta vs SLO
-    let display_delta_pct = if DISPLAY_SLO > 0.0 {
-        ((display_mibps - DISPLAY_SLO) / DISPLAY_SLO) * 100.0
-    } else {
-        0.0
-    };
-
-    let comp3_delta_pct = if COMP3_SLO > 0.0 {
-        ((comp3_mibps - COMP3_SLO) / COMP3_SLO) * 100.0
-    } else {
-        0.0
-    };
-
-    // Format deltas with + or - prefix
-    let display_delta_str = if display_delta_pct >= 0.0 {
-        format!("+{:.1}%", display_delta_pct)
-    } else {
-        format!("{:.1}%", display_delta_pct)
-    };
-
-    let comp3_delta_str = if comp3_delta_pct >= 0.0 {
-        format!("+{:.1}%", comp3_delta_pct)
-    } else {
-        format!("{:.1}%", comp3_delta_pct)
-    };
-
-    // Emit compact summary
-    println!(
-        "DISPLAY: {:.1} MiB/s (SLO {} MiB/s, {}) | COMP-3: {:.1} MiB/s (SLO {} MiB/s, {})",
-        display_mibps, DISPLAY_SLO, display_delta_str, comp3_mibps, COMP3_SLO, comp3_delta_str,
-    );
-
-    // Also emit status check
-    let ok = display_mibps >= DISPLAY_SLO && comp3_mibps >= COMP3_SLO;
-    if ok {
-        println!("✓ All SLOs met");
-    } else {
-        println!("⚠ SLOs not met");
-    }
+    // Emit formatted summary
+    let summary = perf::format_slo_summary(&snapshot, &status);
+    println!("{}", summary);
 
     Ok(())
 }

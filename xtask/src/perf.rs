@@ -2,7 +2,7 @@
 //!
 //! Pure functions for parsing perf.json receipts and evaluating SLO compliance.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde_json::Value;
 
 /// Performance snapshot extracted from perf.json
@@ -31,6 +31,11 @@ pub const COMP3_SLO_MIBPS: f64 = 40.0;
 /// Handles both flat and nested summary structures:
 /// - `{"display_mibps": 205.0, "comp3_mibps": 58.0}`
 /// - `{"summary": {"display_mibps": 205.0, "comp3_mibps": 58.0}}`
+///
+/// # Errors
+///
+/// Returns error if JSON is malformed, missing required fields, or contains invalid throughput values.
+#[allow(clippy::missing_errors_doc)]
 pub fn parse_perf_receipt(json_content: &str) -> Result<PerfSnapshot> {
     let data: Value = serde_json::from_str(json_content)?;
 
@@ -46,11 +51,7 @@ pub fn parse_perf_receipt(json_content: &str) -> Result<PerfSnapshot> {
 
     // Sanity check: throughput must be non-negative
     if display_mibps < 0.0 || comp3_mibps < 0.0 {
-        bail!(
-            "Invalid throughput: display={}, comp3={}",
-            display_mibps,
-            comp3_mibps
-        );
+        bail!("Invalid throughput: display={display_mibps}, comp3={comp3_mibps}");
     }
 
     Ok(PerfSnapshot {
@@ -63,8 +64,10 @@ pub fn parse_perf_receipt(json_content: &str) -> Result<PerfSnapshot> {
 ///
 /// Returns Pass if both metrics meet or exceed SLO thresholds,
 /// otherwise Fail with percentage deltas.
+#[must_use]
 pub fn evaluate_slo(snapshot: &PerfSnapshot) -> SloStatus {
-    let display_delta_pct = ((snapshot.display_mibps - DISPLAY_SLO_MIBPS) / DISPLAY_SLO_MIBPS) * 100.0;
+    let display_delta_pct =
+        ((snapshot.display_mibps - DISPLAY_SLO_MIBPS) / DISPLAY_SLO_MIBPS) * 100.0;
     let comp3_delta_pct = ((snapshot.comp3_mibps - COMP3_SLO_MIBPS) / COMP3_SLO_MIBPS) * 100.0;
 
     if snapshot.display_mibps >= DISPLAY_SLO_MIBPS && snapshot.comp3_mibps >= COMP3_SLO_MIBPS {
@@ -78,33 +81,33 @@ pub fn evaluate_slo(snapshot: &PerfSnapshot) -> SloStatus {
 }
 
 /// Format SLO status for human consumption
+#[must_use]
 pub fn format_slo_summary(snapshot: &PerfSnapshot, status: &SloStatus) -> String {
-    let display_delta_pct = ((snapshot.display_mibps - DISPLAY_SLO_MIBPS) / DISPLAY_SLO_MIBPS) * 100.0;
+    let display_delta_pct =
+        ((snapshot.display_mibps - DISPLAY_SLO_MIBPS) / DISPLAY_SLO_MIBPS) * 100.0;
     let comp3_delta_pct = ((snapshot.comp3_mibps - COMP3_SLO_MIBPS) / COMP3_SLO_MIBPS) * 100.0;
 
     let display_delta_str = if display_delta_pct >= 0.0 {
-        format!("+{:.1}%", display_delta_pct)
+        format!("+{display_delta_pct:.1}%")
     } else {
-        format!("{:.1}%", display_delta_pct)
+        format!("{display_delta_pct:.1}%")
     };
 
     let comp3_delta_str = if comp3_delta_pct >= 0.0 {
-        format!("+{:.1}%", comp3_delta_pct)
+        format!("+{comp3_delta_pct:.1}%")
     } else {
-        format!("{:.1}%", comp3_delta_pct)
+        format!("{comp3_delta_pct:.1}%")
     };
 
-    let mut lines = vec![
-        format!(
-            "DISPLAY: {:.1} MiB/s (SLO {} MiB/s, {}) | COMP-3: {:.1} MiB/s (SLO {} MiB/s, {})",
-            snapshot.display_mibps,
-            DISPLAY_SLO_MIBPS,
-            display_delta_str,
-            snapshot.comp3_mibps,
-            COMP3_SLO_MIBPS,
-            comp3_delta_str,
-        ),
-    ];
+    let mut lines = vec![format!(
+        "DISPLAY: {:.1} MiB/s (SLO {} MiB/s, {}) | COMP-3: {:.1} MiB/s (SLO {} MiB/s, {})",
+        snapshot.display_mibps,
+        DISPLAY_SLO_MIBPS,
+        display_delta_str,
+        snapshot.comp3_mibps,
+        COMP3_SLO_MIBPS,
+        comp3_delta_str,
+    )];
 
     match status {
         SloStatus::Pass => lines.push("✓ All SLOs met".to_string()),
@@ -122,16 +125,16 @@ mod tests {
     fn test_parse_flat_receipt() {
         let json = r#"{"display_mibps": 205.4, "comp3_mibps": 58.2}"#;
         let snapshot = parse_perf_receipt(json).unwrap();
-        assert_eq!(snapshot.display_mibps, 205.4);
-        assert_eq!(snapshot.comp3_mibps, 58.2);
+        assert!((snapshot.display_mibps - 205.4).abs() < 0.01);
+        assert!((snapshot.comp3_mibps - 58.2).abs() < 0.01);
     }
 
     #[test]
     fn test_parse_nested_receipt() {
         let json = r#"{"summary": {"display_mibps": 205.4, "comp3_mibps": 58.2}}"#;
         let snapshot = parse_perf_receipt(json).unwrap();
-        assert_eq!(snapshot.display_mibps, 205.4);
-        assert_eq!(snapshot.comp3_mibps, 58.2);
+        assert!((snapshot.display_mibps - 205.4).abs() < 0.01);
+        assert!((snapshot.comp3_mibps - 58.2).abs() < 0.01);
     }
 
     #[test]
@@ -155,7 +158,12 @@ mod tests {
         let json = r#"{"display_mibps": -1.0, "comp3_mibps": 58.2}"#;
         let result = parse_perf_receipt(json);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid throughput"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid throughput")
+        );
     }
 
     #[test]
@@ -222,7 +230,7 @@ mod tests {
                 // 30 vs 40 = -25%
                 assert!((comp3_delta_pct + 25.0).abs() < 0.1);
             }
-            _ => panic!("Expected Fail status"),
+            SloStatus::Pass => panic!("Expected Fail status"),
         }
     }
 

@@ -14,8 +14,7 @@ fn main() -> Result<()> {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
-        ["perf", "--summarize-last"] => perf_summarize_last(),
-        ["perf", "--summarize"] => perf_summarize_last(), // Alias for convenience
+        ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
         _ => {
             eprintln!(
                 "Usage: cargo run -p xtask -- [docs|perf] <subcommand>\n\
@@ -163,7 +162,7 @@ fn perf_summarize_last() -> Result<()> {
 
         // Find the most recent timestamp directory
         let mut dirs: Vec<_> = fs::read_dir(benchmarks_dir)?
-            .filter_map(|e| e.ok())
+            .filter_map(Result::ok)
             .filter(|e| e.path().is_dir())
             .collect();
 
@@ -172,7 +171,7 @@ fn perf_summarize_last() -> Result<()> {
         }
 
         // Sort by name (which should be timestamps)
-        dirs.sort_by_key(|d| d.path());
+        dirs.sort_by_key(std::fs::DirEntry::path);
 
         // Try to find perf.json in the latest directory
         let latest_dir = &dirs.last().unwrap().path();
@@ -197,7 +196,7 @@ fn perf_summarize_last() -> Result<()> {
 
     // Emit formatted summary
     let summary = perf::format_slo_summary(&snapshot, &status);
-    println!("{}", summary);
+    println!("{summary}");
 
     Ok(())
 }

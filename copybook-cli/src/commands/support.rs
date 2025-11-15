@@ -40,13 +40,12 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
             println!("Status: {:?}", feature.status);
             println!("Description: {}", feature.description);
             if let Some(doc_ref) = feature.doc_ref {
-                println!("Documentation: {}", doc_ref);
+                println!("Documentation: {doc_ref}");
             }
             return Ok(ExitCode::Ok);
-        } else {
-            eprintln!("Error: Unknown feature ID: {}", feature_id);
-            return Ok(ExitCode::Unknown);
         }
+        eprintln!("Error: Unknown feature ID: {feature_id}");
+        return Ok(ExitCode::Unknown);
     }
 
     // Display full matrix
@@ -55,7 +54,7 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
     let filtered: Vec<_> = if let Some(status_filter) = args.status {
         features
             .iter()
-            .filter(|f| matches_status_filter(&f.status, status_filter))
+            .filter(|f| matches_status_filter(f.status, status_filter))
             .cloned()
             .collect()
     } else {
@@ -66,7 +65,7 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
         OutputFormat::Table => {
             println!("COBOL Feature Support Matrix");
             println!();
-            println!("{:<25} {:<15} {}", "Feature", "Status", "Description");
+            println!("{:<25} {:<15} Description", "Feature", "Status");
             println!("{}", "-".repeat(80));
 
             for feature in &filtered {
@@ -79,25 +78,22 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
         }
         OutputFormat::Json => {
             let json = serde_json::to_string_pretty(&filtered)?;
-            println!("{}", json);
+            println!("{json}");
         }
     }
 
     Ok(ExitCode::Ok)
 }
 
-fn matches_status_filter(
-    status: &support_matrix::SupportStatus,
-    filter: StatusFilter,
-) -> bool {
+fn matches_status_filter(status: support_matrix::SupportStatus, filter: StatusFilter) -> bool {
     use support_matrix::SupportStatus;
-    match (status, filter) {
-        (SupportStatus::Supported, StatusFilter::Supported) => true,
-        (SupportStatus::Partial, StatusFilter::Partial) => true,
-        (SupportStatus::Planned, StatusFilter::Planned) => true,
-        (SupportStatus::NotPlanned, StatusFilter::NotPlanned) => true,
-        _ => false,
-    }
+    matches!(
+        (status, filter),
+        (SupportStatus::Supported, StatusFilter::Supported)
+            | (SupportStatus::Partial, StatusFilter::Partial)
+            | (SupportStatus::Planned, StatusFilter::Planned)
+            | (SupportStatus::NotPlanned, StatusFilter::NotPlanned)
+    )
 }
 
 #[cfg(test)]

@@ -62,8 +62,11 @@ pub struct FeatureSupport {
 ///
 /// This is your single source of truth for feature support.
 pub fn all_features() -> &'static [FeatureSupport] {
-    use FeatureId::*;
-    use SupportStatus::*;
+    use FeatureId::{
+        Comp1Comp2, EditedPic, Level66Renames, Level88Conditions, NestedOdo, OccursDepending,
+        SignSeparate,
+    };
+    use SupportStatus::{NotPlanned, Partial, Planned, Supported};
 
     &[
         FeatureSupport {
@@ -138,8 +141,9 @@ mod tests {
     fn test_find_feature_level88() {
         let feature = find_feature("level-88");
         assert!(feature.is_some());
-        assert_eq!(feature.unwrap().id, FeatureId::Level88Conditions);
-        assert_eq!(feature.unwrap().status, SupportStatus::Supported);
+        let f = feature.expect("feature should exist");
+        assert_eq!(f.id, FeatureId::Level88Conditions);
+        assert_eq!(f.status, SupportStatus::Supported);
     }
 
     #[test]
@@ -151,7 +155,7 @@ mod tests {
     #[test]
     fn test_feature_id_serde_roundtrip() {
         let id = FeatureId::Level88Conditions;
-        let serialized = serde_plain::to_string(&id).unwrap();
+        let serialized = serde_plain::to_string(&id).expect("serialization should succeed");
         assert_eq!(serialized, "level-88");
     }
 }

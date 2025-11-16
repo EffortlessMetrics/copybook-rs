@@ -93,7 +93,9 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
                 }
 
                 println!();
-                println!("Use 'copybook support --check <feature-id>' to check a specific feature.");
+                println!(
+                    "Use 'copybook support --check <feature-id>' to check a specific feature."
+                );
                 println!("Use 'copybook support --format json' for machine-readable output.");
             }
             OutputFormat::Json => {

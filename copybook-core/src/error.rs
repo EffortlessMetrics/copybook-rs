@@ -64,7 +64,6 @@ impl Error {
 ///
 /// Implements `Serialize`/`Deserialize` for error code persistence and API responses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[allow(non_camel_case_types)] // These are stable external error codes
 pub enum ErrorCode {
     // =============================================================================

@@ -217,8 +217,11 @@ fn renames_contiguity_check_with_level88() {
 
 /// Test nested group validation: RENAMES should work within nested group scope
 #[test]
-#[ignore = "TODO: Nested group support not yet implemented (PR B follow-up)"]
+#[ignore = "Blocked on parser/resolver design for nested groups (see Issue #133)"]
 fn renames_within_nested_group_valid() {
+    // Desired behavior: RENAMES within nested group scope should resolve correctly
+    // Current limitation: Parser attaches 66 at level-01, resolver can't find FIELD-A/FIELD-B
+    // Resolution: Requires resolver-based semantic approach (see docs/design/RENAMES_NESTED_GROUPS.md)
     let cb = "
 01 ROOT-REC.
    05 GROUP-A.

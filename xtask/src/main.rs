@@ -14,6 +14,10 @@ fn main() -> Result<()> {
         ["docs", "sync-tests"] => sync(),
         ["docs", "verify-tests"] => verify(),
         ["docs", "verify-support-matrix"] => verify_support_matrix(),
+        ["perf"] => perf::run(false, None),
+        ["perf", "--enforce"] => perf::run(true, None),
+        ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
+        ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
         _ => {
             eprintln!(
@@ -22,6 +26,9 @@ fn main() -> Result<()> {
                  docs sync-tests                 Sync test status from junit.xml\n\
                  docs verify-tests               Verify test status is in sync\n\
                  docs verify-support-matrix      Verify support matrix registry ↔ docs\n\
+                 perf                            Run perf benchmark runner\n\
+                 perf --enforce                  Run perf with SLO enforcement\n\
+                 perf --out-dir <path>           Run perf with custom output directory\n\
                  perf --summarize-last           Summarize latest perf.json with SLO comparison"
             );
             Ok(())

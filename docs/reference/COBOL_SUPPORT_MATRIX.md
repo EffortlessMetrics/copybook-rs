@@ -4,6 +4,13 @@
 **Version**: copybook-rs v0.3.1
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
 
+> 💡 **Tip**: You can query this matrix programmatically using the CLI:
+> ```bash
+> copybook support               # Display support matrix table
+> copybook support --json        # Machine-readable JSON output
+> copybook support --check level-88  # Validate specific feature (exit 0 if supported)
+> ```
+
 ## Support Status Legend
 
 - ✅ **Fully Supported**: Comprehensive parse + codec + round-trip + negative tests
@@ -19,22 +26,21 @@
 | Zoned Decimal (PIC 9) | ✅ Fully Supported | `zoned_encoding_format_tests.rs` (11 tests), `comprehensive_numeric_tests.rs`, `cobol_fixture_zoned_encoding_tests.rs` (7 tests) | EBCDIC zones and ASCII overpunch with proper sign handling |
 | COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_property_tests.rs` (512+ property cases), `comp3_format_verification.rs`, `decimal_edge_cases.rs` (9 tests) | Nibble sign processing, edge cases, overflow/underflow |
 | BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs`, `binary_roundtrip_fidelity_tests.rs` (11 tests) | Various widths: 1/2/4/8 bytes, signed/unsigned |
-| COMP-1 (Single Float) | ❌ Not Supported | N/A | By design - not implemented |
-| COMP-2 (Double Float) | ❌ Not Supported | N/A | By design - not implemented |
-| Edited PIC (Z, /, $, etc.) | ❌ Not Supported | `inspect_edited_pic_fails.rs` | Negative rejection tests exist |
+| COMP-1/COMP-2 (`comp-1-comp-2`) | ❌ Not Supported | N/A | Single/double float - by design, not implemented |
+| Edited PIC (`edited-pic`) | ❌ Not Supported | `inspect_edited_pic_fails.rs` | Z, /, $, CR, DB - negative rejection tests exist |
 
 ## Structural Features
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| ODO (OCCURS DEPENDING ON) | ✅ Fully Supported | `odo_comprehensive.rs` (21 tests), `golden_fixtures_odo.rs` (201 lines), `odo_tail_validation.rs` | Driver validation, tail constraints, payload length, clipping/raising |
+| ODO (`occurs-depending`) | ✅ Fully Supported | `odo_comprehensive.rs` (21 tests), `golden_fixtures_odo.rs` (201 lines), `odo_tail_validation.rs` | Driver validation, tail constraints, payload length, clipping/raising |
 | REDEFINES | ✅ Fully Supported | `redefines_comprehensive.rs` (18 tests, 20.5K), `comprehensive_redefines_odo_tests.rs` (16 tests) | Shorter/equal/longer overlays, encode ambiguity, raw preservation |
-| Level-88 (Condition Values) | ✅ Fully Supported | `golden_fixtures_ac2_level88_after_odo.rs` (6 tests, 638 lines), `golden_fixtures_ac5_redefines_level88_interactions.rs` (8 tests, 838 lines) | Parse + codec with `FieldKind::Condition`, non-storage semantic validation |
+| Level-88 (`level-88`) | ✅ Fully Supported | `golden_fixtures_ac2_level88_after_odo.rs` (6 tests, 638 lines), `golden_fixtures_ac5_redefines_level88_interactions.rs` (8 tests, 838 lines) | Parse + codec with `FieldKind::Condition`, non-storage semantic validation |
 | OCCURS (Fixed) | ✅ Fully Supported | Multiple test files | Fixed-size array support with 5+ dedicated tests |
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
-| Nested ODO | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
-| RENAMES (66-level) | ✅ Same-scope resolution | `renames_parser_tests.rs` (11 tests), `renames_hierarchy_tests.rs` (3 tests), `renames_resolver_positive_tests.rs` (4 tests), `renames_resolver_negative_tests.rs` (12 tests) | Parse ✅, Resolver validations ✅ (CBKS601/602/604/605/606/607/608), Codec projection ⏳ (deferred) |
+| Nested ODO (`nested-odo`) | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
+| RENAMES (`level-66-renames`) | ✅ Same-scope resolution | `renames_parser_tests.rs` (11 tests), `renames_hierarchy_tests.rs` (3 tests), `renames_resolver_positive_tests.rs` (4 tests), `renames_resolver_negative_tests.rs` (12 tests) | Parse ✅, Resolver validations ✅ (CBKS601/602/604/605/606/607/608), Codec projection ⏳ (deferred) |
 
 ## Sign Handling
 
@@ -42,7 +48,7 @@
 |---------|--------|---------------|-------|
 | SIGN LEADING | ✅ Fully Supported | `zoned_encoding_format_tests.rs` | Standard zoned decimal with leading sign |
 | SIGN TRAILING | ✅ Fully Supported | `zoned_encoding_format_tests.rs` | Standard zoned decimal with trailing sign |
-| SIGN SEPARATE | ❌ Not Supported | N/A | See Issue #44 for planned implementation |
+| SIGN SEPARATE (`sign-separate`) | ❌ Not Supported | N/A | See Issue #44 for planned implementation |
 | Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `zoned_encoding_format_tests.rs`, `zoned_overpunch.rs` (8 tests) | Comprehensive overpunch with EBCDIC zones |
 
 ## Record Formats

@@ -1,9 +1,22 @@
 [package]
 name = "xtask"
-version = "0.1.0"
-edition = "2024"
-license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Project automation xtasks for copybook-rs"
 publish = false
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
+
+[lib]
+name = "xtask"
+path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1"
@@ -11,6 +24,11 @@ roxmltree = "0.21"
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_plain = "1.0.2"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+copybook-core = { path = "../copybook-core" }
 copybook-bench = { path = "../copybook-bench" }
 num_cpus = "1.17.0"
+
+[dev-dependencies]
+tempfile = "3.23.0"

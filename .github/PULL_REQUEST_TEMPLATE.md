@@ -60,6 +60,68 @@ After:  [benchmark results]
 Change: [improvement/regression percentage]
 ```
 
+## Infrastructure/Tooling Changes (if applicable)
+**Complete this section if your PR modifies:**
+- Support matrix registry or CLI
+- Performance receipt parsing or SLO evaluation
+- CI scripts or validation gates
+- xtask automation or docs verification tools
+
+### Semantic Validation
+- [ ] `./scripts/ci/offline-semantic.sh` passes
+- [ ] Adversarial tests completed (see checklist below)
+- [ ] Manual verification of key calculations (if applicable)
+- [ ] Documentation updated with validation evidence
+
+### Adversarial Testing Evidence
+For infrastructure changes, you must prove **correctness** — not just "does it compile?"
+
+#### Drift Detection (support matrix changes)
+- [ ] Temporarily modified/removed registry entry or docs row
+- [ ] Verified tool detects drift with clear error message
+- [ ] Restored and verified tool passes
+
+#### Malformed Input Handling (parser/validation changes)
+- [ ] Fed invalid JSON/data to new parsing logic
+- [ ] Verified clear, actionable error messages
+- [ ] Confirmed no silent failures or defaults
+
+#### Boundary Cases (SLO/threshold changes)
+- [ ] Tested exact boundary values (e.g., 80.0 pass, 79.9 fail)
+- [ ] Verified correct behavior at limits
+- [ ] Confirmed no off-by-one or floating-point errors
+
+#### Manual Math Verification (perf/throughput changes)
+- [ ] Recomputed key values by hand (bytes→MiB/s, percentages, deltas)
+- [ ] Compared manual calculations to tool output
+- [ ] Documented verification in PR description
+
+#### Round-Trip Equality (serialization changes)
+- [ ] Verified registry → JSON → parse produces identical data
+- [ ] Tested with all supported formats/modes
+- [ ] Confirmed no data loss or transformation
+
+### Local Validation Commands Run
+```bash
+# Record the commands you ran and their results
+./scripts/ci/offline-semantic.sh           # ✅ Pass / ❌ Fail (with justification)
+cargo run -p xtask -- docs verify-support-matrix  # ✅ / ❌
+cargo test -p xtask                        # ✅ / ❌
+cargo test -p copybook-cli --test support_cli     # ✅ / ❌
+```
+
+### Evidence Summary
+```markdown
+<!-- Paste your validation evidence here. Example: -->
+
+Local validation:
+- ✅ `./scripts/ci/offline-semantic.sh` passed
+- ✅ Drift detection: commented out level-66-renames row, tool failed with "Support matrix drift detected"
+- ✅ Boundary validation: verified 80.0 MiB/s → Pass, 79.9 → Fail
+- ✅ Manual math: recomputed MiB/s from bytes/ns in Python REPL, matches tool output
+- ✅ Round-trip: registry → JSON → serde_json::from_str produces identical HashSet
+```
+
 ## Breaking Changes
 - [ ] No breaking changes
 - [ ] Breaking changes with migration path (describe below)

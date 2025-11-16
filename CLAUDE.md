@@ -215,6 +215,25 @@ cargo run --bin bench-report -p copybook-bench -- baseline promote perf.json
 - COMP-3 decoding performance limited by packed decimal conversion complexity
 - Baseline provides foundation for regression detection and performance tracking
 
+**Benchmark Container** (Issue #113):
+```bash
+# Pull pre-built container from GHCR
+docker pull ghcr.io/effortlessmetrics/copybook-rs/bench:latest
+docker run -v $(pwd)/output:/workspace/output ghcr.io/effortlessmetrics/copybook-rs/bench:latest
+cat output/perf.json
+
+# Or build locally
+docker build -t copybook-rs-bench .
+docker run -v $(pwd)/output:/workspace/output copybook-rs-bench
+```
+
+Provides reproducible benchmark environment with:
+- Rust 1.90 toolchain (MSRV)
+- All benchmark dependencies pre-installed
+- Automated perf.json receipt generation
+- Performance summary with SLO comparison
+- See [Operator Runbook](docs/perf/OPERATOR_RUNBOOK.md) for detailed usage
+
 ## Golden Fixtures System
 
 The Golden Fixtures framework provides comprehensive structural validation for enterprise COBOL scenarios with SHA-256 verification and performance regression detection.

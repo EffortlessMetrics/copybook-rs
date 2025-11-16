@@ -113,6 +113,85 @@ cargo xtask validate path/to/copybook.cpy
 3. Make your changes
 4. Push to your fork and create a pull request
 
+### Semantic Validation for Infrastructure Changes
+
+For changes to tooling, CI, support matrix, or performance infrastructure, you must validate **correctness** — not just "does it compile?" but "does it behave correctly and fail in the right ways?"
+
+#### Validation Scripts
+
+We provide three levels of validation:
+
+1. **`./scripts/ci/offline-semantic.sh`** (recommended for WSL/unstable environments)
+   - Runs format checks (`cargo fmt --all --check`)
+   - Validates support matrix drift detection (`cargo run -p xtask -- docs verify-support-matrix`)
+   - Runs semantic tests (`cargo test -p xtask`, `cargo test -p copybook-cli --test support_cli`)
+   - **Use this as your primary gate** when full rebuilds trigger rustc ICEs
+
+2. **`./scripts/ci/quick.sh`** (opportunistic hygiene)
+   - Adds clippy pedantic checks
+   - Runs broader workspace tests
+   - **Use when environment is stable** for extra coverage
+
+3. **`./scripts/ci/offline-all.sh`** (comprehensive validation)
+   - Complete CI pipeline including benchmarks
+   - **Use for final pre-merge validation** on stable systems
+
+#### What "Semantically Validated" Means
+
+For infrastructure changes, you must prove:
+
+✅ **It parses correctly** — not just compiles, but processes inputs as expected
+✅ **It fails correctly** — adversarial tests show it catches errors and rejects invalid inputs
+✅ **It's mathematically sound** — manual verification of key calculations (perf throughput, SLO boundaries, etc.)
+✅ **It's drift-resistant** — registry ↔ docs ↔ CLI stay in sync automatically
+
+#### Adversarial Testing Checklist
+
+When adding or modifying infrastructure:
+
+- [ ] **Drift detection**: Temporarily remove/modify a row in docs, verify tool detects it
+- [ ] **Malformed input**: Feed invalid JSON/data, verify clear error messages
+- [ ] **Boundary cases**: Test exact SLO thresholds (80.0 pass, 79.9 fail)
+- [ ] **Manual math check**: For perf/throughput, recompute by hand and verify against tool output
+- [ ] **Round-trip equality**: Registry → JSON → parse should be identical
+
+#### Example Workflow
+
+```bash
+# 1. Make your infrastructure changes
+vim copybook-core/src/support_matrix.rs
+
+# 2. Run semantic validation
+./scripts/ci/offline-semantic.sh
+
+# 3. Adversarial test: remove a feature from docs
+vim docs/reference/COBOL_SUPPORT_MATRIX.md  # comment out a row
+cargo run -p xtask -- docs verify-support-matrix  # should fail with clear error
+git checkout docs/reference/COBOL_SUPPORT_MATRIX.md  # restore
+
+# 4. If stable environment, run full gate
+./scripts/ci/quick.sh
+
+# 5. Commit with evidence
+git commit -m "feat(infra): add support matrix validation"
+```
+
+#### Recording Evidence in PRs
+
+For infrastructure PRs, include in the description:
+
+```markdown
+## Semantic Validation
+
+Local validation:
+- ✅ `./scripts/ci/offline-semantic.sh` passed
+- ✅ Adversarial tests: drift detection fires correctly
+- ✅ Boundary validation: 80.0 MiB/s passes, 79.9 fails
+- ✅ Manual math check: verified throughput calculation by hand
+```
+
+This gives reviewers confidence that you've validated **behavior**, not just compilation.
+
 ### Commit Messages
 
 We follow conventional commit format:

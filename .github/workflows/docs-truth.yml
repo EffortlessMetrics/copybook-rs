@@ -36,6 +36,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
       - name: Forbid unlinked perf marketing
@@ -49,3 +51,5 @@ jobs:
               echo "Forbidden perf/marketing claims without receipts:"; cat /tmp/hits.txt; exit 1
             fi
           fi
+      - name: Verify support matrix registry ↔ docs sync
+        run: cargo run -p xtask -- docs verify-support-matrix

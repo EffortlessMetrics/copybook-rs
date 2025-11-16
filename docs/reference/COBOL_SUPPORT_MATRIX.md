@@ -4,6 +4,13 @@
 **Version**: copybook-rs v0.3.1
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
 
+> 💡 **Tip**: You can query this matrix programmatically using the CLI:
+> ```bash
+> copybook support               # Display support matrix table
+> copybook support --json        # Machine-readable JSON output
+> copybook support --check level-88  # Validate specific feature (exit 0 if supported)
+> ```
+
 ## Support Status Legend
 
 - ✅ **Fully Supported**: Comprehensive parse + codec + round-trip + negative tests

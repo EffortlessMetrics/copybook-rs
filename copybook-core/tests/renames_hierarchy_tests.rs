@@ -35,8 +35,11 @@ fn renames_is_child_of_record_not_root() {
 }
 
 #[test]
-#[ignore = "TODO: Parser needs enhancement to handle nested groups with level-66 (PR B follow-up)"]
+#[ignore = "Blocked on parser/resolver design for nested groups (see Issue #133)"]
 fn renames_placement_with_nested_groups() {
+    // Desired behavior: ALIAS-A should be child of GROUP-A, ALIAS-B should be child of GROUP-B
+    // Current limitation: Parser attaches 66 at level-01 using "pop to level-01" heuristic
+    // Resolution: Requires resolver-based semantic approach (see docs/design/RENAMES_NESTED_GROUPS.md)
     let cb = "
 01 ROOT-REC.
    05 GROUP-A.

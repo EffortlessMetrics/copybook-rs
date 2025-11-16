@@ -1,7 +1,9 @@
-//! Support command for feature matrix and copybook validation
+//! Support command for COBOL feature matrix
+//!
+//! Provides CLI access to the feature support matrix defined in `copybook-core::support_matrix`.
 
 use crate::exit_codes::ExitCode;
-use copybook_core::support_matrix;
+use copybook_core::support_matrix::{self, SupportStatus};
 
 #[derive(clap::Args)]
 pub struct SupportArgs {
@@ -34,55 +36,74 @@ pub enum StatusFilter {
 
 pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
     if let Some(feature_id) = &args.check {
-        // Check specific feature
+        // Check specific feature with exit code based on status
         if let Some(feature) = support_matrix::find_feature(feature_id) {
-            println!("Feature: {}", feature.name);
-            println!("Status: {:?}", feature.status);
-            println!("Description: {}", feature.description);
-            if let Some(doc_ref) = feature.doc_ref {
-                println!("Documentation: {doc_ref}");
+            // Simple rule: only `supported` is success; everything else is non-zero exit.
+            match feature.status {
+                SupportStatus::Supported => {
+                    println!("Feature: {}", feature.name);
+                    println!("Status: {:?}", feature.status);
+                    println!("Description: {}", feature.description);
+                    if let Some(doc_ref) = feature.doc_ref {
+                        println!("Documentation: {doc_ref}");
+                    }
+                    Ok(ExitCode::Ok)
+                }
+                _status => {
+                    eprintln!(
+                        "❌ Feature '{}' not fully supported (status: {:?}). See {}",
+                        feature_id,
+                        feature.status,
+                        feature.doc_ref.unwrap_or("project documentation"),
+                    );
+                    Ok(ExitCode::Encode) // Use non-zero exit code (policy/validation failure)
+                }
             }
-            return Ok(ExitCode::Ok);
+        } else {
+            eprintln!("Error: Unknown feature ID: {feature_id}");
+            return Ok(ExitCode::Unknown);
         }
-        eprintln!("Error: Unknown feature ID: {feature_id}");
-        return Ok(ExitCode::Unknown);
-    }
-
-    // Display full matrix
-    let features = support_matrix::all_features();
-
-    let filtered: Vec<_> = if let Some(status_filter) = args.status {
-        features
-            .iter()
-            .filter(|f| matches_status_filter(f.status, status_filter))
-            .cloned()
-            .collect()
     } else {
-        features.to_vec()
-    };
+        // Display full matrix
+        let features = support_matrix::all_features();
 
-    match args.format {
-        OutputFormat::Table => {
-            println!("COBOL Feature Support Matrix");
-            println!();
-            println!("{:<25} {:<15} Description", "Feature", "Status");
-            println!("{}", "-".repeat(80));
+        let filtered: Vec<_> = if let Some(status_filter) = args.status {
+            features
+                .iter()
+                .filter(|f| matches_status_filter(f.status, status_filter))
+                .cloned()
+                .collect()
+        } else {
+            features.to_vec()
+        };
 
-            for feature in &filtered {
-                let status_str = format!("{:?}", feature.status);
-                println!(
-                    "{:<25} {:<15} {}",
-                    feature.name, status_str, feature.description
-                );
+        match args.format {
+            OutputFormat::Table => {
+                println!("COBOL Feature Support Matrix");
+                println!();
+                println!("{:<25} {:<15} Description", "Feature", "Status");
+                println!("{}", "-".repeat(80));
+
+                for feature in &filtered {
+                    let status_str = format!("{:?}", feature.status);
+                    println!(
+                        "{:<25} {:<15} {}",
+                        feature.name, status_str, feature.description
+                    );
+                }
+
+                println!();
+                println!("Use 'copybook support --check <feature-id>' to check a specific feature.");
+                println!("Use 'copybook support --format json' for machine-readable output.");
+            }
+            OutputFormat::Json => {
+                let json = serde_json::to_string_pretty(&filtered)?;
+                println!("{json}");
             }
         }
-        OutputFormat::Json => {
-            let json = serde_json::to_string_pretty(&filtered)?;
-            println!("{json}");
-        }
-    }
 
-    Ok(ExitCode::Ok)
+        Ok(ExitCode::Ok)
+    }
 }
 
 fn matches_status_filter(status: support_matrix::SupportStatus, filter: StatusFilter) -> bool {

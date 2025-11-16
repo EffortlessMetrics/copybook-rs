@@ -50,7 +50,7 @@ The project is organized as a Cargo workspace with the following crates:
 
 - **copybook-core**: Core parsing and schema types for COBOL copybooks (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Encoding/decoding codecs for COBOL data types, character conversion, record framing
-- **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify)
+- **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, support)
 - **copybook-gen**: Test fixture and synthetic data generation utilities
 - **copybook-bench**: Performance benchmarks and testing harness
 
@@ -94,6 +94,11 @@ copybook verify customer.cpy customer-data.bin \
   --format fixed \
   --codepage cp037 \
   --report validation-report.json
+
+# Check COBOL feature support
+copybook support                        # Display support matrix table
+copybook support --json                 # Machine-readable JSON output
+copybook support --check level-88       # Validate specific feature (exit 0 if supported)
 ```
 
 ### CLI Exit Codes

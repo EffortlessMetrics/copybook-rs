@@ -363,12 +363,16 @@ mod tests {
     #[test]
     fn test_delta_percentage_calculation() {
         let snapshot = PerfSnapshot {
-            display_mibps: 88.0,  // +10% over 80
-            comp3_mibps: 36.0,    // -10% under 40
+            display_mibps: 88.0, // +10% over 80
+            comp3_mibps: 36.0,   // -10% under 40
         };
-        
+
         let status = evaluate_slo(&snapshot);
-        if let SloStatus::Fail { display_delta_pct, comp3_delta_pct } = status {
+        if let SloStatus::Fail {
+            display_delta_pct,
+            comp3_delta_pct,
+        } = status
+        {
             assert!((display_delta_pct - 10.0).abs() < 0.01);
             assert!((comp3_delta_pct + 10.0).abs() < 0.01);
         } else {
@@ -384,7 +388,7 @@ mod tests {
         };
         let status = evaluate_slo(&snapshot);
         let summary = format_slo_summary(&snapshot, &status);
-        
+
         assert!(summary.contains("200.0 MiB/s"));
         assert!(summary.contains("100.0 MiB/s"));
         assert!(summary.contains("✓ All SLOs met"));
@@ -398,7 +402,7 @@ mod tests {
         };
         let status = evaluate_slo(&snapshot);
         let summary = format_slo_summary(&snapshot, &status);
-        
+
         assert!(summary.contains("70.0 MiB/s"));
         assert!(summary.contains("30.0 MiB/s"));
         assert!(summary.contains("⚠ SLOs not met"));

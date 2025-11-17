@@ -244,7 +244,7 @@ The Golden Fixtures framework provides comprehensive structural validation for e
 - **Enterprise Scenarios**: Production mainframe patterns from banking, insurance, retail, manufacturing
 - **Performance Integration**: Automated performance regression detection with baselines
 - **SHA-256 Verification**: Cryptographic validation of test outputs for consistency
-- **Comprehensive Coverage**: 615 tests (54 skipped) including edge cases and enterprise production scenarios
+- **Comprehensive Coverage**: Golden fixtures form a substantial subset of the 704 tests (58 skipped) in the workspace, covering ODO, Level-88, REDEFINES, and enterprise layouts
 
 ### Usage Patterns
 
@@ -307,7 +307,7 @@ Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. S
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE directives
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) items
+- 66-level (RENAMES) items – parser + same-scope resolver implemented; nested group semantics and codec projection are still pending (see docs/design/RENAMES_NESTED_GROUPS.md and Issues #110 / #133)
 
 **Note**: Level-88 condition values are fully supported (parse + codec + structural validation). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
 

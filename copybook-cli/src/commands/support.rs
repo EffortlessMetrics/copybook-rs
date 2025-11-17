@@ -61,7 +61,7 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
             }
         } else {
             eprintln!("Error: Unknown feature ID: {feature_id}");
-            return Ok(ExitCode::Unknown);
+            Ok(ExitCode::Unknown)
         }
     } else {
         // Display full matrix

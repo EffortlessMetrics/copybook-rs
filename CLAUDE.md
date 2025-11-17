@@ -8,7 +8,7 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **Status**: **Engineering Preview** (v0.3.1 maintenance) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
-**Quality**: 615 tests passing (54 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
+**Quality**: 704 tests passing (58 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 

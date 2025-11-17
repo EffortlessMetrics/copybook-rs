@@ -7,7 +7,7 @@
 ---
 
 ## Executive Summary
-copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 615 tests passing (54 skipped). Throughput on reference hardware (WSL2, AMD Ryzen 9 9950X3D) measures 205 MiB/s for DISPLAY-heavy workloads and 58 MiB/s for COMP-3-heavy datasets—exceeding enterprise targets by 2.5x and 1.45x respectively. Baseline established through 5 independent measurement runs (September 2025) provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
+copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 704 tests passing (58 skipped). Throughput on reference hardware (WSL2, AMD Ryzen 9 9950X3D) measures 205 MiB/s for DISPLAY-heavy workloads and 58 MiB/s for COMP-3-heavy datasets—exceeding enterprise targets by 2.5x and 1.45x respectively. Baseline established through 5 independent measurement runs (September 2025) provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
 
 ## Overview
 The `copybook-rs` workspace combines five Rust crates (core, codec, CLI, generator, and benchmarks) to provide deterministic COBOL→JSON processing. The focus is on transparent validation rather than performance bravado: adopters must review known COBOL feature gaps and performance limitations before committing production workloads.
@@ -24,7 +24,7 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 
 ### Test Coverage
 <!-- TEST_STATUS:BEGIN -->
-- **Workspace tests**: `cargo nextest` reports **615 tests passing (54 skipped)**
+- **Workspace tests**: `cargo test` reports **704 tests passing (58 skipped)**
 <!-- TEST_STATUS:END -->
 - **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
 - **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds

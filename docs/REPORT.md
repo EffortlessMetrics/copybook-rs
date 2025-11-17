@@ -110,7 +110,7 @@ Comprehensive support for mainframe data formats:
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) items
+- 66-level (RENAMES) items – parser + same-scope resolver implemented; nested group semantics and codec projection are still pending (see docs/design/RENAMES_NESTED_GROUPS.md and Issues #110 / #133)
 
 **Note**: Level-88 condition values are fully supported with comprehensive parse, codec, and structural validation. See [COBOL_SUPPORT_MATRIX.md](reference/COBOL_SUPPORT_MATRIX.md) for test evidence (6 tests in AC2, 8 tests in AC5, 638+838 lines of golden fixtures).
 
@@ -157,7 +157,7 @@ The copybook-rs parser now implements consistent FILLER field naming using compu
 - **Performance**: Minimal overhead during layout resolution phase
 
 ### Validation Status
-- `cargo nextest` maintains **615 tests passing (54 skipped)**
+- `cargo test` maintains **704 tests passing (58 skipped)** across unit, integration, and golden fixtures
 - Integration suites cover ODO, REDEFINES, and RDW flows; copybook-bench adds 56 targeted tests validating Issue #52 acceptance criteria
 - Performance telemetry shows negligible overhead from the byte-offset naming work relative to baseline decode timings
 
@@ -172,7 +172,7 @@ Recent benchmarking runs prioritize transparency over marketing:
 - Baseline was established from 5 independent runs under controlled conditions; day-to-day measurements vary with system load and thermal conditions
 - SLO validation artifacts in `scripts/bench/perf.json` may show variance relative to configured floors depending on measurement environment
 - Memory usage stays below **256 MiB steady-state** thanks to the streaming architecture
-- Test coverage remains broad with 615 tests passing (54 skipped)
+- Test coverage remains broad with 704 tests passing (58 skipped) across unit, integration, and golden fixture suites
 
 **Measurement Context**:
 - WSL2 environment introduces variable performance overhead (10-30%) versus native Linux
@@ -190,11 +190,11 @@ Recent benchmarking runs prioritize transparency over marketing:
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set and can tolerate current performance characteristics. The project maintains Engineering Preview status (not production-ready) until remaining limitations are addressed.
 
 #### Technical Signals
-- ⚠️ **Test Health**: 615 tests passing (54 skipped) - comprehensive coverage with some ignored edge cases
+- ⚠️ **Test Health**: 704 tests passing (58 skipped) – broad coverage with a small number of explicitly ignored edge cases
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ⚠️ **Performance Variance**: Current measurements (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) show WSL2 environmental variance; baseline (205 MiB/s, 58 MiB/s) established under controlled conditions
 - ⚠️ **Performance Policy**: Advisory-only status (Issues #74, #75); historic SLOs (4.1 GiB/s DISPLAY, 560 MiB/s COMP-3) replaced with empirical baseline; CI enforces realistic floors (≥80 MiB/s DISPLAY, ≥40 MiB/s COMP-3)
-- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, and RENAMES (66-level) remain unsupported; Level-88 condition values fully supported
+- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs remain unsupported; RENAMES (66-level) partially supported (parser+resolver complete, nested groups+codec pending); Level-88 condition values fully supported
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management (promote/show), comparison, validation, and summary commands
 
 #### Deployment Guidance

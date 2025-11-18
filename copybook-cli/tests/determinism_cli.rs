@@ -2,12 +2,12 @@
 //!
 //! These tests verify the CLI wiring and argument parsing for determinism validation
 //! commands. They use real copybook fixtures and invoke the compiled binary via
-//! assert_cmd to validate end-to-end behavior.
+//! `assert_cmd` to validate end-to-end behavior.
 
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use std::fs;
 use std::io::Write;
@@ -15,10 +15,10 @@ use std::path::Path;
 use tempfile::tempdir;
 
 /// Minimal fixed-format copybook: one X(5) field.
-const SIMPLE_COPYBOOK: &str = r#"
+const SIMPLE_COPYBOOK: &str = r"
        01 RECORD.
           05 FIELD PIC X(5).
-"#;
+";
 
 /// CP037 bytes for "ABCDE" (A–E)
 const SIMPLE_DATA_CP037: [u8; 5] = [0xC1, 0xC2, 0xC3, 0xC4, 0xC5];
@@ -51,7 +51,7 @@ fn determinism_decode_deterministic_exit_ok() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = Command::cargo_bin("copybook").expect("cargo_bin");
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args([
         "determinism",
         "decode",
@@ -71,7 +71,7 @@ fn determinism_decode_json_output_is_well_formed() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = Command::cargo_bin("copybook").expect("cargo_bin");
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args([
         "determinism",
         "decode",
@@ -96,7 +96,7 @@ fn determinism_encode_deterministic_exit_ok() {
     let (copybook, _) = write_simple_fixture(tmp.path());
     let json_path = write_simple_json(tmp.path());
 
-    let mut cmd = Command::cargo_bin("copybook").expect("cargo_bin");
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args([
         "determinism",
         "encode",
@@ -116,7 +116,7 @@ fn determinism_round_trip_deterministic_exit_ok() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = Command::cargo_bin("copybook").expect("cargo_bin");
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args([
         "determinism",
         "round-trip",
@@ -136,7 +136,7 @@ fn determinism_decode_human_output_contains_verdict() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = Command::cargo_bin("copybook").expect("cargo_bin");
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args([
         "determinism",
         "decode",
@@ -157,7 +157,7 @@ fn determinism_decode_human_output_contains_verdict() {
 
 #[test]
 fn determinism_help_shows_exit_codes() {
-    let mut cmd = Command::cargo_bin("copybook").expect("cargo_bin");
+    let mut cmd = cargo_bin_cmd!("copybook");
     cmd.args(["determinism", "--help"]);
 
     cmd.assert()

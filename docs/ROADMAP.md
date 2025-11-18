@@ -32,12 +32,13 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
    * ✅ publish dry-run validation in CI
    * ✅ automated publish workflow for tagged releases
    * 🔄 docs.rs builds for all crates (will complete after first publish)
-2. **❌ Bench receipts in CI** (#52) — **OUTSTANDING**
+2. **✅ Bench receipts tooling** (#52) — **COMPLETED**
 
-   * ❌ criterion JSON parsing with real throughput calculation (tooling not shipped)
-   * ❌ PR comment: SLO deltas and pass/fail against budgets (±5% warn, >10% fail)
+   * ✅ `bench-report` CLI tool with baseline management (validate, promote, compare, summary)
+   * ✅ criterion JSON parsing with real throughput calculation
+   * ❌ PR comment automation: SLO deltas and pass/fail against budgets (±5% warn, >10% fail)
    * ❌ Upload to GitHub Actions artifacts with 14-day retention
-   * ❌ DISPLAY/COMP-3 metric extraction from benchmark results
+   * ✅ DISPLAY/COMP-3 metric extraction from benchmark results
 3. **✅ Golden fixtures** (#53) — **COMPLETED**
 
    * ✅ `level-88 after ODO` (pass) - validates non-storage fields after ODO
@@ -57,14 +58,15 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 * ✅ `cargo publish` sequence ready; dry-run passes for all crates
 * ✅ Version pinned (0.3.1) with exact internal dependencies
 * ✅ Golden fixtures all pass; structural constraints properly validated
-* ❌ Benchmark CI parses real throughput data and enforces SLOs
+* ✅ Benchmark tooling implemented (`bench-report` CLI with baseline management)
+* ❌ CI integration: PR comments and artifact uploads not yet automated
 * ✅ Documentation audit complete: no duplicate perf numbers, working navigation
 
 ### **Status: ⚠️ Incomplete (follow-ups required)**
 
 **Released**: 2025-09-23 (v0.3.1)
-**Includes**: IndexMap deterministic JSON output, golden fixtures validation, docs navigation refresh
-**Outstanding**: Benchmark automation deliverables from Issue #52; SLO enforcement; updated public messaging reflecting current throughput
+**Includes**: IndexMap deterministic JSON output, golden fixtures validation, docs navigation refresh, bench-report CLI
+**Outstanding**: GitHub Actions integration (PR comments, artifact uploads); SLO enforcement automation
 
 ---
 

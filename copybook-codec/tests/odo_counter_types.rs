@@ -1,5 +1,8 @@
 // ODO counter type tests - currently disabled as ODO support is not implemented
 // in the main decode path (json.rs just returns max_count for ODO fields).
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(dead_code, unused_imports)]
 
 use anyhow::{Context, Result};

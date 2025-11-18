@@ -1174,6 +1174,8 @@ mod exit_codes;
 mod utils;
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use copybook_core::ErrorCode;

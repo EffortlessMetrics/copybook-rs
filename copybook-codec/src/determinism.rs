@@ -12,10 +12,10 @@
 //! use copybook_core::parse_copybook;
 //!
 //! # fn example() -> copybook_core::Result<()> {
-//! let copybook_text = r#"
+//! let copybook_text = r"
 //!    01 RECORD.
 //!       05 FIELD-A PIC X(10).
-//! "#;
+//! ";
 //! let schema = parse_copybook(copybook_text)?;
 //! let data = b"HELLO WORLD"; // EBCDIC-encoded in practice
 //!
@@ -381,6 +381,8 @@ fn find_byte_differences(a: &[u8], b: &[u8]) -> Vec<ByteDiff> {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::options::{Codepage, RecordFormat};
@@ -398,10 +400,10 @@ mod tests {
 
     #[test]
     fn decode_deterministic_for_display_schema() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 FIELD-A PIC X(10).
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // CP037 encoding of "ABCDEFGHIJ"
@@ -440,10 +442,10 @@ mod tests {
 
     #[test]
     fn decode_deterministic_for_comp3_schema() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 AMOUNT PIC S9(7)V99 COMP-3.
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // COMP-3 representation of +1234567.89
@@ -464,10 +466,10 @@ mod tests {
 
     #[test]
     fn encode_deterministic_for_display_schema() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 FIELD-A PIC X(5).
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
         let json = serde_json::json!({"FIELD-A": "HELLO"});
 
@@ -484,11 +486,11 @@ mod tests {
 
     #[test]
     fn round_trip_deterministic() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 NAME PIC X(10).
                05 AGE  PIC 9(3).
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // CP037 encoded: "JOHN      123"
@@ -615,10 +617,10 @@ mod tests {
     /// This tests that errors propagate correctly rather than being silently swallowed.
     #[test]
     fn decode_error_propagates_correctly() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 AMOUNT PIC S9(7)V99 COMP-3.
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // Provide truncated data (COMP-3 expects 5 bytes for PIC S9(7)V99)
@@ -636,10 +638,10 @@ mod tests {
     /// Adversarial test: Verify encode fails correctly with invalid JSON.
     #[test]
     fn encode_error_propagates_correctly() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 FIELD PIC 9(5).
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // Provide invalid JSON (string instead of number)
@@ -657,10 +659,10 @@ mod tests {
     /// Adversarial test: Verify round-trip fails correctly with encoding errors.
     #[test]
     fn round_trip_error_propagates() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 AMOUNT PIC S9(7)V99 COMP-3.
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // Truncated COMP-3 data
@@ -680,10 +682,10 @@ mod tests {
     /// Empty data should fail for a schema that expects bytes.
     #[test]
     fn insufficient_data_handling() {
-        let copybook = r#"
+        let copybook = r"
             01 RECORD.
                05 FIELD PIC X(5).
-        "#;
+        ";
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // Provide only 3 bytes when schema expects 5
@@ -695,18 +697,14 @@ mod tests {
         // Note: If this succeeds deterministically (both runs pad the same way),
         // that's actually acceptable behavior - determinism is maintained.
         // The key is that we don't crash or produce non-deterministic results.
-        match result {
-            Ok(det_result) => {
-                // If decode succeeds (perhaps by padding), verify it's deterministic
-                assert!(
-                    det_result.is_deterministic,
-                    "If insufficient data is handled, it must be deterministic"
-                );
-            }
-            Err(_) => {
-                // If it errors, that's also acceptable - the error should be consistent
-            }
+        if let Ok(det_result) = result {
+            // If decode succeeds (perhaps by padding), verify it's deterministic
+            assert!(
+                det_result.is_deterministic,
+                "If insufficient data is handled, it must be deterministic"
+            );
         }
+        // If it errors, that's also acceptable - the error should be consistent
     }
 
     /// Adversarial test: Verify diff detection with all bytes different.

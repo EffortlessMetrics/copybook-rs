@@ -3,6 +3,9 @@
 //! Comprehensive mutation testing for the bench-report CLI tool to ensure
 //! robust command handling, argument parsing, and error conditions.
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

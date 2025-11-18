@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(clippy::if_not_else, clippy::unnecessary_wraps)]
 #![allow(clippy::ignore_without_reason)]
 #![allow(clippy::panic)]

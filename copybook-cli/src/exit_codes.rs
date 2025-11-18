@@ -274,6 +274,8 @@ impl<'de> Deserialize<'de> for ExitCode {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use serde_json::{from_str, to_string};

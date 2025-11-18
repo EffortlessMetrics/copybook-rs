@@ -2616,6 +2616,8 @@ pub fn decode_zoned_decimal_to_string_with_scratch(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;

@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(clippy::cast_precision_loss)]
 
 use anyhow::{Context, Result};

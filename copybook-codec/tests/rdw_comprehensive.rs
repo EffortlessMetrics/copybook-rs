@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(clippy::panic)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]

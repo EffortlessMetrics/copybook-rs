@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::while_let_on_iterator)]
 #![allow(clippy::panic)]

@@ -7,6 +7,9 @@
 //! - AC2: `DecodeOptions` supports `preserve_zoned_encoding` flag
 //! - AC3: `DecodeOptions` supports `preferred_zoned_encoding` option
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(clippy::unnecessary_wraps, clippy::used_underscore_binding)] // TDD Red → Green phase stubs
 
 use anyhow::Result;

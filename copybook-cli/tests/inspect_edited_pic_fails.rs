@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 mod test_utils;
 
 use assert_cmd::cargo::cargo_bin_cmd;

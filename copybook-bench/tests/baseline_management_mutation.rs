@@ -3,6 +3,9 @@
 //! Comprehensive mutation testing for baseline storage, promotion,
 //! and regression detection to ensure enterprise reliability.
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

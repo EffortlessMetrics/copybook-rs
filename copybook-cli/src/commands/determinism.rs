@@ -123,7 +123,7 @@ pub fn run(cmd: &DeterminismCommand) -> anyhow::Result<ExitCode> {
 /// Run decode determinism check
 fn run_decode(args: &DecodeDeterminismArgs) -> anyhow::Result<ExitCode> {
     let schema = load_schema(&args.common.copybook)?;
-    let decode_opts = build_decode_options(&args.common)?;
+    let decode_opts = build_decode_options(&args.common);
 
     let data = std::fs::read(&args.data).with_context(|| {
         format!(
@@ -141,7 +141,7 @@ fn run_decode(args: &DecodeDeterminismArgs) -> anyhow::Result<ExitCode> {
 /// Run encode determinism check
 fn run_encode(args: &EncodeDeterminismArgs) -> anyhow::Result<ExitCode> {
     let schema = load_schema(&args.common.copybook)?;
-    let encode_opts = build_encode_options(&args.common)?;
+    let encode_opts = build_encode_options(&args.common);
 
     let json_text = std::fs::read_to_string(&args.json).with_context(|| {
         format!(
@@ -168,8 +168,8 @@ fn run_encode(args: &EncodeDeterminismArgs) -> anyhow::Result<ExitCode> {
 /// Run round-trip determinism check
 fn run_round_trip(args: &RoundTripDeterminismArgs) -> anyhow::Result<ExitCode> {
     let schema = load_schema(&args.common.copybook)?;
-    let decode_opts = build_decode_options(&args.common)?;
-    let encode_opts = build_encode_options(&args.common)?;
+    let decode_opts = build_decode_options(&args.common);
+    let encode_opts = build_encode_options(&args.common);
 
     let data = std::fs::read(&args.data).with_context(|| {
         format!(
@@ -192,22 +192,18 @@ fn load_schema(path: &Path) -> anyhow::Result<Schema> {
     Ok(schema)
 }
 
-/// Build DecodeOptions from common arguments
-fn build_decode_options(common: &CommonDeterminismArgs) -> anyhow::Result<DecodeOptions> {
-    let opts = DecodeOptions::new()
+/// Build `DecodeOptions` from common arguments
+fn build_decode_options(common: &CommonDeterminismArgs) -> DecodeOptions {
+    DecodeOptions::new()
         .with_codepage(common.codepage)
         .with_format(common.format)
         .with_json_number_mode(common.json_number)
-        .with_emit_meta(common.emit_meta);
-
-    Ok(opts)
+        .with_emit_meta(common.emit_meta)
 }
 
-/// Build EncodeOptions from common arguments
-fn build_encode_options(common: &CommonDeterminismArgs) -> anyhow::Result<EncodeOptions> {
-    let opts = EncodeOptions::new().with_codepage(common.codepage);
-
-    Ok(opts)
+/// Build `EncodeOptions` from common arguments
+fn build_encode_options(common: &CommonDeterminismArgs) -> EncodeOptions {
+    EncodeOptions::new().with_codepage(common.codepage)
 }
 
 /// Handle determinism result and format output
@@ -253,7 +249,7 @@ fn print_human_result(result: &DeterminismResult, max_diffs: usize) {
         let count = diffs.len();
         let shown = diffs.iter().take(max_diffs);
 
-        println!("\nByte differences: {} total", count);
+        println!("\nByte differences: {count} total");
         if count > 0 {
             println!("\n  Offset  Round1  Round2");
             println!("  ------  ------  ------");
@@ -283,6 +279,8 @@ fn truncate_hash(hash: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

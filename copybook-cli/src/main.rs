@@ -346,9 +346,8 @@ Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
     #[command(after_help = "\
 Exit codes:
   0 = deterministic (hashes match)
-  1 = non-deterministic (drift detected)
-  2 = usage error (invalid arguments)
-  3 = codec error (decode/encode failure)
+  2 = non-deterministic (drift detected)
+  3 = codec/usage error (processing failure)
 
 Output formats:
   human = Default human-readable output with diff table

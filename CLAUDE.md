@@ -87,7 +87,7 @@ cargo run --bin copybook -- determinism round-trip --format fixed --codepage cp0
 # Determinism with JSON output for CI integration
 cargo run --bin copybook -- determinism decode --output json --format fixed --codepage cp037 schema.cpy data.bin
 
-# Determinism exit codes: 0=deterministic, 1=non-deterministic, 2=usage error, 3=codec error
+# Determinism exit codes: 0=deterministic, 2=non-deterministic, 3=error
 ```
 
 ## Library API

@@ -164,5 +164,5 @@ fn determinism_help_shows_exit_codes() {
         .success()
         .stdout(predicate::str::contains("Exit codes:"))
         .stdout(predicate::str::contains("0 = deterministic"))
-        .stdout(predicate::str::contains("1 = non-deterministic"));
+        .stdout(predicate::str::contains("2 = non-deterministic"));
 }

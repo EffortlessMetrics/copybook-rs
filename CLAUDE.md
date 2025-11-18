@@ -20,8 +20,8 @@ See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [copybook-
 
 5 crates:
 - **copybook-core**: COBOL parsing (lexer, parser, AST, layout) with Level-88 condition value support
-- **copybook-codec**: Data encoding/decoding, character conversion with structural validation
-- **copybook-cli**: CLI with subcommands (parse, inspect, decode, encode, verify)
+- **copybook-codec**: Data encoding/decoding, character conversion with structural validation and determinism validation
+- **copybook-cli**: CLI with subcommands (parse, inspect, decode, encode, verify, determinism)
 - **copybook-gen**: Test fixture generation with golden fixture framework
 - **copybook-bench**: Performance benchmarks with regression detection
 
@@ -78,6 +78,16 @@ cargo run --bin copybook -- encode --format fixed --codepage cp037 copybook.cpy 
 
 # Encode with error handling options
 cargo run --bin copybook -- encode --format fixed --codepage cp037 --fail-fast --max-errors 5 copybook.cpy input.jsonl output.bin
+
+# Determinism validation (Issue #112)
+cargo run --bin copybook -- determinism decode --format fixed --codepage cp037 schema.cpy data.bin           # Verify decode determinism
+cargo run --bin copybook -- determinism encode --format fixed --codepage cp037 schema.cpy input.jsonl        # Verify encode determinism
+cargo run --bin copybook -- determinism round-trip --format fixed --codepage cp037 schema.cpy data.bin      # Verify round-trip determinism
+
+# Determinism with JSON output for CI integration
+cargo run --bin copybook -- determinism decode --output json --format fixed --codepage cp037 schema.cpy data.bin
+
+# Determinism exit codes: 0=deterministic, 1=non-deterministic, 2=usage error, 3=codec error
 ```
 
 ## Library API

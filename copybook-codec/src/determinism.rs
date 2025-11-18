@@ -161,13 +161,14 @@ pub fn check_decode_determinism(
     // Compute cryptographic hashes
     let hash1 = blake3::hash(&json1);
     let hash2 = blake3::hash(&json2);
+    let is_deterministic = hash1 == hash2;
 
     Ok(DeterminismResult {
         mode: DeterminismMode::DecodeOnly,
         round1_hash: hash1.to_hex().to_string(),
         round2_hash: hash2.to_hex().to_string(),
-        is_deterministic: hash1 == hash2,
-        byte_differences: if json1 == json2 {
+        is_deterministic,
+        byte_differences: if is_deterministic {
             None
         } else {
             Some(find_byte_differences(&json1, &json2))
@@ -229,13 +230,14 @@ pub fn check_encode_determinism(
     // Compute cryptographic hashes
     let hash1 = blake3::hash(&binary1);
     let hash2 = blake3::hash(&binary2);
+    let is_deterministic = hash1 == hash2;
 
     Ok(DeterminismResult {
         mode: DeterminismMode::EncodeOnly,
         round1_hash: hash1.to_hex().to_string(),
         round2_hash: hash2.to_hex().to_string(),
-        is_deterministic: hash1 == hash2,
-        byte_differences: if binary1 == binary2 {
+        is_deterministic,
+        byte_differences: if is_deterministic {
             None
         } else {
             Some(find_byte_differences(&binary1, &binary2))
@@ -318,13 +320,14 @@ pub fn check_round_trip_determinism(
 
     let hash1 = blake3::hash(&serialized1);
     let hash2 = blake3::hash(&serialized2);
+    let is_deterministic = hash1 == hash2;
 
     Ok(DeterminismResult {
         mode: DeterminismMode::RoundTrip,
         round1_hash: hash1.to_hex().to_string(),
         round2_hash: hash2.to_hex().to_string(),
-        is_deterministic: hash1 == hash2,
-        byte_differences: if serialized1 == serialized2 {
+        is_deterministic,
+        byte_differences: if is_deterministic {
             None
         } else {
             Some(find_byte_differences(&serialized1, &serialized2))
@@ -489,15 +492,22 @@ mod tests {
         let schema = parse_copybook(copybook).expect("parse copybook");
 
         // CP037 encoded: "JOHN      123"
-        let data: Vec<u8> = "JOHN      123"
-            .bytes()
-            .map(|b| match b {
-                b'A'..=b'Z' => 0xC1 + (b - b'A'), // Simplified CP037 A-Z mapping
-                b'0'..=b'9' => 0xF0 + (b - b'0'), // Simplified CP037 0-9 mapping
-                b' ' => 0x40,
-                _ => 0x40,
-            })
-            .collect();
+        // Explicit CP037 mapping (EBCDIC letters are not contiguous)
+        let data: Vec<u8> = vec![
+            0xD1, // J
+            0xD6, // O
+            0xC8, // H
+            0xD5, // N
+            0x40, // space
+            0x40, // space
+            0x40, // space
+            0x40, // space
+            0x40, // space
+            0x40, // space
+            0xF1, // 1
+            0xF2, // 2
+            0xF3, // 3
+        ];
 
         let result = check_round_trip_determinism(&schema, &data, &decode_opts(), &encode_opts())
             .expect("round-trip check");

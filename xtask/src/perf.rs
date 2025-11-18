@@ -38,6 +38,10 @@ pub const COMP3_SLO_MIBPS: f64 = 40.0;
 /// # Arguments
 /// * `enforce` - If true, exit with error on SLO violations
 /// * `out_dir` - Optional output directory (defaults to `target/benchmarks/<timestamp>`)
+///
+/// # Errors
+/// Returns error if benchmark execution fails, output directory creation fails,
+/// or if `enforce` is true and SLO violations are detected
 pub fn run(enforce: bool, out_dir: Option<&str>) -> Result<()> {
     eprintln!("🚀 Running performance benchmarks...");
 

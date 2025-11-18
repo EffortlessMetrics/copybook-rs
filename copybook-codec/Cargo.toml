@@ -29,6 +29,7 @@ tracing.workspace = true
 clap.workspace = true
 base64.workspace = true
 sha2.workspace = true
+blake3.workspace = true
 smallvec.workspace = true
 crossbeam-channel.workspace = true
 indexmap.workspace = true

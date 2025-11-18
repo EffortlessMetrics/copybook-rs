@@ -5,6 +5,7 @@
 //! including character set conversion, numeric codecs, and record framing.
 
 pub mod charset;
+pub mod determinism;
 pub mod fidelity;
 pub mod iterator;
 pub mod lib_api;
@@ -29,4 +30,9 @@ pub use numeric::{SmallDecimal, ZonedEncodingInfo};
 pub use options::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     UnmappablePolicy, ZonedEncodingFormat,
+};
+
+pub use determinism::{
+    ByteDiff, DeterminismMode, DeterminismResult, check_decode_determinism,
+    check_encode_determinism, check_round_trip_determinism,
 };

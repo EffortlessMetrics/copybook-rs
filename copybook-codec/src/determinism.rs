@@ -167,10 +167,10 @@ pub fn check_decode_determinism(
         round1_hash: hash1.to_hex().to_string(),
         round2_hash: hash2.to_hex().to_string(),
         is_deterministic: hash1 == hash2,
-        byte_differences: if json1 != json2 {
-            Some(find_byte_differences(&json1, &json2))
-        } else {
+        byte_differences: if json1 == json2 {
             None
+        } else {
+            Some(find_byte_differences(&json1, &json2))
         },
     })
 }
@@ -235,10 +235,10 @@ pub fn check_encode_determinism(
         round1_hash: hash1.to_hex().to_string(),
         round2_hash: hash2.to_hex().to_string(),
         is_deterministic: hash1 == hash2,
-        byte_differences: if binary1 != binary2 {
-            Some(find_byte_differences(&binary1, &binary2))
-        } else {
+        byte_differences: if binary1 == binary2 {
             None
+        } else {
+            Some(find_byte_differences(&binary1, &binary2))
         },
     })
 }
@@ -324,10 +324,10 @@ pub fn check_round_trip_determinism(
         round1_hash: hash1.to_hex().to_string(),
         round2_hash: hash2.to_hex().to_string(),
         is_deterministic: hash1 == hash2,
-        byte_differences: if serialized1 != serialized2 {
-            Some(find_byte_differences(&serialized1, &serialized2))
-        } else {
+        byte_differences: if serialized1 == serialized2 {
             None
+        } else {
+            Some(find_byte_differences(&serialized1, &serialized2))
         },
     })
 }
@@ -575,5 +575,142 @@ mod tests {
         };
         assert!(!result.passed());
         assert_eq!(result.diff_count(), 1);
+    }
+
+    /// Adversarial test: Verify we detect non-determinism in JSON serialization.
+    /// This simulates what would happen if the codec produced different outputs.
+    #[test]
+    fn detect_json_serialization_nondeterminism() {
+        // Simulate two decode runs that produce different JSON
+        let json1 = serde_json::json!({"FIELD": "VALUE1"});
+        let json2 = serde_json::json!({"FIELD": "VALUE2"});
+
+        let bytes1 = serde_json::to_vec(&json1).expect("serialize json1");
+        let bytes2 = serde_json::to_vec(&json2).expect("serialize json2");
+
+        // Manually verify our diff detection would catch this
+        let diffs = find_byte_differences(&bytes1, &bytes2);
+        assert!(!diffs.is_empty(), "Should detect differences in JSON bytes");
+
+        // Verify BLAKE3 hashes differ
+        let hash1 = blake3::hash(&bytes1);
+        let hash2 = blake3::hash(&bytes2);
+        assert_ne!(
+            hash1, hash2,
+            "BLAKE3 hashes should differ for different outputs"
+        );
+    }
+
+    /// Adversarial test: Verify error handling when decode fails.
+    /// This tests that errors propagate correctly rather than being silently swallowed.
+    #[test]
+    fn decode_error_propagates_correctly() {
+        let copybook = r#"
+            01 RECORD.
+               05 AMOUNT PIC S9(7)V99 COMP-3.
+        "#;
+        let schema = parse_copybook(copybook).expect("parse copybook");
+
+        // Provide truncated data (COMP-3 expects 5 bytes for PIC S9(7)V99)
+        let truncated_data = vec![0x12, 0x34]; // Only 2 bytes instead of 5
+
+        let result = check_decode_determinism(&schema, &truncated_data, &decode_opts());
+
+        // Should propagate the decode error, not return a determinism result
+        assert!(
+            result.is_err(),
+            "Should return error for truncated COMP-3 data"
+        );
+    }
+
+    /// Adversarial test: Verify encode fails correctly with invalid JSON.
+    #[test]
+    fn encode_error_propagates_correctly() {
+        let copybook = r#"
+            01 RECORD.
+               05 FIELD PIC 9(5).
+        "#;
+        let schema = parse_copybook(copybook).expect("parse copybook");
+
+        // Provide invalid JSON (string instead of number)
+        let invalid_json = serde_json::json!({"FIELD": "NOT_A_NUMBER"});
+
+        let result = check_encode_determinism(&schema, &invalid_json, &encode_opts());
+
+        // Should propagate the encode error
+        assert!(
+            result.is_err(),
+            "Should return error for type mismatch in encoding"
+        );
+    }
+
+    /// Adversarial test: Verify round-trip fails correctly with encoding errors.
+    #[test]
+    fn round_trip_error_propagates() {
+        let copybook = r#"
+            01 RECORD.
+               05 AMOUNT PIC S9(7)V99 COMP-3.
+        "#;
+        let schema = parse_copybook(copybook).expect("parse copybook");
+
+        // Truncated COMP-3 data
+        let bad_data = vec![0x12, 0x34];
+
+        let result =
+            check_round_trip_determinism(&schema, &bad_data, &decode_opts(), &encode_opts());
+
+        // Should fail on the first decode operation
+        assert!(
+            result.is_err(),
+            "Should return error for truncated data in round-trip"
+        );
+    }
+
+    /// Adversarial test: Verify we handle insufficient data correctly.
+    /// Empty data should fail for a schema that expects bytes.
+    #[test]
+    fn insufficient_data_handling() {
+        let copybook = r#"
+            01 RECORD.
+               05 FIELD PIC X(5).
+        "#;
+        let schema = parse_copybook(copybook).expect("parse copybook");
+
+        // Provide only 3 bytes when schema expects 5
+        let insufficient_data = vec![0x40, 0x40, 0x40]; // 3 spaces in EBCDIC
+
+        let result = check_decode_determinism(&schema, &insufficient_data, &decode_opts());
+
+        // Should return error for insufficient data
+        // Note: If this succeeds deterministically (both runs pad the same way),
+        // that's actually acceptable behavior - determinism is maintained.
+        // The key is that we don't crash or produce non-deterministic results.
+        match result {
+            Ok(det_result) => {
+                // If decode succeeds (perhaps by padding), verify it's deterministic
+                assert!(
+                    det_result.is_deterministic,
+                    "If insufficient data is handled, it must be deterministic"
+                );
+            }
+            Err(_) => {
+                // If it errors, that's also acceptable - the error should be consistent
+            }
+        }
+    }
+
+    /// Adversarial test: Verify diff detection with all bytes different.
+    #[test]
+    fn diff_bytes_with_total_mismatch() {
+        let a = vec![0x00, 0x11, 0x22, 0x33, 0x44];
+        let b = vec![0xFF, 0xEE, 0xDD, 0xCC, 0xBB];
+        let diffs = find_byte_differences(&a, &b);
+
+        assert_eq!(diffs.len(), 5, "Should report all 5 byte differences");
+        for (idx, diff) in diffs.iter().enumerate() {
+            assert_eq!(diff.offset, idx);
+            assert_eq!(diff.round1_byte, a[idx]);
+            assert_eq!(diff.round2_byte, b[idx]);
+        }
     }
 }

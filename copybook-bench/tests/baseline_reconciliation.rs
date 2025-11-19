@@ -7,6 +7,8 @@
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac2-baseline-reconciliation
 //! Traceability: docs/issue-49-traceability-matrix.md#ac2
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

@@ -545,6 +545,8 @@ pub struct StreamingProcessorStats {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use anyhow::{Context, Result, anyhow};

@@ -7,6 +7,8 @@
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac1-regression-detection
 //! Traceability: docs/issue-49-traceability-matrix.md#ac1
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(clippy::bool_to_int_with_if, clippy::doc_markdown)]
 
 use copybook_bench::baseline::BaselineStore;

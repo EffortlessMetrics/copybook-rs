@@ -1968,6 +1968,8 @@ fn format_zoned_decimal_with_digits(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::Codepage;

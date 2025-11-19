@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 //! Integration tests for memory management and parallel processing

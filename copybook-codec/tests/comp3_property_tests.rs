@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_record, encode_record,
 };

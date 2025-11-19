@@ -271,6 +271,8 @@ pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;

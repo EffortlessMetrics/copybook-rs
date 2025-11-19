@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 //! Test scaffolding for COBOL fixture integration with zoned encoding - Issue #48

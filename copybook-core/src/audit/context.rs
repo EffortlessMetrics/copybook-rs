@@ -518,6 +518,8 @@ impl Default for AuditRequirements {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

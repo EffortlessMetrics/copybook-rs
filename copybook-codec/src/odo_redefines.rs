@@ -590,6 +590,8 @@ pub fn validate_odo_encode(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use anyhow::{Context, Result};

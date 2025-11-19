@@ -1570,6 +1570,8 @@ pub mod utils {
 
 // Add dependency for CPU core detection
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod num_cpus {
     pub fn get() -> usize {
         4 // Default for testing
@@ -1586,6 +1588,8 @@ mod num_cpus {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

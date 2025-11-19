@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#phase-2-performance-hotspot-elimination
 /// Issue #33 - Hotspot Module Unit Tests
 ///

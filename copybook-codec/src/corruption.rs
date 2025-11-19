@@ -187,6 +187,8 @@ fn ascii_char_or_dot(byte: u8) -> char {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use anyhow::{anyhow, Result};

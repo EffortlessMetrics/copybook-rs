@@ -129,6 +129,8 @@ pub fn find_feature(id: &str) -> Option<&'static FeatureSupport> {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

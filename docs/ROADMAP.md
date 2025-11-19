@@ -78,7 +78,21 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ### Deliverables
 
-1. **Dialect lever** (#51)
+1. **Determinism Validation** (#112) — **✅ Phases 1–2 SHIPPED**
+
+   * [x] Phase 1 – Codec harness (PR #158)
+     * `copybook_codec::determinism` module
+     * BLAKE3 hashes + bounded byte diffs
+     * Adversarial tests for error paths and edge cases
+   * [x] Phase 2 – CLI wiring (PR #160)
+     * `copybook determinism decode|encode|round-trip`
+     * Human + JSON output modes
+     * Integration tests in `copybook-cli/tests/determinism_cli.rs`
+   * [ ] Phase 3 – CI smoke tests (Q1 2026)
+     * GitHub Actions job running determinism checks on golden fixtures
+     * Advisory at first (non-blocking), promotable to blocking once stable
+     * Emits machine-readable receipts (JSON) for audit logs
+2. **Dialect lever** (#51)
 
    * Config:
 
@@ -88,7 +102,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
      ```
    * CLI flag and env var mapping (`--dialect-odo-lower-bound`, `COPYBOOK_DIALECT_ODO_LOWER`)
    * Golden fixtures for each setting; docs examples and migration notes
-2. **Perf tune (SIMD/I/O)**
+3. **Perf tune (SIMD/I/O)**
 
    * Target +10–20% p95 throughput maintained under budgets; no API/behavior changes
 

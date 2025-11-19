@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(clippy::uninlined_format_args, clippy::too_many_lines)]

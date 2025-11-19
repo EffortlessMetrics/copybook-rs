@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(clippy::ignore_without_reason)]
 // AC:1,4,5,6,9 - Security Scanning Infrastructure Integration Tests
 // Specification: docs/explanation/security-scanning-architecture.md

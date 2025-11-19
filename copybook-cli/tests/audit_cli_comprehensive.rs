@@ -13,6 +13,8 @@
 //!
 //! Note: These tests require the `audit` feature to be enabled during compilation.
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![cfg(feature = "audit")]
 
 mod test_utils;

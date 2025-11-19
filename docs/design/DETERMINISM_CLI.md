@@ -1,8 +1,11 @@
 # Determinism CLI Design
 
-**Status**: Draft (Issue #112 Phase 2)
+**Status**: Implemented (Issue #112 Phase 2, PR #160)
 **Author**: System
 **Date**: 2025-11-18
+
+> Phase 1 (codec harness) shipped in PR #158. Phase 2 (CLI wiring) shipped in PR #160.
+> Phase 3 (CI smoke tests) is tracked in Issue #112 as a follow-up.
 
 ## Overview
 
@@ -178,19 +181,21 @@ Byte Differences: 0
 
 ## Exit Codes
 
-Deterministic exit code semantics for CI integration:
+The CLI uses the existing `ExitCode` enum mapping. Semantics:
 
-| Code | Meaning | When |
-|------|---------|------|
-| `0` | **Deterministic** | Hashes match, no drift detected |
-| `1` | **Non-deterministic** | Hashes differ, byte diffs reported |
-| `2` | **Usage error** | Invalid arguments, missing files |
-| `3` | **Codec error** | Decode/encode failure, truncated data |
+| Code | Meaning | ExitCode Variant | When |
+|------|---------|------------------|------|
+| `0` | **Deterministic** | `ExitCode::Ok` | Hashes match, no drift detected |
+| `2` | **Non-deterministic** | `ExitCode::Data` | Hashes differ, byte diffs reported |
+| `3` | **Codec/usage error** | `ExitCode::Encode` | Decode/encode/options failure |
 
-**Rationale:**
-- `0` = success (determinism verified)
-- `1` = soft failure (operation succeeded but non-deterministic)
-- `2`/`3` = hard failures (can't complete validation)
+**Implementation Notes:**
+- Deterministic result → `ExitCode::Ok` (process exit 0)
+- Non-deterministic result → `ExitCode::Data` (validation failure, exit 2)
+- Codec/usage errors → `ExitCode::Encode` or `ExitCode::Internal` (exit 3 or 5)
+
+**CI Integration:**
+Only "deterministic vs non-deterministic" matters for pipelines. Any non-zero exit code should be treated as "fail" in automation scripts.
 
 **CI Usage:**
 

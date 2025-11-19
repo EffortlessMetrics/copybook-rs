@@ -120,6 +120,8 @@ fn matches_status_filter(status: support_matrix::SupportStatus, filter: StatusFi
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

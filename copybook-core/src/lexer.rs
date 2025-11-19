@@ -526,6 +526,8 @@ fn process_free_form_line<'a>(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

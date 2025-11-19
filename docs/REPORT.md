@@ -34,6 +34,10 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 - Parser stability with infinite loop prevention
 - Memory safety with no unsafe code in public API paths
 - Deterministic output with byte-identical results across runs
+- **Determinism validation harness**:
+  - Codec-level checks (decode, encode, round-trip) using BLAKE3 hashes + byte diffs (Issue #112, PR #158)
+  - CLI surface: `copybook determinism decode|encode|round-trip` (Issue #112 Phase 2, PR #160)
+  - JSON output for CI integration; see `docs/design/DETERMINISM_CLI.md` for contract
 
 ## Performance Snapshot
 

@@ -2,6 +2,9 @@
 //!
 //! Tests end-to-end behavior of `cargo run -p xtask -- perf --summarize-last`
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;

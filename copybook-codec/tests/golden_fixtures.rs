@@ -4,6 +4,9 @@
 //! for well-known inputs. They serve as regression tests and documentation
 //! of the expected behavior.
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 use anyhow::{Context, Result};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,

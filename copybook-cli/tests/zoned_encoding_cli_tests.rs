@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(clippy::uninlined_format_args)]
 //! Test scaffolding for CLI zoned encoding flags - Issue #48
 //!

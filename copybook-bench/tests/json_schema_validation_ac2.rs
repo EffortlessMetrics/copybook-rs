@@ -3,6 +3,8 @@
 //! Comprehensive validation of the `PerformanceReport` JSON schema
 //! ensuring enterprise-grade data integrity and mutation resilience.
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

@@ -2,6 +2,9 @@
 //!
 //! These tests verify that the CLI commands work correctly with real fixtures
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 mod test_utils;
 
 use assert_cmd::cargo::cargo_bin_cmd;

@@ -342,6 +342,22 @@ Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
         #[command(flatten)]
         args: crate::commands::support::SupportArgs,
     },
+    /// Determinism validation for encode/decode operations
+    #[command(after_help = "\
+Exit codes:
+  0 = deterministic (hashes match)
+  2 = non-deterministic (drift detected)
+  3 = codec/usage error (processing failure)
+
+Output formats:
+  human = Default human-readable output with diff table
+  json  = Structured JSON for CI integration
+
+Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
+    Determinism {
+        #[command(flatten)]
+        command: crate::commands::determinism::DeterminismCommand,
+    },
 }
 
 fn main() -> ProcessExitCode {
@@ -619,6 +635,9 @@ fn run() -> anyhow::Result<ExitCode> {
             )
         }
         Commands::Support { args } => (crate::commands::support::run(&args), "support"),
+        Commands::Determinism { command } => {
+            (crate::commands::determinism::run(&command), "determinism")
+        }
     };
 
     #[cfg(feature = "metrics")]
@@ -1142,6 +1161,7 @@ mod commands {
     #[cfg(feature = "audit")]
     pub mod audit;
     pub mod decode;
+    pub mod determinism;
     pub mod encode;
     pub mod inspect;
     pub mod parse;
@@ -1154,6 +1174,8 @@ mod exit_codes;
 mod utils;
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use copybook_core::ErrorCode;

@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 mod common;
 mod test_utils;
 

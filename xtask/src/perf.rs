@@ -265,6 +265,8 @@ pub fn format_slo_summary(snapshot: &PerfSnapshot, status: &SloStatus) -> String
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

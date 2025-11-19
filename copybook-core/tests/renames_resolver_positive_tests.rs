@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use copybook_core::parse_copybook;
 use copybook_core::{Field, Schema};

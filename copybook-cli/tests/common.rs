@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::panic)]
 use assert_cmd::Command;

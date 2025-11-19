@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![cfg(feature = "metrics")]
 // Integration smoke test for the /metrics exporter in a short failing run.
 // It asserts that HELP/TYPE descriptors are present and that the CBKF family

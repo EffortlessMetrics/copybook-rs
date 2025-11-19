@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![allow(clippy::unwrap_used, clippy::expect_used, deprecated)]
 
 //! Test scaffolding for binary round-trip fidelity - Issue #48

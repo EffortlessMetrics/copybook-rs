@@ -9,7 +9,6 @@
 
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![allow(clippy::bool_to_int_with_if, clippy::doc_markdown)]
 
 use copybook_bench::baseline::BaselineStore;

@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 //! Comprehensive numeric type tests covering all edge cases and normative behavior

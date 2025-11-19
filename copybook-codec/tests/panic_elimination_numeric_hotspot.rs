@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![allow(clippy::panic)]
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#numeric-conversion-safety-implementation
 /// Issue #33 - Numeric Hotspot Unit Tests

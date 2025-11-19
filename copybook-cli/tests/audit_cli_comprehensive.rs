@@ -15,7 +15,6 @@
 
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![cfg(feature = "audit")]
 
 mod test_utils;

@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 //! Test scaffolding for zoned encoding error codes - Issue #48

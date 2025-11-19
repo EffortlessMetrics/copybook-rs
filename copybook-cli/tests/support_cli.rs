@@ -5,6 +5,9 @@
 //! - JSON output
 //! - Feature checking with exit codes
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 use std::process::{Command, Stdio};
 
 #[test]

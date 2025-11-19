@@ -1,5 +1,8 @@
 // Test to verify COMP-3 format understanding
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 #[allow(clippy::uninlined_format_args)]
 #[test]
 fn test_comp3_format_understanding() {

@@ -8,6 +8,8 @@
 //! Specification: docs/issue-49-tdd-handoff-package.md#ac4-progressive-complexity
 //! Traceability: docs/issue-49-traceability-matrix.md#ac4
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 #![allow(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,

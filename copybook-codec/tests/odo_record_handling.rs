@@ -1,3 +1,6 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 use anyhow::{Result, bail};
 use copybook_codec::{Codepage, DecodeOptions, decode_record};
 use copybook_core::{ErrorCode, parse_copybook};

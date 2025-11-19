@@ -88,10 +88,12 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
      * `copybook determinism decode|encode|round-trip`
      * Human + JSON output modes
      * Integration tests in `copybook-cli/tests/determinism_cli.rs`
-   * [ ] Phase 3 – CI smoke tests (Q1 2026)
-     * GitHub Actions job running determinism checks on golden fixtures
-     * Advisory at first (non-blocking), promotable to blocking once stable
-     * Emits machine-readable receipts (JSON) for audit logs
+   * [x] Phase 3 – CI smoke test template (READY, awaiting CI re-enable)
+     * `.github/workflows/determinism-smoke.yml` workflow template
+     * `scripts/ci/determinism_smoke.sh` executable script (runs locally)
+     * Tests both DISPLAY-heavy (`simple.cpy`) and COMP-3 (`comp3_test.cpy`) fixtures
+     * Emits machine-readable JSON receipts for CI parsing
+     * Advisory-only when activated (non-blocking), promotable to blocking gate
 2. **Dialect lever** (#51)
 
    * Config:

@@ -32,7 +32,11 @@ jobs:
 
     steps:
       - name: Checkout repository
+<<<<<<< HEAD
         uses: actions/checkout@v6
+=======
+        uses: actions/checkout@v4
+>>>>>>> 80c9751 (feat(ci): add determinism smoke test workflow template (Issue #112 Phase 3))
 
       # NOTE: Keep this aligned with the workspace MSRV in CLAUDE.md/REPORT.md
       - name: Install Rust toolchain
@@ -45,16 +49,63 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Run determinism smoke script
-        run: |
-          chmod +x scripts/ci/determinism_smoke.sh
-          scripts/ci/determinism_smoke.sh
+      name: Determinism Smoke Tests
 
-      - name: Upload determinism reports (on failure)
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: determinism-reports
-          path: |
-            target/determinism-*.json
-          retention-days: 7
+      # NOTE: This workflow is a TEMPLATE - CI is currently disabled workspace-wide.
+      # When CI is re-enabled, this workflow will automatically validate determinism
+      # on PRs and pushes to main.
+
+      on:
+        push:
+          branches: [ main ]
+          paths:
+            - "copybook-*/**"
+            - "fixtures/**"
+            - "scripts/ci/determinism_smoke.sh"
+            - ".github/workflows/determinism-smoke.yml"
+        pull_request:
+          branches: [ main ]
+          paths:
+            - "copybook-*/**"
+            - "fixtures/**"
+            - "scripts/ci/determinism_smoke.sh"
+            - ".github/workflows/determinism-smoke.yml"
+
+      concurrency:
+        group: determinism-smoke-${{ github.ref }}
+        cancel-in-progress: true
+
+      jobs:
+        determinism-smoke:
+          name: Determinism smoke (codec + CLI)
+          runs-on: ubuntu-latest
+          timeout-minutes: 10
+
+          steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            # NOTE: Keep this aligned with the workspace MSRV in CLAUDE.md/REPORT.md
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@v1
+              with:
+                toolchain: 1.90.0
+
+            - name: Cache cargo build
+              uses: Swatinem/rust-cache@v2
+              with:
+                save-if: ${{ github.ref == 'refs/heads/main' }}
+
+            - name: Run determinism smoke script
+              run: |
+                chmod +x scripts/ci/determinism_smoke.sh
+                scripts/ci/determinism_smoke.sh
+
+            - name: Upload determinism reports (on failure)
+              if: failure()
+              uses: actions/upload-artifact@v6
+              with:
+                name: determinism-reports
+                path: |
+                  target/determinism-*.json
+                retention-days: 7

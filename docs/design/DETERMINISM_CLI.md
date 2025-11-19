@@ -337,16 +337,17 @@ Reuse existing golden fixtures for validation:
    - Update `README.md` with determinism validation section
    - Add examples to `docs/REPORT.md` quality assurance features
 
-3. **CI Integration (PR C)**
-   - Add `.github/workflows/determinism.yml`
-   - Run 1-2 determinism checks on golden fixtures
-   - Advisory-only initially (non-blocking)
+3. **CI Integration** ✅ **COMPLETE**
+   - `.github/workflows/determinism-smoke.yml` (ready-to-enable template)
+   - `scripts/ci/determinism_smoke.sh` (runs locally + in CI)
+   - Tests 2 fixtures: `simple.cpy` (DISPLAY) + `comp3_test.cpy` (COMP-3)
+   - Advisory-only when activated (non-blocking), promotable to blocking gate
 
 ---
 
 ## Related Issues
 
-- **Issue #112**: Determinism validation (Phase 1: core, Phase 2: CLI, Phase 3: CI)
-- **PR #158**: Core determinism module implementation
-- **PR B**: CLI wiring (this design doc)
-- **PR C**: CI smoke tests
+- **Issue #112**: Determinism validation (All 3 phases complete)
+- **PR #158**: Phase 1 - Core determinism module implementation
+- **PR #160**: Phase 2 - CLI wiring with integration tests
+- **Phase 3**: CI smoke test template (ready for activation)

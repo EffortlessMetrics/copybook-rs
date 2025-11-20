@@ -404,12 +404,11 @@ impl Schema {
         // First try to find it as an alias
         if let Some(alias_field) = self.find_field_or_alias(name_or_path) {
             // If it's a level-66 with resolved_renames, return the first member
-            if alias_field.level == 66 {
-                if let Some(ref resolved) = alias_field.resolved_renames {
-                    if let Some(first_member_path) = resolved.members.first() {
-                        return self.find_field(first_member_path);
-                    }
-                }
+            if alias_field.level == 66
+                && let Some(ref resolved) = alias_field.resolved_renames
+                && let Some(first_member_path) = resolved.members.first()
+            {
+                return self.find_field(first_member_path);
             }
             // Otherwise return the field itself
             return Some(alias_field);

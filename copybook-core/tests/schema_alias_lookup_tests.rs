@@ -50,12 +50,16 @@ fn test_find_field_or_alias_r2_same_scope_group() {
     // Verify resolved_renames metadata
     let resolved = alias.resolved_renames.as_ref().expect("resolved");
     assert_eq!(resolved.members.len(), 2);
-    assert!(resolved
-        .members
-        .contains(&"CUSTOMER-RECORD.CUSTOMER-INFO.NAME".to_string()));
-    assert!(resolved
-        .members
-        .contains(&"CUSTOMER-RECORD.CUSTOMER-INFO.ADDRESS".to_string()));
+    assert!(
+        resolved
+            .members
+            .contains(&"CUSTOMER-RECORD.CUSTOMER-INFO.NAME".to_string())
+    );
+    assert!(
+        resolved
+            .members
+            .contains(&"CUSTOMER-RECORD.CUSTOMER-INFO.ADDRESS".to_string())
+    );
 }
 
 #[test]
@@ -83,12 +87,16 @@ fn test_find_field_or_alias_r3_nested_group() {
     // Verify resolved_renames metadata for nested target
     let resolved = alias.resolved_renames.as_ref().expect("resolved");
     assert_eq!(resolved.members.len(), 2);
-    assert!(resolved
-        .members
-        .contains(&"POLICY-RECORD.POLICY-INFO.POLICY-DATES.START-DATE".to_string()));
-    assert!(resolved
-        .members
-        .contains(&"POLICY-RECORD.POLICY-INFO.POLICY-DATES.END-DATE".to_string()));
+    assert!(
+        resolved
+            .members
+            .contains(&"POLICY-RECORD.POLICY-INFO.POLICY-DATES.START-DATE".to_string())
+    );
+    assert!(
+        resolved
+            .members
+            .contains(&"POLICY-RECORD.POLICY-INFO.POLICY-DATES.END-DATE".to_string())
+    );
 }
 
 #[test]
@@ -112,7 +120,10 @@ fn test_resolve_alias_to_target_r2() {
     // Should return the first storage member (NAME)
     assert_eq!(target.name, "NAME");
     assert_eq!(target.level, 10);
-    assert!(matches!(target.kind, copybook_core::FieldKind::Alphanum { len: 30 }));
+    assert!(matches!(
+        target.kind,
+        copybook_core::FieldKind::Alphanum { len: 30 }
+    ));
 }
 
 #[test]
@@ -138,7 +149,10 @@ fn test_resolve_alias_to_target_r3() {
     // Should return the first storage member (START-DATE)
     assert_eq!(target.name, "START-DATE");
     assert_eq!(target.level, 15);
-    assert!(matches!(target.kind, copybook_core::FieldKind::Alphanum { len: 8 }));
+    assert!(matches!(
+        target.kind,
+        copybook_core::FieldKind::Alphanum { len: 8 }
+    ));
 }
 
 #[test]

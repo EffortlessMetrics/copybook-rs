@@ -625,6 +625,49 @@ fn find_sibling_index_by_qname(siblings: &[crate::schema::Field], qname: &str) -
         .map(|(i, _)| i)
 }
 
+/// Find a field anywhere in the tree by name (for RENAMES R2/R3 support).
+/// Returns the field reference if found.
+fn find_field_by_name<'a>(
+    fields: &'a [crate::schema::Field],
+    name: &str,
+) -> Option<&'a crate::schema::Field> {
+    let needle = head_ident_of_qname(name).trim();
+
+    for field in fields {
+        // Check current field (exclude non-storage: 66, 88)
+        if field.level != 66 && field.level != 88 {
+            if field.name.trim().eq_ignore_ascii_case(needle) {
+                return Some(field);
+            }
+        }
+
+        // Recurse into children
+        if !field.children.is_empty() {
+            if let Some(found) = find_field_by_name(&field.children, name) {
+                return Some(found);
+            }
+        }
+    }
+
+    None
+}
+
+/// Collect all storage-bearing field paths from a group (recursive).
+/// Used for R2/R3 RENAMES over groups/subtrees.
+fn collect_storage_paths(field: &crate::schema::Field, paths: &mut Vec<String>) {
+    // If this field has storage (not a group-only node), add its path
+    if !matches!(field.kind, crate::schema::FieldKind::Group) {
+        paths.push(field.path.clone());
+    }
+
+    // Recurse into children to collect their storage paths
+    for child in &field.children {
+        if child.level != 66 && child.level != 88 {
+            collect_storage_paths(child, paths);
+        }
+    }
+}
+
 /// Resolve RENAMES (level-66) aliases (post-order).
 /// Current implementation: same-scope resolution + contiguous slice → (offset, length, members).
 fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
@@ -741,12 +784,20 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                     "RENAMES alias '{}' exceeds maximum size", field.name
                 )
             })?;
+
+            // Collect members based on whether this is a single-group RENAMES (R2/R3) or range (R1)
             let mut members = Vec::new();
-            for field in &fields[from_i..=thru_i] {
-                let lvl = field.level;
-                if lvl != 66 && lvl != 88 {
-                    // storage-bearing only (exclude non-storage fields: 66, 88)
-                    members.push(field.path.clone());
+            if is_single_group_rename {
+                // R2/R3: Single group RENAMES - collect storage paths from group's children
+                collect_storage_paths(&fields[from_i], &mut members);
+            } else {
+                // R1: Range RENAMES - collect paths from the sibling range
+                for field in &fields[from_i..=thru_i] {
+                    let lvl = field.level;
+                    if lvl != 66 && lvl != 88 {
+                        // storage-bearing only (exclude non-storage fields: 66, 88)
+                        members.push(field.path.clone());
+                    }
                 }
             }
 

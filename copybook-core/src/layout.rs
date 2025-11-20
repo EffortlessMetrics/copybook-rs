@@ -688,34 +688,41 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                     .any(|child| child.level != 88 && child.level != 66)
             };
 
+            // R2/R3 support: Detect single-group RENAMES (FROM==THRU and it's a group)
+            // This is valid for same-scope groups (R2) and nested groups (R3)
+            let is_single_group_rename = from_i == thru_i && has_storage_children(&fields[from_i]);
+
             // Validate no cross-branch: from/thru must not span across groups
-            // Check if from is a group with storage-bearing children
-            if has_storage_children(&fields[from_i]) {
-                return Err(error!(
-                    ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
-                    "RENAMES from field '{}' is a group with storage-bearing children; cannot span groups",
-                    from_field
-                ));
-            }
-            // Check if thru is a group with storage-bearing children
-            if has_storage_children(&fields[thru_i]) {
-                return Err(error!(
-                    ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP,
-                    "RENAMES thru field '{}' is a group with storage-bearing children; cannot span groups",
-                    thru_field
-                ));
-            }
-            // Check if any field in between is a group with storage-bearing children (would create cross-branch)
-            if from_i + 1 < thru_i {
-                for f in &fields[(from_i + 1)..thru_i] {
-                    if has_storage_children(f) {
-                        return Err(error!(
-                            ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
-                            "RENAMES range from '{}' to '{}' crosses group boundary at field '{}'",
-                            from_field,
-                            thru_field,
-                            f.name
-                        ));
+            // UNLESS it's a single-group rename (R2/R3 case)
+            if !is_single_group_rename {
+                // Check if from is a group with storage-bearing children
+                if has_storage_children(&fields[from_i]) {
+                    return Err(error!(
+                        ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+                        "RENAMES from field '{}' is a group with storage-bearing children; cannot span groups",
+                        from_field
+                    ));
+                }
+                // Check if thru is a group with storage-bearing children
+                if has_storage_children(&fields[thru_i]) {
+                    return Err(error!(
+                        ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP,
+                        "RENAMES thru field '{}' is a group with storage-bearing children; cannot span groups",
+                        thru_field
+                    ));
+                }
+                // Check if any field in between is a group with storage-bearing children (would create cross-branch)
+                if from_i + 1 < thru_i {
+                    for f in &fields[(from_i + 1)..thru_i] {
+                        if has_storage_children(f) {
+                            return Err(error!(
+                                ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+                                "RENAMES range from '{}' to '{}' crosses group boundary at field '{}'",
+                                from_field,
+                                thru_field,
+                                f.name
+                            ));
+                        }
                     }
                 }
             }

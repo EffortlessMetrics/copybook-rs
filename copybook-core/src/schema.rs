@@ -324,6 +324,98 @@ impl Schema {
         None
     }
 
+    /// Find a field by path or RENAMES alias name
+    ///
+    /// This method first tries to find a field by its path using standard lookup.
+    /// If not found, it searches for a level-66 RENAMES field whose name matches
+    /// the query and returns that alias field.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use copybook_core::Schema;
+    /// let schema: Schema = // ... parsed schema with RENAMES
+    /// # Schema::new();
+    ///
+    /// // Direct field lookup
+    /// if let Some(field) = schema.find_field_or_alias("CUSTOMER-INFO") {
+    ///     println!("Found field: {}", field.name);
+    /// }
+    ///
+    /// // Alias lookup - finds level-66 field
+    /// if let Some(alias) = schema.find_field_or_alias("CUSTOMER-DETAILS") {
+    ///     if alias.level == 66 {
+    ///         println!("Found RENAMES alias: {}", alias.name);
+    ///     }
+    /// }
+    /// ```
+    #[must_use]
+    pub fn find_field_or_alias(&self, name_or_path: &str) -> Option<&Field> {
+        // First try direct field lookup
+        if let Some(field) = self.find_field(name_or_path) {
+            return Some(field);
+        }
+
+        // If not found, check if it's a RENAMES alias (level-66)
+        // We need to match by field name (last path component), not full path
+        let query_name = name_or_path.rsplit('.').next().unwrap_or(name_or_path);
+        Self::find_alias_field_recursive(&self.fields, query_name)
+    }
+
+    /// Recursively search for a level-66 RENAMES field by name
+    fn find_alias_field_recursive<'a>(fields: &'a [Field], alias_name: &str) -> Option<&'a Field> {
+        for field in fields {
+            // Check if this is a level-66 field with matching name
+            if field.level == 66 && field.name.eq_ignore_ascii_case(alias_name) {
+                return Some(field);
+            }
+            // Recurse into children
+            if let Some(found) = Self::find_alias_field_recursive(&field.children, alias_name) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    /// Resolve a RENAMES alias to its first target field
+    ///
+    /// If the query matches a level-66 RENAMES alias, this method returns the
+    /// first storage-bearing field covered by that alias (from resolved_renames.members).
+    /// Otherwise, it performs standard field lookup.
+    ///
+    /// This is useful for codec integration where you want to decode/encode data
+    /// using an alias name but need the actual storage field.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use copybook_core::Schema;
+    /// let schema: Schema = // ... parsed schema with RENAMES
+    /// # Schema::new();
+    ///
+    /// // Resolve alias to target field
+    /// if let Some(target) = schema.resolve_alias_to_target("CUSTOMER-DETAILS") {
+    ///     // target will be CUSTOMER-INFO (or its first member)
+    ///     println!("Alias resolves to: {}", target.name);
+    /// }
+    /// ```
+    #[must_use]
+    pub fn resolve_alias_to_target(&self, name_or_path: &str) -> Option<&Field> {
+        // First try to find it as an alias
+        if let Some(alias_field) = self.find_field_or_alias(name_or_path) {
+            // If it's a level-66 with resolved_renames, return the first member
+            if alias_field.level == 66
+                && let Some(ref resolved) = alias_field.resolved_renames
+                && let Some(first_member_path) = resolved.members.first()
+            {
+                return self.find_field(first_member_path);
+            }
+            // Otherwise return the field itself
+            return Some(alias_field);
+        }
+        None
+    }
+
     /// Find all fields that redefine the field at the given path
     #[must_use]
     pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field> {

@@ -39,7 +39,7 @@
 | OCCURS (Fixed) | ✅ Fully Supported | Multiple test files | Fixed-size array support with 5+ dedicated tests |
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
-| Nested ODO (`nested-odo`) | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
+| Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
 | RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | 30+ tests across 5 test suites (parser, hierarchy, resolver, schema API) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
 
 ## Sign Handling
@@ -123,6 +123,93 @@ FieldKind::Condition { values } => condition_value(values, "CONDITION")
 **Layout Impact**: Level-88 fields consume zero bytes (`(0, 1u64)` in layout calculation), correctly implementing COBOL non-storage semantics.
 
 **Known Limitations**: None. Full support for Level-88 condition values including complex interactions with ODO and REDEFINES.
+
+## Nested ODO / OCCURS Behavior - Support Status
+
+**Status**: ✅ **O1-O4 Fully Supported** | 🚫 **O5-O6 Rejected by Design**
+
+Nested ODO support is split into explicit scenarios to track implementation decisions.
+See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specification.
+
+| ID  | Scenario                                | Status | Error Code            | Test Evidence                                                    |
+|-----|-----------------------------------------|--------|-----------------------|------------------------------------------------------------------|
+| O1  | Simple tail ODO                         | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` |
+| O2  | Tail ODO with DYNAMIC (AC1/AC2)         | ✅     | -                     | `odo_comprehensive.rs` (21 tests), `odo_counter_types.rs`        |
+| O3  | Group-with-ODO tail (AC3)               | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_nested_groups_inside_odo_pass` |
+| O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 negative tests)|
+| O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Phase N1: reject; Phase N2: review if user demand emerges        |
+| O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Phase N1: reject; Phase N3: dedicated design required            |
+| O7  | ODO over RENAMES span (R4/R5 scenarios) | 🚫     | Out of scope          | RENAMES R4-R6 explicitly deferred (see RENAMES section)          |
+
+**Evidence:**
+
+- **O1 (Simple tail ODO)**:
+  - **Parser + Codec**: Full support for tail ODO arrays with min/max bounds
+  - **Test**: `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` (89 lines)
+  - **JSON shape**: Array of objects/scalars with runtime length determined by counter
+
+- **O2 (Tail ODO with DYNAMIC)**:
+  - **Parser + Codec**: Full support for `OCCURS 1 TO N DEPENDING ON` with runtime bounds
+  - **Tests**: 21 tests in `odo_comprehensive.rs`, counter type tests in `odo_counter_types.rs`
+  - **Runtime validation**: Clamping with `CBKS301_ODO_CLIPPED`/`CBKS302_ODO_RAISED` errors
+
+- **O3 (Group-with-ODO tail)**:
+  - **Parser + Codec**: Full support for nested groups inside ODO arrays
+  - **Tests**: `golden_fixtures_ac3_child_inside_odo.rs` (5 tests: basic, nested, deep, enterprise, performance)
+  - **JSON shape**: Array of nested objects with hierarchical structure preserved
+
+- **O4 (ODO with sibling after)**:
+  - **Parser**: Rejects storage siblings after ODO with `CBKP021_ODO_NOT_TAIL`
+  - **Tests**: `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 comprehensive negative tests)
+  - **Rationale**: Variable-length arrays cannot have fixed-offset siblings after them
+  - **Exception**: Level-88 condition values (non-storage) permitted after ODO
+
+- **O5 (Nested ODO)**:
+  - **Decision**: 🚫 Rejected in Phase N1 due to complexity (schema nesting, counter scoping, memory layout)
+  - **Error code**: `CBKP022_NESTED_ODO` (to be added)
+  - **Reconsideration**: Phase N2 if user demand emerges with concrete use cases
+
+- **O6 (ODO over REDEFINES)**:
+  - **Decision**: 🚫 Rejected in Phase N1 due to semantic conflict (fixed overlay vs variable length)
+  - **Error code**: `CBKP023_ODO_REDEFINES` (to be added)
+  - **Future**: Phase N3 with dedicated REDEFINES + OCCURS design
+
+- **O7 (ODO over RENAMES)**:
+  - **Decision**: 🚫 Out of scope per RENAMES R4-R6 policy
+  - **Reference**: See [RENAMES Support Status](#renames-level-66---support-status)
+
+**Layout Impact**:
+- **O1-O3**: ODO arrays compute variable offset ranges with runtime counter resolution
+- **O4**: Parser-level rejection ensures no invalid layouts are created
+- **O5-O6**: Not applicable (rejected before layout computation)
+
+**Codec Integration**:
+```rust
+// O1-O3 example: Decode variable-length array
+let counter_value = read_counter_field(&schema, data, counter_path)?;
+let clamped_count = clamp_odo_count(counter_value, min, max)?;
+for i in 0..clamped_count {
+    let occurrence = decode_occurrence(&schema, data, occurrence_offset)?;
+    array.push(occurrence);
+}
+```
+
+**Error Codes:**
+- **CBKP021_ODO_NOT_TAIL**: Fatal parser error (O4) - storage sibling after ODO
+- **CBKS301_ODO_CLIPPED**: Runtime warning/error (O2) - counter > max
+- **CBKS302_ODO_RAISED**: Runtime warning/error (O2) - counter < min
+- **CBKP022_NESTED_ODO**: To be added in Phase N1 (O5)
+- **CBKP023_ODO_REDEFINES**: To be added in Phase N1 (O6)
+
+**Known Limitations:**
+- **Nested ODO** (O5): Not supported by design; pre-normalize on mainframe or use fixed OCCURS
+- **ODO + REDEFINES** (O6): Not supported; use REDEFINES with fixed OCCURS instead
+- **ODO + RENAMES** (O7): Out of scope per RENAMES R4-R6 policy
+
+**Implementation Phases:**
+- **Phase N1 (Current)**: Design contract + support matrix + negative error codes
+- **Phase N2 (Optional)**: Nested ODO support if user demand emerges
+- **Phase N3 (Future)**: REDEFINES + OCCURS interactions with dedicated design
 
 ## RENAMES (Level-66) - Support Status
 

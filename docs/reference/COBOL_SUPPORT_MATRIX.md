@@ -40,7 +40,7 @@
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
 | Nested ODO (`nested-odo`) | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
-| RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | 30+ tests across 5 test suites (parser, hierarchy, resolver, schema API) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
+| RENAMES (`level-66-renames`) | ✅ Same-scope / ⏳ Nested | 30 tests across 4 test suites (parser, hierarchy, resolver) | See [RENAMES Support Status](#renames-level-66---support-status) for split scenario breakdown (6 categories: R1✅, R2⚠️, R3⏳, R4-R6🚫) |
 
 ## Sign Handling
 
@@ -132,11 +132,11 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
 | ID                          | Category                     | Status  | Notes                                                            |
 |-----------------------------|------------------------------|---------|------------------------------------------------------------------|
 | `renames-same-scope-field`  | 66-level – same-scope fields | ✅      | Parser + same-scope resolver; no separate JSON alias keys        |
-| `renames-same-scope-group`  | 66-level – group alias       | ✅      | Parser + resolver (R2) with correct tree building; alias-aware lookup |
-| `renames-nested-group`      | 66-level – nested group      | ✅      | Parser + resolver (R3) with recursive target lookup; alias-aware schema methods |
-| `renames-codec-projection`  | 66-level – codec projection  | ✅      | Schema provides `find_field_or_alias` and `resolve_alias_to_target` for codec integration |
-| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; requires separate design for interaction semantics |
-| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; requires separate design for array aliasing        |
+| `renames-same-scope-group`  | 66-level – group alias       | ⚠️      | Parsed; resolver attach point incorrect today; JSON unchanged    |
+| `renames-nested-group`      | 66-level – nested group      | ⏳      | Planned R2: resolver-based attach + schema alias metadata        |
+| `renames-codec-projection`  | 66-level – codec projection  | ⏳      | Planned R2: treat alias access as equivalent to storage access   |
+| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope for R2; requires separate design                    |
+| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope for R2; requires separate design                    |
 
 **Evidence:**
 
@@ -146,20 +146,10 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
   - **Resolver positive**: 4 tests (THRU/THROUGH, QNAME) in `renames_resolver_positive_tests.rs`
   - **Resolver negative**: 12 tests (all error codes) in `renames_resolver_negative_tests.rs`
   - **Total**: 30 comprehensive tests across 4 test suites
-- `renames-same-scope-group` (R2):
-  - **Parser fix**: Level-66 tree building corrected (PR #162) - group children properly preserved
-  - **Resolver**: Single-group detection via `FROM==THRU` + storage children check in `layout.rs`
-  - **Tests**: `renames_r2_same_scope_group` test in `renames_resolver_positive_tests.rs`
-  - **Schema API**: Alias lookup methods added (`find_field_or_alias`, `resolve_alias_to_target`)
-- `renames-nested-group` (R3):
-  - **Resolver**: Recursive nested lookup via `find_field_by_name` for targets not found as siblings
-  - **Tests**: `renames_r3_nested_group` test in `renames_resolver_positive_tests.rs`
-  - **Schema API**: Tests in `schema_alias_lookup_tests.rs` verify alias resolution to nested targets
-- `renames-codec-projection`:
-  - **Schema API**: `find_field_or_alias()` - finds field by path or RENAMES alias name
-  - **Schema API**: `resolve_alias_to_target()` - resolves alias to first storage member
-  - **Tests**: 8 tests in `schema_alias_lookup_tests.rs` covering R2/R3 alias lookup and resolution
-  - **Design**: Aliases resolve to storage fields; no duplicate JSON keys (architectural principle)
+- `renames-same-scope-group` / `renames-nested-group` / `renames-codec-projection`:
+  - Specified in `docs/design/RENAMES_NESTED_GROUPS.md`
+  - Implementation work pending (Phase R2)
+  - Golden fixtures to be added for R1–R3 scenarios
 
 **API Integration:**
 

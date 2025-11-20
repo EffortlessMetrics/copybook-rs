@@ -1,10 +1,129 @@
-# RENAMES Nested Groups Support (Issue #133)
+# RENAMES Nested Group Semantics (Issue #133)
 
 ## Status
 
-**Current**: Blocked - Parser-based heuristics rejected
-**Next Step**: Design resolver-based semantic approach
+**Current**: Ready to Implement (Phase R1 complete; R2/R3 pending)
+**Author**: Claude Code (automated analysis of Issue #133)
+**Last Updated**: 2025-11-19
 **Related Issues**: #133
+
+> Resolver-based approach (Approach 2 – Resolver-Based Semantic Attach) is selected.
+> This doc is now the implementation contract; copybook-core and copybook-codec are expected to match it.
+
+## Scenarios and Expected Semantics
+
+This section defines concrete RENAMES scenarios and the expected behavior in both
+the schema and the JSON codec. R2 (implementation) must make the code match this table.
+
+| ID  | Scenario                              | Example anchor     | Expected attach point          | JSON representation                        | Current support        |
+|-----|---------------------------------------|--------------------|---------------------------------|--------------------------------------------|------------------------|
+| R1  | Simple same-scope field RENAMES       | 66 for a child     | Immediate parent group         | Alias name points to same scalar value     | ✅ Implemented         |
+| R2  | Same-scope group RENAMES              | 66 for a group     | Group being renamed            | Alias object with same fields as group     | ⚠️ Parser only         |
+| R3  | Nested group RENAMES (intra-branch)   | 66 inside subtree  | Closest common ancestor group  | Alias object with subtree fields           | ⏳ Planned (R2)        |
+| R4  | RENAMES + REDEFINES (overlapping)     | 66 over REDEFINES  | Storage group being redefined  | Alias reflects active redefine view only   | 🚫 Not supported (R2+) |
+| R5  | RENAMES + OCCURS (array segment)      | 66 over OCCURS     | Parent group of OCCURS         | Alias JSON mirrors array segment semantics | 🚫 Not supported (R2+) |
+| R6  | RENAMES + Level-88                    | 66 name for flags  | Same group as 88 conditions    | Alias exposes same boolean interpretation  | ⚠️ Needs explicit spec |
+
+Legend:
+
+- ✅ Implemented: parser + resolver + codec behavior are defined and tested.
+- ⚠️ Parser only: parsed into AST, but resolver/codec semantics are incomplete.
+- ⏳ Planned: part of Phase R2 work.
+- 🚫 Not supported: explicitly out of scope for the next phase unless promoted.
+
+In Phase R2 we will:
+
+- Bring **R3** to "✅ Implemented".
+- Decide whether **R4–R6** stay "not supported" or become explicit future work.
+
+### R1 – Simple same-scope field RENAMES (✅)
+
+**Example**:
+
+```cobol
+01 CUSTOMER-RECORD.
+   05 CUSTOMER-ID      PIC X(10).
+   05 CUSTOMER-NAME    PIC X(30).
+   66 PRIMARY-CUSTOMER RENAMES CUSTOMER-ID.
+```
+
+**Semantics**:
+
+* `PRIMARY-CUSTOMER` is an alias of `CUSTOMER-ID` in the same storage.
+* Schema:
+  * One storage field; alias symbol is modeled as an additional logical name.
+* JSON:
+  * We **do not** duplicate data; JSON exposes only the storage name
+    (e.g. `customer_id`) to avoid multiple mutable views of the same bytes.
+* Current state: already supported by parser + resolver; codec does not treat
+  the alias as a separate JSON key.
+
+> **Contract**: R2 **must not** introduce additional JSON keys for simple aliases
+> without an explicit design change; we keep JSON "single source of truth" for
+> the storage field.
+
+### R2 – Same-scope group RENAMES (⚠️ parser only)
+
+**Example**:
+
+```cobol
+01 CUSTOMER-RECORD.
+   05 CUSTOMER-INFO.
+      10 NAME     PIC X(30).
+      10 ADDRESS  PIC X(60).
+   66 CUSTOMER-DETAILS RENAMES CUSTOMER-INFO.
+```
+
+**Semantics**:
+
+* `CUSTOMER-DETAILS` is an alias for the group `CUSTOMER-INFO`.
+* Attach point: `CUSTOMER-INFO` group in the schema tree.
+* JSON:
+  * Base behavior (R2) keeps JSON unchanged: the object remains under the
+    storage name (e.g. `customer_info`).
+  * We *may* eventually expose an alias view in schema metadata, but not as a
+    duplicate JSON object.
+
+**Current state**:
+
+* Parsed to AST.
+* Resolver currently attaches at level-01; this must be fixed in R2 to attach to
+  the correct group node.
+
+### R3 – Nested group RENAMES (intra-branch) (⏳ planned)
+
+**Example**:
+
+```cobol
+01 POLICY-RECORD.
+   05 POLICY-INFO.
+      10 POLICY-NUMBER PIC X(10).
+      10 POLICY-DATES.
+         15 START-DATE PIC X(8).
+         15 END-DATE   PIC X(8).
+   66 POLICY-PERIOD RENAMES POLICY-DATES.
+```
+
+**Semantics**:
+
+* `POLICY-PERIOD` should be attached to the `POLICY-INFO` subtree, pointing
+  specifically at the `POLICY-DATES` group.
+* Attach point:
+  * The **closest common ancestor** of the `RENAMES` level and the target group.
+  * In this example, that is `POLICY-INFO`.
+* JSON:
+  * As with R2, JSON remains under the storage group name (`policy_dates`).
+  * The alias is carried only in schema metadata:
+    * e.g. `Schema` knows that `policy_period` is an alias of `policy_dates`.
+
+**Implementation contract (R2)**:
+
+* Resolver must:
+  * Build a stable mapping from `POLICY-PERIOD` to the target group node.
+  * Prevent alias cycles and ambiguous ranges.
+* Codec must:
+  * Treat accesses via alias name as equivalent to accesses via the storage name.
+  * Keep JSON stable (no duplicate objects).
 
 ## Problem Statement
 
@@ -240,16 +359,103 @@ Both trigger the same level-gap condition.
 - **Parser Implementation**: copybook-core/src/parser.rs:157-195 (current "pop to 01" logic)
 - **Resolver Implementation**: copybook-core/src/resolver.rs (RENAMES field lookup)
 
+## Example Copybooks for Phase R2 Fixtures
+
+The following copybook snippets align with scenarios R1–R3 and should be converted
+to golden fixtures during Phase R2 implementation.
+
+### R1: Simple same-scope field RENAMES
+
+```cobol
+       01 CUSTOMER-RECORD.
+          05 CUSTOMER-ID      PIC X(10).
+          05 CUSTOMER-NAME    PIC X(30).
+          66 PRIMARY-CUSTOMER RENAMES CUSTOMER-ID.
+```
+
+**Test data**: `"CUST001234Jane Doe                      "`
+**Expected JSON**: `{"customer_id": "CUST001234", "customer_name": "Jane Doe"}`
+**Validation**: Alias `PRIMARY-CUSTOMER` resolves to same value as `CUSTOMER-ID`
+
+### R2: Same-scope group RENAMES
+
+```cobol
+       01 CUSTOMER-RECORD.
+          05 CUSTOMER-INFO.
+             10 NAME     PIC X(30).
+             10 ADDRESS  PIC X(60).
+          66 CUSTOMER-DETAILS RENAMES CUSTOMER-INFO.
+```
+
+**Test data**: `"John Smith                    123 Main St, Anytown, USA                            "`
+**Expected JSON**: `{"customer_info": {"name": "John Smith", "address": "123 Main St, Anytown, USA"}}`
+**Validation**: Alias `CUSTOMER-DETAILS` attached under `CUSTOMER-RECORD`, references `CUSTOMER-INFO` group
+
+### R3: Nested group RENAMES
+
+```cobol
+       01 POLICY-RECORD.
+          05 POLICY-INFO.
+             10 POLICY-NUMBER PIC X(10).
+             10 POLICY-DATES.
+                15 START-DATE PIC X(8).
+                15 END-DATE   PIC X(8).
+          66 POLICY-PERIOD RENAMES POLICY-DATES.
+```
+
+**Test data**: `"POL1234567202501012025123"`
+**Expected JSON**: `{"policy_info": {"policy_number": "POL1234567", "policy_dates": {"start_date": "20250101", "end_date": "20251231"}}}`
+**Validation**: Alias `POLICY-PERIOD` attached under `POLICY-INFO`, references `POLICY-DATES` subtree
+
+### R4: RENAMES + REDEFINES (future work)
+
+```cobol
+       01 TRANSACTION-RECORD.
+          05 TRANS-TYPE  PIC X(1).
+          05 TRANS-DATA.
+             10 CHECK-DATA REDEFINES TRANS-DATA.
+                15 CHECK-NUM PIC 9(8).
+             10 CARD-DATA REDEFINES TRANS-DATA.
+                15 CARD-NUM  PIC 9(16).
+          66 PAYMENT-INFO RENAMES CHECK-DATA THRU CHECK-DATA.
+```
+
+**Status**: 🚫 Not supported in R2 - requires design for REDEFINES alias semantics
+
+### R5: RENAMES + OCCURS (future work)
+
+```cobol
+       01 ORDER-RECORD.
+          05 LINE-ITEMS OCCURS 10 TIMES.
+             10 ITEM-CODE PIC X(5).
+             10 QUANTITY  PIC 9(3).
+          66 ORDER-ITEMS RENAMES LINE-ITEMS.
+```
+
+**Status**: 🚫 Not supported in R2 - requires design for OCCURS array alias semantics
+
 ## Next Steps
 
-1. Review and approve resolver-based approach
-2. Create implementation issue/PR for Phase 1 (metadata capture)
-3. Design scope-aware field lookup API for resolver
-4. Implement incremental phases with test coverage
-5. Update documentation and un-ignore tests
+### Phase R1 ✅ Complete
+- Design doc updated with scenarios table and expected semantics
+- Support matrix updated with split RENAMES categories
+- Example copybooks documented for R2 fixture development
+
+### Phase R2 (Implementation)
+1. Implement resolver-based semantic attach for R3 (nested group RENAMES)
+2. Add codec projection for alias access (all scenarios)
+3. Create golden fixtures from example copybooks above
+4. Update `COBOL_SUPPORT_MATRIX.md` to mark R2/R3 as ✅
+5. Un-ignore nested group tests in test suites
+
+### Phase R3 (Documentation & CI)
+1. Update `CLAUDE.md` COBOL feature section
+2. Update `docs/REPORT.md` completeness assessment
+3. Update `docs/ROADMAP.md` milestone tracking
+4. Add CI validation hook for RENAMES golden fixtures
 
 ---
 
-**Document Status**: Design proposal
-**Last Updated**: 2025-11-12
+**Document Status**: Implementation contract (Phase R1 complete)
+**Last Updated**: 2025-11-19
 **Author**: Claude Code (automated analysis of Issue #133)

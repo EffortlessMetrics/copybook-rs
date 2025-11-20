@@ -635,17 +635,15 @@ fn find_field_by_name<'a>(
 
     for field in fields {
         // Check current field (exclude non-storage: 66, 88)
-        if field.level != 66 && field.level != 88 {
-            if field.name.trim().eq_ignore_ascii_case(needle) {
-                return Some(field);
-            }
+        if field.level != 66 && field.level != 88 && field.name.trim().eq_ignore_ascii_case(needle) {
+            return Some(field);
         }
 
         // Recurse into children
-        if !field.children.is_empty() {
-            if let Some(found) = find_field_by_name(&field.children, name) {
-                return Some(found);
-            }
+        if !field.children.is_empty()
+            && let Some(found) = find_field_by_name(&field.children, name)
+        {
+            return Some(found);
         }
     }
 
@@ -689,13 +687,42 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
             ref thru_field,
         } = field.kind
         {
-            let from_i = find_sibling_index_by_qname(fields, from_field).ok_or_else(|| {
+            // Try sibling lookup first (R1/R2 case)
+            let from_i_opt = find_sibling_index_by_qname(fields, from_field);
+            let thru_i_opt = find_sibling_index_by_qname(fields, thru_field);
+
+            // Check if this is a nested single-group RENAMES (R3 case)
+            let is_nested_single_group =
+                from_i_opt.is_none() && thru_i_opt.is_none() && from_field == thru_field;
+
+            if is_nested_single_group {
+                // R3: Nested group RENAMES - find target anywhere in subtree
+                let target_field = find_field_by_name(fields, from_field).ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
+                        "RENAMES nested target field '{}' not found", from_field
+                    )
+                })?;
+
+                // Compute offset, length, and members from target group
+                let offset = target_field.offset;
+                let length = target_field.len;
+                let mut members = Vec::new();
+                collect_storage_paths(target_field, &mut members);
+
+                // Store resolution for this alias
+                resolutions.push((idx, offset, length, members));
+                continue; // Skip to next field
+            }
+
+            // R1/R2: Same-scope RENAMES - use sibling lookup
+            let from_i = from_i_opt.ok_or_else(|| {
                 error!(
                     ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
                     "RENAMES from field '{}' not found", from_field
                 )
             })?;
-            let thru_i = find_sibling_index_by_qname(fields, thru_field).ok_or_else(|| {
+            let thru_i = thru_i_opt.ok_or_else(|| {
                 error!(
                     ErrorCode::CBKS602_RENAME_UNKNOWN_THRU,
                     "RENAMES thru field '{}' not found", thru_field

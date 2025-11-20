@@ -40,7 +40,7 @@
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
 | Nested ODO (`nested-odo`) | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
-| RENAMES (`level-66-renames`) | ✅ Same-scope resolution | `renames_parser_tests.rs` (11 tests), `renames_hierarchy_tests.rs` (3 tests), `renames_resolver_positive_tests.rs` (4 tests), `renames_resolver_negative_tests.rs` (12 tests) | Parse ✅, Resolver validations ✅ (CBKS601/602/604/605/606/607/608), Codec projection ⏳ (deferred) |
+| RENAMES (`level-66-renames`) | ✅ Same-scope / ⏳ Nested | 30 tests across 4 test suites (parser, hierarchy, resolver) | See [RENAMES Support Status](#renames-level-66---support-status) for split scenario breakdown (6 categories: R1✅, R2⚠️, R3⏳, R4-R6🚫) |
 
 ## Sign Handling
 
@@ -126,20 +126,33 @@ FieldKind::Condition { values } => condition_value(values, "CONDITION")
 
 ## RENAMES (Level-66) - Support Status
 
-**Status**: ✅ **Same-scope resolution** (parse ✅, resolver validations ✅, codec projection ⏳)
+RENAMES support is split into explicit scenarios to track implementation progress.
+See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
 
-**Evidence**:
-- **Parse Support**: `FieldKind::Renames { from_field: String, thru_field: String }` in schema AST
-- **Syntax Parsing**: Full support for `66 NAME RENAMES FROM THRU|THROUGH TO .` syntax including qualified names `IDENT (OF IDENT)*`
-- **Hierarchy**: Level-66 as non-storage siblings under parent group; Level-88 as children of preceding field
-- **Resolver Validations**: Comprehensive error detection (CBKS601/602/604/605/606/607/608)
-- **Test Coverage**: 30 comprehensive tests across 4 test suites
-  - Parser: 11 tests (syntax, keyword variants, qualified names)
-  - Hierarchy: 3 tests (level-66/88 placement)
-  - Resolver positive: 4 tests (THRU/THROUGH, QNAME)
-  - Resolver negative: 12 tests (all error codes)
+| ID                          | Category                     | Status  | Notes                                                            |
+|-----------------------------|------------------------------|---------|------------------------------------------------------------------|
+| `renames-same-scope-field`  | 66-level – same-scope fields | ✅      | Parser + same-scope resolver; no separate JSON alias keys        |
+| `renames-same-scope-group`  | 66-level – group alias       | ⚠️      | Parsed; resolver attach point incorrect today; JSON unchanged    |
+| `renames-nested-group`      | 66-level – nested group      | ⏳      | Planned R2: resolver-based attach + schema alias metadata        |
+| `renames-codec-projection`  | 66-level – codec projection  | ⏳      | Planned R2: treat alias access as equivalent to storage access   |
+| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope for R2; requires separate design                    |
+| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope for R2; requires separate design                    |
 
-**API Integration**:
+**Evidence:**
+
+- `renames-same-scope-field`:
+  - **Parser**: 11 tests (syntax, keyword variants, qualified names) in `renames_parser_tests.rs`
+  - **Hierarchy**: 3 tests (level-66/88 placement) in `renames_hierarchy_tests.rs`
+  - **Resolver positive**: 4 tests (THRU/THROUGH, QNAME) in `renames_resolver_positive_tests.rs`
+  - **Resolver negative**: 12 tests (all error codes) in `renames_resolver_negative_tests.rs`
+  - **Total**: 30 comprehensive tests across 4 test suites
+- `renames-same-scope-group` / `renames-nested-group` / `renames-codec-projection`:
+  - Specified in `docs/design/RENAMES_NESTED_GROUPS.md`
+  - Implementation work pending (Phase R2)
+  - Golden fixtures to be added for R1–R3 scenarios
+
+**API Integration:**
+
 ```rust
 // Schema definition includes Level-66 RENAMES
 pub enum FieldKind {
@@ -151,7 +164,8 @@ pub enum FieldKind {
 // 66 CUSTOMER-HEADER RENAMES CUSTOMER-ID OF RECORD-A THRU CUSTOMER-NAME OF RECORD-A.
 ```
 
-**Resolver Error Codes**:
+**Resolver Error Codes:**
+
 - **CBKS601**: Unknown `from` field
 - **CBKS602**: Unknown `thru` field
 - **CBKS604**: Reversed range (from after thru in source order)
@@ -160,16 +174,13 @@ pub enum FieldKind {
 - **CBKS608**: Qualified name resolution failure
 - **CBKS603**: Defined but NOT enforced (REDEFINES overlaps valid; source-order only)
 
-**Layout Impact**: Level-66 fields consume zero bytes, implementing COBOL non-storage semantics. Resolver computes `(offset, length)` and populates `resolved_renames.members` with storage-bearing child paths.
+**Layout Impact:** Level-66 fields consume zero bytes, implementing COBOL non-storage semantics. Resolver computes `(offset, length)` and populates `resolved_renames.members` with storage-bearing child paths.
 
-**Current Limitations**:
-- **Nested group attach**: Level-66 currently attaches under level-01; nested group (level 02-49) detection deferred to follow-up
-- **Codec projection**: Read-side projection to composite JSON not yet implemented
-- **Write-side storage**: RENAMES fields remain non-storage in encode paths
+**Implementation Roadmap:**
 
-**Roadmap**:
-- **Follow-up PR**: Nested group attach with resolver-based span logic
-- **Later slice**: Codec read-side projection + CLI JSON metadata
+- **Phase R1 (Complete)**: Design doc + scenarios table + support matrix split
+- **Phase R2 (Next)**: Resolver-based nested group attach + codec projection
+- **Phase R3 (Future)**: Documentation updates + CI validation
 
 ## Test Infrastructure Summary
 

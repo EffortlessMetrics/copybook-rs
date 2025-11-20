@@ -284,3 +284,109 @@ fn test_renames_keyword_required() {
         "error should mention RENAMES keyword requirement"
     );
 }
+
+/// Test that group children remain children when level-66 follows the group
+/// (regression test for parser bug where children are incorrectly promoted to siblings)
+///
+/// This test demonstrates the parser's "pop until level-01" logic for level-66 incorrectly
+/// promotes group children (ADDRESS) as siblings instead of leaving them as children of
+/// their parent group (CUSTOMER-INFO). This breaks RENAMES R2/R3 scenarios and any feature
+/// that depends on correct tree structure.
+///
+/// To isolate the parser tree-building from resolution, we test without RENAMES clause.
+#[test]
+fn test_group_children_with_following_level66() {
+    // First, test a normal group (without level-66) to establish baseline
+    let copybook_normal = r"
+       01 CUSTOMER-RECORD.
+          05 CUSTOMER-INFO.
+             10 NAME     PIC X(30).
+             10 ADDRESS  PIC X(60).
+    ";
+
+    let schema_normal = parse_copybook(copybook_normal).expect("should parse normal group");
+    let record_normal = &schema_normal.fields[0];
+
+    // Baseline: CUSTOMER-INFO should have 2 children
+    let customer_info_normal = record_normal
+        .children
+        .iter()
+        .find(|f| f.name == "CUSTOMER-INFO")
+        .expect("CUSTOMER-INFO should exist in normal case");
+
+    assert_eq!(
+        customer_info_normal.children.len(),
+        2,
+        "Baseline: CUSTOMER-INFO should have 2 children without level-66"
+    );
+
+    // Now test the same structure but with a level-66 following
+    let copybook_with_66 = r"
+       01 CUSTOMER-RECORD.
+          05 CUSTOMER-INFO.
+             10 NAME     PIC X(30).
+             10 ADDRESS  PIC X(60).
+          05 OTHER-FIELD PIC X(10).
+          66 CUSTOMER-DETAILS RENAMES NAME THRU ADDRESS.
+    ";
+
+    let schema_with_66 =
+        parse_copybook(copybook_with_66).expect("should parse group with level-66");
+    let record_with_66 = &schema_with_66.fields[0];
+
+    // Debug: Print the actual tree structure WITH level-66
+    eprintln!("\n=== Tree Structure WITH level-66 ===");
+    eprintln!(
+        "CUSTOMER-RECORD.children.len() = {}",
+        record_with_66.children.len()
+    );
+    for (i, child) in record_with_66.children.iter().enumerate() {
+        eprintln!(
+            "  record.children[{}] = {:?} (level {})",
+            i, child.name, child.level
+        );
+        if !child.children.is_empty() {
+            eprintln!("    {} has {} children:", child.name, child.children.len());
+            for (j, grandchild) in child.children.iter().enumerate() {
+                eprintln!(
+                    "      children[{}] = {:?} (level {})",
+                    j, grandchild.name, grandchild.level
+                );
+            }
+        }
+    }
+    eprintln!("========================================\n");
+
+    // Find CUSTOMER-INFO group in the level-66 case
+    let customer_info_with_66 = record_with_66
+        .children
+        .iter()
+        .find(|f| f.name == "CUSTOMER-INFO")
+        .expect("CUSTOMER-INFO should be a child of CUSTOMER-RECORD");
+
+    // CRITICAL TEST: NAME and ADDRESS should remain as children of CUSTOMER-INFO
+    // even when level-66 follows. They should NOT be promoted to siblings.
+    assert_eq!(
+        customer_info_with_66.children.len(),
+        2,
+        "BUG: CUSTOMER-INFO should have exactly 2 children (NAME and ADDRESS), but has {}.\n\
+         This indicates the parser incorrectly promoted children to siblings when encountering level-66.\n\
+         Expected: CUSTOMER-INFO.children = [NAME, ADDRESS]\n\
+         The level-66 'pop until level-01' logic must not affect already-established group children.",
+        customer_info_with_66.children.len()
+    );
+
+    let name = customer_info_with_66
+        .children
+        .iter()
+        .find(|f| f.name == "NAME")
+        .expect("NAME should be a child of CUSTOMER-INFO");
+    assert_eq!(name.level, 10, "NAME should be level 10");
+
+    let address = customer_info_with_66
+        .children
+        .iter()
+        .find(|f| f.name == "ADDRESS")
+        .expect("ADDRESS should be a child of CUSTOMER-INFO");
+    assert_eq!(address.level, 10, "ADDRESS should be level 10");
+}

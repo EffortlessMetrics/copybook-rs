@@ -353,3 +353,6 @@ See `/tmp/bench-results.txt` for complete criterion output with:
 **Validation Complete**: 2025-10-03
 **Validator Signature**: review-benchmark-runner (copybook-rs Performance Baseline Specialist)
 **Status**: ❌ PERFORMANCE GATE BLOCKED - Requires urgent remediation
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

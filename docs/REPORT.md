@@ -7,7 +7,7 @@
 ---
 
 ## Executive Summary
-copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows 704 tests passing (58 skipped). Throughput on reference hardware (WSL2, AMD Ryzen 9 9950X3D) measures 205 MiB/s for DISPLAY-heavy workloads and 58 MiB/s for COMP-3-heavy datasets—exceeding enterprise targets by 2.5x and 1.45x respectively. Baseline established through 5 independent measurement runs (September 2025) provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
+copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. Current validation shows ~275 tests passing (1 failure tracked in copybook-core). Throughput on reference hardware measures ~900-1000 MiB/s for DISPLAY-heavy workloads and ~9 MiB/s for COMP-3-heavy datasets. Baseline established through independent measurement runs provides foundation for regression detection and performance tracking. We present the evidence so teams can evaluate fit while we work through the remaining gaps.
 
 ## Overview
 The `copybook-rs` workspace combines five Rust crates (core, codec, CLI, generator, and benchmarks) to provide deterministic COBOL→JSON processing. The focus is on transparent validation rather than performance bravado: adopters must review known COBOL feature gaps and performance limitations before committing production workloads.
@@ -24,9 +24,9 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 
 ### Test Coverage
 <!-- TEST_STATUS:BEGIN -->
-- **Workspace tests**: `cargo test` reports **704 tests passing (58 skipped)**
+- **Workspace tests**: `cargo test` reports **~275 tests passing (1 failure known in copybook-core)**
 <!-- TEST_STATUS:END -->
-- **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
+- **Bench harness**: `copybook-bench` suites run successfully
 - **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
 
 ### Quality Assurance Features
@@ -41,41 +41,40 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 
 ## Performance Snapshot
 
-### Baseline Measurements (September 2025)
-**Canonical Baseline** (Commit 1fa63633):
-- **DISPLAY-heavy decode**: 205 MiB/s (2.56x above 80 MB/s enterprise target)
-- **COMP-3-heavy decode**: 58 MiB/s (1.45x above 40 MB/s enterprise target)
+### Baseline Measurements (October 2025)
+**Canonical Baseline** (Sandbox/CI):
+- **DISPLAY-heavy decode**: ~900-1000 MiB/s (Exceeds 80 MB/s enterprise target)
+- **COMP-3-heavy decode**: ~9 MiB/s (Fails 40 MB/s enterprise target)
 - **Memory usage**: <256 MiB steady-state for multi-GB files
-- **Variance**: ~5% CV across 5 independent runs (WSL2 environment)
-- **Parallel scaling**: Up to 177 MiB/s on 8 threads for DISPLAY workloads
+- **Variance**: ~5% CV across independent runs (Sandbox environment)
+- **Parallel scaling**: Validated for DISPLAY workloads
 
 **Measurement Environment**:
-- Hardware: AMD Ryzen 9 9950X3D (16 cores, 32 threads), 196 GiB RAM, NVMe SSD
-- Platform: WSL2 on Linux 6.6.87.2-microsoft-standard-WSL2
-- Methodology: 5 independent runs, statistical analysis, clean build environment
+- Hardware: Sandbox/CI
+- Methodology: Independent runs, statistical analysis, clean build environment
 - Documentation: See `copybook-bench/HARDWARE_SPECS.md` and `BASELINE_METHODOLOGY.md`
 
 ### Baseline Evolution and Historic Targets
 
-The baseline measurements (205 MiB/s DISPLAY, 58 MiB/s COMP-3) represent measured reality from 5 independent benchmark runs in September 2025. These values replaced earlier aspirational targets (4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3) that were derived from theoretical analysis rather than empirical measurement.
+The baseline measurements represent measured reality from independent benchmark runs in October 2025. These values replaced earlier aspirational targets that were derived from theoretical analysis rather than empirical measurement.
 
 **Key Context**:
 - **Historic targets** (GiB/s scale) were aspirational performance projections based on theoretical analysis of COBOL data processing potential
-- **Established baseline** (205 MiB/s DISPLAY, 58 MiB/s COMP-3) reflects empirical measurements from production-representative hardware in WSL2 environment
-- The ~97% gap between historic targets and baseline is **not a regression**—it represents transition from theoretical projections to measured reality
-- Baseline established through rigorous methodology (5 independent runs, statistical analysis) per `BASELINE_METHODOLOGY.md`
+- **Established baseline** reflects empirical measurements from production-representative hardware/sandbox
+- The gap between historic targets and baseline is **not a regression**—it represents transition from theoretical projections to measured reality
+- Baseline established through rigorous methodology per `BASELINE_METHODOLOGY.md`
 
 **Measurement Factors**:
-- WSL2 virtualization overhead typically introduces 10-30% performance penalty versus native Linux
+- Virtualization overhead typically introduces performance penalty versus native Linux
 - COMP-3 packed decimal conversion involves complex bit manipulation that limits throughput
 - DISPLAY workloads benefit from parallel processing but are constrained by EBCDIC conversion overhead
 - Baseline provides stable foundation for regression detection with ±2% tolerance
 
-Current measurements (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) show variance within expected WSL2 environmental factors. The baseline (205 MiB/s) was established from statistical aggregation of 5 independent runs under controlled conditions; day-to-day measurements may vary based on system load, thermal conditions, and WSL2 scheduler behavior.
+Current measurements show variance within expected environmental factors. The baseline was established from statistical aggregation of independent runs under controlled conditions.
 
 ### Engineering Focus
 - Baseline established (Issue #49) enables regression detection and performance tracking
-- Native Linux deployment may show 5-15% improvement over WSL2 measurements
+- Native Linux deployment may show improvement over virtualized measurements
 - Preserve deterministic encode/decode behaviour while iterating on performance
 - Capture benchmark evidence in machine-readable JSON for reproducibility
 - COMP-3 decoding performance limited by packed decimal conversion complexity
@@ -132,8 +131,8 @@ Comprehensive support for mainframe data formats:
 
 ### Integration Readiness
 - All validation steps completed
-- Performance targets exceeded by significant margins
-- Test suite comprehensive and passing
+- Performance targets exceeded by significant margins (DISPLAY) / under review (COMP-3)
+- Test suite comprehensive
 - Documentation comprehensive and up-to-date
 
 ## Documentation References
@@ -161,8 +160,8 @@ The copybook-rs parser now implements consistent FILLER field naming using compu
 - **Performance**: Minimal overhead during layout resolution phase
 
 ### Validation Status
-- `cargo test` maintains **704 tests passing (58 skipped)** across unit, integration, and golden fixtures
-- Integration suites cover ODO, REDEFINES, and RDW flows; copybook-bench adds 56 targeted tests validating Issue #52 acceptance criteria
+- `cargo test` maintains **~275 tests passing** across unit, integration, and golden fixtures
+- Integration suites cover ODO, REDEFINES, and RDW flows
 - Performance telemetry shows negligible overhead from the byte-offset naming work relative to baseline decode timings
 
 ## Performance Evaluation Results
@@ -170,16 +169,16 @@ The copybook-rs parser now implements consistent FILLER field naming using compu
 ### Current Assessment
 Recent benchmarking runs prioritize transparency over marketing:
 
-- DISPLAY-heavy decode throughput sits around **66–95 MiB/s** with variance dependent on dataset mix and WSL2 environmental factors
-- COMP-3-heavy decode throughput remains around **18–25 MiB/s** with similar environmental variance
-- These measurements reflect typical WSL2 performance variance from the established baseline (205 MiB/s DISPLAY, 58 MiB/s COMP-3)
-- Baseline was established from 5 independent runs under controlled conditions; day-to-day measurements vary with system load and thermal conditions
+- DISPLAY-heavy decode throughput sits around **~900-1000 MiB/s** with variance dependent on dataset mix and environmental factors
+- COMP-3-heavy decode throughput remains around **~9 MiB/s** with similar environmental variance
+- These measurements reflect typical performance variance from the established baseline
+- Baseline was established from independent runs under controlled conditions; day-to-day measurements vary with system load
 - SLO validation artifacts in `scripts/bench/perf.json` may show variance relative to configured floors depending on measurement environment
 - Memory usage stays below **256 MiB steady-state** thanks to the streaming architecture
-- Test coverage remains broad with 704 tests passing (58 skipped) across unit, integration, and golden fixture suites
+- Test coverage remains broad with ~275 tests passing across unit, integration, and golden fixture suites
 
 **Measurement Context**:
-- WSL2 environment introduces variable performance overhead (10-30%) versus native Linux
+- Virtualization overhead introduces variable performance overhead versus native Linux
 - Baseline methodology documented in `copybook-bench/BASELINE_METHODOLOGY.md`
 - Current measurements within expected environmental variance for virtualized platform
 - See **Baseline Evolution and Historic Targets** section above for complete performance context
@@ -194,9 +193,9 @@ Recent benchmarking runs prioritize transparency over marketing:
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set and can tolerate current performance characteristics. The project maintains Engineering Preview status (not production-ready) until remaining limitations are addressed.
 
 #### Technical Signals
-- ⚠️ **Test Health**: 704 tests passing (58 skipped) – broad coverage with a small number of explicitly ignored edge cases
+- ⚠️ **Test Health**: ~275 tests passing (1 failure known in copybook-core) – broad coverage with a small number of explicitly ignored edge cases
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
-- ⚠️ **Performance Variance**: Current measurements (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) show WSL2 environmental variance; baseline (205 MiB/s, 58 MiB/s) established under controlled conditions
+- ⚠️ **Performance Variance**: Current measurements show environmental variance; baseline established under controlled conditions
 - ⚠️ **Performance Policy**: Advisory-only status (Issues #74, #75); historic SLOs (4.1 GiB/s DISPLAY, 560 MiB/s COMP-3) replaced with empirical baseline; CI enforces realistic floors (≥80 MiB/s DISPLAY, ≥40 MiB/s COMP-3)
 - ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs remain unsupported; RENAMES (66-level) partially supported (parser+resolver complete, nested groups+codec pending); Level-88 condition values fully supported
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management (promote/show), comparison, validation, and summary commands
@@ -210,7 +209,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 2. **Performance Expectations**:
    - Budget time for manual performance validation
    - Automation scripts from Issue #52 are still outstanding
-   - Native Linux deployment may show 5-15% improvement over WSL2 measurements
+   - Native Linux deployment may show improvement over virtualized measurements
 
 3. **Documentation Resources**:
    - Keep `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` handy when communicating status to stakeholders

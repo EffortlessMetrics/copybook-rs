@@ -126,3 +126,6 @@ Divergence:       0 commits
 **Performance**: Zero regression expected - all changes are infrastructure/tooling only, no COBOL processing logic modified.
 
 **Issue #52 Compliance**: PR description claims all 10 acceptance criteria satisfied. Architecture review should validate completeness.
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

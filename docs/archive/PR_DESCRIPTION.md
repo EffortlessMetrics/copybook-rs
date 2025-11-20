@@ -268,3 +268,6 @@ performance: no regression; field naming: 0 impact; COMP-3: stable
 ```
 
 **Routing:** FINALIZE → merge-readiness (for merge readiness validation)
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

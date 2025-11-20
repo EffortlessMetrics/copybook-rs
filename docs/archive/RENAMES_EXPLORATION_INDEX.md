@@ -336,4 +336,6 @@ A: No. These fixes complete the Slice-1 implementation.
 **Current Branch**: feat/renames-slice1-parser  
 
 This exploration was conducted as part of the RENAMES (Level-66) implementation in copybook-rs.
+## License
 
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

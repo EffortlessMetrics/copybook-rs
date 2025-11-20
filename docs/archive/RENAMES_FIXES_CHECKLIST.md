@@ -268,3 +268,6 @@ Test Summary:
 - `/home/steven/code/Rust/copybook-rs/copybook-core/src/schema.rs` - Field struct definition
 - `/home/steven/code/Rust/copybook-rs/copybook-core/src/layout.rs` - Resolver implementation
 - `/home/steven/code/Rust/copybook-rs/copybook-core/tests/renames_parser_tests.rs` - Parser tests
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

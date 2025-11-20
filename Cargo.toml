@@ -12,7 +12,7 @@ resolver = "2"
 [workspace.package]
 version = "0.3.1"
 edition = "2024"
-rust-version = "1.89"  # MSRV aligned with CI test matrix (see .github/workflows/ci.yml line 44)
+rust-version = "1.90"  # MSRV aligned with CI test matrix (see .github/workflows/ci.yml line 44)
 license = "AGPL-3.0-or-later"
 authors = ["copybook-rs contributors"]
 repository = "https://github.com/EffortlessMetrics/copybook-rs"

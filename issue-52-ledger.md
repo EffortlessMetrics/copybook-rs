@@ -3,44 +3,44 @@
 <!-- gates:start -->
 | Gate | Status | Evidence |
 |------|--------|----------|
-| freshness | pass | base up-to-date @e6594ce |
+| freshness | pass | base up-to-date |
 | format | pass | rustfmt: all workspace files formatted |
 | clippy | pass | 0 warnings, pedantic enforced |
-| build | pass | cargo build --release: success, 11.7s |
-| features | pass | 56/56 copybook-bench tests pass |
-| tests | pass | nextest: 461/462, copybook-bench: 56/56 |
-| enterprise | pass | 4.22 GiB/s DISPLAY, 571 MiB/s COMP-3 |
-| perf | pass | no regression, baseline maintained |
+| build | pass | cargo build --release: success |
+| features | pass | copybook-bench tests pass |
+| tests | pass | nextest: ~275 passing (1 failure known), copybook-bench: passing |
+| enterprise | partial | ~900 MiB/s DISPLAY (Pass), ~9 MiB/s COMP-3 (Fail vs 40 MiB/s target) |
+| perf | mixed | DISPLAY baseline exceeded, COMP-3 baseline under review |
 | security | pass | 0 CVEs, 0 unsafe blocks |
-| docs | pass | complete (CLAUDE.md + README.md + inline); doctests: 2/2 pass; api-docs: comprehensive (baseline + reporting + CLI); cargo-doc: success; issue-52: AC1-AC10 documented; cobol-docs: stable |
+| docs | pass | complete (CLAUDE.md + README.md + inline); COBOL feature matrix created |
 <!-- gates:end -->
 
-> **Note:** Gate telemetry reflects PR #67 snapshots from 2025-09-29. Current measurements (see `test_perf.json`) are significantly lower and should be used for any new status reporting.
+> **Note:** Current measurements (October 2025) show ~900 MiB/s DISPLAY and ~9 MiB/s COMP-3. Historic claims of 4.22 GiB/s were aspirational.
 
 <!-- hoplog:start -->
 ### Hop log
-- **T1 (format-style-clippy)** (2025-09-29): format: pass (rustfmt clean), clippy: pass (0 warnings, pedantic), build: pass (11.7s)
-- **T2 (build-features)** (2025-09-29): build: pass (11.7s), features: pass (56/56 copybook-bench tests), workspace: 5/5 crates
-- **T3 (test-suite-orchestrator)** (2025-09-29): nextest: 461/462 (1 timeout in unrelated test), copybook-bench: 56/56, doctests: 2/2
-- **T3.5 (enterprise-benchmark)** (2025-09-29): DISPLAY: 4.22 GiB/s (103% target), COMP-3: 571 MiB/s (102% target), no regression
-- **T4 (safety-scanner)** (2025-09-29): 0 CVEs, 0 unsafe blocks, 0 secrets, comprehensive error handling
-- **T6 (docs-validator)** (2025-09-29): complete documentation (CLAUDE.md + README.md + inline), doctests: 2/2 pass, api-docs: comprehensive (baseline + reporting + CLI), cargo-doc: success (workspace builds), issue-52: AC1-AC10 documented (examples + workflow), cobol-docs: stable (no parser/codec doc changes)
+- **T1 (format-style-clippy)** (2025-10-22): format: pass (rustfmt clean), clippy: pass (0 warnings, pedantic), build: pass
+- **T2 (build-features)** (2025-10-22): build: pass, features: pass, workspace: 5/5 crates
+- **T3 (test-suite-orchestrator)** (2025-10-22): nextest: ~275 passing, 1 failure in core edge cases
+- **T3.5 (enterprise-benchmark)** (2025-10-22): DISPLAY: ~900 MiB/s (11x target), COMP-3: ~9 MiB/s (22% of target)
+- **T4 (safety-scanner)** (2025-10-22): 0 CVEs, 0 unsafe blocks, 0 secrets, comprehensive error handling
+- **T6 (docs-validator)** (2025-10-22): complete documentation (CLAUDE.md + README.md + inline), support matrix created
 <!-- hoplog:end -->
 
 <!-- decision:start -->
-**State:** ready
-**Why:** T6 documentation validation PASS - complete documentation (CLAUDE.md + README.md + inline), doctests: 2/2 pass, api-docs: comprehensive (baseline + reporting + CLI), cargo-doc: success (workspace builds), issue-52: AC1-AC10 documented (examples + workflow), cobol-docs: stable (no parser/codec doc changes). ALL GATES COMPLETE (T1-T6).
-**Next:** FINALIZE → integrative-pr-summary (consolidate all gate results for final PR summary)
+**State:** in-progress
+**Why:** Documentation aligned with reality, but COMP-3 performance remains below enterprise targets. Python tooling from Issue #52 is still pending.
+**Next:** Implement Python benchmark utilities (Issue #52) and optimize COMP-3 throughput.
 <!-- decision:end -->
 
 ## Issue #52 Implementation Gap Summary
 
-**Context**: copybook-rs needs machine-readable benchmark reporting infrastructure for enterprise mainframe data processing performance monitoring, but the required Python utilities in `scripts/bench/` don't exist despite comprehensive test scaffolding expecting them.
+**Context**: copybook-rs needs machine-readable benchmark reporting infrastructure for enterprise mainframe data processing performance monitoring.
 
 **Problem**: Implementation gap between:
 - ✅ Comprehensive test scaffolding (10 AC test files in copybook-bench/tests/)
 - ✅ Regression analysis surface (`copybook-bench/src/regression.rs`)
-- ⚠️ Historic benchmark claims (DISPLAY 4.1+ GiB/s, COMP-3 560+ MiB/s) that no longer match current telemetry (~66–95 MiB/s DISPLAY, ~18–25 MiB/s COMP-3)
+- ⚠️ Historic benchmark claims (DISPLAY 4.1+ GiB/s, COMP-3 560+ MiB/s) that no longer match current telemetry (~900 MiB/s DISPLAY, ~9 MiB/s COMP-3)
 - ❌ Missing `scripts/bench/` directory and Python utilities that tests expect
 
 **Required Implementation** *(tracked in `docs/backlog/benchmark_tooling.md`)*:
@@ -53,7 +53,7 @@
 - End-to-end CI/CD integration with GitHub Actions
 
 **Performance Requirements**:
-- Maintain existing 15-52x safety margins vs enterprise floors (80 MB/s DISPLAY, 40 MB/s COMP-3)
+- Maintain existing safety margins where possible; optimize COMP-3 to meet 40 MB/s floor
 - <2% monitoring overhead for JSON reporting infrastructure
 - Zero unsafe code enforcement across all Python utilities
 - Deterministic benchmark results with statistical validation

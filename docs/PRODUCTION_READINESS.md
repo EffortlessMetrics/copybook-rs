@@ -1,17 +1,17 @@
 # Production Readiness Assessment
 
-## Status: ⚠️ Under Validation (v0.3.1)
+## Status: ⚠️ Engineering Preview (v0.3.1)
 
-copybook-rs currently serves teams that need a memory-safe COBOL parser with trustworthy error reporting, but we are deliberately avoiding "production-ready" language. Throughput still falls short of historic GiB/s targets, benchmark automation is missing, and several COBOL constructs remain unsupported. This document summarises the latest evidence so adopters can make informed decisions.
+copybook-rs currently serves teams that need a memory-safe COBOL parser with trustworthy error reporting, but we are deliberately avoiding "production-ready" language until performance and feature gaps are closed. Throughput has improved significantly for DISPLAY workloads, but COMP-3 remains below targets, and benchmark automation is missing. This document summarises the latest evidence so adopters can make informed decisions.
 
 ## Current Evidence
 
 | Area | Observation | Source |
 |------|-------------|--------|
-| Tests | `cargo nextest` reports 461/462 passing; `copybook-core::test_ac4_performance_large_scale_odo_tail_violation_fail` remains timing-sensitive; eight leak detectors flagged | `integrative_gate_summary.md`
-| Performance | DISPLAY decode ≈82.9 MiB/s (single run passes the 80 MiB/s floor) but aggregate SLO check reports 63.9 MiB/s (−20%); COMP-3 decode ≈17.5 MiB/s (−56% vs 40 MiB/s target) | `test_perf.json`, `PERFORMANCE_VALIDATION_FINAL.md`
+| Tests | `cargo nextest` reports ~275 tests passing; one known failure in `copybook-core` edge cases; leak detectors flagged | `integrative_gate_summary.md`
+| Performance | DISPLAY decode ~900-1000 MiB/s (exceeds 80 MiB/s floor); COMP-3 decode ~9 MiB/s (fails 40 MiB/s floor) | `test_perf.json`, `docs/REPORT.md`
 | Memory | Streaming architecture stays below 256 MiB on reference fixtures | Bench logs (`performance-final-validation.log`)
-| COBOL Coverage | Missing COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES (66-level), and 88-level condition names | `README.md`, parser backlog
+| COBOL Coverage | Missing COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs. Level-66 (RENAMES) is partial. Level-88 is fully supported. | `COBOL_SUPPORT_MATRIX.md`
 | Tooling | Benchmark utilities (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) not implemented; backlog opened | `docs/backlog/benchmark_tooling.md`
 
 ## Strengths
@@ -23,16 +23,16 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 
 ## Gaps & Risks
 
-- Throughput remains in the tens of MiB/s; both SLO checks fail for COMP-3 workloads
-- Missing benchmark automation leaves regressions hard to detect
+- COMP-3 throughput (~9 MiB/s) is below the 40 MiB/s target
+- Missing benchmark automation leaves regressions hard to detect automatically (Issue #52)
 - Unsupported COBOL constructs can block adoption without upfront schema audits
-- Timing-sensitive test and leak detectors undermine CI confidence
+- Known test failure in edge case validation
 
 ## Required Actions Before Renewed Production Claims
 
 1. Restore benchmark automation (Issue #52) and gate on SLO verdicts
-2. Address the timing-sensitive failure and clear the eight leak detectors
-3. Decide on a roadmap for unsupported COBOL constructs (implement vs document hard warnings)
+2. Optimize COMP-3 decoding to meet 40 MiB/s floor
+3. Resolve remaining test failures
 4. Re-baseline performance targets and publish repeatable receipts once improvements land
 
 ## Interim Guidance
@@ -42,7 +42,7 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 - Reference `README.md`, `docs/REPORT.md`, and this assessment when communicating status to stakeholders
 - Avoid marketing copy that implies production readiness until the actions above are complete
 
-_Last updated: 2025-09-30_
+_Last updated: 2025-10-22_
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

@@ -460,4 +460,6 @@ Current tests in `copybook-core/tests/renames_parser_tests.rs`:
 - ❌ Hierarchy placement validation
 - ❌ Resolver output verification
 - ❌ Cross-group RENAMES (error case)
+## License
 
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

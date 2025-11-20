@@ -1,6 +1,6 @@
 # copybook-cli
 
-CLI for parsing/decoding/encoding COBOL copybooks at GiB/s throughput.
+CLI for parsing/decoding/encoding COBOL copybooks at high throughput.
 
 ## Overview
 

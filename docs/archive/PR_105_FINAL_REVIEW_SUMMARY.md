@@ -303,3 +303,6 @@ scope: RDW format field naming, COMP-3 even-digit decoding, test data correction
 **Branch**: fix/issue-102-rdw-codec-field-naming
 **Commit**: cdd65b7d0c3870af1ec7b372af01397a58370f40
 **Next Agent**: ready-promoter
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

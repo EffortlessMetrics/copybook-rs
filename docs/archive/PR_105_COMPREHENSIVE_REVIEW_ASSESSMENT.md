@@ -330,3 +330,6 @@ The PR demonstrates exemplary adherence to copybook-rs enterprise mainframe data
 **Assessment Generated**: 2025-10-04T08:30:00Z
 **Assessor**: Claude Code (copybook-rs review synthesizer)
 **Workflow**: generative:gate:review → READY
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

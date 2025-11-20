@@ -232,3 +232,6 @@ All components implemented, documented, and ready for testing. Follow "Next Step
 **Estimated time to production**: 1-2 hours (validation + first test PR)
 **Risk level**: LOW (local validation + path filters + timeouts protect against cost surprises)
 **Rollback plan**: Disable workflows in GitHub Settings → Actions if needed
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

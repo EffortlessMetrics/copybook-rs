@@ -281,4 +281,6 @@ RENAMES FIELD-1 THRU FIELD-3:
 5. **Documentation**: Update CLAUDE.md and grammar docs
 
 See RENAMES_FIXES_CHECKLIST.md for complete implementation guide.
+## License
 
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

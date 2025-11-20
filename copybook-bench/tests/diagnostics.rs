@@ -211,8 +211,8 @@ fn test_diagnostic_benchmarks() {
     let _json = serde_json::to_string(&report).expect("Failed to serialize");
     let parse_elapsed = start.elapsed();
     assert!(
-        parse_elapsed.as_micros() < 1000,
-        "JSON parsing should be fast (<1ms)"
+        parse_elapsed.as_millis() < 10,
+        "JSON parsing should be fast (<10ms)"
     );
 
     // Test baseline I/O

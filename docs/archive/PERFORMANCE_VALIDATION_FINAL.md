@@ -17,3 +17,6 @@
 ### Recommended Follow-Up
 - Attach `scripts/bench/perf.json` to the PR once CI uploads artifacts.
 - Run `cargo run --bin bench-report -p copybook-bench -- summary` after merge to update baselines as needed.
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

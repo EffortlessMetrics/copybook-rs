@@ -257,3 +257,6 @@ security: advisories:ok, clippy-pedantic:0-warnings
 - **Machine-Readable Reporting**: Issue #52 deliverable complete and functional
 
 <!-- hoplog:end -->
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

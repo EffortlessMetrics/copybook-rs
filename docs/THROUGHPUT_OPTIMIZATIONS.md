@@ -135,12 +135,12 @@ cargo bench --package copybook-bench -- --output-format html
 
 ### Validated Performance Improvements
 
-Performance targets achieved as of codex/implement-full-field-decoding completion:
+Performance targets achieved as of October 2025:
 
-- **DISPLAY-heavy Workloads**: ≥80 MB/s achieved (target met)
-- **COMP-3-heavy Workloads**: ≥40 MB/s achieved (target met)
+- **DISPLAY-heavy Workloads**: ~900-1000 MiB/s achieved (significantly exceeds 80 MB/s target)
+- **COMP-3-heavy Workloads**: ~9 MiB/s achieved (currently below 40 MB/s target; optimization pending)
 - **Zoned Decimal Decoding**: 40-60% improvement through scratch buffer reuse
-- **Packed Decimal Decoding**: 30-50% improvement through unrolled loops  
+- **Packed Decimal Decoding**: 30-50% improvement through unrolled loops (further optimization required)
 - **JSON Generation**: 50-70% improvement through streaming approach
 - **Overall Throughput**: 2-3x improvement for typical mixed workloads validated
 

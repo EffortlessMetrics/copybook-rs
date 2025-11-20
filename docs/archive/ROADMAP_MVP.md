@@ -28,3 +28,6 @@ The goal of this phase is to fix all known critical bugs that would prevent a sa
 - All ASCII overpunch sign mappings are verified and corrected.
 - The core libraries are free of panics in all primary code paths.
 - The test suite passes, demonstrating the fixes are effective.
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

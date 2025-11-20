@@ -15,8 +15,8 @@ This directory contains comprehensive test fixtures for the copybook-rs Enterpri
 
 ### Performance Test Data
 
-- ✅ **DISPLAY Processing**: Test data designed for throughput validation (baseline: 205 MiB/s per [BASELINE_METHODOLOGY.md](../../../copybook-bench/BASELINE_METHODOLOGY.md))
-- ✅ **COMP-3 Processing**: Test data designed for throughput validation (baseline: 58 MiB/s per [BASELINE_METHODOLOGY.md](../../../copybook-bench/BASELINE_METHODOLOGY.md))
+- ✅ **DISPLAY Processing**: Test data designed for throughput validation (baseline: ~900-1000 MiB/s per [BASELINE_METHODOLOGY.md](../../../copybook-bench/BASELINE_METHODOLOGY.md))
+- ✅ **COMP-3 Processing**: Test data designed for throughput validation (baseline: ~9 MiB/s per [BASELINE_METHODOLOGY.md](../../../copybook-bench/BASELINE_METHODOLOGY.md))
 - ✅ **Memory Usage**: <256 MiB steady-state test scenarios
 - ✅ **Audit Overhead**: <5% performance impact validation data
 
@@ -107,7 +107,7 @@ async fn test_audit_trail_integrity_fixed() {
 ### High-Volume DISPLAY Processing
 ```rust
 // Generates ~85 MB of test data for throughput validation
-// Baseline: 205 MiB/s (established 2025-09-30, commit 1fa63633)
+// Baseline: ~900-1000 MiB/s (established 2025-10-22)
 let display_data = fixtures::generate_display_performance_data(100000);
 // 100,000 records × 850 bytes = enterprise-scale processing
 ```
@@ -115,7 +115,7 @@ let display_data = fixtures::generate_display_performance_data(100000);
 ### High-Volume COMP-3 Processing
 ```rust
 // Generates ~16 MB of packed decimal data for throughput validation
-// Baseline: 58 MiB/s (established 2025-09-30, commit 1fa63633)
+// Baseline: ~9 MiB/s (established 2025-10-22)
 let comp3_data = fixtures::generate_comp3_performance_data(50000);
 // 50,000 records × 320 bytes = realistic financial processing
 ```
@@ -173,7 +173,7 @@ All 6 audit subcommands have comprehensive test scenarios:
 
 ### Example Test Scenarios
 ```rust
-// Performance baseline establishment (current baseline: DISPLAY 205 MiB/s, COMP-3 58 MiB/s)
+// Performance baseline establishment (current baseline: DISPLAY ~900-1000 MiB/s, COMP-3 ~9 MiB/s)
 copybook audit performance --establish-baseline
 
 // HIPAA compliance validation (expects violations)

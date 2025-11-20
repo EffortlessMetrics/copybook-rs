@@ -260,3 +260,6 @@ _Document any issues, surprises, or improvements discovered during merge process
 
 _Last updated by: automation_
 _Next review: After each PR merge_
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

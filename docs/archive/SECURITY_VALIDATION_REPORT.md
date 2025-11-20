@@ -143,3 +143,6 @@ This panic elimination implementation significantly enhances copybook-rs securit
 **Security Validator**: enterprise-security-scanner agent
 **Final Security Assessment**: ✅ **APPROVED** - Ready for enterprise mainframe deployment
 **Evidence**: `audit: 820 advisories/208 deps clean, unsafe: 0 blocks, nnst: 10/10 pass, memory: validated, clippy: pedantic clean`
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

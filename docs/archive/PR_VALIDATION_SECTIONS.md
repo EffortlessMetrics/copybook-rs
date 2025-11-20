@@ -153,3 +153,6 @@ git pull origin main
 ```
 
 If that passes, you know the integration is still sound even if Actions is slow to confirm.
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

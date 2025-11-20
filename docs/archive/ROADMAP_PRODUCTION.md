@@ -69,3 +69,6 @@ This involves improving existing functionality based on identified gaps.
 - All major features are fully implemented and configurable.
 - The full test suite, including ignored tests, runs successfully in a clean environment.
 - The codebase is free of significant technical debt and unnecessary compiler warnings.
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

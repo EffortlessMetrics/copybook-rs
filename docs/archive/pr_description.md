@@ -96,3 +96,6 @@ Original design contemplated extensive Python utilities and enterprise complianc
 **Total Impact**: +633 lines of focused Rust code delivering full machine-readable benchmark reporting capability.
 
 Closes #52
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

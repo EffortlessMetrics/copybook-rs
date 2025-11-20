@@ -348,3 +348,6 @@ rust_versions: 1.90.0/stable/beta (all failed)
 **Timestamp:** 2025-10-04T00:25:00Z
 **PR URL:** https://github.com/EffortlessMetrics/copybook-rs/pull/105
 **Issue URL:** https://github.com/EffortlessMetrics/copybook-rs/issues/102
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

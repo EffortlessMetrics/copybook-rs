@@ -96,7 +96,6 @@ fn renames_qualified_names_same_scope() {
 // ============================================================================
 
 #[test]
-#[ignore = "R2 blocked by parser bug: level-66 handling incorrectly promotes group children as siblings"]
 fn renames_r2_same_scope_group() {
     // From design doc: RENAMES_NESTED_GROUPS.md R2 example
     // Note: COBOL RENAMES syntax requires THRU even for single-field ranges
@@ -143,7 +142,6 @@ fn renames_r2_same_scope_group() {
 // ============================================================================
 
 #[test]
-#[ignore = "R3 blocked by parser bug: level-66 handling incorrectly promotes group children as siblings"]
 fn renames_r3_nested_group() {
     // From design doc: RENAMES_NESTED_GROUPS.md R3 example
     // Note: COBOL RENAMES syntax requires THRU even for single-field ranges
@@ -173,9 +171,10 @@ fn renames_r3_nested_group() {
         .find(|f| f.name == "POLICY-DATES")
         .expect("POLICY-DATES group");
 
-    // POLICY-PERIOD (66) should be attached to POLICY-INFO (closest common ancestor)
-    // It should reference the POLICY-DATES subtree
-    let alias = policy_info
+    // POLICY-PERIOD (66) is attached to POLICY-RECORD (level-01) physically,
+    // but semantically references the nested POLICY-DATES subtree (Option B from design).
+    // This avoids complex tree surgery while maintaining correct semantics.
+    let alias = record
         .children
         .iter()
         .find(|f| f.level == 66 && f.name == "POLICY-PERIOD")

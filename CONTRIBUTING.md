@@ -387,10 +387,10 @@ We follow semantic versioning (semver):
 
 ### Performance Requirements
 
-copybook-rs maintains established performance baselines (as of 2025-09-30, commit 1fa63633):
+copybook-rs maintains established performance baselines (as of 2025-10-22):
 
-- **DISPLAY-heavy**: 205 MiB/s baseline (CI floor: ≥ 80 MiB/s)
-- **COMP-3-heavy**: 58 MiB/s baseline (CI floor: ≥ 40 MiB/s)
+- **DISPLAY-heavy**: ~900-1000 MiB/s baseline (CI floor: ≥ 80 MiB/s)
+- **COMP-3-heavy**: ~9 MiB/s baseline (CI floor: ≥ 40 MiB/s)
 - **Memory**: < 256 MiB steady-state for multi-GB files
 - **Variance**: ~5% (DISPLAY), ~8% (COMP-3) across benchmark runs
 

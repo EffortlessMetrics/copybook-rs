@@ -191,7 +191,7 @@ copybook-rs uses a clear precedence order for format selection:
 - **Detection**: <1% overhead during decode operations
 - **Metadata**: Scales linearly with field count
 - **Memory**: Minimal storage for encoding information
-- **Enterprise Targets**: Maintains 4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3
+- **Enterprise Targets**: Maintains ~900-1000 MiB/s DISPLAY (exceeds target), ~9 MiB/s COMP-3 (optimization pending)
 
 ## Error Handling
 

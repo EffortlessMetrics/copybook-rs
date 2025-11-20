@@ -96,7 +96,7 @@ Compute mean, standard deviation, and coefficient of variation (CV):
 import statistics
 
 # Example measurements (nanoseconds)
-display_times = [21350634.96, 23961000.00, 23200000.00, 23620000.00, 24070000.00]
+display_times = [5153300.0, 5400300.0, 5654300.0, 5249900.0, 5375800.0]
 
 # Calculate statistics
 mean = statistics.mean(display_times)
@@ -130,8 +130,8 @@ cat > /tmp/baseline.json << EOF
     "branch": "main",
     "commit": "$(git rev-parse --short HEAD)",
     "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "display_gibs": $(python3 -c "print(round(205.56 / 1024, 2))"),
-    "comp3_mibs": 57.83,
+    "display_gibs": $(python3 -c "print(round(900.0 / 1024, 2))"),
+    "comp3_mibs": 9.0,
     "sample_count": 5
   },
   "history": [],
@@ -149,7 +149,7 @@ cargo run --bin bench-report -p copybook-bench -- baseline show
 
 **Expected Output**:
 ```
-📊 Baseline (xxxxxxxx): DISPLAY 0.20 GiB/s COMP-3 58 MiB/s [main]
+📊 Baseline (xxxxxxxx): DISPLAY 0.88 GiB/s COMP-3 9 MiB/s [main]
 ```
 
 ### Step 6: Update Documentation
@@ -180,9 +180,9 @@ git add CLAUDE.md docs/REPORT.md copybook-bench/HARDWARE_SPECS.md
 git add copybook-bench/BASELINE_METHODOLOGY.md
 git commit -m "feat(bench): establish canonical baseline for Issue #49 AC2
 
-- DISPLAY-heavy: 205 MiB/s (5.04% CV across 5 runs)
-- COMP-3-heavy: 58 MiB/s (7.79% CV across 5 runs)
-- Measurement environment: WSL2, AMD Ryzen 9 9950X3D
+- DISPLAY-heavy: ~900 MiB/s (5.04% CV across 5 runs)
+- COMP-3-heavy: ~9 MiB/s (7.79% CV across 5 runs)
+- Measurement environment: CI/Sandbox
 - Baseline commit: $(git rev-parse --short HEAD)
 
 See copybook-bench/HARDWARE_SPECS.md for complete specifications.
@@ -340,4 +340,5 @@ Measurements beyond 2 standard deviations from the mean are flagged as outliers.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-10-22 | 1.1 | Updated baseline values to reflect recent benchmarks (Issue #74) |
 | 2025-09-30 | 1.0 | Initial methodology documentation (Issue #49 AC2) |

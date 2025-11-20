@@ -2,15 +2,15 @@
 
 ## Overview
 
-copybook-rs is a **production-ready** system for enterprise mainframe data processing. This guide covers deployment, configuration, and best practices for production environments.
+copybook-rs is an **enterprise-grade** system for mainframe data processing. This guide covers deployment, configuration, and best practices for production environments.
 
 ## Production Deployment
 
-### **System Ready for Enterprise Use** ✅
+### **System Status: Engineering Preview** ⚠️
 
-copybook-rs has **achieved full production maturity** with:
-- **458+ tests passing** (comprehensive validation including golden fixtures)
-- **15-52x performance above enterprise targets**
+copybook-rs is suitable for **pilot and controlled production use** with:
+- **~275 tests passing** (comprehensive validation including golden fixtures)
+- **High-throughput DISPLAY processing** (~900-1000 MiB/s)
 - **Level-88 condition value support** with structural validation
 - **Golden fixtures framework** for enterprise scenario validation
 - **Zero unsafe code** with complete memory safety
@@ -70,7 +70,7 @@ copybook verify schema.cpy production-data.bin \
 ### **Enterprise-Grade Throughput**
 For detailed performance benchmarks and specifications, see [Performance Specifications](../README.md#performance-specifications).
 - **Memory efficiency**: <256 MiB for multi-GB files
-- **Parallel scaling**: Linear performance with thread count
+- **Parallel scaling**: Linear performance with thread count for DISPLAY workloads
 
 ### Production Benchmarking
 ```bash
@@ -214,7 +214,7 @@ Encoding detection adds minimal overhead:
 - **Detection**: <1% performance impact during decode
 - **Preservation**: Metadata storage scales with field count
 - **Encode**: Format lookup optimizes encoding path
-- **Enterprise Targets**: Maintained at 4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3
+- **Enterprise Targets**: Maintained at ~900 MiB/s DISPLAY, ~9 MiB/s COMP-3
 
 ## Production Best Practices
 
@@ -324,9 +324,9 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2>&1 | \
 
 ### Production Support
 For production deployments:
-1. Review comprehensive test coverage (127 tests)
+1. Review comprehensive test coverage (~275 tests)
 2. Validate performance for your specific workload
 3. Implement error monitoring using stable error codes
 4. Use verification mode for data quality auditing
 
-**Status**: copybook-rs is production-ready and suitable for immediate enterprise deployment with substantial performance safety margins.
+**Status**: copybook-rs is in Engineering Preview and suitable for pilot enterprise deployment.

@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 copybook-rs is a Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and data conversion with focus on correctness and safety.
 
 **Status**: **Engineering Preview** (v0.3.1 maintenance) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
-**Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
-**Quality**: 704 tests passing (58 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
+**Performance**: Measured (DISPLAY: ~880-1000 MiB/s, COMP-3: ~8.6-9.5 MiB/s; 2025-10-22)
+**Quality**: ~275 tests passing (1 failure tracked in copybook-core), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
@@ -196,15 +196,14 @@ Structured error taxonomy with stable codes:
 **CI Gating**: Perf workflow enforces throughput floors (DISPLAY ≥ 80 MiB/s, COMP-3 ≥ 40 MiB/s); baseline comparisons remain advisory.
 
 **Targets vs Achieved**:
-- DISPLAY-heavy: ≥80 MB/s → **205 MiB/s (2.56x exceeded)**
-- COMP-3-heavy: ≥40 MB/s → **58 MiB/s (1.45x exceeded)**
+- DISPLAY-heavy: ≥80 MB/s → **~1000 MiB/s (Exceeded)**
+- COMP-3-heavy: ≥40 MB/s → **~9 MiB/s (Fails target)**
 - Memory: <256 MiB steady-state for multi-GB files
 - Variance: ~5% across benchmark runs (WSL2 environment)
 - Overhead budget: 20% reserved for enterprise security/audit features
 
-**Baseline Established**: 2025-09-30 (Commit 1fa63633)
-- Measurement Environment: WSL2 on AMD Ryzen 9 9950X3D (32 threads, 196 GiB RAM)
-- Sample Count: 5 independent runs with statistical analysis
+**Baseline Established**: 2025-10-22
+- Measurement Environment: Sandbox/CI
 - See `copybook-bench/HARDWARE_SPECS.md` for complete hardware specifications
 - See `copybook-bench/BASELINE_METHODOLOGY.md` for measurement procedures
 
@@ -220,9 +219,9 @@ cargo run --bin bench-report -p copybook-bench -- baseline promote perf.json
 ```
 
 **Performance Notes**:
-- Measurements taken in WSL2 environment; native Linux may show 5-15% improvement
-- DISPLAY-heavy workloads benefit from parallel processing (up to 177 MiB/s on 8 threads)
-- COMP-3 decoding performance limited by packed decimal conversion complexity
+- Measurements taken in CI/Sandbox environment; native Linux may show different results
+- DISPLAY-heavy workloads benefit from parallel processing
+- COMP-3 decoding performance is currently a bottleneck
 - Baseline provides foundation for regression detection and performance tracking
 
 **Benchmark Container** (Issue #113):
@@ -263,7 +262,7 @@ The Golden Fixtures framework provides comprehensive structural validation for e
 cargo test --workspace --test "*golden*"
 
 # Run specific fixture categories
-cargo test --test golden_fixtures_odo                    # ODO structural validation
+cargo test --test golden_fixtures_odo                    # ODO-specific fixtures
 cargo test --test golden_fixtures_level88               # Level-88 condition values
 cargo test --test golden_fixtures_redefines            # REDEFINES interactions
 cargo test --test golden_fixtures_enterprise           # Enterprise production scenarios
@@ -300,13 +299,13 @@ The golden fixtures comprehensively test structural error conditions:
 
 Golden fixtures maintain strict performance requirements aligned with established baselines:
 
-- **DISPLAY-heavy**: 205 MiB/s baseline (2.56x enterprise target of 80 MiB/s)
-- **COMP-3-heavy**: 58 MiB/s baseline (1.45x enterprise target of 40 MiB/s)
+- **DISPLAY-heavy**: ~900 MiB/s baseline
+- **COMP-3-heavy**: ~9 MiB/s baseline
 - **Memory**: <256 MiB steady-state for multi-GB fixture sets
 - **Variance**: ~5% (DISPLAY), ~8% (COMP-3) across benchmark runs
 - **Regression Detection**: Automated baseline comparison with <2% tolerance
 
-Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for complete performance analysis.
+Baseline established 2025-10-22 in Sandbox. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for complete performance analysis.
 
 ## Known Limitations & Roadmap
 
@@ -322,9 +321,9 @@ Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. S
 **Note**: Level-88 condition values and RENAMES R1-R3 (same-scope fields, group alias, nested groups) are fully supported (parse + resolver + codec-ready alias lookup). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
 
 ### Performance Considerations
-- Baseline established at 205 MiB/s (DISPLAY) and 58 MiB/s (COMP-3) on reference hardware (commit 1fa63633)
+- Baseline established at ~900 MiB/s (DISPLAY) and ~9 MiB/s (COMP-3) on sandbox environment (2025-10-22)
 - WSL2 environment introduces 10-30% overhead versus native Linux
-- Current measurements show variance (66-95 MiB/s DISPLAY, 18-25 MiB/s COMP-3) based on system load
+- Current measurements show variance based on system load
 - Advisory-only performance policy active (Issues #74, #75); historic SLOs (4.1 GiB/s DISPLAY, 560 MiB/s COMP-3) replaced with empirical baseline
 - CI enforces realistic throughput floors (DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s)
 - See [docs/ROADMAP.md](docs/ROADMAP.md) for performance improvement plans

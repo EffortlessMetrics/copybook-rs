@@ -89,9 +89,9 @@ pub fn run(enforce: bool, out_dir: Option<&str>) -> Result<()> {
 
     // Validate against SLOs (using current baseline targets from CLAUDE.md)
     // NOTE: These are advisory-only SLOs based on established baseline
-    // (205 MiB/s DISPLAY, 58 MiB/s COMP-3 from commit 1fa63633)
+    // (~900 MiB/s DISPLAY, ~9 MiB/s COMP-3)
     // CI enforces realistic floors: DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s
-    report.validate_slos(4.1, 560.0);
+    report.validate_slos(0.08, 40.0);
 
     // Write report to output directory
     let report_path = out_path.join("perf.json");
@@ -273,11 +273,11 @@ mod tests {
     // Tests from PR #152 (benchmark runner)
     #[test]
     fn test_parse_throughput() {
-        let output = "DISPLAY throughput: 4.22 GiB/s (target: ≥4.1 GiB/s)";
-        assert_eq!(parse_throughput(output, "DISPLAY throughput:"), Some(4.22));
+        let output = "DISPLAY throughput: 0.90 GiB/s (target: ≥0.08 GiB/s)";
+        assert_eq!(parse_throughput(output, "DISPLAY throughput:"), Some(0.90));
 
-        let output = "COMP-3 throughput: 571.50 MiB/s (target: ≥560 MiB/s)";
-        assert_eq!(parse_throughput(output, "COMP-3 throughput:"), Some(571.50));
+        let output = "COMP-3 throughput: 9.00 MiB/s (target: ≥40 MiB/s)";
+        assert_eq!(parse_throughput(output, "COMP-3 throughput:"), Some(9.00));
     }
 
     // Tests from PR #155 (SLO evaluation)

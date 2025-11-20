@@ -19,7 +19,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI reports 615/615 tests passing (54 skipped); raw data captured in `integrative_gate_summary.md`
+- **Transparent evidence**: CI reports ~275 tests passing (1 failure known in copybook-core); raw data captured in `integrative_gate_summary.md`
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
@@ -36,7 +36,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **Deterministic output**: Byte-identical results across runs and worker configurations
 - **Round-trip fidelity**: Zoned decimal metadata preserved to maintain copybook semantics
 - **Memory safety**: Zero `unsafe` in public APIs; pedantic lints enforced across the workspace
-- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; one legacy performance assertion remains flaky (see `integrative_gate_summary.md`)
+- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; one edge-case test currently failing (see `copybook-core/tests/enhanced_edge_case_validation.rs`)
 
 ### **Enterprise Integration**
 - **Multiple EBCDIC Codepages**: CP037, CP273, CP500, CP1047, CP1140 + ASCII support
@@ -877,7 +877,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo nextest` reports 615/615 passing (54 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (see `integrative_gate_summary.md`)
+- **Tests**: `cargo nextest` reports ~275 tests passing (1 failure tracked in copybook-core) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (see `integrative_gate_summary.md`)
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
 - **Automation gaps**: The Python utilities promised in Issue #52 (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) have not shipped yet; see `docs/backlog/benchmark_tooling.md`
@@ -968,7 +968,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 - ⚠️ **Feature Coverage**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, and RENAMES (66-level) remain unsupported; Level-88 condition values fully supported
 - ⚠️ **Performance Variance**: Measurements show environmental variance in WSL2; see perf workflow artifacts and `scripts/bench/perf.json` for current receipts (advisory-only policy per Issues #74, #75)
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management, comparison, and validation commands
-- ✅ **Quality Signals**: 615 tests passing (54 skipped), zero unsafe code, comprehensive error taxonomy including CBKR* family
+- ✅ **Quality Signals**: ~275 tests passing (1 failure tracked in copybook-core), zero unsafe code, comprehensive error taxonomy including CBKR* family
 - ✅ **Interface Stability**: CLI and library APIs are production-ready; feature completeness remains in preview
 
 **Adoption Recommendations**:

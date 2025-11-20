@@ -111,6 +111,7 @@ pub enum FieldKind {
     BinaryInt { bits: u16, signed: bool },
     PackedDecimal { digits: u16, scale: i16, signed: bool },
     Group,
+    Condition { values: Vec<String> }, // Level-88 condition
 }
 ```
 

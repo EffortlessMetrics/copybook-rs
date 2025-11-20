@@ -31,8 +31,8 @@
 - **Supply Chain**: No suspicious or hardcoded credentials detected
 
 #### Production Safety Patterns ✅
-- **Error Handling**: 364/364 tests pass with structured error handling
-- **Performance Safety**: Security measures maintain baseline performance (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s per [baseline 2025-09-30](copybook-bench/BASELINE_METHODOLOGY.md))
+- **Error Handling**: Comprehensive test coverage with structured error handling
+- **Performance Safety**: Security measures maintain baseline performance (DISPLAY: ~900-1000 MiB/s, COMP-3: ~9 MiB/s per [baseline 2025-10-22](copybook-bench/BASELINE_METHODOLOGY.md))
 - **Enterprise Compliance**: SOX/HIPAA/GDPR audit trail support maintained
 - **Zero Panic Production**: Production code free of unwrap(), expect(), panic!()
 
@@ -50,7 +50,7 @@ enterprise: compliant (production ready)
 
 ### Performance vs Security Trade-offs
 - **Security Overhead**: <2% performance impact measured
-- **Enterprise Targets**: Security measures maintain baseline performance (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s)
+- **Enterprise Targets**: Security measures maintain baseline performance (DISPLAY: ~900-1000 MiB/s, COMP-3: ~9 MiB/s)
 - **Memory Safety**: Zero-copy operations maintained where safe
 - **Throughput**: Security validation maintains baseline performance per [BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md)
 
@@ -62,7 +62,7 @@ The copybook-rs system achieves enterprise-grade security standards:
 - Memory-safe data conversion for EBCDIC and COMP-3 processing
 - Zero unsafe code blocks across entire workspace
 - Structured error handling preventing silent failures
-- Comprehensive test coverage (364 tests) with focus on safety patterns
+- Comprehensive test coverage with focus on safety patterns
 
 ### Recommendations
 1. **Continue Security Monitoring**: Maintain `cargo deny check` in CI

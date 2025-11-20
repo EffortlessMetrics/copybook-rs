@@ -54,7 +54,8 @@ This guide helps users migrate from existing COBOL data processing tools to copy
 | BLANK WHEN ZERO | ✅ | ✅ | ✅ | ✅ | Special handling |
 | Edited PIC | ❌ | ✅ | ✅ | ✅ | Not supported |
 | SIGN SEPARATE | ❌ | ✅ | ✅ | ✅ | Not supported |
-| 66/88 levels | ⚠️ | ✅ | ✅ | ✅ | Parsed, ignored |
+| Level-88 | ✅ | ✅ | ✅ | ✅ | Condition values supported |
+| Level-66 (RENAMES) | ⚠️ | ✅ | ✅ | ✅ | Partial parser support |
 
 Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
 

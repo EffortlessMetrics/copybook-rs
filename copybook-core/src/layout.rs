@@ -635,7 +635,8 @@ fn find_field_by_name<'a>(
 
     for field in fields {
         // Check current field (exclude non-storage: 66, 88)
-        if field.level != 66 && field.level != 88 && field.name.trim().eq_ignore_ascii_case(needle) {
+        if field.level != 66 && field.level != 88 && field.name.trim().eq_ignore_ascii_case(needle)
+        {
             return Some(field);
         }
 

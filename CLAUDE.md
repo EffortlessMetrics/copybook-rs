@@ -317,9 +317,9 @@ Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. S
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE directives
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) items – parser + same-scope resolver implemented; nested group semantics and codec projection are still pending (see docs/design/RENAMES_NESTED_GROUPS.md and Issues #110 / #133)
+- 66-level (RENAMES) interactions with REDEFINES/OCCURS – R1-R3 scenarios (same-scope, group alias, nested group) fully supported with alias-aware Schema API; REDEFINES/OCCURS interactions (R4-R6) out of scope (see docs/design/RENAMES_NESTED_GROUPS.md and docs/reference/COBOL_SUPPORT_MATRIX.md)
 
-**Note**: Level-88 condition values are fully supported (parse + codec + structural validation). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
+**Note**: Level-88 condition values and RENAMES R1-R3 (same-scope fields, group alias, nested groups) are fully supported (parse + resolver + codec-ready alias lookup). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
 
 ### Performance Considerations
 - Baseline established at 205 MiB/s (DISPLAY) and 58 MiB/s (COMP-3) on reference hardware (commit 1fa63633)

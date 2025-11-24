@@ -37,10 +37,10 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 # Memory management dependencies
 smallvec = "1.15.1"
 crossbeam-channel = "0.5.15"
-indexmap = { version = "2.12.0", features = ["serde"] }
+indexmap = { version = "2.12.1", features = ["serde"] }
 
 # CLI dependencies
-clap = { version = "4.5.52", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 tokio = { version = "1.48.0", features = ["full"] }
 tempfile = "3.23.0"
 

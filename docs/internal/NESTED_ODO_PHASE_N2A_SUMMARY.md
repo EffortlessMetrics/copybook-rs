@@ -182,3 +182,6 @@ Phase N2a is **complete and validated**:
 ✅ Design contract from Phase N1 satisfied
 
 The implementation correctly rejects O5 (nested ODO) and O6 (ODO over REDEFINES) patterns while maintaining backward compatibility with supported O1-O4 scenarios.
+## License
+
+Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

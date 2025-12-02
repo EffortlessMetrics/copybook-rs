@@ -606,7 +606,8 @@ impl BinaryFidelityValidator {
             FieldKind::Alphanum { .. }
             | FieldKind::Group
             | FieldKind::Condition { .. }
-            | FieldKind::Renames { .. } => false, // Level-88 and Level-66 RENAMES are not numeric (parse-only Slice-1)
+            | FieldKind::Renames { .. }
+            | FieldKind::EditedNumeric { .. } => false, // Phase E1: EditedNumeric not yet supported for numeric ops
         }
     }
 
@@ -660,6 +661,10 @@ impl BinaryFidelityValidator {
             FieldKind::Renames { .. } => {
                 // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
                 // Slice-2 will resolve alias ranges and project into concrete fields.
+                CobolFieldType::Display
+            }
+            FieldKind::EditedNumeric { .. } => {
+                // Phase E1: EditedNumeric treated as display for tolerance purposes
                 CobolFieldType::Display
             }
         }

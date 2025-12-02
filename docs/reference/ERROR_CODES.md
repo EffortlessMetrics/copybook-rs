@@ -123,6 +123,45 @@ Field: ROOT.CUSTOMER.ORDERS
 Counter value: 0, raised to minimum: 1
 ```
 
+#### CBKS701_PROJECTION_INVALID_ODO
+**Description**: Selected field contains OCCURS DEPENDING ON but counter field is not accessible
+**Severity**: Fatal
+**Context**: Field path, counter field path, projection selection
+**Resolution**: Include the ODO counter field in selection, or select the entire parent group
+
+```
+Error: CBKS701_PROJECTION_INVALID_ODO
+Field: ROOT.CUSTOMER.ORDERS (OCCURS DEPENDING ON ORDER-COUNT)
+Counter: ROOT.CUSTOMER.ORDER-COUNT (not in projection)
+Resolution: Add ORDER-COUNT to --select or select parent group
+```
+
+#### CBKS702_PROJECTION_UNRESOLVED_ALIAS
+**Description**: RENAMES alias spans fields that are not all selected
+**Severity**: Fatal
+**Context**: Alias name, aliased fields, missing fields in selection
+**Resolution**: Select all fields covered by the RENAMES alias, or use underlying field names directly
+
+```
+Error: CBKS702_PROJECTION_UNRESOLVED_ALIAS
+Alias: CUSTOMER-HEADER (RENAMES CUSTOMER-ID THRU CUSTOMER-NAME)
+Missing fields: CUSTOMER-NAME (not in projection)
+Resolution: Select all fields in RENAMES range or use field names directly
+```
+
+#### CBKS703_PROJECTION_FIELD_NOT_FOUND
+**Description**: Selected field name does not exist in schema
+**Severity**: Fatal
+**Context**: Field name, available fields suggestion
+**Resolution**: Verify field name spelling and case sensitivity, use `copybook inspect` to list available fields
+
+```
+Error: CBKS703_PROJECTION_FIELD_NOT_FOUND
+Field: CUSTMER-ID (not found in schema)
+Suggestion: Did you mean CUSTOMER-ID?
+Resolution: Check field name with `copybook inspect schema.cpy`
+```
+
 ### Record Format Errors (CBKR*)
 
 Errors in record framing and I/O processing.
@@ -257,6 +296,46 @@ Field: ROOT.CUSTOMER.DISCOUNT
 All spaces decoded as zero
 ```
 
+#### CBKD421_EDITED_PIC_INVALID_FORMAT
+**Description**: Data does not match edited PICTURE pattern (Phase E2 decode)
+**Severity**: Fatal
+**Context**: Record number, field path, PIC pattern, actual data bytes
+**Resolution**: Verify data format matches copybook PIC clause, check codepage conversion, inspect raw data with `--emit-raw`
+
+```
+Error: CBKD421_EDITED_PIC_INVALID_FORMAT at record 150
+Field: ROOT.CUSTOMER.AMOUNT (PIC $ZZ,ZZZ.99)
+Expected pattern: currency symbol, digits with comma, decimal point
+Actual data: "  1234.56" (missing $ symbol)
+Resolution: Check data generation process or EBCDIC conversion
+```
+
+#### CBKD422_EDITED_PIC_SIGN_MISMATCH
+**Description**: Sign character mismatch in edited numeric field (expected +/-, CR, or DB)
+**Severity**: Fatal
+**Context**: Record number, field path, expected sign, actual character
+**Resolution**: Check sign editing in PIC clause matches data, verify codepage
+
+```
+Error: CBKD422_EDITED_PIC_SIGN_MISMATCH at record 200
+Field: ROOT.CUSTOMER.BALANCE (PIC +ZZZ9-)
+Expected: trailing '-' or '+' sign character
+Actual: 0x20 (space)
+Resolution: Verify sign editing format and data integrity
+```
+
+#### CBKD423_EDITED_PIC_BLANK_WHEN_ZERO
+**Description**: Edited numeric field with BLANK WHEN ZERO is all blanks (decoded as zero)
+**Severity**: Warning (informational)
+**Context**: Record number, field path
+**Resolution**: Expected behavior for BLANK WHEN ZERO fields, no action needed
+
+```
+Warning: CBKD423_EDITED_PIC_BLANK_WHEN_ZERO at record 300
+Field: ROOT.CUSTOMER.DISCOUNT (PIC ZZZ9 BLANK WHEN ZERO)
+All spaces decoded as "0"
+```
+
 #### CBKD101_INVALID_FIELD_TYPE
 **Description**: Invalid field type encountered during processing
 **Severity**: Fatal
@@ -388,11 +467,34 @@ Possible text-mode transfer corruption
 - For RDW format, ensure RDW headers are intact and correctly formatted
 
 #### "CBKP051_UNSUPPORTED_EDITED_PIC"
-**Problem**: Copybook contains edited PIC clauses
-**Solution**: 
-- Remove editing characters (Z, /, comma) from PIC
-- Use post-processing for formatting
-- Example: `PIC ZZ9.99` → `PIC 999V99`
+**Problem**: Copybook contains edited PIC clauses (v0.3.1 and earlier)
+**Solution**:
+- **v0.4.0+**: Edited PIC Phase E1 (parse) and E2 (decode) are now supported
+- For encode operations (Phase E3, planned v0.5.0), use unedited PIC temporarily
+- Example legacy workaround: `PIC ZZ9.99` → `PIC 999V99` (post-process for formatting)
+
+#### "CBKD421_EDITED_PIC_INVALID_FORMAT"
+**Problem**: Edited numeric data doesn't match PIC pattern
+**Solutions**:
+- Verify data matches edited PIC pattern (e.g., `$ZZ,ZZZ.99` requires $ symbol)
+- Check codepage conversion (EBCDIC→ASCII) for symbol characters
+- Use `--emit-raw` to inspect raw byte values
+- Validate against COBOL data generation process
+
+#### "CBKD422_EDITED_PIC_SIGN_MISMATCH"
+**Problem**: Sign character mismatch in edited field
+**Solutions**:
+- Verify sign editing matches PIC clause (+, -, CR, DB)
+- Check data integrity and field alignment
+- Confirm codepage handles sign characters correctly
+
+#### "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+**Problem**: Selected field doesn't exist in schema
+**Solutions**:
+- Use `copybook inspect schema.cpy` to list all available fields
+- Check field name spelling and case sensitivity
+- Verify field is not a FILLER (FILLER fields named as `_filler_00000XXX`)
+- For RENAMES aliases, use `--select` with alias name directly
 
 #### "CBKD401_COMP3_INVALID_NIBBLE"
 **Problem**: Corrupted packed decimal data
@@ -493,11 +595,14 @@ Possible text-mode transfer corruption
 | CBKP001 | Parse | Fatal | Syntax error |
 | CBKP011 | Parse | Fatal | Unsupported clause |
 | CBKP021 | Parse | Fatal | ODO not at tail |
-| CBKP051 | Parse | Fatal | Edited PIC unsupported |
+| CBKP051 | Parse | Fatal | Edited PIC unsupported (v0.3.1-); supported in v0.4.0+ |
 | CBKS121 | Schema | Fatal | Counter not found |
 | CBKS141 | Schema | Fatal | Record too large |
 | CBKS301 | Schema | Warning | ODO clipped |
 | CBKS302 | Schema | Warning | ODO raised |
+| CBKS701 | Schema | Fatal | Projection: Invalid ODO (counter not accessible) |
+| CBKS702 | Schema | Fatal | Projection: Unresolved RENAMES alias |
+| CBKS703 | Schema | Fatal | Projection: Field not found |
 | CBKR101 | Record | Fatal | Fixed record error |
 | CBKR201 | Record | Fatal | RDW read error |
 | CBKR211 | Record | Warning/Fatal | RDW reserved non-zero |
@@ -510,6 +615,9 @@ Possible text-mode transfer corruption
 | CBKD401 | Decode | Fatal/Warning | COMP-3 invalid nibble |
 | CBKD411 | Decode | Fatal/Warning | Zoned bad sign |
 | CBKD412 | Decode | Warning | Zoned blank is zero |
+| CBKD421 | Decode | Fatal | Edited PIC: Invalid format (Phase E2) |
+| CBKD422 | Decode | Fatal | Edited PIC: Sign mismatch (Phase E2) |
+| CBKD423 | Decode | Warning | Edited PIC: Blank when zero (Phase E2) |
 | CBKE501 | Encode | Fatal | JSON type mismatch |
 | CBKE521 | Encode | Fatal | Array length OOB |
 | CBKF104 | File | Warning | RDW suspect ASCII |

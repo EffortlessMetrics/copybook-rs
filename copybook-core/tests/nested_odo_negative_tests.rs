@@ -19,6 +19,10 @@
 //!
 //! Future phases may reconsider these based on user demand with concrete use cases.
 
+#![allow(clippy::expect_used)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::needless_raw_string_hashes)]
+
 use copybook_core::{ErrorCode, parse_copybook};
 
 // =============================================================================

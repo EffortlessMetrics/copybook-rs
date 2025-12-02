@@ -1102,6 +1102,30 @@ fn decode_scalar_field_value_standard(
                 ),
             ))
         }
+        FieldKind::EditedNumeric {
+            pic_string, scale, ..
+        } => {
+            // Phase E2: Decode edited PIC fields
+            let raw_str = crate::charset::ebcdic_to_utf8(
+                field_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+
+            // Tokenize the PIC pattern
+            let pattern = crate::edited_pic::tokenize_edited_pic(pic_string)?;
+
+            // Decode the edited numeric value
+            let numeric_value = crate::edited_pic::decode_edited_numeric(
+                &raw_str,
+                &pattern,
+                *scale,
+                field.blank_when_zero,
+            )?;
+
+            // Return as string (consistent with other numeric types)
+            Ok(Value::String(numeric_value.to_decimal_string()))
+        }
     }
 }
 
@@ -1173,6 +1197,30 @@ fn decode_scalar_field_value_with_scratch(
                     name = field.name
                 ),
             ))
+        }
+        FieldKind::EditedNumeric {
+            pic_string, scale, ..
+        } => {
+            // Phase E2: Decode edited PIC fields
+            let raw_str = crate::charset::ebcdic_to_utf8(
+                field_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+
+            // Tokenize the PIC pattern
+            let pattern = crate::edited_pic::tokenize_edited_pic(pic_string)?;
+
+            // Decode the edited numeric value
+            let numeric_value = crate::edited_pic::decode_edited_numeric(
+                &raw_str,
+                &pattern,
+                *scale,
+                field.blank_when_zero,
+            )?;
+
+            // Return as string (consistent with other numeric types)
+            Ok(Value::String(numeric_value.to_decimal_string()))
         }
     }
 }
@@ -1435,6 +1483,16 @@ fn encode_single_field(
             // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
             // Slice-2 will resolve alias ranges and project into concrete fields.
             Ok(current_offset)
+        }
+        FieldKind::EditedNumeric { pic_string, .. } => {
+            // Phase E1: Edited PIC fields are not yet encodable
+            Err(Error::new(
+                ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
+                format!(
+                    "Edited PIC encode not implemented (field '{}', PIC '{}')",
+                    field.name, pic_string
+                ),
+            ))
         }
     }
 }

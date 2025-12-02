@@ -355,16 +355,54 @@ impl Parser {
 
         // Validate each field group hierarchically
         for field in fields {
-            self.validate_odo_in_group(field, &all_fields)?;
+            self.validate_odo_in_group(field, &all_fields, false)?;
         }
 
         Ok(())
     }
 
+    /// Check if a field is inside a REDEFINES region by walking the path
+    fn is_inside_redefines(&self, field_path: &str, all_fields: &[&Field]) -> bool {
+        // Check all ancestor paths to see if any have redefines_of
+        for ancestor in all_fields {
+            if field_path.starts_with(&format!("{}.", ancestor.path))
+                && ancestor.redefines_of.is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Recursively validate ODO constraints within a field group
-    fn validate_odo_in_group(&self, field: &Field, all_fields: &[&Field]) -> Result<()> {
+    ///
+    /// # Arguments
+    /// * `field` - The field to validate
+    /// * `all_fields` - All fields for counter lookups
+    /// * `inside_occurs` - Whether we're already inside an OCCURS/ODO array
+    fn validate_odo_in_group(&self, field: &Field, all_fields: &[&Field], inside_occurs: bool) -> Result<()> {
         // Check if this field is an ODO array
         if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
+            // O5: Check for nested ODO (ODO inside OCCURS/ODO)
+            if inside_occurs {
+                return Err(Error::new(
+                    ErrorCode::CBKP022_NESTED_ODO,
+                    format!(
+                        "Nested ODO not supported: field '{}' has OCCURS DEPENDING ON inside another OCCURS/ODO array",
+                        field.path
+                    ),
+                ));
+            }
+
+            // O6: Check for ODO inside REDEFINES region
+            if self.is_inside_redefines(&field.path, all_fields) || field.redefines_of.is_some() {
+                return Err(Error::new(
+                    ErrorCode::CBKP023_ODO_REDEFINES,
+                    format!(
+                        "ODO over REDEFINES not supported: field '{}' has OCCURS DEPENDING ON inside a REDEFINES region",
+                        field.path
+                    ),
+                ));
+            }
             // Find the counter field
             let counter_field = all_fields
                 .iter()
@@ -404,6 +442,9 @@ impl Parser {
             }
         }
 
+        // Determine if we're now inside an OCCURS/ODO region
+        let child_inside_occurs = inside_occurs || field.occurs.is_some();
+
         // Recursively validate children and check ODO tail constraints
         for (i, child) in field.children.iter().enumerate() {
             // Check if child is ODO and enforce tail position rule
@@ -422,8 +463,8 @@ impl Parser {
                 ));
             }
 
-            // Recursively validate this child's subtree
-            self.validate_odo_in_group(child, all_fields)?;
+            // Recursively validate this child's subtree, passing down OCCURS context
+            self.validate_odo_in_group(child, all_fields, child_inside_occurs)?;
         }
 
         Ok(())

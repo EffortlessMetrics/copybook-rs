@@ -296,6 +296,8 @@ impl ErrorReporter {
             ErrorCode::CBKP001_SYNTAX
             | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
             | ErrorCode::CBKP021_ODO_NOT_TAIL
+            | ErrorCode::CBKP022_NESTED_ODO
+            | ErrorCode::CBKP023_ODO_REDEFINES
             | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
 
             // Schema errors can be fatal or errors depending on context

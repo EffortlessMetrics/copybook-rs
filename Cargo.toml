@@ -57,7 +57,7 @@ blake3 = "1.8.2"
 
 # Testing dependencies
 proptest = "1.9.0"
-criterion = { version = "0.7.0", features = ["html_reports"] }
+criterion = { version = "0.8.0", features = ["html_reports"] }
 hex = "0.4.3"
 
 # Task automation dependencies

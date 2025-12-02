@@ -1,6 +1,6 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(clippy::panic)]
 
 //! Minimal Enterprise Audit System Test Scaffolding
 //!

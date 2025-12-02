@@ -30,6 +30,8 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **COBOL schema parsing**: Lexer, parser, and AST with layout resolution for REDEFINES, ODO, and SYNCHRONIZED
 - **Encoding/decoding**: Deterministic conversion between COBOL records and JSONL/structured data
 - **Enterprise error handling**: Stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*) with contextual metadata
+- **Field projection (`--select`)**: Selective field encoding/decoding with ODO auto-dependency and RENAMES alias resolution (R1-R3)
+- **Edited PIC support (E1/E2)**: Parse and decode edited numeric PICTURE clauses (ZZZ9, $ZZ,ZZZ.99, sign editing); encode planned for v0.5.0
 - **Memory-aware streaming**: Streaming I/O architecture with bounded memory; real-world telemetry stays below 256 MiB during decode/encode runs
 
 ### **Quality Signals**
@@ -99,6 +101,12 @@ copybook verify customer.cpy customer-data.bin \
 copybook support                        # Display support matrix table
 copybook support --json                 # Machine-readable JSON output
 copybook support --check level-88       # Validate specific feature (exit 0 if supported)
+
+# Decode with field projection (select specific fields)
+copybook decode customer.cpy customer-data.bin \
+  --output selected-data.jsonl \
+  --format fixed --codepage cp037 \
+  --select "CUSTOMER-ID,BALANCE"
 ```
 
 ### CLI Exit Codes
@@ -825,10 +833,10 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 ### Limitations
 - **Fully Supported**: Level-88 condition values (VALUE clauses) with complete parse, codec, and structural validation (see docs/reference/COBOL_SUPPORT_MATRIX.md for test evidence)
 - **Unsupported**: COMP-1 (single-precision float) and COMP-2 (double-precision float)
-- **Unsupported**: Edited PIC clauses (Z, slash, comma, $, CR, DB)
+- **Partially Supported**: Edited PIC clauses - Phase E1 (parse) ✅, Phase E2 (decode) ✅, Phase E3 (encode) ⏳ v0.5.0
 - **Unsupported**: SIGN LEADING/TRAILING SEPARATE directives
 - **Unsupported**: Nested OCCURS DEPENDING ON arrays (ODO within ODO)
-- **Unsupported**: RENAMES (66-level) items
+- **Partially Supported**: RENAMES (66-level) items - R1-R3 scenarios ✅ (same-scope, group alias, nested groups); R4-R6 out of scope
 
 ## Error Handling
 

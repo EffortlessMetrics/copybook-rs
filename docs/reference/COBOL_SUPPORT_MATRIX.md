@@ -1,7 +1,7 @@
 # COBOL Feature Support Matrix
 
-**Last Updated**: 2025-10-22
-**Version**: copybook-rs v0.3.1
+**Last Updated**: 2025-12-02
+**Version**: copybook-rs v0.4.0
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
 
 > 💡 **Tip**: You can query this matrix programmatically using the CLI:
@@ -27,7 +27,7 @@
 | COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_property_tests.rs` (512+ property cases), `comp3_format_verification.rs`, `decimal_edge_cases.rs` (9 tests) | Nibble sign processing, edge cases, overflow/underflow |
 | BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs`, `binary_roundtrip_fidelity_tests.rs` (11 tests) | Various widths: 1/2/4/8 bytes, signed/unsigned |
 | COMP-1/COMP-2 (`comp-1-comp-2`) | ❌ Not Supported | N/A | Single/double float - by design, not implemented |
-| Edited PIC (`edited-pic`) | ❌ Not Supported | `inspect_edited_pic_fails.rs` | Z, /, $, CR, DB - negative rejection tests exist |
+| Edited PIC (`edited-pic`) | ⚠️ **Partially Supported (E1/E2)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests) | **E1**: Parse ✅ **E2**: Decode ✅ **E3**: Encode ⏳ v0.5.0 (see Edited PIC section below) |
 
 ## Structural Features
 
@@ -69,15 +69,77 @@
 | CP1140 (Euro) | ✅ Fully Supported | 8+ tests in codec suite | Euro currency support |
 | ASCII (supplementary) | ✅ Fully Supported | 12+ tests in codec suite | For comparison/testing purposes |
 
+## Edited PIC Clauses
+
+| Feature | Status | Error Codes | Test Evidence |
+|---------|--------|-------------|---------------|
+| **E1: Parse + Schema** | ✅ Supported | - | `edited_pic_e1_tests.rs` (15 tests) |
+| **E2: Decode (subset)** | ✅ Supported | CBKD421-423 | `edited_pic_decode_e2_tests.rs` (28 tests) |
+| **E3: Encode** | 🔄 Planned v0.5.0 | CBKE4xx | - |
+| Z (zero suppress) | ✅ E1/E2 | - | `test_e2_simple_z_editing_zzz9` |
+| $ (currency) | ✅ E1/E2 | - | `test_e2_currency_dollar_zz_zzz_99` |
+| +/- (sign) | ✅ E1/E2 | - | `test_e2_sign_editing_*` |
+| CR/DB (credit/debit) | ✅ E1/E2 | - | `test_e2_sign_editing_trailing_cr_db` |
+| * (check protect) | ✅ E1/E2 | - | `test_e2_check_protect_asterisk` |
+| BLANK WHEN ZERO | ✅ E1/E2 | CBKD423 | `test_e2_blank_when_zero` |
+| Complex patterns | ✅ E1/E2 | - | `test_e2_complex_patterns` (8 tests) |
+
+**Phase Breakdown**:
+- **E1 (Parse + Schema)**: Parses edited PICTURE clauses into `EditedNumeric` FieldKind with pattern metadata
+- **E2 (Decode)**: Decodes EBCDIC/ASCII edited format to JSON numeric values (well-chosen subset)
+- **E3 (Encode)**: Planned for v0.5.0 - will encode JSON numeric values to edited format
+
+**Well-Chosen Subset (E2)**:
+- ZZZ9 (basic zero suppression)
+- $ZZ,ZZZ.99 (currency with comma/decimal)
+- +/-/CR/DB (sign editing)
+- \*\*\*9 (check protection)
+- BLANK WHEN ZERO clause
+
+## Field Projection
+
+| Feature | Status | Error Codes | Test Evidence |
+|---------|--------|-------------|---------------|
+| **Simple field selection** | ✅ Supported | CBKS703 | `projection_tests.rs::test_projection_simple_field_selection` |
+| **Multiple field selection** | ✅ Supported | - | `projection_tests.rs::test_projection_multiple_fields` |
+| **Group selection** | ✅ Supported | - | `projection_tests.rs::test_projection_group_includes_children` |
+| **ODO auto-counter** | ✅ Supported | CBKS701 | `projection_tests.rs::test_projection_with_odo_auto_counter` |
+| **RENAMES alias (R1-R3)** | ✅ Supported | CBKS702 | `projection_tests.rs::test_projection_with_renames_*` |
+| **CLI --select flag** | ✅ Supported | - | `cli_projection_integration.rs` (6 tests) |
+| **API project_schema()** | ✅ Supported | - | `copybook_core::projection` module |
+
+**Projection Features**:
+- **Comma-separated selection**: `--select "ID,NAME,BALANCE"`
+- **Multiple flags**: `--select "ID" --select "NAME"`
+- **Automatic ODO counter inclusion**: When selecting ODO arrays, counter fields auto-included
+- **RENAMES alias resolution**: Aliases resolve to underlying storage fields (R1-R3)
+- **Parent group preservation**: JSON structure maintains hierarchy
+- **Error validation**: CBKS701 (invalid ODO), CBKS702 (unresolved alias), CBKS703 (field not found)
+
+**CLI Integration**:
+```bash
+# Decode with field projection
+copybook decode schema.cpy data.bin --output selected.jsonl \
+  --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+
+# Encode with field projection
+copybook encode schema.cpy input.jsonl output.bin \
+  --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+
+# Verify with field projection
+copybook verify schema.cpy data.bin \
+  --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+```
+
 ## Error Code Coverage
 
-Comprehensive error taxonomy with **23 discrete codes** tested across **664 test functions**:
+Comprehensive error taxonomy with **29 discrete codes** tested across **664+ test functions**:
 
 ### Parse Errors (CBKP*)
 - `CBKP001_SYNTAX`: Copybook syntax errors
 - `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses (legacy v0.3.1-; now supported in v0.4.0+)
 - Plus 4+ additional parse error codes
 
 ### Schema Validation Errors (CBKS*)
@@ -85,12 +147,19 @@ Comprehensive error taxonomy with **23 discrete codes** tested across **664 test
 - `CBKS141_RECORD_TOO_LARGE`: Record size exceeds maximum limit
 - `CBKS301_ODO_CLIPPED`: ODO bounds enforcement (count > max)
 - `CBKS302_ODO_RAISED`: ODO minimum value validation (count < min)
+- `CBKS701_PROJECTION_INVALID_ODO`: Field projection with invalid ODO counter access
+- `CBKS702_PROJECTION_UNRESOLVED_ALIAS`: Field projection with unresolved RENAMES alias
+- `CBKS703_PROJECTION_FIELD_NOT_FOUND`: Field projection with non-existent field
 
 ### Data Errors (CBKD*)
-- `CBKD*`: 12+ codes for invalid decimals, truncated records, character conversion, numeric overflow
+- `CBKD*`: 15+ codes for invalid decimals, truncated records, character conversion, numeric overflow
+- `CBKD421_EDITED_PIC_INVALID_FORMAT`: Edited PIC decode format mismatch (Phase E2)
+- `CBKD422_EDITED_PIC_SIGN_MISMATCH`: Edited PIC decode sign error (Phase E2)
+- `CBKD423_EDITED_PIC_BLANK_WHEN_ZERO`: Edited PIC BLANK WHEN ZERO handling (Phase E2)
 
 ### Encode Errors (CBKE*)
 - `CBKE*`: 3+ codes for type mismatches, bounds violations, encoding failures
+- `CBKE4xx`: Reserved for Edited PIC encode errors (Phase E3, planned v0.5.0)
 
 See [ERROR_CODES.md](ERROR_CODES.md) for complete reference.
 

@@ -87,6 +87,9 @@ pub fn run(
             } => {
                 format!("RENAMES {from_field} THRU {thru_field}")
             }
+            copybook_core::FieldKind::EditedNumeric { pic_string, .. } => {
+                format!("EDITED PIC {pic_string}")
+            }
         };
 
         let details = if let Some(ref occurs) = field.occurs {

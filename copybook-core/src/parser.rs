@@ -366,7 +366,8 @@ impl Parser {
         // Check all ancestor paths to see if any have redefines_of
         for ancestor in all_fields {
             if field_path.starts_with(&format!("{}.", ancestor.path))
-                && ancestor.redefines_of.is_some() {
+                && ancestor.redefines_of.is_some()
+            {
                 return true;
             }
         }
@@ -379,7 +380,12 @@ impl Parser {
     /// * `field` - The field to validate
     /// * `all_fields` - All fields for counter lookups
     /// * `inside_occurs` - Whether we're already inside an OCCURS/ODO array
-    fn validate_odo_in_group(&self, field: &Field, all_fields: &[&Field], inside_occurs: bool) -> Result<()> {
+    fn validate_odo_in_group(
+        &self,
+        field: &Field,
+        all_fields: &[&Field],
+        inside_occurs: bool,
+    ) -> Result<()> {
         // Check if this field is an ODO array
         if let Some(Occurs::ODO { counter_path, .. }) = &field.occurs {
             // O5: Check for nested ODO (ODO inside OCCURS/ODO)

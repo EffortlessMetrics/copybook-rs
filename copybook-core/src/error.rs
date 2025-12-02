@@ -109,6 +109,12 @@ pub enum ErrorCode {
     CBKS607_RENAME_CROSSES_OCCURS,
     /// CBKS608: RENAMES qualified name not found
     CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND,
+    /// CBKS701: Field projection error - ODO array without accessible counter
+    CBKS701_PROJECTION_INVALID_ODO,
+    /// CBKS702: Field projection error - RENAMES alias spans unselected fields
+    CBKS702_PROJECTION_UNRESOLVED_ALIAS,
+    /// CBKS703: Field projection error - selected field not found in schema
+    CBKS703_PROJECTION_FIELD_NOT_FOUND,
 
     // =============================================================================
     // Record Errors (CBKR*) - Record format and RDW processing
@@ -131,6 +137,8 @@ pub enum ErrorCode {
     CBKD101_INVALID_FIELD_TYPE,
     /// CBKD301: Record data too short for field requirements
     CBKD301_RECORD_TOO_SHORT,
+    /// CBKD302: Edited PIC field encountered during decode (Phase E1: not implemented)
+    CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
     /// CBKD401: Invalid packed decimal nibble value
     CBKD401_COMP3_INVALID_NIBBLE,
     /// CBKD410: Zoned decimal value exceeded numeric capacity
@@ -145,6 +153,12 @@ pub enum ErrorCode {
     CBKD414_ZONED_MIXED_ENCODING,
     /// CBKD415: Zoned encoding detection failed or remains ambiguous
     CBKD415_ZONED_ENCODING_AMBIGUOUS,
+    /// CBKD421: Edited PIC decode failed - invalid format (mismatch between data and pattern)
+    CBKD421_EDITED_PIC_INVALID_FORMAT,
+    /// CBKD422: Edited PIC sign editing mismatch
+    CBKD422_EDITED_PIC_SIGN_MISMATCH,
+    /// CBKD423: Edited PIC blank when zero handling error
+    CBKD423_EDITED_PIC_BLANK_WHEN_ZERO,
 
     // =============================================================================
     // Infrastructure Errors (CBKI*) - Iterator and internal state validation
@@ -207,11 +221,15 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND => {
                 "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND"
             }
+            ErrorCode::CBKS701_PROJECTION_INVALID_ODO => "CBKS701_PROJECTION_INVALID_ODO",
+            ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS => "CBKS702_PROJECTION_UNRESOLVED_ALIAS",
+            ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS703_PROJECTION_FIELD_NOT_FOUND",
             ErrorCode::CBKR211_RDW_RESERVED_NONZERO => "CBKR211_RDW_RESERVED_NONZERO",
             ErrorCode::CBKC201_JSON_WRITE_ERROR => "CBKC201_JSON_WRITE_ERROR",
             ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => "CBKC301_INVALID_EBCDIC_BYTE",
             ErrorCode::CBKD101_INVALID_FIELD_TYPE => "CBKD101_INVALID_FIELD_TYPE",
             ErrorCode::CBKD301_RECORD_TOO_SHORT => "CBKD301_RECORD_TOO_SHORT",
+            ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED => "CBKD302_EDITED_PIC_NOT_IMPLEMENTED",
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE => "CBKD401_COMP3_INVALID_NIBBLE",
             ErrorCode::CBKD410_ZONED_OVERFLOW => "CBKD410_ZONED_OVERFLOW",
             ErrorCode::CBKD411_ZONED_BAD_SIGN => "CBKD411_ZONED_BAD_SIGN",
@@ -219,6 +237,9 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKD413_ZONED_INVALID_ENCODING => "CBKD413_ZONED_INVALID_ENCODING",
             ErrorCode::CBKD414_ZONED_MIXED_ENCODING => "CBKD414_ZONED_MIXED_ENCODING",
             ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => "CBKD415_ZONED_ENCODING_AMBIGUOUS",
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT => "CBKD421_EDITED_PIC_INVALID_FORMAT",
+            ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH => "CBKD422_EDITED_PIC_SIGN_MISMATCH",
+            ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => "CBKD423_EDITED_PIC_BLANK_WHEN_ZERO",
             ErrorCode::CBKI001_INVALID_STATE => "CBKI001_INVALID_STATE",
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH => "CBKE501_JSON_TYPE_MISMATCH",
             ErrorCode::CBKE505_SCALE_MISMATCH => "CBKE505_SCALE_MISMATCH",
@@ -257,18 +278,25 @@ impl ErrorCode {
             | Self::CBKS605_RENAME_FROM_CROSSES_GROUP
             | Self::CBKS606_RENAME_THRU_CROSSES_GROUP
             | Self::CBKS607_RENAME_CROSSES_OCCURS
-            | Self::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND => "CBKS",
+            | Self::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+            | Self::CBKS701_PROJECTION_INVALID_ODO
+            | Self::CBKS702_PROJECTION_UNRESOLVED_ALIAS
+            | Self::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS",
             Self::CBKR211_RDW_RESERVED_NONZERO => "CBKR",
             Self::CBKC201_JSON_WRITE_ERROR | Self::CBKC301_INVALID_EBCDIC_BYTE => "CBKC",
             Self::CBKD101_INVALID_FIELD_TYPE
             | Self::CBKD301_RECORD_TOO_SHORT
+            | Self::CBKD302_EDITED_PIC_NOT_IMPLEMENTED
             | Self::CBKD401_COMP3_INVALID_NIBBLE
             | Self::CBKD410_ZONED_OVERFLOW
             | Self::CBKD411_ZONED_BAD_SIGN
             | Self::CBKD412_ZONED_BLANK_IS_ZERO
             | Self::CBKD413_ZONED_INVALID_ENCODING
             | Self::CBKD414_ZONED_MIXED_ENCODING
-            | Self::CBKD415_ZONED_ENCODING_AMBIGUOUS => "CBKD",
+            | Self::CBKD415_ZONED_ENCODING_AMBIGUOUS
+            | Self::CBKD421_EDITED_PIC_INVALID_FORMAT
+            | Self::CBKD422_EDITED_PIC_SIGN_MISMATCH
+            | Self::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => "CBKD",
             Self::CBKI001_INVALID_STATE => "CBKI",
             Self::CBKE501_JSON_TYPE_MISMATCH
             | Self::CBKE505_SCALE_MISMATCH

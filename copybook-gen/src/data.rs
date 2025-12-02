@@ -172,6 +172,12 @@ fn fill_field_data(
         FieldKind::Group | FieldKind::Condition { .. } | FieldKind::Renames { .. } => {
             // Groups, Level-88, and Level-66 RENAMES fields are filled by their child fields or are metadata only (parse-only Slice-1)
         }
+        FieldKind::EditedNumeric { width, .. } => {
+            // Phase E1: Fill with spaces as placeholder (edited fields not yet decodable)
+            record[start..end].fill(b' ');
+            // Alternatively, could fill with EBCDIC spaces if codepage is EBCDIC
+            let _ = width; // Suppress unused warning
+        }
     }
 
     // Handle OCCURS
@@ -460,6 +466,10 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
         }
         FieldKind::Group | FieldKind::Condition { .. } | FieldKind::Renames { .. } => {
             // Groups, Level-88, and Level-66 RENAMES fields are handled by child fields or are metadata only (parse-only Slice-1)
+        }
+        FieldKind::EditedNumeric { .. } => {
+            // Phase E1: Fill with EBCDIC spaces as placeholder (edited fields not yet decodable)
+            record[start..end].fill(0x40); // EBCDIC space
         }
     }
 }

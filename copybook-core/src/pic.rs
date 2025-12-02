@@ -276,9 +276,7 @@ fn is_edited_pic(pic_str: &str) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
-#[allow(clippy::unwrap_used)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 

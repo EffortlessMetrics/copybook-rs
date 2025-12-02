@@ -5,6 +5,61 @@ All notable changes to copybook-rs will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2025-12-02
+
+### Added
+
+- **Field Projection** (`--select` CLI flag) for decode/encode/verify commands
+  - Comma-separated or multiple `--select` flags for field selection
+  - Automatic ODO counter inclusion when selecting variable arrays
+  - RENAMES alias resolution (R1-R3 scenarios) with alias-aware schema lookup
+  - Parent group preservation to maintain JSON hierarchical structure
+  - Projection API: `copybook_core::project_schema()` for programmatic use
+  - Error codes: CBKS701 (invalid ODO), CBKS702 (unresolved alias), CBKS703 (field not found)
+  - Test coverage: 24+ projection tests across CLI and core modules
+
+- **Edited PIC Phase E1** (Parse + Schema): Parse edited PICTURE clauses into schema
+  - New FieldKind: `EditedNumeric` with editing pattern metadata
+  - Supports editing symbols: Z (zero suppress), $ (currency), comma, +/- (sign), CR/DB (credit/debit), * (check protect)
+  - Available via `copybook inspect` and `copybook parse` commands
+  - Test coverage: 15 parse tests in `edited_pic_e1_tests.rs`
+
+- **Edited PIC Phase E2** (Decode): Decode edited numeric fields to JSON
+  - Well-chosen subset: ZZZ9, $ZZ,ZZZ.99, +/- sign editing, CR/DB, asterisk fill
+  - BLANK WHEN ZERO handling with CBKD423 informational warning
+  - JSON output via JsonNumberMode (lossless/native) for precision preservation
+  - Error codes: CBKD421 (invalid format), CBKD422 (sign mismatch), CBKD423 (blank when zero)
+  - Test coverage: 28 decode tests in `edited_pic_decode_e2_tests.rs`
+
+- **Enhanced RENAMES Test Coverage** (R1-R3): Fixed test coverage for RENAMES scenarios
+  - Fixed boundary test for non-standard level numbers (level 77 detection)
+  - Validated alias-aware schema methods: `find_field_or_alias`, `resolve_alias_to_target`
+  - Test coverage: 8 tests in `schema_alias_lookup_tests.rs`
+
+### Changed
+
+- **Schema Fingerprint**: Now includes edited PIC metadata for cache invalidation
+- **CLI Help Text**: Updated with field projection examples and edited PIC phase notes
+- **Error Reporter**: Integrated new error codes (CBKS701-703, CBKD421-423) with contextual formatting
+
+### Fixed
+
+- **RENAMES Boundary Test**: Fixed test assertion for non-standard level number detection (level 77)
+- **Projection Validation**: Enhanced error messages for ODO counter and alias resolution failures
+- **Edited PIC Parser**: Proper handling of complex editing patterns with multiple symbols
+
+### Performance
+
+- **Field Projection**: Minimal overhead for schema projection (<5% impact)
+- **Edited PIC Decode**: Lockstep algorithm with zero-copy optimization where possible
+- **Baseline Maintained**: DISPLAY 205 MiB/s, COMP-3 58 MiB/s (unchanged from v0.3.1)
+
+### Documentation
+
+- **CLAUDE.md**: Added comprehensive Field Projection and Edited PIC sections with CLI/API examples
+- **ERROR_CODES.md**: Documented CBKS701-703 (projection) and CBKD421-423 (edited PIC) error codes
+- **COBOL_SUPPORT_MATRIX.md**: Updated feature matrix with E1/E2 status and projection support
+
 ## [0.3.0] — 2025-09-22
 ### Added
 - Decode/verify parity for ODO: >max→CBKS301, <min→CBKS302, short→CBKD301

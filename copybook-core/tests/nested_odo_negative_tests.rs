@@ -19,7 +19,7 @@
 //!
 //! Future phases may reconsider these based on user demand with concrete use cases.
 
-use copybook_core::{parse_copybook, ErrorCode};
+use copybook_core::{ErrorCode, parse_copybook};
 
 // =============================================================================
 // O5: Nested ODO (ODO inside ODO) - CBKP022_NESTED_ODO
@@ -31,10 +31,10 @@ fn test_o5_nested_odo_basic_rejection() {
     let copybook = r#"
        01 OUTER-REC.
           05 OUTER-COUNT PIC 9(2).
-          05 OUTER-GROUP OCCURS 1 TO 5 TIMES DEPENDING ON OUTER-COUNT.
+          05 OUTER-GROUP OCCURS 1 TO 50 TIMES DEPENDING ON OUTER-COUNT.
              10 INNER-COUNT PIC 9(2).
-             10 INNER-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON INNER-COUNT.
-                15 VALUE PIC X(10).
+             10 INNER-ARRAY OCCURS 1 TO 100 TIMES DEPENDING ON INNER-COUNT.
+                15 DATA-VALUE PIC X(10).
     "#;
 
     let err = parse_copybook(copybook)
@@ -68,8 +68,7 @@ fn test_o5_nested_odo_double_dynamic() {
                 15 TRANS-DATA PIC X(20).
     "#;
 
-    let err = parse_copybook(copybook)
-        .expect_err("Double dynamic ODO (O5) must be rejected");
+    let err = parse_copybook(copybook).expect_err("Double dynamic ODO (O5) must be rejected");
 
     assert_eq!(
         err.code,
@@ -85,7 +84,7 @@ fn test_o5_nested_odo_deep_nesting() {
     let copybook = r#"
        01 ENTERPRISE-REC.
           05 DEPT-COUNT PIC 9(2).
-          05 DEPARTMENTS OCCURS 1 TO 20 TIMES DEPENDING ON DEPT-COUNT.
+          05 DEPARTMENTS OCCURS 1 TO 200 TIMES DEPENDING ON DEPT-COUNT.
              10 DEPT-NAME PIC X(30).
              10 EMP-COUNT PIC 9(3).
              10 EMPLOYEES OCCURS 1 TO 100 TIMES DEPENDING ON EMP-COUNT.
@@ -93,8 +92,7 @@ fn test_o5_nested_odo_deep_nesting() {
                 15 EMP-NAME PIC X(40).
     "#;
 
-    let err = parse_copybook(copybook)
-        .expect_err("Deep nested ODO (O5) must be rejected");
+    let err = parse_copybook(copybook).expect_err("Deep nested ODO (O5) must be rejected");
 
     assert_eq!(
         err.code,
@@ -117,7 +115,7 @@ fn test_o6_odo_over_redefines_basic() {
           05 TRANS-COUNT PIC 9(2).
           05 TRANS-DATA PIC X(100).
           05 TRANS-DETAIL REDEFINES TRANS-DATA.
-             10 DETAIL-ITEM OCCURS 1 TO 10 TIMES DEPENDING ON TRANS-COUNT.
+             10 DETAIL-ITEM OCCURS 1 TO 100 TIMES DEPENDING ON TRANS-COUNT.
                 15 DETAIL-FIELD PIC X(10).
     "#;
 
@@ -153,8 +151,8 @@ fn test_o6_odo_redefines_complex_overlay() {
                 15 ITEM-AMT PIC 9(5)V99.
     "#;
 
-    let err = parse_copybook(copybook)
-        .expect_err("Complex ODO inside REDEFINES (O6) must be rejected");
+    let err =
+        parse_copybook(copybook).expect_err("Complex ODO inside REDEFINES (O6) must be rejected");
 
     assert_eq!(
         err.code,
@@ -173,7 +171,7 @@ fn test_o6_odo_redefines_enterprise_scenario() {
           05 LINE-COUNT PIC 9(3).
           05 CLAIM-BASE PIC X(200).
           05 CLAIM-MEDICAL REDEFINES CLAIM-BASE.
-             10 PROC-ITEMS OCCURS 1 TO 20 TIMES DEPENDING ON LINE-COUNT.
+             10 PROC-ITEMS OCCURS 1 TO 200 TIMES DEPENDING ON LINE-COUNT.
                 15 DIAG-CODE PIC X(10).
                 15 PROC-CODE PIC X(7).
                 15 PROC-AMT PIC 9(7)V99.
@@ -203,19 +201,17 @@ fn test_o5_o6_combined_nested_odo_and_redefines() {
           05 OUTER-COUNT PIC 9(2).
           05 BASE-DATA PIC X(500).
           05 OUTER-DETAIL REDEFINES BASE-DATA.
-             10 OUTER-ITEMS OCCURS 1 TO 10 TIMES DEPENDING ON OUTER-COUNT.
+             10 OUTER-ITEMS OCCURS 1 TO 100 TIMES DEPENDING ON OUTER-COUNT.
                 15 INNER-COUNT PIC 9(2).
-                15 INNER-ITEMS OCCURS 1 TO 20 TIMES DEPENDING ON INNER-COUNT.
-                   20 VALUE PIC X(10).
+                15 INNER-ITEMS OCCURS 1 TO 200 TIMES DEPENDING ON INNER-COUNT.
+                   20 DATA-VALUE PIC X(10).
     "#;
 
-    let err = parse_copybook(copybook)
-        .expect_err("Combined O5+O6 violation must be rejected");
+    let err = parse_copybook(copybook).expect_err("Combined O5+O6 violation must be rejected");
 
     // Accept either error code (depends on validation order)
     assert!(
-        err.code == ErrorCode::CBKP022_NESTED_ODO
-            || err.code == ErrorCode::CBKP023_ODO_REDEFINES,
+        err.code == ErrorCode::CBKP022_NESTED_ODO || err.code == ErrorCode::CBKP023_ODO_REDEFINES,
         "Expected CBKP022_NESTED_ODO or CBKP023_ODO_REDEFINES, got: {:?}",
         err
     );
@@ -273,13 +269,12 @@ fn test_regression_o4_odo_with_sibling_still_fails() {
     let copybook = r#"
        01 INVALID-REC.
           05 COUNT-FIELD PIC 9(2).
-          05 ITEMS OCCURS 1 TO 10 TIMES DEPENDING ON COUNT-FIELD.
-             10 VALUE PIC X(10).
+          05 ITEMS OCCURS 1 TO 100 TIMES DEPENDING ON COUNT-FIELD.
+             10 ITEM-VALUE PIC X(10).
           05 TRAILER-FIELD PIC X(5).
     "#;
 
-    let err = parse_copybook(copybook)
-        .expect_err("O4 (sibling after ODO) should still fail");
+    let err = parse_copybook(copybook).expect_err("O4 (sibling after ODO) should still fail");
 
     assert_eq!(
         err.code,

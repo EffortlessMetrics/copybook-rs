@@ -508,7 +508,8 @@ impl Parser {
             FieldKind::Alphanum { .. }
             | FieldKind::ZonedDecimal { .. }
             | FieldKind::BinaryInt { .. }
-            | FieldKind::PackedDecimal { .. } => true,
+            | FieldKind::PackedDecimal { .. }
+            | FieldKind::EditedNumeric { .. } => true, // Phase E1: EditedNumeric has storage
             FieldKind::Condition { .. } => false, // Level-88 fields don't have storage
             FieldKind::Renames { .. } => false,   // Level-66 fields don't have storage
         }
@@ -756,11 +757,66 @@ impl Parser {
             Some(TokenPos {
                 token: Token::Sign, ..
             }) => {
-                // SIGN clauses are treated as edited PIC
-                return Err(Error::new(
-                    ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    "SIGN clauses are not supported (treated as edited PIC)",
-                ));
+                // Phase E1: SIGN clauses are treated as edited PIC - convert field to EditedNumeric
+                self.advance();
+                // Consume LEADING/TRAILING and SEPARATE if present
+                if matches!(
+                    self.current_token().map(|t| &t.token),
+                    Some(Token::Leading | Token::Trailing)
+                ) {
+                    self.advance();
+                    // Consume SEPARATE if present after LEADING/TRAILING
+                    if matches!(
+                        self.current_token().map(|t| &t.token),
+                        Some(Token::Separate)
+                    ) {
+                        self.advance();
+                    }
+                }
+
+                // Convert the current field to EditedNumeric
+                // Get the current PIC representation and mark as edited
+                let pic_representation = match &field.kind {
+                    FieldKind::ZonedDecimal {
+                        digits,
+                        scale,
+                        signed,
+                    } => {
+                        let sign_prefix = if *signed { "S" } else { "" };
+                        if *scale > 0 {
+                            format!(
+                                "{sign_prefix}9({})V9({}) SIGN LEADING",
+                                digits - *scale as u16,
+                                scale
+                            )
+                        } else {
+                            format!("{sign_prefix}9({digits}) SIGN LEADING")
+                        }
+                    }
+                    _ => {
+                        // For non-numeric fields, just mark as SIGN (shouldn't happen)
+                        "SIGN LEADING".to_string()
+                    }
+                };
+
+                // Calculate width (same as original numeric display width)
+                let width = match &field.kind {
+                    FieldKind::ZonedDecimal { digits, .. } => *digits + 1, // +1 for sign
+                    _ => field.len as u16,
+                };
+
+                // Extract scale from the original field before conversion
+                let scale = match &field.kind {
+                    FieldKind::ZonedDecimal { scale, .. } => *scale as u16,
+                    _ => 0,
+                };
+
+                field.kind = FieldKind::EditedNumeric {
+                    pic_string: pic_representation,
+                    width,
+                    scale,
+                    signed: true, // SIGN clause implies signed
+                };
             }
             Some(TokenPos {
                 token: Token::Comp, ..
@@ -808,10 +864,9 @@ impl Parser {
                 token: Token::EditedPic(pic),
                 ..
             }) => {
-                return Err(Error::new(
-                    ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("Edited PIC not supported: {}", pic),
-                ));
+                // Phase E1: Accept edited PIC and push to parts for parsing
+                pic_parts.push(pic.clone());
+                self.advance();
             }
             Some(TokenPos {
                 token: Token::Identifier(id),
@@ -853,10 +908,13 @@ impl Parser {
                 signed: pic.signed,
             },
             crate::pic::PicKind::Edited => {
-                return Err(Error::new(
-                    ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    "Edited PIC should have been caught earlier",
-                ));
+                // Phase E2: Parse edited PIC into schema with scale
+                FieldKind::EditedNumeric {
+                    pic_string: pic_str.clone(),
+                    width: pic.digits,
+                    scale: pic.scale as u16,
+                    signed: pic.signed,
+                }
             }
         };
 

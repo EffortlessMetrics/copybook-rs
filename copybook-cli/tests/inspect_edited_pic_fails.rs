@@ -7,12 +7,14 @@ use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
 use test_utils::{TestResult, path_to_str};
 
+/// Test that edited PICs are now supported and can be inspected successfully
+/// Phase E1: Edited PICs parse into schema with EditedNumeric field kind
 #[test]
-fn edited_pic_is_a_hard_error() -> TestResult<()> {
-    // Edited picture (unsupported): ZZ9.99
+fn edited_pic_inspects_successfully() -> TestResult<()> {
+    // Edited picture (supported in E1/E2): ZZZZ (simple zero suppression)
     let cpy = r"
 01 REC.
-   05 AMT PIC ZZ9.99.
+   05 AMT PIC ZZZZ.
 ";
 
     let tmp = assert_fs::TempDir::new()?;
@@ -25,11 +27,14 @@ fn edited_pic_is_a_hard_error() -> TestResult<()> {
         .args(["inspect", copybook_str])
         .output()?;
 
-    assert!(!output.status.success());
-    let mut all = String::new();
-    all.push_str(&String::from_utf8_lossy(&output.stdout));
-    all.push_str(&String::from_utf8_lossy(&output.stderr));
-    assert!(all.contains("CBKP051") && all.contains("edited PIC"));
+    // Should succeed now that edited PICs are supported (Phase E1)
+    assert!(output.status.success(), "inspect should succeed for edited PIC");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Verify the output shows EDITED field kind (human-readable format)
+    assert!(stdout.contains("EDITED"), "Should show EDITED field kind in output");
+    assert!(stdout.contains("ZZZZ"), "Should show the PIC pattern");
 
     Ok(())
 }

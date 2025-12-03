@@ -273,7 +273,39 @@ fn resolve_field_layout(
 
         field.len =
             crate::utils::safe_ops::safe_u64_to_u32(group_size, "group field length calculation")?;
-        let final_offset = group_start_offset + group_size;
+
+        // Calculate effective size including OCCURS on the group
+        let group_effective_size = match &field.occurs {
+            Some(Occurs::Fixed { count }) => {
+                let count_u64 = u64::from(*count);
+                if count_u64 <= 1000 && group_size <= 1000 {
+                    group_size * count_u64
+                } else {
+                    group_size.checked_mul(count_u64).ok_or_else(|| {
+                        error!(
+                            ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                            "Group OCCURS size overflow for field '{}'", field.name
+                        )
+                    })?
+                }
+            }
+            Some(Occurs::ODO { max, .. }) => {
+                let max_u64 = u64::from(*max);
+                if max_u64 <= 1000 && group_size <= 1000 {
+                    group_size * max_u64
+                } else {
+                    group_size.checked_mul(max_u64).ok_or_else(|| {
+                        error!(
+                            ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                            "Group ODO size overflow for field '{}'", field.name
+                        )
+                    })?
+                }
+            }
+            None => group_size,
+        };
+
+        let final_offset = group_start_offset + group_effective_size;
         context.current_offset = final_offset;
 
         Ok(final_offset)
@@ -370,6 +402,29 @@ fn resolve_redefines_field(
         )?;
         context.current_offset = saved_offset; // Restore offset (REDEFINES doesn't advance)
 
+        // Calculate effective size including OCCURS on the group
+        let group_effective_size = match &field.occurs {
+            Some(Occurs::Fixed { count }) => {
+                let count_u64 = u64::from(*count);
+                group_size.checked_mul(count_u64).ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "REDEFINES group OCCURS size overflow for field '{}'", field.name
+                    )
+                })?
+            }
+            Some(Occurs::ODO { max, .. }) => {
+                let max_u64 = u64::from(*max);
+                group_size.checked_mul(max_u64).ok_or_else(|| {
+                    error!(
+                        ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                        "REDEFINES group ODO size overflow for field '{}'", field.name
+                    )
+                })?
+            }
+            None => group_size,
+        };
+
         // Update cluster size
         let cluster_key = target.to_string();
         let (cluster_start, current_max) = context
@@ -378,12 +433,12 @@ fn resolve_redefines_field(
             .copied()
             .unwrap_or((target_offset, 0));
 
-        let new_max = current_max.max(group_size);
+        let new_max = current_max.max(group_effective_size);
         context
             .redefines_clusters
             .insert(cluster_key, (cluster_start, new_max));
 
-        Ok(aligned_offset + group_size)
+        Ok(aligned_offset + group_effective_size)
     } else {
         // Scalar field
         field.len = base_size;

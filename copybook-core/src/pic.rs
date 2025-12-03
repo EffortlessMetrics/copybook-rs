@@ -502,7 +502,7 @@ mod tests {
         assert!(result.is_ok());
         let pic = result.unwrap();
         assert_eq!(pic.kind, PicKind::Edited);
-        assert_eq!(pic.digits, 8); // ZZ,ZZZ.99 = 2 + 1 + 3 + 1 + 2 = 8 display positions
+        assert_eq!(pic.digits, 9); // ZZ,ZZZ.99 = 2 + 1 + 3 + 1 + 2 = 9 display positions
         assert!(!pic.signed); // No sign editing
     }
 

@@ -315,7 +315,7 @@ fn test_e2_check_protect_asterisk() {
 
     let check_amt = json
         .get("fields")
-        .and_then(|f| f.get("CHECK_AMT"))
+        .and_then(|f| f.get("CHECK-AMT"))
         .and_then(|v| v.as_str())
         .unwrap();
 
@@ -334,7 +334,7 @@ fn test_e2_check_protect_no_asterisk() {
 
     let check_amt = json
         .get("fields")
-        .and_then(|f| f.get("CHECK_AMT"))
+        .and_then(|f| f.get("CHECK-AMT"))
         .and_then(|v| v.as_str())
         .unwrap();
 

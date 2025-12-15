@@ -203,10 +203,10 @@ test-time: 24.6s (comprehensive workspace validation)
   - ZERO modifications to production COBOL processing code (copybook-core, copybook-codec)
   - Infrastructure-only changes cannot cause performance regression in COBOL processing
 - **bench-report CLI Validation**: ✅ ALL COMMANDS FUNCTIONAL
-  - `validate test_perf.json`: ✅ Valid performance report, SLO validation working
+  - `validate scripts/bench/perf.json`: ✅ Valid performance report, SLO validation working
   - `baseline show`: ✅ Displays current baseline (4.22 GiB/s DISPLAY, 571 MiB/s COMP-3)
-  - `compare test_perf.json`: ✅ No performance regressions detected
-  - `baseline promote test_perf.json`: ✅ Baseline promotion workflow functional
+  - `compare scripts/bench/perf.json`: ✅ No performance regressions detected
+  - `baseline promote scripts/bench/perf.json`: ✅ Baseline promotion workflow functional
   - `summary`: ✅ Performance summary display working
 - **Benchmark Execution**: PERF=1 benchmarks executed (partial results, long-running)
   - COMP-3 decode: 107-114 MiB/s (microbenchmark, improved 43-70% vs previous run)
@@ -224,10 +224,10 @@ test-time: 24.6s (comprehensive workspace validation)
 
 **Actions**:
 1. Executed `env PERF=1 cargo bench --package copybook-bench` → Long-running, partial results captured
-2. Tested `cargo run --bin bench-report -- validate test_perf.json` → ✅ Valid report
+2. Tested `cargo run --bin bench-report -- validate scripts/bench/perf.json` → ✅ Valid report
 3. Tested `cargo run --bin bench-report -- baseline show` → ✅ Baseline: DISPLAY 4.22 GiB/s, COMP-3 571 MiB/s
-4. Tested `cargo run --bin bench-report -- compare test_perf.json` → ✅ No regressions detected
-5. Tested `cargo run --bin bench-report -- baseline promote test_perf.json` → ✅ Promotion successful
+4. Tested `cargo run --bin bench-report -- compare scripts/bench/perf.json` → ✅ No regressions detected
+5. Tested `cargo run --bin bench-report -- baseline promote scripts/bench/perf.json` → ✅ Promotion successful
 6. Tested `cargo run --bin bench-report -- summary` → ✅ Performance summary displayed
 7. Verified unsafe code count: `grep -rn "unsafe" */src/ | wc -l` → 0 occurrences
 8. Validated clippy compliance: `cargo clippy --all-targets --all-features --workspace` → 0 warnings

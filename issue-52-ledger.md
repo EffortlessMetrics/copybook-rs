@@ -15,7 +15,7 @@
 | docs | pass | complete (CLAUDE.md + README.md + inline); doctests: 2/2 pass; api-docs: comprehensive (baseline + reporting + CLI); cargo-doc: success; issue-52: AC1-AC10 documented; cobol-docs: stable |
 <!-- gates:end -->
 
-> **Note:** Gate telemetry reflects PR #67 snapshots from 2025-09-29. Current measurements (see `test_perf.json`) are significantly lower and should be used for any new status reporting.
+> **Note:** Gate telemetry reflects PR #67 snapshots from 2025-09-29. Current measurements (see `scripts/bench/perf.json`) are significantly lower and should be used for any new status reporting.
 
 <!-- hoplog:start -->
 ### Hop log

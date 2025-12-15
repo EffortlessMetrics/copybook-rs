@@ -891,7 +891,9 @@ impl Parser {
                     pic_parts.push("(".to_string());
                     self.advance();
                 }
-                Token::Number(n) if !pic_parts.is_empty() && pic_parts.last() == Some(&"(".to_string()) => {
+                Token::Number(n)
+                    if !pic_parts.is_empty() && pic_parts.last() == Some(&"(".to_string()) =>
+                {
                     pic_parts.push(n.to_string());
                     self.advance();
                 }

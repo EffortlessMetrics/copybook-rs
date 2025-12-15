@@ -119,7 +119,10 @@ fn test_pr_automation_github_integration() -> Result<(), Box<dyn std::error::Err
         "pr_automation.py must be implemented for GitHub PR automation");
 
     // Test dry-run mode (no actual GitHub API calls)
-    let test_perf_data = workspace_root.join("scripts").join("bench").join("test_perf.json");
+    let test_perf_data = workspace_root
+        .join("scripts")
+        .join("bench")
+        .join("test_perf.sample.json");
     let test_json = r#"{
         "display_gibs": 4.22,
         "comp3_mibs": 571.0,

@@ -28,12 +28,18 @@ fn edited_pic_inspects_successfully() -> TestResult<()> {
         .output()?;
 
     // Should succeed now that edited PICs are supported (Phase E1)
-    assert!(output.status.success(), "inspect should succeed for edited PIC");
+    assert!(
+        output.status.success(),
+        "inspect should succeed for edited PIC"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Verify the output shows EDITED field kind (human-readable format)
-    assert!(stdout.contains("EDITED"), "Should show EDITED field kind in output");
+    assert!(
+        stdout.contains("EDITED"),
+        "Should show EDITED field kind in output"
+    );
     assert!(stdout.contains("ZZZZ"), "Should show the PIC pattern");
 
     Ok(())

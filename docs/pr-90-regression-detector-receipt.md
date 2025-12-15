@@ -487,7 +487,7 @@ cargo run --bin bench-report -p copybook-bench -- baseline show
 #         History entries: 0
 
 # Validate test performance JSON
-cargo run --bin bench-report -p copybook-bench -- validate test_perf.json
+cargo run --bin bench-report -p copybook-bench -- validate scripts/bench/perf.json
 # Output: ✅ Valid performance report
 #         Status: success
 

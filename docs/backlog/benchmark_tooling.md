@@ -2,7 +2,7 @@
 
 **Status**: Open  
 **Maintainer**: TBD → assign during next planning sync  
-**Related artifacts**: `issue-52-ledger.md`, `test_perf.json`, `PERFORMANCE_VALIDATION_FINAL.md`
+**Related artifacts**: `issue-52-ledger.md`, `scripts/bench/perf.json`, `PERFORMANCE_VALIDATION_FINAL.md`
 
 ## Scope
 

@@ -97,7 +97,7 @@ copybook-rs follows these security practices:
 - **Zero unsafe code** - All code maintains Rust's memory safety guarantees
 - **Comprehensive testing** - Including property-based testing with `proptest`
 - **Static analysis** - Regular clippy lints and security-focused reviews
-- **Dependency auditing** - Automated `cargo audit` in CI/CD
+- **Dependency auditing** - `cargo deny` blocks every PR; `cargo audit` runs on lockfile diffs and in scheduled scans
 - **Fuzzing** - Regular fuzzing of parsing logic
 - **Security reviews** - Code review process includes security considerations
 
@@ -107,11 +107,11 @@ copybook-rs implements comprehensive dependency and security scanning to protect
 
 ### Automated Security Scanning
 
-**PR Quality Gate (cargo-audit)**:
-- Every pull request triggers cargo-audit security scanning
+**PR Quality Gate (cargo-deny + conditional cargo-audit)**:
+- Every pull request runs `cargo deny check` (blocking)
+- `cargo audit` runs when `Cargo.lock` changes (or when BASE/HEAD SHAs are available); skips otherwise per policy
 - Scan results uploaded as GitHub Actions artifacts (90-day retention)
-- CI fails on HIGH or CRITICAL vulnerabilities
-- Security receipts available in workflow artifacts
+- CI fails on HIGH or CRITICAL vulnerabilities when `cargo audit` executes
 
 **Weekly Proactive Scanning**:
 - Scheduled Monday 03:00 UTC via `.github/workflows/security-scan.yml`

@@ -9,7 +9,7 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 | Area | Observation | Source |
 |------|-------------|--------|
 | Tests | `cargo nextest` reports 461/462 passing; `copybook-core::test_ac4_performance_large_scale_odo_tail_violation_fail` remains timing-sensitive; eight leak detectors flagged | `integrative_gate_summary.md`
-| Performance | DISPLAY decode ≈82.9 MiB/s (single run passes the 80 MiB/s floor) but aggregate SLO check reports 63.9 MiB/s (−20%); COMP-3 decode ≈17.5 MiB/s (−56% vs 40 MiB/s target) | `test_perf.json`, `PERFORMANCE_VALIDATION_FINAL.md`
+| Performance | Receipts live at `scripts/bench/perf.json` (generated via `scripts/bench.sh`); current measurements are advisory-only and below historic GiB/s targets; see `PERFORMANCE_VALIDATION_FINAL.md` for the latest summarized run | `scripts/bench/perf.json`, `PERFORMANCE_VALIDATION_FINAL.md`
 | Memory | Streaming architecture stays below 256 MiB on reference fixtures | Bench logs (`performance-final-validation.log`)
 | COBOL Coverage | Missing COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, RENAMES (66-level), and 88-level condition names | `README.md`, parser backlog
 | Tooling | Benchmark utilities (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) not implemented; backlog opened | `docs/backlog/benchmark_tooling.md`
@@ -38,7 +38,7 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 ## Interim Guidance
 
 - Run pilot projects only after validating copybooks against the supported feature set
-- Record local benchmark results alongside `test_perf.json` to track drift
+- Record local benchmark results alongside `scripts/bench/perf.json` to track drift (sample fixture: `scripts/bench/test_perf.sample.json`)
 - Reference `README.md`, `docs/REPORT.md`, and this assessment when communicating status to stakeholders
 - Avoid marketing copy that implies production readiness until the actions above are complete
 

@@ -86,7 +86,7 @@ jobs:
           '
 
       - name: Upload perf receipts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: perf-container-json
           path: output/perf.json

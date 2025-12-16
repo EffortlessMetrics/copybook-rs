@@ -92,14 +92,14 @@ jobs:
           sed -i "s/<GIT_SHORT_SHA>/${SHA}/g" docs/telemetry-launch-checklist.md
 
       - name: Upload stamped telemetry checklist (optional)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: telemetry-launch-checklist
           path: docs/telemetry-launch-checklist.md
           retention-days: 30
 
       - name: Upload perf receipts (90 days)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: perf-json
           path: scripts/bench/perf.json

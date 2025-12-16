@@ -12,7 +12,7 @@ use predicates::prelude::*;
 use serde_json::Value;
 use std::fs;
 use tempfile::TempDir;
-use test_utils::{TestResult, copybook_cmd, path_to_str};
+use test_utils::TestResult;
 
 /// Test decode with simple field selection
 #[test]
@@ -48,7 +48,7 @@ fn test_cli_decode_with_select_simple_fields() -> TestResult<()> {
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
-        .arg("cp037")
+        .arg("ascii")
         .arg("--select")
         .arg("CUSTOMER-ID,BALANCE");
 
@@ -58,9 +58,8 @@ fn test_cli_decode_with_select_simple_fields() -> TestResult<()> {
     let output_content = fs::read_to_string(&output_path)?;
     let json: Value = serde_json::from_str(output_content.lines().next().unwrap())?;
 
-    // Should have CUSTOMER-RECORD (parent group) with CUSTOMER-ID and BALANCE
-    assert!(json.get("CUSTOMER-RECORD").is_some());
-    let record = json.get("CUSTOMER-RECORD").unwrap();
+    // Should include selected fields in the output map
+    let record = json.get("fields").unwrap();
     assert!(record.get("CUSTOMER-ID").is_some());
     assert!(record.get("BALANCE").is_some());
     // CUSTOMER-NAME should not be present
@@ -99,7 +98,7 @@ fn test_cli_decode_with_select_comma_separated() -> TestResult<()> {
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
-        .arg("cp037")
+        .arg("ascii")
         .arg("--select")
         .arg("FIELD-A,FIELD-C");
 
@@ -109,7 +108,7 @@ fn test_cli_decode_with_select_comma_separated() -> TestResult<()> {
     let output_content = fs::read_to_string(&output_path)?;
     let json: Value = serde_json::from_str(output_content.lines().next().unwrap())?;
 
-    let record = json.get("RECORD").unwrap();
+    let record = json.get("fields").unwrap();
     assert!(record.get("FIELD-A").is_some());
     assert!(record.get("FIELD-B").is_none());
     assert!(record.get("FIELD-C").is_some());
@@ -146,7 +145,7 @@ fn test_cli_decode_with_select_multiple_flags() -> TestResult<()> {
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
-        .arg("cp037")
+        .arg("ascii")
         .arg("--select")
         .arg("FIELD-A")
         .arg("--select")
@@ -158,7 +157,7 @@ fn test_cli_decode_with_select_multiple_flags() -> TestResult<()> {
     let output_content = fs::read_to_string(&output_path)?;
     let json: Value = serde_json::from_str(output_content.lines().next().unwrap())?;
 
-    let record = json.get("RECORD").unwrap();
+    let record = json.get("fields").unwrap();
     assert!(record.get("FIELD-A").is_some());
     assert!(record.get("FIELD-B").is_some());
 
@@ -193,7 +192,7 @@ fn test_cli_decode_with_select_invalid_field() -> TestResult<()> {
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
-        .arg("cp037")
+        .arg("ascii")
         .arg("--select")
         .arg("NONEXISTENT-FIELD");
 
@@ -235,7 +234,7 @@ fn test_cli_encode_with_projection() -> TestResult<()> {
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
-        .arg("cp037")
+        .arg("ascii")
         .arg("--select")
         .arg("FIELD-A");
 
@@ -264,22 +263,19 @@ fn test_cli_verify_with_projection() -> TestResult<()> {
     fs::write(&data_path, b"AAAAABBBBB")?;
 
     // Verify with projection (only check FIELD-B)
-    let copybook_str = path_to_str(&copybook_path)?;
-    let data_str = path_to_str(&data_path)?;
-    let mut cmd = copybook_cmd(&["verify", copybook_str, data_str]);
-    cmd.arg("--format")
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.arg("verify")
+        .arg(&copybook_path)
+        .arg(&data_path)
+        .arg("--format")
         .arg("fixed")
         .arg("--codepage")
-        .arg("cp037")
+        .arg("ascii")
         .arg("--select")
         .arg("FIELD-B");
 
     // Should pass since we're only validating FIELD-B
-    let output = cmd.output()?;
-    let exit_code = output.status.code().unwrap();
-
-    // Exit code 0 = valid (since we're not checking FIELD-A)
-    assert_eq!(exit_code, 0, "Should pass when only validating FIELD-B");
+    cmd.assert().success();
 
     Ok(())
 }
@@ -316,7 +312,7 @@ fn test_cli_decode_group_selection_includes_children() -> TestResult<()> {
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
-        .arg("cp037")
+        .arg("ascii")
         .arg("--select")
         .arg("GROUP-A");
 
@@ -326,12 +322,11 @@ fn test_cli_decode_group_selection_includes_children() -> TestResult<()> {
     let output_content = fs::read_to_string(&output_path)?;
     let json: Value = serde_json::from_str(output_content.lines().next().unwrap())?;
 
-    let record = json.get("RECORD").unwrap();
-    let group_a = record.get("GROUP-A").unwrap();
-    assert!(group_a.get("FIELD-A1").is_some());
-    assert!(group_a.get("FIELD-A2").is_some());
-    // GROUP-B should not be present
-    assert!(record.get("GROUP-B").is_none());
+    let record = json.get("fields").unwrap();
+    assert!(record.get("FIELD-A1").is_some());
+    assert!(record.get("FIELD-A2").is_some());
+    // GROUP-B fields should not be present
+    assert!(record.get("FIELD-B1").is_none());
 
     Ok(())
 }

@@ -69,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Marked the audit feature as experimental scaffolding; CLI audit commands now emit stubbed reports instead of hardcoded “pass” metrics.
 - Standardised performance receipts on `scripts/bench/perf.json` and demoted legacy `test_perf.json` to a clearly-labelled sample.
 - Synced documentation status/performance messaging with `docs/ROADMAP.md` (engineering preview) and corrected security scanning policy to match CI (cargo-deny always; cargo-audit on lockfile diffs or scheduled runs).
+- Regenerated performance receipts via `scripts/bench.sh` (DISPLAY ≈3.5 GiB/s; COMP-3 ≈30 MiB/s) and updated `PERFORMANCE_VALIDATION_FINAL.md`.
+- Carried forward existing branch deltas in `Cargo.lock`, `copybook-core/src/parser.rs`, and `copybook-cli/tests/inspect_edited_pic_fails.rs`; validate before release.
 
 ## [0.3.1] — 2025-09-23
 

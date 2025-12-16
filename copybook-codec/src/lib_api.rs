@@ -996,6 +996,7 @@ fn is_filler_field(field: &copybook_core::Field) -> bool {
 }
 
 /// Decode a scalar field value from raw data (standard path)
+#[allow(clippy::too_many_lines)]
 fn decode_scalar_field_value_standard(
     field: &copybook_core::Field,
     field_data: &[u8],

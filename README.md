@@ -14,12 +14,12 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 ## Overview
 
-copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis. Latest automated evidence available in `integrative_gate_summary.md` and perf workflow artifacts.
+copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis. Canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`); `integrative_gate_summary.md` is retained as historical evidence only.
 
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI reports 615/615 tests passing (54 skipped); raw data captured in `integrative_gate_summary.md`
+- **Transparent evidence**: CI reports 615/615 tests passing (54 skipped); canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`)
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
@@ -30,13 +30,15 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **COBOL schema parsing**: Lexer, parser, and AST with layout resolution for REDEFINES, ODO, and SYNCHRONIZED
 - **Encoding/decoding**: Deterministic conversion between COBOL records and JSONL/structured data
 - **Enterprise error handling**: Stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*) with contextual metadata
+- **Field projection (`--select`)**: Selective field encoding/decoding with ODO auto-dependency and RENAMES alias resolution (R1-R3)
+- **Edited PIC support (E1/E2)**: Parse and decode edited numeric PICTURE clauses (ZZZ9, $ZZ,ZZZ.99, sign editing); encode planned for v0.5.0
 - **Memory-aware streaming**: Streaming I/O architecture with bounded memory; real-world telemetry stays below 256 MiB during decode/encode runs
 
 ### **Quality Signals**
 - **Deterministic output**: Byte-identical results across runs and worker configurations
 - **Round-trip fidelity**: Zoned decimal metadata preserved to maintain copybook semantics
 - **Memory safety**: Zero `unsafe` in public APIs; pedantic lints enforced across the workspace
-- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; one legacy performance assertion remains flaky (see `integrative_gate_summary.md`)
+- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; one legacy performance assertion remains flaky (see `PERFORMANCE_VALIDATION_FINAL.md` for current perf receipts)
 
 ### **Enterprise Integration**
 - **Multiple EBCDIC Codepages**: CP037, CP273, CP500, CP1047, CP1140 + ASCII support
@@ -99,6 +101,12 @@ copybook verify customer.cpy customer-data.bin \
 copybook support                        # Display support matrix table
 copybook support --json                 # Machine-readable JSON output
 copybook support --check level-88       # Validate specific feature (exit 0 if supported)
+
+# Decode with field projection (select specific fields)
+copybook decode customer.cpy customer-data.bin \
+  --output selected-data.jsonl \
+  --format fixed --codepage cp037 \
+  --select "CUSTOMER-ID,BALANCE"
 ```
 
 ### CLI Exit Codes
@@ -569,16 +577,16 @@ for error in errors {
 
 copybook-rs implements enterprise-grade security scanning and compliance infrastructure:
 
-- **Continuous Vulnerability Monitoring**: cargo-audit on every PR + weekly proactive scans
+- **Dependency Policy**: `cargo deny` gates every PR; `cargo audit` runs when `Cargo.lock` changes and in the weekly scheduled scan
 - **Supply Chain Security**: Enhanced deny.toml policies (no yanked crates, no wildcards, trusted sources only)
 - **Automated Dependency Updates**: Dependabot with grouped security/routine updates
-- **Regulatory Compliance**: SOX, HIPAA, GDPR, PCI DSS audit trail (90-day artifact retention)
+- **Regulatory Compliance**: Compliance profiles exist behind the `audit` feature flag; outputs are experimental stubs (not compliance evidence)
 
 See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerability response procedures.
 
-## Enterprise Audit System
+## Enterprise Audit System (experimental)
 
-copybook-rs includes a comprehensive enterprise audit system for regulatory compliance, security monitoring, and data lineage tracking. The audit system is disabled by default for optimal performance and can be enabled when enterprise features are required.
+The audit feature is experimental scaffolding behind the optional `audit` Cargo feature. CLI commands emit stub JSON (`status: "stub"`) and return a non-zero exit code; do not treat the output as compliance evidence. Use this surface only to explore the intended API shapes.
 
 ### Enabling Enterprise Audit Features
 
@@ -604,7 +612,7 @@ cargo build --workspace --features audit
 
 ### Enterprise Audit CLI Commands
 
-When the audit feature is enabled, the CLI provides comprehensive audit capabilities:
+When the audit feature is enabled, the CLI surfaces the intended commands but currently emits stubbed responses:
 
 ```bash
 # Validate compliance against multiple frameworks
@@ -639,11 +647,13 @@ copybook audit health \
   --output health-report.json
 ```
 
-### Enterprise Library API
+### Enterprise Library API (experimental)
 
 ```rust
 #[cfg(feature = "audit")]
-use copybook_core::audit::*;
+use copybook_core::audit::{AuditContext, ComplianceEngine, ComplianceProfile};
+#[cfg(feature = "audit")]
+use copybook_core::compliance::ComplianceConfig;
 
 #[cfg(feature = "audit")]
 async fn enterprise_audit_example() -> Result<(), Box<dyn std::error::Error>> {
@@ -651,44 +661,26 @@ async fn enterprise_audit_example() -> Result<(), Box<dyn std::error::Error>> {
     let audit_context = AuditContext::new()
         .with_operation_id("financial_data_processing_2024")
         .with_user("data_processor")
-        .with_compliance_profiles(&[ComplianceProfile::SOX, ComplianceProfile::GDPR])
-        .with_security_classification(SecurityClassification::Confidential);
+        .with_compliance_profiles(&[ComplianceProfile::SOX, ComplianceProfile::GDPR]);
 
     // Initialize compliance engine
-    let compliance_engine = ComplianceEngine::new()
-        .with_sox_validation(true)
-        .with_gdpr_validation(true)
-        .with_audit_trail_integrity(true);
+    let compliance_engine = ComplianceEngine::new(ComplianceConfig::default())
+        .with_profiles(&[ComplianceProfile::SOX, ComplianceProfile::GDPR]);
 
     // Validate compliance before processing
     let validation_result = compliance_engine
-        .validate_operation(&audit_context)
+        .validate_processing_operation(&audit_context)
         .await?;
 
     if !validation_result.is_compliant() {
-        for violation in validation_result.violations() {
-            eprintln!("Compliance violation: {} - {}",
-                     violation.violation_id, violation.title);
+        for violation in validation_result.violations {
+            eprintln!(
+                "Compliance violation: {} - {}",
+                violation.violation_id, violation.title
+            );
         }
         return Err("Compliance validation failed".into());
     }
-
-    // Process data with comprehensive auditing
-    let schema = parse_copybook_with_audit(&copybook_text, audit_context.clone())?;
-
-    // Audit trail is automatically maintained throughout processing
-    let processing_result = process_financial_data_with_audit(
-        &schema,
-        "financial-data.bin",
-        &audit_context
-    ).await?;
-
-    // Generate compliance reports
-    let compliance_report = compliance_engine
-        .generate_compliance_report(&processing_result)
-        .await?;
-
-    println!("Compliance status: {:?}", compliance_report.overall_status);
 
     Ok(())
 }
@@ -696,49 +688,13 @@ async fn enterprise_audit_example() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Enterprise Configuration
 
-```yaml
-# copybook-audit.yaml - Enterprise audit configuration
-audit:
-  enabled: true
-  output_format: json
-  retention_days: 2555  # 7 years for SOX compliance
-
-  compliance:
-    sox:
-      enabled: true
-      validation_level: strict
-      retention_years: 7
-    hipaa:
-      enabled: true
-      phi_protection: strict
-      breach_notification: automatic
-    gdpr:
-      enabled: true
-      data_subject_rights: enabled
-      cross_border_monitoring: true
-
-  security:
-    access_monitoring: true
-    anomaly_detection: true
-    encryption_validation: required
-
-  performance:
-    baseline_tracking: true
-    regression_threshold: 0.05  # 5% degradation threshold
-
-  data_lineage:
-    field_level: true
-    transformation_tracking: comprehensive
-```
+Planned configuration (not yet implemented) would centralize compliance, security, and performance knobs in a single YAML file. Treat existing examples as design sketches only.
 
 ### Audit Trail Features
 
-- **Cryptographic Integrity**: SHA-256 chaining for tamper-evident audit trails
-- **Comprehensive Logging**: All operations tracked with detailed context
-- **Compliance Validation**: Automated validation against regulatory requirements
-- **Performance Monitoring**: Baseline tracking and regression detection
-- **Data Lineage**: Field-level transformation tracking and impact analysis
-- **Security Monitoring**: Access pattern analysis and anomaly detection
+- **Experimental surface**: Reports return `status: "stub"` and include an explicit warning note
+- **Compliance validation**: API surfaces `ComplianceEngine` to validate processing operations against selected frameworks
+- **Planned**: cryptographic integrity, data lineage, performance monitoring, and security monitoring once implemented
 
 ### Documentation
 
@@ -825,10 +781,10 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 ### Limitations
 - **Fully Supported**: Level-88 condition values (VALUE clauses) with complete parse, codec, and structural validation (see docs/reference/COBOL_SUPPORT_MATRIX.md for test evidence)
 - **Unsupported**: COMP-1 (single-precision float) and COMP-2 (double-precision float)
-- **Unsupported**: Edited PIC clauses (Z, slash, comma, $, CR, DB)
+- **Partially Supported**: Edited PIC clauses - Phase E1 (parse) ✅, Phase E2 (decode) ✅, Phase E3 (encode) ⏳ v0.5.0
 - **Unsupported**: SIGN LEADING/TRAILING SEPARATE directives
 - **Unsupported**: Nested OCCURS DEPENDING ON arrays (ODO within ODO)
-- **Unsupported**: RENAMES (66-level) items
+- **Partially Supported**: RENAMES (66-level) items - R1-R3 scenarios ✅ (same-scope, group alias, nested groups); R4-R6 out of scope
 
 ## Error Handling
 
@@ -877,7 +833,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo nextest` reports 615/615 passing (54 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (see `integrative_gate_summary.md`)
+- **Tests**: `cargo nextest` reports 615/615 passing (54 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (current receipts in `PERFORMANCE_VALIDATION_FINAL.md`; `integrative_gate_summary.md` retained as historical evidence)
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
 - **Automation gaps**: The Python utilities promised in Issue #52 (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) have not shipped yet; see `docs/backlog/benchmark_tooling.md`
@@ -959,7 +915,7 @@ cargo fmt --all
 
 ### Project Status & Roadmap
 
-### **Current Status: Engineering Preview (v0.3.1)** ⚠️
+### **Current Status: Engineering Preview (v0.4.0)** ⚠️
 
 **Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
 
@@ -977,7 +933,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 3. Review [REPORT.md](docs/REPORT.md) for detailed readiness assessment
 4. Consult [ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
 
-See `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` for detailed validation evidence.
+See `PERFORMANCE_VALIDATION_FINAL.md` for current validation evidence; `integrative_gate_summary.md` is preserved as a historical snapshot.
 
 ### **Development Roadmap**
 See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: v0.5.0 dialect features and benchmark automation (Issue #52).
@@ -1026,7 +982,7 @@ We welcome contributions! Please see [REPORT.md](docs/REPORT.md) for current pro
 - Follow Rust conventions and idioms with clippy pedantic compliance
 - Add comprehensive tests for new features and help retire the remaining flaky/leaky cases highlighted by `cargo nextest`
 - Update documentation for API changes
-- Maintain MSRV compatibility (Rust 1.89)
+- Maintain MSRV compatibility (Rust 1.90)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)
 - Implement Display trait for user-facing types where appropriate
 - Use safe type conversions (try_from() instead of unsafe casts)

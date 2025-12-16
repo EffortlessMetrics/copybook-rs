@@ -33,6 +33,7 @@ pub struct DecodeArgs<'a> {
     pub preserve_zoned_encoding: bool,
     pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
     pub strict_policy: bool,
+    pub select: &'a [String],
 }
 
 #[allow(clippy::too_many_lines)]
@@ -95,6 +96,20 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     };
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
+    // Apply field projection if --select is provided
+    let working_schema = if args.select.is_empty() {
+        schema
+    } else {
+        let selectors = parse_selectors(args.select);
+        info!(
+            "Applying field projection with {} selectors",
+            selectors.len()
+        );
+        copybook_core::project_schema(&schema, &selectors).map_err(|err| {
+            anyhow::anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
+        })?
+    };
+
     // Configure decode options - use strict mode when fail_fast is enabled
     let effective_strict_mode = args.strict || args.fail_fast;
     let effective_max_errors = if args.fail_fast {
@@ -122,9 +137,13 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         let mut result_summary = None;
         atomic_write(args.output, |output_writer| {
             let input_file = fs::File::open(args.input).map_err(std::io::Error::other)?;
-            let summary =
-                copybook_codec::decode_file_to_jsonl(&schema, input_file, output_writer, &options)
-                    .map_err(std::io::Error::other)?;
+            let summary = copybook_codec::decode_file_to_jsonl(
+                &working_schema,
+                input_file,
+                output_writer,
+                &options,
+            )
+            .map_err(std::io::Error::other)?;
             result_summary = Some(summary);
             Ok(())
         })?;
@@ -186,4 +205,14 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     let exit_code =
         determine_exit_code(summary.has_warnings(), summary.has_errors(), ExitCode::Data);
     Ok(exit_code)
+}
+
+/// Parse --select arguments (supports comma-separated and multiple flags)
+fn parse_selectors(select_args: &[String]) -> Vec<String> {
+    select_args
+        .iter()
+        .flat_map(|s| s.split(','))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }

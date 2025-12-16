@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 copybook-rs is a Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and data conversion with focus on correctness and safety.
 
-**Status**: **Engineering Preview** (v0.3.1 maintenance) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
+**Status**: **Engineering Preview** (v0.4.0) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
 **Quality**: 704 tests passing (58 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
@@ -88,6 +88,18 @@ cargo run --bin copybook -- determinism round-trip --format fixed --codepage cp0
 cargo run --bin copybook -- determinism decode --output json --format fixed --codepage cp037 schema.cpy data.bin
 
 # Determinism exit codes: 0=deterministic, 2=non-deterministic, 3=error
+
+# Field projection (select specific fields)
+cargo run --bin copybook -- decode customer.cpy data.bin --output selected.jsonl --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+
+# Multiple --select flags supported
+cargo run --bin copybook -- decode customer.cpy data.bin --output selected.jsonl --format fixed --codepage cp037 --select "CUSTOMER-ID" --select "BALANCE"
+
+# Auto-includes ODO counters
+cargo run --bin copybook -- decode schema.cpy data.bin --output data.jsonl --format fixed --codepage cp037 --select "TRANSACTIONS"  # Counter field included automatically
+
+# RENAMES alias resolution (R1-R3)
+cargo run --bin copybook -- decode schema.cpy data.bin --output data.jsonl --format fixed --codepage cp037 --select "CUSTOMER-HEADER"  # Resolves RENAMES alias
 ```
 
 ## Library API
@@ -153,6 +165,16 @@ suite.add_test(golden_test);
 
 // Validate fixture outputs with SHA-256 verification
 let is_valid = golden_test.validate_string_output("json", &output_json);
+
+// Field projection API for programmatic use
+use copybook_core::project_schema;
+
+// Select specific fields from schema
+let selected_fields = vec!["CUSTOMER-ID".to_string(), "BALANCE".to_string()];
+let projected_schema = project_schema(&schema, &selected_fields)?;
+
+// Projected schema includes parent groups and auto-includes ODO counters
+let json_value = decode_record(&projected_schema, &record_data, &options)?;
 ```
 
 ## Architecture
@@ -174,10 +196,20 @@ let is_valid = golden_test.validate_string_output("json", &output_json);
 ### Error Handling
 Structured error taxonomy with stable codes:
 - `CBKP*`: Parse errors (syntax, unsupported features)
-- `CBKS*`: Schema validation (ODO counters, record limits)
-- `CBKD*`: Data errors (invalid decimals, truncated records)
-- `CBKE*`: Encoding errors (type mismatches, bounds)
+- `CBKS*`: Schema validation (ODO counters, record limits, projection errors)
+- `CBKD*`: Data errors (invalid decimals, truncated records, edited PIC decode errors)
+- `CBKE*`: Encoding errors (type mismatches, bounds, edited PIC encode errors)
 - `CBKR*`: Record format errors (RDW processing, fixed-length records)
+
+**Projection Error Codes** (CBKS7xx):
+- `CBKS701_PROJECTION_INVALID_ODO`: Selected field with ODO but counter not accessible
+- `CBKS702_PROJECTION_UNRESOLVED_ALIAS`: RENAMES alias spans unselected fields
+- `CBKS703_PROJECTION_FIELD_NOT_FOUND`: Selected field name does not exist
+
+**Edited PIC Error Codes** (CBKD4xx, CBKE4xx):
+- `CBKD421_EDITED_PIC_INVALID_FORMAT`: Data doesn't match edited PICTURE pattern
+- `CBKD422_EDITED_PIC_SIGN_MISMATCH`: Sign character mismatch in editing
+- `CBKD423_EDITED_PIC_BLANK_WHEN_ZERO`: Field is all blanks (BLANK WHEN ZERO)
 
 ### Performance Features
 - Scratch buffer optimization for hot paths
@@ -308,18 +340,175 @@ Golden fixtures maintain strict performance requirements aligned with establishe
 
 Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for complete performance analysis.
 
+## Field Projection (`--select`)
+
+The `--select` flag allows selective field decoding/encoding for performance optimization and data minimization:
+
+### Features
+
+- **Comma-separated or multiple flags**: `--select "ID,NAME"` or `--select "ID" --select "NAME"`
+- **Automatic ODO counter inclusion**: When selecting ODO arrays, counter fields are auto-included
+- **RENAMES alias resolution (R1-R3)**: Aliases resolve to their storage fields automatically
+- **Parent group preservation**: JSON structure maintains hierarchical relationships
+- **Error codes**: CBKS701-703 for validation failures
+
+### CLI Examples
+
+```bash
+# Decode specific fields only
+cargo run --bin copybook -- decode schema.cpy data.bin \
+  --output selected.jsonl \
+  --format fixed --codepage cp037 \
+  --select "CUSTOMER-ID,BALANCE"
+
+# Multiple field selection with ODO (counter auto-included)
+cargo run --bin copybook -- decode schema.cpy data.bin \
+  --output selected.jsonl \
+  --format fixed --codepage cp037 \
+  --select "CUSTOMER-ID" --select "TRANSACTIONS"
+
+# RENAMES alias projection (R1-R3)
+cargo run --bin copybook -- decode schema.cpy data.bin \
+  --output selected.jsonl \
+  --format fixed --codepage cp037 \
+  --select "CUSTOMER-HEADER"  # Resolves to aliased fields
+
+# Encode with field projection
+cargo run --bin copybook -- encode --format fixed --codepage cp037 \
+  --select "CUSTOMER-ID,BALANCE" \
+  schema.cpy input.jsonl output.bin
+
+# Verify with field projection
+cargo run --bin copybook -- verify --format fixed --codepage cp037 \
+  --select "CUSTOMER-ID,BALANCE" \
+  schema.cpy data.bin
+```
+
+### Library API
+
+```rust
+use copybook_core::{parse_copybook, project_schema};
+use copybook_codec::{decode_record, DecodeOptions};
+
+// Parse full schema
+let schema = parse_copybook(&copybook_text)?;
+
+// Project to selected fields
+let selected_fields = vec!["CUSTOMER-ID".to_string(), "BALANCE".to_string()];
+let projected_schema = project_schema(&schema, &selected_fields)?;
+
+// Decode with projected schema (only selected fields in output)
+let options = DecodeOptions::new()
+    .with_codepage(Codepage::Cp037);
+let json_value = decode_record(&projected_schema, &record_data, &options)?;
+```
+
+### Projection Behavior
+
+- **Parent groups included**: Schema hierarchy preserved in JSON output
+- **ODO auto-dependency**: Counter fields automatically selected when ODO array is selected
+- **RENAMES resolution**: Aliases resolve to underlying storage fields (R1-R3 scenarios)
+- **Error on invalid selection**: `CBKS703_PROJECTION_FIELD_NOT_FOUND` if field doesn't exist
+- **Error on incomplete ODO**: `CBKS701_PROJECTION_INVALID_ODO` if counter not accessible
+- **Error on partial alias**: `CBKS702_PROJECTION_UNRESOLVED_ALIAS` if alias spans unselected fields
+
+## Edited PIC Support (Phase E1/E2)
+
+copybook-rs now provides parse and decode support for edited numeric PICTURE clauses. Encode support (Phase E3) is planned for v0.5.0.
+
+### Implementation Status
+
+**Phase E1 (Parse + Schema)**: ✅ Complete
+- Parses edited PICTURE clauses (Z, $, comma, +, -, CR, DB, *)
+- Creates `EditedNumeric` FieldKind in schema AST
+- Available via `copybook inspect` command for layout inspection
+
+**Phase E2 (Decode - Well-Chosen Subset)**: ✅ Complete
+- Decodes edited numeric fields to JSON numeric values
+- Supports: zero suppression (Z), currency ($), sign (+, -, CR, DB), asterisk (*)
+- JSON output via `JsonNumberMode` (lossless/native)
+- Error codes: CBKD421-423 for decode failures
+
+**Phase E3 (Encode)**: ⏳ Planned for v0.5.0
+- Will encode JSON numeric values to edited EBCDIC/ASCII formats
+- Error codes: CBKE4xx for encode failures
+
+### Supported Edited PIC Patterns (Phase E2)
+
+| Pattern | Example | Description | Test Evidence |
+|---------|---------|-------------|---------------|
+| ZZZ9 | `PIC ZZZ9` | Basic zero suppression | `test_e2_simple_z_editing_zzz9` |
+| ZZZ9.99 | `PIC ZZZ9.99` | With decimal point | `test_e2_zero_suppression_with_decimal` |
+| $ZZ,ZZZ.99 | `PIC $ZZ,ZZZ.99` | Currency with comma and decimal | `test_e2_currency_dollar_zz_zzz_99` |
+| +/-/CR/DB | `PIC +ZZZ9`, `PIC -ZZZ9` | Sign editing | `test_e2_sign_editing_*` |
+| \*\*\*9 | `PIC ***9` | Check protect (asterisk fill) | `test_e2_check_protect_asterisk` |
+| BLANK WHEN ZERO | `PIC ZZZ9 BLANK WHEN ZERO` | All-blank for zero | `test_e2_blank_when_zero` |
+
+### CLI Examples
+
+```bash
+# Decode edited PIC fields (Phase E2)
+cargo run --bin copybook -- decode schema.cpy data.bin \
+  --output data.jsonl \
+  --format fixed --codepage cp037 \
+  --json-number lossless  # Preserve edited numeric precision
+
+# Inspect edited PIC layout (Phase E1)
+cargo run --bin copybook -- inspect schema.cpy
+# Output shows EditedNumeric field kind with pattern details
+
+# Parse edited PIC to schema JSON (Phase E1)
+cargo run --bin copybook -- parse schema.cpy --output schema.json
+# Schema JSON includes EditedNumeric kind with editing metadata
+```
+
+### COBOL Copybook Examples
+
+```cobol
+      * Phase E1: Parsed into EditedNumeric schema
+05 AMOUNT        PIC $ZZ,ZZZ.99.
+05 QUANTITY      PIC ZZZ9.
+05 BALANCE       PIC +ZZ,ZZZ.99-.
+05 CHECK-AMT     PIC ***,**9.99.
+05 DISCOUNT      PIC ZZ9 BLANK WHEN ZERO.
+
+      * Phase E2: Decode EBCDIC edited format → JSON numeric
+      * Decode converts: " $1,234.56" → "1234.56" (lossless)
+      *                  "    0" → "0" (BLANK WHEN ZERO)
+
+      * Phase E3 (Planned v0.5.0): Encode JSON → EBCDIC edited format
+```
+
+### Error Codes
+
+- **CBKD421_EDITED_PIC_INVALID_FORMAT**: Data doesn't match edited PICTURE pattern
+- **CBKD422_EDITED_PIC_SIGN_MISMATCH**: Sign character mismatch (expected +/-, CR, or DB)
+- **CBKD423_EDITED_PIC_BLANK_WHEN_ZERO**: Field is all blanks (informational warning)
+
+### Design Documentation
+
+- See `docs/design/EDITED_PIC_PHASES.md` for complete phase breakdown (E1/E2/E3)
+- See `copybook-codec/tests/edited_pic_decode_e2_tests.rs` for 28 comprehensive decode tests
+- See `copybook-core/tests/edited_pic_e1_tests.rs` for 15 parse tests
+
 ## Known Limitations & Roadmap
 
-**Current Status**: Engineering Preview (v0.3.1 maintenance) - ROADMAP.md is the canonical status source.
+**Current Status**: Engineering Preview (v0.4.0) - ROADMAP.md is the canonical status source.
 
 ### Unsupported COBOL Features
 - COMP-1/COMP-2 floating-point types (rare in practice)
-- Edited PIC clauses (Z, /, comma, $, CR, DB)
+- Edited PIC Phase E3 (encode) – planned for v0.5.0; parse (E1) and decode (E2) fully supported
 - SIGN LEADING/TRAILING SEPARATE directives
-- Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) interactions with REDEFINES/OCCURS – R1-R3 scenarios (same-scope, group alias, nested group) fully supported with alias-aware Schema API; REDEFINES/OCCURS interactions (R4-R6) out of scope (see docs/design/RENAMES_NESTED_GROUPS.md and docs/reference/COBOL_SUPPORT_MATRIX.md)
+- Nested OCCURS DEPENDING ON (O5: ODO inside ODO) – rejected by design; see Issue #164
+- ODO over REDEFINES (O6) – rejected by design; see Issue #164
+- RENAMES interactions with REDEFINES/OCCURS (R4-R6) – out of scope; see docs/design/RENAMES_NESTED_GROUPS.md
 
-**Note**: Level-88 condition values and RENAMES R1-R3 (same-scope fields, group alias, nested groups) are fully supported (parse + resolver + codec-ready alias lookup). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
+**Note**:
+- **OCCURS/ODO support** (O1-O4): Simple tail ODO ✅, tail ODO with DYNAMIC ✅, group-with-ODO tail ✅, ODO with sibling after 🚫 (CBKP021_ODO_NOT_TAIL). See docs/design/NESTED_ODO_BEHAVIOR.md and docs/reference/COBOL_SUPPORT_MATRIX.md for complete O1-O7 scenario breakdown.
+- **RENAMES support** (R1-R3): Same-scope fields ✅, group alias ✅, nested groups ✅ with alias-aware Schema API. See docs/design/RENAMES_NESTED_GROUPS.md for complete specification.
+- **Level-88 condition values**: Fully supported (parse + codec + structural validation). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
+- **Edited PIC support** (E1/E2): Parse ✅, decode ✅, encode ⏳ v0.5.0. See Field Projection and Edited PIC sections above for details.
+- **Field projection**: Fully supported (`--select` flag) with ODO auto-dependency and RENAMES alias resolution (R1-R3).
 
 ### Performance Considerations
 - Baseline established at 205 MiB/s (DISPLAY) and 58 MiB/s (COMP-3) on reference hardware (commit 1fa63633)

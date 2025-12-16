@@ -1,6 +1,6 @@
 # copybook-rs Roadmap
 
-**Status:** ⚠️ Engineering Preview (v0.3.1 maintenance)
+**Status:** ⚠️ Engineering Preview (v0.3.2 maintenance)
 
 > **Canonical Status Source**: This file is the authoritative reference for copybook-rs project status, adoption guidance, and development timeline. For detailed technical assessment, see [REPORT.md](REPORT.md).
 
@@ -17,7 +17,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ---
 
-## Milestone v0.4.0 — Distribution & CI ✅ **SHIPPED** (v0.3.1)
+## Milestone v0.4.0 — Distribution & CI ✅ **SHIPPED** (v0.3.2)
 
 ### Objectives
 
@@ -28,7 +28,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **READY**
 
    * ✅ crate metadata: categories, keywords, readme path, license files included
-   * ✅ workspace dependencies configured for version-based publishing (=0.3.1)
+   * ✅ workspace dependencies configured for version-based publishing (=0.3.2)
    * ✅ publish dry-run validation in CI
    * ✅ automated publish workflow for tagged releases
    * 🔄 docs.rs builds for all crates (will complete after first publish)
@@ -56,7 +56,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 ### Exit Criteria ⚠️ PARTIAL
 
 * ✅ `cargo publish` sequence ready; dry-run passes for all crates
-* ✅ Version pinned (0.3.1) with exact internal dependencies
+* ✅ Version pinned (0.3.2) with exact internal dependencies
 * ✅ Golden fixtures all pass; structural constraints properly validated
 * ✅ Benchmark tooling implemented (`bench-report` CLI with baseline management)
 * ❌ CI integration: PR comments and artifact uploads not yet automated
@@ -64,7 +64,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ### **Status: ⚠️ Incomplete (follow-ups required)**
 
-**Released**: 2025-09-23 (v0.3.1)
+**Released**: 2025-09-23 (v0.3.1; maintained at v0.3.2)
 **Includes**: IndexMap deterministic JSON output, golden fixtures validation, docs navigation refresh, bench-report CLI
 **Outstanding**: GitHub Actions integration (PR comments, artifact uploads); SLO enforcement automation
 

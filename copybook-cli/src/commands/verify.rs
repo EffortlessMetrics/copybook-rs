@@ -83,7 +83,9 @@ pub fn run(
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Apply field projection if --select is provided
-    let working_schema = if !opts.select.is_empty() {
+    let working_schema = if opts.select.is_empty() {
+        schema
+    } else {
         let selectors = parse_selectors(opts.select);
         info!(
             "Applying field projection with {} selectors",
@@ -91,13 +93,9 @@ pub fn run(
         );
         copybook_core::project_schema(&schema, &selectors).map_err(|err| {
             anyhow::anyhow!(
-                "Failed to apply field projection with selectors {:?}: {}",
-                selectors,
-                err
+                "Failed to apply field projection with selectors {selectors:?}: {err}"
             )
         })?
-    } else {
-        schema
     };
 
     // Get file metadata

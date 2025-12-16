@@ -5,9 +5,9 @@ All notable changes to copybook-rs are documented here. This root file is the ca
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] — Draft (not released)
+## [0.4.0] — 2025-12-16
 
-> Draft notes retained from earlier documentation. This milestone has not been published.
+> Minor release with projection support and edited PIC decode.
 
 ### Added
 
@@ -47,8 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **RENAMES Boundary Test**: Fixed test assertion for non-standard level number detection (level 77)
-- **Projection Validation**: Enhanced error messages for ODO counter and alias resolution failures
+- **Projection Validation**: Enhanced error messages for ODO counter and alias resolution failures; parent groups now materialize before ODO counter inference to avoid CBKS701 when selecting nested leaves; fixed-format LRECL is preserved during projection even when tail ODO metadata is present
 - **Edited PIC Parser**: Proper handling of complex editing patterns with multiple symbols
+- **SIGN Clause Handling**: SIGN LEADING/TRAILING now rejects with CBKP051 until decode semantics are implemented to avoid tokenizer failures
+- **Edited PIC BLANK WHEN ZERO**: CBKD423 downgraded to a warning and emitted when fields are blankified
 
 ### Performance
 
@@ -62,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ERROR_CODES.md**: Documented CBKS701-703 (projection) and CBKD421-423 (edited PIC) error codes
 - **COBOL_SUPPORT_MATRIX.md**: Updated feature matrix with E1/E2 status and projection support
 
-## [0.3.2] — Unreleased
+## [0.3.2] — Unreleased (superseded by 0.4.0)
 
 ### Fixed
 - Aligned workspace `rust-version` with the CI-tested toolchain (Rust 1.90) and refreshed MSRV messaging.

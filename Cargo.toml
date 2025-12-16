@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.3.2"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.90"  # MSRV aligned with CI test matrix (see .github/workflows/ci.yml line 44)
 license = "AGPL-3.0-or-later"
@@ -23,8 +23,8 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
 # Internal workspace crates (pin exact versions for publish)
-copybook-core = { version = "=0.3.2", path = "copybook-core" }
-copybook-codec = { version = "=0.3.2", path = "copybook-codec" }
+copybook-core = { version = "=0.4.0", path = "copybook-core" }
+copybook-codec = { version = "=0.4.0", path = "copybook-codec" }
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }

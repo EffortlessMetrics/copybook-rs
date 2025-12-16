@@ -146,7 +146,11 @@ pub enum Token {
     RightParen,
 
     // Comments
-    #[regex(r"\*>.*", callback = |lex| lex.slice()[2..].trim().to_string())]
+    #[regex(
+        r"\*>[^\r\n]*",
+        callback = |lex| lex.slice()[2..].trim().to_string(),
+        allow_greedy = true
+    )]
     InlineComment(String),
 
     // Newlines (important for line tracking)

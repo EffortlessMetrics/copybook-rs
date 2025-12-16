@@ -1304,10 +1304,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
                     if should_recompute {
                         // Recompute length header
                         let capped_len = field_payload.len().min(u16::MAX as usize);
-                        let new_length = match u16::try_from(capped_len) {
-                            Ok(len) => len,
-                            Err(_) => u16::MAX,
-                        };
+                        let new_length = u16::try_from(capped_len).unwrap_or(u16::MAX);
                         let length_bytes = new_length.to_be_bytes();
                         rdw_record[0] = length_bytes[0];
                         rdw_record[1] = length_bytes[1];
@@ -1741,10 +1738,7 @@ pub fn decode_file_to_jsonl(
     }
 
     let elapsed_ms = start_time.elapsed().as_millis();
-    summary.processing_time_ms = match u64::try_from(elapsed_ms) {
-        Ok(milliseconds) => milliseconds,
-        Err(_) => u64::MAX,
-    };
+    summary.processing_time_ms = u64::try_from(elapsed_ms).unwrap_or(u64::MAX);
     summary.calculate_throughput();
     summary.warnings = WARNING_COUNTER.with(|counter| *counter.borrow());
     telemetry::record_completion(
@@ -1966,10 +1960,7 @@ pub fn encode_jsonl_to_file(
 
     summary.records_processed = record_count;
     let elapsed_ms = start_time.elapsed().as_millis();
-    summary.processing_time_ms = match u64::try_from(elapsed_ms) {
-        Ok(milliseconds) => milliseconds,
-        Err(_) => u64::MAX,
-    };
+    summary.processing_time_ms = u64::try_from(elapsed_ms).unwrap_or(u64::MAX);
     summary.calculate_throughput();
 
     Ok(summary)

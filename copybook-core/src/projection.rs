@@ -88,12 +88,16 @@ pub fn project_schema(schema: &Schema, selections: &[String]) -> Result<Schema> 
         }
     }
 
-    // Step 2: Find and add ODO counter dependencies
-    let odo_counters = find_odo_counters(schema, &schema.fields, &selected_paths);
-    selected_paths.extend(odo_counters);
-
-    // Step 3: Add parent groups for structural integrity
+    // Step 2: Add parent groups first so ODO detection sees ancestor arrays
     add_parent_groups(schema, &mut selected_paths);
+
+    // Step 3: Find and add ODO counter dependencies (after parents are present)
+    let odo_counters = find_odo_counters(schema, &schema.fields, &selected_paths);
+    if !odo_counters.is_empty() {
+        selected_paths.extend(odo_counters);
+        // Ensure newly added counters bring their parent groups along
+        add_parent_groups(schema, &mut selected_paths);
+    }
 
     // Step 4: Validate projection has no structural errors
     validate_projection(schema, &selected_paths)?;
@@ -112,17 +116,8 @@ pub fn project_schema(schema: &Schema, selections: &[String]) -> Result<Schema> 
         projected_schema.tail_odo = Some(tail_odo.clone());
     }
 
-    // Preserve lrecl_fixed if there's no variable-length array in projected schema
-    // This allows fixed-format decoding to work with projected schemas
-    if schema.tail_odo.is_none() && projected_schema.tail_odo.is_none() {
-        // No ODO arrays - safe to preserve original LRECL
-        // Note: This assumes projecting fields doesn't change field offsets
-        // which is true since we preserve parent groups and field structure
-        projected_schema.lrecl_fixed = schema.lrecl_fixed;
-    } else {
-        // Has variable-length arrays - LRECL may be invalid for projection
-        projected_schema.lrecl_fixed = None;
-    }
+    // Preserve the physical record contract regardless of projection contents
+    projected_schema.lrecl_fixed = schema.lrecl_fixed;
 
     // Recalculate fingerprint for the new schema
     projected_schema.calculate_fingerprint();
@@ -286,7 +281,7 @@ fn filter_fields(fields: &[Field], selected: &HashSet<String>) -> Vec<Field> {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::schema::{FieldKind, ResolvedRenames};
+    use crate::schema::{FieldKind, ResolvedRenames, TailODO};
 
     fn create_simple_schema() -> Schema {
         let mut root = Field::new(1, "ROOT".to_string());
@@ -397,6 +392,48 @@ mod tests {
     }
 
     #[test]
+    fn test_odo_counter_added_when_selecting_leaf() {
+        let mut root = Field::new(1, "ROOT".to_string());
+        root.path = "ROOT".to_string();
+        root.kind = FieldKind::Group;
+
+        let mut counter = Field::new(5, "CTR".to_string());
+        counter.path = "ROOT.CTR".to_string();
+        counter.kind = FieldKind::ZonedDecimal {
+            digits: 2,
+            scale: 0,
+            signed: false,
+        };
+        counter.len = 2;
+
+        let mut odo_array = Field::new(5, "ITEMS".to_string());
+        odo_array.path = "ROOT.ITEMS".to_string();
+        odo_array.kind = FieldKind::Group;
+        odo_array.occurs = Some(Occurs::ODO {
+            min: 0,
+            max: 5,
+            counter_path: "ROOT.CTR".to_string(),
+        });
+
+        let mut item_field = Field::new(10, "ITEM_ID".to_string());
+        item_field.path = "ROOT.ITEMS.ITEM_ID".to_string();
+        item_field.kind = FieldKind::Alphanum { len: 3 };
+        item_field.len = 3;
+
+        odo_array.children = vec![item_field];
+        root.children = vec![counter, odo_array];
+
+        let schema = Schema::from_fields(vec![root]);
+
+        // Select only the leaf inside the ODO array; counter should still be added
+        let projected = project_schema(&schema, &["ITEM_ID".to_string()]).unwrap();
+        let root_children = &projected.fields[0].children;
+        assert_eq!(root_children.len(), 2);
+        assert!(root_children.iter().any(|f| f.name == "CTR"));
+        assert!(root_children.iter().any(|f| f.name == "ITEMS"));
+    }
+
+    #[test]
     fn test_renames_alias_expansion() {
         let mut root = Field::new(1, "ROOT".to_string());
         root.path = "ROOT".to_string();
@@ -476,5 +513,51 @@ mod tests {
         assert_eq!(collected.len(), 2);
         assert!(collected.contains("GROUP.CHILD1"));
         assert!(collected.contains("GROUP.CHILD2"));
+    }
+
+    #[test]
+    fn test_lrecl_preserved_even_with_tail_odo() {
+        let mut root = Field::new(1, "ROOT".to_string());
+        root.path = "ROOT".to_string();
+        root.kind = FieldKind::Group;
+
+        let mut counter = Field::new(5, "CTR".to_string());
+        counter.path = "ROOT.CTR".to_string();
+        counter.kind = FieldKind::ZonedDecimal {
+            digits: 2,
+            scale: 0,
+            signed: false,
+        };
+        counter.len = 2;
+
+        let mut odo_array = Field::new(5, "ITEMS".to_string());
+        odo_array.path = "ROOT.ITEMS".to_string();
+        odo_array.kind = FieldKind::Group;
+        odo_array.occurs = Some(Occurs::ODO {
+            min: 0,
+            max: 5,
+            counter_path: "ROOT.CTR".to_string(),
+        });
+
+        let mut item_field = Field::new(10, "ITEM_ID".to_string());
+        item_field.path = "ROOT.ITEMS.ITEM_ID".to_string();
+        item_field.kind = FieldKind::Alphanum { len: 3 };
+        item_field.len = 3;
+
+        odo_array.children = vec![item_field];
+        root.children = vec![counter, odo_array];
+
+        let mut schema = Schema::from_fields(vec![root]);
+        schema.lrecl_fixed = Some(32);
+        schema.tail_odo = Some(TailODO {
+            counter_path: "ROOT.CTR".to_string(),
+            min_count: 0,
+            max_count: 5,
+            array_path: "ROOT.ITEMS".to_string(),
+        });
+
+        let projected = project_schema(&schema, &["CTR".to_string()]).unwrap();
+        assert_eq!(projected.lrecl_fixed, Some(32));
+        assert!(projected.tail_odo.is_none());
     }
 }

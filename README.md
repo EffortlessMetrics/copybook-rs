@@ -915,7 +915,7 @@ cargo fmt --all
 
 ### Project Status & Roadmap
 
-### **Current Status: Engineering Preview (v0.3.2)** ⚠️
+### **Current Status: Engineering Preview (v0.4.0)** ⚠️
 
 **Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
 

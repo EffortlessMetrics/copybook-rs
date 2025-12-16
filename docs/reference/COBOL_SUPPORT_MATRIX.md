@@ -46,8 +46,8 @@
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| SIGN LEADING | ✅ Fully Supported | `zoned_encoding_format_tests.rs` | Standard zoned decimal with leading sign |
-| SIGN TRAILING | ✅ Fully Supported | `zoned_encoding_format_tests.rs` | Standard zoned decimal with trailing sign |
+| SIGN LEADING clause | ❌ Not Supported | N/A | SIGN clause rejected; use signed zoned PIC without the SIGN keyword |
+| SIGN TRAILING clause | ❌ Not Supported | N/A | SIGN clause rejected; use signed zoned PIC without the SIGN keyword |
 | SIGN SEPARATE (`sign-separate`) | ❌ Not Supported | N/A | See Issue #44 for planned implementation |
 | Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `zoned_encoding_format_tests.rs`, `zoned_overpunch.rs` (8 tests) | Comprehensive overpunch with EBCDIC zones |
 

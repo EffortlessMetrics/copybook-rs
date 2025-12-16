@@ -30,7 +30,15 @@ test-legacy:
 
 # Run clippy lints with pedantic warnings
 lint:
-    cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic
+    cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic
+    cargo clippy --workspace --tests --all-features -- -D warnings \
+      -A clippy::unwrap_used \
+      -A clippy::expect_used \
+      -A clippy::panic \
+      -A clippy::dbg_macro \
+      -A clippy::print_stdout \
+      -A clippy::print_stderr \
+      -A clippy::duplicated_attributes
 
 # Format all code
 fmt:

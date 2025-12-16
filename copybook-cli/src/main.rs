@@ -185,7 +185,13 @@ enum Commands {
     /// Decode binary data to JSONL
     #[command(
         after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable.\n\
-Zoned policy: override → preserved → preferred."
+Zoned policy: override → preserved → preferred.\n\n\
+Field Projection:\n\
+  Use --select to include specific fields in output (comma-separated or multiple flags).\n\
+  Examples:\n\
+    --select \"CUSTOMER-ID,BALANCE\"\n\
+    --select CUSTOMER-ID --select BALANCE\n\
+  ODO counters and parent groups are automatically included."
     )]
     Decode {
         /// Copybook file path
@@ -238,11 +244,21 @@ Zoned policy: override → preserved → preferred."
         /// Example: prefer EBCDIC 'F' zero punch for zero.
         #[arg(long, value_enum, default_value_t = ZonedEncodingPreference::Preferred)]
         preferred_zoned_encoding: ZonedEncodingPreference,
+        /// Select specific fields to include in output (comma-separated or multiple flags)
+        /// Automatically includes ODO counters and parent groups for structure
+        #[arg(long, value_name = "FIELD[,FIELD...]")]
+        select: Vec<String>,
     },
     /// Encode JSONL to binary data
     #[command(
         after_help = "Comments: inline (*>) allowed by default; use --strict-comments to disable.\n\
-Zoned policy: override → preserved → preferred."
+Zoned policy: override → preserved → preferred.\n\n\
+Field Projection:\n\
+  Use --select to validate only specific fields during encoding (comma-separated or multiple flags).\n\
+  Examples:\n\
+    --select \"CUSTOMER-ID,BALANCE\"\n\
+    --select CUSTOMER-ID --select BALANCE\n\
+  ODO counters and parent groups are automatically included."
     )]
     Encode {
         /// Copybook file path
@@ -285,6 +301,10 @@ Zoned policy: override → preserved → preferred."
         /// Force zoned encoding format (ascii|ebcdic), ignoring preserved/preferred.
         #[arg(long, value_enum)]
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+        /// Select specific fields to validate during encoding (comma-separated or multiple flags)
+        /// Automatically includes ODO counters and parent groups for structure
+        #[arg(long, value_name = "FIELD[,FIELD...]")]
+        select: Vec<String>,
     },
     /// Enterprise audit system for regulatory compliance
     #[cfg(feature = "audit")]
@@ -309,7 +329,14 @@ Exit codes:
   2 = fatal error (I/O, schema)
 Report schema: docs/VERIFY_REPORT.schema.json
 
-Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
+Comments: inline (*>) allowed by default; use --strict-comments to disable.
+
+Field Projection:
+  Use --select to validate only specific fields (comma-separated or multiple flags).
+  Examples:
+    --select \"CUSTOMER-ID,BALANCE\"
+    --select CUSTOMER-ID --select BALANCE
+  ODO counters and parent groups are automatically included.")]
     Verify {
         /// Copybook file path
         copybook: PathBuf,
@@ -336,6 +363,10 @@ Comments: inline (*>) allowed by default; use --strict-comments to disable.")]
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
+        /// Select specific fields to validate (comma-separated or multiple flags)
+        /// Automatically includes ODO counters and parent groups for structure
+        #[arg(long, value_name = "FIELD[,FIELD...]")]
+        select: Vec<String>,
     },
     /// Display COBOL support matrix or check copybook compatibility
     Support {
@@ -532,6 +563,7 @@ fn run() -> anyhow::Result<ExitCode> {
             strict_comments,
             preserve_zoned_encoding,
             preferred_zoned_encoding: preferred_zoned_encoding_cli,
+            select,
         } => (
             crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
                 copybook: &copybook,
@@ -552,6 +584,7 @@ fn run() -> anyhow::Result<ExitCode> {
                 preserve_zoned_encoding,
                 preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
                 strict_policy,
+                select: &select,
             }),
             "decode",
         ),
@@ -570,6 +603,7 @@ fn run() -> anyhow::Result<ExitCode> {
             coerce_numbers,
             strict_comments,
             zoned_encoding_override,
+            select,
         } => (
             crate::commands::encode::run(
                 &copybook,
@@ -587,6 +621,7 @@ fn run() -> anyhow::Result<ExitCode> {
                     coerce_numbers,
                     strict_comments,
                     zoned_encoding_override,
+                    select: &select,
                 },
             ),
             "encode",
@@ -612,6 +647,7 @@ fn run() -> anyhow::Result<ExitCode> {
             max_errors,
             sample,
             strict_comments,
+            select,
         } => {
             let value = max_errors.unwrap_or(10);
             let normalized_max_errors = u32::try_from(value).map_err(|_| {
@@ -628,6 +664,7 @@ fn run() -> anyhow::Result<ExitCode> {
                 max_errors: normalized_max_errors,
                 sample: sample.unwrap_or(5),
                 strict_comments,
+                select: &select,
             };
             (
                 crate::commands::verify::run(&copybook, &input, report, &opts),

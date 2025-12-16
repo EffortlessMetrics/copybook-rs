@@ -1,56 +1,11 @@
-# Changelog
+# Changelog (Docs)
 
-All notable changes to copybook-rs will be documented in this file.
+The canonical changelog now lives at the repository root in `CHANGELOG.md` so release workflows and publish notes point at a single source of truth. This file remains in `docs/` to avoid broken links and to redirect readers:
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+- Current changelog: see `../CHANGELOG.md`
+- Status docs: see `docs/ROADMAP.md` for adoption guidance and release posture
 
-## [0.3.0] — 2025-09-22
-### Added
-- Decode/verify parity for ODO: >max→CBKS301, <min→CBKS302, short→CBKD301
-- Counter-type twins (zoned/binary/packed) + verify twins
-- Structural tail rule (last storage sibling), allows children inside ODO
-
-### Changed
-- Layout validation: retain counter existence checks; tail check is structural
-
-### Performance
-- DISPLAY 4–5 GiB/s; COMP-3 50–70 MiB/s (SLOs far exceeded)
-
-## [0.2.0] - 2025-09-19
-
-### Added
-
-- `--strict` flag for `inspect`/`parse` commands: normative ODO bounds/ordering; REDEFINES ambiguity becomes error.
-- Comprehensive CLI integration tests for ODO lenient/strict modes, REDEFINES, edited PIC, and fixed-form parsing.
-- Enhanced documentation with validation modes, binary widths clarification, and strict mode examples.
-- COMP-3 fast path enabled by default: encoding ≈61 MiB/s, decoding ≈48 MiB/s (exceeds ≥40 MiB/s target).
-
-### Fixed
-
-- Edited PIC clauses now properly generate `CBKP051_UNSUPPORTED_EDITED_PIC` error (decimal point, `CR/DB`, blanks `B`, trailing sign).
-- Column-7 continuation lines and inline `*>` comment stripping in fixed-form parsing.
-- Parser now ignores sequence-area tail content after terminating `.` on the same line.
-- SYNC binary field widths clarified: `≤4→16b`, `5–9→32b`, `10–18→64b`.
-- Error messages now include line numbers with proper context information.
-
-### Tests
-
-- Added core regression tests for terminator tail handling and error line reporting.
-- CLI end-to-end tests for ODO lenient/strict validation, REDEFINES processing, edited PIC handling, and fixed-form parsing.
-- Stream-agnostic test assertions for improved reliability.
-
-## [0.1.0] - 2025-09-02
-
-### Added
-
-- Initial release of copybook-rs workspace
-- COBOL copybook parser with comprehensive field type support
-- High-performance codec for encoding/decoding mainframe data formats
-- CLI tool with parse, inspect, decode, encode, and verify commands
-- Support for fixed-length and RDW record formats
-- Multiple EBCDIC codepage support (CP037, CP273, CP500, CP1047, CP1140)
-- Performance benchmarks achieving 4+ GiB/s for DISPLAY data and 500+ MiB/s for COMP-3 data
+If you update release notes, edit `CHANGELOG.md` in the repository root; this file should remain a lightweight pointer.
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

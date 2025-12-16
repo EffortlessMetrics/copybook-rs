@@ -15,13 +15,16 @@ use copybook_core::audit::{
 use serde_json;
 use std::path::PathBuf;
 
+const AUDIT_EXPERIMENTAL_NOTE: &str =
+    "audit feature is experimental scaffolding; outputs are stubs and not compliance evidence.";
+
 /// Enterprise audit command with comprehensive regulatory compliance
 #[derive(Parser)]
 #[command(
-    about = "Enterprise audit system for regulatory compliance and security monitoring",
-    long_about = "Comprehensive audit capabilities for copybook-rs including SOX, HIPAA, \
+    about = "Experimental audit scaffolding for regulatory compliance and security monitoring",
+    long_about = "Experimental audit scaffolding for copybook-rs including SOX, HIPAA, \
                   GDPR compliance validation, performance auditing, security monitoring, \
-                  and complete data lineage tracking."
+                  and data lineage tracking. Outputs are stubbed and not compliance evidence."
 )]
 pub struct AuditCommand {
     #[command(subcommand)]
@@ -424,6 +427,8 @@ pub async fn run(
         .with_operation_id("cli_audit_operation")
         .with_user("cli_user");
 
+    write_stderr_line(&format!("⚠️ {AUDIT_EXPERIMENTAL_NOTE}"))?;
+
     // Initialize audit logger if requested
     let _audit_logger = if audit_command.audit_output.is_some() {
         let config = AuditLoggerConfig {
@@ -636,7 +641,8 @@ fn run_audit_report(
             "timestamp": chrono::Utc::now().to_rfc3339(),
             "copybook": _copybook.display().to_string(),
             "compliance": _compliance,
-            "status": "completed",
+            "status": "stub",
+            "note": AUDIT_EXPERIMENTAL_NOTE,
             "findings": [],
             "performance_included": _include_performance,
             "security_included": _include_security,
@@ -647,9 +653,13 @@ fn run_audit_report(
 
     // Write report to output file
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
-    write_stdout_line(&format!("✅ Audit report generated: {}", _output.display()))?;
+    write_stderr_line("⚠️ audit report stub generated (not compliance evidence)")?;
+    write_stdout_line(&format!(
+        "Stub audit report written to {}",
+        _output.display()
+    ))?;
 
-    Ok(ExitCode::Ok)
+    Ok(ExitCode::Unknown)
 }
 
 #[allow(
@@ -712,6 +722,7 @@ async fn run_compliance_validation(
             "timestamp": chrono::Utc::now().to_rfc3339(),
             "copybook": _copybook.display().to_string(),
             "frameworks": framework_names_owned,
+            "note": AUDIT_EXPERIMENTAL_NOTE,
             "status": if compliance_result.is_compliant() { "compliant" } else { "non_compliant" },
             "violations": compliance_result.violations.iter().map(|v| {
                 serde_json::json!({
@@ -784,16 +795,19 @@ fn run_lineage_analysis(
             "quality_metrics": _quality_metrics,
             "impact_analysis": _impact_analysis,
             "confidence_threshold": _confidence_threshold,
+            "status": "stub",
+            "note": AUDIT_EXPERIMENTAL_NOTE,
             "lineage_records": []
         }
     });
 
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
+    write_stderr_line("⚠️ audit lineage stub generated (not compliance evidence)")?;
     write_stdout_line(&format!(
-        "✅ Lineage analysis completed: {}",
+        "Stub lineage analysis written to {}",
         _output.display()
     ))?;
-    Ok(ExitCode::Ok)
+    Ok(ExitCode::Unknown)
 }
 
 #[allow(
@@ -839,21 +853,24 @@ fn run_performance_audit(
             "max_overhead_percent": _max_overhead_percent,
             "include_regression_analysis": _include_regression_analysis,
             "iterations": _iterations,
+            "note": AUDIT_EXPERIMENTAL_NOTE,
             "results": {
-                "display_throughput_gbps": 4.2,
-                "comp3_throughput_mbps": 580.0,
-                "overhead_percent": 2.1,
-                "status": "passed"
+                "display_throughput_gbps": serde_json::Value::Null,
+                "comp3_throughput_mbps": serde_json::Value::Null,
+                "overhead_percent": serde_json::Value::Null,
+                "status": "stub",
+                "note": AUDIT_EXPERIMENTAL_NOTE
             }
         }
     });
 
     std::fs::write(_output, serde_json::to_string_pretty(&report)?)?;
+    write_stderr_line("⚠️ audit performance stub generated (metrics not implemented)")?;
     write_stdout_line(&format!(
-        "✅ Performance audit completed: {}",
+        "Stub performance audit written to {}",
         _output.display()
     ))?;
-    Ok(ExitCode::Ok)
+    Ok(ExitCode::Unknown)
 }
 
 #[allow(
@@ -900,8 +917,9 @@ fn run_security_audit(
             "validation_depth": format!("{validation_depth:?}"),
             "threat_assessment": threat_assessment,
             "security_findings": [],
-            "threat_level": "low",
-            "status": "passed"
+            "threat_level": serde_json::Value::Null,
+            "status": "stub",
+            "note": AUDIT_EXPERIMENTAL_NOTE
         }
     });
 
@@ -919,11 +937,12 @@ fn run_security_audit(
         std::fs::write(events_path, siem_data)?;
     }
 
+    write_stderr_line("⚠️ audit security stub generated (not a validated security assessment)")?;
     write_stdout_line(&format!(
-        "✅ Security audit completed: {}",
+        "Stub security audit written to {}",
         output.display()
     ))?;
-    Ok(ExitCode::Ok)
+    Ok(ExitCode::Unknown)
 }
 
 #[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
@@ -958,30 +977,31 @@ fn run_audit_health_check(
             "check_interval": check_interval,
             "continuous": continuous,
             "health_status": {
-                "overall": "healthy",
-                "integrity_valid": true,
-                "hash_chain_valid": true,
-                "timestamps_valid": true,
-                "retention_compliant": true
+                "overall": "stub",
+                "integrity_valid": serde_json::Value::Null,
+                "hash_chain_valid": serde_json::Value::Null,
+                "timestamps_valid": serde_json::Value::Null,
+                "retention_compliant": serde_json::Value::Null,
+                "note": AUDIT_EXPERIMENTAL_NOTE
             },
             "diagnostics": [
-                "All audit trail integrity checks passed",
-                "Cryptographic hash chain validated",
-                "Timestamp verification successful"
+                "Audit health check is stubbed; no integrity checks were executed"
             ]
         }
     });
 
     if let Some(output_path) = output {
         std::fs::write(output_path, serde_json::to_string_pretty(&report)?)?;
+        write_stderr_line("⚠️ audit health stub generated (no validation performed)")?;
         write_stdout_line(&format!(
-            "✅ Health report generated: {}",
+            "Stub audit health report written to {}",
             output_path.display()
         ))?;
     } else {
-        write_stdout_line("✅ Audit health check completed successfully")?;
+        write_stderr_line("⚠️ audit health stub emitted (no validation performed)")?;
+        write_stdout_line("Stub audit health check completed")?;
     }
-    Ok(ExitCode::Ok)
+    Ok(ExitCode::Unknown)
 }
 
 #[cfg(test)]

@@ -25,7 +25,7 @@
 ### Step 1: Version Bump & Validation
 
 ```bash
-# Current version is already 0.3.1 with pinned dependencies
+# Current version is already 0.4.0 with pinned dependencies
 
 # Validate all packages build correctly
 cargo build --workspace --release
@@ -47,10 +47,10 @@ PERF=1 cargo bench --package copybook-bench
 ```bash
 # Commit any final changes
 git add .
-git commit -m "chore(release): prepare v0.3.1 for crates.io publishing"
+git commit -m "chore(release): prepare v0.4.0 for crates.io publishing"
 
 # Create and push release tag
-git tag -a v0.3.1 -m "v0.3.1: Initial crates.io release with CI benchmarks"
+git tag -a v0.4.0 -m "v0.4.0: Projection + edited PIC decode"
 git push origin main --tags
 ```
 
@@ -72,7 +72,7 @@ The GitHub Actions workflow (`.github/workflows/publish.yml`) will automatically
 
 3. **Verification**:
    - Create GitHub Release with installation instructions
-   - Run smoke test: `cargo add copybook-cli@0.3.1` in clean environment
+   - Run smoke test: `cargo add copybook-cli@0.4.0` in clean environment
    - Validate docs.rs build initiation
 
 ### Step 4: Post-Release Verification
@@ -85,7 +85,7 @@ cargo new /tmp/copybook-smoke-test
 cd /tmp/copybook-smoke-test
 
 # Test cargo add works
-cargo add copybook-cli@0.3.1
+cargo add copybook-cli@0.4.0
 
 # Test build works
 cargo build --quiet
@@ -97,9 +97,9 @@ echo 'Hello     ' | ./target/debug/copybook decode test.cpy /dev/stdin --format 
 ```
 
 **Documentation Verification**:
-- Visit https://docs.rs/copybook-core/0.3.1 (builds within 5-10 minutes)
-- Visit https://docs.rs/copybook-codec/0.3.1
-- Visit https://docs.rs/copybook-cli/0.3.1
+- Visit https://docs.rs/copybook-core/0.4.0 (builds within 5-10 minutes)
+- Visit https://docs.rs/copybook-codec/0.4.0
+- Visit https://docs.rs/copybook-cli/0.4.0
 
 **Crates.io Verification**:
 - Visit https://crates.io/crates/copybook-core

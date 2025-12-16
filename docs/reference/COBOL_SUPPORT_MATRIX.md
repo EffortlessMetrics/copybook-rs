@@ -1,7 +1,7 @@
 # COBOL Feature Support Matrix
 
-**Last Updated**: 2025-10-22
-**Version**: copybook-rs v0.3.1
+**Last Updated**: 2025-12-02
+**Version**: copybook-rs v0.4.0
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
 
 > 💡 **Tip**: You can query this matrix programmatically using the CLI:
@@ -27,7 +27,7 @@
 | COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_property_tests.rs` (512+ property cases), `comp3_format_verification.rs`, `decimal_edge_cases.rs` (9 tests) | Nibble sign processing, edge cases, overflow/underflow |
 | BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs`, `binary_roundtrip_fidelity_tests.rs` (11 tests) | Various widths: 1/2/4/8 bytes, signed/unsigned |
 | COMP-1/COMP-2 (`comp-1-comp-2`) | ❌ Not Supported | N/A | Single/double float - by design, not implemented |
-| Edited PIC (`edited-pic`) | ❌ Not Supported | `inspect_edited_pic_fails.rs` | Z, /, $, CR, DB - negative rejection tests exist |
+| Edited PIC (`edited-pic`) | ⚠️ **Partially Supported (E1/E2)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests) | **E1**: Parse ✅ **E2**: Decode ✅ **E3**: Encode ⏳ v0.5.0 (see Edited PIC section below) |
 
 ## Structural Features
 
@@ -39,15 +39,15 @@
 | OCCURS (Fixed) | ✅ Fully Supported | Multiple test files | Fixed-size array support with 5+ dedicated tests |
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
-| Nested ODO (`nested-odo`) | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
+| Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
 | RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | 30+ tests across 5 test suites (parser, hierarchy, resolver, schema API) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
 
 ## Sign Handling
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| SIGN LEADING | ✅ Fully Supported | `zoned_encoding_format_tests.rs` | Standard zoned decimal with leading sign |
-| SIGN TRAILING | ✅ Fully Supported | `zoned_encoding_format_tests.rs` | Standard zoned decimal with trailing sign |
+| SIGN LEADING clause | ❌ Not Supported | N/A | SIGN clause rejected; use signed zoned PIC without the SIGN keyword |
+| SIGN TRAILING clause | ❌ Not Supported | N/A | SIGN clause rejected; use signed zoned PIC without the SIGN keyword |
 | SIGN SEPARATE (`sign-separate`) | ❌ Not Supported | N/A | See Issue #44 for planned implementation |
 | Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `zoned_encoding_format_tests.rs`, `zoned_overpunch.rs` (8 tests) | Comprehensive overpunch with EBCDIC zones |
 
@@ -69,15 +69,77 @@
 | CP1140 (Euro) | ✅ Fully Supported | 8+ tests in codec suite | Euro currency support |
 | ASCII (supplementary) | ✅ Fully Supported | 12+ tests in codec suite | For comparison/testing purposes |
 
+## Edited PIC Clauses
+
+| Feature | Status | Error Codes | Test Evidence |
+|---------|--------|-------------|---------------|
+| **E1: Parse + Schema** | ✅ Supported | - | `edited_pic_e1_tests.rs` (15 tests) |
+| **E2: Decode (subset)** | ✅ Supported | CBKD421-423 | `edited_pic_decode_e2_tests.rs` (28 tests) |
+| **E3: Encode** | 🔄 Planned v0.5.0 | CBKE4xx | - |
+| Z (zero suppress) | ✅ E1/E2 | - | `test_e2_simple_z_editing_zzz9` |
+| $ (currency) | ✅ E1/E2 | - | `test_e2_currency_dollar_zz_zzz_99` |
+| +/- (sign) | ✅ E1/E2 | - | `test_e2_sign_editing_*` |
+| CR/DB (credit/debit) | ✅ E1/E2 | - | `test_e2_sign_editing_trailing_cr_db` |
+| * (check protect) | ✅ E1/E2 | - | `test_e2_check_protect_asterisk` |
+| BLANK WHEN ZERO | ✅ E1/E2 | CBKD423 | `test_e2_blank_when_zero` |
+| Complex patterns | ✅ E1/E2 | - | `test_e2_complex_patterns` (8 tests) |
+
+**Phase Breakdown**:
+- **E1 (Parse + Schema)**: Parses edited PICTURE clauses into `EditedNumeric` FieldKind with pattern metadata
+- **E2 (Decode)**: Decodes EBCDIC/ASCII edited format to JSON numeric values (well-chosen subset)
+- **E3 (Encode)**: Planned for v0.5.0 - will encode JSON numeric values to edited format
+
+**Well-Chosen Subset (E2)**:
+- ZZZ9 (basic zero suppression)
+- $ZZ,ZZZ.99 (currency with comma/decimal)
+- +/-/CR/DB (sign editing)
+- \*\*\*9 (check protection)
+- BLANK WHEN ZERO clause
+
+## Field Projection
+
+| Feature | Status | Error Codes | Test Evidence |
+|---------|--------|-------------|---------------|
+| **Simple field selection** | ✅ Supported | CBKS703 | `projection_tests.rs::test_projection_simple_field_selection` |
+| **Multiple field selection** | ✅ Supported | - | `projection_tests.rs::test_projection_multiple_fields` |
+| **Group selection** | ✅ Supported | - | `projection_tests.rs::test_projection_group_includes_children` |
+| **ODO auto-counter** | ✅ Supported | CBKS701 | `projection_tests.rs::test_projection_with_odo_auto_counter` |
+| **RENAMES alias (R1-R3)** | ✅ Supported | CBKS702 | `projection_tests.rs::test_projection_with_renames_*` |
+| **CLI --select flag** | ✅ Supported | - | `cli_projection_integration.rs` (6 tests) |
+| **API project_schema()** | ✅ Supported | - | `copybook_core::projection` module |
+
+**Projection Features**:
+- **Comma-separated selection**: `--select "ID,NAME,BALANCE"`
+- **Multiple flags**: `--select "ID" --select "NAME"`
+- **Automatic ODO counter inclusion**: When selecting ODO arrays, counter fields auto-included
+- **RENAMES alias resolution**: Aliases resolve to underlying storage fields (R1-R3)
+- **Parent group preservation**: JSON structure maintains hierarchy
+- **Error validation**: CBKS701 (invalid ODO), CBKS702 (unresolved alias), CBKS703 (field not found)
+
+**CLI Integration**:
+```bash
+# Decode with field projection
+copybook decode schema.cpy data.bin --output selected.jsonl \
+  --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+
+# Encode with field projection
+copybook encode schema.cpy input.jsonl output.bin \
+  --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+
+# Verify with field projection
+copybook verify schema.cpy data.bin \
+  --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+```
+
 ## Error Code Coverage
 
-Comprehensive error taxonomy with **23 discrete codes** tested across **664 test functions**:
+Comprehensive error taxonomy with **29 discrete codes** tested across **664+ test functions**:
 
 ### Parse Errors (CBKP*)
 - `CBKP001_SYNTAX`: Copybook syntax errors
 - `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses (legacy v0.3.1-; now supported in v0.4.0+)
 - Plus 4+ additional parse error codes
 
 ### Schema Validation Errors (CBKS*)
@@ -85,12 +147,19 @@ Comprehensive error taxonomy with **23 discrete codes** tested across **664 test
 - `CBKS141_RECORD_TOO_LARGE`: Record size exceeds maximum limit
 - `CBKS301_ODO_CLIPPED`: ODO bounds enforcement (count > max)
 - `CBKS302_ODO_RAISED`: ODO minimum value validation (count < min)
+- `CBKS701_PROJECTION_INVALID_ODO`: Field projection with invalid ODO counter access
+- `CBKS702_PROJECTION_UNRESOLVED_ALIAS`: Field projection with unresolved RENAMES alias
+- `CBKS703_PROJECTION_FIELD_NOT_FOUND`: Field projection with non-existent field
 
 ### Data Errors (CBKD*)
-- `CBKD*`: 12+ codes for invalid decimals, truncated records, character conversion, numeric overflow
+- `CBKD*`: 15+ codes for invalid decimals, truncated records, character conversion, numeric overflow
+- `CBKD421_EDITED_PIC_INVALID_FORMAT`: Edited PIC decode format mismatch (Phase E2)
+- `CBKD422_EDITED_PIC_SIGN_MISMATCH`: Edited PIC decode sign error (Phase E2)
+- `CBKD423_EDITED_PIC_BLANK_WHEN_ZERO`: Edited PIC BLANK WHEN ZERO handling (Phase E2)
 
 ### Encode Errors (CBKE*)
 - `CBKE*`: 3+ codes for type mismatches, bounds violations, encoding failures
+- `CBKE4xx`: Reserved for Edited PIC encode errors (Phase E3, planned v0.5.0)
 
 See [ERROR_CODES.md](ERROR_CODES.md) for complete reference.
 
@@ -123,6 +192,93 @@ FieldKind::Condition { values } => condition_value(values, "CONDITION")
 **Layout Impact**: Level-88 fields consume zero bytes (`(0, 1u64)` in layout calculation), correctly implementing COBOL non-storage semantics.
 
 **Known Limitations**: None. Full support for Level-88 condition values including complex interactions with ODO and REDEFINES.
+
+## Nested ODO / OCCURS Behavior - Support Status
+
+**Status**: ✅ **O1-O4 Fully Supported** | 🚫 **O5-O6 Rejected by Design**
+
+Nested ODO support is split into explicit scenarios to track implementation decisions.
+See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specification.
+
+| ID  | Scenario                                | Status | Error Code            | Test Evidence                                                    |
+|-----|-----------------------------------------|--------|-----------------------|------------------------------------------------------------------|
+| O1  | Simple tail ODO                         | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` |
+| O2  | Tail ODO with DYNAMIC (AC1/AC2)         | ✅     | -                     | `odo_comprehensive.rs` (21 tests), `odo_counter_types.rs`        |
+| O3  | Group-with-ODO tail (AC3)               | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_nested_groups_inside_odo_pass` |
+| O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 negative tests)|
+| O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Phase N1: reject; Phase N2: review if user demand emerges        |
+| O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Phase N1: reject; Phase N3: dedicated design required            |
+| O7  | ODO over RENAMES span (R4/R5 scenarios) | 🚫     | Out of scope          | RENAMES R4-R6 explicitly deferred (see RENAMES section)          |
+
+**Evidence:**
+
+- **O1 (Simple tail ODO)**:
+  - **Parser + Codec**: Full support for tail ODO arrays with min/max bounds
+  - **Test**: `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` (89 lines)
+  - **JSON shape**: Array of objects/scalars with runtime length determined by counter
+
+- **O2 (Tail ODO with DYNAMIC)**:
+  - **Parser + Codec**: Full support for `OCCURS 1 TO N DEPENDING ON` with runtime bounds
+  - **Tests**: 21 tests in `odo_comprehensive.rs`, counter type tests in `odo_counter_types.rs`
+  - **Runtime validation**: Clamping with `CBKS301_ODO_CLIPPED`/`CBKS302_ODO_RAISED` errors
+
+- **O3 (Group-with-ODO tail)**:
+  - **Parser + Codec**: Full support for nested groups inside ODO arrays
+  - **Tests**: `golden_fixtures_ac3_child_inside_odo.rs` (5 tests: basic, nested, deep, enterprise, performance)
+  - **JSON shape**: Array of nested objects with hierarchical structure preserved
+
+- **O4 (ODO with sibling after)**:
+  - **Parser**: Rejects storage siblings after ODO with `CBKP021_ODO_NOT_TAIL`
+  - **Tests**: `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 comprehensive negative tests)
+  - **Rationale**: Variable-length arrays cannot have fixed-offset siblings after them
+  - **Exception**: Level-88 condition values (non-storage) permitted after ODO
+
+- **O5 (Nested ODO)**:
+  - **Decision**: 🚫 Rejected in Phase N1 due to complexity (schema nesting, counter scoping, memory layout)
+  - **Error code**: `CBKP022_NESTED_ODO` (to be added)
+  - **Reconsideration**: Phase N2 if user demand emerges with concrete use cases
+
+- **O6 (ODO over REDEFINES)**:
+  - **Decision**: 🚫 Rejected in Phase N1 due to semantic conflict (fixed overlay vs variable length)
+  - **Error code**: `CBKP023_ODO_REDEFINES` (to be added)
+  - **Future**: Phase N3 with dedicated REDEFINES + OCCURS design
+
+- **O7 (ODO over RENAMES)**:
+  - **Decision**: 🚫 Out of scope per RENAMES R4-R6 policy
+  - **Reference**: See [RENAMES Support Status](#renames-level-66---support-status)
+
+**Layout Impact**:
+- **O1-O3**: ODO arrays compute variable offset ranges with runtime counter resolution
+- **O4**: Parser-level rejection ensures no invalid layouts are created
+- **O5-O6**: Not applicable (rejected before layout computation)
+
+**Codec Integration**:
+```rust
+// O1-O3 example: Decode variable-length array
+let counter_value = read_counter_field(&schema, data, counter_path)?;
+let clamped_count = clamp_odo_count(counter_value, min, max)?;
+for i in 0..clamped_count {
+    let occurrence = decode_occurrence(&schema, data, occurrence_offset)?;
+    array.push(occurrence);
+}
+```
+
+**Error Codes:**
+- **CBKP021_ODO_NOT_TAIL**: Fatal parser error (O4) - storage sibling after ODO
+- **CBKS301_ODO_CLIPPED**: Runtime warning/error (O2) - counter > max
+- **CBKS302_ODO_RAISED**: Runtime warning/error (O2) - counter < min
+- **CBKP022_NESTED_ODO**: To be added in Phase N1 (O5)
+- **CBKP023_ODO_REDEFINES**: To be added in Phase N1 (O6)
+
+**Known Limitations:**
+- **Nested ODO** (O5): Not supported by design; pre-normalize on mainframe or use fixed OCCURS
+- **ODO + REDEFINES** (O6): Not supported; use REDEFINES with fixed OCCURS instead
+- **ODO + RENAMES** (O7): Out of scope per RENAMES R4-R6 policy
+
+**Implementation Phases:**
+- **Phase N1 (Current)**: Design contract + support matrix + negative error codes
+- **Phase N2 (Optional)**: Nested ODO support if user demand emerges
+- **Phase N3 (Future)**: REDEFINES + OCCURS interactions with dedicated design
 
 ## RENAMES (Level-66) - Support Status
 

@@ -303,10 +303,7 @@ impl BinaryFidelityValidator {
         };
 
         let performance_impact = Some(PerformanceImpact {
-            validation_time_ms: match validation_time.as_millis().try_into() {
-                Ok(ms) => ms,
-                Err(_) => u64::MAX,
-            },
+            validation_time_ms: validation_time.as_millis().try_into().unwrap_or(u64::MAX),
             memory_overhead_bytes: Self::estimate_memory_overhead(original_data),
             throughput_impact_percent: Self::calculate_throughput_impact(validation_time),
         });
@@ -942,10 +939,7 @@ pub mod utils {
             .filter_map(|r| r.performance_impact.as_ref())
             .map(|p| p.validation_time_ms)
             .sum();
-        let total_records_u64 = match u64::try_from(total_records) {
-            Ok(count) => count,
-            Err(_) => u64::MAX,
-        };
+        let total_records_u64 = u64::try_from(total_records).unwrap_or(u64::MAX);
         let average_validation_time = if total_records_u64 == 0 {
             0
         } else {

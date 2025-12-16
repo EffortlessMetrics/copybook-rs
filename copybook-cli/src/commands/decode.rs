@@ -97,7 +97,9 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Apply field projection if --select is provided
-    let working_schema = if !args.select.is_empty() {
+    let working_schema = if args.select.is_empty() {
+        schema
+    } else {
         let selectors = parse_selectors(args.select);
         info!(
             "Applying field projection with {} selectors",
@@ -105,13 +107,9 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         );
         copybook_core::project_schema(&schema, &selectors).map_err(|err| {
             anyhow::anyhow!(
-                "Failed to apply field projection with selectors {:?}: {}",
-                selectors,
-                err
+                "Failed to apply field projection with selectors {selectors:?}: {err}"
             )
         })?
-    } else {
-        schema
     };
 
     // Configure decode options - use strict mode when fail_fast is enabled

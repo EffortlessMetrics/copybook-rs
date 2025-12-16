@@ -54,21 +54,27 @@ impl PicClause {
     #[must_use = "Handle the Result or propagate the error"]
     pub fn parse(pic_str: &str) -> Result<Self> {
         let pic_str = pic_str.trim();
+        let pic_upper = pic_str.to_ascii_uppercase();
 
-        // Check for edited PIC patterns first
-        if is_edited_pic(pic_str) {
+        // SIGN clauses are not yet supported in edited PIC decoding
+        if pic_upper.contains("SIGN") {
             return Err(Error::new(
                 ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                format!("edited PIC clause not supported: {}", pic_str),
+                format!("SIGN clause is not supported: {pic_str}"),
             ));
         }
 
-        // Check for SIGN clauses (also treated as edited)
-        if pic_str.contains("SIGN") {
-            return Err(Error::new(
-                ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                format!("SIGN clause treated as edited PIC: {}", pic_str),
-            ));
+        // Check for edited PIC patterns first (Phase E2: parse with scale computation)
+        if is_edited_pic(pic_str) {
+            let width = compute_edited_pic_width(pic_str)?;
+            let signed = has_sign_editing(pic_str);
+            let scale = compute_edited_pic_scale(pic_str)?;
+            return Ok(PicClause {
+                kind: PicKind::Edited,
+                signed,
+                digits: width,
+                scale,
+            });
         }
 
         let mut chars = pic_str.chars().peekable();
@@ -275,10 +281,185 @@ fn is_edited_pic(pic_str: &str) -> bool {
         || pic_str.contains("db")
 }
 
+/// Compute display width from edited PIC string
+/// Example: "ZZ,ZZZ.99" → 8 (including comma and decimal point)
+fn compute_edited_pic_width(pic_str: &str) -> Result<u16> {
+    let mut width = 0u16;
+    let mut chars = pic_str.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        match ch.to_ascii_uppercase() {
+            // Digit positions
+            '9' | 'Z' | '*' => {
+                // Check for repetition count
+                if chars.peek() == Some(&'(') {
+                    chars.next(); // consume '('
+                    let mut count_str = String::new();
+                    while let Some(&ch) = chars.peek() {
+                        if ch == ')' {
+                            chars.next(); // consume ')'
+                            break;
+                        } else if ch.is_ascii_digit() {
+                            count_str.push(ch);
+                            chars.next();
+                        } else {
+                            return Err(Error::new(
+                                ErrorCode::CBKP001_SYNTAX,
+                                format!("Invalid repetition count in edited PIC: {}", pic_str),
+                            ));
+                        }
+                    }
+                    let count: u16 = count_str.parse().map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKP001_SYNTAX,
+                            format!("Invalid repetition count: {}", count_str),
+                        )
+                    })?;
+                    width = width.saturating_add(count);
+                } else {
+                    width = width.saturating_add(1);
+                }
+            }
+            // Insertion characters (commas, slashes, etc.)
+            ',' | '/' | '.' => {
+                width = width.saturating_add(1);
+            }
+            // Currency symbol
+            '$' => {
+                width = width.saturating_add(1);
+            }
+            // Sign symbols
+            '+' | '-' => {
+                width = width.saturating_add(1);
+            }
+            // CR/DB handling (2 characters)
+            'C' | 'D' => {
+                if let Some(&next_ch) = chars.peek()
+                    && ((ch == 'C' && (next_ch == 'R' || next_ch == 'r'))
+                        || (ch == 'D' && (next_ch == 'B' || next_ch == 'b')))
+                {
+                    chars.next(); // consume second character
+                    width = width.saturating_add(2);
+                }
+            }
+            // V is non-display (implied decimal)
+            'V' => {
+                // Don't add to width
+            }
+            // S prefix is non-display
+            'S' => {
+                // Don't add to width
+            }
+            // Whitespace
+            ' ' | '\t' => {
+                // Skip
+            }
+            _ => {
+                // Unknown character - for now, just skip it
+            }
+        }
+    }
+
+    if width == 0 {
+        return Err(Error::new(
+            ErrorCode::CBKP001_SYNTAX,
+            format!("Edited PIC has zero display width: {}", pic_str),
+        ));
+    }
+
+    Ok(width)
+}
+
+/// Check if edited PIC has sign editing (CR, DB, +, -)
+fn has_sign_editing(pic_str: &str) -> bool {
+    pic_str.contains("CR")
+        || pic_str.contains("DB")
+        || pic_str.contains("cr")
+        || pic_str.contains("db")
+        || pic_str.contains('+')
+        || pic_str.contains('-')
+}
+
+/// Compute decimal scale (number of digits after decimal point) for edited PIC
+/// Examples:
+/// - "ZZZ9" → 0
+/// - "ZZZ9.99" → 2
+/// - "$ZZ,ZZZ.99" → 2
+/// - "9(5)V99" → 2 (V is implicit decimal, . is explicit)
+fn compute_edited_pic_scale(pic_str: &str) -> Result<i16> {
+    let mut chars = pic_str.chars().peekable();
+    let mut found_decimal = false;
+    let mut scale = 0i16;
+
+    // Skip leading 'S' if present
+    if chars.peek() == Some(&'S') || chars.peek() == Some(&'s') {
+        chars.next();
+    }
+
+    while let Some(ch) = chars.next() {
+        match ch.to_ascii_uppercase() {
+            '.' => {
+                if found_decimal {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        format!("Multiple decimal points in edited PIC: {pic_str}"),
+                    ));
+                }
+                found_decimal = true;
+            }
+            'V' => {
+                // Implicit decimal point
+                if found_decimal {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        format!("Both V and . in edited PIC: {pic_str}"),
+                    ));
+                }
+                found_decimal = true;
+            }
+            '9' | 'Z' | '*' | '0' => {
+                // Check for repetition count
+                let count = if chars.peek() == Some(&'(') {
+                    chars.next(); // consume '('
+                    let mut count_str = String::new();
+                    while let Some(&ch) = chars.peek() {
+                        if ch == ')' {
+                            chars.next(); // consume ')'
+                            break;
+                        } else if ch.is_ascii_digit() {
+                            count_str.push(ch);
+                            chars.next();
+                        } else {
+                            return Err(Error::new(
+                                ErrorCode::CBKP001_SYNTAX,
+                                format!("Invalid repetition count in edited PIC: {pic_str}"),
+                            ));
+                        }
+                    }
+                    count_str.parse::<i16>().map_err(|_| {
+                        Error::new(
+                            ErrorCode::CBKP001_SYNTAX,
+                            format!("Invalid repetition count: {count_str}"),
+                        )
+                    })?
+                } else {
+                    1
+                };
+
+                if found_decimal {
+                    scale = scale.saturating_add(count);
+                }
+            }
+            // Other characters (comma, slash, $, +, -, etc.) don't affect scale
+            _ => {}
+        }
+    }
+
+    Ok(scale)
+}
+
 #[cfg(test)]
-#[allow(clippy::expect_used)]
-#[allow(clippy::unwrap_used)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -311,23 +492,22 @@ mod tests {
     }
 
     #[test]
-    fn test_edited_pic_rejection() {
+    fn test_edited_pic_parses() {
+        // Phase E1: edited PIC should now parse successfully
         let result = PicClause::parse("ZZ,ZZZ.99");
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err().code,
-            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
-        ));
+        assert!(result.is_ok());
+        let pic = result.unwrap();
+        assert_eq!(pic.kind, PicKind::Edited);
+        assert_eq!(pic.digits, 9); // ZZ,ZZZ.99 = 2 + 1 + 3 + 1 + 2 = 9 display positions
+        assert!(!pic.signed); // No sign editing
     }
 
     #[test]
-    fn test_sign_clause_rejection() {
+    fn test_sign_clause_rejected() {
         let result = PicClause::parse("S9(5) SIGN LEADING");
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err().code,
-            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
-        ));
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
     }
 
     #[test]

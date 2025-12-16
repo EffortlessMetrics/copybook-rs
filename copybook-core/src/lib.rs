@@ -5,6 +5,15 @@
 //!
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::panic,
+        clippy::duplicated_attributes
+    )
+)]
 // Allow missing inline for public methods in this library - too many methods to inline individually
 #![allow(clippy::missing_inline_in_public_items)]
 #![allow(clippy::missing_errors_doc)]
@@ -124,6 +133,7 @@ pub mod layout;
 pub mod lexer;
 pub mod parser;
 pub mod pic;
+pub mod projection;
 pub mod schema;
 pub mod support_matrix;
 pub mod utils;
@@ -131,6 +141,7 @@ pub mod utils;
 pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, ErrorSummary};
 pub use parser::ParseOptions;
+pub use projection::project_schema;
 pub use schema::{Field, FieldKind, Occurs, Schema, TailODO};
 pub use utils::{OptionExt, SliceExt, VecExt, safe_ops};
 

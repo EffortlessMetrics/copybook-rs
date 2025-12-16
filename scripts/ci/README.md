@@ -24,10 +24,11 @@ Runs fmt, clippy, build, tests, doctests. This is what runs on every PR.
 
 # What it does:
 # 1. cargo fmt --all --check
-# 2. cargo clippy (pedantic, all warnings as errors)
-# 3. cargo build --workspace --release
-# 4. cargo nextest run (bounded parallelism)
-# 5. cargo test --doc (with warnings denied)
+# 2. cargo clippy (pedantic, libs/bins/examples, -D warnings)
+# 3. cargo clippy (tests, allows unwrap/expect/panic/dbg/print, still -D warnings)
+# 4. cargo build --workspace --release
+# 5. cargo nextest run (bounded parallelism)
+# 6. cargo test --doc (with warnings denied)
 ```
 
 **Expected time**: 5-10 minutes (cold), 2-5 minutes (warm)

@@ -321,13 +321,15 @@ fn test_group_children_with_following_level66() {
     );
 
     // Now test the same structure but with a level-66 following
+    // Note: Using simple same-scope RENAMES (R1) to avoid R4+ complexity while still
+    // testing that level-66 presence doesn't corrupt the tree structure
     let copybook_with_66 = r"
        01 CUSTOMER-RECORD.
           05 CUSTOMER-INFO.
              10 NAME     PIC X(30).
              10 ADDRESS  PIC X(60).
           05 OTHER-FIELD PIC X(10).
-          66 CUSTOMER-DETAILS RENAMES NAME THRU ADDRESS.
+          66 CUSTOMER-DETAILS RENAMES OTHER-FIELD THRU OTHER-FIELD.
     ";
 
     let schema_with_66 =

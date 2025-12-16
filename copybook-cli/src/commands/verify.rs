@@ -46,13 +46,14 @@ fn hex_window(bytes: &[u8], offset: usize, ctx: usize) -> String {
 }
 
 /// Configuration options for the verify command
-pub struct VerifyOptions {
+pub struct VerifyOptions<'a> {
     pub format: RecordFormat,
     pub codepage: Codepage,
     pub strict: bool,
     pub max_errors: u32,
     pub sample: u32,
     pub strict_comments: bool,
+    pub select: &'a [String],
 }
 
 #[allow(clippy::too_many_lines)]
@@ -81,6 +82,20 @@ pub fn run(
     };
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
+    // Apply field projection if --select is provided
+    let working_schema = if opts.select.is_empty() {
+        schema
+    } else {
+        let selectors = parse_selectors(opts.select);
+        info!(
+            "Applying field projection with {} selectors",
+            selectors.len()
+        );
+        copybook_core::project_schema(&schema, &selectors).map_err(|err| {
+            anyhow::anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
+        })?
+    };
+
     // Get file metadata
     let file_metadata = metadata(input)?;
     let file_size = file_metadata.len();
@@ -103,7 +118,7 @@ pub fn run(
     // Validate record format constraints
     match opts.format {
         RecordFormat::Fixed => {
-            if let Some(lrecl) = schema.lrecl_fixed {
+            if let Some(lrecl) = working_schema.lrecl_fixed {
                 // Check file size is multiple of LRECL
                 if file_size % u64::from(lrecl) != 0 {
                     warn!(
@@ -152,7 +167,7 @@ pub fn run(
     let mut file_raw = File::open(input)?;
 
     // Create record iterator based on format
-    let record_iter = RecordIterator::new(reader, &schema, &decode_options)?;
+    let record_iter = RecordIterator::new(reader, &working_schema, &decode_options)?;
 
     // Process each record
     for record_result in record_iter {
@@ -164,7 +179,7 @@ pub fn run(
             }
             Err(error) => {
                 // Record failed to decode - efficiently read the raw record data
-                let record_bytes = if let Some(lrecl) = schema.lrecl_fixed {
+                let record_bytes = if let Some(lrecl) = working_schema.lrecl_fixed {
                     // For fixed format, use seek + read_exact for efficiency
                     let record_offset = (records_total - 1) * u64::from(lrecl);
 
@@ -288,4 +303,14 @@ pub fn run(
 
     info!("Verify completed with exit code: {}", exit_code);
     Ok(exit_code)
+}
+
+/// Parse --select arguments (supports comma-separated and multiple flags)
+fn parse_selectors(select_args: &[String]) -> Vec<String> {
+    select_args
+        .iter()
+        .flat_map(|s| s.split(','))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }

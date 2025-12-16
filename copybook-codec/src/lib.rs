@@ -1,4 +1,13 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+#![cfg_attr(
+    test,
+    allow(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::panic,
+        clippy::duplicated_attributes
+    )
+)]
 //! Encoding and decoding codecs for COBOL data types.
 //!
 //! This crate provides the encoding/decoding logic for COBOL record layouts,
@@ -6,6 +15,7 @@
 
 pub mod charset;
 pub mod determinism;
+pub mod edited_pic;
 pub mod fidelity;
 pub mod iterator;
 pub mod lib_api;

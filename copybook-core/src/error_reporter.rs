@@ -296,6 +296,8 @@ impl ErrorReporter {
             ErrorCode::CBKP001_SYNTAX
             | ErrorCode::CBKP011_UNSUPPORTED_CLAUSE
             | ErrorCode::CBKP021_ODO_NOT_TAIL
+            | ErrorCode::CBKP022_NESTED_ODO
+            | ErrorCode::CBKP023_ODO_REDEFINES
             | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
 
             // Schema errors can be fatal or errors depending on context
@@ -309,6 +311,9 @@ impl ErrorReporter {
             | ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP
             | ErrorCode::CBKS607_RENAME_CROSSES_OCCURS
             | ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+            | ErrorCode::CBKS701_PROJECTION_INVALID_ODO
+            | ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS
+            | ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND
             | ErrorCode::CBKE505_SCALE_MISMATCH
             | ErrorCode::CBKE510_NUMERIC_OVERFLOW
             | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => ErrorSeverity::Fatal,
@@ -339,12 +344,16 @@ impl ErrorReporter {
             // Data decode errors
             ErrorCode::CBKD101_INVALID_FIELD_TYPE
             | ErrorCode::CBKD301_RECORD_TOO_SHORT
+            | ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED
             | ErrorCode::CBKD401_COMP3_INVALID_NIBBLE
             | ErrorCode::CBKD410_ZONED_OVERFLOW
-            | ErrorCode::CBKD411_ZONED_BAD_SIGN => ErrorSeverity::Error,
+            | ErrorCode::CBKD411_ZONED_BAD_SIGN
+            | ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT
+            | ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH => ErrorSeverity::Error,
 
             // BLANK WHEN ZERO is informational
-            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => ErrorSeverity::Warning,
+            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO
+            | ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => ErrorSeverity::Warning,
 
             // Encode errors
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE521_ARRAY_LEN_OOB => {

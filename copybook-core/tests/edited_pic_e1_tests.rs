@@ -7,7 +7,7 @@
 //! Note: Current lexer limitations mean complex decimal patterns are not yet supported.
 //! Tests focus on basic edited patterns that work with current tokenization.
 
-use copybook_core::{FieldKind, parse_copybook};
+use copybook_core::{ErrorCode, FieldKind, parse_copybook};
 
 /// Test E1.1: Zero suppression (Z) parses successfully
 #[test]
@@ -66,21 +66,14 @@ fn test_e1_asterisk_fill_parses() {
     }
 }
 
-/// Test E1.4: SIGN clause parses as edited PIC
+/// Test E1.4: SIGN clause rejected as unsupported edited PIC
 #[test]
 fn test_e1_sign_clause_parses() {
     let copybook = "01 REC.\n   05 SIGNED-AMT PIC S9(5) SIGN LEADING.";
-    let schema = parse_copybook(copybook).unwrap();
-
-    let signed_amt = &schema.fields[0].children[0];
-    if let FieldKind::EditedNumeric { pic_string, .. } = &signed_amt.kind {
-        assert!(pic_string.contains("SIGN"));
-    } else {
-        panic!(
-            "Expected EditedNumeric for SIGN clause, got {:?}",
-            signed_amt.kind
-        );
-    }
+    let Err(error) = parse_copybook(copybook) else {
+        panic!("SIGN clause should be rejected as unsupported");
+    };
+    assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
 }
 
 /// Test E1.5: Verify edited PIC fields have storage in schema

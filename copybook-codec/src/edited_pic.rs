@@ -8,6 +8,7 @@
 //! and validating formatting symbols.
 
 use copybook_core::{Error, ErrorCode, Result};
+use tracing::warn;
 
 /// Pattern tokens for edited PIC clauses
 #[derive(Debug, Clone, PartialEq)]
@@ -298,6 +299,8 @@ pub fn decode_edited_numeric(
 ) -> Result<NumericValue> {
     // Check for BLANK WHEN ZERO
     if blank_when_zero && input.chars().all(|c| c == ' ') {
+        warn!("CBKD423_EDITED_PIC_BLANK_WHEN_ZERO: Edited PIC field is blank, decoding as zero");
+        crate::lib_api::increment_warning_counter();
         return Ok(NumericValue {
             sign: Sign::Positive,
             digits: "0".to_string(),
@@ -425,7 +428,7 @@ pub fn decode_edited_numeric(
                 input_idx += 1;
             }
             PicToken::LeadingPlus => {
-                  if input_char == '+' || input_char == ' ' {
+                if input_char == '+' || input_char == ' ' {
                     sign = Sign::Positive;
                 } else {
                     return Err(Error::new(
@@ -449,7 +452,7 @@ pub fn decode_edited_numeric(
                 input_idx += 1;
             }
             PicToken::TrailingPlus => {
-                  if input_char == '+' || input_char == ' ' {
+                if input_char == '+' || input_char == ' ' {
                     sign = Sign::Positive;
                 } else {
                     return Err(Error::new(

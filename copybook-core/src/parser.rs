@@ -757,66 +757,11 @@ impl Parser {
             Some(TokenPos {
                 token: Token::Sign, ..
             }) => {
-                // Phase E1: SIGN clauses are treated as edited PIC - convert field to EditedNumeric
                 self.advance();
-                // Consume LEADING/TRAILING and SEPARATE if present
-                if matches!(
-                    self.current_token().map(|t| &t.token),
-                    Some(Token::Leading | Token::Trailing)
-                ) {
-                    self.advance();
-                    // Consume SEPARATE if present after LEADING/TRAILING
-                    if matches!(
-                        self.current_token().map(|t| &t.token),
-                        Some(Token::Separate)
-                    ) {
-                        self.advance();
-                    }
-                }
-
-                // Convert the current field to EditedNumeric
-                // Get the current PIC representation and mark as edited
-                let pic_representation = match &field.kind {
-                    FieldKind::ZonedDecimal {
-                        digits,
-                        scale,
-                        signed,
-                    } => {
-                        let sign_prefix = if *signed { "S" } else { "" };
-                        if *scale > 0 {
-                            format!(
-                                "{sign_prefix}9({})V9({}) SIGN LEADING",
-                                digits - *scale as u16,
-                                scale
-                            )
-                        } else {
-                            format!("{sign_prefix}9({digits}) SIGN LEADING")
-                        }
-                    }
-                    _ => {
-                        // For non-numeric fields, just mark as SIGN (shouldn't happen)
-                        "SIGN LEADING".to_string()
-                    }
-                };
-
-                // Calculate width (same as original numeric display width)
-                let width = match &field.kind {
-                    FieldKind::ZonedDecimal { digits, .. } => *digits + 1, // +1 for sign
-                    _ => field.len as u16,
-                };
-
-                // Extract scale from the original field before conversion
-                let scale = match &field.kind {
-                    FieldKind::ZonedDecimal { scale, .. } => *scale as u16,
-                    _ => 0,
-                };
-
-                field.kind = FieldKind::EditedNumeric {
-                    pic_string: pic_representation,
-                    width,
-                    scale,
-                    signed: true, // SIGN clause implies signed
-                };
+                return Err(Error::new(
+                    ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
+                    format!("SIGN clause on field '{}' is not supported yet", field.name),
+                ));
             }
             Some(TokenPos {
                 token: Token::Comp, ..
@@ -1610,17 +1555,12 @@ mod tests {
 
     #[test]
     fn test_sign_clause_acceptance() {
-        // Phase E1: SIGN clause is now supported and should parse successfully
         let input = "01 AMOUNT PIC S9(5) SIGN LEADING.";
         let result = parse(input);
 
-        assert!(result.is_ok(), "SIGN clause should parse successfully");
-        let schema = result.unwrap();
-        assert_eq!(schema.fields.len(), 1);
-        assert!(matches!(
-            schema.fields[0].kind,
-            FieldKind::EditedNumeric { .. }
-        ));
+        assert!(result.is_err(), "SIGN clause should be rejected");
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
     }
 
     #[test]

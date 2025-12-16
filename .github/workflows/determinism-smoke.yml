@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # NOTE: Keep this aligned with the workspace MSRV in CLAUDE.md/REPORT.md
       - name: Install Rust toolchain

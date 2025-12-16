@@ -5,10 +5,21 @@ set -euo pipefail
 echo "==> Running cargo fmt --all --check"
 cargo fmt --all --check
 
-# Pedantic keeps quality high but predictable
-echo "==> Running cargo clippy (pedantic)"
-cargo clippy --workspace --all-targets --all-features \
+# Pedantic for production targets, relaxed for integration tests
+echo "==> Running cargo clippy (pedantic: libs/bins/examples)"
+cargo clippy --workspace --lib --bins --examples --all-features \
   -- -D warnings -W clippy::pedantic
+
+echo "==> Running cargo clippy (tests: allow common test-only lints)"
+cargo clippy --workspace --tests --all-features \
+  -- -D warnings \
+  -A clippy::unwrap_used \
+  -A clippy::expect_used \
+  -A clippy::panic \
+  -A clippy::dbg_macro \
+  -A clippy::print_stdout \
+  -A clippy::print_stderr \
+  -A clippy::duplicated_attributes
 
 echo "==> Running cargo build --workspace --release"
 cargo build --workspace --release

@@ -427,7 +427,7 @@ pub async fn run(
         .with_operation_id("cli_audit_operation")
         .with_user("cli_user");
 
-    write_stderr_line(&format!("⚠️ {}", AUDIT_EXPERIMENTAL_NOTE))?;
+    write_stderr_line(&format!("⚠️ {AUDIT_EXPERIMENTAL_NOTE}"))?;
 
     // Initialize audit logger if requested
     let _audit_logger = if audit_command.audit_output.is_some() {

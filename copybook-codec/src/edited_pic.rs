@@ -84,6 +84,8 @@ pub enum Sign {
 ///
 /// # Errors
 /// Returns error if the PIC pattern is malformed
+#[inline]
+#[allow(clippy::too_many_lines)]
 pub fn tokenize_edited_pic(pic_str: &str) -> Result<Vec<PicToken>> {
     let mut tokens = Vec::new();
     let mut chars = pic_str.chars().peekable();
@@ -183,14 +185,8 @@ pub fn tokenize_edited_pic(pic_str: &str) -> Result<Vec<PicToken>> {
                     ));
                 }
             }
-            'V' => {
-                // V is implicit decimal point - don't add to tokens (doesn't affect display)
-            }
-            ' ' | '\t' => {
-                // Skip whitespace
-            }
             _ => {
-                // Unknown character - skip for now (could be part of SIGN clause, etc.)
+                // Skip implicit decimal point markers (V), whitespace, or unknown characters
             }
         }
     }
@@ -252,6 +248,7 @@ pub struct NumericValue {
 impl NumericValue {
     /// Format as decimal string for JSON output
     #[must_use]
+    #[inline]
     pub fn to_decimal_string(&self) -> String {
         if self.digits.is_empty() || self.digits.chars().all(|c| c == '0') {
             return "0".to_string();
@@ -291,6 +288,8 @@ impl NumericValue {
 ///
 /// # Errors
 /// Returns error if the input doesn't match the pattern
+#[inline]
+#[allow(clippy::too_many_lines)]
 pub fn decode_edited_numeric(
     input: &str,
     pattern: &[PicToken],
@@ -370,8 +369,7 @@ pub fn decode_edited_numeric(
                     return Err(Error::new(
                         ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
                         format!(
-                            "Expected digit, space, or asterisk but found '{}' at position {}",
-                            input_char, input_idx
+                            "Expected digit, space, or asterisk but found '{input_char}' at position {input_idx}"
                         ),
                     ));
                 }
@@ -427,9 +425,7 @@ pub fn decode_edited_numeric(
                 input_idx += 1;
             }
             PicToken::LeadingPlus => {
-                if input_char == '+' {
-                    sign = Sign::Positive;
-                } else if input_char == ' ' {
+                  if input_char == '+' || input_char == ' ' {
                     sign = Sign::Positive;
                 } else {
                     return Err(Error::new(
@@ -453,9 +449,7 @@ pub fn decode_edited_numeric(
                 input_idx += 1;
             }
             PicToken::TrailingPlus => {
-                if input_char == '+' {
-                    sign = Sign::Positive;
-                } else if input_char == ' ' {
+                  if input_char == '+' || input_char == ' ' {
                     sign = Sign::Positive;
                 } else {
                     return Err(Error::new(

@@ -37,7 +37,7 @@ jobs:
         run: bash scripts/ci/bench.sh
 
       - name: Upload perf.json (short retention on PRs)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: perf-${{ github.sha }}
           path: target/perf.json

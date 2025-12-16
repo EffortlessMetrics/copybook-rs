@@ -92,9 +92,7 @@ pub fn run(
             selectors.len()
         );
         copybook_core::project_schema(&schema, &selectors).map_err(|err| {
-            anyhow::anyhow!(
-                "Failed to apply field projection with selectors {selectors:?}: {err}"
-            )
+            anyhow::anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
         })?
     };
 

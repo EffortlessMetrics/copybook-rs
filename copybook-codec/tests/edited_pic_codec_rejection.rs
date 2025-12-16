@@ -21,10 +21,16 @@ fn test_e1_edited_pic_parses_successfully() {
     assert!(result.is_ok(), "Edited PIC should parse successfully");
 }
 
-/// Test E1-R3: SIGN clause parses as edited PIC
+/// Test E1-R3: SIGN clause rejected as edited PIC
 #[test]
 fn test_e1_sign_clause_parses_as_edited() {
     let copybook = "01 REC.\n   05 SIGNED-AMT PIC S9(5) SIGN LEADING.";
     let result = parse_copybook(copybook);
-    assert!(result.is_ok(), "SIGN clause should parse as edited PIC");
+    assert!(
+        result.is_err(),
+        "SIGN clause should be rejected until decode semantics exist"
+    );
+    if let Err(err) = result {
+        assert_eq!(err.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+    }
 }

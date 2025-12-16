@@ -55,21 +55,17 @@ pub fn run(
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Apply field projection if --select is provided
-    let working_schema = if !options.select.is_empty() {
+    let working_schema = if options.select.is_empty() {
+        schema
+    } else {
         let selectors = parse_selectors(options.select);
         info!(
             "Applying field projection with {} selectors",
             selectors.len()
         );
         copybook_core::project_schema(&schema, &selectors).map_err(|err| {
-            anyhow!(
-                "Failed to apply field projection with selectors {:?}: {}",
-                selectors,
-                err
-            )
+            anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
         })?
-    } else {
-        schema
     };
 
     // Configure encode options - use strict mode when fail_fast is enabled

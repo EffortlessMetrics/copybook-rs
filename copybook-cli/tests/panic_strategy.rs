@@ -1,6 +1,3 @@
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
-
 #[cfg(not(panic = "unwind"))]
 compile_error!("panic=abort disables catch_unwind safeguards");
 

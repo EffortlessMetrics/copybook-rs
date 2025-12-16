@@ -54,24 +54,20 @@ impl PicClause {
     #[must_use = "Handle the Result or propagate the error"]
     pub fn parse(pic_str: &str) -> Result<Self> {
         let pic_str = pic_str.trim();
+        let pic_upper = pic_str.to_ascii_uppercase();
+
+        // SIGN clauses are not yet supported in edited PIC decoding
+        if pic_upper.contains("SIGN") {
+            return Err(Error::new(
+                ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
+                format!("SIGN clause is not supported: {pic_str}"),
+            ));
+        }
 
         // Check for edited PIC patterns first (Phase E2: parse with scale computation)
         if is_edited_pic(pic_str) {
             let width = compute_edited_pic_width(pic_str)?;
             let signed = has_sign_editing(pic_str);
-            let scale = compute_edited_pic_scale(pic_str)?;
-            return Ok(PicClause {
-                kind: PicKind::Edited,
-                signed,
-                digits: width,
-                scale,
-            });
-        }
-
-        // Check for SIGN clauses (also treated as edited)
-        if pic_str.contains("SIGN") {
-            let width = compute_edited_pic_width(pic_str)?;
-            let signed = true; // SIGN clause implies signed
             let scale = compute_edited_pic_scale(pic_str)?;
             return Ok(PicClause {
                 kind: PicKind::Edited,
@@ -507,13 +503,11 @@ mod tests {
     }
 
     #[test]
-    fn test_sign_clause_parses() {
-        // Phase E1: SIGN clause should now parse as edited PIC
+    fn test_sign_clause_rejected() {
         let result = PicClause::parse("S9(5) SIGN LEADING");
-        assert!(result.is_ok());
-        let pic = result.unwrap();
-        assert_eq!(pic.kind, PicKind::Edited);
-        assert!(pic.signed); // SIGN clause implies signed
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
     }
 
     #[test]

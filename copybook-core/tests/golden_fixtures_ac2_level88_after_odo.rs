@@ -501,7 +501,7 @@ fn test_ac2_enterprise_healthcare_level88_after_odo_pass() {
 /// AC2 Performance: High-volume Level-88 after ODO (PASS)
 ///
 /// **Purpose**: Validates performance with high-volume Level-88 processing
-/// **COBOL Rule**: Level-88 parsing scales with large ODO arrays
+/// **COBOL Rule**: Level-88 parsing scales with large ODO arrays (bounded below record-size cap)
 /// **Enterprise Context**: High-frequency trading records with market conditions
 #[test]
 fn test_ac2_performance_high_volume_level88_after_odo_pass() {
@@ -512,7 +512,7 @@ fn test_ac2_performance_high_volume_level88_after_odo_pass() {
       10 MARKET-DATE     PIC 9(8).
       10 MARKET-TIME     PIC 9(6).
    05 TRADE-COUNT        PIC 9(7).
-   05 TRADES OCCURS 1 TO 1000000 TIMES DEPENDING ON TRADE-COUNT.
+   05 TRADES OCCURS 1 TO 200000 TIMES DEPENDING ON TRADE-COUNT.
       10 TRADE-ID        PIC X(20).
       10 INSTRUMENT-CODE PIC X(12).
       10 TRADE-TYPE      PIC X(1).
@@ -558,7 +558,7 @@ fn test_ac2_performance_high_volume_level88_after_odo_pass() {
             trades_field.occurs,
             Some(Occurs::ODO {
                 min: 1,
-                max: 1_000_000,
+                max: 200_000,
                 ..
             })
         ),

@@ -349,11 +349,11 @@ impl ErrorReporter {
             | ErrorCode::CBKD410_ZONED_OVERFLOW
             | ErrorCode::CBKD411_ZONED_BAD_SIGN
             | ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT
-            | ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH
-            | ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => ErrorSeverity::Error,
+            | ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH => ErrorSeverity::Error,
 
             // BLANK WHEN ZERO is informational
-            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => ErrorSeverity::Warning,
+            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO
+            | ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => ErrorSeverity::Warning,
 
             // Encode errors
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE521_ARRAY_LEN_OOB => {

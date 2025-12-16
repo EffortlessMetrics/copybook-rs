@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 copybook-rs is a Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and data conversion with focus on correctness and safety.
 
-**Status**: **Engineering Preview** (v0.4.0 maintenance) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
+**Status**: **Engineering Preview** (v0.4.0) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
 **Quality**: 704 tests passing (58 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
 
@@ -493,7 +493,7 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
 
 ## Known Limitations & Roadmap
 
-**Current Status**: Engineering Preview (v0.4.0 maintenance) - ROADMAP.md is the canonical status source.
+**Current Status**: Engineering Preview (v0.4.0) - ROADMAP.md is the canonical status source.
 
 ### Unsupported COBOL Features
 - COMP-1/COMP-2 floating-point types (rare in practice)

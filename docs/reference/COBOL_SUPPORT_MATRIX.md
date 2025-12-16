@@ -39,8 +39,8 @@
 | OCCURS (Fixed) | ✅ Fully Supported | Multiple test files | Fixed-size array support with 5+ dedicated tests |
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
-| Nested ODO (`nested-odo`) | ❌ Not Supported | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (9 negative tests) | By design - ODO within ODO not allowed |
-| RENAMES (`level-66-renames`) | ✅ Same-scope / ⏳ Nested | 30 tests across 4 test suites (parser, hierarchy, resolver) | See [RENAMES Support Status](#renames-level-66---support-status) for split scenario breakdown (6 categories: R1✅, R2⚠️, R3⏳, R4-R6🚫) |
+| Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
+| RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | 30+ tests across 5 test suites (parser, hierarchy, resolver, schema API) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
 
 ## Sign Handling
 
@@ -193,6 +193,93 @@ FieldKind::Condition { values } => condition_value(values, "CONDITION")
 
 **Known Limitations**: None. Full support for Level-88 condition values including complex interactions with ODO and REDEFINES.
 
+## Nested ODO / OCCURS Behavior - Support Status
+
+**Status**: ✅ **O1-O4 Fully Supported** | 🚫 **O5-O6 Rejected by Design**
+
+Nested ODO support is split into explicit scenarios to track implementation decisions.
+See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specification.
+
+| ID  | Scenario                                | Status | Error Code            | Test Evidence                                                    |
+|-----|-----------------------------------------|--------|-----------------------|------------------------------------------------------------------|
+| O1  | Simple tail ODO                         | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` |
+| O2  | Tail ODO with DYNAMIC (AC1/AC2)         | ✅     | -                     | `odo_comprehensive.rs` (21 tests), `odo_counter_types.rs`        |
+| O3  | Group-with-ODO tail (AC3)               | ✅     | -                     | `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_nested_groups_inside_odo_pass` |
+| O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 negative tests)|
+| O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Phase N1: reject; Phase N2: review if user demand emerges        |
+| O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Phase N1: reject; Phase N3: dedicated design required            |
+| O7  | ODO over RENAMES span (R4/R5 scenarios) | 🚫     | Out of scope          | RENAMES R4-R6 explicitly deferred (see RENAMES section)          |
+
+**Evidence:**
+
+- **O1 (Simple tail ODO)**:
+  - **Parser + Codec**: Full support for tail ODO arrays with min/max bounds
+  - **Test**: `golden_fixtures_ac3_child_inside_odo.rs::test_ac3_basic_child_inside_odo_pass` (89 lines)
+  - **JSON shape**: Array of objects/scalars with runtime length determined by counter
+
+- **O2 (Tail ODO with DYNAMIC)**:
+  - **Parser + Codec**: Full support for `OCCURS 1 TO N DEPENDING ON` with runtime bounds
+  - **Tests**: 21 tests in `odo_comprehensive.rs`, counter type tests in `odo_counter_types.rs`
+  - **Runtime validation**: Clamping with `CBKS301_ODO_CLIPPED`/`CBKS302_ODO_RAISED` errors
+
+- **O3 (Group-with-ODO tail)**:
+  - **Parser + Codec**: Full support for nested groups inside ODO arrays
+  - **Tests**: `golden_fixtures_ac3_child_inside_odo.rs` (5 tests: basic, nested, deep, enterprise, performance)
+  - **JSON shape**: Array of nested objects with hierarchical structure preserved
+
+- **O4 (ODO with sibling after)**:
+  - **Parser**: Rejects storage siblings after ODO with `CBKP021_ODO_NOT_TAIL`
+  - **Tests**: `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 comprehensive negative tests)
+  - **Rationale**: Variable-length arrays cannot have fixed-offset siblings after them
+  - **Exception**: Level-88 condition values (non-storage) permitted after ODO
+
+- **O5 (Nested ODO)**:
+  - **Decision**: 🚫 Rejected in Phase N1 due to complexity (schema nesting, counter scoping, memory layout)
+  - **Error code**: `CBKP022_NESTED_ODO` (to be added)
+  - **Reconsideration**: Phase N2 if user demand emerges with concrete use cases
+
+- **O6 (ODO over REDEFINES)**:
+  - **Decision**: 🚫 Rejected in Phase N1 due to semantic conflict (fixed overlay vs variable length)
+  - **Error code**: `CBKP023_ODO_REDEFINES` (to be added)
+  - **Future**: Phase N3 with dedicated REDEFINES + OCCURS design
+
+- **O7 (ODO over RENAMES)**:
+  - **Decision**: 🚫 Out of scope per RENAMES R4-R6 policy
+  - **Reference**: See [RENAMES Support Status](#renames-level-66---support-status)
+
+**Layout Impact**:
+- **O1-O3**: ODO arrays compute variable offset ranges with runtime counter resolution
+- **O4**: Parser-level rejection ensures no invalid layouts are created
+- **O5-O6**: Not applicable (rejected before layout computation)
+
+**Codec Integration**:
+```rust
+// O1-O3 example: Decode variable-length array
+let counter_value = read_counter_field(&schema, data, counter_path)?;
+let clamped_count = clamp_odo_count(counter_value, min, max)?;
+for i in 0..clamped_count {
+    let occurrence = decode_occurrence(&schema, data, occurrence_offset)?;
+    array.push(occurrence);
+}
+```
+
+**Error Codes:**
+- **CBKP021_ODO_NOT_TAIL**: Fatal parser error (O4) - storage sibling after ODO
+- **CBKS301_ODO_CLIPPED**: Runtime warning/error (O2) - counter > max
+- **CBKS302_ODO_RAISED**: Runtime warning/error (O2) - counter < min
+- **CBKP022_NESTED_ODO**: To be added in Phase N1 (O5)
+- **CBKP023_ODO_REDEFINES**: To be added in Phase N1 (O6)
+
+**Known Limitations:**
+- **Nested ODO** (O5): Not supported by design; pre-normalize on mainframe or use fixed OCCURS
+- **ODO + REDEFINES** (O6): Not supported; use REDEFINES with fixed OCCURS instead
+- **ODO + RENAMES** (O7): Out of scope per RENAMES R4-R6 policy
+
+**Implementation Phases:**
+- **Phase N1 (Current)**: Design contract + support matrix + negative error codes
+- **Phase N2 (Optional)**: Nested ODO support if user demand emerges
+- **Phase N3 (Future)**: REDEFINES + OCCURS interactions with dedicated design
+
 ## RENAMES (Level-66) - Support Status
 
 RENAMES support is split into explicit scenarios to track implementation progress.
@@ -201,11 +288,11 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
 | ID                          | Category                     | Status  | Notes                                                            |
 |-----------------------------|------------------------------|---------|------------------------------------------------------------------|
 | `renames-same-scope-field`  | 66-level – same-scope fields | ✅      | Parser + same-scope resolver; no separate JSON alias keys        |
-| `renames-same-scope-group`  | 66-level – group alias       | ⚠️      | Parsed; resolver attach point incorrect today; JSON unchanged    |
-| `renames-nested-group`      | 66-level – nested group      | ⏳      | Planned R2: resolver-based attach + schema alias metadata        |
-| `renames-codec-projection`  | 66-level – codec projection  | ⏳      | Planned R2: treat alias access as equivalent to storage access   |
-| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope for R2; requires separate design                    |
-| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope for R2; requires separate design                    |
+| `renames-same-scope-group`  | 66-level – group alias       | ✅      | Parser + resolver (R2) with correct tree building; alias-aware lookup |
+| `renames-nested-group`      | 66-level – nested group      | ✅      | Parser + resolver (R3) with recursive target lookup; alias-aware schema methods |
+| `renames-codec-projection`  | 66-level – codec projection  | ✅      | Schema provides `find_field_or_alias` and `resolve_alias_to_target` for codec integration |
+| `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; requires separate design for interaction semantics |
+| `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; requires separate design for array aliasing        |
 
 **Evidence:**
 
@@ -215,10 +302,20 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
   - **Resolver positive**: 4 tests (THRU/THROUGH, QNAME) in `renames_resolver_positive_tests.rs`
   - **Resolver negative**: 12 tests (all error codes) in `renames_resolver_negative_tests.rs`
   - **Total**: 30 comprehensive tests across 4 test suites
-- `renames-same-scope-group` / `renames-nested-group` / `renames-codec-projection`:
-  - Specified in `docs/design/RENAMES_NESTED_GROUPS.md`
-  - Implementation work pending (Phase R2)
-  - Golden fixtures to be added for R1–R3 scenarios
+- `renames-same-scope-group` (R2):
+  - **Parser fix**: Level-66 tree building corrected (PR #162) - group children properly preserved
+  - **Resolver**: Single-group detection via `FROM==THRU` + storage children check in `layout.rs`
+  - **Tests**: `renames_r2_same_scope_group` test in `renames_resolver_positive_tests.rs`
+  - **Schema API**: Alias lookup methods added (`find_field_or_alias`, `resolve_alias_to_target`)
+- `renames-nested-group` (R3):
+  - **Resolver**: Recursive nested lookup via `find_field_by_name` for targets not found as siblings
+  - **Tests**: `renames_r3_nested_group` test in `renames_resolver_positive_tests.rs`
+  - **Schema API**: Tests in `schema_alias_lookup_tests.rs` verify alias resolution to nested targets
+- `renames-codec-projection`:
+  - **Schema API**: `find_field_or_alias()` - finds field by path or RENAMES alias name
+  - **Schema API**: `resolve_alias_to_target()` - resolves alias to first storage member
+  - **Tests**: 8 tests in `schema_alias_lookup_tests.rs` covering R2/R3 alias lookup and resolution
+  - **Design**: Aliases resolve to storage fields; no duplicate JSON keys (architectural principle)
 
 **API Integration:**
 

@@ -303,10 +303,7 @@ impl BinaryFidelityValidator {
         };
 
         let performance_impact = Some(PerformanceImpact {
-            validation_time_ms: match validation_time.as_millis().try_into() {
-                Ok(ms) => ms,
-                Err(_) => u64::MAX,
-            },
+            validation_time_ms: validation_time.as_millis().try_into().unwrap_or(u64::MAX),
             memory_overhead_bytes: Self::estimate_memory_overhead(original_data),
             throughput_impact_percent: Self::calculate_throughput_impact(validation_time),
         });
@@ -606,7 +603,8 @@ impl BinaryFidelityValidator {
             FieldKind::Alphanum { .. }
             | FieldKind::Group
             | FieldKind::Condition { .. }
-            | FieldKind::Renames { .. } => false, // Level-88 and Level-66 RENAMES are not numeric (parse-only Slice-1)
+            | FieldKind::Renames { .. }
+            | FieldKind::EditedNumeric { .. } => false, // Phase E1: EditedNumeric not yet supported for numeric ops
         }
     }
 
@@ -660,6 +658,10 @@ impl BinaryFidelityValidator {
             FieldKind::Renames { .. } => {
                 // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
                 // Slice-2 will resolve alias ranges and project into concrete fields.
+                CobolFieldType::Display
+            }
+            FieldKind::EditedNumeric { .. } => {
+                // Phase E1: EditedNumeric treated as display for tolerance purposes
                 CobolFieldType::Display
             }
         }
@@ -937,10 +939,7 @@ pub mod utils {
             .filter_map(|r| r.performance_impact.as_ref())
             .map(|p| p.validation_time_ms)
             .sum();
-        let total_records_u64 = match u64::try_from(total_records) {
-            Ok(count) => count,
-            Err(_) => u64::MAX,
-        };
+        let total_records_u64 = u64::try_from(total_records).unwrap_or(u64::MAX);
         let average_validation_time = if total_records_u64 == 0 {
             0
         } else {

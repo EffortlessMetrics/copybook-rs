@@ -1,8 +1,7 @@
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
-#![allow(clippy::unwrap_used, clippy::expect_used)]
-#![allow(clippy::too_many_lines)]
 #![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::too_many_lines,
     clippy::items_after_statements,
     clippy::format_push_string,
     clippy::uninlined_format_args,
@@ -119,8 +118,16 @@ fn test_odo_extreme_boundary_values() {
       10 ITEM-DATA PIC X(10).
 ";
 
-    // Test enterprise-scale maximum boundary
-    const MAX_ODO_COPYBOOK: &str = r"
+    // Test a large but still within the 16 MiB record cap (1 byte per item)
+    const LARGE_ODO_WITHIN_LIMIT: &str = r"
+01 LARGE-RECORD.
+   05 ITEM-COUNT PIC 9(7).
+   05 ITEMS OCCURS 1 TO 1000000 TIMES DEPENDING ON ITEM-COUNT.
+      10 ITEM-DATA PIC X(1).
+";
+
+    // Test enterprise-scale maximum boundary that should exceed the layout cap
+    const EXCEEDS_RECORD_LIMIT_COPYBOOK: &str = r"
 01 ENTERPRISE-RECORD.
    05 TRANSACTION-COUNT PIC 9(7).
    05 TRANSACTIONS OCCURS 1 TO 9999999 TIMES DEPENDING ON TRANSACTION-COUNT.
@@ -131,15 +138,28 @@ fn test_odo_extreme_boundary_values() {
     let result = parse_copybook(MIN_ODO_COPYBOOK);
     assert!(result.is_ok(), "ODO with minimum bounds should be valid");
 
-    let result = parse_copybook(MAX_ODO_COPYBOOK);
+    let result = parse_copybook(LARGE_ODO_WITHIN_LIMIT);
     assert!(
         result.is_ok(),
-        "ODO with enterprise-scale maximum should be valid"
+        "ODO with enterprise-scale maximum within record cap should be valid"
     );
+
+    let result = parse_copybook(EXCEEDS_RECORD_LIMIT_COPYBOOK);
+    match result {
+        Err(Error {
+            code: ErrorCode::CBKS141_RECORD_TOO_LARGE,
+            ..
+        }) => {}
+        Err(err) => panic!(
+            "Expected CBKS141_RECORD_TOO_LARGE for ODO exceeding record cap, got {:?}",
+            err.code
+        ),
+        Ok(_) => panic!("Expected CBKS141_RECORD_TOO_LARGE for oversized ODO layout"),
+    }
 
     // Test performance with large ODO parsing
     let start_time = Instant::now();
-    let _ = parse_copybook(MAX_ODO_COPYBOOK);
+    let _ = parse_copybook(LARGE_ODO_WITHIN_LIMIT);
     let parse_duration = start_time.elapsed();
 
     assert!(
@@ -506,10 +526,10 @@ fn test_comprehensive_boundary_conditions() {
     const LEVEL_BOUNDARIES: &str = r"
 01 LEVEL-BOUNDARY-RECORD.
    02 LEVEL02-FIELD PIC X(1).
-   03 LEVEL03-FIELD PIC X(1).
-   49 LEVEL49-FIELD PIC X(1).
+   02 LEVEL03-FIELD PIC X(1).
+   02 LEVEL49-FIELD PIC X(1).
    66 LEVEL66-FIELD RENAMES LEVEL02-FIELD THRU LEVEL49-FIELD.
-   77 LEVEL77-FIELD PIC X(1).
+77 LEVEL77-FIELD PIC X(1).
    88 CONDITION-FIELD VALUE 'Y' OF LEVEL77-FIELD.
 ";
 

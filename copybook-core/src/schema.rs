@@ -110,6 +110,18 @@ pub enum FieldKind {
         /// Ending field name in the range
         thru_field: String,
     },
+    /// Edited numeric field (Phase E2: parse, represent, and decode)
+    /// Examples: PIC ZZZ9, PIC $ZZ,ZZ9.99, PIC 9(7)V99CR
+    EditedNumeric {
+        /// Original PIC string (e.g., "ZZ,ZZZ.99")
+        pic_string: String,
+        /// Display width (computed from PIC)
+        width: u16,
+        /// Decimal places (scale) for numeric value
+        scale: u16,
+        /// Whether field has sign editing
+        signed: bool,
+    },
 }
 
 /// Resolved RENAMES (level-66) alias information
@@ -263,6 +275,14 @@ impl Schema {
                 from_field,
                 thru_field,
             } => format!("Renames({from_field},{thru_field})"),
+            FieldKind::EditedNumeric {
+                pic_string,
+                width,
+                scale,
+                signed,
+            } => {
+                format!("EditedNumeric({pic_string},{width},scale={scale},signed={signed})")
+            }
         };
         field_obj.insert("kind".to_string(), Value::String(kind_str));
 

@@ -13,7 +13,7 @@ use tracing::info;
 
 /// Configuration options for the encode command
 #[allow(clippy::struct_excessive_bools)]
-pub struct EncodeCliOptions {
+pub struct EncodeCliOptions<'a> {
     pub format: RecordFormat,
     pub codepage: Codepage,
     pub use_raw: bool,
@@ -25,6 +25,7 @@ pub struct EncodeCliOptions {
     pub coerce_numbers: bool,
     pub strict_comments: bool,
     pub zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+    pub select: &'a [String],
 }
 
 #[allow(clippy::too_many_lines)]
@@ -53,6 +54,20 @@ pub fn run(
     };
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
+    // Apply field projection if --select is provided
+    let working_schema = if options.select.is_empty() {
+        schema
+    } else {
+        let selectors = parse_selectors(options.select);
+        info!(
+            "Applying field projection with {} selectors",
+            selectors.len()
+        );
+        copybook_core::project_schema(&schema, &selectors).map_err(|err| {
+            anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
+        })?
+    };
+
     // Configure encode options - use strict mode when fail_fast is enabled
     let effective_strict_mode = options.strict || options.fail_fast;
     let effective_max_errors = if options.fail_fast {
@@ -76,7 +91,7 @@ pub fn run(
     atomic_write(output, |output_writer| {
         let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
         let run_summary = copybook_codec::encode_jsonl_to_file(
-            &schema,
+            &working_schema,
             input_file,
             output_writer,
             &encode_options,
@@ -176,4 +191,14 @@ pub fn run(
         ExitCode::Encode,
     );
     Ok(exit_code)
+}
+
+/// Parse --select arguments (supports comma-separated and multiple flags)
+fn parse_selectors(select_args: &[String]) -> Vec<String> {
+    select_args
+        .iter()
+        .flat_map(|s| s.split(','))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }

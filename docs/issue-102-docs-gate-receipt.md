@@ -71,7 +71,7 @@ Comprehensive documentation quality assurance for PR #105 following copybook-rs 
 **Test count accuracy verification:**
 - ✅ Actual workspace tests: 529 passing, 54 ignored (verified via cargo test)
 - ✅ Documentation matches reality
-- ✅ MSRV updated: Rust 1.89+ (Edition 2024)
+- ✅ MSRV updated: Rust 1.90+ (Edition 2024)
 - ✅ Golden fixtures coverage updated: 529 tests (54 ignored)
 
 ### ✅ LIBRARY_API.md - __raw_b64 Field Naming Convention

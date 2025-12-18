@@ -16,7 +16,7 @@ The copybook-rs benchmark container provides a **reproducible, isolated environm
 - Performance validation before production deployment
 
 **Container Contents**:
-- Rust 1.89 toolchain (matches MSRV)
+- Rust 1.90 toolchain (matches MSRV)
 - Pre-built copybook-bench crate with criterion benchmarks
 - Performance measurement scripts (bench.sh, perf-annotate-host.sh)
 - Runtime dependencies (Python 3, jq, git, time)

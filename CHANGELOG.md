@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.2] — Unreleased (superseded by 0.4.0)
 
 ### Fixed
-- Aligned workspace `rust-version` with the CI-tested toolchain (Rust 1.89) and refreshed MSRV messaging.
+- Aligned workspace `rust-version` with the CI-tested toolchain (Rust 1.90) and refreshed MSRV messaging.
 - Marked the audit feature as experimental scaffolding; CLI audit commands now emit stubbed reports instead of hardcoded “pass” metrics.
 - Standardised performance receipts on `scripts/bench/perf.json` and demoted legacy `test_perf.json` to a clearly-labelled sample.
 - Synced documentation status/performance messaging with `docs/ROADMAP.md` (engineering preview) and corrected security scanning policy to match CI (cargo-deny always; cargo-audit on lockfile diffs or scheduled runs).

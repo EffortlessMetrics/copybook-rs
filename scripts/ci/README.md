@@ -86,7 +86,7 @@ export HEAD_SHA=$(git rev-parse HEAD)
 ## Prerequisites
 
 ### Required Tools
-- `cargo` (Rust 1.89+ / MSRV)
+- `cargo` (Rust 1.90+ / MSRV)
 - `cargo-nextest` (install: `cargo install nextest`)
 - `cargo-deny` (install via CI or `cargo install cargo-deny`)
 

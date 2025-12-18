@@ -30,7 +30,7 @@
     }
   },
   "environment": {
-    "rust_version": "1.89.0",
+    "rust_version": "1.90.0",
     "cpu_governor": "performance",
     "turbo_boost": "enabled",
     "hyperthreading": "enabled",

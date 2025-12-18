@@ -523,7 +523,7 @@ pub fn create_benchmark_integration_data() -> HashMap<String, Value> {
         "execution_id": "BENCH-2024-09-25-001",
         "execution_timestamp": "2024-09-25T10:30:00Z",
         "execution_environment": {
-            "rust_version": "1.89.0",
+            "rust_version": "1.90.0",
             "copybook_rs_version": "0.3.1",
             "benchmark_framework": "criterion",
             "cpu_model": "Intel Xeon E5-2686 v4",

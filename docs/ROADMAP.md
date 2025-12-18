@@ -29,6 +29,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
    * ✅ crate metadata: categories, keywords, readme path, license files included
    * ✅ workspace dependencies configured for version-based publishing (=0.4.0)
+   * ✅ publish dry-run validation in CI
    * ✅ automated publish workflow for tagged releases (core → codec → cli)
    * 🔄 docs.rs builds for all crates (will complete after first publish)
 2. **✅ Bench receipts tooling** (#52) — **COMPLETED**
@@ -61,11 +62,12 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 * ❌ CI integration: PR comments and artifact uploads not yet automated
 * ✅ Documentation audit complete: no duplicate perf numbers, working navigation
 
-### **Status: ✅ Ready to Tag (follow-ups pending)**
+### **Status: ⚠️ Tagged (publish pending)**
 
-**Target**: v0.4.0 (tag + crates.io publish pending)
+**Tagged**: 2025-12-18 (v0.4.0)
 **Includes**: Projection (`--select`) support, edited PIC decode (E1/E2), deterministic JSON output, golden fixtures validation, docs navigation refresh, bench-report CLI
 **Outstanding**: GitHub Actions integration (PR comments, artifact uploads); SLO enforcement automation
+**Note**: If fixes land after the tag, prefer a patch release (`v0.4.1`) over moving `v0.4.0`.
 
 ---
 

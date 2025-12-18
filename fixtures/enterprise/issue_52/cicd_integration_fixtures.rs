@@ -410,7 +410,7 @@ pub fn create_workflow_environment_fixtures() -> HashMap<String, Value> {
         "step_summary_enabled": true,
         "artifact_retention_days": 30,
         "environment_variables": {
-            "RUST_VERSION": "1.90.0",
+            "RUST_VERSION": "1.89.0",
             "CARGO_INCREMENTAL": "0",
             "RUSTFLAGS": "-D warnings",
             "PERF": "1"

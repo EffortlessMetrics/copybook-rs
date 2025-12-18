@@ -3,7 +3,7 @@
   "timestamp": "2025-10-02T16:00:00Z",
   "commit_sha": "abc789def012abc789def012abc789def012abc7",
   "scan_type": "pr-gate",
-  "rust_version": "1.90.0",
+  "rust_version": "1.89.0",
   "tools": {
     "cargo_audit": "0.21.2",
     "cargo_deny": "0.16.0",

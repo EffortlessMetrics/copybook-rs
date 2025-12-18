@@ -5,7 +5,7 @@
 # Run:   docker run -v $(pwd)/output:/workspace/output copybook-rs-bench
 # View:  cat output/perf.json
 
-FROM rust:1.90-bookworm
+FROM rust:1.89-bookworm
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \

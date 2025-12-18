@@ -47,7 +47,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust:
-          - 1.90.0  # MSRV
+          - 1.89.0  # MSRV
           - stable
           - beta
         features: ["", "comp3_fast", "audit"]

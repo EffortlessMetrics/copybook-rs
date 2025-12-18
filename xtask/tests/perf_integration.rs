@@ -6,9 +6,9 @@
 #![allow(clippy::unwrap_used)]
 
 use std::fs;
-use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
+use assert_cmd::cargo::cargo_bin;
 
 #[test]
 fn test_summarize_with_synthetic_perf_json() {
@@ -36,11 +36,8 @@ fn test_summarize_with_synthetic_perf_json() {
     }"#;
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
-    // Get path to xtask binary
-    let xtask_bin = get_xtask_binary();
-
     // Run xtask perf --summarize-last from temp workspace
-    let output = Command::new(&xtask_bin)
+    let output = Command::new(cargo_bin("xtask"))
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -75,9 +72,7 @@ fn test_summarize_with_failing_slo() {
     }"#;
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
-    let xtask_bin = get_xtask_binary();
-
-    let output = Command::new(&xtask_bin)
+    let output = Command::new(cargo_bin("xtask"))
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -98,9 +93,7 @@ fn test_summarize_missing_perf_json() {
     let workspace_root = temp_dir.path();
 
     // Don't create perf.json - should fail gracefully
-    let xtask_bin = get_xtask_binary();
-
-    let output = Command::new(&xtask_bin)
+    let output = Command::new(cargo_bin("xtask"))
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -128,9 +121,7 @@ fn test_summarize_malformed_json() {
     let perf_json = r#"{"display_mibps": "not a number"}"#;
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
-    let xtask_bin = get_xtask_binary();
-
-    let output = Command::new(&xtask_bin)
+    let output = Command::new(cargo_bin("xtask"))
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -157,9 +148,7 @@ fn test_summarize_nested_summary_structure() {
     }"#;
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
-    let xtask_bin = get_xtask_binary();
-
-    let output = Command::new(&xtask_bin)
+    let output = Command::new(cargo_bin("xtask"))
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -172,25 +161,3 @@ fn test_summarize_nested_summary_structure() {
     assert!(stdout.contains("COMP-3: 50.0 MiB/s"), "stdout: {stdout}");
 }
 
-/// Helper to locate xtask binary
-fn get_xtask_binary() -> PathBuf {
-    // Try debug build first (most common during testing)
-    let debug_path = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join("debug/xtask");
-
-    if debug_path.exists() {
-        return debug_path;
-    }
-
-    // Fallback: use cargo to build and run
-    // This is slower but more reliable
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = manifest_dir.parent().unwrap();
-    workspace_root.join("target/debug/xtask")
-}

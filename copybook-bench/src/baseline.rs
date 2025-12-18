@@ -134,7 +134,7 @@ impl BaselineStore {
     }
 
     /// Apply retention policy (remove baselines older than days)
-    fn apply_retention_policy(&mut self, retention_days: i64) {
+    pub fn apply_retention_policy(&mut self, retention_days: i64) {
         let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days);
 
         self.history.retain(|baseline| {

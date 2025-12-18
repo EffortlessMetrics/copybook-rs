@@ -181,7 +181,10 @@ fn perf_summarize_last() -> Result<()> {
         dirs.sort_by_key(std::fs::DirEntry::path);
 
         // Try to find perf.json in the latest directory
-        let latest_dir = &dirs.last().unwrap().path();
+        let Some(latest_entry) = dirs.last() else {
+            anyhow::bail!("No benchmark receipt directories found under {}", benchmarks_dir.display());
+        };
+        let latest_dir = &latest_entry.path();
         let latest_perf = latest_dir.join("perf.json");
 
         if !latest_perf.exists() {

@@ -45,8 +45,20 @@ test_*.jsonl
 test_*.bin
 
 # Large generated datasets (shared scripts/gen_dataset.sh & soak workloads)
-data/*.rdw
-data/soak*
+data/
 
 # Benchmark artifacts
 scripts/bench/perf.json
+
+# Stray temp directories (from shell escaping issues)
+\$*
+
+# PR/Issue work artifacts (keep these in docs/ or remove after merge)
+*-ledger.md
+PR_*.md
+pr_*.md
+*_VALIDATION*.md
+*_SUMMARY*.md
+*_ASSESSMENT*.md
+*_REPORT*.md
+*_STATUS*.md

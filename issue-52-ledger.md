@@ -1,5 +1,7 @@
 # Issue #52: Complete Missing Machine-Readable Benchmark Reporting Infrastructure
 
+> ⚠️ **Historical snapshot**: This ledger reflects earlier PR-era assumptions (including a Python-utilities plan). Current perf receipts are generated via `bash scripts/bench.sh` into `scripts/bench/perf.json` and summarized in CI via `perf.yml` with advisory-only floors. For current follow-ups, see `docs/backlog/benchmark_tooling.md`.
+
 <!-- gates:start -->
 | Gate | Status | Evidence |
 |------|--------|----------|

@@ -3,7 +3,7 @@
   "timestamp": "2025-10-02T15:30:00Z",
   "commit_sha": "def456abc123def456abc123def456abc123def4",
   "scan_type": "weekly-scan",
-  "rust_version": "1.90.0",
+  "rust_version": "1.89.0",
   "tools": {
     "cargo_audit": "0.21.2",
     "cargo_deny": "0.16.0"

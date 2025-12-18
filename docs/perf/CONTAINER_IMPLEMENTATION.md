@@ -12,8 +12,8 @@ This document describes the implementation of the copybook-rs benchmark containe
 
 ### 1. Dockerfile (`/Dockerfile`)
 
-**Base Image**: `rust:1.90-bookworm`
-- Matches MSRV (Rust 1.90)
+**Base Image**: `rust:1.89-bookworm`
+- Matches MSRV (Rust 1.89)
 - Debian Bookworm base for compatibility
 - Full Rust toolchain for `cargo bench` execution
 
@@ -59,7 +59,7 @@ This document describes the implementation of the copybook-rs benchmark containe
 ```
 ==> copybook-rs benchmark container
 ==> Commit: abc1234
-==> Rustc: rustc 1.90.0 (...)
+==> Rustc: rustc 1.89.0 (...)
 ==> CPU: AMD Ryzen 9 9950X3D
 ==> Cores: 32
 
@@ -138,9 +138,9 @@ DISPLAY: 205.0 MiB/s (SLO 80 MiB/s, +156.2%) | COMP-3: 58.0 MiB/s (SLO 40 MiB/s,
 - Operators can inspect, modify, and re-run benchmarks
 - Easier debugging and customization
 
-### Why Rust 1.90 vs Latest?
+### Why MSRV vs Latest?
 
-**Decision**: Use `rust:1.90-bookworm` (matches MSRV)
+**Decision**: Use `rust:1.89-bookworm` (matches MSRV)
 
 **Rationale**:
 - Ensures compatibility with minimum supported version
@@ -265,7 +265,7 @@ jq -r '"DISPLAY: \(.display_mibps) MiB/s\nCOMP-3: \(.comp3_mibps) MiB/s"' output
 ### Short Term
 
 1. **Test on ARM** - Validate on Apple Silicon, AWS Graviton
-2. **Parameterize Rust Version** - Add `ARG RUST_VERSION=1.90` for testing newer versions
+2. **Parameterize Rust Version** - Add `ARG RUST_VERSION=1.89` for testing newer versions
 3. **Add Healthcheck** - Container healthcheck for orchestration
 4. **Metrics Integration** - Send perf.json to time-series database
 

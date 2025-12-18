@@ -47,24 +47,17 @@ fn test_summarize_with_synthetic_perf_json() {
         .expect("Failed to run xtask");
 
     // Verify successful execution
-    assert!(
-        output.status.success(),
-        "xtask failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "xtask failed: {stderr}");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Verify output contains expected metrics
-    assert!(
-        stdout.contains("DISPLAY: 205.0 MiB/s"),
-        "stdout: {}",
-        stdout
-    );
-    assert!(stdout.contains("COMP-3: 58.0 MiB/s"), "stdout: {}", stdout);
-    assert!(stdout.contains("SLO 80 MiB/s"), "stdout: {}", stdout);
-    assert!(stdout.contains("SLO 40 MiB/s"), "stdout: {}", stdout);
-    assert!(stdout.contains("✓ All SLOs met"), "stdout: {}", stdout);
+    assert!(stdout.contains("DISPLAY: 205.0 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("COMP-3: 58.0 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("SLO 80 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("SLO 40 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("✓ All SLOs met"), "stdout: {stdout}");
 }
 
 #[test]
@@ -94,9 +87,9 @@ fn test_summarize_with_failing_slo() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains("DISPLAY: 60.0 MiB/s"), "stdout: {}", stdout);
-    assert!(stdout.contains("COMP-3: 30.0 MiB/s"), "stdout: {}", stdout);
-    assert!(stdout.contains("⚠ SLOs not met"), "stdout: {}", stdout);
+    assert!(stdout.contains("DISPLAY: 60.0 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("COMP-3: 30.0 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("⚠ SLOs not met"), "stdout: {stdout}");
 }
 
 #[test]
@@ -119,8 +112,7 @@ fn test_summarize_missing_perf_json() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains("No perf.json found") || stderr.contains("Run benchmarks first"),
-        "stderr: {}",
-        stderr
+        "stderr: {stderr}"
     );
 }
 
@@ -176,12 +168,8 @@ fn test_summarize_nested_summary_structure() {
     assert!(output.status.success());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        stdout.contains("DISPLAY: 100.0 MiB/s"),
-        "stdout: {}",
-        stdout
-    );
-    assert!(stdout.contains("COMP-3: 50.0 MiB/s"), "stdout: {}", stdout);
+    assert!(stdout.contains("DISPLAY: 100.0 MiB/s"), "stdout: {stdout}");
+    assert!(stdout.contains("COMP-3: 50.0 MiB/s"), "stdout: {stdout}");
 }
 
 /// Helper to locate xtask binary

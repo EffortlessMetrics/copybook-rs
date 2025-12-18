@@ -46,7 +46,7 @@
   ],
   "metadata": {
     "platform": "linux-x86_64",
-    "rust_version": "1.90.0",
+    "rust_version": "1.89.0",
     "copybook_version": "0.3.1"
   }
 }

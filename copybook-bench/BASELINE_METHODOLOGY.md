@@ -16,7 +16,7 @@ Performance baselines provide a stable reference point for detecting performance
    - Consistent power settings (performance mode recommended)
 
 2. **Required Tools**:
-   - Rust 1.90+ toolchain
+   - Rust 1.89+ toolchain
    - Cargo with release profile configuration
    - Criterion benchmark harness (v0.7+)
    - `bench-report` CLI tool (copybook-bench package)

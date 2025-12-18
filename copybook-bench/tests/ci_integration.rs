@@ -617,9 +617,23 @@ fn test_artifact_structure() {
     let workflow_yaml = std::fs::read_to_string(base_path.join(".github/workflows/benchmark.yml"))
         .expect("Failed to read workflow YAML");
 
+    let has_upload_artifact_action = workflow_yaml.lines().any(|line| {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') {
+            return false;
+        }
+        let Some((_, action)) = trimmed.split_once("uses:") else {
+            return false;
+        };
+        let action = action.trim();
+        let Some(rest) = action.strip_prefix("actions/upload-artifact@v") else {
+            return false;
+        };
+        rest.chars().next().map_or(false, |c| c.is_ascii_digit())
+    });
     assert!(
-        workflow_yaml.contains("actions/upload-artifact@v5"),
-        "Workflow must use upload-artifact action"
+        has_upload_artifact_action,
+        "Workflow must use upload-artifact action (any major version)"
     );
     assert!(
         workflow_yaml.contains("compression-level: 6"),

@@ -629,7 +629,7 @@ fn test_artifact_structure() {
         let Some(rest) = action.strip_prefix("actions/upload-artifact@v") else {
             return false;
         };
-        rest.chars().next().map_or(false, |c| c.is_ascii_digit())
+        rest.chars().next().is_some_and(|c| c.is_ascii_digit())
     });
     assert!(
         has_upload_artifact_action,

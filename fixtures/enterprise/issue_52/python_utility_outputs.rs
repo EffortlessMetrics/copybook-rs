@@ -21,8 +21,8 @@ pub fn create_bench_runner_output() -> HashMap<String, Value> {
             "errors": []
         },
         "system_info": {
-            "rust_version": "1.89.0",
-            "cargo_version": "1.89.0",
+            "rust_version": "1.90.0",
+            "cargo_version": "1.90.0",
             "target": "x86_64-unknown-linux-gnu",
             "cpu_cores": 8,
             "memory_gb": 16
@@ -54,8 +54,8 @@ pub fn create_bench_runner_output() -> HashMap<String, Value> {
             "errors": ["Execution timeout"]
         },
         "system_info": {
-            "rust_version": "1.89.0",
-            "cargo_version": "1.89.0",
+            "rust_version": "1.90.0",
+            "cargo_version": "1.90.0",
             "target": "x86_64-unknown-linux-gnu",
             "cpu_cores": 4,
             "memory_gb": 8

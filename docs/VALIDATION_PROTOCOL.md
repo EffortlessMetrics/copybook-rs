@@ -228,7 +228,7 @@ Compare to tool output in summary.
 
 ### Test failures in `xtask`
 - **Check**: Did you run `cargo fmt` first?
-- **Check**: Are you using Rust 1.89+ (MSRV)?
+- **Check**: Are you using Rust 1.90+ (MSRV)?
 - **Debug**: Run individual tests: `cargo test -p xtask perf::tests::test_name -- --nocapture`
 
 ---

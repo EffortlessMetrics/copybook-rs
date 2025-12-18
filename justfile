@@ -95,9 +95,9 @@ ci-full:
 clean:
     cargo clean
 
-# Check MSRV compatibility (Rust 1.89)
+# Check MSRV compatibility (Rust 1.90)
 check-msrv:
-    cargo +1.89.0 check --workspace
+    cargo +1.90.0 check --workspace
 
 # Run a specific crate's tests
 test-crate crate:

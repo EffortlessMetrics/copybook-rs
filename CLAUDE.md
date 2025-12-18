@@ -12,7 +12,7 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
-**MSRV**: Rust 1.89 enforced at workspace level and validated in CI (see .github/workflows/ci.yml).
+**MSRV**: Rust 1.90 enforced at workspace level and validated in CI (see .github/workflows/ci.yml).
 
 See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
 
@@ -220,7 +220,7 @@ Structured error taxonomy with stable codes:
 
 ## Requirements
 
-- Rust 1.89+ (MSRV), Edition 2024
+- Rust 1.90+ (MSRV), Edition 2024
 - Workspace dependencies for consistent versions
 
 ## Performance
@@ -270,7 +270,7 @@ docker run -v $(pwd)/output:/workspace/output copybook-rs-bench
 ```
 
 Provides reproducible benchmark environment with:
-- Rust 1.89 toolchain (MSRV)
+- Rust 1.90 toolchain (MSRV)
 - All benchmark dependencies pre-installed
 - Automated perf.json receipt generation
 - Performance summary with SLO comparison

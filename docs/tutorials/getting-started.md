@@ -12,7 +12,7 @@ In this tutorial, you'll learn how to:
 
 ## Prerequisites
 
-- Rust 1.89+ installed
+- Rust 1.90+ installed
 - Basic understanding of COBOL data structures
 - Sample COBOL copybook and data files
 

@@ -7,12 +7,12 @@
         "component": "rust_version",
         "status": "failure",
         "icon": "❌",
-        "message": "Rust version: 1.85.0 (required >= 1.89.0)",
+        "message": "Rust version: 1.85.0 (required >= 1.90.0)",
         "details": {
           "installed": "1.85.0",
-          "required": "1.89.0",
+          "required": "1.90.0",
           "toolchain": "stable",
-          "error": "Rust version too old. Please upgrade to 1.89.0 or newer",
+          "error": "Rust version too old. Please upgrade to 1.90.0 or newer",
           "how_to_fix": "rustup update stable"
         }
       },
@@ -45,7 +45,7 @@
     ],
     "summary": "Health checks failed",
     "errors": [
-      "Rust version 1.85.0 is below required 1.89.0",
+      "Rust version 1.85.0 is below required 1.90.0",
       "Available memory 512 MB is below required 1 GB",
       "Baseline file not found"
     ],

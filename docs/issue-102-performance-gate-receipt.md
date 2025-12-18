@@ -32,7 +32,7 @@ Performance validation for PR #105 reveals **expected performance regression** d
 
 ### Environment
 - **Platform**: WSL2 on AMD Ryzen 9 9950X3D (32 threads, 196 GiB RAM)
-- **Rust**: 1.89+ Edition 2024
+- **Rust**: 1.90+ Edition 2024
 - **Build Profile**: `bench` (optimized)
 - **Criterion**: v0.5.1 with plotters backend (Gnuplot not available)
 
@@ -330,7 +330,7 @@ recommendation: accept regression, defer optimization to future work
 
 **Receipt Timestamp**: 2025-10-04 (Performance Baseline Specialist)
 **Validation Environment**: WSL2 AMD Ryzen 9 9950X3D (32T, 196G RAM)
-**Rust Version**: 1.89+ Edition 2024
+**Rust Version**: 1.90+ Edition 2024
 **Criterion Version**: v0.5.1
 ## License
 

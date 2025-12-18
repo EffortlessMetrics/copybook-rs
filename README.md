@@ -826,7 +826,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 ## Operational Notes
 
 ### Toolchain
-- **Rust**: 1.89+ MSRV (workspace-enforced) | **Edition**: 2024
+- **Rust**: 1.90+ MSRV (workspace-enforced) | **Edition**: 2024
 - **Platforms**: Developed and tested primarily on Linux; community validation exists for macOS and Windows
 - **Memory**: Streaming decode/encode runs typically remain below 256 MiB on reference datasets
 - **Dependencies**: Zero unsafe code in public APIs; clippy pedantic enforced in CI
@@ -982,7 +982,7 @@ We welcome contributions! Please see [REPORT.md](docs/REPORT.md) for current pro
 - Follow Rust conventions and idioms with clippy pedantic compliance
 - Add comprehensive tests for new features and help retire the remaining flaky/leaky cases highlighted by `cargo nextest`
 - Update documentation for API changes
-- Maintain MSRV compatibility (Rust 1.89)
+- Maintain MSRV compatibility (Rust 1.90)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)
 - Implement Display trait for user-facing types where appropriate
 - Use safe type conversions (try_from() instead of unsafe casts)

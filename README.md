@@ -833,17 +833,17 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo nextest` reports 615/615 passing (54 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (current receipts in `PERFORMANCE_VALIDATION_FINAL.md`; `integrative_gate_summary.md` retained as historical evidence)
+- **Tests**: `cargo nextest` reports 715/715 passing (38 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (current receipts in `PERFORMANCE_VALIDATION_FINAL.md`; `integrative_gate_summary.md` retained as historical evidence)
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
-- **Automation gaps**: The Python utilities promised in Issue #52 (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) have not shipped yet; see `docs/backlog/benchmark_tooling.md`
+- **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.0; see `docs/backlog/benchmark_tooling.md` for follow-ups
 - **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`
 
 ### Benchmarking & Regression Tracking
 - Run ad-hoc benchmarks with `cargo bench --package copybook-bench`; `just bench-json` mirrors receipts for CI
 - Receipts land in `scripts/bench/perf.json` via `just bench-json`, `bash scripts/bench.sh`, or `scripts\bench.bat`
 - Perf receipts are machine-readable and attached to pull requests as `perf-json` artifacts with 90-day retention
-- Until the Issue #52 utilities land, baseline promotion, regression detection, and SLO validation require manual analysis of the generated JSON plus the backlog tracker
+- `bench-report` supports local receipt validation and baseline comparison; CI perf checks remain neutral/advisory in v0.4.0
 
 ### Performance receipts (deterministic)
 ```bash
@@ -863,7 +863,7 @@ jq '.summary' scripts/bench/perf.json
 
 Set `BENCH_FILTER=all` (or any Criterion filter) to widen coverage while keeping receipts in `scripts/bench/perf.json`.
 
-Artifacts: `scripts/bench/perf.json` (90-day retention in CI). Performance gates use realistic floors (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s) with neutral status. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for baseline methodology and measurement procedures (policy: accuracy-first).
+Artifacts: `scripts/bench/perf.json` (90-day retention in CI). Performance floors are tracked as advisory targets (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s); they are not enforced as a merge/release gate in v0.4.0. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for baseline methodology and measurement procedures (policy: accuracy-first).
 
 ## Development
 
@@ -924,7 +924,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 - ⚠️ **Feature Coverage**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, and RENAMES (66-level) remain unsupported; Level-88 condition values fully supported
 - ⚠️ **Performance Variance**: Measurements show environmental variance in WSL2; see perf workflow artifacts and `scripts/bench/perf.json` for current receipts (advisory-only policy per Issues #74, #75)
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management, comparison, and validation commands
-- ✅ **Quality Signals**: 615 tests passing (54 skipped), zero unsafe code, comprehensive error taxonomy including CBKR* family
+- ✅ **Quality Signals**: Release gate is green; zero unsafe code; comprehensive error taxonomy including CBKR* family
 - ✅ **Interface Stability**: CLI and library APIs are production-ready; feature completeness remains in preview
 
 **Adoption Recommendations**:

@@ -54,7 +54,7 @@ impl PerformanceReport {
             if display < display_slo {
                 self.status = "failure".to_string();
                 self.errors.push(format!(
-                    "DISPLAY throughput {display:.2} GiB/s below SLO {display_slo:.1} GiB/s"
+                    "DISPLAY throughput {display:.2} GiB/s below SLO {display_slo:.2} GiB/s"
                 ));
             } else if display < display_slo * 1.05 {
                 if self.status != "failure" {

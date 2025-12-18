@@ -317,7 +317,7 @@ Tests use tags for categorization:
     - Checks public Result documentation
 
 12. **publish-dry-run** (ubuntu-latest)
-    - Dry publish: copybook-core, copybook-codec, copybook-cli
+    - Preflight packaging: `cargo publish --dry-run` for `copybook-core`; `cargo package --list` for `copybook-codec`/`copybook-cli` (full downstream dry-runs happen just-in-time in `publish.yml`)
 
 13. **security-audit** (ubuntu-latest)
     - Tool: cargo-audit (security vulnerabilities)
@@ -596,4 +596,3 @@ Key strengths for PR-B and PR-D:
 3. Parameterize feature coverage by COBOL construct type
 4. Establish test-to-AC mapping for full traceability
 5. Extend proptest case counts for statistical significance
-

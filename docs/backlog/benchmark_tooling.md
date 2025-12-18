@@ -1,33 +1,31 @@
 # Benchmark Tooling Backlog (Issue #52)
 
-**Status**: Open  
+**Status**: In progress (bench-report shipped; CI polish pending)  
 **Maintainer**: TBD → assign during next planning sync  
 **Related artifacts**: `issue-52-ledger.md`, `scripts/bench/perf.json`, `PERFORMANCE_VALIDATION_FINAL.md`
 
 ## Scope
 
-Rebuild the benchmark and regression automation promised in Issue #52 so that performance telemetry stops depending on ad-hoc manual steps. The deliverable set was never implemented, yet legacy documentation still references the tooling.
+Close the remaining automation gaps around **performance receipts** (generation, baselines, regression summaries) so perf telemetry does not depend on ad-hoc manual steps.
+
+**Note**: The original Issue #52 plan referenced Python utilities under `scripts/bench/`. In v0.4.0 that approach is effectively superseded by:
+- `scripts/bench.sh` / `scripts\\bench.bat` generating canonical receipts at `scripts/bench/perf.json`
+- The `bench-report` CLI (in `copybook-bench`) for local validation + baseline management
+- The `perf.yml` workflow uploading `perf-json` artifacts and posting a neutral SLO check
 
 ## Deliverables
 
-1. `scripts/bench/bench_runner.py`
-   - Run configured Criterion benches with knobs for dataset selection, thread counts, and JSON output
-   - Emit `PerformanceReport` documents that match `docs/schemas/performance_report.schema.json`
-2. `scripts/bench/baseline_manager.py`
-   - Manage on-disk baselines (create, promote, prune) with retention controls (default: keep last 10)
-   - Record provenance metadata (commit SHA, Rust version, platform)
-3. `scripts/bench/slo_validator.py`
-   - Compare current benchmark outputs against SLO floors and tolerance bands
-   - Produce machine-readable summaries plus CLI exit codes suitable for CI gating
-4. `scripts/bench/regression_detector.py`
-   - Compare current runs against nominated baselines using statistical thresholds
-   - Emit GitHub-friendly markdown summaries and JSON diagnostics
-5. `scripts/bench/audit_generator.py`
-   - Produce compliance/audit packages combining raw telemetry, baselines, and SLO verdicts
-   - Support HTML/PDF export hooks defined in `benchmark-reporting-api-contracts.md`
-6. Documentation refresh
-   - Update README, REPORT, and CLI docs once the utilities exist
-   - Provide quickstart examples (`docs/how-to/benchmarking.md`) and maintenance SOPs
+1. Receipts generation (DONE)
+   - Canonical receipts: `scripts/bench/perf.json` (from `bash scripts/bench.sh`)
+   - Host annotation + percentiles: `bash scripts/perf-annotate-host.sh`, `bash scripts/soak-aggregate.sh`
+2. Local tooling (DONE)
+   - `bench-report` CLI: validate, baseline promote/show, compare, summary
+3. CI wiring (PARTIAL)
+   - `perf.yml`: uploads `perf-json` artifact and posts a neutral SLO check (floors are advisory-only in v0.4.0)
+   - Missing: PR comment summary (human-friendly markdown) and baseline promotion automation
+4. Documentation refresh (PARTIAL)
+   - Keep all public docs aligned to receipt-based reporting (`scripts/bench/perf.json`) and advisory-only floors
+   - Remove stale references to the deprecated Python-script plan
 
 ## Acceptance Criteria
 
@@ -49,7 +47,7 @@ Rebuild the benchmark and regression automation promised in Issue #52 so that p
 ## Open Questions
 
 - Are we retaining the legacy GiB/s targets or re-baselining around realistic MiB/s goals?
-- Should we migrate from Python to Rust for longevity (e.g., expand `copybook-bench` CLI)?
+- Should SLO violations remain advisory-only until the CI perf environment is stable?
 - Where should generated artifacts live (`artifacts/perf/` vs dedicated S3 bucket)?
 
 ## Next Steps

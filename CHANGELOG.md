@@ -5,7 +5,7 @@ All notable changes to copybook-rs are documented here. This root file is the ca
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] — 2025-12-16
+## [0.4.0] — 2025-12-18
 
 > Minor release with projection support and edited PIC decode.
 
@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **RENAMES Boundary Test**: Fixed test assertion for non-standard level number detection (level 77)
 - **Projection Validation**: Enhanced error messages for ODO counter and alias resolution failures; parent groups now materialize before ODO counter inference to avoid CBKS701 when selecting nested leaves; fixed-format LRECL is preserved during projection even when tail ODO metadata is present
+- **Nested ODO / REDEFINES Guardrails**: Reject nested ODO and ODO-over-REDEFINES scenarios with explicit parse errors (`CBKP022_NESTED_ODO`, `CBKP023_ODO_REDEFINES`)
 - **Edited PIC Parser**: Proper handling of complex editing patterns with multiple symbols
 - **SIGN Clause Handling**: SIGN LEADING/TRAILING now rejects with CBKP051 until decode semantics are implemented to avoid tokenizer failures
 - **Edited PIC BLANK WHEN ZERO**: CBKD423 downgraded to a warning and emitted when fields are blankified

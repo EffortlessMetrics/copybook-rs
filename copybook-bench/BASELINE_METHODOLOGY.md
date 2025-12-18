@@ -247,12 +247,9 @@ cargo run --bin bench-report -p copybook-bench -- validate perf.json
 
 # Compare against baseline
 cargo run --bin bench-report -p copybook-bench -- compare perf.json
-
-# Check for regressions (exit code 1 if regression detected)
-cargo run --bin bench-report -p copybook-bench -- regression-check perf.json
 ```
 
-**Regression Threshold**: Performance degradation >2% relative to baseline is flagged as a potential regression.
+`bench-report compare` flags regressions when a metric is >5% slower than the stored baseline (advisory output; CI gating is handled separately).
 
 ## Statistical Methodology
 

@@ -52,15 +52,11 @@ target/benchmarks/
 
 ## Service Level Objectives (SLOs)
 
-**Advisory-only SLOs** (based on established baseline, commit 1fa63633):
-- **DISPLAY**: ≥4.1 GiB/s
-- **COMP-3**: ≥560 MiB/s
-
-**CI-enforced thresholds** (realistic floors for gating):
+**Targets (advisory-only)**:
 - **DISPLAY**: ≥80 MiB/s
 - **COMP-3**: ≥40 MiB/s
 
-Note: The advisory SLOs reflect historical targets from the initial implementation. The CI-enforced thresholds are based on empirical measurements from the established baseline (205 MiB/s DISPLAY, 58 MiB/s COMP-3 on reference hardware). See [ROADMAP.md](../ROADMAP.md) and [CLAUDE.md](../../CLAUDE.md) for performance improvement plans.
+In v0.4.0 these floors are tracked for visibility and regression discussion; they are not enforced as hard CI gates by default. See [ROADMAP.md](../ROADMAP.md) for current policy and guidance.
 
 ## Running Benchmarks Locally
 

@@ -87,11 +87,8 @@ pub fn run(enforce: bool, out_dir: Option<&str>) -> Result<()> {
     report.commit = git_sha;
     report.timestamp = chrono::Utc::now().to_rfc3339();
 
-    // Validate against SLOs (using current baseline targets from CLAUDE.md)
-    // NOTE: These are advisory-only SLOs based on established baseline
-    // (205 MiB/s DISPLAY, 58 MiB/s COMP-3 from commit 1fa63633)
-    // CI enforces realistic floors: DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s
-    report.validate_slos(4.1, 560.0);
+    // Validate against realistic floors (advisory by default; `--enforce` promotes to a hard gate)
+    report.validate_slos(DISPLAY_SLO_MIBPS / 1024.0, COMP3_SLO_MIBPS);
 
     // Write report to output directory
     let report_path = out_path.join("perf.json");

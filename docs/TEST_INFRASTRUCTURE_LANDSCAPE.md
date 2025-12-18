@@ -317,7 +317,7 @@ Tests use tags for categorization:
     - Checks public Result documentation
 
 12. **publish-dry-run** (ubuntu-latest)
-    - Dry publish: copybook-core, copybook-codec, copybook-cli
+    - Preflight packaging: `cargo publish --dry-run` for `copybook-core`; `cargo package --list` for `copybook-codec`/`copybook-cli` (full downstream dry-runs happen just-in-time in `publish.yml`)
 
 13. **security-audit** (ubuntu-latest)
     - Tool: cargo-audit (security vulnerabilities)

@@ -60,7 +60,7 @@
 ✅ **Zero compilation warnings**
 ✅ **Zero unsafe code** (maintained)
 ✅ **Release optimization** enabled
-✅ **MSRV compliance** (Rust 1.89+, Edition 2024)
+✅ **MSRV compliance** (Rust 1.90+, Edition 2024)
 ✅ **Workspace dependencies** resolved
 
 ---
@@ -103,7 +103,7 @@ Enterprise Build Standards:
 ✅ Zero compilation warnings
 ✅ Zero unsafe code (maintained)
 ✅ Release optimization enabled
-✅ MSRV compliance (Rust 1.89+, Edition 2024)
+✅ MSRV compliance (Rust 1.90+, Edition 2024)
 ✅ Workspace dependencies resolved
 
 Routing: NEXT → feature-tester (clean build; proceed to feature validation)

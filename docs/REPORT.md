@@ -96,7 +96,7 @@ Comprehensive support for mainframe data formats:
 ## Development and Maintenance Status
 
 ### Code Quality
-- Rust Edition 2024 with MSRV 1.90 (aligned with CI test matrix)
+- Rust Edition 2024 with MSRV 1.89 (aligned with CI test matrix)
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase

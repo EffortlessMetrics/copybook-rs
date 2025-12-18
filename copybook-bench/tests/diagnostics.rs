@@ -30,7 +30,7 @@ use copybook_bench::reporting::PerformanceReport;
 /// Tests feature spec: docs/reference/benchmark-api-contracts.md#diagnostic-api-contracts
 ///
 /// Validates that health check utility correctly validates:
-/// - Rust version (>= 1.90)
+/// - Rust version (>= 1.89)
 /// - Available memory (> 1 GB)
 /// - CPU governor (performance recommended)
 /// - Baseline existence
@@ -79,7 +79,7 @@ fn test_health_check_output_format() {
     // Simulate health check output
     let health_output = format!(
         "🏥 Copybook Benchmark Health Check\n\
-         ✅ Rust version: 1.90.0\n\
+         ✅ Rust version: 1.89.0\n\
          ✅ Available memory: 28 GB\n\
          ⚠️ CPU governor: powersave (recommend performance)\n\
          ✅ Baseline exists: target/baselines/performance.json\n\
@@ -250,7 +250,7 @@ fn test_health_check_components() {
     // AC5
     // Rust version check
     let rust_version_ok = true; // Placeholder
-    assert!(rust_version_ok, "Rust version must meet MSRV (1.90+)");
+    assert!(rust_version_ok, "Rust version must meet MSRV (1.89+)");
 
     // Memory availability check
     let memory_sufficient = true; // Placeholder

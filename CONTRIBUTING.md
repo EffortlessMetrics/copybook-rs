@@ -21,7 +21,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ### Prerequisites
 
-- Rust 1.90+ (MSRV)
+- Rust 1.89+ (MSRV)
 - Git
 - A GitHub account
 

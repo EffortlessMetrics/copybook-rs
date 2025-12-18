@@ -5,8 +5,13 @@
 
 use anyhow::{Context, Result};
 use copybook_bench::{baseline::BaselineStore, reporting::PerformanceReport};
+use serde_json::Value;
 use std::env;
 use std::path::PathBuf;
+
+const DISPLAY_FLOOR_MIBPS: f64 = 80.0;
+const COMP3_FLOOR_MIBPS: f64 = 40.0;
+const DISPLAY_FLOOR_GIBPS: f64 = DISPLAY_FLOOR_MIBPS / 1024.0;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -62,11 +67,13 @@ fn validate_report(args: &[String]) -> Result<()> {
     let content = std::fs::read_to_string(report_path)
         .with_context(|| format!("Failed to read {report_path}"))?;
 
-    let mut report: PerformanceReport = serde_json::from_str(&content)
-        .with_context(|| format!("Failed to parse {report_path} as valid performance report"))?;
+    let value: Value = serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse {report_path} as JSON"))?;
+    let mut report =
+        parse_report_from_value(report_path, &value).context("parsing performance report")?;
 
     // Validate against SLOs
-    report.validate_slos(4.1, 560.0);
+    report.validate_slos(DISPLAY_FLOOR_GIBPS, COMP3_FLOOR_MIBPS);
 
     println!("✅ Valid performance report");
     println!("   Status: {}", report.status);
@@ -115,8 +122,9 @@ fn manage_baseline(args: &[String]) -> Result<()> {
             let content = std::fs::read_to_string(report_path)
                 .with_context(|| format!("Failed to read {report_path}"))?;
 
-            let report: PerformanceReport = serde_json::from_str(&content)
-                .with_context(|| format!("Failed to parse {report_path}"))?;
+            let value: Value = serde_json::from_str(&content)
+                .with_context(|| format!("Failed to parse {report_path} as JSON"))?;
+            let report = parse_report_from_value(report_path, &value)?;
 
             // Load store with error handling
             let mut store = BaselineStore::load_or_create(&baseline_path)?;
@@ -164,8 +172,9 @@ fn compare_performance(args: &[String]) -> Result<()> {
     let content = std::fs::read_to_string(report_path)
         .with_context(|| format!("Failed to read {report_path}"))?;
 
-    let report: PerformanceReport =
-        serde_json::from_str(&content).with_context(|| format!("Failed to parse {report_path}"))?;
+    let value: Value = serde_json::from_str(&content)
+        .with_context(|| format!("Failed to parse {report_path} as JSON"))?;
+    let report = parse_report_from_value(report_path, &value)?;
 
     let baseline_path = get_baseline_path();
 
@@ -214,8 +223,8 @@ fn show_summary(args: &[String]) {
         println!("📊 {}", store.summary());
         println!();
         println!("🎯 SLO Targets:");
-        println!("   DISPLAY: ≥4.1 GiB/s");
-        println!("   COMP-3:  ≥560 MiB/s");
+        println!("   DISPLAY: ≥{DISPLAY_FLOOR_MIBPS:.0} MiB/s");
+        println!("   COMP-3:  ≥{COMP3_FLOOR_MIBPS:.0} MiB/s");
         println!();
         println!("📈 Performance History: {} entries", store.history.len());
         println!("   Baseline file: {}", baseline_path.display());
@@ -223,12 +232,77 @@ fn show_summary(args: &[String]) {
         println!("📊 No baseline established");
         println!();
         println!("🎯 SLO Targets:");
-        println!("   DISPLAY: ≥4.1 GiB/s");
-        println!("   COMP-3:  ≥560 MiB/s");
+        println!("   DISPLAY: ≥{DISPLAY_FLOOR_MIBPS:.0} MiB/s");
+        println!("   COMP-3:  ≥{COMP3_FLOOR_MIBPS:.0} MiB/s");
         println!();
         println!("📈 Performance History: 0 entries");
         println!("   Baseline file: {} (not found)", baseline_path.display());
     }
+}
+
+fn parse_report_from_value(report_path: &str, value: &Value) -> Result<PerformanceReport> {
+    if looks_like_perf_receipt(value) {
+        Ok(perf_receipt_to_report(value))
+    } else {
+        serde_json::from_value(value.clone())
+            .with_context(|| format!("Failed to parse {report_path} as a performance report"))
+    }
+}
+
+fn looks_like_perf_receipt(value: &Value) -> bool {
+    value.get("display_gibps").is_some()
+        || value.get("display_mibps").is_some()
+        || value.get("comp3_mibps").is_some()
+        || value.get("summary").is_some()
+}
+
+fn perf_receipt_to_report(value: &Value) -> PerformanceReport {
+    let mut report = PerformanceReport::new();
+
+    if let Some(timestamp) = value.get("timestamp").and_then(Value::as_str) {
+        report.timestamp = timestamp.to_string();
+    }
+    if let Some(commit) = value.get("commit").and_then(Value::as_str) {
+        report.commit = commit.to_string();
+    }
+    if let Some(status) = value.get("status").and_then(Value::as_str) {
+        report.status = match status {
+            "pass" => "success",
+            "fail" => "failure",
+            "warn" => "warning",
+            other => other,
+        }
+        .to_string();
+    }
+
+    report.display_gibs = value
+        .get("display_gibps")
+        .and_then(Value::as_f64)
+        .or_else(|| {
+            value
+                .get("display_mibps")
+                .and_then(Value::as_f64)
+                .map(|mibps| mibps / 1024.0)
+        })
+        .or_else(|| {
+            value
+                .get("summary")
+                .and_then(|summary| summary.get("display_mibps"))
+                .and_then(Value::as_f64)
+                .map(|mibps| mibps / 1024.0)
+        });
+
+    report.comp3_mibs = value
+        .get("comp3_mibps")
+        .and_then(Value::as_f64)
+        .or_else(|| {
+            value
+                .get("summary")
+                .and_then(|summary| summary.get("comp3_mibps"))
+                .and_then(Value::as_f64)
+        });
+
+    report
 }
 
 fn get_baseline_path() -> PathBuf {

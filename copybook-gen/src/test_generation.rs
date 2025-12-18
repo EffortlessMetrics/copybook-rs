@@ -390,12 +390,14 @@ mod tests {
 
         let display_test = suite.find_test("display_heavy_10k");
         assert!(display_test.is_some());
-        assert!(display_test.unwrap().has_tag("performance"));
-        assert!(display_test.unwrap().has_tag("display_heavy"));
+        let display_test = display_test.expect("Display test should exist");
+        assert!(display_test.has_tag("performance"));
+        assert!(display_test.has_tag("display_heavy"));
 
         let comp3_test = suite.find_test("comp3_heavy_10k");
         assert!(comp3_test.is_some());
-        assert!(comp3_test.unwrap().has_tag("comp3_heavy"));
+        let comp3_test = comp3_test.expect("COMP3 test should exist");
+        assert!(comp3_test.has_tag("comp3_heavy"));
     }
 
     #[test]

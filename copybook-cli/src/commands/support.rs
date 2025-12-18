@@ -129,7 +129,7 @@ mod tests {
     fn test_find_feature_level88() {
         let feature = support_matrix::find_feature("level-88");
         assert!(feature.is_some());
-        let f = feature.unwrap();
+        let f = feature.expect("Feature should exist");
         assert_eq!(f.name, "LEVEL 88 condition names");
     }
 

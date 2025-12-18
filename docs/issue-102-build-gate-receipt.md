@@ -154,7 +154,7 @@ copybook 0.3.1
 ✅ Workspace dependency management: Consistent versions
 ✅ External dependencies: All resolved successfully
 ✅ Feature flags: Comprehensive-tests available
-✅ MSRV compliance: Rust 1.89+, Edition 2024
+✅ MSRV compliance: Rust 1.90+, Edition 2024
 ```
 
 ### Build Features Validated
@@ -323,7 +323,7 @@ Impact: Test data fidelity validated
 ✅ Zero unsafe code: Maintained (no unsafe blocks added)
 ✅ Release optimization: Enabled (-C opt-level=3)
 ✅ Binary artifacts: CLI executable generated (2.1 MiB)
-✅ MSRV compliance: Rust 1.89+, Edition 2024
+✅ MSRV compliance: Rust 1.90+, Edition 2024
 ```
 
 **Production Readiness**: ✅ **VERIFIED**
@@ -446,7 +446,7 @@ Enterprise Build Standards:
 ✅ Zero compilation warnings
 ✅ Zero unsafe code (maintained)
 ✅ Release optimization enabled
-✅ MSRV compliance (Rust 1.89+, Edition 2024)
+✅ MSRV compliance (Rust 1.90+, Edition 2024)
 ✅ Workspace dependencies resolved
 
 Build Environment:
@@ -534,7 +534,7 @@ cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name 
 - Environment: WSL2 (Linux 6.6.87.2-microsoft-standard-WSL2)
 
 **Software**:
-- Rust: 1.89+ (MSRV), Edition 2024
+- Rust: 1.90+ (MSRV), Edition 2024
 - Cargo: Workspace configuration valid
 - Build Tools: Complete (linker, debugger available)
 

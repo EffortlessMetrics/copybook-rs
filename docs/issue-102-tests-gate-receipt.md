@@ -696,7 +696,7 @@ cargo test --workspace --test "*golden_fixtures*"
 - Environment: WSL2 (Linux 6.6.87.2-microsoft-standard-WSL2)
 
 **Software**:
-- Rust: 1.89+ (MSRV), Edition 2024
+- Rust: 1.90+ (MSRV), Edition 2024
 - Nextest: Installed and operational
 - Cargo: Workspace configuration valid
 

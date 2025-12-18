@@ -235,12 +235,12 @@ See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specif
 
 - **O5 (Nested ODO)**:
   - **Decision**: 🚫 Rejected in Phase N1 due to complexity (schema nesting, counter scoping, memory layout)
-  - **Error code**: `CBKP022_NESTED_ODO` (to be added)
+  - **Error code**: `CBKP022_NESTED_ODO`
   - **Reconsideration**: Phase N2 if user demand emerges with concrete use cases
 
 - **O6 (ODO over REDEFINES)**:
   - **Decision**: 🚫 Rejected in Phase N1 due to semantic conflict (fixed overlay vs variable length)
-  - **Error code**: `CBKP023_ODO_REDEFINES` (to be added)
+  - **Error code**: `CBKP023_ODO_REDEFINES`
   - **Future**: Phase N3 with dedicated REDEFINES + OCCURS design
 
 - **O7 (ODO over RENAMES)**:
@@ -267,8 +267,8 @@ for i in 0..clamped_count {
 - **CBKP021_ODO_NOT_TAIL**: Fatal parser error (O4) - storage sibling after ODO
 - **CBKS301_ODO_CLIPPED**: Runtime warning/error (O2) - counter > max
 - **CBKS302_ODO_RAISED**: Runtime warning/error (O2) - counter < min
-- **CBKP022_NESTED_ODO**: To be added in Phase N1 (O5)
-- **CBKP023_ODO_REDEFINES**: To be added in Phase N1 (O6)
+- **CBKP022_NESTED_ODO**: Fatal parser error (O5) - nested ODO rejected by design
+- **CBKP023_ODO_REDEFINES**: Fatal parser error (O6) - ODO over REDEFINES rejected by design
 
 **Known Limitations:**
 - **Nested ODO** (O5): Not supported by design; pre-normalize on mainframe or use fixed OCCURS
@@ -276,7 +276,7 @@ for i in 0..clamped_count {
 - **ODO + RENAMES** (O7): Out of scope per RENAMES R4-R6 policy
 
 **Implementation Phases:**
-- **Phase N1 (Current)**: Design contract + support matrix + negative error codes
+- **Phase N1 (Current)**: Design contract + support matrix + negative error codes ✅
 - **Phase N2 (Optional)**: Nested ODO support if user demand emerges
 - **Phase N3 (Future)**: REDEFINES + OCCURS interactions with dedicated design
 

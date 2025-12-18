@@ -124,7 +124,7 @@ jobs:
           - [copybook-codec docs](https://docs.rs/copybook-codec/${version})
           - [copybook-cli docs](https://docs.rs/copybook-cli/${version})
 
-          See [CHANGELOG.md](https://github.com/EffortlessMetrics/copybook-rs/blob/main/CHANGELOG.md) for details.`,
+          See [CHANGELOG.md](https://github.com/EffortlessMetrics/copybook-rs/blob/${tag}/CHANGELOG.md) for details.`,
             draft: false,
             prerelease: version.includes('-')
           });

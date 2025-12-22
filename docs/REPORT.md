@@ -24,7 +24,7 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 
 ### Test Coverage
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo nextest` reports 715/715 passing (38 skipped) on the release gate (excluding `copybook-bench`)
+- **Tests**: `cargo test --workspace` reports 840+ tests passing (24 skipped for external tool requirements) on the release gate
 <!-- TEST_STATUS:END -->
 - **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
 - **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
@@ -96,7 +96,7 @@ Comprehensive support for mainframe data formats:
 ## Development and Maintenance Status
 
 ### Code Quality
-- Rust Edition 2024 with MSRV 1.89 (aligned with CI test matrix)
+- Rust Edition 2024 with MSRV 1.90 (aligned with CI test matrix)
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase
@@ -154,7 +154,7 @@ In v0.4.0, performance floors are tracked as **advisory targets** (DISPLAY ≥ 8
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set and can tolerate current performance characteristics. The project maintains Engineering Preview status (not production-ready) until remaining limitations are addressed.
 
 #### Technical Signals
-- ⚠️ **Test Health**: `cargo nextest` reports 715/715 passing (38 skipped) on the release gate (excluding `copybook-bench`)
+- ⚠️ **Test Health**: `cargo test --workspace` reports 840+ tests passing (24 skipped for external tool requirements)
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ⚠️ **Performance Variance**: Receipts are environment-specific; validate on your target hardware (see `scripts/bench/perf.json` + `PERFORMANCE_VALIDATION_FINAL.md`)
 - ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.0 (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s)
@@ -173,7 +173,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
    - Native Linux deployment may show 5-15% improvement over WSL2 measurements
 
 3. **Documentation Resources**:
-   - Keep `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` handy when communicating status to stakeholders
+   - Reference `scripts/bench/perf.json` and `PERFORMANCE_VALIDATION_FINAL.md` when communicating status to stakeholders
    - Review [ROADMAP.md](ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
    - Consult [ERROR_CODES.md](reference/ERROR_CODES.md) for comprehensive error taxonomy
 

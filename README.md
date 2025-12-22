@@ -14,7 +14,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 ## Overview
 
-copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis. Canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`); `integrative_gate_summary.md` is retained as historical evidence only.
+copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis.
 
 ### Design Priorities
 
@@ -834,7 +834,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo nextest` reports 715/715 passing (38 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (current receipts in `PERFORMANCE_VALIDATION_FINAL.md`; `integrative_gate_summary.md` retained as historical evidence)
+- **Tests**: `cargo test --workspace` reports 840+ tests passing (24 skipped for external tool requirements) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
 - **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.0; see `docs/backlog/benchmark_tooling.md` for follow-ups
@@ -934,7 +934,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 3. Review [REPORT.md](docs/REPORT.md) for detailed readiness assessment
 4. Consult [ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
 
-See `PERFORMANCE_VALIDATION_FINAL.md` for current validation evidence; `integrative_gate_summary.md` is preserved as a historical snapshot.
+See `scripts/bench/perf.json` for current performance receipts.
 
 ### **Development Roadmap**
 See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: v0.5.0 dialect features and benchmark automation (Issue #52).

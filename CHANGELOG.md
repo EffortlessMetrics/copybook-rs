@@ -5,6 +5,29 @@ All notable changes to copybook-rs are documented here. This root file is the ca
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **CLI Code Consolidation**: Refactored duplicated code across CLI commands
+  - Extracted `parse_selectors()` to shared `utils.rs` module (was duplicated in decode/encode/verify)
+  - Created `build_parse_options()` helper with `ParseOptionsConfig` struct for consistent copybook parsing
+  - Created `apply_field_projection()` helper for DRY field projection logic
+  - Reduces code duplication by ~60 lines across 3 command modules
+
+### Fixed
+
+- **Deprecated API Usage**: Updated `assert_cmd::cargo::cargo_bin` function to `cargo_bin!` macro in xtask tests
+- **Workspace Inheritance**: Changed `sha2` and `chrono` dependencies in copybook-gen to use workspace inheritance
+
+### Internal
+
+- **Code Quality Audit**: Comprehensive codebase exploration identified:
+  - Error handling quality rated excellent (zero unwrap/expect in production code, compiler-enforced)
+  - 40+ structured error codes with consistent taxonomy (CBKD, CBKE, CBKF, CBKI, CBKS families)
+  - Documentation gaps in numeric module (22 functions need docs) identified for future work
+  - Test coverage gaps for 9 error codes identified for future work (CBKS701-703, etc.)
+
 ## [0.4.0] — 2025-12-18
 
 > Minor release with projection support and edited PIC decode.

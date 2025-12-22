@@ -90,6 +90,22 @@ Comprehensive support for mainframe data formats:
 
 - None currently identified; legacy `base64::encode` usage has been removed.
 
+### Identified Technical Debt (from Dec 2024 Audit)
+
+**Documentation Gaps** (Medium Priority):
+- 22 numeric functions in `copybook-codec/src/numeric.rs` missing documentation
+- Memory module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`) needs API documentation
+- Iterator module public functions need usage examples
+
+**Test Coverage Gaps** (Tracked for Future Work):
+- 9 error codes without dedicated tests: CBKS701-703 (projection), CBKD101 (field type), CBKE510/515 (numeric overflow/string length), CBKF102/104 (RDW format), CBKI001 (iterator state)
+- Memory/iterator infrastructure lacks dedicated unit tests (currently tested via integration)
+- Audit feature modules have ~10% test coverage
+
+**Code Patterns** (Low Priority):
+- Test helper functions could be further consolidated into shared test utilities crate
+- Some test setup code is duplicated across test files (193+ instances of `DecodeOptions::new()`)
+
 ### Unsupported COBOL Features
 
 - COMP-1/COMP-2 floating-point types (by design - rare in practice)
@@ -113,6 +129,10 @@ Comprehensive support for mainframe data formats:
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase
+- **Zero unsafe code** in public API paths (compiler-enforced via `#![deny(clippy::unwrap_used, clippy::expect_used)]`)
+- **40+ structured error codes** with stable taxonomy (CBKD, CBKE, CBKF, CBKI, CBKS families)
+- **85+ workspace-inherited dependencies** for consistent versioning
+- **CLI code consolidation**: Shared utilities for parse options, field projection, and selector parsing
 
 ### Integration Readiness
 

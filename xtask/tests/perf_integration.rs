@@ -5,10 +5,14 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use assert_cmd::cargo::cargo_bin;
 use std::fs;
 use std::process::Command;
 use tempfile::TempDir;
+
+/// Helper to get the xtask binary path using the non-deprecated macro approach
+fn xtask_bin() -> std::path::PathBuf {
+    assert_cmd::cargo::cargo_bin!("xtask").to_path_buf()
+}
 
 #[test]
 fn test_summarize_with_synthetic_perf_json() {
@@ -37,7 +41,7 @@ fn test_summarize_with_synthetic_perf_json() {
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
     // Run xtask perf --summarize-last from temp workspace
-    let output = Command::new(cargo_bin("xtask"))
+    let output = Command::new(xtask_bin())
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -72,7 +76,7 @@ fn test_summarize_with_failing_slo() {
     }"#;
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
-    let output = Command::new(cargo_bin("xtask"))
+    let output = Command::new(xtask_bin())
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -93,7 +97,7 @@ fn test_summarize_missing_perf_json() {
     let workspace_root = temp_dir.path();
 
     // Don't create perf.json - should fail gracefully
-    let output = Command::new(cargo_bin("xtask"))
+    let output = Command::new(xtask_bin())
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -121,7 +125,7 @@ fn test_summarize_malformed_json() {
     let perf_json = r#"{"display_mibps": "not a number"}"#;
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
-    let output = Command::new(cargo_bin("xtask"))
+    let output = Command::new(xtask_bin())
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()
@@ -148,7 +152,7 @@ fn test_summarize_nested_summary_structure() {
     }"#;
     fs::write(bench_dir.join("perf.json"), perf_json).unwrap();
 
-    let output = Command::new(cargo_bin("xtask"))
+    let output = Command::new(xtask_bin())
         .args(["perf", "--summarize-last"])
         .current_dir(workspace_root)
         .output()

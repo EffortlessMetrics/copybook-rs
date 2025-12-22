@@ -5,7 +5,9 @@ set -euo pipefail
 # Ensures receipts conform to canonical schema and contain required metadata
 
 RECEIPT_FILE="${1:-scripts/bench/perf.json}"
-SCHEMA_FILE="schemas/perf-receipt-schema.json"
+# Reserved for future JSON Schema validation (see schemas/perf-receipt-schema.json)
+# shellcheck disable=SC2034
+_SCHEMA_FILE="schemas/perf-receipt-schema.json"
 
 # Function to validate JSON against schema (basic validation)
 validate_receipt_structure() {

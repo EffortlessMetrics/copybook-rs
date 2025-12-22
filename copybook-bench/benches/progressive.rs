@@ -53,18 +53,18 @@ fn generate_display_data(target_size: usize) -> Vec<u8> {
     let record_size = 67; // Approximate size of CUSTOMER-RECORD
     let record_count = (target_size + record_size - 1) / record_size;
     let mut data = Vec::new();
-    
+
     for i in 0..record_count {
         // Customer ID (8 bytes binary)
         data.extend_from_slice(&(i as u32).to_be_bytes());
         data.extend_from_slice(&[0u8; 4]);
-        
+
         // Customer Name (50 bytes EBCDIC text)
         let name = format!("CUSTOMER_{:06}_ABCDEFGHIJKLMNOPQRSTUVWXYZ", i);
         let mut name_bytes = name.as_bytes().to_vec();
         name_bytes.resize(50, 0x40); // Pad with EBCDIC spaces
         data.extend_from_slice(&name_bytes);
-        
+
         // Account Balance (8 bytes COMP-3)
         let balance = (i * 1000) % 999_999_999;
         let balance_str = format!("{:015}", balance); // 15 digits for S9(13)V99
@@ -80,11 +80,11 @@ fn generate_display_data(target_size: usize) -> Vec<u8> {
             }
         }
         data.extend_from_slice(&comp3_data);
-        
+
         // Status Code (1 byte)
         data.push(b'A' + (i % 26) as u8);
     }
-    
+
     data.truncate(target_size);
     data
 }
@@ -96,12 +96,12 @@ fn generate_comp3_data(target_size: usize) -> Vec<u8> {
     let record_size = 8; // Just the COMP-3 field
     let record_count = (target_size + record_size - 1) / record_size;
     let mut data = Vec::new();
-    
+
     for i in 0..record_count {
         let value = (i * 12345) % 999_999_999;
         let value_str = format!("{:015}", value); // 15 digits for S9(13)V99
         let mut comp3_data = vec![0u8; 8];
-        
+
         for (j, chunk) in value_str.as_bytes().chunks(2).enumerate() {
             if j < 7 {
                 let high = chunk[0] - b'0';
@@ -112,10 +112,10 @@ fn generate_comp3_data(target_size: usize) -> Vec<u8> {
                 comp3_data[7] = (chunk[0] - b'0') << 4 | 0x0C; // Positive sign
             }
         }
-        
+
         data.extend_from_slice(&comp3_data);
     }
-    
+
     data.truncate(target_size);
     data
 }
@@ -130,7 +130,7 @@ fn progressive_decode_display(c: &mut Criterion) {
     let schema = parse_copybook(PROGRESSIVE_COPYBOOK).expect("Failed to parse copybook");
     let options = DecodeOptions::default();
     let record_size = 67; // Approximate size of CUSTOMER-RECORD
-    
+
     let mut group = c.benchmark_group("progressive_decode_display");
     group.warm_up_time(Duration::from_secs(1));
     group.measurement_time(Duration::from_secs(5));
@@ -153,12 +153,9 @@ fn progressive_decode_display(c: &mut Criterion) {
                     if chunk.len() < record_size {
                         break; // Skip incomplete record
                     }
-                    
-                    let result = decode_record(
-                        black_box(&schema),
-                        black_box(chunk),
-                        black_box(&options),
-                    );
+
+                    let result =
+                        decode_record(black_box(&schema), black_box(chunk), black_box(&options));
                     let _ = black_box(result);
                 }
             });
@@ -180,11 +177,11 @@ fn progressive_decode_comp3(c: &mut Criterion) {
            01  NUMERIC-RECORD.
                05  ACCOUNT-BALANCE   PIC S9(13)V99 COMP-3.
     ";
-    
+
     let schema = parse_copybook(COMP3_COPYBOOK).expect("Failed to parse copybook");
     let options = DecodeOptions::default();
     let record_size = 8; // Size of COMP-3 field
-    
+
     let mut group = c.benchmark_group("progressive_decode_comp3");
     group.warm_up_time(Duration::from_secs(1));
     group.measurement_time(Duration::from_secs(5));
@@ -207,12 +204,9 @@ fn progressive_decode_comp3(c: &mut Criterion) {
                     if chunk.len() < record_size {
                         break; // Skip incomplete record
                     }
-                    
-                    let result = decode_record(
-                        black_box(&schema),
-                        black_box(chunk),
-                        black_box(&options),
-                    );
+
+                    let result =
+                        decode_record(black_box(&schema), black_box(chunk), black_box(&options));
                     let _ = black_box(result);
                 }
             });
@@ -232,7 +226,7 @@ fn progressive_memory_usage(c: &mut Criterion) {
     let schema = parse_copybook(PROGRESSIVE_COPYBOOK).expect("Failed to parse copybook");
     let options = DecodeOptions::default();
     let record_size = 67;
-    
+
     let mut group = c.benchmark_group("progressive_memory_usage");
     group.warm_up_time(Duration::from_secs(1));
     group.measurement_time(Duration::from_secs(3));
@@ -242,21 +236,18 @@ fn progressive_memory_usage(c: &mut Criterion) {
             b.iter(|| {
                 // Allocate test data
                 let test_data = generate_display_data(*size);
-                
+
                 // Process data to simulate memory usage
                 for chunk in test_data.chunks(record_size) {
                     if chunk.len() < record_size {
                         break;
                     }
-                    
-                    let result = decode_record(
-                        black_box(&schema),
-                        black_box(chunk),
-                        black_box(&options),
-                    );
+
+                    let result =
+                        decode_record(black_box(&schema), black_box(chunk), black_box(&options));
                     let _ = black_box(result);
                 }
-                
+
                 // Memory should be cleaned up automatically (drop)
             });
         });
@@ -293,7 +284,7 @@ fn progressive_throughput_scaling(c: &mut Criterion) {
     let schema = parse_copybook(PROGRESSIVE_COPYBOOK).expect("Failed to parse copybook");
     let options = DecodeOptions::default();
     let record_size = 67;
-    
+
     let mut group = c.benchmark_group("progressive_throughput_scaling");
     group.warm_up_time(Duration::from_secs(1));
     group.measurement_time(Duration::from_secs(5));
@@ -309,12 +300,9 @@ fn progressive_throughput_scaling(c: &mut Criterion) {
                     if chunk.len() < record_size {
                         break;
                     }
-                    
-                    let result = decode_record(
-                        black_box(&schema),
-                        black_box(chunk),
-                        black_box(&options),
-                    );
+
+                    let result =
+                        decode_record(black_box(&schema), black_box(chunk), black_box(&options));
                     let _ = black_box(result);
                 }
             });

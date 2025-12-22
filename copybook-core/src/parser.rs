@@ -1455,12 +1455,14 @@ mod tests {
     #[test]
     fn test_simple_field_parsing() {
         let input = "01 CUSTOMER-ID PIC X(10).";
-        let schema = parse(input).map_err(|e| {
-            Error::new(
-                ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                format!("Failed to parse copybook: {}", e),
-            )
-        }).expect("Failed to parse copybook");
+        let schema = parse(input)
+            .map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                    format!("Failed to parse copybook: {}", e),
+                )
+            })
+            .expect("Failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];

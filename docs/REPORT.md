@@ -7,13 +7,17 @@
 ---
 
 ## Executive Summary
+
 copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. The workspace builds cleanly and the release gate (fmt/clippy/build/nextest) is green. Performance receipts are tracked in `scripts/bench/perf.json` and summarized in `PERFORMANCE_VALIDATION_FINAL.md`; numbers vary by environment and floors are advisory targets in v0.4.0 (Engineering Preview).
 
 ## Overview
+
 The `copybook-rs` workspace combines five Rust crates (core, codec, CLI, generator, and benchmarks) to provide deterministic COBOL→JSON processing. The focus is on transparent validation rather than performance bravado: adopters must review known COBOL feature gaps and performance limitations before committing production workloads.
 
 ## Architecture
+
 The project is organized as a Cargo workspace with clearly defined responsibilities:
+
 - **copybook-core**: Core parsing and schema types (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Encoding/decoding codecs for COBOL data types with character conversion
 - **copybook-cli**: Command-line interface with comprehensive subcommands
@@ -30,6 +34,7 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 - **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
 
 ### Quality Assurance Features
+
 - Comprehensive error taxonomy with stable error codes (CBKP*, CBKD*, CBKE*)
 - Parser stability with infinite loop prevention
 - Memory safety with no unsafe code in public API paths
@@ -52,9 +57,11 @@ Performance is tracked via machine-readable receipts:
 - COMP-3 decoding performance limited by packed decimal conversion complexity
 
 ## COBOL Feature Support
+
 Comprehensive support for mainframe data formats:
 
 ### Data Types
+
 - Alphanumeric fields with full EBCDIC/ASCII conversion
 - Zoned decimal with proper sign handling (EBCDIC zones and ASCII overpunch)
 - Packed decimal (COMP-3) with enhanced nibble sign processing
@@ -62,6 +69,7 @@ Comprehensive support for mainframe data formats:
 - Signed fields across all numeric types
 
 ### Structure Features
+
 - Hierarchical level numbers (01-49)
 - REDEFINES for multiple storage views
 - OCCURS and OCCURS DEPENDING ON for arrays
@@ -71,6 +79,7 @@ Comprehensive support for mainframe data formats:
 - **FILLER Byte-Offset Naming**: FILLER fields named using computed byte offsets (_filler_00000XXX) for consistent JSON output
 
 ### Record Formats
+
 - Fixed-length records with constant LRECL
 - Variable-length RDW (Record Descriptor Word) format
 - Multiple EBCDIC codepages (CP037, CP273, CP500, CP1047, CP1140)
@@ -78,9 +87,11 @@ Comprehensive support for mainframe data formats:
 ## Known Limitations and Technical Debt
 
 ### Deprecated Dependencies
+
 - None currently identified; legacy `base64::encode` usage has been removed.
 
 ### Unsupported COBOL Features
+
 - COMP-1/COMP-2 floating-point types (by design - rare in practice)
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE
@@ -90,18 +101,21 @@ Comprehensive support for mainframe data formats:
 **Note**: Level-88 condition values are fully supported with comprehensive parse, codec, and structural validation. See [COBOL_SUPPORT_MATRIX.md](reference/COBOL_SUPPORT_MATRIX.md) for test evidence (6 tests in AC2, 8 tests in AC5, 638+838 lines of golden fixtures).
 
 ### Data Quality Considerations
+
 - Test fixture data is synthetic and may not capture all production edge cases
 - Validator approved for integration but ongoing real-world validation recommended
 
 ## Development and Maintenance Status
 
 ### Code Quality
+
 - Rust Edition 2024 with MSRV 1.90 (aligned with CI test matrix)
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase
 
 ### Integration Readiness
+
 - All validation steps completed
 - Performance targets exceeded by significant margins
 - Test suite comprehensive and passing
@@ -110,6 +124,7 @@ Comprehensive support for mainframe data formats:
 ## Documentation References
 
 For additional technical information:
+
 - **[README.md](../README.md)**: User-facing documentation, installation guide, and API usage examples
 - **[CLAUDE.md](../CLAUDE.md)**: Development commands, testing procedures, and contributor guidance
 - **[ERROR_CODES.md](reference/ERROR_CODES.md)**: Comprehensive error code taxonomy and troubleshooting guide
@@ -120,18 +135,21 @@ For additional technical information:
 The copybook-rs parser now implements consistent FILLER field naming using computed byte offsets instead of sequential numbering, significantly improving JSON output reliability and cross-session consistency.
 
 ### Technical Implementation
+
 - **Two-Phase Resolution Process**: Initial phase detects duplicate field names, final phase applies FILLER renaming after layout resolution
 - **Byte-Offset Computation**: FILLER fields named as `_filler_00000XXX` where XXX is the computed byte offset within the record
 - **Path Consistency**: Field paths automatically updated after FILLER renaming to maintain schema integrity
 - **Cross-Format Compatibility**: Works correctly with ODO, REDEFINES, and RDW record formats
 
 ### Benefits
+
 - **Predictable JSON Output**: FILLER field names remain consistent across parsing sessions with identical schema layout
 - **Enhanced Debugging**: Byte-offset naming provides immediate context for FILLER field positions
 - **Integration Reliability**: Downstream systems can depend on consistent FILLER field naming
 - **Performance**: Minimal overhead during layout resolution phase
 
 ### Validation Status
+
 - Release gate coverage includes parsing (ODO/REDEFINES/RENAMES), codec round-trip, and CLI integration; see the Test Coverage block above for current counts
 - Performance receipts are tracked in `scripts/bench/perf.json` and summarized in `PERFORMANCE_VALIDATION_FINAL.md`
 
@@ -144,7 +162,6 @@ Performance reporting is receipt-based (JSON) rather than single-number claims.
 
 In v0.4.0, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s). Results are environment-specific; validate on your target hardware before production use.
 
-
 ## Readiness Assessment
 
 ### Status: ⚠️ Engineering Preview (v0.4.0) - Cautious Adoption Recommended
@@ -154,6 +171,7 @@ In v0.4.0, performance floors are tracked as **advisory targets** (DISPLAY ≥ 8
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set and can tolerate current performance characteristics. The project maintains Engineering Preview status (not production-ready) until remaining limitations are addressed.
 
 #### Technical Signals
+
 - ⚠️ **Test Health**: `cargo test --workspace` reports 840+ tests passing (24 skipped for external tool requirements)
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ⚠️ **Performance Variance**: Receipts are environment-specific; validate on your target hardware (see `scripts/bench/perf.json` + `PERFORMANCE_VALIDATION_FINAL.md`)
@@ -162,6 +180,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management (promote/show), comparison, validation, and summary commands
 
 #### Deployment Guidance
+
 1. **Pre-Deployment Validation**:
    - Run pilots on representative copybooks
    - Verify unsupported COBOL clauses are absent from your schemas
@@ -178,6 +197,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
    - Consult [ERROR_CODES.md](reference/ERROR_CODES.md) for comprehensive error taxonomy
 
 #### Recommended Use Cases
+
 - ✅ **Pilot Projects**: Teams evaluating COBOL data processing alternatives
 - ✅ **Development/Testing**: Non-production environments with supported COBOL features
 - ✅ **Controlled Rollouts**: Production use with comprehensive pilot validation and feature verification

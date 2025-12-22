@@ -58,9 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Field Projection**: Minimal overhead for schema projection (<5% impact)
 - **Edited PIC Decode**: Lockstep algorithm with zero-copy optimization where possible
 - **Canonical Performance Truth**: Established via [`scripts/bench/perf.json`](scripts/bench/perf.json) with complete environment metadata
-  - Current measurements: DISPLAY 3545 MiB/s, COMP-3 26 MiB/s (from canonical receipts)
-  - Historical targets (archived): DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s
-  - See [`docs/HISTORICAL_PERFORMANCE.md`](docs/HISTORICAL_PERFORMANCE.md) for archived claims
+  - Baseline: DISPLAY 205 MiB/s, COMP-3 58 MiB/s (commit 1fa63633, 2025-09-30)
+  - Advisory floors: DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s
+  - See [`docs/HISTORICAL_PERFORMANCE.md`](docs/HISTORICAL_PERFORMANCE.md) for archived historical claims
 - **Receipt Validation**: Automated integrity checks via [`scripts/validate-perf-receipt.sh`](scripts/validate-perf-receipt.sh)
 - **Governance Policy**: All performance claims must reference canonical receipts ([`docs/PERFORMANCE_GOVERNANCE.md`](docs/PERFORMANCE_GOVERNANCE.md))
 
@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Marked the audit feature as experimental scaffolding; CLI audit commands now emit stubbed reports instead of hardcoded "pass" metrics.
 - Standardised performance receipts on `scripts/bench/perf.json` and demoted legacy `test_perf.json` to a clearly-labelled sample.
 - Synced documentation status/performance messaging with `docs/ROADMAP.md` (engineering preview) and corrected security scanning policy to match CI (cargo-deny always; cargo-audit on lockfile diffs or scheduled runs).
-- Regenerated performance receipts via `scripts/bench.sh` (DISPLAY ≈3.5 GiB/s; COMP-3 ≈30 MiB/s) and updated `PERFORMANCE_VALIDATION_FINAL.md`.
+- Regenerated performance receipts via `scripts/bench.sh` and updated `PERFORMANCE_VALIDATION_FINAL.md`. See canonical receipts in `scripts/bench/perf.json`.
 
 ### Added
 

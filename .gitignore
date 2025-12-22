@@ -62,3 +62,4 @@ pr_*.md
 *_ASSESSMENT*.md
 *_REPORT*.md
 *_STATUS*.md
+*.jsonl

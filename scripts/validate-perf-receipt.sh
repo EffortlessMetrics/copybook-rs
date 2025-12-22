@@ -133,33 +133,33 @@ validate_commit_hash() {
 # Function to validate performance values
 validate_performance_values() {
   local receipt_file="$1"
-  
+
   # Check that performance values are reasonable
   local display_mibps
   local comp3_mibps
   display_mibps=$(jq -r '.summary.display_mibps' "$receipt_file")
   comp3_mibps=$(jq -r '.summary.comp3_mibps' "$receipt_file")
-  
-  # Basic sanity checks
-  if (( $(echo "$display_mibps < 0" | bc -l) )); then
+
+  # Basic sanity checks using awk for numeric comparison (no bc dependency)
+  if awk -v val="$display_mibps" 'BEGIN { exit !(val < 0) }'; then
     echo "❌ Invalid DISPLAY throughput: ${display_mibps} MiB/s (must be >= 0)" >&2
     return 1
   fi
-  
-  if (( $(echo "$comp3_mibps < 0" | bc -l) )); then
+
+  if awk -v val="$comp3_mibps" 'BEGIN { exit !(val < 0) }'; then
     echo "❌ Invalid COMP-3 throughput: ${comp3_mibps} MiB/s (must be >= 0)" >&2
     return 1
   fi
-  
+
   # Check for extremely high values that might indicate measurement errors
-  if (( $(echo "$display_mibps > 100000" | bc -l) )); then
+  if awk -v val="$display_mibps" 'BEGIN { exit !(val > 100000) }'; then
     echo "⚠️  DISPLAY throughput seems unusually high: ${display_mibps} MiB/s" >&2
   fi
-  
-  if (( $(echo "$comp3_mibps > 10000" | bc -l) )); then
+
+  if awk -v val="$comp3_mibps" 'BEGIN { exit !(val > 10000) }'; then
     echo "⚠️  COMP-3 throughput seems unusually high: ${comp3_mibps} MiB/s" >&2
   fi
-  
+
   echo "✅ Performance values validation passed"
   return 0
 }

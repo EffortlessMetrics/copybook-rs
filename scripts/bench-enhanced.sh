@@ -65,7 +65,7 @@ get_kernel_version() {
   fi
 }
 
-python3 <<'PY'
+python3 <<PY
 import datetime
 import hashlib
 import json

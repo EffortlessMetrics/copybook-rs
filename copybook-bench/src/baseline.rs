@@ -78,9 +78,9 @@ impl BaselineStore {
 
     /// Promote report to baseline (AC5 - main branch promotion)
     pub fn promote_baseline(&mut self, report: &PerformanceReport, branch: &str, commit: &str) {
-        // Archive current baseline to history
+        // Archive current baseline to history (newest first)
         if let Some(current) = self.current.take() {
-            self.history.push(current);
+            self.history.insert(0, current);
         }
 
         // Create new baseline

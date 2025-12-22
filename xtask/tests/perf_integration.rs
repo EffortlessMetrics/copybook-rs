@@ -5,10 +5,10 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
+use assert_cmd::cargo::cargo_bin;
 use std::fs;
 use std::process::Command;
 use tempfile::TempDir;
-use assert_cmd::cargo::cargo_bin;
 
 #[test]
 fn test_summarize_with_synthetic_perf_json() {
@@ -160,4 +160,3 @@ fn test_summarize_nested_summary_structure() {
     assert!(stdout.contains("DISPLAY: 100.0 MiB/s"), "stdout: {stdout}");
     assert!(stdout.contains("COMP-3: 50.0 MiB/s"), "stdout: {stdout}");
 }
-

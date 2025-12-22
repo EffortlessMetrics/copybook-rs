@@ -40,7 +40,7 @@ copybook-core = { workspace = true }
 copybook-codec = { workspace = true }
 tokio = { workspace = true, optional = true }
 metrics = { workspace = true, optional = true }
-metrics-exporter-prometheus = { version = "0.17.2", optional = true, features = ["http-listener"] }
+metrics-exporter-prometheus = { version = "0.18.1", optional = true, features = ["http-listener"] }
 
 [features]
 default = []

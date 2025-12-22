@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/EffortlessMetrics/copybook-rs/schemas/perf-receipt-schema.json",
+  "title": "Copybook Performance Receipt Schema",
+  "description": "Canonical performance receipt format for copybook-rs benchmark results",
+  "type": "object",
+  "required": [
+    "format_version",
+    "timestamp",
+    "commit",
+    "build_profile",
+    "target_cpu",
+    "environment",
+    "benchmarks",
+    "summary"
+  ],
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Receipt format version for compatibility tracking"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when benchmarks were executed"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{7,40}$",
+      "description": "Git commit hash (7-40 characters)"
+    },
+    "build_profile": {
+      "type": "string",
+      "enum": ["debug", "release"],
+      "description": "Rust build profile used for compilation"
+    },
+    "target_cpu": {
+      "type": "string",
+      "description": "CPU target flags used during compilation (e.g., native, generic)"
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "os",
+        "kernel",
+        "cpu_model",
+        "cpu_cores",
+        "wsl2_detected"
+      ],
+      "properties": {
+        "os": {
+          "type": "string",
+          "description": "Operating system name (e.g., Linux, Windows, macOS)"
+        },
+        "kernel": {
+          "type": "string",
+          "description": "Kernel version string"
+        },
+        "cpu_model": {
+          "type": "string",
+          "description": "CPU model identification"
+        },
+        "cpu_cores": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of logical CPU cores"
+        },
+        "wsl2_detected": {
+          "type": "boolean",
+          "description": "Whether WSL2 environment was detected"
+        }
+      }
+    },
+    "benchmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "mean_ns",
+          "bytes_processed",
+          "mean_mibps"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Benchmark name identifier"
+          },
+          "mean_ns": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Mean execution time in nanoseconds"
+          },
+          "bytes_processed": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total bytes processed during benchmark"
+          },
+          "mean_mibps": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Mean throughput in mebibytes per second"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "display_mibps",
+        "comp3_mibps",
+        "max_rss_mib"
+      ],
+      "properties": {
+        "display_mibps": {
+          "type": "number",
+          "minimum": 0,
+          "description": "DISPLAY-heavy workload throughput in MiB/s"
+        },
+        "comp3_mibps": {
+          "type": "number",
+          "minimum": 0,
+          "description": "COMP-3-heavy workload throughput in MiB/s"
+        },
+        "max_rss_mib": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum resident set size in MiB"
+        },
+        "p50_mibps": {
+          "type": "number",
+          "description": "50th percentile throughput in MiB/s"
+        },
+        "p90_mibps": {
+          "type": "number",
+          "description": "90th percentile throughput in MiB/s"
+        },
+        "p99_mibps": {
+          "type": "number",
+          "description": "99th percentile throughput in MiB/s"
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "required": [
+        "sha256"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hash of the receipt content for integrity verification"
+        }
+      }
+    }
+  }
+}

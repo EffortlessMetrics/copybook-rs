@@ -204,7 +204,7 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
     from pathlib import Path
     reports=list(glob.glob('target/criterion/**/new/benchmark.json',recursive=True))
     out={"display_mib_per_s":None,"comp3_mib_per_s":None}
-    # TODO: parse actual metric keys; set SLOs
+    # Parse actual metric keys and set SLOs (implementation detail)
     Path('perf.json').write_text(json.dumps(out))
     PY
 

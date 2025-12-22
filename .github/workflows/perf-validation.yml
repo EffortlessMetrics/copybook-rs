@@ -1,0 +1,159 @@
+name: Performance Receipt Validation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  validate-receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.90.0"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Generate performance receipt
+        run: |
+          # Use enhanced benchmark script
+          chmod +x scripts/bench-enhanced.sh
+          BUILD_PROFILE=release TARGET_CPU=native ./scripts/bench-enhanced.sh
+
+      - name: Validate receipt structure
+        run: |
+          # Validate receipt format and integrity
+          chmod +x scripts/validate-perf-receipt.sh
+          ./scripts/validate-perf-receipt.sh scripts/bench/perf.json
+
+      - name: Validate receipt schema
+        run: |
+          # Validate against JSON schema
+          if command -v ajv >/dev/null 2>&1; then
+            npm install -g ajv-cli
+            ajv validate -s schemas/perf-receipt-schema.json -d scripts/bench/perf.json
+          else
+            echo "⚠️  ajv not available, skipping JSON schema validation"
+          fi
+
+      - name: Check for stray performance numbers
+        run: |
+          # Scan documentation for un-referenced performance claims
+          echo "🔍 Scanning for stray performance numbers..."
+          
+          # Find performance numbers not referencing canonical receipts
+          STRAY_NUMBERS=$(find docs -name "*.md" -exec grep -l "GiB/s\|MiB/s\|MB/s" {} \; | \
+            grep -v "scripts/bench/perf.json" | \
+            grep -v "HISTORICAL_PERFORMANCE.md" | \
+            wc -l | tr -d ' ')
+          
+          if [ "$STRAY_NUMBERS" -gt 0 ]; then
+            echo "❌ Found $STRAY_NUMBERS instances of stray performance numbers"
+            find docs -name "*.md" -exec grep -Hn "GiB/s\|MiB/s\|MB/s" {} \; | \
+              grep -v "scripts/bench/perf.json" | \
+              grep -v "HISTORICAL_PERFORMANCE.md" || true
+            exit 1
+          else
+            echo "✅ No stray performance numbers found"
+          fi
+
+      - name: Upload receipt artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-receipt
+          path: scripts/bench/perf.json
+          retention-days: 90
+
+      - name: Generate receipt summary
+        run: |
+          # Create summary for PR comments
+          DISPLAY_MIBPS=$(jq -r '.summary.display_mibps' scripts/bench/perf.json)
+          COMP3_MIBPS=$(jq -r '.summary.comp3_mibps' scripts/bench/perf.json)
+          COMMIT_HASH=$(jq -r '.commit' scripts/bench/perf.json)
+          
+          cat > receipt-summary.md << EOF
+          ## Performance Receipt Summary
+          
+          **Latest Receipt**: \`$COMMIT_HASH\`
+          - **DISPLAY Throughput**: ${DISPLAY_MIBPS} MiB/s
+          - **COMP-3 Throughput**: ${COMP3_MIBPS} MiB/s
+          
+          **Environment Details**:
+          - **OS**: $(jq -r '.environment.os' scripts/bench/perf.json)
+          - **Kernel**: $(jq -r '.environment.kernel' scripts/bench/perf.json)
+          - **CPU**: $(jq -r '.environment.cpu_model' scripts/bench/perf.json)
+          - **WSL2**: $(jq -r '.environment.wsl2_detected' scripts/bench/perf.json)
+          - **Build**: $(jq -r '.build_profile' scripts/bench/perf.json)
+          
+          **Integrity**: SHA-256 validated
+          EOF
+
+      - name: Upload receipt summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: receipt-summary
+          path: receipt-summary.md
+          retention-days: 30
+
+  check-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check performance governance compliance
+        run: |
+          # Verify governance policy is followed
+          echo "🔍 Checking performance governance compliance..."
+          
+          # Check if historical claims are properly quarantined
+          if [ -f "docs/HISTORICAL_PERFORMANCE.md" ]; then
+            echo "✅ Historical performance document exists"
+          else
+            echo "❌ Historical performance document missing"
+            exit 1
+          fi
+          
+          # Check if governance policy exists
+          if [ -f "docs/PERFORMANCE_GOVERNANCE.md" ]; then
+            echo "✅ Performance governance policy exists"
+          else
+            echo "❌ Performance governance policy missing"
+            exit 1
+          fi
+          
+          # Check if receipt schema exists
+          if [ -f "schemas/perf-receipt-schema.json" ]; then
+            echo "✅ Performance receipt schema exists"
+          else
+            echo "❌ Performance receipt schema missing"
+            exit 1
+          fi
+          
+          # Check if validation script exists
+          if [ -f "scripts/validate-perf-receipt.sh" ]; then
+            echo "✅ Receipt validation script exists"
+          else
+            echo "❌ Receipt validation script missing"
+            exit 1
+          fi
+          
+          # Check if enhanced benchmark script exists
+          if [ -f "scripts/bench-enhanced.sh" ]; then
+            echo "✅ Enhanced benchmark script exists"
+          else
+            echo "❌ Enhanced benchmark script missing"
+            exit 1
+          fi
+          
+          echo "✅ All governance components are in place"

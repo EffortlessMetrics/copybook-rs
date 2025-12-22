@@ -61,12 +61,13 @@ The project is organized as a Cargo workspace with the following crates:
 ### Installation
 
 ```bash
-# Install from crates.io
-cargo install copybook-cli
+# Install from crates.io (v0.4.0)
+cargo install copybook-cli --version 0.4.0
 
 # Or build from source
 git clone https://github.com/EffortlessMetrics/copybook-rs.git
 cd copybook-rs
+git checkout v0.4.0
 cargo build --release
 ```
 
@@ -597,7 +598,7 @@ The audit system is available as an optional feature that can be enabled during 
 cargo build --features audit
 
 # Install CLI with audit capabilities
-cargo install copybook-cli --features audit
+cargo install copybook-cli --version 0.4.0 --features audit
 
 # Build library with audit support
 cargo build --workspace --features audit

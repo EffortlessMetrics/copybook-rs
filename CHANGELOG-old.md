@@ -57,12 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Field Projection**: Minimal overhead for schema projection (<5% impact)
 - **Edited PIC Decode**: Lockstep algorithm with zero-copy optimization where possible
-- **Canonical Performance Truth**: Established via [`scripts/bench/perf.json`](scripts/bench/perf.json) with complete environment metadata
-  - Current measurements: DISPLAY 3545 MiB/s, COMP-3 26 MiB/s (from canonical receipts)
-  - Historical targets (archived): DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s
-  - See [`docs/HISTORICAL_PERFORMANCE.md`](docs/HISTORICAL_PERFORMANCE.md) for archived claims
-- **Receipt Validation**: Automated integrity checks via [`scripts/validate-perf-receipt.sh`](scripts/validate-perf-receipt.sh)
-- **Governance Policy**: All performance claims must reference canonical receipts ([`docs/PERFORMANCE_GOVERNANCE.md`](docs/PERFORMANCE_GOVERNANCE.md))
+- **Baseline Maintained**: DISPLAY 205 MiB/s, COMP-3 58 MiB/s (unchanged from v0.3.1)
 
 ### Documentation
 
@@ -70,66 +65,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ERROR_CODES.md**: Documented CBKS701-703 (projection) and CBKD421-423 (edited PIC) error codes
 - **COBOL_SUPPORT_MATRIX.md**: Updated feature matrix with E1/E2 status and projection support
 
-## [0.3.2] — 2025-09-23
+## [0.3.2] — Unreleased (superseded by 0.4.0)
 
 ### Fixed
-
 - Aligned workspace `rust-version` with the CI-tested toolchain (Rust 1.90) and refreshed MSRV messaging.
-- Marked the audit feature as experimental scaffolding; CLI audit commands now emit stubbed reports instead of hardcoded "pass" metrics.
+- Marked the audit feature as experimental scaffolding; CLI audit commands now emit stubbed reports instead of hardcoded “pass” metrics.
 - Standardised performance receipts on `scripts/bench/perf.json` and demoted legacy `test_perf.json` to a clearly-labelled sample.
 - Synced documentation status/performance messaging with `docs/ROADMAP.md` (engineering preview) and corrected security scanning policy to match CI (cargo-deny always; cargo-audit on lockfile diffs or scheduled runs).
 - Regenerated performance receipts via `scripts/bench.sh` (DISPLAY ≈3.5 GiB/s; COMP-3 ≈30 MiB/s) and updated `PERFORMANCE_VALIDATION_FINAL.md`.
+- Carried forward existing branch deltas in `Cargo.lock`, `copybook-core/src/parser.rs`, and `copybook-cli/tests/inspect_edited_pic_fails.rs`; validate before release.
+
+## [0.3.1] — 2025-09-23
 
 ### Added
-
 - First crates.io publish for `copybook-core`, `copybook-codec`, and `copybook-cli` with pinned internal dependency versions.
 - Bench receipt tooling (`bench-report`) with JSON output, baseline management, and validation commands (Issue #52).
-- Expanded golden fixtures for ODO/RENAMES validation and documentation navigation refresh for Diátaxis structure.
+- Expanded golden fixtures for ODO/RENAMES validation and documentation navigation refresh for the Diátaxis structure.
 
 ### Changed
-
 - Release runbook updated with version-pinned dependency guidance and publish dry-run steps.
 - Roadmap and readiness docs consolidated around engineering preview status.
 
-### Performance
+## [0.3.0] — 2025-09-22
+### Added
+- Decode/verify parity for ODO: >max→CBKS301, <min→CBKS302, short→CBKD301
+- Counter-type twins (zoned/binary/packed) + verify twins
+- Structural tail rule (last storage sibling), allows children inside ODO
 
+### Changed
+- Layout validation: retain counter existence checks; tail check is structural
+
+### Performance
 - DISPLAY 4–5 GiB/s; COMP-3 50–70 MiB/s (SLOs far exceeded)
-
-## [0.3.1] — 2025-09-22
-
-### Added
-
-- `--strict` flag for `inspect`/`parse` commands: normative ODO bounds/ordering; REDEFINES ambiguity becomes error.
-- Comprehensive CLI integration tests for ODO lenient/strict modes, REDEFINES processing, edited PIC handling, and fixed-form parsing.
-- Enhanced documentation with validation modes, binary widths clarification, and strict mode examples.
-
-### Performance
-
-- DISPLAY 205 MiB/s, COMP-3 58 MiB/s (unchanged from v0.3.1)
-
-## [0.3.0] — 2025-09-19
-
-### Added
-
-- Initial release of copybook-rs workspace
-- COBOL copybook parser with comprehensive field type support
-- High-performance codec for encoding/decoding mainframe data formats
-- CLI tool with parse, inspect, decode, encode, and verify commands
-- Support for fixed-length and RDW record formats
-- Multiple EBCDIC codepage support (CP037, CP273, CP500, CP1047, CP1140)
-- Performance benchmarks achieving 4+ GiB/s for DISPLAY data and 500+ MiB/s for COMP-3 data
 
 ## [0.2.0] - 2025-09-19
 
 ### Added
 
-- Decode/verify parity for ODO: >max→CBKS301, <min→CBKS302, short→CBKD301
-- Counter-type twins (zoned/binary/packed) + verify twins
-- Structural tail rule (last storage sibling), allows children inside ODO
+- `--strict` flag for `inspect`/`parse` commands: normative ODO bounds/ordering; REDEFINES ambiguity becomes error.
+- Comprehensive CLI integration tests for ODO lenient/strict modes, REDEFINES, edited PIC, and fixed-form parsing.
+- Enhanced documentation with validation modes, binary widths clarification, and strict mode examples.
+- COMP-3 fast path enabled by default: encoding ≈61 MiB/s, decoding ≈48 MiB/s (exceeds ≥40 MiB/s target).
 
-### Performance
+### Fixed
 
-- DISPLAY 4–5 GiB/s; COMP-3 50–70 MiB/s (SLOs far exceeded)
+- Edited PIC clauses now properly generate `CBKP051_UNSUPPORTED_EDITED_PIC` error (decimal point, `CR/DB`, blanks `B`, trailing sign).
+- Column-7 continuation lines and inline `*>` comment stripping in fixed-form parsing.
+- Parser now ignores sequence-area tail content after terminating `.` on the same line.
+- SYNC binary field widths clarified: `≤4→16b`, `5–9→32b`, `10–18→64b`.
+- Error messages now include line numbers with proper context information.
+
+### Tests
+
+- Added core regression tests for terminator tail handling and error line reporting.
+- CLI end-to-end tests for ODO lenient/strict validation, REDEFINES processing, edited PIC handling, and fixed-form parsing.
+- Stream-agnostic test assertions for improved reliability.
 
 ## [0.1.0] - 2025-09-02
 

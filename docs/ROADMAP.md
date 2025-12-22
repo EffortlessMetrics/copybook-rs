@@ -240,6 +240,27 @@ This roadmap tracks **what we will ship**, **how we'll measure it**, and **when 
 
 ---
 
+## Technical Debt Tracking (Dec 2024 Audit)
+
+The following items were identified during comprehensive codebase exploration and are tracked for future sprints:
+
+### Documentation (Medium Priority)
+- [ ] Document 22 numeric functions in `copybook-codec/src/numeric.rs`
+- [ ] Add API documentation for memory module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`)
+- [ ] Add usage examples to iterator module public functions
+
+### Test Coverage (Future Sprints)
+- [ ] Add dedicated tests for 9 untested error codes (CBKS701-703, CBKD101, CBKE510/515, CBKF102/104, CBKI001)
+- [ ] Add unit tests for memory/iterator infrastructure
+- [ ] Improve audit feature test coverage (currently ~10%)
+
+### Code Quality (Completed in v0.4.0+)
+- [x] Consolidate CLI command duplication (`parse_selectors`, `ParseOptions`, field projection)
+- [x] Fix deprecated `cargo_bin` function in xtask tests
+- [x] Standardize workspace dependency inheritance (sha2, chrono in copybook-gen)
+
+---
+
 ## Definition of Done (all milestones)
 
 * ✅ Tests green (unit/integration/goldens)

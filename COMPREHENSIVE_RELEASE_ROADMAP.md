@@ -7,7 +7,7 @@ copybook-rs is currently at **Engineering Preview v0.4.0** with significant arch
 
 **Current State Assessment**: 35% Production Ready
 - ✅ **Architecture & Design**: Strong modular workspace organization with clear separation of concerns
-- ✅ **Code Quality**: Zero unsafe code, comprehensive error taxonomy, 715/715 tests passing
+- ✅ **Code Quality**: Zero unsafe code, comprehensive error taxonomy, 840+ tests passing
 - ✅ **Security Infrastructure**: Enterprise-grade scanning, dependency auditing, compliance frameworks
 - ⚠️ **Performance**: Environment-specific results, COMP-3 targets missed, variance issues
 - ⚠️ **Feature Coverage**: Critical COBOL constructs unsupported (edited PIC encode, nested ODO)
@@ -31,7 +31,7 @@ copybook-rs is currently at **Engineering Preview v0.4.0** with significant arch
 ### Code Quality Assessment
 **Excellent Foundation**:
 - Zero unsafe code in public APIs
-- 715/715 tests passing (38 skipped) with comprehensive coverage
+- 840+ tests passing (24 skipped) with comprehensive coverage
 - 664 test functions across 111 files with golden fixture validation
 - Property-based testing with 512+ COMP-3 cases
 - Clippy pedantic compliance achieved

@@ -324,7 +324,7 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2>&1 | \
 
 ### Production Support
 For production deployments:
-1. Review comprehensive test coverage (127 tests)
+1. Review comprehensive test coverage (840+ tests)
 2. Validate performance for your specific workload
 3. Implement error monitoring using stable error codes
 4. Use verification mode for data quality auditing

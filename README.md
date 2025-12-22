@@ -19,7 +19,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI reports 615/615 tests passing (54 skipped); canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`)
+- **Transparent evidence**: CI reports 840+ tests passing (24 skipped for external tool requirements); canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`)
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance

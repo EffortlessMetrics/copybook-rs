@@ -2,17 +2,28 @@ name: Performance Receipt Validation
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main]
   pull_request:
-    branches: [ main, master ]
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   validate-receipt:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -68,11 +79,12 @@ jobs:
           fi
 
       - name: Upload receipt artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: performance-receipt
           path: scripts/bench/perf.json
           retention-days: 90
+          if-no-files-found: warn
 
       - name: Generate receipt summary
         run: |
@@ -99,17 +111,19 @@ jobs:
           EOF
 
       - name: Upload receipt summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: receipt-summary
           path: receipt-summary.md
           retention-days: 30
+          if-no-files-found: warn
 
   check-governance:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check performance governance compliance
         run: |

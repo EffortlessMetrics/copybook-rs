@@ -1333,7 +1333,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             let payload = encode_fields_to_bytes(schema, fields_value, options)?;
 
             // Create RDW record
-            let rdw_record = crate::record::RDWRecord::new(payload);
+            let rdw_record = crate::record::RDWRecord::try_new(payload)?;
             let mut result = Vec::new();
             result.extend_from_slice(&rdw_record.header);
             result.extend_from_slice(&rdw_record.payload);

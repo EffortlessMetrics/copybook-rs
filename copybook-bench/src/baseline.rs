@@ -78,9 +78,9 @@ impl BaselineStore {
 
     /// Promote report to baseline (AC5 - main branch promotion)
     pub fn promote_baseline(&mut self, report: &PerformanceReport, branch: &str, commit: &str) {
-        // Archive current baseline to history
+        // Archive current baseline to history (newest first)
         if let Some(current) = self.current.take() {
-            self.history.push(current);
+            self.history.insert(0, current);
         }
 
         // Create new baseline
@@ -134,7 +134,7 @@ impl BaselineStore {
     }
 
     /// Apply retention policy (remove baselines older than days)
-    fn apply_retention_policy(&mut self, retention_days: i64) {
+    pub fn apply_retention_policy(&mut self, retention_days: i64) {
         let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days);
 
         self.history.retain(|baseline| {

@@ -4,14 +4,17 @@
 
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
 use crate::exit_codes::ExitCode;
-use crate::utils::{atomic_write, read_file_or_stdin};
+use crate::utils::{
+    ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
+    read_file_or_stdin,
+};
 use crate::write_stdout_all;
 use anyhow::bail;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,
 };
-use copybook_core::{ParseOptions, parse_copybook_with_options};
+use copybook_core::parse_copybook_with_options;
 use std::fmt::Write as _;
 use std::fs::{File, metadata};
 use std::io::{BufReader, Read, Seek, SeekFrom};
@@ -73,28 +76,16 @@ pub fn run(
     let copybook_text = read_file_or_stdin(copybook_path)?;
 
     // Parse copybook with options
-    let parse_options = ParseOptions {
-        strict_comments: false,
+    let parse_options = build_parse_options(&ParseOptionsConfig {
         strict: opts.strict,
-        codepage: opts.codepage.to_string(),
+        strict_comments: opts.strict_comments,
+        codepage: &opts.codepage.to_string(),
         emit_filler: false,
-        allow_inline_comments: !opts.strict_comments,
-    };
+    });
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Apply field projection if --select is provided
-    let working_schema = if opts.select.is_empty() {
-        schema
-    } else {
-        let selectors = parse_selectors(opts.select);
-        info!(
-            "Applying field projection with {} selectors",
-            selectors.len()
-        );
-        copybook_core::project_schema(&schema, &selectors).map_err(|err| {
-            anyhow::anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
-        })?
-    };
+    let working_schema = apply_field_projection(schema, opts.select)?;
 
     // Get file metadata
     let file_metadata = metadata(input)?;
@@ -303,14 +294,4 @@ pub fn run(
 
     info!("Verify completed with exit code: {}", exit_code);
     Ok(exit_code)
-}
-
-/// Parse --select arguments (supports comma-separated and multiple flags)
-fn parse_selectors(select_args: &[String]) -> Vec<String> {
-    select_args
-        .iter()
-        .flat_map(|s| s.split(','))
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect()
 }

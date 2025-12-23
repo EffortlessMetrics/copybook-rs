@@ -64,15 +64,16 @@ validate_receipt_structure() {
 # Function to validate receipt integrity
 validate_receipt_integrity() {
   local receipt_file="$1"
-  
+
   # Extract stored hash
   local stored_hash
   stored_hash=$(jq -r '.integrity.sha256' "$receipt_file")
-  
-  # Calculate actual hash (excluding the integrity field itself)
+
+  # Calculate actual hash using canonical JSON (sorted keys, compact) excluding integrity field
+  # This MUST match the generator: json.dumps(report, sort_keys=True, separators=(',', ':'))
   local actual_hash
-  actual_hash=$(jq 'del(.integrity)' "$receipt_file" | sha256sum | cut -d' ' -f1)
-  
+  actual_hash=$(jq -cS 'del(.integrity)' "$receipt_file" | sha256sum | cut -d' ' -f1)
+
   if [[ "$stored_hash" == "$actual_hash" ]]; then
     echo "✅ Receipt integrity validation passed"
     return 0
@@ -80,6 +81,7 @@ validate_receipt_integrity() {
     echo "❌ Receipt integrity validation failed" >&2
     echo "  Stored hash: ${stored_hash}" >&2
     echo "  Actual hash: ${actual_hash}" >&2
+    echo "  Hint: Receipt may have been modified after hashing" >&2
     return 1
   fi
 }

@@ -26,11 +26,14 @@ use tracing::{debug, info};
 /// assert_eq!(parse_selectors(&args), vec!["FIELD1", "FIELD2"]);
 /// ```
 pub fn parse_selectors(select_args: &[String]) -> Vec<String> {
+    use std::collections::BTreeSet;
     select_args
         .iter()
         .flat_map(|s| s.split(','))
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
         .collect()
 }
 

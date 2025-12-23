@@ -1,6 +1,6 @@
 # copybook-rs Roadmap
 
-**Status:** ⚠️ Engineering Preview (v0.4.0)
+**Status:** ⚠️ Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
 
 > **Canonical Status Source**: This file is the authoritative reference
 > for copybook-rs project status, adoption guidance, and development timeline.
@@ -37,7 +37,7 @@ semantics with fixtures.
 
 ### Deliverables
 
-1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **READY**
+1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **Tagged (publish pending)**
 
    * ✅ crate metadata: categories, keywords, readme path, license files
      included
@@ -102,16 +102,63 @@ moving `v0.4.0`.
 
 ---
 
-## Milestone v0.5.0 — Dialects & Optimizations (Q1 2026)
+## Milestone v0.5.0 — Edited PIC Encoding & Dialects (Q1 2026)
 
 ### Objectives
 
+* Implement Edited PIC Encoding (Phase E3) — biggest functional gap
 * Add a safe, explicit knob for ODO bounds across COBOL dialects; squeeze
   throughput without changing outputs.
+* Complete Determinism CI Wiring (Phase 3) — Phases 1-2 already shipped
 
 ### Deliverables
 
-1. **Determinism Validation** (#112) — **✅ Phases 1–2 SHIPPED**
+1. **Edited PIC E3 encode** — **BIGGEST FUNCTIONAL GAP**
+
+   * **E3.0 — Contract + Test Matrix PR** (docs-only)
+     * Define supported patterns table (sign placement, Z/0, decimal point,
+       commas, currency, CR/DB)
+     * Define error handling strategy (what returns "unsupported edited PIC
+       encode" error)
+   * **E3.1 — Minimal Encode Path** (sign + basic Z/0)
+     * Scope: digit placement, decimal point, sign placement
+     * Tests: golden fixtures for representative formats
+   * **E3.2 — Sign Editing (+/-)** (leading/trailing)
+     * Scope: sign placement rules, CR/DB formatting
+     * Tests: fixtures for positive/negative signs
+   * **E3.3 — CR/DB** (currency symbols)
+     * Scope: `$` currency, comma grouping, `*` fill
+     * Tests: fixtures for currency formats
+   * **E3.4 — Commas & Separators** (`,`, `/`, `.`, spaces)
+     * Scope: comma placement, decimal point handling
+     * Tests: fixtures for comma placement
+   * **E3.5 — Asterisk Fill (`*`)** (check protection)
+     * Scope: asterisk fill for zero values
+     * Tests: fixtures for check protection behavior
+   * **E3.6 — Currency Symbols** (`$`, floating currency)
+     * Scope: currency symbol placement
+     * Tests: fixtures for currency placement
+
+2. **Dialect lever** (#51) — **ENTERPRISE CORRECTNESS KNOB**
+
+   * **D.0 — Config Schema** (docs-only PR)
+     * Define config key and allowed values
+     * CLI flag and env var mapping
+     * Default behavior unchanged (`"n"`)
+   * **D.1 — Core Implementation** (core-only PR)
+     * ODO lower bound validation in layout.rs
+     * Default behavior preserved
+   * **D.2 — CLI Integration** (CLI-only PR)
+     * Parse flag wiring into options
+     * Env var support
+   * **D.3 — Golden Fixtures** (test-only PR)
+     * Same copybook validated under each dialect setting
+     * Documented behavioral differences
+   * **D.4 — Docs & Examples** (docs-only PR)
+     * Migration notes for existing users
+     * Example copybooks showing dialect differences
+
+3. **Determinism Validation** (#112) — **✅ Phases 1–2 SHIPPED**
 
    * [x] Phase 1 – Codec harness (PR #158)
      * `copybook_codec::determinism` module
@@ -130,37 +177,28 @@ moving `v0.4.0`.
      * Advisory-only when activated (non-blocking), promotable to blocking
        gate
 
-2. **Dialect lever** (#51)
-
-   * Config:
-
-     ```toml
-     [parser]
-     # allowed: "n" | "0" | "1"; default "n"
-     occurs_fixed_with_depends_lower_bound = "n"
-     ```
-
-   * CLI flag and env var mapping (`--dialect-odo-lower-bound`,
-     `COPYBOOK_DIALECT_ODO_LOWER`)
-   * Golden fixtures for each setting; docs examples and migration notes
-
-3. **Perf tune (SIMD/I/O)**
+4. **Perf tune (SIMD/I/O)**
 
    * Target +10–20% p95 throughput maintained under budgets; no API/behavior
      changes
 
 ### Exit Criteria
 
-* Same inputs under each dialect mode produce **documented** and **tested**
-  outcomes
+* **Edited PIC E3 encode**: All E3.0–E3.6 phases complete; golden fixtures
+  pass for sign, CR/DB, commas, asterisk fill, and currency symbols
+* **Dialect lever**: Same inputs under each dialect mode produce
+  **documented** and **tested** outcomes; default behavior unchanged
+* **Determinism CI**: Phase 3 smoke test active (awaiting CI re-enable)
 * No regressions vs v0.3.0 budgets; CI receipts show deltas ≤ 5% except where
   improved
 * Default behavior unchanged (back-compat preserved)
 
 ### Risks & Mitigations
 
-* **Behavior drift for existing users** → default remains current `"n"`;
-  strong docs + examples
+* **Edited PIC encode complexity** → incremental phases (E3.0–E3.6) with
+  golden fixtures; clear error handling for unsupported patterns
+* **Behavior drift for existing users** → default remains current `"n"` for
+  dialect lever; strong docs + examples
 
 ---
 
@@ -310,8 +348,8 @@ and are tracked for future sprints:
 
 ### Test Coverage (Future Sprints)
 
-* [ ] Add dedicated tests for 9 untested error codes (CBKS701-703, CBKD101,
-  CBKE510/515, CBKF102/104, CBKI001)
+* [ ] Add dedicated tests for 9 untested error codes (CBKS701-703,
+  CBKD101, CBKE510/515, CBKF102/104, CBKI001)
 * [ ] Add unit tests for memory/iterator infrastructure
 * [ ] Improve audit feature test coverage (currently ~10%)
 
@@ -322,6 +360,19 @@ and are tracked for future sprints:
 * [x] Fix deprecated `cargo_bin` function in xtask tests
 * [x] Standardize workspace dependency inheritance (`sha2`, `chrono` in
   `copybook-gen`)
+* [x] **Production panics at 0** on main (test-only panics remain acceptable)
+
+### CI Mode (Current)
+
+* **CI-off operating mode**: Local gates + small PRs + explicit receipts in PR bodies
+* **Dispatch-only workflows**: Mutants, fuzz, SBOM are dispatch-only until CI is re-enabled
+* **Manual validation**: Run workflows once when CI returns to validate artifact upload paths and runtime budgets
+
+### Distribution
+
+* **crates.io** = Public artifact distribution (crate tarball becomes public)
+* **Internal/Private distribution**: Git tags on private repositories, private cargo registries
+* **Note**: `cargo publish --dry-run` for workspace crates may fail for codec/cli prior to publishing core/codec (verification builds in isolation). Use `cargo package --no-verify` to inspect tarball contents.
 
 ---
 

@@ -179,6 +179,7 @@ parse, codec, and structural validation. See
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase
+- **Zero production `panic!()` on main** (test-only panics remain acceptable)
 - **Zero unsafe code** in public API paths (compiler-enforced via
   `#![deny(clippy::unwrap_used, clippy::expect_used)]`)
 - **40+ structured error codes** with stable taxonomy (CBKD, CBKE, CBKF, CBKI,
@@ -193,6 +194,8 @@ parse, codec, and structural validation. See
 - Performance targets exceeded by significant margins
 - Test suite comprehensive and passing
 - Documentation comprehensive and up-to-date
+- **Production panics at 0 on main**
+- **CI Mode**: Currently operating in CI-off mode with local gates and small PRs. See [`docs/internal/state-and-path.md`](internal/state-and-path.md) for current state and implementation path.
 
 ## Documentation References
 

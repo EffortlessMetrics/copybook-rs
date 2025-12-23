@@ -5,6 +5,24 @@ All notable changes to copybook-rs are documented here. This root file is the ca
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] — 2025-12-22
+
+> Patch release with receipt integrity fixes and documentation cleanup.
+
+### Fixed
+
+- **Receipt Integrity**: Fixed hash mismatch between generator and validator
+  - Compute percentiles BEFORE hashing (no post-write mutations)
+  - Use jq-based hash computation for consistent canonicalization
+  - Removed soak-aggregate.sh post-write call that caused integrity failures
+- **Doc Comments**: Fixed backtick usage in CLI utils for clippy pedantic compliance
+- **Historical Docs**: Cleaned merge conflict markers from archived roadmap files
+- **CI Stability**: Constrained parallelism (`-j 2`) to prevent linker/resource exhaustion
+
+### Changed
+
+- **Merge with main**: Synchronized release/v0.4.0 branch with main after PR #178
+
 ## [0.4.0] — 2025-12-18
 
 > Minor release with projection support and edited PIC decode.

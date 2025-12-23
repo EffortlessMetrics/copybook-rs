@@ -911,6 +911,21 @@ impl<W: Write> RDWRecordWriter<W> {
     }
 }
 
+/// Convert payload length to u16, returning CBKF102 error if too large.
+#[inline]
+fn rdw_payload_len_to_u16(len: usize) -> Result<u16> {
+    u16::try_from(len).map_err(|_| {
+        Error::new(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            format!(
+                "RDW payload too large: {} bytes exceeds maximum of {}",
+                len,
+                u16::MAX
+            ),
+        )
+    })
+}
+
 /// An RDW record with header and payload
 #[derive(Debug, Clone)]
 pub struct RDWRecord {
@@ -928,16 +943,7 @@ impl RDWRecord {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn try_new(payload: Vec<u8>) -> Result<Self> {
-        let length = u16::try_from(payload.len()).map_err(|_| {
-            Error::new(
-                ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-                format!(
-                    "RDW payload too large: {} bytes exceeds maximum of {}",
-                    payload.len(),
-                    u16::MAX
-                ),
-            )
-        })?;
+        let length = rdw_payload_len_to_u16(payload.len())?;
         let length_bytes = length.to_be_bytes();
         let header = [length_bytes[0], length_bytes[1], 0, 0]; // Reserved bytes are zero
 
@@ -966,16 +972,7 @@ impl RDWRecord {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn try_with_reserved(payload: Vec<u8>, reserved: u16) -> Result<Self> {
-        let length = u16::try_from(payload.len()).map_err(|_| {
-            Error::new(
-                ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-                format!(
-                    "RDW payload too large: {} bytes exceeds maximum of {}",
-                    payload.len(),
-                    u16::MAX
-                ),
-            )
-        })?;
+        let length = rdw_payload_len_to_u16(payload.len())?;
         let length_bytes = length.to_be_bytes();
         let reserved_bytes = reserved.to_be_bytes();
         let header = [
@@ -1024,16 +1021,7 @@ impl RDWRecord {
     /// Returns an error if the payload exceeds the maximum RDW record size (65535 bytes).
     #[inline]
     pub fn try_recompute_length(&mut self) -> Result<()> {
-        let length = u16::try_from(self.payload.len()).map_err(|_| {
-            Error::new(
-                ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-                format!(
-                    "RDW payload too large: {} bytes exceeds maximum of {}",
-                    self.payload.len(),
-                    u16::MAX
-                ),
-            )
-        })?;
+        let length = rdw_payload_len_to_u16(self.payload.len())?;
         let length_bytes = length.to_be_bytes();
         self.header[0] = length_bytes[0];
         self.header[1] = length_bytes[1];
@@ -1701,5 +1689,13 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(record, b"test"); // Should return just the payload
+    }
+
+    #[test]
+    #[should_panic(expected = "RDW payload exceeds maximum size")]
+    #[allow(deprecated)]
+    fn test_rdw_record_new_panics_on_oversize_payload() {
+        let payload = vec![0u8; usize::from(u16::MAX) + 1];
+        let _ = RDWRecord::new(payload);
     }
 }

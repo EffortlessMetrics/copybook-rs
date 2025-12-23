@@ -119,10 +119,10 @@ jobs:
       run: cargo run -p xtask -- docs verify-tests
     - name: Run tests (no features)
       if: matrix.features == '' && !(matrix.os == 'ubuntu-latest' && matrix.rust == 'stable')
-      run: cargo test --workspace --exclude copybook-bench
+      run: cargo test --workspace --exclude copybook-bench -j 2
     - name: Run tests (with features)
       if: matrix.features != ''
-      run: cargo test --workspace --exclude copybook-bench --features ${{ matrix.features }}
+      run: cargo test --workspace --exclude copybook-bench --features ${{ matrix.features }} -j 2
 
   rdw-iterator-tests:
     name: RDW iterator tests

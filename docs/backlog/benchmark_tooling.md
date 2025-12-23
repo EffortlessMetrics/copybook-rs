@@ -2,7 +2,7 @@
 
 **Status**: In progress (bench-report shipped; CI polish pending)  
 **Maintainer**: TBD → assign during next planning sync  
-**Related artifacts**: `issue-52-ledger.md`, `scripts/bench/perf.json`, `PERFORMANCE_VALIDATION_FINAL.md`
+**Related artifacts**: `scripts/bench/perf.json`, `docs/PERFORMANCE_GOVERNANCE.md`, `docs/PERFORMANCE_RECEIPT_REFERENCE.md`
 
 ## Scope
 

@@ -8,18 +8,18 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 ## 📚 Documentation
 
-| **User Guide** | **CLI Reference** | **Library API** | **Error Codes** | **ADR** | **Production Status** | **Roadmap** |
+| **User Guide** | **CLI Reference** | **Library API** | **Error Codes** | **ADR** | **Project Status** | **Roadmap** |
 |----------------|-------------------|------------------|-----------------|---------|----------------------|-------------|
-| [User Guide](docs/USER_GUIDE.md) | [CLI Reference](docs/CLI_REFERENCE.md) | [Library API](docs/reference/LIBRARY_API.md) | [Error Codes](docs/reference/ERROR_CODES.md) | [ADR](docs/adr/) | [Production Status](#production-status) | [Roadmap](docs/ROADMAP.md) |
+| [User Guide](docs/USER_GUIDE.md) | [CLI Reference](docs/CLI_REFERENCE.md) | [Library API](docs/reference/LIBRARY_API.md) | [Error Codes](docs/reference/ERROR_CODES.md) | [ADR](docs/adr/) | [Project Status](#project-status--roadmap) | [Roadmap](docs/ROADMAP.md) |
 
 ## Overview
 
-copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis. Canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`); `integrative_gate_summary.md` is retained as historical evidence only.
+copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis.
 
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI reports 615/615 tests passing (54 skipped); canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`)
+- **Transparent evidence**: CI reports 840+ tests passing (24 skipped for external tool requirements); canonical receipts live in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
@@ -27,6 +27,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ## Production Features
 
 ### **Core Capabilities**
+
 - **COBOL schema parsing**: Lexer, parser, and AST with layout resolution for REDEFINES, ODO, and SYNCHRONIZED
 - **Encoding/decoding**: Deterministic conversion between COBOL records and JSONL/structured data
 - **Enterprise error handling**: Stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*) with contextual metadata
@@ -35,12 +36,14 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **Memory-aware streaming**: Streaming I/O architecture with bounded memory; real-world telemetry stays below 256 MiB during decode/encode runs
 
 ### **Quality Signals**
+
 - **Deterministic output**: Byte-identical results across runs and worker configurations
 - **Round-trip fidelity**: Zoned decimal metadata preserved to maintain copybook semantics
 - **Memory safety**: Zero `unsafe` in public APIs; pedantic lints enforced across the workspace
-- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; one legacy performance assertion remains flaky (see `PERFORMANCE_VALIDATION_FINAL.md` for current perf receipts)
+- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; performance receipts in `scripts/bench/perf.json`
 
 ### **Enterprise Integration**
+
 - **Multiple EBCDIC Codepages**: CP037, CP273, CP500, CP1047, CP1140 + ASCII support
 - **Flexible Record Formats**: Fixed-length and variable (RDW) with validation
 - **CLI + Library API**: Production-ready interfaces; Engineering Preview for feature completeness (see [ROADMAP.md](docs/ROADMAP.md) for known limitations: #44, #51, #72, #86)
@@ -61,12 +64,13 @@ The project is organized as a Cargo workspace with the following crates:
 ### Installation
 
 ```bash
-# Install from crates.io
-cargo install copybook-cli
+# Install from crates.io (v0.4.0)
+cargo install copybook-cli --version 0.4.0
 
 # Or build from source
 git clone https://github.com/EffortlessMetrics/copybook-rs.git
 cd copybook-rs
+git checkout v0.4.0
 cargo build --release
 ```
 
@@ -597,7 +601,7 @@ The audit system is available as an optional feature that can be enabled during 
 cargo build --features audit
 
 # Install CLI with audit capabilities
-cargo install copybook-cli --features audit
+cargo install copybook-cli --version 0.4.0 --features audit
 
 # Build library with audit support
 cargo build --workspace --features audit
@@ -710,6 +714,7 @@ For comprehensive enterprise audit system documentation:
 copybook-rs provides comprehensive numeric data type handling with proper precision preservation and improved formatting support. The SmallDecimal type now implements the Display trait for improved debugging and string representation.
 
 ### Zoned Decimal Processing
+
 ```bash
 # Decode EBCDIC zoned decimals with sign zones (C=+, D=-)
 copybook decode schema.cpy mainframe-data.bin \
@@ -719,6 +724,7 @@ copybook decode schema.cpy mainframe-data.bin \
 ```
 
 ### Packed Decimal (COMP-3) Processing
+
 ```bash
 # Decode packed decimal fields with nibble signs
 copybook decode schema.cpy comp3-data.bin \
@@ -728,6 +734,7 @@ copybook decode schema.cpy comp3-data.bin \
 ```
 
 ### Binary Integer Processing
+
 ```bash
 # Process binary integers with explicit widths
 copybook decode schema.cpy binary-data.bin \
@@ -754,6 +761,7 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 ## Supported COBOL Features
 
 ### Data Types
+
 - **Alphanumeric**: `PIC X(n)` - Character data with EBCDIC/ASCII conversion
 - **Zoned Decimal**: `PIC 9(n)V9(m)`, `PIC S9(n)V9(m)` - Display numeric with EBCDIC/ASCII sign zones
   - **EBCDIC Overpunch**: Zone nibbles (C/F = positive, D = negative) in sign position
@@ -767,6 +775,7 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 - **Signed Fields**: Full support for signed zoned, packed, and binary types with proper sign handling
 
 ### Structure Features
+
 - **Level Numbers**: 01-49 hierarchical grouping
 - **REDEFINES**: Multiple views over same storage area
 - **OCCURS**: Fixed arrays and variable arrays (OCCURS DEPENDING ON)
@@ -774,11 +783,13 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 - **BLANK WHEN ZERO**: Special handling for zero values
 
 ### Record Formats
+
 - **Fixed-Length**: Constant LRECL records
 - **Variable-Length**: RDW (Record Descriptor Word) format
 - **ODO Support**: Variable arrays at tail position only
 
 ### Limitations
+
 - **Fully Supported**: Level-88 condition values (VALUE clauses) with complete parse, codec, and structural validation (see docs/reference/COBOL_SUPPORT_MATRIX.md for test evidence)
 - **Unsupported**: COMP-1 (single-precision float) and COMP-2 (double-precision float)
 - **Partially Supported**: Edited PIC clauses - Phase E1 (parse) ✅, Phase E2 (decode) ✅, Phase E3 (encode) ⏳ v0.5.0
@@ -791,18 +802,21 @@ copybook-rs implements IBM mainframe SYNCHRONIZED alignment standards for binary
 copybook-rs uses a comprehensive error taxonomy with stable codes:
 
 ### Parse Errors (CBKP*)
+
 - `CBKP001_SYNTAX`: Copybook syntax errors
 - `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
 - `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
 
 ### Schema Validation Errors (CBKS*)
+
 - `CBKS121_COUNTER_NOT_FOUND`: ODO counter field not found
 - `CBKS141_RECORD_TOO_LARGE`: Record size exceeds maximum limit
 - `CBKS301_ODO_CLIPPED`: ODO counter exceeds maximum (strict: fatal, lenient: warning with clamping)
 - `CBKS302_ODO_RAISED`: ODO counter below minimum (strict: fatal, lenient: warning with clamping)
 
 ### Data Errors (CBKD*)
+
 - `CBKD101_INVALID_FIELD_TYPE`: Invalid field type for operation
 - `CBKD301_RECORD_TOO_SHORT`: Record truncated or too short for field data
 - `CBKD401_COMP3_INVALID_NIBBLE`: Invalid packed decimal data
@@ -813,10 +827,12 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKD415_ZONED_ENCODING_DETECTION_FAILED`: Unable to detect zoned decimal encoding format
 
 ### Encoding Errors (CBKE*)
+
 - `CBKE501_JSON_TYPE_MISMATCH`: JSON type doesn't match field type or REDEFINES ambiguity
 - `CBKE521_ARRAY_LEN_OOB`: Array length out of bounds
 
 ### Record Format Errors (CBKR*)
+
 - `CBKR101_FIXED_RECORD_ERROR`: Error processing fixed-length record
 - `CBKR201_RDW_READ_ERROR`: Error reading Record Descriptor Word header
 - `CBKR211_RDW_RESERVED_NONZERO`: RDW reserved bytes contain non-zero values (warning)
@@ -826,6 +842,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 ## Operational Notes
 
 ### Toolchain
+
 - **Rust**: 1.90+ MSRV (workspace-enforced) | **Edition**: 2024
 - **Platforms**: Developed and tested primarily on Linux; community validation exists for macOS and Windows
 - **Memory**: Streaming decode/encode runs typically remain below 256 MiB on reference datasets
@@ -833,19 +850,21 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo nextest` reports 715/715 passing (38 skipped) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration (current receipts in `PERFORMANCE_VALIDATION_FINAL.md`; `integrative_gate_summary.md` retained as historical evidence)
+- **Tests**: `cargo test --workspace` reports 840+ tests passing (24 skipped for external tool requirements) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
 - **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.0; see `docs/backlog/benchmark_tooling.md` for follow-ups
-- **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`
+- **Documentation**: Public messaging intentionally highlights correctness and open issues; performance receipts in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 
 ### Benchmarking & Regression Tracking
+
 - Run ad-hoc benchmarks with `cargo bench --package copybook-bench`; `just bench-json` mirrors receipts for CI
 - Receipts land in `scripts/bench/perf.json` via `just bench-json`, `bash scripts/bench.sh`, or `scripts\bench.bat`
 - Perf receipts are machine-readable and attached to pull requests as `perf-json` artifacts with 90-day retention
 - `bench-report` supports local receipt validation and baseline comparison; CI perf checks remain neutral/advisory in v0.4.0
 
 ### Performance receipts (deterministic)
+
 ```bash
 # Linux/macOS
 bash scripts/bench.sh
@@ -933,7 +952,7 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
 3. Review [REPORT.md](docs/REPORT.md) for detailed readiness assessment
 4. Consult [ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
 
-See `PERFORMANCE_VALIDATION_FINAL.md` for current validation evidence; `integrative_gate_summary.md` is preserved as a historical snapshot.
+See `scripts/bench/perf.json` for current performance receipts.
 
 ### **Development Roadmap**
 See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: v0.5.0 dialect features and benchmark automation (Issue #52).
@@ -941,6 +960,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. C
 ## Repository Structure
 
 ### Core Workspace
+
 - **copybook-core** - COBOL parsing engine (lexer, parser, AST)
 - **copybook-codec** - Data encoding/decoding with character conversion
 - **copybook-cli** - Command-line interface with subcommands
@@ -948,6 +968,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. C
 - **copybook-bench** - Performance benchmarks and validation
 
 ### Documentation (`docs/`)
+
 - **reference/** - API docs, CLI reference, error codes
 - **specs/** - Technical specifications and feature definitions
 - **reports/** - Validation reports and PR analysis
@@ -956,6 +977,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. C
 - **explanation/** - In-depth technical explanations
 
 ### Development Resources
+
 - **examples/** - Usage examples (basic/integration/enterprise)
 - **fixtures/** - Test data and golden corpus for validation
 - **test-data/** - Simple test copybooks and sample data
@@ -964,6 +986,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. C
 - **schemas/** - JSON schemas for data validation
 
 ### Configuration
+
 - **.config/** - Tool configurations (rustfmt, clippy, nextest)
 - **.github/** - GitHub workflows and issue templates
 
@@ -971,14 +994,16 @@ See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. C
 
 We welcome contributions! Please see [REPORT.md](docs/REPORT.md) for current project status and [ROADMAP.md](docs/ROADMAP.md) for development priorities.
 
-#### Development Workflow
+### Development Workflow
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes with tests
 4. Run `just ci-quick` or `cargo xtask ci --quick`
 5. Submit a pull request using the provided template
 
-#### Code Standards
+### Code Standards
+
 - Follow Rust conventions and idioms with clippy pedantic compliance
 - Add comprehensive tests for new features and help retire the remaining flaky/leaky cases highlighted by `cargo nextest`
 - Update documentation for API changes

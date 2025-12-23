@@ -1,21 +1,45 @@
 # Production Status Report
 
 ---
-**Status**: ⚠️ **Engineering Preview (v0.4.0)** - See [ROADMAP.md](ROADMAP.md) for adoption guidance
-**Readiness**: Cautious Adoption Recommended - See [Readiness Assessment](#readiness-assessment) below
-**Canonical Status Source**: [ROADMAP.md](ROADMAP.md) is the authoritative project status reference
+
+**Status**: ⚠️ **Engineering Preview (v0.4.0)** - See
+[ROADMAP.md](ROADMAP.md) for adoption guidance
+
+**Readiness**: Cautious Adoption Recommended - See
+[Readiness Assessment](#readiness-assessment) below
+
+**Canonical Status Source**: [ROADMAP.md](ROADMAP.md) is the authoritative
+project status reference
+
 ---
 
 ## Executive Summary
-copybook-rs delivers deterministic COBOL copybook parsing and record conversion with a strong emphasis on correctness, observability, and memory safety. The workspace builds cleanly and the release gate (fmt/clippy/build/nextest) is green. Performance receipts are tracked in `scripts/bench/perf.json` and summarized in `PERFORMANCE_VALIDATION_FINAL.md`; numbers vary by environment and floors are advisory targets in v0.4.0 (Engineering Preview).
+
+copybook-rs delivers deterministic COBOL copybook parsing and record
+conversion with a strong emphasis on correctness, observability, and memory
+safety. The workspace builds cleanly and the release gate
+(fmt/clippy/build/nextest) is green. Performance receipts are tracked in
+`scripts/bench/perf.json` and summarized in
+`docs/PERFORMANCE_GOVERNANCE.md`; numbers vary by environment and floors are
+advisory targets in v0.4.0 (Engineering Preview).
 
 ## Overview
-The `copybook-rs` workspace combines five Rust crates (core, codec, CLI, generator, and benchmarks) to provide deterministic COBOL→JSON processing. The focus is on transparent validation rather than performance bravado: adopters must review known COBOL feature gaps and performance limitations before committing production workloads.
+
+The `copybook-rs` workspace combines five Rust crates (core, codec, CLI,
+generator, and benchmarks) to provide deterministic COBOL→JSON processing. The
+focus is on transparent validation rather than performance bravado: adopters
+must review known COBOL feature gaps and performance limitations before
+committing production workloads.
 
 ## Architecture
-The project is organized as a Cargo workspace with clearly defined responsibilities:
-- **copybook-core**: Core parsing and schema types (lexer, parser, AST, layout resolution)
-- **copybook-codec**: Encoding/decoding codecs for COBOL data types with character conversion
+
+The project is organized as a Cargo workspace with clearly defined
+responsibilities:
+
+- **copybook-core**: Core parsing and schema types (lexer, parser, AST, layout
+  resolution)
+- **copybook-codec**: Encoding/decoding codecs for COBOL data types with
+  character conversion
 - **copybook-cli**: Command-line interface with comprehensive subcommands
 - **copybook-gen**: Test fixture and synthetic data generation utilities
 - **copybook-bench**: Performance benchmarks and validation harness
@@ -23,38 +47,55 @@ The project is organized as a Cargo workspace with clearly defined responsibilit
 ## Validation Results
 
 ### Test Coverage
+
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo nextest` reports 715/715 passing (38 skipped) on the release gate (excluding `copybook-bench`)
+
+- **Tests**: `cargo test --workspace` reports 840+ tests passing (24 skipped
+  for external tool requirements) on the release gate
+
 <!-- TEST_STATUS:END -->
-- **Bench harness**: `copybook-bench` suites run 56/56 tests successfully, covering Issue #52 acceptance criteria
-- **Integration focus areas**: Copybook parsing (including REDEFINES/ODO), round-trip encode/decode, error taxonomy stability, and streaming I/O memory bounds
+
+- **Bench harness**: `copybook-bench` suites run 56/56 tests successfully,
+  covering Issue #52 acceptance criteria
+- **Integration focus areas**: Copybook parsing (including REDEFINES/ODO),
+  round-trip encode/decode, error taxonomy stability, and streaming I/O memory
+  bounds
 
 ### Quality Assurance Features
+
 - Comprehensive error taxonomy with stable error codes (CBKP*, CBKD*, CBKE*)
 - Parser stability with infinite loop prevention
 - Memory safety with no unsafe code in public API paths
 - Deterministic output with byte-identical results across runs
 - **Determinism validation harness**:
-  - Codec-level checks (decode, encode, round-trip) using BLAKE3 hashes + byte diffs (Issue #112, PR #158)
-  - CLI surface: `copybook determinism decode|encode|round-trip` (Issue #112 Phase 2, PR #160)
-  - JSON output for CI integration; see `docs/design/DETERMINISM_CLI.md` for contract
+  - Codec-level checks (decode, encode, round-trip) using BLAKE3 hashes + byte
+    diffs (Issue #112, PR #158)
+  - CLI surface: `copybook determinism decode|encode|round-trip` (Issue #112
+    Phase 2, PR #160)
+  - JSON output for CI integration; see `docs/design/DETERMINISM_CLI.md` for
+    contract
 
 ## Performance Snapshot
 
 Performance is tracked via machine-readable receipts:
 
-- **Canonical receipts**: `scripts/bench/perf.json` (generated by `bash scripts/bench.sh`)
-- **Narrative summary**: `PERFORMANCE_VALIDATION_FINAL.md`
+- **Canonical receipts**: `scripts/bench/perf.json` (generated by
+  `bash scripts/bench.sh`)
+- **Narrative summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
 **v0.4.0 policy (Engineering Preview)**:
+
 - Floors are **advisory targets** (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s).
-- Receipts are environment-specific; validate on your target hardware before production use.
+- Receipts are environment-specific; validate on your target hardware before
+  production use.
 - COMP-3 decoding performance limited by packed decimal conversion complexity
 
 ## COBOL Feature Support
+
 Comprehensive support for mainframe data formats:
 
 ### Data Types
+
 - Alphanumeric fields with full EBCDIC/ASCII conversion
 - Zoned decimal with proper sign handling (EBCDIC zones and ASCII overpunch)
 - Packed decimal (COMP-3) with enhanced nibble sign processing
@@ -62,15 +103,18 @@ Comprehensive support for mainframe data formats:
 - Signed fields across all numeric types
 
 ### Structure Features
+
 - Hierarchical level numbers (01-49)
 - REDEFINES for multiple storage views
 - OCCURS and OCCURS DEPENDING ON for arrays
 - Level-88 condition values (VALUE clauses) with non-storage semantics
 - SYNCHRONIZED field alignment
 - BLANK WHEN ZERO special value handling
-- **FILLER Byte-Offset Naming**: FILLER fields named using computed byte offsets (_filler_00000XXX) for consistent JSON output
+- **FILLER Byte-Offset Naming**: FILLER fields named using computed byte
+  offsets (_filler_00000XXX) for consistent JSON output
 
 ### Record Formats
+
 - Fixed-length records with constant LRECL
 - Variable-length RDW (Record Descriptor Word) format
 - Multiple EBCDIC codepages (CP037, CP273, CP500, CP1047, CP1140)
@@ -78,30 +122,73 @@ Comprehensive support for mainframe data formats:
 ## Known Limitations and Technical Debt
 
 ### Deprecated Dependencies
+
 - None currently identified; legacy `base64::encode` usage has been removed.
 
+### Identified Technical Debt (from Dec 2024 Audit)
+
+**Documentation Gaps** (Medium Priority):
+
+- 22 numeric functions in `copybook-codec/src/numeric.rs` missing documentation
+- Memory module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`) needs API
+  documentation
+- Iterator module public functions need usage examples
+
+**Test Coverage Gaps** (Tracked for Future Work):
+
+- 9 error codes without dedicated tests: CBKS701-703 (projection), CBKD101
+  (field type), CBKE510/515 (numeric overflow/string length), CBKF102/104 (RDW
+  format), CBKI001 (iterator state)
+- Memory/iterator infrastructure lacks dedicated unit tests (currently tested
+  via integration)
+- Audit feature modules have ~10% test coverage
+
+**Code Patterns** (Low Priority):
+
+- Test helper functions could be further consolidated into shared test
+  utilities crate
+- Some test setup code is duplicated across test files (193+ instances of
+  `DecodeOptions::new()`)
+
 ### Unsupported COBOL Features
+
 - COMP-1/COMP-2 floating-point types (by design - rare in practice)
 - Edited PIC clauses (Z, /, comma, $, CR, DB)
 - SIGN LEADING/TRAILING SEPARATE
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) items – parser + same-scope resolver implemented; nested group semantics and codec projection are still pending (see docs/design/RENAMES_NESTED_GROUPS.md and Issues #110 / #133)
+- 66-level (RENAMES) items – parser + same-scope resolver implemented; nested
+  group semantics and codec projection are still pending (see
+  docs/design/RENAMES_NESTED_GROUPS.md and Issues #110 / #133)
 
-**Note**: Level-88 condition values are fully supported with comprehensive parse, codec, and structural validation. See [COBOL_SUPPORT_MATRIX.md](reference/COBOL_SUPPORT_MATRIX.md) for test evidence (6 tests in AC2, 8 tests in AC5, 638+838 lines of golden fixtures).
+**Note**: Level-88 condition values are fully supported with comprehensive
+parse, codec, and structural validation. See
+[COBOL_SUPPORT_MATRIX.md](reference/COBOL_SUPPORT_MATRIX.md) for test evidence
+(6 tests in AC2, 8 tests in AC5, 638+838 lines of golden fixtures).
 
 ### Data Quality Considerations
+
 - Test fixture data is synthetic and may not capture all production edge cases
-- Validator approved for integration but ongoing real-world validation recommended
+- Validator approved for integration but ongoing real-world validation
+  recommended
 
 ## Development and Maintenance Status
 
 ### Code Quality
-- Rust Edition 2024 with MSRV 1.89 (aligned with CI test matrix)
+
+- Rust Edition 2024 with MSRV 1.90 (aligned with CI test matrix)
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase
+- **Zero unsafe code** in public API paths (compiler-enforced via
+  `#![deny(clippy::unwrap_used, clippy::expect_used)]`)
+- **40+ structured error codes** with stable taxonomy (CBKD, CBKE, CBKF, CBKI,
+  CBKS families)
+- **85+ workspace-inherited dependencies** for consistent versioning
+- **CLI code consolidation**: Shared utilities for parse options, field
+  projection, and selector parsing
 
 ### Integration Readiness
+
 - All validation steps completed
 - Performance targets exceeded by significant margins
 - Test suite comprehensive and passing
@@ -110,58 +197,94 @@ Comprehensive support for mainframe data formats:
 ## Documentation References
 
 For additional technical information:
-- **[README.md](../README.md)**: User-facing documentation, installation guide, and API usage examples
-- **[CLAUDE.md](../CLAUDE.md)**: Development commands, testing procedures, and contributor guidance
-- **[ERROR_CODES.md](reference/ERROR_CODES.md)**: Comprehensive error code taxonomy and troubleshooting guide
+
+- **[README.md](../README.md)**: User-facing documentation, installation guide,
+  and API usage examples
+- **[CLAUDE.md](../CLAUDE.md)**: Development commands, testing procedures, and
+  contributor guidance
+- **[ERROR_CODES.md](reference/ERROR_CODES.md)**: Comprehensive error code
+  taxonomy and troubleshooting guide
 
 ## Recent Feature Implementation: FILLER Byte-Offset Naming
 
 ### Enhancement Overview
-The copybook-rs parser now implements consistent FILLER field naming using computed byte offsets instead of sequential numbering, significantly improving JSON output reliability and cross-session consistency.
+
+The copybook-rs parser now implements consistent FILLER field naming using
+computed byte offsets instead of sequential numbering, significantly improving
+JSON output reliability and cross-session consistency.
 
 ### Technical Implementation
-- **Two-Phase Resolution Process**: Initial phase detects duplicate field names, final phase applies FILLER renaming after layout resolution
-- **Byte-Offset Computation**: FILLER fields named as `_filler_00000XXX` where XXX is the computed byte offset within the record
-- **Path Consistency**: Field paths automatically updated after FILLER renaming to maintain schema integrity
-- **Cross-Format Compatibility**: Works correctly with ODO, REDEFINES, and RDW record formats
+
+- **Two-Phase Resolution Process**: Initial phase detects duplicate field
+  names, final phase applies FILLER renaming after layout resolution
+- **Byte-Offset Computation**: FILLER fields named as `_filler_00000XXX` where
+  XXX is the computed byte offset within the record
+- **Path Consistency**: Field paths automatically updated after FILLER renaming
+  to maintain schema integrity
+- **Cross-Format Compatibility**: Works correctly with ODO, REDEFINES, and RDW
+  record formats
 
 ### Benefits
-- **Predictable JSON Output**: FILLER field names remain consistent across parsing sessions with identical schema layout
-- **Enhanced Debugging**: Byte-offset naming provides immediate context for FILLER field positions
-- **Integration Reliability**: Downstream systems can depend on consistent FILLER field naming
+
+- **Predictable JSON Output**: FILLER field names remain consistent across
+  parsing sessions with identical schema layout
+- **Enhanced Debugging**: Byte-offset naming provides immediate context for
+  FILLER field positions
+- **Integration Reliability**: Downstream systems can depend on consistent
+  FILLER field naming
 - **Performance**: Minimal overhead during layout resolution phase
 
 ### Validation Status
-- Release gate coverage includes parsing (ODO/REDEFINES/RENAMES), codec round-trip, and CLI integration; see the Test Coverage block above for current counts
-- Performance receipts are tracked in `scripts/bench/perf.json` and summarized in `PERFORMANCE_VALIDATION_FINAL.md`
+
+- Release gate coverage includes parsing (ODO/REDEFINES/RENAMES), codec
+  round-trip, and CLI integration; see the Test Coverage block above for
+  current counts
+- Performance receipts are tracked in `scripts/bench/perf.json` and summarized
+  in `docs/PERFORMANCE_GOVERNANCE.md`
 
 ## Performance Evaluation Results
 
 Performance reporting is receipt-based (JSON) rather than single-number claims.
 
 - **Receipts**: `scripts/bench/perf.json` (via `bash scripts/bench.sh`)
-- **Summary**: `PERFORMANCE_VALIDATION_FINAL.md`
+- **Summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
-In v0.4.0, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s). Results are environment-specific; validate on your target hardware before production use.
-
+In v0.4.0, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80
+MiB/s; COMP-3 ≥ 40 MiB/s). Results are environment-specific; validate on your
+target hardware before production use.
 
 ## Readiness Assessment
 
 ### Status: ⚠️ Engineering Preview (v0.4.0) - Cautious Adoption Recommended
 
-**Official Status**: See [ROADMAP.md](ROADMAP.md) for canonical project status and development timeline.
+**Official Status**: See [ROADMAP.md](ROADMAP.md) for canonical project status
+and development timeline.
 
-copybook-rs is suitable for teams that validate their copybooks against the supported feature set and can tolerate current performance characteristics. The project maintains Engineering Preview status (not production-ready) until remaining limitations are addressed.
+copybook-rs is suitable for teams that validate their copybooks against the
+supported feature set and can tolerate current performance characteristics. The
+project maintains Engineering Preview status (not production-ready) until
+remaining limitations are addressed.
 
 #### Technical Signals
-- ⚠️ **Test Health**: `cargo nextest` reports 715/715 passing (38 skipped) on the release gate (excluding `copybook-bench`)
+
+- ⚠️ **Test Health**: `cargo test --workspace` reports 840+ tests passing (24
+  skipped for external tool requirements)
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
-- ⚠️ **Performance Variance**: Receipts are environment-specific; validate on your target hardware (see `scripts/bench/perf.json` + `PERFORMANCE_VALIDATION_FINAL.md`)
-- ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.0 (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s)
-- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs remain unsupported; RENAMES (66-level) partially supported (parser+resolver complete, nested groups+codec pending); Level-88 condition values fully supported
-- ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management (promote/show), comparison, validation, and summary commands
+- ⚠️ **Performance Variance**: Receipts are environment-specific; validate on
+  your target hardware (see `scripts/bench/perf.json` +
+  `docs/PERFORMANCE_GOVERNANCE.md`)
+- ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.0
+  (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s)
+- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE,
+  nested ODOs remain unsupported; RENAMES (66-level) partially supported
+  (parser+resolver complete, nested groups+codec pending); Level-88 condition
+  values fully supported
+- ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52)
+  with baseline management (promote/show), comparison, validation, and summary
+  commands
 
 #### Deployment Guidance
+
 1. **Pre-Deployment Validation**:
    - Run pilots on representative copybooks
    - Verify unsupported COBOL clauses are absent from your schemas
@@ -173,12 +296,19 @@ copybook-rs is suitable for teams that validate their copybooks against the supp
    - Native Linux deployment may show 5-15% improvement over WSL2 measurements
 
 3. **Documentation Resources**:
-   - Keep `integrative_gate_summary.md` and `PERFORMANCE_VALIDATION_FINAL.md` handy when communicating status to stakeholders
-   - Review [ROADMAP.md](ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability timeline
-   - Consult [ERROR_CODES.md](reference/ERROR_CODES.md) for comprehensive error taxonomy
+   - Reference `scripts/bench/perf.json` and `docs/PERFORMANCE_GOVERNANCE.md`
+     when communicating status to stakeholders
+   - Review [ROADMAP.md](ROADMAP.md) for v0.5.0 dialect features and v1.0.0
+     stability timeline
+   - Consult [ERROR_CODES.md](reference/ERROR_CODES.md) for comprehensive error
+     taxonomy
 
 #### Recommended Use Cases
+
 - ✅ **Pilot Projects**: Teams evaluating COBOL data processing alternatives
-- ✅ **Development/Testing**: Non-production environments with supported COBOL features
-- ✅ **Controlled Rollouts**: Production use with comprehensive pilot validation and feature verification
-- ⚠️ **Full Production**: Requires validation of feature coverage and performance requirements
+- ✅ **Development/Testing**: Non-production environments with supported COBOL
+  features
+- ✅ **Controlled Rollouts**: Production use with comprehensive pilot validation
+  and feature verification
+- ⚠️ **Full Production**: Requires validation of feature coverage and
+  performance requirements

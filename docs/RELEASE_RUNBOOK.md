@@ -80,6 +80,30 @@ The repository publish workflow (`.github/workflows/publish.yml`) follows this o
 
 ---
 
+## Distribution Truth
+
+**crates.io publish makes the crate public.** Once published:
+- The published crate tarball (packaged sources) is public
+- Download statistics are public
+- Crate metadata (dependencies, features) is indexed
+
+**Private distribution options:**
+- Git tags on private repositories
+- Private cargo registries (Cloudsmith, Artifactory, etc.)
+- Vendored dependencies via `cargo vendor`
+
+**SBOM generation** (for enterprise compliance):
+```bash
+# Generate CycloneDX SBOM locally
+cargo cyclonedx --manifest-path copybook-cli/Cargo.toml --format json
+mv copybook-cli/copybook-cli.cdx.json sbom.cdx.json
+
+# Or trigger the workflow (workflow_dispatch)
+# Artifact: sbom-cyclonedx/sbom.cdx.json
+```
+
+---
+
 ## Rollback (If Needed)
 
 If you published a bad release:

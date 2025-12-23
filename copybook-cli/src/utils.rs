@@ -62,7 +62,7 @@ pub fn apply_field_projection(schema: Schema, select_args: &[String]) -> anyhow:
     })
 }
 
-/// Configuration for building ParseOptions from CLI arguments
+/// Configuration for building `ParseOptions` from CLI arguments
 pub struct ParseOptionsConfig<'a> {
     pub strict: bool,
     pub strict_comments: bool,
@@ -70,9 +70,9 @@ pub struct ParseOptionsConfig<'a> {
     pub emit_filler: bool,
 }
 
-/// Build ParseOptions from CLI configuration
+/// Build `ParseOptions` from CLI configuration
 ///
-/// This consolidates the common pattern of building ParseOptions across
+/// This consolidates the common pattern of building `ParseOptions` across
 /// different CLI commands.
 pub fn build_parse_options(config: &ParseOptionsConfig) -> ParseOptions {
     ParseOptions {

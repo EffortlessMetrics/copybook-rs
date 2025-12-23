@@ -147,6 +147,7 @@ def compute_percentiles(benchmark_names: list) -> dict:
         "p99_mibps": percentile(0.99),
     }
 
+
 # Get environment data from shell
 build_profile = """${BUILD_PROFILE}"""
 target_cpu = """${TARGET_CPU}"""
@@ -177,6 +178,7 @@ summary = {
 }
 # Merge percentiles into summary if available
 summary.update(percentiles)
+
 
 report = {
     "format_version": "1.0.0",

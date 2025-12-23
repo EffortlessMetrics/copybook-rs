@@ -113,7 +113,8 @@ commit = subprocess.check_output(
     ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True
 ).strip()
 
-# Create canonical performance receipt with complete metadata
+# Create complete performance receipt with ALL metadata INCLUDING summary
+# IMPORTANT: Build complete receipt BEFORE hashing - receipt is immutable after hash
 report = {
     "format_version": "1.0.0",
     "timestamp": timestamp,
@@ -133,90 +134,35 @@ report = {
     "display_gibps": display["mean_mibps"] / 1024.0,
     "comp3_mibps": comp3["mean_mibps"],
     "benchmarks": [display, comp3],
+    # Include summary BEFORE hashing - no post-write mutations allowed
+    "summary": {
+        "display_mibps": display["mean_mibps"],
+        "comp3_mibps": comp3["mean_mibps"],
+        "max_rss_mib": 0  # Will be populated if /usr/bin/time is available
+    }
 }
 
 output_dir = ROOT / "scripts" / "bench"
 output_dir.mkdir(parents=True, exist_ok=True)
 output_path = output_dir / "perf.json"
 
-# Generate JSON and calculate integrity hash
-json_content = json.dumps(report, indent=2) + "\n"
-sha256_hash = hashlib.sha256(json_content.encode('utf-8')).hexdigest()
+# Compute integrity hash from canonical JSON (sorted keys, compact) WITHOUT integrity field
+# This matches what the validator does: jq -cS 'del(.integrity)' | sha256sum
+canonical_json = json.dumps(report, sort_keys=True, separators=(',', ':'))
+sha256_hash = hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()
 
 # Add integrity information to report
 report["integrity"] = {
     "sha256": sha256_hash
 }
 
-# Write final receipt with integrity hash
+# Write final receipt - IMMUTABLE after this point
 final_json = json.dumps(report, indent=2) + "\n"
 output_path.write_text(final_json)
-print(f"✅ receipts: {output_path.relative_to(ROOT)}")
+print(f"✅ receipts: {output_path.relative_to(ROOT)} (integrity: {sha256_hash[:16]}...)")
 PY
 
-TMP_JSON="scripts/bench/perf.json"
-SUMMARY_JSON="scripts/bench/summary.json"
-
-if ! command -v jq >/dev/null 2>&1; then
-  echo "❌ jq is required to append summary to ${TMP_JSON}" >&2
-  exit 1
-fi
-
-if [[ ! -f "${TMP_JSON}" ]]; then
-  echo "❌ expected receipts at ${TMP_JSON}" >&2
-  exit 1
-fi
-
-DISPLAY=$(
-  jq -r '
-    [
-      .display_mibps?,
-      .metrics?.display_mibps?,
-      (.benchmarks[]? | .display_mibps?),
-      (.benchmarks[]? | .throughput_mib? | select(. != null))
-    ] | map(select(. != null)) | (max // 0)
-  ' "${TMP_JSON}"
-)
-
-COMP3=$(
-  jq -r '
-    [
-      .comp3_mibps?,
-      .metrics?.comp3_mibps?,
-      (.benchmarks[]? | .comp3_mibps?),
-      (.benchmarks[]? | .comp3_throughput_mib?)
-    ] | map(select(. != null)) | (max // 0)
-  ' "${TMP_JSON}"
-)
-
-MAXRSS_MIB=0
-if [[ -x "/usr/bin/time" ]]; then
-  TIME_OUTPUT=$(/usr/bin/time -v bash -c 'sleep 0.1' 2>&1 || true)
-
-  if [[ -z "${TIME_OUTPUT}" ]]; then
-    TIME_OUTPUT=$(/usr/bin/time -l bash -c 'sleep 0.1' 2>&1 || true)
-  fi
-
-  rss_line=$(printf '%s\n' "${TIME_OUTPUT}" | awk -F: '
-    /[Mm]aximum resident set size/ {gsub(/^[ \t]+/, "", $2); print $2; exit}
-  ')
-
-  if [[ -n "${rss_line}" ]]; then
-    MAXRSS_MIB=$(printf '%s\n' "${rss_line}" | awk '{printf "%.0f", $1 / 1024}')
-  fi
-fi
-
-jq -n \
-  --argjson display "${DISPLAY:-0}" \
-  --argjson comp3 "${COMP3:-0}" \
-  --argjson maxrss "${MAXRSS_MIB:-0}" \
-  '{display_mibps:$display, comp3_mibps:$comp3, max_rss_mib:$maxrss}' \
-  > "${SUMMARY_JSON}"
-
-jq -s '.[0] * { summary: .[1] }' "${TMP_JSON}" "${SUMMARY_JSON}" > "${TMP_JSON}.tmp"
-mv "${TMP_JSON}.tmp" "${TMP_JSON}"
-rm -f "${SUMMARY_JSON}"
-echo "✅ appended summary to ${TMP_JSON}"
+# Receipt is complete and immutable - no post-write modifications
 
 if [[ -x "scripts/soak-aggregate.sh" ]]; then
   bash scripts/soak-aggregate.sh

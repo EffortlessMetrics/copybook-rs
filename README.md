@@ -19,7 +19,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI reports 840+ tests passing (24 skipped for external tool requirements); canonical receipts live in `scripts/bench/perf.json` (summarised in `PERFORMANCE_VALIDATION_FINAL.md`)
+- **Transparent evidence**: CI reports 840+ tests passing (24 skipped for external tool requirements); canonical receipts live in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
@@ -40,7 +40,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **Deterministic output**: Byte-identical results across runs and worker configurations
 - **Round-trip fidelity**: Zoned decimal metadata preserved to maintain copybook semantics
 - **Memory safety**: Zero `unsafe` in public APIs; pedantic lints enforced across the workspace
-- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; one legacy performance assertion remains flaky (see `PERFORMANCE_VALIDATION_FINAL.md` for current perf receipts)
+- **Test coverage**: Hundreds of unit/integration tests plus nextest orchestration; performance receipts in `scripts/bench/perf.json`
 
 ### **Enterprise Integration**
 
@@ -854,7 +854,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
 - **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.0; see `docs/backlog/benchmark_tooling.md` for follow-ups
-- **Documentation**: Public messaging intentionally highlights correctness and open issues; raw performance tables live in `PERFORMANCE_VALIDATION_FINAL.md`
+- **Documentation**: Public messaging intentionally highlights correctness and open issues; performance receipts in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 
 ### Benchmarking & Regression Tracking
 

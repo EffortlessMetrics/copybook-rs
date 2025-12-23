@@ -39,10 +39,10 @@ jobs:
         echo "Publishing for tag: ${{ github.ref_name || github.event.inputs.tag }}"
 
         # Verify workspace builds cleanly
-        cargo build --workspace --release
+        cargo build --workspace --release -j 2
 
         # Run tests to ensure quality
-        cargo test --workspace --release
+        cargo test --workspace --release -j 2
 
         # Verify the leaf crate (no workspace deps) packages correctly.
         # Note: `cargo package` / `cargo publish --dry-run` for downstream crates requires their

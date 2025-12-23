@@ -67,7 +67,6 @@ get_kernel_version() {
 
 python3 <<PY
 import datetime
-import hashlib
 import json
 import pathlib
 import subprocess
@@ -96,6 +95,58 @@ def load_throughput(name: str):
         "mean_mibps": mibps,
     }
 
+def compute_percentiles(benchmark_names: list) -> dict:
+    """Compute p50/p90/p99 percentiles from criterion sample data."""
+    samples = []
+    for name in benchmark_names:
+        bench_root = CRITERION_ROOT / name / "new"
+        sample_path = bench_root / "sample.json"
+        benchmark_path = bench_root / "benchmark.json"
+
+        if not sample_path.is_file() or not benchmark_path.is_file():
+            continue
+
+        try:
+            sample = json.loads(sample_path.read_text())
+            bench_meta = json.loads(benchmark_path.read_text())
+        except json.JSONDecodeError:
+            continue
+
+        throughput_bytes = bench_meta.get("throughput", {}).get("Bytes")
+        iters = sample.get("iters", [])
+        times = sample.get("times", [])
+
+        if throughput_bytes is None or not iters or not times:
+            continue
+
+        for iterations, elapsed_ns in zip(iters, times):
+            if iterations <= 0 or elapsed_ns <= 0:
+                continue
+            seconds = elapsed_ns / 1e9
+            total_bytes = throughput_bytes * iterations
+            mibps = total_bytes / seconds / (1024 ** 2)
+            samples.append(mibps)
+
+    if not samples:
+        return {}
+
+    samples.sort()
+    count = len(samples)
+
+    def percentile(frac: float) -> float:
+        rank = int(count * frac)
+        if rank < 1:
+            rank = 1
+        if rank > count:
+            rank = count
+        return samples[rank - 1]
+
+    return {
+        "p50_mibps": percentile(0.50),
+        "p90_mibps": percentile(0.90),
+        "p99_mibps": percentile(0.99),
+    }
+
 # Get environment data from shell
 build_profile = """${BUILD_PROFILE}"""
 target_cpu = """${TARGET_CPU}"""
@@ -108,13 +159,25 @@ kernel_version = """$(get_kernel_version)"""
 display = load_throughput("display_heavy_slo_80mbps")
 comp3 = load_throughput("comp3_heavy_slo_40mbps")
 
-timestamp = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+timestamp = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 commit = subprocess.check_output(
     ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True
 ).strip()
 
+# Compute percentiles from criterion sample data BEFORE building report
+benchmark_names = ["display_heavy_slo_80mbps", "comp3_heavy_slo_40mbps"]
+percentiles = compute_percentiles(benchmark_names)
+
 # Create complete performance receipt with ALL metadata INCLUDING summary
 # IMPORTANT: Build complete receipt BEFORE hashing - receipt is immutable after hash
+summary = {
+    "display_mibps": display["mean_mibps"],
+    "comp3_mibps": comp3["mean_mibps"],
+    "max_rss_mib": 0  # Will be populated if /usr/bin/time is available
+}
+# Merge percentiles into summary if available
+summary.update(percentiles)
+
 report = {
     "format_version": "1.0.0",
     "timestamp": timestamp,
@@ -134,38 +197,28 @@ report = {
     "display_gibps": display["mean_mibps"] / 1024.0,
     "comp3_mibps": comp3["mean_mibps"],
     "benchmarks": [display, comp3],
-    # Include summary BEFORE hashing - no post-write mutations allowed
-    "summary": {
-        "display_mibps": display["mean_mibps"],
-        "comp3_mibps": comp3["mean_mibps"],
-        "max_rss_mib": 0  # Will be populated if /usr/bin/time is available
-    }
+    "summary": summary
 }
 
 output_dir = ROOT / "scripts" / "bench"
 output_dir.mkdir(parents=True, exist_ok=True)
 output_path = output_dir / "perf.json"
 
-# Compute integrity hash from canonical JSON (sorted keys, compact) WITHOUT integrity field
-# This matches what the validator does: jq -cS 'del(.integrity)' | sha256sum
-canonical_json = json.dumps(report, sort_keys=True, separators=(',', ':'))
-sha256_hash = hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()
-
-# Add integrity information to report
-report["integrity"] = {
-    "sha256": sha256_hash
-}
-
-# Write final receipt - IMMUTABLE after this point
-final_json = json.dumps(report, indent=2) + "\n"
-output_path.write_text(final_json)
-print(f"✅ receipts: {output_path.relative_to(ROOT)} (integrity: {sha256_hash[:16]}...)")
+# Write receipt WITHOUT integrity field first
+# We'll compute hash using jq to match the validator exactly
+temp_json = json.dumps(report, indent=2) + "\n"
+output_path.write_text(temp_json)
 PY
 
-# Receipt is complete and immutable - no post-write modifications
+# Compute integrity hash using jq - EXACTLY matches validator logic
+TEMP_HASH=$(jq -cS '.' scripts/bench/perf.json | sha256sum | cut -d' ' -f1)
 
-if [[ -x "scripts/soak-aggregate.sh" ]]; then
-  bash scripts/soak-aggregate.sh
-else
-  echo "⚠️ scripts/soak-aggregate.sh missing or not executable; skipping percentile aggregate."
-fi
+# Add integrity field using jq and rewrite
+jq --arg hash "$TEMP_HASH" '. + {integrity: {sha256: $hash}}' scripts/bench/perf.json > scripts/bench/perf.json.tmp
+mv scripts/bench/perf.json.tmp scripts/bench/perf.json
+
+echo "✅ receipts: scripts/bench/perf.json (integrity: ${TEMP_HASH:0:16}...)"
+
+# Receipt is complete and immutable - no post-write modifications
+# Note: Percentile aggregation is now done in the Python block above,
+# before the integrity hash is computed. soak-aggregate.sh is no longer called.

@@ -549,7 +549,8 @@ impl SmallDecimal {
         let mut digits = [0u8; 20]; // More than enough for i64::MAX
         let mut count = 0;
 
-        while value > 0 {
+        // Safe: i64::MAX has 19 digits, array has 20 elements
+        while value > 0 && count < 20 {
             digits[count] = digit_from_value(value % 10);
             value /= 10;
             count += 1;
@@ -593,19 +594,25 @@ impl SmallDecimal {
         // General case for larger widths
         let mut digits = [0u8; 20]; // More than enough for i64::MAX
         let mut count = 0;
-        let target_width = usize::try_from(width).unwrap_or(usize::MAX);
+        // Clamp target_width to array size to prevent out-of-bounds access
+        let target_width = usize::try_from(width).unwrap_or(usize::MAX).min(20);
 
-        // Extract digits
+        // Extract digits (safe: i64::MAX has at most 19 digits, array has 20 elements)
         loop {
             digits[count] = digit_from_value(value % 10);
             value /= 10;
             count += 1;
+            // Safety: count is bounded by min(19, target_width) where target_width <= 20
             if value == 0 && count >= target_width {
+                break;
+            }
+            if count >= 20 {
+                // Defensive: should never happen for i64, but prevents any overflow
                 break;
             }
         }
 
-        // Pad with leading zeros if needed
+        // Pad with leading zeros if needed (count is guaranteed <= 20)
         while count < target_width {
             digits[count] = 0;
             count += 1;

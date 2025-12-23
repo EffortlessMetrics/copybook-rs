@@ -1,0 +1,148 @@
+name: Mutation Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: 'Mutation score threshold (percentage)'
+        required: false
+        default: '70'
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  MUTANTS_THRESHOLD: ${{ inputs.threshold || '70' }}
+
+jobs:
+  mutants:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.90.0"
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: mutants
+
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+
+      - name: Install nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Run baseline tests
+        run: |
+          cargo nextest run \
+            --package copybook-core \
+            --package copybook-codec \
+            --failure-output=immediate
+
+      - name: Run mutation testing
+        id: mutants
+        run: |
+          set +e
+
+          cargo mutants \
+            --package copybook-core \
+            --package copybook-codec \
+            --timeout 300 \
+            --test-tool nextest \
+            --in-place \
+            --json \
+            -vV 2>&1 | tee mutants-output.log
+
+          MUTANTS_EXIT=$?
+
+          if [ -f mutants.out/outcomes.json ]; then
+            CAUGHT=$(jq '[.outcomes[] | select(.outcome == "CaughtMutant")] | length' mutants.out/outcomes.json)
+            MISSED=$(jq '[.outcomes[] | select(.outcome == "MissedMutant")] | length' mutants.out/outcomes.json)
+            UNVIABLE=$(jq '[.outcomes[] | select(.outcome == "Unviable")] | length' mutants.out/outcomes.json)
+            TIMEOUT=$(jq '[.outcomes[] | select(.outcome == "Timeout")] | length' mutants.out/outcomes.json)
+            TOTAL=$((CAUGHT + MISSED))
+
+            if [ "$TOTAL" -gt 0 ]; then
+              SCORE=$(echo "scale=2; $CAUGHT * 100 / $TOTAL" | bc)
+            else
+              SCORE="0"
+            fi
+
+            echo "caught=$CAUGHT" >> "$GITHUB_OUTPUT"
+            echo "missed=$MISSED" >> "$GITHUB_OUTPUT"
+            echo "unviable=$UNVIABLE" >> "$GITHUB_OUTPUT"
+            echo "timeout=$TIMEOUT" >> "$GITHUB_OUTPUT"
+            echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+            echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+
+            echo "### Mutation Testing Results" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Caught | $CAUGHT |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Missed | $MISSED |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Unviable | $UNVIABLE |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Timeout | $TIMEOUT |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Score** | **${SCORE}%** |" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Threshold**: ${MUTANTS_THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
+
+            SCORE_INT=${SCORE%.*}
+            if [ "${SCORE_INT:-0}" -lt "$MUTANTS_THRESHOLD" ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "> **Warning**: Score ${SCORE}% below threshold ${MUTANTS_THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
+              echo "threshold_passed=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "> **Success**: Score ${SCORE}% meets threshold ${MUTANTS_THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
+              echo "threshold_passed=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "caught=0" >> "$GITHUB_OUTPUT"
+            echo "score=0" >> "$GITHUB_OUTPUT"
+            echo "threshold_passed=false" >> "$GITHUB_OUTPUT"
+            echo "### Mutation Testing" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Error**: No outcomes.json found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          exit $MUTANTS_EXIT
+
+      - name: Upload mutation results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mutants-results-${{ github.sha }}
+          path: |
+            mutants.out/
+            mutants-output.log
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: List missed mutants
+        if: always() && steps.mutants.outputs.missed != '0'
+        run: |
+          echo "### Missed Mutants (first 20)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f mutants.out/outcomes.json ]; then
+            jq -r '.outcomes[] | select(.outcome == "MissedMutant") | "\(.scenario.function // "unknown") in \(.scenario.source_file // "unknown")"' \
+              mutants.out/outcomes.json | head -20 >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

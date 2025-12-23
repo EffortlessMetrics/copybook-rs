@@ -371,7 +371,12 @@ impl DecodeProcessor {
         let mut streaming_processor = StreamingProcessor::with_default_limit();
 
         // Calculate channel capacity based on memory constraints
-        let estimated_record_size = schema.lrecl_fixed.unwrap_or(1024) as usize;
+        let estimated_record_size = schema.lrecl_fixed.unwrap_or_else(|| {
+            Error::new(
+                ErrorCode::CBKR101_FIXED_RECORD_ERROR,
+                "Fixed record length not specified in schema for parallel processing",
+            )
+        })? as usize;
         let max_records_in_flight =
             (streaming_processor.stats().max_memory_bytes / 4) / estimated_record_size;
         let channel_capacity = max_records_in_flight.min(1000).max(10); // Between 10 and 1000
@@ -534,7 +539,12 @@ impl DecodeProcessor {
         buffer: &mut Vec<u8>,
         schema: &Schema,
     ) -> Result<Option<usize>, Error> {
-        let record_length = schema.lrecl_fixed.unwrap_or(0) as usize;
+        let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
+            Error::new(
+                ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                "Fixed record length not specified in schema",
+            )
+        })? as usize;
         if record_length == 0 {
             return Err(Error::new(
                 ErrorCode::CBKS141_RECORD_TOO_LARGE,
@@ -872,8 +882,8 @@ impl DecodeProcessor {
         if error.context.is_none() {
             let context = crate::odo_redefines::create_comprehensive_error_context(
                 record_index,
-                field_path.unwrap_or("UNKNOWN_FIELD"),
-                byte_offset.unwrap_or(0),
+                field_path.unwrap_or_else(|| "UNKNOWN_FIELD"),
+                byte_offset.unwrap_or_else(|| 0),
                 None,
             );
             error = error.with_context(context);

@@ -1051,7 +1051,7 @@ mod tests {
 
         let copybook = generator
             .generate_enterprise_copybook(&EnterprisePattern::CustomerRecord)
-            .unwrap();
+            .expect("Failed to generate enterprise copybook");
         assert!(copybook.contains("CUSTOMER-RECORD"));
         assert!(copybook.contains("CUSTOMER-ID"));
         assert!(copybook.contains("PIC"));
@@ -1065,7 +1065,7 @@ mod tests {
 
         let data = generator
             .generate_enterprise_data(&EnterprisePattern::CustomerRecord, 10)
-            .unwrap();
+            .expect("Failed to generate enterprise data");
         assert_eq!(data.len(), 10);
         assert!(!data[0].is_empty());
     }
@@ -1078,10 +1078,10 @@ mod tests {
 
         let copybook = generator
             .generate_enterprise_copybook(&EnterprisePattern::CustomerRecord)
-            .unwrap();
+            .expect("Failed to generate enterprise copybook");
         let result = generator
             .validate_enterprise_pattern(&copybook, &EnterprisePattern::CustomerRecord)
-            .unwrap();
+            .expect("Failed to validate enterprise pattern");
         assert!(result.passed);
     }
 
@@ -1131,10 +1131,10 @@ mod tests {
 
         let copybook1 = generator1
             .generate_enterprise_copybook(&EnterprisePattern::CustomerRecord)
-            .unwrap();
+            .expect("Failed to generate enterprise copybook");
         let copybook2 = generator2
             .generate_enterprise_copybook(&EnterprisePattern::CustomerRecord)
-            .unwrap();
+            .expect("Failed to generate enterprise copybook");
 
         assert_eq!(copybook1, copybook2);
     }

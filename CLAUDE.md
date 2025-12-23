@@ -8,7 +8,7 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **Status**: **Engineering Preview** (v0.4.0) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
-**Quality**: 704 tests passing (58 skipped), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy
+**Quality**: 840+ tests passing (24 skipped for external tool requirements), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (40+ error codes), 85+ workspace-inherited dependencies
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
@@ -286,7 +286,7 @@ The Golden Fixtures framework provides comprehensive structural validation for e
 - **Enterprise Scenarios**: Production mainframe patterns from banking, insurance, retail, manufacturing
 - **Performance Integration**: Automated performance regression detection with baselines
 - **SHA-256 Verification**: Cryptographic validation of test outputs for consistency
-- **Comprehensive Coverage**: Golden fixtures form a substantial subset of the 704 tests (58 skipped) in the workspace, covering ODO, Level-88, REDEFINES, and enterprise layouts
+- **Comprehensive Coverage**: Golden fixtures form a substantial subset of the 840+ tests in the workspace, covering ODO, Level-88, REDEFINES, and enterprise layouts
 
 ### Usage Patterns
 

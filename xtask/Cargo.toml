@@ -31,4 +31,5 @@ copybook-bench = { path = "../copybook-bench" }
 num_cpus = "1.17.0"
 
 [dev-dependencies]
+assert_cmd = "2.0"
 tempfile = "3.23.0"

@@ -1616,24 +1616,16 @@ fn encode_zoned_decimal_field(
             .zoned_encoding_override
             .or(preserved_format)
             .unwrap_or(options.preferred_zoned_encoding);
-        let effective_format = match resolved_format {
-            ZonedEncodingFormat::Ascii => ZonedEncodingFormat::Ascii,
-            ZonedEncodingFormat::Ebcdic => ZonedEncodingFormat::Ebcdic,
+        // Resolve Auto format and determine zero policy in single match (no unreachable arms)
+        let (effective_format, zero_policy) = match resolved_format {
+            ZonedEncodingFormat::Ascii => (ZonedEncodingFormat::Ascii, ZeroSignPolicy::Positive),
+            ZonedEncodingFormat::Ebcdic => (ZonedEncodingFormat::Ebcdic, ZeroSignPolicy::Preferred),
             ZonedEncodingFormat::Auto => {
                 if options.codepage.is_ascii() {
-                    ZonedEncodingFormat::Ascii
+                    (ZonedEncodingFormat::Ascii, ZeroSignPolicy::Positive)
                 } else {
-                    ZonedEncodingFormat::Ebcdic
+                    (ZonedEncodingFormat::Ebcdic, ZeroSignPolicy::Preferred)
                 }
-            }
-        };
-        #[allow(clippy::panic)]
-        let zero_policy = match effective_format {
-            ZonedEncodingFormat::Ascii => ZeroSignPolicy::Positive,
-            ZonedEncodingFormat::Ebcdic => ZeroSignPolicy::Preferred,
-            ZonedEncodingFormat::Auto => {
-                // SAFETY: Auto is resolved to Ascii or Ebcdic at line 1539-1544
-                panic!("Auto resolved to final zoned format in prior match")
             }
         };
 

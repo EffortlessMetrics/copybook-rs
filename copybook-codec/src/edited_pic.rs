@@ -72,6 +72,28 @@ impl PicToken {
     }
 }
 
+impl std::fmt::Display for PicToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Digit => write!(f, "9"),
+            Self::ZeroSuppress => write!(f, "Z"),
+            Self::ZeroInsert => write!(f, "0"),
+            Self::AsteriskFill => write!(f, "*"),
+            Self::Space => write!(f, "B"),
+            Self::Comma => write!(f, ","),
+            Self::Slash => write!(f, "/"),
+            Self::DecimalPoint => write!(f, "."),
+            Self::Currency => write!(f, "$"),
+            Self::LeadingPlus => write!(f, "+"),
+            Self::LeadingMinus => write!(f, "-"),
+            Self::TrailingPlus => write!(f, "+"),
+            Self::TrailingMinus => write!(f, "-"),
+            Self::Credit => write!(f, "CR"),
+            Self::Debit => write!(f, "DB"),
+        }
+    }
+}
+
 /// Sign extracted from edited PIC
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Sign {
@@ -554,6 +576,293 @@ pub fn decode_edited_numeric(
     })
 }
 
+/// Parsed numeric value for encoding
+#[derive(Debug, Clone)]
+struct ParsedNumeric {
+    /// Sign of the number
+    sign: Sign,
+    /// All digits without decimal point (e.g., "12345" for 123.45)
+    digits: Vec<u8>,
+    /// Position of decimal point from right (0 for integers, 2 for 2 decimal places)
+    decimal_places: usize,
+}
+
+/// Parse a numeric string into its components for encoding
+fn parse_numeric_value(value: &str) -> Result<ParsedNumeric> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(Error::new(
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+            "Empty numeric value",
+        ));
+    }
+
+    let mut chars = trimmed.chars().peekable();
+    let sign = if chars.peek() == Some(&'-') {
+        chars.next();
+        Sign::Negative
+    } else if chars.peek() == Some(&'+') {
+        chars.next();
+        Sign::Positive
+    } else {
+        Sign::Positive
+    };
+
+    let mut digits = Vec::new();
+    let mut found_decimal = false;
+    let mut decimal_places = 0;
+    let mut found_digit = false;
+
+    while let Some(ch) = chars.next() {
+        if ch.is_ascii_digit() {
+            digits.push(ch as u8 - b'0');
+            if found_decimal {
+                decimal_places += 1;
+            }
+            found_digit = true;
+        } else if ch == '.' {
+            if found_decimal {
+                return Err(Error::new(
+                    ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+                    format!("Multiple decimal points in value: {value}"),
+                ));
+            }
+            found_decimal = true;
+        } else {
+            return Err(Error::new(
+                ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+                format!("Invalid character '{ch}' in numeric value: {value}"),
+            ));
+        }
+    }
+
+    if !found_digit {
+        return Err(Error::new(
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+            format!("No digits found in value: {value}"),
+        ));
+    }
+
+    Ok(ParsedNumeric {
+        sign,
+        digits,
+        decimal_places,
+    })
+}
+
+/// Encode a numeric value to an edited PIC string
+///
+/// # Errors
+/// Returns error if the value cannot be encoded to the pattern
+#[inline]
+#[allow(clippy::too_many_lines)]
+pub fn encode_edited_numeric(
+    value: &str,
+    pattern: &[PicToken],
+    scale: u16,
+    _blank_when_zero: bool,
+) -> Result<String> {
+    // Parse the input value
+    let parsed = parse_numeric_value(value)?;
+
+    // Check for unsupported tokens (E3.1 only supports specific tokens)
+    for token in pattern {
+        match token {
+            PicToken::Digit
+            | PicToken::ZeroSuppress
+            | PicToken::ZeroInsert
+            | PicToken::DecimalPoint
+            | PicToken::LeadingPlus
+            | PicToken::LeadingMinus => {}
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
+                    format!("Edited PIC token not supported in E3.1: {token:?}"),
+                ));
+            }
+        }
+    }
+
+    // Check if value is all zeros (force positive sign)
+    let is_zero = parsed.digits.iter().all(|&d| d == 0);
+    let effective_sign = if is_zero { Sign::Positive } else { parsed.sign };
+
+    // Count numeric positions and decimal point in pattern
+    let mut has_decimal = false;
+    for token in pattern {
+        match token {
+            PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert => {}
+            PicToken::DecimalPoint => {
+                has_decimal = true;
+            }
+            _ => {}
+        }
+    }
+
+    // Calculate expected decimal places from pattern
+    let _pattern_decimal_places = if has_decimal {
+        // Count numeric positions after decimal point
+        let mut after_decimal = 0;
+        let mut found = false;
+        for token in pattern {
+            if *token == PicToken::DecimalPoint {
+                found = true;
+            } else if found
+                && matches!(token, PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert)
+            {
+                after_decimal += 1;
+            }
+        }
+        after_decimal
+    } else {
+        0
+    };
+
+    // Adjust digits to match pattern scale
+    let scale = scale as usize;
+    let mut adjusted_digits = parsed.digits.clone();
+
+    // Pad or truncate to match scale
+    if scale > parsed.decimal_places {
+        // Need to add trailing zeros
+        let to_add = scale - parsed.decimal_places;
+        for _ in 0..to_add {
+            adjusted_digits.push(0);
+        }
+    } else if scale < parsed.decimal_places {
+        // Need to truncate (round down for now)
+        let to_remove = parsed.decimal_places - scale;
+        for _ in 0..to_remove {
+            adjusted_digits.pop();
+        }
+    }
+
+    // Calculate integer and fractional parts
+    let decimal_places = scale;
+    let total_digits = adjusted_digits.len();
+    let int_digits = if total_digits > decimal_places {
+        total_digits - decimal_places
+    } else {
+        0
+    };
+
+    // Count integer and fractional positions in pattern
+    let mut int_positions = 0;
+    let mut frac_positions = 0;
+    let mut after_decimal = false;
+    for token in pattern {
+        match token {
+            PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert => {
+                if after_decimal {
+                    frac_positions += 1;
+                } else {
+                    int_positions += 1;
+                }
+            }
+            PicToken::DecimalPoint => {
+                after_decimal = true;
+            }
+            _ => {}
+        }
+    }
+
+    // Check if value fits in pattern
+    if int_digits > int_positions || decimal_places > frac_positions {
+        return Err(Error::new(
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+            format!(
+                "Value too long for pattern (pattern has {} integer positions, value has {} digits)",
+                int_positions, int_digits
+            ),
+        ));
+    }
+
+    // Build output string by filling from right to left
+    let mut result: Vec<char> = vec![' '; pattern.len()];
+    let mut int_digit_idx = int_digits; // Start from the end
+    let mut frac_digit_idx = decimal_places; // Start from the end
+
+    // Fill from right to left
+    for (i, token) in pattern.iter().enumerate().rev() {
+        match token {
+            PicToken::Digit => {
+                let digit = if *token == PicToken::DecimalPoint {
+                    // Should not happen
+                    '0'
+                } else if i < pattern.len() && pattern[i] == PicToken::DecimalPoint {
+                    // Should not happen
+                    '0'
+                } else {
+                    // Check if this position is before or after decimal
+                    let is_after_decimal = pattern[..i].contains(&PicToken::DecimalPoint);
+                    if is_after_decimal && frac_digit_idx > 0 {
+                        frac_digit_idx -= 1;
+                        char::from_digit(u32::from(adjusted_digits[int_digits + frac_digit_idx]), 10).unwrap_or('0')
+                    } else if !is_after_decimal && int_digit_idx > 0 {
+                        int_digit_idx -= 1;
+                        char::from_digit(u32::from(adjusted_digits[int_digit_idx]), 10).unwrap_or('0')
+                    } else {
+                        '0'
+                    }
+                };
+                result[i] = digit;
+            }
+            PicToken::ZeroSuppress => {
+                let is_after_decimal = pattern[..i].contains(&PicToken::DecimalPoint);
+                if is_after_decimal && frac_digit_idx > 0 {
+                    frac_digit_idx -= 1;
+                    let d = adjusted_digits[int_digits + frac_digit_idx];
+                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                } else if !is_after_decimal && int_digit_idx > 0 {
+                    int_digit_idx -= 1;
+                    let d = adjusted_digits[int_digit_idx];
+                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                } else {
+                    result[i] = ' ';
+                }
+            }
+            PicToken::ZeroInsert => {
+                let is_after_decimal = pattern[..i].contains(&PicToken::DecimalPoint);
+                if is_after_decimal && frac_digit_idx > 0 {
+                    frac_digit_idx -= 1;
+                    let d = adjusted_digits[int_digits + frac_digit_idx];
+                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                } else if !is_after_decimal && int_digit_idx > 0 {
+                    int_digit_idx -= 1;
+                    let d = adjusted_digits[int_digit_idx];
+                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                } else {
+                    result[i] = '0';
+                }
+            }
+            PicToken::DecimalPoint => {
+                result[i] = '.';
+            }
+            PicToken::LeadingPlus => {
+                result[i] = match effective_sign {
+                    Sign::Positive => '+',
+                    Sign::Negative => '-',
+                };
+            }
+            PicToken::LeadingMinus => {
+                result[i] = match effective_sign {
+                    Sign::Positive => ' ',
+                    Sign::Negative => '-',
+                };
+            }
+            _ => {
+                // Should have been caught by unsupported check
+                return Err(Error::new(
+                    ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
+                    format!("Edited PIC token not supported: {token:?}"),
+                ));
+            }
+        }
+    }
+
+    Ok(result.into_iter().collect())
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
@@ -645,5 +954,155 @@ mod tests {
         let result = decode_edited_numeric("  12DB", &pattern, 0, false).unwrap();
         assert_eq!(result.sign, Sign::Negative);
         assert_eq!(result.to_decimal_string(), "-12");
+    }
+
+    // ===== E3.1 Encode Tests =====
+
+    #[test]
+    fn test_encode_basic_digits() {
+        let pattern = tokenize_edited_pic("9999").unwrap();
+        let result = encode_edited_numeric("1234", &pattern, 0, false).unwrap();
+        assert_eq!(result, "1234");
+    }
+
+    #[test]
+    fn test_encode_zero_with_zero_insert() {
+        let pattern = tokenize_edited_pic("9999").unwrap();
+        let result = encode_edited_numeric("0", &pattern, 0, false).unwrap();
+        assert_eq!(result, "0000");
+    }
+
+    #[test]
+    fn test_encode_zero_suppression() {
+        let pattern = tokenize_edited_pic("ZZZ9").unwrap();
+        let result = encode_edited_numeric("123", &pattern, 0, false).unwrap();
+        assert_eq!(result, " 123");
+    }
+
+    #[test]
+    fn test_encode_zero_suppression_zero() {
+        let pattern = tokenize_edited_pic("ZZZ9").unwrap();
+        let result = encode_edited_numeric("0", &pattern, 0, false).unwrap();
+        assert_eq!(result, "   0");
+    }
+
+    #[test]
+    fn test_encode_zero_suppression_single_digit() {
+        let pattern = tokenize_edited_pic("ZZZ9").unwrap();
+        let result = encode_edited_numeric("1", &pattern, 0, false).unwrap();
+        assert_eq!(result, "   1");
+    }
+
+    #[test]
+    fn test_encode_zero_insert() {
+        let pattern = tokenize_edited_pic("0009").unwrap();
+        let result = encode_edited_numeric("123", &pattern, 0, false).unwrap();
+        assert_eq!(result, "0123");
+    }
+
+    #[test]
+    fn test_encode_zero_insert_all_zeros() {
+        let pattern = tokenize_edited_pic("0009").unwrap();
+        let result = encode_edited_numeric("0", &pattern, 0, false).unwrap();
+        assert_eq!(result, "0000");
+    }
+
+    #[test]
+    fn test_encode_decimal_point() {
+        let pattern = tokenize_edited_pic("99.99").unwrap();
+        let result = encode_edited_numeric("12.34", &pattern, 2, false).unwrap();
+        assert_eq!(result, "12.34");
+    }
+
+    #[test]
+    fn test_encode_zero_decimal() {
+        let pattern = tokenize_edited_pic("99.99").unwrap();
+        let result = encode_edited_numeric("0.00", &pattern, 2, false).unwrap();
+        assert_eq!(result, "00.00");
+    }
+
+    #[test]
+    fn test_encode_leading_plus_positive() {
+        let pattern = tokenize_edited_pic("+999").unwrap();
+        let result = encode_edited_numeric("123", &pattern, 0, false).unwrap();
+        assert_eq!(result, "+123");
+    }
+
+    #[test]
+    fn test_encode_leading_plus_negative() {
+        let pattern = tokenize_edited_pic("+999").unwrap();
+        let result = encode_edited_numeric("-123", &pattern, 0, false).unwrap();
+        assert_eq!(result, "-123");
+    }
+
+    #[test]
+    fn test_encode_leading_minus_positive() {
+        let pattern = tokenize_edited_pic("-999").unwrap();
+        let result = encode_edited_numeric("123", &pattern, 0, false).unwrap();
+        assert_eq!(result, " 123");
+    }
+
+    #[test]
+    fn test_encode_leading_minus_negative() {
+        let pattern = tokenize_edited_pic("-999").unwrap();
+        let result = encode_edited_numeric("-123", &pattern, 0, false).unwrap();
+        assert_eq!(result, "-123");
+    }
+
+    #[test]
+    fn test_encode_leading_plus_with_decimal() {
+        let pattern = tokenize_edited_pic("+99.99").unwrap();
+        let result = encode_edited_numeric("12.34", &pattern, 2, false).unwrap();
+        assert_eq!(result, "+12.34");
+    }
+
+    #[test]
+    fn test_encode_leading_minus_with_decimal() {
+        let pattern = tokenize_edited_pic("-99.99").unwrap();
+        let result = encode_edited_numeric("-12.34", &pattern, 2, false).unwrap();
+        assert_eq!(result, "-12.34");
+    }
+
+    #[test]
+    fn test_encode_negative_zero_forces_positive() {
+        let pattern = tokenize_edited_pic("-999").unwrap();
+        let result = encode_edited_numeric("-0", &pattern, 0, false).unwrap();
+        assert_eq!(result, " 000");
+    }
+
+    #[test]
+    fn test_encode_value_too_long() {
+        let pattern = tokenize_edited_pic("999").unwrap();
+        let result = encode_edited_numeric("1234", &pattern, 0, false);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT
+        ));
+    }
+
+    #[test]
+    fn test_encode_unsupported_token() {
+        let pattern = tokenize_edited_pic("999CR").unwrap();
+        let result = encode_edited_numeric("123", &pattern, 0, false);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err().code,
+            ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED
+        ));
+    }
+
+    #[test]
+    fn test_encode_empty_value() {
+        let pattern = tokenize_edited_pic("999").unwrap();
+        let result = encode_edited_numeric("", &pattern, 0, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_encode_invalid_character() {
+        let pattern = tokenize_edited_pic("999").unwrap();
+        let result = encode_edited_numeric("12a", &pattern, 0, false);
+        assert!(result.is_err());
     }
 }

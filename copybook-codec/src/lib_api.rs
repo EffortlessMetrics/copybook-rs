@@ -1482,15 +1482,35 @@ fn encode_single_field(
             // Slice-2 will resolve alias ranges and project into concrete fields.
             Ok(current_offset)
         }
-        FieldKind::EditedNumeric { pic_string, .. } => {
-            // Phase E1: Edited PIC fields are not yet encodable
-            Err(Error::new(
-                ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-                format!(
-                    "Edited PIC encode not implemented (field '{}', PIC '{}')",
-                    field.name, pic_string
-                ),
-            ))
+        FieldKind::EditedNumeric {
+            pic_string,
+            scale,
+            ..
+        } => {
+            // Phase E3.1: Encode edited PIC fields
+            if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+                // Tokenize the PIC pattern
+                let pattern = crate::edited_pic::tokenize_edited_pic(pic_string)?;
+
+                // Encode the edited numeric value
+                let encoded = crate::edited_pic::encode_edited_numeric(
+                    text,
+                    &pattern,
+                    *scale,
+                    field.blank_when_zero,
+                )?;
+
+                // Convert to EBCDIC and write to buffer
+                let bytes = crate::charset::utf8_to_ebcdic(&encoded, options.codepage)?;
+                let field_len = field.len as usize;
+                let copy_len = bytes.len().min(field_len);
+
+                if current_offset + field_len <= buffer.len() {
+                    buffer[current_offset..current_offset + copy_len].copy_from_slice(&bytes[..copy_len]);
+                    buffer[current_offset + copy_len..current_offset + field_len].fill(b' ');
+                }
+            }
+            Ok(current_offset + field.len as usize)
         }
     }
 }

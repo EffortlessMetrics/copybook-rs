@@ -1,6 +1,6 @@
-//! Phase E3.1/E3.2: Edited PIC encode comprehensive tests
+//! Phase E3: Edited PIC encode comprehensive tests
 //!
-//! Tests edited PIC encode functionality for copybook-rs v0.5.0 milestone.
+//! Tests edited PIC encode functionality - COMPLETE as of v0.4.0.
 //!
 //! ## E3.1 Scope (Complete)
 //!
@@ -20,10 +20,11 @@
 //! - **TrailingPlus (+)**: Trailing plus sign (+ for positive, - for negative)
 //! - **TrailingMinus (-)**: Trailing minus sign (space for positive, - for negative)
 //!
-//! ## E3.5 Scope (Complete)
+//! ## E3.3 Scope (Complete)
 //!
-//! ### Supported Tokens (E3.5)
-//! - **AsteriskFill (*)**: Check-protect with asterisks (fills leading zeros with '*')
+//! ### Supported Tokens (E3.3)
+//! - **Credit (CR)**: Credit indicator (CR for negative, spaces for positive)
+//! - **Debit (DB)**: Debit indicator (DB for negative, spaces for positive)
 //!
 //! ## E3.4 Scope (Complete)
 //!
@@ -31,15 +32,18 @@
 //! - **Comma (,)**: Thousands separator
 //! - **Slash (/)**: Date separator
 //!
+//! ## E3.5 Scope (Complete)
+//!
+//! ### Supported Tokens (E3.5)
+//! - **AsteriskFill (*)**: Check-protect with asterisks (fills leading zeros with '*')
+//!
 //! ## E3.6 Scope (Complete)
 //!
 //! ### Supported Tokens (E3.6)
 //! - **Currency ($)**: Currency symbol (fixed position)
 //!
-//! ### Explicitly Out of Scope (Future E3.x)
-//! - **Space (B)**: Blank space insertion (E3.7+)
-//! - **Credit (CR)**: Credit indicator (E3.7+)
-//! - **Debit (DB)**: Debit indicator (E3.7+)
+//! ### Explicitly Out of Scope (Future)
+//! - **Space (B)**: Blank space insertion (not yet implemented)
 //!
 //! ## Test Coverage
 //!

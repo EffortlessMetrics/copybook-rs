@@ -114,18 +114,25 @@ copybook inspect problematic.cpy --show-offsets
 
 ### CBKP051_UNSUPPORTED_EDITED_PIC
 
-**Symptoms:**
-- "Edited PIC clause not supported"
-- "Use non-edited PIC format"
+**v0.4.0+ Note:** Most edited PIC patterns are now fully supported (E1/E2/E3 phases). This error only occurs for Space (`B`) insertion patterns.
 
-**Common Edited PIC Conversions:**
+**Symptoms:**
+- "Unsupported edited PIC token: B"
+- "Space insertion not supported"
+
+**Space (B) Insertion Workaround:**
 
 | Edited PIC | Non-Edited PIC | Post-Processing |
 |------------|----------------|-----------------|
-| `PIC ZZ9.99` | `PIC 999V99` | Format with leading zeros |
-| `PIC $$$,$$9.99` | `PIC 9(6)V99` | Add currency/comma formatting |
-| `PIC +999.99` | `PIC S999V99` | Handle sign in application |
-| `PIC 999.99CR` | `PIC S999V99` | Add CR suffix for negative |
+| `PIC 99B99B99` | `PIC 9(6)` | Insert spaces in application |
+| `PIC XBXBX` | `PIC X(3)` | Insert spaces in application |
+
+**Supported Edited PIC (No Change Needed):**
+- `PIC ZZ9.99` - Zero suppression with decimal ✅
+- `PIC $$$,$$9.99` - Currency with comma ✅
+- `PIC +999.99` / `PIC -999.99` - Sign editing ✅
+- `PIC 999.99CR` / `PIC 999.99DB` - Credit/debit indicators ✅
+- `PIC ***,**9.99` - Check protection (asterisk fill) ✅
 
 **Solution Process:**
 1. Convert edited PIC to non-edited

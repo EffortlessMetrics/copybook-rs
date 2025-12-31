@@ -58,15 +58,16 @@ Context: Safe array bounds validation with overflow protection
 ```
 
 #### CBKP051_UNSUPPORTED_EDITED_PIC
-**Description**: **edited PIC not supported**. Triggered by edited picture strings (e.g., `ZZ9.99`, `CR`/`DB`, blanks `B`, trailing sign).
+**Description**: **unsupported edited PIC token**. Triggered only by Space (`B`) insertion, which remains unsupported. All other edited PIC patterns (Z, $, +/-, CR/DB, commas, asterisk, currency) are fully supported in E1/E2/E3 phases.
 **Severity**: Fatal
-**Context**: PIC clause, field path
-**Resolution**: Use non-edited PIC clause
+**Context**: PIC clause, field path, unsupported token
+**Resolution**: Remove Space (`B`) insertion from PIC clause, or use alternative formatting
 
 ```
 Error: CBKP051_UNSUPPORTED_EDITED_PIC
-PIC: ZZ9.99
-Field: ROOT.CUSTOMER.AMOUNT
+PIC: 99B99B99
+Field: ROOT.CUSTOMER.PHONE
+Token: B (space insertion)
 ```
 
 ### Schema Errors (CBKS*) - Enterprise Safety
@@ -467,11 +468,11 @@ Possible text-mode transfer corruption
 - For RDW format, ensure RDW headers are intact and correctly formatted
 
 #### "CBKP051_UNSUPPORTED_EDITED_PIC"
-**Problem**: Copybook contains edited PIC clauses (v0.3.1 and earlier)
+**Problem**: Copybook contains Space (`B`) insertion in PIC clause
 **Solution**:
-- **v0.4.0+**: Edited PIC Phase E1 (parse) and E2 (decode) are now supported
-- For encode operations (Phase E3, planned v0.5.0), use unedited PIC temporarily
-- Example legacy workaround: `PIC ZZ9.99` → `PIC 999V99` (post-process for formatting)
+- **v0.4.0+**: All edited PIC phases (E1/E2/E3) are fully supported except Space (`B`) insertion
+- Remove `B` tokens from PIC clause: `PIC 99B99B99` → `PIC 999999` (post-process for formatting)
+- All other edited patterns (Z, $, +/-, CR/DB, commas, asterisk, currency) work correctly
 
 #### "CBKD421_EDITED_PIC_INVALID_FORMAT"
 **Problem**: Edited numeric data doesn't match PIC pattern
@@ -595,7 +596,7 @@ Possible text-mode transfer corruption
 | CBKP001 | Parse | Fatal | Syntax error |
 | CBKP011 | Parse | Fatal | Unsupported clause |
 | CBKP021 | Parse | Fatal | ODO not at tail |
-| CBKP051 | Parse | Fatal | Edited PIC unsupported (v0.3.1-); supported in v0.4.0+ |
+| CBKP051 | Parse | Fatal | Unsupported edited PIC token (Space `B` only) |
 | CBKS121 | Schema | Fatal | Counter not found |
 | CBKS141 | Schema | Fatal | Record too large |
 | CBKS301 | Schema | Warning | ODO clipped |

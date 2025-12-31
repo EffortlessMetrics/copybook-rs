@@ -1,8 +1,8 @@
-//! Phase E3.1: Edited PIC encode comprehensive tests
+//! Phase E3.1/E3.2: Edited PIC encode comprehensive tests
 //!
-//! Tests minimal edited PIC encode functionality for copybook-rs v0.5.0 milestone.
+//! Tests edited PIC encode functionality for copybook-rs v0.5.0 milestone.
 //!
-//! ## E3.1 Scope
+//! ## E3.1 Scope (Complete)
 //!
 //! The following edited PIC patterns are supported in E3.1:
 //!
@@ -14,16 +14,20 @@
 //! - **LeadingPlus (+)**: Leading plus sign (+ for positive, - for negative)
 //! - **LeadingMinus (-)**: Leading minus sign (space for positive, - for negative)
 //!
+//! ## E3.2 Scope (Complete)
+//!
+//! ### Supported Tokens (E3.2)
+//! - **TrailingPlus (+)**: Trailing plus sign (+ for positive, - for negative)
+//! - **TrailingMinus (-)**: Trailing minus sign (space for positive, - for negative)
+//!
 //! ### Explicitly Out of Scope (Future E3.x)
-//! - **AsteriskFill (*)**: Check-protect with asterisks (E3.2)
-//! - **Space (B)**: Blank space insertion (E3.2)
-//! - **Comma (,)**: Thousands separator (E3.2)
-//! - **Slash (/)**: Date separator (E3.2)
-//! - **Currency ($)**: Currency symbol (E3.2)
-//! - **TrailingPlus (+)**: Trailing plus sign (E3.2)
-//! - **TrailingMinus (-)**: Trailing minus sign (E3.2)
-//! - **Credit (CR)**: Credit indicator (E3.2)
-//! - **Debit (DB)**: Debit indicator (E3.2)
+//! - **AsteriskFill (*)**: Check-protect with asterisks (E3.3+)
+//! - **Space (B)**: Blank space insertion (E3.3+)
+//! - **Comma (,)**: Thousands separator (E3.3+)
+//! - **Slash (/)**: Date separator (E3.3+)
+//! - **Currency ($)**: Currency symbol (E3.3+)
+//! - **Credit (CR)**: Credit indicator (E3.3+)
+//! - **Debit (DB)**: Debit indicator (E3.3+)
 //!
 //! ## Test Coverage
 //!
@@ -576,24 +580,106 @@ fn test_e3_1_error_currency() {
     );
 }
 
+// ===== E3.2: Trailing Sign Tests =====
+
 #[test]
-fn test_e3_1_error_trailing_plus() {
-    test_encode_error(
-        "999+",
-        "123",
-        0,
-        ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-    );
+fn test_e3_2_trailing_plus_positive() {
+    test_encode("999+", "123", 0, "123+");
 }
 
 #[test]
-fn test_e3_1_error_trailing_minus() {
-    test_encode_error(
-        "999-",
-        "123",
-        0,
-        ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-    );
+fn test_e3_2_trailing_plus_negative() {
+    test_encode("999+", "-123", 0, "123-");
+}
+
+#[test]
+fn test_e3_2_trailing_plus_zero() {
+    test_encode("999+", "0", 0, "000+");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_positive() {
+    test_encode("999-", "123", 0, "123 ");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_negative() {
+    test_encode("999-", "-123", 0, "123-");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_zero() {
+    test_encode("999-", "0", 0, "000 ");
+}
+
+#[test]
+fn test_e3_2_trailing_plus_with_z() {
+    test_encode("ZZZ9+", "123", 0, " 123+");
+}
+
+#[test]
+fn test_e3_2_trailing_plus_with_z_negative() {
+    test_encode("ZZZ9+", "-123", 0, " 123-");
+}
+
+#[test]
+fn test_e3_2_trailing_plus_with_z_zero() {
+    test_encode("ZZZ9+", "0", 0, "   0+");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_with_z() {
+    test_encode("ZZZ9-", "123", 0, " 123 ");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_with_z_negative() {
+    test_encode("ZZZ9-", "-123", 0, " 123-");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_with_z_zero() {
+    test_encode("ZZZ9-", "0", 0, "   0 ");
+}
+
+#[test]
+fn test_e3_2_trailing_plus_with_decimal() {
+    test_encode("99.99+", "12.34", 2, "12.34+");
+}
+
+#[test]
+fn test_e3_2_trailing_plus_with_decimal_negative() {
+    test_encode("99.99+", "-12.34", 2, "12.34-");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_with_decimal() {
+    test_encode("99.99-", "12.34", 2, "12.34 ");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_with_decimal_negative() {
+    test_encode("99.99-", "-12.34", 2, "12.34-");
+}
+
+#[test]
+fn test_e3_2_trailing_plus_with_zero_insert() {
+    test_encode("0009+", "123", 0, "0123+");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_with_zero_insert() {
+    test_encode("0009-", "123", 0, "0123 ");
+}
+
+#[test]
+fn test_e3_2_trailing_sign_negative_zero_forces_positive() {
+    test_encode("999+", "-0", 0, "000+");
+}
+
+#[test]
+fn test_e3_2_trailing_minus_negative_zero_forces_positive() {
+    test_encode("999-", "-0", 0, "000 ");
 }
 
 #[test]

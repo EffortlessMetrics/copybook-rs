@@ -592,6 +592,44 @@ fn process_scalar_field_standard(
     options: &DecodeOptions,
     scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
 ) -> Result<()> {
+    // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
+    if matches!(field.kind, copybook_core::FieldKind::Renames { .. }) {
+        if let Some(resolved) = &field.resolved_renames {
+            let alias_start = resolved.offset as usize;
+            let alias_end = alias_start + resolved.length as usize;
+
+            if alias_end > data.len() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!(
+                        "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
+                        name = field.name,
+                        offset = resolved.offset,
+                        length = resolved.length,
+                        data_len = data.len()
+                    ),
+                ));
+            }
+
+            let alias_data = &data[alias_start..alias_end];
+            let text = crate::charset::ebcdic_to_utf8(
+                alias_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            json_obj.insert(field.name.clone(), Value::String(text));
+            return Ok(());
+        } else {
+            return Err(Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!(
+                    "RENAMES field '{name}' has no resolved metadata",
+                    name = field.name
+                ),
+            ));
+        }
+    }
+
     let field_start = field.offset as usize;
     let mut field_end = field_start + field.len as usize;
 
@@ -634,6 +672,44 @@ fn process_scalar_field_with_scratch(
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
 ) -> Result<()> {
+    // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
+    if matches!(field.kind, copybook_core::FieldKind::Renames { .. }) {
+        if let Some(resolved) = &field.resolved_renames {
+            let alias_start = resolved.offset as usize;
+            let alias_end = alias_start + resolved.length as usize;
+
+            if alias_end > data.len() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!(
+                        "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
+                        name = field.name,
+                        offset = resolved.offset,
+                        length = resolved.length,
+                        data_len = data.len()
+                    ),
+                ));
+            }
+
+            let alias_data = &data[alias_start..alias_end];
+            let text = crate::charset::ebcdic_to_utf8(
+                alias_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            json_obj.insert(field.name.clone(), Value::String(text));
+            return Ok(());
+        } else {
+            return Err(Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!(
+                    "RENAMES field '{name}' has no resolved metadata",
+                    name = field.name
+                ),
+            ));
+        }
+    }
+
     let field_start = field.offset as usize;
     let mut field_end = field_start + field.len as usize;
 
@@ -1093,15 +1169,54 @@ fn decode_scalar_field_value_standard(
             Ok(condition_value(values, "CONDITION"))
         }
         FieldKind::Renames { .. } => {
-            // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
-            // Slice-2 will resolve alias ranges and project into concrete fields.
-            Err(Error::new(
-                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                format!(
-                    "Cannot decode RENAMES field '{name}' as scalar (parse-only in Slice-1)",
-                    name = field.name
-                ),
-            ))
+            // Slice-2: Decode RENAMES fields using resolved metadata
+            let Some(resolved) = &field.resolved_renames else {
+                return Err(Error::new(
+                    ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                    format!(
+                        "RENAMES field '{name}' has no resolved metadata",
+                        name = field.name
+                    ),
+                ));
+            };
+            // Extract the aliased byte range
+            let alias_start = resolved.offset as usize;
+            let alias_end = alias_start + resolved.length as usize;
+
+            if alias_end > field_data.len() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!(
+                        "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
+                        name = field.name,
+                        offset = resolved.offset,
+                        length = resolved.length,
+                        data_len = field_data.len()
+                    ),
+                ));
+            }
+
+            // For scalar RENAMES (single member), decode that field
+            // For group RENAMES (multiple members), this shouldn't be called - should be handled elsewhere
+            if resolved.members.len() == 1 {
+                // Single field alias - extract and decode
+                let alias_data = &field_data[alias_start..alias_end];
+                // Return as raw string for now - proper field decoding would require schema traversal
+                let text = crate::charset::ebcdic_to_utf8(
+                    alias_data,
+                    options.codepage,
+                    options.on_decode_unmappable,
+                )?;
+                return Ok(Value::String(text));
+            }
+            // Multi-field alias treated as alphanum for scalar context
+            let alias_data = &field_data[alias_start..alias_end];
+            let text = crate::charset::ebcdic_to_utf8(
+                alias_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            Ok(Value::String(text))
         }
         FieldKind::EditedNumeric {
             pic_string, scale, ..
@@ -1131,6 +1246,7 @@ fn decode_scalar_field_value_standard(
 }
 
 /// Decode a scalar field value using shared scratch buffers
+#[allow(clippy::too_many_lines)]
 fn decode_scalar_field_value_with_scratch(
     field: &copybook_core::Field,
     field_data: &[u8],
@@ -1189,15 +1305,41 @@ fn decode_scalar_field_value_with_scratch(
         )),
         FieldKind::Condition { values } => Ok(condition_value(values, "CONDITION")),
         FieldKind::Renames { .. } => {
-            // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
-            // Slice-2 will resolve alias ranges and project into concrete fields.
-            Err(Error::new(
-                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                format!(
-                    "Cannot decode RENAMES field '{name}' as scalar (parse-only in Slice-1)",
-                    name = field.name
-                ),
-            ))
+            // Slice-2: Decode RENAMES fields using resolved metadata (with scratch buffers)
+            let Some(resolved) = &field.resolved_renames else {
+                return Err(Error::new(
+                    ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                    format!(
+                        "RENAMES field '{name}' has no resolved metadata",
+                        name = field.name
+                    ),
+                ));
+            };
+            // Extract the aliased byte range
+            let alias_start = resolved.offset as usize;
+            let alias_end = alias_start + resolved.length as usize;
+
+            if alias_end > field_data.len() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!(
+                        "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
+                        name = field.name,
+                        offset = resolved.offset,
+                        length = resolved.length,
+                        data_len = field_data.len()
+                    ),
+                ));
+            }
+
+            // For scalar RENAMES, decode the aliased range as alphanum
+            let alias_data = &field_data[alias_start..alias_end];
+            let text = crate::charset::ebcdic_to_utf8(
+                alias_data,
+                options.codepage,
+                options.on_decode_unmappable,
+            )?;
+            Ok(Value::String(text))
         }
         FieldKind::EditedNumeric {
             pic_string, scale, ..
@@ -1478,8 +1620,9 @@ fn encode_single_field(
         ),
         FieldKind::Condition { .. } => Ok(current_offset),
         FieldKind::Renames { .. } => {
-            // Parse-only (Slice-1). No storage / no encode-decode semantics yet.
-            // Slice-2 will resolve alias ranges and project into concrete fields.
+            // RENAMES fields are aliases with no storage of their own.
+            // The actual bytes are written by the storage fields (members).
+            // Skip encoding for RENAMES - the aliased fields handle it.
             Ok(current_offset)
         }
         FieldKind::EditedNumeric {

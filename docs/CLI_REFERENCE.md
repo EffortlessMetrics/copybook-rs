@@ -293,11 +293,106 @@ use_raw = true
 
 Use with `--config copybook.toml`.
 
+## Dialect Lever
+
+The dialect lever controls how `min_count` is interpreted for `OCCURS DEPENDING ON` (ODO) arrays. Different COBOL dialects have different requirements for the minimum bound in ODO declarations.
+
+### Dialect Modes
+
+| Mode | Flag | Description | Behavior |
+|------|------|-------------|----------|
+| **Normative** (default) | `--dialect n` | Strict enforcement | `min_count` is enforced as declared |
+| **Zero-Tolerant** | `--dialect 0` | IBM Enterprise mode | `min_count` is ignored (always treated as 0) |
+| **One-Tolerant** | `--dialect 1` | Micro Focus mode | `min_count` is clamped to 1 (min ≥ 1) |
+
+### When to Use
+
+- **Normative (`n`)**: Default behavior, suitable for most use cases
+- **Zero-Tolerant (`0`)**: For IBM Enterprise COBOL copybooks where `min_count` should always be 0
+- **One-Tolerant (`1`)**: For Micro Focus COBOL copybooks where minimum count is always at least 1
+
+### Configuration
+
+**CLI Flag** (highest precedence):
+```bash
+copybook decode schema.cpy data.bin --dialect 0 --format fixed --output data.jsonl
+```
+
+**Environment Variable**:
+```bash
+export COPYBOOK_DIALECT=0
+copybook decode schema.cpy data.bin --format fixed --output data.jsonl
+```
+
+**Precedence Order**:
+1. CLI `--dialect` flag (highest priority)
+2. `COPYBOOK_DIALECT` environment variable
+3. Default value (`n` - Normative)
+
+### Examples
+
+```bash
+# Use normative dialect (default)
+copybook parse schema.cpy --dialect n
+
+# Use zero-tolerant dialect for IBM Enterprise COBOL
+copybook decode schema.cpy data.bin --format fixed --codepage cp037 --dialect 0
+
+# Use one-tolerant dialect for Micro Focus COBOL
+copybook encode schema.cpy data.jsonl output.bin --format fixed --dialect 1
+
+# Environment variable override
+export COPYBOOK_DIALECT=0
+copybook verify schema.cpy data.bin --format fixed
+
+# CLI flag takes precedence over environment variable
+export COPYBOOK_DIALECT=0
+copybook decode schema.cpy data.bin --format fixed --dialect 1  # Uses one-tolerant
+```
+
+### COBOL Copybook Impact
+
+```cobol
+      * Example: ODO array with min_count > 0
+       01  RECORD.
+           05  COUNTER      PIC 9(3).
+           05  ITEMS        OCCURS 1 TO 10 DEPENDING ON COUNTER
+                            PIC X(10).
+```
+
+**Behavior by Dialect**:
+- `--dialect n`: `min_count=1` enforced (counter must be ≥ 1)
+- `--dialect 0`: `min_count` ignored (counter can be 0-10)
+- `--dialect 1`: `min_count=1` enforced (counter must be ≥ 1)
+
+```cobol
+      * Example: ODO array with min_count = 0
+       01  RECORD.
+           05  COUNTER      PIC 9(3).
+           05  ITEMS        OCCURS 0 TO 10 DEPENDING ON COUNTER
+                            PIC X(10).
+```
+
+**Behavior by Dialect**:
+- `--dialect n`: `min_count=0` allowed (counter can be 0-10)
+- `--dialect 0`: `min_count=0` allowed (counter can be 0-10)
+- `--dialect 1`: `min_count` raised to 1 (counter must be ≥ 1)
+
+### Available on All Commands
+
+The `--dialect` flag is supported on all copybook-processing commands:
+- `parse`
+- `inspect`
+- `decode`
+- `encode`
+- `verify`
+
 ## Environment Variables
 
 - `COPYBOOK_LOG_LEVEL` - Set default log level
 - `COPYBOOK_THREADS` - Set default thread count
 - `COPYBOOK_CODEPAGE` - Set default codepage
+- `COPYBOOK_DIALECT` - Set default dialect mode (n, 0, or 1)
 
 ## Validation Modes
 

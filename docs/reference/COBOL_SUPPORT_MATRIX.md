@@ -1,7 +1,7 @@
 # COBOL Feature Support Matrix
 
-**Last Updated**: 2025-12-02
-**Version**: copybook-rs v0.4.0
+**Last Updated**: 2025-12-31
+**Version**: copybook-rs v0.4.2-dev
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
 
 > 💡 **Tip**: You can query this matrix programmatically using the CLI:
@@ -27,7 +27,7 @@
 | COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_property_tests.rs` (512+ property cases), `comp3_format_verification.rs`, `decimal_edge_cases.rs` (9 tests) | Nibble sign processing, edge cases, overflow/underflow |
 | BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs`, `binary_roundtrip_fidelity_tests.rs` (11 tests) | Various widths: 1/2/4/8 bytes, signed/unsigned |
 | COMP-1/COMP-2 (`comp-1-comp-2`) | ❌ Not Supported | N/A | Single/double float - by design, not implemented |
-| Edited PIC (`edited-pic`) | ⚠️ **Partially Supported (E1/E2)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests) | **E1**: Parse ✅ **E2**: Decode ✅ **E3**: Encode ⏳ v0.5.0 (see Edited PIC section below) |
+| Edited PIC (`edited-pic`) | ⚠️ **Partially Supported (E1/E2/E3.1)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests), `edited_pic_encode_e3_tests.rs` (672 lines) | **E1**: Parse ✅ **E2**: Decode ✅ **E3.1**: Basic Encode ✅ **E3.2-E3.6**: ⏳ v0.5.0 (see Edited PIC section below) |
 
 ## Structural Features
 
@@ -41,6 +41,7 @@
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
 | Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
 | RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | 30+ tests across 5 test suites (parser, hierarchy, resolver, schema API) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
+| Dialect Lever (`dialect`) | ✅ Fully Supported | `dialect_d1_tests.rs` (27 tests, 581 lines), `dialect_cli_d2_tests.rs` (11 tests, 275 lines) | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var |
 
 ## Sign Handling
 
@@ -75,7 +76,8 @@
 |---------|--------|-------------|---------------|
 | **E1: Parse + Schema** | ✅ Supported | - | `edited_pic_e1_tests.rs` (15 tests) |
 | **E2: Decode (subset)** | ✅ Supported | CBKD421-423 | `edited_pic_decode_e2_tests.rs` (28 tests) |
-| **E3: Encode** | 🔄 Planned v0.5.0 | CBKE4xx | - |
+| **E3.1: Basic Encode** | ✅ Supported | CBKE421-423 | `edited_pic_encode_e3_tests.rs` (672 lines) |
+| **E3.2-E3.6: Full Encode** | 🔄 Planned v0.5.0 | CBKE4xx | Sign editing, CR/DB, commas, asterisk, currency |
 | Z (zero suppress) | ✅ E1/E2 | - | `test_e2_simple_z_editing_zzz9` |
 | $ (currency) | ✅ E1/E2 | - | `test_e2_currency_dollar_zz_zzz_99` |
 | +/- (sign) | ✅ E1/E2 | - | `test_e2_sign_editing_*` |
@@ -85,9 +87,10 @@
 | Complex patterns | ✅ E1/E2 | - | `test_e2_complex_patterns` (8 tests) |
 
 **Phase Breakdown**:
-- **E1 (Parse + Schema)**: Parses edited PICTURE clauses into `EditedNumeric` FieldKind with pattern metadata
-- **E2 (Decode)**: Decodes EBCDIC/ASCII edited format to JSON numeric values (well-chosen subset)
-- **E3 (Encode)**: Planned for v0.5.0 - will encode JSON numeric values to edited format
+- **E1 (Parse + Schema)**: ✅ Parses edited PICTURE clauses into `EditedNumeric` FieldKind with pattern metadata
+- **E2 (Decode)**: ✅ Decodes EBCDIC/ASCII edited format to JSON numeric values (well-chosen subset)
+- **E3.1 (Basic Encode)**: ✅ Basic numeric encoding with Z-editing, decimal point, simple sign (commit 976ca0f)
+- **E3.2-E3.6 (Full Encode)**: 🔄 Planned v0.5.0 - sign editing (+/-), CR/DB, commas, asterisk fill, currency symbols
 
 **Well-Chosen Subset (E2)**:
 - ZZZ9 (basic zero suppression)
@@ -131,6 +134,114 @@ copybook verify schema.cpy data.bin \
   --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
 ```
 
+## Dialect Lever (ODO min_count Interpretation)
+
+**Status**: ✅ **Fully Supported** (CLI + Library API)
+
+**Evidence**:
+- **Core Implementation**: `copybook_core::dialect` module with `Dialect` enum
+- **Core Tests**: `dialect_d1_tests.rs` (27 tests, 581 lines) - comprehensive unit tests
+- **CLI Tests**: `dialect_cli_d2_tests.rs` (11 tests, 275 lines) - CLI flag and env var integration
+- **Fixture Tests**: `dialect_fixtures_d3_tests.rs` - golden fixtures for all three modes
+- **Total Test Coverage**: 38+ tests across 3 test suites
+
+### Dialect Modes
+
+| Mode | CLI Flag | Description | Behavior | Use Case |
+|------|----------|-------------|----------|----------|
+| **Normative** | `--dialect n` | Strict enforcement | `min_count` enforced as declared | ANSI COBOL standard copybooks |
+| **Zero-Tolerant** | `--dialect 0` | IBM Enterprise mode | `min_count` ignored (always 0) | IBM Enterprise COBOL copybooks |
+| **One-Tolerant** | `--dialect 1` | Micro Focus mode | `min_count` clamped to 1 | Micro Focus COBOL copybooks |
+
+### Configuration
+
+**Precedence Order**:
+1. CLI `--dialect` flag (highest priority)
+2. `COPYBOOK_DIALECT` environment variable
+3. Default value (`n` - Normative)
+
+### CLI Integration
+
+```bash
+# Normative dialect (default) - min_count enforced as declared
+copybook parse schema.cpy --dialect n
+
+# Zero-tolerant dialect for IBM Enterprise COBOL
+copybook decode schema.cpy data.bin --format fixed --codepage cp037 --dialect 0
+
+# One-tolerant dialect for Micro Focus COBOL
+copybook encode schema.cpy data.jsonl output.bin --format fixed --dialect 1
+
+# Environment variable configuration
+export COPYBOOK_DIALECT=0
+copybook verify schema.cpy data.bin --format fixed
+
+# CLI flag overrides environment variable
+COPYBOOK_DIALECT=0 copybook parse schema.cpy --dialect 1  # Uses one-tolerant
+```
+
+### Library API
+
+```rust
+use copybook_core::{parse_copybook_with_options, ParseOptions};
+use copybook_core::dialect::Dialect;
+
+// Parse with specific dialect
+let options = ParseOptions {
+    dialect: Dialect::ZeroTolerant,  // IBM Enterprise mode
+    ..ParseOptions::default()
+};
+let schema = parse_copybook_with_options(&copybook_text, &options)?;
+
+// Available dialects
+let normative = Dialect::Normative;       // Default: min_count enforced
+let zero_tolerant = Dialect::ZeroTolerant;  // min_count ignored
+let one_tolerant = Dialect::OneTolerant;   // min_count clamped to 1
+```
+
+### Behavior Examples
+
+**Example 1: ODO with min_count > 0**
+```cobol
+       01  RECORD.
+           05  COUNTER      PIC 9(3).
+           05  ITEMS        OCCURS 1 TO 10 DEPENDING ON COUNTER
+                            PIC X(10).
+```
+
+| Dialect | Behavior |
+|---------|----------|
+| `--dialect n` | Counter must be 1-10 (min_count=1 enforced) |
+| `--dialect 0` | Counter can be 0-10 (min_count ignored) |
+| `--dialect 1` | Counter must be 1-10 (min_count=1 enforced) |
+
+**Example 2: ODO with min_count = 0**
+```cobol
+       01  RECORD.
+           05  COUNTER      PIC 9(3).
+           05  ITEMS        OCCURS 0 TO 10 DEPENDING ON COUNTER
+                            PIC X(10).
+```
+
+| Dialect | Behavior |
+|---------|----------|
+| `--dialect n` | Counter can be 0-10 (min_count=0 allowed) |
+| `--dialect 0` | Counter can be 0-10 (min_count=0 allowed) |
+| `--dialect 1` | Counter must be 1-10 (min_count raised to 1) |
+
+### Available Commands
+
+The `--dialect` flag is supported on all copybook-processing commands:
+- `parse` - Affects schema parsing and layout validation
+- `inspect` - Affects layout display and field offset calculation
+- `decode` - Affects ODO bounds checking during data decoding
+- `encode` - Affects ODO bounds validation during encoding
+- `verify` - Affects data validation against schema
+
+### Design Documentation
+
+See `docs/internal/features/d0_dialect_lever_contract.md` for complete specification, implementation phases (D0-D4), and design rationale.
+
 ## Error Code Coverage
 
 Comprehensive error taxonomy with **29 discrete codes** tested across **664+ test functions**:
@@ -159,7 +270,10 @@ Comprehensive error taxonomy with **29 discrete codes** tested across **664+ tes
 
 ### Encode Errors (CBKE*)
 - `CBKE*`: 3+ codes for type mismatches, bounds violations, encoding failures
-- `CBKE4xx`: Reserved for Edited PIC encode errors (Phase E3, planned v0.5.0)
+- `CBKE421_EDITED_PIC_ENCODE_INVALID_FORMAT`: Edited PIC encode format mismatch (Phase E3.1)
+- `CBKE422_EDITED_PIC_ENCODE_SIGN_MISMATCH`: Edited PIC encode sign error (Phase E3.1)
+- `CBKE423_EDITED_PIC_ENCODE_OVERFLOW`: Edited PIC encode value overflow (Phase E3.1)
+- `CBKE4xx`: Additional codes reserved for E3.2-E3.6 phases
 
 See [ERROR_CODES.md](ERROR_CODES.md) for complete reference.
 
@@ -432,6 +546,18 @@ See [REPORT.md](../REPORT.md) for complete performance analysis.
 - **Production Readiness**: [REPORT.md](../REPORT.md) - Enterprise deployment assessment
 
 ## Changelog
+
+**2025-12-31**: E3.1 Edited PIC Encoding + Dialect Lever (D0-D4 Complete)
+- ✅ E3.1 Edited PIC Encoding complete (commit 976ca0f)
+- ✅ D0-D4 Dialect Lever complete (commits a9609af + documentation)
+  - D0: Config + CLI contract (design doc)
+  - D1: Core implementation with `Dialect` enum (27 tests, 581 lines)
+  - D2: CLI integration with `--dialect` flag and `COPYBOOK_DIALECT` env var (11 tests, 275 lines)
+  - D3: Golden fixtures for all three modes
+  - D4: Documentation complete (CLI_REFERENCE.md, CLAUDE.md, COBOL_SUPPORT_MATRIX.md)
+- Added E3.1 encode error codes (CBKE421-423)
+- Updated test counts: 1015 passing, 60 skipped
+- Full dialect lever support: Normative (n), ZeroTolerant (0), OneTolerant (1)
 
 **2025-10-22**: Initial release
 - Comprehensive feature matrix with test evidence

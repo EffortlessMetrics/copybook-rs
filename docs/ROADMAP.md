@@ -1,6 +1,7 @@
 # copybook-rs Roadmap
 
 **Status:** ⚠️ Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
+**Last Updated**: 2025-12-31
 
 > **Canonical Status Source**: This file is the authoritative reference
 > for copybook-rs project status, adoption guidance, and development timeline.
@@ -9,6 +10,36 @@
 This roadmap tracks **what we will ship**, **how we'll measure it**, and
 **when it's done**. Each milestone has: Objectives → Deliverables → Exit
 Criteria → Risks/Mitigations.
+
+---
+
+## Recent Progress (Dec 2025)
+
+| Commit/PR | Feature | Impact |
+|-----------|---------|--------|
+| `976ca0f` | **E3.1 Edited PIC Encoding** | Numeric field encoding with Z-editing, decimal point, basic sign |
+| `a9609af` | **D0 Dialect Lever Contract** | `Dialect::Strict`/`Tolerant` with 929 lines of tests |
+| PR #172 | **N1 Nested ODO Design** | O5/O6 rejection with `CBKP022`/`CBKP023` error codes |
+| PR #182 | **Panic Elimination** | 0 production panics on main |
+| PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
+| PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
+
+**Test Status**: 1015 passing, 60 skipped (nextest)
+
+---
+
+## Roadmap Gap Analysis (Dec 2025)
+
+| Gap | Status | Effort | Blocker |
+|-----|--------|--------|---------|
+| **E3.2-E3.6** Edited PIC encode | 🔄 Ready | 570-830 LOC | E3.4 algorithm refactor |
+| **D2** Dialect CLI | ✅ Complete | - | None (already shipped) |
+| **RENAMES codec** (#110) | 🔄 Ready | 2-3 PD | None |
+| **Determinism CI** (#112 Phase 3) | ✅ Ready | 0.5 PD | CI-off mode |
+| **Quality gates** (#97-100) | ⏳ Blocked | 6-8 weeks | CI-off mode |
+| **Benchmark container** (#113) | ✅ Complete | - | None (close issue) |
+
+**Issues to close**: #113 (benchmark container fully deployed)
 
 ---
 
@@ -109,16 +140,17 @@ refresh, bench-report CLI
 
 ### Deliverables
 
-1. **Edited PIC E3 encode** — **BIGGEST FUNCTIONAL GAP**
+1. **Edited PIC E3 encode** — **🔄 IN PROGRESS**
 
-   * **E3.0 — Contract + Test Matrix PR** (docs-only)
-     * Define supported patterns table (sign placement, Z/0, decimal point,
+   * **✅ E3.0 — Contract + Test Matrix PR** (docs-only) — **COMPLETED**
+     * ✅ Define supported patterns table (sign placement, Z/0, decimal point,
        commas, currency, CR/DB)
-     * Define error handling strategy (what returns "unsupported edited PIC
+     * ✅ Define error handling strategy (what returns "unsupported edited PIC
        encode" error)
-   * **E3.1 — Minimal Encode Path** (sign + basic Z/0)
-     * Scope: digit placement, decimal point, sign placement
-     * Tests: golden fixtures for representative formats
+   * **✅ E3.1 — Minimal Encode Path** (sign + basic Z/0) — **COMPLETED** (commit 976ca0f)
+     * ✅ Scope: digit placement, decimal point, sign placement
+     * ✅ Tests: 920+ lines of golden fixtures for representative formats
+     * ✅ Implemented: `encode_edited_numeric()` in copybook-codec
    * **E3.2 — Sign Editing (+/-)** (leading/trailing)
      * Scope: sign placement rules, CR/DB formatting
      * Tests: fixtures for positive/negative signs
@@ -135,19 +167,24 @@ refresh, bench-report CLI
      * Scope: currency symbol placement
      * Tests: fixtures for currency placement
 
-2. **Dialect lever** (#51) — **ENTERPRISE CORRECTNESS KNOB**
+2. **Dialect lever** (#51) — **🔄 IN PROGRESS**
 
-   * **D.0 — Config Schema** (docs-only PR)
-     * Define config key and allowed values
-     * CLI flag and env var mapping
-     * Default behavior unchanged (`"n"`)
-   * **D.1 — Core Implementation** (core-only PR)
-     * ODO lower bound validation in layout.rs
-     * Default behavior preserved
-   * **D.2 — CLI Integration** (CLI-only PR)
-     * Parse flag wiring into options
-     * Env var support
-   * **D.3 — Golden Fixtures** (test-only PR)
+   * **✅ D.0 — Config Schema + Contract** — **COMPLETED** (commit a9609af)
+     * ✅ Define config key and allowed values (`Dialect::Strict`, `Dialect::Tolerant`)
+     * ✅ Core `copybook_core::dialect` module with `Dialect` enum
+     * ✅ `effective_min_count()` function for ODO lower bound computation
+     * ✅ 581 lines of D1 core tests (`dialect_d1_tests.rs`)
+     * ✅ 287 lines of D2 CLI tests (`dialect_cli_d2_tests.rs`)
+     * ✅ 61 lines of D3 golden fixtures tests (`dialect_fixtures_d3_tests.rs`)
+     * ✅ Normative fixtures: `dialect_normative.bin`, `dialect_zero_tolerant.bin`, `dialect_one_tolerant.bin`
+   * **D.1 — Core Implementation** (core-only PR) — **✅ COMPLETED** (included in D.0)
+     * ✅ ODO lower bound validation in layout.rs
+     * ✅ Default behavior preserved (strict mode = `"n"` interpretation)
+   * **✅ D.2 — CLI Integration** — **COMPLETED** (included in D.0)
+     * ✅ `--dialect n|0|1` flags on all commands (parse, inspect, decode, encode, verify)
+     * ✅ `COPYBOOK_DIALECT` env var support with proper precedence
+     * ✅ 287 lines of CLI tests in `dialect_cli_d2_tests.rs`
+   * **✅ D.3 — Golden Fixtures** — **COMPLETED** (included in D.0)
      * Same copybook validated under each dialect setting
      * Documented behavioral differences
    * **D.4 — Docs & Examples** (docs-only PR)
@@ -356,7 +393,10 @@ and are tracked for future sprints:
 * [x] Fix deprecated `cargo_bin` function in xtask tests
 * [x] Standardize workspace dependency inheritance (`sha2`, `chrono` in
   `copybook-gen`)
-* [x] **Production panics at 0** on main (test-only panics remain acceptable)
+* [x] **Production panics at 0** on main (test-only panics remain acceptable) — PR #182
+* [x] **E3.1 Edited PIC Encoding** for numeric fields — commit 976ca0f
+* [x] **D0 Dialect Lever Contract** with comprehensive tests — commit a9609af
+* [x] **N1 Nested ODO Design** with O5/O6 rejection — PR #172
 
 ### CI Mode (Current)
 

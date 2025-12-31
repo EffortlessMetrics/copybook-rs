@@ -664,7 +664,7 @@ pub fn encode_edited_numeric(
     // Parse the input value
     let parsed = parse_numeric_value(value)?;
 
-    // Check for unsupported tokens (E3.1 only supports specific tokens)
+    // Check for unsupported tokens (E3.2 supports trailing signs)
     for token in pattern {
         match token {
             PicToken::Digit
@@ -672,11 +672,13 @@ pub fn encode_edited_numeric(
             | PicToken::ZeroInsert
             | PicToken::DecimalPoint
             | PicToken::LeadingPlus
-            | PicToken::LeadingMinus => {}
+            | PicToken::LeadingMinus
+            | PicToken::TrailingPlus
+            | PicToken::TrailingMinus => {}
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-                    format!("Edited PIC token not supported in E3.1: {token:?}"),
+                    format!("Edited PIC token not supported in E3.2: {token:?}"),
                 ));
             }
         }
@@ -831,13 +833,13 @@ pub fn encode_edited_numeric(
             PicToken::DecimalPoint => {
                 result[i] = '.';
             }
-            PicToken::LeadingPlus => {
+            PicToken::LeadingPlus | PicToken::TrailingPlus => {
                 result[i] = match effective_sign {
                     Sign::Positive => '+',
                     Sign::Negative => '-',
                 };
             }
-            PicToken::LeadingMinus => {
+            PicToken::LeadingMinus | PicToken::TrailingMinus => {
                 result[i] = match effective_sign {
                     Sign::Positive => ' ',
                     Sign::Negative => '-',

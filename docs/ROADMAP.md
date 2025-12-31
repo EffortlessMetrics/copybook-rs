@@ -1,6 +1,7 @@
 # copybook-rs Roadmap
 
-**Status:** ⚠️ Engineering Preview (v0.4.0)
+**Status:** ⚠️ Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
+**Last Updated**: 2025-12-31
 
 > **Canonical Status Source**: This file is the authoritative reference
 > for copybook-rs project status, adoption guidance, and development timeline.
@@ -9,6 +10,38 @@
 This roadmap tracks **what we will ship**, **how we'll measure it**, and
 **when it's done**. Each milestone has: Objectives → Deliverables → Exit
 Criteria → Risks/Mitigations.
+
+---
+
+## Recent Progress (Dec 2025)
+
+| Commit/PR | Feature | Impact |
+|-----------|---------|--------|
+| WIP | **E3.2-E3.6 Edited PIC Encoding** | Full encode support: CR/DB, commas, asterisk, currency (115 new tests) |
+| WIP | **RENAMES Codec** (#110) | R1-R3 decode/encode with 7 codec-layer tests |
+| `976ca0f` | **E3.1 Edited PIC Encoding** | Numeric field encoding with Z-editing, decimal point, basic sign |
+| `a9609af` | **D0 Dialect Lever Contract** | `Dialect::Strict`/`Tolerant` with 929 lines of tests |
+| PR #172 | **N1 Nested ODO Design** | O5/O6 rejection with `CBKP022`/`CBKP023` error codes |
+| PR #182 | **Panic Elimination** | 0 production panics on main |
+| PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
+| PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
+
+**Test Status**: 1135+ passing (cargo test --workspace)
+
+---
+
+## Roadmap Gap Analysis (Dec 2025)
+
+| Gap | Status | Effort | Blocker |
+|-----|--------|--------|---------|
+| **E3.2-E3.6** Edited PIC encode | ✅ Complete | - | None |
+| **D0-D4** Dialect lever | ✅ Complete | - | None (all shipped) |
+| **RENAMES codec** (#110) | ✅ Complete | - | None (R1-R3 implemented) |
+| **Determinism CI** (#112 Phase 3) | ✅ Ready | 0.5 PD | CI-off mode |
+| **Quality gates** (#97-100) | ⏳ Blocked | 6-8 weeks | CI-off mode |
+| **Benchmark container** (#113) | ✅ Complete | - | None (close issue) |
+
+**Issues to close**: #113 (benchmark container), #51 (dialect lever), #110 (RENAMES codec)
 
 ---
 
@@ -37,7 +70,7 @@ semantics with fixtures.
 
 ### Deliverables
 
-1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **READY**
+1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **Released**
 
    * ✅ crate metadata: categories, keywords, readme path, license files
      included
@@ -86,32 +119,81 @@ semantics with fixtures.
 * ✅ Documentation audit complete: no duplicate perf numbers, working
   navigation
 
-### Status: ⚠️ Tagged (publish pending)
+### Status: ✅ Released
 
-**Tagged**: 2025-12-18 (v0.4.0)
+**Released**: 2025-12-18 (v0.4.0)
 
 **Includes**: Projection (`--select`) support, edited PIC decode (E1/E2),
 deterministic JSON output, golden fixtures validation, docs navigation
 refresh, bench-report CLI
 
-**Outstanding**: GitHub Actions integration (PR comments, artifact uploads);
-SLO enforcement automation
-
-**Note**: If fixes land after the tag, prefer a patch release (`v0.4.1`) over
-moving `v0.4.0`.
+**Follow-up**: v0.4.1 released with additional fixes
 
 ---
 
-## Milestone v0.5.0 — Dialects & Optimizations (Q1 2026)
+## Milestone v0.5.0 — Edited PIC Encoding & Dialects (Q1 2026)
 
 ### Objectives
 
+* Implement Edited PIC Encoding (Phase E3) — biggest functional gap
 * Add a safe, explicit knob for ODO bounds across COBOL dialects; squeeze
   throughput without changing outputs.
+* Complete Determinism CI Wiring (Phase 3) — Phases 1-2 already shipped
 
 ### Deliverables
 
-1. **Determinism Validation** (#112) — **✅ Phases 1–2 SHIPPED**
+1. **Edited PIC E3 encode** — **✅ COMPLETE**
+
+   * **✅ E3.0 — Contract + Test Matrix PR** (docs-only) — **COMPLETED**
+     * ✅ Define supported patterns table (sign placement, Z/0, decimal point,
+       commas, currency, CR/DB)
+     * ✅ Define error handling strategy (what returns "unsupported edited PIC
+       encode" error)
+   * **✅ E3.1 — Minimal Encode Path** (sign + basic Z/0) — **COMPLETED** (commit 976ca0f)
+     * ✅ Scope: digit placement, decimal point, sign placement
+     * ✅ Tests: 920+ lines of golden fixtures for representative formats
+     * ✅ Implemented: `encode_edited_numeric()` in copybook-codec
+   * **✅ E3.2 — Sign Editing (+/-)** (leading/trailing) — **COMPLETED**
+     * ✅ Scope: trailing plus/minus sign encoding
+     * ✅ Tests: 24 test cases for sign patterns
+   * **✅ E3.3 — CR/DB** (credit/debit indicators) — **COMPLETED**
+     * ✅ Scope: CR/DB sign indicators (2-char trailing)
+     * ✅ Tests: 20 test cases for credit/debit patterns
+   * **✅ E3.4 — Commas & Separators** (`,`, `/`) — **COMPLETED**
+     * ✅ Scope: comma placement, slash for dates
+     * ✅ Tests: 26 test cases for separator patterns
+   * **✅ E3.5 — Asterisk Fill (`*`)** (check protection) — **COMPLETED**
+     * ✅ Scope: asterisk fill for leading zeros
+     * ✅ Tests: 28 test cases for check protection
+   * **✅ E3.6 — Currency Symbols** (`$`, fixed position) — **COMPLETED**
+     * ✅ Scope: fixed-position currency symbol
+     * ✅ Tests: 17 test cases for currency patterns
+
+2. **Dialect lever** (#51) — **✅ COMPLETE**
+
+   * **✅ D.0 — Config Schema + Contract** — **COMPLETED** (commit a9609af)
+     * ✅ Define config key and allowed values (`Dialect::Strict`, `Dialect::Tolerant`)
+     * ✅ Core `copybook_core::dialect` module with `Dialect` enum
+     * ✅ `effective_min_count()` function for ODO lower bound computation
+     * ✅ 581 lines of D1 core tests (`dialect_d1_tests.rs`)
+     * ✅ 287 lines of D2 CLI tests (`dialect_cli_d2_tests.rs`)
+     * ✅ 61 lines of D3 golden fixtures tests (`dialect_fixtures_d3_tests.rs`)
+     * ✅ Normative fixtures: `dialect_normative.bin`, `dialect_zero_tolerant.bin`, `dialect_one_tolerant.bin`
+   * **D.1 — Core Implementation** (core-only PR) — **✅ COMPLETED** (included in D.0)
+     * ✅ ODO lower bound validation in layout.rs
+     * ✅ Default behavior preserved (strict mode = `"n"` interpretation)
+   * **✅ D.2 — CLI Integration** — **COMPLETED** (included in D.0)
+     * ✅ `--dialect n|0|1` flags on all commands (parse, inspect, decode, encode, verify)
+     * ✅ `COPYBOOK_DIALECT` env var support with proper precedence
+     * ✅ 287 lines of CLI tests in `dialect_cli_d2_tests.rs`
+   * **✅ D.3 — Golden Fixtures** — **COMPLETED** (included in D.0)
+     * Same copybook validated under each dialect setting
+     * Documented behavioral differences
+   * **D.4 — Docs & Examples** (docs-only PR)
+     * Migration notes for existing users
+     * Example copybooks showing dialect differences
+
+3. **Determinism Validation** (#112) — **✅ Phases 1–2 SHIPPED**
 
    * [x] Phase 1 – Codec harness (PR #158)
      * `copybook_codec::determinism` module
@@ -130,37 +212,28 @@ moving `v0.4.0`.
      * Advisory-only when activated (non-blocking), promotable to blocking
        gate
 
-2. **Dialect lever** (#51)
-
-   * Config:
-
-     ```toml
-     [parser]
-     # allowed: "n" | "0" | "1"; default "n"
-     occurs_fixed_with_depends_lower_bound = "n"
-     ```
-
-   * CLI flag and env var mapping (`--dialect-odo-lower-bound`,
-     `COPYBOOK_DIALECT_ODO_LOWER`)
-   * Golden fixtures for each setting; docs examples and migration notes
-
-3. **Perf tune (SIMD/I/O)**
+4. **Perf tune (SIMD/I/O)**
 
    * Target +10–20% p95 throughput maintained under budgets; no API/behavior
      changes
 
 ### Exit Criteria
 
-* Same inputs under each dialect mode produce **documented** and **tested**
-  outcomes
+* **Edited PIC E3 encode**: All E3.0–E3.6 phases complete; golden fixtures
+  pass for sign, CR/DB, commas, asterisk fill, and currency symbols
+* **Dialect lever**: Same inputs under each dialect mode produce
+  **documented** and **tested** outcomes; default behavior unchanged
+* **Determinism CI**: Phase 3 smoke test active (awaiting CI re-enable)
 * No regressions vs v0.3.0 budgets; CI receipts show deltas ≤ 5% except where
   improved
 * Default behavior unchanged (back-compat preserved)
 
 ### Risks & Mitigations
 
-* **Behavior drift for existing users** → default remains current `"n"`;
-  strong docs + examples
+* **Edited PIC encode complexity** → incremental phases (E3.0–E3.6) with
+  golden fixtures; clear error handling for unsupported patterns
+* **Behavior drift for existing users** → default remains current `"n"` for
+  dialect lever; strong docs + examples
 
 ---
 
@@ -310,8 +383,8 @@ and are tracked for future sprints:
 
 ### Test Coverage (Future Sprints)
 
-* [ ] Add dedicated tests for 9 untested error codes (CBKS701-703, CBKD101,
-  CBKE510/515, CBKF102/104, CBKI001)
+* [ ] Add dedicated tests for 9 untested error codes (CBKS701-703,
+  CBKD101, CBKE510/515, CBKF102/104, CBKI001)
 * [ ] Add unit tests for memory/iterator infrastructure
 * [ ] Improve audit feature test coverage (currently ~10%)
 
@@ -322,6 +395,22 @@ and are tracked for future sprints:
 * [x] Fix deprecated `cargo_bin` function in xtask tests
 * [x] Standardize workspace dependency inheritance (`sha2`, `chrono` in
   `copybook-gen`)
+* [x] **Production panics at 0** on main (test-only panics remain acceptable) — PR #182
+* [x] **E3.1 Edited PIC Encoding** for numeric fields — commit 976ca0f
+* [x] **D0 Dialect Lever Contract** with comprehensive tests — commit a9609af
+* [x] **N1 Nested ODO Design** with O5/O6 rejection — PR #172
+
+### CI Mode (Current)
+
+* **CI-off operating mode**: Local gates + small PRs + explicit receipts in PR bodies
+* **Dispatch-only workflows**: Mutants, fuzz, SBOM are dispatch-only until CI is re-enabled
+* **Manual validation**: Run workflows once when CI returns to validate artifact upload paths and runtime budgets
+
+### Distribution
+
+* **crates.io** = Public artifact distribution (crate tarball becomes public)
+* **Internal/Private distribution**: Git tags on private repositories, private cargo registries
+* **Note**: `cargo publish --dry-run` for workspace crates may fail for codec/cli prior to publishing core/codec (verification builds in isolation). Use `cargo package --no-verify` to inspect tarball contents.
 
 ---
 

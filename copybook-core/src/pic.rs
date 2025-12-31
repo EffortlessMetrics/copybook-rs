@@ -265,12 +265,29 @@ impl fmt::Display for PicClause {
 
 /// Check if a PIC string contains edited picture characters
 fn is_edited_pic(pic_str: &str) -> bool {
-    // Edited PIC characters: Z, /, comma, $, +, -, *, CR, DB, etc.
+    // Edited PIC characters: Z, /, comma, $, +, -, *
+    // Note: '0' (zero insertion) is handled separately to avoid false positives
+    // from count specifiers like 9(10) which contain '0' inside parentheses
     let edited_chars = ['Z', 'z', '/', ',', '$', '+', '-', '*'];
 
+    // Track parentheses depth to distinguish count digits from edited characters
+    let mut paren_depth: u32 = 0;
     for ch in pic_str.chars() {
-        if edited_chars.contains(&ch) {
-            return true;
+        match ch {
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            '0' => {
+                // Zero is only an edited character when outside parentheses
+                // (zero insertion like PIC 0999, not count like PIC 9(10))
+                if paren_depth == 0 {
+                    return true;
+                }
+            }
+            _ => {
+                if paren_depth == 0 && edited_chars.contains(&ch) {
+                    return true;
+                }
+            }
         }
     }
 
@@ -289,8 +306,8 @@ fn compute_edited_pic_width(pic_str: &str) -> Result<u16> {
 
     while let Some(ch) = chars.next() {
         match ch.to_ascii_uppercase() {
-            // Digit positions
-            '9' | 'Z' | '*' => {
+            // Digit positions (including zero insertion)
+            '9' | 'Z' | '*' | '0' => {
                 // Check for repetition count
                 if chars.peek() == Some(&'(') {
                     chars.next(); // consume '('

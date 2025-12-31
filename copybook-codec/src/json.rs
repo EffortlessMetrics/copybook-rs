@@ -1668,8 +1668,8 @@ impl JsonEncoder {
                     // Validate string length doesn't exceed field capacity
                     if text.len() > field.len as usize {
                         return Err(Error::new(
-                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                            format!("String length {} exceeds field capacity {} for alphanumeric field {}", 
+                            ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
+                            format!("String length {} exceeds field capacity {} for alphanumeric field {}",
                                 text.len(), field.len, field.path),
                         ).with_field(field.path.clone()));
                     }
@@ -1842,7 +1842,7 @@ impl JsonEncoder {
             // Validate string length doesn't exceed field capacity
             if text.len() > field.len as usize {
                 return Err(Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
                     format!(
                         "String length {} exceeds field capacity {} for alphanumeric field {}",
                         text.len(),

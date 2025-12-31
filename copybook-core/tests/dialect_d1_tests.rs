@@ -155,16 +155,14 @@ fn test_odo_schema_with_default_dialect() {
     });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
     // Should have tail ODO info with default dialect
     assert!(schema.tail_odo.is_some());
     let tail_odo = schema.tail_odo.as_ref().unwrap();
     assert_eq!(tail_odo.counter_path, "COUNTER");
-    assert_eq!(tail_odo.min_count, 0);
+    assert_eq!(tail_odo.min_count, 0); // Normative preserves declared min_count
     assert_eq!(tail_odo.max_count, 5);
-    // TODO: dialect field not yet implemented in TailODO
-    // assert_eq!(tail_odo.dialect, Dialect::Normative);
 
     // With Normative dialect and min_count=0, max_count=5, record is variable
     // (effective_min_count = 0, so max > min)
@@ -201,7 +199,7 @@ fn test_odo_schema_normative_fixed_record() {
     });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
     // With Normative dialect and min_count=max_count=5, record is fixed
     // (effective_min_count = 5, so max == min)
@@ -238,7 +236,7 @@ fn test_odo_schema_normative_equal_min_max() {
     });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
     // With Normative dialect and min_count=max_count=5, record is fixed
     // (effective_min_count = 5, so max == min)
@@ -275,9 +273,14 @@ fn test_odo_schema_one_tolerant_variable_record() {
     });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    // OneTolerant dialect: min_count=0 becomes effective_min_count=1
+    resolve_layout(&mut schema, Dialect::OneTolerant).unwrap();
 
-    // With OneTolerant dialect and min_count=0, effective_min_count = 1
+    // Verify effective_min_count is now 1 (clamped from 0)
+    let tail_odo = schema.tail_odo.as_ref().unwrap();
+    assert_eq!(tail_odo.min_count, 1); // OneTolerant clamps 0 -> 1
+
+    // With OneTolerant dialect and effective_min_count=1, max_count=5
     // so max (5) > min (1), record is variable
     assert!(schema.lrecl_fixed.is_none());
 }
@@ -312,7 +315,7 @@ fn test_odo_schema_one_tolerant_fixed_record() {
     });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::OneTolerant).unwrap();
 
     // With OneTolerant dialect and min_count=max_count=5, effective_min_count = 5
     // so max (5) == min (5), record is fixed
@@ -441,12 +444,11 @@ fn test_dialect_in_tail_odo() {
     });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
-    // Verify dialect is stored in TailODO
-    let _tail_odo = schema.tail_odo.as_ref().unwrap();
-    // TODO: dialect field not yet implemented in TailODO
-    // assert_eq!(tail_odo.dialect, Dialect::Normative);
+    // Verify dialect affected min_count in TailODO
+    let tail_odo = schema.tail_odo.as_ref().unwrap();
+    assert_eq!(tail_odo.min_count, 0); // Normative preserves declared min_count
 }
 
 #[test]
@@ -481,7 +483,7 @@ fn test_default_behavior_unchanged() {
     });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
     // With default Normative dialect:
     // - min_count=0, max_count=5
@@ -489,10 +491,8 @@ fn test_default_behavior_unchanged() {
     // - max (5) > min (0), so record is variable
     assert!(schema.lrecl_fixed.is_none());
 
-    // Tail ODO should have Normative dialect
+    // Tail ODO should preserve declared min_count with Normative dialect
     let tail_odo = schema.tail_odo.as_ref().unwrap();
-    // TODO: dialect field not yet implemented in TailODO
-    // assert_eq!(tail_odo.dialect, Dialect::Normative);
     assert_eq!(tail_odo.min_count, 0);
     assert_eq!(tail_odo.max_count, 5);
 }
@@ -544,7 +544,7 @@ fn test_multiple_odo_arrays_same_dialect() {
     });
     schema.fields.push(array2);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
     // Both ODO arrays should cause variable record length
     assert!(schema.lrecl_fixed.is_none());
@@ -553,10 +553,8 @@ fn test_multiple_odo_arrays_same_dialect() {
     let tail_odo = schema.tail_odo.as_ref().unwrap();
     assert_eq!(tail_odo.array_path, "ARRAY2");
     assert_eq!(tail_odo.counter_path, "COUNTER2");
-    assert_eq!(tail_odo.min_count, 1);
+    assert_eq!(tail_odo.min_count, 1); // Normative preserves declared min_count
     assert_eq!(tail_odo.max_count, 5);
-    // TODO: dialect field not yet implemented in TailODO
-    // assert_eq!(tail_odo.dialect, Dialect::Normative);
 }
 
 #[test]
@@ -573,9 +571,183 @@ fn test_dialect_with_fixed_occurs() {
     array_field.occurs = Some(Occurs::Fixed { count: 5 });
     schema.fields.push(array_field);
 
-    resolve_layout(&mut schema).unwrap();
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
     // Fixed arrays should always produce fixed record length
     assert_eq!(schema.lrecl_fixed, Some(10 * 5));
     assert!(schema.tail_odo.is_none());
+}
+
+// =============================================================================
+// D1: Dialect behavioral delta tests (PR #198)
+// These tests prove that dialect actually affects TailODO.min_count at runtime
+// =============================================================================
+
+#[test]
+fn test_d1_zero_tolerant_overrides_declared_min() {
+    // CRITICAL: This test proves ZeroTolerant dialect makes effective min_count = 0
+    // even when the copybook declares min_count > 0
+    let mut schema = Schema::new();
+
+    // Counter field
+    let counter = Field::with_kind(
+        1,
+        "COUNTER".to_string(),
+        FieldKind::ZonedDecimal {
+            digits: 3,
+            scale: 0,
+            signed: false,
+        },
+    );
+    schema.fields.push(counter);
+
+    // ODO array field with declared min_count=3, max_count=10
+    let mut array_field = Field::with_kind(
+        1,
+        "ARRAY-FIELD".to_string(),
+        FieldKind::Alphanum { len: 10 },
+    );
+    array_field.occurs = Some(Occurs::ODO {
+        min: 3, // Declared min is 3
+        max: 10,
+        counter_path: "COUNTER".to_string(),
+    });
+    schema.fields.push(array_field);
+
+    // With ZeroTolerant dialect: effective_min_count(ZeroTolerant, 3) = 0
+    resolve_layout(&mut schema, Dialect::ZeroTolerant).unwrap();
+
+    // VERIFY: TailODO.min_count should be 0, NOT the declared 3
+    let tail_odo = schema.tail_odo.as_ref().unwrap();
+    assert_eq!(
+        tail_odo.min_count, 0,
+        "ZeroTolerant dialect should override declared min_count=3 to 0"
+    );
+    assert_eq!(tail_odo.max_count, 10);
+}
+
+#[test]
+fn test_d1_one_tolerant_clamps_zero_to_one() {
+    // CRITICAL: This test proves OneTolerant dialect clamps min_count=0 to 1
+    let mut schema = Schema::new();
+
+    // Counter field
+    let counter = Field::with_kind(
+        1,
+        "COUNTER".to_string(),
+        FieldKind::ZonedDecimal {
+            digits: 3,
+            scale: 0,
+            signed: false,
+        },
+    );
+    schema.fields.push(counter);
+
+    // ODO array field with declared min_count=0, max_count=5
+    let mut array_field = Field::with_kind(
+        1,
+        "ARRAY-FIELD".to_string(),
+        FieldKind::Alphanum { len: 10 },
+    );
+    array_field.occurs = Some(Occurs::ODO {
+        min: 0, // Declared min is 0
+        max: 5,
+        counter_path: "COUNTER".to_string(),
+    });
+    schema.fields.push(array_field);
+
+    // With OneTolerant dialect: effective_min_count(OneTolerant, 0) = 1
+    resolve_layout(&mut schema, Dialect::OneTolerant).unwrap();
+
+    // VERIFY: TailODO.min_count should be 1, NOT the declared 0
+    let tail_odo = schema.tail_odo.as_ref().unwrap();
+    assert_eq!(
+        tail_odo.min_count, 1,
+        "OneTolerant dialect should clamp declared min_count=0 to 1"
+    );
+    assert_eq!(tail_odo.max_count, 5);
+}
+
+#[test]
+fn test_d1_one_tolerant_preserves_higher_min() {
+    // This test proves OneTolerant dialect preserves min_count > 1
+    let mut schema = Schema::new();
+
+    // Counter field
+    let counter = Field::with_kind(
+        1,
+        "COUNTER".to_string(),
+        FieldKind::ZonedDecimal {
+            digits: 3,
+            scale: 0,
+            signed: false,
+        },
+    );
+    schema.fields.push(counter);
+
+    // ODO array field with declared min_count=5, max_count=10
+    let mut array_field = Field::with_kind(
+        1,
+        "ARRAY-FIELD".to_string(),
+        FieldKind::Alphanum { len: 10 },
+    );
+    array_field.occurs = Some(Occurs::ODO {
+        min: 5, // Declared min is 5
+        max: 10,
+        counter_path: "COUNTER".to_string(),
+    });
+    schema.fields.push(array_field);
+
+    // With OneTolerant dialect: effective_min_count(OneTolerant, 5) = 5 (max(1, 5))
+    resolve_layout(&mut schema, Dialect::OneTolerant).unwrap();
+
+    // VERIFY: TailODO.min_count should still be 5 (not clamped down)
+    let tail_odo = schema.tail_odo.as_ref().unwrap();
+    assert_eq!(
+        tail_odo.min_count, 5,
+        "OneTolerant dialect should preserve declared min_count=5"
+    );
+    assert_eq!(tail_odo.max_count, 10);
+}
+
+#[test]
+fn test_d1_normative_preserves_all_values() {
+    // This test proves Normative dialect preserves declared min_count unchanged
+    let mut schema = Schema::new();
+
+    // Counter field
+    let counter = Field::with_kind(
+        1,
+        "COUNTER".to_string(),
+        FieldKind::ZonedDecimal {
+            digits: 3,
+            scale: 0,
+            signed: false,
+        },
+    );
+    schema.fields.push(counter);
+
+    // ODO array field with declared min_count=3, max_count=10
+    let mut array_field = Field::with_kind(
+        1,
+        "ARRAY-FIELD".to_string(),
+        FieldKind::Alphanum { len: 10 },
+    );
+    array_field.occurs = Some(Occurs::ODO {
+        min: 3, // Declared min is 3
+        max: 10,
+        counter_path: "COUNTER".to_string(),
+    });
+    schema.fields.push(array_field);
+
+    // With Normative dialect: effective_min_count(Normative, 3) = 3
+    resolve_layout(&mut schema, Dialect::Normative).unwrap();
+
+    // VERIFY: TailODO.min_count should be exactly the declared 3
+    let tail_odo = schema.tail_odo.as_ref().unwrap();
+    assert_eq!(
+        tail_odo.min_count, 3,
+        "Normative dialect should preserve declared min_count=3"
+    );
+    assert_eq!(tail_odo.max_count, 10);
 }

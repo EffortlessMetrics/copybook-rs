@@ -114,8 +114,8 @@ impl Parser {
         // Create schema with fingerprint
         let mut schema = Schema::from_fields(hierarchical_fields);
 
-        // Resolve field layouts and compute offsets
-        crate::layout::resolve_layout(&mut schema)?;
+        // Resolve field layouts and compute offsets (dialect affects ODO min_count)
+        crate::layout::resolve_layout(&mut schema, self.options.dialect)?;
 
         self.calculate_schema_fingerprint(&mut schema);
 

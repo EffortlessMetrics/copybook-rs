@@ -95,7 +95,7 @@ pub enum Occurs {
    - **Fixed-form COBOL**: Cols 1-6 sequence (ignored), col 7 indicators (* comment, - continuation, / page break), cols 8-72 text, 73-80 ignored
    - **Free-form COBOL**: `*>` inline comments, leading `*` at col 1 as comment, no block comments
    - **Continuation processing**: Only column-7 `-` continues lines; strip trailing/leading spaces when joining
-   - **Edited PIC detection**: Fail fast with CBKP051_UNSUPPORTED_EDITED_PIC for Z, /, , characters
+   - **Edited PIC parsing**: Parse into EditedNumeric FieldKind (E1/E2/E3 supported); only Space (B) insertion returns CBKP051_UNSUPPORTED_EDITED_PIC
 
 2. **Syntax Analysis**: Recursive descent parser that builds an AST from tokens:
    - Level number hierarchy validation (01-49)
@@ -415,8 +415,8 @@ The following decisions are normative and must be implemented exactly as specifi
 - **Fixed-form**: Only column-7 `-` is continuation; `*` at col 1 is comment; cols 1-6 and 73-80 ignored
 - **Free-form**: Only `*>` (inline) and `*` at column 1 are comments; no other comment starts recognized
 - **Continuation join**: Strip trailing spaces on continued line and leading spaces on continuation line; do not collapse interior whitespace
-- **Edited PICs**: Fail immediately with CBKP051_UNSUPPORTED_EDITED_PIC including token and field path
-- **SIGN clauses**: SIGN LEADING/TRAILING [SEPARATE] treated as edited PIC → CBKP051_UNSUPPORTED_EDITED_PIC
+- **Edited PICs**: Parse into EditedNumeric FieldKind (E1/E2/E3 supported); only Space (B) insertion fails with CBKP051_UNSUPPORTED_EDITED_PIC
+- **SIGN clauses**: SIGN LEADING/TRAILING [SEPARATE] fails with CBKP011_UNSUPPORTED_CLAUSE
 
 ### 8. Additional Normative Decisions (NORMATIVE)
 - **Alphanumeric handling**: Decode preserves all spaces (no trimming); encode pads with spaces, over-length → CBKE501_JSON_TYPE_MISMATCH

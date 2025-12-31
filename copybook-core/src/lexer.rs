@@ -115,6 +115,10 @@ pub enum Token {
     PicClause(String),
 
     // Edited PIC patterns (to be rejected) - higher priority than identifiers
+    // Zero insertion patterns (e.g., "0009") - higher priority than Number
+    // Uses 0{2,} to avoid matching level numbers like "01", "02"
+    #[regex(r"0{2,}[0-9]+", priority = 5, callback = |lex| lex.slice().to_string())]
+    #[regex(r"[0Z9]+", priority = 3, callback = |lex| lex.slice().to_string())]
     #[regex(r"[Z9]*[/,\$\+\-\*]+[Z9]*", priority = 3, callback = |lex| lex.slice().to_string())]
     EditedPic(String),
 

@@ -108,7 +108,18 @@ fn manage_baseline(args: &[String]) -> Result<()> {
         return Ok(());
     }
 
+    // Diagnostic logging for test failure investigation
+    let current_dir = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let is_temp_dir = current_dir.to_string_lossy().contains("/tmp");
+    let cargo_manifest_dir = env::var("CARGO_MANIFEST_DIR");
+
+    eprintln!("[DEBUG] Current directory: {}", current_dir.display());
+    eprintln!("[DEBUG] Is temp dir (contains /tmp): {is_temp_dir}");
+    eprintln!("[DEBUG] CARGO_MANIFEST_DIR: {cargo_manifest_dir:?}");
+
     let baseline_path = get_baseline_path();
+
+    eprintln!("[DEBUG] Baseline path: {}", baseline_path.display());
 
     match args[2].as_str() {
         "promote" => {
@@ -306,16 +317,16 @@ fn perf_receipt_to_report(value: &Value) -> PerformanceReport {
 }
 
 fn get_baseline_path() -> PathBuf {
-    // For testing: use local baseline.json in current directory
-    // For production: use workspace target directory
-    //
-    // We use local baseline if we're NOT in a workspace context (CARGO_MANIFEST_DIR unset)
-    // or if current dir is obviously a temp directory
     let current_dir = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let is_temp_dir = current_dir.to_string_lossy().contains("/tmp");
 
-    if is_temp_dir || env::var("CARGO_MANIFEST_DIR").is_err() {
-        // Testing scenario: use baseline.json in current directory
+    // Check for temp directory using multiple indicators
+    let is_temp_dir = current_dir.to_string_lossy().contains("/tmp")
+        || current_dir.to_string_lossy().contains("tmp.")
+        || current_dir.to_string_lossy().contains("/var/folders")  // macOS temp
+        || current_dir.to_string_lossy().contains("/Temp")  // Windows temp
+        || env::var("COPYBOOK_TEST_TEMP").is_ok(); // Explicit test flag
+
+    if is_temp_dir {
         return PathBuf::from("baseline.json");
     }
 

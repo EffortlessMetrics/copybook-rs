@@ -100,6 +100,11 @@ cargo run --bin copybook -- decode schema.cpy data.bin --output data.jsonl --for
 
 # RENAMES alias resolution (R1-R3)
 cargo run --bin copybook -- decode schema.cpy data.bin --output data.jsonl --format fixed --codepage cp037 --select "CUSTOMER-HEADER"  # Resolves RENAMES alias
+
+# Dialect lever (controls ODO min_count interpretation)
+cargo run --bin copybook -- decode schema.cpy data.bin --output data.jsonl --format fixed --codepage cp037 --dialect 0  # Zero-tolerant (IBM Enterprise)
+cargo run --bin copybook -- parse schema.cpy --dialect 1  # One-tolerant (Micro Focus)
+COPYBOOK_DIALECT=0 cargo run --bin copybook -- verify schema.cpy data.bin --format fixed  # Environment variable
 ```
 
 ## Library API
@@ -411,6 +416,119 @@ let json_value = decode_record(&projected_schema, &record_data, &options)?;
 - **Error on invalid selection**: `CBKS703_PROJECTION_FIELD_NOT_FOUND` if field doesn't exist
 - **Error on incomplete ODO**: `CBKS701_PROJECTION_INVALID_ODO` if counter not accessible
 - **Error on partial alias**: `CBKS702_PROJECTION_UNRESOLVED_ALIAS` if alias spans unselected fields
+
+## Dialect Lever (ODO min_count Interpretation)
+
+The dialect lever controls how `min_count` is interpreted for `OCCURS DEPENDING ON` (ODO) arrays. Different COBOL dialects have different requirements for the minimum bound in ODO declarations.
+
+### Dialect Modes
+
+| Mode | CLI Flag | Description | Behavior |
+|------|----------|-------------|----------|
+| **Normative** (default) | `--dialect n` | Strict enforcement | `min_count` is enforced as declared in copybook |
+| **Zero-Tolerant** | `--dialect 0` | IBM Enterprise mode | `min_count` is ignored (always treated as 0) |
+| **One-Tolerant** | `--dialect 1` | Micro Focus mode | `min_count` is clamped to 1 (minimum ≥ 1) |
+
+### When to Use
+
+- **Normative (`n`)**: Default behavior, suitable for most use cases where copybooks follow ANSI COBOL standards
+- **Zero-Tolerant (`0`)**: For IBM Enterprise COBOL copybooks where ODO arrays should always allow zero occurrences
+- **One-Tolerant (`1`)**: For Micro Focus COBOL copybooks where minimum count is always at least 1
+
+### Configuration
+
+**Precedence Order**:
+1. CLI `--dialect` flag (highest priority)
+2. `COPYBOOK_DIALECT` environment variable
+3. Default value (`n` - Normative)
+
+### CLI Examples
+
+```bash
+# Use normative dialect (default) - min_count enforced as declared
+cargo run --bin copybook -- parse schema.cpy --dialect n
+
+# Use zero-tolerant dialect for IBM Enterprise COBOL
+cargo run --bin copybook -- decode schema.cpy data.bin \
+  --format fixed --codepage cp037 \
+  --dialect 0 \
+  --output data.jsonl
+
+# Use one-tolerant dialect for Micro Focus COBOL
+cargo run --bin copybook -- encode --format fixed --codepage cp037 \
+  --dialect 1 \
+  schema.cpy data.jsonl output.bin
+
+# Environment variable configuration
+export COPYBOOK_DIALECT=0
+cargo run --bin copybook -- verify schema.cpy data.bin --format fixed
+
+# CLI flag overrides environment variable
+COPYBOOK_DIALECT=0 cargo run --bin copybook -- parse schema.cpy --dialect 1  # Uses one-tolerant
+
+# Inspect with dialect
+cargo run --bin copybook -- inspect schema.cpy --dialect 0
+```
+
+### Library API
+
+```rust
+use copybook_core::{parse_copybook_with_options, ParseOptions};
+use copybook_core::dialect::Dialect;
+
+// Parse with specific dialect
+let options = ParseOptions {
+    dialect: Dialect::ZeroTolerant,  // IBM Enterprise mode
+    ..ParseOptions::default()
+};
+let schema = parse_copybook_with_options(&copybook_text, &options)?;
+
+// Available dialects
+let normative = Dialect::Normative;     // Default: min_count enforced
+let zero_tolerant = Dialect::ZeroTolerant;  // min_count ignored
+let one_tolerant = Dialect::OneTolerant;   // min_count clamped to 1
+```
+
+### COBOL Copybook Examples
+
+**Example 1: ODO with min_count > 0**
+```cobol
+       01  RECORD.
+           05  COUNTER      PIC 9(3).
+           05  ITEMS        OCCURS 1 TO 10 DEPENDING ON COUNTER
+                            PIC X(10).
+```
+
+Behavior by dialect:
+- `--dialect n`: Counter must be 1-10 (min_count=1 enforced)
+- `--dialect 0`: Counter can be 0-10 (min_count ignored)
+- `--dialect 1`: Counter must be 1-10 (min_count=1 enforced)
+
+**Example 2: ODO with min_count = 0**
+```cobol
+       01  RECORD.
+           05  COUNTER      PIC 9(3).
+           05  ITEMS        OCCURS 0 TO 10 DEPENDING ON COUNTER
+                            PIC X(10).
+```
+
+Behavior by dialect:
+- `--dialect n`: Counter can be 0-10 (min_count=0 allowed)
+- `--dialect 0`: Counter can be 0-10 (min_count=0 allowed)
+- `--dialect 1`: Counter must be 1-10 (min_count raised to 1)
+
+### Available on All Commands
+
+The `--dialect` flag is supported on all copybook-processing commands:
+- `parse` - Affects schema parsing and layout validation
+- `inspect` - Affects layout display and field offset calculation
+- `decode` - Affects ODO bounds checking during data decoding
+- `encode` - Affects ODO bounds validation during encoding
+- `verify` - Affects data validation against schema
+
+### Design Documentation
+
+See `docs/internal/features/d0_dialect_lever_contract.md` for complete specification and implementation details.
 
 ## Edited PIC Support (Phase E1/E2)
 

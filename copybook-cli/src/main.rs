@@ -124,6 +124,29 @@ pub struct MetricsOpts {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+enum DialectPreference {
+    /// Normative dialect - `min_count` is strictly enforced
+    #[value(name = "n")]
+    N,
+    /// Zero-tolerant dialect - `min_count` is ignored
+    #[value(name = "0")]
+    Zero,
+    /// One-tolerant dialect - `min_count` is clamped to 1
+    #[value(name = "1")]
+    One,
+}
+
+impl From<DialectPreference> for copybook_core::dialect::Dialect {
+    fn from(value: DialectPreference) -> Self {
+        match value {
+            DialectPreference::N => Self::Normative,
+            DialectPreference::Zero => Self::ZeroTolerant,
+            DialectPreference::One => Self::OneTolerant,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
 enum ZonedEncodingPreference {
     /// Prefer default zero policy based on target code page.
     #[value(alias = "preferred-zero")]
@@ -164,6 +187,9 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
+        /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
+        #[arg(long, value_enum)]
+        dialect: Option<DialectPreference>,
     },
     /// Inspect copybook and show human-readable layout
     #[command(
@@ -181,6 +207,9 @@ enum Commands {
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
+        /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
+        #[arg(long, value_enum)]
+        dialect: Option<DialectPreference>,
     },
     /// Decode binary data to JSONL
     #[command(
@@ -244,6 +273,9 @@ Field Projection:\n\
         /// Example: prefer EBCDIC 'F' zero punch for zero.
         #[arg(long, value_enum, default_value_t = ZonedEncodingPreference::Preferred)]
         preferred_zoned_encoding: ZonedEncodingPreference,
+        /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
+        #[arg(long, value_enum)]
+        dialect: Option<DialectPreference>,
         /// Select specific fields to include in output (comma-separated or multiple flags)
         /// Automatically includes ODO counters and parent groups for structure
         #[arg(long, value_name = "FIELD[,FIELD...]")]
@@ -301,6 +333,9 @@ Field Projection:\n\
         /// Force zoned encoding format (ascii|ebcdic), ignoring preserved/preferred.
         #[arg(long, value_enum)]
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+        /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
+        #[arg(long, value_enum)]
+        dialect: Option<DialectPreference>,
         /// Select specific fields to validate during encoding (comma-separated or multiple flags)
         /// Automatically includes ODO counters and parent groups for structure
         #[arg(long, value_name = "FIELD[,FIELD...]")]
@@ -363,6 +398,9 @@ Field Projection:
         /// Disable inline comments (*>) - enforce COBOL-85 compatibility
         #[arg(long)]
         strict_comments: bool,
+        /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
+        #[arg(long, value_enum)]
+        dialect: Option<DialectPreference>,
         /// Select specific fields to validate (comma-separated or multiple flags)
         /// Automatically includes ODO counters and parent groups for structure
         #[arg(long, value_name = "FIELD[,FIELD...]")]
@@ -532,19 +570,39 @@ fn run() -> anyhow::Result<ExitCode> {
             output,
             strict,
             strict_comments,
-        } => (
-            crate::commands::parse::run(&copybook, output, strict, strict_comments),
-            "parse",
-        ),
+            dialect,
+        } => {
+            let effective_dialect = effective_dialect(dialect);
+            (
+                crate::commands::parse::run(
+                    &copybook,
+                    output,
+                    strict,
+                    strict_comments,
+                    effective_dialect,
+                ),
+                "parse",
+            )
+        }
         Commands::Inspect {
             copybook,
             codepage,
             strict,
             strict_comments,
-        } => (
-            crate::commands::inspect::run(&copybook, codepage, strict, strict_comments),
-            "inspect",
-        ),
+            dialect,
+        } => {
+            let effective_dialect = effective_dialect(dialect);
+            (
+                crate::commands::inspect::run(
+                    &copybook,
+                    codepage,
+                    strict,
+                    strict_comments,
+                    effective_dialect,
+                ),
+                "inspect",
+            )
+        }
         Commands::Decode {
             copybook,
             input,
@@ -563,31 +621,36 @@ fn run() -> anyhow::Result<ExitCode> {
             strict_comments,
             preserve_zoned_encoding,
             preferred_zoned_encoding: preferred_zoned_encoding_cli,
+            dialect,
             select,
-        } => (
-            crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
-                copybook: &copybook,
-                input: &input,
-                output: &output,
-                format,
-                codepage,
-                json_number,
-                strict,
-                max_errors,
-                fail_fast,
-                emit_filler,
-                emit_meta,
-                emit_raw,
-                on_decode_unmappable,
-                threads,
-                strict_comments,
-                preserve_zoned_encoding,
-                preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
-                strict_policy,
-                select: &select,
-            }),
-            "decode",
-        ),
+        } => {
+            let effective_dialect = effective_dialect(dialect);
+            (
+                crate::commands::decode::run(&crate::commands::decode::DecodeArgs {
+                    copybook: &copybook,
+                    input: &input,
+                    output: &output,
+                    format,
+                    codepage,
+                    json_number,
+                    strict,
+                    max_errors,
+                    fail_fast,
+                    emit_filler,
+                    emit_meta,
+                    emit_raw,
+                    on_decode_unmappable,
+                    threads,
+                    strict_comments,
+                    preserve_zoned_encoding,
+                    preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
+                    strict_policy,
+                    dialect: effective_dialect.into(),
+                    select: &select,
+                }),
+                "decode",
+            )
+        }
         Commands::Encode {
             copybook,
             input,
@@ -603,29 +666,34 @@ fn run() -> anyhow::Result<ExitCode> {
             coerce_numbers,
             strict_comments,
             zoned_encoding_override,
+            dialect,
             select,
-        } => (
-            crate::commands::encode::run(
-                &copybook,
-                &input,
-                &output,
-                &crate::commands::encode::EncodeCliOptions {
-                    format,
-                    codepage,
-                    use_raw,
-                    bwz_encode,
-                    strict,
-                    max_errors,
-                    fail_fast,
-                    threads,
-                    coerce_numbers,
-                    strict_comments,
-                    zoned_encoding_override,
-                    select: &select,
-                },
-            ),
-            "encode",
-        ),
+        } => {
+            let effective_dialect = effective_dialect(dialect);
+            (
+                crate::commands::encode::run(
+                    &copybook,
+                    &input,
+                    &output,
+                    &crate::commands::encode::EncodeCliOptions {
+                        format,
+                        codepage,
+                        use_raw,
+                        bwz_encode,
+                        strict,
+                        max_errors,
+                        fail_fast,
+                        threads,
+                        coerce_numbers,
+                        strict_comments,
+                        zoned_encoding_override,
+                        dialect: effective_dialect.into(),
+                        select: &select,
+                    },
+                ),
+                "encode",
+            )
+        }
         #[cfg(feature = "audit")]
         Commands::Audit { audit_command } => {
             // Run audit command asynchronously
@@ -647,8 +715,10 @@ fn run() -> anyhow::Result<ExitCode> {
             max_errors,
             sample,
             strict_comments,
+            dialect,
             select,
         } => {
+            let effective_dialect = effective_dialect(dialect);
             let value = max_errors.unwrap_or(10);
             let normalized_max_errors = u32::try_from(value).map_err(|_| {
                 anyhow!(
@@ -664,6 +734,7 @@ fn run() -> anyhow::Result<ExitCode> {
                 max_errors: normalized_max_errors,
                 sample: sample.unwrap_or(5),
                 strict_comments,
+                dialect: effective_dialect.into(),
                 select: &select,
             };
             (
@@ -1106,6 +1177,24 @@ fn effective_strict_policy(cli: &Cli) -> bool {
         false
     } else {
         env_flag("COPYBOOK_STRICT_POLICY")
+    }
+}
+
+/// Get effective dialect from CLI flag or environment variable
+///
+/// Precedence: CLI flag > `COPYBOOK_DIALECT` env var > default (Normative)
+fn effective_dialect(cli_dialect: Option<DialectPreference>) -> DialectPreference {
+    if let Some(dialect) = cli_dialect {
+        return dialect;
+    }
+    if let Ok(env_val) = std::env::var("COPYBOOK_DIALECT") {
+        match env_val.trim().to_ascii_lowercase().as_str() {
+            "0" => DialectPreference::Zero,
+            "1" => DialectPreference::One,
+            _ => DialectPreference::N, // Default to normative on invalid value
+        }
+    } else {
+        DialectPreference::N // Default to normative
     }
 }
 

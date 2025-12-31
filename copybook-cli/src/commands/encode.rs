@@ -28,6 +28,7 @@ pub struct EncodeCliOptions<'a> {
     pub coerce_numbers: bool,
     pub strict_comments: bool,
     pub zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+    pub dialect: copybook_core::dialect::Dialect,
     pub select: &'a [String],
 }
 
@@ -53,6 +54,7 @@ pub fn run(
         strict_comments: options.strict_comments,
         codepage: &options.codepage.to_string(),
         emit_filler: false,
+        dialect: options.dialect,
     });
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 

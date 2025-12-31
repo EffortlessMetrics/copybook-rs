@@ -56,6 +56,7 @@ pub struct VerifyOptions<'a> {
     pub max_errors: u32,
     pub sample: u32,
     pub strict_comments: bool,
+    pub dialect: copybook_core::dialect::Dialect,
     pub select: &'a [String],
 }
 
@@ -81,6 +82,7 @@ pub fn run(
         strict_comments: opts.strict_comments,
         codepage: &opts.codepage.to_string(),
         emit_filler: false,
+        dialect: opts.dialect,
     });
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 

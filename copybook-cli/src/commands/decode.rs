@@ -36,6 +36,7 @@ pub struct DecodeArgs<'a> {
     pub preserve_zoned_encoding: bool,
     pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
     pub strict_policy: bool,
+    pub dialect: copybook_core::dialect::Dialect,
     pub select: &'a [String],
 }
 
@@ -95,6 +96,7 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         strict_comments: args.strict_comments,
         codepage: &args.codepage.to_string(),
         emit_filler: args.emit_filler,
+        dialect: args.dialect,
     });
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 

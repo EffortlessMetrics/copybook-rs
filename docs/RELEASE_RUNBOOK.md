@@ -50,6 +50,15 @@ cargo publish -p copybook-core --dry-run
 
 The repository publish workflow (`.github/workflows/publish.yml`) follows this order.
 
+**Note (dry-run limitations for workspace crates)**: `cargo publish --dry-run` for `copybook-codec` and `copybook-cli` may fail prior to publishing their dependencies because verification builds crates in isolation. This is expected behavior for workspace crates. To inspect tarball contents without verification, use:
+
+```bash
+cargo package -p copybook-codec --no-verify
+cargo package -p copybook-cli --no-verify
+```
+
+The `--no-verify` flag skips the build verification step and allows inspection of the packaged tarball. This is useful for reviewing `package.include` settings and verifying that the correct files will be included in the published crate.
+
 ---
 
 ## 4) Tag + Publish

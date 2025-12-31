@@ -12,6 +12,7 @@ pub fn run(
     output: Option<PathBuf>,
     strict: bool,
     strict_comments: bool,
+    dialect: crate::DialectPreference,
 ) -> anyhow::Result<ExitCode> {
     info!("Parsing copybook: {:?}", copybook);
 
@@ -29,6 +30,7 @@ pub fn run(
         codepage: "cp037".to_string(),
         emit_filler: false,
         allow_inline_comments: !strict_comments,
+        dialect: dialect.into(),
     };
     let schema = parse_copybook_with_options(&copybook_text, &options)?;
 

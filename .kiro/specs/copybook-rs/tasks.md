@@ -30,8 +30,8 @@
   - Create tokenizer using logos for COBOL tokens (levels, PIC, USAGE, keywords)
   - Handle column-7 continuation (- indicator only), comments (* and *>), sequence areas
   - Parse PIC clauses: X(n), 9(n)[V9(m)], optional S for signed
-  - Detect and reject edited PICs with CBKP051_UNSUPPORTED_EDITED_PIC
-  - Reject SIGN LEADING/TRAILING [SEPARATE] as edited PIC → CBKP051_UNSUPPORTED_EDITED_PIC - NORMATIVE
+  - Parse edited PICs into EditedNumeric FieldKind (E1/E2/E3 phases supported); only Space (B) insertion returns CBKP051_UNSUPPORTED_EDITED_PIC
+  - Reject SIGN LEADING/TRAILING [SEPARATE] → CBKP011_UNSUPPORTED_CLAUSE - NORMATIVE
   - Implement continuation join: strip trailing/leading spaces, preserve interior whitespace - NORMATIVE
   - _Requirements: R1.1, R1.2, R1.8_
 

@@ -333,7 +333,7 @@ The following patterns are explicitly NOT supported in v0.5.0 and should return 
 
 | Code | Description | Severity | Usage |
 |------|-------------|----------|-------|
-| `CBKP051_EDITED_PIC_UNSUPPORTED_CLAUSE` | Unsupported clause in edited PIC | Error | When encountering unsupported clauses |
+| `CBKP051_UNSUPPORTED_EDITED_PIC` | Unsupported edited PIC token (Space B only) | Error | When encountering Space (B) insertion |
 
 ---
 

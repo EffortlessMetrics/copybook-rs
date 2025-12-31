@@ -32,7 +32,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **Encoding/decoding**: Deterministic conversion between COBOL records and JSONL/structured data
 - **Enterprise error handling**: Stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*) with contextual metadata
 - **Field projection (`--select`)**: Selective field encoding/decoding with ODO auto-dependency and RENAMES alias resolution (R1-R3)
-- **Edited PIC support (E1/E2)**: Parse and decode edited numeric PICTURE clauses (ZZZ9, $ZZ,ZZZ.99, sign editing); encode planned for v0.5.0
+- **Edited PIC support (E1/E2/E3)**: Parse, decode, and encode edited numeric PICTURE clauses (ZZZ9, $ZZ,ZZZ.99, sign editing, CR/DB, currency, asterisk fill)
 - **Memory-aware streaming**: Streaming I/O architecture with bounded memory; real-world telemetry stays below 256 MiB during decode/encode runs
 
 ### **Quality Signals**
@@ -805,7 +805,7 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKP001_SYNTAX`: Copybook syntax errors
 - `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Unsupported edited PIC token (Space `B` insertion)
 
 ### Schema Validation Errors (CBKS*)
 
@@ -942,7 +942,7 @@ cargo fmt --all
 
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set, but known limitations mean cautious adoption is recommended:
 
-- ⚠️ **Feature Coverage**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, and RENAMES (66-level) remain unsupported; Level-88 condition values fully supported
+- ⚠️ **Feature Coverage**: COMP-1/COMP-2, SIGN SEPARATE, and nested ODOs remain unsupported; Edited PIC (E1/E2/E3), RENAMES (R1-R3), and Level-88 condition values are fully supported
 - ⚠️ **Performance Variance**: Performance governance is receipt-based. See `scripts/bench/perf.json` for current measurements and [`docs/PERFORMANCE_GOVERNANCE.md`](docs/PERFORMANCE_GOVERNANCE.md) for governance policy. Historical performance targets are quarantined in [`docs/HISTORICAL_PERFORMANCE.md`](docs/HISTORICAL_PERFORMANCE.md).
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management, comparison, and validation commands
 - ✅ **Quality Signals**: Release gate is green; zero unsafe code; comprehensive error taxonomy including CBKR* family

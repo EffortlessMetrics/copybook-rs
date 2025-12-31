@@ -438,7 +438,7 @@ impl SmallDecimal {
             .and_then(|v| v.checked_add(fractional_value))
             .ok_or_else(|| {
                 Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    ErrorCode::CBKE510_NUMERIC_OVERFLOW,
                     "Numeric value too large - would cause overflow",
                 )
             })
@@ -1477,7 +1477,7 @@ pub fn encode_zoned_decimal_with_format_and_policy(
 
     if digit_str.len() > width {
         return Err(Error::new(
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
             format!("Value too large for {digits} digits"),
         ));
     }
@@ -1589,7 +1589,7 @@ pub fn encode_packed_decimal(
     let digits_usize = usize::from(digits);
     if unlikely(digit_count > digits_usize) {
         return Err(Error::new(
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
             format!("Value too large for {digits} digits"),
         ));
     }

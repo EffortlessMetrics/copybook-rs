@@ -681,7 +681,7 @@ pub fn encode_edited_numeric(
             | PicToken::Comma
             | PicToken::Slash
             | PicToken::Currency => {}
-            _ => {
+            PicToken::Space => {
                 return Err(Error::new(
                     ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
                     format!("Edited PIC token not supported in E3.6: {token:?}"),
@@ -930,7 +930,7 @@ pub fn encode_edited_numeric(
                     }
                 }
             }
-            _ => {
+            PicToken::Space => {
                 // Should have been caught by unsupported check
                 return Err(Error::new(
                     ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,

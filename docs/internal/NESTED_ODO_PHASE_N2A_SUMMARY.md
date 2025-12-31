@@ -156,7 +156,7 @@ With O5/O6 rejections now validated, the structural ODO story is complete:
 
 Suggested follow-up work:
 
-1. **Edited PIC Phase E1**: Parse and reject edited PIC clauses (CBKP051)
+1. ~~**Edited PIC Phase E1**: Parse and reject edited PIC clauses (CBKP051)~~ - ✅ Complete (E1/E2/E3 supported)
 2. **Field projection**: Implement `--select` in CLI decode via alias API
 3. **Parser enhancement**: Optional fix for single-digit OCCURS TO limitation
 

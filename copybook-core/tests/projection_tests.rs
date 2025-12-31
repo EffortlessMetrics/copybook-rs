@@ -485,3 +485,102 @@ fn test_projection_fingerprint_updated() {
     assert_ne!(projected.fingerprint, original_fingerprint);
     assert!(!projected.fingerprint.is_empty());
 }
+
+/// Test CBKS701_PROJECTION_INVALID_ODO: ODO array with non-existent counter
+#[test]
+fn test_projection_cbks701_invalid_odo_missing_counter() {
+    use copybook_core::schema::{Field, FieldKind, Occurs, Schema};
+
+    // Create a synthetic schema with ODO referencing a non-existent counter
+    let mut root = Field::new(1, "ROOT".to_string());
+    root.path = "ROOT".to_string();
+    root.kind = FieldKind::Group;
+
+    let mut odo_array = Field::new(5, "ITEMS".to_string());
+    odo_array.path = "ROOT.ITEMS".to_string();
+    odo_array.kind = FieldKind::Group;
+    odo_array.occurs = Some(Occurs::ODO {
+        min: 1,
+        max: 10,
+        counter_path: "NONEXISTENT-COUNTER".to_string(), // Non-existent counter
+    });
+
+    let mut item_field = Field::new(10, "ITEM-ID".to_string());
+    item_field.path = "ROOT.ITEMS.ITEM-ID".to_string();
+    item_field.kind = FieldKind::Alphanum { len: 5 };
+    item_field.len = 5;
+
+    odo_array.children = vec![item_field];
+    root.children = vec![odo_array];
+
+    let schema = Schema::from_fields(vec![root]);
+
+    // Attempt to project ITEMS without counter - should fail with CBKS701
+    let result = project_schema(&schema, &["ITEMS".to_string()]);
+
+    assert!(
+        result.is_err(),
+        "Expected CBKS701 error for missing counter"
+    );
+    if let Err(err) = result {
+        assert_eq!(
+            err.code,
+            ErrorCode::CBKS701_PROJECTION_INVALID_ODO,
+            "Expected CBKS701_PROJECTION_INVALID_ODO"
+        );
+        assert!(
+            err.message.contains("ITEMS"),
+            "Error should mention the ODO array"
+        );
+    }
+}
+
+/// Test CBKS702_PROJECTION_UNRESOLVED_ALIAS: RENAMES without resolved metadata
+#[test]
+fn test_projection_cbks702_unresolved_alias() {
+    use copybook_core::schema::{Field, FieldKind, Schema};
+
+    // Create a synthetic schema with RENAMES that has no resolved_renames
+    let mut root = Field::new(1, "ROOT".to_string());
+    root.path = "ROOT".to_string();
+    root.kind = FieldKind::Group;
+
+    let mut field1 = Field::new(5, "FIELD1".to_string());
+    field1.path = "ROOT.FIELD1".to_string();
+    field1.kind = FieldKind::Alphanum { len: 10 };
+    field1.len = 10;
+
+    // Create level-66 RENAMES without resolved_renames metadata
+    let mut alias = Field::new(66, "BROKEN-ALIAS".to_string());
+    alias.path = "ROOT.BROKEN-ALIAS".to_string();
+    alias.level = 66;
+    alias.kind = FieldKind::Renames {
+        from_field: "FIELD1".to_string(),
+        thru_field: "FIELD1".to_string(),
+    };
+    // Intentionally NOT setting resolved_renames - this simulates a broken alias
+    alias.resolved_renames = None;
+
+    root.children = vec![field1, alias];
+
+    let schema = Schema::from_fields(vec![root]);
+
+    // Attempt to project the broken alias - should fail with CBKS702
+    let result = project_schema(&schema, &["BROKEN-ALIAS".to_string()]);
+
+    assert!(
+        result.is_err(),
+        "Expected CBKS702 error for unresolved alias"
+    );
+    if let Err(err) = result {
+        assert_eq!(
+            err.code,
+            ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS,
+            "Expected CBKS702_PROJECTION_UNRESOLVED_ALIAS"
+        );
+        assert!(
+            err.message.contains("BROKEN-ALIAS"),
+            "Error should mention the alias name"
+        );
+    }
+}

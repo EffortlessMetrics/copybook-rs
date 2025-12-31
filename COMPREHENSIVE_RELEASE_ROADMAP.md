@@ -10,7 +10,7 @@ copybook-rs is currently at **Engineering Preview v0.4.0** with significant arch
 - ✅ **Code Quality**: Zero unsafe code, comprehensive error taxonomy, 840+ tests passing
 - ✅ **Security Infrastructure**: Enterprise-grade scanning, dependency auditing, compliance frameworks
 - ⚠️ **Performance**: Environment-specific results, COMP-3 targets missed, variance issues
-- ⚠️ **Feature Coverage**: Critical COBOL constructs unsupported (edited PIC encode, nested ODO)
+- ⚠️ **Feature Coverage**: Critical COBOL constructs unsupported (nested ODO); Edited PIC E1/E2/E3 fully supported
 - ❌ **Production Readiness**: Missing automation, incomplete enterprise features, technical debt
 
 ## Current State Analysis
@@ -50,7 +50,7 @@ copybook-rs is currently at **Engineering Preview v0.4.0** with significant arch
 - Feature matrix testing (comp3_fast, audit features)
 
 **Coverage Gaps**:
-- Edited PIC encoding (Phase E3) - planned v0.5.0
+- ~~Edited PIC encoding (Phase E3)~~ - ✅ Complete (E3.1-E3.6); only Space (`B`) insertion remains unsupported
 - RENAMES nested groups (R4-R6 scenarios)
 - COMP-1/COMP-2 floating-point support
 - SIGN SEPARATE clause implementation

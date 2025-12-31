@@ -64,15 +64,14 @@ The project is organized as a Cargo workspace with the following crates:
 ### Installation
 
 ```bash
-# Install from crates.io (v0.4.0)
-cargo install copybook-cli --version 0.4.0
-
-# Or build from source
+# Build from source (recommended during CI-off mode)
 git clone https://github.com/EffortlessMetrics/copybook-rs.git
 cd copybook-rs
-git checkout v0.4.0
+git checkout v0.4.1
 cargo build --release
 ```
+
+**Note**: crates.io publishing is pending. Internal/private distribution uses git tags. See [`docs/RELEASE_RUNBOOK.md`](docs/RELEASE_RUNBOOK.md) for packaging and distribution details.
 
 ### Basic Usage
 
@@ -862,6 +861,7 @@ See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for complete error reference
 - Receipts land in `scripts/bench/perf.json` via `just bench-json`, `bash scripts/bench.sh`, or `scripts\bench.bat`
 - Perf receipts are machine-readable and attached to pull requests as `perf-json` artifacts with 90-day retention
 - `bench-report` supports local receipt validation and baseline comparison; CI perf checks remain neutral/advisory in v0.4.0
+- **Receipt files are immutable after generation. Do not mutate `scripts/bench/perf.json` directly - regenerate from source.**
 
 ### Performance receipts (deterministic)
 
@@ -934,14 +934,16 @@ cargo fmt --all
 
 ### Project Status & Roadmap
 
-### **Current Status: Engineering Preview (v0.4.0)** ⚠️
+### **Current Status: Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)** ⚠️
 
 **Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
+
+**CI Mode**: Currently operating in CI-off mode with local gates and small PRs. See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state and implementation path.
 
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set, but known limitations mean cautious adoption is recommended:
 
 - ⚠️ **Feature Coverage**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE, nested ODOs, and RENAMES (66-level) remain unsupported; Level-88 condition values fully supported
-- ⚠️ **Performance Variance**: Measurements show environmental variance in WSL2; see perf workflow artifacts and `scripts/bench/perf.json` for current receipts (advisory-only policy per Issues #74, #75)
+- ⚠️ **Performance Variance**: Performance governance is receipt-based. See `scripts/bench/perf.json` for current measurements and [`docs/PERFORMANCE_GOVERNANCE.md`](docs/PERFORMANCE_GOVERNANCE.md) for governance policy. Historical performance targets are quarantined in [`docs/HISTORICAL_PERFORMANCE.md`](docs/HISTORICAL_PERFORMANCE.md).
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management, comparison, and validation commands
 - ✅ **Quality Signals**: Release gate is green; zero unsafe code; comprehensive error taxonomy including CBKR* family
 - ✅ **Interface Stability**: CLI and library APIs are production-ready; feature completeness remains in preview

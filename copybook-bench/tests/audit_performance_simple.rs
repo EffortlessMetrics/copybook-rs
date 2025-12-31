@@ -115,7 +115,7 @@ fn test_performance_regression_detection_scaffolding() {
     let copybook_text = r"
        01 TEST-RECORD.
            05 FIELD-1              PIC X(50).
-           05 FIELD-2              PIC 9(10) COMP-3.
+           05 FIELD-2              PIC S9(10) COMP-3.
            05 STATUS               PIC X(1).
                88 ACTIVE           VALUE 'A'.
     ";

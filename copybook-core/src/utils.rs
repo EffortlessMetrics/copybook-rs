@@ -398,30 +398,6 @@ pub mod safe_ops {
         }
     }
 
-    /// Branch prediction hint for common success cases
-    ///
-    /// PERFORMANCE OPTIMIZATION: Helps CPU branch predictor optimize hot paths
-    #[allow(clippy::inline_always)]
-    #[inline(always)]
-    #[allow(dead_code)]
-    fn likely(condition: bool) -> bool {
-        if condition {
-            true
-        } else {
-            // Mark error path as cold to optimize for success case
-            cold_path();
-            false
-        }
-    }
-
-    /// Mark error paths as cold for branch prediction optimization
-    #[cold]
-    #[inline(never)]
-    #[allow(dead_code)]
-    fn cold_path() {
-        // Empty function to hint that this path is unlikely
-    }
-
     /// Safely parse string as u16 with context
     ///
     /// Used for COBOL numeric field parsing where invalid digits could cause

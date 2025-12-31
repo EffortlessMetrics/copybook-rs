@@ -2,8 +2,8 @@
       *> Tests audit system performance tracking with large-scale data
        01 ENTERPRISE-PERFORMANCE-RECORD.
            05 PERFORMANCE-HEADER.
-               10 RECORD-ID              PIC 9(15) COMP-3.
-               10 PROCESSING-TIMESTAMP   PIC 9(15) COMP-3.
+               10 RECORD-ID              PIC S9(15) COMP-3.
+               10 PROCESSING-TIMESTAMP   PIC S9(15) COMP-3.
                10 BATCH-ID               PIC X(16).
                10 PROCESSOR-NODE-ID      PIC X(8).
            05 DISPLAY-HEAVY-SECTION.
@@ -30,14 +30,14 @@
                10 TOTAL-PAYMENTS-YTD     PIC S9(13)V99 COMP-3.
                10 TOTAL-PURCHASES-YTD    PIC S9(13)V99 COMP-3.
                10 TOTAL-FEES-YTD         PIC S9(11)V99 COMP-3.
-               10 REWARD-POINTS          PIC 9(12) COMP-3.
+               10 REWARD-POINTS          PIC S9(12) COMP-3.
                10 CASHBACK-AMOUNT        PIC S9(9)V99 COMP-3.
                10 CREDIT-SCORE           PIC 9(3) COMP-3.
            05 TRANSACTION-HISTORY.
                10 TRANSACTION-COUNT      PIC 9(3) COMP.
                10 TRANSACTIONS OCCURS 1 TO 100 TIMES
                        DEPENDING ON TRANSACTION-COUNT.
-                   15 TRANS-ID            PIC 9(15) COMP-3.
+                   15 TRANS-ID            PIC S9(15) COMP-3.
                    15 TRANS-DATE          PIC 9(8) COMP-3.
                    15 TRANS-AMOUNT        PIC S9(11)V99 COMP-3.
                    15 MERCHANT-NAME       PIC X(50).
@@ -47,14 +47,14 @@
                        88 CASH-ADVANCE     VALUE 'ADV'.
                        88 FEE              VALUE 'FEE'.
            05 AUDIT-PERFORMANCE-METRICS.
-               10 PROCESSING-START-TIME  PIC 9(15) COMP-3.
-               10 PROCESSING-END-TIME    PIC 9(15) COMP-3.
+               10 PROCESSING-START-TIME  PIC S9(15) COMP-3.
+               10 PROCESSING-END-TIME    PIC S9(15) COMP-3.
                10 FIELDS-PROCESSED       PIC 9(5) COMP.
                10 BYTES-PROCESSED        PIC 9(9) COMP-3.
                10 COMP3-FIELDS-COUNT     PIC 9(3) COMP.
                10 DISPLAY-FIELDS-COUNT   PIC 9(3) COMP.
                10 MEMORY-USAGE-KB        PIC 9(8) COMP-3.
-               10 CPU-TIME-MICROSEC      PIC 9(10) COMP-3.
+               10 CPU-TIME-MICROSEC      PIC S9(10) COMP-3.
                10 IO-OPERATIONS          PIC 9(6) COMP-3.
                10 CACHE-HITS             PIC 9(6) COMP-3.
                10 CACHE-MISSES           PIC 9(6) COMP-3.
@@ -65,5 +65,5 @@
                    88 VALIDATION-WARNING VALUE 'W'.
                10 ERROR-COUNT            PIC 9(3) COMP.
                10 WARNING-COUNT          PIC 9(3) COMP.
-               10 CHECKSUM               PIC 9(15) COMP-3.
+               10 CHECKSUM               PIC S9(15) COMP-3.
                10 HASH-VALUE             PIC X(64).

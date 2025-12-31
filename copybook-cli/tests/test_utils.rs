@@ -49,6 +49,14 @@ pub fn fixture_path(relative_path: &str) -> TestResult<PathBuf> {
     Ok(find_workspace_root()?.join("fixtures").join(relative_path))
 }
 
+/// Get the path to a test-data file relative to workspace root
+pub fn test_data_path(relative_path: &str) -> PathBuf {
+    find_workspace_root()
+        .expect("Failed to find workspace root")
+        .join("test-data")
+        .join(relative_path)
+}
+
 /// Create a copybook command with standard fixed format and CP037 codepage args
 #[must_use]
 pub fn copybook_cmd(args: &[&str]) -> Command {
@@ -59,6 +67,12 @@ pub fn copybook_cmd(args: &[&str]) -> Command {
         .arg("--codepage")
         .arg("cp037");
     cmd
+}
+
+/// Create a copybook command without any pre-configured arguments
+#[must_use]
+pub fn bin() -> Command {
+    cargo_bin_cmd!("copybook")
 }
 
 /// Convert an `Option<T>` into a [`TestResult`] with a helpful error message.

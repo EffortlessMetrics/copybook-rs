@@ -17,6 +17,8 @@ Criteria → Risks/Mitigations.
 
 | Commit/PR | Feature | Impact |
 |-----------|---------|--------|
+| WIP | **E3.2-E3.6 Edited PIC Encoding** | Full encode support: CR/DB, commas, asterisk, currency (115 new tests) |
+| WIP | **RENAMES Codec** (#110) | R1-R3 decode/encode with 7 codec-layer tests |
 | `976ca0f` | **E3.1 Edited PIC Encoding** | Numeric field encoding with Z-editing, decimal point, basic sign |
 | `a9609af` | **D0 Dialect Lever Contract** | `Dialect::Strict`/`Tolerant` with 929 lines of tests |
 | PR #172 | **N1 Nested ODO Design** | O5/O6 rejection with `CBKP022`/`CBKP023` error codes |
@@ -24,7 +26,7 @@ Criteria → Risks/Mitigations.
 | PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
 | PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
 
-**Test Status**: 1015 passing, 60 skipped (nextest)
+**Test Status**: 1135+ passing (cargo test --workspace)
 
 ---
 
@@ -32,14 +34,14 @@ Criteria → Risks/Mitigations.
 
 | Gap | Status | Effort | Blocker |
 |-----|--------|--------|---------|
-| **E3.2-E3.6** Edited PIC encode | 🔄 Ready | 570-830 LOC | E3.4 algorithm refactor |
-| **D2** Dialect CLI | ✅ Complete | - | None (already shipped) |
-| **RENAMES codec** (#110) | 🔄 Ready | 2-3 PD | None |
+| **E3.2-E3.6** Edited PIC encode | ✅ Complete | - | None |
+| **D0-D4** Dialect lever | ✅ Complete | - | None (all shipped) |
+| **RENAMES codec** (#110) | ✅ Complete | - | None (R1-R3 implemented) |
 | **Determinism CI** (#112 Phase 3) | ✅ Ready | 0.5 PD | CI-off mode |
 | **Quality gates** (#97-100) | ⏳ Blocked | 6-8 weeks | CI-off mode |
 | **Benchmark container** (#113) | ✅ Complete | - | None (close issue) |
 
-**Issues to close**: #113 (benchmark container fully deployed)
+**Issues to close**: #113 (benchmark container), #51 (dialect lever), #110 (RENAMES codec)
 
 ---
 
@@ -140,7 +142,7 @@ refresh, bench-report CLI
 
 ### Deliverables
 
-1. **Edited PIC E3 encode** — **🔄 IN PROGRESS**
+1. **Edited PIC E3 encode** — **✅ COMPLETE**
 
    * **✅ E3.0 — Contract + Test Matrix PR** (docs-only) — **COMPLETED**
      * ✅ Define supported patterns table (sign placement, Z/0, decimal point,
@@ -151,23 +153,23 @@ refresh, bench-report CLI
      * ✅ Scope: digit placement, decimal point, sign placement
      * ✅ Tests: 920+ lines of golden fixtures for representative formats
      * ✅ Implemented: `encode_edited_numeric()` in copybook-codec
-   * **E3.2 — Sign Editing (+/-)** (leading/trailing)
-     * Scope: sign placement rules, CR/DB formatting
-     * Tests: fixtures for positive/negative signs
-   * **E3.3 — CR/DB** (currency symbols)
-     * Scope: `$` currency, comma grouping, `*` fill
-     * Tests: fixtures for currency formats
-   * **E3.4 — Commas & Separators** (`,`, `/`, `.`, spaces)
-     * Scope: comma placement, decimal point handling
-     * Tests: fixtures for comma placement
-   * **E3.5 — Asterisk Fill (`*`)** (check protection)
-     * Scope: asterisk fill for zero values
-     * Tests: fixtures for check protection behavior
-   * **E3.6 — Currency Symbols** (`$`, floating currency)
-     * Scope: currency symbol placement
-     * Tests: fixtures for currency placement
+   * **✅ E3.2 — Sign Editing (+/-)** (leading/trailing) — **COMPLETED**
+     * ✅ Scope: trailing plus/minus sign encoding
+     * ✅ Tests: 24 test cases for sign patterns
+   * **✅ E3.3 — CR/DB** (credit/debit indicators) — **COMPLETED**
+     * ✅ Scope: CR/DB sign indicators (2-char trailing)
+     * ✅ Tests: 20 test cases for credit/debit patterns
+   * **✅ E3.4 — Commas & Separators** (`,`, `/`) — **COMPLETED**
+     * ✅ Scope: comma placement, slash for dates
+     * ✅ Tests: 26 test cases for separator patterns
+   * **✅ E3.5 — Asterisk Fill (`*`)** (check protection) — **COMPLETED**
+     * ✅ Scope: asterisk fill for leading zeros
+     * ✅ Tests: 28 test cases for check protection
+   * **✅ E3.6 — Currency Symbols** (`$`, fixed position) — **COMPLETED**
+     * ✅ Scope: fixed-position currency symbol
+     * ✅ Tests: 17 test cases for currency patterns
 
-2. **Dialect lever** (#51) — **🔄 IN PROGRESS**
+2. **Dialect lever** (#51) — **✅ COMPLETE**
 
    * **✅ D.0 — Config Schema + Contract** — **COMPLETED** (commit a9609af)
      * ✅ Define config key and allowed values (`Dialect::Strict`, `Dialect::Tolerant`)

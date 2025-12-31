@@ -6,7 +6,7 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_codec::{decode_record, encode_record, DecodeOptions, EncodeOptions, Codepage};
+use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, decode_record, encode_record};
 use copybook_core::parse_copybook;
 use serde_json::Value;
 
@@ -178,7 +178,9 @@ fn test_renames_r2_group_decode() {
     let obj = result.as_object().expect("result is object");
 
     // Check that CUSTOMER-HEADER field exists
-    let header_value = obj.get("CUSTOMER-HEADER").expect("CUSTOMER-HEADER field exists");
+    let header_value = obj
+        .get("CUSTOMER-HEADER")
+        .expect("CUSTOMER-HEADER field exists");
     let header_str = header_value.as_str().expect("CUSTOMER-HEADER is string");
 
     // Should contain the full 25 bytes
@@ -200,8 +202,8 @@ fn test_renames_ebcdic_decode() {
     // EBCDIC for "HELLO" = C8 C5 D3 D3 D6
     // EBCDIC for "WORLD" = E6 D6 D9 D3 C4
     let data = vec![
-        0xC8, 0xC5, 0xD3, 0xD3, 0xD6,  // HELLO
-        0xE6, 0xD6, 0xD9, 0xD3, 0xC4,  // WORLD
+        0xC8, 0xC5, 0xD3, 0xD3, 0xD6, // HELLO
+        0xE6, 0xD6, 0xD9, 0xD3, 0xC4, // WORLD
     ];
 
     let options = DecodeOptions::new().with_codepage(Codepage::CP037);

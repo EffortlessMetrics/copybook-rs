@@ -664,21 +664,27 @@ pub fn encode_edited_numeric(
     // Parse the input value
     let parsed = parse_numeric_value(value)?;
 
-    // Check for unsupported tokens (E3.2 supports trailing signs)
+    // Check for unsupported tokens (E3.6 supports currency)
     for token in pattern {
         match token {
             PicToken::Digit
             | PicToken::ZeroSuppress
             | PicToken::ZeroInsert
+            | PicToken::AsteriskFill
             | PicToken::DecimalPoint
             | PicToken::LeadingPlus
             | PicToken::LeadingMinus
             | PicToken::TrailingPlus
-            | PicToken::TrailingMinus => {}
+            | PicToken::TrailingMinus
+            | PicToken::Credit
+            | PicToken::Debit
+            | PicToken::Comma
+            | PicToken::Slash
+            | PicToken::Currency => {}
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-                    format!("Edited PIC token not supported in E3.2: {token:?}"),
+                    format!("Edited PIC token not supported in E3.6: {token:?}"),
                 ));
             }
         }
@@ -746,7 +752,10 @@ pub fn encode_edited_numeric(
     let mut after_decimal = false;
     for token in pattern {
         match token {
-            PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert => {
+            PicToken::Digit
+            | PicToken::ZeroSuppress
+            | PicToken::ZeroInsert
+            | PicToken::AsteriskFill => {
                 if after_decimal {
                     frac_positions += 1;
                 } else {
@@ -770,21 +779,36 @@ pub fn encode_edited_numeric(
         ));
     }
 
+    // Calculate output length (CR and DB are 2 characters each, others are 1)
+    let output_len: usize = pattern
+        .iter()
+        .map(|token| match token {
+            PicToken::Credit | PicToken::Debit => 2,
+            _ => 1,
+        })
+        .sum();
+
     // Build output string by filling from right to left
-    let mut result: Vec<char> = vec![' '; pattern.len()];
+    let mut result: Vec<char> = vec![' '; output_len];
     let mut int_digit_idx = int_digits; // Start from the end
     let mut frac_digit_idx = decimal_places; // Start from the end
 
     // Fill from right to left
-    for (i, token) in pattern.iter().enumerate().rev() {
+    // We need to track character position separately from token index
+    let mut char_pos = output_len;
+    for (token_idx, token) in pattern.iter().enumerate().rev() {
+        // Determine how many characters this token occupies
+        let token_width = match token {
+            PicToken::Credit | PicToken::Debit => 2,
+            _ => 1,
+        };
+        char_pos -= token_width;
+
         match token {
             PicToken::Digit => {
-                let digit = if i < pattern.len() && pattern[i] == PicToken::DecimalPoint {
-                    // Should not happen
-                    '0'
-                } else {
+                let digit = {
                     // Check if this position is before or after decimal
-                    let is_after_decimal = pattern[..i].contains(&PicToken::DecimalPoint);
+                    let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
                     if is_after_decimal && frac_digit_idx > 0 {
                         frac_digit_idx -= 1;
                         char::from_digit(
@@ -800,50 +824,111 @@ pub fn encode_edited_numeric(
                         '0'
                     }
                 };
-                result[i] = digit;
+                result[char_pos] = digit;
             }
             PicToken::ZeroSuppress => {
-                let is_after_decimal = pattern[..i].contains(&PicToken::DecimalPoint);
+                let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
                 if is_after_decimal && frac_digit_idx > 0 {
                     frac_digit_idx -= 1;
                     let d = adjusted_digits[int_digits + frac_digit_idx];
-                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
                 } else if !is_after_decimal && int_digit_idx > 0 {
                     int_digit_idx -= 1;
                     let d = adjusted_digits[int_digit_idx];
-                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
                 } else {
-                    result[i] = ' ';
+                    result[char_pos] = ' ';
                 }
             }
             PicToken::ZeroInsert => {
-                let is_after_decimal = pattern[..i].contains(&PicToken::DecimalPoint);
+                let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
                 if is_after_decimal && frac_digit_idx > 0 {
                     frac_digit_idx -= 1;
                     let d = adjusted_digits[int_digits + frac_digit_idx];
-                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
                 } else if !is_after_decimal && int_digit_idx > 0 {
                     int_digit_idx -= 1;
                     let d = adjusted_digits[int_digit_idx];
-                    result[i] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
                 } else {
-                    result[i] = '0';
+                    result[char_pos] = '0';
+                }
+            }
+            PicToken::AsteriskFill => {
+                let is_after_decimal = pattern[..token_idx].contains(&PicToken::DecimalPoint);
+                if is_after_decimal && frac_digit_idx > 0 {
+                    frac_digit_idx -= 1;
+                    let d = adjusted_digits[int_digits + frac_digit_idx];
+                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                } else if !is_after_decimal && int_digit_idx > 0 {
+                    int_digit_idx -= 1;
+                    let d = adjusted_digits[int_digit_idx];
+                    result[char_pos] = char::from_digit(u32::from(d), 10).unwrap_or('0');
+                } else {
+                    result[char_pos] = '*';
                 }
             }
             PicToken::DecimalPoint => {
-                result[i] = '.';
+                result[char_pos] = '.';
+            }
+            PicToken::Comma => {
+                // Commas are always displayed, but become spaces during zero suppression
+                // Check if there are any significant digits to the right (already filled)
+                // or if the value is not zero
+                let has_significant_right = result[char_pos + 1..]
+                    .iter()
+                    .any(|&ch| ch != ' ' && ch != '0' && ch != ',' && ch != '.');
+                result[char_pos] = if !is_zero || has_significant_right {
+                    ','
+                } else {
+                    ' '
+                };
+            }
+            PicToken::Slash => {
+                // Slashes are always displayed (date format use case)
+                result[char_pos] = '/';
+            }
+            PicToken::Currency => {
+                // Currency symbol ($) is always displayed at its pattern position
+                result[char_pos] = '$';
             }
             PicToken::LeadingPlus | PicToken::TrailingPlus => {
-                result[i] = match effective_sign {
+                result[char_pos] = match effective_sign {
                     Sign::Positive => '+',
                     Sign::Negative => '-',
                 };
             }
             PicToken::LeadingMinus | PicToken::TrailingMinus => {
-                result[i] = match effective_sign {
+                result[char_pos] = match effective_sign {
                     Sign::Positive => ' ',
                     Sign::Negative => '-',
                 };
+            }
+            PicToken::Credit => {
+                // CR occupies 2 characters: "CR" for negative, "  " for positive
+                match effective_sign {
+                    Sign::Positive => {
+                        result[char_pos] = ' ';
+                        result[char_pos + 1] = ' ';
+                    }
+                    Sign::Negative => {
+                        result[char_pos] = 'C';
+                        result[char_pos + 1] = 'R';
+                    }
+                }
+            }
+            PicToken::Debit => {
+                // DB occupies 2 characters: "DB" for negative, "  " for positive
+                match effective_sign {
+                    Sign::Positive => {
+                        result[char_pos] = ' ';
+                        result[char_pos + 1] = ' ';
+                    }
+                    Sign::Negative => {
+                        result[char_pos] = 'D';
+                        result[char_pos + 1] = 'B';
+                    }
+                }
             }
             _ => {
                 // Should have been caught by unsupported check
@@ -1078,7 +1163,7 @@ mod tests {
 
     #[test]
     fn test_encode_unsupported_token() {
-        let pattern = tokenize_edited_pic("999CR").unwrap();
+        let pattern = tokenize_edited_pic("999B").unwrap();
         let result = encode_edited_numeric("123", &pattern, 0, false);
         assert!(result.is_err());
         assert!(matches!(

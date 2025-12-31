@@ -27,7 +27,7 @@
 | COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_property_tests.rs` (512+ property cases), `comp3_format_verification.rs`, `decimal_edge_cases.rs` (9 tests) | Nibble sign processing, edge cases, overflow/underflow |
 | BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs`, `binary_roundtrip_fidelity_tests.rs` (11 tests) | Various widths: 1/2/4/8 bytes, signed/unsigned |
 | COMP-1/COMP-2 (`comp-1-comp-2`) | ❌ Not Supported | N/A | Single/double float - by design, not implemented |
-| Edited PIC (`edited-pic`) | ⚠️ **Partially Supported (E1/E2/E3.1)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests), `edited_pic_encode_e3_tests.rs` (672 lines) | **E1**: Parse ✅ **E2**: Decode ✅ **E3.1**: Basic Encode ✅ **E3.2-E3.6**: ⏳ v0.5.0 (see Edited PIC section below) |
+| Edited PIC (`edited-pic`) | ⚠️ **Partially Supported (E1/E2/E3.1-E3.2)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests), `edited_pic_encode_e3_tests.rs` (672 lines) | **E1**: Parse ✅ **E2**: Decode ✅ **E3.1**: Basic Encode ✅ **E3.2**: Trailing Signs ✅ **E3.3-E3.6**: ⏳ v0.5.0 (see Edited PIC section below) |
 
 ## Structural Features
 
@@ -41,7 +41,7 @@
 | BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
 | Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
 | RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | 30+ tests across 5 test suites (parser, hierarchy, resolver, schema API) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
-| Dialect Lever (`dialect`) | ✅ Fully Supported | `dialect_d1_tests.rs` (27 tests, 581 lines), `dialect_cli_d2_tests.rs` (11 tests, 275 lines) | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var |
+| Dialect Lever (`dialect`) | ✅ Fully Supported (D0-D4) | `dialect_d1_tests.rs` (27 tests, 581 lines), `dialect_cli_d2_tests.rs` (11 tests, 275 lines) | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var; D0 contract complete (commit a9609af) |
 
 ## Sign Handling
 
@@ -77,7 +77,8 @@
 | **E1: Parse + Schema** | ✅ Supported | - | `edited_pic_e1_tests.rs` (15 tests) |
 | **E2: Decode (subset)** | ✅ Supported | CBKD421-423 | `edited_pic_decode_e2_tests.rs` (28 tests) |
 | **E3.1: Basic Encode** | ✅ Supported | CBKE421-423 | `edited_pic_encode_e3_tests.rs` (672 lines) |
-| **E3.2-E3.6: Full Encode** | 🔄 Planned v0.5.0 | CBKE4xx | Sign editing, CR/DB, commas, asterisk, currency |
+| **E3.2: Trailing Signs** | ✅ Supported | CBKE421-423 | `edited_pic_encode_e3_tests.rs` (E3.2 tests) |
+| **E3.3-E3.6: Full Encode** | 🔄 Planned v0.5.0 | CBKE4xx | CR/DB, commas, asterisk, currency |
 | Z (zero suppress) | ✅ E1/E2 | - | `test_e2_simple_z_editing_zzz9` |
 | $ (currency) | ✅ E1/E2 | - | `test_e2_currency_dollar_zz_zzz_99` |
 | +/- (sign) | ✅ E1/E2 | - | `test_e2_sign_editing_*` |
@@ -89,8 +90,9 @@
 **Phase Breakdown**:
 - **E1 (Parse + Schema)**: ✅ Parses edited PICTURE clauses into `EditedNumeric` FieldKind with pattern metadata
 - **E2 (Decode)**: ✅ Decodes EBCDIC/ASCII edited format to JSON numeric values (well-chosen subset)
-- **E3.1 (Basic Encode)**: ✅ Basic numeric encoding with Z-editing, decimal point, simple sign (commit 976ca0f)
-- **E3.2-E3.6 (Full Encode)**: 🔄 Planned v0.5.0 - sign editing (+/-), CR/DB, commas, asterisk fill, currency symbols
+- **E3.1 (Basic Encode)**: ✅ Basic numeric encoding with Z-editing, decimal point, leading sign (commit 976ca0f)
+- **E3.2 (Trailing Signs)**: ✅ Trailing plus/minus sign encoding (+/-)
+- **E3.3-E3.6 (Full Encode)**: 🔄 Planned v0.5.0 - CR/DB, commas, asterisk fill, currency symbols
 
 **Well-Chosen Subset (E2)**:
 - ZZZ9 (basic zero suppression)
@@ -401,9 +403,9 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
 
 | ID                          | Category                     | Status  | Notes                                                            |
 |-----------------------------|------------------------------|---------|------------------------------------------------------------------|
-| `renames-same-scope-field`  | 66-level – same-scope fields | ✅      | Parser + same-scope resolver; no separate JSON alias keys        |
-| `renames-same-scope-group`  | 66-level – group alias       | ✅      | Parser + resolver (R2) with correct tree building; alias-aware lookup |
-| `renames-nested-group`      | 66-level – nested group      | ✅      | Parser + resolver (R3) with recursive target lookup; alias-aware schema methods |
+| `renames-same-scope-field`  | 66-level – same-scope fields | ✅      | Parser + same-scope resolver; codec decode ✅; encode skipped (non-storage) |
+| `renames-same-scope-group`  | 66-level – group alias       | ✅      | Parser + resolver (R2) with correct tree building; codec decode ✅ |
+| `renames-nested-group`      | 66-level – nested group      | ✅      | Parser + resolver (R3) with recursive target lookup; codec decode ✅ |
 | `renames-codec-projection`  | 66-level – codec projection  | ✅      | Schema provides `find_field_or_alias` and `resolve_alias_to_target` for codec integration |
 | `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; requires separate design for interaction semantics |
 | `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; requires separate design for array aliasing        |
@@ -429,6 +431,8 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
   - **Schema API**: `find_field_or_alias()` - finds field by path or RENAMES alias name
   - **Schema API**: `resolve_alias_to_target()` - resolves alias to first storage member
   - **Tests**: 8 tests in `schema_alias_lookup_tests.rs` covering R2/R3 alias lookup and resolution
+  - **Codec Decode**: ✅ Implemented - aliases resolve to storage fields during decode
+  - **Codec Encode**: ✅ Skipped by design - RENAMES are non-storage elements, encode uses storage fields directly
   - **Design**: Aliases resolve to storage fields; no duplicate JSON keys (architectural principle)
 
 **API Integration:**
@@ -547,17 +551,17 @@ See [REPORT.md](../REPORT.md) for complete performance analysis.
 
 ## Changelog
 
-**2025-12-31**: E3.1 Edited PIC Encoding + Dialect Lever (D0-D4 Complete)
-- ✅ E3.1 Edited PIC Encoding complete (commit 976ca0f)
-- ✅ D0-D4 Dialect Lever complete (commits a9609af + documentation)
-  - D0: Config + CLI contract (design doc)
-  - D1: Core implementation with `Dialect` enum (27 tests, 581 lines)
-  - D2: CLI integration with `--dialect` flag and `COPYBOOK_DIALECT` env var (11 tests, 275 lines)
-  - D3: Golden fixtures for all three modes
-  - D4: Documentation complete (CLI_REFERENCE.md, CLAUDE.md, COBOL_SUPPORT_MATRIX.md)
-- Added E3.1 encode error codes (CBKE421-423)
-- Updated test counts: 1015 passing, 60 skipped
+**2025-12-31**: E3.1/E3.2 Edited PIC Encoding + Dialect Lever (D0 Complete)
+- ✅ E3.1 Edited PIC Encoding complete (commit 976ca0f) - basic numeric encoding with Z-editing, decimal point, leading sign
+- ✅ E3.2 Edited PIC Encoding complete - trailing plus/minus sign encoding
+- ✅ D0 Dialect Lever Contract complete (commit a9609af)
+  - Core implementation with `Dialect` enum (27 tests, 581 lines)
+  - CLI integration with `--dialect` flag and `COPYBOOK_DIALECT` env var (11 tests, 275 lines)
+  - Documentation complete (CLI_REFERENCE.md, CLAUDE.md, COBOL_SUPPORT_MATRIX.md)
+- Added E3.1/E3.2 encode error codes (CBKE421-423)
+- Updated test counts: 626+ passing tests
 - Full dialect lever support: Normative (n), ZeroTolerant (0), OneTolerant (1)
+- RENAMES R1-R3 codec support: decode ✅, encode ✅ skipped by design (non-storage semantics)
 
 **2025-10-22**: Initial release
 - Comprehensive feature matrix with test evidence

@@ -26,6 +26,7 @@ copybook parse <COPYBOOK> [OPTIONS]
 - `--validate` - Validate schema after parsing
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
+- `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
 
 **Examples:**
 ```bash
@@ -56,6 +57,7 @@ copybook inspect <COPYBOOK> [OPTIONS]
 - `--show-lengths` - Include field lengths in output
 - `--strict` - Enforce normative validation (ODO bounds/order, REDEFINES ambiguity as errors)
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
+- `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
 
 **Binary widths:** `≤4 → 16-bit`, `5–9 → 32-bit`, `10–18 → 64-bit`.
 
@@ -103,6 +105,7 @@ copybook decode <COPYBOOK> <DATA> [OPTIONS]
 
 **Parsing Options:**
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
+- `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
 
 **Output Control:**
 - `--emit-filler` - Include FILLER fields in output
@@ -192,6 +195,7 @@ copybook encode <COPYBOOK> <JSONL> [OPTIONS]
 
 **Parsing Options:**
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility
+- `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
 
 **Performance:**
 - `--threads <N>` - Number of worker threads (default: CPU count)
@@ -243,6 +247,7 @@ copybook verify <COPYBOOK> <DATA> [OPTIONS]
 - `--codepage <CP>` - Character encoding (default: cp037)
 - `--strict` - Enable strict mode validation
 - `--strict-comments` - Disable inline comments (*>) - enforce COBOL-85 compatibility (affects copybook parsing only, not data validation)
+- `--dialect <MODE>` - Dialect mode: n (normative), 0 (zero-tolerant), 1 (one-tolerant) (default: n)
 - `--report <FILE>` - Output verification report (JSON format)
 - `--max-errors <N>` - Maximum errors before stopping
 - `--sample <N>` - Number of sample records to include in report (default: 5)

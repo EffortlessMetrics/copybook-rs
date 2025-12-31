@@ -78,7 +78,7 @@
 | **E2: Decode (subset)** | ✅ Supported | CBKD421-423 | `edited_pic_decode_e2_tests.rs` (28 tests) |
 | **E3.1: Basic Encode** | ✅ Supported | CBKE421-423 | `edited_pic_encode_e3_tests.rs` (672 lines) |
 | **E3.2: Trailing Signs** | ✅ Supported | CBKE421-423 | `edited_pic_encode_e3_tests.rs` (E3.2 tests) |
-| **E3.3-E3.6: Full Encode** | 🔄 Planned v0.5.0 | CBKE4xx | CR/DB, commas, asterisk, currency |
+| **E3.3-E3.6: Full Encode** | ✅ Supported | CBKE4xx | CR/DB, commas, asterisk, currency |
 | Z (zero suppress) | ✅ E1/E2 | - | `test_e2_simple_z_editing_zzz9` |
 | $ (currency) | ✅ E1/E2 | - | `test_e2_currency_dollar_zz_zzz_99` |
 | +/- (sign) | ✅ E1/E2 | - | `test_e2_sign_editing_*` |
@@ -92,7 +92,7 @@
 - **E2 (Decode)**: ✅ Decodes EBCDIC/ASCII edited format to JSON numeric values (well-chosen subset)
 - **E3.1 (Basic Encode)**: ✅ Basic numeric encoding with Z-editing, decimal point, leading sign (commit 976ca0f)
 - **E3.2 (Trailing Signs)**: ✅ Trailing plus/minus sign encoding (+/-)
-- **E3.3-E3.6 (Full Encode)**: 🔄 Planned v0.5.0 - CR/DB, commas, asterisk fill, currency symbols
+- **E3.3-E3.6 (Full Encode)**: ✅ Supported - CR/DB, commas, asterisk fill, currency symbols (Space `B` insertion still unsupported)
 
 **Well-Chosen Subset (E2)**:
 - ZZZ9 (basic zero suppression)
@@ -252,7 +252,7 @@ Comprehensive error taxonomy with **29 discrete codes** tested across **664+ tes
 - `CBKP001_SYNTAX`: Copybook syntax errors
 - `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses (legacy v0.3.1-; now supported in v0.4.0+)
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Unsupported edited PIC token (Space `B` insertion only; full E1/E2/E3 otherwise supported)
 - Plus 4+ additional parse error codes
 
 ### Schema Validation Errors (CBKS*)

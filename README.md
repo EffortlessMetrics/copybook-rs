@@ -805,7 +805,7 @@ copybook-rs uses a comprehensive error taxonomy with stable codes:
 - `CBKP001_SYNTAX`: Copybook syntax errors
 - `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
 - `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Edited PIC clauses not supported
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Unsupported edited PIC token (Space `B` insertion)
 
 ### Schema Validation Errors (CBKS*)
 

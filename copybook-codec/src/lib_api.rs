@@ -1703,6 +1703,20 @@ fn encode_alphanum_field(
     let field_len = field.len as usize;
 
     if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+        // Validate string length doesn't exceed field capacity
+        if text.len() > field_len {
+            return Err(Error::new(
+                ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
+                format!(
+                    "String length {} exceeds field capacity {} for alphanumeric field {}",
+                    text.len(),
+                    field_len,
+                    field.path
+                ),
+            )
+            .with_field(field.path.clone()));
+        }
+
         let bytes = crate::charset::utf8_to_ebcdic(text, options.codepage)?;
         let copy_len = bytes.len().min(field_len);
 

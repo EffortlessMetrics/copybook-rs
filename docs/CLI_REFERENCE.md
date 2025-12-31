@@ -406,7 +406,7 @@ Enforces normative validation and hard failures.
 
 - **ODO (OCCURS DEPENDING ON)**: Counter must exist, precede the array, and be in range. Violations → error.
 - **REDEFINES**: Single unambiguous view may encode; ambiguity → error.
-- **Edited PIC**: Always an error with `CBKP051_UNSUPPORTED_EDITED_PIC` (e.g., `ZZ9.99`, trailing sign, `CR`/`DB`, `B` blanks).
+- **Edited PIC**: Fully supported (E1/E2/E3); only Space (`B`) insertion returns `CBKP051_UNSUPPORTED_EDITED_PIC`.
 - **Fixed-form**: Column-7 continuation and sequence areas handled; tokens after the terminating `.` on the same line are ignored.
 
 ### Default (lenient)
@@ -414,7 +414,7 @@ Designed for exploration and ingestion of imperfect copybooks.
 
 - **ODO** out-of-range: clamped with a warning in encoder paths; schema still loads.
 - **REDEFINES** ambiguity: warn and refuse encoding, but schema loads.
-- **Edited PIC**: still a hard error (unsupported).
+- **Edited PIC**: Fully supported (E1/E2/E3); only Space (`B`) insertion is unsupported.
 
 ## Comment Modes
 

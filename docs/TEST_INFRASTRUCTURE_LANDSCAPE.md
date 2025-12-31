@@ -190,9 +190,9 @@ copybook-rs maintains a **highly organized and comprehensive test suite** with *
 | Code | Category | Test Count | Example |
 |------|----------|-----------|---------|
 | CBKP001 | Parse Syntax | 8+ | Invalid copybook syntax |
-| CBKP011 | Parse Unsupported | 5+ | Edited PIC, COMP-1/2 |
+| CBKP011 | Parse Unsupported | 5+ | COMP-1/2, SIGN SEPARATE |
 | CBKP021 | Parse ODO Tail | 12+ | ODO not at tail, storage after ODO |
-| CBKP051 | Parse Edited PIC | 2 | Z, /, comma, $, CR, DB |
+| CBKP051 | Parse Edited PIC | 2 | Space (B) insertion (all other edited PICs supported) |
 | CBKS121 | Schema Counter | 6+ | ODO driver not found |
 | CBKS301 | Schema ODO Clip | 4+ | ODO array clipped to max |
 | CBKS302 | Schema ODO Raise | 4+ | ODO array raised to minimum |

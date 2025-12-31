@@ -520,7 +520,7 @@ done
 ### 1. Schema Parsing Errors
 
 **Error:** `CBKP051_UNSUPPORTED_EDITED_PIC`
-**Solution:** Remove edited PIC clauses from copybook
+**Solution:** Remove Space (`B`) insertion from PIC clause (all other edited patterns supported in v0.4.0+)
 
 **Error:** `CBKP021_ODO_NOT_TAIL`
 **Solution:** Move ODO arrays to end of containing group

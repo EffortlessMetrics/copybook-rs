@@ -283,23 +283,23 @@ Becomes: `05 LONG-FIELD-NAME PIC X(100).`
 
 ### 7.4 Edited PIC Detection
 
-**Rule**: Edited PIC clauses MUST be rejected immediately.
+**Rule**: Edited PIC clauses MUST be parsed into EditedNumeric FieldKind with full E1/E2/E3 support. Only Space (`B`) insertion remains unsupported.
 
 **Implementation**:
-- Detect characters: Z, /, comma, $, +, -, CR, DB
-- Emit CBKP051_UNSUPPORTED_EDITED_PIC with token and field path
-- Include suggested non-edited alternative in error message
+- Parse edited characters: Z, /, comma, $, +, -, CR, DB, asterisk (*) into EditedToken enum
+- Support decode (E2) and encode (E3) for all tokens except Space (B)
+- Emit CBKP051_UNSUPPORTED_EDITED_PIC only for Space (B) insertion patterns
 
 ### 7.5 SIGN Clause Handling
 
-**Rule**: SIGN LEADING/TRAILING [SEPARATE] MUST be treated as edited PIC.
+**Rule**: SIGN LEADING/TRAILING [SEPARATE] MUST be rejected as unsupported clause.
 
 **Implementation**:
 - Detect SIGN clauses during parsing
-- Emit CBKP051_UNSUPPORTED_EDITED_PIC
-- Suggest removing SIGN clause for standard signed format
+- Emit CBKP011_UNSUPPORTED_CLAUSE
+- Suggest using standard signed numeric format
 
-**Rationale**: Ensures consistent parsing behavior and clear error messages.
+**Rationale**: SIGN SEPARATE clauses require specialized encoding logic not yet implemented.
 
 ## 8. Additional Normative Decisions
 

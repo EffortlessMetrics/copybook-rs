@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.4.0"
+version = "0.4.2"
 edition = "2024"
 rust-version = "1.90" # MSRV (validated in .github/workflows/ci.yml)
 license = "AGPL-3.0-or-later"
@@ -23,15 +23,15 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
 # Internal workspace crates (pin exact versions for publish)
-copybook-core = { version = "=0.4.0", path = "copybook-core" }
-copybook-codec = { version = "=0.4.0", path = "copybook-codec" }
+copybook-core = { version = "=0.4.2", path = "copybook-core" }
+copybook-codec = { version = "=0.4.2", path = "copybook-codec" }
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.145", features = ["preserve_order"] }
+serde_json = { version = "1.0.148", features = ["preserve_order"] }
 serde_plain = "1.0.2"
 thiserror = "2.0.17"
-tracing = "0.1.43"
+tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 # Memory management dependencies
@@ -42,7 +42,7 @@ indexmap = { version = "2.12.1", features = ["serde"] }
 # CLI dependencies
 clap = { version = "4.5.53", features = ["derive"] }
 tokio = { version = "1.48.0", features = ["full"] }
-tempfile = "3.23.0"
+tempfile = "3.24.0"
 
 # Telemetry dependencies
 metrics = "0.24.3"

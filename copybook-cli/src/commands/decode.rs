@@ -2,12 +2,15 @@
 
 use crate::exit_codes::ExitCode;
 use crate::subcode;
-use crate::utils::{atomic_write, determine_exit_code, read_file_or_stdin};
+use crate::utils::{
+    ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
+    determine_exit_code, read_file_or_stdin,
+};
 use crate::{ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stdout_all};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
-use copybook_core::{ParseOptions, parse_copybook_with_options};
+use copybook_core::parse_copybook_with_options;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
@@ -33,6 +36,7 @@ pub struct DecodeArgs<'a> {
     pub preserve_zoned_encoding: bool,
     pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
     pub strict_policy: bool,
+    pub dialect: copybook_core::dialect::Dialect,
     pub select: &'a [String],
 }
 
@@ -87,28 +91,17 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     let copybook_text = read_file_or_stdin(args.copybook)?;
 
     // Parse copybook with options
-    let parse_options = ParseOptions {
-        strict_comments: false,
+    let parse_options = build_parse_options(&ParseOptionsConfig {
         strict: args.strict,
-        codepage: args.codepage.to_string(),
+        strict_comments: args.strict_comments,
+        codepage: &args.codepage.to_string(),
         emit_filler: args.emit_filler,
-        allow_inline_comments: !args.strict_comments,
-    };
+        dialect: args.dialect,
+    });
     let schema = parse_copybook_with_options(&copybook_text, &parse_options)?;
 
     // Apply field projection if --select is provided
-    let working_schema = if args.select.is_empty() {
-        schema
-    } else {
-        let selectors = parse_selectors(args.select);
-        info!(
-            "Applying field projection with {} selectors",
-            selectors.len()
-        );
-        copybook_core::project_schema(&schema, &selectors).map_err(|err| {
-            anyhow::anyhow!("Failed to apply field projection with selectors {selectors:?}: {err}")
-        })?
-    };
+    let working_schema = apply_field_projection(schema, args.select)?;
 
     // Configure decode options - use strict mode when fail_fast is enabled
     let effective_strict_mode = args.strict || args.fail_fast;
@@ -205,14 +198,4 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
     let exit_code =
         determine_exit_code(summary.has_warnings(), summary.has_errors(), ExitCode::Data);
     Ok(exit_code)
-}
-
-/// Parse --select arguments (supports comma-separated and multiple flags)
-fn parse_selectors(select_args: &[String]) -> Vec<String> {
-    select_args
-        .iter()
-        .flat_map(|s| s.split(','))
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect()
 }

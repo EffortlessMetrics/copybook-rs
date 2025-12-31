@@ -50,6 +50,15 @@ cargo publish -p copybook-core --dry-run
 
 The repository publish workflow (`.github/workflows/publish.yml`) follows this order.
 
+**Note (dry-run limitations for workspace crates)**: `cargo publish --dry-run` for `copybook-codec` and `copybook-cli` may fail prior to publishing their dependencies because verification builds crates in isolation. This is expected behavior for workspace crates. To inspect tarball contents without verification, use:
+
+```bash
+cargo package -p copybook-codec --no-verify
+cargo package -p copybook-cli --no-verify
+```
+
+The `--no-verify` flag skips the build verification step and allows inspection of the packaged tarball. This is useful for reviewing `package.include` settings and verifying that the correct files will be included in the published crate.
+
 ---
 
 ## 4) Tag + Publish
@@ -77,6 +86,30 @@ The repository publish workflow (`.github/workflows/publish.yml`) follows this o
   ```bash
   cargo install copybook-cli@0.4.0
   ```
+
+---
+
+## Distribution Truth
+
+**crates.io publish makes the crate public.** Once published:
+- The published crate tarball (packaged sources) is public
+- Download statistics are public
+- Crate metadata (dependencies, features) is indexed
+
+**Private distribution options:**
+- Git tags on private repositories
+- Private cargo registries (Cloudsmith, Artifactory, etc.)
+- Vendored dependencies via `cargo vendor`
+
+**SBOM generation** (for enterprise compliance):
+```bash
+# Generate CycloneDX SBOM locally
+cargo cyclonedx --manifest-path copybook-cli/Cargo.toml --format json
+mv copybook-cli/copybook-cli.cdx.json sbom.cdx.json
+
+# Or trigger the workflow (workflow_dispatch)
+# Artifact: sbom-cyclonedx/sbom.cdx.json
+```
 
 ---
 

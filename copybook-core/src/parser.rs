@@ -51,6 +51,8 @@ pub struct ParseOptions {
     pub strict: bool,
     /// Whether to enforce strict comment parsing rules
     pub strict_comments: bool,
+    /// Dialect for ODO min_count interpretation
+    pub dialect: crate::dialect::Dialect,
 }
 
 impl Default for ParseOptions {
@@ -61,6 +63,7 @@ impl Default for ParseOptions {
             allow_inline_comments: true,
             strict: false,
             strict_comments: false,
+            dialect: crate::dialect::Dialect::Normative,
         }
     }
 }
@@ -1455,7 +1458,14 @@ mod tests {
     #[test]
     fn test_simple_field_parsing() {
         let input = "01 CUSTOMER-ID PIC X(10).";
-        let schema = parse(input).unwrap();
+        let schema = parse(input)
+            .map_err(|e| {
+                Error::new(
+                    ErrorCode::CBKS141_RECORD_TOO_LARGE,
+                    format!("Failed to parse copybook: {}", e),
+                )
+            })
+            .expect("Failed to parse copybook");
 
         assert_eq!(schema.fields.len(), 1);
         let field = &schema.fields[0];

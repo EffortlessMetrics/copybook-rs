@@ -14,6 +14,7 @@ pub fn run(
     codepage: Codepage,
     strict: bool,
     strict_comments: bool,
+    dialect: crate::DialectPreference,
 ) -> anyhow::Result<ExitCode> {
     info!("Inspecting copybook: {:?}", copybook);
 
@@ -31,6 +32,7 @@ pub fn run(
         codepage: codepage.to_string(),
         emit_filler: false,
         allow_inline_comments: !strict_comments,
+        dialect: dialect.into(),
     };
     let schema = parse_copybook_with_options(&copybook_text, &options)?;
 

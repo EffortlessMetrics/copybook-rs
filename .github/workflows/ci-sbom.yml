@@ -1,0 +1,40 @@
+name: SBOM Generation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-cyclonedx
+        run: cargo install --locked cargo-cyclonedx --version 0.5.7
+
+      - name: Generate SBOM (CycloneDX JSON)
+        run: cargo cyclonedx --manifest-path copybook-cli/Cargo.toml --format json
+
+      - name: Rename and verify SBOM
+        run: |
+          mv copybook-cli/copybook-cli.cdx.json sbom.cdx.json
+          echo "SBOM generated:"
+          head -50 sbom.cdx.json
+          echo "..."
+          echo "Component count: $(jq '.components | length' sbom.cdx.json)"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
+          if-no-files-found: error

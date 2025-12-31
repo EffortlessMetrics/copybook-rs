@@ -51,6 +51,8 @@ pub struct ParseOptions {
     pub strict: bool,
     /// Whether to enforce strict comment parsing rules
     pub strict_comments: bool,
+    /// Dialect for ODO min_count interpretation
+    pub dialect: crate::dialect::Dialect,
 }
 
 impl Default for ParseOptions {
@@ -61,6 +63,7 @@ impl Default for ParseOptions {
             allow_inline_comments: true,
             strict: false,
             strict_comments: false,
+            dialect: crate::dialect::Dialect::Normative,
         }
     }
 }

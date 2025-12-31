@@ -68,6 +68,7 @@ pub struct ParseOptionsConfig<'a> {
     pub strict_comments: bool,
     pub codepage: &'a str,
     pub emit_filler: bool,
+    pub dialect: copybook_core::dialect::Dialect,
 }
 
 /// Build `ParseOptions` from CLI configuration
@@ -81,6 +82,7 @@ pub fn build_parse_options(config: &ParseOptionsConfig) -> ParseOptions {
         codepage: config.codepage.to_string(),
         emit_filler: config.emit_filler,
         allow_inline_comments: !config.strict_comments,
+        dialect: config.dialect,
     }
 }
 

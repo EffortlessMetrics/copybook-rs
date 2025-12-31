@@ -16,7 +16,6 @@ const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39
 const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
 
 // CRITICAL PERFORMANCE OPTIMIZATION: Inline hints for hot paths
-#[allow(dead_code)]
 #[inline]
 pub(crate) fn likely(b: bool) -> bool {
     // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization

@@ -127,6 +127,7 @@
 
 #[cfg(feature = "audit")]
 pub mod audit;
+pub mod dialect;
 pub mod error;
 pub mod error_reporter;
 pub mod layout;

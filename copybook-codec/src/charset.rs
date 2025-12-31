@@ -483,7 +483,11 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
 pub fn space_byte(codepage: Codepage) -> u8 {
     match codepage {
         Codepage::ASCII => 0x20,
-        Codepage::CP037 | Codepage::CP273 | Codepage::CP500 | Codepage::CP1047 | Codepage::CP1140 => 0x40,
+        Codepage::CP037
+        | Codepage::CP273
+        | Codepage::CP500
+        | Codepage::CP1047
+        | Codepage::CP1140 => 0x40,
     }
 }
 

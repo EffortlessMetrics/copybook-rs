@@ -54,17 +54,11 @@ fn encode_args<'a>(
     input_path: &std::path::Path,
     output_path: &std::path::Path,
 ) -> &'a mut assert_cmd::Command {
-    cmd.args([
-        "encode",
-        "--codepage",
-        "ascii",
-        "--format",
-        "fixed",
-    ])
-    .arg(copybook_path)
-    .arg(input_path)
-    .arg("--output")
-    .arg(output_path)
+    cmd.args(["encode", "--codepage", "ascii", "--format", "fixed"])
+        .arg(copybook_path)
+        .arg(input_path)
+        .arg("--output")
+        .arg(output_path)
 }
 
 fn verify_args<'a>(
@@ -72,15 +66,9 @@ fn verify_args<'a>(
     copybook_path: &std::path::Path,
     data_path: &std::path::Path,
 ) -> &'a mut assert_cmd::Command {
-    cmd.args([
-        "verify",
-        "--format",
-        "fixed",
-        "--codepage",
-        "ascii",
-    ])
-    .arg(copybook_path)
-    .arg(data_path)
+    cmd.args(["verify", "--format", "fixed", "--codepage", "ascii"])
+        .arg(copybook_path)
+        .arg(data_path)
 }
 
 #[test]

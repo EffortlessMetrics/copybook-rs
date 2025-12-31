@@ -22,6 +22,7 @@ use std::str::FromStr;
 ///
 /// ```rust
 /// use copybook_core::dialect::Dialect;
+/// use std::str::FromStr;
 ///
 /// // Default dialect is Normative
 /// let default = Dialect::default();
@@ -37,11 +38,12 @@ use std::str::FromStr;
 /// let one_tolerant = Dialect::from_str("1").unwrap();
 /// assert_eq!(one_tolerant, Dialect::OneTolerant);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum Dialect {
     /// Normative dialect - min_count is strictly enforced
     ///
     /// Counter must be ≥ min_count. This is the default behavior.
+    #[default]
     Normative,
 
     /// Zero-tolerant dialect - min_count is ignored
@@ -54,13 +56,6 @@ pub enum Dialect {
     /// Counter must be ≥ max(1, min_count). This allows zero-length arrays
     /// when min_count is 0, but enforces at least one element otherwise.
     OneTolerant,
-}
-
-impl Default for Dialect {
-    fn default() -> Self {
-        // Default to Normative mode - this preserves existing behavior
-        Self::Normative
-    }
 }
 
 impl FromStr for Dialect {
@@ -202,7 +197,11 @@ mod tests {
     #[test]
     fn test_dialect_roundtrip() {
         // Test that parsing and displaying are consistent
-        let dialects = [Dialect::Normative, Dialect::ZeroTolerant, Dialect::OneTolerant];
+        let dialects = [
+            Dialect::Normative,
+            Dialect::ZeroTolerant,
+            Dialect::OneTolerant,
+        ];
         for dialect in dialects {
             let s = dialect.to_string();
             let parsed = Dialect::from_str(&s).unwrap();

@@ -37,7 +37,7 @@ semantics with fixtures.
 
 ### Deliverables
 
-1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **Tagged (publish pending)**
+1. **✅ Crates.io publish** (`core`, `codec`, `cli`) — **Released**
 
    * ✅ crate metadata: categories, keywords, readme path, license files
      included
@@ -86,19 +86,15 @@ semantics with fixtures.
 * ✅ Documentation audit complete: no duplicate perf numbers, working
   navigation
 
-### Status: ⚠️ Tagged (publish pending)
+### Status: ✅ Released
 
-**Tagged**: 2025-12-18 (v0.4.0)
+**Released**: 2025-12-18 (v0.4.0)
 
 **Includes**: Projection (`--select`) support, edited PIC decode (E1/E2),
 deterministic JSON output, golden fixtures validation, docs navigation
 refresh, bench-report CLI
 
-**Outstanding**: GitHub Actions integration (PR comments, artifact uploads);
-SLO enforcement automation
-
-**Note**: If fixes land after the tag, prefer a patch release (`v0.4.1`) over
-moving `v0.4.0`.
+**Follow-up**: v0.4.1 released with additional fixes
 
 ---
 

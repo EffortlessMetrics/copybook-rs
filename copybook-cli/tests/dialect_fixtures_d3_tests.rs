@@ -5,16 +5,16 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-mod common;
+mod test_utils;
 
-use common::{TestResult, bin};
+use test_utils::{TestResult, bin};
 
 /// Test that "n" (normative) dialect flag is accepted
 #[test]
 fn test_dialect_flag_n_accepted() -> TestResult<()> {
     let mut cmd = bin();
     cmd.arg("parse")
-        .arg("test-data/test-schema.cpy")
+        .arg(test_utils::test_data_path("test-schema.cpy"))
         .arg("--dialect")
         .arg("n")
         .assert()
@@ -27,7 +27,7 @@ fn test_dialect_flag_n_accepted() -> TestResult<()> {
 fn test_dialect_flag_0_accepted() -> TestResult<()> {
     let mut cmd = bin();
     cmd.arg("parse")
-        .arg("test-data/test-schema.cpy")
+        .arg(test_utils::test_data_path("test-schema.cpy"))
         .arg("--dialect")
         .arg("0")
         .assert()
@@ -40,7 +40,7 @@ fn test_dialect_flag_0_accepted() -> TestResult<()> {
 fn test_dialect_flag_1_accepted() -> TestResult<()> {
     let mut cmd = bin();
     cmd.arg("parse")
-        .arg("test-data/test-schema.cpy")
+        .arg(test_utils::test_data_path("test-schema.cpy"))
         .arg("--dialect")
         .arg("1")
         .assert()
@@ -54,7 +54,7 @@ fn test_env_var_copybook_dialect() -> TestResult<()> {
     let mut cmd = bin();
     cmd.env("COPYBOOK_DIALECT", "n")
         .arg("parse")
-        .arg("test-data/test-schema.cpy")
+        .arg(test_utils::test_data_path("test-schema.cpy"))
         .assert()
         .success();
     Ok(())

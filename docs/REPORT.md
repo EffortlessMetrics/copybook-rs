@@ -2,7 +2,7 @@
 
 ---
 
-**Status**: ⚠️ **Engineering Preview (v0.4.0)** - See
+**Status**: ⚠️ **Engineering Preview (v0.4.1)** - See
 [ROADMAP.md](ROADMAP.md) for adoption guidance
 
 **Readiness**: Cautious Adoption Recommended - See
@@ -21,7 +21,7 @@ safety. The workspace builds cleanly and the release gate
 (fmt/clippy/build/nextest) is green. Performance receipts are tracked in
 `scripts/bench/perf.json` and summarized in
 `docs/PERFORMANCE_GOVERNANCE.md`; numbers vary by environment and floors are
-advisory targets in v0.4.0 (Engineering Preview).
+advisory targets in v0.4.1 (Engineering Preview).
 
 ## Overview
 
@@ -83,7 +83,7 @@ Performance is tracked via machine-readable receipts:
   `bash scripts/bench.sh`)
 - **Narrative summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
-**v0.4.0 policy (Engineering Preview)**:
+**v0.4.1 policy (Engineering Preview)**:
 
 - Floors are **advisory targets** (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s).
 - Receipts are environment-specific; validate on your target hardware before
@@ -252,13 +252,13 @@ Performance reporting is receipt-based (JSON) rather than single-number claims.
 - **Receipts**: `scripts/bench/perf.json` (via `bash scripts/bench.sh`)
 - **Summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
-In v0.4.0, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80
+In v0.4.1, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80
 MiB/s; COMP-3 ≥ 40 MiB/s). Results are environment-specific; validate on your
 target hardware before production use.
 
 ## Readiness Assessment
 
-### Status: ⚠️ Engineering Preview (v0.4.0) - Cautious Adoption Recommended
+### Status: ⚠️ Engineering Preview (v0.4.1) - Cautious Adoption Recommended
 
 **Official Status**: See [ROADMAP.md](ROADMAP.md) for canonical project status
 and development timeline.
@@ -276,7 +276,7 @@ remaining limitations are addressed.
 - ⚠️ **Performance Variance**: Receipts are environment-specific; validate on
   your target hardware (see `scripts/bench/perf.json` +
   `docs/PERFORMANCE_GOVERNANCE.md`)
-- ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.0
+- ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.1
   (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s)
 - ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE,
   nested ODOs remain unsupported; RENAMES (66-level) partially supported

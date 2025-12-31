@@ -1483,9 +1483,7 @@ fn encode_single_field(
             Ok(current_offset)
         }
         FieldKind::EditedNumeric {
-            pic_string,
-            scale,
-            ..
+            pic_string, scale, ..
         } => {
             // Phase E3.1: Encode edited PIC fields
             if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
@@ -1506,7 +1504,8 @@ fn encode_single_field(
                 let copy_len = bytes.len().min(field_len);
 
                 if current_offset + field_len <= buffer.len() {
-                    buffer[current_offset..current_offset + copy_len].copy_from_slice(&bytes[..copy_len]);
+                    buffer[current_offset..current_offset + copy_len]
+                        .copy_from_slice(&bytes[..copy_len]);
                     buffer[current_offset + copy_len..current_offset + field_len].fill(b' ');
                 }
             }

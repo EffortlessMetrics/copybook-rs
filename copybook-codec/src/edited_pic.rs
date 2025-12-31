@@ -73,6 +73,7 @@ impl PicToken {
 }
 
 impl std::fmt::Display for PicToken {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Digit => write!(f, "9"),
@@ -84,10 +85,8 @@ impl std::fmt::Display for PicToken {
             Self::Slash => write!(f, "/"),
             Self::DecimalPoint => write!(f, "."),
             Self::Currency => write!(f, "$"),
-            Self::LeadingPlus => write!(f, "+"),
-            Self::LeadingMinus => write!(f, "-"),
-            Self::TrailingPlus => write!(f, "+"),
-            Self::TrailingMinus => write!(f, "-"),
+            Self::LeadingPlus | Self::TrailingPlus => write!(f, "+"),
+            Self::LeadingMinus | Self::TrailingMinus => write!(f, "-"),
             Self::Credit => write!(f, "CR"),
             Self::Debit => write!(f, "DB"),
         }
@@ -613,7 +612,7 @@ fn parse_numeric_value(value: &str) -> Result<ParsedNumeric> {
     let mut decimal_places = 0;
     let mut found_digit = false;
 
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         if ch.is_ascii_digit() {
             digits.push(ch as u8 - b'0');
             if found_decimal {
@@ -690,12 +689,8 @@ pub fn encode_edited_numeric(
     // Count numeric positions and decimal point in pattern
     let mut has_decimal = false;
     for token in pattern {
-        match token {
-            PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert => {}
-            PicToken::DecimalPoint => {
-                has_decimal = true;
-            }
-            _ => {}
+        if *token == PicToken::DecimalPoint {
+            has_decimal = true;
         }
     }
 
@@ -708,7 +703,10 @@ pub fn encode_edited_numeric(
             if *token == PicToken::DecimalPoint {
                 found = true;
             } else if found
-                && matches!(token, PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert)
+                && matches!(
+                    token,
+                    PicToken::Digit | PicToken::ZeroSuppress | PicToken::ZeroInsert
+                )
             {
                 after_decimal += 1;
             }
@@ -726,9 +724,7 @@ pub fn encode_edited_numeric(
     if scale > parsed.decimal_places {
         // Need to add trailing zeros
         let to_add = scale - parsed.decimal_places;
-        for _ in 0..to_add {
-            adjusted_digits.push(0);
-        }
+        adjusted_digits.extend(std::iter::repeat_n(0, to_add));
     } else if scale < parsed.decimal_places {
         // Need to truncate (round down for now)
         let to_remove = parsed.decimal_places - scale;
@@ -740,11 +736,7 @@ pub fn encode_edited_numeric(
     // Calculate integer and fractional parts
     let decimal_places = scale;
     let total_digits = adjusted_digits.len();
-    let int_digits = if total_digits > decimal_places {
-        total_digits - decimal_places
-    } else {
-        0
-    };
+    let int_digits = total_digits.saturating_sub(decimal_places);
 
     // Count integer and fractional positions in pattern
     let mut int_positions = 0;
@@ -771,8 +763,7 @@ pub fn encode_edited_numeric(
         return Err(Error::new(
             ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
             format!(
-                "Value too long for pattern (pattern has {} integer positions, value has {} digits)",
-                int_positions, int_digits
+                "Value too long for pattern (pattern has {int_positions} integer positions, value has {int_digits} digits)"
             ),
         ));
     }
@@ -786,10 +777,7 @@ pub fn encode_edited_numeric(
     for (i, token) in pattern.iter().enumerate().rev() {
         match token {
             PicToken::Digit => {
-                let digit = if *token == PicToken::DecimalPoint {
-                    // Should not happen
-                    '0'
-                } else if i < pattern.len() && pattern[i] == PicToken::DecimalPoint {
+                let digit = if i < pattern.len() && pattern[i] == PicToken::DecimalPoint {
                     // Should not happen
                     '0'
                 } else {
@@ -797,10 +785,15 @@ pub fn encode_edited_numeric(
                     let is_after_decimal = pattern[..i].contains(&PicToken::DecimalPoint);
                     if is_after_decimal && frac_digit_idx > 0 {
                         frac_digit_idx -= 1;
-                        char::from_digit(u32::from(adjusted_digits[int_digits + frac_digit_idx]), 10).unwrap_or('0')
+                        char::from_digit(
+                            u32::from(adjusted_digits[int_digits + frac_digit_idx]),
+                            10,
+                        )
+                        .unwrap_or('0')
                     } else if !is_after_decimal && int_digit_idx > 0 {
                         int_digit_idx -= 1;
-                        char::from_digit(u32::from(adjusted_digits[int_digit_idx]), 10).unwrap_or('0')
+                        char::from_digit(u32::from(adjusted_digits[int_digit_idx]), 10)
+                            .unwrap_or('0')
                     } else {
                         '0'
                     }

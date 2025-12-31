@@ -39,9 +39,9 @@ Criteria → Risks/Mitigations.
 | **RENAMES codec** (#110) | ✅ Complete | - | None (R1-R3 implemented) |
 | **Determinism CI** (#112 Phase 3) | ✅ Ready | 0.5 PD | CI-off mode |
 | **Quality gates** (#97-100) | ⏳ Blocked | 6-8 weeks | CI-off mode |
-| **Benchmark container** (#113) | ✅ Complete | - | None (close issue) |
+| **Benchmark container** (#113) | ✅ Complete | - | None |
 
-**Issues to close**: #113 (benchmark container), #51 (dialect lever), #110 (RENAMES codec)
+**Issues closed (2025-12-31)**: #113, #51, #110 ✅
 
 ---
 
@@ -383,8 +383,13 @@ and are tracked for future sprints:
 
 ### Test Coverage (Future Sprints)
 
-* [ ] Add dedicated tests for 9 untested error codes (CBKS701-703,
-  CBKD101, CBKE510/515, CBKF102/104, CBKI001)
+* [x] Add dedicated tests for error codes CBKS701, CBKS702, CBKD101, CBKI001
+  — Added 2025-12-31 in `projection_tests.rs` and `error_code_tests.rs`
+* [x] CBKS703, CBKF102, CBKF104 already have tests (verified 2025-12-31)
+* [x] CBKE510/515 fixed — Corrected error code usage (was using CBKE501):
+  - CBKE515 now emitted for string length violations (3 locations)
+  - CBKE510 now emitted for numeric overflow (3 locations)
+  — Fixed 2025-12-31 with 3 new tests in `error_code_tests.rs`
 * [ ] Add unit tests for memory/iterator infrastructure
 * [ ] Improve audit feature test coverage (currently ~10%)
 

@@ -676,14 +676,65 @@ fn scale_abs_to_u32(scale: i16) -> u32 {
     u32::from(scale.unsigned_abs())
 }
 
-/// Decode a zoned decimal using the configured code page with detailed error context.
+/// Decodes zoned decimal COBOL data into a `SmallDecimal` value.
+///
+/// Zoned decimal format stores one decimal digit per byte, with the high nibble
+/// containing the zone and the low nibble containing the digit. The last byte
+/// may contain sign information in the zone nibble (overpunch encoding).
+///
+/// # Arguments
+///
+/// * `data` - The raw bytes containing the zoned decimal field
+/// * `digits` - The number of digits in the field (must match data length)
+/// * `scale` - The number of decimal places (0 for integers, positive for decimals)
+/// * `signed` - Whether the field is signed (allows negative values)
+/// * `codepage` - The codepage to use (ASCII uses 0x3 zone, EBCDIC uses 0xF zone)
+/// * `blank_when_zero` - If true, all-space fields decode to zero; if false, they error
+///
+/// # Returns
+///
+/// Returns a `SmallDecimal` representing the decoded numeric value with the specified
+/// scale and sign. The decimal is normalized (e.g., -0 becomes 0).
 ///
 /// # Policy
+///
 /// Applies the codec default: ASCII uses `ZeroSignPolicy::Positive`; EBCDIC zeros normalize via `ZeroSignPolicy::Preferred`.
 ///
 /// # Errors
-/// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
+///
+/// Returns an error if:
+/// * `CBKD411_ZONED_BAD_SIGN` - Data length doesn't match digits parameter
+/// * `CBKD411_ZONED_BAD_SIGN` - Invalid zone nibble (expected 0x3 for ASCII, 0xF for EBCDIC)
+/// * `CBKD411_ZONED_BAD_SIGN` - Invalid digit nibble (must be 0-9)
+/// * `CBKD411_ZONED_BAD_SIGN` - Unsigned field contains negative overpunch
+/// * `CBKD411_ZONED_BAD_SIGN` - Field is all spaces but `blank_when_zero` is false
+///
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+///
+/// # Examples
+///
+/// ```no_run
+/// use copybook_codec::numeric::decode_zoned_decimal;
+/// use copybook_codec::options::Codepage;
+///
+/// // Decode EBCDIC zoned decimal "123" (3 digits, scale 0, unsigned)
+/// // EBCDIC encoding: 0xF1 0xF2 0xF3
+/// let data = vec![0xF1, 0xF2, 0xF3];
+/// let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::CP037, false)?;
+/// assert_eq!(result.to_string(), "123");
+///
+/// // Decode signed zoned decimal "-45" with 2 decimal places
+/// // EBCDIC encoding: 0xF0 0xF4 0xD5 (last byte has negative sign in zone)
+/// let data = vec![0xF0, 0xF4, 0xD5];
+/// let result = decode_zoned_decimal(&data, 3, 2, true, Codepage::CP037, false)?;
+/// assert_eq!(result.to_string(), "-0.45");
+///
+/// // Decode blank field with BLANK WHEN ZERO
+/// let blank_data = vec![0x40, 0x40, 0x40]; // EBCDIC spaces
+/// let result = decode_zoned_decimal(&blank_data, 3, 0, false, Codepage::CP037, true)?;
+/// assert_eq!(result.to_string(), "0");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal(
@@ -791,16 +842,73 @@ pub fn decode_zoned_decimal(
     Ok(decimal)
 }
 
-/// Decode zoned decimal field with encoding detection and preservation
+/// Decodes zoned decimal COBOL data with encoding format detection and preservation.
 ///
-/// Returns both the decoded decimal and encoding information for preservation.
+/// This function extends `decode_zoned_decimal` by optionally detecting and returning
+/// encoding metadata (ASCII vs EBCDIC zone patterns) alongside the decoded value.
+/// When `preserve_encoding` is true, the detected format can be used to ensure
+/// round-trip encoding fidelity by preserving the original encoding format.
+///
+/// # Arguments
+///
+/// * `data` - The raw bytes containing the zoned decimal field
+/// * `digits` - The number of digits in the field (must match data length)
+/// * `scale` - The number of decimal places (0 for integers, positive for decimals)
+/// * `signed` - Whether the field is signed (allows negative values)
+/// * `codepage` - The codepage to use (ASCII uses 0x3 zone, EBCDIC uses 0xF zone)
+/// * `blank_when_zero` - If true, all-space fields decode to zero; if false, they error
+/// * `preserve_encoding` - If true, detect and return encoding metadata; if false, return None
+///
+/// # Returns
+///
+/// Returns a tuple containing:
+/// * A `SmallDecimal` representing the decoded numeric value (normalized, e.g., -0 becomes 0)
+/// * An `Option<ZonedEncodingInfo>` containing detected encoding metadata if `preserve_encoding` is true,
+///   or `None` otherwise. The encoding info includes:
+///   - `detected_format`: Overall detected format (ASCII, EBCDIC, or Auto for mixed/invalid)
+///   - `has_mixed_encoding`: True if mixed ASCII/EBCDIC zones were detected
+///   - `byte_formats`: Per-byte format detection results
 ///
 /// # Policy
+///
 /// Mirrors [`decode_zoned_decimal`], defaulting to preferred-zero handling for EBCDIC unless a preserved format dictates otherwise.
 ///
 /// # Errors
-/// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
+///
+/// Returns an error if:
+/// * `CBKD411_ZONED_BAD_SIGN` - Data length doesn't match digits parameter
+/// * `CBKD411_ZONED_BAD_SIGN` - Invalid zone nibble for the specified codepage
+/// * `CBKD411_ZONED_BAD_SIGN` - Invalid digit nibble (must be 0-9)
+/// * `CBKD411_ZONED_BAD_SIGN` - Unsigned field contains negative overpunch
+/// * `CBKD411_ZONED_BAD_SIGN` - Field is all spaces but `blank_when_zero` is false
+/// * `CBKD413_ZONED_INVALID_ENCODING` - Invalid encoding when `preserve_encoding` is true
+/// * `CBKD414_ZONED_MIXED_ENCODING` - Mixed ASCII/EBCDIC encoding detected when `preserve_encoding` is true
+///
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+///
+/// # Examples
+///
+/// ```no_run
+/// use copybook_codec::numeric::decode_zoned_decimal_with_encoding;
+/// use copybook_codec::options::Codepage;
+///
+/// // Decode with encoding preservation enabled
+/// let data = vec![0xF1, 0xF2, 0xF3]; // EBCDIC "123"
+/// let (decimal, encoding_info) = decode_zoned_decimal_with_encoding(
+///     &data, 3, 0, false, Codepage::CP037, false, true
+/// )?;
+/// assert_eq!(decimal.to_string(), "123");
+/// assert!(encoding_info.is_some());
+///
+/// // Decode without encoding preservation (faster)
+/// let data = vec![0xF0, 0xF4, 0xD5]; // EBCDIC "-45" with 2 decimals
+/// let (decimal, encoding_info) = decode_zoned_decimal_with_encoding(
+///     &data, 3, 2, true, Codepage::CP037, false, false
+/// )?;
+/// assert_eq!(decimal.to_string(), "-0.45");
+/// assert!(encoding_info.is_none());
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_with_encoding(

@@ -594,32 +594,7 @@ fn process_scalar_field_standard(
 ) -> Result<()> {
     // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
     if matches!(field.kind, copybook_core::FieldKind::Renames { .. }) {
-        if let Some(resolved) = &field.resolved_renames {
-            let alias_start = resolved.offset as usize;
-            let alias_end = alias_start + resolved.length as usize;
-
-            if alias_end > data.len() {
-                return Err(Error::new(
-                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                    format!(
-                        "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
-                        name = field.name,
-                        offset = resolved.offset,
-                        length = resolved.length,
-                        data_len = data.len()
-                    ),
-                ));
-            }
-
-            let alias_data = &data[alias_start..alias_end];
-            let text = crate::charset::ebcdic_to_utf8(
-                alias_data,
-                options.codepage,
-                options.on_decode_unmappable,
-            )?;
-            json_obj.insert(field.name.clone(), Value::String(text));
-            return Ok(());
-        } else {
+        let Some(resolved) = &field.resolved_renames else {
             return Err(Error::new(
                 ErrorCode::CBKD101_INVALID_FIELD_TYPE,
                 format!(
@@ -627,7 +602,32 @@ fn process_scalar_field_standard(
                     name = field.name
                 ),
             ));
+        };
+
+        let alias_start = resolved.offset as usize;
+        let alias_end = alias_start + resolved.length as usize;
+
+        if alias_end > data.len() {
+            return Err(Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                format!(
+                    "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
+                    name = field.name,
+                    offset = resolved.offset,
+                    length = resolved.length,
+                    data_len = data.len()
+                ),
+            ));
         }
+
+        let alias_data = &data[alias_start..alias_end];
+        let text = crate::charset::ebcdic_to_utf8(
+            alias_data,
+            options.codepage,
+            options.on_decode_unmappable,
+        )?;
+        json_obj.insert(field.name.clone(), Value::String(text));
+        return Ok(());
     }
 
     let field_start = field.offset as usize;
@@ -674,32 +674,7 @@ fn process_scalar_field_with_scratch(
 ) -> Result<()> {
     // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
     if matches!(field.kind, copybook_core::FieldKind::Renames { .. }) {
-        if let Some(resolved) = &field.resolved_renames {
-            let alias_start = resolved.offset as usize;
-            let alias_end = alias_start + resolved.length as usize;
-
-            if alias_end > data.len() {
-                return Err(Error::new(
-                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                    format!(
-                        "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
-                        name = field.name,
-                        offset = resolved.offset,
-                        length = resolved.length,
-                        data_len = data.len()
-                    ),
-                ));
-            }
-
-            let alias_data = &data[alias_start..alias_end];
-            let text = crate::charset::ebcdic_to_utf8(
-                alias_data,
-                options.codepage,
-                options.on_decode_unmappable,
-            )?;
-            json_obj.insert(field.name.clone(), Value::String(text));
-            return Ok(());
-        } else {
+        let Some(resolved) = &field.resolved_renames else {
             return Err(Error::new(
                 ErrorCode::CBKD101_INVALID_FIELD_TYPE,
                 format!(
@@ -707,7 +682,32 @@ fn process_scalar_field_with_scratch(
                     name = field.name
                 ),
             ));
+        };
+
+        let alias_start = resolved.offset as usize;
+        let alias_end = alias_start + resolved.length as usize;
+
+        if alias_end > data.len() {
+            return Err(Error::new(
+                ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                format!(
+                    "RENAMES field '{name}' at offset {offset} with length {length} exceeds data length {data_len}",
+                    name = field.name,
+                    offset = resolved.offset,
+                    length = resolved.length,
+                    data_len = data.len()
+                ),
+            ));
         }
+
+        let alias_data = &data[alias_start..alias_end];
+        let text = crate::charset::ebcdic_to_utf8(
+            alias_data,
+            options.codepage,
+            options.on_decode_unmappable,
+        )?;
+        json_obj.insert(field.name.clone(), Value::String(text));
+        return Ok(());
     }
 
     let field_start = field.offset as usize;
@@ -1649,7 +1649,9 @@ fn encode_single_field(
                 if current_offset + field_len <= buffer.len() {
                     buffer[current_offset..current_offset + copy_len]
                         .copy_from_slice(&bytes[..copy_len]);
-                    buffer[current_offset + copy_len..current_offset + field_len].fill(b' ');
+                    // Pad with codepage-aware space (0x40 for EBCDIC, 0x20 for ASCII)
+                    let space = crate::charset::space_byte(options.codepage);
+                    buffer[current_offset + copy_len..current_offset + field_len].fill(space);
                 }
             }
             Ok(current_offset + field.len as usize)
@@ -1706,7 +1708,9 @@ fn encode_alphanum_field(
 
         if current_offset + field_len <= buffer.len() {
             buffer[current_offset..current_offset + copy_len].copy_from_slice(&bytes[..copy_len]);
-            buffer[current_offset + copy_len..current_offset + field_len].fill(b' ');
+            // Pad with codepage-aware space (0x40 for EBCDIC, 0x20 for ASCII)
+            let space = crate::charset::space_byte(options.codepage);
+            buffer[current_offset + copy_len..current_offset + field_len].fill(space);
         }
     }
 

@@ -530,9 +530,9 @@ The `--dialect` flag is supported on all copybook-processing commands:
 
 See `docs/internal/features/d0_dialect_lever_contract.md` for complete specification and implementation details.
 
-## Edited PIC Support (Phase E1/E2)
+## Edited PIC Support (Phase E1/E2/E3)
 
-copybook-rs now provides parse and decode support for edited numeric PICTURE clauses. Encode support (Phase E3) is planned for v0.5.0.
+copybook-rs provides full parse, decode, and encode support for edited numeric PICTURE clauses.
 
 ### Implementation Status
 
@@ -541,14 +541,16 @@ copybook-rs now provides parse and decode support for edited numeric PICTURE cla
 - Creates `EditedNumeric` FieldKind in schema AST
 - Available via `copybook inspect` command for layout inspection
 
-**Phase E2 (Decode - Well-Chosen Subset)**: ✅ Complete
+**Phase E2 (Decode)**: ✅ Complete
 - Decodes edited numeric fields to JSON numeric values
 - Supports: zero suppression (Z), currency ($), sign (+, -, CR, DB), asterisk (*)
 - JSON output via `JsonNumberMode` (lossless/native)
 - Error codes: CBKD421-423 for decode failures
 
-**Phase E3 (Encode)**: ⏳ Planned for v0.5.0
-- Will encode JSON numeric values to edited EBCDIC/ASCII formats
+**Phase E3 (Encode)**: ✅ Complete
+- Encodes JSON numeric values to edited EBCDIC/ASCII formats
+- Supports: zero suppression (Z), currency ($), sign (+/-/CR/DB), asterisk (*), comma, slash
+- Note: Space (B) insertion not yet supported
 - Error codes: CBKE4xx for encode failures
 
 ### Supported Edited PIC Patterns (Phase E2)
@@ -594,7 +596,8 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
       * Decode converts: " $1,234.56" → "1234.56" (lossless)
       *                  "    0" → "0" (BLANK WHEN ZERO)
 
-      * Phase E3 (Planned v0.5.0): Encode JSON → EBCDIC edited format
+      * Phase E3: Encode JSON → EBCDIC edited format
+      * Encode converts: "1234.56" → " $1,234.56" (with pattern)
 ```
 
 ### Error Codes
@@ -615,8 +618,8 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
 
 ### Unsupported COBOL Features
 - COMP-1/COMP-2 floating-point types (rare in practice)
-- Edited PIC Phase E3 (encode) – planned for v0.5.0; parse (E1) and decode (E2) fully supported
 - SIGN LEADING/TRAILING SEPARATE directives
+- Edited PIC Space (B) insertion – not yet implemented
 - Nested OCCURS DEPENDING ON (O5: ODO inside ODO) – rejected by design; see Issue #164
 - ODO over REDEFINES (O6) – rejected by design; see Issue #164
 - RENAMES interactions with REDEFINES/OCCURS (R4-R6) – out of scope; see docs/design/RENAMES_NESTED_GROUPS.md
@@ -625,7 +628,7 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
 - **OCCURS/ODO support** (O1-O4): Simple tail ODO ✅, tail ODO with DYNAMIC ✅, group-with-ODO tail ✅, ODO with sibling after 🚫 (CBKP021_ODO_NOT_TAIL). See docs/design/NESTED_ODO_BEHAVIOR.md and docs/reference/COBOL_SUPPORT_MATRIX.md for complete O1-O7 scenario breakdown.
 - **RENAMES support** (R1-R3): Same-scope fields ✅, group alias ✅, nested groups ✅ with alias-aware Schema API. See docs/design/RENAMES_NESTED_GROUPS.md for complete specification.
 - **Level-88 condition values**: Fully supported (parse + codec + structural validation). See COBOL_SUPPORT_MATRIX.md for detailed test evidence.
-- **Edited PIC support** (E1/E2): Parse ✅, decode ✅, encode ⏳ v0.5.0. See Field Projection and Edited PIC sections above for details.
+- **Edited PIC support** (E1/E2/E3): Parse ✅, decode ✅, encode ✅. See Edited PIC section above for details.
 - **Field projection**: Fully supported (`--select` flag) with ODO auto-dependency and RENAMES alias resolution (R1-R3).
 
 ### Performance Considerations

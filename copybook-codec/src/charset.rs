@@ -464,3 +464,45 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
 
     Ok(result)
 }
+
+/// Get the space byte value for the given codepage.
+///
+/// Returns `0x20` for ASCII, `0x40` for all EBCDIC codepages.
+///
+/// # Example
+/// ```
+/// use copybook_codec::options::Codepage;
+/// use copybook_codec::charset::space_byte;
+///
+/// assert_eq!(space_byte(Codepage::ASCII), 0x20);
+/// assert_eq!(space_byte(Codepage::CP037), 0x40);
+/// assert_eq!(space_byte(Codepage::CP1140), 0x40);
+/// ```
+#[inline]
+#[must_use]
+pub fn space_byte(codepage: Codepage) -> u8 {
+    match codepage {
+        Codepage::ASCII => 0x20,
+        Codepage::CP037 | Codepage::CP273 | Codepage::CP500 | Codepage::CP1047 | Codepage::CP1140 => 0x40,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_space_byte_ascii() {
+        assert_eq!(space_byte(Codepage::ASCII), 0x20);
+    }
+
+    #[test]
+    fn test_space_byte_ebcdic() {
+        // All EBCDIC codepages use 0x40 for space
+        assert_eq!(space_byte(Codepage::CP037), 0x40);
+        assert_eq!(space_byte(Codepage::CP273), 0x40);
+        assert_eq!(space_byte(Codepage::CP500), 0x40);
+        assert_eq!(space_byte(Codepage::CP1047), 0x40);
+        assert_eq!(space_byte(Codepage::CP1140), 0x40);
+    }
+}

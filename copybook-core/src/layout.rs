@@ -3,6 +3,7 @@
 //! This module handles the computation of field byte offsets,
 //! alignment padding, and REDEFINES cluster sizing.
 
+use crate::dialect::{Dialect, effective_min_count};
 use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error};
 use std::collections::HashMap;
 use tracing::debug;
@@ -58,11 +59,16 @@ impl LayoutContext {
 /// - Alignment padding insertion and tracking
 /// - Overflow protection with u64 arithmetic
 ///
+/// The `dialect` parameter controls how ODO `min_count` is interpreted:
+/// - `Normative`: `min_count` enforced as declared
+/// - `ZeroTolerant`: `min_count` always treated as 0
+/// - `OneTolerant`: `min_count` clamped to at least 1
+///
 /// # Errors
 /// Returns an error if field configuration is invalid or the record size exceeds limits.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
-pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
+pub fn resolve_layout(schema: &mut Schema, dialect: Dialect) -> Result<()> {
     let mut context = LayoutContext::new();
 
     // First pass: collect all REDEFINES relationships
@@ -79,8 +85,8 @@ pub fn resolve_layout(schema: &mut Schema) -> Result<()> {
     // Calculate fixed record length if all fields are fixed
     calculate_fixed_record_length(schema, &context)?;
 
-    // Detect and set tail ODO information
-    detect_tail_odo(schema, &context);
+    // Detect and set tail ODO information (applying dialect to min_count)
+    detect_tail_odo(schema, &context, dialect);
 
     // Resolve RENAMES (level-66) aliases
     resolve_renames_aliases(&mut schema.fields)?;
@@ -640,7 +646,12 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) -
 }
 
 /// Detect and set tail ODO information
-fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
+///
+/// The `dialect` parameter controls how `min_count` is interpreted:
+/// - `Normative`: `min_count` stored as declared
+/// - `ZeroTolerant`: `min_count` stored as 0
+/// - `OneTolerant`: `min_count` stored as max(1, declared)
+fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext, dialect: Dialect) {
     // Find the ODO array with the highest offset (tail position)
     if let Some(tail_odo) = context.odo_arrays.iter().max_by_key(|odo| odo.array_offset) {
         // Extract just the field name from the full path for consistency
@@ -657,9 +668,12 @@ fn detect_tail_odo(schema: &mut Schema, context: &LayoutContext) {
             .unwrap_or(&tail_odo.counter_path)
             .to_string();
 
+        // Apply dialect to min_count: this is where dialect affects runtime behavior
+        let effective_min = effective_min_count(dialect, tail_odo.min_count);
+
         schema.tail_odo = Some(TailODO {
             counter_path: counter_field_name,
-            min_count: tail_odo.min_count,
+            min_count: effective_min,
             max_count: tail_odo.max_count,
             array_path: array_field_name,
         });
@@ -909,13 +923,16 @@ mod tests {
     use super::*;
     use crate::schema::{Field, FieldKind, Occurs};
 
+    // Default dialect for tests (Normative = min_count enforced as declared)
+    const TEST_DIALECT: Dialect = Dialect::Normative;
+
     #[test]
     fn test_simple_field_layout() {
         let mut schema = Schema::new();
         let field = Field::with_kind(1, "TEST-FIELD".to_string(), FieldKind::Alphanum { len: 10 });
         schema.fields.push(field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema, TEST_DIALECT).unwrap();
 
         let field = &schema.fields[0];
         assert_eq!(field.offset, 0);
@@ -944,7 +961,7 @@ mod tests {
         binary_field.synchronized = true;
         schema.fields.push(binary_field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema, TEST_DIALECT).unwrap();
 
         let char_field = &schema.fields[0];
         assert_eq!(char_field.offset, 0);
@@ -964,7 +981,7 @@ mod tests {
         field.occurs = Some(Occurs::Fixed { count: 10 });
         schema.fields.push(field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema, TEST_DIALECT).unwrap();
 
         let field = &schema.fields[0];
         assert_eq!(field.offset, 0);
@@ -1001,7 +1018,7 @@ mod tests {
         });
         schema.fields.push(array_field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema, TEST_DIALECT).unwrap();
 
         let counter = &schema.fields[0];
         assert_eq!(counter.offset, 0);
@@ -1041,7 +1058,7 @@ mod tests {
         field_c.redefines_of = Some("FIELD-A".to_string());
         schema.fields.push(field_c);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema, TEST_DIALECT).unwrap();
 
         let field_a = &schema.fields[0];
         assert_eq!(field_a.offset, 0);
@@ -1072,7 +1089,7 @@ mod tests {
         huge_field.occurs = Some(Occurs::Fixed { count: 1000 });
         schema.fields.push(huge_field);
 
-        let result = resolve_layout(&mut schema);
+        let result = resolve_layout(&mut schema, TEST_DIALECT);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err().code,
@@ -1097,7 +1114,7 @@ mod tests {
         });
         schema.fields.push(array_field);
 
-        let result = resolve_layout(&mut schema);
+        let result = resolve_layout(&mut schema, TEST_DIALECT);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err().code,
@@ -1121,7 +1138,7 @@ mod tests {
         );
         schema.fields.push(field);
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema, TEST_DIALECT).unwrap();
 
         let field = &schema.fields[0];
         assert_eq!(field.len, 4);
@@ -1150,7 +1167,7 @@ mod tests {
             schema.fields.push(field);
         }
 
-        resolve_layout(&mut schema).unwrap();
+        resolve_layout(&mut schema, TEST_DIALECT).unwrap();
 
         assert_eq!(schema.fields[0].len, 2); // 16 bits = 2 bytes
         assert_eq!(schema.fields[1].len, 4); // 32 bits = 4 bytes

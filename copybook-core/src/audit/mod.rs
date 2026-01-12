@@ -15,9 +15,9 @@ pub mod security;
 
 pub use compliance::{ComplianceEngine, ComplianceProfile, ComplianceResult, ComplianceViolation};
 pub use context::{AuditContext, EnvironmentContext, ProcessingConfig, SecurityContext};
-pub use event::{AuditEvent, AuditEventType, AuditPayload};
+pub use event::{AuditEvent, AuditEventType, AuditPayload, AuditSeverity};
 pub use lineage::{
-    FieldLineage, ImpactAnalyzer, ImpactAssessment, LineageRecord, LineageTracker,
+    FieldLineage, ImpactAnalyzer, ImpactAssessment, LineageRecord, LineageTracker, RiskLevel,
     TransformationType,
 };
 pub use logger::{AuditLogger, AuditLoggerConfig, LogFormat, RetentionPolicy};
@@ -30,6 +30,7 @@ pub use report::{
 };
 pub use security::{
     AccessAuditor, AccessEvent, AccessResult, SecurityAuditor, SecurityMonitor, SecurityValidation,
+    SecurityViolation,
 };
 
 use serde::{Deserialize, Serialize};

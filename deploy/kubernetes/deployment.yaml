@@ -1,0 +1,230 @@
+---
+# ConfigMap for copybook-rs default configuration
+# This provides environment-specific settings for batch processing
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: copybook-config
+  labels:
+    app: copybook-rs
+    component: batch-processor
+data:
+  # Default codepage for EBCDIC conversion (IBM US EBCDIC)
+  DEFAULT_CODEPAGE: "cp037"
+
+  # Default record format (fixed-length records)
+  DEFAULT_FORMAT: "fixed"
+
+  # Dialect lever for ODO min_count interpretation
+  # Options: n (normative), 0 (zero-tolerant/IBM), 1 (one-tolerant/Micro Focus)
+  COPYBOOK_DIALECT: "0"
+
+  # Logging configuration (off/error/warn/info/debug/trace)
+  RUST_LOG: "info"
+
+  # JSON number mode for decoding (lossless preserves precision)
+  JSON_NUMBER_MODE: "lossless"
+
+---
+# PersistentVolumeClaim for data storage
+# Use this for input copybooks and data files, output JSON/binary files
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: copybook-data-pvc
+  labels:
+    app: copybook-rs
+    component: batch-processor
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # Adjust storage size based on your batch processing needs
+      # 1Gi suitable for testing; production may need 10Gi-100Gi
+      storage: 1Gi
+  # Optional: Specify storageClassName for your cluster
+  # storageClassName: standard
+
+---
+# Deployment for copybook-rs batch job processor
+# This runs as a long-lived pod that processes batch jobs
+# For one-off jobs, consider using a Kubernetes Job instead
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: copybook-rs
+  labels:
+    app: copybook-rs
+    component: batch-processor
+    version: v0.4.0
+spec:
+  # Single replica for batch processing
+  # Scale manually based on workload parallelization needs
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: copybook-rs
+      component: batch-processor
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-processor
+        version: v0.4.0
+      annotations:
+        # Optional: Prometheus metrics annotations (if using metrics-enabled image)
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9300"
+        prometheus.io/path: "/metrics"
+
+    spec:
+      # Optional: Use specific service account with RBAC permissions
+      # serviceAccountName: copybook-rs-sa
+
+      containers:
+        - name: copybook
+          # Official copybook-rs image from GitHub Container Registry
+          # Available tags: latest, v0.4.0, benchmark (with perf tooling)
+          image: ghcr.io/effortlessmetrics/copybook-rs:latest
+          imagePullPolicy: Always
+
+          # Command override for batch processing
+          # This keeps the container running; actual jobs submitted via kubectl exec
+          # For K8s Job-based processing, override with specific decode/encode commands
+          command: ["/bin/sh"]
+          args: ["-c", "while true; do sleep 3600; done"]
+
+          # Environment variables from ConfigMap
+          env:
+            - name: RUST_LOG
+              valueFrom:
+                configMapKeyRef:
+                  name: copybook-config
+                  key: RUST_LOG
+
+            - name: COPYBOOK_DIALECT
+              valueFrom:
+                configMapKeyRef:
+                  name: copybook-config
+                  key: COPYBOOK_DIALECT
+
+            - name: DEFAULT_CODEPAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: copybook-config
+                  key: DEFAULT_CODEPAGE
+
+            - name: DEFAULT_FORMAT
+              valueFrom:
+                configMapKeyRef:
+                  name: copybook-config
+                  key: DEFAULT_FORMAT
+
+            - name: JSON_NUMBER_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: copybook-config
+                  key: JSON_NUMBER_MODE
+
+            # Optional: Set thread count for parallel processing
+            # Adjust based on CPU limits
+            - name: RAYON_NUM_THREADS
+              value: "2"
+
+          # Resource limits aligned with copybook-rs performance characteristics
+          resources:
+            requests:
+              # Base memory for copybook-rs operations
+              # Streaming I/O keeps memory usage <256 MiB for multi-GB files
+              memory: "128Mi"
+              # Quarter CPU sufficient for single-threaded operations
+              cpu: "250m"
+            limits:
+              # Maximum memory cap for safety
+              # Increase if processing very large copybooks or high parallelism
+              memory: "256Mi"
+              # Allow burst to 0.5 CPU for decode/encode operations
+              cpu: "500m"
+
+          # Liveness probe to ensure container is responsive
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/copybook
+                - --version
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness probe to signal when container is ready for work
+          readinessProbe:
+            exec:
+              command:
+                - /usr/local/bin/copybook
+                - --version
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          # Volume mounts for data access
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+              # Mount subdirectories for organization:
+              # /data/copybooks - COBOL copybook definitions (.cpy)
+              # /data/input - Binary data files to decode
+              # /data/output - JSONL output files
+              # /data/encoded - Binary output from encode operations
+
+      # Volumes for persistent storage
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+      # Optional: Node selector for specific hardware
+      # nodeSelector:
+      #   workload-type: batch-processing
+
+      # Optional: Tolerations for tainted nodes
+      # tolerations:
+      #   - key: "batch-workload"
+      #     operator: "Equal"
+      #     value: "true"
+      #     effect: "NoSchedule"
+
+      # Restart policy for long-lived batch processor
+      restartPolicy: Always
+
+---
+# Service for internal cluster access
+# Primarily for monitoring/metrics endpoint access
+# Not needed for batch processing itself
+apiVersion: v1
+kind: Service
+metadata:
+  name: copybook-rs
+  labels:
+    app: copybook-rs
+    component: batch-processor
+spec:
+  type: ClusterIP
+  selector:
+    app: copybook-rs
+    component: batch-processor
+  ports:
+    # Metrics port (if using metrics-enabled image)
+    - name: metrics
+      port: 9300
+      targetPort: 9300
+      protocol: TCP
+
+    # Health check port (optional, for custom health endpoints)
+    # - name: health
+    #   port: 8080
+    #   targetPort: 8080
+    #   protocol: TCP

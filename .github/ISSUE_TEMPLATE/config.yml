@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/effortlessmetrics/copybook-rs/blob/main/README.md
+    about: Please read the documentation for usage guidance and examples
+  - name: COBOL Support Matrix
+    url: https://github.com/effortlessmetrics/copybook-rs/blob/main/docs/reference/COBOL_SUPPORT_MATRIX.md
+    about: Check which COBOL features are currently supported
+  - name: Roadmap
+    url: https://github.com/effortlessmetrics/copybook-rs/blob/main/docs/ROADMAP.md
+    about: See planned features and release timeline

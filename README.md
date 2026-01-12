@@ -12,7 +12,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 **Who should use it**: Teams migrating mainframe data to modern systems, data engineers processing legacy COBOL files, enterprises requiring auditable COBOL data conversion.
 
-**Status**: Engineering Preview (v0.4.1) - Production-ready interfaces with preview feature completeness. Suitable for teams that validate copybooks against supported features before deployment.
+**Status**: Engineering Preview (v0.4.1) - Stable CLI and library APIs; feature completeness is preview-level. Suitable for teams that validate copybooks against supported features before deployment.
 
 **Key strengths**:
 
@@ -142,6 +142,19 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **CLI + Library API**: Production-ready interfaces; Engineering Preview for feature completeness (see [ROADMAP.md](docs/ROADMAP.md) for known limitations: #44, #51, #72, #86)
 - **Verification & Validation**: Built-in data quality auditing without conversion overhead
 - **Enterprise Audit System**: Optional compliance framework support (SOX, HIPAA, GDPR, PCI DSS) - see [enterprise-audit-system-spec.md](docs/specs/enterprise-audit-system-spec.md) for details (experimental, feature-gated)
+
+### **CLI Exit Codes**
+
+The `copybook` CLI reports structured exit codes aligned with the error taxonomy for integration with CI/CD pipelines and orchestration systems:
+
+| Code | Tag  | Meaning (1-liner) | Test |
+|----:|:----:|--------------------|------|
+| 2 | CBKD | Data quality failure | exit_code_mapping::exit_code_cbkd_is_2 |
+| 3 | CBKE | Encode/validation failure | exit_code_mapping::exit_code_cbke_is_3 |
+| 4 | CBKF | Record format/RDW failure | exit_code_mapping::exit_code_cbkf_is_4 |
+| 5 | CBKI | Internal orchestration error | exit_code_mapping::exit_code_cbki_is_5 |
+
+Exit code 0 indicates success; exit code 1 indicates unhandled failures. See [ERROR_CODES.md](docs/reference/ERROR_CODES.md) for the complete error taxonomy.
 
 ## Architecture
 
@@ -310,6 +323,34 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Format code
 cargo fmt --all
 ```
+
+### Releasing
+
+Version bumping is automated with `cargo-release`:
+
+```bash
+# Install cargo-release (one-time setup)
+cargo install cargo-release
+
+# Preview a patch release (0.4.2 -> 0.4.3)
+cargo release patch --dry-run
+
+# Execute a patch release (bumps version, updates CHANGELOG, creates tag, pushes)
+cargo release patch
+
+# Minor/major releases
+cargo release minor  # 0.4.2 -> 0.5.0
+cargo release major  # 0.4.2 -> 1.0.0
+```
+
+The release process:
+1. Bumps version in all workspace `Cargo.toml` files
+2. Updates `CHANGELOG.md` using `git-cliff`
+3. Creates commit: `chore(release): prepare vX.Y.Z`
+4. Creates signed tag `vX.Y.Z`
+5. Pushes tag to remote (triggers GitHub release CI)
+
+See [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for detailed workflow and troubleshooting.
 
 ## Contributing
 

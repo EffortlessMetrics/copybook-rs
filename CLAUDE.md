@@ -54,6 +54,13 @@ cargo test --test golden_fixtures_enterprise      # Enterprise scenarios
 
 # Full validation pipeline
 cargo build --workspace --release && cargo test --workspace && cargo clippy --workspace -- -D warnings -W clippy::pedantic && cargo fmt --all --check
+
+# Release management (requires: cargo install cargo-release)
+cargo release patch --dry-run     # Preview patch release (0.4.2 -> 0.4.3)
+cargo release minor --dry-run     # Preview minor release (0.4.2 -> 0.5.0)
+cargo release major --dry-run     # Preview major release (0.4.2 -> 1.0.0)
+cargo release patch               # Execute patch release (bumps version, updates CHANGELOG, creates tag, pushes)
+# See docs/RELEASE_PROCESS.md for detailed release workflow
 ```
 
 ## CLI Usage

@@ -1,8 +1,48 @@
 //! Enterprise Audit System for copybook-rs
 //!
-//! This module provides comprehensive audit capabilities for enterprise mainframe
-//! data processing, including regulatory compliance, security monitoring, performance
-//! tracking, and complete data lineage.
+//! **EXPERIMENTAL**: This module is experimental and subject to breaking changes.
+//! It is disabled by default and must be explicitly enabled via the `audit` feature flag.
+//!
+//! ## Status
+//!
+//! This audit system is under active development and should be considered unstable.
+//! The API may change significantly between releases, and production use is not
+//! recommended without thorough validation in your specific environment.
+//!
+//! ## Feature Flag
+//!
+//! To enable the audit system, add the `audit` feature to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! copybook-core = { version = "0.4", features = ["audit"] }
+//! ```
+//!
+//! **Performance Note**: The audit system is disabled by default because it adds
+//! overhead to parsing and processing operations. Only enable it when you require
+//! comprehensive audit capabilities for compliance or security monitoring.
+//!
+//! ## Capabilities
+//!
+//! When enabled, this module provides comprehensive audit capabilities for enterprise
+//! mainframe data processing, including:
+//!
+//! - **Regulatory Compliance**: SOX, HIPAA, GDPR, PCI-DSS compliance tracking
+//! - **Security Monitoring**: Access control validation and security event auditing
+//! - **Performance Tracking**: Throughput metrics and regression detection
+//! - **Data Lineage**: Complete field-level transformation and impact tracking
+//! - **Audit Trail Integrity**: Cryptographic hash chains for tamper detection
+//!
+//! ## Stability Guarantees
+//!
+//! **None**. This is experimental software:
+//!
+//! - APIs may change without notice between minor versions
+//! - Serialization formats may be incompatible across releases
+//! - Performance characteristics are not yet optimized
+//! - Error handling patterns may evolve
+//!
+//! Use at your own risk and validate thoroughly before production deployment.
 
 pub mod compliance;
 pub mod context;

@@ -133,12 +133,7 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         // Write directly to stdout (no atomic write, no summary)
         let input_file = fs::File::open(args.input)?;
         let mut stdout = std::io::stdout().lock();
-        copybook_codec::decode_file_to_jsonl(
-            &working_schema,
-            input_file,
-            &mut stdout,
-            &options,
-        )?
+        copybook_codec::decode_file_to_jsonl(&working_schema, input_file, &mut stdout, &options)?
     } else {
         // Use atomic write for file output
         let mut result_summary = None;

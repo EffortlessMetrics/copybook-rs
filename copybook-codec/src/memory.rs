@@ -54,13 +54,18 @@
 //!     },
 //! );
 //!
+//! // Collect chunks so we know the count
+//! let chunks: Vec<Vec<u8>> = get_data_chunks();
+//! let num_chunks = chunks.len();
+//!
 //! // Submit work
-//! for chunk in get_data_chunks() {
+//! for chunk in chunks {
 //!     pool.submit(chunk).unwrap();
 //! }
 //!
-//! // Receive results in original order
-//! while let Ok(Some(result)) = pool.recv_ordered() {
+//! // Receive exactly num_chunks results in order (non-blocking pattern)
+//! for _ in 0..num_chunks {
+//!     let result = pool.recv_ordered().unwrap().unwrap();
 //!     println!("{}", result);
 //! }
 //!
@@ -72,6 +77,7 @@
 //!
 //! ```rust
 //! use copybook_codec::memory::StreamingProcessor;
+//! # let records: Vec<Vec<u8>> = vec![vec![1, 2, 3]];
 //!
 //! let mut processor = StreamingProcessor::with_default_limit(); // 256 MiB
 //!
@@ -89,7 +95,6 @@
 //! // Get statistics
 //! let stats = processor.stats();
 //! println!("Processed {} records", stats.records_processed);
-//! # let records: Vec<Vec<u8>> = vec![];
 //! ```
 
 use crossbeam_channel::{Receiver, Sender, bounded};
@@ -347,19 +352,31 @@ impl ScratchBuffers {
     }
 
     /// Cold path: grow byte buffer (separate function for better optimization)
+    ///
+    /// Uses `reserve(capacity - len)` to ensure final capacity >= requested.
+    /// Note: `reserve(additional)` guarantees `capacity >= len + additional`,
+    /// so we compute based on `len`, not current capacity.
     #[cold]
     #[inline(never)]
     fn grow_byte_buffer(&mut self, capacity: usize) {
-        self.byte_buffer
-            .reserve(capacity - self.byte_buffer.capacity());
+        let len = self.byte_buffer.len();
+        if capacity > len {
+            self.byte_buffer.reserve(capacity - len);
+        }
     }
 
     /// Cold path: grow string buffer (separate function for better optimization)
+    ///
+    /// Uses `reserve(capacity - len)` to ensure final capacity >= requested.
+    /// Note: `reserve(additional)` guarantees `capacity >= len + additional`,
+    /// so we compute based on `len`, not current capacity.
     #[cold]
     #[inline(never)]
     fn grow_string_buffer(&mut self, capacity: usize) {
-        self.string_buffer
-            .reserve(capacity - self.string_buffer.capacity());
+        let len = self.string_buffer.len();
+        if capacity > len {
+            self.string_buffer.reserve(capacity - len);
+        }
     }
 }
 
@@ -678,16 +695,20 @@ impl<T> SequenceRing<T> {
     ///
     /// ```rust
     /// use copybook_codec::memory::{SequenceRing, SequencedRecord};
+    /// use crossbeam_channel::TryRecvError;
     ///
     /// let mut ring = SequenceRing::new(10, 5);
     /// let sender = ring.sender();
     ///
+    /// // Send out-of-order record (seq 2 when expecting 1)
     /// sender.send(SequencedRecord::new(2, "data")).unwrap();
-    /// sender.send(SequencedRecord::new(1, "data")).unwrap();
+    ///
+    /// // Force the ring to observe and buffer the out-of-order record
+    /// assert!(matches!(ring.try_recv_ordered(), Err(TryRecvError::Empty)));
     ///
     /// let stats = ring.stats();
-    /// assert_eq!(stats.next_sequence_id, 1);
-    /// assert_eq!(stats.reorder_buffer_size, 1); // Record 2 buffered
+    /// assert_eq!(stats.next_sequence_id, 1); // Still waiting for record 1
+    /// assert_eq!(stats.reorder_buffer_size, 1); // Record 2 is buffered
     /// ```
     #[inline]
     #[must_use]
@@ -808,18 +829,24 @@ pub struct SequenceRingStats {
 ///     },
 /// );
 ///
+/// // Collect records so we know the count
+/// let records: Vec<Vec<u8>> = get_cobol_records();
+/// let num_records = records.len();
+///
 /// // Submit COBOL records for parallel processing
-/// for record in get_cobol_records() {
+/// for record in records {
 ///     pool.submit(record).unwrap();
 /// }
 ///
-/// // Receive JSON in original order
-/// while let Ok(Some(json)) = pool.recv_ordered() {
+/// // Receive exactly num_records JSON results in order
+/// for _ in 0..num_records {
+///     let json = pool.recv_ordered().unwrap().unwrap();
 ///     println!("{}", json);
 /// }
 ///
 /// pool.shutdown().unwrap();
-/// # fn get_cobol_records() -> Vec<Vec<u8>> { vec![] }
+/// // Return one EBCDIC record (0xF1 repeated = '1' in EBCDIC)
+/// # fn get_cobol_records() -> Vec<Vec<u8>> { vec![vec![0xF1; 10]] }
 /// ```
 #[derive(Debug)]
 pub struct WorkerPool<Input, Output> {

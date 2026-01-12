@@ -305,10 +305,10 @@ steady; builds clean with/without metrics.
 
 | Area              | DRI        | Backup     |
 | ----------------- | ---------- | ---------- |
-| Parser & dialects | @you       | @contrib-A |
-| Codec & perf      | @you       | @contrib-B |
-| CLI & docs        | @contrib-C | @you       |
-| CI/bench receipts | @contrib-D | @contrib-C |
+| Parser & dialects | @EffortlessSteven       | @contrib-A |
+| Codec & perf      | @EffortlessSteven       | @contrib-B |
+| CLI & docs        | @EffortlessSteven | @contrib-D       |
+| CI/bench receipts | @EffortlessSteven | @contrib-C |
 
 ---
 

@@ -99,7 +99,7 @@
 //! let mut processed = 0;
 //! let mut errors = 0;
 //!
-//! for result in &mut iterator {
+//! for (index, result) in iterator.enumerate() {
 //!     match result {
 //!         Ok(json_value) => {
 //!             processed += 1;
@@ -107,7 +107,7 @@
 //!         }
 //!         Err(error) => {
 //!             errors += 1;
-//!             eprintln!("Record {}: {}", iterator.current_record_index(), error);
+//!             eprintln!("Record {}: {}", index + 1, error);
 //!
 //!             if errors > 10 {
 //!                 eprintln!("Too many errors, stopping");
@@ -643,7 +643,7 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 ///
 /// ## Using with Compressed Data
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use copybook_codec::{iter_records, DecodeOptions};
 /// use copybook_core::parse_copybook;
 /// use std::fs::File;

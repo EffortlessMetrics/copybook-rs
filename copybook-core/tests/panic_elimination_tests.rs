@@ -683,11 +683,8 @@ mod panic_elimination_audit_tests {
                     total_fields
                 );
 
-                // Validate occurs handling
-                let has_counters = schema
-                    .fields
-                    .iter()
-                    .any(|f| f.name.contains("PERFORMANCE-COUNTERS"));
+                // Validate occurs handling (search recursively for nested fields)
+                let has_counters = schema_has_field_with_name(&schema, "PERFORMANCE-COUNTERS");
                 assert!(has_counters, "Should handle performance counter arrays");
             }
             Err(error) => {

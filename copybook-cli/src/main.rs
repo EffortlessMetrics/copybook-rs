@@ -227,7 +227,7 @@ Field Projection:\n\
         copybook: PathBuf,
         /// Input data file path
         input: PathBuf,
-        /// Output JSONL file path
+        /// Output JSONL file path (use "-" for stdout)
         #[arg(short, long)]
         output: PathBuf,
         /// Record format (explicit, no auto-detection)
@@ -297,7 +297,7 @@ Field Projection:\n\
         copybook: PathBuf,
         /// Input JSONL file path
         input: PathBuf,
-        /// Output binary file path
+        /// Output binary file path (use "-" for stdout)
         #[arg(short, long)]
         output: PathBuf,
         /// Record format (explicit, no auto-detection)

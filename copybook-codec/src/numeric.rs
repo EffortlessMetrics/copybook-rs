@@ -15,7 +15,31 @@ use tracing::warn;
 const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39
 const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
 
-// CRITICAL PERFORMANCE OPTIMIZATION: Inline hints for hot paths
+/// Branch prediction hint for likely-true conditions
+///
+/// Provides a manual branch prediction hint to the compiler that the condition
+/// is likely to be true. This optimization helps keep hot paths efficient by
+/// marking the false case as cold.
+///
+/// # Arguments
+/// * `b` - Boolean condition to evaluate
+///
+/// # Returns
+/// The input boolean value unchanged
+///
+/// # Performance
+/// This function is critical for COBOL data decoding hot paths where valid
+/// data is the common case and errors are exceptional.
+///
+/// # Examples
+/// ```ignore
+/// use copybook_codec::numeric::likely;
+///
+/// let valid_data = true;
+/// if likely(valid_data) {
+///     // Hot path - optimized for this case
+/// }
+/// ```
 #[inline]
 pub(crate) fn likely(b: bool) -> bool {
     // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
@@ -29,6 +53,31 @@ pub(crate) fn likely(b: bool) -> bool {
     }
 }
 
+/// Branch prediction hint for unlikely-true conditions
+///
+/// Provides a manual branch prediction hint to the compiler that the condition
+/// is unlikely to be true. This optimization keeps error paths cold and hot
+/// paths optimized.
+///
+/// # Arguments
+/// * `b` - Boolean condition to evaluate
+///
+/// # Returns
+/// The input boolean value unchanged
+///
+/// # Performance
+/// Critical for error handling in COBOL numeric decoding where validation
+/// failures are exceptional cases.
+///
+/// # Examples
+/// ```ignore
+/// use copybook_codec::numeric::unlikely;
+///
+/// let error_condition = false;
+/// if unlikely(error_condition) {
+///     // Cold path - marked as unlikely
+/// }
+/// ```
 #[inline]
 pub(crate) fn unlikely(b: bool) -> bool {
     // CRITICAL PERFORMANCE OPTIMIZATION: Manual branch prediction optimization
@@ -50,7 +99,31 @@ fn cold_branch_hint() {
     // The #[cold] attribute tells the compiler this is an unlikely execution path
 }
 
-// PERFORMANCE OPTIMIZATION: Inline decimal construction for hot paths
+/// Create a normalized `SmallDecimal` from raw components
+///
+/// Constructs a `SmallDecimal` from value, scale, and sign components, then
+/// normalizes it to ensure -0 becomes 0.
+///
+/// # Arguments
+/// * `value` - The unscaled integer value
+/// * `scale` - Number of decimal places (positive for fractions, 0 for integers)
+/// * `is_negative` - Whether the value is negative
+///
+/// # Returns
+/// A normalized `SmallDecimal` instance
+///
+/// # Performance
+/// This inline function is optimized for hot paths in packed decimal decoding
+/// where decimals are frequently constructed from parsed nibbles.
+///
+/// # Examples
+/// ```
+/// use copybook_codec::numeric::SmallDecimal;
+///
+/// // Create 123.45 (value=12345, scale=2)
+/// let decimal = SmallDecimal::new(12345, 2, false);
+/// assert_eq!(decimal.to_string(), "123.45");
+/// ```
 #[inline]
 fn create_normalized_decimal(value: i64, scale: i16, is_negative: bool) -> SmallDecimal {
     let mut decimal = SmallDecimal::new(value, scale, is_negative);
@@ -655,6 +728,24 @@ impl SmallDecimal {
     }
 }
 
+/// Convert an integer value to a single digit (0-9)
+///
+/// Validates that the value is in the range 0-9 and converts it to a u8 digit.
+/// Returns 0 for invalid inputs (with debug assertion).
+///
+/// # Arguments
+/// * `value` - Integer value to convert (expected to be 0-9)
+///
+/// # Returns
+/// A single digit as u8, or 0 if the value is out of range
+///
+/// # Safety
+/// This function includes a debug assertion that fires if the value is out of
+/// range. In release builds, invalid values return 0.
+///
+/// # Performance
+/// Used in hot paths for packed decimal encoding where digits are extracted
+/// from numeric values.
 #[inline]
 fn digit_from_value(value: i64) -> u8 {
     match u8::try_from(value) {
@@ -666,11 +757,40 @@ fn digit_from_value(value: i64) -> u8 {
     }
 }
 
+/// Push a single digit character to a string buffer
+///
+/// Converts an integer digit (0-9) to its ASCII character representation and
+/// appends it to the buffer.
+///
+/// # Arguments
+/// * `buffer` - String buffer to append to
+/// * `digit` - Integer digit value (0-9)
+///
+/// # Performance
+/// Inline function optimized for decimal formatting hot paths in COMP-3 decoding.
 #[inline]
 fn push_digit(buffer: &mut String, digit: i64) {
     buffer.push(char::from(b'0' + digit_from_value(digit)));
 }
 
+/// Convert absolute scale value to u32 for power calculations
+///
+/// Takes the absolute value of a scale (i16) and converts it to u32 for use
+/// in power-of-10 calculations.
+///
+/// # Arguments
+/// * `scale` - Scale value (can be negative for integer extensions)
+///
+/// # Returns
+/// Absolute value of scale as u32
+///
+/// # Examples
+/// ```
+/// # fn scale_abs_to_u32(scale: i16) -> u32 { u32::from(scale.unsigned_abs()) }
+/// assert_eq!(scale_abs_to_u32(2), 2);
+/// assert_eq!(scale_abs_to_u32(-2), 2);
+/// assert_eq!(scale_abs_to_u32(0), 0);
+/// ```
 #[inline]
 fn scale_abs_to_u32(scale: i16) -> u32 {
     u32::from(scale.unsigned_abs())
@@ -1868,6 +1988,30 @@ pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
     }
 }
 
+/// Get the space byte value for a given codepage
+///
+/// Returns the appropriate space character byte for ASCII or EBCDIC codepages.
+///
+/// # Arguments
+/// * `codepage` - The target codepage
+///
+/// # Returns
+/// * `0x20` (ASCII space) for ASCII codepage
+/// * `0x40` (EBCDIC space) for EBCDIC codepages
+///
+/// # Examples
+/// ```
+/// use copybook_codec::options::Codepage;
+/// # fn zoned_space_byte(codepage: Codepage) -> u8 {
+/// #     match codepage {
+/// #         Codepage::ASCII => b' ',
+/// #         _ => 0x40,
+/// #     }
+/// # }
+///
+/// assert_eq!(zoned_space_byte(Codepage::ASCII), b' ');
+/// assert_eq!(zoned_space_byte(Codepage::CP037), 0x40);
+/// ```
 #[inline]
 const fn zoned_space_byte(codepage: Codepage) -> u8 {
     match codepage {
@@ -1876,6 +2020,33 @@ const fn zoned_space_byte(codepage: Codepage) -> u8 {
     }
 }
 
+/// Get the expected zone nibble for valid digits
+///
+/// Returns the zone nibble value expected for digit bytes in zoned decimal
+/// encoding for the given codepage.
+///
+/// # Arguments
+/// * `codepage` - The target codepage
+///
+/// # Returns
+/// * `0x3` for ASCII (digits 0x30-0x39)
+/// * `0xF` for EBCDIC (digits 0xF0-0xF9)
+///
+/// # Examples
+/// ```
+/// use copybook_codec::options::Codepage;
+/// # const ASCII_DIGIT_ZONE: u8 = 0x3;
+/// # const EBCDIC_DIGIT_ZONE: u8 = 0xF;
+/// # fn zoned_expected_zone(codepage: Codepage) -> u8 {
+/// #     match codepage {
+/// #         Codepage::ASCII => ASCII_DIGIT_ZONE,
+/// #         _ => EBCDIC_DIGIT_ZONE,
+/// #     }
+/// # }
+///
+/// assert_eq!(zoned_expected_zone(Codepage::ASCII), 0x3);
+/// assert_eq!(zoned_expected_zone(Codepage::CP037), 0xF);
+/// ```
 #[inline]
 const fn zoned_expected_zone(codepage: Codepage) -> u8 {
     match codepage {
@@ -1884,6 +2055,30 @@ const fn zoned_expected_zone(codepage: Codepage) -> u8 {
     }
 }
 
+/// Get a human-readable label for the encoding zone type
+///
+/// Returns a string label describing the encoding zone type for error messages.
+///
+/// # Arguments
+/// * `codepage` - The target codepage
+///
+/// # Returns
+/// * `"ASCII"` for ASCII codepage
+/// * `"EBCDIC"` for EBCDIC codepages
+///
+/// # Examples
+/// ```
+/// use copybook_codec::options::Codepage;
+/// # fn zoned_zone_label(codepage: Codepage) -> &'static str {
+/// #     match codepage {
+/// #         Codepage::ASCII => "ASCII",
+/// #         _ => "EBCDIC",
+/// #     }
+/// # }
+///
+/// assert_eq!(zoned_zone_label(Codepage::ASCII), "ASCII");
+/// assert_eq!(zoned_zone_label(Codepage::CP037), "EBCDIC");
+/// ```
 #[inline]
 const fn zoned_zone_label(codepage: Codepage) -> &'static str {
     match codepage {
@@ -1892,6 +2087,29 @@ const fn zoned_zone_label(codepage: Codepage) -> &'static str {
     }
 }
 
+/// Validate a non-final byte in a zoned decimal field
+///
+/// Checks that the byte contains a valid digit nibble (0-9) and the expected
+/// zone nibble for the codepage. Non-final bytes should not contain sign information.
+///
+/// # Arguments
+/// * `byte` - The byte to validate
+/// * `index` - Position of the byte in the field (for error messages)
+/// * `expected_zone` - Expected zone nibble value (0x3 for ASCII, 0xF for EBCDIC)
+/// * `codepage` - Target codepage for zone validation
+///
+/// # Returns
+/// The digit nibble value (0-9) extracted from the byte
+///
+/// # Errors
+/// * `CBKD411_ZONED_BAD_SIGN` - Invalid digit nibble or mismatched zone
+///
+/// # Examples
+/// ```ignore
+/// // ASCII '5' is 0x35 (zone 0x3, digit 0x5)
+/// let digit = zoned_validate_non_final_byte(0x35, 0, 0x3, Codepage::ASCII)?;
+/// assert_eq!(digit, 5);
+/// ```
 #[inline]
 fn zoned_validate_non_final_byte(
     byte: u8,
@@ -1922,6 +2140,26 @@ fn zoned_validate_non_final_byte(
     Ok(digit)
 }
 
+/// Process all non-final digits in a zoned decimal field
+///
+/// Validates each byte's zone and digit nibbles, accumulates the numeric value,
+/// and stores digits in the scratch buffer for verification.
+///
+/// # Arguments
+/// * `data` - Non-final bytes of the zoned decimal field
+/// * `expected_zone` - Expected zone nibble (0x3 for ASCII, 0xF for EBCDIC)
+/// * `codepage` - Target codepage
+/// * `scratch` - Scratch buffers for digit accumulation
+///
+/// # Returns
+/// Accumulated integer value from non-final digits
+///
+/// # Errors
+/// * `CBKD411_ZONED_BAD_SIGN` - Invalid zone or digit nibble encountered
+///
+/// # Performance
+/// Uses saturating arithmetic to prevent overflow panics while accumulating
+/// the numeric value.
 #[inline]
 fn zoned_process_non_final_digits(
     data: &[u8],
@@ -1940,11 +2178,51 @@ fn zoned_process_non_final_digits(
     Ok(value)
 }
 
+/// Decode the last byte of a zoned decimal field
+///
+/// The last byte contains both a digit and sign information encoded as an
+/// overpunch character. Delegates to the overpunch decoder for extraction.
+///
+/// # Arguments
+/// * `byte` - The final byte of the zoned decimal field
+/// * `codepage` - Target codepage for overpunch interpretation
+///
+/// # Returns
+/// Tuple of (digit, is_negative) extracted from the overpunch byte
+///
+/// # Errors
+/// * `CBKD411_ZONED_BAD_SIGN` - Invalid overpunch encoding
+///
+/// # See Also
+/// * `zoned_overpunch::decode_overpunch_byte` - Underlying overpunch decoder
 #[inline]
 fn zoned_decode_last_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)> {
     crate::zoned_overpunch::decode_overpunch_byte(byte, codepage)
 }
 
+/// Ensure unsigned zoned decimal has no sign information
+///
+/// Validates that an unsigned zoned decimal field contains only unsigned zone
+/// nibbles and no negative overpunch encoding.
+///
+/// # Arguments
+/// * `last_byte` - The final byte of the field
+/// * `expected_zone` - Expected unsigned zone (0x3 for ASCII, 0xF for EBCDIC)
+/// * `codepage` - Target codepage
+/// * `negative` - Whether overpunch decoding detected a negative sign
+///
+/// # Returns
+/// Always returns `Ok(false)` for valid unsigned fields
+///
+/// # Errors
+/// * `CBKD411_ZONED_BAD_SIGN` - Sign zone or negative overpunch in unsigned field
+///
+/// # Examples
+/// ```ignore
+/// // Valid unsigned ASCII zoned decimal ends with zone 0x3
+/// let result = zoned_ensure_unsigned(0x35, 0x3, Codepage::ASCII, false)?;
+/// assert_eq!(result, false);
+/// ```
 #[inline]
 fn zoned_ensure_unsigned(
     last_byte: u8,
@@ -2052,6 +2330,33 @@ pub fn decode_zoned_decimal_with_scratch(
     Ok(decimal)
 }
 
+/// Decode a single-byte packed decimal value
+///
+/// Handles the special case where the entire packed decimal fits in one byte.
+/// For 1-digit fields, the high nibble contains the digit and low nibble contains
+/// the sign. For 0-digit fields (just sign), only the low nibble is significant.
+///
+/// # Arguments
+/// * `byte` - The packed decimal byte
+/// * `digits` - Number of digits (0 or 1 for single byte)
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
+///
+/// # Returns
+/// Decoded `SmallDecimal` value
+///
+/// # Errors
+/// * `CBKD401_COMP3_INVALID_NIBBLE` - Invalid digit or sign nibble
+///
+/// # Format
+/// Single-byte packed decimals:
+/// - 1 digit: `[digit][sign]` (e.g., 0x5C = 5 positive)
+/// - 0 digits: `[0][sign]` (just sign, high nibble must be 0)
+///
+/// Valid sign nibbles:
+/// - Positive: 0xA, 0xC, 0xE, 0xF
+/// - Negative: 0xB, 0xD
+/// - Unsigned: 0xF only
 #[inline]
 fn packed_decode_single_byte(
     byte: u8,
@@ -2097,6 +2402,22 @@ fn packed_decode_single_byte(
     Ok(create_normalized_decimal(value, scale, is_negative))
 }
 
+/// Add a digit to the accumulating packed decimal value
+///
+/// Multiplies the current value by 10 and adds the new digit, with overflow checking.
+///
+/// # Arguments
+/// * `value` - Mutable reference to the accumulating value
+/// * `digit` - Digit to add (0-9)
+///
+/// # Returns
+/// `Ok(())` on success
+///
+/// # Errors
+/// * `CBKD411_ZONED_BAD_SIGN` - Numeric overflow during accumulation
+///
+/// # Performance
+/// Uses checked arithmetic to prevent panics while detecting overflow conditions.
 #[inline]
 fn packed_push_digit(value: &mut i64, digit: u8) -> Result<()> {
     *value = value
@@ -2111,6 +2432,26 @@ fn packed_push_digit(value: &mut i64, digit: u8) -> Result<()> {
     Ok(())
 }
 
+/// Process non-final bytes of a multi-byte packed decimal
+///
+/// Extracts digit nibbles from all bytes before the last one, handling padding
+/// if the digit count is odd. Accumulates the numeric value and counts digits.
+///
+/// # Arguments
+/// * `bytes` - Non-final bytes of the packed decimal
+/// * `digits` - Total number of digits in the field
+/// * `has_padding` - Whether the first nibble is padding (odd total nibbles)
+///
+/// # Returns
+/// Tuple of (accumulated_value, digit_count)
+///
+/// # Errors
+/// * `CBKD401_COMP3_INVALID_NIBBLE` - Invalid digit or padding nibble
+///
+/// # Format
+/// Packed decimal nibble layout:
+/// - Even digits: `[pad=0][d1][d2][d3]...[sign]`
+/// - Odd digits: `[d1][d2][d3]...[sign]` (no padding)
 #[inline]
 fn packed_process_non_last_bytes(
     bytes: &[u8],
@@ -2163,6 +2504,29 @@ fn packed_process_non_last_bytes(
     Ok((value, digit_count))
 }
 
+/// Process the last byte of a packed decimal field
+///
+/// Extracts the final digit (if needed) and sign nibble from the last byte.
+/// Creates the final normalized SmallDecimal value.
+///
+/// # Arguments
+/// * `value` - Accumulated value from previous bytes
+/// * `last_byte` - The final byte containing digit and sign
+/// * `digits` - Total number of digits expected
+/// * `digit_count` - Number of digits already processed
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
+///
+/// # Returns
+/// Decoded and normalized `SmallDecimal`
+///
+/// # Errors
+/// * `CBKD401_COMP3_INVALID_NIBBLE` - Invalid digit or sign nibble
+///
+/// # Format
+/// Last byte always ends with sign nibble:
+/// - If digit_count < digits: `[digit][sign]`
+/// - If digit_count == digits: `[unused][sign]` (high nibble ignored)
 #[inline]
 fn packed_finish_last_byte(
     mut value: i64,
@@ -2209,6 +2573,28 @@ fn packed_finish_last_byte(
     Ok(create_normalized_decimal(value, scale, is_negative))
 }
 
+/// Decode a multi-byte packed decimal value
+///
+/// Orchestrates the decoding of packed decimals that span multiple bytes by
+/// processing non-final bytes and the final byte separately.
+///
+/// # Arguments
+/// * `data` - Complete packed decimal byte array
+/// * `digits` - Number of digits in the field
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
+///
+/// # Returns
+/// Decoded `SmallDecimal` value
+///
+/// # Errors
+/// * `CBKD401_COMP3_INVALID_NIBBLE` - Invalid nibbles or empty input
+///
+/// # Algorithm
+/// 1. Calculate if padding nibble is present (odd total nibbles)
+/// 2. Process all non-final bytes to extract digits
+/// 3. Process final byte to extract last digit and sign
+/// 4. Construct normalized SmallDecimal
 #[inline]
 fn packed_decode_multi_byte(
     data: &[u8],
@@ -2547,13 +2933,51 @@ pub fn format_binary_int_to_string_with_scratch(
     std::mem::take(&mut scratch.string_buffer)
 }
 
-/// Ultra-fast integer formatting for standalone use with SIMD-friendly optimizations
+/// Format an integer to a string buffer with optimized performance
+///
+/// Provides ultra-fast integer-to-string conversion optimized for COBOL numeric
+/// decoding hot paths. Uses manual digit extraction to avoid format macro overhead.
+///
+/// # Arguments
+/// * `value` - Integer value to format
+/// * `buffer` - String buffer to append digits to
+///
+/// # Performance
+/// Critical optimization for COMP-3 and zoned decimal JSON conversion. Avoids
+/// the overhead of Rust's standard formatting macros through manual digit extraction.
+///
+/// # Examples
+/// ```ignore
+/// let mut buffer = String::new();
+/// format_integer_to_buffer(12345, &mut buffer);
+/// assert_eq!(buffer, "12345");
+/// ```
 #[inline]
 fn format_integer_to_buffer(value: i64, buffer: &mut String) {
     SmallDecimal::format_integer_manual(value, buffer);
 }
 
-/// Ultra-fast integer formatting with leading zeros for standalone use
+/// Format an integer with leading zeros to a string buffer
+///
+/// Formats an integer with exactly `width` digits, padding with leading zeros
+/// if necessary. Optimized for decimal formatting where fractional parts must
+/// maintain precise digit counts.
+///
+/// # Arguments
+/// * `value` - Integer value to format
+/// * `width` - Number of digits in output (with leading zeros)
+/// * `buffer` - String buffer to append formatted digits to
+///
+/// # Performance
+/// Optimized for common COBOL scales (0-4 decimal places) with specialized
+/// fast paths. Critical for maintaining COMP-3 decimal precision.
+///
+/// # Examples
+/// ```ignore
+/// let mut buffer = String::new();
+/// format_integer_with_leading_zeros_to_buffer(45, 4, &mut buffer);
+/// assert_eq!(buffer, "0045");
+/// ```
 #[inline]
 fn format_integer_with_leading_zeros_to_buffer(value: i64, width: u32, buffer: &mut String) {
     SmallDecimal::format_integer_with_leading_zeros(value, width, buffer);

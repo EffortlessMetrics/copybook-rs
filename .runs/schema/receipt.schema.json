@@ -1,0 +1,259 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/effortlessmetrics/copybook-rs/schemas/receipt.schema.json",
+  "title": "Build Receipt",
+  "description": "Schema for build receipts and validation evidence from agentic development workflows",
+  "type": "object",
+  "required": [
+    "run_id",
+    "timestamp",
+    "base_commit",
+    "commands"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for the build run",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "minLength": 1,
+      "examples": [
+        "gen-impl-20260112-010730",
+        "ci-perf-gate-20260112-020000"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the run started",
+      "examples": [
+        "2026-01-12T01:07:30Z",
+        "2026-01-12T01:07:30.123Z"
+      ]
+    },
+    "base_commit": {
+      "type": "string",
+      "description": "Git commit SHA at the start of the run",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "examples": [
+        "595390c",
+        "595390ca1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e"
+      ]
+    },
+    "head_commit": {
+      "type": "string",
+      "description": "Git commit SHA at the end of the run (if commits were made)",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "examples": [
+        "abc1234",
+        "abc1234567890abcdef1234567890abcdef123456"
+      ]
+    },
+    "changes": {
+      "type": "array",
+      "description": "Array of file modifications made during the run",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "intent"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "File path relative to repository root",
+            "minLength": 1,
+            "examples": [
+              "copybook-core/src/parser.rs",
+              "README.md",
+              "Cargo.toml"
+            ]
+          },
+          "intent": {
+            "type": "string",
+            "description": "Human-readable description of the change",
+            "minLength": 1,
+            "examples": [
+              "Add support for RENAMES clause parsing",
+              "Fix EBCDIC padding in simple.bin fixture",
+              "Update performance baseline to 205 MiB/s"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "commands": {
+      "type": "array",
+      "description": "Array of executed commands with their results",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "cmd",
+          "exit_code"
+        ],
+        "properties": {
+          "cmd": {
+            "type": "string",
+            "description": "Full command string executed",
+            "minLength": 1,
+            "examples": [
+              "cargo test --workspace",
+              "cargo bench --package copybook-bench",
+              "cargo run --bin bench-report -- validate scripts/bench/perf.json"
+            ]
+          },
+          "exit_code": {
+            "type": "integer",
+            "description": "Command exit status (0 = success)",
+            "minimum": 0,
+            "maximum": 255,
+            "examples": [
+              0,
+              1,
+              2
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "description": "Execution time in milliseconds",
+            "minimum": 0,
+            "examples": [
+              45230,
+              120000,
+              500
+            ]
+          },
+          "stdout": {
+            "type": "string",
+            "description": "Standard output from the command (optional, may be truncated)"
+          },
+          "stderr": {
+            "type": "string",
+            "description": "Standard error from the command (optional, may be truncated)"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "description": "Array of build artifacts produced during the run",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "path"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Artifact name",
+            "minLength": 1,
+            "examples": [
+              "test_results",
+              "benchmark_report",
+              "perf_results",
+              "coverage_report"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "description": "Absolute or relative path to the artifact",
+            "minLength": 1,
+            "examples": [
+              "target/nextest/default/junit.xml",
+              "scripts/bench/perf.json",
+              "/tmp/coverage.html"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "description": "Size of the artifact in bytes",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "description": "SHA-256 hash of the artifact for integrity verification",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "issues_discovered": {
+      "type": "array",
+      "description": "Array of issue identifiers or descriptions found during the run",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "examples": [
+          "#123",
+          "CBKP021_ODO_NOT_TAIL: ODO array not in tail position",
+          "Performance regression: DISPLAY throughput dropped to 150 MiB/s"
+        ]
+      }
+    },
+    "issues_fixed": {
+      "type": "array",
+      "description": "Array of issue identifiers or descriptions resolved during the run",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "examples": [
+          "#123",
+          "CBKS121_COUNTER_NOT_FOUND: Missing ODO counter validation",
+          "EBCDIC padding corrected in simple.bin fixture"
+        ]
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata about the run environment",
+      "properties": {
+        "agent": {
+          "type": "string",
+          "description": "Name/version of the agentic system",
+          "examples": [
+            "generative-impl-agent v1.0",
+            "code-reviewer v2.1"
+          ]
+        },
+        "flow": {
+          "type": "string",
+          "description": "Workflow type",
+          "examples": [
+            "generative",
+            "quality",
+            "security"
+          ]
+        },
+        "gate": {
+          "type": "string",
+          "description": "Gate identifier",
+          "examples": [
+            "impl",
+            "test",
+            "perf"
+          ]
+        },
+        "pr_number": {
+          "type": "integer",
+          "description": "Pull request number (if applicable)",
+          "minimum": 1
+        },
+        "runner": {
+          "type": "string",
+          "description": "CI/CD runner or local environment",
+          "examples": [
+            "github-actions",
+            "local-wsl2",
+            "docker-container"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

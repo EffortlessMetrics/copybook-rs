@@ -1,0 +1,52 @@
+name: Commit Lint
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate-pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "Validating PR title: $PR_TITLE"
+
+          # Define valid conventional commit types
+          VALID_TYPES="feat|fix|docs|refactor|perf|test|chore|build|ci|style|revert"
+
+          # Regex pattern for conventional commits with optional scope
+          # Format: type(optional-scope): description
+          # Examples:
+          #   feat: add new feature
+          #   feat(codec): add new feature
+          #   fix(core): resolve parsing bug
+          PATTERN="^(${VALID_TYPES})(\([a-z0-9-]+\))?: .+"
+
+          if echo "$PR_TITLE" | grep -qE "$PATTERN"; then
+            echo "✅ PR title follows conventional commit format"
+            exit 0
+          else
+            echo "❌ PR title does not follow conventional commit format"
+            echo ""
+            echo "Expected format: <type>(optional-scope): <description>"
+            echo ""
+            echo "Valid types: feat, fix, docs, refactor, perf, test, chore, build, ci, style, revert"
+            echo ""
+            echo "Examples:"
+            echo "  feat: add field projection support"
+            echo "  feat(codec): add COMP-3 decoding"
+            echo "  fix(core): resolve ODO parsing bug"
+            echo "  docs: update README with examples"
+            echo "  refactor(cli): simplify argument parsing"
+            echo "  perf(codec): optimize scratch buffer reuse"
+            echo "  test(golden): add enterprise fixtures"
+            echo "  chore: update dependencies"
+            echo "  build(deps): bump clap to 4.5"
+            echo ""
+            echo "Current PR title: $PR_TITLE"
+            exit 1
+          fi

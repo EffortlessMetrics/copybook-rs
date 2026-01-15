@@ -5,6 +5,52 @@ All notable changes to copybook-rs are documented here. This root file is the ca
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] — 2026-01-12
+
+> Feature release with edited PIC encoding, RENAMES codec, dialect support, and production hardening.
+
+### Added
+
+- **Edited PIC Phase E3** (Encode): Full encode support for edited numeric fields
+  - E3.2: Sign Editing (+/-) - leading and trailing sign position handling
+  - E3.3: CR/DB (credit/debit indicators) - financial notation encoding
+  - E3.4: Commas & Separators (`,`, `/`) - thousands separators and slash formatting
+  - E3.5: Asterisk Fill (`*`) - check protection for financial fields
+  - E3.6: Currency Symbols (`$`) - fixed position currency symbol encoding
+  - Test coverage: 115 new encode tests across all edited PIC patterns
+
+- **RENAMES Codec** (R1-R3): Complete decode/encode scenarios for RENAMES fields
+  - Codec-layer support for RENAMES alias resolution in encode/decode operations
+  - Proper handling of R1 (simple rename), R2 (nested rename), and R3 (multi-level) scenarios
+  - Test coverage: 7 codec-layer tests validating RENAMES roundtrip behavior
+
+- **Dialect Lever** (D0-D4): Configurable COBOL dialect support
+  - D.0: Config Schema + Contract - dialect configuration structure
+  - D.1: Core Implementation - dialect-aware parsing logic
+  - D.2: CLI Integration with `--dialect n|0|1` flags for dialect selection
+  - D.3: Golden Fixtures - dialect-specific test fixtures
+  - D.4: Documentation & Examples - comprehensive dialect usage guides
+  - Test coverage: 929 lines of dialect validation tests
+
+- **Determinism Phases 1-2**: Codec harness and CLI validation
+  - Deterministic codec harness for consistent encode/decode behavior
+  - CLI validation for deterministic output across multiple runs
+  - Foundation for production-grade reproducibility guarantees
+
+### Changed
+
+- **Production Readiness**: Achieved 0 production panics on main branch (PR #182)
+  - Systematic panic elimination across all modules
+  - Enhanced error handling for edge cases and invalid inputs
+  - Improved error messages with actionable guidance
+
+### Fixed
+
+- **Nested ODO Design** (PR #172): Reject nested ODO scenarios
+  - O5 (nested ODO inside ODO) now rejected with `CBKP022_NESTED_ODO`
+  - O6 (ODO over REDEFINES) now rejected with `CBKP023_ODO_REDEFINES`
+  - Clear error messages guide users to valid schema structures
+
 ## [0.4.1] — 2025-12-22
 
 > Patch release with receipt integrity fixes and documentation cleanup.

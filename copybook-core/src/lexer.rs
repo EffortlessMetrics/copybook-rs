@@ -122,7 +122,7 @@ pub enum Token {
     #[regex(r"[Z9]*[/,\$\+\-\*]+[Z9]*", priority = 3, callback = |lex| lex.slice().to_string())]
     EditedPic(String),
 
-    // Numbers - higher priority than PIC clauses
+    // Numbers - higher priority than PIC clauses but lower than special levels
     #[regex(r"[0-9]+", priority = 4, callback = |lex| lex.slice().parse::<u32>().ok())]
     Number(u32),
 

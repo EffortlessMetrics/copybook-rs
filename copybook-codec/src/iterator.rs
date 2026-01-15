@@ -2,6 +2,213 @@
 //!
 //! This module provides iterator-based access to records for programmatic processing,
 //! allowing users to process records one at a time without loading entire files into memory.
+//!
+//! # Overview
+//!
+//! The iterator module implements streaming record processing with bounded memory usage.
+//! It provides low-level iterator primitives for reading COBOL data files sequentially,
+//! supporting both fixed-length and RDW (Record Descriptor Word) variable-length formats.
+//!
+//! Key capabilities:
+//!
+//! 1. **Streaming iteration** ([`RecordIterator`]) - Process records one at a time
+//! 2. **Format flexibility** - Handle both fixed-length and RDW variable-length records
+//! 3. **Raw access** ([`RecordIterator::read_raw_record`]) - Access undecoded record bytes
+//! 4. **Convenience functions** ([`iter_records_from_file`], [`iter_records`]) - Simplified creation
+//!
+//! # Performance Characteristics
+//!
+//! The iterator uses buffered I/O and maintains bounded memory usage:
+//! - **Memory**: One record buffer (typically <32 KiB per record)
+//! - **Throughput**: Depends on decode complexity (DISPLAY vs COMP-3)
+//! - **Latency**: Sequential I/O optimized with `BufReader`
+//!
+//! For high-throughput parallel processing, consider using [`crate::decode_file_to_jsonl`]
+//! which provides parallel worker pools and streaming output.
+//!
+//! # Examples
+//!
+//! ## Basic Fixed-Length Record Iteration
+//!
+//! ```rust
+//! use copybook_codec::{iter_records_from_file, DecodeOptions, Codepage, RecordFormat};
+//! use copybook_core::parse_copybook;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Parse copybook schema
+//! let copybook_text = r#"
+//!     01 CUSTOMER-RECORD.
+//!        05 CUSTOMER-ID    PIC 9(5).
+//!        05 CUSTOMER-NAME  PIC X(20).
+//!        05 BALANCE        PIC S9(7)V99 COMP-3.
+//! "#;
+//! let schema = parse_copybook(copybook_text)?;
+//!
+//! // Configure decoding options
+//! let options = DecodeOptions::new()
+//!     .with_codepage(Codepage::CP037)
+//!     .with_format(RecordFormat::Fixed);
+//!
+//! // Create iterator from file
+//! # #[cfg(not(test))]
+//! let iterator = iter_records_from_file("customers.bin", &schema, &options)?;
+//!
+//! // Process records one at a time
+//! # #[cfg(not(test))]
+//! for (index, result) in iterator.enumerate() {
+//!     match result {
+//!         Ok(json_value) => {
+//!             println!("Record {}: {}", index + 1, json_value);
+//!         }
+//!         Err(error) => {
+//!             eprintln!("Error in record {}: {}", index + 1, error);
+//!             break; // Stop on first error
+//!         }
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## RDW Variable-Length Records
+//!
+//! ```rust
+//! use copybook_codec::{RecordIterator, DecodeOptions, RecordFormat};
+//! use copybook_core::parse_copybook;
+//! use std::fs::File;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let copybook_text = r#"
+//!     01 TRANSACTION.
+//!        05 TRAN-ID       PIC 9(10).
+//!        05 TRAN-AMOUNT   PIC S9(9)V99 COMP-3.
+//!        05 TRAN-DESC     PIC X(100).
+//! "#;
+//! let schema = parse_copybook(copybook_text)?;
+//!
+//! let options = DecodeOptions::new()
+//!     .with_format(RecordFormat::RDW);  // RDW variable-length format
+//!
+//! # #[cfg(not(test))]
+//! let file = File::open("transactions.dat")?;
+//! # #[cfg(test)]
+//! # let file = std::io::Cursor::new(vec![]);
+//! let mut iterator = RecordIterator::new(file, &schema, &options)?;
+//!
+//! // Process with error recovery
+//! let mut processed = 0;
+//! let mut errors = 0;
+//!
+//! for (index, result) in iterator.enumerate() {
+//!     match result {
+//!         Ok(json_value) => {
+//!             processed += 1;
+//!             // Process record...
+//!         }
+//!         Err(error) => {
+//!             errors += 1;
+//!             eprintln!("Record {}: {}", index + 1, error);
+//!
+//!             if errors > 10 {
+//!                 eprintln!("Too many errors, stopping");
+//!                 break;
+//!             }
+//!         }
+//!     }
+//! }
+//!
+//! println!("Processed: {}, Errors: {}", processed, errors);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Raw Record Access (No Decoding)
+//!
+//! ```rust
+//! use copybook_codec::{RecordIterator, DecodeOptions, RecordFormat};
+//! use copybook_core::parse_copybook;
+//! use std::io::Cursor;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let copybook_text = "01 RECORD.\n   05 DATA PIC X(10).";
+//! let schema = parse_copybook(copybook_text)?;
+//!
+//! let options = DecodeOptions::new()
+//!     .with_format(RecordFormat::Fixed);
+//!
+//! let data = b"RECORD0001RECORD0002";
+//! let mut iterator = RecordIterator::new(Cursor::new(data), &schema, &options)?;
+//!
+//! // Read raw bytes without JSON decoding
+//! while let Some(raw_bytes) = iterator.read_raw_record()? {
+//!     println!("Raw record {}: {} bytes",
+//!              iterator.current_record_index(),
+//!              raw_bytes.len());
+//!
+//!     // Process raw bytes directly...
+//!     // (useful for binary analysis, checksums, etc.)
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Collecting Records into a Vec
+//!
+//! ```rust
+//! use copybook_codec::{iter_records, DecodeOptions};
+//! use copybook_core::parse_copybook;
+//! use serde_json::Value;
+//! use std::io::Cursor;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let copybook_text = "01 RECORD.\n   05 ID PIC 9(5).";
+//! let schema = parse_copybook(copybook_text)?;
+//! let options = DecodeOptions::default();
+//!
+//! let data = b"0000100002";
+//! let iterator = iter_records(Cursor::new(data), &schema, &options)?;
+//!
+//! // Collect all successful records
+//! let records: Vec<Value> = iterator
+//!     .filter_map(Result::ok)  // Skip errors
+//!     .collect();
+//!
+//! println!("Collected {} records", records.len());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Using with DecodeOptions and Metadata
+//!
+//! ```rust
+//! use copybook_codec::{iter_records_from_file, DecodeOptions, Codepage, JsonNumberMode};
+//! use copybook_core::parse_copybook;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let copybook_text = r#"
+//!     01 RECORD.
+//!        05 AMOUNT PIC S9(9)V99 COMP-3.
+//! "#;
+//! let schema = parse_copybook(copybook_text)?;
+//!
+//! // Configure with lossless numbers and metadata
+//! let options = DecodeOptions::new()
+//!     .with_codepage(Codepage::CP037)
+//!     .with_json_number_mode(JsonNumberMode::Lossless)
+//!     .with_emit_meta(true);  // Include field metadata
+//!
+//! # #[cfg(not(test))]
+//! let iterator = iter_records_from_file("data.bin", &schema, &options)?;
+//!
+//! # #[cfg(not(test))]
+//! for result in iterator {
+//!     let json_value = result?;
+//!     // JSON includes metadata: {"AMOUNT": "123.45", "_meta": {...}}
+//!     println!("{}", serde_json::to_string_pretty(&json_value)?);
+//! }
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Error, ErrorCode, Result, Schema};
@@ -120,7 +327,8 @@ impl<R: Read> RecordIterator<R> {
     /// Read the next record without decoding it
     ///
     /// This method reads the raw bytes of the next record without performing
-    /// JSON decoding. Useful for applications that need access to raw record data.
+    /// JSON decoding. Useful for applications that need access to raw record data
+    /// for binary analysis, checksums, or custom processing.
     ///
     /// # Returns
     ///
@@ -130,6 +338,41 @@ impl<R: Read> RecordIterator<R> {
     ///
     /// # Errors
     /// Returns an error if underlying I/O operations fail or the record format is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use copybook_codec::{RecordIterator, DecodeOptions, RecordFormat};
+    /// use copybook_core::parse_copybook;
+    /// use std::io::Cursor;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let copybook_text = "01 RECORD.\n   05 DATA PIC X(8).";
+    /// let schema = parse_copybook(copybook_text)?;
+    ///
+    /// let options = DecodeOptions::new()
+    ///     .with_format(RecordFormat::Fixed);
+    ///
+    /// let data = b"RECORD01RECORD02";
+    /// let mut iterator = RecordIterator::new(Cursor::new(data), &schema, &options)?;
+    ///
+    /// // Read raw bytes
+    /// if let Some(raw_bytes) = iterator.read_raw_record()? {
+    ///     assert_eq!(raw_bytes, b"RECORD01");
+    ///     assert_eq!(iterator.current_record_index(), 1);
+    /// }
+    ///
+    /// if let Some(raw_bytes) = iterator.read_raw_record()? {
+    ///     assert_eq!(raw_bytes, b"RECORD02");
+    ///     assert_eq!(iterator.current_record_index(), 2);
+    /// }
+    ///
+    /// // End of file
+    /// assert!(iterator.read_raw_record()?.is_none());
+    /// assert!(iterator.is_eof());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
@@ -244,14 +487,85 @@ impl<R: Read> Iterator for RecordIterator<R> {
 
 /// Convenience function to create a record iterator from a file path
 ///
+/// This is the most common way to create an iterator for processing COBOL data files.
+/// It handles file opening and iterator creation in a single call.
+///
 /// # Arguments
 ///
 /// * `file_path` - Path to the data file
-/// * `schema` - The parsed copybook schema  
+/// * `schema` - The parsed copybook schema
 /// * `options` - Decoding options
 ///
 /// # Errors
 /// Returns an error if the file cannot be opened or the iterator cannot be created.
+///
+/// # Examples
+///
+/// ## Basic Usage with Fixed-Length Records
+///
+/// ```rust,no_run
+/// use copybook_codec::{iter_records_from_file, DecodeOptions, Codepage, RecordFormat};
+/// use copybook_core::parse_copybook;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let copybook_text = r#"
+///     01 EMPLOYEE-RECORD.
+///        05 EMP-ID        PIC 9(6).
+///        05 EMP-NAME      PIC X(30).
+///        05 EMP-SALARY    PIC S9(7)V99 COMP-3.
+/// "#;
+/// let schema = parse_copybook(copybook_text)?;
+///
+/// let options = DecodeOptions::new()
+///     .with_codepage(Codepage::CP037)
+///     .with_format(RecordFormat::Fixed);
+///
+/// let iterator = iter_records_from_file("employees.dat", &schema, &options)?;
+///
+/// for (index, result) in iterator.enumerate() {
+///     match result {
+///         Ok(employee) => println!("Employee {}: {}", index + 1, employee),
+///         Err(e) => eprintln!("Error at record {}: {}", index + 1, e),
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Processing with Error Limits
+///
+/// ```rust,no_run
+/// use copybook_codec::{iter_records_from_file, DecodeOptions};
+/// use copybook_core::parse_copybook;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let schema = parse_copybook("01 R.\n   05 F PIC X(1).")?;
+/// # let options = DecodeOptions::default();
+/// let iterator = iter_records_from_file("data.bin", &schema, &options)?;
+///
+/// let mut success_count = 0;
+/// let mut error_count = 0;
+/// const MAX_ERRORS: usize = 100;
+///
+/// for result in iterator {
+///     match result {
+///         Ok(_) => success_count += 1,
+///         Err(e) => {
+///             error_count += 1;
+///             eprintln!("Error: {}", e);
+///
+///             if error_count >= MAX_ERRORS {
+///                 eprintln!("Too many errors, aborting");
+///                 break;
+///             }
+///         }
+///     }
+/// }
+///
+/// println!("Success: {}, Errors: {}", success_count, error_count);
+/// # Ok(())
+/// # }
+/// ```
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
@@ -267,14 +581,90 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 
 /// Convenience function to create a record iterator from any readable source
 ///
+/// This function provides maximum flexibility by accepting any type that implements
+/// the `Read` trait, including files, cursors, network streams, or custom readers.
+///
 /// # Arguments
 ///
-/// * `reader` - Any type implementing Read
+/// * `reader` - Any type implementing Read (File, Cursor, TcpStream, etc.)
 /// * `schema` - The parsed copybook schema
 /// * `options` - Decoding options
 ///
 /// # Errors
 /// Returns an error if the iterator cannot be created.
+///
+/// # Examples
+///
+/// ## Using with In-Memory Data (Cursor)
+///
+/// ```rust
+/// use copybook_codec::{iter_records, DecodeOptions, RecordFormat};
+/// use copybook_core::parse_copybook;
+/// use std::io::Cursor;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let copybook_text = "01 RECORD.\n   05 ID PIC 9(3).\n   05 NAME PIC X(5).";
+/// let schema = parse_copybook(copybook_text)?;
+///
+/// let options = DecodeOptions::new()
+///     .with_format(RecordFormat::Fixed);
+///
+/// // Create iterator from in-memory data
+/// let data = b"001ALICE002BOB  003CAROL";
+/// let iterator = iter_records(Cursor::new(data), &schema, &options)?;
+///
+/// let records: Vec<_> = iterator.collect::<Result<Vec<_>, _>>()?;
+/// assert_eq!(records.len(), 3);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Using with File
+///
+/// ```rust,no_run
+/// use copybook_codec::{iter_records, DecodeOptions};
+/// use copybook_core::parse_copybook;
+/// use std::fs::File;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let schema = parse_copybook("01 RECORD.\n   05 DATA PIC X(10).")?;
+/// let options = DecodeOptions::default();
+///
+/// let file = File::open("data.bin")?;
+/// let iterator = iter_records(file, &schema, &options)?;
+///
+/// for result in iterator {
+///     let record = result?;
+///     println!("{}", record);
+/// }
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Using with Compressed Data
+///
+/// ```rust,ignore
+/// use copybook_codec::{iter_records, DecodeOptions};
+/// use copybook_core::parse_copybook;
+/// use std::fs::File;
+/// use flate2::read::GzDecoder;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let schema = parse_copybook("01 RECORD.\n   05 DATA PIC X(10).")?;
+/// let options = DecodeOptions::default();
+///
+/// // Read from gzipped file
+/// let file = File::open("data.bin.gz")?;
+/// let decoder = GzDecoder::new(file);
+/// let iterator = iter_records(decoder, &schema, &options)?;
+///
+/// for result in iterator {
+///     let record = result?;
+///     // Process decompressed record...
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn iter_records<R: Read>(

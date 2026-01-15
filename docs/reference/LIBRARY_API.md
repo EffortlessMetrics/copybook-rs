@@ -713,7 +713,7 @@ pub enum ErrorCode {
     // Parse errors (CBKP*)
     CBKP001_SYNTAX,                    // Syntax errors in copybook
     CBKP021_ODO_NOT_TAIL,             // ODO array positioning issues
-    CBKP051_UNSUPPORTED_EDITED_PIC,   // Space (B) insertion only; other edited PICs supported
+    CBKP051_UNSUPPORTED_EDITED_PIC,   // Reserved for future unsupported patterns; all current edited PICs supported
 
     // Schema validation errors (CBKS*)
     CBKS121_COUNTER_NOT_FOUND,        // ODO counter field missing

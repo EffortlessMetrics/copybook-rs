@@ -176,6 +176,9 @@ refresh, bench-report CLI
    * **✅ E3.6 — Currency Symbols** (`$`, fixed position) — **COMPLETED**
      * ✅ Scope: fixed-position currency symbol
      * ✅ Tests: 17 test cases for currency patterns
+   * **✅ E3.7 — Space (`B`) Insertion** — **COMPLETED**
+     * ✅ Scope: space insertion at specified positions
+     * ✅ Tests: 7 test cases for space insertion patterns
 
 2. **Dialect lever** (#51) — **✅ COMPLETE**
 
@@ -264,7 +267,7 @@ refresh, bench-report CLI
 
 ### 3. Feature Gaps (MEDIUM PRIORITY) — Est. 4-6 weeks
 
-- **Edited PIC Space (`B`) insertion** — Unsupported
+- ~~**Edited PIC Space (`B`) insertion**~~ — ✅ Complete (E3.7)
 - **SIGN SEPARATE clause** — Rejected with CBKP051 until decode semantics implemented
 - **Nested ODO support** — Rejected by design
 - **RENAMES advanced scenarios (R4-R6)** — Partial implementation

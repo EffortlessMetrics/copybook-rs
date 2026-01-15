@@ -4,11 +4,13 @@
 
 copybook-rs maintains security updates for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.3.x   | :white_check_mark: |
-| 0.2.x   | :x:                |
-| < 0.2   | :x:                |
+| Version | Supported          | Status |
+| ------- | ------------------ | ------ |
+| 0.4.x   | :white_check_mark: | Current stable release (Engineering Preview) |
+| 0.3.x   | :x:                | No longer supported |
+| < 0.3.0 | :x:                | No longer supported |
+
+**Note**: copybook-rs is currently in Engineering Preview (v0.4.x). While the CLI and library APIs are production-ready, feature completeness is still in preview. Security patches are applied to the current 0.4.x release series. See [ROADMAP.md](docs/ROADMAP.md) for version stability timeline and v1.0.0 plans.
 
 ## Reporting a Vulnerability
 
@@ -25,28 +27,44 @@ Instead, please report security vulnerabilities through one of these channels:
    - Click "Report a vulnerability"
    - Fill out the advisory form with details
 
-2. **Email** (Alternative)
-   - Send an email to: security@effortlessmetrics.com
-   - Include "copybook-rs Security Vulnerability" in the subject line
-   - Provide the details outlined below
+2. **GitHub Issue with Security Label** (Alternative)
+   - If you cannot use GitHub Security Advisories, create a regular GitHub issue with the `security` label
+   - Include minimal details in the public issue
+   - We will follow up with private communication channels for sensitive details
 
 ### What to Include
 
 Please provide as much information as possible:
 
-- **Description** of the vulnerability
-- **Steps to reproduce** the issue
-- **Potential impact** and severity assessment
+- **Description**: Clear description of the vulnerability and its potential impact
+- **Reproduction Steps**: Detailed steps to reproduce the issue
+- **Affected Components**: Which copybook-rs crates are affected (copybook-core, copybook-codec, copybook-cli, copybook-gen, copybook-bench)
+- **Attack Scenario**: Realistic exploitation scenario demonstrating impact
 - **COBOL copybook or data samples** (if relevant, but please anonymize sensitive data)
-- **Suggested fix** (if you have one)
+- **Suggested Fix** (Optional): Proposed mitigation or patch if you have one
 - **Your contact information** for follow-up questions
 
-### What to Expect
+### Response Timeline
 
-- **Acknowledgment** within 48 hours of report
-- **Initial assessment** within 1 week
-- **Regular updates** on progress toward a fix
-- **Credit** in security advisory (if desired)
+We aim to respond to security reports according to the following timeline:
+
+| Phase | Timeline | Description |
+|-------|----------|-------------|
+| **Initial Acknowledgment** | Within 48 hours | Confirm receipt and begin triage |
+| **Triage & Assessment** | Within 7 days | Evaluate severity, impact, and affected versions |
+| **Patch Development** | Depends on severity | Develop and test fix |
+| **Security Release** | Within 30 days for critical<br>Within 90 days for moderate | Publish patched version |
+| **Public Disclosure** | After patch release | Coordinate disclosure timing |
+| **Credit** | In security advisory | Recognition in advisory (if desired) |
+
+### Severity Classifications
+
+- **Critical**: Remote code execution, privilege escalation, data exfiltration
+- **High**: Authentication bypass, denial of service, memory corruption
+- **Moderate**: Information disclosure, input validation bypass
+- **Low**: Configuration issues, deprecated features
+
+**Note**: Timelines may vary based on complexity, coordination with dependencies, and responsible disclosure practices.
 
 ### Security Considerations for copybook-rs
 
@@ -90,16 +108,46 @@ When using copybook-rs in production:
 - **EBCDIC conversion** - Proper validation of character set conversions
 - **Unicode handling** - Safe handling of character encoding edge cases
 
-### Security Development Practices
+## Security Measures
 
-copybook-rs follows these security practices:
+copybook-rs implements multiple layers of security controls to ensure safe operation in enterprise environments:
 
-- **Zero unsafe code** - All code maintains Rust's memory safety guarantees
-- **Comprehensive testing** - Including property-based testing with `proptest`
-- **Static analysis** - Regular clippy lints and security-focused reviews
-- **Dependency auditing** - `cargo deny` blocks every PR; `cargo audit` runs on lockfile diffs and in scheduled scans
-- **Fuzzing** - Regular fuzzing of parsing logic
-- **Security reviews** - Code review process includes security considerations
+### Code Safety
+
+- **Zero Unsafe Code**: No `unsafe` blocks in public APIs across all workspace crates
+- **Memory Safety**: Rust's ownership model prevents buffer overflows, use-after-free, and data races
+- **Clippy Pedantic Enforcement**: All code passes `cargo clippy --workspace -- -D warnings -W clippy::pedantic`
+- **Edition 2024**: Modern Rust edition with enhanced safety guarantees
+- **MSRV Policy**: Rust 1.90+ enforced at workspace level and validated in CI
+
+### Testing & Validation
+
+- **Comprehensive Test Suite**: 840+ tests passing (24 skipped for external tool requirements)
+- **Golden Fixtures**: SHA-256 verification of test outputs with structural validation
+- **Determinism Validation**: Byte-identical results across runs and worker configurations
+- **Error Taxonomy**: Stable error codes (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*) for predictable error handling
+- **CI Pipeline**: Continuous validation of build, test, clippy, and security scans
+- **Property-based testing**: Comprehensive testing with `proptest` for edge cases
+- **Fuzzing**: Regular fuzzing of parsing logic to identify vulnerabilities
+
+### Dependency Management
+
+- **Automated Scanning**:
+  - `cargo deny` gates every PR (no yanked crates, no wildcards, trusted sources only)
+  - `cargo audit` runs on `Cargo.lock` changes and in weekly scheduled scans
+  - Weekly security scans run every Monday at 09:00 UTC via `.github/workflows/security-scan.yml`
+- **Automated Updates**: Dependabot configured for weekly dependency updates with security fixes prioritized
+- **Supply Chain Security**: Enhanced deny.toml policies enforce strict dependency hygiene
+- **Dependency Grouping**: Security updates are grouped separately from routine updates for faster triage
+
+See [.github/workflows/security-scan.yml](.github/workflows/security-scan.yml) for the complete security scan implementation and [.github/dependabot.yml](.github/dependabot.yml) for automated update configuration.
+
+### Operational Security
+
+- **Bounded Memory**: Streaming I/O architecture with <256 MiB steady-state for multi-GB files
+- **Input Validation**: Comprehensive COBOL parsing with error recovery and bounds checking
+- **Data Isolation**: Field projection (`--select`) for selective data processing and minimization
+- **Audit Support**: Optional compliance framework (SOX, HIPAA, GDPR, PCI DSS) via feature flags (experimental)
 
 ## Security Scanning Infrastructure
 
@@ -114,15 +162,17 @@ copybook-rs implements comprehensive dependency and security scanning to protect
 - CI fails on HIGH or CRITICAL vulnerabilities when `cargo audit` executes
 
 **Weekly Proactive Scanning**:
-- Scheduled Monday 03:00 UTC via `.github/workflows/security-scan.yml`
+- Scheduled Monday 09:00 UTC via `.github/workflows/security-scan.yml`
 - Automatic GitHub issue creation/update on vulnerability detection
 - Manual trigger available via GitHub Actions workflow_dispatch
+- Security receipts uploaded as artifacts with 90-day retention
 
 **Dependency Automation (Dependabot)**:
-- Daily dependency update PRs for Cargo ecosystem
-- Weekly GitHub Actions version updates
-- Security updates grouped separately from routine patches
+- Weekly dependency update PRs for Cargo ecosystem (Monday 09:00 UTC)
+- Weekly GitHub Actions version updates (Monday 09:00 UTC)
+- Security updates grouped separately from routine patches for faster triage
 - PR limits: 10 Cargo dependencies, 5 GitHub Actions
+- Automatic rebase strategy for dependency updates
 
 ### Supply Chain Security Policies
 
@@ -170,6 +220,31 @@ Enhanced `deny.toml` policies enforce enterprise security requirements:
 **Rollback Procedures**:
 See `docs/how-to/configure-security-scanning.md` §8 for detailed rollback instructions.
 
+## Security Scope
+
+### In Scope
+
+Security issues within these copybook-rs workspace crates:
+
+- **copybook-core**: COBOL parsing (lexer, parser, AST, layout resolution)
+- **copybook-codec**: Data encoding/decoding, character conversion, structural validation
+- **copybook-cli**: Command-line interface and subcommands
+- **copybook-gen**: Test fixture generation (development-only, lower priority)
+- **copybook-bench**: Performance benchmarks (development-only, lower priority)
+
+### Out of Scope
+
+- **Dependency Vulnerabilities**: Issues in third-party crates (report upstream, we'll apply updates)
+- **Deployment Security**: User's container/VM configuration, network security, access controls
+- **Data Security**: User's data classification, encryption at rest, key management
+- **COBOL Compiler Bugs**: Issues in COBOL compilers producing the copybooks
+- **Mainframe Security**: Security of source mainframe systems
+
+### Borderline Cases
+
+- **Malformed Copybooks**: Parsing crashes or memory exhaustion may be bugs, not vulnerabilities (DoS potential evaluated case-by-case)
+- **Data Validation**: Incorrect COBOL data decoding is typically a correctness bug unless it leaks sensitive data
+
 ### Disclosure Timeline
 
 Our typical timeline for security vulnerability disclosure:
@@ -183,11 +258,28 @@ Our typical timeline for security vulnerability disclosure:
 
 We aim for responsible disclosure within 90 days but may extend this timeline for complex vulnerabilities or if coordinated disclosure with other projects is required.
 
-### Security Contact
+## Security Updates & Advisories
 
-For security-related questions or concerns:
-- **Security Team**: security@effortlessmetrics.com
-- **Response Time**: 48 hours for security reports
-- **PGP Key**: Available upon request
+Security advisories and patches are published through:
+
+- **GitHub Security Advisories**: [https://github.com/EffortlessMetrics/copybook-rs/security/advisories](https://github.com/EffortlessMetrics/copybook-rs/security/advisories)
+- **Release Notes**: Security fixes noted in release changelogs
+- **GitHub Issues**: Public security issues labeled with `security` (post-disclosure)
+
+Subscribe to [GitHub repository notifications](https://github.com/EffortlessMetrics/copybook-rs/subscription) to receive security updates.
+
+## Contact
+
+For security-related questions that are not vulnerabilities:
+
+- Open a [GitHub Discussion](https://github.com/EffortlessMetrics/copybook-rs/discussions)
+- Create a GitHub issue with the `security` and `question` labels
+
+For commercial licensing or enterprise security inquiries, see [README.md](README.md#license) for contact information.
+
+---
+
+**Last Updated**: 2026-01-12
+**Security Contact**: Use GitHub Security Advisories (preferred) or GitHub Issues with `security` label
 
 Thank you for helping keep copybook-rs and its users secure!

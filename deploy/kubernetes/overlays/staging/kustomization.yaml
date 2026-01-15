@@ -1,0 +1,69 @@
+# Staging overlay for copybook-rs
+# Pre-production configuration for validation and testing
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base deployment
+bases:
+  - ../../
+
+# Staging namespace
+namespace: staging
+
+# Staging-specific labels
+commonLabels:
+  environment: staging
+  tier: pre-production
+
+# Use release candidate or specific version for staging
+images:
+  - name: ghcr.io/effortlessmetrics/copybook-rs
+    newTag: v0.4.0
+
+# Single replica for staging (matches production topology but smaller scale)
+replicas:
+  - name: copybook-rs
+    count: 1
+
+# Staging ConfigMap overrides
+configMapGenerator:
+  - name: copybook-config
+    behavior: merge
+    literals:
+      - RUST_LOG=info
+      - COPYBOOK_DIALECT=0
+      - DEFAULT_CODEPAGE=cp037
+      - DEFAULT_FORMAT=fixed
+      - JSON_NUMBER_MODE=lossless
+
+# Staging resource patches (production-like but smaller)
+patches:
+  - target:
+      kind: Deployment
+      name: copybook-rs
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 384Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 750m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 192Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 375m
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/value
+        value: "2"
+
+  # Medium PVC for staging
+  - target:
+      kind: PersistentVolumeClaim
+      name: copybook-data-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 5Gi

@@ -1,0 +1,66 @@
+# Development overlay for copybook-rs
+# Lightweight configuration for local development and testing
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base deployment
+bases:
+  - ../../
+
+# Development namespace
+namespace: dev
+
+# Development-specific labels
+commonLabels:
+  environment: dev
+  tier: testing
+
+# Use latest tag for development
+images:
+  - name: ghcr.io/effortlessmetrics/copybook-rs
+    newTag: latest
+
+# Single replica for development
+replicas:
+  - name: copybook-rs
+    count: 1
+
+# Development ConfigMap overrides (verbose logging)
+configMapGenerator:
+  - name: copybook-config
+    behavior: merge
+    literals:
+      - RUST_LOG=debug
+      - COPYBOOK_DIALECT=n
+      - DEFAULT_CODEPAGE=cp037
+      - DEFAULT_FORMAT=fixed
+      - JSON_NUMBER_MODE=lossless
+
+# Development resource patches (smaller footprint)
+patches:
+  - target:
+      kind: Deployment
+      name: copybook-rs
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 128Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 250m
+
+  # Smaller PVC for development
+  - target:
+      kind: PersistentVolumeClaim
+      name: copybook-data-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi

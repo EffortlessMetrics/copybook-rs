@@ -1,0 +1,280 @@
+---
+# Kubernetes CronJob for scheduled copybook-rs processing
+# This runs decode operations on a scheduled basis (e.g., nightly data processing)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: copybook-nightly-decode
+  labels:
+    app: copybook-rs
+    component: scheduled-job
+    operation: decode
+spec:
+  # Schedule: Run nightly at 2:00 AM (cron format: minute hour day month weekday)
+  schedule: "0 2 * * *"
+
+  # Timezone for schedule (requires Kubernetes 1.25+)
+  # timeZone: "America/New_York"
+
+  # Job history limits
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  # Concurrency policy: Forbid prevents overlapping runs
+  concurrencyPolicy: Forbid
+
+  # Start deadline: Job must start within 300 seconds or be counted as failed
+  startingDeadlineSeconds: 300
+
+  # Job template (same as regular Job)
+  jobTemplate:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: scheduled-job
+        operation: decode
+    spec:
+      completions: 1
+      parallelism: 1
+      backoffLimit: 2
+
+      # Cleanup completed jobs after 12 hours
+      ttlSecondsAfterFinished: 43200
+
+      template:
+        metadata:
+          labels:
+            app: copybook-rs
+            component: scheduled-job
+            operation: decode
+
+        spec:
+          restartPolicy: Never
+
+          containers:
+            - name: copybook-decode
+              image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+              imagePullPolicy: IfNotPresent
+
+              # Decode command with date-based output
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Generate output filename with date
+                  OUTPUT_DATE=$(date +%Y%m%d)
+                  OUTPUT_FILE="/data/output/customers-${OUTPUT_DATE}.jsonl"
+
+                  # Run decode operation
+                  /usr/local/bin/copybook decode \
+                    /data/copybooks/customers.cpy \
+                    /data/input/customers.bin \
+                    --output "${OUTPUT_FILE}" \
+                    --format fixed \
+                    --codepage cp037 \
+                    --json-number lossless \
+                    --emit-meta \
+                    --threads 4
+
+                  # Log completion
+                  echo "Completed decode to ${OUTPUT_FILE}"
+                  ls -lh "${OUTPUT_FILE}"
+
+              env:
+                - name: RUST_LOG
+                  value: "info"
+                - name: COPYBOOK_DIALECT
+                  value: "0"
+                - name: TZ
+                  value: "UTC"
+
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "500m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "1000m"
+
+              volumeMounts:
+                - name: copybook-data
+                  mountPath: /data
+
+          volumes:
+            - name: copybook-data
+              persistentVolumeClaim:
+                claimName: copybook-data-pvc
+
+---
+# Example: Weekly encode job (runs every Sunday at 3:00 AM)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: copybook-weekly-encode
+  labels:
+    app: copybook-rs
+    component: scheduled-job
+    operation: encode
+spec:
+  # Schedule: Every Sunday at 3:00 AM
+  schedule: "0 3 * * 0"
+
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: scheduled-job
+        operation: encode
+    spec:
+      completions: 1
+      parallelism: 1
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 43200
+
+      template:
+        metadata:
+          labels:
+            app: copybook-rs
+            component: scheduled-job
+            operation: encode
+
+        spec:
+          restartPolicy: Never
+
+          containers:
+            - name: copybook-encode
+              image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Generate input/output filenames with date
+                  WEEK_DATE=$(date +%Y-W%V)
+                  INPUT_FILE="/data/input/customers-${WEEK_DATE}.jsonl"
+                  OUTPUT_FILE="/data/encoded/customers-${WEEK_DATE}.bin"
+
+                  # Run encode operation
+                  /usr/local/bin/copybook encode \
+                    --format fixed \
+                    --codepage cp037 \
+                    /data/copybooks/customers.cpy \
+                    "${INPUT_FILE}" \
+                    "${OUTPUT_FILE}"
+
+                  # Log completion
+                  echo "Completed encode from ${INPUT_FILE} to ${OUTPUT_FILE}"
+                  ls -lh "${OUTPUT_FILE}"
+
+              env:
+                - name: RUST_LOG
+                  value: "info"
+                - name: COPYBOOK_DIALECT
+                  value: "0"
+                - name: TZ
+                  value: "UTC"
+
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "500m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "1000m"
+
+              volumeMounts:
+                - name: copybook-data
+                  mountPath: /data
+
+          volumes:
+            - name: copybook-data
+              persistentVolumeClaim:
+                claimName: copybook-data-pvc
+
+---
+# Example: Hourly determinism check (runs every hour)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: copybook-hourly-determinism
+  labels:
+    app: copybook-rs
+    component: scheduled-job
+    operation: determinism
+spec:
+  # Schedule: Every hour at minute 15
+  schedule: "15 * * * *"
+
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 2
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: scheduled-job
+        operation: determinism
+    spec:
+      completions: 1
+      parallelism: 1
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 7200  # 2 hours
+
+      template:
+        metadata:
+          labels:
+            app: copybook-rs
+            component: scheduled-job
+            operation: determinism
+
+        spec:
+          restartPolicy: Never
+
+          containers:
+            - name: copybook-determinism
+              image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /usr/local/bin/copybook
+                - determinism
+                - decode
+                - --format
+                - fixed
+                - --codepage
+                - cp037
+                - --output
+                - json
+                - /data/copybooks/customers.cpy
+                - /data/input/customers.bin
+
+              env:
+                - name: RUST_LOG
+                  value: "warn"
+                - name: COPYBOOK_DIALECT
+                  value: "0"
+
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "500m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "1000m"
+
+              volumeMounts:
+                - name: copybook-data
+                  mountPath: /data
+
+          volumes:
+            - name: copybook-data
+              persistentVolumeClaim:
+                claimName: copybook-data-pvc

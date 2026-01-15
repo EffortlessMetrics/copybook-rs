@@ -1,0 +1,150 @@
+---
+# Kubernetes Job for copybook-rs verify operation
+# This runs validation checks on COBOL binary data against copybook schema
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-verify-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: verify
+spec:
+  # Job completion and retry configuration
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+
+  # Job TTL for automatic cleanup (24 hours after completion)
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: verify
+
+    spec:
+      # Do not restart on failure (Job will retry)
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-verify
+          # Use specific version for reproducibility
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Verify command
+          command:
+            - /usr/local/bin/copybook
+            - verify
+            # Record format
+            - --format
+            - fixed
+            # EBCDIC codepage
+            - --codepage
+            - cp037
+            # Copybook definition file
+            - /data/copybooks/customers.cpy
+            # Binary data file to verify
+            - /data/input/customers.bin
+
+          # Environment variables
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          # Resource allocation
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+
+          # Volume mounts for data access
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+              # Expected structure:
+              # /data/copybooks/customers.cpy - Copybook definition
+              # /data/input/customers.bin - Binary data to verify
+
+      # Volumes
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+---
+# Example verify job with field projection
+# Validates only specific fields for targeted validation
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-verify-selective-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: verify-selective
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: verify-selective
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-verify
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Verify with field selection
+          command:
+            - /usr/local/bin/copybook
+            - verify
+            - --format
+            - fixed
+            - --codepage
+            - cp037
+            # Verify only specific fields
+            - --select
+            - "CUSTOMER-ID,BALANCE"
+            - /data/copybooks/customers.cpy
+            - /data/input/customers.bin
+
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc

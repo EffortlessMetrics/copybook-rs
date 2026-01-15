@@ -1,0 +1,224 @@
+---
+# Kubernetes Job for copybook-rs determinism validation
+# This runs determinism checks to ensure consistent processing results
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-determinism-decode-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: determinism-decode
+spec:
+  # Job completion and retry configuration
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+
+  # Job TTL for automatic cleanup (24 hours after completion)
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: determinism-decode
+
+    spec:
+      # Do not restart on failure (Job will retry)
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-determinism
+          # Use specific version for reproducibility
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Determinism decode validation
+          command:
+            - /usr/local/bin/copybook
+            - determinism
+            - decode
+            - --format
+            - fixed
+            - --codepage
+            - cp037
+            # JSON output for CI integration
+            - --output
+            - json
+            # Copybook definition file
+            - /data/copybooks/customers.cpy
+            # Binary data file to validate
+            - /data/input/customers.bin
+
+          # Environment variables
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          # Resource allocation
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          # Volume mounts for data access
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      # Volumes
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+      # Exit code handling:
+      # 0 = deterministic processing verified
+      # 2 = non-deterministic behavior detected
+      # 3 = error during validation
+
+---
+# Kubernetes Job for encode determinism validation
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-determinism-encode-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: determinism-encode
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: determinism-encode
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-determinism
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Determinism encode validation
+          command:
+            - /usr/local/bin/copybook
+            - determinism
+            - encode
+            - --format
+            - fixed
+            - --codepage
+            - cp037
+            # JSON output for CI integration
+            - --output
+            - json
+            - /data/copybooks/customers.cpy
+            - /data/input/customers.jsonl
+
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+---
+# Kubernetes Job for round-trip determinism validation
+# This validates that encode(decode(data)) produces consistent results
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-determinism-roundtrip-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: determinism-roundtrip
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: determinism-roundtrip
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-determinism
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Determinism round-trip validation
+          command:
+            - /usr/local/bin/copybook
+            - determinism
+            - round-trip
+            - --format
+            - fixed
+            - --codepage
+            - cp037
+            # JSON output for CI integration
+            - --output
+            - json
+            - /data/copybooks/customers.cpy
+            - /data/input/customers.bin
+
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "384Mi"
+              cpu: "750m"
+            limits:
+              memory: "768Mi"
+              cpu: "1500m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc

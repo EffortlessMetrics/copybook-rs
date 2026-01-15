@@ -114,36 +114,15 @@ copybook inspect problematic.cpy --show-offsets
 
 ### CBKP051_UNSUPPORTED_EDITED_PIC
 
-**v0.4.0+ Note:** Most edited PIC patterns are now fully supported (E1/E2/E3 phases). This error only occurs for Space (`B`) insertion patterns.
+**v0.4.2+ Note:** All edited PIC patterns are now fully supported (E1/E2/E3 phases), including Space (`B`) insertion. This error code is reserved for future unsupported editing tokens if any are discovered.
 
-**Symptoms:**
-- "Unsupported edited PIC token: B"
-- "Space insertion not supported"
-
-**Space (B) Insertion Workaround:**
-
-| Edited PIC | Non-Edited PIC | Post-Processing |
-|------------|----------------|-----------------|
-| `PIC 99B99B99` | `PIC 9(6)` | Insert spaces in application |
-| `PIC XBXBX` | `PIC X(3)` | Insert spaces in application |
-
-**Supported Edited PIC (No Change Needed):**
+**Supported Edited PIC Patterns (All Now Supported):**
 - `PIC ZZ9.99` - Zero suppression with decimal ✅
 - `PIC $$$,$$9.99` - Currency with comma ✅
 - `PIC +999.99` / `PIC -999.99` - Sign editing ✅
 - `PIC 999.99CR` / `PIC 999.99DB` - Credit/debit indicators ✅
 - `PIC ***,**9.99` - Check protection (asterisk fill) ✅
-
-**Solution Process:**
-1. Convert edited PIC to non-edited
-2. Update copybook
-3. Add formatting in post-processing
-
-```bash
-# Example post-processing with jq
-copybook decode schema.cpy data.bin --output raw.jsonl
-jq '.AMOUNT = (.AMOUNT | tonumber | . / 100 | "$\(. | tostring)")' raw.jsonl > formatted.jsonl
-```
+- `PIC 99B99B99` - Space (B) insertion ✅
 
 ## Schema Errors
 

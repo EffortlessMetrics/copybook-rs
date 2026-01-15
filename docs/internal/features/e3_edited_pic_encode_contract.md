@@ -333,7 +333,9 @@ The following patterns are explicitly NOT supported in v0.5.0 and should return 
 
 | Code | Description | Severity | Usage |
 |------|-------------|----------|-------|
-| `CBKP051_UNSUPPORTED_EDITED_PIC` | Unsupported edited PIC token (Space B only) | Error | When encountering Space (B) insertion |
+| `CBKP051_UNSUPPORTED_EDITED_PIC` | Unsupported edited PIC token | Error | Reserved for future unsupported patterns (all tokens now supported) |
+
+**Note (v0.4.2+):** Space (B) insertion is now fully supported in E3.7. This error code is reserved for potential future unsupported tokens.
 
 ---
 

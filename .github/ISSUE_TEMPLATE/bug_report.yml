@@ -1,0 +1,207 @@
+name: Bug Report
+description: Report a bug in copybook-rs COBOL data processing
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug in copybook-rs. Please fill out the sections below to help us investigate and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the bug you encountered
+    validations:
+      required: true
+
+  - type: input
+    id: copybook-version
+    attributes:
+      label: copybook-rs Version
+      description: Which version of copybook-rs are you using?
+      placeholder: e.g., 0.4.0
+    validations:
+      required: true
+
+  - type: input
+    id: rust-version
+    attributes:
+      label: Rust Version
+      description: Which version of Rust are you using?
+      placeholder: e.g., 1.90.0
+    validations:
+      required: true
+
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating System
+      description: Which operating system are you using?
+      placeholder: e.g., Ubuntu 22.04, Windows 11, macOS 14
+    validations:
+      required: true
+
+  - type: input
+    id: target-platform
+    attributes:
+      label: Target Platform
+      description: What is your target platform?
+      placeholder: e.g., x86_64-unknown-linux-gnu
+    validations:
+      required: false
+
+  - type: dropdown
+    id: codepage
+    attributes:
+      label: Codepage
+      description: Which codepage are you using?
+      options:
+        - CP037 (EBCDIC US/Canada)
+        - CP273 (EBCDIC Germany/Austria)
+        - CP500 (EBCDIC International)
+        - CP1047 (EBCDIC Latin-1)
+        - CP1140 (EBCDIC US/Canada with Euro)
+        - ASCII
+        - Other
+        - Not applicable
+    validations:
+      required: false
+
+  - type: dropdown
+    id: record-format
+    attributes:
+      label: Record Format
+      description: Which record format are you using?
+      options:
+        - Fixed-length
+        - RDW (Record Descriptor Word)
+        - Variable-length
+        - Other
+        - Not applicable
+    validations:
+      required: false
+
+  - type: input
+    id: cobol-features
+    attributes:
+      label: COBOL Features Used
+      description: Which COBOL features are involved in the bug?
+      placeholder: e.g., OCCURS DEPENDING ON, REDEFINES, COMP-3, Level-88, Edited PIC
+    validations:
+      required: false
+
+  - type: input
+    id: error-code
+    attributes:
+      label: Error Code
+      description: If you received an error code, please provide it here
+      placeholder: e.g., CBKP021, CBKS301, CBKD421, CBKE401, CBKR101
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the bug
+      placeholder: |
+        1. Prepare copybook with...
+        2. Create test data with...
+        3. Run command: cargo run --bin copybook -- ...
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: copybook-snippet
+    attributes:
+      label: Copybook Snippet
+      description: If applicable, provide a copybook definition (sanitized if needed)
+      placeholder: |
+        01 SAMPLE-RECORD.
+           05 FIELD1 PIC X(10).
+           05 FIELD2 PIC 9(5).
+      render: cobol
+    validations:
+      required: false
+
+  - type: textarea
+    id: test-data
+    attributes:
+      label: Test Data
+      description: If applicable, provide test data (hex dump or sanitized)
+      placeholder: |
+        00000000: 4865 6c6c 6f20 576f 726c 6431 3233 3435  Hello World12345
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: command-used
+    attributes:
+      label: Command Used
+      description: The exact command you used when encountering the bug
+      placeholder: |
+        cargo run --bin copybook -- decode sample.cpy data.bin --format fixed --codepage cp037
+      render: bash
+    validations:
+      required: false
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error Output
+      description: Full error output, including stack trace if available
+      placeholder: Paste full error output here
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other context about the problem, such as:
+        - Mainframe system this data originates from
+        - Specific COBOL compiler used to generate the copybook
+        - Performance impact if applicable
+        - Workarounds you've tried
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues for this bug
+          required: true
+        - label: I have provided a minimal reproducible example
+          required: false
+        - label: I have included relevant environment information
+          required: true
+        - label: I have sanitized any sensitive data in examples
+          required: false

@@ -54,6 +54,13 @@ cargo test --test golden_fixtures_enterprise      # Enterprise scenarios
 
 # Full validation pipeline
 cargo build --workspace --release && cargo test --workspace && cargo clippy --workspace -- -D warnings -W clippy::pedantic && cargo fmt --all --check
+
+# Release management (requires: cargo install cargo-release)
+cargo release patch --dry-run     # Preview patch release (0.4.2 -> 0.4.3)
+cargo release minor --dry-run     # Preview minor release (0.4.2 -> 0.5.0)
+cargo release major --dry-run     # Preview major release (0.4.2 -> 1.0.0)
+cargo release patch               # Execute patch release (bumps version, updates CHANGELOG, creates tag, pushes)
+# See docs/RELEASE_PROCESS.md for detailed release workflow
 ```
 
 ## CLI Usage
@@ -549,8 +556,7 @@ copybook-rs provides full parse, decode, and encode support for edited numeric P
 
 **Phase E3 (Encode)**: ✅ Complete
 - Encodes JSON numeric values to edited EBCDIC/ASCII formats
-- Supports: zero suppression (Z), currency ($), sign (+/-/CR/DB), asterisk (*), comma, slash
-- Note: Space (B) insertion not yet supported
+- Supports: zero suppression (Z), currency ($), sign (+/-/CR/DB), asterisk (*), comma, slash, space (B)
 - Error codes: CBKE4xx for encode failures
 
 ### Supported Edited PIC Patterns (Phase E2)
@@ -617,9 +623,9 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
 **Current Status**: Engineering Preview (v0.4.0) - ROADMAP.md is the canonical status source.
 
 ### Unsupported COBOL Features
+
 - COMP-1/COMP-2 floating-point types (rare in practice)
 - SIGN LEADING/TRAILING SEPARATE directives
-- Edited PIC Space (B) insertion – not yet implemented
 - Nested OCCURS DEPENDING ON (O5: ODO inside ODO) – rejected by design; see Issue #164
 - ODO over REDEFINES (O6) – rejected by design; see Issue #164
 - RENAMES interactions with REDEFINES/OCCURS (R4-R6) – out of scope; see docs/design/RENAMES_NESTED_GROUPS.md

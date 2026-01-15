@@ -1,0 +1,302 @@
+---
+# Kubernetes Job for copybook-rs encode operation
+# This runs a one-off batch job to encode JSONL to COBOL binary format
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-encode-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: encode
+spec:
+  # Job completion and retry configuration
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+
+  # Job TTL for automatic cleanup (24 hours after completion)
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: encode
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9300"
+        prometheus.io/path: "/metrics"
+
+    spec:
+      # Do not restart on failure (Job will retry)
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-encode
+          # Use specific version for reproducibility
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Encode command with all options
+          command:
+            - /usr/local/bin/copybook
+            - encode
+            # Record format (fixed-length)
+            - --format
+            - fixed
+            # EBCDIC codepage (IBM US EBCDIC)
+            - --codepage
+            - cp037
+            # Copybook definition file
+            - /data/copybooks/customers.cpy
+            # Input JSONL file
+            - /data/input/customers.jsonl
+            # Output binary data file
+            - /data/encoded/customers.bin
+
+          # Environment variables
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          # Resource allocation for encode job
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          # Volume mounts for data access
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+              # Expected structure:
+              # /data/copybooks/customers.cpy - Copybook definition
+              # /data/input/customers.jsonl - JSONL data to encode
+              # /data/encoded/customers.bin - Output binary (created by job)
+
+      # Volumes
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+      # Optional: Node selector for specific hardware
+      # nodeSelector:
+      #   workload-type: batch-processing
+
+---
+# Example with error handling options
+# This job uses fail-fast and max-errors for controlled error handling
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-encode-failsafe-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: encode-failsafe
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: encode-failsafe
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-encode
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Encode with error handling
+          command:
+            - /usr/local/bin/copybook
+            - encode
+            - --format
+            - fixed
+            - --codepage
+            - cp037
+            # Fail fast on first encoding error
+            - --fail-fast
+            # Or: Allow up to 5 errors before stopping
+            # - --max-errors
+            # - "5"
+            - /data/copybooks/customers.cpy
+            - /data/input/customers.jsonl
+            - /data/encoded/customers.bin
+
+          env:
+            - name: RUST_LOG
+              value: "warn"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+---
+# Example with field projection (--select)
+# This job encodes only specific fields for partial record generation
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-encode-selective-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: encode-selective
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: encode-selective
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-encode
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Encode with field projection
+          command:
+            - /usr/local/bin/copybook
+            - encode
+            - --format
+            - fixed
+            - --codepage
+            - cp037
+            # Select only specific fields (comma-separated)
+            - --select
+            - "CUSTOMER-ID,CUSTOMER-NAME,BALANCE"
+            - /data/copybooks/customers.cpy
+            - /data/input/customers-partial.jsonl
+            - /data/encoded/customers-partial.bin
+
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+---
+# Example for RDW (Record Descriptor Word) format
+# Encodes variable-length records with RDW headers
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-encode-rdw-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: encode-rdw
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: encode-rdw
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-encode
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Encode to RDW format
+          command:
+            - /usr/local/bin/copybook
+            - encode
+            # RDW format (variable-length records with headers)
+            - --format
+            - rdw
+            - --codepage
+            - cp037
+            - /data/copybooks/transactions.cpy
+            - /data/input/transactions.jsonl
+            - /data/encoded/transactions.rdw
+
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc

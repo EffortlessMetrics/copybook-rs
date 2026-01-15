@@ -13,7 +13,7 @@ use copybook_codec::{
 use copybook_core::parse_copybook_with_options;
 use std::fmt::Write as _;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{Level, info};
 
 #[allow(clippy::struct_excessive_bools)]
@@ -125,8 +125,17 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         .with_preserve_zoned_encoding(args.preserve_zoned_encoding)
         .with_preferred_zoned_encoding(args.preferred_zoned_encoding);
 
-    // Decode file using atomic write
-    let summary = {
+    // Check if output is stdout
+    let write_to_stdout = args.output.as_path() == Path::new("-");
+
+    // Decode file
+    let summary = if write_to_stdout {
+        // Write directly to stdout (no atomic write, no summary)
+        let input_file = fs::File::open(args.input)?;
+        let mut stdout = std::io::stdout().lock();
+        copybook_codec::decode_file_to_jsonl(&working_schema, input_file, &mut stdout, &options)?
+    } else {
+        // Use atomic write for file output
         let mut result_summary = None;
         atomic_write(args.output, |output_writer| {
             let input_file = fs::File::open(args.input).map_err(std::io::Error::other)?;
@@ -147,50 +156,52 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         })?
     };
 
-    // Print comprehensive summary
-    let mut summary_output = String::new();
-    writeln!(&mut summary_output, "=== Decode Summary ===")?;
-    writeln!(
-        &mut summary_output,
-        "Records processed: {}",
-        summary.records_processed
-    )?;
-    writeln!(
-        &mut summary_output,
-        "Records with errors: {}",
-        summary.records_with_errors
-    )?;
-    writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
-    writeln!(
-        &mut summary_output,
-        "Processing time: {}ms",
-        summary.processing_time_ms
-    )?;
-    writeln!(
-        &mut summary_output,
-        "Bytes processed: {}",
-        summary.bytes_processed
-    )?;
-    writeln!(
-        &mut summary_output,
-        "Throughput: {:.2} MB/s",
-        summary.throughput_mbps
-    )?;
-
-    if summary.has_warnings() {
-        writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
-    }
-
-    // Print error summary if available
-    if summary.has_errors() {
+    // Print comprehensive summary (only when not writing to stdout)
+    if !write_to_stdout {
+        let mut summary_output = String::new();
+        writeln!(&mut summary_output, "=== Decode Summary ===")?;
+        writeln!(
+            &mut summary_output,
+            "Records processed: {}",
+            summary.records_processed
+        )?;
         writeln!(
             &mut summary_output,
             "Records with errors: {}",
             summary.records_with_errors
         )?;
-    }
+        writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
+        writeln!(
+            &mut summary_output,
+            "Processing time: {}ms",
+            summary.processing_time_ms
+        )?;
+        writeln!(
+            &mut summary_output,
+            "Bytes processed: {}",
+            summary.bytes_processed
+        )?;
+        writeln!(
+            &mut summary_output,
+            "Throughput: {:.2} MB/s",
+            summary.throughput_mbps
+        )?;
 
-    write_stdout_all(summary_output.as_bytes())?;
+        if summary.has_warnings() {
+            writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
+        }
+
+        // Print error summary if available
+        if summary.has_errors() {
+            writeln!(
+                &mut summary_output,
+                "Records with errors: {}",
+                summary.records_with_errors
+            )?;
+        }
+
+        write_stdout_all(summary_output.as_bytes())?;
+    }
 
     info!("Decode completed successfully");
 

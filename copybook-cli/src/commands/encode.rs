@@ -80,58 +80,76 @@ pub fn run(
         .with_coerce_numbers(options.coerce_numbers)
         .with_zoned_encoding_override(options.zoned_encoding_override);
 
-    let mut summary = None;
-    atomic_write(output, |output_writer| {
-        let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
-        let run_summary = copybook_codec::encode_jsonl_to_file(
+    // Check if output is stdout
+    let write_to_stdout = output == Path::new("-");
+
+    // Encode file
+    let summary = if write_to_stdout {
+        // Write directly to stdout (no atomic write, no summary)
+        let input_file = fs::File::open(input)?;
+        let mut stdout = std::io::stdout().lock();
+        copybook_codec::encode_jsonl_to_file(
             &working_schema,
             input_file,
-            output_writer,
+            &mut stdout,
             &encode_options,
-        )
-        .map_err(std::io::Error::other)?;
-        summary = Some(run_summary);
-        Ok(())
-    })?;
+        )?
+    } else {
+        // Use atomic write for file output
+        let mut summary = None;
+        atomic_write(output, |output_writer| {
+            let input_file = fs::File::open(input).map_err(std::io::Error::other)?;
+            let run_summary = copybook_codec::encode_jsonl_to_file(
+                &working_schema,
+                input_file,
+                output_writer,
+                &encode_options,
+            )
+            .map_err(std::io::Error::other)?;
+            summary = Some(run_summary);
+            Ok(())
+        })?;
+        summary.ok_or_else(|| {
+            anyhow!("Internal error: summary not populated after successful processing")
+        })?
+    };
 
-    let summary = summary.ok_or_else(|| {
-        anyhow!("Internal error: summary not populated after successful processing")
-    })?;
-
-    // Print comprehensive summary
-    let mut summary_output = String::new();
-    writeln!(&mut summary_output, "=== Encode Summary ===")?;
-    writeln!(
-        &mut summary_output,
-        "Records processed: {}",
-        summary.records_processed
-    )?;
-    if summary.records_with_errors > 0 {
+    // Print comprehensive summary (only when not writing to stdout)
+    if !write_to_stdout {
+        let mut summary_output = String::new();
+        writeln!(&mut summary_output, "=== Encode Summary ===")?;
         writeln!(
             &mut summary_output,
-            "Records with errors: {}",
-            summary.records_with_errors
+            "Records processed: {}",
+            summary.records_processed
         )?;
+        if summary.records_with_errors > 0 {
+            writeln!(
+                &mut summary_output,
+                "Records with errors: {}",
+                summary.records_with_errors
+            )?;
+        }
+        if summary.warnings > 0 {
+            writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
+        }
+        writeln!(
+            &mut summary_output,
+            "Processing time: {}ms",
+            summary.processing_time_ms
+        )?;
+        writeln!(
+            &mut summary_output,
+            "Bytes processed: {}",
+            summary.bytes_processed
+        )?;
+        writeln!(
+            &mut summary_output,
+            "Throughput: {:.2} MB/s",
+            summary.throughput_mbps
+        )?;
+        write_stdout_all(summary_output.as_bytes())?;
     }
-    if summary.warnings > 0 {
-        writeln!(&mut summary_output, "Warnings: {}", summary.warnings)?;
-    }
-    writeln!(
-        &mut summary_output,
-        "Processing time: {}ms",
-        summary.processing_time_ms
-    )?;
-    writeln!(
-        &mut summary_output,
-        "Bytes processed: {}",
-        summary.bytes_processed
-    )?;
-    writeln!(
-        &mut summary_output,
-        "Throughput: {:.2} MB/s",
-        summary.throughput_mbps
-    )?;
-    write_stdout_all(summary_output.as_bytes())?;
 
     // Provide detailed feedback about encode status
     if summary.records_processed == 0 && summary.records_with_errors > 0 {

@@ -1,133 +1,120 @@
 # Pull Request
 
 ## Summary
-Brief description of the changes in this PR.
+
+<!-- Provide a brief description of what this PR does and why -->
 
 ## Type of Change
-- [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to change)
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Refactoring (no functional changes)
+
+<!-- Mark the relevant option with an 'x' -->
+
+- [ ] Feature (new functionality)
+- [ ] Bugfix (fixes an issue)
+- [ ] Refactor (code improvement without behavior change)
+- [ ] Performance (optimization)
+- [ ] Documentation (README, docs/, code comments)
+- [ ] Tests (test additions or improvements)
+- [ ] CI/CD (workflow or tooling changes)
+- [ ] Chore (dependencies, formatting, etc.)
 
 ## COBOL/Mainframe Context
-- **COBOL features affected**: [e.g., OCCURS, REDEFINES, COMP-3, Level-88]
+
+<!-- If applicable, describe COBOL features or mainframe compatibility considerations -->
+
+- **COBOL features affected**: [e.g., OCCURS, REDEFINES, COMP-3, Level-88, edited PIC, ODO]
 - **Data processing impact**: [e.g., parsing, encoding, decoding, validation]
-- **Mainframe compatibility**: [e.g., IBM z/OS, specific COBOL compiler behavior]
+- **Mainframe compatibility**: [e.g., IBM Enterprise COBOL, dialect considerations]
 
-## Changes Made
-Detailed description of changes:
+## Workspace Crates Affected
 
-### Core Changes
-- [ ] copybook-core: [describe parsing/schema changes]
-- [ ] copybook-codec: [describe encoding/decoding changes]
-- [ ] copybook-cli: [describe CLI interface changes]
-- [ ] copybook-gen: [describe test generation changes]
-- [ ] copybook-bench: [describe benchmark changes]
+<!-- Mark crates modified in this PR -->
 
-### Documentation
-- [ ] Updated API documentation
-- [ ] Updated CLI help text
-- [ ] Updated examples
-- [ ] Updated CHANGELOG.md
+- [ ] copybook-core (parsing, schema, AST)
+- [ ] copybook-codec (encoding, decoding, character conversion)
+- [ ] copybook-cli (CLI commands and options)
+- [ ] copybook-gen (test fixture generation)
+- [ ] copybook-bench (performance benchmarks)
 
-## Testing
-- [ ] Added/updated unit tests
-- [ ] Added/updated integration tests
-- [ ] Added/updated golden fixtures
-- [ ] Manual testing performed
-- [ ] Performance testing (if applicable)
+## Checklist
 
-### Test Coverage
+<!-- Mark completed items with an 'x' -->
+
+- [ ] Tests added/updated (or N/A for docs-only changes)
+- [ ] Documentation updated (CLAUDE.md, docs/, or inline comments if needed)
+- [ ] CHANGELOG.md updated (if user-facing change)
+- [ ] `cargo fmt --all` passes
+- [ ] `cargo clippy --workspace -- -D warnings -W clippy::pedantic` passes
+- [ ] `cargo test --workspace` passes (or `cargo nextest run --workspace`)
+- [ ] Follows [conventional commit format](https://www.conventionalcommits.org/) (e.g., `feat(core):`, `fix(codec):`)
+- [ ] MSRV compliance (Rust 1.90+) verified if dependencies changed
+- [ ] Golden fixtures updated if applicable
+
+## Testing Instructions
+
+<!-- Describe how to test this PR. Include commands, test cases, or manual steps -->
+
 ```bash
-# Commands used for testing
+# Example testing commands
 cargo test --workspace
-cargo nextest run --workspace
+cargo clippy --workspace -- -D warnings -W clippy::pedantic
+
+# If performance-related
 PERF=1 cargo bench --package copybook-bench
+cargo run --bin bench-report -p copybook-bench -- compare scripts/bench/perf.json
+
+# If CLI-related
+cargo run --bin copybook -- [command] [args]
 ```
 
 ## Performance Impact
-- [ ] No performance impact
-- [ ] Performance improvement (provide benchmarks)
+
+<!-- If applicable, provide benchmark results or performance analysis -->
+
+- [ ] No performance impact expected
+- [ ] Performance improvement (provide evidence below)
 - [ ] Performance regression acceptable (provide justification)
-- [ ] Performance regression needs investigation
+- [ ] Performance tested with baseline comparison
 
 ### Benchmark Results (if applicable)
+
 ```
-Before: [benchmark results]
+Before: [benchmark results or baseline reference]
 After:  [benchmark results]
 Change: [improvement/regression percentage]
 ```
 
 ## Infrastructure/Tooling Changes (if applicable)
-**Complete this section if your PR modifies:**
-- Support matrix registry or CLI
-- Performance receipt parsing or SLO evaluation
-- CI scripts or validation gates
-- xtask automation or docs verification tools
 
-### Semantic Validation
-- [ ] `./scripts/ci/offline-semantic.sh` passes
-- [ ] Adversarial tests completed (see checklist below)
-- [ ] Manual verification of key calculations (if applicable)
-- [ ] Documentation updated with validation evidence
+<!-- Complete this section if your PR modifies CI/CD, xtask, or support matrix tooling -->
 
-### Adversarial Testing Evidence
-For infrastructure changes, you must prove **correctness** — not just "does it compile?"
+**Areas modified:**
+- [ ] Support matrix registry or CLI
+- [ ] Performance receipt parsing or SLO evaluation
+- [ ] CI scripts or validation gates
+- [ ] xtask automation or docs verification tools
 
-#### Drift Detection (support matrix changes)
-- [ ] Temporarily modified/removed registry entry or docs row
-- [ ] Verified tool detects drift with clear error message
-- [ ] Restored and verified tool passes
+### Validation Evidence (for infrastructure changes)
 
-#### Malformed Input Handling (parser/validation changes)
-- [ ] Fed invalid JSON/data to new parsing logic
-- [ ] Verified clear, actionable error messages
-- [ ] Confirmed no silent failures or defaults
-
-#### Boundary Cases (SLO/threshold changes)
-- [ ] Tested exact boundary values (e.g., 80.0 pass, 79.9 fail)
-- [ ] Verified correct behavior at limits
-- [ ] Confirmed no off-by-one or floating-point errors
-
-#### Manual Math Verification (perf/throughput changes)
-- [ ] Recomputed key values by hand (bytes→MiB/s, percentages, deltas)
-- [ ] Compared manual calculations to tool output
-- [ ] Documented verification in PR description
-
-#### Round-Trip Equality (serialization changes)
-- [ ] Verified registry → JSON → parse produces identical data
-- [ ] Tested with all supported formats/modes
-- [ ] Confirmed no data loss or transformation
-
-### Local Validation Commands Run
 ```bash
-# Record the commands you ran and their results
-./scripts/ci/offline-semantic.sh           # ✅ Pass / ❌ Fail (with justification)
+# Record validation commands and results
+./scripts/ci/offline-semantic.sh           # ✅ Pass / ❌ Fail
 cargo run -p xtask -- docs verify-support-matrix  # ✅ / ❌
 cargo test -p xtask                        # ✅ / ❌
-cargo test -p copybook-cli --test support_cli     # ✅ / ❌
 ```
 
-### Evidence Summary
-```markdown
-<!-- Paste your validation evidence here. Example: -->
-
-Local validation:
-- ✅ `./scripts/ci/offline-semantic.sh` passed
-- ✅ Drift detection: commented out level-66-renames row, tool failed with "Support matrix drift detected"
-- ✅ Boundary validation: verified 80.0 MiB/s → Pass, 79.9 → Fail
-- ✅ Manual math: recomputed MiB/s from bytes/ns in Python REPL, matches tool output
-- ✅ Round-trip: registry → JSON → serde_json::from_str produces identical HashSet
-```
+**Adversarial Testing** (if applicable):
+- [ ] Tested with malformed input (verified error handling)
+- [ ] Verified boundary cases (e.g., threshold values)
+- [ ] Manual calculation verification for numeric outputs
+- [ ] Drift detection validated (for support matrix changes)
 
 ## Breaking Changes
+
 - [ ] No breaking changes
 - [ ] Breaking changes with migration path (describe below)
 
 ### Migration Guide (if breaking)
-Describe how users should update their code:
+
 ```rust
 // Before
 old_api_usage();
@@ -136,25 +123,20 @@ old_api_usage();
 new_api_usage();
 ```
 
-## Checklist
-- [ ] Code follows the project's style guidelines
-- [ ] Self-review completed
-- [ ] Code is well-commented, especially for complex COBOL parsing logic
-- [ ] Documentation updated for any new features
-- [ ] Tests added/updated and passing
-- [ ] No new clippy warnings introduced
-- [ ] CHANGELOG.md updated (if user-facing changes)
+## Enterprise Validation (if applicable)
 
-## Enterprise Validation
 For enterprise-critical changes:
-- [ ] Validated against enterprise performance targets
+- [ ] Validated against enterprise performance targets (DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s)
 - [ ] Tested with real-world mainframe data (sanitized)
-- [ ] Audit logging requirements considered
+- [ ] Error taxonomy codes documented (CBKP*/CBKS*/CBKD*/CBKE*/CBKR*)
 - [ ] Backward compatibility verified
 
 ## Related Issues
-Closes #[issue_number]
-Related to #[issue_number]
+
+<!-- Link related issues using 'Closes #xxx', 'Fixes #xxx', or 'Relates to #xxx' -->
+
+Closes #
 
 ## Additional Notes
-Any additional information that reviewers should know about this PR.
+
+<!-- Optional: Add any additional context, design decisions, trade-offs, or screenshots -->

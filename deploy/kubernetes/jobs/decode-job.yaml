@@ -1,0 +1,252 @@
+---
+# Kubernetes Job for copybook-rs decode operation
+# This runs a one-off batch job to decode COBOL binary data to JSONL
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-decode-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: decode
+spec:
+  # Job completion and retry configuration
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+
+  # Job TTL for automatic cleanup (24 hours after completion)
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: decode
+      annotations:
+        # Optional: Prometheus metrics scraping
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9300"
+        prometheus.io/path: "/metrics"
+
+    spec:
+      # Do not restart on failure (Job will retry)
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-decode
+          # Use specific version for reproducibility
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Decode command with all options
+          command:
+            - /usr/local/bin/copybook
+            - decode
+            # Copybook definition file
+            - /data/copybooks/customers.cpy
+            # Input binary data file
+            - /data/input/customers.bin
+            # Output JSONL file
+            - --output
+            - /data/output/customers.jsonl
+            # Record format (fixed-length)
+            - --format
+            - fixed
+            # EBCDIC codepage (IBM US EBCDIC)
+            - --codepage
+            - cp037
+            # JSON number mode (preserve precision)
+            - --json-number
+            - lossless
+            # Emit metadata fields
+            - --emit-meta
+            # Parallel processing (4 threads)
+            - --threads
+            - "4"
+
+          # Environment variables
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+            - name: RAYON_NUM_THREADS
+              value: "4"
+
+          # Resource allocation for decode job
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          # Volume mounts for data access
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+              # Expected structure:
+              # /data/copybooks/customers.cpy - Copybook definition
+              # /data/input/customers.bin - Binary data to decode
+              # /data/output/customers.jsonl - Output JSONL (created by job)
+
+      # Volumes
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+      # Optional: Node selector for specific hardware
+      # nodeSelector:
+      #   workload-type: batch-processing
+
+---
+# Example with field projection (--select)
+# This job decodes only specific fields for performance optimization
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-decode-selective-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: decode-selective
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: decode-selective
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-decode
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Decode with field projection
+          command:
+            - /usr/local/bin/copybook
+            - decode
+            - /data/copybooks/customers.cpy
+            - /data/input/customers.bin
+            - --output
+            - /data/output/customers-selected.jsonl
+            - --format
+            - fixed
+            - --codepage
+            - cp037
+            # Select only specific fields (comma-separated)
+            - --select
+            - "CUSTOMER-ID,CUSTOMER-NAME,BALANCE"
+            - --json-number
+            - lossless
+            - --threads
+            - "4"
+
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc
+
+---
+# Example for RDW (Record Descriptor Word) format
+# Common in IBM mainframe variable-length record files
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copybook-decode-rdw-job
+  labels:
+    app: copybook-rs
+    component: batch-job
+    operation: decode-rdw
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+
+  template:
+    metadata:
+      labels:
+        app: copybook-rs
+        component: batch-job
+        operation: decode-rdw
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: copybook-decode
+          image: ghcr.io/effortlessmetrics/copybook-rs:v0.4.0
+          imagePullPolicy: IfNotPresent
+
+          # Decode RDW format data
+          command:
+            - /usr/local/bin/copybook
+            - decode
+            - /data/copybooks/transactions.cpy
+            - /data/input/transactions.rdw
+            - --output
+            - /data/output/transactions.jsonl
+            # RDW format (variable-length records)
+            - --format
+            - rdw
+            - --codepage
+            - cp037
+            - --json-number
+            - lossless
+            - --threads
+            - "4"
+
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: COPYBOOK_DIALECT
+              value: "0"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          volumeMounts:
+            - name: copybook-data
+              mountPath: /data
+
+      volumes:
+        - name: copybook-data
+          persistentVolumeClaim:
+            claimName: copybook-data-pvc

@@ -1,27 +1,47 @@
 version: 2
 updates:
+  # Cargo dependencies - Rust workspace
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
     open-pull-requests-limit: 10
     rebase-strategy: "auto"
-    labels: ["deps", "security"]
+    labels:
+      - "dependencies"
+      - "rust"
     groups:
+      # Security fixes take priority - always grouped together
       security-fixes:
         applies-to: security-updates
-        update-types: ["patch","minor","major"]
+        update-types: ["patch", "minor", "major"]
+      # Group routine minor and patch updates to reduce PR noise
       routine-minor-patch:
-        update-types: ["patch","minor"]
+        patterns:
+          - "*"
+        update-types: ["patch", "minor"]
     commit-message:
       prefix: "build(deps)"
       include: "scope"
 
+  # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
     open-pull-requests-limit: 5
-    labels: ["deps","ci"]
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      # Group all GitHub Actions updates together
+      actions-updates:
+        patterns:
+          - "*"
     commit-message:
       prefix: "build(deps)"
+      include: "scope"

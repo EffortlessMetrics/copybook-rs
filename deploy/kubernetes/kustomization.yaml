@@ -1,0 +1,92 @@
+# Kustomization file for copybook-rs Kubernetes deployment
+# This allows easy customization and overlay management for different environments
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace for all resources (can be overridden in overlays)
+namespace: default
+
+# Common labels applied to all resources
+commonLabels:
+  app: copybook-rs
+  managed-by: kustomize
+
+# Common annotations for all resources
+commonAnnotations:
+  project: copybook-rs
+  documentation: https://github.com/EffortlessMetrics/copybook-rs
+
+# Resources to include in this kustomization
+resources:
+  - deployment.yaml
+
+# ConfigMap generator for environment-specific configuration
+# This allows generating ConfigMaps from files or literals
+configMapGenerator:
+  - name: copybook-config
+    behavior: merge
+    literals:
+      - DEFAULT_CODEPAGE=cp037
+      - DEFAULT_FORMAT=fixed
+      - COPYBOOK_DIALECT=0
+      - RUST_LOG=info
+      - JSON_NUMBER_MODE=lossless
+
+# Image configuration for version management
+images:
+  - name: ghcr.io/effortlessmetrics/copybook-rs
+    newTag: latest
+    # Override with specific version for production:
+    # newTag: v0.4.0
+
+# Resource customization patches
+# Use these to override resource limits for different environments
+# Example: increase memory for production workloads
+# patches:
+#   - target:
+#       kind: Deployment
+#       name: copybook-rs
+#     patch: |-
+#       - op: replace
+#         path: /spec/template/spec/containers/0/resources/limits/memory
+#         value: 512Mi
+#       - op: replace
+#         path: /spec/template/spec/containers/0/resources/limits/cpu
+#         value: 1000m
+
+# Replicas configuration (can be overridden per environment)
+replicas:
+  - name: copybook-rs
+    count: 1
+
+# Strategic merge patches for environment-specific customization
+# patchesStrategicMerge:
+#   - environment-overlay.yaml
+
+# JSON patches for fine-grained modifications
+# patchesJson6902:
+#   - target:
+#       group: apps
+#       version: v1
+#       kind: Deployment
+#       name: copybook-rs
+#     patch: |-
+#       - op: add
+#         path: /spec/template/spec/nodeSelector
+#         value:
+#           workload-type: batch-processing
+
+# Name prefix for all resources (useful for multi-tenancy)
+# namePrefix: prod-
+
+# Name suffix for all resources
+# nameSuffix: -v1
+
+# Variables for template substitution
+# vars:
+#   - name: DEPLOYMENT_NAME
+#     objref:
+#       kind: Deployment
+#       name: copybook-rs
+#       apiVersion: apps/v1

@@ -1,11 +1,11 @@
-//! Edited PIC (Phase E2) decode support
+//! Edited PIC (Phase E2 + E3) decode and encode support
 //!
-//! This module implements decode for edited numeric PICTURE clauses following IBM COBOL specifications.
+//! This module implements decode and encode for edited numeric PICTURE clauses following IBM COBOL specifications.
 //! Edited PICs include formatting symbols like Z (zero suppression), $ (currency), comma, decimal point,
-//! and sign editing (+, -, CR, DB).
+//! B (blank space insertion), and sign editing (+, -, CR, DB).
 //!
 //! The decode algorithm walks the input string and PIC pattern in lockstep, extracting numeric digits
-//! and validating formatting symbols.
+//! and validating formatting symbols. The encode algorithm formats numeric values according to the pattern.
 
 use copybook_core::{Error, ErrorCode, Result};
 use tracing::warn;
@@ -664,31 +664,8 @@ pub fn encode_edited_numeric(
     // Parse the input value
     let parsed = parse_numeric_value(value)?;
 
-    // Check for unsupported tokens (E3.6 supports currency)
-    for token in pattern {
-        match token {
-            PicToken::Digit
-            | PicToken::ZeroSuppress
-            | PicToken::ZeroInsert
-            | PicToken::AsteriskFill
-            | PicToken::DecimalPoint
-            | PicToken::LeadingPlus
-            | PicToken::LeadingMinus
-            | PicToken::TrailingPlus
-            | PicToken::TrailingMinus
-            | PicToken::Credit
-            | PicToken::Debit
-            | PicToken::Comma
-            | PicToken::Slash
-            | PicToken::Currency => {}
-            PicToken::Space => {
-                return Err(Error::new(
-                    ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-                    format!("Edited PIC token not supported in E3.6: {token:?}"),
-                ));
-            }
-        }
-    }
+    // All tokens are now supported in E3.7 (including Space)
+    // No unsupported token check needed
 
     // Check if value is all zeros (force positive sign)
     let is_zero = parsed.digits.iter().all(|&d| d == 0);
@@ -931,11 +908,8 @@ pub fn encode_edited_numeric(
                 }
             }
             PicToken::Space => {
-                // Should have been caught by unsupported check
-                return Err(Error::new(
-                    ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-                    format!("Edited PIC token not supported: {token:?}"),
-                ));
+                // B token always inserts a literal space character
+                result[char_pos] = ' ';
             }
         }
     }
@@ -1161,15 +1135,55 @@ mod tests {
         ));
     }
 
+    // ===== E3.7 Space Insertion Tests =====
+
     #[test]
-    fn test_encode_unsupported_token() {
-        let pattern = tokenize_edited_pic("999B").unwrap();
-        let result = encode_edited_numeric("123", &pattern, 0, false);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err().code,
-            ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED
-        ));
+    fn test_encode_space_insertion_simple() {
+        let pattern = tokenize_edited_pic("999B999").unwrap();
+        let result = encode_edited_numeric("123456", &pattern, 0, false).unwrap();
+        assert_eq!(result, "123 456");
+    }
+
+    #[test]
+    fn test_encode_space_insertion_multiple() {
+        let pattern = tokenize_edited_pic("9B9B9").unwrap();
+        let result = encode_edited_numeric("123", &pattern, 0, false).unwrap();
+        assert_eq!(result, "1 2 3");
+    }
+
+    #[test]
+    fn test_encode_space_with_zero_suppress() {
+        let pattern = tokenize_edited_pic("ZZZB999").unwrap();
+        let result = encode_edited_numeric("123456", &pattern, 0, false).unwrap();
+        assert_eq!(result, "123 456");
+    }
+
+    #[test]
+    fn test_encode_space_with_decimal() {
+        let pattern = tokenize_edited_pic("999B999.99").unwrap();
+        let result = encode_edited_numeric("123456.78", &pattern, 2, false).unwrap();
+        assert_eq!(result, "123 456.78");
+    }
+
+    #[test]
+    fn test_encode_space_multiple_repetition() {
+        let pattern = tokenize_edited_pic("99B(3)99").unwrap();
+        let result = encode_edited_numeric("1234", &pattern, 0, false).unwrap();
+        assert_eq!(result, "12   34");
+    }
+
+    #[test]
+    fn test_encode_space_with_currency() {
+        let pattern = tokenize_edited_pic("$999B999.99").unwrap();
+        let result = encode_edited_numeric("123456.78", &pattern, 2, false).unwrap();
+        assert_eq!(result, "$123 456.78");
+    }
+
+    #[test]
+    fn test_encode_space_with_sign() {
+        let pattern = tokenize_edited_pic("+999B999").unwrap();
+        let result = encode_edited_numeric("123456", &pattern, 0, false).unwrap();
+        assert_eq!(result, "+123 456");
     }
 
     #[test]

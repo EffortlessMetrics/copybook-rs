@@ -2,15 +2,15 @@
 
 ## Overview
 
-copybook-rs is a **production-ready** system for enterprise mainframe data processing. This guide covers deployment, configuration, and best practices for production environments.
+copybook-rs is an **Engineering Preview** system for enterprise mainframe data processing. This guide covers deployment, configuration, and best practices for production environments.
 
 ## Production Deployment
 
-### **System Ready for Enterprise Use** ✅
+### **Cautious Adoption Recommended** ⚠️
 
-copybook-rs has **achieved full production maturity** with:
-- **458+ tests passing** (comprehensive validation including golden fixtures)
-- **15-52x performance above enterprise targets**
+copybook-rs is in **Engineering Preview** status with:
+- **840+ tests passing** (1135+ on development; comprehensive validation including golden fixtures)
+- **Performance baseline established** (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s)
 - **Level-88 condition value support** with structural validation
 - **Golden fixtures framework** for enterprise scenario validation
 - **Zero unsafe code** with complete memory safety
@@ -101,7 +101,7 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2> errors.l
 
 ## COBOL Feature Support
 
-### **Production-Ready Data Types**
+### **Supported Data Types**
 - ✅ **Alphanumeric** (PIC X) with EBCDIC/ASCII conversion
 - ✅ **Zoned Decimals** with proper sign handling and encoding preservation
 - ✅ **Packed Decimals** (COMP-3) with enhanced nibble processing
@@ -116,8 +116,9 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2> errors.l
 
 ### **Known Limitations** (By Design)
 - COMP-1/COMP-2 floating-point (rare in production)
-- Edited PIC clauses (display formatting - use JSON for presentation)
-- Nested ODO arrays (complex edge case)
+- Nested ODO arrays (O5: ODO inside ODO - rejected by design)
+- ODO over REDEFINES (O6 - rejected by design)
+- RENAMES interactions with REDEFINES/OCCURS (R4-R6 - out of scope)
 
 ## Zoned Decimal Encoding Preservation
 
@@ -324,12 +325,13 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2>&1 | \
 
 ### Production Support
 For production deployments:
-1. Review comprehensive test coverage (840+ tests)
-2. Validate performance for your specific workload
+1. Review comprehensive test coverage (840+ tests on release tag, 1135+ on development)
+2. Validate performance for your specific workload against established baseline
 3. Implement error monitoring using stable error codes
 4. Use verification mode for data quality auditing
+5. Validate representative copybooks against supported features before deployment
 
-**Status**: copybook-rs is production-ready and suitable for immediate enterprise deployment with substantial performance safety margins.
+**Status**: copybook-rs is in Engineering Preview (v0.4.0). Suitable for teams that validate copybooks against supported features. Production deployment requires pilot validation on representative workloads. See [ROADMAP.md](ROADMAP.md) for adoption guidance.
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](LICENSE).

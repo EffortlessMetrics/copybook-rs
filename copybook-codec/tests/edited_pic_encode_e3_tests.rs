@@ -42,8 +42,10 @@
 //! ### Supported Tokens (E3.6)
 //! - **Currency ($)**: Currency symbol (fixed position)
 //!
-//! ### Explicitly Out of Scope (Future)
-//! - **Space (B)**: Blank space insertion (not yet implemented)
+//! ## E3.7 Scope (Complete)
+//!
+//! ### Supported Tokens (E3.7)
+//! - **Space (B)**: Blank space insertion
 //!
 //! ## Test Coverage
 //!
@@ -542,16 +544,41 @@ fn test_e3_1_edge_max_single_digit_0() {
     test_encode("0", "9", 0, "9");
 }
 
-// ===== Error Handling for Unsupported Tokens =====
+// ===== E3.7: Space (B) Insertion Tests =====
 
 #[test]
-fn test_e3_1_error_space() {
-    test_encode_error(
-        "999B",
-        "123",
-        0,
-        ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
-    );
+fn test_e3_7_space_simple() {
+    test_encode("999B999", "123456", 0, "123 456");
+}
+
+#[test]
+fn test_e3_7_space_multiple() {
+    test_encode("9B9B9", "123", 0, "1 2 3");
+}
+
+#[test]
+fn test_e3_7_space_with_zero_suppress() {
+    test_encode("ZZZB999", "123456", 0, "123 456");
+}
+
+#[test]
+fn test_e3_7_space_with_decimal() {
+    test_encode("999B999.99", "123456.78", 2, "123 456.78");
+}
+
+#[test]
+fn test_e3_7_space_repetition() {
+    test_encode("99B(3)99", "1234", 0, "12   34");
+}
+
+#[test]
+fn test_e3_7_space_with_currency() {
+    test_encode("$999B999.99", "123456.78", 2, "$123 456.78");
+}
+
+#[test]
+fn test_e3_7_space_with_sign() {
+    test_encode("+999B999", "123456", 0, "+123 456");
 }
 
 // ===== E3.2: Trailing Sign Tests =====

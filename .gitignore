@@ -63,3 +63,7 @@ pr_*.md
 *_REPORT*.md
 *_STATUS*.md
 *.jsonl
+
+# Build receipts (keep infrastructure, ignore receipt files)
+.runs/*.json
+!.runs/schema/

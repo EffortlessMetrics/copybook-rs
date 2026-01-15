@@ -1,7 +1,9 @@
 # copybook-rs Roadmap
 
 **Status:** ⚠️ Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-01-12
+**Production Readiness**: 35% (see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md))
+**Target Release**: v1.0.0 (Q2-Q3 2026)
 
 > **Canonical Status Source**: This file is the authoritative reference
 > for copybook-rs project status, adoption guidance, and development timeline.
@@ -13,12 +15,12 @@ Criteria → Risks/Mitigations.
 
 ---
 
-## Recent Progress (Dec 2025)
+## Recent Progress (Dec 2025 - Jan 2026)
 
 | Commit/PR | Feature | Impact |
 |-----------|---------|--------|
-| WIP | **E3.2-E3.6 Edited PIC Encoding** | Full encode support: CR/DB, commas, asterisk, currency (115 new tests) |
-| WIP | **RENAMES Codec** (#110) | R1-R3 decode/encode with 7 codec-layer tests |
+| ✅ Complete | **E3.2-E3.6 Edited PIC Encoding** | Full encode support: CR/DB, commas, asterisk, currency (115 new tests) |
+| ✅ Complete | **RENAMES Codec** (#110) | R1-R3 decode/encode with 7 codec-layer tests |
 | `976ca0f` | **E3.1 Edited PIC Encoding** | Numeric field encoding with Z-editing, decimal point, basic sign |
 | `a9609af` | **D0 Dialect Lever Contract** | `Dialect::Strict`/`Tolerant` with 929 lines of tests |
 | PR #172 | **N1 Nested ODO Design** | O5/O6 rejection with `CBKP022`/`CBKP023` error codes |
@@ -27,10 +29,11 @@ Criteria → Risks/Mitigations.
 | PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
 
 **Test Status**: 1135+ passing (cargo test --workspace)
+**CI Mode**: Currently operating in CI-off mode with local gates
 
 ---
 
-## Roadmap Gap Analysis (Dec 2025)
+## Roadmap Gap Analysis (Jan 2026)
 
 | Gap | Status | Effort | Blocker |
 |-----|--------|--------|---------|
@@ -40,6 +43,11 @@ Criteria → Risks/Mitigations.
 | **Determinism CI** (#112 Phase 3) | ✅ Ready | 0.5 PD | CI-off mode |
 | **Quality gates** (#97-100) | ⏳ Blocked | 6-8 weeks | CI-off mode |
 | **Benchmark container** (#113) | ✅ Complete | - | None |
+| **Production Automation** | 🔴 High | 6-8 weeks | CI-off mode |
+| **Enterprise Features** | 🔴 High | 8-12 weeks | Incomplete |
+| **Feature Gaps** | 🟡 Medium | 4-6 weeks | Partial |
+| **Quality Assurance** | 🟡 Medium | 2-3 weeks | 8 leaks + 1 timing test |
+| **Documentation** | 🟢 Low | 1-2 weeks | 22 functions need docs |
 
 **Issues closed (2025-12-31)**: #113, #51, #110 ✅
 
@@ -131,14 +139,14 @@ refresh, bench-report CLI
 
 ---
 
-## Milestone v0.5.0 — Edited PIC Encoding & Dialects (Q1 2026)
+## Milestone v0.5.0 — Edited PIC Encoding & Dialects (Q1 2026) ✅ COMPLETE
 
 ### Objectives
 
-* Implement Edited PIC Encoding (Phase E3) — biggest functional gap
+* Implement Edited PIC Encoding (Phase E3) — biggest functional gap ✅
 * Add a safe, explicit knob for ODO bounds across COBOL dialects; squeeze
-  throughput without changing outputs.
-* Complete Determinism CI Wiring (Phase 3) — Phases 1-2 already shipped
+  throughput without changing outputs. ✅
+* Complete Determinism CI Wiring (Phase 3) — Phases 1-2 already shipped ✅
 
 ### Deliverables
 
@@ -168,6 +176,9 @@ refresh, bench-report CLI
    * **✅ E3.6 — Currency Symbols** (`$`, fixed position) — **COMPLETED**
      * ✅ Scope: fixed-position currency symbol
      * ✅ Tests: 17 test cases for currency patterns
+   * **✅ E3.7 — Space (`B`) Insertion** — **COMPLETED**
+     * ✅ Scope: space insertion at specified positions
+     * ✅ Tests: 7 test cases for space insertion patterns
 
 2. **Dialect lever** (#51) — **✅ COMPLETE**
 
@@ -234,6 +245,100 @@ refresh, bench-report CLI
   golden fixtures; clear error handling for unsupported patterns
 * **Behavior drift for existing users** → default remains current `"n"` for
   dialect lever; strong docs + examples
+
+---
+
+## Critical Gaps Blocking v1.0.0 Release
+
+### 1. Production Automation (HIGH PRIORITY) — Est. 6-8 weeks
+
+- **CI-off mode for PRs** — Full matrix testing only on push to main
+- **PR comments & artifact uploads** — Performance results not posted automatically
+- **Performance regression gates** — SLO gates are neutral/advisory only
+- **Quality gates (#97-100)** — Blocked by CI-off mode
+- **Determinism Phase 3** — Smoke test ready, awaiting CI re-enable
+
+### 2. Enterprise Features (HIGH PRIORITY) — Est. 8-12 weeks
+
+- **Enterprise audit system** — Outputs experimental stubs
+- **Compliance validation** — SOX, HIPAA, GDPR, PCI DSS
+- **Security monitoring integration** — Incomplete
+- **Performance impact assessment** — Incomplete
+
+### 3. Feature Gaps (MEDIUM PRIORITY) — Est. 4-6 weeks
+
+- ~~**Edited PIC Space (`B`) insertion**~~ — ✅ Complete (E3.7)
+- **SIGN SEPARATE clause** — Rejected with CBKP051 until decode semantics implemented
+- **Nested ODO support** — Rejected by design
+- **RENAMES advanced scenarios (R4-R6)** — Partial implementation
+- **COMP-1/COMP-2 floating-point** — Not supported
+
+### 4. Quality Assurance (MEDIUM PRIORITY) — Est. 2-3 weeks
+
+- **8 leak detectors flagged** in CI
+- **1 timing-sensitive test failure**
+- **Performance variance** between WSL2 and native Linux
+
+### 5. Documentation (LOW PRIORITY) — Est. 1-2 weeks
+
+- **22 numeric functions** need documentation
+- **Memory module API docs** incomplete
+- **Iterator module examples** needed
+- **Enterprise deployment guides** missing
+- **Performance number discrepancies** need cleanup
+
+---
+
+## Next Planning Steps — Path to v1.0.0
+
+### Phase 1: Unblock CI (6-8 weeks) — Now to ~Feb 2026
+
+1. Re-enable full CI for PRs (remove CI-off mode)
+2. Resolve 8 leak detectors
+3. Fix 1 timing-sensitive test failure
+4. Implement PR comments and artifact uploads
+5. Make performance regression gates blocking (after baseline stabilization)
+
+### Phase 2: Complete Enterprise Features (8-12 weeks) — Feb 2026 to ~May 2026
+
+1. Complete enterprise audit system implementation
+2. Implement compliance validation (SOX, HIPAA, GDPR, PCI DSS)
+3. Complete security monitoring integration
+4. Complete performance impact assessment
+
+### Phase 3: Feature Completion (4-6 weeks) — May 2026 to ~Jun 2026
+
+1. Implement SIGN SEPARATE clause decode semantics
+2. Complete RENAMES advanced scenarios (R4-R6)
+3. Implement COMP-1/COMP-2 floating-point support (if required)
+
+### Phase 4: Documentation & Polish (1-2 weeks) — Jun 2026
+
+1. Document 22 numeric functions
+2. Add API documentation for memory module
+3. Add usage examples to iterator module
+4. Complete enterprise deployment guides
+5. Clean up performance number references
+
+### Phase 5: API Freeze & Release (4 weeks) — Jun 2026 to ~Jul 2026
+
+1. API freeze window (only doc/bench/test changes)
+2. Implement ecosystem adapters (Arrow/Parquet, Kafka example)
+3. Finalize support policy documentation
+4. Add "Stability Guarantees" section to README
+5. Verify example integrations build in CI
+
+### Timeline Summary
+
+| Phase | Duration | Start | End |
+|-------|----------|-------|-----|
+| Phase 1: Unblock CI | 6-8 weeks | Now | ~Feb 2026 |
+| Phase 2: Enterprise Features | 8-12 weeks | Feb 2026 | ~May 2026 |
+| Phase 3: Feature Completion | 4-6 weeks | May 2026 | ~Jun 2026 |
+| Phase 4: Documentation | 1-2 weeks | Jun 2026 | ~Jun 2026 |
+| Phase 5: API Freeze | 4 weeks | Jun 2026 | ~Jul 2026 |
+
+**Target v1.0.0 Release**: Q2-Q3 2026
 
 ---
 
@@ -305,10 +410,10 @@ steady; builds clean with/without metrics.
 
 | Area              | DRI        | Backup     |
 | ----------------- | ---------- | ---------- |
-| Parser & dialects | @you       | @contrib-A |
-| Codec & perf      | @you       | @contrib-B |
-| CLI & docs        | @contrib-C | @you       |
-| CI/bench receipts | @contrib-D | @contrib-C |
+| Parser & dialects | @EffortlessSteven       | @contrib-A |
+| Codec & perf      | @EffortlessSteven       | @contrib-B |
+| CLI & docs        | @EffortlessSteven | @contrib-D       |
+| CI/bench receipts | @EffortlessSteven | @contrib-C |
 
 ---
 
@@ -369,17 +474,19 @@ steady; builds clean with/without metrics.
 
 ---
 
-## Technical Debt Tracking (Dec 2024 Audit)
+## Technical Debt Tracking (Jan 2026 Audit)
 
 The following items were identified during comprehensive codebase exploration
 and are tracked for future sprints:
 
-### Documentation (Medium Priority)
+### Documentation (Medium Priority) — Est. 1-2 weeks
 
 * [ ] Document 22 numeric functions in `copybook-codec/src/numeric.rs`
 * [ ] Add API documentation for memory module (`ScratchBuffers`,
   `SequenceRing`, `WorkerPool`)
 * [ ] Add usage examples to iterator module public functions
+* [ ] Complete enterprise deployment guides
+* [ ] Clean up performance number discrepancies
 
 ### Test Coverage (Future Sprints)
 
@@ -392,6 +499,8 @@ and are tracked for future sprints:
   — Fixed 2025-12-31 with 3 new tests in `error_code_tests.rs`
 * [ ] Add unit tests for memory/iterator infrastructure
 * [ ] Improve audit feature test coverage (currently ~10%)
+* [ ] Resolve 8 leak detectors flagged in CI
+* [ ] Fix 1 timing-sensitive test failure
 
 ### Code Quality (Completed in v0.4.0+)
 
@@ -402,8 +511,11 @@ and are tracked for future sprints:
   `copybook-gen`)
 * [x] **Production panics at 0** on main (test-only panics remain acceptable) — PR #182
 * [x] **E3.1 Edited PIC Encoding** for numeric fields — commit 976ca0f
+* [x] **E3.2-E3.6 Edited PIC Encoding** — Full encode support with 115 new tests (Dec 2025)
 * [x] **D0 Dialect Lever Contract** with comprehensive tests — commit a9609af
 * [x] **N1 Nested ODO Design** with O5/O6 rejection — PR #172
+* [x] **RENAMES Codec (#110)** — R1-R3 decode/encode scenarios complete (Dec 2025)
+* [x] **Determinism Phases 1-2** — Codec harness + CLI validation complete (Dec 2025)
 
 ### CI Mode (Current)
 

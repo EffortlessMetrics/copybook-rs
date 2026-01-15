@@ -1,0 +1,228 @@
+name: Feature Request
+description: Suggest a new feature for copybook-rs COBOL data processing
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature for copybook-rs. Please fill out the sections below to help us understand and evaluate your request.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A clear and concise description of the feature you'd like to see added.
+      placeholder: Brief summary of the feature
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation and Use Case
+      description: |
+        Describe the problem this feature would solve:
+        - What mainframe data processing scenario requires this?
+        - How would this improve copybook-rs for your use case?
+        - Are there existing workarounds, and why are they insufficient?
+      placeholder: Explain why this feature is needed
+    validations:
+      required: true
+
+  - type: dropdown
+    id: feature-category
+    attributes:
+      label: Feature Category
+      description: Which category does this feature fall into?
+      options:
+        - COBOL Language Support
+        - Data Type Support
+        - CLI Enhancement
+        - Library API Enhancement
+        - Performance Optimization
+        - Enterprise Feature
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: cobol-feature
+    attributes:
+      label: COBOL Language Feature
+      description: If requesting COBOL language support, which feature?
+      placeholder: e.g., new PIC clause, SIGN SEPARATE, COMP-1/COMP-2
+    validations:
+      required: false
+
+  - type: input
+    id: mainframe-compatibility
+    attributes:
+      label: Mainframe Compatibility
+      description: Specific mainframe system or COBOL compiler compatibility
+      placeholder: e.g., IBM z/OS, Micro Focus, COBOL-2002
+    validations:
+      required: false
+
+  - type: input
+    id: industry-use-case
+    attributes:
+      label: Industry Use Case
+      description: Which industry or domain would benefit from this feature?
+      placeholder: e.g., banking, insurance, government, manufacturing, retail
+    validations:
+      required: false
+
+  - type: textarea
+    id: cobol-syntax
+    attributes:
+      label: COBOL Syntax Example
+      description: If requesting COBOL language support, provide syntax examples
+      placeholder: |
+        01 PROPOSED-FEATURE.
+           05 NEW-FIELD-TYPE PIC clause-you-want-supported.
+           05 EXISTING-ANALOG PIC X(10).
+      render: cobol
+    validations:
+      required: false
+
+  - type: textarea
+    id: api-design
+    attributes:
+      label: API Design Proposal
+      description: If requesting library API changes, provide proposed API usage
+      placeholder: |
+        // Proposed API usage
+        let result = copybook_rs::parse_with_feature(&copybook, FeatureFlags::new())?;
+      render: rust
+    validations:
+      required: false
+
+  - type: textarea
+    id: cli-enhancement
+    attributes:
+      label: CLI Enhancement Proposal
+      description: If requesting CLI improvements, provide proposed command syntax
+      placeholder: |
+        # Proposed command
+        cargo run --bin copybook -- command --new-option value
+      render: bash
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: |
+        Describe exactly how this feature should work:
+        1. Input: ...
+        2. Processing: ...
+        3. Output: ...
+      placeholder: Detailed expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Describe any alternative solutions or features you've considered
+      placeholder: What alternatives have you considered?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: affected-crates
+    attributes:
+      label: Affected Crate(s)
+      description: Which copybook-rs crate(s) would be affected?
+      multiple: true
+      options:
+        - copybook-core (parsing)
+        - copybook-codec (encoding/decoding)
+        - copybook-cli (command-line interface)
+        - copybook-gen (fixture generation)
+        - copybook-bench (benchmarks)
+        - Documentation
+        - Multiple crates
+        - Unsure
+    validations:
+      required: false
+
+  - type: dropdown
+    id: breaking-changes
+    attributes:
+      label: Breaking Changes
+      description: Would this feature require breaking changes?
+      options:
+        - "No breaking changes"
+        - "Potentially breaking"
+        - "Definitely breaking"
+        - "Unsure"
+    validations:
+      required: false
+
+  - type: input
+    id: performance-requirements
+    attributes:
+      label: Performance Requirements
+      description: If this is a performance feature, what are the targets?
+      placeholder: e.g., throughput targets, memory constraints, latency requirements
+    validations:
+      required: false
+
+  - type: input
+    id: compliance-needs
+    attributes:
+      label: Compliance/Regulatory Needs
+      description: Are there specific compliance or regulatory requirements?
+      placeholder: e.g., audit trails, data sovereignty, industry regulations
+    validations:
+      required: false
+
+  - type: textarea
+    id: implementation-notes
+    attributes:
+      label: Implementation Notes
+      description: |
+        If you have ideas about implementation:
+        - Implementation approach suggestions
+        - Potential compatibility concerns
+        - Performance considerations
+        - Dependencies or prerequisites
+      placeholder: Your implementation ideas
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: |
+        Any other context, such as:
+        - Links to COBOL documentation or specifications
+        - Examples from other tools or libraries
+        - Industry-specific requirements
+        - Backward compatibility considerations
+      placeholder: Additional context
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues for this feature
+          required: true
+        - label: I have provided clear COBOL/mainframe context (if applicable)
+          required: false
+        - label: I have described the business use case
+          required: true
+        - label: I have considered implementation complexity
+          required: false
+        - label: I have identified potential breaking changes
+          required: false

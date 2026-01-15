@@ -283,12 +283,11 @@ Becomes: `05 LONG-FIELD-NAME PIC X(100).`
 
 ### 7.4 Edited PIC Detection
 
-**Rule**: Edited PIC clauses MUST be parsed into EditedNumeric FieldKind with full E1/E2/E3 support. Only Space (`B`) insertion remains unsupported.
+**Rule**: Edited PIC clauses MUST be parsed into EditedNumeric FieldKind with full E1/E2/E3 support. All editing tokens are now supported.
 
 **Implementation**:
-- Parse edited characters: Z, /, comma, $, +, -, CR, DB, asterisk (*) into EditedToken enum
-- Support decode (E2) and encode (E3) for all tokens except Space (B)
-- Emit CBKP051_UNSUPPORTED_EDITED_PIC only for Space (B) insertion patterns
+- Parse edited characters: Z, /, comma, $, +, -, CR, DB, asterisk (*), B into EditedToken enum
+- Support decode (E2) and encode (E3) for all tokens including Space (B)
 
 ### 7.5 SIGN Clause Handling
 

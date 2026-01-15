@@ -1,0 +1,75 @@
+name: Changelog
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      full_regenerate:
+        description: 'Regenerate full changelog (vs. incremental)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  generate:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Generate changelog (incremental)
+        if: github.event_name == 'push' || !inputs.full_regenerate
+        run: |
+          # Generate changelog for new commits since last tag
+          git cliff --config cliff.toml --unreleased --no-exec --strip header > CHANGELOG_new.md
+          echo "Generated incremental changelog for unreleased commits"
+          cat CHANGELOG_new.md
+
+      - name: Generate changelog (full)
+        if: github.event_name == 'workflow_dispatch' && inputs.full_regenerate
+        run: |
+          # Regenerate full changelog from all tags
+          git cliff --config cliff.toml --no-exec --output CHANGELOG_full.md
+          echo "Generated full changelog from all tags"
+          head -100 CHANGELOG_full.md
+
+      - name: Upload changelog artifact (incremental)
+        if: github.event_name == 'push' || !inputs.full_regenerate
+        uses: actions/upload-artifact@v6
+        with:
+          name: changelog-incremental
+          path: CHANGELOG_new.md
+          retention-days: 30
+
+      - name: Upload changelog artifact (full)
+        if: github.event_name == 'workflow_dispatch' && inputs.full_regenerate
+        uses: actions/upload-artifact@v6
+        with:
+          name: changelog-full
+          path: CHANGELOG_full.md
+          retention-days: 90
+
+      - name: Summary
+        run: |
+          echo "## Changelog Generation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.full_regenerate }}" = "true" ]; then
+            echo "Full changelog regenerated from all tags." >> $GITHUB_STEP_SUMMARY
+            echo "Download the \`changelog-full\` artifact to review." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Incremental changelog generated for unreleased commits." >> $GITHUB_STEP_SUMMARY
+            echo "Download the \`changelog-incremental\` artifact to review." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This workflow does not auto-commit. Review the artifact and manually update CHANGELOG.md if desired." >> $GITHUB_STEP_SUMMARY

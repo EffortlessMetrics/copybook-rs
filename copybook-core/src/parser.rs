@@ -967,6 +967,15 @@ impl Parser {
                 self.advance();
                 min
             }
+            // Accept Level tokens as numbers in OCCURS context (01-49 are lexed as Level)
+            Some(TokenPos {
+                token: Token::Level(n),
+                ..
+            }) => {
+                let min = u32::from(*n);
+                self.advance();
+                min
+            }
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
@@ -984,6 +993,15 @@ impl Parser {
                     ..
                 }) => {
                     let max = *n;
+                    self.advance();
+                    max
+                }
+                // Accept Level tokens as numbers in OCCURS context (01-49 are lexed as Level)
+                Some(TokenPos {
+                    token: Token::Level(n),
+                    ..
+                }) => {
+                    let max = u32::from(*n);
                     self.advance();
                     max
                 }

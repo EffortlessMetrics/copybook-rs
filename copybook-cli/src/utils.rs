@@ -159,26 +159,78 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for copybook files (16 MiB) to prevent DoS
+pub const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
+/// Read file content with size limit enforcement
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The file cannot be read
+/// - The file size exceeds `limit`
+/// - The content is not valid UTF-8
+fn read_file_with_limit<P: AsRef<Path>>(path: P, limit: u64) -> io::Result<String> {
+    let path = path.as_ref();
+    let mut buffer = String::new();
+
+    if path == Path::new("-") {
+        debug!("Reading from stdin (limit: {} bytes)", limit);
+        // We read limit + 1 to detect truncation
+        let bytes_read = io::stdin()
+            .take(limit.saturating_add(1))
+            .read_to_string(&mut buffer)?;
+        if bytes_read as u64 > limit {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("Input from stdin exceeds size limit of {limit} bytes"),
+            ));
+        }
+    } else {
+        debug!("Reading from file: {:?} (limit: {} bytes)", path, limit);
+        // Check metadata first for efficient fail-fast
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if metadata.len() > limit {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!(
+                        "File too large: {} bytes (limit: {} bytes)",
+                        metadata.len(),
+                        limit
+                    ),
+                ));
+            }
+        }
+
+        // Read with limit to prevent TOCTOU race conditions (e.g. file growing)
+        let file = std::fs::File::open(path)?;
+        let bytes_read = file
+            .take(limit.saturating_add(1))
+            .read_to_string(&mut buffer)?;
+
+        if bytes_read as u64 > limit {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("File content exceeds size limit of {limit} bytes"),
+            ));
+        }
+    }
+
+    Ok(buffer)
+}
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
 ///
+/// This function enforces a default size limit of 16 MiB to prevent memory exhaustion DoS.
+///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if the size limit is exceeded.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
-    let path = path.as_ref();
-
-    if path == Path::new("-") {
-        debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
-    } else {
-        debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
-    }
+    read_file_with_limit(path, MAX_COPYBOOK_SIZE)
 }
 
 #[cfg(test)]
@@ -248,5 +300,33 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_file_with_limit() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let file_path = temp_dir.path().join("test_limit.txt");
+
+        // Create a file with 100 bytes
+        {
+            let mut file = std::fs::File::create(&file_path)?;
+            file.write_all(&[b'a'; 100])?;
+        }
+
+        // 1. Read with limit > size (should succeed)
+        let content = read_file_with_limit(&file_path, 200)?;
+        assert_eq!(content.len(), 100);
+
+        // 2. Read with limit == size (should succeed)
+        let content = read_file_with_limit(&file_path, 100)?;
+        assert_eq!(content.len(), 100);
+
+        // 3. Read with limit < size (should fail)
+        let result = read_file_with_limit(&file_path, 50);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("File too large"));
+
+        Ok(())
     }
 }

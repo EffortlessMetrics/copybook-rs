@@ -618,19 +618,30 @@ impl SmallDecimal {
         }
 
         // Use a small stack buffer for digits for larger numbers
-        let mut digits = [0u8; 20]; // More than enough for i64::MAX
-        let mut count = 0;
+        // i64::MAX is 9,223,372,036,854,775,807 (19 digits)
+        let mut digits = [0u8; 20];
+        // Start filling from the end of the buffer to avoid reversing later
+        let mut pos = 20;
 
-        // Safe: i64::MAX has 19 digits, array has 20 elements
-        while value > 0 && count < 20 {
-            digits[count] = digit_from_value(value % 10);
+        while value > 0 {
+            pos -= 1;
+            // Fast digit extraction without try_from/match overhead
+            // Safety: value % 10 is guaranteed to be 0..=9
+            digits[pos] = (value % 10) as u8 + b'0';
             value /= 10;
-            count += 1;
         }
 
-        // Add digits in reverse order
-        for i in (0..count).rev() {
-            buffer.push(char::from(b'0' + digits[i]));
+        // Append digits directly to string buffer without individual push checks
+        // Safety: digits are ASCII numerals (0-9), so UTF-8 conversion is always valid and safe
+        // We use from_utf8 which checks validity (cheap for ASCII) to comply with 'forbid(unsafe_code)'
+        let len = 20 - pos;
+        if len <= 8 {
+            for &b in &digits[pos..20] {
+                buffer.push(char::from(b));
+            }
+        } else {
+            let s = std::str::from_utf8(&digits[pos..20]).unwrap_or("");
+            buffer.push_str(s);
         }
     }
 
@@ -663,36 +674,48 @@ impl SmallDecimal {
             return;
         }
 
-        // General case for larger widths
-        let mut digits = [0u8; 20]; // More than enough for i64::MAX
-        let mut count = 0;
+        // Use a small stack buffer for digits
+        let mut digits = [0u8; 20];
+        // Start filling from the end of the buffer
+        let mut pos = 20;
+
         // Clamp target_width to array size to prevent out-of-bounds access
         let target_width = usize::try_from(width).unwrap_or(usize::MAX).min(20);
+        let end_limit = 20 - target_width;
 
-        // Extract digits (safe: i64::MAX has at most 19 digits, array has 20 elements)
+        // Extract digits
         loop {
-            digits[count] = digit_from_value(value % 10);
+            pos -= 1;
+            // Safety: value % 10 is guaranteed to be 0..=9
+            digits[pos] = (value % 10) as u8 + b'0';
             value /= 10;
-            count += 1;
-            // Safety: count is bounded by min(19, target_width) where target_width <= 20
-            if value == 0 && count >= target_width {
+
+            if value == 0 && pos <= end_limit {
                 break;
             }
-            if count >= 20 {
-                // Defensive: should never happen for i64, but prevents any overflow
+            if pos == 0 {
+                // Defensive: should never happen for i64, but prevents overflow
                 break;
             }
         }
 
-        // Pad with leading zeros if needed (count is guaranteed <= 20)
-        while count < target_width {
-            digits[count] = 0;
-            count += 1;
+        // Pad with leading zeros if needed
+        while pos > end_limit {
+            pos -= 1;
+            digits[pos] = b'0';
         }
 
-        // Add digits in reverse order
-        for i in (0..count).rev() {
-            buffer.push(char::from(b'0' + digits[i]));
+        // Append digits directly to string buffer
+        // Safety: digits are ASCII numerals (0-9), so UTF-8 conversion is always valid and safe
+        // We use from_utf8 which checks validity (cheap for ASCII) to comply with 'forbid(unsafe_code)'
+        let len = 20 - pos;
+        if len <= 8 {
+            for &b in &digits[pos..20] {
+                buffer.push(char::from(b));
+            }
+        } else {
+            let s = std::str::from_utf8(&digits[pos..20]).unwrap_or("");
+            buffer.push_str(s);
         }
     }
 

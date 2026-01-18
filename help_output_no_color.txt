@@ -1,0 +1,20 @@
+Modern COBOL copybook parser and data converter
+
+Usage: copybook [OPTIONS] <COMMAND>
+
+Commands:
+  parse        Parse copybook and output schema JSON
+  inspect      Inspect copybook and show human-readable layout
+  decode       Decode binary data to JSONL
+  encode       Encode JSONL to binary data
+  verify       Verify data file structure
+  support      Display COBOL support matrix or check copybook compatibility
+  determinism  Determinism validation for encode/decode operations
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+  -v, --verbose           Enable verbose logging
+      --strict-policy     Enforce policy checks. Precedence: --strict-policy > --no-strict-policy > `COPYBOOK_STRICT_POLICY`
+      --no-strict-policy  Disable strict checks for this run, even if `COPYBOOK_STRICT_POLICY=1`
+  -h, --help              Print help
+  -V, --version           Print version

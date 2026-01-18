@@ -797,7 +797,9 @@ impl Parser {
     /// Parse PIC clause
     fn parse_pic_clause(&mut self, field: &mut Field) -> Result<()> {
         // Collect PIC clause tokens - might be split across multiple tokens
-        let mut pic_parts = Vec::new();
+        // optimization: use String buffer instead of Vec<String> to avoid allocations
+        let mut pic_string = String::with_capacity(32);
+        let mut has_extension = false;
 
         // First token should be a PIC clause or identifier
         match self.current_token() {
@@ -805,7 +807,7 @@ impl Parser {
                 token: Token::PicClause(pic),
                 ..
             }) => {
-                pic_parts.push(pic.clone());
+                pic_string.push_str(pic);
                 self.advance();
             }
             Some(TokenPos {
@@ -813,7 +815,7 @@ impl Parser {
                 ..
             }) => {
                 // Phase E1: Accept edited PIC and push to parts for parsing
-                pic_parts.push(pic.clone());
+                pic_string.push_str(pic);
                 self.advance();
             }
             Some(TokenPos {
@@ -821,7 +823,7 @@ impl Parser {
                 ..
             }) => {
                 // This might be part of a PIC clause like "S9(7)" followed by "V99"
-                pic_parts.push(id.clone());
+                pic_string.push_str(id);
                 self.advance();
             }
             _ => {
@@ -836,28 +838,31 @@ impl Parser {
         while let Some(token) = self.current_token() {
             match &token.token {
                 Token::LeftParen => {
-                    pic_parts.push("(".to_string());
+                    pic_string.push('(');
+                    has_extension = true;
                     self.advance();
                 }
-                Token::Number(n)
-                    if !pic_parts.is_empty() && pic_parts.last() == Some(&"(".to_string()) =>
-                {
-                    pic_parts.push(n.to_string());
+                Token::Number(n) if pic_string.ends_with('(') => {
+                    use std::fmt::Write;
+                    let _ = write!(pic_string, "{}", n);
+                    has_extension = true;
                     self.advance();
                 }
-                Token::RightParen if !pic_parts.is_empty() && pic_parts.len() >= 2 => {
-                    pic_parts.push(")".to_string());
+                Token::RightParen if has_extension => {
+                    pic_string.push(')');
                     self.advance();
                 }
                 Token::Identifier(id) if id.starts_with('V') || id.starts_with('v') => {
-                    pic_parts.push(id.clone());
+                    pic_string.push_str(id);
+                    has_extension = true;
                     self.advance();
                 }
                 // Collect sign-related identifiers (CR, DB, etc.)
                 Token::Identifier(id) => {
                     let id_upper = id.to_ascii_uppercase();
                     if id_upper == "CR" || id_upper == "DB" {
-                        pic_parts.push(id.clone());
+                        pic_string.push_str(id);
+                        has_extension = true;
                         self.advance();
                     } else {
                         break;
@@ -867,8 +872,7 @@ impl Parser {
             }
         }
 
-        let pic_str = pic_parts.join("");
-        let pic = PicClause::parse(&pic_str)?;
+        let pic = PicClause::parse(&pic_string)?;
 
         field.kind = match pic.kind {
             crate::pic::PicKind::Alphanumeric => FieldKind::Alphanum {
@@ -882,7 +886,7 @@ impl Parser {
             crate::pic::PicKind::Edited => {
                 // Phase E2: Parse edited PIC into schema with scale
                 FieldKind::EditedNumeric {
-                    pic_string: pic_str.clone(),
+                    pic_string: pic_string.clone(),
                     width: pic.digits,
                     scale: pic.scale as u16,
                     signed: pic.signed,

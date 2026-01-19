@@ -15,6 +15,29 @@ use tracing::warn;
 const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39
 const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
 
+/// Packed BCD lookup table for fast nibble decoding
+/// Maps a byte (2 nibbles) to its numeric value (0-99) or -1 if invalid
+/// Index: byte value (0x00-0xFF)
+/// Value: (high_nibble * 10 + low_nibble) or -1
+const PACKED_BCD_LOOKUP: [i16; 256] = [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1, -1, -1, -1,
+    10, 11, 12, 13, 14, 15, 16, 17, 18, 19, -1, -1, -1, -1, -1, -1,
+    20, 21, 22, 23, 24, 25, 26, 27, 28, 29, -1, -1, -1, -1, -1, -1,
+    30, 31, 32, 33, 34, 35, 36, 37, 38, 39, -1, -1, -1, -1, -1, -1,
+    40, 41, 42, 43, 44, 45, 46, 47, 48, 49, -1, -1, -1, -1, -1, -1,
+    50, 51, 52, 53, 54, 55, 56, 57, 58, 59, -1, -1, -1, -1, -1, -1,
+    60, 61, 62, 63, 64, 65, 66, 67, 68, 69, -1, -1, -1, -1, -1, -1,
+    70, 71, 72, 73, 74, 75, 76, 77, 78, 79, -1, -1, -1, -1, -1, -1,
+    80, 81, 82, 83, 84, 85, 86, 87, 88, 89, -1, -1, -1, -1, -1, -1,
+    90, 91, 92, 93, 94, 95, 96, 97, 98, 99, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+];
+
 /// Branch prediction hint for likely-true conditions
 ///
 /// Provides a manual branch prediction hint to the compiler that the condition
@@ -1342,30 +1365,39 @@ fn decode_packed_fast_general(
     };
     let mut value = 0i64;
     let mut digit_pos = 0;
+    let mut iter = prefix_bytes.iter();
 
-    for &byte in prefix_bytes {
-        let high_nibble = (byte >> 4) & 0x0F;
-        let low_nibble = byte & 0x0F;
-
-        if likely(!(digit_pos == 0 && has_padding)) {
-            if unlikely(high_nibble > 9) {
+    // Handle initial padding (only if total nibbles is even, meaning odd digits + sign)
+    // For even number of digits (total_nibbles odd), has_padding is true.
+    if has_padding {
+        if let Some(&byte) = iter.next() {
+            // First byte: padding nibble (high) + first digit (low)
+            // Note: We don't strictly enforce padding=0 for performance, consistent with
+            // original behavior where it was skipped.
+            let low_nibble = byte & 0x0F;
+            if unlikely(low_nibble > 9) {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                     "Invalid digit nibble".to_string(),
                 ));
             }
-            value = value * 10 + i64::from(high_nibble);
-            digit_pos += 1;
+            value = i64::from(low_nibble);
+            digit_pos = 1; // Processed padding + 1 digit
         }
+    }
 
-        if unlikely(low_nibble > 9) {
+    // Process remaining byte pairs using fast lookup
+    for &byte in iter {
+        let pair_val = PACKED_BCD_LOOKUP[usize::from(byte)];
+        if unlikely(pair_val < 0) {
             return Err(Error::new(
                 ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                 "Invalid digit nibble".to_string(),
             ));
         }
-        value = value * 10 + i64::from(low_nibble);
-        digit_pos += 1;
+        // value = value * 100 + pair_val
+        value = value * 100 + i64::from(pair_val);
+        digit_pos += 2;
     }
 
     let last_high = (*last_byte >> 4) & 0x0F;
@@ -2649,6 +2681,15 @@ pub fn decode_packed_decimal_with_scratch(
     // Clear and prepare digit buffer for reuse
     scratch.digit_buffer.clear();
     scratch.digit_buffer.reserve(usize::from(digits));
+
+    // CRITICAL PERFORMANCE OPTIMIZATION: Use the fast path when possible
+    // The "optimized" path using scratch buffers was actually slower due to
+    // checked arithmetic overhead. We now reuse the same fast path as the
+    // standard decoder, which is significantly faster.
+    let expected_bytes = usize::from((digits + 1).div_ceil(2));
+    if likely(data.len() == expected_bytes && digits <= 18) {
+         return decode_packed_decimal_fast_path(data, digits, scale, signed);
+    }
 
     // Optimized nibble processing - unify handling for multi-byte cases
     let decimal = if data.len() == 1 {

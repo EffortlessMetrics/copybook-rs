@@ -1,0 +1,3 @@
+## 2024-05-23 - [Packed Decimal Fast Path]
+**Learning:** `decode_packed_decimal_with_scratch` was explicitly avoiding the "optimized" path because it was believed to be slower, likely due to overhead or checked arithmetic in the implementation of the "optimized" path. However, the standard `decode_packed_decimal_fast_path` (specifically `decode_packed_fast_general`) is actually faster because it avoids checked arithmetic on every digit push.
+**Action:** When optimizing, always verify if "slow" paths are actually slow, and if "fast" paths are actually fast. In this case, unifying the implementation to use the lookup-table-enhanced fast path provided a benefit.

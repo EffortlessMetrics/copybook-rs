@@ -159,25 +159,58 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for copybook files (16 MiB) to prevent memory exhaustion
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
 ///
+/// It enforces a 16 MiB size limit to prevent Denial of Service (DoS) attacks via memory exhaustion.
+///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if the content exceeds 16 MiB.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 
+    // Helper to check size and read safely
+    let check_and_read = |reader: Box<dyn Read>| -> io::Result<String> {
+        // Read one byte more than the limit to detect truncation
+        let mut handle = reader.take(MAX_COPYBOOK_SIZE + 1);
+        let mut buffer = String::new();
+        handle.read_to_string(&mut buffer)?;
+        if buffer.len() as u64 > MAX_COPYBOOK_SIZE {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Copybook exceeds maximum size of {MAX_COPYBOOK_SIZE} bytes"),
+            ));
+        }
+        Ok(buffer)
+    };
+
     if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        check_and_read(Box::new(io::stdin()))
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        let file = std::fs::File::open(path)?;
+        // Optimistic check using metadata (if available) to fail fast
+        if let Ok(metadata) = file.metadata() {
+            if metadata.len() > MAX_COPYBOOK_SIZE {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "Copybook file size {} exceeds maximum size of {} bytes",
+                        metadata.len(),
+                        MAX_COPYBOOK_SIZE
+                    ),
+                ));
+            }
+        }
+        // Still use check_and_read to be safe against TOCTOU or file growth
+        check_and_read(Box::new(file))
     }
 }
 
@@ -248,5 +281,47 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_large_file_fails() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("large_file.txt");
+
+        // Create a file slightly larger than 16 MiB
+        {
+            let file = fs::File::create(&target_path)?;
+            let mut writer = std::io::BufWriter::new(file);
+            // Write in chunks to avoid large memory allocation during creation
+            let chunk = vec![b'a'; 1024 * 1024];
+            for _ in 0..16 {
+                writer.write_all(&chunk)?;
+            }
+            writer.write_all(&[b'a'])?;
+            writer.flush()?;
+        }
+
+        // Try to read it
+        let result = read_file_or_stdin(&target_path);
+
+        // Should fail now due to size limit
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+        assert!(err.to_string().contains("exceeds maximum size"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_valid_file_succeeds() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("valid_file.txt");
+        let content = "01 TEST-RECORD PIC X(10).";
+
+        fs::write(&target_path, content)?;
+
+        let result = read_file_or_stdin(&target_path)?;
+        assert_eq!(result, content);
+        Ok(())
     }
 }

@@ -42,7 +42,7 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
             match feature.status {
                 SupportStatus::Supported => {
                     println!("Feature: {}", feature.name);
-                    println!("Status: {:?}", feature.status);
+                    println!("Status: ✅ {:?}", feature.status);
                     println!("Description: {}", feature.description);
                     if let Some(doc_ref) = feature.doc_ref {
                         println!("Documentation: {doc_ref}");
@@ -85,7 +85,13 @@ pub fn run(args: &SupportArgs) -> anyhow::Result<ExitCode> {
                 println!("{}", "-".repeat(80));
 
                 for feature in &filtered {
-                    let status_str = format!("{:?}", feature.status);
+                    let icon = match feature.status {
+                        SupportStatus::Supported => "✅",
+                        SupportStatus::Partial => "⚠️ ",
+                        SupportStatus::Planned => "📅",
+                        SupportStatus::NotPlanned => "❌",
+                    };
+                    let status_str = format!("{} {:?}", icon, feature.status);
                     println!(
                         "{:<25} {:<15} {}",
                         feature.name, status_str, feature.description

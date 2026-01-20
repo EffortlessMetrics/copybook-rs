@@ -8,12 +8,25 @@ use crate::options::{Codepage, ZonedEncodingFormat};
 use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte};
 use copybook_core::{Error, ErrorCode, Result};
 use std::convert::TryFrom;
-use std::fmt::Write;
 use tracing::warn;
 
 /// Nibble zones for ASCII/EBCDIC digits (high bits in zoned bytes).
 const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39
 const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
+
+/// Lookup table for 2-digit pairs to speed up integer formatting
+/// "00", "01", ..., "99" stored as 2 bytes each
+const DIGIT_PAIRS: &[u8; 200] = b"\
+00010203040506070809\
+10111213141516171819\
+20212223242526272829\
+30313233343536373839\
+40414243444546474849\
+50515253545556575859\
+60616263646566676869\
+70717273747576777879\
+80818283848586878889\
+90919293949596979899";
 
 /// Branch prediction hint for likely-true conditions
 ///
@@ -371,11 +384,8 @@ impl SmallDecimal {
             // Normal integer format (scale = 0)
             self.value
         };
-        // Writing to String should never fail, but handle gracefully for panic elimination
-        if write!(result, "{scaled_value}").is_err() {
-            // Fallback: append a placeholder if formatting somehow fails
-            result.push_str("ERR");
-        }
+        // Optimization: Use manual formatting to avoid write! overhead
+        Self::format_integer_manual(scaled_value, result);
     }
 
     /// Append decimal format with exactly `scale` digits after decimal point
@@ -384,16 +394,14 @@ impl SmallDecimal {
         let integer_part = self.value / divisor;
         let fractional_part = self.value % divisor;
 
-        // Writing to String should never fail, but handle gracefully for panic elimination
-        let width = usize::try_from(self.scale).unwrap_or_else(|_| {
-            debug_assert!(false, "scale should be positive when formatting decimal");
-            0
-        });
-
-        if write!(result, "{integer_part}.{fractional_part:0width$}").is_err() {
-            // Fallback: append a placeholder if formatting somehow fails
-            result.push_str("ERR");
-        }
+        // Optimization: Use manual formatting to avoid write! overhead
+        Self::format_integer_manual(integer_part, result);
+        result.push('.');
+        Self::format_integer_with_leading_zeros(
+            fractional_part,
+            scale_abs_to_u32(self.scale),
+            result,
+        );
     }
 
     /// Parse a decimal string into a `SmallDecimal` using the expected scale.
@@ -535,25 +543,22 @@ impl SmallDecimal {
             } else {
                 self.value
             };
-            // Writing to String should never fail, but handle gracefully for panic elimination
-            if write!(result, "{scaled_value}").is_err() {
-                result.push_str("ERR");
-            }
+            // Optimization: Use manual formatting to avoid write! overhead
+            Self::format_integer_manual(scaled_value, &mut result);
         } else {
             // Decimal format with exactly `scale` digits after decimal
             let divisor = 10_i64.pow(scale_abs_to_u32(scale));
             let integer_part = self.value / divisor;
             let fractional_part = self.value % divisor;
 
-            // Writing to String should never fail, but handle gracefully for panic elimination
-            let width = usize::try_from(scale).unwrap_or_else(|_| {
-                debug_assert!(false, "scale should be positive in decimal formatting");
-                0
-            });
-
-            if write!(result, "{integer_part}.{fractional_part:0width$}").is_err() {
-                result.push_str("ERR");
-            }
+            // Optimization: Use manual formatting to avoid write! overhead
+            Self::format_integer_manual(integer_part, &mut result);
+            result.push('.');
+            Self::format_integer_with_leading_zeros(
+                fractional_part,
+                scale_abs_to_u32(scale),
+                &mut result,
+            );
         }
 
         result
@@ -597,22 +602,23 @@ impl SmallDecimal {
 
     /// Ultra-fast manual integer formatting to avoid write!() macro overhead
     #[inline]
-    fn format_integer_manual(mut value: i64, buffer: &mut String) {
+    fn format_integer_manual(value: i64, buffer: &mut String) {
         if value == 0 {
             buffer.push('0');
             return;
         }
 
+        let mut value = value.unsigned_abs();
+
         // Optimized formatting with fewer divisions for common cases
         if value < 100 {
             // Fast path for 1-2 digit numbers (very common in COMP-3)
             if value < 10 {
-                push_digit(buffer, value);
+                buffer.push(char::from(b'0' + value as u8));
             } else {
-                let tens = value / 10;
-                let ones = value % 10;
-                push_digit(buffer, tens);
-                push_digit(buffer, ones);
+                let offset = (value as usize) * 2;
+                buffer.push(char::from(DIGIT_PAIRS[offset]));
+                buffer.push(char::from(DIGIT_PAIRS[offset + 1]));
             }
             return;
         }
@@ -621,42 +627,72 @@ impl SmallDecimal {
         let mut digits = [0u8; 20]; // More than enough for i64::MAX
         let mut count = 0;
 
-        // Safe: i64::MAX has 19 digits, array has 20 elements
-        while value > 0 && count < 20 {
-            digits[count] = digit_from_value(value % 10);
-            value /= 10;
-            count += 1;
+        // Process 2 digits at a time to reduce divisions
+        while value >= 100 {
+            let rem = (value % 100) as usize;
+            value /= 100;
+
+            let offset = rem * 2;
+            // Push digits in reverse order for later reversal
+            digits[count] = DIGIT_PAIRS[offset + 1];
+            digits[count + 1] = DIGIT_PAIRS[offset];
+            count += 2;
+        }
+
+        if value > 0 {
+            if value < 10 {
+                digits[count] = b'0' + (value as u8);
+                count += 1;
+            } else {
+                let offset = (value as usize) * 2;
+                digits[count] = DIGIT_PAIRS[offset + 1];
+                digits[count + 1] = DIGIT_PAIRS[offset];
+                count += 2;
+            }
         }
 
         // Add digits in reverse order
         for i in (0..count).rev() {
-            buffer.push(char::from(b'0' + digits[i]));
+            buffer.push(char::from(digits[i]));
         }
     }
 
     /// Ultra-fast manual integer formatting with leading zeros
     #[inline]
-    fn format_integer_with_leading_zeros(mut value: i64, width: u32, buffer: &mut String) {
+    fn format_integer_with_leading_zeros(value: i64, width: u32, buffer: &mut String) {
+        let mut value = value.unsigned_abs();
+
         // Optimized for common small widths (most COMP-3 scales are 0-4)
         if width <= 4 && value < 10000 {
             match width {
                 1 => {
-                    push_digit(buffer, value);
+                    buffer.push(char::from(b'0' + value as u8));
                 }
                 2 => {
-                    push_digit(buffer, value / 10);
-                    push_digit(buffer, value % 10);
+                    let offset = (value as usize) * 2;
+                    buffer.push(char::from(DIGIT_PAIRS[offset]));
+                    buffer.push(char::from(DIGIT_PAIRS[offset + 1]));
                 }
                 3 => {
-                    push_digit(buffer, value / 100);
-                    push_digit(buffer, (value / 10) % 10);
-                    push_digit(buffer, value % 10);
+                    let hundreds = value / 100;
+                    let rem = (value % 100) as usize;
+                    buffer.push(char::from(b'0' + hundreds as u8));
+
+                    let offset = rem * 2;
+                    buffer.push(char::from(DIGIT_PAIRS[offset]));
+                    buffer.push(char::from(DIGIT_PAIRS[offset + 1]));
                 }
                 4 => {
-                    push_digit(buffer, value / 1000);
-                    push_digit(buffer, (value / 100) % 10);
-                    push_digit(buffer, (value / 10) % 10);
-                    push_digit(buffer, value % 10);
+                    let hundreds = (value / 100) as usize;
+                    let rem = (value % 100) as usize;
+
+                    let offset1 = hundreds * 2;
+                    buffer.push(char::from(DIGIT_PAIRS[offset1]));
+                    buffer.push(char::from(DIGIT_PAIRS[offset1 + 1]));
+
+                    let offset2 = rem * 2;
+                    buffer.push(char::from(DIGIT_PAIRS[offset2]));
+                    buffer.push(char::from(DIGIT_PAIRS[offset2 + 1]));
                 }
                 _ => {}
             }
@@ -669,30 +705,46 @@ impl SmallDecimal {
         // Clamp target_width to array size to prevent out-of-bounds access
         let target_width = usize::try_from(width).unwrap_or(usize::MAX).min(20);
 
-        // Extract digits (safe: i64::MAX has at most 19 digits, array has 20 elements)
-        loop {
-            digits[count] = digit_from_value(value % 10);
-            value /= 10;
-            count += 1;
-            // Safety: count is bounded by min(19, target_width) where target_width <= 20
+        // Process 2 digits at a time to reduce divisions
+        while value >= 100 {
+            let rem = (value % 100) as usize;
+            value /= 100;
+
+            let offset = rem * 2;
+            digits[count] = DIGIT_PAIRS[offset + 1];
+            digits[count + 1] = DIGIT_PAIRS[offset];
+            count += 2;
+
             if value == 0 && count >= target_width {
                 break;
             }
             if count >= 20 {
-                // Defensive: should never happen for i64, but prevents any overflow
                 break;
+            }
+        }
+
+        // Handle remaining < 100 part
+        if count < target_width || value > 0 {
+             if value < 10 {
+                digits[count] = b'0' + (value as u8);
+                count += 1;
+            } else {
+                let offset = (value as usize) * 2;
+                digits[count] = DIGIT_PAIRS[offset + 1];
+                digits[count + 1] = DIGIT_PAIRS[offset];
+                count += 2;
             }
         }
 
         // Pad with leading zeros if needed (count is guaranteed <= 20)
         while count < target_width {
-            digits[count] = 0;
+            digits[count] = b'0';
             count += 1;
         }
 
         // Add digits in reverse order
         for i in (0..count).rev() {
-            buffer.push(char::from(b'0' + digits[i]));
+            buffer.push(char::from(digits[i]));
         }
     }
 

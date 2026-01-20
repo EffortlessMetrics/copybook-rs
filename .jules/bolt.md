@@ -1,0 +1,3 @@
+## 2026-01-31 - Optimized Integer Formatting with Lookup Table
+**Learning:** `write!` macro overhead is significant for integer formatting in hot paths. Replacing it with manual formatting using a 2-digit lookup table yields measurable performance gains. Also, be careful with `std::mem::take` on scratch buffers as it resets capacity, potentially negating allocation benefits, though faster formatting still helps.
+**Action:** Prefer manual integer formatting with lookup tables in critical codec paths over `write!`. Avoid `std::mem::take` on scratch buffers where possible, or ensure capacity is restored.

@@ -60,7 +60,7 @@ fn invocation_id() -> &'static str {
 }
 
 #[derive(Parser)]
-#[command(name = "copybook", color = ColorChoice::Never)]
+#[command(name = "copybook", color = ColorChoice::Auto)]
 #[command(about = "Modern COBOL copybook parser and data converter")]
 #[command(version)]
 struct Cli {
@@ -545,7 +545,6 @@ fn run() -> anyhow::Result<ExitCode> {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
     tracing_subscriber::fmt()
         .with_env_filter(env_filter)
-        .with_ansi(false)
         .with_writer(|| BrokenPipeSafeStderr(std::io::stderr()))
         .init();
 

@@ -13,7 +13,9 @@ pub type TestResult<T> = Result<T, Box<dyn Error>>;
 #[allow(dead_code)] // shared test helper: some suites only rely on write_file
 #[must_use]
 pub fn bin() -> Command {
-    cargo_bin_cmd!("copybook")
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.env("NO_COLOR", "1");
+    cmd
 }
 
 #[allow(dead_code)] // shared test helper: silences per-binary unused warnings

@@ -51,7 +51,7 @@ fn determinism_decode_deterministic_exit_ok() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "determinism",
         "decode",
@@ -71,7 +71,7 @@ fn determinism_decode_json_output_is_well_formed() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "determinism",
         "decode",
@@ -96,7 +96,7 @@ fn determinism_encode_deterministic_exit_ok() {
     let (copybook, _) = write_simple_fixture(tmp.path());
     let json_path = write_simple_json(tmp.path());
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "determinism",
         "encode",
@@ -116,7 +116,7 @@ fn determinism_round_trip_deterministic_exit_ok() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "determinism",
         "round-trip",
@@ -136,7 +136,7 @@ fn determinism_decode_human_output_contains_verdict() {
     let tmp = tempdir().expect("tempdir");
     let (copybook, data) = write_simple_fixture(tmp.path());
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "determinism",
         "decode",
@@ -157,7 +157,7 @@ fn determinism_decode_human_output_contains_verdict() {
 
 #[test]
 fn determinism_help_shows_exit_codes() {
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args(["determinism", "--help"]);
 
     cmd.assert()

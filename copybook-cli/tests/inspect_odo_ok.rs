@@ -24,13 +24,13 @@ fn odo_copybook_loads_in_both_modes() -> TestResult<()> {
     let copybook_str = path_to_str(f.path())?;
 
     // Test that ODO copybook loads successfully (lenient mode)
-    cargo_bin_cmd!("copybook")
+    { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd }
         .args(["inspect", copybook_str])
         .assert()
         .success();
 
     // strict
-    cargo_bin_cmd!("copybook")
+    { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd }
         .args(["inspect", "--strict", copybook_str])
         .assert()
         .success();

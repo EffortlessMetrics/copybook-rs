@@ -23,7 +23,7 @@ fn edited_pic_inspects_successfully() -> TestResult<()> {
 
     let copybook_str = path_to_str(f.path())?;
 
-    let output = cargo_bin_cmd!("copybook")
+    let output = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd }
         .args(["inspect", copybook_str])
         .output()?;
 

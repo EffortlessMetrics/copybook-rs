@@ -22,7 +22,7 @@ fn command_output<'a, I>(args: I) -> TestResult<std::process::Output>
 where
     I: IntoIterator<Item = &'a str>,
 {
-    Ok(cargo_bin_cmd!("copybook").args(args).output()?)
+    Ok({ let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd }.args(args).output()?)
 }
 
 fn assert_cli_failure<'a, I>(args: I, context: &str) -> TestResult<()>

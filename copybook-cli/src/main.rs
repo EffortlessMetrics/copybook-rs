@@ -60,7 +60,7 @@ fn invocation_id() -> &'static str {
 }
 
 #[derive(Parser)]
-#[command(name = "copybook", color = ColorChoice::Never)]
+#[command(name = "copybook", color = ColorChoice::Auto)]
 #[command(about = "Modern COBOL copybook parser and data converter")]
 #[command(version)]
 struct Cli {

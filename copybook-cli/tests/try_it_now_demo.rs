@@ -64,7 +64,7 @@ fn try_it_now_demo_decode_succeeds() -> TestResult<()> {
     let output_path = tmp.path().join("demo.jsonl");
 
     // Run the exact command from README (minus ./target/release/ since we use cargo_bin_cmd)
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         copybook_path.to_str().unwrap(),
@@ -165,7 +165,7 @@ fn try_it_now_demo_decode_with_output_flag_required() -> TestResult<()> {
     assert!(data_path.exists(), "simple.bin fixture not found");
 
     // Run decode without --output flag (should fail because --output is required)
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         copybook_path.to_str().unwrap(),
@@ -192,7 +192,7 @@ fn try_it_now_demo_invalid_fixture_path_fails() -> TestResult<()> {
 
     let output_path = tmp.path().join("output.jsonl");
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         nonexistent_copybook.to_str().unwrap(),
@@ -220,7 +220,7 @@ fn try_it_now_demo_output_file_is_valid_jsonl() -> TestResult<()> {
     let tmp = tempdir()?;
     let output_path = tmp.path().join("output.jsonl");
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         copybook_path.to_str().unwrap(),
@@ -263,7 +263,7 @@ fn try_it_now_demo_missing_required_args_fails() -> TestResult<()> {
     let data_path = workspace_root.join("fixtures/data/simple.bin");
 
     // Missing --format flag
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         copybook_path.to_str().unwrap(),
@@ -275,7 +275,7 @@ fn try_it_now_demo_missing_required_args_fails() -> TestResult<()> {
     cmd.assert().failure();
 
     // Missing --codepage flag
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         copybook_path.to_str().unwrap(),
@@ -303,7 +303,7 @@ fn try_it_now_demo_preserves_output_file_on_success() -> TestResult<()> {
     assert!(output_path.exists(), "Output file should exist initially");
 
     // Run decode (should overwrite)
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         copybook_path.to_str().unwrap(),
@@ -356,7 +356,7 @@ fn try_it_now_demo_decode_to_stdout() -> TestResult<()> {
     );
 
     // Run decode with --output - (stdout)
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.args([
         "decode",
         copybook_path.to_str().unwrap(),

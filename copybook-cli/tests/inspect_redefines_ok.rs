@@ -22,7 +22,7 @@ fn redefines_views_load() -> TestResult<()> {
 
     let copybook_str = path_to_str(f.path())?;
 
-    cargo_bin_cmd!("copybook")
+    { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd }
         .args(["inspect", copybook_str])
         .assert()
         .success();

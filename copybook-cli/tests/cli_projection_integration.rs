@@ -39,7 +39,7 @@ fn test_cli_decode_with_select_simple_fields() -> TestResult<()> {
 
     // Decode with field selection
     let output_path = temp_dir.path().join("output.jsonl");
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.arg("decode")
         .arg(&copybook_path)
         .arg(&data_path)
@@ -89,7 +89,7 @@ fn test_cli_decode_with_select_comma_separated() -> TestResult<()> {
 
     // Decode with comma-separated selection
     let output_path = temp_dir.path().join("output.jsonl");
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.arg("decode")
         .arg(&copybook_path)
         .arg(&data_path)
@@ -136,7 +136,7 @@ fn test_cli_decode_with_select_multiple_flags() -> TestResult<()> {
 
     // Decode with multiple --select flags
     let output_path = temp_dir.path().join("output.jsonl");
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.arg("decode")
         .arg(&copybook_path)
         .arg(&data_path)
@@ -183,7 +183,7 @@ fn test_cli_decode_with_select_invalid_field() -> TestResult<()> {
 
     // Try to decode with nonexistent field
     let output_path = temp_dir.path().join("output.jsonl");
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.arg("decode")
         .arg(&copybook_path)
         .arg(&data_path)
@@ -225,7 +225,7 @@ fn test_cli_encode_with_projection() -> TestResult<()> {
 
     // Encode with field selection (only validate FIELD-A)
     let output_path = temp_dir.path().join("output.bin");
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.arg("encode")
         .arg(&copybook_path)
         .arg(&input_path)
@@ -263,7 +263,7 @@ fn test_cli_verify_with_projection() -> TestResult<()> {
     fs::write(&data_path, b"AAAAABBBBB")?;
 
     // Verify with projection (only check FIELD-B)
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.arg("verify")
         .arg(&copybook_path)
         .arg(&data_path)
@@ -303,7 +303,7 @@ fn test_cli_decode_group_selection_includes_children() -> TestResult<()> {
 
     // Decode with group selection
     let output_path = temp_dir.path().join("output.jsonl");
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = { let mut cmd = cargo_bin_cmd!("copybook"); cmd.env("NO_COLOR", "1"); cmd };
     cmd.arg("decode")
         .arg(&copybook_path)
         .arg(&data_path)

@@ -15,6 +15,20 @@ use tracing::warn;
 const ASCII_DIGIT_ZONE: u8 = 0x3; // ASCII '0'..'9' => 0x30..0x39
 const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
 
+/// Lookup table for 2-digit pairs to optimize formatting
+const DIGIT_PAIRS: &[u8; 200] = b"\
+00010203040506070809\
+10111213141516171819\
+20212223242526272829\
+30313233343536373839\
+40414243444546474849\
+50515253545556575859\
+60616263646566676869\
+70717273747576777879\
+80818283848586878889\
+90919293949596979899\
+";
+
 /// Branch prediction hint for likely-true conditions
 ///
 /// Provides a manual branch prediction hint to the compiler that the condition
@@ -605,95 +619,90 @@ impl SmallDecimal {
 
         // Optimized formatting with fewer divisions for common cases
         if value < 100 {
-            // Fast path for 1-2 digit numbers (very common in COMP-3)
+            // Fast path for 1-2 digit numbers
             if value < 10 {
-                push_digit(buffer, value);
+                buffer.push((b'0' + value as u8) as char);
             } else {
-                let tens = value / 10;
-                let ones = value % 10;
-                push_digit(buffer, tens);
-                push_digit(buffer, ones);
+                let offset = (value as usize) * 2;
+                buffer.push(DIGIT_PAIRS[offset] as char);
+                buffer.push(DIGIT_PAIRS[offset + 1] as char);
             }
             return;
         }
 
         // Use a small stack buffer for digits for larger numbers
-        let mut digits = [0u8; 20]; // More than enough for i64::MAX
-        let mut count = 0;
+        let mut buf = [0u8; 20];
+        let mut pos = 20;
 
-        // Safe: i64::MAX has 19 digits, array has 20 elements
-        while value > 0 && count < 20 {
-            digits[count] = digit_from_value(value % 10);
-            value /= 10;
-            count += 1;
+        while value >= 100 {
+            let rem = (value % 100) as usize;
+            value /= 100;
+
+            let offset = rem * 2;
+            pos -= 1;
+            buf[pos] = DIGIT_PAIRS[offset + 1];
+            pos -= 1;
+            buf[pos] = DIGIT_PAIRS[offset];
         }
 
-        // Add digits in reverse order
-        for i in (0..count).rev() {
-            buffer.push(char::from(b'0' + digits[i]));
+        if value < 10 {
+            pos -= 1;
+            buf[pos] = b'0' + value as u8;
+        } else {
+            let offset = (value as usize) * 2;
+            pos -= 1;
+            buf[pos] = DIGIT_PAIRS[offset + 1];
+            pos -= 1;
+            buf[pos] = DIGIT_PAIRS[offset];
         }
+
+        // Safe: buf contains ASCII digits
+        let valid_slice = &buf[pos..];
+        // SAFETY: We put only ASCII bytes 0-9 into the buffer
+        // from_utf8 checks validity, but since we know it is valid ASCII, this check is fast.
+        let s = std::str::from_utf8(valid_slice).expect("buffer contains only ASCII digits");
+        buffer.push_str(s);
     }
 
     /// Ultra-fast manual integer formatting with leading zeros
     #[inline]
     fn format_integer_with_leading_zeros(mut value: i64, width: u32, buffer: &mut String) {
-        // Optimized for common small widths (most COMP-3 scales are 0-4)
-        if width <= 4 && value < 10000 {
-            match width {
-                1 => {
-                    push_digit(buffer, value);
-                }
-                2 => {
-                    push_digit(buffer, value / 10);
-                    push_digit(buffer, value % 10);
-                }
-                3 => {
-                    push_digit(buffer, value / 100);
-                    push_digit(buffer, (value / 10) % 10);
-                    push_digit(buffer, value % 10);
-                }
-                4 => {
-                    push_digit(buffer, value / 1000);
-                    push_digit(buffer, (value / 100) % 10);
-                    push_digit(buffer, (value / 10) % 10);
-                    push_digit(buffer, value % 10);
-                }
-                _ => {}
-            }
-            return;
+        let mut buf = [b'0'; 20]; // Initialize with zeros for padding
+        let target_width = (width as usize).min(20);
+        let mut pos = 20;
+        let min_pos = 20 - target_width; // we must fill at least up to here with zeros
+
+        // Fill digits from end
+        while value >= 100 {
+            let rem = (value % 100) as usize;
+            value /= 100;
+
+            let offset = rem * 2;
+            pos -= 1;
+            // Safety check although with i64 and size 20 it shouldn't be needed
+            if pos == 0 { break; }
+            buf[pos] = DIGIT_PAIRS[offset + 1];
+            pos -= 1;
+            buf[pos] = DIGIT_PAIRS[offset];
         }
 
-        // General case for larger widths
-        let mut digits = [0u8; 20]; // More than enough for i64::MAX
-        let mut count = 0;
-        // Clamp target_width to array size to prevent out-of-bounds access
-        let target_width = usize::try_from(width).unwrap_or(usize::MAX).min(20);
-
-        // Extract digits (safe: i64::MAX has at most 19 digits, array has 20 elements)
-        loop {
-            digits[count] = digit_from_value(value % 10);
-            value /= 10;
-            count += 1;
-            // Safety: count is bounded by min(19, target_width) where target_width <= 20
-            if value == 0 && count >= target_width {
-                break;
-            }
-            if count >= 20 {
-                // Defensive: should never happen for i64, but prevents any overflow
-                break;
-            }
+        if value < 10 {
+            pos -= 1;
+            buf[pos] = b'0' + value as u8;
+        } else {
+            let offset = (value as usize) * 2;
+            pos -= 1;
+            buf[pos] = DIGIT_PAIRS[offset + 1];
+            pos -= 1;
+            buf[pos] = DIGIT_PAIRS[offset];
         }
 
-        // Pad with leading zeros if needed (count is guaranteed <= 20)
-        while count < target_width {
-            digits[count] = 0;
-            count += 1;
-        }
+        let start = pos.min(min_pos);
+        let slice = &buf[start..20];
 
-        // Add digits in reverse order
-        for i in (0..count).rev() {
-            buffer.push(char::from(b'0' + digits[i]));
-        }
+        // SAFETY: We put only ASCII bytes 0-9 into the buffer
+        let s = std::str::from_utf8(slice).expect("buffer contains only ASCII digits");
+        buffer.push_str(s);
     }
 
     /// Get the scale of this decimal
@@ -755,22 +764,6 @@ fn digit_from_value(value: i64) -> u8 {
             0
         }
     }
-}
-
-/// Push a single digit character to a string buffer
-///
-/// Converts an integer digit (0-9) to its ASCII character representation and
-/// appends it to the buffer.
-///
-/// # Arguments
-/// * `buffer` - String buffer to append to
-/// * `digit` - Integer digit value (0-9)
-///
-/// # Performance
-/// Inline function optimized for decimal formatting hot paths in COMP-3 decoding.
-#[inline]
-fn push_digit(buffer: &mut String, digit: i64) {
-    buffer.push(char::from(b'0' + digit_from_value(digit)));
 }
 
 /// Convert absolute scale value to u32 for power calculations

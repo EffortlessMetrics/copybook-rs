@@ -1,0 +1,3 @@
+## 2025-05-21 - Lookup Table for Integer Formatting
+**Learning:** Manual integer formatting loops using repeated division/modulo (`/ 10`, `% 10`) can be slower than standard library `write!` if not optimized, even when intending to avoid allocation. The `decode_comp3_optimized` path in `copybook-codec` was slower than the standard path because of this inefficient manual formatting.
+**Action:** Use a static 2-digit lookup table (`DIGIT_PAIRS`) to process two digits at a time (`/ 100`, `% 100`), significantly reducing the number of expensive division operations. This restored the performance advantage of the scratch-buffer based decoding path (~15% improvement).

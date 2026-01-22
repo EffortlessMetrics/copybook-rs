@@ -159,26 +159,47 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for copybook files (16 MiB) to prevent memory exhaustion
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
+/// Read from a reader with a strict size limit
+fn read_reader_with_limit<R: Read>(reader: R, limit: u64) -> io::Result<String> {
+    let mut handle = reader.take(limit + 1);
+    let mut buffer = String::new();
+    handle.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Input exceeds maximum allowed size of {limit} bytes"),
+        ));
+    }
+    Ok(buffer)
+}
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
 ///
+/// It strictly enforces a 16 MiB size limit to prevent memory exhaustion (DoS).
+///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if
+/// the input exceeds the 16 MiB limit.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 
-    if path == Path::new("-") {
+    let reader: Box<dyn Read> = if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        Box::new(io::stdin())
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
-    }
+        Box::new(std::fs::File::open(path)?)
+    };
+
+    read_reader_with_limit(reader, MAX_COPYBOOK_SIZE)
 }
 
 #[cfg(test)]
@@ -248,5 +269,34 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_reader_with_limit_within_limit() {
+        let data = "1234567890";
+        let reader = std::io::Cursor::new(data);
+        let result = read_reader_with_limit(reader, 20);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1234567890");
+    }
+
+    #[test]
+    fn test_read_reader_with_limit_exact_limit() {
+        let data = "1234567890";
+        let reader = std::io::Cursor::new(data);
+        let result = read_reader_with_limit(reader, 10);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1234567890");
+    }
+
+    #[test]
+    fn test_read_reader_with_limit_exceeds_limit() {
+        let data = "1234567890";
+        let reader = std::io::Cursor::new(data);
+        let result = read_reader_with_limit(reader, 5);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("exceeds maximum allowed size"));
     }
 }

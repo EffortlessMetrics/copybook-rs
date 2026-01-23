@@ -330,14 +330,8 @@ impl SmallDecimal {
     #[inline]
     #[must_use = "Use the formatted string output"]
     pub fn to_string(&self) -> String {
-        // Handle zero normalization special case first
-        if self.is_zero_value() && self.scale > 0 {
-            return "0".to_string();
-        }
-
         let mut result = String::new();
-        self.append_sign_if_negative(&mut result);
-        self.append_formatted_value(&mut result);
+        self.append_to_string(&mut result);
         result
     }
 
@@ -346,53 +340,44 @@ impl SmallDecimal {
         self.value == 0
     }
 
-    /// Append negative sign to the result if the value is negative and non-zero
-    fn append_sign_if_negative(&self, result: &mut String) {
-        if self.negative && !self.is_zero_value() {
-            result.push('-');
+    /// Append the formatted string with fixed scale (NORMATIVE) to a buffer.
+    ///
+    /// This uses the same logic as `to_string` but avoids allocation.
+    #[inline]
+    pub fn append_to_string(&self, buffer: &mut String) {
+        // Handle zero normalization special case first
+        if self.is_zero_value() && self.scale > 0 {
+            buffer.push('0');
+            return;
         }
-    }
 
-    /// Append the formatted numeric value (integer or decimal) to the result
-    fn append_formatted_value(&self, result: &mut String) {
+        if self.negative && self.value != 0 {
+            buffer.push('-');
+        }
+
         if self.scale <= 0 {
-            self.append_integer_format(result);
+            // Integer format (scale=0) or scale extension
+            let scaled_value = if self.scale < 0 {
+                self.value * 10_i64.pow(scale_abs_to_u32(self.scale))
+            } else {
+                self.value
+            };
+            // CRITICAL OPTIMIZATION: Manual integer formatting to avoid write!() overhead
+            Self::format_integer_manual(scaled_value, buffer);
         } else {
-            self.append_decimal_format(result);
-        }
-    }
+            // Decimal format with exactly `scale` digits after decimal
+            let divisor = 10_i64.pow(scale_abs_to_u32(self.scale));
+            let integer_part = self.value / divisor;
+            let fractional_part = self.value % divisor;
 
-    /// Append integer format or scale extension to the result
-    fn append_integer_format(&self, result: &mut String) {
-        let scaled_value = if self.scale < 0 {
-            // Scale extension: multiply by 10^(-scale)
-            self.value * 10_i64.pow(scale_abs_to_u32(self.scale))
-        } else {
-            // Normal integer format (scale = 0)
-            self.value
-        };
-        // Writing to String should never fail, but handle gracefully for panic elimination
-        if write!(result, "{scaled_value}").is_err() {
-            // Fallback: append a placeholder if formatting somehow fails
-            result.push_str("ERR");
-        }
-    }
-
-    /// Append decimal format with exactly `scale` digits after decimal point
-    fn append_decimal_format(&self, result: &mut String) {
-        let divisor = 10_i64.pow(scale_abs_to_u32(self.scale));
-        let integer_part = self.value / divisor;
-        let fractional_part = self.value % divisor;
-
-        // Writing to String should never fail, but handle gracefully for panic elimination
-        let width = usize::try_from(self.scale).unwrap_or_else(|_| {
-            debug_assert!(false, "scale should be positive when formatting decimal");
-            0
-        });
-
-        if write!(result, "{integer_part}.{fractional_part:0width$}").is_err() {
-            // Fallback: append a placeholder if formatting somehow fails
-            result.push_str("ERR");
+            // CRITICAL OPTIMIZATION: Manual decimal formatting to avoid write!() overhead
+            Self::format_integer_manual(integer_part, buffer);
+            buffer.push('.');
+            Self::format_integer_with_leading_zeros(
+                fractional_part,
+                scale_abs_to_u32(self.scale),
+                buffer,
+            );
         }
     }
 
@@ -562,37 +547,9 @@ impl SmallDecimal {
     /// High-performance format using scratch buffer (zero-allocation optimization)
     /// CRITICAL for COMP-3 JSON conversion performance
     #[inline]
-    pub fn format_to_scratch_buffer(&self, scale: i16, scratch_buffer: &mut String) {
+    pub fn format_to_scratch_buffer(&self, _scale: i16, scratch_buffer: &mut String) {
         scratch_buffer.clear();
-
-        if self.negative && self.value != 0 {
-            scratch_buffer.push('-');
-        }
-
-        if scale <= 0 {
-            // Integer format (scale=0) or scale extension
-            let scaled_value = if scale < 0 {
-                self.value * 10_i64.pow(scale_abs_to_u32(scale))
-            } else {
-                self.value
-            };
-            // CRITICAL OPTIMIZATION: Manual integer formatting to avoid write!() overhead
-            Self::format_integer_manual(scaled_value, scratch_buffer);
-        } else {
-            // Decimal format with exactly `scale` digits after decimal
-            let divisor = 10_i64.pow(scale_abs_to_u32(scale));
-            let integer_part = self.value / divisor;
-            let fractional_part = self.value % divisor;
-
-            // CRITICAL OPTIMIZATION: Manual decimal formatting to avoid write!() overhead
-            Self::format_integer_manual(integer_part, scratch_buffer);
-            scratch_buffer.push('.');
-            Self::format_integer_with_leading_zeros(
-                fractional_part,
-                scale_abs_to_u32(scale),
-                scratch_buffer,
-            );
-        }
+        self.append_to_string(scratch_buffer);
     }
 
     /// Ultra-fast manual integer formatting to avoid write!() macro overhead

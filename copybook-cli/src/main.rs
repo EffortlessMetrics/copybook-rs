@@ -13,7 +13,7 @@ use copybook_core::Error as CoreError;
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::error::Error as StdError;
-use std::io::{self, ErrorKind, Write};
+use std::io::{self, ErrorKind, IsTerminal, Write};
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
@@ -60,7 +60,7 @@ fn invocation_id() -> &'static str {
 }
 
 #[derive(Parser)]
-#[command(name = "copybook", color = ColorChoice::Never)]
+#[command(name = "copybook", color = ColorChoice::Auto)]
 #[command(about = "Modern COBOL copybook parser and data converter")]
 #[command(version)]
 struct Cli {
@@ -543,9 +543,13 @@ fn run() -> anyhow::Result<ExitCode> {
     let default_directive = if verbose { "debug" } else { "warn" };
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_directive));
+
+    // Enable ANSI colors if stderr is a terminal and NO_COLOR is unset
+    let use_colors = std::io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+
     tracing_subscriber::fmt()
         .with_env_filter(env_filter)
-        .with_ansi(false)
+        .with_ansi(use_colors)
         .with_writer(|| BrokenPipeSafeStderr(std::io::stderr()))
         .init();
 

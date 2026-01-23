@@ -362,7 +362,7 @@ impl<W: Write> JsonWriter<W> {
 
         // Write as JSON string with fixed scale (NORMATIVE)
         self.json_buffer.push('"');
-        self.json_buffer.push_str(&decimal.to_string());
+        decimal.append_to_string(&mut self.json_buffer);
         self.json_buffer.push('"');
         Ok(())
     }
@@ -383,7 +383,7 @@ impl<W: Write> JsonWriter<W> {
 
         // Write as JSON string with fixed scale (NORMATIVE)
         self.json_buffer.push('"');
-        self.json_buffer.push_str(&decimal.to_string());
+        decimal.append_to_string(&mut self.json_buffer);
         self.json_buffer.push('"');
         Ok(())
     }

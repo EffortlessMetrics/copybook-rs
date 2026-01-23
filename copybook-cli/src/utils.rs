@@ -9,6 +9,8 @@ use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use tracing::{debug, info};
 
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024; // 16 MiB
+
 /// Parse --select arguments (supports comma-separated and multiple flags)
 ///
 /// This function handles both comma-separated field names in a single argument
@@ -166,19 +168,32 @@ pub fn determine_exit_code(
 ///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if
+/// the input exceeds 16 MiB.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 
-    if path == Path::new("-") {
+    let reader: Box<dyn Read> = if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        Box::new(io::stdin())
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        Box::new(std::fs::File::open(path)?)
+    };
+
+    let mut buffer = String::new();
+    // Read up to limit + 1 to detect if we exceeded the limit
+    let mut handle = reader.take(MAX_COPYBOOK_SIZE + 1);
+    handle.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > MAX_COPYBOOK_SIZE {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Input exceeds maximum allowed size of 16 MiB",
+        ));
     }
+
+    Ok(buffer)
 }
 
 #[cfg(test)]
@@ -248,5 +263,45 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_file_limit_enforcement_repro() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("large_file.cpy");
+
+        // Create a file > 16 MiB
+        let size = 16 * 1024 * 1024 + 1;
+        let f = std::fs::File::create(&target_path)?;
+        f.set_len(size as u64)?;
+
+        // Expect failure now
+        let result = read_file_or_stdin(&target_path);
+        assert!(result.is_err(), "Expected error for file exceeding limit");
+
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert!(
+            err.to_string()
+                .contains("Input exceeds maximum allowed size")
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_file_within_limit() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("normal_file.cpy");
+
+        // Create a file < 16 MiB
+        let content = "Hello, world!";
+        std::fs::write(&target_path, content)?;
+
+        let result = read_file_or_stdin(&target_path);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), content);
+
+        Ok(())
     }
 }

@@ -168,17 +168,39 @@ pub fn determine_exit_code(
 ///
 /// Returns an error if the file cannot be read or if stdin reading fails.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
+    const MAX_INPUT_SIZE: u64 = 16 * 1024 * 1024; // 16 MiB
     let path = path.as_ref();
 
-    if path == Path::new("-") {
+    let reader: Box<dyn Read> = if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        Box::new(io::stdin())
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        // Fast fail check using metadata
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if metadata.len() > MAX_INPUT_SIZE {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Input file exceeds maximum allowed size of {} bytes", MAX_INPUT_SIZE),
+                ));
+            }
+        }
+        Box::new(std::fs::File::open(path)?)
+    };
+
+    let mut buffer = String::new();
+    // Read limit + 1 to detect truncation
+    let mut handle = reader.take(MAX_INPUT_SIZE + 1);
+    handle.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > MAX_INPUT_SIZE {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Input exceeds maximum allowed size of {} bytes", MAX_INPUT_SIZE),
+        ));
     }
+
+    Ok(buffer)
 }
 
 #[cfg(test)]
@@ -248,5 +270,41 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_large_file_read_vulnerability() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let large_file = temp_dir.path().join("large.txt");
+        {
+            use std::io::BufWriter;
+            let f = std::fs::File::create(&large_file)?;
+            let mut writer = BufWriter::new(f);
+            // Write 16MB + 1 byte
+            let chunk = vec![b'a'; 1024 * 1024];
+            for _ in 0..16 {
+                writer.write_all(&chunk)?;
+            }
+            writer.write_all(&[b'a'])?;
+        }
+
+        // After fix, this should FAIL
+        let result = read_file_or_stdin(&large_file);
+        assert!(
+            result.is_err(),
+            "Security fix verification: Should return error for >16MB file"
+        );
+        if let Err(e) = result {
+            assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+        }
+
+        // Test valid file (small)
+        let small_file = temp_dir.path().join("small.txt");
+        std::fs::write(&small_file, "valid content")?;
+        let result = read_file_or_stdin(&small_file);
+        assert!(result.is_ok(), "Should successfully read small file");
+        assert_eq!(result.unwrap(), "valid content");
+
+        Ok(())
     }
 }

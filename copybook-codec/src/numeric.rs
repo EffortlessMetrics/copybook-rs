@@ -1143,6 +1143,25 @@ pub fn decode_packed_decimal(
     decode_packed_decimal_fast_path(data, digits, scale, signed)
 }
 
+/// Lookup table for packed BCD decoding.
+/// Maps byte values 0x00-0xFF to their decimal value (high*10 + low),
+/// or -1 if either nibble is not a digit (0-9).
+const PACKED_BCD_LOOKUP: [i8; 256] = {
+    let mut table = [0; 256];
+    let mut i = 0;
+    while i < 256 {
+        let high = i >> 4;
+        let low = i & 0x0F;
+        if high > 9 || low > 9 {
+            table[i] = -1;
+        } else {
+            table[i] = (high * 10 + low) as i8;
+        }
+        i += 1;
+    }
+    table
+};
+
 /// Ultra-optimized COMP-3 decoder for hot path performance
 ///
 /// This function is highly optimized for the 95% case of enterprise COBOL processing
@@ -1217,37 +1236,26 @@ fn decode_packed_fast_len2(
     let byte0 = data[0];
     let byte1 = data[1];
 
-    let d1 = (byte0 >> 4) & 0x0F;
-    let d2 = byte0 & 0x0F;
-    let d3 = (byte1 >> 4) & 0x0F;
+    let val0 = PACKED_BCD_LOOKUP[byte0 as usize];
     let sign_nibble = byte1 & 0x0F;
+    let d3 = (byte1 >> 4) & 0x0F;
 
-    let value = if digits == 2 {
-        if unlikely(d1 != 0) {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                format!("Expected padding nibble 0 for 2-digit field, got 0x{d1:X}"),
-            ));
-        }
+    // Validate padding for 2-digit fields
+    if digits == 2 && unlikely((byte0 & 0xF0) != 0) {
+        return Err(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            format!("Expected padding nibble 0 for 2-digit field, got 0x{:X}", byte0 >> 4),
+        ));
+    }
 
-        if unlikely(d2 > 9 || d3 > 9) {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                "Invalid digit in 2-digit COMP-3 field".to_string(),
-            ));
-        }
+    if unlikely(val0 < 0 || d3 > 9) {
+        return Err(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            "Invalid digit in COMP-3 field".to_string(),
+        ));
+    }
 
-        i64::from(d2) * 10 + i64::from(d3)
-    } else {
-        if unlikely(d1 > 9 || d2 > 9 || d3 > 9) {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                "Invalid digit in 3-digit COMP-3 field".to_string(),
-            ));
-        }
-
-        i64::from(d1) * 100 + i64::from(d2) * 10 + i64::from(d3)
-    };
+    let value = i64::from(val0) * 10 + i64::from(d3);
 
     let is_negative = if signed {
         match sign_nibble {
@@ -1279,25 +1287,20 @@ fn decode_packed_fast_len3(data: &[u8], scale: i16, signed: bool) -> Result<Smal
     let byte1 = data[1];
     let byte2 = data[2];
 
-    let d1 = (byte0 >> 4) & 0x0F;
-    let d2 = byte0 & 0x0F;
-    let d3 = (byte1 >> 4) & 0x0F;
-    let d4 = byte1 & 0x0F;
+    let val0 = PACKED_BCD_LOOKUP[byte0 as usize];
+    let val1 = PACKED_BCD_LOOKUP[byte1 as usize];
     let d5 = (byte2 >> 4) & 0x0F;
     let sign_nibble = byte2 & 0x0F;
 
-    if unlikely(d1 > 9 || d2 > 9 || d3 > 9 || d4 > 9 || d5 > 9) {
+    if unlikely(val0 < 0 || val1 < 0 || d5 > 9) {
         return Err(Error::new(
             ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
             "Invalid digit in 3-byte COMP-3 field".to_string(),
         ));
     }
 
-    let value = i64::from(d1) * 10000
-        + i64::from(d2) * 1000
-        + i64::from(d3) * 100
-        + i64::from(d4) * 10
-        + i64::from(d5);
+    // value = (d1*10 + d2)*1000 + (d3*10 + d4)*10 + d5
+    let value = i64::from(val0) * 1000 + i64::from(val1) * 10 + i64::from(d5);
 
     let is_negative = if signed {
         match sign_nibble {
@@ -1343,29 +1346,29 @@ fn decode_packed_fast_general(
     let mut value = 0i64;
     let mut digit_pos = 0;
 
-    for &byte in prefix_bytes {
-        let high_nibble = (byte >> 4) & 0x0F;
-        let low_nibble = byte & 0x0F;
-
-        if likely(!(digit_pos == 0 && has_padding)) {
-            if unlikely(high_nibble > 9) {
+    for (i, &byte) in prefix_bytes.iter().enumerate() {
+        if i == 0 && has_padding {
+            // Special case for first byte with padding: ignore high nibble
+            let low = byte & 0x0F;
+            if unlikely(low > 9) {
                 return Err(Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                     "Invalid digit nibble".to_string(),
                 ));
             }
-            value = value * 10 + i64::from(high_nibble);
+            value = i64::from(low);
             digit_pos += 1;
+        } else {
+            let val = PACKED_BCD_LOOKUP[byte as usize];
+            if unlikely(val < 0) {
+                return Err(Error::new(
+                    ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                    "Invalid digit nibble".to_string(),
+                ));
+            }
+            value = value * 100 + i64::from(val);
+            digit_pos += 2;
         }
-
-        if unlikely(low_nibble > 9) {
-            return Err(Error::new(
-                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
-                "Invalid digit nibble".to_string(),
-            ));
-        }
-        value = value * 10 + i64::from(low_nibble);
-        digit_pos += 1;
     }
 
     let last_high = (*last_byte >> 4) & 0x0F;

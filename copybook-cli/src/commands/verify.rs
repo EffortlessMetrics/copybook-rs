@@ -19,6 +19,7 @@ use std::fmt::Write as _;
 use std::fs::{File, metadata};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::PathBuf;
+use sha2::{Digest, Sha256};
 use tracing::{error, info, warn};
 
 // Hex display constants for consistent output formatting
@@ -129,7 +130,7 @@ pub fn run(
     }
 
     // Calculate schema fingerprint (simple hash of copybook content)
-    let schema_fingerprint = format!("{:x}", md5::compute(copybook_text.as_bytes()));
+    let schema_fingerprint = format!("{:x}", Sha256::digest(copybook_text.as_bytes()));
 
     // Create CLI options echo for report
     let cli_opts = VerifyCliEcho {

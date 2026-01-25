@@ -129,8 +129,8 @@ fn validate_verify_report_schema(report: &Value) -> TestResult<()> {
     )?;
     assert_eq!(
         fingerprint.len(),
-        32,
-        "schema_fingerprint should be 32 hex chars"
+        64,
+        "schema_fingerprint should be 64 hex chars (SHA-256)"
     );
     assert!(
         fingerprint.chars().all(|c| c.is_ascii_hexdigit()),

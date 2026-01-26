@@ -159,26 +159,50 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for copybook files (16 MiB) to prevent memory exhaustion
+#[cfg(not(test))]
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+#[cfg(test)]
+const MAX_COPYBOOK_SIZE: u64 = 1024;
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
 ///
+/// It enforces a maximum size limit (`MAX_COPYBOOK_SIZE`) to prevent DoS attacks via memory exhaustion.
+///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if the content exceeds the size limit.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
+    let mut buffer = String::new();
 
-    if path == Path::new("-") {
+    let reader: Box<dyn Read> = if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        Box::new(io::stdin())
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        Box::new(std::fs::File::open(path)?)
+    };
+
+    // Read up to limit + 1 to detect truncation
+    let bytes_read = reader
+        .take(MAX_COPYBOOK_SIZE + 1)
+        .read_to_string(&mut buffer)?;
+
+    if bytes_read as u64 > MAX_COPYBOOK_SIZE {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "Copybook content exceeds maximum size of {} bytes",
+                MAX_COPYBOOK_SIZE
+            ),
+        ));
     }
+
+    Ok(buffer)
 }
 
 #[cfg(test)]
@@ -248,5 +272,36 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_file_within_limit() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let file_path = temp_dir.path().join("small.cpy");
+
+        // Create a file smaller than MAX_COPYBOOK_SIZE (1024 in test)
+        let content = "x".repeat(100);
+        fs::write(&file_path, &content)?;
+
+        let result = read_file_or_stdin(&file_path)?;
+        assert_eq!(result, content);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_file_exceeds_limit() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let file_path = temp_dir.path().join("large.cpy");
+
+        // Create a file larger than MAX_COPYBOOK_SIZE (1024 in test)
+        let content = "x".repeat(1025);
+        fs::write(&file_path, &content)?;
+
+        let result = read_file_or_stdin(&file_path);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("exceeds maximum size"));
+        Ok(())
     }
 }

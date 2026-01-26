@@ -564,9 +564,15 @@ impl SmallDecimal {
     #[inline]
     pub fn format_to_scratch_buffer(&self, scale: i16, scratch_buffer: &mut String) {
         scratch_buffer.clear();
+        self.append_to_buffer(scale, scratch_buffer);
+    }
 
+    /// Appends formatted value to buffer without allocation
+    /// CRITICAL for COMP-3 JSON conversion performance
+    #[inline]
+    pub fn append_to_buffer(&self, scale: i16, buffer: &mut String) {
         if self.negative && self.value != 0 {
-            scratch_buffer.push('-');
+            buffer.push('-');
         }
 
         if scale <= 0 {
@@ -577,7 +583,7 @@ impl SmallDecimal {
                 self.value
             };
             // CRITICAL OPTIMIZATION: Manual integer formatting to avoid write!() overhead
-            Self::format_integer_manual(scaled_value, scratch_buffer);
+            Self::format_integer_manual(scaled_value, buffer);
         } else {
             // Decimal format with exactly `scale` digits after decimal
             let divisor = 10_i64.pow(scale_abs_to_u32(scale));
@@ -585,12 +591,12 @@ impl SmallDecimal {
             let fractional_part = self.value % divisor;
 
             // CRITICAL OPTIMIZATION: Manual decimal formatting to avoid write!() overhead
-            Self::format_integer_manual(integer_part, scratch_buffer);
-            scratch_buffer.push('.');
+            Self::format_integer_manual(integer_part, buffer);
+            buffer.push('.');
             Self::format_integer_with_leading_zeros(
                 fractional_part,
                 scale_abs_to_u32(scale),
-                scratch_buffer,
+                buffer,
             );
         }
     }

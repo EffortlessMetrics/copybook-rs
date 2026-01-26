@@ -7,17 +7,16 @@
 
 mod test_utils;
 
-use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use serde_json::Value;
 use std::fs;
 use tempfile::TempDir;
-use test_utils::{TestResult, copybook_cmd, fixture_path, path_to_str, require_some};
+use test_utils::{TestResult, bin, copybook_cmd, fixture_path, path_to_str, require_some};
 
 /// Test parse command with golden fixture
 #[test]
 fn test_cli_parse_simple() -> TestResult<()> {
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     let copybook = fixture_path("copybooks/simple.cpy")?;
     cmd.arg("parse").arg(&copybook);
 
@@ -33,7 +32,7 @@ fn test_cli_parse_simple() -> TestResult<()> {
 /// Test inspect command with golden fixture
 #[test]
 fn test_cli_inspect_simple() -> TestResult<()> {
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     let copybook = fixture_path("copybooks/simple.cpy")?;
     cmd.arg("inspect").arg(&copybook);
 
@@ -286,7 +285,7 @@ fn test_cli_encode_comp3() -> TestResult<()> {
     let temp_dir = TempDir::new()?;
     let output_file = temp_dir.path().join("encoded.bin");
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     let copybook = fixture_path("copybooks/comp3_test.cpy")?;
     let data = fixture_path("data/comp3_test.jsonl")?;
     cmd.arg("encode")
@@ -321,7 +320,7 @@ fn test_cli_decode_comp3_roundtrip() -> TestResult<()> {
     let copybook = fixture_path("copybooks/comp3_test.cpy")?;
     let data = fixture_path("data/comp3_test.jsonl")?;
 
-    let mut encode_cmd = cargo_bin_cmd!("copybook");
+    let mut encode_cmd = bin();
     encode_cmd
         .arg("encode")
         .arg(&copybook)
@@ -334,7 +333,7 @@ fn test_cli_decode_comp3_roundtrip() -> TestResult<()> {
         .arg("cp037");
     encode_cmd.assert().success();
 
-    let mut decode_cmd = cargo_bin_cmd!("copybook");
+    let mut decode_cmd = bin();
     decode_cmd
         .arg("decode")
         .arg(&copybook)
@@ -372,7 +371,7 @@ fn test_cli_encode_fail_fast() -> TestResult<()> {
         r#"{"CUSTOMER-ID": "not-a-number", "ACCOUNT-BALANCE": "invalid-decimal"}"#,
     )?;
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     let copybook = fixture_path("copybooks/simple.cpy")?;
     cmd.arg("encode")
         .arg(&copybook)
@@ -397,7 +396,7 @@ fn test_cli_encode_fail_fast() -> TestResult<()> {
 #[test]
 #[allow(clippy::unnecessary_wraps)]
 fn test_cli_help_messages() -> TestResult<()> {
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     cmd.arg("--help");
     cmd.assert()
         .success()
@@ -408,7 +407,7 @@ fn test_cli_help_messages() -> TestResult<()> {
         .stdout(predicate::str::contains("decode"));
 
     // Test subcommand help
-    let mut verify_cmd = cargo_bin_cmd!("copybook");
+    let mut verify_cmd = bin();
     verify_cmd.arg("verify").arg("--help");
     verify_cmd
         .assert()
@@ -433,7 +432,7 @@ fn test_cli_strict_comments_allowed_by_default() -> TestResult<()> {
         ",
     )?;
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     cmd.arg("inspect").arg(&copybook_file);
 
     cmd.assert()
@@ -456,7 +455,7 @@ fn test_cli_strict_comments_flag_rejects_inline_comments() -> TestResult<()> {
         ",
     )?;
 
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     cmd.arg("inspect")
         .arg(&copybook_file)
         .arg("--strict-comments");
@@ -475,7 +474,7 @@ fn test_cli_strict_comments_flag_rejects_inline_comments() -> TestResult<()> {
 #[test]
 #[allow(clippy::unnecessary_wraps)]
 fn test_cli_strict_comments_stdin_path() -> TestResult<()> {
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     cmd.arg("inspect")
         .arg("-") // stdin
         .write_stdin("01 A PIC X(5). *> inline\n");
@@ -488,7 +487,7 @@ fn test_cli_strict_comments_stdin_path() -> TestResult<()> {
 #[test]
 #[allow(clippy::unnecessary_wraps)]
 fn test_cli_strict_comments_stdin_rejected() -> TestResult<()> {
-    let mut cmd = cargo_bin_cmd!("copybook");
+    let mut cmd = bin();
     cmd.arg("inspect")
         .arg("-")
         .arg("--strict-comments")

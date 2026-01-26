@@ -62,7 +62,8 @@ pub fn test_data_path(relative_path: &str) -> PathBuf {
 #[must_use]
 pub fn copybook_cmd(args: &[&str]) -> Command {
     let mut cmd = cargo_bin_cmd!("copybook");
-    cmd.args(args)
+    cmd.env("NO_COLOR", "1") // Ensure consistent output for tests
+        .args(args)
         .arg("--format")
         .arg("fixed")
         .arg("--codepage")
@@ -74,7 +75,9 @@ pub fn copybook_cmd(args: &[&str]) -> Command {
 #[must_use]
 #[allow(dead_code)] // shared test helper for fixture tests
 pub fn bin() -> Command {
-    cargo_bin_cmd!("copybook")
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.env("NO_COLOR", "1"); // Ensure consistent output for tests
+    cmd
 }
 
 /// Convert an `Option<T>` into a [`TestResult`] with a helpful error message.

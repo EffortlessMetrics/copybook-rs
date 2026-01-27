@@ -1,0 +1,4 @@
+## 2026-02-14 - [DOS Prevention: Unbounded File Reads]
+**Vulnerability:** `std::fs::read_to_string` was used directly on user-supplied copybook files in `copybook-cli`, allowing reading arbitrarily large files into memory. This creates a Denial of Service (DoS) risk via memory exhaustion (OOM), especially if the CLI is exposed as a service.
+**Learning:** Even simple CLI tools need input limits. Use `std::io::Read::take(limit)` to strictly bound memory usage when reading files whose size is untrusted or potentially large. Metadata checks (`fs::metadata(path).len()`) are an optimization but not a substitute for read limits (race conditions, special files).
+**Prevention:** Always wrap file reading in a helper that enforces a size limit (e.g., `read_file_with_limit`). Defined `MAX_COPYBOOK_SIZE` (16 MiB) as a safe upper bound for metadata files.

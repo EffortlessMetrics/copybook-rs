@@ -199,7 +199,7 @@ impl RecordFormat {
 }
 
 /// Character encoding specification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, clap::ValueEnum)]
 pub enum Codepage {
     /// ASCII encoding
     ASCII,

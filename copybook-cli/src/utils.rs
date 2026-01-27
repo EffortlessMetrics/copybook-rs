@@ -9,6 +9,13 @@ use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use tracing::{debug, info};
 
+// Limit copybook file size to prevent memory exhaustion (DoS)
+// 16 MiB for production, 1 KiB for testing to verify limits
+#[cfg(not(test))]
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+#[cfg(test)]
+const MAX_COPYBOOK_SIZE: u64 = 1024;
+
 /// Parse --select arguments (supports comma-separated and multiple flags)
 ///
 /// This function handles both comma-separated field names in a single argument
@@ -159,6 +166,36 @@ pub fn determine_exit_code(
     }
 }
 
+/// Read file content with size limit
+///
+/// Enforces `MAX_COPYBOOK_SIZE` limit to prevent memory exhaustion.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or exceeds the size limit.
+pub fn read_file_with_limit<P: AsRef<Path>>(path: P) -> io::Result<String> {
+    let path = path.as_ref();
+    let file = std::fs::File::open(path)?;
+
+    // We can't rely solely on metadata().len() for all file types, so we limit the read.
+    // Read up to limit + 1 byte to detect truncation.
+    let mut buffer = String::new();
+    let mut handle = file.take(MAX_COPYBOOK_SIZE + 1);
+    handle.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > MAX_COPYBOOK_SIZE {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "File too large: exceeds limit of {} bytes",
+                MAX_COPYBOOK_SIZE
+            ),
+        ));
+    }
+
+    Ok(buffer)
+}
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
@@ -173,11 +210,23 @@ pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     if path == Path::new("-") {
         debug!("Reading from stdin");
         let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
+        let mut handle = io::stdin().lock().take(MAX_COPYBOOK_SIZE + 1);
+        handle.read_to_string(&mut buffer)?;
+
+        if buffer.len() as u64 > MAX_COPYBOOK_SIZE {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "Input too large: exceeds limit of {} bytes",
+                    MAX_COPYBOOK_SIZE
+                ),
+            ));
+        }
+
         Ok(buffer)
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        read_file_with_limit(path)
     }
 }
 
@@ -248,5 +297,34 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_file_with_limit_success() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let file_path = temp_dir.path().join("small.txt");
+
+        // Create a file smaller than MAX_COPYBOOK_SIZE (1024 in test)
+        let content = "a".repeat(100);
+        fs::write(&file_path, &content)?;
+
+        let read_content = read_file_with_limit(&file_path)?;
+        assert_eq!(read_content, content);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_file_with_limit_exceeded() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let file_path = temp_dir.path().join("large.txt");
+
+        // Create a file larger than MAX_COPYBOOK_SIZE (1024 in test)
+        let content = "a".repeat(1025);
+        fs::write(&file_path, &content)?;
+
+        let result = read_file_with_limit(&file_path);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
+        Ok(())
     }
 }

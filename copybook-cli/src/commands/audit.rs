@@ -632,7 +632,7 @@ fn run_audit_report(
     write_stdout_line("Generating comprehensive audit report...")?;
 
     // Parse copybook to validate it
-    let copybook_text = std::fs::read_to_string(_copybook)?;
+    let copybook_text = crate::utils::read_file_with_limit(_copybook)?;
     let _schema = copybook_core::parse_copybook(&copybook_text)?;
 
     // Create basic audit report structure
@@ -709,7 +709,7 @@ async fn run_compliance_validation(
 
     // Run compliance validation
     // Parse copybook to validate it
-    let copybook_text = std::fs::read_to_string(_copybook)?;
+    let copybook_text = crate::utils::read_file_with_limit(_copybook)?;
     let _schema = copybook_core::parse_copybook(&copybook_text)?;
 
     let compliance_result = compliance_engine
@@ -777,7 +777,7 @@ fn run_lineage_analysis(
     write_stdout_line("Analyzing data lineage...")?;
 
     // Parse source copybook
-    let source_text = std::fs::read_to_string(_source_copybook)?;
+    let source_text = crate::utils::read_file_with_limit(_source_copybook)?;
     let _source_schema = copybook_core::parse_copybook(&source_text)?;
 
     // Create lineage report
@@ -834,7 +834,7 @@ fn run_performance_audit(
     write_stdout_line("Running performance audit...")?;
 
     // Parse copybook
-    let copybook_text = std::fs::read_to_string(_copybook)?;
+    let copybook_text = crate::utils::read_file_with_limit(_copybook)?;
     let _schema = copybook_core::parse_copybook(&copybook_text)?;
 
     // Create performance report
@@ -897,7 +897,7 @@ fn run_security_audit(
     write_stdout_line("Running security audit...")?;
 
     // Parse copybook
-    let copybook_text = std::fs::read_to_string(_copybook)?;
+    let copybook_text = crate::utils::read_file_with_limit(_copybook)?;
     let _schema = copybook_core::parse_copybook(&copybook_text)?;
 
     // Create security report

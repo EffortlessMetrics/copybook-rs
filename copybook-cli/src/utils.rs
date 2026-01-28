@@ -159,6 +159,12 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for a copybook file (16 MiB).
+///
+/// This limit prevents memory exhaustion when reading potentially malicious or accidentally
+/// large files. It applies to both file system paths and stdin.
+pub const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024; // 16 MiB
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
@@ -166,19 +172,51 @@ pub fn determine_exit_code(
 ///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if the
+/// content exceeds [`MAX_COPYBOOK_SIZE`].
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
+    read_file_or_stdin_with_limit(path, MAX_COPYBOOK_SIZE)
+}
+
+fn read_file_or_stdin_with_limit<P: AsRef<Path>>(path: P, limit: u64) -> io::Result<String> {
     let path = path.as_ref();
 
     if path == Path::new("-") {
-        debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        debug!("Reading from stdin (limit: {} bytes)", limit);
+        let reader = io::stdin();
+        read_with_limit(reader.lock(), limit)
     } else {
-        debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        debug!("Reading from file: {:?} (limit: {} bytes)", path, limit);
+        let file = std::fs::File::open(path)?;
+        let metadata = file.metadata()?;
+        if metadata.len() > limit {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "File size {} exceeds maximum allowed size of {} bytes",
+                    metadata.len(),
+                    limit
+                ),
+            ));
+        }
+        read_with_limit(file, limit)
     }
+}
+
+fn read_with_limit<R: Read>(reader: R, limit: u64) -> io::Result<String> {
+    let mut buffer = String::new();
+    // Use take() to limit bytes read, but read one extra byte to detect truncation
+    let mut limited_reader = reader.take(limit + 1);
+    limited_reader.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Content exceeds maximum allowed size of {limit} bytes"),
+        ));
+    }
+
+    Ok(buffer)
 }
 
 #[cfg(test)]
@@ -248,5 +286,28 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_with_limit_enforces_limit() {
+        let data = "1234567890";
+        let reader = std::io::Cursor::new(data);
+
+        // Limit matches size - should pass
+        let result = read_with_limit(reader.clone(), 10);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1234567890");
+
+        // Limit larger than size - should pass
+        let result = read_with_limit(reader.clone(), 20);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1234567890");
+
+        // Limit smaller than size - should fail
+        let result = read_with_limit(reader.clone(), 5);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("exceeds maximum allowed size"));
     }
 }

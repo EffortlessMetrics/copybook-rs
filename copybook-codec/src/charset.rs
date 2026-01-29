@@ -5,7 +5,8 @@
 
 use crate::options::{Codepage, UnmappablePolicy};
 use copybook_core::{Error, ErrorCode, Result};
-use std::convert::TryFrom;
+use std::collections::HashMap;
+use std::sync::OnceLock;
 use tracing::warn;
 
 // EBCDIC to Unicode lookup tables for supported code pages
@@ -320,6 +321,45 @@ fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {
     }
 }
 
+/// Get the appropriate reverse lookup table (Unicode -> EBCDIC) for the given codepage.
+///
+/// Uses `OnceLock` to cache the tables, initializing them only on the first use
+/// to avoid expensive reallocation and map building on every call.
+fn get_reverse_ebcdic_table(codepage: Codepage) -> Result<&'static HashMap<char, u8>> {
+    static CP037_REV: OnceLock<HashMap<char, u8>> = OnceLock::new();
+    static CP273_REV: OnceLock<HashMap<char, u8>> = OnceLock::new();
+    static CP500_REV: OnceLock<HashMap<char, u8>> = OnceLock::new();
+    static CP1047_REV: OnceLock<HashMap<char, u8>> = OnceLock::new();
+    static CP1140_REV: OnceLock<HashMap<char, u8>> = OnceLock::new();
+
+    let (cell, table) = match codepage {
+        Codepage::ASCII => {
+            // Should not be reached in normal flow as ASCII is handled separately in utf8_to_ebcdic
+            return Err(Error::new(
+                ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                "Internal error: Attempted to get reverse EBCDIC table for ASCII",
+            ));
+        }
+        Codepage::CP037 => (&CP037_REV, &CP037_TO_UNICODE),
+        Codepage::CP273 => (&CP273_REV, &CP273_TO_UNICODE),
+        Codepage::CP500 => (&CP500_REV, &CP500_TO_UNICODE),
+        Codepage::CP1047 => (&CP1047_REV, &CP1047_TO_UNICODE),
+        Codepage::CP1140 => (&CP1140_REV, &CP1140_TO_UNICODE),
+    };
+
+    Ok(cell.get_or_init(|| {
+        let mut reverse_table = HashMap::with_capacity(256);
+        for (ebcdic_index, &unicode_point) in table.iter().enumerate() {
+            if let Some(ch) = char::from_u32(unicode_point) {
+                // Safe cast because array size is 256
+                let ebcdic_byte = ebcdic_index as u8;
+                reverse_table.insert(ch, ebcdic_byte);
+            }
+        }
+        reverse_table
+    }))
+}
+
 /// Get the appropriate zoned sign table for the given codepage
 #[must_use]
 #[inline]
@@ -428,26 +468,8 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
         return Ok(text.as_bytes().to_vec());
     }
 
-    let table = get_ebcdic_table(codepage).ok_or_else(|| {
-        Error::new(
-            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
-            format!("Unsupported codepage: {codepage:?}"),
-        )
-    })?;
-
-    // Build reverse lookup table (Unicode -> EBCDIC)
-    let mut reverse_table = std::collections::HashMap::new();
-    for (ebcdic_index, &unicode_point) in table.iter().enumerate() {
-        if let Some(ch) = char::from_u32(unicode_point) {
-            let ebcdic_byte = u8::try_from(ebcdic_index).map_err(|_| {
-                Error::new(
-                    ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
-                    format!("EBCDIC byte index {ebcdic_index} exceeds u8 range"),
-                )
-            })?;
-            reverse_table.insert(ch, ebcdic_byte);
-        }
-    }
+    // Use cached reverse table
+    let reverse_table = get_reverse_ebcdic_table(codepage)?;
 
     let mut result = Vec::with_capacity(text.len());
 

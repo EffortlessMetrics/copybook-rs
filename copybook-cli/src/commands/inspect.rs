@@ -4,7 +4,7 @@ use crate::exit_codes::ExitCode;
 use crate::utils::read_file_or_stdin;
 use crate::write_stdout_all;
 use copybook_codec::Codepage;
-use copybook_core::{ParseOptions, parse_copybook_with_options};
+use copybook_core::{ParseOptions, parse_copybook_with_options, Field};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use tracing::info;
@@ -45,13 +45,47 @@ pub fn run(
     output.push('\n');
     writeln!(
         output,
-        "{:<40} {:<8} {:<8} {:<12} {:<20}",
-        "Field Path", "Offset", "Length", "Type", "Details"
+        "{:<50} {:<8} {:<8} {:<12} {:<20}",
+        "Field Name", "Offset", "Length", "Type", "Details"
     )
     .ok();
-    writeln!(output, "{:-<88}", "").ok();
+    writeln!(output, "{:-<98}", "").ok();
 
-    for field in schema.all_fields() {
+    // Use a recursive function to print the tree
+    print_tree(&schema.fields, "", &mut output);
+
+    write_stdout_all(output.as_bytes())?;
+
+    info!("Inspect completed successfully");
+    Ok(ExitCode::Ok)
+}
+
+fn print_tree(fields: &[Field], prefix: &str, output: &mut String) {
+    for (i, field) in fields.iter().enumerate() {
+        let is_last = i == fields.len() - 1;
+
+        // For top-level fields (empty prefix), we don't necessarily need connectors if we want them flush left,
+        // but consistent tree view usually uses them. Let's stick to standard tree format.
+        // However, standard `tree` prints root then children.
+        // Here we have a forest (list of roots).
+        // Let's assume we treat them as items in the schema.
+
+        let connector = if is_last { "└── " } else { "├── " };
+
+        // If prefix is empty, we might want to skip connector for the very first level
+        // to make it look like multiple roots?
+        // Actually, for COBOL, usually there is one 01 level.
+        // But if we have multiple 01s, they are siblings.
+
+        let tree_name = format!("{}{}{}", prefix, connector, field.name);
+
+        // Truncate or pad tree_name to 50 chars
+        let display_name = if tree_name.len() > 49 {
+            format!("{}...", &tree_name[..46])
+        } else {
+            tree_name
+        };
+
         let type_str = match &field.kind {
             copybook_core::FieldKind::Alphanum { len } => format!("X({len})"),
             copybook_core::FieldKind::ZonedDecimal {
@@ -111,14 +145,16 @@ pub fn run(
 
         writeln!(
             output,
-            "{:<40} {:<8} {:<8} {:<12} {:<20}",
-            field.path, field.offset, field.len, type_str, details
+            "{:<50} {:<8} {:<8} {:<12} {:<20}",
+            display_name, field.offset, field.len, type_str, details
         )
         .ok();
+
+        // Calculate prefix for children
+        let child_prefix = format!("{}{}", prefix, if is_last { "    " } else { "│   " });
+
+        if !field.children.is_empty() {
+            print_tree(&field.children, &child_prefix, output);
+        }
     }
-
-    write_stdout_all(output.as_bytes())?;
-
-    info!("Inspect completed successfully");
-    Ok(ExitCode::Ok)
 }

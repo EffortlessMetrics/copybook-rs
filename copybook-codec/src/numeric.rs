@@ -711,20 +711,20 @@ impl SmallDecimal {
     }
 
     /// Get the total number of digits in this decimal
+    ///
+    /// # Performance
+    /// Uses `ilog10` intrinsic for O(1) calculation instead of O(log N) iterative division.
     #[inline]
     #[must_use]
     pub fn total_digits(&self) -> u16 {
         if self.value == 0 {
             return 1;
         }
-
-        let mut count = 0;
-        let mut val = self.value.abs();
-        while val > 0 {
-            count += 1;
-            val /= 10;
-        }
-        count
+        // CRITICAL PERFORMANCE OPTIMIZATION: Use ilog10 intrinsic
+        // This replaces the iterative division loop which was O(log10 N)
+        // with a CPU-optimized instruction (typically O(1) via lzcnt).
+        // +1 because ilog10(10) = 1 (needs 2 digits), ilog10(9) = 0 (needs 1 digit)
+        (self.value.unsigned_abs().ilog10() + 1) as u16
     }
 }
 

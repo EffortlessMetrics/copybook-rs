@@ -9,6 +9,10 @@ use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use tracing::{debug, info};
 
+/// Maximum allowed size for a copybook file (16 MiB).
+/// This prevents memory exhaustion attacks (DoS) when reading large files.
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
 /// Parse --select arguments (supports comma-separated and multiple flags)
 ///
 /// This function handles both comma-separated field names in a single argument
@@ -159,6 +163,23 @@ pub fn determine_exit_code(
     }
 }
 
+/// Helper to read from a reader with a size limit.
+/// Returns ErrorKind::FileTooLarge if the limit is exceeded.
+fn read_with_limit<R: Read>(reader: R, limit: u64) -> io::Result<String> {
+    // We use take(limit + 1) to detect if there is more data than the limit.
+    let mut handle = reader.take(limit + 1);
+    let mut buffer = String::new();
+    handle.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::FileTooLarge,
+            format!("Input exceeds limit of {} bytes", limit),
+        ));
+    }
+    Ok(buffer)
+}
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
@@ -172,12 +193,12 @@ pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
 
     if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        let stdin = io::stdin();
+        read_with_limit(stdin.lock(), MAX_COPYBOOK_SIZE)
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        let file = std::fs::File::open(path)?;
+        read_with_limit(file, MAX_COPYBOOK_SIZE)
     }
 }
 
@@ -248,5 +269,24 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_file_or_stdin_enforces_limit() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let target_path = temp_dir.path().join("large_copybook.cbl");
+
+        // Create a file slightly larger than 16 MiB (16 * 1024 * 1024 + 1)
+        let size = 16 * 1024 * 1024 + 1;
+        {
+            let file = fs::File::create(&target_path)?;
+            file.set_len(size)?;
+        } // Drop file handle
+
+        let result = read_file_or_stdin(&target_path);
+
+        // We expect an error
+        assert!(result.is_err(), "Should fail for files > 16 MiB");
+        Ok(())
     }
 }

@@ -1,0 +1,1 @@
+01 A PIC X. 01 B PIC X.

@@ -159,25 +159,53 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for a copybook file (16 MiB)
+///
+/// This limit prevents memory exhaustion attacks when reading potentially
+/// malicious inputs via stdin or files.
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
+/// Read content from a reader with a size limit
+///
+/// # Errors
+///
+/// Returns an error if reading fails or if the input exceeds the limit.
+fn read_with_limit<R: Read>(reader: R, limit: u64) -> io::Result<String> {
+    let mut reader = reader.take(limit + 1);
+    let mut buffer = String::new();
+    reader.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Input exceeds maximum allowed size of {} bytes", limit),
+        ));
+    }
+
+    Ok(buffer)
+}
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
 ///
+/// It enforces a size limit of 16 MiB to prevent memory exhaustion.
+///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if
+/// the content exceeds the 16 MiB limit.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 
     if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        read_with_limit(io::stdin(), MAX_COPYBOOK_SIZE)
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        let file = std::fs::File::open(path)?;
+        read_with_limit(file, MAX_COPYBOOK_SIZE)
     }
 }
 
@@ -248,5 +276,29 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_with_limit_success() -> Result<()> {
+        let input = b"Hello world";
+        let result = read_with_limit(&input[..], 20)?;
+        assert_eq!(result, "Hello world");
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_with_limit_exact() -> Result<()> {
+        let input = b"Hello";
+        let result = read_with_limit(&input[..], 5)?;
+        assert_eq!(result, "Hello");
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_with_limit_exceeded() {
+        let input = b"Hello world";
+        let result = read_with_limit(&input[..], 5);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
     }
 }

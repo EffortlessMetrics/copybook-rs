@@ -46,12 +46,45 @@ pub fn run(
     writeln!(
         output,
         "{:<40} {:<8} {:<8} {:<12} {:<20}",
-        "Field Path", "Offset", "Length", "Type", "Details"
+        "Field", "Offset", "Length", "Type", "Details"
     )
     .ok();
     writeln!(output, "{:-<88}", "").ok();
 
-    for field in schema.all_fields() {
+    print_fields_recursive(&schema.fields, &mut output, "", true);
+
+    write_stdout_all(output.as_bytes())?;
+
+    info!("Inspect completed successfully");
+    Ok(ExitCode::Ok)
+}
+
+fn print_fields_recursive(
+    fields: &[copybook_core::Field],
+    output: &mut String,
+    prefix: &str,
+    is_root: bool,
+) {
+    for (i, field) in fields.iter().enumerate() {
+        let is_last = i == fields.len() - 1;
+
+        let (name_display, next_prefix) = if is_root {
+            (field.name.clone(), "".to_string())
+        } else {
+            let branch = if is_last {
+                "\u{2514}\u{2500}\u{2500} " // └──
+            } else {
+                "\u{251c}\u{2500}\u{2500} " // ├──
+            };
+            let display = format!("{prefix}{branch}{}", field.name);
+            let indent = if is_last {
+                "    "
+            } else {
+                "\u{2502}   " // │
+            };
+            (display, format!("{prefix}{indent}"))
+        };
+
         let type_str = match &field.kind {
             copybook_core::FieldKind::Alphanum { len } => format!("X({len})"),
             copybook_core::FieldKind::ZonedDecimal {
@@ -112,13 +145,12 @@ pub fn run(
         writeln!(
             output,
             "{:<40} {:<8} {:<8} {:<12} {:<20}",
-            field.path, field.offset, field.len, type_str, details
+            name_display, field.offset, field.len, type_str, details
         )
         .ok();
+
+        if !field.children.is_empty() {
+            print_fields_recursive(&field.children, output, &next_prefix, false);
+        }
     }
-
-    write_stdout_all(output.as_bytes())?;
-
-    info!("Inspect completed successfully");
-    Ok(ExitCode::Ok)
 }

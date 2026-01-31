@@ -717,14 +717,9 @@ impl SmallDecimal {
         if self.value == 0 {
             return 1;
         }
-
-        let mut count = 0;
-        let mut val = self.value.abs();
-        while val > 0 {
-            count += 1;
-            val /= 10;
-        }
-        count
+        // Optimized: Use ilog10 intrinsic for O(1) digit counting instead of O(N) iterative division.
+        // Also handles i64::MIN correctly via unsigned_abs().
+        (self.value.unsigned_abs().ilog10() + 1) as u16
     }
 }
 
@@ -3421,5 +3416,12 @@ mod tests {
             !positive_decimal.is_negative(),
             "Unsigned should not be negative"
         );
+    }
+
+    #[test]
+    fn test_total_digits_i64_min() {
+        // This test reproduces the issue where i64::MIN causes panic or incorrect result
+        let decimal = SmallDecimal::new(i64::MIN, 0, true);
+        assert_eq!(decimal.total_digits(), 19);
     }
 }

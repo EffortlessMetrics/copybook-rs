@@ -2,6 +2,7 @@
 
 use crate::exit_codes::ExitCode;
 use copybook_core::{ParseOptions, Schema};
+use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::Path;
 #[cfg(test)]
@@ -159,25 +160,49 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for copybook files (16 MiB) to prevent memory exhaustion
+pub const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
+/// Internal helper to read string with a size limit
+fn read_string_with_limit(reader: impl Read, limit: u64) -> io::Result<String> {
+    // Read up to limit + 1 bytes to detect truncation
+    let mut handle = reader.take(limit + 1);
+    let mut buffer = String::new();
+    handle.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Input exceeds maximum allowed size of {} bytes", limit),
+        ));
+    }
+
+    Ok(buffer)
+}
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
 ///
+/// This function enforces a size limit of [`MAX_COPYBOOK_SIZE`] (16 MiB) to prevent
+/// memory exhaustion attacks.
+///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if:
+/// - The file cannot be read
+/// - Stdin reading fails
+/// - The input exceeds 16 MiB
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 
     if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        read_string_with_limit(io::stdin(), MAX_COPYBOOK_SIZE)
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        read_string_with_limit(File::open(path)?, MAX_COPYBOOK_SIZE)
     }
 }
 
@@ -248,5 +273,37 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_string_with_limit_success() {
+        let input = "Hello, world!";
+        let reader = std::io::Cursor::new(input);
+        // Limit is larger than input
+        let result = read_string_with_limit(reader, 100);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Hello, world!");
+    }
+
+    #[test]
+    fn test_read_string_with_limit_exact() {
+        let input = "Hello";
+        let reader = std::io::Cursor::new(input);
+        // Limit is exactly input size
+        let result = read_string_with_limit(reader, 5);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Hello");
+    }
+
+    #[test]
+    fn test_read_string_with_limit_exceeded() {
+        let input = "Hello, world!";
+        let reader = std::io::Cursor::new(input);
+        // Limit is smaller than input
+        let result = read_string_with_limit(reader, 5);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+        assert!(err.to_string().contains("exceeds maximum allowed size"));
     }
 }

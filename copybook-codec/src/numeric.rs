@@ -1660,6 +1660,94 @@ pub fn encode_zoned_decimal_with_format_and_policy(
     Ok(result)
 }
 
+/// Helper to fill packed decimal bytes from an absolute value
+///
+/// writes to `buffer` from right to left, handling padding and alignment.
+/// `buffer` size must be exactly `(digits + 1) / 2`.
+#[inline]
+fn fill_packed_decimal_bytes(
+    abs_value: i64,
+    is_negative: bool,
+    digits: u16,
+    signed: bool,
+    buffer: &mut [u8],
+) -> Result<()> {
+    // Extract digits
+    let mut temp_value = abs_value;
+    let mut digit_buffer: [u8; 20] = [0; 20];
+    let mut digit_count = 0;
+
+    // Extract digits in reverse order (least significant first)
+    while temp_value > 0 {
+        digit_buffer[digit_count] = digit_from_value(temp_value % 10);
+        temp_value /= 10;
+        digit_count += 1;
+    }
+
+    // Validate digit count
+    if unlikely(digit_count > usize::from(digits)) {
+        return Err(Error::new(
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+            format!("Value too large for {digits} digits"),
+        ));
+    }
+
+    // Sign nibble
+    let sign_nibble = if signed {
+        if is_negative { 0x0D } else { 0x0C }
+    } else {
+        0x0F
+    };
+
+    let len = buffer.len();
+    if len == 0 {
+        return Ok(());
+    }
+
+    // Fill from right to left to simplify alignment logic
+    let mut consumed = 0;
+
+    // 1. Fill last byte (digit + sign)
+    // The digit in the last byte is the least significant digit (index 0 in buffer)
+    let last_idx = len - 1;
+    let last_digit = if consumed < digit_count {
+        let d = digit_buffer[consumed];
+        consumed += 1;
+        d
+    } else {
+        0
+    };
+    buffer[last_idx] = (last_digit << 4) | sign_nibble;
+
+    // 2. Fill remaining bytes
+    let mut current_idx = last_idx;
+    while current_idx > 0 {
+        current_idx -= 1;
+
+        // Low nibble is less significant than high nibble
+        // So we consume next digit for low nibble first
+        let low_digit = if consumed < digit_count {
+            let d = digit_buffer[consumed];
+            consumed += 1;
+            d
+        } else {
+            0
+        };
+
+        let high_digit = if consumed < digit_count {
+            let d = digit_buffer[consumed];
+            consumed += 1;
+            d
+        } else {
+            0
+        };
+
+        buffer[current_idx] = (high_digit << 4) | low_digit;
+    }
+
+    Ok(())
+}
+
 /// Encode packed decimal field
 ///
 /// # Errors
@@ -1675,128 +1763,17 @@ pub fn encode_packed_decimal(
     // Parse the input value with scale validation (NORMATIVE)
     let decimal = SmallDecimal::from_str(value, scale)?;
 
-    // CRITICAL PERFORMANCE OPTIMIZATION: Avoid format!() allocation
-    // Direct integer-to-digits conversion for massive speedup
-    let abs_value = decimal.value.abs();
-
-    // Fast path for zero
-    if abs_value == 0 {
-        let expected_bytes = usize::from((digits + 1).div_ceil(2));
-        let mut result = vec![0u8; expected_bytes];
-        // Set sign in last byte
-        let sign_nibble = if signed {
-            if decimal.negative { 0x0D } else { 0x0C }
-        } else {
-            0x0F
-        };
-        result[expected_bytes - 1] = sign_nibble;
-        return Ok(result);
-    }
-
-    // Pre-allocate digit buffer on stack for speed (up to 18 digits for i64::MAX)
-    let mut digit_buffer: [u8; 20] = [0; 20];
-    let mut digit_count = 0;
-    let mut temp_value = abs_value;
-
-    // Extract digits in reverse order using fast division
-    while temp_value > 0 {
-        digit_buffer[digit_count] = digit_from_value(temp_value % 10);
-        temp_value /= 10;
-        digit_count += 1;
-    }
-
-    // Validate digit count
-    let digits_usize = usize::from(digits);
-    if unlikely(digit_count > digits_usize) {
-        return Err(Error::new(
-            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
-            format!("Value too large for {digits} digits"),
-        ));
-    }
-
     let expected_bytes = usize::from((digits + 1).div_ceil(2));
-    let mut result = Vec::with_capacity(expected_bytes);
+    // Allocate zero-initialized vector
+    let mut result = vec![0u8; expected_bytes];
 
-    // CRITICAL FIX: Handle digit positioning correctly for even/odd digit counts
-    // For packed decimal, we have:
-    // - Total nibbles needed: digits + 1 (for sign)
-    // - If digits is even: first nibble is padding (0), then digits, then sign
-    // - If digits is odd: no padding, digits fill completely, then sign
-
-    let has_padding = digits.is_multiple_of(2); // Even digit count requires padding
-    let total_nibbles = digits_usize + 1 + usize::from(has_padding);
-
-    for byte_idx in 0..expected_bytes {
-        let mut byte_val = 0u8;
-
-        // Calculate which nibbles belong to this byte
-        let nibble_offset = byte_idx * 2;
-
-        // High nibble
-        let high_nibble_idx = nibble_offset;
-        if high_nibble_idx < total_nibbles - 1 {
-            // Not the sign nibble
-            if has_padding && high_nibble_idx == 0 {
-                // First nibble is padding for even digit count
-                byte_val |= 0x00 << 4;
-            } else {
-                // Calculate which digit this represents
-                let digit_idx = if has_padding {
-                    high_nibble_idx - 1
-                } else {
-                    high_nibble_idx
-                };
-
-                // CRITICAL FIX: Right-align digits in COMP-3 field (leading zeros, not trailing)
-                // For field width of 'digits', actual digits should occupy the rightmost positions
-                if digit_idx >= (digits_usize - digit_count) {
-                    // This position should contain an actual digit
-                    let actual_digit_idx = digit_idx - (digits_usize - digit_count);
-                    if actual_digit_idx < digit_count {
-                        // Digits are stored in reverse order (least significant first)
-                        let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
-                        let digit = digit_buffer[digit_pos_from_right];
-                        byte_val |= digit << 4;
-                    }
-                }
-                // else: leading zero for large digit field (byte_val already initialized to 0)
-            }
-        }
-
-        // Low nibble
-        let low_nibble_idx = nibble_offset + 1;
-        if low_nibble_idx == total_nibbles - 1 {
-            // This is the sign nibble
-            byte_val |= if signed {
-                if decimal.negative { 0x0D } else { 0x0C }
-            } else {
-                0x0F
-            };
-        } else if low_nibble_idx < total_nibbles - 1 {
-            // Calculate which digit this represents
-            let digit_idx = if has_padding {
-                low_nibble_idx - 1
-            } else {
-                low_nibble_idx
-            };
-
-            // CRITICAL FIX: Right-align digits in COMP-3 field (leading zeros, not trailing)
-            // For field width of 'digits', actual digits should occupy the rightmost positions
-            if digit_idx >= (digits_usize - digit_count) {
-                // This position should contain an actual digit
-                let actual_digit_idx = digit_idx - (digits_usize - digit_count);
-                if actual_digit_idx < digit_count {
-                    // Digits are stored in reverse order (least significant first)
-                    let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
-                    let digit = digit_buffer[digit_pos_from_right];
-                    byte_val |= digit;
-                }
-            }
-            // else: leading zero for large digit field (byte_val already initialized to 0)
-        }
-
-        result.push(byte_val);
-    }
+    fill_packed_decimal_bytes(
+        decimal.value.abs(),
+        decimal.negative,
+        digits,
+        signed,
+        &mut result,
+    )?;
 
     Ok(result)
 }
@@ -2776,20 +2753,22 @@ pub fn encode_packed_decimal_with_scratch(
     signed: bool,
     scratch: &mut ScratchBuffers,
 ) -> Result<Vec<u8>> {
-    // Clear and prepare buffers
-    scratch.digit_buffer.clear();
+    // Prepare byte buffer
     scratch.byte_buffer.clear();
     let expected_bytes = usize::from((digits + 1).div_ceil(2));
-    scratch.byte_buffer.reserve(expected_bytes);
+    // Reserve space and initialize with zeros
+    scratch.byte_buffer.resize(expected_bytes, 0);
 
-    // Convert decimal to string using scratch buffer
-    scratch.string_buffer.clear();
-    scratch.string_buffer.push_str(&decimal.to_string());
+    fill_packed_decimal_bytes(
+        decimal.value.abs(),
+        decimal.negative,
+        digits,
+        signed,
+        &mut scratch.byte_buffer,
+    )?;
 
-    // Use the standard encode function but with optimized nibble processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
-    encode_packed_decimal(&scratch.string_buffer, digits, decimal.scale, signed)
+    // Return a copy of the buffer
+    Ok(scratch.byte_buffer.clone())
 }
 
 /// Optimized packed decimal decoder that formats to string using scratch buffer

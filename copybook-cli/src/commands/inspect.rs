@@ -4,7 +4,7 @@ use crate::exit_codes::ExitCode;
 use crate::utils::read_file_or_stdin;
 use crate::write_stdout_all;
 use copybook_codec::Codepage;
-use copybook_core::{ParseOptions, parse_copybook_with_options};
+use copybook_core::{Field, ParseOptions, parse_copybook_with_options};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use tracing::info;
@@ -46,12 +46,24 @@ pub fn run(
     writeln!(
         output,
         "{:<40} {:<8} {:<8} {:<12} {:<20}",
-        "Field Path", "Offset", "Length", "Type", "Details"
+        "Field Tree", "Offset", "Length", "Type", "Details"
     )
     .ok();
     writeln!(output, "{:-<88}", "").ok();
 
-    for field in schema.all_fields() {
+    print_fields(&schema.fields, "", &mut output);
+
+    write_stdout_all(output.as_bytes())?;
+
+    info!("Inspect completed successfully");
+    Ok(ExitCode::Ok)
+}
+
+fn print_fields(fields: &[Field], prefix: &str, output: &mut String) {
+    for (i, field) in fields.iter().enumerate() {
+        let is_last = i == fields.len() - 1;
+        let connector = if is_last { "└── " } else { "├── " };
+
         let type_str = match &field.kind {
             copybook_core::FieldKind::Alphanum { len } => format!("X({len})"),
             copybook_core::FieldKind::ZonedDecimal {
@@ -109,16 +121,21 @@ pub fn run(
             String::new()
         };
 
+        // Combine prefix + connector + field name
+        let tree_part = format!("{}{}{}", prefix, connector, field.name);
+
         writeln!(
             output,
             "{:<40} {:<8} {:<8} {:<12} {:<20}",
-            field.path, field.offset, field.len, type_str, details
+            tree_part, field.offset, field.len, type_str, details
         )
         .ok();
+
+        // Recurse into children
+        if !field.children.is_empty() {
+            let child_prefix = if is_last { "    " } else { "│   " };
+            let new_prefix = format!("{}{}", prefix, child_prefix);
+            print_fields(&field.children, &new_prefix, output);
+        }
     }
-
-    write_stdout_all(output.as_bytes())?;
-
-    info!("Inspect completed successfully");
-    Ok(ExitCode::Ok)
 }

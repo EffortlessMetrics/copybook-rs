@@ -4,7 +4,7 @@ use crate::exit_codes::ExitCode;
 use crate::utils::read_file_or_stdin;
 use crate::write_stdout_all;
 use copybook_codec::Codepage;
-use copybook_core::{ParseOptions, parse_copybook_with_options};
+use copybook_core::{Field, FieldKind, Occurs, ParseOptions, parse_copybook_with_options};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use tracing::info;
@@ -46,79 +46,113 @@ pub fn run(
     writeln!(
         output,
         "{:<40} {:<8} {:<8} {:<12} {:<20}",
-        "Field Path", "Offset", "Length", "Type", "Details"
+        "Field Structure", "Offset", "Length", "Type", "Details"
     )
     .ok();
     writeln!(output, "{:-<88}", "").ok();
 
-    for field in schema.all_fields() {
-        let type_str = match &field.kind {
-            copybook_core::FieldKind::Alphanum { len } => format!("X({len})"),
-            copybook_core::FieldKind::ZonedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                if *signed {
-                    format!("S9({digits})V9({scale})")
-                } else {
-                    format!("9({digits})V9({scale})")
-                }
-            }
-            copybook_core::FieldKind::BinaryInt { bits, signed } => {
-                format!("COMP-{} ({}bit)", if *signed { "S" } else { "" }, bits)
-            }
-            copybook_core::FieldKind::PackedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                if *signed {
-                    format!("S9({digits})V9({scale}) COMP-3")
-                } else {
-                    format!("9({digits})V9({scale}) COMP-3")
-                }
-            }
-            copybook_core::FieldKind::Group => "GROUP".to_string(),
-            copybook_core::FieldKind::Condition { values } => {
-                format!("LEVEL-88: {values:?}")
-            }
-            copybook_core::FieldKind::Renames {
-                from_field,
-                thru_field,
-            } => {
-                format!("RENAMES {from_field} THRU {thru_field}")
-            }
-            copybook_core::FieldKind::EditedNumeric { pic_string, .. } => {
-                format!("EDITED PIC {pic_string}")
-            }
-        };
-
-        let details = if let Some(ref occurs) = field.occurs {
-            match occurs {
-                copybook_core::Occurs::Fixed { count } => format!("OCCURS {count}"),
-                copybook_core::Occurs::ODO {
-                    min,
-                    max,
-                    counter_path,
-                } => {
-                    format!("ODO {min}-{max} ({counter_path})")
-                }
-            }
-        } else {
-            String::new()
-        };
-
-        writeln!(
-            output,
-            "{:<40} {:<8} {:<8} {:<12} {:<20}",
-            field.path, field.offset, field.len, type_str, details
-        )
-        .ok();
+    for field in &schema.fields {
+        print_field_tree(&mut output, field, "", true, true);
     }
 
     write_stdout_all(output.as_bytes())?;
 
     info!("Inspect completed successfully");
     Ok(ExitCode::Ok)
+}
+
+fn print_field_tree(
+    output: &mut String,
+    field: &Field,
+    prefix: &str,
+    is_last: bool,
+    is_root: bool,
+) {
+    let type_str = match &field.kind {
+        FieldKind::Alphanum { len } => format!("X({len})"),
+        FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            if *signed {
+                format!("S9({digits})V9({scale})")
+            } else {
+                format!("9({digits})V9({scale})")
+            }
+        }
+        FieldKind::BinaryInt { bits, signed } => {
+            format!("COMP-{} ({}bit)", if *signed { "S" } else { "" }, bits)
+        }
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            if *signed {
+                format!("S9({digits})V9({scale}) COMP-3")
+            } else {
+                format!("9({digits})V9({scale}) COMP-3")
+            }
+        }
+        FieldKind::Group => "GROUP".to_string(),
+        FieldKind::Condition { values } => {
+            format!("LEVEL-88: {values:?}")
+        }
+        FieldKind::Renames {
+            from_field,
+            thru_field,
+        } => {
+            format!("RENAMES {from_field} THRU {thru_field}")
+        }
+        FieldKind::EditedNumeric { pic_string, .. } => {
+            format!("EDITED PIC {pic_string}")
+        }
+    };
+
+    let details = if let Some(ref occurs) = field.occurs {
+        match occurs {
+            Occurs::Fixed { count } => format!("OCCURS {count}"),
+            Occurs::ODO {
+                min,
+                max,
+                counter_path,
+            } => {
+                format!("ODO {min}-{max} ({counter_path})")
+            }
+        }
+    } else {
+        String::new()
+    };
+
+    let connector = if is_root {
+        ""
+    } else if is_last {
+        "└── "
+    } else {
+        "├── "
+    };
+
+    let tree_name = format!("{}{}{}", prefix, connector, field.name);
+
+    writeln!(
+        output,
+        "{:<40} {:<8} {:<8} {:<12} {:<20}",
+        tree_name, field.offset, field.len, type_str, details
+    )
+    .ok();
+
+    let child_count = field.children.len();
+    for (i, child) in field.children.iter().enumerate() {
+        let extension = if is_root {
+            ""
+        } else if is_last {
+            "    "
+        } else {
+            "│   "
+        };
+
+        let child_prefix = format!("{}{}", prefix, extension);
+        print_field_tree(output, child, &child_prefix, i == child_count - 1, false);
+    }
 }

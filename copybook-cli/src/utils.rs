@@ -159,10 +159,16 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for copybook files (16 MiB).
+/// This prevents memory exhaustion attacks from malicious or accidentally large inputs.
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
+///
+/// Use `read_string_with_limit` to enforce size limits and prevent DoS.
 ///
 /// # Errors
 ///
@@ -172,13 +178,36 @@ pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
 
     if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        read_string_with_limit(io::stdin(), MAX_COPYBOOK_SIZE)
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        let file = std::fs::File::open(path)?;
+        read_string_with_limit(file, MAX_COPYBOOK_SIZE)
     }
+}
+
+/// Read string from reader with a size limit to prevent memory exhaustion.
+///
+/// # Errors
+///
+/// Returns `io::Error` if:
+/// - The input size exceeds `limit`.
+/// - Reading fails.
+/// - The input is not valid UTF-8.
+fn read_string_with_limit<R: Read>(reader: R, limit: u64) -> io::Result<String> {
+    // We read up to limit + 1 bytes to detect if the input is too large
+    let mut handle = reader.take(limit + 1);
+    let mut buffer = String::new();
+    handle.read_to_string(&mut buffer)?;
+
+    if buffer.len() as u64 > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Input exceeds maximum allowed size of {limit} bytes"),
+        ));
+    }
+
+    Ok(buffer)
 }
 
 #[cfg(test)]
@@ -248,5 +277,32 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_string_with_limit_success() {
+        let input = "valid input";
+        let result = read_string_with_limit(input.as_bytes(), 100);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "valid input");
+    }
+
+    #[test]
+    fn test_read_string_with_limit_exact() {
+        let input = "12345";
+        let result = read_string_with_limit(input.as_bytes(), 5);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "12345");
+    }
+
+    #[test]
+    fn test_read_string_with_limit_exceeded() {
+        let input = "123456";
+        let result = read_string_with_limit(input.as_bytes(), 5);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Input exceeds maximum allowed size of 5 bytes"
+        );
     }
 }

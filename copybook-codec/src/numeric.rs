@@ -718,13 +718,13 @@ impl SmallDecimal {
             return 1;
         }
 
-        let mut count = 0;
-        let mut val = self.value.abs();
-        while val > 0 {
-            count += 1;
-            val /= 10;
-        }
-        count
+        self.value
+            .unsigned_abs()
+            .checked_ilog10()
+            .unwrap_or(0)
+            .try_into()
+            .map(|digits: u16| digits + 1)
+            .unwrap_or(1)
     }
 }
 
@@ -2626,7 +2626,7 @@ pub fn decode_packed_decimal_with_scratch(
     digits: u16,
     scale: i16,
     signed: bool,
-    scratch: &mut ScratchBuffers,
+    _scratch: &mut ScratchBuffers,
 ) -> Result<SmallDecimal> {
     let expected_bytes = usize::from((digits + 1).div_ceil(2));
     if data.len() != expected_bytes {
@@ -2645,22 +2645,12 @@ pub fn decode_packed_decimal_with_scratch(
         return Ok(SmallDecimal::zero(scale));
     }
 
-    // Use the original implementation - the "optimized" path actually hurts performance
-    // Clear and prepare digit buffer for reuse
-    scratch.digit_buffer.clear();
-    scratch.digit_buffer.reserve(usize::from(digits));
-
     // Optimized nibble processing - unify handling for multi-byte cases
     let decimal = if data.len() == 1 {
         packed_decode_single_byte(data[0], digits, scale, signed)?
     } else {
         packed_decode_multi_byte(data, digits, scale, signed)?
     };
-
-    debug_assert!(
-        scratch.digit_buffer.iter().all(|&d| d <= 9),
-        "scratch digit buffer must contain only logical digits"
-    );
 
     Ok(decimal)
 }
@@ -3421,5 +3411,11 @@ mod tests {
             !positive_decimal.is_negative(),
             "Unsigned should not be negative"
         );
+    }
+
+    #[test]
+    fn test_total_digits_min_value() {
+        let decimal = SmallDecimal::new(i64::MIN, 0, true);
+        assert_eq!(decimal.total_digits(), 19);
     }
 }

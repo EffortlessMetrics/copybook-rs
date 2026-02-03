@@ -159,6 +159,11 @@ pub fn determine_exit_code(
     }
 }
 
+/// Maximum allowed size for copybook files (16 MiB).
+///
+/// This limit prevents memory exhaustion attacks from unbounded reads.
+pub const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024;
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
@@ -166,18 +171,51 @@ pub fn determine_exit_code(
 ///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if:
+/// - The file cannot be read
+/// - Stdin reading fails
+/// - The input size exceeds [`MAX_COPYBOOK_SIZE`] (16 MiB)
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 
+    // Helper to read with a limit
+    let read_with_limit = |reader: Box<dyn Read>| -> io::Result<String> {
+        // Use take() to limit the reader to MAX_COPYBOOK_SIZE + 1
+        // We read one extra byte to detect if the input is too large
+        let mut limited_reader = reader.take(MAX_COPYBOOK_SIZE + 1);
+        let mut buffer = String::new();
+        limited_reader.read_to_string(&mut buffer)?;
+
+        if buffer.len() as u64 > MAX_COPYBOOK_SIZE {
+            return Err(io::Error::new(
+                io::ErrorKind::FileTooLarge,
+                format!(
+                    "Input exceeds maximum allowed size of {} bytes",
+                    MAX_COPYBOOK_SIZE
+                ),
+            ));
+        }
+
+        Ok(buffer)
+    };
+
     if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        read_with_limit(Box::new(io::stdin()))
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        let file = std::fs::File::open(path)?;
+        let metadata = file.metadata()?;
+        if metadata.len() > MAX_COPYBOOK_SIZE {
+            return Err(io::Error::new(
+                io::ErrorKind::FileTooLarge,
+                format!(
+                    "File exceeds maximum allowed size of {} bytes",
+                    MAX_COPYBOOK_SIZE
+                ),
+            ));
+        }
+        read_with_limit(Box::new(file))
     }
 }
 
@@ -248,5 +286,38 @@ mod tests {
         let target = Path::new("output.jsonl");
         let temp = temp_path_for(target);
         assert_eq!(temp, Path::new("output.jsonl.tmp"));
+    }
+
+    #[test]
+    fn test_read_file_or_stdin_respects_limit() -> Result<()> {
+        let temp_dir = tempdir()?;
+        let file_path = temp_dir.path().join("large_file.txt");
+
+        // Create a file slightly larger than MAX_COPYBOOK_SIZE
+        // We use sparse file if possible or just write zeros to avoid consuming disk space,
+        // but for test correctness we need actual bytes.
+        // 16MiB + 1 byte is acceptable for a test.
+        let large_content = vec![b' '; (MAX_COPYBOOK_SIZE as usize) + 1];
+        fs::write(&file_path, &large_content)?;
+
+        let result = read_file_or_stdin(&file_path);
+        assert!(result.is_err());
+        // Use string matching for ErrorKind::FileTooLarge since it's unstable/new or might be other error
+        // Actually FileTooLarge is unstable in some rust versions, but let's check what we used.
+        // We used io::ErrorKind::FileTooLarge. If that fails to compile (MSRV 1.90 should have it),
+        // we might need fallback.
+        // Rust 1.90 definitely has FileTooLarge.
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::FileTooLarge);
+
+        // Create a file within limits
+        let small_content = "small content";
+        let small_path = temp_dir.path().join("small_file.txt");
+        fs::write(&small_path, small_content)?;
+
+        let result = read_file_or_stdin(&small_path);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "small content");
+
+        Ok(())
     }
 }

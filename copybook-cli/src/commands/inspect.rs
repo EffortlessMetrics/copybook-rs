@@ -45,13 +45,25 @@ pub fn run(
     output.push('\n');
     writeln!(
         output,
-        "{:<40} {:<8} {:<8} {:<12} {:<20}",
-        "Field Path", "Offset", "Length", "Type", "Details"
+        "{:<50} {:<8} {:<8} {:<25} {:<30}",
+        "Field", "Offset", "Length", "Type", "Details"
     )
     .ok();
-    writeln!(output, "{:-<88}", "").ok();
+    writeln!(output, "{:-<121}", "").ok();
 
-    for field in schema.all_fields() {
+    format_tree(&mut output, &schema.fields, "");
+
+    write_stdout_all(output.as_bytes())?;
+
+    info!("Inspect completed successfully");
+    Ok(ExitCode::Ok)
+}
+
+fn format_tree(output: &mut String, fields: &[copybook_core::Field], prefix: &str) {
+    for (i, field) in fields.iter().enumerate() {
+        let is_last = i == fields.len() - 1;
+        let connector = if is_last { "└─ " } else { "├─ " };
+
         let type_str = match &field.kind {
             copybook_core::FieldKind::Alphanum { len } => format!("X({len})"),
             copybook_core::FieldKind::ZonedDecimal {
@@ -109,16 +121,18 @@ pub fn run(
             String::new()
         };
 
+        let tree_node = format!("{}{}{}", prefix, connector, field.name);
+
         writeln!(
             output,
-            "{:<40} {:<8} {:<8} {:<12} {:<20}",
-            field.path, field.offset, field.len, type_str, details
+            "{:<50} {:<8} {:<8} {:<25} {:<30}",
+            tree_node, field.offset, field.len, type_str, details
         )
         .ok();
+
+        let child_prefix = format!("{}{}", prefix, if is_last { "   " } else { "│  " });
+        if !field.children.is_empty() {
+            format_tree(output, &field.children, &child_prefix);
+        }
     }
-
-    write_stdout_all(output.as_bytes())?;
-
-    info!("Inspect completed successfully");
-    Ok(ExitCode::Ok)
 }

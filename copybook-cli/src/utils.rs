@@ -159,25 +159,50 @@ pub fn determine_exit_code(
     }
 }
 
+const MAX_COPYBOOK_SIZE: u64 = 16 * 1024 * 1024; // 16 MiB
+
+/// Helper to read from a reader with a size limit
+fn read_with_limit<R: Read>(reader: R) -> io::Result<String> {
+    let mut reader = reader.take(MAX_COPYBOOK_SIZE + 1);
+    let mut buffer = String::new();
+    reader.read_to_string(&mut buffer)?;
+    if buffer.len() as u64 > MAX_COPYBOOK_SIZE {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Input exceeds limit of {} bytes", MAX_COPYBOOK_SIZE),
+        ));
+    }
+    Ok(buffer)
+}
+
 /// Read file content from path or stdin if path is "-"
 ///
 /// This function provides portable stdin support by accepting "-" as a special path.
 /// When the path is "-", it reads from stdin instead of a file.
 ///
+/// Enforces a strict size limit of 16 MiB to prevent memory exhaustion.
+///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or if stdin reading fails.
+/// Returns an error if the file cannot be read, if stdin reading fails, or if
+/// the input size exceeds 16 MiB.
 pub fn read_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
     let path = path.as_ref();
 
     if path == Path::new("-") {
         debug!("Reading from stdin");
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)?;
-        Ok(buffer)
+        read_with_limit(io::stdin())
     } else {
         debug!("Reading from file: {:?}", path);
-        std::fs::read_to_string(path)
+        let metadata = std::fs::metadata(path)?;
+        if metadata.len() > MAX_COPYBOOK_SIZE {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Input file exceeds limit of {} bytes", MAX_COPYBOOK_SIZE),
+            ));
+        }
+        let file = std::fs::File::open(path)?;
+        read_with_limit(file)
     }
 }
 
@@ -189,6 +214,26 @@ mod tests {
     use anyhow::Result;
     use std::fs;
     use tempfile::tempdir;
+
+    #[test]
+    fn test_read_with_limit_ok() {
+        let input = "abc".repeat(100);
+        let cursor = std::io::Cursor::new(input.clone());
+        let result = read_with_limit(cursor).expect("Should succeed");
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_read_with_limit_exceeded() {
+        // Simulate a stream larger than MAX_COPYBOOK_SIZE using io::repeat
+        // We need to limit the source to avoid infinite reading if logic is wrong,
+        // but read_with_limit should stop at MAX_COPYBOOK_SIZE + 1.
+        // We give it MAX_COPYBOOK_SIZE + 100 bytes.
+        let reader = io::repeat(b'a').take(MAX_COPYBOOK_SIZE + 100);
+        let result = read_with_limit(reader);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
+    }
 
     #[test]
     fn test_atomic_write_success() -> Result<()> {

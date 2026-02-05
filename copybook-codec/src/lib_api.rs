@@ -1390,6 +1390,32 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> Result<Vec<u8>> {
+    let mut output = Vec::new();
+    encode_record_into(schema, json, options, &mut output)?;
+    Ok(output)
+}
+
+/// Encode JSON data to binary into a provided buffer
+///
+/// # Arguments
+///
+/// * `schema` - The parsed copybook schema
+/// * `json` - The JSON data to encode
+/// * `options` - Encoding options
+/// * `output` - The output buffer to write to (will be cleared and resized)
+///
+/// # Errors
+/// Returns an error if the JSON data cannot be encoded according to the schema.
+#[inline]
+pub fn encode_record_into(
+    schema: &Schema,
+    json: &Value,
+    options: &EncodeOptions,
+    output: &mut Vec<u8>,
+) -> Result<()> {
+    // Clear output buffer to start fresh
+    output.clear();
+
     let root_obj = json.as_object().ok_or_else(|| {
         Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
@@ -1429,38 +1455,39 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             RecordFormat::RDW => {
                 // For RDW, we need to validate/recompute length if payload changed
                 if raw_data.len() >= 4 {
-                    let mut rdw_record = raw_data.clone();
+                    // Start with the raw data
+                    output.extend_from_slice(&raw_data);
 
                     // Extract the payload portion (everything after 4-byte header)
-                    let payload = &rdw_record[4..];
+                    // We need to compare existing payload with what fields would produce
+                    // This requires a temporary allocation for comparison
+                    let mut field_payload = Vec::new();
+                    let len = schema.lrecl_fixed.unwrap_or_else(|| {
+                        schema.fields.iter().map(|f| f.len).sum::<u32>()
+                    }) as usize;
+                    field_payload.resize(len, 0);
+                    encode_fields_to_buffer(schema, fields_value, &mut field_payload, options)?;
 
-                    // Check if we need to recompute length based on field changes
-                    let mut should_recompute = false;
-
-                    // Encode the fields to see if payload changed
-                    let field_payload = encode_fields_to_bytes(schema, fields_value, options)?;
-                    if field_payload != payload {
-                        should_recompute = true;
-                    }
-
-                    if should_recompute {
+                    if field_payload.as_slice() != &output[4..] {
+                        // Payload changed, update it
                         // Recompute length header
                         let capped_len = field_payload.len().min(u16::MAX as usize);
                         let new_length = u16::try_from(capped_len).unwrap_or(u16::MAX);
                         let length_bytes = new_length.to_be_bytes();
-                        rdw_record[0] = length_bytes[0];
-                        rdw_record[1] = length_bytes[1];
-                        // Preserve reserved bytes [2] and [3]
+                        output[0] = length_bytes[0];
+                        output[1] = length_bytes[1];
 
                         // Replace payload
-                        rdw_record.splice(4.., field_payload);
+                        output.truncate(4);
+                        output.extend_from_slice(&field_payload);
                     }
 
-                    return Ok(rdw_record);
+                    return Ok(());
                 }
             }
             RecordFormat::Fixed => {
-                return Ok(raw_data);
+                output.extend_from_slice(&raw_data);
+                return Ok(());
             }
         }
     }
@@ -1468,51 +1495,76 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     // No raw data or not using raw - encode from fields
     match options.format {
         RecordFormat::Fixed => {
-            let payload = encode_fields_to_bytes(schema, fields_value, options)?;
-            Ok(payload)
+            let len = schema.lrecl_fixed.unwrap_or_else(|| {
+                schema.fields.iter().map(|f| f.len).sum::<u32>()
+            }) as usize;
+
+            output.resize(len, 0);
+            encode_fields_to_buffer(schema, fields_value, output, options)?;
+            Ok(())
         }
         RecordFormat::RDW => {
-            let payload = encode_fields_to_bytes(schema, fields_value, options)?;
+            // RDW: 4 bytes header + payload
+            let len_estimate = schema.lrecl_fixed.unwrap_or_else(|| {
+                schema.fields.iter().map(|f| f.len).sum::<u32>()
+            }) as usize;
 
-            // Create RDW record
-            let rdw_record = crate::record::RDWRecord::try_new(payload)?;
-            let mut result = Vec::new();
-            result.extend_from_slice(&rdw_record.header);
-            result.extend_from_slice(&rdw_record.payload);
-            Ok(result)
+            output.resize(4 + len_estimate, 0);
+
+            // Write payload starting at offset 4
+            let payload_size =
+                encode_fields_to_buffer_offset(schema, fields_value, output, 4, options)?;
+
+            // Adjust vector size to actual written size (header + payload)
+            output.truncate(4 + payload_size);
+
+            // Update RDW header
+            let capped_len = payload_size.min(u16::MAX as usize);
+            #[allow(clippy::cast_possible_truncation)]
+            let length_bytes = (capped_len as u16).to_be_bytes();
+            output[0] = length_bytes[0];
+            output[1] = length_bytes[1];
+            // bytes 2 and 3 are 0 (reserved)
+
+            Ok(())
         }
     }
 }
 
-/// Helper function to encode JSON fields to binary payload
-fn encode_fields_to_bytes(
+/// Helper function to encode JSON fields to binary buffer
+fn encode_fields_to_buffer(
     schema: &Schema,
     json: &Value,
+    buffer: &mut [u8],
     options: &EncodeOptions,
-) -> Result<Vec<u8>> {
-    let record_length = schema.lrecl_fixed.unwrap_or_else(|| {
-        // For variable length, estimate based on schema
-        schema.fields.iter().map(|f| f.len).sum::<u32>()
-    }) as usize;
+) -> Result<usize> {
+    encode_fields_to_buffer_offset(schema, json, buffer, 0, options)
+}
 
-    let mut buffer = vec![0u8; record_length];
-
+fn encode_fields_to_buffer_offset(
+    schema: &Schema,
+    json: &Value,
+    buffer: &mut [u8],
+    offset: usize,
+    options: &EncodeOptions,
+) -> Result<usize> {
     if let Some(obj) = json.as_object() {
         let encoding_metadata = obj
             .get("_encoding_metadata")
             .and_then(|value| value.as_object());
-        encode_fields_recursive(
+        let final_offset = encode_fields_recursive(
             &schema.fields,
             obj,
             encoding_metadata,
             "",
-            &mut buffer,
-            0,
+            buffer,
+            offset,
             options,
         )?;
+        Ok(final_offset - offset)
+    } else {
+        Ok(0)
     }
-
-    Ok(buffer)
 }
 
 /// Recursively encode fields into the buffer
@@ -2101,6 +2153,7 @@ pub fn encode_jsonl_to_file(
 
     let reader = BufReader::new(input);
     let mut record_count = 0u64;
+    let mut buffer = Vec::new();
 
     for line in reader.lines() {
         let line =
@@ -2117,11 +2170,11 @@ pub fn encode_jsonl_to_file(
             .map_err(|e| Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, e.to_string()))?;
 
         // Encode to binary
-        if let Ok(binary_data) = encode_record(schema, &json_value, options) {
+        if encode_record_into(schema, &json_value, options, &mut buffer).is_ok() {
             output
-                .write_all(&binary_data)
+                .write_all(&buffer)
                 .map_err(|e| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, e.to_string()))?;
-            summary.bytes_processed += binary_data.len() as u64;
+            summary.bytes_processed += buffer.len() as u64;
         } else {
             summary.records_with_errors += 1;
             if options.strict_mode {

@@ -1,7 +1,7 @@
 # copybook-rs Roadmap
 
 **Status:** ⚠️ Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
-**Last Updated**: 2026-01-12
+**Last Updated**: 2026-02-07
 **Production Readiness**: 35% (see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md))
 **Target Release**: v1.0.0 (Q2-Q3 2026)
 
@@ -31,6 +31,157 @@ Criteria → Risks/Mitigations.
 
 **Test Status**: 1135+ passing (cargo test --workspace)
 **CI Mode**: Currently operating in CI-off mode with local gates
+
+---
+
+## Testing Methodologies (Completed)
+
+The copybook-rs project has implemented a comprehensive testing strategy with five complementary testing methodologies:
+
+### 1. Behavior Driven Development (BDD) ✅
+
+**Status**: Complete
+
+**Framework**: Cucumber (Gherkin syntax)
+
+**Implementation**:
+- 3 feature files: `copybook_parsing.feature`, `encode_decode.feature`, `error_handling.feature`
+- Executable specifications in human-readable format
+- Integration with CI workflow: `.github/workflows/ci.yml` (bdd-tests job)
+- Documentation: [`docs/BDD_TESTING.md`](docs/BDD_TESTING.md)
+
+**Coverage Areas**:
+- Copybook parsing (simple fields, numeric fields, OCCURS, REDEFINES, Level-88)
+- Encode/decode operations (ASCII/EBCDIC, binary↔JSON, round-trip fidelity)
+- Error handling (syntax errors, invalid clauses, data validation)
+
+**Running BDD Tests**:
+```bash
+cargo test -p copybook-bdd
+```
+
+### 2. Feature Flagging ✅
+
+**Status**: Complete (22 flags across 5 categories)
+
+**Framework**: Custom feature flag system in [`copybook-core/src/feature_flags.rs`](copybook-core/src/feature_flags.rs)
+
+**Testing-Related Feature Flags**:
+- `mutation_testing` - Enable mutation testing hooks
+- `fuzzing_integration` - Enable fuzzing integration points
+- `coverage_instrumentation` - Enable test coverage instrumentation
+- `property_based_testing` - Enable property-based testing integration
+
+**Integration**:
+- CI workflow: `.github/workflows/feature-flags.yml`
+- Tests all 22 feature flags in both enabled and disabled states
+- CLI integration: `--list-features`, `--enable-features`, `--disable-features`
+
+**Categories**:
+- Experimental (4 flags): SignSeparate, RenamesR4R6, Comp1, Comp2
+- Enterprise (6 flags): AuditSystem, SoxCompliance, HipaaCompliance, GdprCompliance, PciDssCompliance, SecurityMonitoring
+- Performance (4 flags): AdvancedOptimization, LruCache, ParallelDecode, ZeroCopy
+- Debug (4 flags): VerboseLogging, DiagnosticOutput, Profiling, MemoryTracking
+- Testing (4 flags): MutationTesting, FuzzingIntegration, CoverageInstrumentation, PropertyBasedTesting
+
+### 3. Fuzzing ✅
+
+**Status**: Complete (6 fuzz targets)
+
+**Framework**: cargo-fuzz with libfuzzer-sys
+
+**Fuzz Targets**:
+- `copybook_parse` - COBOL copybook parser
+- `binary_decode` - Binary data decoder
+- `json_encode` - JSON encoder
+- `pic_clause` - PICTURE clause parser
+- `occurs_odo` - OCCURS DEPENDING ON handler
+- `redefines` - REDEFINES clause handler
+
+**Integration**:
+- CI workflow: `.github/workflows/fuzz-integration.yml`
+- Scheduled runs: Nightly at 2 AM UTC
+- Manual trigger support with configurable duration
+- Corpus management with minimization
+
+**Running Fuzzing**:
+```bash
+# Run all fuzzers for 5 minutes
+cargo fuzz run copybook_parse -- -runs=0 -max_total_time=300
+
+# Manual CI trigger
+gh workflow run fuzz-integration.yml
+```
+
+### 4. Mutation Testing ✅
+
+**Status**: Complete (per-crate thresholds)
+
+**Framework**: cargo-mutants with nextest
+
+**Configuration**: [`mutants.toml`](mutants.toml)
+
+**Per-Crate Thresholds**:
+- `copybook-core`: 75% (critical parser code)
+- `copybook-codec`: 75% (encoding/decoding correctness)
+- `copybook-cli`: 65% (CLI with more boilerplate)
+- `copybook-bench`: 60% (benchmark utilities)
+- `copybook-gen`: 60% (test infrastructure)
+
+**Integration**:
+- CI workflow: `.github/workflows/ci-mutants.yml`
+- Scheduled runs: Weekly on Sundays at 2 AM UTC
+- Manual trigger with threshold configuration
+- PR support with `mutation-test` label
+- JSON output for metrics aggregation
+
+**Running Mutation Testing**:
+```bash
+# Run on entire workspace
+cargo mutants --workspace --test-tool nextest
+
+# Run on specific crate
+cargo mutants --package copybook-core
+```
+
+### 5. Property Testing ✅
+
+**Status**: Complete (50+ property tests)
+
+**Framework**: proptest
+
+**Implementation**: [`tests/proptest/`](tests/proptest/)
+
+**Test Modules**:
+- `roundtrip.rs` - Round-trip fidelity properties
+- `parsing.rs` - Parser correctness properties
+- `numeric.rs` - Numeric conversion properties
+- `arrays.rs` - Array handling properties
+- `pic_clauses.rs` - PICTURE clause properties
+- `redefines.rs` - REDEFINES properties
+
+**Integration**:
+- CI workflow: `.github/workflows/ci-proptest.yml`
+- Scheduled runs: Weekly on Mondays at 3 AM UTC
+- Matrix: Ubuntu/macOS/Windows × stable/beta
+- Configurable test cases (256 for PRs, 1024 for scheduled)
+
+**Running Property Tests**:
+```bash
+# Run all property tests
+cargo test -p copybook-proptest --lib
+
+# Run with custom configuration
+PROPTEST_CASES=512 PROPTEST_SEED=copybook-rs-proptest cargo test -p copybook-proptest --lib
+```
+
+### Testing Integration Summary
+
+See [`docs/TESTING_INTEGRATION_SUMMARY.md`](docs/TESTING_INTEGRATION_SUMMARY.md) for:
+- How all testing methodologies work together
+- Feature flag dependencies between methodologies
+- CI workflow triggers and schedules
+- How to run all tests locally
 
 ---
 

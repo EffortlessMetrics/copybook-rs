@@ -2,6 +2,8 @@
 
 This document describes the feature flag system in copybook-rs, which allows runtime control over experimental features, enterprise features, performance optimizations, debug capabilities, and testing hooks.
 
+> **See Also**: [Testing Integration Summary](TESTING_INTEGRATION_SUMMARY.md) for comprehensive documentation on how feature flags integrate with all testing methodologies.
+
 ## Overview
 
 Feature flags provide a mechanism to:

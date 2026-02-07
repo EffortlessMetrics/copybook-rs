@@ -41,6 +41,7 @@ copybook-codec = { workspace = true }
 tokio = { workspace = true, optional = true }
 metrics = { workspace = true, optional = true }
 metrics-exporter-prometheus = { version = "0.18.1", optional = true, features = ["http-listener"] }
+toml = "0.8.19"
 
 [features]
 default = []

@@ -130,3 +130,27 @@ ci-local:
 # Quick local CI (skip docs and deny for speed)
 ci-quick:
     cargo run --package xtask --bin xtask -- ci --quick
+
+# Run mutation testing on all workspace crates
+mutants:
+    cargo mutants --workspace --file mutants.toml --test-tool nextest --in-place
+
+# Run mutation testing on specific crate
+mutants-crate crate:
+    cargo mutants --package {{crate}} --file mutants.toml --test-tool nextest --in-place
+
+# Run mutation testing with custom threshold
+mutants-threshold threshold:
+    cargo mutants --workspace --file mutants.toml --test-tool nextest --in-place --threshold {{threshold}}
+
+# Run mutation testing with verbose output
+mutants-verbose:
+    cargo mutants --workspace --file mutants.toml --test-tool nextest --in-place -vV
+
+# Run mutation testing on core crates only (core, codec)
+mutants-core:
+    cargo mutants --package copybook-core --package copybook-codec --file mutants.toml --test-tool nextest --in-place
+
+# Generate mutation testing report
+mutants-report:
+    cargo mutants --workspace --file mutants.toml --test-tool nextest --in-place --json --list

@@ -1,0 +1,67 @@
+# Proptest Configuration for copybook-rs
+#
+# This file configures the proptest framework for property-based testing.
+
+# Default number of test cases to run for each property
+# Can be overridden with PROPTEST_CASES environment variable
+cases = 256
+
+# Maximum number of rejected inputs before giving up
+max_local_rejects = 10000
+
+# Maximum number of flat map rejections before giving up
+max_flat_map_regens = 10000
+
+# Number of test cases to run in failure persistence mode
+failure_persistence = true
+
+# File to store failing test cases for regression testing
+# This is automatically managed by proptest
+# Relative paths are resolved relative to the test file
+regressions = "proptest-regressions"
+
+# Fork the test process for each test case
+# This can help with timeout handling and resource cleanup
+fork = true
+
+# Timeout for individual test cases in seconds
+# Set to 0 to disable timeout
+timeout = 60
+
+# Number of threads to use for running tests
+# Set to 0 to use the number of logical CPUs
+# Can be overridden with PROPTEST_NUMBER_OF_THREADS environment variable
+threads = 0
+
+# Verbosity level
+# 0 = quiet, 1 = normal, 2 = verbose
+verbose = 1
+
+# Enable/disable test result caching
+cache = true
+
+# Path to the cache directory
+# Relative paths are resolved relative to the target directory
+cache_path = "target/proptest-cache"
+
+# Random seed for generating test cases
+# Can be overridden with PROPTEST_SEED environment variable
+# Setting to a fixed value makes tests reproducible
+# seed = "fixed-seed-for-reproducibility"
+
+# Enable/disable shrinking
+# Shrinking finds smaller inputs that still fail the test
+shrink = true
+
+# Maximum number of shrink iterations
+max_shrink_iters = 1000
+
+# Include the source code location in error messages
+# This helps with debugging by showing where the failure occurred
+include_source = true
+
+# Enable/disable collection of statistics
+collect_stats = true
+
+# Path to the statistics file
+stats_path = "target/proptest-stats"

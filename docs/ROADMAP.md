@@ -15,10 +15,11 @@ Criteria → Risks/Mitigations.
 
 ---
 
-## Recent Progress (Dec 2025 - Jan 2026)
+## Recent Progress (Dec 2025 - Feb 2026)
 
 | Commit/PR | Feature | Impact |
 |-----------|---------|--------|
+| ✅ Complete | **Property Testing Integration** | Comprehensive property tests for round-trip, parsing, numeric, arrays, PIC clauses, REDEFINES |
 | ✅ Complete | **E3.2-E3.6 Edited PIC Encoding** | Full encode support: CR/DB, commas, asterisk, currency (115 new tests) |
 | ✅ Complete | **RENAMES Codec** (#110) | R1-R3 decode/encode with 7 codec-layer tests |
 | `976ca0f` | **E3.1 Edited PIC Encoding** | Numeric field encoding with Z-editing, decimal point, basic sign |

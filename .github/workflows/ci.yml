@@ -124,6 +124,18 @@ jobs:
       if: matrix.features != ''
       run: cargo test --workspace --exclude copybook-bench --features ${{ matrix.features }} -j 2
 
+  bdd-tests:
+    name: BDD Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run BDD tests
+      run: cargo test -p copybook-bdd -- --nocapture
+
   rdw-iterator-tests:
     name: RDW iterator tests
     runs-on: ubuntu-latest

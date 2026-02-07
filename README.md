@@ -30,6 +30,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 | [User Guide](docs/USER_GUIDE.md) | Getting started, tutorials, examples |
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
+| [BDD Testing](docs/BDD_TESTING.md) | Behavior Driven Development tests and documentation |
 | [Error Codes](docs/reference/ERROR_CODES.md) | CBKP/CBKS/CBKD/CBKE/CBKR taxonomy |
 | [COBOL Support](docs/reference/COBOL_SUPPORT_MATRIX.md) | Feature coverage matrix |
 | [Roadmap](docs/ROADMAP.md) | Project status and adoption guidance |
@@ -314,6 +315,9 @@ cargo test --workspace
 # Run with coverage
 cargo test --workspace -- --nocapture
 
+# Run BDD tests (Behavior Driven Development)
+cargo test -p copybook-bdd
+
 # Run performance benchmarks (JSON receipts)
 just bench-json
 # or: bash scripts/bench.sh / scripts\bench.bat
@@ -324,6 +328,8 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Format code
 cargo fmt --all
 ```
+
+**BDD Testing**: The project includes Behavior Driven Development tests using Cucumber/Gherkin syntax. These tests describe expected behavior in human-readable format and serve as both executable tests and living documentation. See [BDD_TESTING.md](docs/BDD_TESTING.md) for details on running and writing BDD tests.
 
 ### Releasing
 

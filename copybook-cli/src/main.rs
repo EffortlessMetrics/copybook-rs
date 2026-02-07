@@ -7,9 +7,9 @@
 use crate::exit_codes::ExitCode;
 use anyhow::{Error as AnyhowError, anyhow};
 use clap::error::ErrorKind as ClapErrorKind;
-use clap::{ColorChoice, Parser, Subcommand, ValueEnum};
+use clap::{Args, ColorChoice, Parser, Subcommand, ValueEnum};
 use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
-use copybook_core::Error as CoreError;
+use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::error::Error as StdError;
@@ -17,13 +17,11 @@ use std::io::{self, ErrorKind, Write};
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
+use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
-
-#[cfg(feature = "metrics")]
-use clap::Args;
 
 #[cfg(feature = "metrics")]
 use std::net::SocketAddr;
@@ -90,6 +88,9 @@ struct Cli {
     #[cfg(feature = "metrics")]
     #[command(flatten)]
     metrics: MetricsOpts,
+
+    #[command(flatten)]
+    feature_flags: FeatureFlagOpts,
 }
 
 struct BrokenPipeSafeStderr(std::io::Stderr);
@@ -121,6 +122,71 @@ pub struct MetricsOpts {
     /// Optional delay after run completion so scrapes can observe final metrics
     #[arg(long, default_value_t = 0)]
     pub metrics_grace_ms: u64,
+}
+
+/// Feature flag options for the CLI
+///
+/// These options allow runtime control over experimental features,
+/// enterprise features, performance optimizations, debug capabilities,
+/// and testing hooks.
+#[derive(Args, Debug, Clone)]
+pub struct FeatureFlagOpts {
+    /// Enable specific feature flags (comma-separated)
+    ///
+    /// Available flags:
+    /// - Experimental: sign_separate, renames_r4_r6, comp_1, comp_2
+    /// - Enterprise: audit_system, sox_compliance, hipaa_compliance, gdpr_compliance, pci_dss_compliance, security_monitoring
+    /// - Performance: advanced_optimization, lru_cache, parallel_decode, zero_copy
+    /// - Debug: verbose_logging, diagnostic_output, profiling, memory_tracking
+    /// - Testing: mutation_testing, fuzzing_integration, coverage_instrumentation, property_based_testing
+    ///
+    /// Example: --enable-features sign_separate,verbose_logging
+    #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
+    pub enable_features: Vec<String>,
+
+    /// Disable specific feature flags (comma-separated)
+    ///
+    /// This takes precedence over --enable-features and environment variables.
+    ///
+    /// Example: --disable-features lru_cache
+    #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
+    pub disable_features: Vec<String>,
+
+    /// Enable all features in a category
+    ///
+    /// Available categories: experimental, enterprise, performance, debug, testing
+    ///
+    /// Example: --enable-category debug
+    #[arg(long, value_name = "CATEGORY")]
+    pub enable_category: Vec<String>,
+
+    /// Disable all features in a category
+    ///
+    /// Example: --disable-category experimental
+    #[arg(long, value_name = "CATEGORY")]
+    pub disable_category: Vec<String>,
+
+    /// Load feature flags from a configuration file
+    ///
+    /// The file can be in TOML or JSON format.
+    /// TOML format:
+    ///   [feature_flags]
+    ///   enabled = ["sign_separate", "verbose_logging"]
+    ///   disabled = ["lru_cache"]
+    ///
+    /// JSON format:
+    ///   {
+    ///     "feature_flags": {
+    ///       "enabled": ["sign_separate", "verbose_logging"],
+    ///       "disabled": ["lru_cache"]
+    ///     }
+    ///   }
+    #[arg(long, value_name = "PATH")]
+    pub feature_flags_config: Option<PathBuf>,
+
+    /// List all available feature flags and their status
+    #[arg(long)]
+    pub list_features: bool,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -535,8 +601,15 @@ fn run() -> anyhow::Result<ExitCode> {
     #[cfg(feature = "metrics")]
     let _metrics_guard = metrics_grace_guard(&metrics_opts);
 
+    // Handle feature flags
+    let feature_flags = initialize_feature_flags(&cli.feature_flags)?;
+    if cli.feature_flags.list_features {
+        list_all_features(&feature_flags);
+        return Ok(ExitCode::Ok);
+    }
+
     let strict_policy = effective_strict_policy(&cli);
-    let verbose = cli.verbose;
+    let verbose = cli.verbose || feature_flags.is_enabled(Feature::VerboseLogging);
     let command = cli.command;
 
     // Initialize tracing
@@ -953,6 +1026,173 @@ fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<f64>) {
         };
         metrics::counter!("copybook_decode_errors_total", "family" => family).increment(1);
     }
+}
+
+/// Initialize feature flags from CLI options and environment variables
+fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFlags> {
+    use std::fs;
+    use std::io::Read;
+
+    // Start with defaults from environment
+    let mut flags = FeatureFlags::from_env();
+
+    // Load from config file if specified
+    if let Some(config_path) = &opts.feature_flags_config {
+        let mut content = String::new();
+        let mut file = fs::File::open(config_path)
+            .map_err(|e| anyhow!("Failed to open feature flags config: {e}"))?;
+        file.read_to_string(&mut content)
+            .map_err(|e| anyhow!("Failed to read feature flags config: {e}"))?;
+
+        // Try JSON format first
+        if let Ok(json_config) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(feature_flags) = json_config.get("feature_flags") {
+                if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
+                    for feature_name in enabled {
+                        if let Some(name) = feature_name.as_str() {
+                            if let Ok(feature) = Feature::from_str(name) {
+                                flags.enable(feature);
+                            }
+                        }
+                    }
+                }
+                if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
+                    for feature_name in disabled {
+                        if let Some(name) = feature_name.as_str() {
+                            if let Ok(feature) = Feature::from_str(name) {
+                                flags.disable(feature);
+                            }
+                        }
+                    }
+                }
+            }
+        } else if let Ok(toml_str) = content.parse::<toml::Value>() {
+            // Try TOML format
+            if let Some(feature_flags) = toml_str.get("feature_flags") {
+                if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
+                    for feature_name in enabled {
+                        if let Some(name) = feature_name.as_str() {
+                            if let Ok(feature) = Feature::from_str(name) {
+                                flags.enable(feature);
+                            }
+                        }
+                    }
+                }
+                if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
+                    for feature_name in disabled {
+                        if let Some(name) = feature_name.as_str() {
+                            if let Ok(feature) = Feature::from_str(name) {
+                                flags.disable(feature);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            return Err(anyhow!("Failed to parse feature flags config: expected JSON or TOML format"));
+        }
+    }
+
+    // Process --enable-category flags
+    for category_name in &opts.enable_category {
+        let category = match category_name.to_lowercase().as_str() {
+            "experimental" => FeatureCategory::Experimental,
+            "enterprise" => FeatureCategory::Enterprise,
+            "performance" => FeatureCategory::Performance,
+            "debug" => FeatureCategory::Debug,
+            "testing" => FeatureCategory::Testing,
+            _ => {
+                return Err(anyhow!(
+                    "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
+                ))
+            }
+        };
+        for feature in FeatureFlags::features_in_category(category) {
+            flags.enable(feature);
+        }
+    }
+
+    // Process --disable-category flags
+    for category_name in &opts.disable_category {
+        let category = match category_name.to_lowercase().as_str() {
+            "experimental" => FeatureCategory::Experimental,
+            "enterprise" => FeatureCategory::Enterprise,
+            "performance" => FeatureCategory::Performance,
+            "debug" => FeatureCategory::Debug,
+            "testing" => FeatureCategory::Testing,
+            _ => {
+                return Err(anyhow!(
+                    "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
+                ))
+            }
+        };
+        for feature in FeatureFlags::features_in_category(category) {
+            flags.disable(feature);
+        }
+    }
+
+    // Process --enable-features flags
+    for feature_name in &opts.enable_features {
+        if let Ok(feature) = Feature::from_str(feature_name) {
+            flags.enable(feature);
+        } else {
+            return Err(anyhow!("Invalid feature flag '{feature_name}'"));
+        }
+    }
+
+    // Process --disable-features flags (takes precedence)
+    for feature_name in &opts.disable_features {
+        if let Ok(feature) = Feature::from_str(feature_name) {
+            flags.disable(feature);
+        } else {
+            return Err(anyhow!("Invalid feature flag '{feature_name}'"));
+        }
+    }
+
+    Ok(flags)
+}
+
+/// List all available feature flags and their status
+fn list_all_features(flags: &FeatureFlags) {
+    use std::io::Write;
+
+    let stdout = std::io::stdout();
+    let mut stdout = stdout.lock();
+
+    writeln!(stdout, "Available Feature Flags:").unwrap();
+    writeln!(stdout).unwrap();
+
+    for category in [
+        FeatureCategory::Experimental,
+        FeatureCategory::Enterprise,
+        FeatureCategory::Performance,
+        FeatureCategory::Debug,
+        FeatureCategory::Testing,
+    ] {
+        writeln!(stdout, "{}:", category.to_string().to_uppercase()).unwrap();
+        for feature in FeatureFlags::features_in_category(category) {
+            let status = if flags.is_enabled(feature) {
+                "enabled"
+            } else {
+                "disabled"
+            };
+            writeln!(
+                stdout,
+                "  {:20} ({:8}) - {}",
+                feature.to_string(),
+                status,
+                feature.description()
+            )
+            .unwrap();
+        }
+        writeln!(stdout).unwrap();
+    }
+
+    writeln!(
+        stdout,
+        "Environment variables: COPYBOOK_FF_<FEATURE_NAME>=1 to enable"
+    )
+    .unwrap();
 }
 
 fn map_error_to_exit_code(err: &AnyhowError) -> ExitCode {

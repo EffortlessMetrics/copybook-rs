@@ -1,0 +1,43 @@
+[package]
+name = "copybook-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+copybook-core = { path = "../copybook-core" }
+copybook-codec = { path = "../copybook-codec" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "copybook_parse"
+path = "fuzz_targets/copybook_parse.rs"
+
+[[bin]]
+name = "binary_decode"
+path = "fuzz_targets/binary_decode.rs"
+
+[[bin]]
+name = "json_encode"
+path = "fuzz_targets/json_encode.rs"
+
+[[bin]]
+name = "pic_clause"
+path = "fuzz_targets/pic_clause.rs"
+
+[[bin]]
+name = "occurs_odo"
+path = "fuzz_targets/occurs_odo.rs"
+
+[[bin]]
+name = "redefines"
+path = "fuzz_targets/redefines.rs"

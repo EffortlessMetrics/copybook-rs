@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 39,
+  "title": "Mutation Testing Dashboard",
+  "timezone": "browser",
+  "refresh": "1h",
+  "panels": [
+    {
+      "type": "text",
+      "title": "Mutation Testing Quick Links",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "# Mutation Testing Dashboard\n\n### Documentation\n- **Mutation Testing Guide** -> [`docs/MUTATION_TESTING.md`](https://github.com/effortlessmetrics/copybook-rs/blob/main/docs/MUTATION_TESTING.md)\n- **Configuration** -> [`mutants.toml`](https://github.com/effortlessmetrics/copybook-rs/blob/main/mutants.toml)\n- **CI Workflow** -> [`.github/workflows/ci-mutants.yml`](https://github.com/effortlessmetrics/copybook-rs/blob/main/.github/workflows/ci-mutants.yml)\n\n---\n\n### CI Artifacts\n- **Mutation Results** -> Actions > [Mutation Testing](https://github.com/effortlessmetrics/copybook-rs/actions/workflows/ci-mutants.yml) (check latest run; artifacts: `mutants-results-*`)\n- **Historical Data** -> Actions > [Mutation Testing](https://github.com/effortlessmetrics/copybook-rs/actions/workflows/ci-mutants.yml) (artifact: `mutation-history-*`)\n\n---\n\n### Quick Commands (local)\n```bash\n# Run mutation testing on all crates\njust mutants\n\n# Run mutation testing on specific crate\ncargo mutants --package copybook-core\n\n# Run with custom threshold\ncargo mutants --threshold 80\n```\n\n---\n\n### Score Interpretation\n- **90%+**: Excellent - Tests are very comprehensive\n- **80-89%**: Good - Tests cover most critical paths\n- **70-79%**: Acceptable - Meets minimum threshold\n- **<70%**: Needs improvement - Add more tests\n\n---\n\n### Thresholds by Crate\n| Crate | Threshold | Rationale |\n|-------|-----------|-----------|\n| copybook-core | 75% | Critical parsing logic |\n| copybook-codec | 75% | Critical encoding/decoding |\n| copybook-cli | 65% | More boilerplate code |\n| copybook-bench | 60% | Benchmark infrastructure |\n| copybook-gen | 60% | Test generation utilities |"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Overall Mutation Score",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 8
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "mutation_score_total",
+          "legendFormat": "Overall Score"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Total Caught Mutants",
+      "gridPos": {
+        "x": 6,
+        "y": 4,
+        "w": 6,
+        "h": 8
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(mutation_caught_total)",
+          "legendFormat": "Caught"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Total Missed Mutants",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 6,
+        "h": 8
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(mutation_missed_total)",
+          "legendFormat": "Missed"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Total Mutants Tested",
+      "gridPos": {
+        "x": 18,
+        "y": 4,
+        "w": 6,
+        "h": 8
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(mutation_total)",
+          "legendFormat": "Total"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Mutation Score Trend (Last 30 Days)",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "expr": "mutation_score{crate=\"copybook-core\"}",
+          "legendFormat": "copybook-core"
+        },
+        {
+          "expr": "mutation_score{crate=\"copybook-codec\"}",
+          "legendFormat": "copybook-codec"
+        },
+        {
+          "expr": "mutation_score{crate=\"copybook-cli\"}",
+          "legendFormat": "copybook-cli"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Caught vs Missed Mutants (Last 30 Days)",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["sum", "lastNotNull"]
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(mutation_caught_total)",
+          "legendFormat": "Caught"
+        },
+        {
+          "expr": "sum(mutation_missed_total)",
+          "legendFormat": "Missed"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Mutation Score by Crate",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Score"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "mutation_score",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "crate": "Crate",
+              "Value": "Score %"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Missed Mutants by Crate",
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Missed"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "mutation_missed_total",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "crate": "Crate",
+              "Value": "Missed Count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Mutation Score History (90 Days)",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 8
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["mean", "min", "max", "lastNotNull"]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "mutation_score{crate=\"copybook-core\"}",
+          "legendFormat": "copybook-core (threshold: 75%)"
+        },
+        {
+          "expr": "mutation_score{crate=\"copybook-codec\"}",
+          "legendFormat": "copybook-codec (threshold: 75%)"
+        },
+        {
+          "expr": "mutation_score{crate=\"copybook-cli\"}",
+          "legendFormat": "copybook-cli (threshold: 65%)"
+        },
+        {
+          "expr": "mutation_score{crate=\"copybook-bench\"}",
+          "legendFormat": "copybook-bench (threshold: 60%)"
+        },
+        {
+          "expr": "mutation_score{crate=\"copybook-gen\"}",
+          "legendFormat": "copybook-gen (threshold: 60%)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 70,
+                "color": "yellow"
+              },
+              {
+                "value": 80,
+                "color": "green"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "title": "Alerts and Notifications",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 6
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Mutation Score Alerts\n\n| Alert Condition | Severity | Action |\n|-----------------|----------|--------|\n| Score < 60% for any crate | Critical | Investigate immediately, add tests |\n| Score < threshold for core/codec | High | Prioritize test improvements |\n| Score trending down for 3+ runs | Medium | Review recent changes |\n| Score > 90% for all crates | Info | Consider raising thresholds |\n\n### Integration with CI\n- Mutation tests run **weekly** (Sundays at 2 AM UTC)\n- PRs can trigger mutation tests with `mutation-test` label\n- Manual triggers available via Actions tab\n- Results posted as PR comments for easy review"
+      }
+    }
+  ]
+}

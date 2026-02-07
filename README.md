@@ -377,7 +377,7 @@ We welcome contributions. Please see [REPORT.md](docs/REPORT.md) for current pro
 - Follow Rust conventions and idioms with clippy pedantic compliance
 - Add comprehensive tests for new features and help retire the remaining flaky/leaky cases highlighted by `cargo nextest`
 - Update documentation for API changes
-- Maintain MSRV compatibility (Rust 1.90)
+- Maintain MSRV compatibility (Rust 1.92)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)
 - Implement Display trait for user-facing types where appropriate
 - Use safe type conversions (try_from() instead of unsafe casts)

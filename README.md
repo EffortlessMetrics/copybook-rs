@@ -18,7 +18,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 - **Deterministic**: Byte-identical results across runs and worker configurations
 - **Memory-safe**: Zero `unsafe` code in public APIs; clippy pedantic enforcement
-- **Well-tested**: 1135+ tests passing with comprehensive error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*)
+- **Comprehensive testing**: 1135+ tests passing with BDD, property testing, fuzzing, mutation testing, and feature flagging
 - **Performance-validated**: 205 MiB/s (DISPLAY), 58 MiB/s (COMP-3) baseline established with CI receipts in `scripts/bench/perf.json`
 
 See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
@@ -30,6 +30,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 | [User Guide](docs/USER_GUIDE.md) | Getting started, tutorials, examples |
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
+| [Testing Integration](docs/TESTING_INTEGRATION_SUMMARY.md) | Comprehensive testing methodologies (BDD, property testing, fuzzing, mutation testing) |
 | [BDD Testing](docs/BDD_TESTING.md) | Behavior Driven Development tests and documentation |
 | [Error Codes](docs/reference/ERROR_CODES.md) | CBKP/CBKS/CBKD/CBKE/CBKR taxonomy |
 | [COBOL Support](docs/reference/COBOL_SUPPORT_MATRIX.md) | Feature coverage matrix |

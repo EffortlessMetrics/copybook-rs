@@ -4,6 +4,8 @@
 
 copybook-rs uses Behavior Driven Development (BDD) testing to describe and verify the expected behavior of the library in human-readable Gherkin syntax. These tests serve as both executable tests and living documentation.
 
+> **See Also**: [Testing Integration Summary](TESTING_INTEGRATION_SUMMARY.md) for comprehensive documentation on how BDD integrates with all testing methodologies.
+
 ## Why BDD?
 
 BDD testing provides several benefits for the copybook-rs project:

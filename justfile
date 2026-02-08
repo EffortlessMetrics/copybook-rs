@@ -52,6 +52,23 @@ fmt-check:
 deny:
     cargo deny check
 
+# API Freeze Management
+# Check API compatibility against baseline
+api-check:
+    bash scripts/api-baseline.sh check
+
+# Generate/update API baseline for current version
+api-baseline:
+    bash scripts/api-baseline.sh generate
+
+# Show current API baseline information
+api-info:
+    bash scripts/api-baseline.sh info
+
+# Check if API freeze is active
+api-freeze-status:
+    bash scripts/api-baseline.sh freeze-status
+
 # Build documentation
 docs:
     cargo doc --workspace --no-deps
@@ -381,3 +398,35 @@ mutants-core:
 # Generate mutation testing report
 mutants-report:
     cargo mutants --workspace --file mutants.toml --test-tool nextest --in-place --json --list
+
+# ============================================================================
+# Examples and Adapters
+# ============================================================================
+
+# Build all examples
+examples:
+    cargo build --workspace --examples
+
+# Build Arrow adapter
+example-arrow:
+    cargo build -p copybook-arrow --examples
+
+# Run Arrow decode example
+example-arrow-decode:
+    cargo run --example decode_to_arrow -p copybook-arrow
+
+# Run Arrow Parquet example
+example-arrow-parquet:
+    cargo run --example decode_to_parquet -p copybook-arrow
+
+# Run Arrow batch processing example
+example-arrow-batch:
+    cargo run --example batch_processing -p copybook-arrow
+
+# Build Kafka example
+example-kafka:
+    cargo build --example kafka_pipeline
+
+# Run Kafka example
+example-kafka-run:
+    cargo run --example kafka_pipeline

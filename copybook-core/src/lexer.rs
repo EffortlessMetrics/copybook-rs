@@ -85,7 +85,10 @@ pub enum Token {
 
     #[token("LEADING", ignore(case))]
     Leading,
-
+ 
+    #[token("IS", ignore(case))]
+    Is,
+ 
     #[token("TRAILING", ignore(case))]
     Trailing,
 
@@ -191,6 +194,7 @@ impl fmt::Display for Token {
             Token::Thru => write!(f, "THRU"),
             Token::Through => write!(f, "THROUGH"),
             Token::Sign => write!(f, "SIGN"),
+            Token::Is => write!(f, "IS"),
             Token::Leading => write!(f, "LEADING"),
             Token::Trailing => write!(f, "TRAILING"),
             Token::Separate => write!(f, "SEPARATE"),

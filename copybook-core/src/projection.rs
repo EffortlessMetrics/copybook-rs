@@ -299,6 +299,7 @@ mod tests {
             digits: 5,
             scale: 0,
             signed: false,
+            sign_separate: None,
         };
         field2.len = 5;
 
@@ -353,6 +354,7 @@ mod tests {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         };
         counter.len = 3;
 
@@ -403,6 +405,7 @@ mod tests {
             digits: 2,
             scale: 0,
             signed: false,
+            sign_separate: None,
         };
         counter.len = 2;
 
@@ -527,6 +530,7 @@ mod tests {
             digits: 2,
             scale: 0,
             signed: false,
+            sign_separate: None,
         };
         counter.len = 2;
 

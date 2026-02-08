@@ -34,6 +34,13 @@ jobs:
       github.event_name != 'pull_request' ||
       contains(github.event.pull_request.labels.*.name, 'run-perf')
     runs-on: ubuntu-latest
+
+    # Canonical Performance Environment
+    # This job runs on GitHub hosted Linux runners (ubuntu-latest), which is the
+    # canonical environment for performance receipts. WSL2 measurements are supported
+    # for local development but are not perf-canonical due to 5-15% virtualization
+    # overhead. All performance baselines and regression checks should be judged against
+    # this canonical GitHub Linux environment.
     steps:
       - uses: actions/checkout@v6
 
@@ -72,6 +79,11 @@ jobs:
       - name: Run benches (JSON)
         run: bash scripts/bench.sh
 
+      - name: Run enterprise benches
+        run: |
+          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+            cargo bench -p copybook-bench -- "enterprise_(baseline|audit|compliance|security|combined|slo)" --quiet
+
       - name: Annotate perf with host info
         run: bash scripts/perf-annotate-host.sh
       - name: Perf headline (summary)
@@ -101,9 +113,348 @@ jobs:
       - name: Upload perf receipts (90 days)
         uses: actions/upload-artifact@v6
         with:
-          name: perf-json
+          name: perf-json-${{ github.sha }}
           path: scripts/bench/perf.json
           retention-days: 90
+
+      - name: Upload enterprise perf receipts (90 days)
+        uses: actions/upload-artifact@v6
+        with:
+          name: enterprise-perf-json-${{ github.sha }}
+          path: target/criterion/enterprise_*/new/estimates.json
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Upload criterion outputs (30 days)
+        uses: actions/upload-artifact@v6
+        with:
+          name: criterion-data-${{ github.sha }}
+          path: target/criterion/**
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Fetch baseline perf receipt
+        id: baseline
+        if: github.event_name == 'pull_request'
+        run: |
+          # Try to download the most recent perf artifact from main branch
+          echo "Attempting to fetch baseline from main branch..."
+          
+          # Get the latest successful workflow run on main
+          RUNS=$(gh api \
+            --method GET \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/workflows/perf.yml/runs?branch=main&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id' 2>/dev/null || echo "")
+          
+          if [[ -n "$RUNS" && "$RUNS" != "null" ]]; then
+            echo "Found workflow run: $RUNS"
+            
+            # List artifacts from that run
+            ARTIFACTS=$(gh api \
+              --method GET \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/actions/runs/${RUNS}/artifacts" \
+              --jq '.artifacts[] | select(.name | startswith("perf-json-")) | .name' 2>/dev/null || echo "")
+            
+            if [[ -n "$ARTIFACTS" ]]; then
+              FIRST_ARTIFACT=$(echo "$ARTIFACTS" | head -1)
+              echo "Downloading artifact: $FIRST_ARTIFACT"
+              
+              gh api \
+                --method GET \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${{ github.repository }}/actions/artifacts/${FIRST_ARTIFACT}/zip" \
+                > baseline.zip && unzip -o baseline.zip && mv perf.json baseline-perf.json || {
+                echo "⚠️ Failed to download baseline artifact"
+                echo "baseline_found=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              }
+              
+              echo "baseline_found=true" >> "$GITHUB_OUTPUT"
+              echo "baseline_path=baseline-perf.json" >> "$GITHUB_OUTPUT"
+            else
+              echo "No perf artifacts found in baseline run"
+              echo "baseline_found=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "No successful workflow runs found on main"
+            echo "baseline_found=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Compare against baseline
+        id: compare
+        if: github.event_name == 'pull_request' && steps.baseline.outputs.baseline_found == 'true'
+        run: |
+          BASELINE="${{ steps.baseline.outputs.baseline_path }}"
+          CURRENT="scripts/bench/perf.json"
+          
+          echo "Comparing $CURRENT against $BASELINE"
+          
+          # Extract values
+          BASE_DISPLAY=$(jq -r '.summary.display_mibps // 0' "$BASELINE")
+          BASE_COMP3=$(jq -r '.summary.comp3_mibps // 0' "$BASELINE")
+          CURR_DISPLAY=$(jq -r '.summary.display_mibps // 0' "$CURRENT")
+          CURR_COMP3=$(jq -r '.summary.comp3_mibps // 0' "$CURRENT")
+          
+          # Calculate deltas
+          if [[ "$BASE_DISPLAY" != "0" && "$BASE_DISPLAY" != "null" ]]; then
+            DISPLAY_DELTA=$(awk "BEGIN {printf \"%.2f\", (($CURR_DISPLAY - $BASE_DISPLAY) / $BASE_DISPLAY) * 100}")
+          else
+            DISPLAY_DELTA="N/A"
+          fi
+          
+          if [[ "$BASE_COMP3" != "0" && "$BASE_COMP3" != "null" ]]; then
+            COMP3_DELTA=$(awk "BEGIN {printf \"%.2f\", (($CURR_COMP3 - $BASE_COMP3) / $BASE_COMP3) * 100}")
+          else
+            COMP3_DELTA="N/A"
+          fi
+          
+          echo "base_display=$BASE_DISPLAY" >> "$GITHUB_OUTPUT"
+          echo "base_comp3=$BASE_COMP3" >> "$GITHUB_OUTPUT"
+          echo "curr_display=$CURR_DISPLAY" >> "$GITHUB_OUTPUT"
+          echo "curr_comp3=$CURR_COMP3" >> "$GITHUB_OUTPUT"
+          echo "display_delta=$DISPLAY_DELTA" >> "$GITHUB_OUTPUT"
+          echo "comp3_delta=$COMP3_DELTA" >> "$GITHUB_OUTPUT"
+          
+          # Determine status (advisory mode: warn on >5% regression, never fail)
+          STATUS="pass"
+          WARNINGS=""
+          
+          # Check for regressions (negative delta means regression)
+          if [[ "$DISPLAY_DELTA" != "N/A" ]]; then
+            DELTA_NUM=$(echo "$DISPLAY_DELTA" | awk '{print $1}')
+            if (( $(echo "$DELTA_NUM < -5" | bc -l) )); then
+              STATUS="warn"
+              WARNINGS="$WARNINGS\n- DISPLAY: ${DISPLAY_DELTA}% regression (warn threshold: -5%)"
+            fi
+          fi
+          
+          if [[ "$COMP3_DELTA" != "N/A" ]]; then
+            DELTA_NUM=$(echo "$COMP3_DELTA" | awk '{print $1}')
+            if (( $(echo "$DELTA_NUM < -5" | bc -l) )); then
+              STATUS="warn"
+              WARNINGS="$WARNINGS\n- COMP-3: ${COMP3_DELTA}% regression (warn threshold: -5%)"
+            fi
+          fi
+          
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "warnings=$WARNINGS" >> "$GITHUB_OUTPUT"
+          
+          # Output summary
+          echo "### Performance Comparison" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Metric | Baseline | PR | Delta | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|----------|-----|-------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| DISPLAY | ${BASE_DISPLAY} MiB/s | ${CURR_DISPLAY} MiB/s | ${DISPLAY_DELTA}% | $([[ "$DISPLAY_DELTA" != "N/A" && $(echo "$DISPLAY_DELTA" | awk '{print $1}') < 0 ]] && echo "⚠️" || echo "✅") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| COMP-3 | ${BASE_COMP3} MiB/s | ${CURR_COMP3} MiB/s | ${COMP3_DELTA}% | $([[ "$COMP3_DELTA" != "N/A" && $(echo "$COMP3_DELTA" | awk '{print $1}') < 0 ]] && echo "⚠️" || echo "✅") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Overall Status**: $STATUS" >> "$GITHUB_STEP_SUMMARY"
+          
+          if [[ -n "$WARNINGS" ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ **Warnings**:" >> "$GITHUB_STEP_SUMMARY"
+            echo -e "$WARNINGS" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Calculate enterprise overhead
+        id: enterprise_overhead
+        run: |
+          echo "### Enterprise Performance Overhead" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          
+          # Extract baseline and enterprise throughput from criterion outputs
+          BASELINE_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_baseline/new/estimates.json 2>/dev/null || echo "0")
+          AUDIT_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_audit/new/estimates.json 2>/dev/null || echo "0")
+          COMPLIANCE_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_compliance/new/estimates.json 2>/dev/null || echo "0")
+          SECURITY_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_security/new/estimates.json 2>/dev/null || echo "0")
+          COMBINED_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_combined/new/estimates.json 2>/dev/null || echo "0")
+          
+          # Calculate overhead percentages (higher time = more overhead)
+          if [[ "$BASELINE_MEAN" != "0" && "$BASELINE_MEAN" != "null" ]]; then
+            AUDIT_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($AUDIT_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+            COMPLIANCE_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($COMPLIANCE_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+            SECURITY_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($SECURITY_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+            COMBINED_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($COMBINED_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+          else
+            AUDIT_OVERHEAD="N/A"
+            COMPLIANCE_OVERHEAD="N/A"
+            SECURITY_OVERHEAD="N/A"
+            COMBINED_OVERHEAD="N/A"
+          fi
+          
+          # Output to summary
+          echo "| Feature | Overhead | Target | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|----------|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          
+          # Audit overhead (target: < 2%)
+          if [[ "$AUDIT_OVERHEAD" != "N/A" ]]; then
+            AUDIT_STATUS=$(awk "BEGIN {print ($AUDIT_OVERHEAD < 2.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Audit | ${AUDIT_OVERHEAD}% | < 2% | $AUDIT_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Audit | N/A | < 2% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          # Compliance overhead (target: < 3%)
+          if [[ "$COMPLIANCE_OVERHEAD" != "N/A" ]]; then
+            COMPLIANCE_STATUS=$(awk "BEGIN {print ($COMPLIANCE_OVERHEAD < 3.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Compliance | ${COMPLIANCE_OVERHEAD}% | < 3% | $COMPLIANCE_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Compliance | N/A | < 3% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          # Security overhead (target: < 1%)
+          if [[ "$SECURITY_OVERHEAD" != "N/A" ]]; then
+            SECURITY_STATUS=$(awk "BEGIN {print ($SECURITY_OVERHEAD < 1.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Security | ${SECURITY_OVERHEAD}% | < 1% | $SECURITY_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Security | N/A | < 1% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          # Combined overhead (target: < 5%)
+          if [[ "$COMBINED_OVERHEAD" != "N/A" ]]; then
+            COMBINED_STATUS=$(awk "BEGIN {print ($COMBINED_OVERHEAD < 5.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Combined | ${COMBINED_OVERHEAD}% | < 5% | $COMBINED_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Combined | N/A | < 5% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          
+          # Set outputs for PR comment
+          echo "audit_overhead=$AUDIT_OVERHEAD" >> "$GITHUB_OUTPUT"
+          echo "compliance_overhead=$COMPLIANCE_OVERHEAD" >> "$GITHUB_OUTPUT"
+          echo "security_overhead=$SECURITY_OVERHEAD" >> "$GITHUB_OUTPUT"
+          echo "combined_overhead=$COMBINED_OVERHEAD" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
+        uses: actions/github-script@v8
+        env:
+          BASELINE_FOUND: ${{ steps.baseline.outputs.baseline_found }}
+          BASE_DISPLAY: ${{ steps.compare.outputs.base_display }}
+          BASE_COMP3: ${{ steps.compare.outputs.base_comp3 }}
+          CURR_DISPLAY: ${{ steps.compare.outputs.curr_display }}
+          CURR_COMP3: ${{ steps.compare.outputs.curr_comp3 }}
+          DISPLAY_DELTA: ${{ steps.compare.outputs.display_delta }}
+          COMP3_DELTA: ${{ steps.compare.outputs.comp3_delta }}
+          STATUS: ${{ steps.compare.outputs.status }}
+          WARNINGS: ${{ steps.compare.outputs.warnings }}
+          AUDIT_OVERHEAD: ${{ steps.enterprise_overhead.outputs.audit_overhead }}
+          COMPLIANCE_OVERHEAD: ${{ steps.enterprise_overhead.outputs.compliance_overhead }}
+          SECURITY_OVERHEAD: ${{ steps.enterprise_overhead.outputs.security_overhead }}
+          COMBINED_OVERHEAD: ${{ steps.enterprise_overhead.outputs.combined_overhead }}
+        with:
+          script: |
+            const { context, github } = require('@actions/github');
+            
+            const baselineFound = process.env.BASELINE_FOUND === 'true';
+            const status = process.env.STATUS || 'pass';
+            const warnings = process.env.WARNINGS || '';
+            
+            let body = '## 📊 Performance Receipt\n\n';
+            
+            if (!baselineFound) {
+              body += '⚠️ **No baseline found** - This is the first performance run or baseline comparison is unavailable.\n\n';
+            } else {
+              const baseDisplay = process.env.BASE_DISPLAY;
+              const baseComp3 = process.env.BASE_COMP3;
+              const currDisplay = process.env.CURR_DISPLAY;
+              const currComp3 = process.env.CURR_COMP3;
+              const displayDelta = process.env.DISPLAY_DELTA;
+              const comp3Delta = process.env.COMP3_DELTA;
+              
+              const displayStatus = displayDelta !== 'N/A' && parseFloat(displayDelta) < 0 ? '⚠️' : '✅';
+              const comp3Status = comp3Delta !== 'N/A' && parseFloat(comp3Delta) < 0 ? '⚠️' : '✅';
+              
+              body += '| Metric | Baseline | PR | Delta |\n';
+              body += '|--------|----------|-----|-------|\n';
+              body += `| DISPLAY | ${baseDisplay} MiB/s | ${currDisplay} MiB/s | ${displayDelta}% ${displayStatus} |\n`;
+              body += `| COMP-3 | ${baseComp3} MiB/s | ${currComp3} MiB/s | ${comp3Delta}% ${comp3Status} |\n\n`;
+              
+              if (warnings) {
+                body += '⚠️ **Warnings:**\n';
+                body += warnings.replace(/\\n/g, '\n');
+                body += '\n\n';
+              }
+            }
+            
+            // Add enterprise overhead section
+            body += '### 🔒 Enterprise Overhead\n\n';
+            body += '| Feature | Overhead | Target | Status |\n';
+            body += '|---------|----------|--------|--------|\n';
+            
+            const auditOverhead = process.env.AUDIT_OVERHEAD;
+            const complianceOverhead = process.env.COMPLIANCE_OVERHEAD;
+            const securityOverhead = process.env.SECURITY_OVERHEAD;
+            const combinedOverhead = process.env.COMBINED_OVERHEAD;
+            
+            if (auditOverhead && auditOverhead !== 'N/A') {
+              const auditStatus = parseFloat(auditOverhead) < 2.0 ? '✅' : '⚠️';
+              body += `| Audit | ${auditOverhead}% | < 2% | ${auditStatus} |\n`;
+            } else {
+              body += '| Audit | N/A | < 2% | ❓ |\n';
+            }
+            
+            if (complianceOverhead && complianceOverhead !== 'N/A') {
+              const complianceStatus = parseFloat(complianceOverhead) < 3.0 ? '✅' : '⚠️';
+              body += `| Compliance | ${complianceOverhead}% | < 3% | ${complianceStatus} |\n`;
+            } else {
+              body += '| Compliance | N/A | < 3% | ❓ |\n';
+            }
+            
+            if (securityOverhead && securityOverhead !== 'N/A') {
+              const securityStatus = parseFloat(securityOverhead) < 1.0 ? '✅' : '⚠️';
+              body += `| Security | ${securityOverhead}% | < 1% | ${securityStatus} |\n`;
+            } else {
+              body += '| Security | N/A | < 1% | ❓ |\n';
+            }
+            
+            if (combinedOverhead && combinedOverhead !== 'N/A') {
+              const combinedStatus = parseFloat(combinedOverhead) < 5.0 ? '✅' : '⚠️';
+              body += `| Combined | ${combinedOverhead}% | < 5% | ${combinedStatus} |\n`;
+            } else {
+              body += '| Combined | N/A | < 5% | ❓ |\n';
+            }
+            
+            body += '\n';
+            
+            body += `**Status:** ${status === 'warn' ? '⚠️ Warning' : '✅ Pass'}\n\n`;
+            body += `**Commit:** \`${context.sha.substring(0, 7)}\`\n`;
+            body += `**Workflow:** [View Details](${context.payload.repository.html_url}/actions/runs/${context.runId})\n\n`;
+            body += '---\n';
+            body += '*This is an automated comment from the performance workflow. Artifacts are retained for 90 days.*';
+            
+            // Create or update comment
+            const commentMarker = '<!-- perf-receipt-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            
+            const existingComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes(commentMarker)
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentMarker + '\n\n' + body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: commentMarker + '\n\n' + body
+              });
+            }
 
       - name: Summarize SLOs (robust jq)
         id: slo

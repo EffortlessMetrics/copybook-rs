@@ -236,7 +236,7 @@ pub fn level_88_strategy() -> impl Strategy<Value = Option<String>> {
             "[A-Z0-9]{1,10}".prop_map(|s| s.to_string())
         ).prop_map(|(name, value)| Some(format!(
             "                88  {} VALUE '{}'.", name, value
-        )),
+        ))),
         // Multiple values
         (
             field_name_strategy(),
@@ -245,7 +245,7 @@ pub fn level_88_strategy() -> impl Strategy<Value = Option<String>> {
             })
         ).prop_map(|(name, values)| Some(format!(
             "                88  {} VALUE {}.", name, values
-        )),
+        ))),
     ]
 }
 

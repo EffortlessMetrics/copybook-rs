@@ -138,6 +138,7 @@ fn test_odo_schema_with_default_dialect() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -182,6 +183,7 @@ fn test_odo_schema_normative_fixed_record() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -219,6 +221,7 @@ fn test_odo_schema_normative_equal_min_max() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -256,6 +259,7 @@ fn test_odo_schema_one_tolerant_variable_record() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -298,6 +302,7 @@ fn test_odo_schema_one_tolerant_fixed_record() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -427,6 +432,7 @@ fn test_dialect_in_tail_odo() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -466,6 +472,7 @@ fn test_default_behavior_unchanged() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -510,6 +517,7 @@ fn test_multiple_odo_arrays_same_dialect() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter1);
@@ -531,6 +539,7 @@ fn test_multiple_odo_arrays_same_dialect() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter2);
@@ -597,6 +606,7 @@ fn test_d1_zero_tolerant_overrides_declared_min() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -639,6 +649,7 @@ fn test_d1_one_tolerant_clamps_zero_to_one() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -681,6 +692,7 @@ fn test_d1_one_tolerant_preserves_higher_min() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);
@@ -723,6 +735,7 @@ fn test_d1_normative_preserves_all_values() {
             digits: 3,
             scale: 0,
             signed: false,
+            sign_separate: None,
         },
     );
     schema.fields.push(counter);

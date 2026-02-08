@@ -182,6 +182,7 @@ fn test_cbke510_zoned_decimal_overflow() {
         digits: 3,
         scale: 0,
         signed: false,
+        sign_separate: None,
     };
     field.len = 3;
     field.offset = 0;

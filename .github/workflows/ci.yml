@@ -7,9 +7,8 @@ concurrency:
 on:
   push:
     branches: [ main, develop ]
-  # Disabled for PRs - use CI Quick workflow instead
-  # pull_request:
-  #   branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
   schedule:
     - cron: "23 3 * * *"
   workflow_dispatch:
@@ -19,26 +18,47 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  nightly-soak:
-    name: Nightly soak
-    if: github.event_name == 'schedule'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+  # ============================================================================
+  # PR-GATED JOBS (Deterministic, blocks merge)
+  # ============================================================================
+  # These jobs run on pull_request and must pass for PRs to be mergeable.
+  # ============================================================================
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - uses: dtolnay/rust-toolchain@master
+    - uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: stable
+        components: rustfmt
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
     - uses: Swatinem/rust-cache@v2
-    - name: Pre-fetch dependencies
-      run: cargo fetch
-    - name: Soak tests (ignored, serial)
-      env:
-        COPYBOOK_TEST_SLOW: "1"
+    - name: Run clippy (libs/bins/examples, pedantic)
+      run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic
+    - name: Run clippy (tests, relaxed test-only lints)
       run: |
-        cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
+        cargo clippy --workspace --tests --all-features \
+          -- -D warnings \
+          -A clippy::unwrap_used \
+          -A clippy::expect_used \
+          -A clippy::panic \
+          -A clippy::dbg_macro \
+          -A clippy::print_stdout \
+          -A clippy::print_stderr \
+          -A clippy::duplicated_attributes
+    - name: Enforce panic prevention lints (shipped targets)
+      run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
 
   test:
     name: Test Suite
@@ -124,6 +144,74 @@ jobs:
       if: matrix.features != ''
       run: cargo test --workspace --exclude copybook-bench --features ${{ matrix.features }} -j 2
 
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run cargo deny
+      uses: EmbarkStudios/cargo-deny-action@v2
+      with:
+        log-level: warn
+        command: check
+        arguments: --all-features
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --locked || true
+    - name: Run cargo audit
+      id: audit
+      run: |
+        cargo audit -q --json > target/security.audit.json || true
+    - name: Validate audit results
+      run: |
+        python3 - <<'PY'
+        import json, sys, pathlib
+        p = pathlib.Path("target/security.audit.json")
+        if not p.exists():
+          print("WARN: no cargo-audit output")
+          sys.exit(0)
+        j = json.load(p.open())
+        v = len(j.get("vulnerabilities",{}).get("list",[]))
+        print(f"cargo-audit: {v} vulnerabilities")
+        sys.exit(1 if v>0 else 0)
+        PY
+    - name: Upload security receipts
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: security-receipts-${{ github.sha }}
+        path: target/security.audit.json
+        retention-days: 90
+
+  # ============================================================================
+  # SCHEDULED LANE JOBS (Stochastic/Expensive, non-blocking)
+  # ============================================================================
+  # These jobs run on schedule or workflow_dispatch and are non-blocking.
+  # ============================================================================
+
+  nightly-soak:
+    name: Nightly soak
+    if: github.event_name == 'schedule'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Pre-fetch dependencies
+      run: cargo fetch
+    - name: Soak tests (ignored, serial)
+      env:
+        COPYBOOK_TEST_SLOW: "1"
+      run: |
+        cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
+
   bdd-tests:
     name: BDD Tests
     runs-on: ubuntu-latest
@@ -177,41 +265,41 @@ jobs:
         table_start = next((idx for idx, line in enumerate(lines) if line.strip() == header), None)
         table_lines = []
         if table_start is None:
-            print(f"::warning file={readme},line=1::Exit code table header missing in README.md")
+          print(f"::warning file={readme},line=1::Exit code table header missing in README.md")
         else:
-            idx = table_start
-            while idx < len(lines) and lines[idx].strip().startswith("|"):
-                table_lines.append(lines[idx])
-                idx += 1
-            for offset, expected in enumerate(expected_rows, start=1):
-                line_no = table_start + offset + 1
-                if table_start + offset >= len(lines):
-                    print(f"::warning file={readme},line={line_no}::Missing exit code row for {expected[1]}")
-                    continue
-                cells = [cell.strip() for cell in lines[table_start + offset].strip().strip('|').split('|')]
-                if len(cells) != 4:
-                    print(f"::warning file={readme},line={line_no}::Unexpected column count ({len(cells)}) in exit code table")
-                    continue
-                if tuple(cells) != expected:
-                    print(f"::warning file={readme},line={line_no}::Expected {expected} but found {tuple(cells)}")
+          idx = table_start
+          while idx < len(lines) and lines[idx].strip().startswith("|"):
+            table_lines.append(lines[idx])
+            idx += 1
+          for offset, expected in enumerate(expected_rows, start=1):
+            line_no = table_start + offset + 1
+            if table_start + offset >= len(lines):
+              print(f"::warning file={readme},line={line_no}::Missing exit code row for {expected[1]}")
+              continue
+            cells = [cell.strip() for cell in lines[table_start + offset].strip().strip('|').split('|')]
+            if len(cells) != 4:
+              print(f"::warning file={readme},line={line_no}::Unexpected column count ({len(cells)}) in exit code table")
+              continue
+            if tuple(cells) != expected:
+              print(f"::warning file={readme},line={line_no}::Expected {expected} but found {tuple(cells)}")
         if not table_lines:
-            table_lines = [
-                header,
-                "|----:|:----:|--------------------|------|",
-                *[
-                    f"| {code} | {tag} | {meaning} | {test} |"
-                    for code, tag, meaning, test in expected_rows
-                ],
-            ]
+          table_lines = [
+            header,
+            "|----:|:----:|--------------------|------|",
+            *[
+              f"| {code} | {tag} | {meaning} | {test} |"
+              for code, tag, meaning, test in expected_rows
+            ],
+          ]
         if summary_path:
-            with Path(summary_path).open("a", encoding="utf-8") as fh:
-                fh.write("### Phase 4 signal\n")
-                fh.write(f"- Zoned parity (cases={cases}, seed={seed})\n")
-                fh.write("- RDW iterator: green\n")
-                fh.write("\n#### Exit Code Matrix\n")
-                for line in table_lines:
-                    fh.write(f"{line}\n")
-                fh.write("\n")
+          with Path(summary_path).open("a", encoding="utf-8") as fh:
+            fh.write("### Phase 4 signal\n")
+            fh.write(f"- Zoned parity (cases={cases}, seed={seed})\n")
+            fh.write("- RDW iterator: green\n")
+            fh.write("\n#### Exit Code Matrix\n")
+            for line in table_lines:
+              fh.write(f"{line}\n")
+            fh.write("\n")
         PY
 
   exit-code-matrix:
@@ -230,64 +318,18 @@ jobs:
       shell: bash
       run: cargo test -p copybook-cli --test exit_code_mapping -- --nocapture
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-    - uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt
-    - name: Check formatting
-      run: cargo fmt --all -- --check
+  # ============================================================================
+  # ADVISORY JOBS (Run on PR but don't block merge)
+  # ============================================================================
 
-  clippy:
-    name: Clippy
+  result-docs-advisory:
+    name: Result Docs Advisory
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v6
-    - uses: dtolnay/rust-toolchain@stable
-      with:
-        components: clippy
-    - uses: Swatinem/rust-cache@v2
-    - name: Run clippy (libs/bins/examples, pedantic)
-      run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic
-    - name: Run clippy (tests, relaxed test-only lints)
-      run: |
-        cargo clippy --workspace --tests --all-features \
-          -- -D warnings \
-          -A clippy::unwrap_used \
-          -A clippy::expect_used \
-          -A clippy::panic \
-          -A clippy::dbg_macro \
-          -A clippy::print_stdout \
-          -A clippy::print_stderr \
-          -A clippy::duplicated_attributes
-    - name: Enforce panic prevention lints (shipped targets)
-      run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
-
-  deny:
-    name: Cargo Deny
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-    - uses: EmbarkStudios/cargo-deny-action@v2
-      with:
-        log-level: warn
-        command: check
-        arguments: --all-features
-
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-    - uses: dtolnay/rust-toolchain@stable
-    - uses: Swatinem/rust-cache@v2
-    - name: Check documentation
-      run: cargo doc --all-features --workspace --no-deps
-      env:
-        RUSTDOCFLAGS: -D warnings
+    - name: Check public Result docs
+      run: bash scripts/check-public-result-docs.sh
 
   coverage:
     name: Code Coverage
@@ -312,6 +354,18 @@ jobs:
         fail_ci_if_error: false
         verbose: true
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Check documentation
+      run: cargo doc --all-features --workspace --no-deps
+      env:
+        RUSTDOCFLAGS: -D warnings
+
   strict-comments:
     name: Strict Comments Mode
     runs-on: ubuntu-latest
@@ -323,57 +377,3 @@ jobs:
       run: cargo test --package copybook-core
       env:
         COPYBOOK_TEST_STRICT_COMMENTS: "1"
-
-  result-docs-advisory:
-    name: Result Docs Advisory
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-    - uses: actions/checkout@v6
-    - name: Check public Result docs
-      run: bash scripts/check-public-result-docs.sh
-
-  security-audit:
-    name: Security Audit (cargo-audit)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-    - uses: actions/checkout@v6
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache cargo dependencies
-      uses: Swatinem/rust-cache@v2
-      with:
-        shared-key: advisory-db  # Share advisory database cache across jobs
-
-    - name: Install cargo-audit
-      run: cargo install cargo-audit --locked || true
-
-    - name: Run cargo audit
-      id: audit
-      run: |
-        cargo audit -q --json > target/security.audit.json || true
-
-    - name: Validate audit results
-      run: |
-        python3 - <<'PY'
-        import json, sys, pathlib
-        p = pathlib.Path("target/security.audit.json")
-        if not p.exists():
-            print("WARN: no cargo-audit output")
-            sys.exit(0)
-        j = json.load(p.open())
-        v = len(j.get("vulnerabilities",{}).get("list",[]))
-        print(f"cargo-audit: {v} vulnerabilities")
-        sys.exit(1 if v>0 else 0)
-        PY
-
-    - name: Upload security receipts
-      if: always()
-      uses: actions/upload-artifact@v6
-      with:
-        name: security-receipts-${{ github.sha }}
-        path: target/security.audit.json
-        retention-days: 90

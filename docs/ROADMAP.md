@@ -183,6 +183,14 @@ See [`docs/TESTING_INTEGRATION_SUMMARY.md`](docs/TESTING_INTEGRATION_SUMMARY.md)
 - CI workflow triggers and schedules
 - How to run all tests locally
 
+See [`docs/TESTING_COMMANDS.md`](docs/TESTING_COMMANDS.md) for:
+- Exact commands to run each test suite
+- Runtime class (PR-gate vs scheduled)
+- Expected runtime for each test suite
+- Artifact locations for test outputs
+- Quick reference table for all test suites
+- Local development workflow guide
+
 ---
 
 ## Roadmap Gap Analysis (Jan 2026)

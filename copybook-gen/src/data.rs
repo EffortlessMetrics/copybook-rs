@@ -133,6 +133,7 @@ fn fill_field_data(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => {
             fill_zoned_field(
                 &mut record[start..end],

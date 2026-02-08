@@ -957,21 +957,29 @@ fn find_and_read_counter_field(
 
     // Decode the counter value based on its type
     match &counter_field.kind {
-        copybook_core::FieldKind::ZonedDecimal {
-            digits,
-            scale,
-            signed,
-        } => {
+        copybook_core::FieldKind::ZonedDecimal { digits, scale, signed, sign_separate } => {
             let mut scratch = crate::memory::ScratchBuffers::new();
-            let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
-                field_data,
-                *digits,
-                *scale,
-                *signed,
-                options.codepage,
-                counter_field.blank_when_zero,
-                &mut scratch,
-            )?;
+            let decimal_str = if let Some(sign_sep) = sign_separate {
+                // Use SIGN SEPARATE decoding
+                crate::numeric::decode_zoned_decimal_sign_separate(
+                    field_data,
+                    *digits,
+                    *scale,
+                    sign_sep,
+                    options.codepage,
+                )?.to_string()
+            } else {
+                // Use standard zoned decimal decoding
+                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    options.codepage,
+                    counter_field.blank_when_zero,
+                    &mut scratch,
+                )?
+            };
 
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
@@ -1094,6 +1102,7 @@ fn decode_scalar_field_value_standard(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => {
             if options.preserve_zoned_encoding {
                 // Use encoding-aware decoding for round-trip preservation
@@ -1268,6 +1277,7 @@ fn decode_scalar_field_value_with_scratch(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => {
             let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                 field_data,
@@ -1577,6 +1587,7 @@ fn encode_single_field(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => encode_zoned_decimal_field(
             field,
             field_path,

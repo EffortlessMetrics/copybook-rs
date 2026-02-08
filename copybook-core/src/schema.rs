@@ -79,6 +79,8 @@ pub enum FieldKind {
         scale: i16,
         /// Whether field is signed
         signed: bool,
+        /// SIGN SEPARATE clause information (if applicable)
+        sign_separate: Option<SignSeparateInfo>,
     },
     /// Binary integer field (COMP/BINARY)
     BinaryInt {
@@ -133,6 +135,23 @@ pub struct ResolvedRenames {
     pub length: u32,
     /// Paths of fields covered by this alias (in document order)
     pub members: Vec<String>,
+}
+
+/// SIGN SEPARATE clause information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignSeparateInfo {
+    /// Placement of the sign (LEADING or TRAILING)
+    pub placement: SignPlacement,
+}
+
+/// Sign placement for SIGN SEPARATE clause
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SignPlacement {
+    /// Sign byte precedes the numeric digits
+    Leading,
+    /// Sign byte follows the numeric digits
+    Trailing,
 }
 
 /// Array occurrence information
@@ -252,12 +271,8 @@ impl Schema {
         // Add field kind
         let kind_str = match &field.kind {
             FieldKind::Alphanum { len } => format!("Alphanum({len})"),
-            FieldKind::ZonedDecimal {
-                digits,
-                scale,
-                signed,
-            } => {
-                format!("ZonedDecimal({digits},{scale},{signed})")
+            FieldKind::ZonedDecimal { digits, scale, signed, sign_separate } => {
+                format!("ZonedDecimal({digits},{scale},{signed},{sign_separate:?})")
             }
             FieldKind::BinaryInt { bits, signed } => {
                 format!("BinaryInt({bits},{signed})")

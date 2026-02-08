@@ -47,7 +47,6 @@ default = []
 # WARNING: The audit module is experimental and subject to breaking changes.
 # APIs may change without notice between minor versions. Use at your own risk.
 audit = ["dep:async-trait", "dep:chrono", "dep:hex", "dep:rand"]
-comprehensive-tests = []
 
 [lints]
 workspace = true

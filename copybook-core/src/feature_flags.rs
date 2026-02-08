@@ -385,6 +385,14 @@ impl FeatureFlags {
         GLOBAL_FLAGS.get_or_init(Self::from_env)
     }
 
+    /// Set the global feature flags
+    ///
+    /// This allows CLI options to override the default feature flags.
+    /// Should be called early in the program before any parsing operations.
+    pub fn set_global(flags: Self) {
+        GLOBAL_FLAGS.set(flags);
+    }
+
     /// Create feature flags from environment variables
     ///
     /// Environment variables are read with the prefix `COPYBOOK_FF_`.

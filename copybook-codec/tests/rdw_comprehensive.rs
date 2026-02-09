@@ -348,8 +348,8 @@ fn test_rdw_length_recomputation_on_encode() {
     let decoded_str = String::from_utf8(decode_output).unwrap();
     let mut decoded_json: Value = serde_json::from_str(decoded_str.trim()).unwrap();
 
-    // Modify the data (change length)
-    decoded_json["SIMPLE-RECORD"] = json!("MODIFIED  "); // Still 10 bytes
+    // Modify the data (change length) inside the `fields` envelope used by the encoder
+    decoded_json["fields"]["SIMPLE-RECORD"] = json!("MODIFIED  "); // Still 10 bytes
 
     let jsonl_data = format!("{decoded_json}\n");
 

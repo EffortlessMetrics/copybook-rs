@@ -68,7 +68,7 @@ fn main() {
         let category = if i % 3 == 0 { "ELECTRONICS" } else if i % 3 == 1 { "CLOTHING" } else { "FOOD" };
         let quantity = (i % 1000) + 1;
         let reorder = 10;
-        let cost = (i as f64 * 0.01) + 1.0;
+        let _cost = (i as f64 * 0.01) + 1.0;
         let date = "20250108";
         let warehouse = format!("WH{:03}", (i % 10) + 1);
         let status = if quantity > reorder { "OK" } else { "LO" };

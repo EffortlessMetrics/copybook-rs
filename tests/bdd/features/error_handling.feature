@@ -175,15 +175,15 @@ Feature: Error Handling and Edge Cases
     When the JSON data is encoded
     Then an error should occur
 
-  Scenario: Parse copybook with unsupported edited PIC
+  Scenario: Parse copybook with edited PIC
     Given a copybook with content:
       """
       01 EDITED-TEST.
           05 EDITED-FIELD PIC ZZ9.99.
       """
     When the copybook is parsed
-    Then an error should occur
-    And the error message should contain "edited"
+    Then the schema should be successfully parsed
+    And the field "EDITED-FIELD" should have type "edited"
 
   Scenario: Parse copybook with nested ODO
     Given a copybook with content:

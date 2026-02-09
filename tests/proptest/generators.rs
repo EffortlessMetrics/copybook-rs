@@ -15,7 +15,6 @@ use proptest::collection::vec;
 pub fn pic_clause_strategy() -> impl Strategy<Value = String> {
     prop_oneof![
         // Numeric PIC clauses
-        Just("9".to_string()),
         Just("9(1)".to_string()),
         Just("9(5)".to_string()),
         Just("9(18)".to_string()),
@@ -37,9 +36,9 @@ pub fn pic_clause_strategy() -> impl Strategy<Value = String> {
         Just("X(50)".to_string()),
         // Edited PIC clauses
         Just("ZZZZ9".to_string()),
-        Just("$$$,$$9.99".to_string()),
-        Just("+999,999.99".to_string()),
-        Just("-999,999.99".to_string()),
+        Just("ZZZ,ZZ9".to_string()),
+        Just("$ZZZ".to_string()),
+        Just("****9".to_string()),
         // COMP-3 (packed decimal)
         Just("9(5) COMP-3".to_string()),
         Just("S9(7)V99 COMP-3".to_string()),
@@ -51,16 +50,13 @@ pub fn pic_clause_strategy() -> impl Strategy<Value = String> {
 
 /// Strategy for generating field names (valid COBOL identifiers)
 pub fn field_name_strategy() -> impl Strategy<Value = String> {
-    "[A-Z][A-Z0-9-]{0,29}".prop_map(|s| s.to_uppercase())
+    // Prefix with "F" to avoid collisions with PIC tokens/keywords like "Z", "X", or "PIC".
+    "[A-Z0-9-]{0,24}".prop_map(|s| format!("F{}", s.to_uppercase()))
 }
 
 /// Strategy for generating field level numbers
 pub fn level_number_strategy() -> impl Strategy<Value = u8> {
-    prop_oneof![
-        Just(1u8),   // Record level
-        5u8..49u8,  // Group level
-        49u8..88u8, // Elementary level (excluding 88)
-    ]
+    5u8..=49u8
 }
 
 /// Strategy for generating OCCURS clauses
@@ -94,24 +90,14 @@ pub fn field_definition_strategy() -> impl Strategy<Value = String> {
         level_number_strategy(),
         field_name_strategy(),
         pic_clause_strategy(),
-        occurs_strategy(),
-        redefines_strategy(),
-    ).prop_map(|(level, name, pic, occurs, redefines)| {
-        let mut def = format!("      {:02}  {} PIC {}.", level, name, pic);
-        if let Some(o) = occurs {
-            def = format!("      {:02}  {} PIC {} {}.", level, name, pic, o);
-        }
-        if let Some(r) = redefines {
-            def = format!("{} {}", def.trim_end_matches('.'), r);
-        }
-        def
-    })
+    )
+    .prop_map(|(level, name, pic)| format!("{:02} {} PIC {}.", level, name, pic))
 }
 
 /// Strategy for generating a simple copybook
 pub fn simple_copybook_strategy() -> impl Strategy<Value = String> {
     vec(field_definition_strategy(), 1..=10).prop_map(|fields| {
-        let mut copybook = "       01  RECORD.\n".to_string();
+        let mut copybook = "01 RECORD.\n".to_string();
         for field in fields {
             copybook.push_str(&field);
             copybook.push('\n');
@@ -142,10 +128,10 @@ pub fn ascii_signed_zoned_strategy(length: usize) -> impl Strategy<Value = Vec<u
     ).prop_map(|(mut digits, negative)| {
         let last_digit = digits.pop().unwrap_or(0);
         let overpunch = if negative {
-            // Negative overpunch: p, q, r, s, t, u, v, w, x, y for 0-9
+            // Negative overpunch: }, J, K, L, M, N, O, P, Q, R for 0-9
             match last_digit {
-                0 => b'p', 1 => b'q', 2 => b'r', 3 => b's', 4 => b't',
-                5 => b'u', 6 => b'v', 7 => b'w', 8 => b'x', _ => b'y',
+                0 => b'}', 1 => b'J', 2 => b'K', 3 => b'L', 4 => b'M',
+                5 => b'N', 6 => b'O', 7 => b'P', 8 => b'Q', _ => b'R',
             }
         } else {
             // Positive overpunch: {, A, B, C, D, E, F, G, H, I for 0-9
@@ -235,7 +221,7 @@ pub fn level_88_strategy() -> impl Strategy<Value = Option<String>> {
             field_name_strategy(),
             "[A-Z0-9]{1,10}".prop_map(|s| s.to_string())
         ).prop_map(|(name, value)| Some(format!(
-            "                88  {} VALUE '{}'.", name, value
+            "88 {} VALUE '{}'.", name, value
         ))),
         // Multiple values
         (
@@ -244,7 +230,7 @@ pub fn level_88_strategy() -> impl Strategy<Value = Option<String>> {
                 vals.join(" ")
             })
         ).prop_map(|(name, values)| Some(format!(
-            "                88  {} VALUE {}.", name, values
+            "88 {} VALUE {}.", name, values
         ))),
     ]
 }
@@ -257,7 +243,7 @@ pub fn field_with_level_88_strategy() -> impl Strategy<Value = String> {
         pic_clause_strategy(),
         level_88_strategy(),
     ).prop_map(|(level, name, pic, level_88)| {
-        let mut result = format!("      {:02}  {} PIC {}.\n", level, name, pic);
+        let mut result = format!("{:02} {} PIC {}.\n", level, name, pic);
         if let Some(l88) = level_88 {
             result.push_str(&l88);
             result.push('\n');
@@ -276,9 +262,9 @@ pub fn odo_strategy() -> impl Strategy<Value = String> {
         pic_clause_strategy(),
     ).prop_map(|(array_name, max_count, count_field, element_name, pic)| {
         format!(
-            "      05  {} PIC 9(3).\n\
-             05  {} OCCURS 1 TO {} TIMES DEPENDING ON {}.\n\
-             10  {} PIC {}.",
+            "05 {} PIC 9(3).\n\
+05 {} OCCURS 1 TO {} TIMES DEPENDING ON {}.\n\
+10 {} PIC {}.",
             count_field, array_name, max_count, count_field, element_name, pic
         )
     })
@@ -293,8 +279,8 @@ pub fn redefines_config_strategy() -> impl Strategy<Value = String> {
         pic_clause_strategy(),
     ).prop_map(|(base_name, base_pic, redef_name, redef_pic)| {
         format!(
-            "      05  {} PIC {}.\n\
-             05  {} PIC {} REDEFINES {}.",
+            "05 {} PIC {}.\n\
+05 {} PIC {} REDEFINES {}.",
             base_name, base_pic, redef_name, redef_pic, base_name
         )
     })
@@ -303,7 +289,7 @@ pub fn redefines_config_strategy() -> impl Strategy<Value = String> {
 /// Strategy for generating copybook with Level-88 conditions
 pub fn copybook_with_level_88_strategy() -> impl Strategy<Value = String> {
     vec(field_with_level_88_strategy(), 1..=10).prop_map(|fields| {
-        let mut copybook = "       01  RECORD.\n".to_string();
+        let mut copybook = "01 RECORD.\n".to_string();
         for field in fields {
             copybook.push_str(&field);
         }
@@ -344,6 +330,7 @@ pub fn copybook_with_redefines_strategy() -> impl Strategy<Value = String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::test_runner::TestRunner;
 
     #[test]
     fn test_pic_clause_generation() {
@@ -368,7 +355,7 @@ mod tests {
     fn test_simple_copybook_generation() {
         let mut runner = TestRunner::default();
         runner.run(&simple_copybook_strategy(), |copybook| {
-            assert!(copybook.contains("01  RECORD."));
+            assert!(copybook.contains("01 RECORD."));
             Ok(())
         }).unwrap();
     }

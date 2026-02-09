@@ -425,8 +425,8 @@ example-arrow-batch:
 
 # Build Kafka example
 example-kafka:
-    cargo build --example kafka_pipeline
+    cargo build -p kafka-pipeline
 
 # Run Kafka example
 example-kafka-run:
-    cargo run --example kafka_pipeline
+    cargo run -p kafka-pipeline

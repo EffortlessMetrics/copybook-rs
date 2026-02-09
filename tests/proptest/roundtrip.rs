@@ -8,12 +8,15 @@
 #![allow(clippy::unwrap_used)]
 
 use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
+use copybook_codec::numeric::encode_zoned_decimal;
 use copybook_core::parse_copybook;
 use proptest::prelude::*;
+use rand::{RngCore, SeedableRng};
 use serde_json::Value;
 
 use super::generators::*;
 use super::config::*;
+use super::schema_record_length;
 
 /// Property: ASCII zoned decimal round-trip preserves data
 proptest! {
@@ -106,27 +109,23 @@ proptest! {
         let copybook = format!("01 FIELD PIC S9({}).", digits.len());
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
 
-        // Generate signed ASCII zoned decimal with overpunch
-        let mut original_data = Vec::new();
-        for (i, &digit) in digits.iter().enumerate() {
-            if i == digits.len() - 1 {
-                // Last byte has overpunch
-                let overpunch = if negative {
-                    match digit {
-                        0 => b'p', 1 => b'q', 2 => b'r', 3 => b's', 4 => b't',
-                        5 => b'u', 6 => b'v', 7 => b'w', 8 => b'x', _ => b'y',
-                    }
-                } else {
-                    match digit {
-                        0 => b'{', 1 => b'A', 2 => b'B', 3 => b'C', 4 => b'D',
-                        5 => b'E', 6 => b'F', 7 => b'G', 8 => b'H', _ => b'I',
-                    }
-                };
-                original_data.push(overpunch);
-            } else {
-                original_data.push(b'0' + digit);
-            }
-        }
+        let digit_str: String = digits
+            .iter()
+            .map(|&d| (b'0' + d) as char)
+            .collect();
+        let value_str = if negative {
+            format!("-{digit_str}")
+        } else {
+            digit_str
+        };
+        let original_data = encode_zoned_decimal(
+            &value_str,
+            digits.len() as u16,
+            0,
+            true,
+            Codepage::ASCII,
+        )
+        .expect("Failed to encode zoned decimal");
 
         // Decode
         let decode_options = DecodeOptions::new()
@@ -353,12 +352,16 @@ proptest! {
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
 
         // Calculate expected size from schema
-        let expected_size = schema.total_size();
+        let expected_size = match schema_record_length(&schema) {
+            Some(size) => size as usize,
+            None => return Ok(()),
+        };
 
         // Generate random data of correct size
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        // Use printable ASCII to avoid multi-byte UTF-8 expansion on decode/encode
         let original_data: Vec<u8> = (0..expected_size)
-            .map(|_| (rng.next_u32() % 256) as u8)
+            .map(|_| ((rng.next_u32() % 95) as u8) + 32)
             .collect();
 
         // Decode

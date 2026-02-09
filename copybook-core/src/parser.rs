@@ -176,8 +176,12 @@ impl Parser {
                         "Parser stack underflow while attaching RENAMES",
                     )?;
 
-                    // Mark as group if it has children
-                    if !completed_field.children.is_empty() {
+                    // Mark as group only if it has storage-bearing children (exclude level-88).
+                    if completed_field
+                        .children
+                        .iter()
+                        .any(|child| child.level != 88)
+                    {
                         completed_field.kind = FieldKind::Group;
                     }
 
@@ -214,8 +218,12 @@ impl Parser {
                         "Parser stack underflow: expected field to pop but stack was empty",
                     )?;
 
-                    // If this field has children, make it a group
-                    if !completed_field.children.is_empty() {
+                    // If this field has storage-bearing children, make it a group
+                    if completed_field
+                        .children
+                        .iter()
+                        .any(|child| child.level != 88)
+                    {
                         completed_field.kind = FieldKind::Group;
                     }
 
@@ -431,6 +439,16 @@ impl Parser {
             // Validate that counter is not inside REDEFINES or ODO region
             if let Some(counter) = counter_field {
                 if counter.redefines_of.is_some() {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' cannot be inside a REDEFINES region",
+                            counter_path
+                        ),
+                    ));
+                }
+
+                if self.is_inside_redefines(&counter.path, all_fields) {
                     return Err(Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                         format!(

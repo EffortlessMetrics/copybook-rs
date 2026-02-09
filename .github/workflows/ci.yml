@@ -163,7 +163,7 @@ jobs:
     - name: Build copybook-arrow examples
       run: cargo build -p copybook-arrow --examples
     - name: Build kafka_pipeline example
-      run: cargo build --example kafka_pipeline
+      run: cargo build -p kafka-pipeline
 
   security:
     name: Security Checks

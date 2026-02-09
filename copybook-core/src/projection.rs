@@ -63,11 +63,13 @@ pub fn project_schema(schema: &Schema, selections: &[String]) -> Result<Schema> 
                 for member_path in &resolved.members {
                     selected_paths.insert(member_path.clone());
 
-                    // If member is a group, collect all its children
-                    if let Some(member_field) = schema.find_field(member_path)
-                        && member_field.is_group()
-                    {
-                        collect_group_fields(member_field, &mut selected_paths);
+                    if let Some(member_field) = schema.find_field(member_path) {
+                        // If member is a group, collect all its children
+                        if member_field.is_group() {
+                            collect_group_fields(member_field, &mut selected_paths);
+                        }
+                        // Always include level-88 condition children when present
+                        collect_level88_children(member_field, &mut selected_paths);
                     }
                 }
             } else {
@@ -85,6 +87,8 @@ pub fn project_schema(schema: &Schema, selections: &[String]) -> Result<Schema> 
             if field.is_group() {
                 collect_group_fields(field, &mut selected_paths);
             }
+            // Always include level-88 condition children when present
+            collect_level88_children(field, &mut selected_paths);
         }
     }
 
@@ -164,6 +168,15 @@ fn collect_group_fields(field: &Field, collected: &mut HashSet<String>) {
         collected.insert(child.path.clone());
         if child.is_group() {
             collect_group_fields(child, collected);
+        }
+    }
+}
+
+/// Collect level-88 condition children for a field
+fn collect_level88_children(field: &Field, collected: &mut HashSet<String>) {
+    for child in &field.children {
+        if child.level == 88 {
+            collected.insert(child.path.clone());
         }
     }
 }

@@ -4,17 +4,17 @@
 //! the expected behavior of the copybook-rs library in human-readable
 //! Gherkin syntax.
 
-use cucumber::{given, then, when, World, WorldInit};
-use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions, Error, ErrorCode};
+use cucumber::{given, then, when, World as _};
+use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions, Error};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
-    decode_record, encode_record, decode_file_to_jsonl, encode_jsonl_to_file,
+    decode_file_to_jsonl, encode_jsonl_to_file,
 };
 use serde_json::Value;
 use std::io::Cursor;
 
 /// BDD World struct to maintain test state across steps
-#[derive(Debug, Default, World)]
+#[derive(Debug, Default, cucumber::World)]
 pub struct CopybookWorld {
     /// The copybook text being parsed
     copybook_text: Option<String>,
@@ -197,18 +197,36 @@ mod steps {
         let field = schema.find_field(&field_name)
             .expect(&format!("Field '{}' not found", field_name));
 
-        let actual_type = match &field.kind {
-            copybook_core::FieldKind::Alphanumeric => "alphanumeric",
-            copybook_core::FieldKind::Numeric { .. } => "numeric",
-            copybook_core::FieldKind::Packed { .. } => "packed",
-            copybook_core::FieldKind::Binary { .. } => "binary",
-            copybook_core::FieldKind::Zoned { .. } => "zoned",
-            copybook_core::FieldKind::Group => "group",
-            copybook_core::FieldKind::Filler => "filler",
-            copybook_core::FieldKind::Occurs { .. } => "occurs",
-            copybook_core::FieldKind::Renames { .. } => "renames",
-            copybook_core::FieldKind::Condition { .. } => "condition",
-            copybook_core::FieldKind::Edited { .. } => "edited",
+        if expected_type == "numeric" {
+            let is_numeric = matches!(
+                field.kind,
+                copybook_core::FieldKind::ZonedDecimal { .. }
+                    | copybook_core::FieldKind::BinaryInt { .. }
+                    | copybook_core::FieldKind::PackedDecimal { .. }
+                    | copybook_core::FieldKind::EditedNumeric { .. }
+            );
+            assert!(
+                is_numeric,
+                "Expected field '{}' to be numeric, got {:?}",
+                field_name,
+                field.kind
+            );
+            return;
+        }
+
+        let actual_type = if field.occurs.is_some() {
+            "occurs"
+        } else {
+            match &field.kind {
+                copybook_core::FieldKind::Alphanum { .. } => "alphanumeric",
+                copybook_core::FieldKind::ZonedDecimal { .. } => "zoned",
+                copybook_core::FieldKind::BinaryInt { .. } => "binary",
+                copybook_core::FieldKind::PackedDecimal { .. } => "packed",
+                copybook_core::FieldKind::Group => "group",
+                copybook_core::FieldKind::Renames { .. } => "renames",
+                copybook_core::FieldKind::Condition { .. } => "condition",
+                copybook_core::FieldKind::EditedNumeric { .. } => "edited",
+            }
         };
 
         assert_eq!(
@@ -225,7 +243,7 @@ mod steps {
             .expect(&format!("Field '{}' not found", field_name));
 
         assert_eq!(
-            field.offset, offset,
+            field.offset as usize, offset,
             "Expected field '{}' to have offset {}, got {}",
             field_name, offset, field.offset
         );
@@ -238,7 +256,7 @@ mod steps {
             .expect(&format!("Field '{}' not found", field_name));
 
         assert_eq!(
-            field.len, length,
+            field.len as usize, length,
             "Expected field '{}' to have length {}, got {}",
             field_name, length, field.len
         );
@@ -268,7 +286,7 @@ mod steps {
 
     #[given(expr = "binary data: {string}")]
     async fn given_binary_data(world: &mut CopybookWorld, data: String) {
-        world.binary_data = Some(data.into_bytes());
+        world.binary_data = Some(parse_binary_literal(&data));
     }
 
     #[given(expr = "JSON data:")]
@@ -283,7 +301,7 @@ mod steps {
             .with_format(RecordFormat::Fixed)
             .with_json_number_mode(JsonNumberMode::Lossless)
             .with_emit_filler(false)
-            .with_emit_meta(false)
+            .with_emit_meta(true)
             .with_emit_raw(RawMode::Off)
             .with_strict_mode(false)
             .with_max_errors(None)
@@ -307,11 +325,11 @@ mod steps {
     #[given(expr = "EBCDIC codepage")]
     async fn given_ebcdic_codepage(world: &mut CopybookWorld) {
         world.decode_options = Some(DecodeOptions::new()
-            .with_codepage(Codepage::EBCDIC037)
+            .with_codepage(Codepage::CP037)
             .with_format(RecordFormat::Fixed)
             .with_json_number_mode(JsonNumberMode::Lossless)
             .with_emit_filler(false)
-            .with_emit_meta(false)
+            .with_emit_meta(true)
             .with_emit_raw(RawMode::Off)
             .with_strict_mode(false)
             .with_max_errors(None)
@@ -321,7 +339,7 @@ mod steps {
             .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto));
 
         world.encode_options = Some(EncodeOptions::new()
-            .with_codepage(Codepage::EBCDIC037)
+            .with_codepage(Codepage::CP037)
             .with_format(RecordFormat::Fixed)
             .with_use_raw(false)
             .with_bwz_encode(false)
@@ -384,7 +402,7 @@ mod steps {
     #[when(expr = "the data is round-tripped")]
     async fn when_data_roundtripped(world: &mut CopybookWorld) {
         // First decode
-        let schema = world.schema();
+        let schema = world.schema().clone();
         let decode_options = world.decode_options.as_ref()
             .expect("Decode options not set");
 
@@ -392,7 +410,7 @@ mod steps {
         let mut decoded = Vec::new();
 
         if let Err(e) = decode_file_to_jsonl(
-            schema,
+            &schema,
             Cursor::new(binary_data),
             &mut decoded,
             decode_options,
@@ -412,7 +430,7 @@ mod steps {
         let mut encoded = Vec::new();
 
         if let Err(e) = encode_jsonl_to_file(
-            schema,
+            &schema,
             Cursor::new(decoded_text.as_bytes()),
             &mut encoded,
             encode_options,
@@ -555,55 +573,52 @@ mod steps {
     }
 }
 
+fn parse_binary_literal(input: &str) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(input.len());
+    let mut iter = input.as_bytes().iter().copied().peekable();
+    while let Some(byte) = iter.next() {
+        if byte != b'\\' {
+            bytes.push(byte);
+            continue;
+        }
+        match iter.next() {
+            Some(b'x') => {
+                let hi = iter.next();
+                let lo = iter.next();
+                match (hi, lo) {
+                    (Some(hi), Some(lo)) => {
+                        let value = (hex_value(hi) << 4) | hex_value(lo);
+                        bytes.push(value);
+                    }
+                    _ => bytes.push(b'\\'),
+                }
+            }
+            Some(b'n') => bytes.push(b'\n'),
+            Some(b'r') => bytes.push(b'\r'),
+            Some(b't') => bytes.push(b'\t'),
+            Some(b'\\') => bytes.push(b'\\'),
+            Some(b'"') => bytes.push(b'"'),
+            Some(other) => {
+                bytes.push(b'\\');
+                bytes.push(other);
+            }
+            None => bytes.push(b'\\'),
+        }
+    }
+    bytes
+}
+
+fn hex_value(byte: u8) -> u8 {
+    match byte {
+        b'0'..=b'9' => byte - b'0',
+        b'a'..=b'f' => byte - b'a' + 10,
+        b'A'..=b'F' => byte - b'A' + 10,
+        _ => 0,
+    }
+}
+
 // This runs the Cucumber tests
 #[tokio::main]
 async fn main() {
-    // Initialize the world with steps
-    let runner = CopybookWorld::init(&[
-        steps::given_copybook_with_content,
-        steps::given_simple_copybook,
-        steps::given_copybook_with_numeric_fields,
-        steps::given_copybook_with_occurs,
-        steps::given_copybook_with_odo,
-        steps::given_copybook_with_redefines,
-        steps::given_copybook_with_level88,
-        steps::given_strict_parsing,
-        steps::given_tolerant_parsing,
-        steps::when_copybook_is_parsed,
-        steps::then_schema_successfully_parsed,
-        steps::then_schema_contains_fields,
-        steps::then_field_has_type,
-        steps::then_field_has_offset,
-        steps::then_field_has_length,
-        steps::then_schema_has_fingerprint,
-        steps::then_parsing_fails_with_error,
-        steps::given_binary_data,
-        steps::given_json_data,
-        steps::given_ascii_codepage,
-        steps::given_ebcdic_codepage,
-        steps::when_binary_data_decoded,
-        steps::when_json_data_encoded,
-        steps::when_data_roundtripped,
-        steps::then_decoded_output_contains,
-        steps::then_encoded_output_bytes,
-        steps::then_roundtrip_lossless,
-        steps::then_decoding_succeeds,
-        steps::then_encoding_succeeds,
-        steps::then_decoded_output_valid_json,
-        steps::given_invalid_copybook,
-        steps::given_invalid_occurs,
-        steps::given_invalid_pic,
-        steps::given_short_binary_data,
-        steps::given_invalid_encoding_data,
-        steps::given_json_missing_fields,
-        steps::given_json_invalid_types,
-        steps::then_error_occurs,
-        steps::then_error_message_contains,
-        steps::then_error_code_is,
-    ]);
-
-    // Run the tests with feature files from the "features" directory
-    runner
-        .run(&["tests/bdd/features"])
-        .await;
+    CopybookWorld::run("tests/bdd/features").await;
 }

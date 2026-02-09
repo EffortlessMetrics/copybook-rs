@@ -167,10 +167,10 @@ fn renames_thru_is_occurs() {
     assert_eq!(err.code, ErrorCode::CBKS607_RENAME_CROSSES_OCCURS);
 }
 
-/// Test CBKS603: RENAMES range not contiguous (implicit gap via REDEFINES)
+/// Test R4: RENAMES range crosses REDEFINES (flag disabled)
 ///
-/// Note: This test validates structural contiguity. If REDEFINES creates
-/// an offset gap between from and thru, the resolver should detect it.
+/// Note: With RenamesR4R6 disabled, any REDEFINES in the RENAMES span
+/// is rejected with CBKS609, regardless of offset contiguity.
 #[test]
 fn renames_not_contiguous_gap() {
     let cb = "
@@ -180,16 +180,10 @@ fn renames_not_contiguous_gap() {
    05 FIELD-C PIC 9(3).
    66 ALIAS RENAMES FIELD-A THRU FIELD-C.
 ";
-    // This should parse successfully because FIELD-B redefines FIELD-A
-    // so FIELD-C immediately follows FIELD-A in the offset space.
-    // However, if we try to skip a field that creates a gap, it should fail.
-    // For now, this test documents expected behavior with REDEFINES.
     let result = parse_copybook(cb);
-    // REDEFINES doesn't create a gap in offset space, so this should succeed
-    assert!(
-        result.is_ok(),
-        "REDEFINES doesn't break contiguity in offset space"
-    );
+    assert!(result.is_err(), "REDEFINES in RENAMES span should be rejected");
+    let err = result.unwrap_err();
+    assert_eq!(err.code, ErrorCode::CBKS609_RENAME_OVER_REDEFINES);
 }
 
 /// Test CBKS603: Non-contiguous range with actual gap

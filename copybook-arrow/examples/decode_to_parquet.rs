@@ -9,7 +9,8 @@
 use copybook_arrow::{json_to_schema, ParquetFileWriter};
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy};
 use copybook_core::parse_copybook;
-use parquet::file::properties::{Compression, WriterProperties, WriterVersion};
+use parquet::basic::Compression;
+use parquet::file::properties::{WriterProperties, WriterVersion};
 
 fn main() {
     // COBOL copybook for transaction records
@@ -54,10 +55,11 @@ fn main() {
     };
 
     // Sample binary data (simulated EBCDIC-encoded transaction records)
-    let test_records = vec![
+    // Record length: 16+4+8+6+12+8+3+20+50 = 127 bytes
+    let test_records: Vec<&[u8]> = vec![
         b"TXN0000000000001SALE202501081234560000000012345USDREF00000000000000000001Test transaction one ",
-        b"TXN0000000000002PURC20250108123457000000000098765USDREF00000000000000000002Test transaction two",
-        b"TXN0000000000003REFN20250108123458000000000054321EURREF00000000000000000003Test transaction three",
+        b"TXN0000000000002PURC20250108123457000000000098765USDREF00000000000000000002Test transaction two ",
+        b"TXN0000000000003REFN20250108123458000000000054321EURREF00000000000000000003Test transaction thre",
     ];
 
     println!("Processing {} records...", test_records.len());
@@ -65,8 +67,8 @@ fn main() {
     // Decode all records
     let mut json_records = Vec::new();
     for (i, test_data) in test_records.iter().enumerate() {
-        let len: usize = test_data.len();
-        println!("Processing record {} ({} bytes)", i + 1, len);
+        let test_data: &[u8] = test_data;
+        println!("Processing record {} ({} bytes)", i + 1, test_data.len());
 
         match copybook_codec::decode_record(&schema, test_data, &options) {
             Ok(value) => json_records.push(value),

@@ -12,6 +12,7 @@ pub mod numeric;
 pub mod arrays;
 pub mod pic_clauses;
 pub mod redefines;
+pub mod schema_invariants;
 
 use copybook_core::Schema;
 

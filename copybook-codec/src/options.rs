@@ -636,3 +636,220 @@ impl fmt::Display for UnmappablePolicy {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_zoned_encoding_format_is_ascii() {
+        assert!(ZonedEncodingFormat::Ascii.is_ascii());
+        assert!(!ZonedEncodingFormat::Ebcdic.is_ascii());
+        assert!(!ZonedEncodingFormat::Auto.is_ascii());
+    }
+
+    #[test]
+    fn test_zoned_encoding_format_is_ebcdic() {
+        assert!(!ZonedEncodingFormat::Ascii.is_ebcdic());
+        assert!(ZonedEncodingFormat::Ebcdic.is_ebcdic());
+        assert!(!ZonedEncodingFormat::Auto.is_ebcdic());
+    }
+
+    #[test]
+    fn test_zoned_encoding_format_is_auto() {
+        assert!(!ZonedEncodingFormat::Ascii.is_auto());
+        assert!(!ZonedEncodingFormat::Ebcdic.is_auto());
+        assert!(ZonedEncodingFormat::Auto.is_auto());
+    }
+
+    #[test]
+    fn test_zoned_encoding_format_description() {
+        assert_eq!(
+            ZonedEncodingFormat::Ascii.description(),
+            "ASCII digit zones (0x30-0x39)"
+        );
+        assert_eq!(
+            ZonedEncodingFormat::Ebcdic.description(),
+            "EBCDIC digit zones (0xF0-0xF9)"
+        );
+        assert_eq!(
+            ZonedEncodingFormat::Auto.description(),
+            "Automatic detection based on zone nibbles"
+        );
+    }
+
+    #[test]
+    fn test_zoned_encoding_format_detect_from_byte() {
+        // ASCII zone nibble (0x30)
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0x35),
+            Some(ZonedEncodingFormat::Ascii)
+        );
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0x30),
+            Some(ZonedEncodingFormat::Ascii)
+        );
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0x39),
+            Some(ZonedEncodingFormat::Ascii)
+        );
+
+        // EBCDIC zone nibble (0xF0)
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0xF5),
+            Some(ZonedEncodingFormat::Ebcdic)
+        );
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0xF0),
+            Some(ZonedEncodingFormat::Ebcdic)
+        );
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0xF9),
+            Some(ZonedEncodingFormat::Ebcdic)
+        );
+
+        // Invalid zone nibbles
+        assert_eq!(ZonedEncodingFormat::detect_from_byte(0x00), None);
+        assert_eq!(ZonedEncodingFormat::detect_from_byte(0x50), None);
+        assert_eq!(ZonedEncodingFormat::detect_from_byte(0xFF), None);
+    }
+
+    #[test]
+    fn test_zoned_encoding_format_display() {
+        assert_eq!(format!("{}", ZonedEncodingFormat::Ascii), "ascii");
+        assert_eq!(format!("{}", ZonedEncodingFormat::Ebcdic), "ebcdic");
+        assert_eq!(format!("{}", ZonedEncodingFormat::Auto), "auto");
+    }
+
+    #[test]
+    fn test_decode_options_default() {
+        let options = DecodeOptions::default();
+        assert_eq!(options.format, RecordFormat::Fixed);
+        assert_eq!(options.codepage, Codepage::CP037);
+        assert_eq!(options.json_number_mode, JsonNumberMode::Lossless);
+        assert!(!options.emit_filler);
+        assert!(!options.emit_meta);
+        assert_eq!(options.emit_raw, RawMode::Off);
+        assert!(!options.strict_mode);
+        assert!(options.max_errors.is_none());
+        assert_eq!(options.on_decode_unmappable, UnmappablePolicy::Error);
+        assert_eq!(options.threads, 1);
+        assert!(!options.preserve_zoned_encoding);
+        assert_eq!(
+            options.preferred_zoned_encoding,
+            ZonedEncodingFormat::Auto
+        );
+    }
+
+    #[test]
+    fn test_encode_options_default() {
+        let options = EncodeOptions::default();
+        assert_eq!(options.format, RecordFormat::Fixed);
+        assert_eq!(options.codepage, Codepage::CP037);
+        assert_eq!(
+            options.preferred_zoned_encoding,
+            ZonedEncodingFormat::Auto
+        );
+        assert!(!options.use_raw);
+        assert!(!options.bwz_encode);
+        assert!(!options.strict_mode);
+        assert_eq!(options.on_encode_unmappable, UnmappablePolicy::Error);
+        assert_eq!(options.json_number_mode, JsonNumberMode::Lossless);
+    }
+
+    #[test]
+    fn test_record_format_display() {
+        assert_eq!(format!("{}", RecordFormat::Fixed), "fixed");
+        assert_eq!(format!("{}", RecordFormat::Variable), "variable");
+        assert_eq!(format!("{}", RecordFormat::RDW), "rdw");
+    }
+
+    #[test]
+    fn test_codepage_display() {
+        assert_eq!(format!("{}", Codepage::CP037), "cp037");
+        assert_eq!(format!("{}", Codepage::CP273), "cp273");
+        assert_eq!(format!("{}", Codepage::CP500), "cp500");
+        assert_eq!(format!("{}", Codepage::CP1047), "cp1047");
+        assert_eq!(format!("{}", Codepage::CP1140), "cp1140");
+    }
+
+    #[test]
+    fn test_json_number_mode_display() {
+        assert_eq!(format!("{}", JsonNumberMode::Lossless), "lossless");
+        assert_eq!(format!("{}", JsonNumberMode::Native), "native");
+    }
+
+    #[test]
+    fn test_raw_mode_display() {
+        assert_eq!(format!("{}", RawMode::Off), "off");
+        assert_eq!(format!("{}", RawMode::Record), "record");
+        assert_eq!(format!("{}", RawMode::Field), "field");
+        assert_eq!(format!("{}", RawMode::RecordRDW), "record+rdw");
+    }
+
+    #[test]
+    fn test_unmappable_policy_display() {
+        assert_eq!(format!("{}", UnmappablePolicy::Error), "error");
+        assert_eq!(format!("{}", UnmappablePolicy::Replace), "replace");
+        assert_eq!(format!("{}", UnmappablePolicy::Skip), "skip");
+    }
+
+    #[test]
+    fn test_decode_options_serialization() {
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            codepage: Codepage::CP037,
+            json_number_mode: JsonNumberMode::Lossless,
+            emit_filler: true,
+            emit_meta: true,
+            emit_raw: RawMode::Record,
+            strict_mode: true,
+            max_errors: Some(100),
+            on_decode_unmappable: UnmappablePolicy::Replace,
+            threads: 4,
+            preserve_zoned_encoding: true,
+            preferred_zoned_encoding: ZonedEncodingFormat::Ebcdic,
+        };
+
+        let serialized = serde_json::to_string(&options).unwrap();
+        let deserialized: DecodeOptions = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.format, RecordFormat::Fixed);
+        assert_eq!(deserialized.codepage, Codepage::CP037);
+        assert!(deserialized.emit_filler);
+        assert!(deserialized.emit_meta);
+        assert_eq!(deserialized.emit_raw, RawMode::Record);
+        assert!(deserialized.strict_mode);
+        assert_eq!(deserialized.max_errors, Some(100));
+        assert_eq!(deserialized.on_decode_unmappable, UnmappablePolicy::Replace);
+        assert_eq!(deserialized.threads, 4);
+        assert!(deserialized.preserve_zoned_encoding);
+        assert_eq!(deserialized.preferred_zoned_encoding, ZonedEncodingFormat::Ebcdic);
+    }
+
+    #[test]
+    fn test_encode_options_serialization() {
+        let options = EncodeOptions {
+            format: RecordFormat::RDW,
+            codepage: Codepage::CP1047,
+            preferred_zoned_encoding: ZonedEncodingFormat::Ascii,
+            use_raw: true,
+            bwz_encode: true,
+            strict_mode: true,
+            on_encode_unmappable: UnmappablePolicy::Skip,
+            json_number_mode: JsonNumberMode::Native,
+        };
+
+        let serialized = serde_json::to_string(&options).unwrap();
+        let deserialized: EncodeOptions = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.format, RecordFormat::RDW);
+        assert_eq!(deserialized.codepage, Codepage::CP1047);
+        assert_eq!(deserialized.preferred_zoned_encoding, ZonedEncodingFormat::Ascii);
+        assert!(deserialized.use_raw);
+        assert!(deserialized.bwz_encode);
+        assert!(deserialized.strict_mode);
+        assert_eq!(deserialized.on_encode_unmappable, UnmappablePolicy::Skip);
+        assert_eq!(deserialized.json_number_mode, JsonNumberMode::Native);
+    }
+}

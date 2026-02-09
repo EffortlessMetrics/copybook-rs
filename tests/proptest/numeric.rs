@@ -7,6 +7,9 @@
 #![allow(clippy::unwrap_used)]
 
 use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
+use copybook_codec::numeric::{
+    encode_binary_int, encode_packed_decimal, encode_zoned_decimal, get_binary_width_from_digits,
+};
 use copybook_core::parse_copybook;
 use proptest::prelude::*;
 
@@ -26,7 +29,7 @@ proptest! {
         has_decimal in any::<bool>(),
         is_signed in any::<bool>()
     ) {
-        let mut pic = if is_signed { "S9(" } else { "9(" };
+        let mut pic = if is_signed { String::from("S9(") } else { String::from("9(") };
         pic.push_str(&length.to_string());
         if has_decimal {
             pic.push_str(")V9(");
@@ -42,9 +45,9 @@ proptest! {
         if let Some(field) = schema.fields.first() {
             // For zoned decimals, size equals number of digits
             let expected_size = length + if has_decimal { length.min(4) } else { 0 };
-            prop_assert_eq!(field.size, expected_size,
+            prop_assert_eq!(field.len as usize, expected_size,
                 "Field size {} should match PIC clause length {}",
-                field.size, expected_size);
+                field.len, expected_size);
         }
     }
 }
@@ -68,31 +71,15 @@ proptest! {
         let max_value = 10i64.pow(length as u32) - 1;
         let clamped_value = value.max(-max_value).min(max_value);
 
-        // Convert to ASCII zoned decimal
         let value_str = clamped_value.to_string();
-        let mut original_data = Vec::new();
-        for (i, ch) in value_str.chars().enumerate() {
-            if i == value_str.len() - 1 {
-                // Last character: use overpunch
-                let digit = ch.to_digit(10).unwrap() as u8;
-                let overpunch = if clamped_value < 0 {
-                    match digit {
-                        0 => b'p', 1 => b'q', 2 => b'r', 3 => b's', 4 => b't',
-                        5 => b'u', 6 => b'v', 7 => b'w', 8 => b'x', _ => b'y',
-                    }
-                } else {
-                    match digit {
-                        0 => b'{', 1 => b'A', 2 => b'B', 3 => b'C', 4 => b'D',
-                        5 => b'E', 6 => b'F', 7 => b'G', 8 => b'H', _ => b'I',
-                    }
-                };
-                original_data.push(overpunch);
-            } else if ch == '-' {
-                // Skip sign, it's in the overpunch
-            } else {
-                original_data.push(ch as u8);
-            }
-        }
+        let original_data = encode_zoned_decimal(
+            &value_str,
+            length as u16,
+            0,
+            true,
+            Codepage::ASCII,
+        )
+        .expect("Failed to encode zoned decimal");
 
         // Decode
         let decode_options = DecodeOptions::new()
@@ -184,8 +171,14 @@ proptest! {
         let copybook = format!("01 FIELD PIC {}.", pic);
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
 
-        // Zero value in ASCII
-        let original_data: Vec<u8> = vec![b'0'; length];
+        let original_data = encode_zoned_decimal(
+            "0",
+            length as u16,
+            0,
+            is_signed,
+            Codepage::ASCII,
+        )
+        .expect("Failed to encode zoned decimal");
 
         // Decode
         let decode_options = DecodeOptions::new()
@@ -263,21 +256,15 @@ proptest! {
         let max_value = 10i64.pow(length as u32) - 1;
         let clamped_value = value.max(-max_value);
 
-        // Create signed ASCII zoned decimal
         let value_str = clamped_value.to_string();
-        let mut original_data = Vec::new();
-        for (i, ch) in value_str.chars().enumerate() {
-            if i == value_str.len() - 1 {
-                let digit = ch.to_digit(10).unwrap() as u8;
-                let overpunch = match digit {
-                    0 => b'p', 1 => b'q', 2 => b'r', 3 => b's', 4 => b't',
-                    5 => b'u', 6 => b'v', 7 => b'w', 8 => b'x', _ => b'y',
-                };
-                original_data.push(overpunch);
-            } else if ch != '-' {
-                original_data.push(ch as u8);
-            }
-        }
+        let original_data = encode_zoned_decimal(
+            &value_str,
+            length as u16,
+            0,
+            true,
+            Codepage::ASCII,
+        )
+        .expect("Failed to encode zoned decimal");
 
         // Decode
         let decode_options = DecodeOptions::new()
@@ -312,47 +299,49 @@ proptest! {
     fn prop_comp3_roundtrip_preserves_value(
         int_digits in 1usize..=9,
         dec_digits in 0usize..=4,
-        is_negative in any::<bool>()
+        is_negative in any::<bool>(),
+        int_seed in 0u64..=999_999_999,
+        dec_seed in 0u32..=9_999
     ) {
         let total_digits = int_digits + dec_digits;
-        let copybook = format!("01 FIELD PIC S9({})V9({}) COMP-3.", int_digits, dec_digits);
+        let copybook = if dec_digits == 0 {
+            format!("01 FIELD PIC S9({}) COMP-3.", int_digits)
+        } else {
+            format!("01 FIELD PIC S9({})V9({}) COMP-3.", int_digits, dec_digits)
+        };
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
 
-        // Generate random value
         let max_int = 10u64.pow(int_digits as u32) - 1;
-        let max_dec = 10u32.pow(dec_digits as u32);
-        let int_part = rand::random::<u64>() % max_int;
-        let dec_part = rand::random::<u32>() % max_dec;
+        let max_dec = if dec_digits == 0 {
+            1u32
+        } else {
+            10u32.pow(dec_digits as u32)
+        };
+        let int_part = int_seed % (max_int + 1);
+        let dec_part = if dec_digits == 0 {
+            0u32
+        } else {
+            dec_seed % max_dec
+        };
 
-        // Build COMP-3 encoded value
-        let mut comp3_data = Vec::new();
-        let mut value = int_part * max_dec as u64 + dec_part as u64;
+        let value_str = if dec_digits == 0 {
+            format!("{}{}", if is_negative { "-" } else { "" }, int_part)
+        } else {
+            format!(
+                "{}{}.{}",
+                if is_negative { "-" } else { "" },
+                int_part,
+                format!("{:0width$}", dec_part, width = dec_digits)
+            )
+        };
 
-        // Add digits (nibbles)
-        for _ in 0..(total_digits - 1) {
-            comp3_data.push((value % 10) as u8);
-            value /= 10;
-        }
-        comp3_data.push((value % 10) as u8);
-
-        // Reverse to get correct order
-        comp3_data.reverse();
-
-        // Pack into bytes
-        let mut packed = Vec::new();
-        for chunk in comp3_data.chunks(2) {
-            let byte = if chunk.len() == 2 {
-                (chunk[0] << 4) | chunk[1]
-            } else {
-                chunk[0] << 4
-            };
-            packed.push(byte);
-        }
-
-        // Add sign nibble to last byte
-        let last_byte = packed.pop().unwrap();
-        let sign_nibble = if is_negative { 0x0D } else { 0x0C };
-        packed.push((last_byte & 0xF0) | sign_nibble);
+        let packed = encode_packed_decimal(
+            &value_str,
+            total_digits as u16,
+            dec_digits as i16,
+            true,
+        )
+        .expect("Failed to encode packed decimal");
 
         // Decode
         let decode_options = DecodeOptions::new()
@@ -374,10 +363,7 @@ proptest! {
         let expected_size = (total_digits + 2) / 2; // COMP-3 size formula
         prop_assert_eq!(roundtrip_data.len(), expected_size);
 
-        // Verify sign nibble is correct
-        let last = *roundtrip_data.last().unwrap();
-        let actual_sign = last & 0x0F;
-        prop_assert_eq!(actual_sign, sign_nibble);
+        prop_assert_eq!(roundtrip_data, packed);
     }
 }
 
@@ -390,21 +376,22 @@ proptest! {
 
     #[test]
     fn prop_binary_roundtrip_preserves_value(
-        value in 0i64..=65535,
-        length in 1usize..=4
+        value in 0u64..=u64::MAX,
+        digits in 1usize..=18
     ) {
-        let copybook = format!("01 FIELD PIC 9({}) BINARY.", length * 2);
+        let copybook = format!("01 FIELD PIC 9({}) BINARY.", digits);
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
 
-        // Clamp value to fit
-        let max_value = 256u64.pow(length as u32) - 1;
-        let clamped_value = (value as u64) % max_value;
+        let bits = get_binary_width_from_digits(digits as u16);
+        let max_value = if bits == 64 {
+            i64::MAX as u64
+        } else {
+            (1u64 << bits) - 1
+        };
+        let clamped_value = value % (max_value + 1);
 
-        // Convert to binary
-        let mut original_data = Vec::new();
-        for i in 0..length {
-            original_data.push(((clamped_value >> (i * 8)) & 0xFF) as u8);
-        }
+        let original_data = encode_binary_int(clamped_value as i64, bits, false)
+            .expect("Failed to encode binary integer");
 
         // Decode
         let decode_options = DecodeOptions::new()

@@ -410,13 +410,13 @@ fn collect_redefines_relationships(schema: &Schema, context: &mut RedefinesConte
 fn collect_redefines_from_fields(fields: &[Field], context: &mut RedefinesContext) {
     for field in fields {
         if let Some(ref target) = field.redefines_of {
-            // Map this field to its cluster (use field name, not full path for JSON matching)
+            // Map this field to its cluster (use target name, not full path for JSON matching)
+            let target_name = target.split('.').next_back().unwrap_or(target);
             context
                 .field_to_cluster
-                .insert(field.name.clone(), target.clone());
+                .insert(field.name.clone(), target_name.to_string());
 
             // Initialize cluster if not present (use target name, not full path)
-            let target_name = target.split('.').next_back().unwrap_or(target);
             context
                 .cluster_views
                 .entry(target_name.to_string())

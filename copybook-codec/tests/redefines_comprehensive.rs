@@ -75,7 +75,8 @@ fn test_redefines_shorter_overlay() -> TestResult {
         FieldKind::ZonedDecimal {
             digits: 10,
             scale: 0,
-            signed: false
+            signed: false,
+            sign_separate: None
         }
     ));
     Ok(())

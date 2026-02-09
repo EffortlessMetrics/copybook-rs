@@ -43,6 +43,8 @@ tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 
 [features]
 default = []
+# Enables comprehensive parser fixtures in tests (opt-in, not for docs.rs).
+comprehensive-tests = []
 # EXPERIMENTAL: Enable audit system (disabled by default for performance)
 # WARNING: The audit module is experimental and subject to breaking changes.
 # APIs may change without notice between minor versions. Use at your own risk.

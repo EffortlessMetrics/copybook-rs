@@ -16,6 +16,24 @@ mod arrays;
 mod pic_clauses;
 mod redefines;
 
+use copybook_core::Schema;
+
+fn schema_max_end(schema: &Schema) -> u32 {
+    schema
+        .all_fields()
+        .iter()
+        .map(|field| field.offset.saturating_add(field.len))
+        .max()
+        .unwrap_or(0)
+}
+
+fn schema_record_length(schema: &Schema) -> Option<u32> {
+    schema.lrecl_fixed.or_else(|| {
+        let max_end = schema_max_end(schema);
+        (max_end > 0).then_some(max_end)
+    })
+}
+
 fn main() {
     // Property tests are run via cargo test, not as a binary
     println!("Run property tests with: cargo test -p copybook-proptest");

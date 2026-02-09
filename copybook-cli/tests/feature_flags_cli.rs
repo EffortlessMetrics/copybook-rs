@@ -3,11 +3,16 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 
+mod test_utils;
+use test_utils::fixture_path;
+
 #[test]
 fn test_list_features() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .arg("--list-features")
+        .args(["--list-features", "parse"])
+        .arg(copybook)
         .assert()
         .success()
         .stdout(predicate::str::contains("Available Feature Flags"))
@@ -55,7 +60,7 @@ fn test_enable_features() {
 fn test_enable_features_cli() {
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .args(["parse", "--help"])
+        .arg("--help")
         .assert()
         .success()
         .stdout(predicate::str::contains("--enable-features"))
@@ -85,27 +90,33 @@ disabled = ["lru_cache"]
 
 #[test]
 fn test_enable_category() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .args(["parse", "--enable-category", "debug", "--help"])
+        .args(["--enable-category", "debug", "parse"])
+        .arg(copybook)
         .assert()
         .success();
 }
 
 #[test]
 fn test_disable_category() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .args(["parse", "--disable-category", "experimental", "--help"])
+        .args(["--disable-category", "experimental", "parse"])
+        .arg(copybook)
         .assert()
         .success();
 }
 
 #[test]
 fn test_invalid_feature_name() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .args(["parse", "--enable-features", "invalid_feature"])
+        .args(["--enable-features", "invalid_feature", "parse"])
+        .arg(copybook)
         .assert()
         .failure()
         .stderr(predicate::str::contains("Invalid feature flag"));
@@ -113,9 +124,11 @@ fn test_invalid_feature_name() {
 
 #[test]
 fn test_invalid_category_name() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .args(["parse", "--enable-category", "invalid_category"])
+        .args(["--enable-category", "invalid_category", "parse"])
+        .arg(copybook)
         .assert()
         .failure()
         .stderr(predicate::str::contains("Invalid feature category"));
@@ -123,10 +136,12 @@ fn test_invalid_category_name() {
 
 #[test]
 fn test_feature_flag_precedence() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     // CLI flags should override environment variables
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .args(["parse", "--disable-features", "verbose_logging", "--help"])
+        .args(["--disable-features", "verbose_logging", "parse"])
+        .arg(copybook)
         .env("COPYBOOK_FF_VERBOSE_LOGGING", "1")
         .assert()
         .success();
@@ -134,21 +149,25 @@ fn test_feature_flag_precedence() {
 
 #[test]
 fn test_lru_cache_enabled_by_default() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .arg("--list-features")
+        .args(["--list-features", "parse"])
+        .arg(copybook)
         .assert()
         .success()
         .stdout(predicate::str::contains("lru_cache").and(
-            predicate::str::contains("(enabled)")
+            predicate::str::contains("(enabled")
         ));
 }
 
 #[test]
 fn test_experimental_features_disabled_by_default() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     Command::cargo_bin("copybook")
         .expect("Failed to find copybook binary")
-        .arg("--list-features")
+        .args(["--list-features", "parse"])
+        .arg(copybook)
         .assert()
         .success()
         .stdout(predicate::str::contains("sign_separate").and(

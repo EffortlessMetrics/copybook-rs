@@ -13,6 +13,24 @@ pub mod arrays;
 pub mod pic_clauses;
 pub mod redefines;
 
+use copybook_core::Schema;
+
+pub fn schema_max_end(schema: &Schema) -> u32 {
+    schema
+        .all_fields()
+        .iter()
+        .map(|field| field.offset.saturating_add(field.len))
+        .max()
+        .unwrap_or(0)
+}
+
+pub fn schema_record_length(schema: &Schema) -> Option<u32> {
+    schema.lrecl_fixed.or_else(|| {
+        let max_end = schema_max_end(schema);
+        (max_end > 0).then_some(max_end)
+    })
+}
+
 // Common test configuration
 pub mod config {
     /// Default number of test cases for property tests

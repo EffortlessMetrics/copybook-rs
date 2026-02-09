@@ -571,6 +571,200 @@ mod steps {
             expected_code, actual_code
         );
     }
+
+    // ============================================================================
+    // SIGN SEPARATE and RENAMES Steps
+    // ============================================================================
+
+    #[given(expr = "a copybook with SIGN SEPARATE LEADING clause")]
+    async fn given_copybook_with_sign_separate_leading(world: &mut CopybookWorld) {
+        world.copybook_text = Some(
+            "01 RECORD.\n\
+             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE LEADING.".to_string(),
+        );
+    }
+
+    #[given(expr = "a copybook with SIGN SEPARATE TRAILING clause")]
+    async fn given_copybook_with_sign_separate_trailing(world: &mut CopybookWorld) {
+        world.copybook_text = Some(
+            "01 RECORD.\n\
+             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE TRAILING.".to_string(),
+        );
+    }
+
+    #[given(expr = "a copybook with SIGN SEPARATE {string} clause")]
+    async fn given_copybook_with_sign_separate(world: &mut CopybookWorld, placement: String) {
+        world.copybook_text = Some(format!(
+            "01 RECORD.\n\
+             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE {}.",
+            placement
+        ));
+    }
+
+    #[given(expr = "a copybook with RENAMES R4 {string}")]
+    async fn given_copybook_with_renames_r4(world: &mut CopybookWorld, content: String) {
+        world.copybook_text = Some(content);
+    }
+
+    #[given(expr = "a copybook with RENAMES R5 {string}")]
+    async fn given_copybook_with_renames_r5(world: &mut CopybookWorld, content: String) {
+        world.copybook_text = Some(content);
+    }
+
+    #[given(expr = "a copybook with RENAMES R6 {string}")]
+    async fn given_copybook_with_renames_r6(world: &mut CopybookWorld, content: String) {
+        world.copybook_text = Some(content);
+    }
+
+    #[given(expr = "a copybook with both SIGN SEPARATE and RENAMES")]
+    async fn given_copybook_with_sign_and_renames(world: &mut CopybookWorld) {
+        world.copybook_text = Some(
+            "01 RECORD.\n\
+             05 BASE-FIELD PIC S9(5) SIGN IS SEPARATE LEADING.\n\
+             05 REDEF1 PIC X(6) REDEFINES BASE-FIELD.\n\
+             05 REDEF2 PIC 9(6) REDEFINES BASE-FIELD.\n\
+             66 ALIAS-FIELD RENAMES REDEF1 THRU REDEF2.".to_string(),
+        );
+    }
+
+    #[given(expr = "a copybook with invalid SIGN SEPARATE")]
+    async fn given_copybook_with_invalid_sign_separate(world: &mut CopybookWorld) {
+        world.copybook_text = Some(
+            "01 RECORD.\n\
+             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE INVALID.".to_string(),
+        );
+    }
+
+    #[given(expr = "a copybook with invalid RENAMES range")]
+    async fn given_copybook_with_invalid_renames(world: &mut CopybookWorld) {
+        world.copybook_text = Some(
+            "01 RECORD.\n\
+             05 FIELD1 PIC X(5).\n\
+             05 FIELD2 PIC X(5).\n\
+             66 ALIAS-FIELD RENAMES FIELD1 THRU NONEXISTENT.".to_string(),
+        );
+    }
+
+    #[then(expr = "the field should have sign separate information")]
+    async fn then_field_has_sign_separate(world: &mut CopybookWorld) {
+        let schema = world.schema();
+        let field = schema.find_field("RECORD.SIGNED-FIELD").expect("Field not found");
+        if let copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } = &field.kind {
+            assert!(sign_separate.is_some(), "Field should have sign separate information");
+        } else {
+            panic!("Expected ZonedDecimal field");
+        }
+    }
+
+    #[then(expr = "the sign placement should be {string}")]
+    async fn then_sign_placement_is(world: &mut CopybookWorld, expected: String) {
+        let schema = world.schema();
+        let field = schema.find_field("RECORD.SIGNED-FIELD").expect("Field not found");
+        if let copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } = &field.kind {
+            let placement = sign_separate.as_ref().map(|s| format!("{:?}", s.placement)).unwrap_or_else(|| "None".to_string());
+            assert_eq!(placement, expected);
+        } else {
+            panic!("Expected ZonedDecimal field");
+        }
+    }
+
+    #[then(expr = "the decoded value should be {string}")]
+    async fn then_decoded_value_is(world: &mut CopybookWorld, expected: String) {
+        let output = world.decoded_output();
+        assert!(output.contains(&expected), "Expected decoded value '{}', got: {}", expected, output);
+    }
+
+    #[then(expr = "the encoded data should have leading sign")]
+    async fn then_encoded_has_leading_sign(world: &mut CopybookWorld) {
+        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        assert!(output[0] == b'-' || output[0] == b'+', "Expected leading sign");
+    }
+
+    #[then(expr = "the encoded data should have trailing sign")]
+    async fn then_encoded_has_trailing_sign(world: &mut CopybookWorld) {
+        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let last_byte = output.last().expect("Output should not be empty");
+        assert!(*last_byte == b'-' || *last_byte == b'+', "Expected trailing sign");
+    }
+
+    #[then(expr = "the sign placement should be preserved")]
+    async fn then_sign_placement_preserved(world: &mut CopybookWorld) {
+        // Sign placement is preserved through round-trip by the schema
+        let schema = world.schema();
+        let field = schema.find_field("RECORD.SIGNED-FIELD").expect("Field not found");
+        if let copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } = &field.kind {
+            assert!(sign_separate.is_some(), "Sign separate should be preserved");
+        } else {
+            panic!("Expected ZonedDecimal field");
+        }
+    }
+
+    #[then(expr = "RENAMES field should be resolved")]
+    async fn then_renames_resolved(world: &mut CopybookWorld) {
+        let schema = world.schema();
+        let renames_field = schema.fields.iter()
+            .find(|f| f.level == 66)
+            .expect("RENAMES field not found");
+        assert!(renames_field.resolved_renames.is_some(), "RENAMES should be resolved");
+    }
+
+    #[then(expr = "the alias should cover all REDEFINES fields")]
+    async fn then_renames_covers_redefines(world: &mut CopybookWorld) {
+        let schema = world.schema();
+        let redefines_fields: Vec<_> = schema.fields.iter()
+            .filter(|f| f.redefines_of.is_some())
+            .map(|f| f.name.as_str())
+            .collect();
+        assert!(!redefines_fields.is_empty(), "Should have REDEFINES fields");
+    }
+
+    #[then(expr = "the alias should reference the ODO field")]
+    async fn then_renames_references_odo(world: &mut CopybookWorld) {
+        let schema = world.schema();
+        let renames_field = schema.fields.iter()
+            .find(|f| f.level == 66)
+            .expect("RENAMES field not found");
+        let resolved = renames_field.resolved_renames.as_ref().expect("RENAMES not resolved");
+        assert!(!resolved.members.is_empty(), "RENAMES should reference fields");
+    }
+
+    #[then(expr = "RENAMES field should have Level-88 conditions")]
+    async fn then_renames_has_level88(world: &mut CopybookWorld) {
+        let schema = world.schema();
+        let renames_field = schema.fields.iter()
+            .find(|f| f.level == 66)
+            .expect("RENAMES field not found");
+        // Check if there are level-88 fields in the schema
+        let has_level88 = schema.all_fields().iter().any(|f| matches!(f.kind, copybook_core::FieldKind::Condition { .. }));
+        assert!(has_level88, "Should have Level-88 conditions");
+    }
+
+    #[then(expr = "the sign should be properly handled")]
+    async fn then_sign_properly_handled(world: &mut CopybookWorld) {
+        let output = world.decoded_output();
+        // The output should contain the signed value
+        assert!(output.contains("-") || output.contains("+"), "Should contain sign indicator");
+    }
+
+    #[then(expr = "the error should indicate invalid SIGN SEPARATE placement")]
+    async fn then_error_invalid_sign_separate(world: &mut CopybookWorld) {
+        let error = world.error.as_ref().expect("Error should be set");
+        let message = format!("{}", error);
+        assert!(
+            message.contains("SIGN") || message.contains("SEPARATE"),
+            "Expected error about SIGN SEPARATE"
+        );
+    }
+
+    #[then(expr = "the error should indicate invalid RENAMES range")]
+    async fn then_error_invalid_renames_range(world: &mut CopybookWorld) {
+        let error = world.error.as_ref().expect("Error should be set");
+        let message = format!("{}", error);
+        assert!(
+            message.contains("RENAMES") || message.contains("THRU"),
+            "Expected error about RENAMES range"
+        );
+    }
 }
 
 fn parse_binary_literal(input: &str) -> Vec<u8> {

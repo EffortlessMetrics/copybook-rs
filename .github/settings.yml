@@ -1,0 +1,4 @@
+repository:
+  description: "COBOL copybook parsing and binary/JSON conversion for mainframe data processing."
+  homepage: "https://effortlessmetrics.com/copybook-rs"
+  topics: rust, copybook, cobol, mainframe, devex

@@ -276,6 +276,28 @@ mod tests {
     }
 
     #[test]
+    fn test_json_type_to_arrow_extended() {
+        assert!(matches!(
+            json_type_to_arrow(&Value::Null).unwrap(),
+            DataType::Null
+        ));
+        let float_num = serde_json::Number::from_f64(3.14).unwrap();
+        assert!(matches!(
+            json_type_to_arrow(&Value::Number(float_num)).unwrap(),
+            DataType::Float64
+        ));
+        assert!(matches!(
+            json_type_to_arrow(&Value::Array(vec![Value::String("a".to_string())])).unwrap(),
+            DataType::List(_)
+        ));
+        let object = serde_json::json!({"k": "v"});
+        assert!(matches!(
+            json_type_to_arrow(&object).unwrap(),
+            DataType::Struct(_)
+        ));
+    }
+
+    #[test]
     fn test_json_to_schema() {
         let json = serde_json::json!({
             "name": "John",
@@ -288,6 +310,13 @@ mod tests {
         assert_eq!(schema.fields()[0].name(), "name");
         assert_eq!(schema.fields()[1].name(), "age");
         assert_eq!(schema.fields()[2].name(), "active");
+    }
+
+    #[test]
+    fn test_json_to_schema_rejects_non_object() {
+        let json = serde_json::json!(["not", "an", "object"]);
+        let err = json_to_schema(&json).unwrap_err();
+        assert!(matches!(err, ArrowError::JsonConversion(_)));
     }
 
     #[test]
@@ -306,6 +335,34 @@ mod tests {
     }
 
     #[test]
+    fn test_json_to_record_batch_type_mismatch() {
+        let schema_json = serde_json::json!({
+            "age": 30
+        });
+        let schema = json_to_schema(&schema_json).unwrap();
+
+        let mismatched_record = serde_json::json!({
+            "age": "thirty"
+        });
+
+        let err = json_to_record_batch(&schema, &mismatched_record).unwrap_err();
+        assert!(matches!(err, ArrowError::Arrow(_)));
+    }
+
+    #[test]
+    fn test_json_value_to_array_stringified() {
+        let array_value = serde_json::json!(["a", 1, true]);
+        let array = json_value_to_array("items", &array_value).unwrap();
+        let array = array.as_any().downcast_ref::<StringArray>().unwrap();
+        assert_eq!(array.value(0), "[\"a\",1,true]");
+
+        let object_value = serde_json::json!({"k": "v"});
+        let object = json_value_to_array("obj", &object_value).unwrap();
+        let object = object.as_any().downcast_ref::<StringArray>().unwrap();
+        assert_eq!(object.value(0), "{\"k\":\"v\"}");
+    }
+
+    #[test]
     fn test_arrow_writer() {
         let json = serde_json::json!({
             "name": "John",
@@ -317,6 +374,21 @@ mod tests {
 
         writer.add_json_record(&json).unwrap();
         assert_eq!(writer.batch_count(), 1);
+    }
+
+    #[test]
+    fn test_arrow_writer_accessors() {
+        let json = serde_json::json!({
+            "name": "John",
+            "age": 30
+        });
+
+        let schema = json_to_schema(&json).unwrap();
+        let mut writer = ArrowWriter::new(schema);
+        writer.add_json_record(&json).unwrap();
+
+        assert_eq!(writer.schema().fields().len(), 2);
+        assert_eq!(writer.batches().len(), 1);
     }
 
     #[test]
@@ -339,5 +411,31 @@ mod tests {
 
         // Verify file was created
         assert!(path.exists());
+    }
+
+    #[test]
+    fn test_parquet_writer_from_json_schema() {
+        let json_schema = serde_json::json!({
+            "name": "John",
+            "active": true
+        });
+        let writer = ParquetFileWriter::from_json_schema(&json_schema).unwrap();
+        assert_eq!(writer.schema().fields().len(), 2);
+    }
+
+    #[test]
+    fn test_parquet_writer_invalid_path() {
+        let json = serde_json::json!({
+            "name": "John"
+        });
+        let schema = json_to_schema(&json).unwrap();
+        let writer = ParquetFileWriter::new(schema);
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let err = writer
+            .write_json_records(temp_dir.path(), &[json.clone()])
+            .unwrap_err();
+
+        assert!(matches!(err, ArrowError::Io(_)));
     }
 }

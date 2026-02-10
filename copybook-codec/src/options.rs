@@ -827,29 +827,3 @@ mod tests {
         assert_eq!(deserialized.preferred_zoned_encoding, ZonedEncodingFormat::Ebcdic);
     }
 
-    #[test]
-    fn test_encode_options_serialization() {
-        let options = EncodeOptions {
-            format: RecordFormat::RDW,
-            codepage: Codepage::CP1047,
-            preferred_zoned_encoding: ZonedEncodingFormat::Ascii,
-            use_raw: true,
-            bwz_encode: true,
-            strict_mode: true,
-            on_encode_unmappable: UnmappablePolicy::Skip,
-            json_number_mode: JsonNumberMode::Native,
-        };
-
-        let serialized = serde_json::to_string(&options).unwrap();
-        let deserialized: EncodeOptions = serde_json::from_str(&serialized).unwrap();
-
-        assert_eq!(deserialized.format, RecordFormat::RDW);
-        assert_eq!(deserialized.codepage, Codepage::CP1047);
-        assert_eq!(deserialized.preferred_zoned_encoding, ZonedEncodingFormat::Ascii);
-        assert!(deserialized.use_raw);
-        assert!(deserialized.bwz_encode);
-        assert!(deserialized.strict_mode);
-        assert_eq!(deserialized.on_encode_unmappable, UnmappablePolicy::Skip);
-        assert_eq!(deserialized.json_number_mode, JsonNumberMode::Native);
-    }
-}

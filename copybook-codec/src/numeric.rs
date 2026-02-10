@@ -199,6 +199,11 @@ pub(crate) fn unlikely(b: bool) -> bool {
     }
 }
 
+/// Manual branch prediction hint for cold paths
+///
+/// This function serves as a branch prediction hint that the calling path is cold/unlikely.
+/// The `#[cold]` attribute tells the compiler this is an unlikely execution path, and
+/// `#[inline(never)]` ensures the cold path doesn't bloat the hot path.
 #[cold]
 #[inline(never)]
 fn cold_branch_hint() {
@@ -1427,6 +1432,22 @@ pub fn decode_zoned_decimal_with_encoding(
     Ok((decimal, encoding_info))
 }
 
+/// Internal helper to decode zoned decimal digits with encoding detection
+///
+/// This function handles the core logic of iterating through zoned decimal bytes,
+/// accumulating the numeric value, and optionally detecting/validating the encoding.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the zoned decimal
+/// * `signed` - Whether the field is signed
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+/// * `preserve_encoding` - If true, validate consistent encoding throughout the field
+///
+/// # Returns
+/// A tuple of (`accumulated_value`, `is_negative`)
+///
+/// # Errors
+/// Returns an error if an invalid digit or zone nibble is encountered.
 #[inline]
 fn zoned_decode_digits_with_encoding(
     data: &[u8],
@@ -1671,7 +1692,8 @@ pub fn decode_packed_decimal(
 /// Ultra-optimized COMP-3 decoder for hot path performance
 ///
 /// This function is highly optimized for the 95% case of enterprise COBOL processing
-/// where COMP-3 fields are 1-5 bytes and well-formed.
+/// where COMP-3 fields are 1-5 bytes and well-formed. It selects the appropriate
+/// specialized decoder based on the data length.
 #[inline]
 fn decode_packed_decimal_fast_path(
     data: &[u8],
@@ -1687,6 +1709,13 @@ fn decode_packed_decimal_fast_path(
     }
 }
 
+/// Specialized COMP-3 decoder for 1-byte fields (1 digit)
+///
+/// # Arguments
+/// * `byte` - The single byte of packed decimal data
+/// * `digits` - Number of digits (should be 1)
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_len1(
     byte: u8,
@@ -1732,6 +1761,13 @@ fn decode_packed_fast_len1(
     Ok(create_normalized_decimal(value, scale, false))
 }
 
+/// Specialized COMP-3 decoder for 2-byte fields (2-3 digits)
+///
+/// # Arguments
+/// * `data` - The 2 bytes of packed decimal data
+/// * `digits` - Number of digits (2 or 3)
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_len2(
     data: &[u8],
@@ -1798,6 +1834,12 @@ fn decode_packed_fast_len2(
     Ok(create_normalized_decimal(value, scale, is_negative))
 }
 
+/// Specialized COMP-3 decoder for 3-byte fields (4-5 digits)
+///
+/// # Arguments
+/// * `data` - The 3 bytes of packed decimal data
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_len3(data: &[u8], scale: i16, signed: bool) -> Result<SmallDecimal> {
     let byte0 = data[0];
@@ -1848,6 +1890,16 @@ fn decode_packed_fast_len3(data: &[u8], scale: i16, signed: bool) -> Result<Smal
     Ok(create_normalized_decimal(value, scale, is_negative))
 }
 
+/// General-purpose COMP-3 decoder for fields longer than 3 bytes
+///
+/// Handles multi-byte packed decimal decoding with support for padding
+/// nibbles and variable digit counts.
+///
+/// # Arguments
+/// * `data` - The packed decimal data bytes
+/// * `digits` - Number of decimal digits in the field
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_general(
     data: &[u8],

@@ -134,13 +134,13 @@ pub struct FeatureFlagOpts {
     /// Enable specific feature flags (comma-separated)
     ///
     /// Available flags:
-    /// - Experimental: sign_separate, renames_r4_r6, comp_1, comp_2
-    /// - Enterprise: audit_system, sox_compliance, hipaa_compliance, gdpr_compliance, pci_dss_compliance, security_monitoring
-    /// - Performance: advanced_optimization, lru_cache, parallel_decode, zero_copy
-    /// - Debug: verbose_logging, diagnostic_output, profiling, memory_tracking
-    /// - Testing: mutation_testing, fuzzing_integration, coverage_instrumentation, property_based_testing
+    /// - Experimental: `sign_separate`, `renames_r4_r6`, `comp_1`, `comp_2`
+    /// - Enterprise: `audit_system`, `sox_compliance`, `hipaa_compliance`, `gdpr_compliance`, `pci_dss_compliance`, `security_monitoring`
+    /// - Performance: `advanced_optimization`, `lru_cache`, `parallel_decode`, `zero_copy`
+    /// - Debug: `verbose_logging`, `diagnostic_output`, `profiling`, `memory_tracking`
+    /// - Testing: `mutation_testing`, `fuzzing_integration`, `coverage_instrumentation`, `property_based_testing`
     ///
-    /// Example: --enable-features sign_separate,verbose_logging
+    /// Example: --enable-features `sign_separate,verbose_logging`
     #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
     pub enable_features: Vec<String>,
 
@@ -148,21 +148,21 @@ pub struct FeatureFlagOpts {
     ///
     /// This takes precedence over --enable-features and environment variables.
     ///
-    /// Example: --disable-features lru_cache
+    /// Example: --disable-features `lru_cache`
     #[arg(long, value_delimiter = ',', value_name = "FEATURE")]
     pub disable_features: Vec<String>,
 
     /// Enable all features in a category
     ///
-    /// Available categories: experimental, enterprise, performance, debug, testing
+    /// Available categories: `experimental`, `enterprise`, `performance`, `debug`, `testing`
     ///
-    /// Example: --enable-category debug
+    /// Example: --enable-category `debug`
     #[arg(long, value_name = "CATEGORY")]
     pub enable_category: Vec<String>,
 
     /// Disable all features in a category
     ///
-    /// Example: --disable-category experimental
+    /// Example: --disable-category `experimental`
     #[arg(long, value_name = "CATEGORY")]
     pub disable_category: Vec<String>,
 
@@ -170,17 +170,21 @@ pub struct FeatureFlagOpts {
     ///
     /// The file can be in TOML or JSON format.
     /// TOML format:
-    ///   [feature_flags]
-    ///   enabled = ["sign_separate", "verbose_logging"]
-    ///   disabled = ["lru_cache"]
+    /// ```toml
+    /// [feature_flags]
+    /// enabled = ["sign_separate", "verbose_logging"]
+    /// disabled = ["lru_cache"]
+    /// ```
     ///
     /// JSON format:
-    ///   {
-    ///     "feature_flags": {
-    ///       "enabled": ["sign_separate", "verbose_logging"],
-    ///       "disabled": ["lru_cache"]
-    ///     }
+    /// ```json
+    /// {
+    ///   "feature_flags": {
+    ///     "enabled": ["sign_separate", "verbose_logging"],
+    ///     "disabled": ["lru_cache"]
     ///   }
+    /// }
+    /// ```
     #[arg(long, value_name = "PATH")]
     pub feature_flags_config: Option<PathBuf>,
 
@@ -203,6 +207,7 @@ enum DialectPreference {
 }
 
 impl From<DialectPreference> for copybook_core::dialect::Dialect {
+    #[inline]
     fn from(value: DialectPreference) -> Self {
         match value {
             DialectPreference::N => Self::Normative,
@@ -226,6 +231,7 @@ enum ZonedEncodingPreference {
 }
 
 impl From<ZonedEncodingPreference> for copybook_codec::ZonedEncodingFormat {
+    #[inline]
     fn from(value: ZonedEncodingPreference) -> Self {
         match value {
             ZonedEncodingPreference::Preferred | ZonedEncodingPreference::Auto => Self::Auto,
@@ -603,10 +609,10 @@ fn run() -> anyhow::Result<ExitCode> {
 
     // Handle feature flags
     let feature_flags = initialize_feature_flags(&cli.feature_flags)?;
-    
+
     // Set global feature flags for use by parser
     copybook_core::feature_flags::FeatureFlags::set_global(feature_flags.clone());
-    
+
     if cli.feature_flags.list_features {
         list_all_features(&feature_flags);
         return Ok(ExitCode::Ok);
@@ -1033,6 +1039,7 @@ fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<f64>) {
 }
 
 /// Initialize feature flags from CLI options and environment variables
+#[allow(clippy::too_many_lines)]
 fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFlags> {
     use std::fs;
     use std::io::Read;
@@ -1053,19 +1060,19 @@ fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFla
             if let Some(feature_flags) = json_config.get("feature_flags") {
                 if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
                     for feature_name in enabled {
-                        if let Some(name) = feature_name.as_str() {
-                            if let Ok(feature) = Feature::from_str(name) {
-                                flags.enable(feature);
-                            }
+                        if let Some(name) = feature_name.as_str()
+                            && let Ok(feature) = Feature::from_str(name)
+                        {
+                            flags.enable(feature);
                         }
                     }
                 }
                 if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
                     for feature_name in disabled {
-                        if let Some(name) = feature_name.as_str() {
-                            if let Ok(feature) = Feature::from_str(name) {
-                                flags.disable(feature);
-                            }
+                        if let Some(name) = feature_name.as_str()
+                            && let Ok(feature) = Feature::from_str(name)
+                        {
+                            flags.disable(feature);
                         }
                     }
                 }
@@ -1075,25 +1082,27 @@ fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFla
             if let Some(feature_flags) = toml_str.get("feature_flags") {
                 if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
                     for feature_name in enabled {
-                        if let Some(name) = feature_name.as_str() {
-                            if let Ok(feature) = Feature::from_str(name) {
-                                flags.enable(feature);
-                            }
+                        if let Some(name) = feature_name.as_str()
+                            && let Ok(feature) = Feature::from_str(name)
+                        {
+                            flags.enable(feature);
                         }
                     }
                 }
                 if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
                     for feature_name in disabled {
-                        if let Some(name) = feature_name.as_str() {
-                            if let Ok(feature) = Feature::from_str(name) {
-                                flags.disable(feature);
-                            }
+                        if let Some(name) = feature_name.as_str()
+                            && let Ok(feature) = Feature::from_str(name)
+                        {
+                            flags.disable(feature);
                         }
                     }
                 }
             }
         } else {
-            return Err(anyhow!("Failed to parse feature flags config: expected JSON or TOML format"));
+            return Err(anyhow!(
+                "Failed to parse feature flags config: expected JSON or TOML format"
+            ));
         }
     }
 
@@ -1108,7 +1117,7 @@ fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFla
             _ => {
                 return Err(anyhow!(
                     "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
-                ))
+                ));
             }
         };
         for feature in FeatureFlags::features_in_category(category) {
@@ -1127,7 +1136,7 @@ fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFla
             _ => {
                 return Err(anyhow!(
                     "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
-                ))
+                ));
             }
         };
         for feature in FeatureFlags::features_in_category(category) {
@@ -1157,6 +1166,7 @@ fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFla
 }
 
 /// List all available feature flags and their status
+#[allow(clippy::unwrap_used)]
 fn list_all_features(flags: &FeatureFlags) {
     use std::io::Write;
 

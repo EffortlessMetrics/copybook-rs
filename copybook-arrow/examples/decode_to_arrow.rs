@@ -1,3 +1,17 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::items_after_statements,
+    clippy::uninlined_format_args,
+    clippy::cast_lossless,
+    clippy::no_effect_underscore_binding,
+    clippy::ignored_unit_patterns,
+    clippy::needless_raw_string_hashes,
+    clippy::needless_continue,
+    clippy::doc_markdown
+)]
 //! Example: Decode copybook data and convert to Arrow format
 //!
 //! This example demonstrates:
@@ -6,7 +20,7 @@
 //! - Converting the decoded JSON to Arrow RecordBatch
 //! - Using ArrowWriter to collect batches
 
-use copybook_arrow::{json_to_record_batch, json_to_schema, ArrowWriter};
+use copybook_arrow::{ArrowWriter, json_to_record_batch, json_to_schema};
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy};
 use copybook_core::parse_copybook;
 

@@ -362,7 +362,7 @@ fn test_dialect_copy_and_clone() {
     let copied = original;
     assert_eq!(original, copied);
 
-    let cloned = original.clone();
+    let cloned = original;
     assert_eq!(original, cloned);
 }
 

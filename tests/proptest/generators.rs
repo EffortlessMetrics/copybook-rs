@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Custom generators for property testing
 //!
 //! This module provides proptest strategies for generating:
@@ -8,8 +9,8 @@
 //! - OCCURS/ODO structures
 //! - REDEFINES configurations
 
-use proptest::prelude::*;
 use proptest::collection::vec;
+use proptest::prelude::*;
 
 /// Strategy for generating valid PIC clause patterns
 pub fn pic_clause_strategy() -> impl Strategy<Value = String> {
@@ -65,12 +66,15 @@ pub fn occurs_strategy() -> impl Strategy<Value = Option<String>> {
         // No OCCURS
         Just(None),
         // Fixed OCCURS
-        "[1-9][0-9]{0,2}".prop_map(|s| Some(format!("OCCURS {} TIMES", s))),
+        "[1-9][0-9]{0,2}".prop_map(|s| Some(format!("OCCURS {s} TIMES"))),
         // OCCURS with DEPENDING ON
         (
             "[1-9][0-9]{0,2}".prop_map(|s| s.parse::<usize>().unwrap()),
             field_name_strategy()
-        ).prop_map(|(count, name)| Some(format!("OCCURS {} TO {} TIMES DEPENDING ON {}", 1, count, name))),
+        )
+            .prop_map(|(count, name)| Some(format!(
+                "OCCURS 1 TO {count} TIMES DEPENDING ON {name}"
+            ))),
     ]
 }
 
@@ -80,7 +84,7 @@ pub fn redefines_strategy() -> impl Strategy<Value = Option<String>> {
         // No REDEFINES
         Just(None),
         // With REDEFINES
-        field_name_strategy().prop_map(|name| Some(format!("REDEFINES {}", name))),
+        field_name_strategy().prop_map(|name| Some(format!("REDEFINES {name}"))),
     ]
 }
 
@@ -91,7 +95,7 @@ pub fn field_definition_strategy() -> impl Strategy<Value = String> {
         field_name_strategy(),
         pic_clause_strategy(),
     )
-    .prop_map(|(level, name, pic)| format!("{:02} {} PIC {}.", level, name, pic))
+        .prop_map(|(level, name, pic)| format!("{level:02} {name} PIC {pic}."))
 }
 
 /// Strategy for generating a simple copybook
@@ -108,36 +112,45 @@ pub fn simple_copybook_strategy() -> impl Strategy<Value = String> {
 
 /// Strategy for generating ASCII zoned decimal data
 pub fn ascii_zoned_strategy(length: usize) -> impl Strategy<Value = Vec<u8>> {
-    vec(0u8..=9, length).prop_map(|digits| {
-        digits.iter().map(|&d| b'0' + d).collect()
-    })
+    vec(0u8..=9, length).prop_map(|digits| digits.iter().map(|&d| b'0' + d).collect())
 }
 
 /// Strategy for generating EBCDIC zoned decimal data
 pub fn ebcdic_zoned_strategy(length: usize) -> impl Strategy<Value = Vec<u8>> {
-    vec(0u8..=9, length).prop_map(|digits| {
-        digits.iter().map(|&d| 0xF0 + d).collect()
-    })
+    vec(0u8..=9, length).prop_map(|digits| digits.iter().map(|&d| 0xF0 + d).collect())
 }
 
 /// Strategy for generating signed ASCII zoned decimal data (with overpunch)
 pub fn ascii_signed_zoned_strategy(length: usize) -> impl Strategy<Value = Vec<u8>> {
-    (
-        vec(0u8..=9, length.saturating_sub(1)),
-        any::<bool>(),
-    ).prop_map(|(mut digits, negative)| {
+    (vec(0u8..=9, length.saturating_sub(1)), any::<bool>()).prop_map(|(mut digits, negative)| {
         let last_digit = digits.pop().unwrap_or(0);
         let overpunch = if negative {
             // Negative overpunch: }, J, K, L, M, N, O, P, Q, R for 0-9
             match last_digit {
-                0 => b'}', 1 => b'J', 2 => b'K', 3 => b'L', 4 => b'M',
-                5 => b'N', 6 => b'O', 7 => b'P', 8 => b'Q', _ => b'R',
+                0 => b'}',
+                1 => b'J',
+                2 => b'K',
+                3 => b'L',
+                4 => b'M',
+                5 => b'N',
+                6 => b'O',
+                7 => b'P',
+                8 => b'Q',
+                _ => b'R',
             }
         } else {
             // Positive overpunch: {, A, B, C, D, E, F, G, H, I for 0-9
             match last_digit {
-                0 => b'{', 1 => b'A', 2 => b'B', 3 => b'C', 4 => b'D',
-                5 => b'E', 6 => b'F', 7 => b'G', 8 => b'H', _ => b'I',
+                0 => b'{',
+                1 => b'A',
+                2 => b'B',
+                3 => b'C',
+                4 => b'D',
+                5 => b'E',
+                6 => b'F',
+                7 => b'G',
+                8 => b'H',
+                _ => b'I',
             }
         };
         let mut result: Vec<u8> = digits.iter().map(|&d| b'0' + d).collect();
@@ -148,10 +161,7 @@ pub fn ascii_signed_zoned_strategy(length: usize) -> impl Strategy<Value = Vec<u
 
 /// Strategy for generating signed EBCDIC zoned decimal data (with overpunch)
 pub fn ebcdic_signed_zoned_strategy(length: usize) -> impl Strategy<Value = Vec<u8>> {
-    (
-        vec(0u8..=9, length.saturating_sub(1)),
-        any::<bool>(),
-    ).prop_map(|(mut digits, negative)| {
+    (vec(0u8..=9, length.saturating_sub(1)), any::<bool>()).prop_map(|(mut digits, negative)| {
         let last_digit = digits.pop().unwrap_or(0);
         let overpunch = if negative {
             // Negative overpunch: D0-D9 for 0-9
@@ -167,24 +177,28 @@ pub fn ebcdic_signed_zoned_strategy(length: usize) -> impl Strategy<Value = Vec<
 }
 
 /// Strategy for generating COMP-3 packed decimal data
-pub fn comp3_strategy(total_digits: usize, decimal_places: usize) -> impl Strategy<Value = Vec<u8>> {
+pub fn comp3_strategy(
+    total_digits: usize,
+    decimal_places: usize,
+) -> impl Strategy<Value = Vec<u8>> {
     (
         vec(0u8..=9, total_digits.saturating_sub(decimal_places)),
         vec(0u8..=9, decimal_places),
         any::<bool>(),
-    ).prop_map(|(int_part, dec_part, negative)| {
-        let mut result = Vec::new();
-        for digit in int_part {
-            result.push(digit);
-        }
-        for digit in dec_part {
-            result.push(digit);
-        }
-        let sign_nibble = if negative { 0x0D } else { 0x0C };
-        let last_byte = result.pop().unwrap_or(0);
-        result.push((last_byte << 4) | sign_nibble);
-        result
-    })
+    )
+        .prop_map(|(int_part, dec_part, negative)| {
+            let mut result = Vec::new();
+            for digit in int_part {
+                result.push(digit);
+            }
+            for digit in dec_part {
+                result.push(digit);
+            }
+            let sign_nibble = if negative { 0x0D } else { 0x0C };
+            let last_byte = result.pop().unwrap_or(0);
+            result.push((last_byte << 4) | sign_nibble);
+            result
+        })
 }
 
 /// Strategy for generating alphanumeric ASCII data
@@ -219,19 +233,15 @@ pub fn level_88_strategy() -> impl Strategy<Value = Option<String>> {
         // Single value
         (
             field_name_strategy(),
-            "[A-Z0-9]{1,10}".prop_map(|s| s.to_string())
-        ).prop_map(|(name, value)| Some(format!(
-            "88 {} VALUE '{}'.", name, value
-        ))),
+            "[A-Z0-9]{1,10}".prop_map(|s| s.clone())
+        )
+            .prop_map(|(name, value)| Some(format!("88 {name} VALUE '{value}'."))),
         // Multiple values
         (
             field_name_strategy(),
-            vec("[A-Z0-9]{1,10}", 2..=5).prop_map(|vals| {
-                vals.join(" ")
-            })
-        ).prop_map(|(name, values)| Some(format!(
-            "88 {} VALUE {}.", name, values
-        ))),
+            vec("[A-Z0-9]{1,10}", 2..=5).prop_map(|vals| { vals.join(" ") })
+        )
+            .prop_map(|(name, values)| Some(format!("88 {name} VALUE {values}."))),
     ]
 }
 
@@ -242,14 +252,15 @@ pub fn field_with_level_88_strategy() -> impl Strategy<Value = String> {
         field_name_strategy(),
         pic_clause_strategy(),
         level_88_strategy(),
-    ).prop_map(|(level, name, pic, level_88)| {
-        let mut result = format!("{:02} {} PIC {}.\n", level, name, pic);
-        if let Some(l88) = level_88 {
-            result.push_str(&l88);
-            result.push('\n');
-        }
-        result
-    })
+    )
+        .prop_map(|(level, name, pic, level_88)| {
+            let mut result = format!("{level:02} {name} PIC {pic}.\n");
+            if let Some(l88) = level_88 {
+                result.push_str(&l88);
+                result.push('\n');
+            }
+            result
+        })
 }
 
 /// Strategy for generating ODO (OCCURS DEPENDING ON) structures
@@ -260,14 +271,14 @@ pub fn odo_strategy() -> impl Strategy<Value = String> {
         field_name_strategy(),
         field_name_strategy(),
         pic_clause_strategy(),
-    ).prop_map(|(array_name, max_count, count_field, element_name, pic)| {
-        format!(
-            "05 {} PIC 9(3).\n\
-05 {} OCCURS 1 TO {} TIMES DEPENDING ON {}.\n\
-10 {} PIC {}.",
-            count_field, array_name, max_count, count_field, element_name, pic
-        )
-    })
+    )
+        .prop_map(|(array_name, max_count, count_field, element_name, pic)| {
+            format!(
+                "05 {count_field} PIC 9(3).\n\
+05 {array_name} OCCURS 1 TO {max_count} TIMES DEPENDING ON {count_field}.\n\
+10 {element_name} PIC {pic}."
+            )
+        })
 }
 
 /// Strategy for generating REDEFINES configurations
@@ -277,13 +288,13 @@ pub fn redefines_config_strategy() -> impl Strategy<Value = String> {
         pic_clause_strategy(),
         field_name_strategy(),
         pic_clause_strategy(),
-    ).prop_map(|(base_name, base_pic, redef_name, redef_pic)| {
-        format!(
-            "05 {} PIC {}.\n\
-05 {} PIC {} REDEFINES {}.",
-            base_name, base_pic, redef_name, redef_pic, base_name
-        )
-    })
+    )
+        .prop_map(|(base_name, base_pic, redef_name, redef_pic)| {
+            format!(
+                "05 {base_name} PIC {base_pic}.\n\
+05 {redef_name} PIC {redef_pic} REDEFINES {base_name}."
+            )
+        })
 }
 
 /// Strategy for generating copybook with Level-88 conditions
@@ -302,14 +313,15 @@ pub fn copybook_with_odo_strategy() -> impl Strategy<Value = String> {
     (
         simple_copybook_strategy(),
         prop::collection::vec(odo_strategy(), 1..=3),
-    ).prop_map(|(base, odo_fields)| {
-        let mut copybook = base;
-        for odo in odo_fields {
-            copybook.push_str("\n");
-            copybook.push_str(&odo);
-        }
-        copybook
-    })
+    )
+        .prop_map(|(base, odo_fields)| {
+            let mut copybook = base;
+            for odo in odo_fields {
+                copybook.push('\n');
+                copybook.push_str(&odo);
+            }
+            copybook
+        })
 }
 
 /// Strategy for generating copybook with REDEFINES
@@ -317,14 +329,15 @@ pub fn copybook_with_redefines_strategy() -> impl Strategy<Value = String> {
     (
         simple_copybook_strategy(),
         prop::collection::vec(redefines_config_strategy(), 1..=3),
-    ).prop_map(|(base, redefines)| {
-        let mut copybook = base;
-        for redef in redefines {
-            copybook.push_str("\n");
-            copybook.push_str(&redef);
-        }
-        copybook
-    })
+    )
+        .prop_map(|(base, redefines)| {
+            let mut copybook = base;
+            for redef in redefines {
+                copybook.push('\n');
+                copybook.push_str(&redef);
+            }
+            copybook
+        })
 }
 
 #[cfg(test)]
@@ -335,52 +348,62 @@ mod tests {
     #[test]
     fn test_pic_clause_generation() {
         let mut runner = TestRunner::default();
-        runner.run(&pic_clause_strategy(), |pic| {
-            assert!(!pic.is_empty());
-            Ok(())
-        }).unwrap();
+        runner
+            .run(&pic_clause_strategy(), |pic| {
+                assert!(!pic.is_empty());
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]
     fn test_field_name_generation() {
         let mut runner = TestRunner::default();
-        runner.run(&field_name_strategy(), |name| {
-            assert!(name.chars().next().unwrap().is_ascii_uppercase());
-            assert!(name.len() <= 30);
-            Ok(())
-        }).unwrap();
+        runner
+            .run(&field_name_strategy(), |name| {
+                assert!(name.chars().next().unwrap().is_ascii_uppercase());
+                assert!(name.len() <= 30);
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]
     fn test_simple_copybook_generation() {
         let mut runner = TestRunner::default();
-        runner.run(&simple_copybook_strategy(), |copybook| {
-            assert!(copybook.contains("01 RECORD."));
-            Ok(())
-        }).unwrap();
+        runner
+            .run(&simple_copybook_strategy(), |copybook| {
+                assert!(copybook.contains("01 RECORD."));
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]
     fn test_ascii_zoned_generation() {
         let mut runner = TestRunner::default();
-        runner.run(&ascii_zoned_strategy(5), |data| {
-            assert_eq!(data.len(), 5);
-            for byte in data {
-                assert!(byte.is_ascii_digit());
-            }
-            Ok(())
-        }).unwrap();
+        runner
+            .run(&ascii_zoned_strategy(5), |data| {
+                assert_eq!(data.len(), 5);
+                for byte in data {
+                    assert!(byte.is_ascii_digit());
+                }
+                Ok(())
+            })
+            .unwrap();
     }
 
     #[test]
     fn test_ebcdic_zoned_generation() {
         let mut runner = TestRunner::default();
-        runner.run(&ebcdic_zoned_strategy(5), |data| {
-            assert_eq!(data.len(), 5);
-            for byte in data {
-                assert!(byte >= 0xF0 && byte <= 0xF9);
-            }
-            Ok(())
-        }).unwrap();
+        runner
+            .run(&ebcdic_zoned_strategy(5), |data| {
+                assert_eq!(data.len(), 5);
+                for byte in data {
+                    assert!(byte >= 0xF0 && byte <= 0xF9);
+                }
+                Ok(())
+            })
+            .unwrap();
     }
 }

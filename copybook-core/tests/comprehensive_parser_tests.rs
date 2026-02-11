@@ -88,7 +88,11 @@ fn test_edited_pic_error_normative() {
         ("01 FIELD9 PIC ***9.99.", false, "* for asterisk fill"),
         ("01 FIELD10 PIC BBB9.99.", false, "B for blank insertion"),
         ("01 FIELD11 PIC 999.99-.", false, "Trailing sign"),
-        ("01 FIELD12 PIC +999.99+.", true, "Leading and trailing sign"),
+        (
+            "01 FIELD12 PIC +999.99+.",
+            true,
+            "Leading and trailing sign",
+        ),
     ];
 
     for (edited_pic, should_parse, description) in edited_pics {

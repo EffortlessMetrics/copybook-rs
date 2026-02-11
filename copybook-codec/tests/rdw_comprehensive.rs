@@ -175,6 +175,8 @@ fn test_rdw_raw_preservation_with_reserved() {
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
+        json_number_mode: JsonNumberMode::Lossless,
+        on_encode_unmappable: copybook_codec::UnmappablePolicy::Error,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
         use_raw: true, // Use raw data
         bwz_encode: false,

@@ -23,11 +23,11 @@
 
 use copybook_codec::{DecodeOptions, decode_file_to_jsonl, decode_record};
 use copybook_core::{
+    audit::context::SecurityClassification,
     audit::{
         AuditContext, AuditLogger, AuditLoggerConfig, ComplianceEngine, ComplianceProfile,
         SecurityAuditor, SecurityMonitor,
     },
-    audit::context::SecurityClassification,
     parse_copybook,
 };
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
@@ -132,12 +132,8 @@ fn bench_baseline(c: &mut Criterion) {
         b.iter(|| {
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
@@ -165,12 +161,8 @@ fn bench_audit_enabled(c: &mut Criterion) {
             let _context = audit_context.create_lightweight_child_context("benchmark_iteration");
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
@@ -186,8 +178,8 @@ fn bench_compliance_enabled(c: &mut Criterion) {
 
     // Create compliance engine with SOX profile
     let compliance_config = copybook_core::audit::compliance::ComplianceConfig::default();
-    let compliance_engine = ComplianceEngine::new(compliance_config)
-        .with_profiles(&[ComplianceProfile::SOX]);
+    let compliance_engine =
+        ComplianceEngine::new(compliance_config).with_profiles(&[ComplianceProfile::SOX]);
 
     let mut group = c.benchmark_group("enterprise_compliance");
 
@@ -207,12 +199,8 @@ fn bench_compliance_enabled(c: &mut Criterion) {
 
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
@@ -244,12 +232,8 @@ fn bench_security_enabled(c: &mut Criterion) {
 
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
@@ -265,8 +249,8 @@ fn bench_enterprise_combined(c: &mut Criterion) {
 
     // Create all enterprise components
     let compliance_config = copybook_core::audit::compliance::ComplianceConfig::default();
-    let compliance_engine = ComplianceEngine::new(compliance_config)
-        .with_profiles(&[ComplianceProfile::SOX]);
+    let compliance_engine =
+        ComplianceEngine::new(compliance_config).with_profiles(&[ComplianceProfile::SOX]);
     let security_monitor = SecurityMonitor::new();
     let security_auditor = SecurityAuditor::new();
 
@@ -289,12 +273,8 @@ fn bench_enterprise_combined(c: &mut Criterion) {
 
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
@@ -317,12 +297,8 @@ fn bench_enterprise_slo_validation(c: &mut Criterion) {
         b.iter(|| {
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
@@ -338,20 +314,16 @@ fn bench_enterprise_slo_validation(c: &mut Criterion) {
             let _context = audit_context.create_lightweight_child_context("slo_iteration");
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
 
     // Compliance SLO: Target < 3% overhead
     let compliance_config = copybook_core::audit::compliance::ComplianceConfig::default();
-    let compliance_engine = ComplianceEngine::new(compliance_config)
-        .with_profiles(&[ComplianceProfile::SOX]);
+    let compliance_engine =
+        ComplianceEngine::new(compliance_config).with_profiles(&[ComplianceProfile::SOX]);
 
     group.throughput(Throughput::Bytes(test_data.len() as u64));
     group.bench_function("compliance_slo", |b| {
@@ -367,12 +339,8 @@ fn bench_enterprise_slo_validation(c: &mut Criterion) {
 
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
@@ -391,20 +359,16 @@ fn bench_enterprise_slo_validation(c: &mut Criterion) {
 
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });
 
     // Combined SLO: Target < 5% total overhead
     let compliance_config = copybook_core::audit::compliance::ComplianceConfig::default();
-    let compliance_engine = ComplianceEngine::new(compliance_config)
-        .with_profiles(&[ComplianceProfile::SOX]);
+    let compliance_engine =
+        ComplianceEngine::new(compliance_config).with_profiles(&[ComplianceProfile::SOX]);
     let security_auditor = SecurityAuditor::new();
 
     group.throughput(Throughput::Bytes(test_data.len() as u64));
@@ -422,12 +386,8 @@ fn bench_enterprise_slo_validation(c: &mut Criterion) {
 
             let input = Cursor::new(black_box(&test_data));
             let mut output = Vec::new();
-            let result = decode_file_to_jsonl(
-                black_box(&schema),
-                input,
-                &mut output,
-                black_box(&options),
-            );
+            let result =
+                decode_file_to_jsonl(black_box(&schema), input, &mut output, black_box(&options));
             let _ = black_box(result);
         });
     });

@@ -271,7 +271,12 @@ impl Schema {
         // Add field kind
         let kind_str = match &field.kind {
             FieldKind::Alphanum { len } => format!("Alphanum({len})"),
-            FieldKind::ZonedDecimal { digits, scale, signed, sign_separate } => {
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+                sign_separate,
+            } => {
                 format!("ZonedDecimal({digits},{scale},{signed},{sign_separate:?})")
             }
             FieldKind::BinaryInt { bits, signed } => {
@@ -622,11 +627,8 @@ mod tests {
         assert!(group_field.is_group());
         assert!(!group_field.is_scalar());
 
-        let scalar_field = Field::with_kind(
-            5,
-            "SCALAR".to_string(),
-            FieldKind::Alphanum { len: 10 },
-        );
+        let scalar_field =
+            Field::with_kind(5, "SCALAR".to_string(), FieldKind::Alphanum { len: 10 });
         assert!(!scalar_field.is_group());
         assert!(scalar_field.is_scalar());
     }
@@ -705,7 +707,10 @@ mod tests {
                 signed: true,
                 sign_separate: None,
             },
-            FieldKind::BinaryInt { bits: 32, signed: true },
+            FieldKind::BinaryInt {
+                bits: 32,
+                signed: true,
+            },
             FieldKind::PackedDecimal {
                 digits: 7,
                 scale: 2,
@@ -738,10 +743,7 @@ mod tests {
 
     #[test]
     fn test_sign_placement_serialization() {
-        let placements = vec![
-            SignPlacement::Leading,
-            SignPlacement::Trailing,
-        ];
+        let placements = vec![SignPlacement::Leading, SignPlacement::Trailing];
 
         for placement in placements {
             let serialized = serde_json::to_string(&placement).unwrap();
@@ -839,12 +841,9 @@ mod tests {
 
     #[test]
     fn test_schema_find_redefining_fields() {
-        let base_field = Field::new(5, "BASE".to_string());
-        let redef_field1 = Field::with_kind(
-            5,
-            "REDEF1".to_string(),
-            FieldKind::Alphanum { len: 5 },
-        );
+        let _base_field = Field::new(5, "BASE".to_string());
+        let redef_field1 =
+            Field::with_kind(5, "REDEF1".to_string(), FieldKind::Alphanum { len: 5 });
         let redef_field2 = Field::with_kind(
             5,
             "REDEF2".to_string(),

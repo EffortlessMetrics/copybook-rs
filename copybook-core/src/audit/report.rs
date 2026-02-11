@@ -93,8 +93,7 @@ impl ReportGenerator {
         // Determine operation_id (use first event's correlation_id or generate new one)
         let operation_id = events
             .first()
-            .map(|e| e.correlation_id().to_string())
-            .unwrap_or_else(super::generate_audit_id);
+            .map_or_else(super::generate_audit_id, |e| e.correlation_id().to_string());
 
         Ok(AuditReport {
             report_id: super::generate_audit_id(),
@@ -163,7 +162,11 @@ impl ReportGenerator {
     }
 
     /// Format an audit report in the specified output format
-    pub fn format_report(&self, report: &AuditReport, format: ReportFormat) -> AuditResult<String> {
+    pub fn format_report(
+        &self,
+        report: &AuditReport,
+        format: &ReportFormat,
+    ) -> AuditResult<String> {
         match format {
             ReportFormat::Json => serde_json::to_string_pretty(report).map_err(|e| e.into()),
             ReportFormat::Csv => self.format_as_csv(report),
@@ -470,7 +473,7 @@ mod tests {
         };
 
         let json_output = generator
-            .format_report(&report, ReportFormat::Json)
+            .format_report(&report, &ReportFormat::Json)
             .expect("Should format as JSON");
 
         assert!(json_output.contains("test-report-001"));
@@ -495,7 +498,7 @@ mod tests {
         };
 
         let csv_output = generator
-            .format_report(&report, ReportFormat::Csv)
+            .format_report(&report, &ReportFormat::Csv)
             .expect("Should format as CSV");
 
         assert!(csv_output.contains("Field,Value"));
@@ -521,7 +524,7 @@ mod tests {
         };
 
         let xml_output = generator
-            .format_report(&report, ReportFormat::Xml)
+            .format_report(&report, &ReportFormat::Xml)
             .expect("Should format as XML");
 
         assert!(xml_output.contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
@@ -548,10 +551,10 @@ mod tests {
             },
         };
 
-        let result = generator.format_report(&report, ReportFormat::Pdf);
+        let result = generator.format_report(&report, &ReportFormat::Pdf);
         assert!(result.is_err());
 
-        let result = generator.format_report(&report, ReportFormat::Html);
+        let result = generator.format_report(&report, &ReportFormat::Html);
         assert!(result.is_err());
     }
 

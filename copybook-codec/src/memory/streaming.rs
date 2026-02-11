@@ -27,7 +27,7 @@
 /// - Reorder buffers (parallel processing)
 /// - Scratch buffers (codec working memory)
 ///
-/// **Pressure threshold**: 80% of max_memory_bytes
+/// **Pressure threshold**: 80% of `max_memory_bytes`
 ///
 /// # Examples
 ///

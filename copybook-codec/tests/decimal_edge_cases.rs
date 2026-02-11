@@ -65,6 +65,8 @@ fn test_packed_zero_handling() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        on_encode_unmappable: copybook_codec::UnmappablePolicy::Error,
+        json_number_mode: JsonNumberMode::Lossless,
         zoned_encoding_override: None,
     };
 
@@ -141,6 +143,8 @@ fn test_packed_max_digits_and_overflow() {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        on_encode_unmappable: copybook_codec::UnmappablePolicy::Error,
+        json_number_mode: JsonNumberMode::Lossless,
         zoned_encoding_override: None,
     };
 

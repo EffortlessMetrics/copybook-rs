@@ -1,3 +1,10 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::items_after_statements
+)]
 // SequenceRing usage example
 // Demonstrates ordered emission for parallel processing
 
@@ -24,7 +31,7 @@ fn main() {
     let mut count = 0;
     while let Some(record) = ring.recv_ordered().unwrap() {
         count += 1;
-        println!("  Sequence {}: {}", count, record);
+        println!("  Sequence {count}: {record}");
     }
 
     // Example 2: Multi-threaded processing
@@ -41,7 +48,7 @@ fn main() {
         for i in (2..=10).step_by(2) {
             // Simulate variable processing time
             thread::sleep(Duration::from_millis((10 - i) * 10));
-            s1.send(SequencedRecord::new(i, format!("Worker1: Record {}", i)))
+            s1.send(SequencedRecord::new(i, format!("Worker1: Record {i}")))
                 .unwrap();
         }
     });
@@ -53,7 +60,7 @@ fn main() {
         for i in (1..=9).step_by(2) {
             // Simulate variable processing time
             thread::sleep(Duration::from_millis(i * 10));
-            s2.send(SequencedRecord::new(i, format!("Worker2: Record {}", i)))
+            s2.send(SequencedRecord::new(i, format!("Worker2: Record {i}")))
                 .unwrap();
         }
     });
@@ -67,7 +74,7 @@ fn main() {
     let mut count = 0;
     while let Some(record) = ring2.recv_ordered().unwrap() {
         count += 1;
-        println!("  Sequence {}: {}", count, record);
+        println!("  Sequence {count}: {record}");
     }
 
     // Wait for workers to complete

@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property testing module for copybook-rs
 //!
 //! This module contains property-based tests using the `proptest` framework.

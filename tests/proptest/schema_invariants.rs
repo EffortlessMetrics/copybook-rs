@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property tests for schema invariants
 //!
 //! These tests verify that schema structures maintain important invariants

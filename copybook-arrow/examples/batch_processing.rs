@@ -1,3 +1,17 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::items_after_statements,
+    clippy::uninlined_format_args,
+    clippy::cast_lossless,
+    clippy::no_effect_underscore_binding,
+    clippy::ignored_unit_patterns,
+    clippy::needless_raw_string_hashes,
+    clippy::needless_continue,
+    clippy::doc_markdown
+)]
 //! Example: Batch processing of copybook data to Arrow/Parquet
 //!
 //! This example demonstrates:
@@ -5,7 +19,7 @@
 //! - Efficient memory usage with batched operations
 //! - Writing large datasets to Parquet
 
-use copybook_arrow::{json_to_record_batch, json_to_schema, ArrowWriter, ParquetFileWriter};
+use copybook_arrow::{ArrowWriter, ParquetFileWriter, json_to_record_batch, json_to_schema};
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy};
 use copybook_core::parse_copybook;
 use parquet::file::properties::WriterProperties;
@@ -65,7 +79,13 @@ fn main() {
     for i in 0..total_records {
         let record_num = format!("{:020}", i);
         let item_name = format!("Item {:010}", i);
-        let category = if i % 3 == 0 { "ELECTRONICS" } else if i % 3 == 1 { "CLOTHING" } else { "FOOD" };
+        let category = if i % 3 == 0 {
+            "ELECTRONICS"
+        } else if i % 3 == 1 {
+            "CLOTHING"
+        } else {
+            "FOOD"
+        };
         let quantity = (i % 1000) + 1;
         let reorder = 10;
         let _cost = (i as f64 * 0.01) + 1.0;
@@ -102,7 +122,11 @@ fn main() {
     }
 
     let generation_time = start.elapsed();
-    println!("Generated {} records in {:?}", json_records.len(), generation_time);
+    println!(
+        "Generated {} records in {:?}",
+        json_records.len(),
+        generation_time
+    );
 
     if json_records.is_empty() {
         eprintln!("No records generated successfully");
@@ -152,10 +176,10 @@ fn main() {
     // Write to Parquet file
     println!("\nWriting to Parquet file...");
 
-    let writer_properties = WriterProperties::builder()
-        .build();
+    let writer_properties = WriterProperties::builder().build();
 
-    let parquet_writer = ParquetFileWriter::new(arrow_schema).with_writer_properties(writer_properties);
+    let parquet_writer =
+        ParquetFileWriter::new(arrow_schema).with_writer_properties(writer_properties);
 
     let start = Instant::now();
     let output_path = "inventory.parquet";
@@ -163,8 +187,12 @@ fn main() {
     match parquet_writer.write_to_file(output_path, arrow_writer.batches()) {
         Ok(_) => {
             let write_time = start.elapsed();
-            println!("Successfully wrote {} batches to {} in {:?}",
-                     arrow_writer.batch_count(), output_path, write_time);
+            println!(
+                "Successfully wrote {} batches to {} in {:?}",
+                arrow_writer.batch_count(),
+                output_path,
+                write_time
+            );
         }
         Err(error) => {
             eprintln!("Failed to write Parquet file: {error}");

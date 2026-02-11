@@ -1,3 +1,10 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::items_after_statements
+)]
 //! Demonstration of the configuration and options API
 //!
 //! This example shows how to use the `DecodeOptions`, `EncodeOptions`, and `RunSummary`

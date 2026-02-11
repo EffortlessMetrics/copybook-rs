@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property tests for copybook parsing invariants
 //!
 //! These tests verify that parsed copybooks maintain structural invariants
@@ -10,12 +11,12 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_core::{parse_copybook, parse_copybook_with_options, Field, FieldKind, ParseOptions};
+use copybook_core::{Field, FieldKind, ParseOptions, parse_copybook, parse_copybook_with_options};
 use proptest::prelude::*;
 
-use super::{schema_max_end, schema_record_length};
-use super::generators::*;
 use super::config::*;
+use super::generators::*;
+use super::{schema_max_end, schema_record_length};
 
 /// Property: Parsed copybook has valid field hierarchy
 proptest! {

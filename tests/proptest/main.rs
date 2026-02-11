@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property-based tests for copybook-rs
 //!
 //! This is the entry point for all property tests. Property tests verify
@@ -7,14 +8,14 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
+mod arrays;
 mod config;
 mod generators;
-mod roundtrip;
-mod parsing;
 mod numeric;
-mod arrays;
+mod parsing;
 mod pic_clauses;
 mod redefines;
+mod roundtrip;
 
 use copybook_core::Schema;
 

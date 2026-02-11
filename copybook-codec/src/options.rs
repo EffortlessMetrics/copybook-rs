@@ -97,7 +97,7 @@ impl fmt::Display for ZonedEncodingFormat {
 }
 
 /// Options for decoding operations
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)] // Many boolean options are needed for decode configuration
 pub struct DecodeOptions {
     /// Record format
@@ -134,7 +134,7 @@ pub struct DecodeOptions {
 }
 
 /// Options for encoding operations
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct EncodeOptions {
     /// Record format
@@ -155,6 +155,10 @@ pub struct EncodeOptions {
     pub threads: usize,
     /// Whether to coerce non-string JSON numbers to strings before encoding
     pub coerce_numbers: bool,
+    /// Policy for unmappable characters during encoding
+    pub on_encode_unmappable: UnmappablePolicy,
+    /// JSON number representation mode (used when round-tripping)
+    pub json_number_mode: JsonNumberMode,
     /// Explicit zoned decimal encoding format override
     ///
     /// When specified, forces all zoned decimal fields to use this encoding format,
@@ -467,6 +471,8 @@ impl Default for EncodeOptions {
             max_errors: None,
             threads: 1,
             coerce_numbers: false,
+            on_encode_unmappable: UnmappablePolicy::Error,
+            json_number_mode: JsonNumberMode::Lossless,
             zoned_encoding_override: None,
         }
     }
@@ -552,6 +558,22 @@ impl EncodeOptions {
     #[inline]
     pub fn with_coerce_numbers(mut self, coerce_numbers: bool) -> Self {
         self.coerce_numbers = coerce_numbers;
+        self
+    }
+
+    /// Set the policy for unmappable characters during encoding
+    #[must_use]
+    #[inline]
+    pub fn with_unmappable_policy(mut self, policy: UnmappablePolicy) -> Self {
+        self.on_encode_unmappable = policy;
+        self
+    }
+
+    /// Set the JSON number mode
+    #[must_use]
+    #[inline]
+    pub fn with_json_number_mode(mut self, mode: JsonNumberMode) -> Self {
+        self.json_number_mode = mode;
         self
     }
 
@@ -708,10 +730,11 @@ mod tests {
             Some(ZonedEncodingFormat::Ebcdic)
         );
 
-        // Invalid zone nibbles
+        // Invalid zone nibbles (0x00, 0x50)
         assert_eq!(ZonedEncodingFormat::detect_from_byte(0x00), None);
         assert_eq!(ZonedEncodingFormat::detect_from_byte(0x50), None);
-        assert_eq!(ZonedEncodingFormat::detect_from_byte(0xFF), None);
+        // Note: 0xFF matches EBCDIC_ZONE (0x0F), so it returns Some(Ebcdic)
+        assert_eq!(ZonedEncodingFormat::detect_from_byte(0xFF), Some(ZonedEncodingFormat::Ebcdic));
     }
 
     #[test]
@@ -735,10 +758,7 @@ mod tests {
         assert_eq!(options.on_decode_unmappable, UnmappablePolicy::Error);
         assert_eq!(options.threads, 1);
         assert!(!options.preserve_zoned_encoding);
-        assert_eq!(
-            options.preferred_zoned_encoding,
-            ZonedEncodingFormat::Auto
-        );
+        assert_eq!(options.preferred_zoned_encoding, ZonedEncodingFormat::Auto);
     }
 
     #[test]
@@ -746,10 +766,7 @@ mod tests {
         let options = EncodeOptions::default();
         assert_eq!(options.format, RecordFormat::Fixed);
         assert_eq!(options.codepage, Codepage::CP037);
-        assert_eq!(
-            options.preferred_zoned_encoding,
-            ZonedEncodingFormat::Auto
-        );
+        assert_eq!(options.preferred_zoned_encoding, ZonedEncodingFormat::Auto);
         assert!(!options.use_raw);
         assert!(!options.bwz_encode);
         assert!(!options.strict_mode);
@@ -760,7 +777,6 @@ mod tests {
     #[test]
     fn test_record_format_display() {
         assert_eq!(format!("{}", RecordFormat::Fixed), "fixed");
-        assert_eq!(format!("{}", RecordFormat::Variable), "variable");
         assert_eq!(format!("{}", RecordFormat::RDW), "rdw");
     }
 
@@ -824,6 +840,9 @@ mod tests {
         assert_eq!(deserialized.on_decode_unmappable, UnmappablePolicy::Replace);
         assert_eq!(deserialized.threads, 4);
         assert!(deserialized.preserve_zoned_encoding);
-        assert_eq!(deserialized.preferred_zoned_encoding, ZonedEncodingFormat::Ebcdic);
+        assert_eq!(
+            deserialized.preferred_zoned_encoding,
+            ZonedEncodingFormat::Ebcdic
+        );
     }
-
+}

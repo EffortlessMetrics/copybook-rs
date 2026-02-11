@@ -1230,64 +1230,61 @@ pub fn decode_zoned_decimal_sign_separate(
     };
 
     // Decode sign byte
+
     let is_negative = if codepage.is_ascii() {
         match sign_byte {
-            b'+' => false,
             b'-' => true,
-            b' ' | b'0' => false, // Space or zero means positive/unsigned
+
+            b'+' | b' ' | b'0' => false, // Space or zero means positive/unsigned
+
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!(
-                        "Invalid sign byte in SIGN SEPARATE field: 0x{:02X} (ASCII)",
-                        sign_byte
-                    ),
+                    format!("Invalid sign byte in SIGN SEPARATE field: 0x{sign_byte:02X} (ASCII)"),
                 ));
             }
         }
     } else {
         // EBCDIC codepage (CP037, CP273, CP500, CP1047, CP1140)
+
         match sign_byte {
-            0x4E => false, // EBCDIC '+'
-            0x60 => true,  // EBCDIC '-'
-            0x40 | 0xF0 => false, // Space or zero means positive/unsigned
+            0x60 => true, // EBCDIC '-'
+
+            0x4E | 0x40 | 0xF0 => false, // Space or zero means positive/unsigned
+
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKD411_ZONED_BAD_SIGN,
-                    format!(
-                        "Invalid sign byte in SIGN SEPARATE field: 0x{:02X} (EBCDIC)",
-                        sign_byte
-                    ),
+                    format!("Invalid sign byte in SIGN SEPARATE field: 0x{sign_byte:02X} (EBCDIC)"),
                 ));
             }
         }
     };
 
     // Decode digit bytes
+
     let mut value: i64 = 0;
+
     for &byte in digit_bytes {
         let digit = if codepage.is_ascii() {
-            if byte < b'0' || byte > b'9' {
+            if !byte.is_ascii_digit() {
                 return Err(Error::new(
                     ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                    format!(
-                        "Invalid digit byte in SIGN SEPARATE field: 0x{:02X} (ASCII)",
-                        byte
-                    ),
+                    format!("Invalid digit byte in SIGN SEPARATE field: 0x{byte:02X} (ASCII)"),
                 ));
             }
+
             byte - b'0'
         } else {
             // EBCDIC digits are 0xF0-0xF9
-            if byte < 0xF0 || byte > 0xF9 {
+
+            if !(0xF0..=0xF9).contains(&byte) {
                 return Err(Error::new(
                     ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                    format!(
-                        "Invalid digit byte in SIGN SEPARATE field: 0x{:02X} (EBCDIC)",
-                        byte
-                    ),
+                    format!("Invalid digit byte in SIGN SEPARATE field: 0x{byte:02X} (EBCDIC)"),
                 ));
             }
+
             byte - 0xF0
         };
 
@@ -3107,7 +3104,7 @@ fn zoned_process_non_final_digits(
 /// * `codepage` - Target codepage for overpunch interpretation
 ///
 /// # Returns
-/// Tuple of (digit, is_negative) extracted from the overpunch byte
+/// Tuple of (digit, `is_negative`) extracted from the overpunch byte
 ///
 /// # Errors
 /// * `CBKD411_ZONED_BAD_SIGN` - Invalid overpunch encoding
@@ -3416,7 +3413,7 @@ fn packed_push_digit(value: &mut i64, digit: u8) -> Result<()> {
 /// * `has_padding` - Whether the first nibble is padding (odd total nibbles)
 ///
 /// # Returns
-/// Tuple of (accumulated_value, digit_count)
+/// Tuple of (`accumulated_value`, `digit_count`)
 ///
 /// # Errors
 /// * `CBKD401_COMP3_INVALID_NIBBLE` - Invalid digit or padding nibble
@@ -3480,7 +3477,7 @@ fn packed_process_non_last_bytes(
 /// Process the last byte of a packed decimal field
 ///
 /// Extracts the final digit (if needed) and sign nibble from the last byte.
-/// Creates the final normalized SmallDecimal value.
+/// Creates the final normalized `SmallDecimal` value.
 ///
 /// # Arguments
 /// * `value` - Accumulated value from previous bytes
@@ -3498,8 +3495,8 @@ fn packed_process_non_last_bytes(
 ///
 /// # Format
 /// Last byte always ends with sign nibble:
-/// - If digit_count < digits: `[digit][sign]`
-/// - If digit_count == digits: `[unused][sign]` (high nibble ignored)
+/// - If `digit_count` < digits: `[digit][sign]`
+/// - If `digit_count` == digits: `[unused][sign]` (high nibble ignored)
 #[inline]
 fn packed_finish_last_byte(
     mut value: i64,
@@ -3567,7 +3564,7 @@ fn packed_finish_last_byte(
 /// 1. Calculate if padding nibble is present (odd total nibbles)
 /// 2. Process all non-final bytes to extract digits
 /// 3. Process final byte to extract last digit and sign
-/// 4. Construct normalized SmallDecimal
+/// 4. Construct normalized `SmallDecimal`
 #[inline]
 fn packed_decode_multi_byte(
     data: &[u8],

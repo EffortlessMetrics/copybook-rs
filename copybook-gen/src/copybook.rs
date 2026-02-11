@@ -531,7 +531,10 @@ mod tests {
         let config = GeneratorConfig::default();
         let invalid_cases = generate_invalid_copybook(&config);
 
-        let names: HashSet<&str> = invalid_cases.iter().map(|(name, _)| name.as_str()).collect();
+        let names: HashSet<&str> = invalid_cases
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect();
         let expected = [
             "invalid_level",
             "invalid_pic",

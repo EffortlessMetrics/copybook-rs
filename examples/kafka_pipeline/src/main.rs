@@ -25,7 +25,7 @@
 //! cargo run --example kafka_pipeline
 //! ```
 
-use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy, ZonedEncodingFormat};
+use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy};
 use copybook_core::parse_copybook;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{BaseRecord, Producer, ThreadedProducer};
@@ -51,9 +51,6 @@ enum PipelineError {
 
     #[error("Data read error: {0}")]
     DataRead(String),
-
-    #[error("Decode error: {0}")]
-    Decode(String),
 
     #[error("Kafka error: {0}")]
     Kafka(String),
@@ -95,7 +92,7 @@ impl KafkaPipeline {
                 .set("delivery.timeout.ms", "10000")
                 .set("acks", "1")
                 .create()
-                .map_err(|e| PipelineError::Kafka(format!("Failed to create producer: {}", e)))?;
+                .map_err(|e| PipelineError::Kafka(format!("Failed to create producer: {e}")))?;
 
         info!("Kafka producer created for brokers: {}", config.brokers);
 
@@ -114,21 +111,19 @@ impl KafkaPipeline {
                 .payload(payload);
 
             match self.producer.send(record) {
-                Ok(_) => {
+                Ok(()) => {
                     info!("Message sent successfully to topic: {}", self.config.topic);
                     return Ok(());
                 }
                 Err((e, _)) => {
                     if attempt >= MAX_RETRIES {
                         return Err(PipelineError::Kafka(format!(
-                            "Failed to send message after {} attempts: {}",
-                            MAX_RETRIES, e
+                            "Failed to send message after {MAX_RETRIES} attempts: {e}"
                         )));
                     }
 
                     warn!(
-                        "Failed to send message (attempt {}/{}): {}, retrying in {}ms...",
-                        attempt, MAX_RETRIES, e, RETRY_DELAY_MS
+                        "Failed to send message (attempt {attempt}/{MAX_RETRIES}): {e}, retrying in {RETRY_DELAY_MS}ms..."
                     );
 
                     std::thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
@@ -155,15 +150,18 @@ async fn process_copybook_to_kafka(
     // Read copybook
     info!("Reading copybook from: {}", copybook_path.display());
     let copybook_content = fs::read_to_string(copybook_path)
-        .map_err(|e| PipelineError::DataRead(format!("Failed to read copybook: {}", e)))?;
+        .map_err(|e| PipelineError::DataRead(format!("Failed to read copybook: {e}")))?;
 
     // Parse copybook
     info!("Parsing copybook schema...");
     let schema = parse_copybook(&copybook_content)
-        .map_err(|e| PipelineError::CopybookParse(format!("Failed to parse copybook: {}", e)))?;
+        .map_err(|e| PipelineError::CopybookParse(format!("Failed to parse copybook: {e}")))?;
 
-    info!("Schema loaded: {} fields, LRECL: {:?}",
-          schema.fields.len(), schema.lrecl_fixed);
+    info!(
+        "Schema loaded: {} fields, LRECL: {:?}",
+        schema.fields.len(),
+        schema.lrecl_fixed
+    );
 
     // Configure decode options
     let options = DecodeOptions {
@@ -184,12 +182,16 @@ async fn process_copybook_to_kafka(
     // Read binary data
     info!("Reading binary data from: {}", data_path.display());
     let data = fs::read(data_path)
-        .map_err(|e| PipelineError::DataRead(format!("Failed to read data file: {}", e)))?;
+        .map_err(|e| PipelineError::DataRead(format!("Failed to read data file: {e}")))?;
 
+    #[allow(clippy::cast_possible_truncation)]
     let record_length = schema.lrecl_fixed.unwrap_or(data.len() as u32) as usize;
     let total_records = data.len() / record_length;
 
-    info!("Processing {} records ({} bytes each)...", total_records, record_length);
+    info!(
+        "Processing {} records ({} bytes each)...",
+        total_records, record_length
+    );
 
     let mut processed = 0;
     let mut errors = 0;
@@ -207,30 +209,35 @@ async fn process_copybook_to_kafka(
                 match serde_json::to_vec(&json_value) {
                     Ok(json_bytes) => {
                         // Send to Kafka
-                        let key = format!("record-{}", i);
+                        let key = format!("record-{i}");
                         match pipeline.send_message(Some(key.as_bytes()), &json_bytes) {
-                            Ok(_) => processed += 1,
+                            Ok(()) => processed += 1,
                             Err(e) => {
-                                error!("Failed to send record {}: {}", i, e);
+                                error!("Failed to send record {i}: {e}");
                                 errors += 1;
                             }
                         }
                     }
                     Err(e) => {
-                        error!("Failed to serialize record {}: {}", i, e);
+                        error!("Failed to serialize record {i}: {e}");
                         errors += 1;
                     }
                 }
             }
             Err(e) => {
-                warn!("Failed to decode record {}: {}", i, e);
+                warn!("Failed to decode record {i}: {e}");
                 errors += 1;
             }
         }
 
         // Progress update every 100 records
         if (i + 1) % 100 == 0 {
-            info!("Processed {}/{} records ({} errors)", i + 1, total_records, errors);
+            info!(
+                "Processed {}/{} records ({} errors)",
+                i + 1,
+                total_records,
+                errors
+            );
         }
 
         // Small delay to avoid overwhelming Kafka
@@ -239,7 +246,10 @@ async fn process_copybook_to_kafka(
         }
     }
 
-    info!("Processing complete: {} records processed, {} errors", processed, errors);
+    info!(
+        "Processing complete: {} records processed, {} errors",
+        processed, errors
+    );
 
     Ok(processed)
 }
@@ -256,11 +266,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load configuration
     let kafka_config = KafkaConfig::from_env();
-    info!("Kafka configuration: brokers={}, topic={}", kafka_config.brokers, kafka_config.topic);
+    info!(
+        "Kafka configuration: brokers={}, topic={}",
+        kafka_config.brokers, kafka_config.topic
+    );
 
     // Get file paths from environment or use defaults
-    let copybook_path_str = env::var("COPYBOOK_PATH").unwrap_or_else(|_| "test-data/simple.cpy".to_string());
-    let data_path_str = env::var("DATA_PATH").unwrap_or_else(|_| "test-data/simple.bin".to_string());
+    let copybook_path_str =
+        env::var("COPYBOOK_PATH").unwrap_or_else(|_| "test-data/simple.cpy".to_string());
+    let data_path_str =
+        env::var("DATA_PATH").unwrap_or_else(|_| "test-data/simple.bin".to_string());
     let copybook_path = Path::new(&copybook_path_str);
     let data_path = Path::new(&data_path_str);
 

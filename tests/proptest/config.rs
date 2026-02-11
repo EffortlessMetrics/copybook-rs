@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Configuration for property tests
 //!
 //! This module contains configuration constants for property testing.

@@ -7,9 +7,9 @@
 //
 // See docs/RENAMES_R4_R6.md for detailed specification.
 
-use copybook_core::{parse_copybook_with_options, ParseOptions};
 use copybook_core::dialect::Dialect;
 use copybook_core::error::ErrorCode;
+use copybook_core::{ParseOptions, parse_copybook_with_options};
 
 // Default dialect for tests
 const TEST_DIALECT: Dialect = Dialect::Normative;
@@ -46,7 +46,11 @@ fn test_r4_renames_over_redefines_rejected_when_flag_disabled() {
     assert!(result.is_err());
     let error = result.unwrap_err();
     assert_eq!(error.code, ErrorCode::CBKS609_RENAME_OVER_REDEFINES);
-    assert!(error.message.contains("RENAMES alias 'PAYMENT-INFO' spans REDEFINES field(s)"));
+    assert!(
+        error
+            .message
+            .contains("RENAMES alias 'PAYMENT-INFO' spans REDEFINES field(s)")
+    );
     assert!(error.message.contains("Enable RenamesR4R6 feature flag"));
 }
 
@@ -78,7 +82,11 @@ fn test_r4_renames_over_multiple_redefines_rejected() {
     assert!(result.is_err());
     let error = result.unwrap_err();
     assert_eq!(error.code, ErrorCode::CBKS609_RENAME_OVER_REDEFINES);
-    assert!(error.message.contains("RENAMES alias 'PAYMENT-INFO' spans REDEFINES field(s)"));
+    assert!(
+        error
+            .message
+            .contains("RENAMES alias 'PAYMENT-INFO' spans REDEFINES field(s)")
+    );
 }
 
 // ============================================================================
@@ -109,7 +117,11 @@ fn test_r5_renames_over_occurs_rejected_when_flag_disabled() {
     assert!(result.is_err());
     let error = result.unwrap_err();
     assert_eq!(error.code, ErrorCode::CBKS607_RENAME_CROSSES_OCCURS);
-    assert!(error.message.contains("RENAMES alias 'ORDER-ITEMS' crosses OCCURS boundary"));
+    assert!(
+        error
+            .message
+            .contains("RENAMES alias 'ORDER-ITEMS' crosses OCCURS boundary")
+    );
     assert!(error.message.contains("Enable RenamesR4R6 feature flag"));
 }
 
@@ -138,7 +150,11 @@ fn test_r5_renames_partial_occurs_rejected() {
     assert!(result.is_err());
     let error = result.unwrap_err();
     assert_eq!(error.code, ErrorCode::CBKS607_RENAME_CROSSES_OCCURS);
-    assert!(error.message.contains("RENAMES alias 'ORDER-ITEMS' crosses OCCURS boundary"));
+    assert!(
+        error
+            .message
+            .contains("RENAMES alias 'ORDER-ITEMS' crosses OCCURS boundary")
+    );
 }
 
 #[test]
@@ -167,7 +183,11 @@ fn test_r5_renames_odo_rejected() {
     assert!(result.is_err());
     let error = result.unwrap_err();
     assert_eq!(error.code, ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED);
-    assert!(error.message.contains("RENAMES alias 'ORDER-ITEMS' spans ODO array"));
+    assert!(
+        error
+            .message
+            .contains("RENAMES alias 'ORDER-ITEMS' spans ODO array")
+    );
     assert!(error.message.contains("This pattern is not supported"));
 }
 

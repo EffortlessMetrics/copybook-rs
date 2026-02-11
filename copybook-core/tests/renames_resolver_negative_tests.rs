@@ -181,7 +181,10 @@ fn renames_not_contiguous_gap() {
    66 ALIAS RENAMES FIELD-A THRU FIELD-C.
 ";
     let result = parse_copybook(cb);
-    assert!(result.is_err(), "REDEFINES in RENAMES span should be rejected");
+    assert!(
+        result.is_err(),
+        "REDEFINES in RENAMES span should be rejected"
+    );
     let err = result.unwrap_err();
     assert_eq!(err.code, ErrorCode::CBKS609_RENAME_OVER_REDEFINES);
 }

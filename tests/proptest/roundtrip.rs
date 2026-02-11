@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property tests for round-trip encoding/decoding
 //!
 //! These tests verify that encode(decode(data)) == data for various
@@ -7,15 +8,15 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_codec::numeric::encode_zoned_decimal;
+use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use proptest::prelude::*;
 use rand::{RngCore, SeedableRng};
 use serde_json::Value;
 
-use super::generators::*;
 use super::config::*;
+use super::generators::*;
 use super::schema_record_length;
 
 /// Property: ASCII zoned decimal round-trip preserves data

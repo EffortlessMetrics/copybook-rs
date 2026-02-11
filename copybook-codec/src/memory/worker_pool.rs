@@ -29,9 +29,9 @@ use super::{ScratchBuffers, SequenceRing, SequenceRingStats, SequencedRecord};
 ///
 /// # Performance Tuning
 ///
-/// - **num_workers**: Match CPU core count (or 2x for I/O-bound work)
-/// - **channel_capacity**: 2-4x worker count for good pipeline depth
-/// - **max_window_size**: channel_capacity / 2 to allow processing variance
+/// - **`num_workers`**: Match CPU core count (or 2x for I/O-bound work)
+/// - **`channel_capacity`**: 2-4x worker count for good pipeline depth
+/// - **`max_window_size`**: `channel_capacity` / 2 to allow processing variance
 ///
 /// # Examples
 ///

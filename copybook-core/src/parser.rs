@@ -1157,7 +1157,12 @@ impl Parser {
 
         // Validate that field is a numeric display field
         match &mut field.kind {
-            FieldKind::ZonedDecimal { digits, scale, signed, sign_separate: _ } => {
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+                sign_separate: _,
+            } => {
                 *signed = true;
                 // Add sign separate info to the field
                 let sign_separate_info = SignSeparateInfo { placement };
@@ -1452,7 +1457,12 @@ impl Parser {
     /// Convert numeric field to packed decimal
     fn convert_to_packed_field(&mut self, field: &mut Field) -> Result<()> {
         match &field.kind {
-            FieldKind::ZonedDecimal { digits, scale, signed, .. } => {
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+                ..
+            } => {
                 field.kind = FieldKind::PackedDecimal {
                     digits: *digits,
                     scale: *scale,

@@ -36,36 +36,40 @@ pub enum ArrowError {
 /// Result type for Arrow operations
 pub type Result<T> = std::result::Result<T, ArrowError>;
 
-/// Convert a JSON value to an Arrow DataType
-fn json_type_to_arrow(json_value: &Value) -> Result<DataType> {
+/// Convert a JSON value to an Arrow `DataType`
+fn json_type_to_arrow(json_value: &Value) -> DataType {
     match json_value {
-        Value::Null => Ok(DataType::Null),
-        Value::Bool(_) => Ok(DataType::Boolean),
+        Value::Null => DataType::Null,
+        Value::Bool(_) => DataType::Boolean,
         Value::Number(n) => {
             if n.is_i64() {
-                Ok(DataType::Int64)
+                DataType::Int64
             } else {
-                Ok(DataType::Float64)
+                DataType::Float64
             }
         }
-        Value::String(_) => Ok(DataType::Utf8),
-        Value::Array(_) => Ok(DataType::List(Arc::new(Field::new("item", DataType::Utf8, true)))),
-        Value::Object(_) => Ok(DataType::Struct(Fields::empty())),
+        Value::String(_) => DataType::Utf8,
+        Value::Array(_) => DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))),
+        Value::Object(_) => DataType::Struct(Fields::empty()),
     }
 }
 
-/// Convert a JSON object to an Arrow Schema
+/// Convert a JSON object to an Arrow `Schema`
+///
+/// # Errors
+/// Returns `ArrowError::JsonConversion` if the input is not a JSON object.
+#[inline]
 pub fn json_to_schema(json_value: &Value) -> Result<Schema> {
     if let Value::Object(map) = json_value {
-        let fields: Result<Vec<Field>> = map
+        let fields: Vec<Field> = map
             .iter()
             .map(|(key, value)| {
-                let data_type = json_type_to_arrow(value)?;
-                Ok(Field::new(key, data_type, true))
+                let data_type = json_type_to_arrow(value);
+                Field::new(key, data_type, true)
             })
             .collect();
 
-        Ok(Schema::new(fields?))
+        Ok(Schema::new(fields))
     } else {
         Err(ArrowError::JsonConversion(
             "Expected JSON object for schema".to_string(),
@@ -76,33 +80,29 @@ pub fn json_to_schema(json_value: &Value) -> Result<Schema> {
 /// Convert a JSON value to an Arrow Array
 fn json_value_to_array(_key: &str, json_value: &Value) -> Result<ArrayRef> {
     let array: ArrayRef = match json_value {
-        Value::Null => {
-            arrow::array::new_null_array(&DataType::Null, 1)
-        }
-        Value::Bool(b) => {
-            Arc::new(arrow::array::BooleanArray::from(vec![Some(*b)]))
-        }
+        Value::Null => arrow::array::new_null_array(&DataType::Null, 1),
+        Value::Bool(b) => Arc::new(arrow::array::BooleanArray::from(vec![Some(*b)])),
         Value::Number(n) => {
-            if n.is_i64() {
-                Arc::new(arrow::array::Int64Array::from(vec![Some(n.as_i64().unwrap())]))
+            if let Some(i) = n.as_i64() {
+                Arc::new(arrow::array::Int64Array::from(vec![Some(i)]))
+            } else if let Some(f) = n.as_f64() {
+                Arc::new(arrow::array::Float64Array::from(vec![Some(f)]))
             } else {
-                Arc::new(arrow::array::Float64Array::from(vec![Some(n.as_f64().unwrap())]))
+                arrow::array::new_null_array(&DataType::Float64, 1)
             }
         }
-        Value::String(s) => {
-            Arc::new(StringArray::from(vec![Some(s.as_str())]))
-        }
+        Value::String(s) => Arc::new(StringArray::from(vec![Some(s.as_str())])),
         Value::Array(arr) => {
             // Convert array to string representation for simplicity
             let json_str = serde_json::to_string(arr).map_err(|e| {
-                ArrowError::JsonConversion(format!("Failed to serialize array: {}", e))
+                ArrowError::JsonConversion(format!("Failed to serialize array: {e}"))
             })?;
             Arc::new(StringArray::from(vec![Some(json_str.as_str())]))
         }
         Value::Object(_) => {
             // Convert object to string representation for simplicity
             let json_str = serde_json::to_string(json_value).map_err(|e| {
-                ArrowError::JsonConversion(format!("Failed to serialize object: {}", e))
+                ArrowError::JsonConversion(format!("Failed to serialize object: {e}"))
             })?;
             Arc::new(StringArray::from(vec![Some(json_str.as_str())]))
         }
@@ -111,7 +111,12 @@ fn json_value_to_array(_key: &str, json_value: &Value) -> Result<ArrayRef> {
     Ok(array)
 }
 
-/// Convert a JSON object to an Arrow RecordBatch
+/// Convert a JSON object to an Arrow `RecordBatch`
+///
+/// # Errors
+/// Returns `ArrowError::JsonConversion` if the input is not a JSON object,
+/// or `ArrowError::Arrow` if batch creation fails.
+#[inline]
 pub fn json_to_record_batch(schema: &Schema, json_value: &Value) -> Result<RecordBatch> {
     if let Value::Object(map) = json_value {
         let mut columns: Vec<ArrayRef> = Vec::new();
@@ -122,9 +127,7 @@ pub fn json_to_record_batch(schema: &Schema, json_value: &Value) -> Result<Recor
             columns.push(array);
         }
 
-        RecordBatch::try_new(Arc::new(schema.clone()), columns).map_err(|e| {
-            ArrowError::Arrow(e)
-        })
+        RecordBatch::try_new(Arc::new(schema.clone()), columns).map_err(ArrowError::Arrow)
     } else {
         Err(ArrowError::JsonConversion(
             "Expected JSON object for record batch".to_string(),
@@ -139,7 +142,9 @@ pub struct ArrowWriter {
 }
 
 impl ArrowWriter {
-    /// Create a new ArrowWriter with the given schema
+    /// Create a new `ArrowWriter` with the given schema
+    #[inline]
+    #[must_use]
     pub fn new(schema: Schema) -> Self {
         Self {
             schema: Arc::new(schema),
@@ -147,18 +152,27 @@ impl ArrowWriter {
         }
     }
 
-    /// Create a new ArrowWriter from a JSON schema
+    /// Create a new `ArrowWriter` from a JSON schema
+    ///
+    /// # Errors
+    /// Returns an error if the JSON schema is invalid.
+    #[inline]
     pub fn from_json_schema(json_schema: &Value) -> Result<Self> {
         let schema = json_to_schema(json_schema)?;
         Ok(Self::new(schema))
     }
 
     /// Add a record batch to the writer
+    #[inline]
     pub fn add_batch(&mut self, batch: RecordBatch) {
         self.batches.push(batch);
     }
 
     /// Add a JSON record as a record batch
+    ///
+    /// # Errors
+    /// Returns an error if the JSON record does not match the schema.
+    #[inline]
     pub fn add_json_record(&mut self, json_record: &Value) -> Result<()> {
         let batch = json_to_record_batch(&self.schema, json_record)?;
         self.add_batch(batch);
@@ -166,16 +180,22 @@ impl ArrowWriter {
     }
 
     /// Get the number of batches written
+    #[inline]
+    #[must_use]
     pub fn batch_count(&self) -> usize {
         self.batches.len()
     }
 
     /// Get the schema
+    #[inline]
+    #[must_use]
     pub fn schema(&self) -> &SchemaRef {
         &self.schema
     }
 
     /// Get all batches
+    #[inline]
+    #[must_use]
     pub fn batches(&self) -> &[RecordBatch] {
         &self.batches
     }
@@ -188,7 +208,9 @@ pub struct ParquetFileWriter {
 }
 
 impl ParquetFileWriter {
-    /// Create a new ParquetFileWriter with the given schema
+    /// Create a new `ParquetFileWriter` with the given schema
+    #[inline]
+    #[must_use]
     pub fn new(schema: Schema) -> Self {
         Self {
             schema: Arc::new(schema),
@@ -196,19 +218,29 @@ impl ParquetFileWriter {
         }
     }
 
-    /// Create a new ParquetFileWriter from a JSON schema
+    /// Create a new `ParquetFileWriter` from a JSON schema
+    ///
+    /// # Errors
+    /// Returns an error if the JSON schema is invalid.
+    #[inline]
     pub fn from_json_schema(json_schema: &Value) -> Result<Self> {
         let schema = json_to_schema(json_schema)?;
         Ok(Self::new(schema))
     }
 
     /// Set custom writer properties
+    #[inline]
+    #[must_use]
     pub fn with_writer_properties(mut self, properties: WriterProperties) -> Self {
         self.writer_properties = properties;
         self
     }
 
     /// Write record batches to a Parquet file
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be created or writing fails.
+    #[inline]
     pub fn write_to_file<P: AsRef<Path>>(&self, path: P, batches: &[RecordBatch]) -> Result<()> {
         let file = File::create(path)?;
         let buf_writer = BufWriter::new(file);
@@ -218,22 +250,26 @@ impl ParquetFileWriter {
             self.schema.clone(),
             Some(self.writer_properties.clone()),
         )
-        .map_err(|e| ArrowError::ParquetWrite(format!("Failed to create writer: {}", e)))?;
+        .map_err(|e| ArrowError::ParquetWrite(format!("Failed to create writer: {e}")))?;
 
         for batch in batches {
             writer
                 .write(batch)
-                .map_err(|e| ArrowError::ParquetWrite(format!("Failed to write batch: {}", e)))?;
+                .map_err(|e| ArrowError::ParquetWrite(format!("Failed to write batch: {e}")))?;
         }
 
         writer
             .close()
-            .map_err(|e| ArrowError::ParquetWrite(format!("Failed to close writer: {}", e)))?;
+            .map_err(|e| ArrowError::ParquetWrite(format!("Failed to close writer: {e}")))?;
 
         Ok(())
     }
 
     /// Write JSON records to a Parquet file
+    ///
+    /// # Errors
+    /// Returns an error if batch creation or file writing fails.
+    #[inline]
     pub fn write_json_records<P: AsRef<Path>>(
         &self,
         path: P,
@@ -250,6 +286,8 @@ impl ParquetFileWriter {
     }
 
     /// Get the schema
+    #[inline]
+    #[must_use]
     pub fn schema(&self) -> &SchemaRef {
         &self.schema
     }
@@ -262,15 +300,15 @@ mod tests {
     #[test]
     fn test_json_type_to_arrow() {
         assert!(matches!(
-            json_type_to_arrow(&Value::Bool(true)).unwrap(),
+            json_type_to_arrow(&Value::Bool(true)),
             DataType::Boolean
         ));
         assert!(matches!(
-            json_type_to_arrow(&Value::Number(serde_json::Number::from(42))).unwrap(),
+            json_type_to_arrow(&Value::Number(serde_json::Number::from(42))),
             DataType::Int64
         ));
         assert!(matches!(
-            json_type_to_arrow(&Value::String("test".to_string())).unwrap(),
+            json_type_to_arrow(&Value::String("test".to_string())),
             DataType::Utf8
         ));
     }
@@ -278,21 +316,21 @@ mod tests {
     #[test]
     fn test_json_type_to_arrow_extended() {
         assert!(matches!(
-            json_type_to_arrow(&Value::Null).unwrap(),
+            json_type_to_arrow(&Value::Null),
             DataType::Null
         ));
         let float_num = serde_json::Number::from_f64(3.14).unwrap();
         assert!(matches!(
-            json_type_to_arrow(&Value::Number(float_num)).unwrap(),
+            json_type_to_arrow(&Value::Number(float_num)),
             DataType::Float64
         ));
         assert!(matches!(
-            json_type_to_arrow(&Value::Array(vec![Value::String("a".to_string())])).unwrap(),
+            json_type_to_arrow(&Value::Array(vec![Value::String("a".to_string())])),
             DataType::List(_)
         ));
         let object = serde_json::json!({"k": "v"});
         assert!(matches!(
-            json_type_to_arrow(&object).unwrap(),
+            json_type_to_arrow(&object),
             DataType::Struct(_)
         ));
     }

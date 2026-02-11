@@ -1,3 +1,4 @@
+#![allow(clippy::missing_inline_in_public_items)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(

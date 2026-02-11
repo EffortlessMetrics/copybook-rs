@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property tests for numeric field handling
 //!
 //! These tests verify that numeric conversions preserve values within
@@ -6,15 +7,15 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_codec::numeric::{
     encode_binary_int, encode_packed_decimal, encode_zoned_decimal, get_binary_width_from_digits,
 };
+use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use proptest::prelude::*;
 
-use super::generators::*;
 use super::config::*;
+use super::generators::*;
 
 /// Property: Numeric field size matches PIC clause specification
 proptest! {

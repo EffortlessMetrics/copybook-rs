@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property tests for REDEFINES clause handling
 //!
 //! These tests verify that REDEFINES maintain field offset and size
@@ -7,11 +8,11 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_core::{parse_copybook, Field, Schema};
+use copybook_core::{Field, Schema, parse_copybook};
 use proptest::prelude::*;
 
-use super::generators::*;
 use super::config::*;
+use super::generators::*;
 use super::{schema_max_end, schema_record_length};
 
 fn record_children(schema: &Schema) -> &Vec<Field> {

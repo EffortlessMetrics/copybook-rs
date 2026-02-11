@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property tests for array/OCCURS handling
 //!
 //! These tests verify that array operations maintain length and content
@@ -6,13 +7,13 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat, JsonNumberMode};
-use copybook_core::{parse_copybook, Occurs};
+use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat};
+use copybook_core::{Occurs, parse_copybook};
 use proptest::prelude::*;
 use serde_json::json;
 
-use super::generators::*;
 use super::config::*;
+use super::generators::*;
 use super::schema_record_length;
 
 /// Property: OCCURS clause maintains element size consistency

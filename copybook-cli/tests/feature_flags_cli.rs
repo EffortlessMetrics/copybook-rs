@@ -78,8 +78,7 @@ enabled = ["verbose_logging", "diagnostic_output"]
 disabled = ["lru_cache"]
 "#;
 
-    let mut cmd = Command::cargo_bin("copybook")
-        .expect("Failed to find copybook binary");
+    let mut cmd = Command::cargo_bin("copybook").expect("Failed to find copybook binary");
     cmd.arg("--version");
     cmd.env("COPYBOOK_FF_VERBOSE_LOGGING", "0"); // Override with config
 
@@ -156,9 +155,7 @@ fn test_lru_cache_enabled_by_default() {
         .arg(copybook)
         .assert()
         .success()
-        .stdout(predicate::str::contains("lru_cache").and(
-            predicate::str::contains("(enabled")
-        ));
+        .stdout(predicate::str::contains("lru_cache").and(predicate::str::contains("(enabled")));
 }
 
 #[test]
@@ -170,7 +167,7 @@ fn test_experimental_features_disabled_by_default() {
         .arg(copybook)
         .assert()
         .success()
-        .stdout(predicate::str::contains("sign_separate").and(
-            predicate::str::contains("(disabled)")
-        ));
+        .stdout(
+            predicate::str::contains("sign_separate").and(predicate::str::contains("(disabled)")),
+        );
 }

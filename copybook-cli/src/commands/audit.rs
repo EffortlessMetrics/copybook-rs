@@ -389,6 +389,7 @@ pub enum ComplianceFramework {
 }
 
 impl From<ComplianceFramework> for ComplianceProfile {
+    #[inline]
     fn from(framework: ComplianceFramework) -> Self {
         match framework {
             ComplianceFramework::SOX => ComplianceProfile::SOX,

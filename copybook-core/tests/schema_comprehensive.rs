@@ -6,11 +6,10 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::expect_used)]
 
-use copybook_core::{
-    Schema, Field, FieldKind, Occurs, TailODO,
-    SignPlacement, SignSeparateInfo, parse_copybook,
-};
 use copybook_core::schema::ResolvedRenames;
+use copybook_core::{
+    Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo, TailODO, parse_copybook,
+};
 use serde_json::json;
 
 #[test]
@@ -25,23 +24,21 @@ fn test_schema_new() {
 
 #[test]
 fn test_schema_from_fields() {
-    let fields = vec![
-        Field {
-            path: "ROOT.FIELD1".to_string(),
-            name: "FIELD1".to_string(),
-            level: 5,
-            kind: FieldKind::Alphanum { len: 10 },
-            offset: 0,
-            len: 10,
-            redefines_of: None,
-            occurs: None,
-            sync_padding: None,
-            synchronized: false,
-            blank_when_zero: false,
-            resolved_renames: None,
-            children: vec![],
-        }
-    ];
+    let fields = vec![Field {
+        path: "ROOT.FIELD1".to_string(),
+        name: "FIELD1".to_string(),
+        level: 5,
+        kind: FieldKind::Alphanum { len: 10 },
+        offset: 0,
+        len: 10,
+        redefines_of: None,
+        occurs: None,
+        sync_padding: None,
+        synchronized: false,
+        blank_when_zero: false,
+        resolved_renames: None,
+        children: vec![],
+    }];
 
     let schema = Schema::from_fields(fields.clone());
     assert_eq!(schema.fields.len(), 1);
@@ -290,7 +287,13 @@ fn test_field_kind_zoned_decimal_with_sign_separate() {
             placement: SignPlacement::Leading,
         }),
     };
-    assert!(matches!(kind, FieldKind::ZonedDecimal { sign_separate: Some(_), .. }));
+    assert!(matches!(
+        kind,
+        FieldKind::ZonedDecimal {
+            sign_separate: Some(_),
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -359,7 +362,14 @@ fn test_occurs_odo() {
         max: 10,
         counter_path: "ROOT.COUNTER".to_string(),
     };
-    assert!(matches!(occurs, Occurs::ODO { min: 1, max: 10, .. }));
+    assert!(matches!(
+        occurs,
+        Occurs::ODO {
+            min: 1,
+            max: 10,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -387,10 +397,7 @@ fn test_resolved_renames() {
     let renames = ResolvedRenames {
         offset: 0,
         length: 20,
-        members: vec![
-            "ROOT.FIELD1".to_string(),
-            "ROOT.FIELD2".to_string(),
-        ],
+        members: vec!["ROOT.FIELD1".to_string(), "ROOT.FIELD2".to_string()],
     };
     assert_eq!(renames.offset, 0);
     assert_eq!(renames.length, 20);
@@ -676,10 +683,7 @@ fn test_field_with_resolved_renames() {
         resolved_renames: Some(ResolvedRenames {
             offset: 0,
             length: 20,
-            members: vec![
-                "ROOT.FIELD1".to_string(),
-                "ROOT.FIELD2".to_string(),
-            ],
+            members: vec!["ROOT.FIELD1".to_string(), "ROOT.FIELD2".to_string()],
         }),
         children: vec![],
     };

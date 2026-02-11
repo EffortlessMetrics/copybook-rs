@@ -413,7 +413,10 @@ mod tests {
         test.add_tag("smoke");
         test.add_tag("smoke");
         assert!(test.has_tag("smoke"));
-        assert_eq!(test.metadata.tags.iter().filter(|t| *t == "smoke").count(), 1);
+        assert_eq!(
+            test.metadata.tags.iter().filter(|t| *t == "smoke").count(),
+            1
+        );
     }
 
     #[test]
@@ -457,10 +460,20 @@ mod tests {
     #[test]
     fn test_generate_suite_tags() {
         let comprehensive = generate_comprehensive_suite();
-        assert!(comprehensive.metadata.tags.contains(&"comprehensive".to_string()));
+        assert!(
+            comprehensive
+                .metadata
+                .tags
+                .contains(&"comprehensive".to_string())
+        );
 
         let performance = generate_performance_suite();
-        assert!(performance.metadata.tags.contains(&"performance".to_string()));
+        assert!(
+            performance
+                .metadata
+                .tags
+                .contains(&"performance".to_string())
+        );
 
         let negative = generate_negative_test_suite();
         assert!(negative.metadata.tags.contains(&"negative".to_string()));

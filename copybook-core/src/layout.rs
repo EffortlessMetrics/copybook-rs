@@ -476,7 +476,11 @@ fn resolve_redefines_field(
 fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (u64, u32) {
     let (size, natural_alignment) = match kind {
         FieldKind::Alphanum { len } => (*len, 1u64),
-        FieldKind::ZonedDecimal { digits, sign_separate, .. } => {
+        FieldKind::ZonedDecimal {
+            digits,
+            sign_separate,
+            ..
+        } => {
             // SIGN SEPARATE adds an extra byte for the sign
             let base_size = u32::from(*digits);
             let size = if sign_separate.is_some() {
@@ -772,7 +776,10 @@ fn field_has_redefines(field: &crate::schema::Field) -> bool {
 /// Check if a field is an OCCURS array (fixed or ODO)
 /// Used for R5 pattern detection
 fn field_is_occurs(field: &crate::schema::Field) -> bool {
-    matches!(field.occurs, Some(Occurs::Fixed { .. } | Occurs::ODO { .. }))
+    matches!(
+        field.occurs,
+        Some(Occurs::Fixed { .. } | Occurs::ODO { .. })
+    )
 }
 
 /// Check if a field is an ODO array specifically
@@ -783,7 +790,11 @@ fn field_is_odo(field: &crate::schema::Field) -> bool {
 
 /// Count how many REDEFINES alternatives exist in a range of fields
 /// Used for R4 pattern validation
-fn count_redefines_alternatives(fields: &[crate::schema::Field], from_idx: usize, thru_idx: usize) -> usize {
+fn count_redefines_alternatives(
+    fields: &[crate::schema::Field],
+    from_idx: usize,
+    thru_idx: usize,
+) -> usize {
     let mut count = 0;
     for f in &fields[from_idx..=thru_idx] {
         if field_has_redefines(f) {
@@ -879,7 +890,8 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                         return Err(error!(
                             ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED,
                             "RENAMES alias '{}' spans ODO array '{}'. This pattern is not supported.",
-                            field.name, f.name
+                            field.name,
+                            f.name
                         ));
                     }
                     if !r4_r6_enabled {
@@ -887,7 +899,8 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                         return Err(error!(
                             ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
                             "RENAMES alias '{}' crosses OCCURS boundary at field '{}'. Enable RenamesR4R6 feature flag to support this pattern.",
-                            field.name, f.name
+                            field.name,
+                            f.name
                         ));
                     }
                     // When feature flag is enabled, check for partial array span
@@ -906,17 +919,7 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
 
             // R4 check: Validate no REDEFINES within the range
             // This must be checked before group boundary validation
-            if !r4_r6_enabled {
-                // R4: REDEFINES are rejected when feature flag is disabled
-                let redefines_count = count_redefines_alternatives(fields, from_i, thru_i);
-                if redefines_count > 0 {
-                    return Err(error!(
-                        ErrorCode::CBKS609_RENAME_OVER_REDEFINES,
-                        "RENAMES alias '{}' spans REDEFINES field(s). Enable RenamesR4R6 feature flag to support this pattern.",
-                        field.name
-                    ));
-                }
-            } else {
+            if r4_r6_enabled {
                 // When feature flag is enabled, check for multiple REDEFINES alternatives
                 let redefines_count = count_redefines_alternatives(fields, from_i, thru_i);
                 if redefines_count > 1 {
@@ -929,6 +932,16 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                 }
                 // R4: Single REDEFINES alternative is allowed when feature flag is enabled
                 // Continue with normal resolution
+            } else {
+                // R4: REDEFINES are rejected when feature flag is disabled
+                let redefines_count = count_redefines_alternatives(fields, from_i, thru_i);
+                if redefines_count > 0 {
+                    return Err(error!(
+                        ErrorCode::CBKS609_RENAME_OVER_REDEFINES,
+                        "RENAMES alias '{}' spans REDEFINES field(s). Enable RenamesR4R6 feature flag to support this pattern.",
+                        field.name
+                    ));
+                }
             }
 
             // Helper: check if a field has storage-bearing children (not just level-88)

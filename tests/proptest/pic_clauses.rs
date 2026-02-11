@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused_imports, dead_code)]
 //! Property tests for PIC clause parsing and handling
 //!
 //! These tests verify that PIC clauses parse consistently and generate
@@ -6,11 +7,11 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_core::{parse_copybook, FieldKind};
+use copybook_core::{FieldKind, parse_copybook};
 use proptest::prelude::*;
 
-use super::generators::*;
 use super::config::*;
+use super::generators::*;
 
 /// Property: PIC clause 9(n) produces correct field size
 proptest! {

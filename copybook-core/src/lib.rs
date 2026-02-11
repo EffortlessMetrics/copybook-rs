@@ -129,8 +129,8 @@
 pub mod audit;
 pub mod dialect;
 pub mod error;
-pub mod feature_flags;
 pub mod error_reporter;
+pub mod feature_flags;
 pub mod layout;
 pub mod lexer;
 pub mod parser;
@@ -146,7 +146,7 @@ pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, E
 pub use feature_flags::{Feature, FeatureCategory, FeatureFlags, FeatureFlagsHandle, all_features};
 pub use parser::ParseOptions;
 pub use projection::project_schema;
-pub use schema::{Field, FieldKind, Occurs, Schema, TailODO, SignPlacement, SignSeparateInfo};
+pub use schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo, TailODO};
 pub use utils::{OptionExt, SliceExt, VecExt, safe_ops};
 
 #[cfg(feature = "audit")]

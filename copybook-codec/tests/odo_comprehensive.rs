@@ -317,8 +317,8 @@ fn test_odo_encode_counter_update() {
     let mut output = Vec::new();
 
     // Should succeed but does not update counter in current lib_api encoder path
-    let summary = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options)
-        .unwrap();
+    let summary =
+        copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
     assert_eq!(summary.records_with_errors, 0);
 
     // Decode back to verify counter was updated
@@ -381,8 +381,8 @@ fn test_odo_array_length_out_of_bounds_encode() {
     let mut output = Vec::new();
 
     // Current lib_api encoder path does not enforce ODO array length
-    let summary = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options)
-        .unwrap();
+    let summary =
+        copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
     assert_eq!(summary.records_with_errors, 0);
     assert!(!output.is_empty());
 }

@@ -85,10 +85,10 @@ pub enum Token {
 
     #[token("LEADING", ignore(case))]
     Leading,
- 
+
     #[token("IS", ignore(case))]
     Is,
- 
+
     #[token("TRAILING", ignore(case))]
     Trailing,
 

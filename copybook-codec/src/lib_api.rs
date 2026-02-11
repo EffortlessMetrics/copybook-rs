@@ -977,7 +977,12 @@ fn find_and_read_counter_field(
 
     // Decode the counter value based on its type
     match &counter_field.kind {
-        copybook_core::FieldKind::ZonedDecimal { digits, scale, signed, sign_separate } => {
+        copybook_core::FieldKind::ZonedDecimal {
+            digits,
+            scale,
+            signed,
+            sign_separate,
+        } => {
             let mut scratch = crate::memory::ScratchBuffers::new();
             let decimal_str = if let Some(sign_sep) = sign_separate {
                 // Use SIGN SEPARATE decoding
@@ -987,7 +992,8 @@ fn find_and_read_counter_field(
                     *scale,
                     sign_sep,
                     options.codepage,
-                )?.to_string()
+                )?
+                .to_string()
             } else {
                 // Use standard zoned decimal decoding
                 crate::numeric::decode_zoned_decimal_to_string_with_scratch(
@@ -1586,6 +1592,10 @@ fn encode_fields_recursive(
     Ok(current_offset)
 }
 
+/// Encode a single field (scalar or group) into the output byte buffer.
+///
+/// Orchestrates the encoding of various COBOL data types by delegating to
+/// specialized encoding functions.
 #[inline]
 fn encode_single_field(
     field: &copybook_core::Field,
@@ -1698,6 +1708,7 @@ fn encode_single_field(
     }
 }
 
+/// Recursively encode a group field and its children.
 #[inline]
 fn encode_group_field(
     field: &copybook_core::Field,
@@ -1731,6 +1742,7 @@ fn encode_group_field(
     }
 }
 
+/// Encode an alphanumeric (PIC X) field.
 #[inline]
 fn encode_alphanum_field(
     field: &copybook_core::Field,

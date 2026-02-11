@@ -6,9 +6,9 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::expect_used)]
 
-use copybook_arrow::{ArrowError, ArrowWriter, json_to_record_batch, json_to_schema};
 use arrow::array::{ArrayRef, Int64Array, StringArray};
 use arrow::datatypes::{DataType, Field, Schema};
+use copybook_arrow::{ArrowError, ArrowWriter, json_to_record_batch, json_to_schema};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -115,9 +115,7 @@ fn test_json_to_record_batch_missing_field() {
 
 #[test]
 fn test_json_to_record_batch_not_object() {
-    let schema = Schema::new(vec![
-        Field::new("field", DataType::Utf8, true),
-    ]);
+    let schema = Schema::new(vec![Field::new("field", DataType::Utf8, true)]);
     let json_value = json!("not an object");
 
     let result = json_to_record_batch(&schema, &json_value);
@@ -146,10 +144,9 @@ fn test_arrow_writer_add_batch() {
     let mut writer = ArrowWriter::new(schema.clone());
 
     let array = Arc::new(StringArray::from(vec![Some("value")]));
-    let batch = arrow::record_batch::RecordBatch::try_new(
-        Arc::new(schema),
-        vec![array as ArrayRef],
-    ).unwrap();
+    let batch =
+        arrow::record_batch::RecordBatch::try_new(Arc::new(schema), vec![array as ArrayRef])
+            .unwrap();
 
     writer.add_batch(batch.clone());
     assert_eq!(writer.batch_count(), 1);
@@ -339,7 +336,11 @@ fn test_json_to_record_batch_empty_string() {
     assert_eq!(batch.num_rows(), 1);
     assert_eq!(batch.column(0).null_count(), 0);
 
-    let string_array = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
+    let string_array = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .unwrap();
     assert_eq!(string_array.value(0), "");
 }
 
@@ -358,7 +359,11 @@ fn test_json_to_record_batch_zero_values() {
     assert_eq!(batch.num_rows(), 1);
     assert_eq!(batch.column(0).null_count(), 0);
 
-    let int_array = batch.column(0).as_any().downcast_ref::<Int64Array>().unwrap();
+    let int_array = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<Int64Array>()
+        .unwrap();
     assert_eq!(int_array.value(0), 0);
 }
 
@@ -377,7 +382,11 @@ fn test_json_to_record_batch_negative_values() {
     assert_eq!(batch.num_rows(), 1);
     assert_eq!(batch.column(0).null_count(), 0);
 
-    let int_array = batch.column(0).as_any().downcast_ref::<Int64Array>().unwrap();
+    let int_array = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<Int64Array>()
+        .unwrap();
     assert_eq!(int_array.value(0), -999);
 }
 
@@ -449,7 +458,11 @@ fn test_json_to_record_batch_unicode() {
     let batch = result.unwrap();
     assert_eq!(batch.num_rows(), 1);
 
-    let string_array = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
+    let string_array = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .unwrap();
     assert_eq!(string_array.value(0), "Hello 世界 🌍");
 }
 
@@ -467,7 +480,11 @@ fn test_json_to_record_batch_empty_array() {
     let batch = result.unwrap();
     assert_eq!(batch.num_rows(), 1);
 
-    let string_array = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
+    let string_array = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .unwrap();
     assert_eq!(string_array.value(0), "[]");
 }
 
@@ -485,6 +502,10 @@ fn test_json_to_record_batch_empty_object() {
     let batch = result.unwrap();
     assert_eq!(batch.num_rows(), 1);
 
-    let string_array = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
+    let string_array = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .unwrap();
     assert_eq!(string_array.value(0), "{}");
 }

@@ -1,3 +1,17 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::items_after_statements,
+    clippy::uninlined_format_args,
+    clippy::cast_lossless,
+    clippy::no_effect_underscore_binding,
+    clippy::ignored_unit_patterns,
+    clippy::needless_raw_string_hashes,
+    clippy::needless_continue,
+    clippy::doc_markdown
+)]
 //! Example: Decode copybook data and write to Parquet file
 //!
 //! This example demonstrates:
@@ -6,7 +20,7 @@
 //! - Converting the decoded JSON to Parquet format
 //! - Writing Parquet files with compression
 
-use copybook_arrow::{json_to_schema, ParquetFileWriter};
+use copybook_arrow::{ParquetFileWriter, json_to_schema};
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy};
 use copybook_core::parse_copybook;
 use parquet::basic::Compression;
@@ -107,7 +121,8 @@ fn main() {
         .set_created_by("copybook-arrow".to_string())
         .build();
 
-    let parquet_writer = ParquetFileWriter::new(arrow_schema).with_writer_properties(writer_properties);
+    let parquet_writer =
+        ParquetFileWriter::new(arrow_schema).with_writer_properties(writer_properties);
 
     // Write to Parquet file
     let output_path = "transactions.parquet";
@@ -115,7 +130,11 @@ fn main() {
 
     match parquet_writer.write_json_records(output_path, &json_records) {
         Ok(_) => {
-            println!("Successfully wrote {} records to {}", json_records.len(), output_path);
+            println!(
+                "Successfully wrote {} records to {}",
+                json_records.len(),
+                output_path
+            );
         }
         Err(error) => {
             eprintln!("Failed to write Parquet file: {error}");

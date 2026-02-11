@@ -1,15 +1,27 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::unused_async,
+    clippy::expect_fun_call,
+    clippy::uninlined_format_args,
+    clippy::map_unwrap_or,
+    clippy::match_same_arms,
+    clippy::single_char_pattern,
+    unused_variables,
+    dead_code
+)]
 //! BDD tests for copybook-rs using Cucumber/Gherkin syntax
 //!
 //! This module provides Behavior Driven Development tests that describe
 //! the expected behavior of the copybook-rs library in human-readable
 //! Gherkin syntax.
 
-use cucumber::{given, then, when, World as _};
-use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions, Error};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     decode_file_to_jsonl, encode_jsonl_to_file,
 };
+use copybook_core::{Error, ParseOptions, parse_copybook, parse_copybook_with_options};
+use cucumber::{World as _, given, then, when};
 use serde_json::Value;
 use std::io::Cursor;
 
@@ -58,7 +70,9 @@ impl CopybookWorld {
 
     /// Get the decoded output or panic if not set
     fn decoded_output(&self) -> &str {
-        self.decoded_output.as_deref().expect("Decoded output not set")
+        self.decoded_output
+            .as_deref()
+            .expect("Decoded output not set")
     }
 }
 
@@ -85,7 +99,8 @@ mod steps {
             "01 NUMERIC-RECORD.\n\
              05 PACKED-DECIMAL PIC S9(7)V99 COMP-3.\n\
              05 BINARY-INTEGER PIC S9(9) COMP.\n\
-             05 ZONED-DECIMAL PIC S9(5)V99 DISPLAY.".to_string(),
+             05 ZONED-DECIMAL PIC S9(5)V99 DISPLAY."
+                .to_string(),
         );
     }
 
@@ -94,7 +109,8 @@ mod steps {
         world.copybook_text = Some(
             "01 ARRAY-RECORD.\n\
              05 ARRAY-FIELD OCCURS 5 TIMES.\n\
-                 10 ELEMENT PIC X(10).".to_string(),
+                 10 ELEMENT PIC X(10)."
+                .to_string(),
         );
     }
 
@@ -104,7 +120,8 @@ mod steps {
             "01 ODO-RECORD.\n\
              05 COUNT-FIELD PIC 9(3).\n\
              05 DYNAMIC-ARRAY OCCURS 1 TO 100 TIMES DEPENDING ON COUNT-FIELD.\n\
-                 10 ELEMENT PIC X(10).".to_string(),
+                 10 ELEMENT PIC X(10)."
+                .to_string(),
         );
     }
 
@@ -115,7 +132,8 @@ mod steps {
              05 ORIGINAL-FIELD PIC X(20).\n\
              05 ALTERNATIVE-FIELD REDEFINES ORIGINAL-FIELD.\n\
                  10 PART-1 PIC 9(5).\n\
-                 10 PART-2 PIC X(15).".to_string(),
+                 10 PART-2 PIC X(15)."
+                .to_string(),
         );
     }
 
@@ -126,7 +144,8 @@ mod steps {
              05 STATUS-CODE PIC X(1).\n\
                  88 STATUS-ACTIVE VALUE 'A'.\n\
                  88 STATUS-INACTIVE VALUE 'I'.\n\
-                 88 STATUS-PENDING VALUE 'P'.".to_string(),
+                 88 STATUS-PENDING VALUE 'P'."
+                .to_string(),
         );
     }
 
@@ -175,7 +194,10 @@ mod steps {
 
     #[then(expr = "the schema should be successfully parsed")]
     async fn then_schema_successfully_parsed(world: &mut CopybookWorld) {
-        assert!(world.schema.is_some(), "Schema should be parsed successfully");
+        assert!(
+            world.schema.is_some(),
+            "Schema should be parsed successfully"
+        );
         assert!(world.error.is_none(), "No error should occur");
     }
 
@@ -192,9 +214,14 @@ mod steps {
     }
 
     #[then(expr = "the field {string} should have type {string}")]
-    async fn then_field_has_type(world: &mut CopybookWorld, field_name: String, expected_type: String) {
+    async fn then_field_has_type(
+        world: &mut CopybookWorld,
+        field_name: String,
+        expected_type: String,
+    ) {
         let schema = world.schema();
-        let field = schema.find_field(&field_name)
+        let field = schema
+            .find_field(&field_name)
             .expect(&format!("Field '{}' not found", field_name));
 
         if expected_type == "numeric" {
@@ -208,8 +235,7 @@ mod steps {
             assert!(
                 is_numeric,
                 "Expected field '{}' to be numeric, got {:?}",
-                field_name,
-                field.kind
+                field_name, field.kind
             );
             return;
         }
@@ -239,7 +265,8 @@ mod steps {
     #[then(expr = "the field {string} should have offset {int}")]
     async fn then_field_has_offset(world: &mut CopybookWorld, field_name: String, offset: usize) {
         let schema = world.schema();
-        let field = schema.find_field(&field_name)
+        let field = schema
+            .find_field(&field_name)
             .expect(&format!("Field '{}' not found", field_name));
 
         assert_eq!(
@@ -252,7 +279,8 @@ mod steps {
     #[then(expr = "the field {string} should have length {int}")]
     async fn then_field_has_length(world: &mut CopybookWorld, field_name: String, length: usize) {
         let schema = world.schema();
-        let field = schema.find_field(&field_name)
+        let field = schema
+            .find_field(&field_name)
             .expect(&format!("Field '{}' not found", field_name));
 
         assert_eq!(
@@ -265,7 +293,10 @@ mod steps {
     #[then(expr = "the schema should have fingerprint")]
     async fn then_schema_has_fingerprint(world: &mut CopybookWorld) {
         let schema = world.schema();
-        assert!(!schema.fingerprint.is_empty(), "Schema should have a fingerprint");
+        assert!(
+            !schema.fingerprint.is_empty(),
+            "Schema should have a fingerprint"
+        );
     }
 
     #[then(expr = "parsing should fail with error code {string}")]
@@ -276,7 +307,8 @@ mod steps {
         assert!(
             actual_code.contains(&error_code),
             "Expected error code containing '{}', got '{}'",
-            error_code, actual_code
+            error_code,
+            actual_code
         );
     }
 
@@ -296,64 +328,74 @@ mod steps {
 
     #[given(expr = "ASCII codepage")]
     async fn given_ascii_codepage(world: &mut CopybookWorld) {
-        world.decode_options = Some(DecodeOptions::new()
-            .with_codepage(Codepage::ASCII)
-            .with_format(RecordFormat::Fixed)
-            .with_json_number_mode(JsonNumberMode::Lossless)
-            .with_emit_filler(false)
-            .with_emit_meta(true)
-            .with_emit_raw(RawMode::Off)
-            .with_strict_mode(false)
-            .with_max_errors(None)
-            .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
-            .with_threads(1)
-            .with_preserve_zoned_encoding(false)
-            .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto));
+        world.decode_options = Some(
+            DecodeOptions::new()
+                .with_codepage(Codepage::ASCII)
+                .with_format(RecordFormat::Fixed)
+                .with_json_number_mode(JsonNumberMode::Lossless)
+                .with_emit_filler(false)
+                .with_emit_meta(true)
+                .with_emit_raw(RawMode::Off)
+                .with_strict_mode(false)
+                .with_max_errors(None)
+                .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+                .with_threads(1)
+                .with_preserve_zoned_encoding(false)
+                .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto),
+        );
 
-        world.encode_options = Some(EncodeOptions::new()
-            .with_codepage(Codepage::ASCII)
-            .with_format(RecordFormat::Fixed)
-            .with_use_raw(false)
-            .with_bwz_encode(false)
-            .with_strict_mode(false)
-            .with_max_errors(None)
-            .with_threads(1)
-            .with_coerce_numbers(true)
-            .with_zoned_encoding_override(None));
+        world.encode_options = Some(
+            EncodeOptions::new()
+                .with_codepage(Codepage::ASCII)
+                .with_format(RecordFormat::Fixed)
+                .with_use_raw(false)
+                .with_bwz_encode(false)
+                .with_strict_mode(false)
+                .with_max_errors(None)
+                .with_threads(1)
+                .with_coerce_numbers(true)
+                .with_zoned_encoding_override(None),
+        );
     }
 
     #[given(expr = "EBCDIC codepage")]
     async fn given_ebcdic_codepage(world: &mut CopybookWorld) {
-        world.decode_options = Some(DecodeOptions::new()
-            .with_codepage(Codepage::CP037)
-            .with_format(RecordFormat::Fixed)
-            .with_json_number_mode(JsonNumberMode::Lossless)
-            .with_emit_filler(false)
-            .with_emit_meta(true)
-            .with_emit_raw(RawMode::Off)
-            .with_strict_mode(false)
-            .with_max_errors(None)
-            .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
-            .with_threads(1)
-            .with_preserve_zoned_encoding(false)
-            .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto));
+        world.decode_options = Some(
+            DecodeOptions::new()
+                .with_codepage(Codepage::CP037)
+                .with_format(RecordFormat::Fixed)
+                .with_json_number_mode(JsonNumberMode::Lossless)
+                .with_emit_filler(false)
+                .with_emit_meta(true)
+                .with_emit_raw(RawMode::Off)
+                .with_strict_mode(false)
+                .with_max_errors(None)
+                .with_unmappable_policy(copybook_codec::UnmappablePolicy::Error)
+                .with_threads(1)
+                .with_preserve_zoned_encoding(false)
+                .with_preferred_zoned_encoding(copybook_codec::ZonedEncodingFormat::Auto),
+        );
 
-        world.encode_options = Some(EncodeOptions::new()
-            .with_codepage(Codepage::CP037)
-            .with_format(RecordFormat::Fixed)
-            .with_use_raw(false)
-            .with_bwz_encode(false)
-            .with_strict_mode(false)
-            .with_max_errors(None)
-            .with_threads(1)
-            .with_coerce_numbers(true)
-            .with_zoned_encoding_override(None));
+        world.encode_options = Some(
+            EncodeOptions::new()
+                .with_codepage(Codepage::CP037)
+                .with_format(RecordFormat::Fixed)
+                .with_use_raw(false)
+                .with_bwz_encode(false)
+                .with_strict_mode(false)
+                .with_max_errors(None)
+                .with_threads(1)
+                .with_coerce_numbers(true)
+                .with_zoned_encoding_override(None),
+        );
     }
 
     #[when(expr = "the binary data is decoded")]
     async fn when_binary_data_decoded(world: &mut CopybookWorld) {
         let schema = world.schema();
-        let decode_options = world.decode_options.as_ref()
+        let decode_options = world
+            .decode_options
+            .as_ref()
             .expect("Decode options not set");
 
         let binary_data = world.binary_data();
@@ -366,8 +408,8 @@ mod steps {
             decode_options,
         ) {
             Ok(_) => {
-                world.decoded_output = Some(String::from_utf8(output)
-                    .expect("Decoded output should be valid UTF-8"));
+                world.decoded_output =
+                    Some(String::from_utf8(output).expect("Decoded output should be valid UTF-8"));
             }
             Err(e) => {
                 world.error = Some(e);
@@ -378,7 +420,9 @@ mod steps {
     #[when(expr = "the JSON data is encoded")]
     async fn when_json_data_encoded(world: &mut CopybookWorld) {
         let schema = world.schema();
-        let encode_options = world.encode_options.as_ref()
+        let encode_options = world
+            .encode_options
+            .as_ref()
             .expect("Encode options not set");
 
         let json_data = world.json_data();
@@ -403,7 +447,9 @@ mod steps {
     async fn when_data_roundtripped(world: &mut CopybookWorld) {
         // First decode
         let schema = world.schema().clone();
-        let decode_options = world.decode_options.as_ref()
+        let decode_options = world
+            .decode_options
+            .as_ref()
             .expect("Decode options not set");
 
         let binary_data = world.binary_data();
@@ -419,12 +465,14 @@ mod steps {
             return;
         }
 
-        let decoded_text = String::from_utf8(decoded)
-            .expect("Decoded output should be valid UTF-8");
+        let decoded_text =
+            String::from_utf8(decoded).expect("Decoded output should be valid UTF-8");
         world.decoded_output = Some(decoded_text.clone());
 
         // Then encode
-        let encode_options = world.encode_options.as_ref()
+        let encode_options = world
+            .encode_options
+            .as_ref()
             .expect("Encode options not set");
 
         let mut encoded = Vec::new();
@@ -448,29 +496,37 @@ mod steps {
         assert!(
             output.contains(&expected),
             "Expected decoded output to contain '{}', got: {}",
-            expected, output
+            expected,
+            output
         );
     }
 
     #[then(expr = "the encoded output should be {int} bytes")]
     async fn then_encoded_output_bytes(world: &mut CopybookWorld, length: usize) {
-        let output = world.encoded_output.as_ref()
+        let output = world
+            .encoded_output
+            .as_ref()
             .expect("Encoded output should be set");
         assert_eq!(
-            output.len(), length,
+            output.len(),
+            length,
             "Expected encoded output to be {} bytes, got {}",
-            length, output.len()
+            length,
+            output.len()
         );
     }
 
     #[then(expr = "the round-trip should be lossless")]
     async fn then_roundtrip_lossless(world: &mut CopybookWorld) {
         let original = world.binary_data();
-        let encoded = world.encoded_output.as_ref()
+        let encoded = world
+            .encoded_output
+            .as_ref()
             .expect("Encoded output should be set");
 
         assert_eq!(
-            original, encoded.as_slice(),
+            original,
+            encoded.as_slice(),
             "Round-trip should be lossless: original data differs from encoded data"
         );
     }
@@ -478,13 +534,19 @@ mod steps {
     #[then(expr = "decoding should succeed")]
     async fn then_decoding_succeeds(world: &mut CopybookWorld) {
         assert!(world.decoded_output.is_some(), "Decoding should succeed");
-        assert!(world.error.is_none(), "No error should occur during decoding");
+        assert!(
+            world.error.is_none(),
+            "No error should occur during decoding"
+        );
     }
 
     #[then(expr = "encoding should succeed")]
     async fn then_encoding_succeeds(world: &mut CopybookWorld) {
         assert!(world.encoded_output.is_some(), "Encoding should succeed");
-        assert!(world.error.is_none(), "No error should occur during encoding");
+        assert!(
+            world.error.is_none(),
+            "No error should occur during encoding"
+        );
     }
 
     #[then(expr = "the decoded output should be valid JSON")]
@@ -505,7 +567,8 @@ mod steps {
 
     #[given(expr = "an invalid copybook with syntax error")]
     async fn given_invalid_copybook(world: &mut CopybookWorld) {
-        world.copybook_text = Some("01 INVALID-RECORD\n    05 INVALID-FIELD INVALID PIC X(10).".to_string());
+        world.copybook_text =
+            Some("01 INVALID-RECORD\n    05 INVALID-FIELD INVALID PIC X(10).".to_string());
     }
 
     #[given(expr = "a copybook with invalid OCCURS clause")]
@@ -513,7 +576,8 @@ mod steps {
         world.copybook_text = Some(
             "01 INVALID-OCCURS.\n\
              05 FIELD OCCURS INVALID TIMES.\n\
-                 10 ELEMENT PIC X(10).".to_string(),
+                 10 ELEMENT PIC X(10)."
+                .to_string(),
         );
     }
 
@@ -521,7 +585,8 @@ mod steps {
     async fn given_invalid_pic(world: &mut CopybookWorld) {
         world.copybook_text = Some(
             "01 INVALID-PIC.\n\
-             05 FIELD PIC INVALID(10).".to_string(),
+             05 FIELD PIC INVALID(10)."
+                .to_string(),
         );
     }
 
@@ -532,7 +597,9 @@ mod steps {
 
     #[given(expr = "binary data with invalid encoding")]
     async fn given_invalid_encoding_data(world: &mut CopybookWorld) {
-        world.binary_data = Some(vec![0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
+        world.binary_data = Some(vec![
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        ]);
     }
 
     #[given(expr = "JSON data with missing required fields")]
@@ -542,7 +609,8 @@ mod steps {
 
     #[given(expr = "JSON data with invalid field types")]
     async fn given_json_invalid_types(world: &mut CopybookWorld) {
-        world.json_data = Some(r#"{"schema":"copybook.v1","record_index":0,"TEST-FIELD":12345}"#.to_string());
+        world.json_data =
+            Some(r#"{"schema":"copybook.v1","record_index":0,"TEST-FIELD":12345}"#.to_string());
     }
 
     #[then(expr = "an error should occur")]
@@ -557,7 +625,8 @@ mod steps {
         assert!(
             message.contains(&expected),
             "Expected error message to contain '{}', got: {}",
-            expected, message
+            expected,
+            message
         );
     }
 
@@ -580,7 +649,8 @@ mod steps {
     async fn given_copybook_with_sign_separate_leading(world: &mut CopybookWorld) {
         world.copybook_text = Some(
             "01 RECORD.\n\
-             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE LEADING.".to_string(),
+             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE LEADING."
+                .to_string(),
         );
     }
 
@@ -588,7 +658,8 @@ mod steps {
     async fn given_copybook_with_sign_separate_trailing(world: &mut CopybookWorld) {
         world.copybook_text = Some(
             "01 RECORD.\n\
-             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE TRAILING.".to_string(),
+             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE TRAILING."
+                .to_string(),
         );
     }
 
@@ -623,7 +694,8 @@ mod steps {
              05 BASE-FIELD PIC S9(5) SIGN IS SEPARATE LEADING.\n\
              05 REDEF1 PIC X(6) REDEFINES BASE-FIELD.\n\
              05 REDEF2 PIC 9(6) REDEFINES BASE-FIELD.\n\
-             66 ALIAS-FIELD RENAMES REDEF1 THRU REDEF2.".to_string(),
+             66 ALIAS-FIELD RENAMES REDEF1 THRU REDEF2."
+                .to_string(),
         );
     }
 
@@ -631,7 +703,8 @@ mod steps {
     async fn given_copybook_with_invalid_sign_separate(world: &mut CopybookWorld) {
         world.copybook_text = Some(
             "01 RECORD.\n\
-             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE INVALID.".to_string(),
+             05 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE INVALID."
+                .to_string(),
         );
     }
 
@@ -641,16 +714,22 @@ mod steps {
             "01 RECORD.\n\
              05 FIELD1 PIC X(5).\n\
              05 FIELD2 PIC X(5).\n\
-             66 ALIAS-FIELD RENAMES FIELD1 THRU NONEXISTENT.".to_string(),
+             66 ALIAS-FIELD RENAMES FIELD1 THRU NONEXISTENT."
+                .to_string(),
         );
     }
 
     #[then(expr = "the field should have sign separate information")]
     async fn then_field_has_sign_separate(world: &mut CopybookWorld) {
         let schema = world.schema();
-        let field = schema.find_field("RECORD.SIGNED-FIELD").expect("Field not found");
+        let field = schema
+            .find_field("RECORD.SIGNED-FIELD")
+            .expect("Field not found");
         if let copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } = &field.kind {
-            assert!(sign_separate.is_some(), "Field should have sign separate information");
+            assert!(
+                sign_separate.is_some(),
+                "Field should have sign separate information"
+            );
         } else {
             panic!("Expected ZonedDecimal field");
         }
@@ -659,9 +738,14 @@ mod steps {
     #[then(expr = "the sign placement should be {string}")]
     async fn then_sign_placement_is(world: &mut CopybookWorld, expected: String) {
         let schema = world.schema();
-        let field = schema.find_field("RECORD.SIGNED-FIELD").expect("Field not found");
+        let field = schema
+            .find_field("RECORD.SIGNED-FIELD")
+            .expect("Field not found");
         if let copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } = &field.kind {
-            let placement = sign_separate.as_ref().map(|s| format!("{:?}", s.placement)).unwrap_or_else(|| "None".to_string());
+            let placement = sign_separate
+                .as_ref()
+                .map(|s| format!("{:?}", s.placement))
+                .unwrap_or_else(|| "None".to_string());
             assert_eq!(placement, expected);
         } else {
             panic!("Expected ZonedDecimal field");
@@ -671,27 +755,46 @@ mod steps {
     #[then(expr = "the decoded value should be {string}")]
     async fn then_decoded_value_is(world: &mut CopybookWorld, expected: String) {
         let output = world.decoded_output();
-        assert!(output.contains(&expected), "Expected decoded value '{}', got: {}", expected, output);
+        assert!(
+            output.contains(&expected),
+            "Expected decoded value '{}', got: {}",
+            expected,
+            output
+        );
     }
 
     #[then(expr = "the encoded data should have leading sign")]
     async fn then_encoded_has_leading_sign(world: &mut CopybookWorld) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
-        assert!(output[0] == b'-' || output[0] == b'+', "Expected leading sign");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
+        assert!(
+            output[0] == b'-' || output[0] == b'+',
+            "Expected leading sign"
+        );
     }
 
     #[then(expr = "the encoded data should have trailing sign")]
     async fn then_encoded_has_trailing_sign(world: &mut CopybookWorld) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
         let last_byte = output.last().expect("Output should not be empty");
-        assert!(*last_byte == b'-' || *last_byte == b'+', "Expected trailing sign");
+        assert!(
+            *last_byte == b'-' || *last_byte == b'+',
+            "Expected trailing sign"
+        );
     }
 
     #[then(expr = "the sign placement should be preserved")]
     async fn then_sign_placement_preserved(world: &mut CopybookWorld) {
         // Sign placement is preserved through round-trip by the schema
         let schema = world.schema();
-        let field = schema.find_field("RECORD.SIGNED-FIELD").expect("Field not found");
+        let field = schema
+            .find_field("RECORD.SIGNED-FIELD")
+            .expect("Field not found");
         if let copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } = &field.kind {
             assert!(sign_separate.is_some(), "Sign separate should be preserved");
         } else {
@@ -702,16 +805,23 @@ mod steps {
     #[then(expr = "RENAMES field should be resolved")]
     async fn then_renames_resolved(world: &mut CopybookWorld) {
         let schema = world.schema();
-        let renames_field = schema.fields.iter()
+        let renames_field = schema
+            .fields
+            .iter()
             .find(|f| f.level == 66)
             .expect("RENAMES field not found");
-        assert!(renames_field.resolved_renames.is_some(), "RENAMES should be resolved");
+        assert!(
+            renames_field.resolved_renames.is_some(),
+            "RENAMES should be resolved"
+        );
     }
 
     #[then(expr = "the alias should cover all REDEFINES fields")]
     async fn then_renames_covers_redefines(world: &mut CopybookWorld) {
         let schema = world.schema();
-        let redefines_fields: Vec<_> = schema.fields.iter()
+        let redefines_fields: Vec<_> = schema
+            .fields
+            .iter()
             .filter(|f| f.redefines_of.is_some())
             .map(|f| f.name.as_str())
             .collect();
@@ -721,21 +831,34 @@ mod steps {
     #[then(expr = "the alias should reference the ODO field")]
     async fn then_renames_references_odo(world: &mut CopybookWorld) {
         let schema = world.schema();
-        let renames_field = schema.fields.iter()
+        let renames_field = schema
+            .fields
+            .iter()
             .find(|f| f.level == 66)
             .expect("RENAMES field not found");
-        let resolved = renames_field.resolved_renames.as_ref().expect("RENAMES not resolved");
-        assert!(!resolved.members.is_empty(), "RENAMES should reference fields");
+        let resolved = renames_field
+            .resolved_renames
+            .as_ref()
+            .expect("RENAMES not resolved");
+        assert!(
+            !resolved.members.is_empty(),
+            "RENAMES should reference fields"
+        );
     }
 
     #[then(expr = "RENAMES field should have Level-88 conditions")]
     async fn then_renames_has_level88(world: &mut CopybookWorld) {
         let schema = world.schema();
-        let renames_field = schema.fields.iter()
+        let renames_field = schema
+            .fields
+            .iter()
             .find(|f| f.level == 66)
             .expect("RENAMES field not found");
         // Check if there are level-88 fields in the schema
-        let has_level88 = schema.all_fields().iter().any(|f| matches!(f.kind, copybook_core::FieldKind::Condition { .. }));
+        let has_level88 = schema
+            .all_fields()
+            .iter()
+            .any(|f| matches!(f.kind, copybook_core::FieldKind::Condition { .. }));
         assert!(has_level88, "Should have Level-88 conditions");
     }
 
@@ -743,7 +866,10 @@ mod steps {
     async fn then_sign_properly_handled(world: &mut CopybookWorld) {
         let output = world.decoded_output();
         // The output should contain the signed value
-        assert!(output.contains("-") || output.contains("+"), "Should contain sign indicator");
+        assert!(
+            output.contains("-") || output.contains("+"),
+            "Should contain sign indicator"
+        );
     }
 
     #[then(expr = "the error should indicate invalid SIGN SEPARATE placement")]

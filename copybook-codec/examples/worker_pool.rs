@@ -1,8 +1,15 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::similar_names,
+    clippy::too_many_lines,
+    clippy::items_after_statements
+)]
 // WorkerPool usage example
 // Demonstrates parallel record processing with deterministic output ordering
 
-use copybook_codec::memory::{WorkerPool, ScratchBuffers};
-use copybook_codec::{decode_record_with_scratch, DecodeOptions, Codepage, RecordFormat};
+use copybook_codec::memory::{ScratchBuffers, WorkerPool};
+use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_record_with_scratch};
 use copybook_core::parse_copybook;
 use std::sync::Arc;
 use std::time::Instant;
@@ -13,9 +20,9 @@ fn main() {
     // Example 1: Basic parallel processing
     println!("--- Example 1: Basic Parallel Processing ---");
     let mut pool = WorkerPool::new(
-        4,   // 4 worker threads
-        16,  // 16 records in flight
-        8,   // 8 max reorder window
+        4,  // 4 worker threads
+        16, // 16 records in flight
+        8,  // 8 max reorder window
         |input: i32, _scratch: &mut ScratchBuffers| -> i32 {
             // Simulate processing work
             input * 2
@@ -30,7 +37,7 @@ fn main() {
     println!("Receiving results in order:");
     for i in 1..=10 {
         let result = pool.recv_ordered().unwrap().unwrap();
-        println!("  Input: {}, Output: {}", i, result);
+        println!("  Input: {i}, Output: {result}");
         assert_eq!(result, i * 2);
     }
 
@@ -40,14 +47,14 @@ fn main() {
     println!("\n--- Example 2: COBOL Record Processing ---");
 
     // Example COBOL copybook for customer records
-    let copybook = r#"
+    let copybook = r"
        01 CUSTOMER-RECORD.
           05 CUSTOMER-ID       PIC 9(6).
           05 CUSTOMER-NAME     PIC X(30).
           05 ACCOUNT-TYPE      PIC X(1).
           05 BALANCE           PIC S9(7)V99 COMP-3.
           05 LAST-ACTIVITY     PIC 9(8).
-    "#;
+    ";
 
     println!("🏗️  Parsing COBOL copybook...");
     let schema = match parse_copybook(copybook) {
@@ -79,9 +86,9 @@ fn main() {
     // Create worker pool for COBOL decoding
     let schema_clone = Arc::clone(&schema);
     let mut pool = WorkerPool::new(
-        4,   // 4 worker threads
-        16,  // 16 records in flight
-        8,   // 8 max reorder window
+        4,  // 4 worker threads
+        16, // 16 records in flight
+        8,  // 8 max reorder window
         move |record_data: Vec<u8>, scratch: &mut ScratchBuffers| -> String {
             decode_record_with_scratch(&schema_clone, &record_data, &options, scratch)
                 .unwrap()
@@ -89,7 +96,7 @@ fn main() {
         },
     );
 
-    println!("Submitting {} COBOL records for parallel processing...", num_records);
+    println!("Submitting {num_records} COBOL records for parallel processing...");
     let start = Instant::now();
 
     for record in records {
@@ -103,7 +110,7 @@ fn main() {
     }
 
     let elapsed = start.elapsed();
-    println!("Processing time: {:?}", elapsed);
+    println!("Processing time: {elapsed:?}");
 
     pool.shutdown().unwrap();
 
@@ -127,12 +134,10 @@ fn main() {
     // Example 4: Statistics
     println!("\n--- Example 4: Statistics ---");
     let mut pool2 = WorkerPool::new(
-        2,   // 2 worker threads
-        8,   // 8 records in flight
-        4,   // 4 max reorder window
-        |input: i32, _scratch: &mut ScratchBuffers| -> i32 {
-            input * 3
-        },
+        2, // 2 worker threads
+        8, // 8 records in flight
+        4, // 4 max reorder window
+        |input: i32, _scratch: &mut ScratchBuffers| -> i32 { input * 3 },
     );
 
     // Submit some work
@@ -144,8 +149,14 @@ fn main() {
     let stats = pool2.stats();
     println!("Statistics:");
     println!("  Worker count: {}", stats.num_workers);
-    println!("  Channel capacity: {}", stats.sequence_ring_stats.channel_capacity);
-    println!("  Max window size: {}", stats.sequence_ring_stats.max_window_size);
+    println!(
+        "  Channel capacity: {}",
+        stats.sequence_ring_stats.channel_capacity
+    );
+    println!(
+        "  Max window size: {}",
+        stats.sequence_ring_stats.max_window_size
+    );
     println!("  Next input sequence: {}", stats.next_input_sequence);
 
     // Receive results

@@ -177,10 +177,7 @@ impl Feature {
     pub fn default_enabled(&self) -> bool {
         match self {
             // Experimental features are disabled by default
-            Feature::SignSeparate
-            | Feature::RenamesR4R6
-            | Feature::Comp1
-            | Feature::Comp2 => false,
+            Feature::SignSeparate | Feature::RenamesR4R6 | Feature::Comp1 | Feature::Comp2 => false,
             // Enterprise features are disabled by default
             Feature::AuditSystem
             | Feature::SoxCompliance
@@ -222,7 +219,9 @@ impl Feature {
             Feature::GdprCompliance => "Enable GDPR compliance validation",
             Feature::PciDssCompliance => "Enable PCI DSS compliance validation",
             Feature::SecurityMonitoring => "Enable security monitoring integration",
-            Feature::AdvancedOptimization => "Enable advanced optimization mode (SIMD, vectorization)",
+            Feature::AdvancedOptimization => {
+                "Enable advanced optimization mode (SIMD, vectorization)"
+            }
             Feature::LruCache => "Enable LRU cache for parsed copybooks",
             Feature::ParallelDecode => "Enable parallel decoding for large files",
             Feature::ZeroCopy => "Enable zero-copy parsing where possible",
@@ -390,7 +389,7 @@ impl FeatureFlags {
     /// This allows CLI options to override the default feature flags.
     /// Should be called early in the program before any parsing operations.
     pub fn set_global(flags: Self) {
-        GLOBAL_FLAGS.set(flags);
+        let _ = GLOBAL_FLAGS.set(flags);
     }
 
     /// Create feature flags from environment variables
@@ -402,18 +401,17 @@ impl FeatureFlags {
 
         // Read environment variables
         for (key, value) in env::vars() {
-            if key.starts_with("COPYBOOK_FF_") {
-                let feature_name = key.strip_prefix("COPYBOOK_FF_").unwrap();
-                if let Ok(feature) = Feature::from_str(feature_name) {
-                    let enabled = matches!(
-                        value.to_lowercase().as_str(),
-                        "1" | "true" | "yes" | "on" | "enabled"
-                    );
-                    if enabled {
-                        flags.enabled.insert(feature);
-                    } else {
-                        flags.enabled.remove(&feature);
-                    }
+            if let Some(feature_name) = key.strip_prefix("COPYBOOK_FF_")
+                && let Ok(feature) = Feature::from_str(feature_name)
+            {
+                let enabled = matches!(
+                    value.to_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on" | "enabled"
+                );
+                if enabled {
+                    flags.enabled.insert(feature);
+                } else {
+                    flags.enabled.remove(&feature);
                 }
             }
         }
@@ -483,18 +481,21 @@ pub struct FeatureFlagsBuilder {
 
 impl FeatureFlagsBuilder {
     /// Enable a feature
+    #[must_use]
     pub fn enable(mut self, feature: Feature) -> Self {
         self.flags.enable(feature);
         self
     }
 
     /// Disable a feature
+    #[must_use]
     pub fn disable(mut self, feature: Feature) -> Self {
         self.flags.disable(feature);
         self
     }
 
     /// Enable all features in a category
+    #[must_use]
     pub fn enable_category(mut self, category: FeatureCategory) -> Self {
         for feature in FeatureFlags::features_in_category(category) {
             self.flags.enable(feature);
@@ -503,6 +504,7 @@ impl FeatureFlagsBuilder {
     }
 
     /// Disable all features in a category
+    #[must_use]
     pub fn disable_category(mut self, category: FeatureCategory) -> Self {
         for feature in FeatureFlags::features_in_category(category) {
             self.flags.disable(feature);
@@ -643,11 +645,17 @@ mod tests {
 
     #[test]
     fn test_feature_category() {
-        assert_eq!(Feature::SignSeparate.category(), FeatureCategory::Experimental);
+        assert_eq!(
+            Feature::SignSeparate.category(),
+            FeatureCategory::Experimental
+        );
         assert_eq!(Feature::AuditSystem.category(), FeatureCategory::Enterprise);
         assert_eq!(Feature::LruCache.category(), FeatureCategory::Performance);
         assert_eq!(Feature::VerboseLogging.category(), FeatureCategory::Debug);
-        assert_eq!(Feature::MutationTesting.category(), FeatureCategory::Testing);
+        assert_eq!(
+            Feature::MutationTesting.category(),
+            FeatureCategory::Testing
+        );
     }
 
     #[test]

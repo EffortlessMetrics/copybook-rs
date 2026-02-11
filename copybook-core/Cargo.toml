@@ -31,15 +31,15 @@ sha2.workspace = true
 
 # Audit system dependencies (only when audit feature is enabled)
 async-trait = { version = "0.1.89", optional = true }
-chrono = { version = "0.4.42", features = ["serde"], optional = true }
+chrono = { version = "0.4.43", features = ["serde"], optional = true }
 hex = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.100"
+anyhow = "1.0.101"
 proptest.workspace = true
 tempfile.workspace = true
-tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 
 [features]
 default = []

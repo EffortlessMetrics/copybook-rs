@@ -240,6 +240,7 @@ fn test_redefines_encode_single_view_allowed() -> TestResult {
         threads: 1,
         coerce_numbers: true,
         zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -300,6 +301,7 @@ fn test_redefines_raw_data_precedence() -> TestResult {
         threads: 1,
         coerce_numbers: true,
         zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -353,6 +355,7 @@ fn test_redefines_round_trip_preservation() -> TestResult {
         threads: 1,
         coerce_numbers: true,
         zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

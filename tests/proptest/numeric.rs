@@ -329,10 +329,11 @@ proptest! {
             format!("{}{}", if is_negative { "-" } else { "" }, int_part)
         } else {
             format!(
-                "{}{}.{}",
+                "{}{}.{:0width$}",
                 if is_negative { "-" } else { "" },
                 int_part,
-                format!("{:0width$}", dec_part, width = dec_digits)
+                dec_part,
+                width = dec_digits
             )
         };
 

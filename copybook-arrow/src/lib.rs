@@ -78,9 +78,9 @@ pub fn json_to_schema(json_value: &Value) -> Result<Schema> {
 }
 
 /// Convert a JSON value to an Arrow Array
-fn json_value_to_array(_key: &str, json_value: &Value) -> Result<ArrayRef> {
+fn json_value_to_array(_key: &str, json_value: &Value, data_type: &DataType) -> Result<ArrayRef> {
     let array: ArrayRef = match json_value {
-        Value::Null => arrow::array::new_null_array(&DataType::Null, 1),
+        Value::Null => arrow::array::new_null_array(data_type, 1),
         Value::Bool(b) => Arc::new(arrow::array::BooleanArray::from(vec![Some(*b)])),
         Value::Number(n) => {
             if let Some(i) = n.as_i64() {
@@ -88,7 +88,7 @@ fn json_value_to_array(_key: &str, json_value: &Value) -> Result<ArrayRef> {
             } else if let Some(f) = n.as_f64() {
                 Arc::new(arrow::array::Float64Array::from(vec![Some(f)]))
             } else {
-                arrow::array::new_null_array(&DataType::Float64, 1)
+                arrow::array::new_null_array(data_type, 1)
             }
         }
         Value::String(s) => Arc::new(StringArray::from(vec![Some(s.as_str())])),
@@ -123,7 +123,7 @@ pub fn json_to_record_batch(schema: &Schema, json_value: &Value) -> Result<Recor
 
         for field in schema.fields() {
             let value = map.get(field.name()).unwrap_or(&Value::Null);
-            let array = json_value_to_array(field.name(), value)?;
+            let array = json_value_to_array(field.name(), value, field.data_type())?;
             columns.push(array);
         }
 
@@ -316,6 +316,7 @@ mod tests {
     #[test]
     fn test_json_type_to_arrow_extended() {
         assert!(matches!(json_type_to_arrow(&Value::Null), DataType::Null));
+        #[allow(clippy::approx_constant)]
         let float_num = serde_json::Number::from_f64(3.14).unwrap();
         assert!(matches!(
             json_type_to_arrow(&Value::Number(float_num)),
@@ -384,12 +385,12 @@ mod tests {
     #[test]
     fn test_json_value_to_array_stringified() {
         let array_value = serde_json::json!(["a", 1, true]);
-        let array = json_value_to_array("items", &array_value).unwrap();
+        let array = json_value_to_array("items", &array_value, &DataType::Utf8).unwrap();
         let array = array.as_any().downcast_ref::<StringArray>().unwrap();
         assert_eq!(array.value(0), "[\"a\",1,true]");
 
         let object_value = serde_json::json!({"k": "v"});
-        let object = json_value_to_array("obj", &object_value).unwrap();
+        let object = json_value_to_array("obj", &object_value, &DataType::Utf8).unwrap();
         let object = object.as_any().downcast_ref::<StringArray>().unwrap();
         assert_eq!(object.value(0), "{\"k\":\"v\"}");
     }
@@ -438,7 +439,7 @@ mod tests {
         let path = temp_file.path();
 
         parquet_writer
-            .write_json_records(path, &[json.clone()])
+            .write_json_records(path, std::slice::from_ref(&json))
             .unwrap();
 
         // Verify file was created
@@ -465,7 +466,7 @@ mod tests {
 
         let temp_dir = tempfile::tempdir().unwrap();
         let err = writer
-            .write_json_records(temp_dir.path(), &[json.clone()])
+            .write_json_records(temp_dir.path(), std::slice::from_ref(&json))
             .unwrap_err();
 
         assert!(matches!(err, ArrowError::Io(_)));

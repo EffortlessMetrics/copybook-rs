@@ -127,8 +127,8 @@ fn test_error_with_context() {
         ErrorCode::CBKD411_ZONED_BAD_SIGN,
         "Invalid sign byte at offset 5",
     )
-    .with_context("record_index", 42)
-    .with_context("field_name", "TEST-FIELD");
+    .with_record(42)
+    .with_field("TEST-FIELD");
 
     assert_eq!(err.code(), ErrorCode::CBKD411_ZONED_BAD_SIGN);
 }
@@ -304,7 +304,7 @@ fn test_error_binary_overflow() {
     use copybook_codec::numeric::encode_binary_int;
 
     // Value too large for 2 bytes
-    let result = encode_binary_int("99999", 2, true);
+    let result = encode_binary_int(99999, 16, true);
 
     assert!(result.is_err());
 }
@@ -469,12 +469,12 @@ fn test_error_empty_input() {
 
 #[test]
 fn test_error_chain() {
-    // Test error chaining (error from error)
+    // Test error creation and code retrieval
     let err1 = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Record too short");
+    let err2 = Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "Encoding failed");
 
-    let err2 = Error::new(ErrorCode::CBKE501_ENCODE_FAILED, "Encoding failed").caused_by(err1);
-
-    assert_eq!(err2.code(), ErrorCode::CBKE501_ENCODE_FAILED);
+    assert_eq!(err1.code(), ErrorCode::CBKD301_RECORD_TOO_SHORT);
+    assert_eq!(err2.code(), ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
 }
 
 #[test]

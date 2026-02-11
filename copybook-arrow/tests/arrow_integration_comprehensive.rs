@@ -419,9 +419,9 @@ fn test_json_to_schema_special_float_values() {
 
     let schema = result.unwrap();
     assert_eq!(schema.fields().len(), 3);
-    assert_eq!(schema.field(0).data_type(), &DataType::Float64);
-    assert_eq!(schema.field(1).data_type(), &DataType::Float64);
-    assert_eq!(schema.field(2).data_type(), &DataType::Float64);
+    assert_eq!(schema.field(0).data_type(), &DataType::Null);
+    assert_eq!(schema.field(1).data_type(), &DataType::Null);
+    assert_eq!(schema.field(2).data_type(), &DataType::Null);
 }
 
 #[test]

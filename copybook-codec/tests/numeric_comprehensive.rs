@@ -215,7 +215,7 @@ fn test_zoned_negative_zero_normalization() {
 #[test]
 fn test_packed_decimal_odd_digits() {
     let copybook = "01 PACKED-FIELD PIC 9(5) COMP-3."; // 5 digits = 3 bytes
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -243,7 +243,7 @@ fn test_packed_decimal_odd_digits() {
 #[test]
 fn test_packed_decimal_even_digits() {
     let copybook = "01 PACKED-FIELD PIC 9(6) COMP-3."; // 6 digits = 4 bytes
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -487,7 +487,7 @@ fn test_fixed_scale_rendering() {
    05 SCALE-4 PIC 9(3)V9999 COMP-3.
 ";
 
-    let schema = parse_copybook(copybook).unwrap();
+    let mut schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,

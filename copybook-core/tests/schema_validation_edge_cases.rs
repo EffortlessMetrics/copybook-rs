@@ -9,7 +9,7 @@
 //! - Error handling in schema operations
 //! - Boundary conditions
 
-use copybook_core::{ErrorCode, parse_copybook};
+use copybook_core::parse_copybook;
 
 #[test]
 fn test_schema_parse_simple_copybook() {
@@ -264,7 +264,7 @@ fn test_schema_parse_with_continuation() {
     "#;
     let schema = parse_copybook(copybook).expect("Should parse copybook");
 
-    assert!(schema.all_fields().len() >= 1);
+    assert!(!schema.all_fields().is_empty());
 }
 
 #[test]

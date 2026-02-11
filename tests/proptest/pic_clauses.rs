@@ -207,14 +207,12 @@ proptest! {
         prop_assert!(schema.is_ok(),
             "Edited PIC format {} should parse successfully", pattern);
 
-        if let Ok(s) = schema {
-            if let Some(field) = s.fields.first() {
-                // Edited format size equals pattern length
-                let expected_size = pattern.len();
-                prop_assert_eq!(field.len as usize, expected_size,
-                    "Edited PIC format {} should produce field size {}",
-                    pattern, expected_size);
-            }
+        if let Some(field) = schema.as_ref().ok().and_then(|s| s.fields.first()) {
+            // Edited format size equals pattern length
+            let expected_size = pattern.len();
+            prop_assert_eq!(field.len as usize, expected_size,
+                "Edited PIC format {} should produce field size {}",
+                pattern, expected_size);
         }
     }
 }
@@ -260,11 +258,9 @@ proptest! {
         let schema = parse_copybook(&copybook);
 
         // Mixed PIC clauses are not supported; parser may ignore trailing tokens.
-        if let Ok(s) = schema {
-            if let Some(field) = s.fields.first() {
-                prop_assert_eq!(field.len as usize, n_count,
-                    "Mixed PIC should preserve leading numeric width");
-            }
+        if let Some(field) = schema.as_ref().ok().and_then(|s| s.fields.first()) {
+            prop_assert_eq!(field.len as usize, n_count,
+                "Mixed PIC should preserve leading numeric width");
         }
     }
 }
@@ -384,14 +380,12 @@ proptest! {
         let schema = parse_copybook(&copybook);
 
         // P (scaling) may not be fully supported
-        if let Ok(s) = schema {
-            if let Some(field) = s.fields.first() {
-                // P positions may or may not count toward size
-                // This test verifies consistent behavior
-                prop_assert!((field.len as usize) >= n,
-                    "PIC 9({})P({}) should produce field size at least {}",
-                    n, p_count, n);
-            }
+        if let Some(field) = schema.as_ref().ok().and_then(|s| s.fields.first()) {
+            // P positions may or may not count toward size
+            // This test verifies consistent behavior
+            prop_assert!((field.len as usize) >= n,
+                "PIC 9({})P({}) should produce field size at least {}",
+                n, p_count, n);
         }
     }
 }

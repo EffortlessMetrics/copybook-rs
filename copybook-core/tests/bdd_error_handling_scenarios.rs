@@ -299,6 +299,7 @@ fn bdd_scenario_fillers() {
     let has_filler = schema.all_fields()[0].is_filler()
         || (schema.all_fields().len() > 1 && schema.all_fields()[1].is_filler());
     // FILLER should be identified
+    assert!(has_filler);
 }
 
 #[test]
@@ -518,7 +519,8 @@ fn bdd_scenario_recovery_after_error() {
     // Then: Valid records should be processed
 
     // This is a structural test for batch processing
-    assert!(true);
+    let copybook = "01  A PIC X.";
+    assert!(parse_copybook(copybook).is_ok());
 }
 
 #[test]

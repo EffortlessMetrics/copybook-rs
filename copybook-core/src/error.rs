@@ -39,6 +39,13 @@ impl fmt::Display for Error {
 }
 
 impl Error {
+    /// Return the stable error code for this error.
+    #[inline]
+    #[must_use]
+    pub const fn code(&self) -> ErrorCode {
+        self.code
+    }
+
     /// Return the CBK* family prefix associated with this error.
     #[inline]
     #[must_use]
@@ -81,6 +88,8 @@ pub enum ErrorCode {
     CBKP023_ODO_REDEFINES,
     /// CBKP051: Unsupported edited PIC clause pattern
     CBKP051_UNSUPPORTED_EDITED_PIC,
+    /// CBKP101: Invalid PIC clause syntax or illegal characters
+    CBKP101_INVALID_PIC,
 
     // =============================================================================
     // Schema Errors (CBKS*) - Schema validation and ODO processing
@@ -215,6 +224,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKP022_NESTED_ODO => "CBKP022_NESTED_ODO",
             ErrorCode::CBKP023_ODO_REDEFINES => "CBKP023_ODO_REDEFINES",
             ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => "CBKP051_UNSUPPORTED_EDITED_PIC",
+            ErrorCode::CBKP101_INVALID_PIC => "CBKP101_INVALID_PIC",
             ErrorCode::CBKS121_COUNTER_NOT_FOUND => "CBKS121_COUNTER_NOT_FOUND",
             ErrorCode::CBKS141_RECORD_TOO_LARGE => "CBKS141_RECORD_TOO_LARGE",
             ErrorCode::CBKS301_ODO_CLIPPED => "CBKS301_ODO_CLIPPED",
@@ -278,7 +288,8 @@ impl ErrorCode {
             | Self::CBKP021_ODO_NOT_TAIL
             | Self::CBKP022_NESTED_ODO
             | Self::CBKP023_ODO_REDEFINES
-            | Self::CBKP051_UNSUPPORTED_EDITED_PIC => "CBKP",
+            | Self::CBKP051_UNSUPPORTED_EDITED_PIC
+            | Self::CBKP101_INVALID_PIC => "CBKP",
             Self::CBKS121_COUNTER_NOT_FOUND
             | Self::CBKS141_RECORD_TOO_LARGE
             | Self::CBKS301_ODO_CLIPPED

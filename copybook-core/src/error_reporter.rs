@@ -298,7 +298,8 @@ impl ErrorReporter {
             | ErrorCode::CBKP021_ODO_NOT_TAIL
             | ErrorCode::CBKP022_NESTED_ODO
             | ErrorCode::CBKP023_ODO_REDEFINES
-            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
+            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+            | ErrorCode::CBKP101_INVALID_PIC => ErrorSeverity::Fatal,
 
             // Schema errors can be fatal or errors depending on context
             ErrorCode::CBKS121_COUNTER_NOT_FOUND

@@ -93,11 +93,9 @@ proptest! {
             .expect("Failed to decode");
 
         // Verify array structure in JSON
-        if let Some(array) = json_result.get("ARRAY") {
-            if let Some(arr) = array.as_array() {
-                prop_assert_eq!(arr.len(), count,
-                    "Array should have {} elements", count);
-            }
+        if let Some(arr) = json_result.get("ARRAY").and_then(|v| v.as_array()) {
+            prop_assert_eq!(arr.len(), count,
+                "Array should have {} elements", count);
         }
 
         if let Some(array) = json_result.get("ARRAY").and_then(|v| v.as_array()) {
@@ -246,11 +244,9 @@ proptest! {
             .expect("Failed to decode");
 
         // Verify COUNT field
-        if let Some(count) = json_result.get("COUNT") {
-            if let Some(s) = count.as_str() {
-                prop_assert_eq!(s.parse::<usize>().unwrap(), actual_count,
-                    "COUNT field should match actual count");
-            }
+        if let Some(s) = json_result.get("COUNT").and_then(|v| v.as_str()) {
+            prop_assert_eq!(s.parse::<usize>().unwrap(), actual_count,
+                "COUNT field should match actual count");
         }
 
         if let Some(array) = json_result.get("ARRAY").and_then(|v| v.as_array()) {

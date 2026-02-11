@@ -400,7 +400,7 @@ mod tests {
             .run(&ebcdic_zoned_strategy(5), |data| {
                 assert_eq!(data.len(), 5);
                 for byte in data {
-                    assert!(byte >= 0xF0 && byte <= 0xF9);
+                    assert!((0xF0..=0xF9).contains(&byte));
                 }
                 Ok(())
             })

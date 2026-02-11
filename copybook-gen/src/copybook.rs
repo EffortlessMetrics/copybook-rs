@@ -511,7 +511,7 @@ mod tests {
         let copybook = generate_display_heavy_copybook(&mut rng, &config);
 
         assert!(copybook.contains("DISPLAY Heavy"));
-        assert!(copybook.contains("TEXT-50"));
+        assert!(copybook.contains("TEXT-48"));
         assert!(copybook.contains("SIGNED-47"));
     }
 

@@ -104,10 +104,10 @@ mod json_ordering {
 
             // Field order in JSON should match copybook order
             if let Value::Object(obj) = json {
-                let field_names: Vec<_> = obj.keys().collect();
-                let copybook_field_names: Vec<_> = schema.all_fields()
+                let field_names: Vec<String> = obj.keys().cloned().collect();
+                let copybook_field_names: Vec<String> = schema.all_fields()
                     .iter()
-                    .map(|f| f.name())
+                    .map(|f| f.name.clone())
                     .collect();
 
                 prop_assert_eq!(field_names, copybook_field_names);
@@ -134,9 +134,9 @@ mod numeric_preservation {
 
             // Create copybook
             let copybook = if signed {
-                format!("01 TEST-FIELD PIC S9(15)V99.")
+                "01 TEST-FIELD PIC S9(15)V99.".to_string()
             } else {
-                format!("01 TEST-FIELD PIC 9(15)V99.")
+                "01 TEST-FIELD PIC 9(15)V99.".to_string()
             };
             let schema = parse_copybook(&copybook).expect("Should parse copybook");
 
@@ -193,7 +193,7 @@ mod numeric_preservation {
 
             // Create copybook with COMP-3
             let copybook = "01 TEST-FIELD PIC S9(15)V99 COMP-3.";
-            let schema = parse_copybook(&copybook).expect("Should parse copybook");
+            let schema = parse_copybook(copybook).expect("Should parse copybook");
 
             // Encode the value
             let value_str = format!("{:.2}", value as f64 / 100.0);
@@ -247,8 +247,9 @@ mod array_handling {
         #[test]
         fn prop_array_length_preserved(
             array_size in 1..20usize,
-            element_count in 1..array_size,
+            element_count in 1..20usize,
         ) {
+            let element_count = element_count.min(array_size);
             // Create copybook with OCCURS
             let copybook = format!("01 ARRAY-FIELD PIC 9(5) OCCURS {} TIMES.", array_size);
             let schema = parse_copybook(&copybook).expect("Should parse copybook");
@@ -319,9 +320,9 @@ mod array_handling {
 
             // Array element order should be preserved
             if let Value::Array(arr) = &json["ARRAY-FIELD"] {
-                for i in 0..array_size {
+                for (i, item) in arr.iter().enumerate().take(array_size) {
                     let expected = format!("{:05}", i);
-                    let actual = arr[i].as_str().unwrap();
+                    let actual = item.as_str().unwrap();
                     prop_assert_eq!(actual, expected);
                 }
             }
@@ -340,7 +341,7 @@ mod memory_management {
         ) {
             // Create simple copybook
             let copybook = "01 TEST-FIELD PIC 9(5).";
-            let schema = parse_copybook(&copybook).expect("Should parse copybook");
+            let schema = parse_copybook(copybook).expect("Should parse copybook");
 
             // Generate multiple records
             let data = generate_multiple_records(&schema, record_count);
@@ -425,12 +426,19 @@ fn generate_copybook(field_count: usize, prefix: &str) -> String {
 fn generate_test_data(schema: &copybook_core::Schema) -> Vec<u8> {
     let mut data = Vec::new();
     for field in schema.all_fields() {
-        if let FieldKind::Numeric(_) = field.kind() {
-            data.extend_from_slice(b"12345");
-        } else if let FieldKind::Alphanumeric(_) = field.kind() {
-            data.extend_from_slice(b"ABCDE");
-        } else {
-            data.extend_from_slice(&vec![0u8; field.length()]);
+        match &field.kind {
+            FieldKind::ZonedDecimal { .. }
+            | FieldKind::PackedDecimal { .. }
+            | FieldKind::BinaryInt { .. }
+            | FieldKind::EditedNumeric { .. } => {
+                data.extend_from_slice(b"12345");
+            }
+            FieldKind::Alphanum { .. } => {
+                data.extend_from_slice(b"ABCDE");
+            }
+            _ => {
+                data.extend_from_slice(&vec![0u8; field.len as usize]);
+            }
         }
     }
     data
@@ -442,13 +450,15 @@ fn generate_array_test_data(schema: &copybook_core::Schema, element_count: usize
         data.extend_from_slice(format!("{:05}", i).as_bytes());
     }
     // Pad to full array size
-    for _ in element_count..schema.all_fields()[0].length() / 5 {
+    let first_field = &schema.all_fields()[0];
+    let total_elements = first_field.len as usize / 5;
+    for _ in element_count..total_elements {
         data.extend_from_slice(b"00000");
     }
     data
 }
 
-fn generate_sequential_array_data(schema: &copybook_core::Schema, array_size: usize) -> Vec<u8> {
+fn generate_sequential_array_data(_schema: &copybook_core::Schema, array_size: usize) -> Vec<u8> {
     let mut data = Vec::new();
     for i in 0..array_size {
         data.extend_from_slice(format!("{:05}", i).as_bytes());

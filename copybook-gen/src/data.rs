@@ -477,10 +477,15 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
 
 fn ascii_to_ebcdic_approx(ascii: u8) -> u8 {
     // Simplified ASCII to EBCDIC conversion for common characters
+    // EBCDIC groups are not contiguous: A-I, J-R, S-Z
     match ascii {
         b'0'..=b'9' => 0xF0 + (ascii - b'0'),
-        b'A'..=b'Z' => 0xC1 + (ascii - b'A'),
-        b'a'..=b'z' => 0x81 + (ascii - b'a'),
+        b'A'..=b'I' => 0xC1 + (ascii - b'A'),
+        b'J'..=b'R' => 0xD1 + (ascii - b'J'),
+        b'S'..=b'Z' => 0xE2 + (ascii - b'S'),
+        b'a'..=b'i' => 0x81 + (ascii - b'a'),
+        b'j'..=b'r' => 0x91 + (ascii - b'j'),
+        b's'..=b'z' => 0xA2 + (ascii - b's'),
         _ => 0x40, // Default to space (includes b' ')
     }
 }

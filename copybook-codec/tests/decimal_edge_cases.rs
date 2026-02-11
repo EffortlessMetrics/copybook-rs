@@ -17,8 +17,8 @@
 //! - Zoned decimal overpunch mapping by codepage
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, ZonedEncodingFormat,
-    decode_record, encode_record,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
+    encode_record,
 };
 use copybook_core::{Schema, parse_copybook};
 use serde_json::json;

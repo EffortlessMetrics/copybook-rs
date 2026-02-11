@@ -553,6 +553,34 @@ impl Field {
             None => self.len,
         }
     }
+
+    /// Returns SIGN SEPARATE info if this is a zoned decimal field with that clause.
+    #[must_use]
+    pub fn sign_separate(&self) -> Option<&SignSeparateInfo> {
+        if let FieldKind::ZonedDecimal { sign_separate, .. } = &self.kind {
+            sign_separate.as_ref()
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if this is a packed decimal (COMP-3) field.
+    #[must_use]
+    pub fn is_packed(&self) -> bool {
+        matches!(self.kind, FieldKind::PackedDecimal { .. })
+    }
+
+    /// Returns true if this is a binary integer (COMP/BINARY) field.
+    #[must_use]
+    pub fn is_binary(&self) -> bool {
+        matches!(self.kind, FieldKind::BinaryInt { .. })
+    }
+
+    /// Returns true if this field's name is FILLER (case-insensitive).
+    #[must_use]
+    pub fn is_filler(&self) -> bool {
+        self.name.eq_ignore_ascii_case("FILLER")
+    }
 }
 
 impl Default for Schema {

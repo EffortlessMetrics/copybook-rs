@@ -1346,7 +1346,7 @@ pub fn decode_zoned_decimal_sign_separate(
 /// ```no_run
 /// use copybook_codec::numeric::{decode_zoned_decimal_with_encoding};
 /// use copybook_codec::options::Codepage;
-/// use copybook_codec::numeric::ZonedEncodingFormat;
+/// use copybook_codec::options::ZonedEncodingFormat;
 ///
 /// let data = b"123";
 /// let (decimal, encoding_info) = decode_zoned_decimal_with_encoding(
@@ -2270,7 +2270,7 @@ pub fn encode_zoned_decimal(
 /// ```no_run
 /// use copybook_codec::numeric::{encode_zoned_decimal_with_format};
 /// use copybook_codec::options::Codepage;
-/// use copybook_codec::numeric::ZonedEncodingFormat;
+/// use copybook_codec::options::ZonedEncodingFormat;
 ///
 /// // Encode "123" with explicit ASCII encoding
 /// let encoded = encode_zoned_decimal_with_format(
@@ -2285,7 +2285,7 @@ pub fn encode_zoned_decimal(
 /// ```no_run
 /// use copybook_codec::numeric::{encode_zoned_decimal_with_format};
 /// use copybook_codec::options::Codepage;
-/// use copybook_codec::numeric::ZonedEncodingFormat;
+/// use copybook_codec::options::ZonedEncodingFormat;
 ///
 /// // Encode "789" with explicit EBCDIC encoding
 /// let encoded = encode_zoned_decimal_with_format(
@@ -2300,7 +2300,7 @@ pub fn encode_zoned_decimal(
 /// ```no_run
 /// use copybook_codec::numeric::{encode_zoned_decimal_with_format};
 /// use copybook_codec::options::Codepage;
-/// use copybook_codec::numeric::ZonedEncodingFormat;
+/// use copybook_codec::options::ZonedEncodingFormat;
 ///
 /// // Encode "456" with Auto encoding (uses EBCDIC default for CP037)
 /// let encoded = encode_zoned_decimal_with_format(

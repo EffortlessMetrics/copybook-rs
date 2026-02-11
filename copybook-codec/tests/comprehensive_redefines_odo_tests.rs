@@ -39,7 +39,7 @@ fn create_test_decode_options(strict: bool) -> DecodeOptions {
     }
 }
 
-fn create_test_encode_options(strict: bool) -> EncodeOptions {
+fn create_test_encode_options(_strict: bool) -> EncodeOptions {
     EncodeOptions {
         ..EncodeOptions::default()
     }

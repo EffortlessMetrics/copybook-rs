@@ -69,7 +69,7 @@ fn test_enable_features_cli() {
 
 #[test]
 fn test_feature_flags_config_toml() {
-    let config = r#"
+    let _config = r#"
 [feature_flags]
 enabled = ["verbose_logging", "diagnostic_output"]
 disabled = ["lru_cache"]

@@ -315,10 +315,7 @@ mod tests {
 
     #[test]
     fn test_json_type_to_arrow_extended() {
-        assert!(matches!(
-            json_type_to_arrow(&Value::Null),
-            DataType::Null
-        ));
+        assert!(matches!(json_type_to_arrow(&Value::Null), DataType::Null));
         let float_num = serde_json::Number::from_f64(3.14).unwrap();
         assert!(matches!(
             json_type_to_arrow(&Value::Number(float_num)),
@@ -329,10 +326,7 @@ mod tests {
             DataType::List(_)
         ));
         let object = serde_json::json!({"k": "v"});
-        assert!(matches!(
-            json_type_to_arrow(&object),
-            DataType::Struct(_)
-        ));
+        assert!(matches!(json_type_to_arrow(&object), DataType::Struct(_)));
     }
 
     #[test]

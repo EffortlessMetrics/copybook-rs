@@ -9,7 +9,7 @@
 //! - Error handling in schema operations
 //! - Boundary conditions
 
-use copybook_core::{parse_copybook, ErrorCode};
+use copybook_core::{ErrorCode, parse_copybook};
 
 #[test]
 fn test_schema_parse_simple_copybook() {
@@ -341,7 +341,10 @@ fn test_schema_field_is_filler() {
     let schema = parse_copybook(copybook).expect("Should parse copybook");
 
     // Check for FILLER field
-    let has_filler = schema.all_fields()[0].children.iter().any(|f| f.name == "FILLER");
+    let has_filler = schema.all_fields()[0]
+        .children
+        .iter()
+        .any(|f| f.name == "FILLER");
     assert!(has_filler);
 }
 

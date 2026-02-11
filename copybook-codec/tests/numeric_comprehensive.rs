@@ -23,7 +23,7 @@ use std::io::Cursor;
 fn test_zoned_decimal_ebcdic_sign_zones() {
     // Test EBCDIC overpunch sign zones
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -67,7 +67,7 @@ fn test_zoned_decimal_ebcdic_sign_zones() {
 fn test_zoned_decimal_ascii_sign_zones() {
     // Test ASCII overpunch sign zones
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -110,7 +110,7 @@ fn test_zoned_decimal_ascii_sign_zones() {
 #[test]
 fn test_blank_when_zero_handling() {
     let copybook = "01 BWZ-FIELD PIC 9(5) BLANK WHEN ZERO.";
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -145,7 +145,7 @@ fn test_blank_when_zero_handling() {
 #[test]
 fn test_zoned_invalid_zone_error() {
     let copybook = "01 ZONED-FIELD PIC 9(3).";
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -182,7 +182,7 @@ fn test_zoned_invalid_zone_error() {
 fn test_zoned_negative_zero_normalization() {
     // Test that -0 is normalized to 0 (NORMATIVE)
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -215,7 +215,7 @@ fn test_zoned_negative_zero_normalization() {
 #[test]
 fn test_packed_decimal_odd_digits() {
     let copybook = "01 PACKED-FIELD PIC 9(5) COMP-3."; // 5 digits = 3 bytes
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -243,7 +243,7 @@ fn test_packed_decimal_odd_digits() {
 #[test]
 fn test_packed_decimal_even_digits() {
     let copybook = "01 PACKED-FIELD PIC 9(6) COMP-3."; // 6 digits = 4 bytes
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -271,7 +271,7 @@ fn test_packed_decimal_even_digits() {
 #[test]
 fn test_packed_decimal_sign_nibbles() {
     let copybook = "01 SIGNED-PACKED PIC S9(3) COMP-3."; // 3 digits = 2 bytes
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -325,7 +325,7 @@ fn test_packed_decimal_sign_nibbles() {
 #[test]
 fn test_packed_decimal_invalid_nibble() {
     let copybook = "01 PACKED-FIELD PIC 9(3) COMP-3.";
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,
@@ -394,7 +394,7 @@ fn test_binary_signed_unsigned_edges() {
 01 UNSIGNED-BIN PIC 9(5) COMP.
 01 SIGNED-BIN PIC S9(5) COMP.
 ";
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     // Test maximum values for 32-bit binary
     let options = DecodeOptions {
@@ -430,7 +430,7 @@ fn test_binary_alignment_padding() {
    05 ANOTHER-CHAR PIC X(3).
 ";
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let root = &schema.fields[0];
     assert_eq!(root.children.len(), 3);
@@ -487,7 +487,7 @@ fn test_fixed_scale_rendering() {
    05 SCALE-4 PIC 9(3)V9999 COMP-3.
 ";
 
-    let mut schema = parse_copybook(copybook).unwrap();
+    let schema = parse_copybook(copybook).unwrap();
 
     let options = DecodeOptions {
         format: RecordFormat::Fixed,

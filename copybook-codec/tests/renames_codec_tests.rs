@@ -168,9 +168,7 @@ fn test_renames_r2_group_decode() {
     let mut data = vec![b'0'; 25];
     data[0..5].copy_from_slice(b"12345");
     data[5..13].copy_from_slice(b"JOHN DOE");
-    for i in 13..25 {
-        data[i] = b' ';
-    }
+    data[13..25].fill(b' ');
 
     let options = DecodeOptions::new().with_codepage(Codepage::ASCII);
     let result = decode_record(&schema, &data, &options).expect("decode ok");

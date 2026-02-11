@@ -9,7 +9,7 @@
 //! - Enterprise feature workflows
 //! - Performance-related scenarios
 
-use copybook_core::{parse_copybook, ErrorCode};
+use copybook_core::{ErrorCode, parse_copybook};
 
 #[test]
 fn bdd_scenario_invalid_copybook_syntax() {
@@ -296,8 +296,8 @@ fn bdd_scenario_fillers() {
     assert!(result.is_ok());
     let schema = result.unwrap();
     // Check for FILLER field
-    let has_filler = schema.all_fields()[0].is_filler() ||
-                       (schema.all_fields().len() > 1 && schema.all_fields()[1].is_filler());
+    let has_filler = schema.all_fields()[0].is_filler()
+        || (schema.all_fields().len() > 1 && schema.all_fields()[1].is_filler());
     // FILLER should be identified
 }
 

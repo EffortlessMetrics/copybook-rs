@@ -734,7 +734,10 @@ mod tests {
         assert_eq!(ZonedEncodingFormat::detect_from_byte(0x00), None);
         assert_eq!(ZonedEncodingFormat::detect_from_byte(0x50), None);
         // Note: 0xFF matches EBCDIC_ZONE (0x0F), so it returns Some(Ebcdic)
-        assert_eq!(ZonedEncodingFormat::detect_from_byte(0xFF), Some(ZonedEncodingFormat::Ebcdic));
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0xFF),
+            Some(ZonedEncodingFormat::Ebcdic)
+        );
     }
 
     #[test]

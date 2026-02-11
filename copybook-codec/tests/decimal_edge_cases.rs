@@ -56,18 +56,9 @@ fn test_packed_zero_handling() {
     let schema = create_packed_test_schema();
 
     let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        on_encode_unmappable: copybook_codec::UnmappablePolicy::Error,
-        json_number_mode: JsonNumberMode::Lossless,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let decode_options = DecodeOptions {
@@ -134,18 +125,9 @@ fn test_packed_max_digits_and_overflow() {
     let schema = create_packed_test_schema();
 
     let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        on_encode_unmappable: copybook_codec::UnmappablePolicy::Error,
-        json_number_mode: JsonNumberMode::Lossless,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     // Test reasonable maximum values (avoiding overflow)

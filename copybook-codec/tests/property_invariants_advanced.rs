@@ -10,10 +10,10 @@
 //! - Memory management invariants
 
 use copybook_codec::{
-    DecodeOptions, EncodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     decode_file_to_jsonl, encode_jsonl_to_file,
 };
-use copybook_core::{parse_copybook, FieldKind};
+use copybook_core::{FieldKind, parse_copybook};
 use proptest::prelude::*;
 use serde_json::Value;
 use std::io::Cursor;
@@ -68,50 +68,50 @@ mod json_ordering {
             // JSON output should be identical (deterministic)
             prop_assert_eq!(json1, json2);
         }
-    }
 
-    #[test]
-    fn prop_json_field_order_preserves_copybook_order(
-        field_count in 2..10usize,
-    ) {
-        // Generate a copybook with multiple fields
-        let copybook = generate_copybook(field_count, "FIELD");
-        let schema = parse_copybook(&copybook).expect("Should parse copybook");
+        #[test]
+        fn prop_json_field_order_preserves_copybook_order(
+            field_count in 2..10usize,
+        ) {
+            // Generate a copybook with multiple fields
+            let copybook = generate_copybook(field_count, "FIELD");
+            let schema = parse_copybook(&copybook).expect("Should parse copybook");
 
-        // Generate test data
-        let data = generate_test_data(&schema);
+            // Generate test data
+            let data = generate_test_data(&schema);
 
-        let options = DecodeOptions {
-            format: RecordFormat::Fixed,
-            codepage: Codepage::ASCII,
-            json_number_mode: JsonNumberMode::Lossless,
-            emit_filler: false,
-            emit_meta: false,
-            emit_raw: RawMode::Off,
-            strict_mode: false,
-            max_errors: None,
-            on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
-            threads: 1,
-            preserve_zoned_encoding: false,
-            preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
-        };
+            let options = DecodeOptions {
+                format: RecordFormat::Fixed,
+                codepage: Codepage::ASCII,
+                json_number_mode: JsonNumberMode::Lossless,
+                emit_filler: false,
+                emit_meta: false,
+                emit_raw: RawMode::Off,
+                strict_mode: false,
+                max_errors: None,
+                on_decode_unmappable: copybook_codec::UnmappablePolicy::Error,
+                threads: 1,
+                preserve_zoned_encoding: false,
+                preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+            };
 
-        // Decode
-        let input = Cursor::new(&data);
-        let mut output = Vec::new();
-        decode_file_to_jsonl(&schema, input, &mut output, &options)
-            .expect("Should decode successfully");
-        let json: Value = serde_json::from_str(&String::from_utf8(output).unwrap()).unwrap();
+            // Decode
+            let input = Cursor::new(&data);
+            let mut output = Vec::new();
+            decode_file_to_jsonl(&schema, input, &mut output, &options)
+                .expect("Should decode successfully");
+            let json: Value = serde_json::from_str(&String::from_utf8(output).unwrap()).unwrap();
 
-        // Field order in JSON should match copybook order
-        if let Value::Object(obj) = json {
-            let field_names: Vec<_> = obj.keys().collect();
-            let copybook_field_names: Vec<_> = schema.all_fields()
-                .iter()
-                .map(|f| f.name())
-                .collect();
+            // Field order in JSON should match copybook order
+            if let Value::Object(obj) = json {
+                let field_names: Vec<_> = obj.keys().collect();
+                let copybook_field_names: Vec<_> = schema.all_fields()
+                    .iter()
+                    .map(|f| f.name())
+                    .collect();
 
-            prop_assert_eq!(field_names, copybook_field_names);
+                prop_assert_eq!(field_names, copybook_field_names);
+            }
         }
     }
 }
@@ -145,17 +145,9 @@ mod numeric_preservation {
             let json_input = format!(r#"{{"TEST-FIELD": {}}}"#, value_str);
 
             let encode_options = EncodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::ASCII,
-                preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
-                use_raw: false,
-                bwz_encode: false,
-                strict_mode: false,
-                max_errors: None,
-                threads: 1,
-                coerce_numbers: false,
-                zoned_encoding_override: None,
-            };
+        codepage: Codepage::ASCII,
+        ..EncodeOptions::default()
+    };
 
             let input = Cursor::new(json_input.as_bytes());
             let mut encoded = Vec::new();
@@ -208,17 +200,9 @@ mod numeric_preservation {
             let json_input = format!(r#"{{"TEST-FIELD": {}}}"#, value_str);
 
             let encode_options = EncodeOptions {
-                format: RecordFormat::Fixed,
-                codepage: Codepage::ASCII,
-                preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
-                use_raw: false,
-                bwz_encode: false,
-                strict_mode: false,
-                max_errors: None,
-                threads: 1,
-                coerce_numbers: false,
-                zoned_encoding_override: None,
-            };
+        codepage: Codepage::ASCII,
+        ..EncodeOptions::default()
+    };
 
             let input = Cursor::new(json_input.as_bytes());
             let mut encoded = Vec::new();

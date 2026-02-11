@@ -175,16 +175,7 @@ fn test_rdw_raw_preservation_with_reserved() {
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
-        json_number_mode: JsonNumberMode::Lossless,
-        on_encode_unmappable: copybook_codec::UnmappablePolicy::Error,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: true, // Use raw data
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -358,14 +349,7 @@ fn test_rdw_length_recomputation_on_encode() {
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false, // Don't use raw - should recompute length
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

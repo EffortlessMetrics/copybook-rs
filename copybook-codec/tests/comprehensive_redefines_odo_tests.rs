@@ -41,16 +41,7 @@ fn create_test_decode_options(strict: bool) -> DecodeOptions {
 
 fn create_test_encode_options(strict: bool) -> EncodeOptions {
     EncodeOptions {
-        format: RecordFormat::Fixed,
-        codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: strict,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     }
 }
 
@@ -222,7 +213,7 @@ fn test_redefines_raw_preserved_record() {
     // Encode with raw usage
     let encode_options = EncodeOptions {
         use_raw: true,
-        ..create_test_encode_options(false)
+        ..EncodeOptions::default()
     };
 
     let result = copybook_codec::encode_record(&schema, &json_record, &encode_options);

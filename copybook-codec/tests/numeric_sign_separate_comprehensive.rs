@@ -45,14 +45,8 @@ fn test_sign_separate_ascii_leading_negative() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "-456");
     assert!(result.is_negative());
@@ -66,14 +60,8 @@ fn test_sign_separate_ascii_trailing_positive() {
         placement: SignPlacement::Trailing,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "789");
     assert!(!result.is_negative());
@@ -87,14 +75,8 @@ fn test_sign_separate_ascii_trailing_negative() {
         placement: SignPlacement::Trailing,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "-12");
     assert!(result.is_negative());
@@ -108,14 +90,8 @@ fn test_sign_separate_ascii_space_positive() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "345");
     assert!(!result.is_negative());
@@ -129,14 +105,8 @@ fn test_sign_separate_ascii_zero_positive() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "678");
     assert!(!result.is_negative());
@@ -150,14 +120,8 @@ fn test_sign_separate_ebcdic_leading_positive() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "123");
     assert!(!result.is_negative());
@@ -171,14 +135,8 @@ fn test_sign_separate_ebcdic_leading_negative() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "-456");
     assert!(result.is_negative());
@@ -192,14 +150,8 @@ fn test_sign_separate_ebcdic_trailing_positive() {
         placement: SignPlacement::Trailing,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "789");
     assert!(!result.is_negative());
@@ -213,14 +165,8 @@ fn test_sign_separate_ebcdic_trailing_negative() {
         placement: SignPlacement::Trailing,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "-12");
     assert!(result.is_negative());
@@ -234,14 +180,8 @@ fn test_sign_separate_ebcdic_space_positive() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "345");
     assert!(!result.is_negative());
@@ -255,14 +195,8 @@ fn test_sign_separate_ebcdic_zero_positive() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "678");
     assert!(!result.is_negative());
@@ -297,14 +231,8 @@ fn test_sign_separate_negative_with_scale() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        5,
-        2,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 5, 2, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "-987.65");
     assert!(result.is_negative());
@@ -318,14 +246,8 @@ fn test_sign_separate_large_number() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        20,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 20, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "12345678901234567890");
     assert!(!result.is_negative());
@@ -339,14 +261,8 @@ fn test_sign_separate_zero_value() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "0");
     assert!(!result.is_negative());
@@ -360,14 +276,8 @@ fn test_sign_separate_negative_zero_normalizes() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "0");
     assert!(!result.is_negative()); // Should normalize to positive zero
@@ -381,16 +291,13 @@ fn test_sign_separate_invalid_length() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    );
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII);
 
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code(), copybook_core::ErrorCode::CBKD301_RECORD_TOO_SHORT);
+    assert_eq!(
+        result.unwrap_err().code(),
+        copybook_core::ErrorCode::CBKD301_RECORD_TOO_SHORT
+    );
 }
 
 #[test]
@@ -401,16 +308,13 @@ fn test_sign_separate_invalid_ascii_sign() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    );
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII);
 
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code(), copybook_core::ErrorCode::CBKD411_ZONED_BAD_SIGN);
+    assert_eq!(
+        result.unwrap_err().code(),
+        copybook_core::ErrorCode::CBKD411_ZONED_BAD_SIGN
+    );
 }
 
 #[test]
@@ -421,16 +325,13 @@ fn test_sign_separate_invalid_ebcdic_sign() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    );
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037);
 
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code(), copybook_core::ErrorCode::CBKD411_ZONED_BAD_SIGN);
+    assert_eq!(
+        result.unwrap_err().code(),
+        copybook_core::ErrorCode::CBKD411_ZONED_BAD_SIGN
+    );
 }
 
 #[test]
@@ -441,13 +342,7 @@ fn test_sign_separate_invalid_ascii_digit() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    );
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII);
 
     assert!(result.is_err());
 }
@@ -460,13 +355,7 @@ fn test_sign_separate_invalid_ebcdic_digit() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    );
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037);
 
     assert!(result.is_err());
 }
@@ -479,14 +368,8 @@ fn test_sign_separate_cp1047_ebcdic() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP1047,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP1047)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "123");
     assert!(!result.is_negative());
@@ -500,14 +383,8 @@ fn test_sign_separate_cp500_ebcdic() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP500,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP500)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "-987");
     assert!(result.is_negative());
@@ -521,14 +398,8 @@ fn test_sign_separate_all_nines() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "999");
     assert!(!result.is_negative());
@@ -542,14 +413,8 @@ fn test_sign_separate_all_zeros_with_scale() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        5,
-        2,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 5, 2, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "0.00");
     assert!(!result.is_negative());
@@ -584,14 +449,8 @@ fn test_sign_separate_single_digit() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        1,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 1, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "9");
     assert!(!result.is_negative());
@@ -605,14 +464,8 @@ fn test_sign_separate_single_digit_negative() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        1,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 1, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "-7");
     assert!(result.is_negative());
@@ -626,14 +479,8 @@ fn test_sign_separate_trailing_space_positive() {
         placement: SignPlacement::Trailing,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::ASCII)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "123");
     assert!(!result.is_negative());
@@ -647,14 +494,8 @@ fn test_sign_separate_ebcdic_trailing_space() {
         placement: SignPlacement::Trailing,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        3,
-        0,
-        &sign_info,
-        Codepage::CP037,
-    )
-    .expect("Should decode successfully");
+    let result = decode_zoned_decimal_sign_separate(data, 3, 0, &sign_info, Codepage::CP037)
+        .expect("Should decode successfully");
 
     assert_eq!(result.to_string(), "123");
     assert!(!result.is_negative());
@@ -668,13 +509,7 @@ fn test_sign_separate_empty_data() {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(
-        data,
-        0,
-        0,
-        &sign_info,
-        Codepage::ASCII,
-    );
+    let result = decode_zoned_decimal_sign_separate(data, 0, 0, &sign_info, Codepage::ASCII);
 
     // Empty data should fail because SIGN SEPARATE requires at least a sign byte
     assert!(result.is_err());

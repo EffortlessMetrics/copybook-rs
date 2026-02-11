@@ -8,8 +8,8 @@
 //! - Error handling in CLI
 //! - Various command options
 
-use std::process::Command;
 use std::path::PathBuf;
+use std::process::Command;
 
 #[test]
 fn test_cli_decode_command_basic() {
@@ -460,13 +460,7 @@ fn test_cli_with_quiet() {
 fn test_cli_with_version() {
     // Test version flag
     let mut cmd = Command::new("cargo");
-    cmd.args(&[
-        "run",
-        "--bin",
-        "copybook-cli",
-        "--",
-        "--version",
-    ]);
+    cmd.args(&["run", "--bin", "copybook-cli", "--", "--version"]);
 
     assert!(true);
 }
@@ -475,13 +469,7 @@ fn test_cli_with_version() {
 fn test_cli_with_help() {
     // Test help flag
     let mut cmd = Command::new("cargo");
-    cmd.args(&[
-        "run",
-        "--bin",
-        "copybook-cli",
-        "--",
-        "--help",
-    ]);
+    cmd.args(&["run", "--bin", "copybook-cli", "--", "--help"]);
 
     assert!(true);
 }
@@ -490,14 +478,7 @@ fn test_cli_with_help() {
 fn test_cli_command_help() {
     // Test command-specific help
     let mut cmd = Command::new("cargo");
-    cmd.args(&[
-        "run",
-        "--bin",
-        "copybook-cli",
-        "--",
-        "decode",
-        "--help",
-    ]);
+    cmd.args(&["run", "--bin", "copybook-cli", "--", "decode", "--help"]);
 
     assert!(true);
 }
@@ -771,13 +752,7 @@ fn test_cli_with_determinism_check() {
 fn test_cli_with_support_info() {
     // Test support info command
     let mut cmd = Command::new("cargo");
-    cmd.args(&[
-        "run",
-        "--bin",
-        "copybook-cli",
-        "--",
-        "support",
-    ]);
+    cmd.args(&["run", "--bin", "copybook-cli", "--", "support"]);
 
     assert!(true);
 }

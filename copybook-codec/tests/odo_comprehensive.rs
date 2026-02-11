@@ -301,16 +301,9 @@ fn test_odo_encode_counter_update() {
     let jsonl_data = format!("{json_data}\n");
 
     let options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -365,16 +358,10 @@ fn test_odo_array_length_out_of_bounds_encode() {
     let jsonl_data = format!("{json_data}\n");
 
     let options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true, // Strict mode
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

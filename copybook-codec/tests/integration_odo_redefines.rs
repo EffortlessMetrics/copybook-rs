@@ -130,16 +130,9 @@ fn test_redefines_encode_error_context() {
     let formatted_json = format!("{json_data}\n");
 
     let options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(formatted_json.as_bytes());
@@ -171,16 +164,9 @@ fn test_missing_counter_field_error() {
     let formatted_json = format!("{json_data}\n");
 
     let options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(formatted_json.as_bytes());

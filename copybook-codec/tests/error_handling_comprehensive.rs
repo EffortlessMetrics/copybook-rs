@@ -9,7 +9,7 @@
 //! - Error message formatting
 //! - Error code coverage
 
-use copybook_codec::{DecodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode};
+use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat};
 use copybook_core::{Error, ErrorCode, parse_copybook};
 use std::io::Cursor;
 
@@ -108,10 +108,7 @@ fn test_error_invalid_digit() {
 #[test]
 fn test_error_message_formatting() {
     // Test error message formatting
-    let err = Error::new(
-        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-        "Test error message",
-    );
+    let err = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Test error message");
 
     assert_eq!(err.to_string(), "CBKD301: Test error message");
 }
@@ -473,15 +470,9 @@ fn test_error_empty_input() {
 #[test]
 fn test_error_chain() {
     // Test error chaining (error from error)
-    let err1 = Error::new(
-        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-        "Record too short",
-    );
+    let err1 = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Record too short");
 
-    let err2 = Error::new(
-        ErrorCode::CBKE501_ENCODE_FAILED,
-        "Encoding failed",
-    ).caused_by(err1);
+    let err2 = Error::new(ErrorCode::CBKE501_ENCODE_FAILED, "Encoding failed").caused_by(err1);
 
     assert_eq!(err2.code(), ErrorCode::CBKE501_ENCODE_FAILED);
 }
@@ -489,10 +480,7 @@ fn test_error_chain() {
 #[test]
 fn test_error_display() {
     // Test error display formatting
-    let err = Error::new(
-        ErrorCode::CBKD411_ZONED_BAD_SIGN,
-        "Invalid sign byte",
-    );
+    let err = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Invalid sign byte");
 
     let display = format!("{}", err);
     assert!(display.contains("CBKD411"));
@@ -502,10 +490,7 @@ fn test_error_display() {
 #[test]
 fn test_error_debug() {
     // Test error debug formatting
-    let err = Error::new(
-        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-        "Record too short",
-    );
+    let err = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Record too short");
 
     let debug = format!("{:?}", err);
     assert!(debug.contains("CBKD301"));
@@ -514,10 +499,7 @@ fn test_error_debug() {
 #[test]
 fn test_error_clone() {
     // Test error cloning
-    let err1 = Error::new(
-        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-        "Test error",
-    );
+    let err1 = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Test error");
 
     let err2 = err1.clone();
 

@@ -10,10 +10,10 @@
 //! - Multi-threaded processing
 
 use copybook_codec::{
-    DecodeOptions, EncodeOptions, RecordFormat, Codepage, JsonNumberMode, RawMode,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     decode_file_to_jsonl, encode_jsonl_to_file,
 };
-use copybook_core::{parse_copybook};
+use copybook_core::parse_copybook;
 use std::io::Cursor;
 
 #[test]
@@ -131,16 +131,8 @@ fn test_batch_encode_small_file() {
     let schema = parse_copybook(copybook).expect("Should parse copybook");
 
     let options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     // Generate 10 JSON records
@@ -166,16 +158,8 @@ fn test_batch_encode_medium_file() {
     let schema = parse_copybook(copybook).expect("Should parse copybook");
 
     let options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     // Generate 100 JSON records
@@ -202,16 +186,8 @@ fn test_batch_roundtrip() {
 
     // Encode
     let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let mut json_input = String::new();

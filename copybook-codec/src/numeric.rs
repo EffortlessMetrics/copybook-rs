@@ -139,7 +139,7 @@ const EBCDIC_DIGIT_ZONE: u8 = 0xF; // EBCDIC '0'..'9' => 0xF0..0xF9
 /// data is the common case and errors are exceptional.
 ///
 /// # Examples
-/// ```ignore
+/// ```text
 /// use copybook_codec::numeric::likely;
 ///
 /// let valid_data = true;
@@ -177,7 +177,7 @@ pub(crate) fn likely(b: bool) -> bool {
 /// failures are exceptional cases.
 ///
 /// # Examples
-/// ```ignore
+/// ```text
 /// use copybook_codec::numeric::unlikely;
 ///
 /// let error_condition = false;
@@ -3021,7 +3021,7 @@ const fn zoned_zone_label(codepage: Codepage) -> &'static str {
 /// * `CBKD411_ZONED_BAD_SIGN` - Invalid digit nibble or mismatched zone
 ///
 /// # Examples
-/// ```ignore
+/// ```text
 /// // ASCII '5' is 0x35 (zone 0x3, digit 0x5)
 /// let digit = zoned_validate_non_final_byte(0x35, 0, 0x3, Codepage::ASCII)?;
 /// assert_eq!(digit, 5);
@@ -3134,7 +3134,7 @@ fn zoned_decode_last_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)> {
 /// * `CBKD411_ZONED_BAD_SIGN` - Sign zone or negative overpunch in unsigned field
 ///
 /// # Examples
-/// ```ignore
+/// ```text
 /// // Valid unsigned ASCII zoned decimal ends with zone 0x3
 /// let result = zoned_ensure_unsigned(0x35, 0x3, Codepage::ASCII, false)?;
 /// assert_eq!(result, false);
@@ -3917,7 +3917,7 @@ pub fn format_binary_int_to_string_with_scratch(
 /// the overhead of Rust's standard formatting macros through manual digit extraction.
 ///
 /// # Examples
-/// ```ignore
+/// ```text
 /// let mut buffer = String::new();
 /// format_integer_to_buffer(12345, &mut buffer);
 /// assert_eq!(buffer, "12345");
@@ -3943,7 +3943,7 @@ fn format_integer_to_buffer(value: i64, buffer: &mut String) {
 /// fast paths. Critical for maintaining COMP-3 decimal precision.
 ///
 /// # Examples
-/// ```ignore
+/// ```text
 /// let mut buffer = String::new();
 /// format_integer_with_leading_zeros_to_buffer(45, 4, &mut buffer);
 /// assert_eq!(buffer, "0045");

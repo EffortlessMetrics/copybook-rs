@@ -37,7 +37,7 @@ mod api_compatibility {
 
         // Validate return type structure remains unchanged
         assert!(!schema.fields.is_empty(), "Schema should contain fields");
-        assert!(schema.record_length > 0, "Schema should have positive record length");
+        assert!(schema_record_length(&schema) > 0, "Schema should have positive record length");
 
         // Validate Schema struct public API remains accessible
         let field_count = schema.fields.len();
@@ -50,10 +50,10 @@ mod api_compatibility {
 
         // Validate FieldKind enum remains accessible
         match &field_a.kind {
-            FieldKind::Elementary { pic, .. } => {
-                assert!(pic.contains("X(10)"), "PIC clause should be preserved");
+            FieldKind::Alphanum { len } => {
+                assert_eq!(*len, 10, "Field length should match PIC X(10)");
             }
-            _ => panic!("Field should be elementary"),
+            _ => panic!("Field should be alphanumeric"),
         }
     }
 
@@ -280,25 +280,27 @@ mod api_compatibility {
 
         // Validate nested field access
         match &header_field.kind {
-            FieldKind::Group { children } => {
-                let type_code_field = children.iter()
+            FieldKind::Group => {
+                let type_code_field = header_field
+                    .children
+                    .iter()
                     .find(|f| f.name == "TYPE-CODE")
                     .expect("TYPE-CODE field should exist");
 
                 assert_eq!(type_code_field.level, 10);
 
                 match &type_code_field.kind {
-                    FieldKind::Elementary { pic, .. } => {
-                        assert!(pic.contains("X(2)"), "PIC clause should be X(2)");
+                    FieldKind::Alphanum { len } => {
+                        assert_eq!(*len, 2, "TYPE-CODE length should be 2");
                     }
-                    _ => panic!("TYPE-CODE should be elementary field"),
+                    _ => panic!("TYPE-CODE should be alphanumeric field"),
                 }
             }
             _ => panic!("HEADER should be group field"),
         }
 
         // Validate schema metadata remains accessible
-        assert!(schema.record_length > 0, "Record length should be positive");
+        assert!(schema_record_length(&schema) > 0, "Record length should be positive");
         assert!(!schema.fields.is_empty(), "Schema should have fields");
     }
 
@@ -416,5 +418,18 @@ mod api_compatibility {
             "performance_tests" => true,
             _ => false,
         }
+    }
+
+    fn schema_record_length(schema: &Schema) -> u32 {
+        schema
+            .lrecl_fixed
+            .unwrap_or_else(|| {
+                schema
+                    .all_fields()
+                    .iter()
+                    .map(|field| field.offset + field.len)
+                    .max()
+                    .unwrap_or(0)
+            })
     }
 }

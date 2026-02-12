@@ -4,6 +4,7 @@
 //! alignment padding, and REDEFINES cluster sizing.
 
 use crate::dialect::{Dialect, effective_min_count};
+use crate::feature_flags::{Feature, FeatureFlags};
 use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error};
 use std::collections::HashMap;
 use tracing::debug;
@@ -475,7 +476,20 @@ fn resolve_redefines_field(
 fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (u64, u32) {
     let (size, natural_alignment) = match kind {
         FieldKind::Alphanum { len } => (*len, 1u64),
-        FieldKind::ZonedDecimal { digits, .. } => (u32::from(*digits), 1u64),
+        FieldKind::ZonedDecimal {
+            digits,
+            sign_separate,
+            ..
+        } => {
+            // SIGN SEPARATE adds an extra byte for the sign
+            let base_size = u32::from(*digits);
+            let size = if sign_separate.is_some() {
+                base_size + 1 // Add 1 byte for separate sign
+            } else {
+                base_size
+            };
+            (size, 1u64)
+        }
         FieldKind::BinaryInt { bits, .. } => {
             let bytes = u32::from(*bits) / 8;
             let alignment = if synchronized { u64::from(bytes) } else { 1u64 };
@@ -737,11 +751,68 @@ fn collect_storage_paths(field: &crate::schema::Field, paths: &mut Vec<String>) 
     }
 }
 
+/// Check if a field is a REDEFINES field (has redefines_of set)
+/// Used for R4 pattern detection
+fn field_is_redefines(field: &crate::schema::Field) -> bool {
+    field.redefines_of.is_some()
+}
+
+/// Check if a field or any of its descendants have REDEFINES
+/// Used for R4 pattern detection
+fn field_has_redefines(field: &crate::schema::Field) -> bool {
+    // Check if this field is a REDEFINES field
+    if field_is_redefines(field) {
+        return true;
+    }
+    // Check if any child has REDEFINES
+    for child in &field.children {
+        if field_has_redefines(child) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check if a field is an OCCURS array (fixed or ODO)
+/// Used for R5 pattern detection
+fn field_is_occurs(field: &crate::schema::Field) -> bool {
+    matches!(
+        field.occurs,
+        Some(Occurs::Fixed { .. } | Occurs::ODO { .. })
+    )
+}
+
+/// Check if a field is an ODO array specifically
+/// Used for R5 pattern detection (ODO is not supported even with feature flag)
+fn field_is_odo(field: &crate::schema::Field) -> bool {
+    matches!(field.occurs, Some(Occurs::ODO { .. }))
+}
+
+/// Count how many REDEFINES alternatives exist in a range of fields
+/// Used for R4 pattern validation
+fn count_redefines_alternatives(
+    fields: &[crate::schema::Field],
+    from_idx: usize,
+    thru_idx: usize,
+) -> usize {
+    let mut count = 0;
+    for f in &fields[from_idx..=thru_idx] {
+        if field_has_redefines(f) {
+            count += 1;
+        }
+    }
+    count
+}
+
 /// Resolve RENAMES (level-66) aliases (post-order).
 /// Current implementation: same-scope resolution + contiguous slice → (offset, length, members).
+/// Extended to detect and reject R4-R6 patterns unless feature flag is enabled.
 fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
     use crate::error::ErrorCode;
     use crate::schema::{FieldKind, ResolvedRenames};
+
+    // Check if R4-R6 feature flag is enabled
+    let r4_r6_enabled = FeatureFlags::global().is_enabled(Feature::RenamesR4R6);
 
     // 1) Recurse first (post-order)
     for f in fields.iter_mut() {
@@ -775,6 +846,9 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                     )
                 })?;
 
+                // R6 check: Level-88 fields are naturally excluded (non-storage)
+                // No special handling needed - Level-88 is already excluded in collect_storage_paths
+
                 // Compute offset, length, and members from target group
                 let offset = target_field.offset;
                 let length = target_field.len;
@@ -807,16 +881,65 @@ fn resolve_renames_aliases(fields: &mut [crate::schema::Field]) -> Result<()> {
                 ));
             }
 
-            // Validate no OCCURS boundary: check for OCCURS within the range
+            // R5 check: Validate no OCCURS boundary (or ODO) within the range
             // This must be checked first before other validations
             for f in &fields[from_i..=thru_i] {
-                if matches!(f.occurs, Some(Occurs::Fixed { .. } | Occurs::ODO { .. })) {
+                if field_is_occurs(f) {
+                    if field_is_odo(f) {
+                        // R5: ODO arrays are not supported even with feature flag
+                        return Err(error!(
+                            ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED,
+                            "RENAMES alias '{}' spans ODO array '{}'. This pattern is not supported.",
+                            field.name,
+                            f.name
+                        ));
+                    }
+                    if !r4_r6_enabled {
+                        // R5: OCCURS arrays are rejected when feature flag is disabled
+                        return Err(error!(
+                            ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
+                            "RENAMES alias '{}' crosses OCCURS boundary at field '{}'. Enable RenamesR4R6 feature flag to support this pattern.",
+                            field.name,
+                            f.name
+                        ));
+                    }
+                    // When feature flag is enabled, check for partial array span
+                    if from_i != thru_i {
+                        // R5: Partial array span is not supported even with feature flag
+                        return Err(error!(
+                            ErrorCode::CBKS611_RENAME_PARTIAL_OCCURS,
+                            "RENAMES alias '{}' spans partial array elements. Only single-array RENAMES (FROM==THRU pointing to OCCURS field) is supported.",
+                            field.name
+                        ));
+                    }
+                    // R5: Single-array RENAMES is allowed when feature flag is enabled
+                    // Continue with normal resolution
+                }
+            }
+
+            // R4 check: Validate no REDEFINES within the range
+            // This must be checked before group boundary validation
+            if r4_r6_enabled {
+                // When feature flag is enabled, check for multiple REDEFINES alternatives
+                let redefines_count = count_redefines_alternatives(fields, from_i, thru_i);
+                if redefines_count > 1 {
+                    // R4: Multiple REDEFINES alternatives are not supported even with feature flag
                     return Err(error!(
-                        ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
-                        "RENAMES range from '{}' to '{}' crosses OCCURS boundary at field '{}'",
-                        from_field,
-                        thru_field,
-                        f.name
+                        ErrorCode::CBKS610_RENAME_MULTIPLE_REDEFINES,
+                        "RENAMES alias '{}' spans multiple REDEFINES alternatives. Only single-alternative RENAMES is supported.",
+                        field.name
+                    ));
+                }
+                // R4: Single REDEFINES alternative is allowed when feature flag is enabled
+                // Continue with normal resolution
+            } else {
+                // R4: REDEFINES are rejected when feature flag is disabled
+                let redefines_count = count_redefines_alternatives(fields, from_i, thru_i);
+                if redefines_count > 0 {
+                    return Err(error!(
+                        ErrorCode::CBKS609_RENAME_OVER_REDEFINES,
+                        "RENAMES alias '{}' spans REDEFINES field(s). Enable RenamesR4R6 feature flag to support this pattern.",
+                        field.name
                     ));
                 }
             }
@@ -1001,6 +1124,7 @@ mod tests {
                 digits: 3,
                 scale: 0,
                 signed: false,
+                sign_separate: None,
             },
         );
         schema.fields.push(counter);

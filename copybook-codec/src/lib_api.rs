@@ -44,6 +44,10 @@ fn validate_odo_bounds(count: u32, min: u32, max: u32) -> Result<()> {
     Ok(())
 }
 
+/// Build a standard JSON envelope for a decoded COBOL record.
+///
+/// Wraps the decoded fields with metadata like schema version, record index,
+/// and codepage. Optionally includes extended metadata if `options.emit_meta` is true.
 fn build_json_envelope(
     fields: serde_json::Map<String, Value>,
     schema: &Schema,
@@ -492,6 +496,10 @@ pub fn decode_record_with_raw_data(
     ))
 }
 
+/// Recursively process schema fields to decode record data into a JSON map.
+///
+/// Iterates through the schema hierarchy, handling groups, scalars, and
+/// conditional logic (ODO, REDEFINES).
 fn process_fields_recursive(
     fields: &[copybook_core::Field],
     data: &[u8],
@@ -582,6 +590,15 @@ fn process_fields_recursive_with_scratch(
     Ok(())
 }
 
+/// Process a single scalar field using the standard (non-scratch) decode path.
+///
+/// # Arguments
+/// * `field` - The scalar field metadata
+/// * `field_index` - Index of the current field in its parent group
+/// * `total_fields` - Total number of sibling fields
+/// * `data` - The raw record data bytes
+/// * `json_obj` - The JSON map to populate
+/// * `options` - Decoding configuration
 #[inline]
 fn process_scalar_field_standard(
     field: &copybook_core::Field,
@@ -664,6 +681,9 @@ fn process_scalar_field_standard(
     Ok(())
 }
 
+/// Process a single scalar field using optimized scratch buffers.
+///
+/// This path is optimized for high-throughput processing and minimizes allocations.
 #[inline]
 fn process_scalar_field_with_scratch(
     field: &copybook_core::Field,
@@ -961,17 +981,31 @@ fn find_and_read_counter_field(
             digits,
             scale,
             signed,
+            sign_separate,
         } => {
             let mut scratch = crate::memory::ScratchBuffers::new();
-            let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
-                field_data,
-                *digits,
-                *scale,
-                *signed,
-                options.codepage,
-                counter_field.blank_when_zero,
-                &mut scratch,
-            )?;
+            let decimal_str = if let Some(sign_sep) = sign_separate {
+                // Use SIGN SEPARATE decoding
+                crate::numeric::decode_zoned_decimal_sign_separate(
+                    field_data,
+                    *digits,
+                    *scale,
+                    sign_sep,
+                    options.codepage,
+                )?
+                .to_string()
+            } else {
+                // Use standard zoned decimal decoding
+                crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    options.codepage,
+                    counter_field.blank_when_zero,
+                    &mut scratch,
+                )?
+            };
 
             let count = decimal_str.parse::<u32>().map_err(|_| {
                 Error::new(
@@ -1048,6 +1082,10 @@ fn find_field_by_path<'a>(
 }
 
 /// Adjust field offsets for array element processing
+/// Adjust field offsets for array element processing.
+///
+/// Recalculates field offsets relative to a base offset (e.g., when processing
+/// an OCCURS group element).
 fn adjust_field_offsets(
     fields: &[copybook_core::Field],
     base_offset: u32,
@@ -1066,6 +1104,7 @@ fn adjust_field_offsets(
         .collect()
 }
 
+/// Check if a field is a FILLER field (should usually be omitted from JSON).
 #[inline]
 fn is_filler_field(field: &copybook_core::Field) -> bool {
     field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_")
@@ -1094,6 +1133,7 @@ fn decode_scalar_field_value_standard(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => {
             if options.preserve_zoned_encoding {
                 // Use encoding-aware decoding for round-trip preservation
@@ -1268,6 +1308,7 @@ fn decode_scalar_field_value_with_scratch(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => {
             let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                 field_data,
@@ -1368,6 +1409,9 @@ fn decode_scalar_field_value_with_scratch(
     }
 }
 
+/// Build a JSON value for a Level-88 condition.
+///
+/// Returns a boolean if there's a single value, or an array if there are multiple.
 #[inline]
 fn condition_value(values: &[String], prefix: &str) -> Value {
     if values.is_empty() {
@@ -1548,6 +1592,10 @@ fn encode_fields_recursive(
     Ok(current_offset)
 }
 
+/// Encode a single field (scalar or group) into the output byte buffer.
+///
+/// Orchestrates the encoding of various COBOL data types by delegating to
+/// specialized encoding functions.
 #[inline]
 fn encode_single_field(
     field: &copybook_core::Field,
@@ -1577,6 +1625,7 @@ fn encode_single_field(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => encode_zoned_decimal_field(
             field,
             field_path,
@@ -1659,6 +1708,7 @@ fn encode_single_field(
     }
 }
 
+/// Recursively encode a group field and its children.
 #[inline]
 fn encode_group_field(
     field: &copybook_core::Field,
@@ -1692,6 +1742,7 @@ fn encode_group_field(
     }
 }
 
+/// Encode an alphanumeric (PIC X) field.
 #[inline]
 fn encode_alphanum_field(
     field: &copybook_core::Field,

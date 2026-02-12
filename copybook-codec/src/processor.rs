@@ -793,15 +793,27 @@ impl DecodeProcessor {
 
             // Decode counter value based on field type
             let counter_value = match &counter_field.kind {
-                FieldKind::ZonedDecimal { digits, signed, .. } => {
-                    let decimal = crate::numeric::decode_zoned_decimal(
-                        counter_data,
-                        *digits,
-                        0, // ODO counters are typically integers
-                        *signed,
-                        self.options.codepage,
-                        counter_field.blank_when_zero,
-                    )
+                FieldKind::ZonedDecimal { digits, signed, sign_separate } => {
+                    let decimal = if let Some(ref sign_sep) = sign_separate {
+                        // Use SIGN SEPARATE decoding
+                        crate::numeric::decode_zoned_decimal_sign_separate(
+                            counter_data,
+                            *digits,
+                            0, // ODO counters are typically integers
+                            sign_sep,
+                            self.options.codepage,
+                        )
+                    } else {
+                        // Use standard zoned decimal decoding
+                        crate::numeric::decode_zoned_decimal(
+                            counter_data,
+                            *digits,
+                            0, // ODO counters are typically integers
+                            *signed,
+                            self.options.codepage,
+                            counter_field.blank_when_zero,
+                        )
+                    }
                     .map_err(|e| {
                         self.enhance_error_context(
                             e,

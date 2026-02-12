@@ -175,14 +175,7 @@ fn test_rdw_raw_preservation_with_reserved() {
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: true, // Use raw data
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -348,22 +341,15 @@ fn test_rdw_length_recomputation_on_encode() {
     let decoded_str = String::from_utf8(decode_output).unwrap();
     let mut decoded_json: Value = serde_json::from_str(decoded_str.trim()).unwrap();
 
-    // Modify the data (change length)
-    decoded_json["SIMPLE-RECORD"] = json!("MODIFIED  "); // Still 10 bytes
+    // Modify the data (change length) inside the `fields` envelope used by the encoder
+    decoded_json["fields"]["SIMPLE-RECORD"] = json!("MODIFIED  "); // Still 10 bytes
 
     let jsonl_data = format!("{decoded_json}\n");
 
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false, // Don't use raw - should recompute length
-        bwz_encode: false,
-        strict_mode: false,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

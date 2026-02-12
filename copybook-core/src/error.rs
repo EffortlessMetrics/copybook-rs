@@ -39,6 +39,13 @@ impl fmt::Display for Error {
 }
 
 impl Error {
+    /// Return the stable error code for this error.
+    #[inline]
+    #[must_use]
+    pub const fn code(&self) -> ErrorCode {
+        self.code
+    }
+
     /// Return the CBK* family prefix associated with this error.
     #[inline]
     #[must_use]
@@ -81,6 +88,8 @@ pub enum ErrorCode {
     CBKP023_ODO_REDEFINES,
     /// CBKP051: Unsupported edited PIC clause pattern
     CBKP051_UNSUPPORTED_EDITED_PIC,
+    /// CBKP101: Invalid PIC clause syntax or illegal characters
+    CBKP101_INVALID_PIC,
 
     // =============================================================================
     // Schema Errors (CBKS*) - Schema validation and ODO processing
@@ -109,6 +118,14 @@ pub enum ErrorCode {
     CBKS607_RENAME_CROSSES_OCCURS,
     /// CBKS608: RENAMES qualified name not found
     CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND,
+    /// CBKS609: RENAMES alias spans REDEFINES field(s) (R4 scenario)
+    CBKS609_RENAME_OVER_REDEFINES,
+    /// CBKS610: RENAMES spans multiple REDEFINES alternatives (R4 scenario)
+    CBKS610_RENAME_MULTIPLE_REDEFINES,
+    /// CBKS611: RENAMES spans partial array elements (R5 scenario)
+    CBKS611_RENAME_PARTIAL_OCCURS,
+    /// CBKS612: RENAMES with ODO arrays not supported (R5 scenario)
+    CBKS612_RENAME_ODO_NOT_SUPPORTED,
     /// CBKS701: Field projection error - ODO array without accessible counter
     CBKS701_PROJECTION_INVALID_ODO,
     /// CBKS702: Field projection error - RENAMES alias spans unselected fields
@@ -207,6 +224,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKP022_NESTED_ODO => "CBKP022_NESTED_ODO",
             ErrorCode::CBKP023_ODO_REDEFINES => "CBKP023_ODO_REDEFINES",
             ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => "CBKP051_UNSUPPORTED_EDITED_PIC",
+            ErrorCode::CBKP101_INVALID_PIC => "CBKP101_INVALID_PIC",
             ErrorCode::CBKS121_COUNTER_NOT_FOUND => "CBKS121_COUNTER_NOT_FOUND",
             ErrorCode::CBKS141_RECORD_TOO_LARGE => "CBKS141_RECORD_TOO_LARGE",
             ErrorCode::CBKS301_ODO_CLIPPED => "CBKS301_ODO_CLIPPED",
@@ -221,6 +239,10 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND => {
                 "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND"
             }
+            ErrorCode::CBKS609_RENAME_OVER_REDEFINES => "CBKS609_RENAME_OVER_REDEFINES",
+            ErrorCode::CBKS610_RENAME_MULTIPLE_REDEFINES => "CBKS610_RENAME_MULTIPLE_REDEFINES",
+            ErrorCode::CBKS611_RENAME_PARTIAL_OCCURS => "CBKS611_RENAME_PARTIAL_OCCURS",
+            ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED => "CBKS612_RENAME_ODO_NOT_SUPPORTED",
             ErrorCode::CBKS701_PROJECTION_INVALID_ODO => "CBKS701_PROJECTION_INVALID_ODO",
             ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS => "CBKS702_PROJECTION_UNRESOLVED_ALIAS",
             ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS703_PROJECTION_FIELD_NOT_FOUND",
@@ -266,7 +288,8 @@ impl ErrorCode {
             | Self::CBKP021_ODO_NOT_TAIL
             | Self::CBKP022_NESTED_ODO
             | Self::CBKP023_ODO_REDEFINES
-            | Self::CBKP051_UNSUPPORTED_EDITED_PIC => "CBKP",
+            | Self::CBKP051_UNSUPPORTED_EDITED_PIC
+            | Self::CBKP101_INVALID_PIC => "CBKP",
             Self::CBKS121_COUNTER_NOT_FOUND
             | Self::CBKS141_RECORD_TOO_LARGE
             | Self::CBKS301_ODO_CLIPPED
@@ -279,6 +302,10 @@ impl ErrorCode {
             | Self::CBKS606_RENAME_THRU_CROSSES_GROUP
             | Self::CBKS607_RENAME_CROSSES_OCCURS
             | Self::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+            | Self::CBKS609_RENAME_OVER_REDEFINES
+            | Self::CBKS610_RENAME_MULTIPLE_REDEFINES
+            | Self::CBKS611_RENAME_PARTIAL_OCCURS
+            | Self::CBKS612_RENAME_ODO_NOT_SUPPORTED
             | Self::CBKS701_PROJECTION_INVALID_ODO
             | Self::CBKS702_PROJECTION_UNRESOLVED_ALIAS
             | Self::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS",

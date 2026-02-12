@@ -1,6 +1,11 @@
 name: Mutation Testing
 
 on:
+  # Scheduled runs: Weekly on Sundays at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * 0'
+
+  # Manual trigger with threshold configuration
   workflow_dispatch:
     inputs:
       threshold:
@@ -8,6 +13,26 @@ on:
         required: false
         default: '70'
         type: string
+      workspace:
+        description: 'Run on entire workspace or specific crates'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - core-only
+          - codec-only
+          - cli-only
+
+  # Run on pull requests to main branch
+  pull_request:
+    branches: [main]
+    paths:
+      - 'copybook-core/**'
+      - 'copybook-codec/**'
+      - 'copybook-cli/**'
+      - 'mutants.toml'
+      - '.github/workflows/ci-mutants.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -15,20 +40,79 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write  # For uploading artifacts and PR comments
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   MUTANTS_THRESHOLD: ${{ inputs.threshold || '70' }}
+  MUTANTS_WORKSPACE: ${{ inputs.workspace || 'all' }}
 
 jobs:
-  mutants:
-    name: Mutation Testing
+  # Feature flag check - allows enabling/disabling mutation testing
+  check-feature-flag:
+    name: Check Feature Flag
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check COPYBOOK_MUTATION_TESTING env var
+        id: check
+        run: |
+          # Check if mutation testing is enabled via environment variable
+          # Default: enabled for scheduled runs, disabled for PRs
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+            echo "Mutation testing: ENABLED (scheduled run)"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+            echo "Mutation testing: ENABLED (manual trigger)"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # For PRs, check if the label is present
+            if gh pr view --json labels --jq '.labels[].name' | grep -q "mutation-test"; then
+              echo "enabled=true" >> $GITHUB_OUTPUT
+              echo "Mutation testing: ENABLED (PR has mutation-test label)"
+            else
+              echo "enabled=false" >> $GITHUB_OUTPUT
+              echo "Mutation testing: DISABLED (PR missing mutation-test label)"
+            fi
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+            echo "Mutation testing: DISABLED (unknown trigger)"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Main mutation testing job
+  mutants:
+    name: Mutation Testing (${{ matrix.crate }})
+    needs: check-feature-flag
+    if: needs.check-feature-flag.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - crate: copybook-core
+            threshold: 75
+            timeout: 300
+          - crate: copybook-codec
+            threshold: 75
+            timeout: 300
+          - crate: copybook-cli
+            threshold: 65
+            timeout: 200
+          - crate: copybook-bench
+            threshold: 60
+            timeout: 150
+          - crate: copybook-gen
+            threshold: 60
+            timeout: 150
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -38,7 +122,8 @@ jobs:
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: mutants
+          shared-key: mutants-${{ matrix.crate }}
+          cache-targets: true
 
       - name: Install cargo-mutants
         uses: taiki-e/install-action@v2
@@ -50,29 +135,37 @@ jobs:
         with:
           tool: cargo-nextest
 
+      - name: Install jq
+        run: sudo apt-get install -y jq bc
+
       - name: Run baseline tests
         run: |
           cargo nextest run \
-            --package copybook-core \
-            --package copybook-codec \
-            --failure-output=immediate
+            --package ${{ matrix.crate }} \
+            --failure-output=immediate \
+            --features comprehensive-tests
 
       - name: Run mutation testing
         id: mutants
+        env:
+          MUTANTS_TIMEOUT: ${{ matrix.timeout }}
+          MUTANTS_THRESHOLD: ${{ matrix.threshold }}
         run: |
           set +e
 
+          # Run cargo-mutants with configuration file
           cargo mutants \
-            --package copybook-core \
-            --package copybook-codec \
-            --timeout 300 \
+            --package ${{ matrix.crate }} \
+            --timeout $MUTANTS_TIMEOUT \
             --test-tool nextest \
             --in-place \
             --json \
-            -vV 2>&1 | tee mutants-output.log
+            --file mutants.toml \
+            -vV 2>&1 | tee mutants-${{ matrix.crate }}-output.log
 
           MUTANTS_EXIT=$?
 
+          # Process results if outcomes.json exists
           if [ -f mutants.out/outcomes.json ]; then
             CAUGHT=$(jq '[.outcomes[] | select(.outcome == "CaughtMutant")] | length' mutants.out/outcomes.json)
             MISSED=$(jq '[.outcomes[] | select(.outcome == "MissedMutant")] | length' mutants.out/outcomes.json)
@@ -86,6 +179,8 @@ jobs:
               SCORE="0"
             fi
 
+            # Save results to outputs
+            echo "crate=${{ matrix.crate }}" >> "$GITHUB_OUTPUT"
             echo "caught=$CAUGHT" >> "$GITHUB_OUTPUT"
             echo "missed=$MISSED" >> "$GITHUB_OUTPUT"
             echo "unviable=$UNVIABLE" >> "$GITHUB_OUTPUT"
@@ -93,7 +188,11 @@ jobs:
             echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
             echo "score=$SCORE" >> "$GITHUB_OUTPUT"
 
-            echo "### Mutation Testing Results" >> "$GITHUB_STEP_SUMMARY"
+            # Save to file for aggregation
+            echo "${{ matrix.crate }},$CAUGHT,$MISSED,$UNVIABLE,$TIMEOUT,$TOTAL,$SCORE" >> mutants-summary.csv
+
+            # Add to step summary
+            echo "### Mutation Testing Results - ${{ matrix.crate }}" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
             echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
@@ -105,6 +204,7 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "**Threshold**: ${MUTANTS_THRESHOLD}%" >> "$GITHUB_STEP_SUMMARY"
 
+            # Check threshold
             SCORE_INT=${SCORE%.*}
             if [ "${SCORE_INT:-0}" -lt "$MUTANTS_THRESHOLD" ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -119,7 +219,7 @@ jobs:
             echo "caught=0" >> "$GITHUB_OUTPUT"
             echo "score=0" >> "$GITHUB_OUTPUT"
             echo "threshold_passed=false" >> "$GITHUB_OUTPUT"
-            echo "### Mutation Testing" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Mutation Testing - ${{ matrix.crate }}" >> "$GITHUB_STEP_SUMMARY"
             echo "> **Error**: No outcomes.json found" >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -127,22 +227,158 @@ jobs:
 
       - name: Upload mutation results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
-          name: mutants-results-${{ github.sha }}
+          name: mutants-results-${{ matrix.crate }}-${{ github.sha }}
           path: |
             mutants.out/
-            mutants-output.log
+            mutants-${{ matrix.crate }}-output.log
+            mutants-summary.csv
           retention-days: 30
           if-no-files-found: warn
 
       - name: List missed mutants
         if: always() && steps.mutants.outputs.missed != '0'
         run: |
-          echo "### Missed Mutants (first 20)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Missed Mutants (first 20) - ${{ matrix.crate }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           if [ -f mutants.out/outcomes.json ]; then
             jq -r '.outcomes[] | select(.outcome == "MissedMutant") | "\(.scenario.function // "unknown") in \(.scenario.source_file // "unknown")"' \
               mutants.out/outcomes.json | head -20 >> "$GITHUB_STEP_SUMMARY"
           fi
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # Aggregate results and create summary
+  aggregate:
+    name: Aggregate Results
+    needs: [check-feature-flag, mutants]
+    if: needs.check-feature-flag.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mutants-results-*
+          path: artifacts/
+
+      - name: Aggregate results
+        run: |
+          echo "### Mutation Testing Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Crate | Caught | Missed | Unviable | Timeout | Total | Score |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|--------|----------|---------|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+
+          TOTAL_CAUGHT=0
+          TOTAL_MISSED=0
+          TOTAL_SCORE=0
+          CRATE_COUNT=0
+
+          for artifact in artifacts/mutants-results-*/mutants-summary.csv; do
+            if [ -f "$artifact" ]; then
+              while IFS=, read -r crate caught missed unviable timeout total score; do
+                echo "| $crate | $caught | $missed | $unviable | $timeout | $total | ${score}% |" >> "$GITHUB_STEP_SUMMARY"
+                TOTAL_CAUGHT=$((TOTAL_CAUGHT + caught))
+                TOTAL_MISSED=$((TOTAL_MISSED + missed))
+                TOTAL_SCORE=$(echo "scale=2; $TOTAL_SCORE + $score" | bc)
+                CRATE_COUNT=$((CRATE_COUNT + 1))
+              done < "$artifact"
+            fi
+          done
+
+          if [ "$CRATE_COUNT" -gt 0 ]; then
+            AVG_SCORE=$(echo "scale=2; $TOTAL_SCORE / $CRATE_COUNT" | bc)
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Overall Score**: ${AVG_SCORE}% (average across $CRATE_COUNT crates)" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Total Caught**: $TOTAL_CAUGHT" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Total Missed**: $TOTAL_MISSED" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
+
+            // Find or create a comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Mutation Testing Results')
+            );
+
+            const body = `## Mutation Testing Results\n\n${summary}`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+  # Upload historical data for dashboard
+  upload-dashboard-data:
+    name: Upload Dashboard Data
+    needs: [mutants, aggregate]
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mutants-results-*
+          path: artifacts/
+
+      - name: Create historical data
+        run: |
+          mkdir -p mutation-history
+
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          COMMIT=${{ github.sha }}
+          BRANCH=${GITHUB_REF#refs/heads/}
+
+          echo '{"timestamp":"'$TIMESTAMP'","commit":"'$COMMIT'","branch":"'$BRANCH'","results":[' > mutation-history/${TIMESTAMP}.json
+
+          FIRST=true
+          for artifact in artifacts/mutants-results-*/mutants-summary.csv; do
+            if [ -f "$artifact" ]; then
+              while IFS=, read -r crate caught missed unviable timeout total score; do
+                if [ "$FIRST" = true ]; then
+                  FIRST=false
+                else
+                  echo ',' >> mutation-history/${TIMESTAMP}.json
+                fi
+                echo -n '{"crate":"'$crate'","caught":'$caught',"missed":'$missed',"unviable":'$unviable',"timeout":'$timeout',"total":'$total',"score":'$score'}' >> mutation-history/${TIMESTAMP}.json
+              done < "$artifact"
+            fi
+          done
+
+          echo ']}' >> mutation-history/${TIMESTAMP}.json
+
+      - name: Upload historical data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-history-${{ github.sha }}
+          path: mutation-history/
+          retention-days: 90

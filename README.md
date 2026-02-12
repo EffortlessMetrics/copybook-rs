@@ -1,6 +1,7 @@
 # copybook-rs
 
 [![CI Quick](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml/badge.svg)](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/ci-quick.yml)
+[![codecov](https://codecov.io/gh/EffortlessMetrics/copybook-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/EffortlessMetrics/copybook-rs)
 [![Security Audit](https://github.com/EffortlessMetrics/copybook-rs/workflows/Weekly%20Security%20Scan/badge.svg)](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml)
 [![Dependency Review](https://img.shields.io/badge/dependencies-Dependabot-blue.svg)](https://github.com/EffortlessMetrics/copybook-rs/blob/main/.github/dependabot.yml)
 
@@ -12,13 +13,13 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 **Who should use it**: Teams migrating mainframe data to modern systems, data engineers processing legacy COBOL files, enterprises requiring auditable COBOL data conversion.
 
-**Status**: Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag) - Stable CLI and library APIs; feature completeness is preview-level. Suitable for teams that validate copybooks against supported features before deployment.
+**Status**: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag) - Stable CLI and library APIs; feature completeness is preview-level. Suitable for teams that validate copybooks against supported features before deployment.
 
 **Key strengths**:
 
 - **Deterministic**: Byte-identical results across runs and worker configurations
 - **Memory-safe**: Zero `unsafe` code in public APIs; clippy pedantic enforcement
-- **Well-tested**: 1135+ tests passing with comprehensive error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*)
+- **Comprehensive testing**: 1135+ tests passing with BDD, property testing, fuzzing, mutation testing, and feature flagging
 - **Performance-validated**: 205 MiB/s (DISPLAY), 58 MiB/s (COMP-3) baseline established with CI receipts in `scripts/bench/perf.json`
 
 See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
@@ -30,6 +31,8 @@ See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 | [User Guide](docs/USER_GUIDE.md) | Getting started, tutorials, examples |
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
+| [Testing Integration](docs/TESTING_INTEGRATION_SUMMARY.md) | Comprehensive testing methodologies (BDD, property testing, fuzzing, mutation testing) |
+| [BDD Testing](docs/BDD_TESTING.md) | Behavior Driven Development tests and documentation |
 | [Error Codes](docs/reference/ERROR_CODES.md) | CBKP/CBKS/CBKD/CBKE/CBKR taxonomy |
 | [COBOL Support](docs/reference/COBOL_SUPPORT_MATRIX.md) | Feature coverage matrix |
 | [Roadmap](docs/ROADMAP.md) | Project status and adoption guidance |
@@ -264,7 +267,7 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 ## Project Status & Roadmap
 
-### **Current Status: Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)** ⚠️
+### **Current Status: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag)** ⚠️
 
 **Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
 
@@ -288,6 +291,111 @@ See `scripts/bench/perf.json` for current performance receipts.
 
 ### **Development Roadmap**
 See [ROADMAP.md](docs/ROADMAP.md) for planned features and development phases. Current focus: v0.5.0 dialect features and benchmark automation (Issue #52).
+
+## Stability Guarantees
+
+This section defines what users can expect to remain stable across releases, providing a clear trust contract for production deployments.
+
+### What is Stable
+
+**Public APIs (v1.0+)**
+- Library APIs in [`copybook-codec/src/lib_api.rs`](copybook-codec/src/lib_api.rs): `parse_copybook`, `decode_record`, `encode_record`, `decode_file_to_jsonl`, `encode_jsonl_to_file`, `RecordIterator`
+- CLI command interfaces: `parse`, `inspect`, `decode`, `encode`, `verify`, `support`
+- Error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR* codes) - stable across minor versions
+- Exit codes: 0 (success), 1 (unhandled), 2-5 (structured error codes)
+
+**Output Formats**
+- JSON schema structure and field naming conventions
+- JSONL record format with envelope metadata
+- Error message format and content
+- CLI output for `inspect` and `support` commands
+
+**Data Fidelity**
+- Round-trip fidelity: Binary → JSON → Binary produces byte-identical output
+- Determinism: Same input produces byte-identical output across runs and worker configurations
+- Zoned decimal metadata preservation for maintaining copybook semantics
+- Codepage conversion accuracy (EBCDIC ↔ ASCII)
+
+### What May Change
+
+**Internal APIs**
+- Private module APIs (not marked `pub`)
+- Internal data structures and algorithms
+- Performance characteristics (throughput may improve or regress within acceptable bounds)
+
+**Output Details**
+- JSON key ordering (not guaranteed - use schema for field access)
+- Audit event IDs (not guaranteed for programmatic use)
+- Error message wording (may improve clarity while preserving error codes)
+
+**CLI Behavior**
+- Default values for optional flags (may change in minor versions)
+- Warning message thresholds (may adjust for better UX)
+
+### Versioning Policy
+
+copybook-rs follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html):
+
+| Version Change | Description |
+|---------------|-------------|
+| **Major (X.0.0)** | Breaking changes to public APIs, CLI commands, or output formats. Requires migration. |
+| **Minor (0.X.0)** | New features, additions to public APIs, backward-compatible changes. No migration required. |
+| **Patch (0.0.X)** | Bug fixes, security patches, performance improvements. No breaking changes. |
+
+**Deprecation Policy**
+- Deprecated APIs will be marked with `#[deprecated]` attribute and documented in CHANGELOG.md
+- Deprecated APIs will remain available for at least 2 minor versions before removal
+- Breaking changes will be documented in CHANGELOG.md with migration guides
+
+## Support Policy
+
+This section defines the support commitment for copybook-rs releases.
+
+### Support Window
+
+| Release Type | Support Duration | Notes |
+|--------------|------------------|-------|
+| **Latest minor** | 12 months | Full support including bug fixes and security patches |
+| **Previous minor** | 6 months | Security patches only |
+| **Older releases** | Unsupported | Upgrade to a supported version |
+
+**Example**: When v1.2.0 is released, v1.1.x receives 6 months of security-only support, and v1.0.x becomes unsupported.
+
+### Security Patch Policy
+
+- Critical security vulnerabilities (CVSS ≥ 7.0) will be patched in all supported minor versions
+- Non-critical security issues will be patched in the latest minor version only
+- Security patches will be released within 14 days of disclosure (or sooner for active exploits)
+- Security advisories will be published via GitHub Security Advisories
+
+### Critical Bug Fix Policy
+
+- Critical bugs (data corruption, crashes, security issues) will be fixed in all supported minor versions
+- Non-critical bugs will be fixed in the latest minor version only
+- Bug fix releases will be made available within 7 days of confirmed critical issues
+
+### Getting Support
+
+**Issue Reporting**
+- Report bugs via [GitHub Issues](https://github.com/EffortlessMetrics/copybook-rs/issues)
+- Use the provided issue templates for bug reports and feature requests
+- Include minimal reproducible examples and copybook/data fixtures when possible
+
+**Support Channels**
+- **GitHub Issues**: Primary channel for bug reports and feature requests
+- **GitHub Discussions**: For questions, usage help, and community discussion
+- **Email**: For security issues only (see SECURITY.md)
+
+**Response Time Expectations**
+
+| Issue Priority | Response Time | Resolution Time |
+|----------------|---------------|-----------------|
+| **Critical** (security, data loss) | 48 hours | 7 days |
+| **High** (blocking production) | 1 week | 2 weeks |
+| **Normal** (bugs, feature requests) | 2 weeks | Best effort |
+| **Low** (documentation, minor issues) | 1 month | Best effort |
+
+**Note**: These are best-effort targets. Response times may vary based on maintainer availability and issue complexity.
 
 ## Development
 
@@ -314,6 +422,9 @@ cargo test --workspace
 # Run with coverage
 cargo test --workspace -- --nocapture
 
+# Run BDD tests (Behavior Driven Development)
+cargo test -p copybook-bdd
+
 # Run performance benchmarks (JSON receipts)
 just bench-json
 # or: bash scripts/bench.sh / scripts\bench.bat
@@ -324,6 +435,8 @@ cargo clippy --workspace -- -D warnings -W clippy::pedantic
 # Format code
 cargo fmt --all
 ```
+
+**BDD Testing**: The project includes Behavior Driven Development tests using Cucumber/Gherkin syntax. These tests describe expected behavior in human-readable format and serve as both executable tests and living documentation. See [BDD_TESTING.md](docs/BDD_TESTING.md) for details on running and writing BDD tests.
 
 ### Releasing
 
@@ -370,7 +483,7 @@ We welcome contributions. Please see [REPORT.md](docs/REPORT.md) for current pro
 - Follow Rust conventions and idioms with clippy pedantic compliance
 - Add comprehensive tests for new features and help retire the remaining flaky/leaky cases highlighted by `cargo nextest`
 - Update documentation for API changes
-- Maintain MSRV compatibility (Rust 1.90)
+- Maintain MSRV compatibility (Rust 1.92)
 - Use idiomatic Rust patterns (div_ceil, is_empty, range contains)
 - Implement Display trait for user-facing types where appropriate
 - Use safe type conversions (try_from() instead of unsafe casts)

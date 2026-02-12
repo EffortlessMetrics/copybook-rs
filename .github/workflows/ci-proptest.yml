@@ -1,0 +1,154 @@
+name: Property Tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: "23 3 * * 1"  # Weekly on Mondays
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Property test configuration
+  PROPTEST_CASES: ${{ github.event_name == 'schedule' && '1024' || '256' }}
+  PROPTEST_SEED: "copybook-rs-proptest"
+
+jobs:
+  proptest-core:
+    name: Property Tests - Core
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable, beta]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+    - uses: Swatinem/rust-cache@v2
+    - name: Pre-fetch dependencies
+      run: cargo fetch
+    - name: Run property tests (copybook-core)
+      env:
+        PROPTEST_CASES: ${{ env.PROPTEST_CASES }}
+        PROPTEST_SEED: ${{ env.PROPTEST_SEED }}
+      run: |
+        cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture
+    - name: Upload proptest regressions (copybook-core)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: proptest-regressions-core-${{ matrix.os }}-${{ matrix.rust }}
+        path: copybook-core/tests/proptest-regressions/
+        retention-days: 7
+
+  proptest-codec:
+    name: Property Tests - Codec
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable, beta]
+        features: ["", "comp3_fast"]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.features }}
+    - name: Pre-fetch dependencies
+      run: cargo fetch
+    - name: Run property tests (copybook-codec)
+      env:
+        PROPTEST_CASES: ${{ env.PROPTEST_CASES }}
+        PROPTEST_SEED: ${{ env.PROPTEST_SEED }}
+      run: |
+        cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture
+    - name: Run property tests (copybook-codec) with features
+      if: matrix.features != ''
+      env:
+        PROPTEST_CASES: ${{ env.PROPTEST_CASES }}
+        PROPTEST_SEED: ${{ env.PROPTEST_SEED }}
+      run: |
+        cargo test -p copybook-proptest --lib --features ${{ matrix.features }} -- --test-threads=2 --nocapture
+    - name: Upload proptest regressions (copybook-codec)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: proptest-regressions-codec-${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.features }}
+        path: copybook-codec/tests/proptest-regressions/
+        retention-days: 7
+
+  proptest-integration:
+    name: Property Tests - Integration
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, beta]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+    - uses: Swatinem/rust-cache@v2
+    - name: Pre-fetch dependencies
+      run: cargo fetch
+    - name: Run property tests (integration)
+      env:
+        PROPTEST_CASES: ${{ env.PROPTEST_CASES }}
+        PROPTEST_SEED: ${{ env.PROPTEST_SEED }}
+      run: |
+        cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture
+    - name: Upload proptest regressions (integration)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: proptest-regressions-integration-${{ matrix.rust }}
+        path: tests/proptest-regressions/
+        retention-days: 7
+
+  proptest-summary:
+    name: Property Test Summary
+    runs-on: ubuntu-latest
+    needs: [proptest-core, proptest-codec, proptest-integration]
+    if: always()
+    steps:
+    - name: Generate summary
+      run: |
+        cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+        # Property Test Results
+
+        Property tests completed with the following matrix configurations:
+
+        ## Core Tests
+        - OS: ubuntu-latest, macos-latest, windows-latest
+        - Rust: stable, beta
+
+        ## Codec Tests
+        - OS: ubuntu-latest, macos-latest, windows-latest
+        - Rust: stable, beta
+        - Features: default, comp3_fast
+
+        ## Integration Tests
+        - OS: ubuntu-latest
+        - Rust: stable, beta
+
+        ## Configuration
+        - Test cases: ${{ env.PROPTEST_CASES }}
+        - Seed: ${{ env.PROPTEST_SEED }}
+
+        Check individual job logs for detailed results.
+        EOF

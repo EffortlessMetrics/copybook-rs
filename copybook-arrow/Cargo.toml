@@ -1,0 +1,39 @@
+[package]
+name = "copybook-arrow"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Arrow and Parquet adapters for copybook-rs"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+# Internal workspace dependencies
+copybook-core = { workspace = true }
+copybook-codec = { workspace = true }
+
+# Arrow and Parquet dependencies
+arrow = { version = "55.0", features = ["json"] }
+parquet = { version = "55.0", features = ["arrow"] }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[features]
+default = []
+# Enable experimental features
+experimental = []
+
+[lints]
+workspace = true

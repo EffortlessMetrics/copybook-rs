@@ -13,7 +13,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 **Who should use it**: Teams migrating mainframe data to modern systems, data engineers processing legacy COBOL files, enterprises requiring auditable COBOL data conversion.
 
-**Status**: Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag) - Stable CLI and library APIs; feature completeness is preview-level. Suitable for teams that validate copybooks against supported features before deployment.
+**Status**: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag) - Stable CLI and library APIs; feature completeness is preview-level. Suitable for teams that validate copybooks against supported features before deployment.
 
 **Key strengths**:
 
@@ -267,7 +267,7 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 ## Project Status & Roadmap
 
-### **Current Status: Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)** ⚠️
+### **Current Status: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag)** ⚠️
 
 **Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
 

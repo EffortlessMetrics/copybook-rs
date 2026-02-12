@@ -373,7 +373,7 @@ ci-local:
 
 # Quick local CI (skip docs and deny for speed)
 ci-quick:
-    cargo run --package xtask --bin xtask -- ci --quick
+    bash scripts/ci/quick.sh
 
 # Run mutation testing on all workspace crates
 mutants:

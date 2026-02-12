@@ -116,7 +116,11 @@ fn metrics_shows_descriptors_and_cbkf_on_short_error() -> Result<(), Box<dyn std
     }
 
     if !server_ready {
-        return Err(format!("metrics server did not become ready within {:?}", timeout).into());
+        return Err(format!(
+            "metrics server did not become ready within {} seconds",
+            timeout.as_secs()
+        )
+        .into());
     }
 
     // HELP/TYPE descriptors should always be present after describe_metrics_once().

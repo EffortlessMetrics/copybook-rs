@@ -449,8 +449,6 @@ pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, Strin
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
-#[allow(clippy::unwrap_used)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;

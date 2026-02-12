@@ -1,6 +1,6 @@
 # copybook-rs Roadmap
 
-**Status:** ⚠️ Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
+**Status:** ⚠️ Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag)
 **Last Updated**: 2026-02-07
 **Production Readiness**: 35% (see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md))
 **Target Release**: v1.0.0 (Q2-Q3 2026)

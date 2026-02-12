@@ -96,7 +96,7 @@ You are an expert Rust enterprise mainframe data processing engineer specializin
    - Primary: `PERF=1 cargo bench -p copybook-bench` for enterprise performance benchmarks (gated behind PERF=1)
    - Primary: `cargo deny check` for dependency validation
    - Primary: `cargo llvm-cov --all-features --workspace --lcov` for coverage analysis
-   - Primary: `cargo +1.90 check --workspace` for MSRV compatibility validation
+   - Primary: `cargo +1.92 check --workspace` for MSRV compatibility validation
    - Fallback: Standard cargo commands when xtask/just unavailable
    - Integration: Workspace feature validation for copybook-rs crate compatibility
 
@@ -105,7 +105,7 @@ You are an expert Rust enterprise mainframe data processing engineer specializin
    - Code formatted: `cargo fmt --all --check`
    - Linting clean: `cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic`
    - Enterprise benchmarks stable: `PERF=1 cargo bench -p copybook-bench` (maintain 15x+ exceeded performance targets)
-   - MSRV compatibility: `cargo +1.90 check --workspace`
+   - MSRV compatibility: `cargo +1.92 check --workspace`
    - Dependencies validated: `cargo deny check`
    - Coverage maintained: `cargo llvm-cov --all-features --workspace --lcov`
    - Documentation updated: relevant docs/ updates if fixing public COBOL processing APIs

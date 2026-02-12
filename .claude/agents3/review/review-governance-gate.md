@@ -62,7 +62,7 @@ Escalate to manual enterprise review when:
 - **COBOL Parser Security**: Modifications to COBOL lexer/parser, EBCDIC character conversion, input validation, and mainframe data access patterns with zero unsafe code enforcement
 - **Mainframe Data Integrity**: Updates to COMP-3 decoding, DISPLAY processing, or record layout handling affecting enterprise data consistency and reliability
 - **Enterprise Performance Governance**: Changes affecting COBOL parsing speed, memory usage, or throughput characteristics that must maintain production targets (DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s)
-- **Build System Compliance**: Modifications to cargo workspace, feature flags, MSRV compatibility (1.90+), or cross-platform compatibility for enterprise environments
+- **Build System Compliance**: Modifications to cargo workspace, feature flags, MSRV compatibility (1.92+), or cross-platform compatibility for enterprise environments
 - **Documentation Standards**: Alignment with enterprise documentation requirements and architectural decision records for production mainframe systems
 
 **Command Integration (xtask-first + copybook-rs):**
@@ -73,7 +73,7 @@ Escalate to manual enterprise review when:
 - Performance validation: `PERF=1 cargo bench -p copybook-bench` with enterprise regression detection (DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s)
 - Security validation: `cargo deny check` for dependency and license validation
 - Coverage analysis: `cargo llvm-cov --all-features --workspace --lcov` for enterprise test coverage
-- MSRV validation: `cargo +1.90 check --workspace` for enterprise compatibility
+- MSRV validation: `cargo +1.92 check --workspace` for enterprise compatibility
 - GitHub integration: `gh pr ready`, `gh pr review`, `gh issue create` for enterprise governance workflows
 
 ## Flow Lock & Enterprise Governance Implementation

@@ -1,6 +1,6 @@
 # copybook-rs Roadmap
 
-**Status:** ⚠️ Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag)
+**Status:** ⚠️ Engineering Preview (v0.4.3)
 **Last Updated**: 2026-02-07
 **Production Readiness**: 35% (see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md))
 **Target Release**: v1.0.0 (Q2-Q3 2026)
@@ -29,7 +29,7 @@ Criteria → Risks/Mitigations.
 | PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
 | PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
 
-**Test Status**: 1135+ passing (cargo test --workspace)
+**Test Status**: 1550+ passing (cargo test --workspace)
 **CI Mode**: Currently operating in CI-off mode with local gates
 
 ---

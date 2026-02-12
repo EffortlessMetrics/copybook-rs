@@ -23,7 +23,7 @@ allow-one-hash-in-raw-strings = true
 
 # Enterprise patterns
 max-suggested-slice-pattern-length = 3
-msrv = "1.90"
+msrv = "1.92"
 
 # Suppress specific lints that conflict with COBOL parsing patterns
 allow = [

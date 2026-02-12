@@ -61,7 +61,7 @@ All security receipts **MUST** include the following fields for compliance valid
 | `timestamp` | string (ISO 8601) | Scan execution time (UTC) | `"2025-10-02T12:00:00Z"` |
 | `commit_sha` | string (40 hex chars) | Git commit SHA for code traceability | `"abc123def456..."` |
 | `scan_type` | enum | Scan context: `pr-gate`, `weekly-scan`, `manual` | `"pr-gate"` |
-| `rust_version` | string (semver) | Rust toolchain version | `"1.90.0"` |
+| `rust_version` | string (semver) | Rust toolchain version | `"1.92.0"` |
 | `tools` | object | Security tool versions | See [Tools Object](#tools-object) |
 | `vulnerabilities` | object | Vulnerability detection results | See [Vulnerabilities Object](#vulnerabilities-object) |
 | `exit_status` | enum | Scan outcome: `success`, `vulnerabilities_found`, `error` | `"success"` |
@@ -248,7 +248,7 @@ commit_sha: "${{ github.sha }}"
 **Example**:
 ```json
 {
-  "rust_version": "1.90.0"
+  "rust_version": "1.92.0"
 }
 ```
 
@@ -257,7 +257,7 @@ commit_sha: "${{ github.sha }}"
 rustc --version | awk '{print $2}'
 ```
 
-**Validation**: Must start with major.minor.patch digits (may include additional metadata like `1.90.0-nightly`).
+**Validation**: Must start with major.minor.patch digits (may include additional metadata like `1.92.0-nightly`).
 
 ---
 
@@ -412,7 +412,7 @@ cat > test-receipt-clean.json <<'EOF'
   "timestamp": "2025-10-02T12:00:00Z",
   "commit_sha": "abc123def456abc123def456abc123def456abc1",
   "scan_type": "pr-gate",
-  "rust_version": "1.90.0",
+  "rust_version": "1.92.0",
   "tools": {
     "cargo_audit": "0.21.2",
     "cargo_deny": "0.16.0"
@@ -447,7 +447,7 @@ cat > test-receipt-vulns.json <<'EOF'
   "timestamp": "2025-10-02T15:30:00Z",
   "commit_sha": "def456abc123def456abc123def456abc123def4",
   "scan_type": "weekly-scan",
-  "rust_version": "1.90.0",
+  "rust_version": "1.92.0",
   "tools": {
     "cargo_audit": "0.21.2",
     "cargo_deny": "0.16.0"
@@ -503,7 +503,7 @@ cat > test-receipt-invalid.json <<'EOF'
   "timestamp": "2025-10-02T12:00:00Z",
   "commit_sha": "abc123def456abc123def456abc123def456abc1",
   "scan_type": "pr-gate",
-  "rust_version": "1.90.0",
+  "rust_version": "1.92.0",
   "tools": {
     "cargo_audit": "0.21.2"
     // Missing required "cargo_deny" field

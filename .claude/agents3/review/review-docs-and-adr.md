@@ -93,7 +93,7 @@ Your core responsibilities:
 - Enterprise configuration documentation (CLI subcommands, codepage selection, performance tuning)
 - Output format documentation (JSON, JSONL, lossless number modes, metadata emission)
 - Zero unsafe code validation and comprehensive error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*)
-- Cross-platform enterprise deployment and MSRV compatibility (Rust 1.90+)
+- Cross-platform enterprise deployment and MSRV compatibility (Rust 1.92+)
 
 **Enterprise TDD Documentation Patterns:**
 - Ensure all documented COBOL features have corresponding test coverage validation (127 tests passing)
@@ -108,7 +108,7 @@ Your core responsibilities:
 - Validate documentation through enterprise test suite: `cargo nextest run --workspace` (preferred) or `just test`
 - Run performance benchmarks to verify enterprise claims: `PERF=1 cargo bench -p copybook-bench` or `just bench`
 - Execute comprehensive quality checks: `cargo xtask ci` or `just ci-full`
-- Validate MSRV compatibility: `cargo +1.90 check --workspace` or `just check-msrv`
+- Validate MSRV compatibility: `cargo +1.92 check --workspace` or `just check-msrv`
 - Generate coverage reports: `cargo llvm-cov --all-features --workspace --lcov` or `just coverage`
 
 ## GitHub-Native Receipts & Comments

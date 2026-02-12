@@ -6,7 +6,7 @@ Thank you for your interest in contributing to copybook-rs. This guide will help
 
 ### Prerequisites
 
-- **Rust 1.90+** (MSRV enforced at workspace level)
+- **Rust 1.92+** (MSRV enforced at workspace level)
 - **Git** for version control
 - **Cargo** (comes with Rust)
 
@@ -29,7 +29,7 @@ cargo test --workspace
 ```bash
 # Build and test
 cargo build --workspace --release
-cargo test --workspace                                      # 840+ tests
+cargo test --workspace                                      # 1550+ tests
 cargo nextest run --workspace                              # Preferred
 
 # Code quality
@@ -54,7 +54,7 @@ See [CLAUDE.md](CLAUDE.md) for complete command reference.
 - **Zero unsafe code** in public APIs
 - **Clippy pedantic compliance** enforced in CI
 - **Comprehensive test coverage** for new features
-- **MSRV compatibility** (Rust 1.90+)
+- **MSRV compatibility** (Rust 1.92+)
 - **Idiomatic Rust patterns** (div_ceil, is_empty, range contains)
 - **Safe type conversions** (try_from() instead of unsafe casts)
 - **Display trait** for user-facing types

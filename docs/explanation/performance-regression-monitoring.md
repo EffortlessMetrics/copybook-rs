@@ -133,7 +133,7 @@ if regression_pct > 10.0 {
    # CPU: Intel Core i7-9700K @ 3.6GHz (8 cores)
    # RAM: 32GB DDR4-3200 (28GB available)
    # OS: Ubuntu 22.04 LTS (kernel 5.15.0)
-   # Rust: 1.90.0 stable (x86_64-unknown-linux-gnu)
+   # Rust: 1.92.0 stable (x86_64-unknown-linux-gnu)
    ```
 
 2. **Clean Environment Setup**:
@@ -480,8 +480,8 @@ fn health_check() -> Result<()> {
 
 fn check_rust_version() -> Result<()> {
     let version = rustc_version::version()?;
-    if version < Version::parse("1.90.0")? {
-        bail!("Rust 1.90+ required for MSRV compliance");
+    if version < Version::parse("1.92.0")? {
+        bail!("Rust 1.92+ required for MSRV compliance");
     }
     println!("✅ Rust version: {version}");
     Ok(())

@@ -136,7 +136,7 @@ cargo run --bin copybook -- verify --help
 # Performance and enterprise documentation validation
 cargo llvm-cov --all-features --workspace --lcov
 cargo deny check
-cargo +1.90 check --workspace
+cargo +1.92 check --workspace
 
 # Fallback: gh, git standard commands
 ```

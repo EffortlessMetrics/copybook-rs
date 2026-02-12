@@ -643,7 +643,7 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 ///
 /// ## Using with Compressed Data
 ///
-/// ```rust,ignore
+/// ```text
 /// use copybook_codec::{iter_records, DecodeOptions};
 /// use copybook_core::parse_copybook;
 /// use std::fs::File;

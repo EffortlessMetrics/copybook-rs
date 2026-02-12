@@ -30,7 +30,7 @@ use std::collections::HashSet;
 /// - `CBKS703_PROJECTION_FIELD_NOT_FOUND`: Selected field doesn't exist in schema
 ///
 /// # Example
-/// ```rust,ignore
+/// ```text
 /// use copybook_core::{parse_copybook, projection::project_schema};
 ///
 /// let copybook = "01 CUSTOMER.\n   05 ID PIC 9(6).\n   05 NAME PIC X(30).";

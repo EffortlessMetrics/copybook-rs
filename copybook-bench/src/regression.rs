@@ -1804,7 +1804,7 @@ mod tests {
     fn test_generate_baseline_id_not_empty() {
         let detector = PerformanceRegressionDetector::new();
         let env = EnvironmentInfo {
-            rust_version: "1.90.0".to_string(),
+            rust_version: "1.92.0".to_string(),
             target_triple: "x86_64-unknown-linux-gnu".to_string(),
             cpu_info: CpuInfo {
                 model: "Test CPU".to_string(),
@@ -1851,7 +1851,7 @@ mod tests {
         let mut detector = PerformanceRegressionDetector::new();
         let metrics = create_test_performance_metrics();
         let env = EnvironmentInfo {
-            rust_version: "1.90.0".to_string(),
+            rust_version: "1.92.0".to_string(),
             target_triple: "x86_64-unknown-linux-gnu".to_string(),
             cpu_info: CpuInfo {
                 model: "Test CPU".to_string(),
@@ -1895,7 +1895,7 @@ mod tests {
 
         let metrics = create_test_performance_metrics();
         let env = EnvironmentInfo {
-            rust_version: "1.90.0".to_string(),
+            rust_version: "1.92.0".to_string(),
             target_triple: "x86_64-unknown-linux-gnu".to_string(),
             cpu_info: CpuInfo {
                 model: "Test CPU".to_string(),

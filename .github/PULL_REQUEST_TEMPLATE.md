@@ -46,7 +46,7 @@
 - [ ] `cargo clippy --workspace -- -D warnings -W clippy::pedantic` passes
 - [ ] `cargo test --workspace` passes (or `cargo nextest run --workspace`)
 - [ ] Follows [conventional commit format](https://www.conventionalcommits.org/) (e.g., `feat(core):`, `fix(codec):`)
-- [ ] MSRV compliance (Rust 1.90+) verified if dependencies changed
+- [ ] MSRV compliance (Rust 1.92+) verified if dependencies changed
 - [ ] Golden fixtures updated if applicable
 
 ## Testing Instructions

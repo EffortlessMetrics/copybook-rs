@@ -2,7 +2,7 @@
 
 ---
 
-**Status**: ⚠️ **Engineering Preview (v0.4.1)** - See
+**Status**: ⚠️ **Engineering Preview (v0.4.3)** - See
 [ROADMAP.md](ROADMAP.md) for adoption guidance
 
 **Readiness**: Cautious Adoption Recommended - See
@@ -21,7 +21,7 @@ safety. The workspace builds cleanly and the release gate
 (fmt/clippy/build/nextest) is green. Performance receipts are tracked in
 `scripts/bench/perf.json` and summarized in
 `docs/PERFORMANCE_GOVERNANCE.md`; numbers vary by environment and floors are
-advisory targets in v0.4.1 (Engineering Preview).
+advisory targets in v0.4.3 (Engineering Preview).
 
 ## Overview
 
@@ -50,8 +50,8 @@ responsibilities:
 
 <!-- TEST_STATUS:BEGIN -->
 
-- **Tests**: `cargo test --workspace` reports 840+ tests passing (24 skipped
-  for external tool requirements) on the release gate
+- **Tests**: `cargo test --workspace` reports 1550+ tests passing (68
+  skipped/ignored) on the release gate
 
 <!-- TEST_STATUS:END -->
 
@@ -175,7 +175,7 @@ parse, codec, and structural validation. See
 
 ### Code Quality
 
-- Rust Edition 2024 with MSRV 1.90 (aligned with CI test matrix)
+- Rust Edition 2024 with MSRV 1.92 (aligned with CI test matrix)
 - Clippy pedantic compliance enforced (complete compliance achieved)
 - Comprehensive error handling with structured error taxonomy
 - Idiomatic Rust patterns throughout codebase

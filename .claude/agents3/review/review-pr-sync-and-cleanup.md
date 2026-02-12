@@ -36,7 +36,7 @@ Your primary responsibilities are:
    - **Enterprise Performance**: `PERF=1 cargo bench -p copybook-bench` validates COBOL processing performance targets
    - **Dependency Validation**: `cargo deny check` for security and license compliance
    - **Coverage Analysis**: `cargo llvm-cov --all-features --workspace --lcov` for comprehensive test coverage
-   - **MSRV Compatibility**: `cargo +1.90 check --workspace` ensures minimum supported Rust version compliance
+   - **MSRV Compatibility**: `cargo +1.92 check --workspace` ensures minimum supported Rust version compliance
 
 3. **copybook-rs TDD Validation**: Verify test-driven development cycle compliance for COBOL parsing:
    - **Red-Green-Refactor Cycle**: Confirm proper TDD implementation with COBOL parsing spec-driven development
@@ -79,7 +79,7 @@ Your primary responsibilities are:
   - Preferred: `cargo nextest run --workspace` (test execution)
   - Fallback: Standard `cargo fmt --all`, `cargo clippy --workspace`, `cargo test --workspace`
 - Check copybook-rs enterprise performance: `PERF=1 cargo bench -p copybook-bench` for COBOL processing regression detection
-- Validate MSRV compatibility: `cargo +1.90 check --workspace` for minimum Rust version support
+- Validate MSRV compatibility: `cargo +1.92 check --workspace` for minimum Rust version support
 - Use enterprise-grade error handling patterns (`anyhow::Result`, structured error taxonomy CBKP*/CBKS*/CBKD*/CBKE*)
 - Validate COBOL parsing integrity and mainframe data processing reliability standards
 

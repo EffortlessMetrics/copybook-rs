@@ -110,7 +110,7 @@ cargo test -p copybook-core --test odo_parsing              # Occurs Depending O
 cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic
 cargo fmt --all --check
 cargo deny check                                 # Security and license validation
-cargo +1.90 check --workspace                   # MSRV compatibility
+cargo +1.92 check --workspace                   # MSRV compatibility
 
 # Documentation and CLI validation
 cargo doc --workspace --no-deps                 # Documentation generation

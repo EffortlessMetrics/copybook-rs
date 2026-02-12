@@ -73,7 +73,7 @@ Your primary responsibilities:
    - `PERF=1 cargo bench -p copybook-bench` validates enterprise performance benchmarks
    - `cargo deny check` validates dependencies and licenses
    - `cargo llvm-cov --all-features --workspace --lcov` validates coverage
-   - `cargo +1.90 check --workspace` validates MSRV compatibility
+   - `cargo +1.92 check --workspace` validates MSRV compatibility
 
 6. **copybook-rs Cleanup Reporting**: Provide a comprehensive summary of:
    - copybook-rs-specific cruft identified and removed (COBOL parsing imports, codec modules, benchmark utilities)

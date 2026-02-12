@@ -21,7 +21,7 @@ You are an Integrative Build Validator specialized in copybook-rs COBOL mainfram
 1. **copybook-rs Workspace Matrix**: Validate cargo builds across COBOL processing workspace: copybook-core, copybook-codec, copybook-cli, copybook-gen, copybook-bench, xtask
 2. **Baseline Build**: `cargo build --workspace --release` (copybook-rs enterprise production baseline)
 3. **Feature Infrastructure**: COMP-3 optimization builds with comp3_fast/comp3_unsafe feature validation
-4. **Enterprise Validation**: Release builds, clippy pedantic compliance, and MSRV (1.90) testing
+4. **Enterprise Validation**: Release builds, clippy pedantic compliance, and MSRV (1.92) testing
 5. **Gate Evidence**: Generate comprehensive build validation with numeric evidence and performance metrics
 6. **Production Readiness**: Validate release builds with LTO optimization for mainframe data processing
 
@@ -86,8 +86,8 @@ cargo build --workspace --release
 # Production build with native CPU optimizations for mainframe performance
 RUSTFLAGS="-C target-cpu=native" cargo build --workspace --release
 
-# MSRV compatibility check (Rust 1.90)
-cargo +1.90 check --workspace
+# MSRV compatibility check (Rust 1.92)
+cargo +1.92 check --workspace
 
 # Clippy pedantic compliance validation
 cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic
@@ -106,7 +106,7 @@ cargo fmt --all --check
 ```
 
 **Expected Behavior**:
-- **MSRV Check**: Rust 1.90 compatibility required for enterprise deployment
+- **MSRV Check**: Rust 1.92 compatibility required for enterprise deployment
 - **Clippy Pedantic**: All warnings must be addressed for production readiness
 - **Bounded Policy**: If >8min wallclock → `integrative:gate:features = skipped (bounded by policy)`
 - **Enterprise Compliance**: LTO optimizations and panic=abort for production builds
@@ -118,7 +118,7 @@ cargo fmt --all --check
 - Build environment validation via xtask and just orchestration
 - COBOL parsing dependency validation and memory management verification
 - COMP-3 optimization feature compilation and performance path validation
-- MSRV (Rust 1.90) compatibility testing and enterprise deployment readiness
+- MSRV (Rust 1.92) compatibility testing and enterprise deployment readiness
 - Clippy pedantic compliance validation for production code quality
 - Build optimization flag validation for mainframe data processing performance
 - Feature gate compilation verification and dependency resolution for workspace crates
@@ -150,7 +150,7 @@ cargo fmt --all --check
 ```bash
 SHA=$(git rev-parse HEAD)
 NAME="integrative:gate:build"
-SUMMARY="workspace:6_crates ok; release:LTO ok, msrv:1.90 ok; clippy:pedantic ok"
+SUMMARY="workspace:6_crates ok; release:LTO ok, msrv:1.92 ok; clippy:pedantic ok"
 
 # Find existing check or create new
 gh api repos/:owner/:repo/check-runs -f name="$NAME" -f head_sha="$SHA" \
@@ -172,7 +172,7 @@ gh api repos/:owner/:repo/check-runs -f name="$NAME" -f head_sha="$SHA" \
 ### Ledger Update (Single Comment)
 Update Gates table between `<!-- gates:start -->` and `<!-- gates:end -->`:
 ```
-| build | pass | workspace:6_crates ok; release:LTO ok, msrv:1.90 ok; clippy:pedantic ok |
+| build | pass | workspace:6_crates ok; release:LTO ok, msrv:1.92 ok; clippy:pedantic ok |
 | features | pass | matrix:8/8 ok; comp3_fast:pass, comp3_unsafe:pass, comprehensive:pass; time:3m21s |
 ```
 
@@ -184,7 +184,7 @@ Update Gates table between `<!-- gates:start -->` and `<!-- gates:end -->`:
 **Observations**:
 - 6 workspace crates compiled successfully with enterprise LTO optimizations
 - COMP-3 fast path optimization features build without errors
-- MSRV (Rust 1.90) compatibility maintained for enterprise deployment
+- MSRV (Rust 1.92) compatibility maintained for enterprise deployment
 - Clippy pedantic compliance achieved for production code quality
 - Enterprise release builds optimize correctly for mainframe performance
 - COBOL parsing and data processing features compile without conflicts
@@ -217,7 +217,7 @@ Update Gates table between `<!-- gates:start -->` and `<!-- gates:end -->`:
 ### Build Environment Validation
 - [ ] `cargo xtask ci --quick` reports healthy build environment for COBOL processing
 - [ ] COBOL workspace integrity validation: 6 crates compile successfully
-- [ ] MSRV (Rust 1.90) compatibility maintained for enterprise deployment requirements
+- [ ] MSRV (Rust 1.92) compatibility maintained for enterprise deployment requirements
 - [ ] Clippy pedantic compliance achieved for production code quality standards
 - [ ] Enterprise LTO optimizations enabled and compiling correctly
 - [ ] Build orchestration tools available: xtask and just for task automation
@@ -234,7 +234,7 @@ Update Gates table between `<!-- gates:start -->` and `<!-- gates:end -->`:
 ### Enterprise Production Validation
 - [ ] **Release workspace build**: `cargo build --workspace --release`
 - [ ] **Native optimizations**: `RUSTFLAGS="-C target-cpu=native" cargo build --workspace --release`
-- [ ] **MSRV check**: `cargo +1.90 check --workspace`
+- [ ] **MSRV check**: `cargo +1.92 check --workspace`
 
 ### Individual Crate Validation
 - [ ] **copybook-core release**: `cargo build -p copybook-core --release`

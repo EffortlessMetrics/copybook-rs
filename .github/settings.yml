@@ -1,0 +1,4 @@
+repository:
+  description: "Modern, memory-safe Rust toolkit for COBOL copybook parsing and fixed-record data conversion (EBCDIC/ASCII to JSON)."
+  homepage: "https://effortlessmetrics.com/copybook-rs"
+  topics: rust, cobol, mainframe, parser, codec, ebcdic, json, data-conversion

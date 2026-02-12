@@ -58,6 +58,7 @@ pub fn run(
                 digits,
                 scale,
                 signed,
+                sign_separate: _,
             } => {
                 if *signed {
                     format!("S9({digits})V9({scale})")

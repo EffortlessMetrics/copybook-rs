@@ -1,0 +1,189 @@
+name: Fuzzing Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: 'Fuzzing duration in seconds'
+        required: false
+        default: '300'
+        type: string
+      target:
+        description: 'Specific fuzz target to run (empty for all)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - copybook_parse
+          - binary_decode
+          - json_encode
+          - pic_clause
+          - occurs_odo
+          - redefines
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  pull_request:
+    paths:
+      - 'copybook-core/**'
+      - 'copybook-codec/**'
+      - 'fuzz/**'
+      - '.github/workflows/fuzz-integration.yml'
+
+concurrency:
+  group: fuzz-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  FUZZ_SECONDS: ${{ inputs.fuzz_seconds || '300' }}
+
+jobs:
+  cargo-fuzz:
+    name: Cargo Fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: copybook_parse
+            package: copybook-fuzz
+          - target: binary_decode
+            package: copybook-fuzz
+          - target: json_encode
+            package: copybook-fuzz
+          - target: pic_clause
+            package: copybook-fuzz
+          - target: occurs_odo
+            package: copybook-fuzz
+          - target: redefines
+            package: copybook-fuzz
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.90.0"
+
+      - name: Install cargo-fuzz
+        run: |
+          cargo install cargo-fuzz --version 0.13.4
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: fuzz-${{ matrix.target }}-${{ github.sha }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run fuzzer (${{ matrix.target }})
+        id: fuzz
+        run: |
+          START_TIME=$(date +%s)
+
+          set +e
+          cargo fuzz run ${{ matrix.target }} -- -runs=0 -max_total_time=${FUZZ_SECONDS} 2>&1 | tee /tmp/fuzz-output.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+
+          # Exit with non-zero if fuzzer found crashes
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Fuzzer ${{ matrix.target }} found a crash!"
+            exit $EXIT_CODE
+          fi
+
+      - name: Capture artifacts on failure
+        if: failure()
+        run: |
+          mkdir -p artifacts/fuzz-${{ matrix.target }}
+          cp -r fuzz/artifacts/${{ matrix.target }}/* artifacts/fuzz-${{ matrix.target }}/ 2>/dev/null || true
+          cp /tmp/fuzz-output.log artifacts/fuzz-${{ matrix.target }}/ 2>/dev/null || true
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-${{ matrix.target }}-${{ github.sha }}
+          path: artifacts/fuzz-${{ matrix.target }}/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Minimize corpus
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          cargo fuzz cmin ${{ matrix.target }} -- -runs=0 -max_total_time=60
+
+      - name: Upload minimized corpus
+        if: success() && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-${{ matrix.target }}-${{ github.sha }}
+          path: fuzz/corpus/${{ matrix.target }}/
+          retention-days: 90
+
+  fuzz-report:
+    name: Generate Fuzzing Report
+    runs-on: ubuntu-latest
+    needs: cargo-fuzz
+    if: always()
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate summary
+        run: |
+          echo "# Fuzzing Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Fuzz Targets" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Status | Duration |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| copybook_parse | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| binary_decode | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| json_encode | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| pic_clause | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| occurs_odo | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| redefines | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Review any crash artifacts uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "- Update corpus with interesting inputs found" >> $GITHUB_STEP_SUMMARY
+          echo "- Document any bugs found and create issues" >> $GITHUB_STEP_SUMMARY
+
+  feature-flag-check:
+    name: Check Fuzzing Feature Flag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check feature flag
+        run: |
+          # Check if fuzzing is enabled via environment variable or feature flag
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "Running scheduled fuzzing"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Running manual fuzzing"
+          else
+            echo "Skipping fuzzing on PR (only runs on schedule or manual trigger)"
+            echo "To enable fuzzing on PRs, set the FUZZING_ENABLED environment variable"
+          fi

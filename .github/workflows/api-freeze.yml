@@ -1,0 +1,133 @@
+name: API Freeze Enforcement
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ============================================================================
+  # API Freeze Check - Detects public API changes during freeze
+  # ============================================================================
+  api-freeze:
+    name: API Freeze Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt
+
+    - name: Install cargo-semver-checks
+      run: |
+        cargo install --locked cargo-semver-checks --version 0.37.0
+
+    - name: Check if API freeze is active
+      id: freeze-check
+      shell: bash
+      run: |
+        # Check for API freeze indicator file
+        if [ -f ".api-freeze" ]; then
+          echo "freeze_active=true" >> $GITHUB_OUTPUT
+          echo "🔒 API freeze is ACTIVE"
+          cat .api-freeze || echo "No freeze message"
+        else
+          echo "freeze_active=false" >> $GITHUB_OUTPUT
+          echo "✅ API freeze is NOT active"
+        fi
+
+    - name: Detect changed paths
+      id: changed-paths
+      shell: bash
+      run: |
+        # Get the base ref for comparison
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BASE_REF="${{ github.base_ref }}"
+        else
+          # For pushes, compare to previous commit
+          BASE_REF="HEAD~1"
+        fi
+
+        echo "Base ref: $BASE_REF"
+
+        # Detect which paths changed
+        CHANGED_FILES=$(git diff --name-only $BASE_REF...HEAD || echo "")
+
+        echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+
+        # Check if only docs/bench/tests changed
+        if echo "$CHANGED_FILES" | grep -vE '^(docs/|copybook-bench/|tests/|\.github/|scripts/)' | grep -q .; then
+          echo "api_only_changes=false" >> $GITHUB_OUTPUT
+          echo "📝 Non-docs/bench/tests changes detected"
+        else
+          echo "api_only_changes=true" >> $GITHUB_OUTPUT
+          echo "📚 Only docs/bench/tests changes detected"
+        fi
+
+    - name: Generate baseline for current version
+      if: steps.freeze-check.outputs.freeze_active == 'false'
+      run: |
+        # Generate current API signature for future comparison
+        cargo semver-checks build-metadata --workspace
+
+    - name: Check API compatibility
+      if: steps.freeze-check.outputs.freeze_active == 'true'
+      run: |
+        # When API freeze is active, check against baseline
+        # Use the last released version as baseline
+        cargo semver-checks check-release \
+          --workspace \
+          --baseline-root=origin/main \
+          --current-root=. \
+          --error-on-missing
+
+    - name: Allow docs/bench/tests only changes during freeze
+      if: steps.freeze-check.outputs.freeze_active == 'true' && steps.changed-paths.outputs.api_only_changes == 'true'
+      run: |
+        echo "✅ Skipping API check - only docs/bench/tests changes detected during freeze"
+
+    - name: Fail on API changes during freeze
+      if: steps.freeze-check.outputs.freeze_active == 'true' && steps.changed-paths.outputs.api_only_changes == 'false'
+      run: |
+        echo "❌ ERROR: API freeze is active but API changes detected!"
+        echo ""
+        echo "During API freeze, only the following changes are allowed:"
+        echo "  - Documentation changes (docs/)"
+        echo "  - Benchmark changes (copybook-bench/)"
+        echo "  - Test changes (tests/)"
+        echo "  - CI/CD changes (.github/, scripts/)"
+        echo ""
+        echo "Changed files:"
+        echo "${{ steps.changed-paths.outputs.changed_files }}"
+        echo ""
+        echo "To make API changes:"
+        echo "  1. Remove the .api-freeze file"
+        echo "  2. Commit and push your changes"
+        echo "  3. After release, re-create .api-freeze for next freeze"
+        exit 1
+
+    - name: Upload API diff
+      if: failure() && steps.freeze-check.outputs.freeze_active == 'true'
+      run: |
+        # Generate detailed API diff for debugging
+        cargo semver-checks check-release \
+          --workspace \
+          --baseline-root=origin/main \
+          --current-root=. \
+          --error-on-missing \
+          2>&1 || true

@@ -1,95 +1,14 @@
 # cargo-release configuration for copybook-rs workspace
-#
-# Usage:
-#   cargo release patch   # 0.4.2 -> 0.4.3
-#   cargo release minor   # 0.4.2 -> 0.5.0
-#   cargo release major   # 0.4.2 -> 1.0.0
-#   cargo release --dry-run patch  # Preview changes
-#
-# Prerequisites:
-#   cargo install cargo-release
-#   cargo install git-cliff  # For changelog generation
-#
-# Workflow:
-#   1. cargo-release bumps version in Cargo.toml files
-#   2. Runs pre-release hook to update CHANGELOG.md via git-cliff
-#   3. Commits version bump + changelog
-#   4. Creates signed git tag (v{{version}})
-#   5. Pushes tag to remote (triggers release CI)
-#
-# Note: Does NOT publish to crates.io automatically (publish = false)
-#       Publishing requires manual `cargo publish -p <crate>` after tag push
-
-[workspace]
-# Consolidate releases: bump all crates together with shared version
-consolidate-commits = true
-consolidate-pushes = true
-
-# Tag format matches git-cliff expectation
 tag-name = "v{{version}}"
 tag-message = "Release v{{version}}"
-
-# Sign tags for authenticity (requires GPG key configured)
-# Set sign-tag = false if GPG not available
 sign-tag = true
 sign-commit = false
-
-# Don't publish to crates.io automatically
-# Deferred to manual publish step after tag verification
 publish = false
-
-# Push tag to remote (triggers GitHub release CI)
 push-remote = "origin"
 push = true
-
-# Commit message for version bump
-# Follows conventional commits format for git-cliff parsing
 pre-release-commit-message = "chore(release): prepare v{{version}}"
-
-# Don't allow dirty working directory
-allow-branch = ["main"]
-no-dev-version = true
-
-# Dependency version updates
-# Use exact versions for internal workspace crates (already configured in Cargo.toml)
-dependent-version = "fix"  # Don't auto-bump dependents
-
-# Metadata updates
-# Don't replace {{version}} in other files (only Cargo.toml)
-pre-release-replacements = []
-
-# Pre-release hook: update CHANGELOG.md using git-cliff
-# This runs BEFORE the version bump commit
-pre-release-hook = [
-    # Update CHANGELOG.md with git-cliff
-    "git-cliff --unreleased --tag v{{version}} --output CHANGELOG.md",
-
-    # Run full CI validation (optional: comment out for faster releases)
-    # "cargo build --workspace --release",
-    # "cargo test --workspace",
-    # "cargo clippy --workspace -- -D warnings",
-]
-
-# No post-release hooks (publishing handled manually)
-post-release-hook = []
-
-# Configuration for individual crates
-# All crates inherit workspace settings above
-
-[[package]]
-name = "copybook-core"
-
-[[package]]
-name = "copybook-codec"
-
-[[package]]
-name = "copybook-cli"
-
-[[package]]
-name = "copybook-gen"
-
-[[package]]
-name = "copybook-bench"
-
-[[package]]
-name = "xtask"
+allow-branch = ["main", "feature/v0.4.2-improvements"]
+dependent-version = "fix"
+shared-version = true
+consolidate-commits = true
+pre-release-hook = ["git-cliff --unreleased --tag v{{version}} --output CHANGELOG.md"]

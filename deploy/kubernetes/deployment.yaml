@@ -25,6 +25,42 @@ data:
   # JSON number mode for decoding (lossless preserves precision)
   JSON_NUMBER_MODE: "lossless"
 
+  # Enterprise feature flags
+  # See docs/ENTERPRISE_DEPLOYMENT.md for full configuration options
+
+  # Audit system - enables audit logging for compliance
+  COPYBOOK_FF_AUDIT_SYSTEM: "0"
+
+  # Compliance profiles - enable based on regulatory requirements
+  COPYBOOK_FF_SOX_COMPLIANCE: "0"
+  COPYBOOK_FF_HIPAA_COMPLIANCE: "0"
+  COPYBOOK_FF_GDPR_COMPLIANCE: "0"
+  COPYBOOK_FF_PCI_DSS_COMPLIANCE: "0"
+
+  # Security monitoring - enables security event tracking
+  COPYBOOK_FF_SECURITY_MONITORING: "0"
+
+  # Performance features
+  COPYBOOK_FF_LRU_CACHE: "1"
+  COPYBOOK_FF_ADVANCED_OPTIMIZATION: "0"
+  COPYBOOK_FF_PARALLEL_DECODE: "0"
+  COPYBOOK_FF_ZERO_COPY: "0"
+
+  # Debug features - disable in production
+  COPYBOOK_FF_VERBOSE_LOGGING: "0"
+  COPYBOOK_FF_DIAGNOSTIC_OUTPUT: "0"
+
+  # Audit configuration
+  AUDIT_FORMAT: "jsonl"
+  AUDIT_OUTPUT: "stdout"
+  AUDIT_BATCH_SIZE: "100"
+  AUDIT_BATCH_INTERVAL_SECONDS: "5"
+
+  # Metrics configuration
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9300"
+  METRICS_PATH: "/metrics"
+
 ---
 # PersistentVolumeClaim for data storage
 # Use this for input copybooks and data files, output JSON/binary files

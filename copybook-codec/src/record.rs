@@ -953,7 +953,7 @@ impl RDWRecord {
     /// Create a new RDW record from payload
     ///
     /// # Panics
-    /// Panics if payload exceeds 65535 bytes. Prefer [`try_new`] for fallible construction.
+    /// Panics if payload exceeds 65535 bytes. Prefer [`Self::try_new`] for fallible construction.
     #[deprecated(
         since = "0.4.2",
         note = "use try_new() instead for fallible construction"
@@ -988,7 +988,7 @@ impl RDWRecord {
     /// Create a new RDW record with preserved reserved bytes
     ///
     /// # Panics
-    /// Panics if payload exceeds 65535 bytes. Prefer [`try_with_reserved`] for fallible construction.
+    /// Panics if payload exceeds 65535 bytes. Prefer [`Self::try_with_reserved`] for fallible construction.
     #[deprecated(
         since = "0.4.2",
         note = "use try_with_reserved() instead for fallible construction"
@@ -1031,7 +1031,7 @@ impl RDWRecord {
     /// Update the length field to match the payload size
     ///
     /// # Panics
-    /// Panics if payload exceeds 65535 bytes. Prefer [`try_recompute_length`] for fallible operation.
+    /// Panics if payload exceeds 65535 bytes. Prefer [`Self::try_recompute_length`] for fallible operation.
     #[deprecated(
         since = "0.4.2",
         note = "use try_recompute_length() instead for fallible operation"

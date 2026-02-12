@@ -1,0 +1,92 @@
+name: Leak Detection
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 4 * * 0"  # Weekly on Sunday at 04:00 UTC
+  pull_request:
+    paths:
+      - "copybook-codec/**"
+      - "copybook-core/**"
+      - "copybook-cli/**"
+      - ".github/workflows/leak-detection.yml"
+
+concurrency:
+  group: leak-detection-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  leak-detection:
+    name: Memory Leak Detection (LSAN)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+
+      - name: Build with leak detection flags
+        env:
+          RUSTFLAGS: "-Zsanitizer=leak"
+        run: |
+          cargo clean
+          cargo build --workspace --release
+
+      - name: Run tests with LSAN
+        env:
+          RUSTFLAGS: "-Zsanitizer=leak"
+          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=0"
+        run: |
+          cargo test --workspace --release --no-fail-fast -- -Z unstable-options --report-time 2>&1 | tee test_output.log
+
+      - name: Analyze leak reports
+        if: always()
+        run: |
+          echo "=== Leak Detection Summary ==="
+          if grep -q "SUMMARY: LeakSanitizer" test_output.log 2>/dev/null; then
+            echo "⚠️ Memory leaks detected"
+            grep -A 5 "SUMMARY: LeakSanitizer" test_output.log || true
+            exit 1
+          else
+            echo "✅ No memory leaks detected"
+          fi
+
+      - name: Run valgrind on CLI
+        run: |
+          cargo build --release -p copybook-cli
+          valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 \
+            ./target/release/copybook decode --help 2>&1 | tee valgrind_output.log || true
+
+      - name: Analyze valgrind output
+        if: always()
+        run: |
+          echo "=== Valgrind Summary ==="
+          if grep -q "LEAK SUMMARY" valgrind_output.log; then
+            echo "⚠️ Memory leaks detected by valgrind"
+            grep "LEAK SUMMARY" valgrind_output.log
+            exit 1
+          else
+            echo "✅ No memory leaks detected by valgrind"
+          fi
+
+      - name: Upload leak detection artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: leak-detection-logs-${{ github.sha }}
+          path: |
+            test_output.log
+            valgrind_output.log
+          retention-days: 30

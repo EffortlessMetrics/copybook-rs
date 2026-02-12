@@ -67,7 +67,7 @@ impl<T> SequencedRecord<T> {
 ///
 /// 1. Workers submit processed records with sequence IDs via sender channel
 /// 2. `SequenceRing` receives records (potentially out-of-order)
-/// 3. Out-of-order records are buffered in reorder buffer (BTreeMap)
+/// 3. Out-of-order records are buffered in reorder buffer (`BTreeMap`)
 /// 4. Records are emitted in strict sequence order via [`recv_ordered()`](SequenceRing::recv_ordered)
 ///
 /// # Memory Bounds
@@ -77,7 +77,7 @@ impl<T> SequencedRecord<T> {
 ///
 /// # Performance Characteristics
 ///
-/// - **O(log n)** insertion/removal from reorder buffer (BTreeMap)
+/// - **O(log n)** insertion/removal from reorder buffer (`BTreeMap`)
 /// - **O(1)** emission when records arrive in order (hot path)
 /// - **Memory usage** - Bounded by channel capacity + reorder window size
 ///
@@ -109,7 +109,7 @@ pub struct SequenceRing<T> {
 
     /// Buffer for out-of-order records
     ///
-    /// BTreeMap provides O(log n) ordered access to buffered records.
+    /// `BTreeMap` provides O(log n) ordered access to buffered records.
     reorder_buffer: BTreeMap<u64, T>,
 
     /// Next expected sequence ID
@@ -137,7 +137,7 @@ impl<T> SequenceRing<T> {
     /// # Tuning Guidelines
     ///
     /// - **Channel capacity**: Should be 2-4x number of worker threads for good throughput
-    /// - **Reorder window**: Should be channel_capacity / 2 to allow for processing variance
+    /// - **Reorder window**: Should be `channel_capacity` / 2 to allow for processing variance
     ///
     /// # Examples
     ///

@@ -87,7 +87,7 @@ You are the copybook-rs Pre-Merge Readiness Validator specializing in comprehens
 - `cargo fmt --all --check` (format validation)
 - `cargo doc --workspace --no-deps` (documentation generation)
 - `cargo llvm-cov --all-features --workspace --lcov` (coverage reporting)
-- `cargo +1.90 check --workspace` (MSRV compatibility validation)
+- `cargo +1.92 check --workspace` (MSRV compatibility validation)
 
 ### Evidence Generation Commands
 - `gh api repos/:owner/:repo/check-runs` (Check Run creation/update)

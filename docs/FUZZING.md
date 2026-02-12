@@ -91,7 +91,7 @@ Tests REDEFINES clauses with various inputs including:
 
 ### Prerequisites
 
-1. Install Rust (1.90.0 or later)
+1. Install Rust (1.92.0 or later)
 2. Install cargo-fuzz:
    ```bash
    cargo install cargo-fuzz --version 0.13.4
@@ -348,7 +348,7 @@ Add to this document's "Fuzz Targets" section.
 Ensure you have the correct Rust version and cargo-fuzz installed:
 
 ```bash
-rustc --version  # Should be 1.90.0 or later
+rustc --version  # Should be 1.92.0 or later
 cargo install cargo-fuzz --version 0.13.4
 ```
 

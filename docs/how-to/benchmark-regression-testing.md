@@ -6,7 +6,7 @@
 This guide provides step-by-step instructions for copybook-rs developers to **establish performance baselines**, **detect regressions**, and **validate performance changes** during development. Follows TDD practices with clear acceptance criteria validation.
 
 **Prerequisites**:
-- Rust 1.90+ installed
+- Rust 1.92+ installed
 - copybook-rs workspace cloned
 - Issue #52 foundation (PR #67) merged
 
@@ -76,7 +76,7 @@ cat > docs/performance-measurement-methodology.md << 'EOF'
 - Architecture: x86_64
 
 **Rust Toolchain**:
-- Version: 1.90.0
+- Version: 1.92.0
 - Channel: stable
 - Target: x86_64-unknown-linux-gnu
 - Built: 2025-01-15
@@ -392,7 +392,7 @@ cargo run --bin bench-report -p copybook-bench -- health-check
 
 # Expected output:
 # 🏥 Copybook Benchmark Health Check
-# ✅ Rust version: 1.90.0
+# ✅ Rust version: 1.92.0
 # ✅ Available memory: 28 GB
 # ✅ CPU governor: performance
 # ✅ Baseline exists: target/baselines/performance.json
@@ -1118,7 +1118,7 @@ cargo run --bin bench-report -p copybook-bench -- health-check
 
 # Expected output:
 # 🏥 Copybook Benchmark Health Check
-# ✅ Rust version: 1.90.0
+# ✅ Rust version: 1.92.0
 # ✅ Available memory: 28 GB
 # ⚠️ CPU governor: powersave (consider 'performance' for benchmarks)
 # ✅ Baseline exists: target/baselines/performance.json
@@ -1129,7 +1129,7 @@ cargo run --bin bench-report -p copybook-bench -- health-check
 ```
 
 **Health Check Components**:
-- **Rust Version**: Validates MSRV compliance (1.90+)
+- **Rust Version**: Validates MSRV compliance (1.92+)
 - **Memory**: Checks available memory (4GB+ recommended)
 - **CPU Governor**: Recommends 'performance' mode
 - **Baseline**: Validates baseline file exists and is valid JSON

@@ -27,7 +27,7 @@ Your promotion validates these **MANDATORY** enterprise production standards:
 - **enterprise**: Zero unsafe code + mainframe reliability validation
 
 ### Additional Enterprise Validation
-- **MSRV Compatibility**: `cargo +1.90 check --workspace` (Rust 1.90+)
+- **MSRV Compatibility**: `cargo +1.92 check --workspace` (Rust 1.92+)
 - **Performance Targets**: COBOL processing exceeds enterprise thresholds (DISPLAY: ≥4.1 GiB/s, COMP-3: ≥560 MiB/s)
 - **Error Taxonomy**: Stable CBKP*/CBKS*/CBKD*/CBKE* error codes maintained
 - **Feature Matrix**: Workspace feature compatibility validated
@@ -122,7 +122,7 @@ Use scannable enterprise metrics in summaries:
 - `enterprise: DISPLAY:4.2GiB/s, COMP-3:580MiB/s, unsafe:0, errors:stable`
 - `tests: nextest 127/127 pass; quarantined: 0`
 - `performance: targets exceeded, Δ within threshold`
-- `features: workspace matrix validated, MSRV:1.90 compatible`
+- `features: workspace matrix validated, MSRV:1.92 compatible`
 
 ## Integration Commands
 
@@ -139,7 +139,7 @@ cargo deny check                 # Security/dependency validation
 ```bash
 cargo build --workspace --release && cargo test --workspace && cargo clippy --workspace -- -D warnings -W clippy::pedantic
 cargo fmt --all --check
-cargo +1.90 check --workspace
+cargo +1.92 check --workspace
 ```
 
 You operate with GitHub-native authority for copybook-rs enterprise promotion, ensuring production-ready quality with comprehensive mainframe data processing reliability validation. All operations focus on enterprise standards with substantial performance safety margins and zero unsafe code enforcement.

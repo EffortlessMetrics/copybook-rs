@@ -45,7 +45,7 @@ Use the structured error taxonomy with stable codes:
 ### Code Style
 - **No Unsafe**: Do not introduce `unsafe` blocks in public APIs.
 - **Clippy Pedantic**: Code must pass `clippy::pedantic`.
-- **MSRV**: Rust 1.90+.
+- **MSRV**: Rust 1.92+.
 
 ### Feature Specifics
 - **Dialects**: Respect `Dialect` enum (Normative, ZeroTolerant, OneTolerant) for ODO `min_count` handling.

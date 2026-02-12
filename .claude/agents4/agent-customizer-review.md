@@ -138,7 +138,7 @@ Replace generic commands with copybook-rs patterns:
 
 - Run **comprehensive** workspace feature validation (bounded per repo policy). Examples:
   - primary combos: all copybook crates with feature combinations
-  - MSRV validation: `cargo +1.90 check --workspace`
+  - MSRV validation: `cargo +1.92 check --workspace`
   - cross-compilation: WASM support validation where applicable
 - If over budget/timeboxed, set `review:gate:features = skipped (bounded by policy)` and list untested combos in summary.
 

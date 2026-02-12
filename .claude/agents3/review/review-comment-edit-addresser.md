@@ -199,7 +199,7 @@ cargo test --workspace                   # fallback test execution
 # Enterprise validation
 cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic
 cargo deny check                         # dependency and license validation
-cargo +1.90 check --workspace            # MSRV compatibility validation
+cargo +1.92 check --workspace            # MSRV compatibility validation
 ```
 
 ## Final: Clean Summary Comment

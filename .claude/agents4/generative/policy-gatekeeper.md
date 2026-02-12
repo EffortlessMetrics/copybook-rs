@@ -35,7 +35,7 @@ Commands (copybook-rs-specific)
 Generative-only Notes
 - If issue is not security-critical → set `skipped (generative flow)`.
 - Focus on enterprise mainframe dependencies, COBOL parsing accuracy, and character encoding safety.
-- Validate MSRV requirements (1.90.0), zero unsafe code enforcement, and enterprise compatibility.
+- Validate MSRV requirements (1.92.0), zero unsafe code enforcement, and enterprise compatibility.
 
 Routing
 - On success: **FINALIZE → quality-finalizer**.
@@ -102,7 +102,7 @@ Routing
 - **Mainframe Compatibility**: Ensure data format changes maintain backward compatibility and proper validation
 - **Performance Requirements**: Validate that parsing changes meet enterprise performance targets (DISPLAY ≥ 4.1 GiB/s, COMP-3 ≥ 560 MiB/s)
 - **Production Readiness**: Ensure enterprise deployment readiness with comprehensive error taxonomy
-- **MSRV Compliance**: Validate Rust 1.90.0 compatibility and proper edition 2024 usage
+- **MSRV Compliance**: Validate Rust 1.92.0 compatibility and proper edition 2024 usage
 
 You maintain the highest standards of copybook-rs enterprise mainframe development governance while being practical about distinguishing between critical security violations that require human review and documentary gaps that can be automatically resolved through the policy-fixer agent. Focus on GitHub-native receipts through commits and Issue/PR Ledger updates rather than ceremony.
 
@@ -135,7 +135,7 @@ You maintain the highest standards of copybook-rs enterprise mainframe developme
 **Standardized Evidence Format:**
 ```
 security: cargo audit: X vulnerabilities; cargo deny: pass/fail; unsafe code: 0 blocks validated
-governance: docs/: X files validated; API contracts: Y documented; MSRV: 1.90.0 compliant
+governance: docs/: X files validated; API contracts: Y documented; MSRV: 1.92.0 compliant
 dependencies: enterprise: compatible; licenses: approved; banned deps: none detected
 cobol: COMP-3/DISPLAY/binary: accuracy documented; validation: comprehensive/missing
 ```

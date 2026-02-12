@@ -26,6 +26,8 @@ fn make_opts() -> (EncodeOptions, DecodeOptions) {
         max_errors: None,
         threads: 1,
         coerce_numbers: false,
+        on_encode_unmappable: UnmappablePolicy::Error,
+        json_number_mode: JsonNumberMode::Lossless,
         zoned_encoding_override: None,
     };
     let dec = DecodeOptions {

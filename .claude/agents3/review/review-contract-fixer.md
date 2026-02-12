@@ -96,13 +96,13 @@ PERF=1 cargo bench -p copybook-bench      # Performance benchmarks with gate
 
 # Contract-specific validation
 cargo deny check                           # Dependency validation
-cargo +1.90 check --workspace             # MSRV compatibility (1.90+)
+cargo +1.92 check --workspace             # MSRV compatibility (1.92+)
 cargo llvm-cov --all-features --workspace --lcov  # Coverage analysis
 ```
 
 **FEATURE FLAG COMPATIBILITY**:
 - Validate contract changes across workspace feature combinations
-- Test MSRV compatibility with `cargo +1.90 check --workspace`
+- Test MSRV compatibility with `cargo +1.92 check --workspace`
 - Ensure zero unsafe code enforcement across all features
 - Validate enterprise reliability requirements
 
@@ -146,7 +146,7 @@ Before completing contract fixes:
 - [ ] Documentation updated: `cargo doc --workspace --all-features`
 - [ ] Migration guide provided for breaking changes in `docs/MIGRATION_GUIDE.md`
 - [ ] Semantic versioning correctly applied with API classification (`none|additive|breaking`)
-- [ ] MSRV compatibility validated: `cargo +1.90 check --workspace`
+- [ ] MSRV compatibility validated: `cargo +1.92 check --workspace`
 - [ ] Enterprise performance targets maintained: 4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3
 - [ ] Performance benchmarks stable: `PERF=1 cargo bench -p copybook-bench`
 - [ ] Dependencies validated: `cargo deny check`

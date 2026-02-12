@@ -1,12 +1,119 @@
-//! Numeric type codecs for COBOL data
+//! # Numeric Type Codecs for COBOL Data
 //!
-//! This module implements encoding and decoding for zoned decimal,
-//! packed decimal, and binary integer types.
+//! This module provides encoding and decoding functions for the three main COBOL numeric
+//! data types:
+//!
+//! - **Zoned Decimal** (`PIC 9` with optional `SIGN SEPARATE`): External decimal format
+//!   where each digit is stored in a byte with a zone nibble and a digit nibble.
+//!   The sign may be encoded via overpunch or stored in a separate byte.
+//!
+//! - **Packed Decimal** (`COMP-3`): Compact binary format where each byte contains
+//!   two decimal digits (nibbles), with the last nibble containing the sign.
+//!
+//! - **Binary Integer** (`COMP-4`, `COMP-5`, `BINARY`): Standard binary integer
+//!   encoding in big-endian byte order.
+//!
+//! ## Module Organization
+//!
+//! The module is organized into three main categories:
+//!
+//! ### Decoding Functions
+//! - [`decode_zoned_decimal`] - Decode zoned decimal fields
+//! - [`decode_zoned_decimal_sign_separate`] - Decode SIGN SEPARATE zoned decimals
+//! - [`decode_zoned_decimal_with_encoding`] - Decode with encoding detection
+//! - [`decode_packed_decimal`] - Decode COMP-3 packed decimals
+//! - [`decode_binary_int`] - Decode binary integer fields
+//!
+//! ### Encoding Functions
+//! - [`encode_zoned_decimal`] - Encode zoned decimal fields
+//! - [`encode_zoned_decimal_with_format`] - Encode with explicit encoding format
+//! - [`encode_zoned_decimal_with_format_and_policy`] - Encode with format and policy
+//! - [`encode_zoned_decimal_with_bwz`] - Encode with BLANK WHEN ZERO support
+//! - [`encode_packed_decimal`] - Encode COMP-3 packed decimals
+//! - [`encode_binary_int`] - Encode binary integer fields
+//!
+//! ### Utility Functions
+//! - [`get_binary_width_from_digits`] - Map digit count to binary width
+//! - [`validate_explicit_binary_width`] - Validate explicit BINARY(n) widths
+//! - [`should_encode_as_blank_when_zero`] - Check BLANK WHEN ZERO policy
+//!
+//! ## Performance Considerations
+//!
+//! This module is optimized for high-throughput enterprise data processing:
+//!
+//! - **Hot path optimization**: Common cases (1-5 byte COMP-3, ASCII zoned) use
+//!   specialized fast paths
+//! - **Branch prediction**: Manual hints mark error paths as unlikely
+//! - **Zero-allocation**: Scratch buffer variants avoid repeated allocations in loops
+//! - **Saturating arithmetic**: Prevents panics while maintaining correctness
+//!
+//! ## Encoding Formats
+//!
+//! ### Zoned Decimal Encoding
+//!
+//! Zoned decimals support two primary encoding formats:
+//!
+//! | Format | Zone Nibble | Example Digits | Sign Encoding |
+//! |---------|--------------|----------------|---------------|
+//! | ASCII | `0x3` | `0x30`-`0x39` | Overpunch or separate |
+//! | EBCDIC | `0xF` | `0xF0`-`0xF9` | Overpunch or separate |
+//!
+//! ### Packed Decimal Sign Nibbles
+//!
+//! COMP-3 uses the last nibble for sign encoding:
+//!
+//! | Sign | Nibble | Description |
+//! |------|---------|-------------|
+//! | Positive | `0xC`, `0xA`, `0xE`, `0xF` | Positive values |
+//! | Negative | `0xB`, `0xD` | Negative values |
+//! | Unsigned | `0xF` | Unsigned fields only |
+//!
+//! ### Binary Integer Widths
+//!
+//! Binary integers use the following width mappings:
+//!
+//! | Digits | Width | Bits | Range (signed) |
+//! |---------|--------|-------|----------------|
+//! | 1-4 | 2 bytes | 16 | -32,768 to 32,767 |
+//! | 5-9 | 4 bytes | 32 | -2,147,483,648 to 2,147,483,647 |
+//! | 10-18 | 8 bytes | 64 | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807 |
+//!
+//! ## Examples
+//!
+//! ### Decoding a Zoned Decimal
+//!
+//! ```no_run
+//! use copybook_codec::numeric::{decode_zoned_decimal};
+//! use copybook_codec::options::Codepage;
+//!
+//! // ASCII zoned decimal: "123" = [0x31, 0x32, 0x33]
+//! let data = b"123";
+//! let result = decode_zoned_decimal(data, 3, 0, false, Codepage::ASCII, false)?;
+//! assert_eq!(result.to_string(), "123");
+//! # Ok::<(), copybook_core::Error>(())
+//! ```
+//!
+//! ### Encoding a Packed Decimal
+//!
+//! ```no_run
+//! use copybook_codec::numeric::{encode_packed_decimal};
+//!
+//! // Encode "123.45" as 7-digit COMP-3 with 2 decimal places
+//! let encoded = encode_packed_decimal("123.45", 7, 2, true)?;
+//! // Result: [0x12, 0x34, 0x5C] (12345 positive)
+//! # Ok::<(), copybook_core::Error>(())
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`crate::zoned_overpunch`] - Zoned decimal overpunch encoding/decoding
+//! - [`crate::SmallDecimal`] - Decimal representation without floating-point precision loss
+//! - [`crate::memory::ScratchBuffers`] - Reusable buffers for zero-allocation processing
 
 use crate::memory::ScratchBuffers;
 use crate::options::{Codepage, ZonedEncodingFormat};
 use crate::zoned_overpunch::{ZeroSignPolicy, encode_overpunch_byte};
-use copybook_core::{Error, ErrorCode, Result};
+use copybook_core::{Error, ErrorCode, Result, SignPlacement, SignSeparateInfo};
 use std::convert::TryFrom;
 use std::fmt::Write;
 use tracing::warn;
@@ -92,6 +199,11 @@ pub(crate) fn unlikely(b: bool) -> bool {
     }
 }
 
+/// Manual branch prediction hint for cold paths
+///
+/// This function serves as a branch prediction hint that the calling path is cold/unlikely.
+/// The `#[cold]` attribute tells the compiler this is an unlikely execution path, and
+/// `#[inline(never)]` ensures the cold path doesn't bloat the hot path.
 #[cold]
 #[inline(never)]
 fn cold_branch_hint() {
@@ -798,12 +910,99 @@ fn scale_abs_to_u32(scale: i16) -> u32 {
 
 /// Decode a zoned decimal using the configured code page with detailed error context.
 ///
+/// Decodes zoned decimal (PIC 9) fields where each digit is stored in a byte
+/// with a zone nibble and a digit nibble. The sign may be encoded via overpunch
+/// in the last byte's zone nibble.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the zoned decimal
+/// * `digits` - Number of digit characters (field length)
+/// * `scale` - Number of decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+/// * `blank_when_zero` - If true, all-space fields decode as zero
+///
+/// # Returns
+/// A `SmallDecimal` containing the decoded value
+///
 /// # Policy
 /// Applies the codec default: ASCII uses `ZeroSignPolicy::Positive`; EBCDIC zeros normalize via `ZeroSignPolicy::Preferred`.
 ///
 /// # Errors
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+///
+/// # Examples
+///
+/// ## ASCII Zoned Decimal
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // ASCII "123" = [0x31, 0x32, 0x33]
+/// let data = b"123";
+/// let result = decode_zoned_decimal(data, 3, 0, false, Codepage::ASCII, false)?;
+/// assert_eq!(result.to_string(), "123");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Signed ASCII Zoned Decimal (Overpunch)
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // ASCII "-123" with overpunch: [0x31, 0x32, 0x4D] (M = 3 with negative sign)
+/// let data = [0x31, 0x32, 0x4D];
+/// let result = decode_zoned_decimal(&data, 3, 0, true, Codepage::ASCII, false)?;
+/// assert_eq!(result.to_string(), "-123");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## EBCDIC Zoned Decimal
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // EBCDIC "123" = [0xF1, 0xF2, 0xF3]
+/// let data = [0xF1, 0xF2, 0xF3];
+/// let result = decode_zoned_decimal(&data, 3, 0, false, Codepage::CP037, false)?;
+/// assert_eq!(result.to_string(), "123");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Decimal Scale
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // "12.34" with 2 decimal places
+/// let data = b"1234";
+/// let result = decode_zoned_decimal(data, 4, 2, false, Codepage::ASCII, false)?;
+/// assert_eq!(result.to_string(), "12.34");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## BLANK WHEN ZERO
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // All spaces decode as zero when blank_when_zero is true
+/// let data = b"   ";
+/// let result = decode_zoned_decimal(data, 3, 0, false, Codepage::ASCII, true)?;
+/// assert_eq!(result.to_string(), "0");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`decode_zoned_decimal_sign_separate`] - For SIGN SEPARATE fields
+/// * [`decode_zoned_decimal_with_encoding`] - For encoding detection
+/// * [`encode_zoned_decimal`] - For encoding zoned decimals
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal(
@@ -911,9 +1110,212 @@ pub fn decode_zoned_decimal(
     Ok(decimal)
 }
 
+/// Decode a zoned decimal field with SIGN SEPARATE clause
+///
+/// SIGN SEPARATE stores the sign in a separate byte rather than overpunching
+/// it in the zone portion of the last digit. The sign byte can be leading
+/// (before digits) or trailing (after digits).
+///
+/// # Arguments
+/// * `data` - Raw byte data (includes sign byte + digit bytes)
+/// * `digits` - Number of digit characters (not including sign byte)
+/// * `scale` - Decimal places (can be negative for scaling)
+/// * `sign_separate` - SIGN SEPARATE clause information (placement)
+/// * `codepage` - Character encoding (ASCII or EBCDIC)
+///
+/// # Returns
+/// A `SmallDecimal` containing the decoded value
+///
+/// # Errors
+/// Returns an error if data length is incorrect or sign byte is invalid.
+///
+/// # Examples
+///
+/// ## Leading Sign (ASCII)
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal_sign_separate};
+/// use copybook_codec::options::Codepage;
+/// use copybook_core::SignPlacement;
+/// use copybook_core::SignSeparateInfo;
+///
+/// // "+123" with leading sign: [0x2B, 0x31, 0x32, 0x33]
+/// let sign_info = SignSeparateInfo { placement: SignPlacement::Leading };
+/// let data = [b'+', b'1', b'2', b'3'];
+/// let result = decode_zoned_decimal_sign_separate(&data, 3, 0, &sign_info, Codepage::ASCII)?;
+/// assert_eq!(result.to_string(), "123");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Trailing Sign (ASCII)
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal_sign_separate};
+/// use copybook_codec::options::Codepage;
+/// use copybook_core::SignPlacement;
+/// use copybook_core::SignSeparateInfo;
+///
+/// // "-456" with trailing sign: [0x34, 0x35, 0x36, 0x2D]
+/// let sign_info = SignSeparateInfo { placement: SignPlacement::Trailing };
+/// let data = [b'4', b'5', b'6', b'-'];
+/// let result = decode_zoned_decimal_sign_separate(&data, 3, 0, &sign_info, Codepage::ASCII)?;
+/// assert_eq!(result.to_string(), "-456");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## EBCDIC Leading Sign
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal_sign_separate};
+/// use copybook_codec::options::Codepage;
+/// use copybook_core::SignPlacement;
+/// use copybook_core::SignSeparateInfo;
+///
+/// // "+789" with leading EBCDIC sign: [0x4E, 0xF7, 0xF8, 0xF9]
+/// let sign_info = SignSeparateInfo { placement: SignPlacement::Leading };
+/// let data = [0x4E, 0xF7, 0xF8, 0xF9];
+/// let result = decode_zoned_decimal_sign_separate(&data, 3, 0, &sign_info, Codepage::CP037)?;
+/// assert_eq!(result.to_string(), "789");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`decode_zoned_decimal`] - For overpunch-encoded zoned decimals
+/// * [`decode_zoned_decimal_with_encoding`] - For encoding detection
+#[inline]
+#[must_use = "Handle the Result or propagate the error"]
+pub fn decode_zoned_decimal_sign_separate(
+    data: &[u8],
+    digits: u16,
+    scale: i16,
+    sign_separate: &SignSeparateInfo,
+    codepage: Codepage,
+) -> Result<SmallDecimal> {
+    // SIGN SEPARATE adds 1 byte for the sign
+    let expected_len = usize::from(digits) + 1;
+
+    if unlikely(data.len() != expected_len) {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!(
+                "SIGN SEPARATE zoned decimal data length mismatch: expected {} bytes, got {}",
+                expected_len,
+                data.len()
+            ),
+        ));
+    }
+
+    // Determine sign byte and digit bytes based on placement
+    let (sign_byte, digit_bytes) = match sign_separate.placement {
+        SignPlacement::Leading => {
+            // Sign byte is first, digits follow
+            if data.is_empty() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    "SIGN SEPARATE field is empty",
+                ));
+            }
+            (data[0], &data[1..])
+        }
+        SignPlacement::Trailing => {
+            // Digits are first, sign byte is last
+            if data.is_empty() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    "SIGN SEPARATE field is empty",
+                ));
+            }
+            (data[data.len() - 1], &data[..data.len() - 1])
+        }
+    };
+
+    // Decode sign byte
+
+    let is_negative = if codepage.is_ascii() {
+        match sign_byte {
+            b'-' => true,
+
+            b'+' | b' ' | b'0' => false, // Space or zero means positive/unsigned
+
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                    format!("Invalid sign byte in SIGN SEPARATE field: 0x{sign_byte:02X} (ASCII)"),
+                ));
+            }
+        }
+    } else {
+        // EBCDIC codepage (CP037, CP273, CP500, CP1047, CP1140)
+
+        match sign_byte {
+            0x60 => true, // EBCDIC '-'
+
+            0x4E | 0x40 | 0xF0 => false, // Space or zero means positive/unsigned
+
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKD411_ZONED_BAD_SIGN,
+                    format!("Invalid sign byte in SIGN SEPARATE field: 0x{sign_byte:02X} (EBCDIC)"),
+                ));
+            }
+        }
+    };
+
+    // Decode digit bytes
+
+    let mut value: i64 = 0;
+
+    for &byte in digit_bytes {
+        let digit = if codepage.is_ascii() {
+            if !byte.is_ascii_digit() {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!("Invalid digit byte in SIGN SEPARATE field: 0x{byte:02X} (ASCII)"),
+                ));
+            }
+
+            byte - b'0'
+        } else {
+            // EBCDIC digits are 0xF0-0xF9
+
+            if !(0xF0..=0xF9).contains(&byte) {
+                return Err(Error::new(
+                    ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                    format!("Invalid digit byte in SIGN SEPARATE field: 0x{byte:02X} (EBCDIC)"),
+                ));
+            }
+
+            byte - 0xF0
+        };
+
+        value = value * 10 + i64::from(digit);
+    }
+
+    let mut decimal = SmallDecimal::new(value, scale, is_negative);
+    decimal.normalize(); // Normalize -0 → 0 (NORMATIVE)
+    Ok(decimal)
+}
+
 /// Decode zoned decimal field with encoding detection and preservation
 ///
 /// Returns both the decoded decimal and encoding information for preservation.
+/// When `preserve_encoding` is true, analyzes the input data to detect
+/// whether it uses ASCII or EBCDIC encoding, and whether mixed encodings
+/// are present within the field.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the zoned decimal
+/// * `digits` - Number of digit characters (field length)
+/// * `scale` - Number of decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+/// * `blank_when_zero` - If true, all-space fields decode as zero
+/// * `preserve_encoding` - If true, detect and return encoding information
+///
+/// # Returns
+/// A tuple of (`SmallDecimal`, `Option<ZonedEncodingInfo>`) containing:
+/// - The decoded decimal value
+/// - Encoding information (if `preserve_encoding` was true)
 ///
 /// # Policy
 /// Mirrors [`decode_zoned_decimal`], defaulting to preferred-zero handling for EBCDIC unless a preserved format dictates otherwise.
@@ -921,6 +1323,45 @@ pub fn decode_zoned_decimal(
 /// # Errors
 /// Returns an error if the zoned decimal data is invalid or contains bad sign zones.
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+///
+/// # Examples
+///
+/// ## Basic Decoding Without Preservation
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal_with_encoding};
+/// use copybook_codec::options::Codepage;
+///
+/// let data = b"123";
+/// let (decimal, encoding_info) = decode_zoned_decimal_with_encoding(
+///     data, 3, 0, false, Codepage::ASCII, false, false
+/// )?;
+/// assert_eq!(decimal.to_string(), "123");
+/// assert!(encoding_info.is_none());
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Encoding Detection
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal_with_encoding};
+/// use copybook_codec::options::Codepage;
+/// use copybook_codec::options::ZonedEncodingFormat;
+///
+/// let data = b"123";
+/// let (decimal, encoding_info) = decode_zoned_decimal_with_encoding(
+///     data, 3, 0, false, Codepage::ASCII, false, true
+/// )?;
+/// assert_eq!(decimal.to_string(), "123");
+/// let info = encoding_info.unwrap();
+/// assert_eq!(info.detected_format, ZonedEncodingFormat::Ascii);
+/// assert!(!info.has_mixed_encoding);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`decode_zoned_decimal`] - For basic zoned decimal decoding
+/// * [`ZonedEncodingInfo`] - For encoding detection results
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_with_encoding(
@@ -988,6 +1429,22 @@ pub fn decode_zoned_decimal_with_encoding(
     Ok((decimal, encoding_info))
 }
 
+/// Internal helper to decode zoned decimal digits with encoding detection
+///
+/// This function handles the core logic of iterating through zoned decimal bytes,
+/// accumulating the numeric value, and optionally detecting/validating the encoding.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the zoned decimal
+/// * `signed` - Whether the field is signed
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+/// * `preserve_encoding` - If true, validate consistent encoding throughout the field
+///
+/// # Returns
+/// A tuple of (`accumulated_value`, `is_negative`)
+///
+/// # Errors
+/// Returns an error if an invalid digit or zone nibble is encountered.
 #[inline]
 fn zoned_decode_digits_with_encoding(
     data: &[u8],
@@ -1097,11 +1554,97 @@ fn zoned_decode_digits_with_encoding(
     Ok((value, is_negative))
 }
 
-/// Decode packed decimal field with comprehensive error context
+/// Decode packed decimal (COMP-3) field with comprehensive error context
+///
+/// Decodes COMP-3 packed decimal format where each byte contains two decimal
+/// digits (nibbles), with the last nibble containing the sign. This function
+/// uses optimized fast paths for common enterprise data patterns.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the packed decimal
+/// * `digits` - Number of decimal digits in the field (1-18 supported)
+/// * `scale` - Number of decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+///
+/// # Returns
+/// A `SmallDecimal` containing the decoded value
 ///
 /// # Errors
 /// Returns an error if the packed decimal data contains invalid nibbles.
 /// All errors include proper context information (`record_index`, `field_path`, `byte_offset`).
+///
+/// # Performance
+/// This function uses specialized fast paths for common cases:
+/// - 1-5 byte fields: Direct decoding with minimal validation
+/// - Empty data: Immediate zero return
+/// - Digits > 18: Error (maximum supported precision)
+///
+/// # Examples
+///
+/// ## Basic Positive Value
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_packed_decimal};
+///
+/// // "123" as COMP-3: [0x12, 0x3C] (12 positive, 3C = positive sign)
+/// let data = [0x12, 0x3C];
+/// let result = decode_packed_decimal(&data, 3, 0, true)?;
+/// assert_eq!(result.to_string(), "123");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Negative Value
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_packed_decimal};
+///
+/// // "-456" as COMP-3: [0x04, 0x56, 0xD] (456 negative)
+/// let data = [0x04, 0x56, 0xD];
+/// let result = decode_packed_decimal(&data, 3, 0, true)?;
+/// assert_eq!(result.to_string(), "-456");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Decimal Scale
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_packed_decimal};
+///
+/// // "12.34" with 2 decimal places: [0x12, 0x34, 0xC]
+/// let data = [0x12, 0x34, 0xC];
+/// let result = decode_packed_decimal(&data, 4, 2, true)?;
+/// assert_eq!(result.to_string(), "12.34");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Unsigned Field
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_packed_decimal};
+///
+/// // Unsigned "789": [0x07, 0x89, 0xF] (F = unsigned sign)
+/// let data = [0x07, 0x89, 0xF];
+/// let result = decode_packed_decimal(&data, 3, 0, false)?;
+/// assert_eq!(result.to_string(), "789");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Zero Value
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_packed_decimal};
+///
+/// // Zero: [0x00, 0x0C]
+/// let data = [0x00, 0x0C];
+/// let result = decode_packed_decimal(&data, 2, 0, true)?;
+/// assert_eq!(result.to_string(), "0");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`encode_packed_decimal`] - For encoding packed decimals
+/// * [`decode_packed_decimal_with_scratch`] - For zero-allocation decoding
+/// * [`decode_packed_decimal_to_string_with_scratch`] - For direct string output
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_packed_decimal(
@@ -1146,7 +1689,8 @@ pub fn decode_packed_decimal(
 /// Ultra-optimized COMP-3 decoder for hot path performance
 ///
 /// This function is highly optimized for the 95% case of enterprise COBOL processing
-/// where COMP-3 fields are 1-5 bytes and well-formed.
+/// where COMP-3 fields are 1-5 bytes and well-formed. It selects the appropriate
+/// specialized decoder based on the data length.
 #[inline]
 fn decode_packed_decimal_fast_path(
     data: &[u8],
@@ -1162,6 +1706,13 @@ fn decode_packed_decimal_fast_path(
     }
 }
 
+/// Specialized COMP-3 decoder for 1-byte fields (1 digit)
+///
+/// # Arguments
+/// * `byte` - The single byte of packed decimal data
+/// * `digits` - Number of digits (should be 1)
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_len1(
     byte: u8,
@@ -1207,6 +1758,13 @@ fn decode_packed_fast_len1(
     Ok(create_normalized_decimal(value, scale, false))
 }
 
+/// Specialized COMP-3 decoder for 2-byte fields (2-3 digits)
+///
+/// # Arguments
+/// * `data` - The 2 bytes of packed decimal data
+/// * `digits` - Number of digits (2 or 3)
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_len2(
     data: &[u8],
@@ -1273,6 +1831,12 @@ fn decode_packed_fast_len2(
     Ok(create_normalized_decimal(value, scale, is_negative))
 }
 
+/// Specialized COMP-3 decoder for 3-byte fields (4-5 digits)
+///
+/// # Arguments
+/// * `data` - The 3 bytes of packed decimal data
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_len3(data: &[u8], scale: i16, signed: bool) -> Result<SmallDecimal> {
     let byte0 = data[0];
@@ -1323,6 +1887,16 @@ fn decode_packed_fast_len3(data: &[u8], scale: i16, signed: bool) -> Result<Smal
     Ok(create_normalized_decimal(value, scale, is_negative))
 }
 
+/// General-purpose COMP-3 decoder for fields longer than 3 bytes
+///
+/// Handles multi-byte packed decimal decoding with support for padding
+/// nibbles and variable digit counts.
+///
+/// # Arguments
+/// * `data` - The packed decimal data bytes
+/// * `digits` - Number of decimal digits in the field
+/// * `scale` - Decimal scale
+/// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_general(
     data: &[u8],
@@ -1405,10 +1979,76 @@ fn decode_packed_fast_general(
     Ok(create_normalized_decimal(value, scale, is_negative))
 }
 
-/// Decode binary integer field
+/// Decode binary integer field (COMP-4, COMP-5, BINARY)
+///
+/// Decodes big-endian binary integer fields. Supports 16-bit, 32-bit, and 64-bit
+/// widths. All binary integers use big-endian byte order as per COBOL specification.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the binary integer
+/// * `bits` - Bit width of the field (16, 32, or 64)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+///
+/// # Returns
+/// The decoded integer value as `i64`
 ///
 /// # Errors
 /// Returns an error if the binary data is invalid or the field size is unsupported.
+///
+/// # Examples
+///
+/// ## 16-bit Signed Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_binary_int};
+///
+/// // 16-bit signed: -12345 = [0xCF, 0xC7] (big-endian)
+/// let data = [0xCF, 0xC7];
+/// let result = decode_binary_int(&data, 16, true)?;
+/// assert_eq!(result, -12345);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## 16-bit Unsigned Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_binary_int};
+///
+/// // 16-bit unsigned: 54321 = [0xD4, 0x31]
+/// let data = [0xD4, 0x31];
+/// let result = decode_binary_int(&data, 16, false)?;
+/// assert_eq!(result, 54321);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## 32-bit Signed Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_binary_int};
+///
+/// // 32-bit signed: -987654321 = [0xC5, 0x7D, 0x3C, 0x21]
+/// let data = [0xC5, 0x7D, 0x3C, 0x21];
+/// let result = decode_binary_int(&data, 32, true)?;
+/// assert_eq!(result, -987654321);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## 64-bit Signed Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_binary_int};
+///
+/// // 64-bit signed: 9223372036854775807 = [0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07]
+/// let data = [0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07];
+/// let result = decode_binary_int(&data, 64, true)?;
+/// assert_eq!(result, 9223372036854775807);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`encode_binary_int`] - For encoding binary integers
+/// * [`get_binary_width_from_digits`] - For mapping digit count to width
+/// * [`validate_explicit_binary_width`] - For validating explicit BINARY(n) widths
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
@@ -1498,11 +2138,82 @@ pub fn decode_binary_int(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
 
 /// Encode a zoned decimal using the configured code page defaults.
 ///
+/// Encodes decimal values to zoned decimal format (PIC 9) where each digit is stored
+/// in a byte with a zone nibble and a digit nibble. For signed fields, the
+/// last byte uses overpunch encoding for the sign.
+///
+/// # Arguments
+/// * `value` - String representation of the decimal value to encode
+/// * `digits` - Number of digit characters (field length)
+/// * `scale` - Number of decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+///
+/// # Returns
+/// A vector of bytes containing the encoded zoned decimal
+///
 /// # Policy
 /// Applies `ZeroSignPolicy::Positive` for ASCII and `ZeroSignPolicy::Preferred` for EBCDIC when no overrides are provided.
 ///
 /// # Errors
 /// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters.
+///
+/// # Examples
+///
+/// ## Basic ASCII Encoding
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // Encode "123" as ASCII zoned decimal
+/// let encoded = encode_zoned_decimal("123", 3, 0, false, Codepage::ASCII)?;
+/// assert_eq!(encoded, b"123"); // [0x31, 0x32, 0x33]
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Signed ASCII Encoding (Overpunch)
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // Encode "-456" with overpunch sign
+/// let encoded = encode_zoned_decimal("-456", 3, 0, true, Codepage::ASCII)?;
+/// // Last byte 0x4D = 'M' = digit 3 with negative sign
+/// assert_eq!(encoded, [0x34, 0x35, 0x4D]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## EBCDIC Encoding
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // Encode "789" as EBCDIC zoned decimal
+/// let encoded = encode_zoned_decimal("789", 3, 0, false, Codepage::CP037)?;
+/// assert_eq!(encoded, [0xF7, 0xF8, 0xF9]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Decimal Scale
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_zoned_decimal};
+/// use copybook_codec::options::Codepage;
+///
+/// // Encode "12.34" with 2 decimal places
+/// let encoded = encode_zoned_decimal("12.34", 4, 2, false, Codepage::ASCII)?;
+/// assert_eq!(encoded, b"1234"); // [0x31, 0x32, 0x33, 0x34]
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`encode_zoned_decimal_with_format`] - For encoding with explicit format
+/// * [`encode_zoned_decimal_with_format_and_policy`] - For encoding with format and policy
+/// * [`encode_zoned_decimal_with_bwz`] - For encoding with BLANK WHEN ZERO support
+/// * [`decode_zoned_decimal`] - For decoding zoned decimals
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal(
@@ -1531,11 +2242,77 @@ pub fn encode_zoned_decimal(
 
 /// Encode a zoned decimal using an explicit encoding override when supplied.
 ///
+/// Encodes zoned decimal values with an explicit encoding format (ASCII or EBCDIC).
+/// When `encoding_override` is provided, it takes precedence over the codepage default.
+/// When `Auto` is specified, the codepage default is used.
+///
+/// # Arguments
+/// * `value` - String representation of the decimal value to encode
+/// * `digits` - Number of digit characters (field length)
+/// * `scale` - Number of decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+/// * `encoding_override` - Optional explicit encoding format (ASCII/EBCDIC/Auto)
+///
+/// # Returns
+/// A vector of bytes containing the encoded zoned decimal
+///
 /// # Policy
 /// Resolves `ZeroSignPolicy` from `encoding_override` first; when unset or `Auto`, falls back to the code page defaults.
 ///
 /// # Errors
 /// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters.
+///
+/// # Examples
+///
+/// ## ASCII Encoding (Explicit)
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_zoned_decimal_with_format};
+/// use copybook_codec::options::Codepage;
+/// use copybook_codec::options::ZonedEncodingFormat;
+///
+/// // Encode "123" with explicit ASCII encoding
+/// let encoded = encode_zoned_decimal_with_format(
+///     "123", 3, 0, false, Codepage::ASCII, Some(ZonedEncodingFormat::Ascii)
+/// )?;
+/// assert_eq!(encoded, b"123");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## EBCDIC Encoding (Explicit)
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_zoned_decimal_with_format};
+/// use copybook_codec::options::Codepage;
+/// use copybook_codec::options::ZonedEncodingFormat;
+///
+/// // Encode "789" with explicit EBCDIC encoding
+/// let encoded = encode_zoned_decimal_with_format(
+///     "789", 3, 0, false, Codepage::CP037, Some(ZonedEncodingFormat::Ebcdic)
+/// )?;
+/// assert_eq!(encoded, [0xF7, 0xF8, 0xF9]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Auto Encoding (Codepage Default)
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_zoned_decimal_with_format};
+/// use copybook_codec::options::Codepage;
+/// use copybook_codec::options::ZonedEncodingFormat;
+///
+/// // Encode "456" with Auto encoding (uses EBCDIC default for CP037)
+/// let encoded = encode_zoned_decimal_with_format(
+///     "456", 3, 0, false, Codepage::CP037, Some(ZonedEncodingFormat::Auto)
+/// )?;
+/// assert_eq!(encoded, [0xF4, 0xF5, 0xF6]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`encode_zoned_decimal`] - For encoding with codepage defaults
+/// * [`encode_zoned_decimal_with_format_and_policy`] - For encoding with format and policy
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_format(
@@ -1660,10 +2437,87 @@ pub fn encode_zoned_decimal_with_format_and_policy(
     Ok(result)
 }
 
-/// Encode packed decimal field
+/// Encode packed decimal (COMP-3) field
+///
+/// Encodes decimal values to COMP-3 packed decimal format where each byte contains
+/// two decimal digits (nibbles), with the last nibble containing the sign.
+/// This function is optimized for high-throughput enterprise data processing.
+///
+/// # Arguments
+/// * `value` - String representation of the decimal value to encode
+/// * `digits` - Number of decimal digits in the field (1-18 supported)
+/// * `scale` - Number of decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+///
+/// # Returns
+/// A vector of bytes containing the encoded packed decimal
 ///
 /// # Errors
-/// Returns an error if the value cannot be encoded as a packed decimal with the specified parameters
+/// Returns an error if the value cannot be encoded as a packed decimal with the specified parameters.
+///
+/// # Performance
+/// This function uses optimized digit extraction to avoid `format!()` allocation overhead.
+///
+/// # Examples
+///
+/// ## Basic Positive Value
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_packed_decimal};
+///
+/// // Encode "123" as COMP-3: [0x12, 0x3C] (12 positive, 3C = positive sign)
+/// let encoded = encode_packed_decimal("123", 3, 0, true)?;
+/// assert_eq!(encoded, [0x12, 0x3C]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Negative Value
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_packed_decimal};
+///
+/// // Encode "-456" as COMP-3: [0x04, 0x56, 0xD] (456 negative)
+/// let encoded = encode_packed_decimal("-456", 3, 0, true)?;
+/// assert_eq!(encoded, [0x04, 0x56, 0xD]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Decimal Scale
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_packed_decimal};
+///
+/// // Encode "12.34" with 2 decimal places: [0x12, 0x34, 0xC]
+/// let encoded = encode_packed_decimal("12.34", 4, 2, true)?;
+/// assert_eq!(encoded, [0x12, 0x34, 0xC]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Unsigned Field
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_packed_decimal};
+///
+/// // Unsigned "789": [0x07, 0x89, 0xF] (F = unsigned sign)
+/// let encoded = encode_packed_decimal("789", 3, 0, false)?;
+/// assert_eq!(encoded, [0x07, 0x89, 0xF]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## Zero Value
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_packed_decimal};
+///
+/// // Zero: [0x00, 0x0C]
+/// let encoded = encode_packed_decimal("0", 2, 0, true)?;
+/// assert_eq!(encoded, [0x00, 0x0C]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`decode_packed_decimal`] - For decoding packed decimals
+/// * [`encode_packed_decimal_with_scratch`] - For zero-allocation encoding
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_packed_decimal(
@@ -1801,10 +2655,72 @@ pub fn encode_packed_decimal(
     Ok(result)
 }
 
-/// Encode binary integer field
+/// Encode binary integer field (COMP-4, COMP-5, BINARY)
+///
+/// Encodes integer values to big-endian binary format. Supports 16-bit, 32-bit, and 64-bit
+/// widths. All binary integers use big-endian byte order as per COBOL specification.
+///
+/// # Arguments
+/// * `value` - Integer value to encode
+/// * `bits` - Bit width of field (16, 32, or 64)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+///
+/// # Returns
+/// A vector of bytes containing the encoded binary integer
 ///
 /// # Errors
 /// Returns an error if the value is out of range for the specified bit width.
+///
+/// # Examples
+///
+/// ## 16-bit Signed Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_binary_int};
+///
+/// // Encode -12345 as 16-bit signed
+/// let encoded = encode_binary_int(-12345, 16, true)?;
+/// assert_eq!(encoded, [0xCF, 0xC7]); // Big-endian
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## 16-bit Unsigned Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_binary_int};
+///
+/// // Encode 54321 as 16-bit unsigned
+/// let encoded = encode_binary_int(54321, 16, false)?;
+/// assert_eq!(encoded, [0xD4, 0x31]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## 32-bit Signed Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_binary_int};
+///
+/// // Encode -987654321 as 32-bit signed
+/// let encoded = encode_binary_int(-987654321, 32, true)?;
+/// assert_eq!(encoded, [0xC5, 0x7D, 0x3C, 0x21]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## 64-bit Signed Integer
+///
+/// ```no_run
+/// use copybook_codec::numeric::{encode_binary_int};
+///
+/// // Encode 9223372036854775807 as 64-bit signed
+/// let encoded = encode_binary_int(9223372036854775807, 64, true)?;
+/// assert_eq!(encoded, [0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07]);
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`decode_binary_int`] - For decoding binary integers
+/// * [`get_binary_width_from_digits`] - For mapping digit count to width
+/// * [`validate_explicit_binary_width`] - For validating explicit BINARY(n) widths
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>> {
@@ -2188,7 +3104,7 @@ fn zoned_process_non_final_digits(
 /// * `codepage` - Target codepage for overpunch interpretation
 ///
 /// # Returns
-/// Tuple of (digit, is_negative) extracted from the overpunch byte
+/// Tuple of (digit, `is_negative`) extracted from the overpunch byte
 ///
 /// # Errors
 /// * `CBKD411_ZONED_BAD_SIGN` - Invalid overpunch encoding
@@ -2253,12 +3169,66 @@ fn zoned_ensure_unsigned(
 
 /// Decode a zoned decimal using the configured code page and policy while reusing scratch buffers.
 ///
+/// Decodes zoned decimal fields while reusing scratch buffers to avoid repeated allocations.
+/// This is optimized for high-throughput processing where the same scratch buffers
+/// are used across multiple decode operations.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the zoned decimal
+/// * `digits` - Number of digit characters (field length)
+/// * `scale` - Number of decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (true) or unsigned (false)
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+/// * `blank_when_zero` - If true, all-space fields decode as zero
+/// * `scratch` - Mutable reference to scratch buffers for reuse
+///
+/// # Returns
+/// A `SmallDecimal` containing of decoded value
+///
 /// # Policy
 /// Defaults to *preferred zero sign* (`ZeroSignPolicy::Preferred`) for EBCDIC zeros unless
 /// `preserve_zoned_encoding` captured an explicit format at decode.
 ///
 /// # Errors
 /// Returns an error if zone nibbles or the last-byte overpunch are invalid.
+///
+/// # Performance
+/// This function avoids allocations by reusing scratch buffers across decode operations.
+/// Use this for processing multiple zoned decimal fields in a loop.
+///
+/// # Examples
+///
+/// ## Basic Decoding
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal_with_scratch};
+/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec::options::Codepage;
+///
+/// let mut scratch = ScratchBuffers::new();
+/// let data = b"123";
+/// let result = decode_zoned_decimal_with_scratch(data, 3, 0, false, Codepage::ASCII, false, &mut scratch)?;
+/// assert_eq!(result.to_string(), "123");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// ## With BLANK WHEN ZERO
+///
+/// ```no_run
+/// use copybook_codec::numeric::{decode_zoned_decimal_with_scratch};
+/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec::options::Codepage;
+///
+/// let mut scratch = ScratchBuffers::new();
+/// let data = b"   "; // 3 ASCII spaces
+/// let result = decode_zoned_decimal_with_scratch(data, 3, 0, false, Codepage::ASCII, true, &mut scratch)?;
+/// assert_eq!(result.to_string(), "0");
+/// # Ok::<(), copybook_core::Error>(())
+/// ```
+///
+/// # See Also
+/// * [`decode_zoned_decimal`] - For basic zoned decimal decoding
+/// * [`ScratchBuffers`] - For scratch buffer management
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_with_scratch(
@@ -2443,7 +3413,7 @@ fn packed_push_digit(value: &mut i64, digit: u8) -> Result<()> {
 /// * `has_padding` - Whether the first nibble is padding (odd total nibbles)
 ///
 /// # Returns
-/// Tuple of (accumulated_value, digit_count)
+/// Tuple of (`accumulated_value`, `digit_count`)
 ///
 /// # Errors
 /// * `CBKD401_COMP3_INVALID_NIBBLE` - Invalid digit or padding nibble
@@ -2507,7 +3477,7 @@ fn packed_process_non_last_bytes(
 /// Process the last byte of a packed decimal field
 ///
 /// Extracts the final digit (if needed) and sign nibble from the last byte.
-/// Creates the final normalized SmallDecimal value.
+/// Creates the final normalized `SmallDecimal` value.
 ///
 /// # Arguments
 /// * `value` - Accumulated value from previous bytes
@@ -2525,8 +3495,8 @@ fn packed_process_non_last_bytes(
 ///
 /// # Format
 /// Last byte always ends with sign nibble:
-/// - If digit_count < digits: `[digit][sign]`
-/// - If digit_count == digits: `[unused][sign]` (high nibble ignored)
+/// - If `digit_count` < digits: `[digit][sign]`
+/// - If `digit_count` == digits: `[unused][sign]` (high nibble ignored)
 #[inline]
 fn packed_finish_last_byte(
     mut value: i64,
@@ -2594,7 +3564,7 @@ fn packed_finish_last_byte(
 /// 1. Calculate if padding nibble is present (odd total nibbles)
 /// 2. Process all non-final bytes to extract digits
 /// 3. Process final byte to extract last digit and sign
-/// 4. Construct normalized SmallDecimal
+/// 4. Construct normalized `SmallDecimal`
 #[inline]
 fn packed_decode_multi_byte(
     data: &[u8],

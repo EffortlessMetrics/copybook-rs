@@ -1,0 +1,3 @@
+# This directory stores regression cases for property tests
+# When a property test fails, proptest will save the failing case here
+# to allow for reproducible testing and debugging.

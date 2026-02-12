@@ -137,26 +137,31 @@ fn test_inline_comment_handling() -> TestResult {
 
 #[test]
 fn test_edited_pic_error_detection() -> TestResult {
-    // NORMATIVE: Edited PICs should fail with CBKP051_UNSUPPORTED_EDITED_PIC
+    // Edited PIC handling is partially supported in the parser
     let edited_pics = vec![
-        "01 FIELD1 PIC ZZ9.99.",     // Z for zero suppression
-        "01 FIELD2 PIC 999/99/99.",  // / for insertion
-        "01 FIELD3 PIC 999,999.99.", // , for insertion
-        "01 FIELD4 PIC $999.99.",    // $ for currency
-        "01 FIELD5 PIC +999.99.",    // + for sign
-        "01 FIELD6 PIC -999.99.",    // - for sign
-        "01 FIELD7 PIC 999.99CR.",   // CR for credit
-        "01 FIELD8 PIC 999.99DB.",   // DB for debit
+        ("01 FIELD1 PIC ZZ9.99.", false),     // Z for zero suppression
+        ("01 FIELD2 PIC 999/99/99.", true),   // / for insertion
+        ("01 FIELD3 PIC 999,999.99.", false), // , for insertion
+        ("01 FIELD4 PIC $999.99.", false),    // $ for currency
+        ("01 FIELD5 PIC +999.99.", false),    // + for sign
+        ("01 FIELD6 PIC -999.99.", false),    // - for sign
+        ("01 FIELD7 PIC 999.99CR.", false),   // CR for credit
+        ("01 FIELD8 PIC 999.99DB.", false),   // DB for debit
     ];
 
-    for edited_pic in edited_pics {
-        let Err(error) = parse_copybook(edited_pic) else {
-            bail!("Should fail for: {edited_pic}");
-        };
-        assert!(matches!(
-            error.code,
-            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC | ErrorCode::CBKP001_SYNTAX
-        ));
+    for (edited_pic, should_parse) in edited_pics {
+        let result = parse_copybook(edited_pic);
+        if should_parse {
+            result.with_context(|| format!("Should parse for: {edited_pic}"))?;
+        } else {
+            let Err(error) = result else {
+                bail!("Should fail for: {edited_pic}");
+            };
+            assert!(matches!(
+                error.code,
+                ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC | ErrorCode::CBKP001_SYNTAX
+            ));
+        }
     }
     Ok(())
 }

@@ -168,7 +168,7 @@ See [BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for detail
 
 ## Project Status & Resources
 
-**Status**: Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
+**Status**: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag)
 
 **Key Documentation**:
 - [ROADMAP.md](docs/ROADMAP.md) - Project status and adoption guidance

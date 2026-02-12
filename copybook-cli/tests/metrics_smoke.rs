@@ -8,7 +8,8 @@
 use std::io::ErrorKind;
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
-use std::{thread, time::Duration};
+use std::thread;
+use std::time::{Duration, Instant};
 
 fn pick_free_port() -> std::io::Result<u16> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -88,15 +89,39 @@ fn metrics_shows_descriptors_and_cbkf_on_short_error() -> Result<(), Box<dyn std
         .stderr(Stdio::inherit())
         .spawn()?;
 
-    // Give the exporter a moment to bind before the first scrape.
-    thread::sleep(Duration::from_millis(300));
-    assert!(
-        child.try_wait()?.is_none(),
-        "copybook process exited before metrics scrape"
-    );
+    // Wait for the exporter to be ready by polling until it responds or timeout
+    let start = Instant::now();
+    let timeout = Duration::from_secs(5);
+    let mut body = String::new();
+    let mut server_ready = false;
 
-    // --- Scrape /metrics once during the grace window ---
-    let body = reqwest::blocking::get(format!("http://127.0.0.1:{port}/metrics"))?.text()?;
+    while start.elapsed() < timeout {
+        // Check if process is still running
+        if child.try_wait()?.is_some() {
+            return Err("copybook process exited before metrics scrape".into());
+        }
+
+        // Try to scrape metrics
+        match reqwest::blocking::get(format!("http://127.0.0.1:{port}/metrics")) {
+            Ok(response) => {
+                body = response.text()?;
+                server_ready = true;
+                break;
+            }
+            Err(_) => {
+                // Server not ready yet, wait a bit and retry
+                thread::sleep(Duration::from_millis(50));
+            }
+        }
+    }
+
+    if !server_ready {
+        return Err(format!(
+            "metrics server did not become ready within {} seconds",
+            timeout.as_secs()
+        )
+        .into());
+    }
 
     // HELP/TYPE descriptors should always be present after describe_metrics_once().
     assert!(

@@ -208,14 +208,33 @@ impl<W: Write> JsonWriter<W> {
                     digits,
                     scale,
                     signed,
+                    sign_separate,
                 } => {
-                    self.write_zoned_decimal_value_streaming(
-                        field,
-                        record_data,
-                        *digits,
-                        *scale,
-                        *signed,
-                    )?;
+                    if let Some(ref sign_sep) = sign_separate {
+                        // Use SIGN SEPARATE decoding
+                        let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
+                        let decimal = crate::numeric::decode_zoned_decimal_sign_separate(
+                            field_data,
+                            *digits,
+                            *scale,
+                            sign_sep,
+                            self.options.codepage,
+                        )?;
+
+                        // Write as JSON string with fixed scale (NORMATIVE)
+                        self.json_buffer.push('"');
+                        self.json_buffer.push_str(&decimal.to_string());
+                        self.json_buffer.push('"');
+                    } else {
+                        // Use standard zoned decimal decoding
+                        self.write_zoned_decimal_value_streaming(
+                            field,
+                            record_data,
+                            *digits,
+                            *scale,
+                            *signed,
+                        )?;
+                    }
                 }
                 FieldKind::PackedDecimal {
                     digits,

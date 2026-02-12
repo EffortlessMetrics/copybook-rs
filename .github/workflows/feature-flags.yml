@@ -1,0 +1,229 @@
+name: Feature Flags CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'crates/**'
+              - 'copybook-*/**'
+              - 'Cargo.*'
+              - 'rust-toolchain*'
+              - 'scripts/ci/**'
+
+  test:
+    if: needs.changes.outputs.rust == 'true'
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        feature_flag:
+          - name: "sign_separate"
+            env: "COPYBOOK_FF_SIGN_SEPARATE"
+          - name: "renames_r4_r6"
+            env: "COPYBOOK_FF_RENAMES_R4_R6"
+          - name: "comp_1"
+            env: "COPYBOOK_FF_COMP_1"
+          - name: "comp_2"
+            env: "COPYBOOK_FF_COMP_2"
+          - name: "audit_system"
+            env: "COPYBOOK_FF_AUDIT_SYSTEM"
+          - name: "sox_compliance"
+            env: "COPYBOOK_FF_SOX_COMPLIANCE"
+          - name: "hipaa_compliance"
+            env: "COPYBOOK_FF_HIPAA_COMPLIANCE"
+          - name: "gdpr_compliance"
+            env: "COPYBOOK_FF_GDPR_COMPLIANCE"
+          - name: "pci_dss_compliance"
+            env: "COPYBOOK_FF_PCI_DSS_COMPLIANCE"
+          - name: "security_monitoring"
+            env: "COPYBOOK_FF_SECURITY_MONITORING"
+          - name: "advanced_optimization"
+            env: "COPYBOOK_FF_ADVANCED_OPTIMIZATION"
+          - name: "lru_cache"
+            env: "COPYBOOK_FF_LRU_CACHE"
+          - name: "parallel_decode"
+            env: "COPYBOOK_FF_PARALLEL_DECODE"
+          - name: "zero_copy"
+            env: "COPYBOOK_FF_ZERO_COPY"
+          - name: "verbose_logging"
+            env: "COPYBOOK_FF_VERBOSE_LOGGING"
+          - name: "diagnostic_output"
+            env: "COPYBOOK_FF_DIAGNOSTIC_OUTPUT"
+          - name: "profiling"
+            env: "COPYBOOK_FF_PROFILING"
+          - name: "memory_tracking"
+            env: "COPYBOOK_FF_MEMORY_TRACKING"
+          - name: "mutation_testing"
+            env: "COPYBOOK_FF_MUTATION_TESTING"
+          - name: "fuzzing_integration"
+            env: "COPYBOOK_FF_FUZZING_INTEGRATION"
+          - name: "coverage_instrumentation"
+            env: "COPYBOOK_FF_COVERAGE_INSTRUMENTATION"
+          - name: "property_based_testing"
+            env: "COPYBOOK_FF_PROPERTY_BASED_TESTING"
+        state:
+          - enabled
+          - disabled
+        exclude:
+          # Skip testing lru_cache in disabled state since it's enabled by default
+          - feature_flag: { name: "lru_cache" }
+            state: "disabled"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test feature flag ${{ matrix.feature_flag.name }} (${{ matrix.state }})
+        env:
+          ${{ matrix.feature_flag.env }}: ${{ matrix.state == 'enabled' && '1' || '0' }}
+        run: |
+          echo "Testing feature flag: ${{ matrix.feature_flag.name }}"
+          echo "State: ${{ matrix.state }}"
+          echo "Environment variable: ${{ matrix.feature_flag.env }}=${{ matrix.state == 'enabled' && '1' || '0' }}"
+
+          # Run tests with the feature flag set
+          cargo test --workspace --lib --features audit
+
+      - name: Test CLI with feature flag ${{ matrix.feature_flag.name }} (${{ matrix.state }})
+        env:
+          ${{ matrix.feature_flag.env }}: ${{ matrix.state == 'enabled' && '1' || '0' }}
+        run: |
+          # Build CLI with the feature flag set
+          cargo build --release -p copybook-cli --features audit
+
+          # Test CLI list-features command
+          ./target/release/copybook --list-features || true
+
+      - name: Clippy with feature flag ${{ matrix.feature_flag.name }} (${{ matrix.state }})
+        env:
+          ${{ matrix.feature_flag.env }}: ${{ matrix.state == 'enabled' && '1' || '0' }}
+        run: |
+          cargo clippy --workspace --all-targets -- -D warnings
+
+  test-features-module:
+    if: needs.changes.outputs.rust == 'true'
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test feature_flags module
+        run: |
+          cargo test -p copybook-core feature_flags
+
+  test-cli-integration:
+    if: needs.changes.outputs.rust == 'true'
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI
+        run: |
+          cargo build --release -p copybook-cli --features audit
+
+      - name: Test CLI feature flag options
+        run: |
+          # Test --list-features
+          ./target/release/copybook --list-features
+
+          # Test --enable-features
+          ./target/release/copybook parse --help | grep -q "enable-features"
+
+          # Test --disable-features
+          ./target/release/copybook parse --help | grep -q "disable-features"
+
+          # Test --enable-category
+          ./target/release/copybook parse --help | grep -q "enable-category"
+
+          # Test --disable-category
+          ./target/release/copybook parse --help | grep -q "disable-category"
+
+          # Test --feature-flags-config
+          ./target/release/copybook parse --help | grep -q "feature-flags-config"
+
+      - name: Test CLI with multiple features enabled
+        run: |
+          COPYBOOK_FF_VERBOSE_LOGGING=1 COPYBOOK_FF_DIAGNOSTIC_OUTPUT=1 \
+            ./target/release/copybook --version
+
+      - name: Test CLI with feature flag config file
+        run: |
+          # Create a test config file
+          cat > /tmp/feature-flags.toml << 'EOF'
+          [feature_flags]
+          enabled = ["verbose_logging", "diagnostic_output"]
+          disabled = ["lru_cache"]
+          EOF
+
+          # Test that the CLI can read the config
+          ./target/release/copybook parse --feature-flags-config /tmp/feature-flags.toml --help || true
+
+  testExpected:
+    name: testExpected
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: always()
+    steps:
+      - name: Mirror test result to satisfy legacy required check
+        run: |
+          if [ "${{ needs.test.result }}" = "success" ] || [ "${{ needs.test.result }}" = "skipped" ]; then
+            echo "ok"
+          else
+            echo "upstream 'test' failed or cancelled"; exit 1
+          fi

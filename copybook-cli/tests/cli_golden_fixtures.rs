@@ -401,7 +401,8 @@ fn test_cli_help_messages() -> TestResult<()> {
     cmd.arg("--help");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Modern COBOL copybook parser"))
+        .stdout(predicate::str::contains("Usage: copybook"))
+        .stdout(predicate::str::contains("Commands:"))
         .stdout(predicate::str::contains("parse"))
         .stdout(predicate::str::contains("verify"))
         .stdout(predicate::str::contains("encode"))

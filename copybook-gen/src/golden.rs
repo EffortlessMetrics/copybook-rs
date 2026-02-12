@@ -377,3 +377,103 @@ pub fn generate_negative_test_suite() -> GoldenTestSuite {
 
     suite
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_helpers_match_expected() {
+        let expected = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        assert_eq!(GoldenTest::hash_string("abc"), expected);
+        assert_eq!(GoldenTest::hash_bytes(b"abc"), expected);
+    }
+
+    #[test]
+    fn test_validate_output_and_update_hashes() {
+        let mut test = GoldenTest::new("sample", "01 ROOT PIC X(1).", b"data");
+
+        assert!(test.validate_output("json", b"anything"));
+
+        test.update_expected_hash("json", b"payload");
+        assert!(test.validate_output("json", b"payload"));
+        assert!(!test.validate_output("json", b"other"));
+
+        test.update_expected_string_hash("text", "hello");
+        assert!(test.validate_string_output("text", "hello"));
+        assert!(!test.validate_string_output("text", "world"));
+    }
+
+    #[test]
+    fn test_add_tag_is_idempotent() {
+        let mut test = GoldenTest::new("sample", "01 ROOT PIC X(1).", b"data");
+        test.add_tag("smoke");
+        test.add_tag("smoke");
+        assert!(test.has_tag("smoke"));
+        assert_eq!(
+            test.metadata.tags.iter().filter(|t| *t == "smoke").count(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_suite_find_and_tags() {
+        let mut suite = GoldenTestSuite::new("suite", "desc");
+        let mut test = GoldenTest::new("t1", "01 ROOT PIC X(1).", b"data");
+        test.add_tag("performance");
+        suite.add_test(test);
+
+        assert!(suite.find_test("t1").is_some());
+        assert!(suite.find_test("missing").is_none());
+        assert_eq!(suite.tests_by_tag("performance").len(), 1);
+    }
+
+    #[test]
+    fn test_suite_json_roundtrip() {
+        let mut suite = GoldenTestSuite::new("suite", "desc");
+        suite.add_test(GoldenTest::new("t1", "01 ROOT PIC X(1).", b"data"));
+
+        let json = suite.to_json().unwrap();
+        let decoded = GoldenTestSuite::from_json(&json).unwrap();
+
+        assert_eq!(decoded.name, "suite");
+        assert_eq!(decoded.tests.len(), 1);
+        assert_eq!(decoded.tests[0].name, "t1");
+    }
+
+    #[test]
+    fn test_validation_result_summary() {
+        let mut result = ValidationResult::new();
+        result.add_test_result("t1", true, None);
+        result.add_test_result("t2", false, Some("boom".to_string()));
+
+        let (total, passed, failed) = result.summary();
+        assert_eq!(total, 2);
+        assert_eq!(passed, 1);
+        assert_eq!(failed, 1);
+        assert!(!result.success);
+    }
+
+    #[test]
+    fn test_generate_suite_tags() {
+        let comprehensive = generate_comprehensive_suite();
+        assert!(
+            comprehensive
+                .metadata
+                .tags
+                .contains(&"comprehensive".to_string())
+        );
+
+        let performance = generate_performance_suite();
+        assert!(
+            performance
+                .metadata
+                .tags
+                .contains(&"performance".to_string())
+        );
+
+        let negative = generate_negative_test_suite();
+        assert!(negative.metadata.tags.contains(&"negative".to_string()));
+    }
+}

@@ -298,7 +298,8 @@ impl ErrorReporter {
             | ErrorCode::CBKP021_ODO_NOT_TAIL
             | ErrorCode::CBKP022_NESTED_ODO
             | ErrorCode::CBKP023_ODO_REDEFINES
-            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => ErrorSeverity::Fatal,
+            | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+            | ErrorCode::CBKP101_INVALID_PIC => ErrorSeverity::Fatal,
 
             // Schema errors can be fatal or errors depending on context
             ErrorCode::CBKS121_COUNTER_NOT_FOUND
@@ -311,6 +312,10 @@ impl ErrorReporter {
             | ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP
             | ErrorCode::CBKS607_RENAME_CROSSES_OCCURS
             | ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+            | ErrorCode::CBKS609_RENAME_OVER_REDEFINES
+            | ErrorCode::CBKS610_RENAME_MULTIPLE_REDEFINES
+            | ErrorCode::CBKS611_RENAME_PARTIAL_OCCURS
+            | ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED
             | ErrorCode::CBKS701_PROJECTION_INVALID_ODO
             | ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS
             | ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND

@@ -39,8 +39,12 @@ mod property_panic_safety {
             match parse_result.unwrap() {
                 Ok(schema) => {
                     // Successful parsing should produce valid schema
-                    assert!(!schema.fields.is_empty() || schema.record_length >= 0,
-                            "Valid schema should have fields or zero length for input {}", i);
+                    let record_length = schema_record_length(&schema);
+                    assert!(
+                        !schema.fields.is_empty() || record_length == 0,
+                        "Valid schema should have fields or zero length for input {}",
+                        i
+                    );
                 }
                 Err(error) => {
                     // Failed parsing should use appropriate error codes
@@ -60,7 +64,7 @@ mod property_panic_safety {
         // Use a simple but realistic schema for property testing
         let test_schema = create_property_test_schema();
 
-        let random_data_samples = generate_random_binary_data(200, test_schema.record_length);
+        let random_data_samples = generate_random_binary_data(200, schema_record_length(&test_schema));
 
         let decode_options = DecodeOptions::new()
             .with_codepage(Codepage::CP037)
@@ -127,7 +131,7 @@ mod property_panic_safety {
                 Ok(binary_data) => {
                     // Successful encoding should produce binary data
                     assert!(
-                        !binary_data.is_empty() || test_schema.record_length == 0,
+                        !binary_data.is_empty() || schema_record_length(&test_schema) == 0,
                         "Valid encode should produce data for sample {}", i
                     );
                 }
@@ -406,6 +410,20 @@ mod property_panic_safety {
             .iter()
             .filter_map(|cb| parse_copybook(cb).ok())
             .collect()
+    }
+
+    fn schema_record_length(schema: &Schema) -> usize {
+        schema
+            .lrecl_fixed
+            .map(|v| v as usize)
+            .unwrap_or_else(|| {
+                schema
+                    .all_fields()
+                    .iter()
+                    .map(|field| (field.offset + field.len) as usize)
+                    .max()
+                    .unwrap_or(0)
+            })
     }
 
     fn generate_random_copybook_inputs(count: usize) -> Vec<String> {

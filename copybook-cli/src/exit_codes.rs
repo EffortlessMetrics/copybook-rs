@@ -191,12 +191,14 @@ impl std::convert::TryFrom<i32> for ExitCode {
 }
 
 impl From<ExitCode> for std::process::ExitCode {
+    #[inline]
     fn from(value: ExitCode) -> Self {
         std::process::ExitCode::from(value as u8)
     }
 }
 
 impl From<ExitCode> for i32 {
+    #[inline]
     fn from(value: ExitCode) -> Self {
         value.as_i32()
     }

@@ -75,7 +75,8 @@ fn test_redefines_shorter_overlay() -> TestResult {
         FieldKind::ZonedDecimal {
             digits: 10,
             scale: 0,
-            signed: false
+            signed: false,
+            sign_separate: None
         }
     ));
     Ok(())
@@ -190,16 +191,11 @@ fn test_redefines_encode_ambiguity_error() -> TestResult {
     let jsonl_data = format!("{json_data}\n");
 
     let options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true,
-        max_errors: None,
-        threads: 1,
         coerce_numbers: true,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -244,6 +240,7 @@ fn test_redefines_encode_single_view_allowed() -> TestResult {
         threads: 1,
         coerce_numbers: true,
         zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -304,6 +301,7 @@ fn test_redefines_raw_data_precedence() -> TestResult {
         threads: 1,
         coerce_numbers: true,
         zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());
@@ -357,6 +355,7 @@ fn test_redefines_round_trip_preservation() -> TestResult {
         threads: 1,
         coerce_numbers: true,
         zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let input = Cursor::new(jsonl_data.as_bytes());

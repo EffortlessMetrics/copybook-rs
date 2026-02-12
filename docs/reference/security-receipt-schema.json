@@ -38,7 +38,7 @@
     "rust_version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+",
-      "description": "Rust toolchain version used for scan (e.g., '1.90.0') for reproducibility"
+      "description": "Rust toolchain version used for scan (e.g., '1.92.0') for reproducibility"
     },
     "tools": {
       "type": "object",
@@ -270,7 +270,7 @@
       "timestamp": "2025-10-02T12:00:00Z",
       "commit_sha": "abc123def456abc123def456abc123def456abc1",
       "scan_type": "pr-gate",
-      "rust_version": "1.90.0",
+      "rust_version": "1.92.0",
       "tools": {
         "cargo_audit": "0.21.2",
         "cargo_deny": "0.16.0",
@@ -324,7 +324,7 @@
       "timestamp": "2025-10-02T15:30:00Z",
       "commit_sha": "def456abc123def456abc123def456abc123def4",
       "scan_type": "weekly-scan",
-      "rust_version": "1.90.0",
+      "rust_version": "1.92.0",
       "tools": {
         "cargo_audit": "0.21.2",
         "cargo_deny": "0.16.0"

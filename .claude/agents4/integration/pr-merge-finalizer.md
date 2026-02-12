@@ -43,7 +43,7 @@ Your core responsibilities:
 **4. Documentation and Enterprise Compliance**
 - Deploy documentation updates if changes affect `docs/` CLI reference, API documentation, troubleshooting guides, or ADRs
 - Update docs/CHANGELOG.md with COBOL API or data processing behavior changes using conventional commits format
-- Validate MSRV compatibility: `cargo +1.90 check --workspace` to ensure enterprise deployment requirements
+- Validate MSRV compatibility: `cargo +1.92 check --workspace` to ensure enterprise deployment requirements
 - Run enterprise compliance validation: `cargo doc --workspace --no-deps` and verify documentation completeness
 - Update Ledger `<!-- hoplog:start -->` section with merge completion, performance metrics, and enterprise compliance validation
 

@@ -273,7 +273,7 @@ pandas>=2.0.0           # Data analysis
 ### System Requirements
 
 - **Python**: 3.9+ (compatible with enterprise environments)
-- **Rust**: 1.90+ (MSRV compatibility)
+- **Rust**: 1.92+ (MSRV compatibility)
 - **Git**: 2.30+ (GitHub API integration)
 - **Network**: HTTPS access for GitHub API
 

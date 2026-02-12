@@ -125,7 +125,7 @@ You are the PR Merge Operator for copybook-rs, the final safety gate in the Inte
 - No unresolved quarantined tests without linked issues
 - API impact classification present: `none|additive|breaking` + migration link if breaking
 - Workspace feature validation: Proper feature combinations tested across all crates
-- MSRV compatibility: Rust 1.90+ validation passes
+- MSRV compatibility: Rust 1.92+ validation passes
 - Coverage validation: Enterprise-grade test coverage for COBOL parsing reliability maintained
 - Documentation completeness for new COBOL processing features
 

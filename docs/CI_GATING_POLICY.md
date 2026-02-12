@@ -37,7 +37,7 @@ The PR lane runs on every pull request to `main` and `develop` branches. All job
 #### `test` Job
 - Runs `cargo nextest run --workspace --exclude copybook-bench --profile ci`
 - Runs on Ubuntu, macOS, and Windows
-- Tests against MSRV (1.90.0), stable, and beta Rust versions
+- Tests against MSRV (1.92.0), stable, and beta Rust versions
 - Tests with various feature combinations
 
 #### `proptest-smoke` Job

@@ -595,7 +595,7 @@ cat > test-receipt.json <<'EOF'
   "timestamp": "2025-10-02T12:00:00Z",
   "commit_sha": "abc123def456abc123def456abc123def456abc1",
   "scan_type": "pr-gate",
-  "rust_version": "1.90.0",
+  "rust_version": "1.92.0",
   "tools": {
     "cargo_audit": "0.21.2",
     "cargo_deny": "0.16.0"

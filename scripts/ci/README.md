@@ -68,11 +68,47 @@ Generates `target/perf.json` with performance receipts. **Not run by default** o
 **Expected time**: 10-15 minutes
 **Trigger in CI**: Add `perf:run` label or manual dispatch
 
+## Local CI Gate Entrypoint
+
+### `just ci` — Canonical PR Gate (Recommended)
+
+The **single canonical entrypoint** that matches PR CI exactly. Run this before pushing to ensure CI will pass.
+
+```bash
+# Run locally (requires just)
+just ci
+
+# What it does (matches PR CI exactly):
+# Phase 1: Quick gates
+#   1. cargo fmt --all --check
+#   2. cargo clippy (pedantic: libs/bins/examples)
+#   3. cargo clippy (tests: allows unwrap/expect/panic)
+#   4. cargo build --workspace --release
+#   5. cargo nextest run (bounded parallelism)
+#   6. cargo test --doc (deny warnings)
+# Phase 2: Security gates
+#   7. cargo deny check
+#   8. cargo audit (only if Cargo.lock changed)
+```
+
+**Expected time**: 5-10 minutes (cold), 2-5 minutes (warm)
+
+**Prerequisites**: `just`, `cargo-nextest`, `cargo-deny`
+
+**Notes**:
+- Automatically sets `BASE_SHA` and `HEAD_SHA` for security.sh
+- Fails fast if any gate fails
+- Exact same commands as `.github/workflows/ci-quick.yml`
+
 ## Local Validation (Full Suite)
 
 Run everything before pushing:
 
 ```bash
+# Option 1: Use the canonical entrypoint (recommended)
+just ci
+
+# Option 2: Run scripts directly
 # Set up environment
 export BASE_SHA=$(git merge-base origin/main HEAD)
 export HEAD_SHA=$(git rev-parse HEAD)
@@ -86,6 +122,7 @@ export HEAD_SHA=$(git rev-parse HEAD)
 ## Prerequisites
 
 ### Required Tools
+- `just` (install: `cargo install just` or https://github.com/casey/just)
 - `cargo` (Rust 1.90+ / MSRV)
 - `cargo-nextest` (install: `cargo install nextest`)
 - `cargo-deny` (install via CI or `cargo install cargo-deny`)
@@ -131,6 +168,13 @@ export HEAD_SHA=$(git rev-parse HEAD)
 6. **Short retention**: PR artifacts expire in 7 days
 
 ## Troubleshooting
+
+### "just not found"
+```bash
+cargo install just
+# or
+cargo binstall just
+```
 
 ### "cargo-nextest not found"
 ```bash

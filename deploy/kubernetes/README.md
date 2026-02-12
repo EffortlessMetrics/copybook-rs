@@ -64,6 +64,41 @@ Provides default configuration for copybook-rs operations:
 - `RUST_LOG`: Logging level (off/error/warn/info/debug/trace)
 - `JSON_NUMBER_MODE`: JSON numeric encoding (lossless/native)
 
+#### Enterprise Feature Flags
+
+The ConfigMap also includes enterprise feature flags for production deployments:
+
+**Audit & Compliance:**
+- `COPYBOOK_FF_AUDIT_SYSTEM`: Enable audit system (0=disabled, 1=enabled)
+- `COPYBOOK_FF_SOX_COMPLIANCE`: Enable SOX compliance validation
+- `COPYBOOK_FF_HIPAA_COMPLIANCE`: Enable HIPAA compliance validation
+- `COPYBOOK_FF_GDPR_COMPLIANCE`: Enable GDPR compliance validation
+- `COPYBOOK_FF_PCI_DSS_COMPLIANCE`: Enable PCI DSS compliance validation
+- `COPYBOOK_FF_SECURITY_MONITORING`: Enable security monitoring
+
+**Performance Features:**
+- `COPYBOOK_FF_LRU_CACHE`: Enable LRU cache for parsed copybooks
+- `COPYBOOK_FF_ADVANCED_OPTIMIZATION`: Enable advanced optimization (SIMD, vectorization)
+- `COPYBOOK_FF_PARALLEL_DECODE`: Enable parallel decoding for large files
+- `COPYBOOK_FF_ZERO_COPY`: Enable zero-copy parsing
+
+**Debug Features (disable in production):**
+- `COPYBOOK_FF_VERBOSE_LOGGING`: Enable verbose logging
+- `COPYBOOK_FF_DIAGNOSTIC_OUTPUT`: Enable diagnostic output
+
+**Audit Configuration:**
+- `AUDIT_FORMAT`: Audit output format (jsonl/stdout)
+- `AUDIT_OUTPUT`: Audit output destination
+- `AUDIT_BATCH_SIZE`: Number of audit events to batch
+- `AUDIT_BATCH_INTERVAL_SECONDS`: Batch interval in seconds
+
+**Metrics Configuration:**
+- `METRICS_ENABLED`: Enable Prometheus metrics
+- `METRICS_PORT`: Metrics port (default: 9300)
+- `METRICS_PATH`: Metrics endpoint path (default: /metrics)
+
+> **Note**: See [Enterprise Deployment Guide](../../docs/ENTERPRISE_DEPLOYMENT.md) for detailed enterprise configuration.
+
 ### 2. PersistentVolumeClaim (copybook-data-pvc)
 
 Storage for batch processing data:
@@ -248,6 +283,114 @@ spec:
       nodeSelector:
         workload-type: batch-processing
 ```
+
+## Enterprise Deployment
+
+### Enabling Enterprise Features
+
+Enterprise features are disabled by default in the base deployment. Enable them in environment overlays:
+
+**Production Overlay** (enabled by default):
+```yaml
+# overlays/production/kustomization.yaml
+configMapGenerator:
+  - name: copybook-config
+    behavior: merge
+    literals:
+      # Enterprise features - enabled for production
+      - COPYBOOK_FF_AUDIT_SYSTEM=1
+      - COPYBOOK_FF_SOX_COMPLIANCE=1
+      - COPYBOOK_FF_GDPR_COMPLIANCE=1
+      - COPYBOOK_FF_SECURITY_MONITORING=1
+      - COPYBOOK_FF_LRU_CACHE=1
+      - COPYBOOK_FF_ADVANCED_OPTIMIZATION=1
+      - COPYBOOK_FF_PARALLEL_DECODE=1
+      - COPYBOOK_FF_ZERO_COPY=1
+```
+
+**Staging Overlay** (enabled for testing):
+```yaml
+# overlays/staging/kustomization.yaml
+configMapGenerator:
+  - name: copybook-config
+    behavior: merge
+    literals:
+      # Enterprise features - enabled for staging testing
+      - COPYBOOK_FF_AUDIT_SYSTEM=1
+      - COPYBOOK_FF_SOX_COMPLIANCE=1
+      - COPYBOOK_FF_GDPR_COMPLIANCE=1
+      - COPYBOOK_FF_SECURITY_MONITORING=1
+      - COPYBOOK_FF_LRU_CACHE=1
+      - COPYBOOK_FF_ADVANCED_OPTIMIZATION=1
+      - COPYBOOK_FF_PARALLEL_DECODE=1
+```
+
+### Compliance Configuration
+
+Configure compliance profiles based on regulatory requirements:
+
+```yaml
+# Enable HIPAA compliance for healthcare data
+- COPYBOOK_FF_HIPAA_COMPLIANCE=1
+
+# Enable PCI DSS compliance for payment processing
+- COPYBOOK_FF_PCI_DSS_COMPLIANCE=1
+```
+
+### Audit Log Collection
+
+Audit logs are written to stdout by default for collection by log aggregators:
+
+```bash
+# View audit logs
+kubectl logs -l app=copybook-rs | grep "event_type"
+
+# Export audit logs to file
+kubectl logs -l app=copybook-rs > audit-logs.jsonl
+```
+
+For file-based audit logs, configure a sidecar container or persistent volume:
+
+```yaml
+# Add audit volume mount
+volumeMounts:
+  - name: audit-logs
+    mountPath: /var/log/copybook/audit
+
+volumes:
+  - name: audit-logs
+    persistentVolumeClaim:
+      claimName: copybook-audit-pvc
+```
+
+### Metrics and Monitoring
+
+Prometheus metrics are exposed on port 9300:
+
+```bash
+# Access metrics
+kubectl port-forward svc/copybook-rs 9300:9300
+curl http://localhost:9300/metrics
+```
+
+Key enterprise metrics:
+- `copybook_audit_events_total`: Total audit events
+- `copybook_compliance_violations_total`: Compliance violations by profile
+- `copybook_security_events_total`: Security-related events
+
+### Performance Impact
+
+Enterprise features add minimal overhead (< 5% combined):
+
+| Feature | Overhead | Production Status |
+|---------|----------|------------------|
+| Audit | < 2% | Enabled |
+| Compliance | < 3% | Enabled |
+| Security | < 1% | Enabled |
+| LRU Cache | Negative (improves) | Enabled |
+| Advanced Optimization | Negative (improves) | Enabled |
+
+> **Note**: See [Enterprise Deployment Guide](../../docs/ENTERPRISE_DEPLOYMENT.md) for detailed enterprise configuration, performance considerations, and upgrade practices.
 
 ## Monitoring
 

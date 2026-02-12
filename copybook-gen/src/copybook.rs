@@ -447,3 +447,154 @@ pub fn generate_invalid_copybook(config: &GeneratorConfig) -> Vec<(String, Strin
         ),
     ]
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_generate_copybook_template_markers() {
+        let config = GeneratorConfig::default();
+        let cases = [
+            (CopybookTemplate::Simple, "Simple"),
+            (CopybookTemplate::WithRedefines, "REDEFINES"),
+            (CopybookTemplate::WithOccurs, "OCCURS"),
+            (CopybookTemplate::WithODO, "DEPENDING ON"),
+            (CopybookTemplate::WithSync, "SYNCHRONIZED"),
+            (CopybookTemplate::Complex, "Complex"),
+            (CopybookTemplate::DisplayHeavy, "DISPLAY Heavy"),
+            (CopybookTemplate::Comp3Heavy, "COMP-3 Heavy"),
+        ];
+
+        for (template, marker) in cases {
+            let copybook = generate_copybook_with_template(&config, template);
+            assert!(copybook.contains("01  RECORD-ROOT."));
+            assert!(
+                copybook.contains(marker),
+                "expected marker '{marker}' for {template:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_occurs_copybook_contains_nested_occurs() {
+        let config = GeneratorConfig::default();
+        let mut rng = StdRng::seed_from_u64(7);
+        let copybook = generate_occurs_copybook(&mut rng, &config);
+
+        assert!(copybook.contains("SIMPLE-ARRAY"));
+        assert!(copybook.contains("GROUP-ARRAY"));
+        assert!(copybook.contains("NESTED-ARRAY"));
+        assert!(copybook.contains("INNER-ARRAY"));
+    }
+
+    #[test]
+    fn test_sync_copybook_contains_synchronized_fields() {
+        let config = GeneratorConfig::default();
+        let mut rng = StdRng::seed_from_u64(9);
+        let copybook = generate_sync_copybook(&mut rng, &config);
+
+        assert!(copybook.contains("SYNCHRONIZED"));
+        assert!(copybook.contains("SYNC-GROUP"));
+        assert!(copybook.contains("GROUP-BIN"));
+    }
+
+    #[test]
+    fn test_display_heavy_copybook_has_expected_fields() {
+        let config = GeneratorConfig::default();
+        let mut rng = StdRng::seed_from_u64(11);
+        let copybook = generate_display_heavy_copybook(&mut rng, &config);
+
+        assert!(copybook.contains("DISPLAY Heavy"));
+        assert!(copybook.contains("TEXT-48"));
+        assert!(copybook.contains("SIGNED-47"));
+    }
+
+    #[test]
+    fn test_comp3_heavy_copybook_has_expected_fields() {
+        let config = GeneratorConfig::default();
+        let mut rng = StdRng::seed_from_u64(13);
+        let copybook = generate_comp3_heavy_copybook(&mut rng, &config);
+
+        assert!(copybook.contains("COMP-3 Heavy"));
+        assert!(copybook.contains("PACKED-39"));
+        assert!(copybook.contains("TEXT-10"));
+    }
+
+    #[test]
+    fn test_generate_invalid_copybooks_contains_expected_cases() {
+        let config = GeneratorConfig::default();
+        let invalid_cases = generate_invalid_copybook(&config);
+
+        let names: HashSet<&str> = invalid_cases
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect();
+        let expected = [
+            "invalid_level",
+            "invalid_pic",
+            "redefines_missing",
+            "odo_not_tail",
+            "odo_counter_in_redefines",
+        ];
+
+        for name in expected {
+            assert!(names.contains(name), "missing invalid case '{name}'");
+        }
+
+        let odo_not_tail = invalid_cases
+            .iter()
+            .find(|(name, _)| name == "odo_not_tail")
+            .expect("odo_not_tail should exist")
+            .1
+            .clone();
+        assert!(odo_not_tail.contains("DEPENDING ON COUNT"));
+        assert!(odo_not_tail.contains("TRAILER"));
+    }
+
+    #[test]
+    fn test_complex_copybook_tail_odo_present_for_some_seed() {
+        let config = GeneratorConfig {
+            include_edge_cases: true,
+            ..Default::default()
+        };
+
+        let mut found = None;
+        for seed in 0u64..256 {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let copybook = generate_complex_copybook(&mut rng, &config);
+            if copybook.contains("NOTE-COUNT") {
+                found = Some(copybook);
+                break;
+            }
+        }
+
+        let copybook = found.expect("expected at least one seed to include tail ODO section");
+        assert!(copybook.contains("DEPENDING ON NOTE-COUNT"));
+        assert!(copybook.contains("NOTE-TEXT"));
+    }
+
+    proptest! {
+        #[test]
+        fn prop_copybooks_include_record_root(template_idx in 0u8..8) {
+            let config = GeneratorConfig::default();
+            let template = match template_idx {
+                0 => CopybookTemplate::Simple,
+                1 => CopybookTemplate::WithRedefines,
+                2 => CopybookTemplate::WithOccurs,
+                3 => CopybookTemplate::WithODO,
+                4 => CopybookTemplate::WithSync,
+                5 => CopybookTemplate::Complex,
+                6 => CopybookTemplate::DisplayHeavy,
+                _ => CopybookTemplate::Comp3Heavy,
+            };
+
+            let copybook = generate_copybook_with_template(&config, template);
+            prop_assert!(copybook.contains("01  RECORD-ROOT."));
+            prop_assert!(copybook.contains("PIC"));
+        }
+    }
+}

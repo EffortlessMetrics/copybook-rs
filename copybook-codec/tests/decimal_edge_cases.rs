@@ -17,8 +17,8 @@
 //! - Zoned decimal overpunch mapping by codepage
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, ZonedEncodingFormat,
-    decode_record, encode_record,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
+    encode_record,
 };
 use copybook_core::{Schema, parse_copybook};
 use serde_json::json;
@@ -56,16 +56,9 @@ fn test_packed_zero_handling() {
     let schema = create_packed_test_schema();
 
     let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     let decode_options = DecodeOptions {
@@ -132,16 +125,9 @@ fn test_packed_max_digits_and_overflow() {
     let schema = create_packed_test_schema();
 
     let encode_options = EncodeOptions {
-        format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
-        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
-        use_raw: false,
-        bwz_encode: false,
         strict_mode: true,
-        max_errors: None,
-        threads: 1,
-        coerce_numbers: false,
-        zoned_encoding_override: None,
+        ..EncodeOptions::default()
     };
 
     // Test reasonable maximum values (avoiding overflow)

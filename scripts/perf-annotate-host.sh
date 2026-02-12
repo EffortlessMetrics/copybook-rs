@@ -14,13 +14,22 @@ KERN=$(uname -r)
 OS=$(uname -s)
 DATE=$(date -Is)
 
+# Detect WSL2 environment
+WSL2_DETECTED="false"
+if [[ -f /proc/version ]]; then
+  if grep -qi "microsoft" /proc/version; then
+    WSL2_DETECTED="true"
+  fi
+fi
+
 jq --arg cpu "$CPU" \
   --argjson cores "$CORES" \
   --arg kern "$KERN" \
   --arg os "$OS" \
   --arg ts "$DATE" \
-  '.summary |= (. // {}) | .summary += {host_cpu:$cpu, host_cores:$cores, host_kernel:$kern, host_os:$os, ts:$ts}' \
+  --argjson wsl2 "$WSL2_DETECTED" \
+  '.summary |= (. // {}) | .summary += {host_cpu:$cpu, host_cores:$cores, host_kernel:$kern, host_os:$os, wsl2_detected:$WSL2_DETECTED, ts:$ts}' \
   "$PERF" > "${PERF}.tmp"
 mv "${PERF}.tmp" "$PERF"
 
-echo "Annotated $PERF with host info."
+echo "Annotated $PERF with host info (WSL2: $WSL2_DETECTED)."

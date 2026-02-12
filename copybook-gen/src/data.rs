@@ -133,6 +133,7 @@ fn fill_field_data(
             digits,
             scale,
             signed,
+            sign_separate: _,
         } => {
             fill_zoned_field(
                 &mut record[start..end],
@@ -476,10 +477,15 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
 
 fn ascii_to_ebcdic_approx(ascii: u8) -> u8 {
     // Simplified ASCII to EBCDIC conversion for common characters
+    // EBCDIC groups are not contiguous: A-I, J-R, S-Z
     match ascii {
         b'0'..=b'9' => 0xF0 + (ascii - b'0'),
-        b'A'..=b'Z' => 0xC1 + (ascii - b'A'),
-        b'a'..=b'z' => 0x81 + (ascii - b'a'),
+        b'A'..=b'I' => 0xC1 + (ascii - b'A'),
+        b'J'..=b'R' => 0xD1 + (ascii - b'J'),
+        b'S'..=b'Z' => 0xE2 + (ascii - b'S'),
+        b'a'..=b'i' => 0x81 + (ascii - b'a'),
+        b'j'..=b'r' => 0x91 + (ascii - b'j'),
+        b's'..=b'z' => 0xA2 + (ascii - b's'),
         _ => 0x40, // Default to space (includes b' ')
     }
 }
@@ -596,4 +602,180 @@ pub enum CorruptionType {
     Truncation,
     Padding,
     AsciiTransfer,
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use super::*;
+    use copybook_core::parse_copybook;
+
+    fn sample_schema() -> Schema {
+        let copybook = r#"
+           01 RECORD-ROOT.
+              05 NAME        PIC X(4).
+              05 COUNT       PIC 9(2).
+              05 AMOUNT      PIC S9(4) COMP-3.
+        "#;
+        parse_copybook(copybook).unwrap()
+    }
+
+    #[test]
+    fn test_generate_data_with_all_strategies() {
+        let schema = sample_schema();
+        let config = GeneratorConfig {
+            seed: 1,
+            record_count: 3,
+            include_edge_cases: true,
+            include_invalid_data: true,
+        };
+
+        let expected_len = schema.lrecl_fixed.unwrap_or(1000) as usize;
+
+        for strategy in [
+            DataStrategy::Normal,
+            DataStrategy::EdgeCases,
+            DataStrategy::Invalid,
+            DataStrategy::Performance,
+        ] {
+            let records = generate_data_with_strategy(&schema, &config, strategy);
+            assert_eq!(records.len(), config.record_count);
+            for record in records {
+                assert_eq!(record.len(), expected_len);
+            }
+        }
+    }
+
+    #[test]
+    fn test_generate_synthetic_data_alias() {
+        let schema = sample_schema();
+        let config = GeneratorConfig {
+            seed: 2,
+            record_count: 2,
+            include_edge_cases: false,
+            include_invalid_data: false,
+        };
+
+        let records = generate_synthetic_data(&schema, &config);
+        assert_eq!(records.len(), 2);
+    }
+
+    #[test]
+    fn test_ascii_to_ebcdic_approx() {
+        assert_eq!(ascii_to_ebcdic_approx(b'0'), 0xF0);
+        assert_eq!(ascii_to_ebcdic_approx(b'9'), 0xF9);
+        assert_eq!(ascii_to_ebcdic_approx(b'A'), 0xC1);
+        assert_eq!(ascii_to_ebcdic_approx(b'Z'), 0xE9);
+        assert_eq!(ascii_to_ebcdic_approx(b'a'), 0x81);
+        assert_eq!(ascii_to_ebcdic_approx(b'z'), 0xA9);
+        assert_eq!(ascii_to_ebcdic_approx(b'?'), 0x40);
+    }
+
+    #[test]
+    fn test_set_counter_field_value_binary() {
+        let mut record = vec![0u8; 2];
+        let field = Field {
+            path: "ROOT.COUNTER".to_string(),
+            name: "COUNTER".to_string(),
+            level: 5,
+            kind: FieldKind::BinaryInt {
+                bits: 16,
+                signed: false,
+            },
+            offset: 0,
+            len: 2,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: Vec::new(),
+        };
+
+        set_counter_field_value(&mut record, &field, 0x1234);
+        assert_eq!(record, vec![0x12, 0x34]);
+    }
+
+    #[test]
+    fn test_set_counter_field_value_zoned() {
+        let mut record = vec![0u8; 3];
+        let field = Field {
+            path: "ROOT.COUNTER".to_string(),
+            name: "COUNTER".to_string(),
+            level: 5,
+            kind: FieldKind::ZonedDecimal {
+                digits: 3,
+                scale: 0,
+                signed: false,
+                sign_separate: None,
+            },
+            offset: 0,
+            len: 3,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: Vec::new(),
+        };
+
+        set_counter_field_value(&mut record, &field, 42);
+        assert_eq!(record, vec![0xF0, 0xF4, 0xF2]);
+    }
+
+    #[test]
+    fn test_set_counter_field_value_packed() {
+        let mut record = vec![0u8; 2];
+        let field = Field {
+            path: "ROOT.COUNTER".to_string(),
+            name: "COUNTER".to_string(),
+            level: 5,
+            kind: FieldKind::PackedDecimal {
+                digits: 3,
+                scale: 0,
+                signed: false,
+            },
+            offset: 0,
+            len: 2,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: Vec::new(),
+        };
+
+        set_counter_field_value(&mut record, &field, 123);
+        assert_eq!(record, vec![0x12, 0x3C]);
+    }
+
+    #[test]
+    fn test_generate_corrupted_data_variants() {
+        let clean = vec![0x00, 0x00, 0x00];
+        let flipped = generate_corrupted_data(&clean, CorruptionType::BitFlip);
+        assert_eq!(flipped, vec![0x00, 0x01, 0x00]);
+
+        let clean = vec![0xAA; 12];
+        let truncated = generate_corrupted_data(&clean, CorruptionType::Truncation);
+        assert_eq!(truncated.len(), 7);
+
+        let clean = vec![0xAA; 4];
+        let padded = generate_corrupted_data(&clean, CorruptionType::Padding);
+        assert_eq!(padded.len(), 14);
+        assert!(padded[4..].iter().all(|b| *b == 0));
+
+        let clean = vec![0x41, 0x80, 0xFF];
+        let ascii = generate_corrupted_data(&clean, CorruptionType::AsciiTransfer);
+        assert_eq!(ascii, vec![0x41, b'?', b'?']);
+    }
+
+    #[test]
+    fn test_generate_test_datasets_is_empty_for_now() {
+        let config = GeneratorConfig::default();
+        let datasets = generate_test_datasets(&config);
+        assert!(datasets.is_empty());
+    }
 }

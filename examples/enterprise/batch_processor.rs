@@ -1,5 +1,12 @@
 // Enterprise batch processing example
 // High-performance, production-ready COBOL data processing with comprehensive error handling
+//
+// This example demonstrates:
+// - Enterprise-grade batch processing with audit logging
+// - Compliance validation (SOX, GDPR)
+// - Security monitoring integration
+// - Performance optimization with parallel processing
+// - Comprehensive error handling and alerting
 
 use copybook_codec::{
     decode_file_to_jsonl, Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy,
@@ -12,10 +19,20 @@ use std::time::Instant;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize enterprise logging
+    // In production, set RUST_LOG=warn to reduce overhead
     tracing_subscriber::fmt()
         .with_env_filter("info")
         .with_target(false)
         .init();
+
+    // Enable enterprise feature flags via environment variables:
+    // export COPYBOOK_FF_AUDIT_SYSTEM=1
+    // export COPYBOOK_FF_SOX_COMPLIANCE=1
+    // export COPYBOOK_FF_GDPR_COMPLIANCE=1
+    // export COPYBOOK_FF_SECURITY_MONITORING=1
+    // export COPYBOOK_FF_LRU_CACHE=1
+    // export COPYBOOK_FF_ADVANCED_OPTIMIZATION=1
+    // export COPYBOOK_FF_PARALLEL_DECODE=1
 
     let processor = BatchProcessor::new()?;
     processor.process_batch().await
@@ -57,6 +74,17 @@ impl BatchProcessor {
         let schema = Arc::new(parse_copybook(copybook)?);
 
         // Enterprise-grade processing options
+        //
+        // Configuration notes:
+        // - RecordFormat::Fixed: Use fixed-length records for mainframe data
+        // - Codepage::CP037: IBM US EBCDIC codepage
+        // - JsonNumberMode::Lossless: Preserve numeric precision for financial data
+        // - emit_meta: Include metadata for audit trail (required for compliance)
+        // - strict_mode: false for graceful handling of malformed data
+        // - max_errors: Limit error collection to prevent memory issues
+        // - threads: Use parallel processing for high-throughput scenarios
+        //
+        // Performance tip: Set COPYBOOK_FF_PARALLEL_DECODE=1 for parallel processing
         let options = DecodeOptions::new()
             .with_format(RecordFormat::Fixed)
             .with_codepage(Codepage::CP037) // Mainframe EBCDIC
@@ -125,6 +153,13 @@ impl BatchProcessor {
         );
 
         // Enterprise alerting for error rates
+        //
+        // Alert thresholds:
+        // - > 5%: Critical - requires immediate investigation
+        // - > 1%: Warning - should be monitored
+        //
+        // In production, integrate with alerting systems (Prometheus Alertmanager, PagerDuty, etc.)
+        // via the security monitoring feature (COPYBOOK_FF_SECURITY_MONITORING=1)
         let error_rate = if total_records > 0 {
             (total_errors as f64 / total_records as f64) * 100.0
         } else {
@@ -229,3 +264,28 @@ struct ProcessingStats {
     error_count: u64,
     processing_time: std::time::Duration,
 }
+
+/*
+ * Running this example with enterprise features:
+ *
+ * Enable enterprise feature flags:
+ *   export COPYBOOK_FF_AUDIT_SYSTEM=1
+ *   export COPYBOOK_FF_SOX_COMPLIANCE=1
+ *   export COPYBOOK_FF_GDPR_COMPLIANCE=1
+ *   export COPYBOOK_FF_SECURITY_MONITORING=1
+ *   export COPYBOOK_FF_LRU_CACHE=1
+ *   export COPYBOOK_FF_ADVANCED_OPTIMIZATION=1
+ *   export COPYBOOK_FF_PARALLEL_DECODE=1
+ *
+ * Run the example:
+ *   cargo run --example batch_processor
+ *
+ * For production deployment, see:
+ *   - docs/ENTERPRISE_DEPLOYMENT.md
+ *   - deploy/kubernetes/README.md
+ *
+ * For enterprise configuration options, see:
+ *   - docs/FEATURE_FLAGS.md
+ *   - docs/enterprise-compliance-guide.md
+ *   - docs/ENTERPRISE_PERFORMANCE.md
+ */

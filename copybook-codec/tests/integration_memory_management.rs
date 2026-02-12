@@ -20,6 +20,7 @@ fn create_test_schema() -> Schema {
                 digits: 5,
                 scale: 0,
                 signed: false,
+                sign_separate: None,
             },
             offset: 0,
             len: 5,

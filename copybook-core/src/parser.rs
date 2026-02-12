@@ -5,9 +5,10 @@
 
 use crate::error;
 use crate::error::{ErrorCode, ErrorContext};
+use crate::feature_flags::{Feature, FeatureFlags};
 use crate::lexer::{Lexer, Token, TokenPos};
 use crate::pic::PicClause;
-use crate::schema::{Field, FieldKind, Occurs, Schema};
+use crate::schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo};
 use crate::utils::VecExt;
 use crate::{Error, Result};
 
@@ -175,8 +176,12 @@ impl Parser {
                         "Parser stack underflow while attaching RENAMES",
                     )?;
 
-                    // Mark as group if it has children
-                    if !completed_field.children.is_empty() {
+                    // Mark as group only if it has storage-bearing children (exclude level-88).
+                    if completed_field
+                        .children
+                        .iter()
+                        .any(|child| child.level != 88)
+                    {
                         completed_field.kind = FieldKind::Group;
                     }
 
@@ -213,8 +218,12 @@ impl Parser {
                         "Parser stack underflow: expected field to pop but stack was empty",
                     )?;
 
-                    // If this field has children, make it a group
-                    if !completed_field.children.is_empty() {
+                    // If this field has storage-bearing children, make it a group
+                    if completed_field
+                        .children
+                        .iter()
+                        .any(|child| child.level != 88)
+                    {
                         completed_field.kind = FieldKind::Group;
                     }
 
@@ -430,6 +439,16 @@ impl Parser {
             // Validate that counter is not inside REDEFINES or ODO region
             if let Some(counter) = counter_field {
                 if counter.redefines_of.is_some() {
+                    return Err(Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO counter '{}' cannot be inside a REDEFINES region",
+                            counter_path
+                        ),
+                    ));
+                }
+
+                if self.is_inside_redefines(&counter.path, all_fields) {
                     return Err(Error::new(
                         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
                         format!(
@@ -761,10 +780,18 @@ impl Parser {
                 token: Token::Sign, ..
             }) => {
                 self.advance();
-                return Err(Error::new(
-                    ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
-                    format!("SIGN clause on field '{}' is not supported yet", field.name),
-                ));
+                // Check if SIGN SEPARATE feature is enabled
+                if FeatureFlags::global().is_enabled(Feature::SignSeparate) {
+                    self.parse_sign_clause(field)?;
+                } else {
+                    return Err(Error::new(
+                        ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
+                        format!(
+                            "SIGN clause on field '{}' is not supported (enable with --enable-features sign_separate)",
+                            field.name
+                        ),
+                    ));
+                }
             }
             Some(TokenPos {
                 token: Token::Comp, ..
@@ -878,6 +905,7 @@ impl Parser {
                 digits: pic.digits,
                 scale: pic.scale,
                 signed: pic.signed,
+                sign_separate: None,
             },
             crate::pic::PicKind::Edited => {
                 // Phase E2: Parse edited PIC into schema with scale
@@ -1102,6 +1130,69 @@ impl Parser {
         }
 
         field.blank_when_zero = true;
+        Ok(())
+    }
+
+    /// Parse SIGN clause (SIGN IS [LEADING|TRAILING] [SEPARATE])
+    fn parse_sign_clause(&mut self, field: &mut Field) -> Result<()> {
+        // Check for SEPARATE keyword first
+        if !self.consume(&Token::Separate) {
+            // SIGN without SEPARATE is not supported in this implementation
+            // (it would use overpunching which is already handled by signed zoned decimals)
+            return Err(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                "SIGN clause without SEPARATE is not supported (use S in PIC clause for overpunching)",
+            ));
+        }
+
+        // Determine placement: LEADING or TRAILING (default to LEADING)
+        let placement = if self.consume(&Token::Leading) {
+            SignPlacement::Leading
+        } else if self.consume(&Token::Trailing) {
+            SignPlacement::Trailing
+        } else {
+            // Default to LEADING if not specified
+            SignPlacement::Leading
+        };
+
+        // Validate that field is a numeric display field
+        match &mut field.kind {
+            FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+                sign_separate: _,
+            } => {
+                *signed = true;
+                // Add sign separate info to the field
+                let sign_separate_info = SignSeparateInfo { placement };
+                // Update field kind to include sign separate info
+                field.kind = FieldKind::ZonedDecimal {
+                    digits: *digits,
+                    scale: *scale,
+                    signed: true,
+                    sign_separate: Some(sign_separate_info),
+                };
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    format!(
+                        "SIGN SEPARATE clause can only be used with numeric display fields (PIC 9 or PIC S9), not field '{}'",
+                        field.name
+                    ),
+                ));
+            }
+        }
+
+        // Cannot combine SIGN SEPARATE with BLANK WHEN ZERO
+        if field.blank_when_zero {
+            return Err(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                "SIGN SEPARATE clause cannot be combined with BLANK WHEN ZERO",
+            ));
+        }
+
         Ok(())
     }
 
@@ -1370,6 +1461,7 @@ impl Parser {
                 digits,
                 scale,
                 signed,
+                ..
             } => {
                 field.kind = FieldKind::PackedDecimal {
                     digits: *digits,
@@ -1521,7 +1613,8 @@ mod tests {
             FieldKind::ZonedDecimal {
                 digits: 9,
                 scale: 2,
-                signed: true
+                signed: true,
+                ..
             }
         ));
     }

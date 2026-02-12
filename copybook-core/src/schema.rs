@@ -79,6 +79,8 @@ pub enum FieldKind {
         scale: i16,
         /// Whether field is signed
         signed: bool,
+        /// SIGN SEPARATE clause information (if applicable)
+        sign_separate: Option<SignSeparateInfo>,
     },
     /// Binary integer field (COMP/BINARY)
     BinaryInt {
@@ -133,6 +135,23 @@ pub struct ResolvedRenames {
     pub length: u32,
     /// Paths of fields covered by this alias (in document order)
     pub members: Vec<String>,
+}
+
+/// SIGN SEPARATE clause information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignSeparateInfo {
+    /// Placement of the sign (LEADING or TRAILING)
+    pub placement: SignPlacement,
+}
+
+/// Sign placement for SIGN SEPARATE clause
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SignPlacement {
+    /// Sign byte precedes the numeric digits
+    Leading,
+    /// Sign byte follows the numeric digits
+    Trailing,
 }
 
 /// Array occurrence information
@@ -256,8 +275,9 @@ impl Schema {
                 digits,
                 scale,
                 signed,
+                sign_separate,
             } => {
-                format!("ZonedDecimal({digits},{scale},{signed})")
+                format!("ZonedDecimal({digits},{scale},{signed},{sign_separate:?})")
             }
             FieldKind::BinaryInt { bits, signed } => {
                 format!("BinaryInt({bits},{signed})")
@@ -533,10 +553,389 @@ impl Field {
             None => self.len,
         }
     }
+
+    /// Returns SIGN SEPARATE info if this is a zoned decimal field with that clause.
+    #[must_use]
+    pub fn sign_separate(&self) -> Option<&SignSeparateInfo> {
+        if let FieldKind::ZonedDecimal { sign_separate, .. } = &self.kind {
+            sign_separate.as_ref()
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if this is a packed decimal (COMP-3) field.
+    #[must_use]
+    pub fn is_packed(&self) -> bool {
+        matches!(self.kind, FieldKind::PackedDecimal { .. })
+    }
+
+    /// Returns true if this is a binary integer (COMP/BINARY) field.
+    #[must_use]
+    pub fn is_binary(&self) -> bool {
+        matches!(self.kind, FieldKind::BinaryInt { .. })
+    }
+
+    /// Returns true if this field's name is FILLER (case-insensitive).
+    #[must_use]
+    pub fn is_filler(&self) -> bool {
+        self.name.eq_ignore_ascii_case("FILLER")
+    }
 }
 
 impl Default for Schema {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schema_default() {
+        let schema = Schema::default();
+        assert!(schema.fields.is_empty());
+        assert!(schema.lrecl_fixed.is_none());
+        assert!(schema.tail_odo.is_none());
+        // Fingerprint is empty for default schema (calculated later)
+        assert!(schema.fingerprint.is_empty());
+    }
+
+    #[test]
+    fn test_schema_new() {
+        let schema = Schema::new();
+        assert!(schema.fields.is_empty());
+        assert!(schema.lrecl_fixed.is_none());
+        assert!(schema.tail_odo.is_none());
+    }
+
+    #[test]
+    fn test_tail_odo_serialization() {
+        let tail_odo = TailODO {
+            counter_path: "ROOT.COUNT".to_string(),
+            min_count: 1,
+            max_count: 100,
+            array_path: "ROOT.ARRAY".to_string(),
+        };
+
+        let serialized = serde_json::to_string(&tail_odo).unwrap();
+        let deserialized: TailODO = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.counter_path, "ROOT.COUNT");
+        assert_eq!(deserialized.min_count, 1);
+        assert_eq!(deserialized.max_count, 100);
+        assert_eq!(deserialized.array_path, "ROOT.ARRAY");
+    }
+
+    #[test]
+    fn test_field_new() {
+        let field = Field::new(5, "TEST-FIELD".to_string());
+        assert_eq!(field.level, 5);
+        assert_eq!(field.name, "TEST-FIELD");
+        assert_eq!(field.path, "TEST-FIELD");
+        assert!(matches!(field.kind, FieldKind::Group));
+        assert_eq!(field.offset, 0);
+        assert_eq!(field.len, 0);
+    }
+
+    #[test]
+    fn test_field_with_kind() {
+        let kind = FieldKind::Alphanum { len: 10 };
+        let field = Field::with_kind(5, "TEST-FIELD".to_string(), kind.clone());
+        assert_eq!(field.level, 5);
+        assert_eq!(field.name, "TEST-FIELD");
+        assert!(matches!(field.kind, FieldKind::Alphanum { len: 10 }));
+    }
+
+    #[test]
+    fn test_field_is_group() {
+        let group_field = Field::new(1, "GROUP".to_string());
+        assert!(group_field.is_group());
+        assert!(!group_field.is_scalar());
+
+        let scalar_field =
+            Field::with_kind(5, "SCALAR".to_string(), FieldKind::Alphanum { len: 10 });
+        assert!(!scalar_field.is_group());
+        assert!(scalar_field.is_scalar());
+    }
+
+    #[test]
+    fn test_field_effective_length_no_occurs() {
+        let field = Field {
+            path: "TEST".to_string(),
+            name: "TEST".to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 10 },
+            offset: 0,
+            len: 10,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: Vec::new(),
+        };
+        assert_eq!(field.effective_length(), 10);
+    }
+
+    #[test]
+    fn test_field_effective_length_fixed_occurs() {
+        let field = Field {
+            path: "TEST".to_string(),
+            name: "TEST".to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 10 },
+            offset: 0,
+            len: 10,
+            redefines_of: None,
+            occurs: Some(Occurs::Fixed { count: 5 }),
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: Vec::new(),
+        };
+        assert_eq!(field.effective_length(), 50);
+    }
+
+    #[test]
+    fn test_field_effective_length_odo_occurs() {
+        let field = Field {
+            path: "TEST".to_string(),
+            name: "TEST".to_string(),
+            level: 5,
+            kind: FieldKind::Alphanum { len: 10 },
+            offset: 0,
+            len: 10,
+            redefines_of: None,
+            occurs: Some(Occurs::ODO {
+                min: 1,
+                max: 100,
+                counter_path: "ROOT.COUNT".to_string(),
+            }),
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: Vec::new(),
+        };
+        assert_eq!(field.effective_length(), 1000);
+    }
+
+    #[test]
+    fn test_field_kind_serialization() {
+        let kinds = vec![
+            FieldKind::Alphanum { len: 10 },
+            FieldKind::ZonedDecimal {
+                digits: 5,
+                scale: 2,
+                signed: true,
+                sign_separate: None,
+            },
+            FieldKind::BinaryInt {
+                bits: 32,
+                signed: true,
+            },
+            FieldKind::PackedDecimal {
+                digits: 7,
+                scale: 2,
+                signed: true,
+            },
+            FieldKind::Group,
+            FieldKind::Condition {
+                values: vec!["A".to_string(), "B".to_string()],
+            },
+            FieldKind::Renames {
+                from_field: "FIELD1".to_string(),
+                thru_field: "FIELD2".to_string(),
+            },
+            FieldKind::EditedNumeric {
+                pic_string: "ZZ9.99".to_string(),
+                width: 6,
+                scale: 2,
+                signed: false,
+            },
+        ];
+
+        for kind in kinds {
+            let serialized = serde_json::to_string(&kind).unwrap();
+            let deserialized: FieldKind = serde_json::from_str(&serialized).unwrap();
+            // Can't directly compare FieldKind due to no PartialEq, so re-serialize and compare
+            let re_serialized = serde_json::to_string(&deserialized).unwrap();
+            assert_eq!(serialized, re_serialized);
+        }
+    }
+
+    #[test]
+    fn test_sign_placement_serialization() {
+        let placements = vec![SignPlacement::Leading, SignPlacement::Trailing];
+
+        for placement in placements {
+            let serialized = serde_json::to_string(&placement).unwrap();
+            let deserialized: SignPlacement = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(serialized, serde_json::to_string(&deserialized).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_sign_separate_info_serialization() {
+        let info = SignSeparateInfo {
+            placement: SignPlacement::Leading,
+        };
+
+        let serialized = serde_json::to_string(&info).unwrap();
+        let deserialized: SignSeparateInfo = serde_json::from_str(&serialized).unwrap();
+
+        assert!(matches!(deserialized.placement, SignPlacement::Leading));
+    }
+
+    #[test]
+    fn test_resolved_renames_serialization() {
+        let renames = ResolvedRenames {
+            offset: 10,
+            length: 50,
+            members: vec!["FIELD1".to_string(), "FIELD2".to_string()],
+        };
+
+        let serialized = serde_json::to_string(&renames).unwrap();
+        let deserialized: ResolvedRenames = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.offset, 10);
+        assert_eq!(deserialized.length, 50);
+        assert_eq!(deserialized.members.len(), 2);
+        assert_eq!(deserialized.members[0], "FIELD1");
+        assert_eq!(deserialized.members[1], "FIELD2");
+    }
+
+    #[test]
+    fn test_schema_serialization() {
+        let schema = Schema {
+            fields: vec![Field::new(1, "ROOT".to_string())],
+            lrecl_fixed: Some(100),
+            tail_odo: Some(TailODO {
+                counter_path: "ROOT.COUNT".to_string(),
+                min_count: 1,
+                max_count: 100,
+                array_path: "ROOT.ARRAY".to_string(),
+            }),
+            fingerprint: "test-fingerprint".to_string(),
+        };
+
+        let serialized = serde_json::to_string(&schema).unwrap();
+        let deserialized: Schema = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized.fields.len(), 1);
+        assert_eq!(deserialized.lrecl_fixed, Some(100));
+        assert!(deserialized.tail_odo.is_some());
+        assert_eq!(deserialized.fingerprint, "test-fingerprint");
+    }
+
+    #[test]
+    fn test_schema_find_field() {
+        let mut field = Field::new(5, "CHILD".to_string());
+        field.path = "PARENT.CHILD".to_string();
+
+        let schema = Schema {
+            fields: vec![Field {
+                path: "PARENT".to_string(),
+                name: "PARENT".to_string(),
+                level: 1,
+                kind: FieldKind::Group,
+                offset: 0,
+                len: 10,
+                redefines_of: None,
+                occurs: None,
+                sync_padding: None,
+                synchronized: false,
+                blank_when_zero: false,
+                resolved_renames: None,
+                children: vec![field],
+            }],
+            lrecl_fixed: None,
+            tail_odo: None,
+            fingerprint: "test".to_string(),
+        };
+
+        let found = schema.find_field("PARENT.CHILD");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "CHILD");
+
+        let not_found = schema.find_field("NONEXISTENT");
+        assert!(not_found.is_none());
+    }
+
+    #[test]
+    fn test_schema_find_redefining_fields() {
+        let _base_field = Field::new(5, "BASE".to_string());
+        let redef_field1 =
+            Field::with_kind(5, "REDEF1".to_string(), FieldKind::Alphanum { len: 5 });
+        let redef_field2 = Field::with_kind(
+            5,
+            "REDEF2".to_string(),
+            FieldKind::ZonedDecimal {
+                digits: 5,
+                scale: 0,
+                signed: false,
+                sign_separate: None,
+            },
+        );
+
+        let mut base_field_with_redef = Field::new(5, "BASE".to_string());
+        base_field_with_redef.path = "ROOT.BASE".to_string();
+        base_field_with_redef.redefines_of = None;
+
+        let mut redef_field1_with_path = redef_field1.clone();
+        redef_field1_with_path.path = "ROOT.REDEF1".to_string();
+        redef_field1_with_path.redefines_of = Some("ROOT.BASE".to_string());
+
+        let mut redef_field2_with_path = redef_field2.clone();
+        redef_field2_with_path.path = "ROOT.REDEF2".to_string();
+        redef_field2_with_path.redefines_of = Some("ROOT.BASE".to_string());
+
+        let schema = Schema {
+            fields: vec![
+                base_field_with_redef,
+                redef_field1_with_path,
+                redef_field2_with_path,
+            ],
+            lrecl_fixed: None,
+            tail_odo: None,
+            fingerprint: "test".to_string(),
+        };
+
+        let redefining = schema.find_redefining_fields("ROOT.BASE");
+        assert_eq!(redefining.len(), 2);
+        assert!(redefining.iter().any(|f| f.name == "REDEF1"));
+        assert!(redefining.iter().any(|f| f.name == "REDEF2"));
+    }
+
+    #[test]
+    fn test_schema_all_fields() {
+        let child1 = Field::with_kind(5, "CHILD1".to_string(), FieldKind::Alphanum { len: 5 });
+        let child2 = Field::with_kind(5, "CHILD2".to_string(), FieldKind::Alphanum { len: 5 });
+
+        let mut parent = Field::new(1, "PARENT".to_string());
+        parent.path = "ROOT.PARENT".to_string();
+        parent.children = vec![child1, child2];
+
+        let top_level = Field::with_kind(1, "TOP".to_string(), FieldKind::Alphanum { len: 10 });
+
+        let schema = Schema {
+            fields: vec![parent, top_level],
+            lrecl_fixed: None,
+            tail_odo: None,
+            fingerprint: "test".to_string(),
+        };
+
+        let all_fields = schema.all_fields();
+        // Should have: parent, child1, child2, top_level
+        assert_eq!(all_fields.len(), 4);
+        assert!(all_fields.iter().any(|f| f.name == "PARENT"));
+        assert!(all_fields.iter().any(|f| f.name == "CHILD1"));
+        assert!(all_fields.iter().any(|f| f.name == "CHILD2"));
+        assert!(all_fields.iter().any(|f| f.name == "TOP"));
     }
 }

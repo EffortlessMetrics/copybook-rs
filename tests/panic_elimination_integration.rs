@@ -255,7 +255,7 @@ mod integration_panic_safety {
             Ok(schema) => {
                 // Validate complex schema parsing
                 assert!(!schema.fields.is_empty(), "Complex schema should have fields");
-                assert!(schema.record_length > 0, "Complex schema should have length");
+                assert!(schema_record_length(&schema) > 0, "Complex schema should have length");
 
                 // Test with enterprise-scale data
                 let enterprise_data = create_complex_enterprise_data();
@@ -320,6 +320,19 @@ mod integration_panic_safety {
                 );
             }
         }
+    }
+
+    fn schema_record_length(schema: &Schema) -> u32 {
+        schema
+            .lrecl_fixed
+            .unwrap_or_else(|| {
+                schema
+                    .all_fields()
+                    .iter()
+                    .map(|field| field.offset + field.len)
+                    .max()
+                    .unwrap_or(0)
+            })
     }
 
     /// AC7: Golden fixtures integration with panic elimination

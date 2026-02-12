@@ -178,7 +178,7 @@
 //! # }
 //! ```
 //!
-//! ## Using with DecodeOptions and Metadata
+//! ## Using with `DecodeOptions` and Metadata
 //!
 //! ```rust
 //! use copybook_codec::{iter_records_from_file, DecodeOptions, Codepage, JsonNumberMode};
@@ -586,7 +586,7 @@ pub fn iter_records_from_file<P: AsRef<std::path::Path>>(
 ///
 /// # Arguments
 ///
-/// * `reader` - Any type implementing Read (File, Cursor, TcpStream, etc.)
+/// * `reader` - Any type implementing Read (File, Cursor, `TcpStream`, etc.)
 /// * `schema` - The parsed copybook schema
 /// * `options` - Decoding options
 ///

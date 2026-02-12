@@ -1,0 +1,283 @@
+name: Enterprise Performance Benchmarks
+
+on:
+  # Run enterprise benchmarks weekly
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays at 04:00 UTC
+  workflow_dispatch:
+  # Run on PRs with run-enterprise-perf label
+  pull_request:
+    types: [labeled]
+    paths:
+      - "copybook-bench/**"
+      - "copybook-core/src/audit/**"
+      - "copybook-codec/**"
+      - "justfile"
+
+concurrency:
+  group: enterprise-perf-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  enterprise-perf:
+    # Only run on PRs when 'run-enterprise-perf' label is present
+    if: |
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'run-enterprise-perf')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run baseline benchmarks
+        run: |
+          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+            cargo bench -p copybook-bench -- enterprise_baseline --quiet
+
+      - name: Run audit benchmarks
+        run: |
+          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+            cargo bench -p copybook-bench -- enterprise_audit --quiet
+
+      - name: Run compliance benchmarks
+        run: |
+          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+            cargo bench -p copybook-bench -- enterprise_compliance --quiet
+
+      - name: Run security benchmarks
+        run: |
+          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+            cargo bench -p copybook-bench -- enterprise_security --quiet
+
+      - name: Run combined benchmarks
+        run: |
+          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+            cargo bench -p copybook-bench -- enterprise_combined --quiet
+
+      - name: Run enterprise SLO benchmarks
+        run: |
+          RUSTFLAGS="-C target-cpu=native" PERF=1 \
+            cargo bench -p copybook-bench -- enterprise_slo_validation --quiet
+
+      - name: Calculate enterprise overhead
+        id: overhead
+        run: |
+          echo "### Enterprise Performance Overhead" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          
+          # Extract baseline and enterprise throughput from criterion outputs
+          BASELINE_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_baseline/new/estimates.json 2>/dev/null || echo "0")
+          AUDIT_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_audit/new/estimates.json 2>/dev/null || echo "0")
+          COMPLIANCE_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_compliance/new/estimates.json 2>/dev/null || echo "0")
+          SECURITY_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_security/new/estimates.json 2>/dev/null || echo "0")
+          COMBINED_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_combined/new/estimates.json 2>/dev/null || echo "0")
+          
+          # Calculate overhead percentages (higher time = more overhead)
+          if [[ "$BASELINE_MEAN" != "0" && "$BASELINE_MEAN" != "null" ]]; then
+            AUDIT_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($AUDIT_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+            COMPLIANCE_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($COMPLIANCE_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+            SECURITY_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($SECURITY_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+            COMBINED_OVERHEAD=$(awk "BEGIN {printf \"%.2f\", (($COMBINED_MEAN - $BASELINE_MEAN) / $BASELINE_MEAN) * 100}")
+          else
+            AUDIT_OVERHEAD="N/A"
+            COMPLIANCE_OVERHEAD="N/A"
+            SECURITY_OVERHEAD="N/A"
+            COMBINED_OVERHEAD="N/A"
+          fi
+          
+          # Output to summary
+          echo "| Feature | Overhead | Target | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|----------|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          
+          # Audit overhead (target: < 2%)
+          if [[ "$AUDIT_OVERHEAD" != "N/A" ]]; then
+            AUDIT_STATUS=$(awk "BEGIN {print ($AUDIT_OVERHEAD < 2.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Audit | ${AUDIT_OVERHEAD}% | < 2% | $AUDIT_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Audit | N/A | < 2% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          # Compliance overhead (target: < 3%)
+          if [[ "$COMPLIANCE_OVERHEAD" != "N/A" ]]; then
+            COMPLIANCE_STATUS=$(awk "BEGIN {print ($COMPLIANCE_OVERHEAD < 3.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Compliance | ${COMPLIANCE_OVERHEAD}% | < 3% | $COMPLIANCE_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Compliance | N/A | < 3% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          # Security overhead (target: < 1%)
+          if [[ "$SECURITY_OVERHEAD" != "N/A" ]]; then
+            SECURITY_STATUS=$(awk "BEGIN {print ($SECURITY_OVERHEAD < 1.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Security | ${SECURITY_OVERHEAD}% | < 1% | $SECURITY_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Security | N/A | < 1% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          # Combined overhead (target: < 5%)
+          if [[ "$COMBINED_OVERHEAD" != "N/A" ]]; then
+            COMBINED_STATUS=$(awk "BEGIN {print ($COMBINED_OVERHEAD < 5.0) ? \"✅\" : \"⚠️\"}")
+            echo "| Combined | ${COMBINED_OVERHEAD}% | < 5% | $COMBINED_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Combined | N/A | < 5% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          
+          # Set outputs for PR comment
+          echo "audit_overhead=$AUDIT_OVERHEAD" >> "$GITHUB_OUTPUT"
+          echo "compliance_overhead=$COMPLIANCE_OVERHEAD" >> "$GITHUB_OUTPUT"
+          echo "security_overhead=$SECURITY_OVERHEAD" >> "$GITHUB_OUTPUT"
+          echo "combined_overhead=$COMBINED_OVERHEAD" >> "$GITHUB_OUTPUT"
+
+      - name: Upload enterprise criterion outputs (30 days)
+        uses: actions/upload-artifact@v6
+        with:
+          name: enterprise-criterion-${{ github.sha }}
+          path: target/criterion/enterprise_*/new/estimates.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
+        uses: actions/github-script@v8
+        env:
+          AUDIT_OVERHEAD: ${{ steps.overhead.outputs.audit_overhead }}
+          COMPLIANCE_OVERHEAD: ${{ steps.overhead.outputs.compliance_overhead }}
+          SECURITY_OVERHEAD: ${{ steps.overhead.outputs.security_overhead }}
+          COMBINED_OVERHEAD: ${{ steps.overhead.outputs.combined_overhead }}
+        with:
+          script: |
+            const { context, github } = require('@actions/github');
+            
+            let body = '## 🔒 Enterprise Performance Overhead\n\n';
+            body += '| Feature | Overhead | Target | Status |\n';
+            body += '|---------|----------|--------|--------|\n';
+            
+            const auditOverhead = process.env.AUDIT_OVERHEAD;
+            const complianceOverhead = process.env.COMPLIANCE_OVERHEAD;
+            const securityOverhead = process.env.SECURITY_OVERHEAD;
+            const combinedOverhead = process.env.COMBINED_OVERHEAD;
+            
+            if (auditOverhead && auditOverhead !== 'N/A') {
+              const auditStatus = parseFloat(auditOverhead) < 2.0 ? '✅' : '⚠️';
+              body += `| Audit | ${auditOverhead}% | < 2% | ${auditStatus} |\n`;
+            } else {
+              body += '| Audit | N/A | < 2% | ❓ |\n';
+            }
+            
+            if (complianceOverhead && complianceOverhead !== 'N/A') {
+              const complianceStatus = parseFloat(complianceOverhead) < 3.0 ? '✅' : '⚠️';
+              body += `| Compliance | ${complianceOverhead}% | < 3% | ${complianceStatus} |\n`;
+            } else {
+              body += '| Compliance | N/A | < 3% | ❓ |\n';
+            }
+            
+            if (securityOverhead && securityOverhead !== 'N/A') {
+              const securityStatus = parseFloat(securityOverhead) < 1.0 ? '✅' : '⚠️';
+              body += `| Security | ${securityOverhead}% | < 1% | ${securityStatus} |\n`;
+            } else {
+              body += '| Security | N/A | < 1% | ❓ |\n';
+            }
+            
+            if (combinedOverhead && combinedOverhead !== 'N/A') {
+              const combinedStatus = parseFloat(combinedOverhead) < 5.0 ? '✅' : '⚠️';
+              body += `| Combined | ${combinedOverhead}% | < 5% | ${combinedStatus} |\n`;
+            } else {
+              body += '| Combined | N/A | < 5% | ❓ |\n';
+            }
+            
+            body += '\n';
+            body += '**Note**: Enterprise overhead warnings are currently in advisory mode and do not block merges.\n\n';
+            body += `**Commit:** \`${context.sha.substring(0, 7)}\`\n`;
+            body += `**Workflow:** [View Details](${context.payload.repository.html_url}/actions/runs/${context.runId})\n\n`;
+            body += '---\n';
+            body += '*See [docs/ENTERPRISE_PERFORMANCE.md](https://github.com/EffortlessMetrics/copybook-rs/blob/main/docs/ENTERPRISE_PERFORMANCE.md) for details on enterprise performance targets.*';
+            
+            // Create or update comment
+            const commentMarker = '<!-- enterprise-perf-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            
+            const existingComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes(commentMarker)
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentMarker + '\n\n' + body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: commentMarker + '\n\n' + body
+              });
+            }
+
+      - name: Publish enterprise overhead check
+        id: check
+        uses: actions/github-script@v8
+        env:
+          AUDIT_OVERHEAD: ${{ steps.overhead.outputs.audit_overhead }}
+          COMPLIANCE_OVERHEAD: ${{ steps.overhead.outputs.compliance_overhead }}
+          SECURITY_OVERHEAD: ${{ steps.overhead.outputs.security_overhead }}
+          COMBINED_OVERHEAD: ${{ steps.overhead.outputs.combined_overhead }}
+        with:
+          script: |
+            const auditOverhead = parseFloat(process.env.AUDIT_OVERHEAD || '0');
+            const complianceOverhead = parseFloat(process.env.COMPLIANCE_OVERHEAD || '0');
+            const securityOverhead = parseFloat(process.env.SECURITY_OVERHEAD || '0');
+            const combinedOverhead = parseFloat(process.env.COMBINED_OVERHEAD || '0');
+            
+            // Check if any overhead exceeds targets significantly (> target + 2%)
+            const auditExceeds = auditOverhead > 4.0;
+            const complianceExceeds = complianceOverhead > 5.0;
+            const securityExceeds = securityOverhead > 3.0;
+            const combinedExceeds = combinedOverhead > 7.0;
+            
+            const hasExceeds = auditExceeds || complianceExceeds || securityExceeds || combinedExceeds;
+            
+            let summary = 'Enterprise Performance Overhead:\n';
+            summary += `- Audit: ${auditOverhead}% (target: < 2%)\n`;
+            summary += `- Compliance: ${complianceOverhead}% (target: < 3%)\n';
+            summary += `- Security: ${securityOverhead}% (target: < 1%)\n';
+            summary += `- Combined: ${combinedOverhead}% (target: < 5%)\n';
+            
+            if (hasExceeds) {
+              summary += '\n⚠️ Some overhead exceeds targets by > 2%';
+            } else {
+              summary += '\n✅ All overhead within acceptable limits';
+            }
+            
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'review:gate:enterprise-perf',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: hasExceeds ? 'neutral' : 'success',
+              output: {
+                title: 'Enterprise Performance Overhead',
+                summary: summary
+              }
+            });

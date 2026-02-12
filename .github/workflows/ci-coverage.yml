@@ -1,0 +1,171 @@
+name: Code Coverage
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: "23 3 * * 2"  # Weekly on Tuesdays
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Cache cargo artifacts
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-targets: true
+
+    - name: Install cargo-tarpaulin
+      run: cargo install cargo-tarpaulin --version 0.31.5
+
+    - name: Run tarpaulin coverage
+      run: |
+        cargo tarpaulin \
+          --workspace \
+          --exclude copybook-bench \
+          --exclude-files 'examples/*' \
+          --exclude-files 'tests/*' \
+          --exclude-files 'xtask/*' \
+          --exclude-files 'copybook-cli/tests/*' \
+          --exclude-files 'copybook-core/tests/*' \
+          --exclude-files 'copybook-codec/tests/*' \
+          --out Xml \
+          --output-dir ./coverage \
+          --verbose \
+          --timeout 300 \
+          --all-features \
+          --test-threads 4
+
+    - name: Generate coverage summary
+      run: |
+        if [ -f coverage/cobertura.xml ]; then
+          echo "Coverage report generated successfully"
+          echo "Coverage file size: $(wc -c < coverage/cobertura.xml) bytes"
+        else
+          echo "ERROR: Coverage report not found"
+          exit 1
+        fi
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage/cobertura.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/
+        retention-days: 30
+
+    - name: Add coverage summary
+      run: |
+        echo "# Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Coverage has been generated and uploaded to Codecov." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Coverage Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tool**: cargo-tarpaulin 0.31.5" >> $GITHUB_STEP_SUMMARY
+        echo "- **Features**: All features enabled" >> $GITHUB_STEP_SUMMARY
+        echo "- **Excluded**: copybook-bench, examples, integration tests" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "View detailed coverage report on [Codecov](https://codecov.io/gh/${{ github.repository }})." >> $GITHUB_STEP_SUMMARY
+
+  coverage-diff:
+    name: Coverage Diff
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: coverage
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Cache cargo artifacts
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-targets: true
+
+    - name: Install cargo-tarpaulin
+      run: cargo install cargo-tarpaulin --version 0.31.5
+
+    - name: Run coverage diff
+      run: |
+        # Get base branch coverage
+        git fetch origin ${{ github.base_ref }}
+        git checkout origin/${{ github.base_ref }}
+        cargo tarpaulin \
+          --workspace \
+          --exclude copybook-bench \
+          --exclude-files 'examples/*' \
+          --exclude-files 'tests/*' \
+          --out Xml \
+          --output-dir ./coverage-base \
+          --timeout 300 \
+          --all-features
+
+        # Get PR branch coverage
+        git checkout ${{ github.sha }}
+        cargo tarpaulin \
+          --workspace \
+          --exclude copybook-bench \
+          --exclude-files 'examples/*' \
+          --exclude-files 'tests/*' \
+          --out Xml \
+          --output-dir ./coverage-pr \
+          --timeout 300 \
+          --all-features
+
+        echo "Coverage diff analysis complete"
+        echo "Base branch: ${{ github.base_ref }}"
+        echo "PR branch: ${{ github.head_ref }}"
+
+    - name: Comment coverage on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let comment = '## Coverage Report\n\n';
+          comment += 'Coverage analysis has been run for this PR.\n\n';
+          comment += 'Please check the Coverage job for detailed results.\n\n';
+          comment += 'Coverage reports are available as artifacts.';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

@@ -211,9 +211,9 @@
 //! ```
 
 use crate::options::{DecodeOptions, RecordFormat};
-use copybook_core::{Error, ErrorCode, Result, Schema};
+use copybook_core::{Error, ErrorCode, Result, Schema, parse_copybook};
 use serde_json::Value;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Cursor, Read};
 
 const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record length (LRECL). \
      Set `schema.lrecl_fixed` or use `RecordFormat::Variable`.";
@@ -823,3 +823,245 @@ mod tests {
         }
     }
 }
+
+    #[test]
+    fn test_iterator_schema_and_options_accessors() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+        let test_data = b"001ALICE";
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // Test schema accessor
+        assert_eq!(iterator.schema().fields[0].name, "RECORD");
+
+        // Test options accessor
+        assert_eq!(iterator.options().format, RecordFormat::Fixed);
+    }
+
+    #[test]
+    fn test_iterator_multiple_fixed_records() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        // Create test data: three 8-byte fixed records
+        let test_data = b"001ALICE002BOB  003CAROL";
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // Read all records
+        let mut count = 0;
+        while let Some(result) = iterator.next() {
+            assert!(result.is_ok(), "Record {count} should decode successfully");
+            count += 1;
+        }
+
+        assert_eq!(count, 3);
+        assert_eq!(iterator.current_record_index(), 3);
+        assert!(iterator.is_eof());
+    }
+
+    #[test]
+    fn test_iterator_rdw_multiple_records() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        // Create RDW test data with three records
+        let test_data = vec![
+            // Record 1
+            0x00, 0x08, 0x00, 0x00, // RDW header: length=8
+            b'0', b'0', b'1', b'A', b'L', b'I', b'C', b'E',
+            // Record 2
+            0x00, 0x06, 0x00, 0x00, // RDW header: length=6
+            b'0', b'0', b'2', b'B', b'O', b'B',
+            // Record 3
+            0x00, 0x08, 0x00, 0x00, // RDW header: length=8
+            b'0', b'0', b'3', b'C', b'A', b'R', b'O', b'L',
+        ];
+
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::RDW,
+            ..DecodeOptions::default()
+        };
+
+        let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // Read all records
+        let mut count = 0;
+        while let Some(result) = iterator.next() {
+            assert!(result.is_ok(), "Record {count} should decode successfully");
+            count += 1;
+        }
+
+        assert_eq!(count, 3);
+        assert_eq!(iterator.current_record_index(), 3);
+        assert!(iterator.is_eof());
+    }
+
+    #[test]
+    fn test_iter_records_convenience() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        let test_data = b"001ALICE002BOB  ";
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let iterator = iter_records(cursor, &schema, &options).unwrap();
+
+        assert_eq!(iterator.current_record_index(), 0);
+        assert!(!iterator.is_eof());
+    }
+
+    #[test]
+    fn test_iterator_with_empty_data() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = Some(8);
+
+        let test_data = b"";
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // Should immediately return None for empty data
+        assert!(iterator.next().is_none());
+        assert!(iterator.is_eof());
+        assert_eq!(iterator.current_record_index(), 0);
+    }
+
+    #[test]
+    fn test_iterator_raw_record_eof() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        let test_data = b"001ALICE";
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // Read first record
+        assert!(iterator.read_raw_record().unwrap().is_some());
+        assert_eq!(iterator.current_record_index(), 1);
+
+        // Read second record (should be None)
+        assert!(iterator.read_raw_record().unwrap().is_none());
+        assert!(iterator.is_eof());
+    }
+
+    #[test]
+    fn test_iterator_collect_results() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        let test_data = b"001ALICE002BOB  003CAROL";
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // Collect all results
+        let results: Vec<Result<Value>> = iterator.collect();
+
+        assert_eq!(results.len(), 3);
+        for result in results {
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_iterator_with_decode_error() {
+        let copybook_text = r"
+            01 RECORD.
+               05 ID PIC 9(3).
+               05 NAME PIC X(5).
+        ";
+
+        let schema = parse_copybook(copybook_text).unwrap();
+
+        // Create data that will decode successfully for first record
+        let test_data = b"001ALICE";
+        let cursor = Cursor::new(test_data);
+
+        let options = DecodeOptions {
+            format: RecordFormat::Fixed,
+            ..DecodeOptions::default()
+        };
+
+        let mut iterator = RecordIterator::new(cursor, &schema, &options).unwrap();
+
+        // First record should decode successfully
+        let first = iterator.next();
+        assert!(first.is_some());
+        assert!(first.unwrap().is_ok());
+
+        // Second call should return None (EOF)
+        assert!(iterator.next().is_none());
+    }

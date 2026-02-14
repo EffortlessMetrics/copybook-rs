@@ -208,3 +208,229 @@ impl Default for RegressionDetector {
         Self::new()
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_performance_auditor_creation() {
+        let auditor = PerformanceAuditor::new("baseline.json", 10.0);
+        assert_eq!(auditor.regression_detector.threshold_percent, 10.0);
+    }
+
+    #[test]
+    fn test_regression_detector_default() {
+        let detector = RegressionDetector::new();
+        assert_eq!(detector.threshold_percent, 5.0);
+    }
+
+    #[test]
+    fn test_regression_detector_custom_threshold() {
+        let detector = RegressionDetector::new().with_threshold(15.0);
+        assert_eq!(detector.threshold_percent, 15.0);
+    }
+
+    #[test]
+    fn test_regression_detector_no_regression() {
+        let detector = RegressionDetector::new().with_threshold(10.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert!(regressions.is_empty());
+    }
+
+    #[test]
+    fn test_regression_detector_record_rate_regression() {
+        let detector = RegressionDetector::new().with_threshold(10.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 80, // 20% below baseline
+            peak_memory_mb: 100,
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert_eq!(regressions.len(), 1);
+        assert!(regressions[0].contains("Record rate regression"));
+    }
+
+    #[test]
+    fn test_regression_detector_display_throughput_regression() {
+        let detector = RegressionDetector::new().with_threshold(10.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 800, // 20% below baseline
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert_eq!(regressions.len(), 1);
+        assert!(regressions[0].contains("Display throughput regression"));
+    }
+
+    #[test]
+    fn test_regression_detector_comp3_throughput_regression() {
+        let detector = RegressionDetector::new().with_threshold(10.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 400, // 20% below baseline
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert_eq!(regressions.len(), 1);
+        assert!(regressions[0].contains("COMP-3 throughput regression"));
+    }
+
+    #[test]
+    fn test_regression_detector_memory_regression() {
+        let detector = RegressionDetector::new().with_threshold(10.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 120, // 20% above baseline
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert_eq!(regressions.len(), 1);
+        assert!(regressions[0].contains("Peak memory regression"));
+    }
+
+    #[test]
+    fn test_regression_detector_multiple_regressions() {
+        let detector = RegressionDetector::new().with_threshold(10.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 800,  // 20% below
+            comp3_throughput: 400,  // 20% below
+            record_rate: 80,         // 20% below
+            peak_memory_mb: 120,      // 20% above
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert_eq!(regressions.len(), 4);
+    }
+
+    #[test]
+    fn test_regression_detector_default_impl() {
+        let detector = RegressionDetector::default();
+        assert_eq!(detector.threshold_percent, 5.0);
+    }
+
+    #[test]
+    fn test_baseline_manager_creation() {
+        let manager = BaselineManager::new("test_baseline.json");
+        assert_eq!(manager.baseline_path, PathBuf::from("test_baseline.json"));
+    }
+
+    #[test]
+    fn test_performance_baseline_serialization() {
+        let baseline = PerformanceBaseline {
+            baseline_id: "test-baseline".to_string(),
+            throughput: ThroughputMetrics {
+                display_throughput: 1000,
+                comp3_throughput: 500,
+                record_rate: 100,
+                peak_memory_mb: 100,
+            },
+            resources: ResourceMetrics {
+                cpu_usage_percent: 50.0,
+                memory_usage_mb: 100,
+                io_operations: 1000,
+                network_bytes: 5000,
+            },
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+        };
+
+        let json = serde_json::to_string(&baseline).expect("Failed to serialize");
+        assert!(json.contains("test-baseline"));
+        assert!(json.contains("display_throughput"));
+    }
+
+    #[test]
+    fn test_throughput_metrics_creation() {
+        let metrics = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        assert_eq!(metrics.display_throughput, 1000);
+        assert_eq!(metrics.comp3_throughput, 500);
+        assert_eq!(metrics.record_rate, 100);
+        assert_eq!(metrics.peak_memory_mb, 100);
+    }
+
+    #[test]
+    fn test_resource_metrics_creation() {
+        let metrics = ResourceMetrics {
+            cpu_usage_percent: 50.0,
+            memory_usage_mb: 100,
+            io_operations: 1000,
+            network_bytes: 5000,
+        };
+
+        assert_eq!(metrics.cpu_usage_percent, 50.0);
+        assert_eq!(metrics.memory_usage_mb, 100);
+        assert_eq!(metrics.io_operations, 1000);
+        assert_eq!(metrics.network_bytes, 5000);
+    }
+}

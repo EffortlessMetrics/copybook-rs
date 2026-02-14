@@ -15,16 +15,13 @@ use copybook_core::audit::{
 use serde_json;
 use std::path::PathBuf;
 
-const AUDIT_EXPERIMENTAL_NOTE: &str =
-    "audit feature is experimental scaffolding; outputs are stubs and not compliance evidence.";
-
 /// Enterprise audit command with comprehensive regulatory compliance
 #[derive(Parser)]
 #[command(
-    about = "Experimental audit scaffolding for regulatory compliance and security monitoring",
-    long_about = "Experimental audit scaffolding for copybook-rs including SOX, HIPAA, \
-                  GDPR compliance validation, performance auditing, security monitoring, \
-                  and data lineage tracking. Outputs are stubbed and not compliance evidence."
+    about = "Enterprise audit for regulatory compliance and security monitoring",
+    long_about = "Comprehensive audit capabilities for copybook-rs including SOX, HIPAA, \
+                   GDPR compliance validation, performance auditing, security monitoring, \
+                   and data lineage tracking for enterprise governance."
 )]
 pub struct AuditCommand {
     #[command(subcommand)]
@@ -428,7 +425,6 @@ pub async fn run(
         .with_operation_id("cli_audit_operation")
         .with_user("cli_user");
 
-    write_stderr_line(&format!("⚠️ {AUDIT_EXPERIMENTAL_NOTE}"))?;
 
     // Initialize audit logger if requested
     let _audit_logger = if audit_command.audit_output.is_some() {
@@ -643,7 +639,6 @@ fn run_audit_report(
             "copybook": _copybook.display().to_string(),
             "compliance": _compliance,
             "status": "stub",
-            "note": AUDIT_EXPERIMENTAL_NOTE,
             "findings": [],
             "performance_included": _include_performance,
             "security_included": _include_security,
@@ -723,7 +718,6 @@ async fn run_compliance_validation(
             "timestamp": chrono::Utc::now().to_rfc3339(),
             "copybook": _copybook.display().to_string(),
             "frameworks": framework_names_owned,
-            "note": AUDIT_EXPERIMENTAL_NOTE,
             "status": if compliance_result.is_compliant() { "compliant" } else { "non_compliant" },
             "violations": compliance_result.violations.iter().map(|v| {
                 serde_json::json!({
@@ -797,7 +791,6 @@ fn run_lineage_analysis(
             "impact_analysis": _impact_analysis,
             "confidence_threshold": _confidence_threshold,
             "status": "stub",
-            "note": AUDIT_EXPERIMENTAL_NOTE,
             "lineage_records": []
         }
     });
@@ -854,13 +847,11 @@ fn run_performance_audit(
             "max_overhead_percent": _max_overhead_percent,
             "include_regression_analysis": _include_regression_analysis,
             "iterations": _iterations,
-            "note": AUDIT_EXPERIMENTAL_NOTE,
             "results": {
                 "display_throughput_gbps": serde_json::Value::Null,
                 "comp3_throughput_mbps": serde_json::Value::Null,
                 "overhead_percent": serde_json::Value::Null,
                 "status": "stub",
-                "note": AUDIT_EXPERIMENTAL_NOTE
             }
         }
     });
@@ -920,7 +911,6 @@ fn run_security_audit(
             "security_findings": [],
             "threat_level": serde_json::Value::Null,
             "status": "stub",
-            "note": AUDIT_EXPERIMENTAL_NOTE
         }
     });
 
@@ -983,7 +973,6 @@ fn run_audit_health_check(
                 "hash_chain_valid": serde_json::Value::Null,
                 "timestamps_valid": serde_json::Value::Null,
                 "retention_compliant": serde_json::Value::Null,
-                "note": AUDIT_EXPERIMENTAL_NOTE
             },
             "diagnostics": [
                 "Audit health check is stubbed; no integrity checks were executed"

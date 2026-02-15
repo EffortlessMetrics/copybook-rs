@@ -130,7 +130,7 @@ Route analysis to appropriate specialist agents based on context findings:
 - **Security Context**: `cargo deny check` and `cargo audit` for comprehensive security analysis
 - **Coverage Analysis**: `cargo llvm-cov --all-features --workspace --lcov` for test coverage assessment
 - **Documentation Validation**: `cargo doc --workspace --no-deps` for documentation generation and validation
-- **MSRV Compatibility**: `cargo +1.90 check --workspace` for minimum supported Rust version validation
+- **MSRV Compatibility**: `cargo +1.92 check --workspace` for minimum supported Rust version validation
 - **Format Validation**: `cargo fmt --all --check` for code formatting compliance
 - **Test Execution**: `cargo nextest run --workspace` or `cargo test --workspace` for comprehensive test validation
 - **Check Run Creation**: `gh api -X POST repos/:owner/:repo/check-runs -f name="integrative:gate:context" -f head_sha="$SHA" -f status=completed -f conclusion=success -f output[summary]="<context_evidence>"`

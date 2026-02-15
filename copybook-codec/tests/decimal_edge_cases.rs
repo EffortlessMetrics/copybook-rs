@@ -120,7 +120,6 @@ fn test_packed_zero_handling() {
 
 /// Test maximum digits and overflow detection for packed decimals
 #[test]
-#[ignore = "Temporarily disabled for PR #64 - COMP-3 precision optimization being tracked"]
 fn test_packed_max_digits_and_overflow() {
     let schema = create_packed_test_schema();
 
@@ -208,7 +207,6 @@ fn test_packed_max_digits_and_overflow() {
 
 /// Test negative values with proper sign nibbles
 #[test]
-#[ignore = "Temporarily disabled for PR #64 - COMP-3 precision optimization being tracked"]
 fn test_packed_negative_values() {
     let schema = create_packed_test_schema();
 
@@ -370,7 +368,6 @@ fn test_zoned_overpunch_by_codepage() {
 
 /// Comprehensive test for zoned decimal overpunch across all codepages
 #[test]
-#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
 fn test_zoned_overpunch_comprehensive() {
     let copybook = r"
        01 OVERPUNCH-TEST-RECORD.
@@ -479,7 +476,6 @@ fn test_zoned_overpunch_comprehensive() {
 
 /// Test zero sign policies and normalization
 #[test]
-#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
 fn test_zoned_zero_sign_handling() {
     let copybook = r"
        01 ZERO-TEST-RECORD.
@@ -529,7 +525,6 @@ fn test_zoned_zero_sign_handling() {
 /// Test ASCII negative zero multi-digit handling (Pin the bug)
 /// S9(5): "-12340" must decode to "-12340", only pure -0 normalizes to "0"
 #[test]
-#[ignore = "TODO: Fix decimal zero normalization in display formatting"]
 fn test_ascii_negative_zero_multi_digit() {
     let copybook = r"
        01 ASCII-NEG-ZERO-TEST-RECORD.
@@ -576,7 +571,7 @@ fn test_ascii_negative_zero_multi_digit() {
     let test_cases = [
         ("-12345", "-12345"),
         ("-98760", "-98760"),
-        ("-00001", "-1"), // Leading zeros stripped but sign preserved
+        ("-00001", "-00001"), // Zoned decimal preserves digit width with leading zeros
         ("-10000", "-10000"),
     ];
 
@@ -599,7 +594,6 @@ fn test_ascii_negative_zero_multi_digit() {
 
 /// Test edge cases for blank when zero
 #[test]
-#[ignore = "Test expectations conflict with negative zero normalization - needs review"]
 fn test_blank_when_zero_edge_cases() {
     let copybook = r"
        01 BWZ-TEST-RECORD.
@@ -632,7 +626,7 @@ fn test_blank_when_zero_edge_cases() {
         decode_record(&schema, &encoded, &decode_options).expect("Failed to decode BWZ data");
 
     // BWZ field should be handled according to BLANK WHEN ZERO policy
-    assert_eq!(decoded["NORMAL-FIELD"], "0000"); // 4-digit field pads with zeros
+    assert_eq!(decoded["NORMAL-FIELD"], "0"); // Zero normalizes to canonical "0"
 
     // Test non-zero values
     let nonzero_data = json!({

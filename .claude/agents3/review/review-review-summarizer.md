@@ -94,7 +94,7 @@ Reference these gates in your assessment: freshness, format, clippy, tests, buil
 - clippy: `clippy: 0 warnings (workspace + pedantic)`
 - tests: `nextest: 127/127 pass; quarantined: k (linked)` or `cargo test: <n>/<n> pass`
 - build: `build: workspace release ok`
-- features: `workspace: X/Y features validated` or `MSRV: 1.90 compatible`
+- features: `workspace: X/Y features validated` or `MSRV: 1.92 compatible`
 - enterprise: `DISPLAY:4.2GiB/s, COMP-3:580MiB/s, unsafe:0, errors:stable`
 - benchmarks: `PERF=1: baseline established, targets exceeded`
 - perf: `enterprise targets maintained, Δ ≤ threshold`

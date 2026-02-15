@@ -180,7 +180,7 @@ fn test_pr_workflow_automation() -> Result<(), Box<dyn std::error::Error>> {
             "_metadata": {
                 "timestamp": "2025-09-28T15:30:45Z",
                 "git_commit": "a1b2c3d4e5f6",
-                "rust_version": "1.90.0",
+                "rust_version": "1.92.0",
                 "environment": {
                     "platform": "x86_64-unknown-linux-gnu",
                     "cpu_cores": 8

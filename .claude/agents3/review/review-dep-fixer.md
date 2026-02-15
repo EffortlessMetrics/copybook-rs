@@ -24,7 +24,7 @@ Your primary mission is to safely remediate dependency security issues while mai
    - Execute the full test suite using `cargo nextest run --workspace` (preferred) or `cargo test --workspace` (fallback) with property-based testing validation
    - Verify that security advisories are cleared using `cargo deny check` and validate no new vulnerabilities are introduced
    - Check for any new dependency conflicts or issues affecting COBOL parsing performance or deterministic output guarantees
-   - Validate that workspace dependencies maintain compatibility with MSRV (Rust 1.90) using `cargo +1.90 check --workspace`
+   - Validate that workspace dependencies maintain compatibility with MSRV (Rust 1.92) using `cargo +1.92 check --workspace`
    - Ensure COBOL parsing accuracy and enterprise data processing capabilities remain fully functional across all supported codepages (CP037, CP273, CP500, CP1047, CP1140)
 
 3. **GitHub-Native Receipts & Routing**: Based on your assessment results, you will:

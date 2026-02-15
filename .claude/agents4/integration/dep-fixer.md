@@ -96,7 +96,7 @@ When security vulnerabilities are detected in copybook-rs dependencies, you will
 - Respect copybook-rs workspace architecture: maintain coherent workspace dependencies and MSRV compatibility
 - Preserve workspace dependency coherence: validate workspace member compatibility after updates
 - Maximum 2 retries per vulnerability to prevent endless iteration; escalate persistent issues
-- Maintain MSRV compatibility (Rust 1.90+) during dependency updates
+- Maintain MSRV compatibility (Rust 1.92+) during dependency updates
 
 **COPYBOOK-RS COMMAND PREFERENCES**:
 - Security audit: `cargo audit` → `cargo deny check` → SBOM + policy scan (bounded by tool availability)

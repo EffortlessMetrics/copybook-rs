@@ -112,7 +112,7 @@ audit_environment:
 
   software_configuration:
     operating_system: "Red Hat Enterprise Linux 8.9"
-    rust_version: "1.90.0"
+    rust_version: "1.92.0"
     copybook_rs_version: "1.0.0"
     dependencies: "see Cargo.lock audit trail"
 
@@ -350,7 +350,7 @@ incident_response:
       },
       "validation_metadata": {
         "system_info": "Ubuntu 22.04, Intel Xeon E5-2673 v4",
-        "rust_version": "1.90.0",
+        "rust_version": "1.92.0",
         "git_commit": "abc123def456",
         "ci_run_id": "github_actions_12345"
       }

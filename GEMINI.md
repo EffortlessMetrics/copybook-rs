@@ -3,7 +3,7 @@
 ## Project Overview
 `copybook-rs` is a Rust toolkit designed for parsing COBOL copybooks and converting mainframe data (EBCDIC/ASCII) to JSON and back with deterministic round-trip fidelity. It prioritizes correctness, safety (zero `unsafe` in public APIs), and performance.
 
-**Status:** Engineering Preview (v0.4.2-dev)
+**Status:** Engineering Preview (v0.4.3)
 
 ## Workspace Structure
 The project is a Cargo workspace consisting of the following crates:
@@ -29,7 +29,7 @@ The project uses `just` as a task runner.
 *   **Documentation:** `just docs`
 
 ## Development Conventions
-*   **Rust Version:** MSRV 1.90+, Edition 2024.
+*   **Rust Version:** MSRV 1.92+, Edition 2024.
 *   **Safety:** **Zero `unsafe` code** is allowed in public APIs.
 *   **Linting:** Strictly enforces `clippy::pedantic`.
 *   **Testing:** High test coverage required. Uses `nextest` for speed.

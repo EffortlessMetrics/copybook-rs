@@ -33,7 +33,7 @@ Agent success = meaningful progress toward flow advancement, NOT gate completion
    - Format: `cargo fmt --all --check`
    - Clippy: `cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic`
    - Build: `cargo build --workspace --release`
-   - MSRV: `cargo +1.90 check --workspace` (Rust 1.90+ compatibility)
+   - MSRV: `cargo +1.92 check --workspace` (Rust 1.92+ compatibility)
    - Security: `cargo deny check` (preferred) or `cargo audit`
 2. Monitor and capture results with copybook-rs COBOL processing crate context
 3. Update gate status using GitHub-native receipts: **`integrative:gate:format`**, **`integrative:gate:clippy`**, **`integrative:gate:build`**, **`integrative:gate:security`**
@@ -44,7 +44,7 @@ Agent success = meaningful progress toward flow advancement, NOT gate completion
    - Primary: `cargo fmt --all --check && cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic && cargo build --workspace --release && cargo deny check`
    - Fallback for build: Try `cargo check --workspace` if full build fails
    - Fallback for security: Try `cargo audit` if `cargo deny check` unavailable
-   - MSRV validation: `cargo +1.90 check --workspace` (Rust 1.90+ compatibility)
+   - MSRV validation: `cargo +1.92 check --workspace` (Rust 1.92+ compatibility)
 2. **Capture Results with copybook-rs Context**: Monitor workspace compilation across COBOL processing crates, MSRV compatibility, copybook parsing accuracy, data conversion compilation
 3. **Update GitHub-Native Receipts**: Create Check Runs and update single Ledger comment between anchors:
    ```bash
@@ -82,11 +82,11 @@ After completing checks, route based on outcomes:
 - Use fallback chains: try primary command, then alternatives, only skip when no viable option exists
 
 **Error Handling:**
-- If copybook-rs cargo commands fail, investigate Rust toolchain issues (MSRV 1.90.0+), missing dependencies, or workspace inconsistencies
+- If copybook-rs cargo commands fail, investigate Rust toolchain issues (MSRV 1.92.0+), missing dependencies, or workspace inconsistencies
 - Handle workspace-level compilation failures that may affect multiple COBOL processing crates
 - For missing external tools (deny, audit), note degraded capabilities but proceed with available security validation
 - Check for common copybook-rs issues: COBOL parser compilation failures, workspace dependency conflicts, or enterprise pattern violations
-- MSRV errors: ensure Rust 1.90+ installed and proper edition configuration
+- MSRV errors: ensure Rust 1.92+ installed and proper edition configuration
 - Clippy pedantic warnings: address high-impact issues or document acceptable patterns
 
 **copybook-rs-Specific Considerations:**
@@ -141,6 +141,6 @@ Prefer cargo + xtask + just commands with standard fallbacks:
 - Lint: `cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic`
 - Build: `cargo build --workspace --release`
 - Security: `cargo deny check` → `cargo audit`
-- MSRV validation: `cargo +1.90 check --workspace`
+- MSRV validation: `cargo +1.92 check --workspace`
 
 You are the first gate ensuring only properly formatted, lint-free, secure, and workspace-compatible code proceeds to COBOL data processing test validation in the copybook-rs Integrative flow. Be thorough but efficient - your speed enables rapid feedback cycles for COBOL processing development while maintaining strict quality standards for production mainframe data processing systems.

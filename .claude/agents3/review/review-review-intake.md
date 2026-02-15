@@ -47,7 +47,7 @@ cargo test --workspace          # Fallback test execution
 PERF=1 cargo bench -p copybook-bench  # Performance benchmarks (gated)
 cargo deny check                # Dependency validation
 cargo llvm-cov --all-features --workspace --lcov  # Coverage analysis
-cargo +1.90 check --workspace   # MSRV compatibility
+cargo +1.92 check --workspace   # MSRV compatibility
 ```
 
 **Operational Guidelines:**
@@ -92,7 +92,7 @@ After completing intake processing, route based on PR assessment:
 - **Test failures**: Identify failing COBOL parsing tests, reference enterprise test requirements
 - **Clippy violations**: Apply mechanical fixes within authority, escalate complex COBOL parsing issues
 - **Performance regressions**: Reference enterprise targets, document benchmark failures
-- **MSRV compatibility**: Validate Rust 1.90+ compatibility for production deployment
+- **MSRV compatibility**: Validate Rust 1.92+ compatibility for production deployment
 
 **copybook-rs-Specific Integration:**
 - Validate changes across copybook-rs workspace (copybook-core, copybook-codec, copybook-cli, copybook-gen, copybook-bench)

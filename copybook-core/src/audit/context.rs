@@ -445,6 +445,10 @@ pub struct EncryptionRequirements {
     pub at_rest: EncryptionStandard,
     pub in_transit: EncryptionStandard,
     pub key_management: KeyManagementRequirements,
+    /// Whether data is actually encrypted at rest
+    pub at_rest_encrypted: bool,
+    /// Whether data is encrypted in transit
+    pub transit_encrypted: bool,
 }
 
 impl Default for EncryptionRequirements {
@@ -453,6 +457,8 @@ impl Default for EncryptionRequirements {
             at_rest: EncryptionStandard::AES256,
             in_transit: EncryptionStandard::TLS12,
             key_management: KeyManagementRequirements::default(),
+            at_rest_encrypted: true,
+            transit_encrypted: true,
         }
     }
 }
@@ -503,6 +509,8 @@ pub struct AuditRequirements {
     pub real_time_monitoring: bool,
     pub retention_days: u32,
     pub tamper_detection: bool,
+    /// Whether key management is properly implemented
+    pub key_management: bool,
 }
 
 impl Default for AuditRequirements {
@@ -513,6 +521,7 @@ impl Default for AuditRequirements {
             real_time_monitoring: false,
             retention_days: 2555, // 7 years default
             tamper_detection: true,
+            key_management: false,
         }
     }
 }

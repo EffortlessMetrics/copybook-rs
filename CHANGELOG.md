@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update README and documentation for comprehensive testing methodologies
 - Add Copilot instructions for project overview, build, and testing guidelines
 
+### Fixed
+
+- **codec**: Fix iterator tests placed outside `mod tests` block causing compilation failures
+- **codec**: Fix memory tests with incorrect blocking channel operations and threshold calculations
+- **audit**: Fix formatting in compliance validation code
+
 ### Miscellaneous Tasks
 
 - Add PR title validation workflow

@@ -43,7 +43,7 @@ As part of the **Integrative Flow**, you validate production readiness and gover
 - **Enterprise Performance Policy**: DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s performance targets, memory usage <256 MiB for multi-GB files, variance <5% across benchmark runs
 - **API Stability**: Ensure API compatibility across workspace feature combinations, validate breaking changes have migration documentation, cross-platform compatibility validation
 - **Documentation**: Ensure docs/ storage convention alignment with CLI reference, API documentation, troubleshooting guides, ADRs, and migration guides
-- **Feature Compatibility**: Validate workspace feature flags and crate compatibility, MSRV compliance (Rust 1.90+), Edition 2024 standards, comprehensive workspace testing
+- **Feature Compatibility**: Validate workspace feature flags and crate compatibility, MSRV compliance (Rust 1.92+), Edition 2024 standards, comprehensive workspace testing
 - **Performance Regression**: Check for COBOL parsing throughput regressions, validate data conversion optimizations, enterprise performance compliance, memory allocation efficiency
 
 **Gate-Focused Evidence Collection:**
@@ -84,7 +84,7 @@ echo "error-taxonomy: $ERROR_TESTS stable error code tests passed"
 # Feature matrix validation with workspace compatibility
 cargo test --workspace --all-features --quiet 2>&1 | tee feature-results.txt
 FEATURE_SUITES=$(grep -c "test result: ok" feature-results.txt || echo "0")
-cargo +1.90 check --workspace --quiet 2>&1 | tee msrv-results.txt
+cargo +1.92 check --workspace --quiet 2>&1 | tee msrv-results.txt
 MSRV_CHECK=$(grep -c "Finished" msrv-results.txt || echo "0")
 echo "features: $FEATURE_SUITES suites passed, MSRV: $MSRV_CHECK workspace crates compatible"
 
@@ -157,7 +157,7 @@ Every run should result in meaningful progress:
 - **Enterprise Security Compliance**: Memory safety validation for COBOL parsing operations, input validation for copybook text processing, proper error handling in data conversion implementations, zero unsafe code enforcement
 - **COBOL Parsing Accuracy Invariants**: Fixture test coverage and golden output verification, stable error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*), mainframe compatibility validation
 - **Performance SLO Enforcement**: DISPLAY ≥4.1 GiB/s, COMP-3 ≥560 MiB/s performance targets (report actual numbers), memory usage <256 MiB for multi-GB files
-- **Cross-Platform Compatibility**: Feature flag matrix validation across workspace crates, MSRV compliance (Rust 1.90+), Edition 2024 standards
+- **Cross-Platform Compatibility**: Feature flag matrix validation across workspace crates, MSRV compliance (Rust 1.92+), Edition 2024 standards
 - **API Stability Validation**: Breaking change detection, migration documentation requirements, workspace compatibility testing
 - **Documentation Standards**: docs/ storage convention alignment with CLI reference, API documentation, troubleshooting guides, ADRs, migration guides
 - **Dependency Policy**: Enterprise dependency security scanning, license compatibility validation, supply chain security assessment
@@ -172,7 +172,7 @@ Use clear, actionable language when reporting enterprise security violations:
 - "Performance below enterprise targets: DISPLAY 3.8 GiB/s (expected ≥4.1), COMP-3 520 MiB/s (expected ≥560) - optimization required"
 - "Memory usage violation: 312 MiB peak usage exceeds 256 MiB limit for multi-GB file processing"
 - "Error taxonomy instability: CBKP007 error code modified without documentation - enterprise API stability violation"
-- "MSRV compatibility failure: workspace incompatible with Rust 1.90 - minimum version policy violation"
+- "MSRV compatibility failure: workspace incompatible with Rust 1.92 - minimum version policy violation"
 - "Documentation gaps: docs/MIGRATION_GUIDE.md missing for API breaking changes - documentation policy violation"
 - "Dependency policy violation: 2 licenses incompatible with enterprise deployment requirements"
 
@@ -183,7 +183,7 @@ Use clear, actionable language when reporting enterprise security violations:
 - **Performance Benchmark Issues**: Check PERF=1 environment variable, verify copybook-bench crate availability, validate performance target configuration
 - **Memory Safety Failures**: Verify clippy configuration, check unsafe code detection, validate memory management tests
 - **Enterprise Validation Failures**: Check enterprise performance targets, verify production build configuration, validate deployment readiness
-- **Feature Matrix Conflicts**: Validate workspace feature flag combinations, check MSRV compatibility with Rust 1.90+, verify Edition 2024 standards
+- **Feature Matrix Conflicts**: Validate workspace feature flag combinations, check MSRV compatibility with Rust 1.92+, verify Edition 2024 standards
 - **Documentation Gaps**: Reference CLAUDE.md storage conventions, validate docs/ directory alignment with CLI reference and API documentation
 - **Complex Governance Decisions**: Route to pr-summary-agent with detailed evidence, include numerical metrics and specific policy violations
 
@@ -198,7 +198,7 @@ PERF=1 cargo bench -p copybook-bench                                            
 cargo test --workspace -- memory_usage                                             # Memory safety validation
 cargo test --workspace -- error_codes                                              # Error taxonomy stability
 cargo test --workspace --all-features                                              # Feature matrix validation
-cargo +1.90 check --workspace                                                      # MSRV compatibility
+cargo +1.92 check --workspace                                                      # MSRV compatibility
 cargo doc --workspace --no-deps                                                    # Documentation validation
 cargo deny check                                                                   # Dependency and license validation
 
@@ -240,6 +240,6 @@ For the security gate to contribute to merge readiness, ensure:
 - Feature flag compatibility across workspace crates validated
 - Documentation alignment with docs/ storage convention standards
 - Production deployment readiness with comprehensive workspace testing
-- MSRV compliance (Rust 1.90+) and Edition 2024 standards maintained
+- MSRV compliance (Rust 1.92+) and Edition 2024 standards maintained
 
 Remember: **Flow successful** means meaningful validation progress, not necessarily all checks passing. Focus on diagnostic work, evidence collection, and appropriate routing to specialists when needed.

@@ -101,7 +101,7 @@ For detailed documentation, see [`docs/FUZZING.md`](../docs/FUZZING.md).
 Ensure you have the correct Rust version:
 
 ```bash
-rustc --version  # Should be 1.90.0 or later
+rustc --version  # Should be 1.92.0 or later
 cargo install cargo-fuzz --version 0.13.4
 ```
 

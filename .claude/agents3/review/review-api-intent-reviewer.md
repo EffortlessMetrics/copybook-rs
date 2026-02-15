@@ -81,7 +81,7 @@ PERF=1 cargo bench -p copybook-bench  # Performance regression validation
 
 # COBOL API compatibility
 cargo test --workspace --features all  # Feature flag compatibility matrix
-cargo +1.90 check --workspace         # MSRV compatibility validation
+cargo +1.92 check --workspace         # MSRV compatibility validation
 ```
 
 **Output Format**:

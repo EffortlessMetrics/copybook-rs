@@ -619,7 +619,10 @@ impl PciDssValidator {
     }
 
     /// Validate PCI DSS Requirement 3: Protect stored cardholder data
-    fn validate_cardholder_data_protection(&self, context: &AuditContext) -> Vec<ComplianceViolation> {
+    fn validate_cardholder_data_protection(
+        &self,
+        context: &AuditContext,
+    ) -> Vec<ComplianceViolation> {
         let mut violations = Vec::new();
 
         // PCI DSS Requirement 3.1: Keep cardholder data storage to a minimum
@@ -638,8 +641,7 @@ impl PciDssValidator {
         }
 
         // PCI DSS Requirement 3.2: Render PAN unreadable
-        if self.config.cardholder_data_validation
-            && !context.security.encryption.at_rest_encrypted
+        if self.config.cardholder_data_validation && !context.security.encryption.at_rest_encrypted
         {
             violations.push(ComplianceViolation {
                 violation_id: "PCI-3.2-001".to_string(),
@@ -722,9 +724,14 @@ impl PciDssValidator {
                 regulation: "PCI DSS Requirement 7.1".to_string(),
                 severity: ComplianceSeverity::High,
                 title: "Inadequate Access Control".to_string(),
-                description: "Access to cardholder data is not restricted based on business need-to-know".to_string(),
-                remediation: "Implement role-based access control with least privilege principles".to_string(),
-                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+                description:
+                    "Access to cardholder data is not restricted based on business need-to-know"
+                        .to_string(),
+                remediation: "Implement role-based access control with least privilege principles"
+                    .to_string(),
+                reference_url: Some(
+                    "https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string(),
+                ),
             });
         }
 
@@ -737,9 +744,14 @@ impl PciDssValidator {
                 regulation: "PCI DSS Requirement 8.2".to_string(),
                 severity: ComplianceSeverity::High,
                 title: "Missing Multi-Factor Authentication".to_string(),
-                description: "Multi-factor authentication is not required for access to cardholder data".to_string(),
-                remediation: "Implement MFA for all access to cardholder data environments".to_string(),
-                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+                description:
+                    "Multi-factor authentication is not required for access to cardholder data"
+                        .to_string(),
+                remediation: "Implement MFA for all access to cardholder data environments"
+                    .to_string(),
+                reference_url: Some(
+                    "https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string(),
+                ),
             });
         }
 
@@ -1111,17 +1123,29 @@ mod tests {
 
         // Should have violations due to missing PCI DSS protections
         assert!(!result.violations.is_empty());
-        
+
         // Check for specific violations
-        let has_pan_storage_violation = result.violations.iter()
+        let has_pan_storage_violation = result
+            .violations
+            .iter()
             .any(|v| v.violation_id == "PCI-3.1-001");
-        assert!(has_pan_storage_violation, "Should detect full PAN storage violation");
-        
-        let has_encryption_violation = result.violations.iter()
+        assert!(
+            has_pan_storage_violation,
+            "Should detect full PAN storage violation"
+        );
+
+        let has_encryption_violation = result
+            .violations
+            .iter()
             .any(|v| v.violation_id == "PCI-3.2-001");
-        assert!(has_encryption_violation, "Should detect encryption violation");
-        
-        let has_mfa_violation = result.violations.iter()
+        assert!(
+            has_encryption_violation,
+            "Should detect encryption violation"
+        );
+
+        let has_mfa_violation = result
+            .violations
+            .iter()
             .any(|v| v.violation_id == "PCI-8.2-001");
         assert!(has_mfa_violation, "Should detect MFA violation");
     }
@@ -1148,7 +1172,10 @@ mod tests {
             .expect("PCI DSS validation should not fail in test environment");
 
         // Should have no violations with proper protections
-        assert!(result.violations.is_empty(), "Should be compliant with proper protections");
+        assert!(
+            result.violations.is_empty(),
+            "Should be compliant with proper protections"
+        );
     }
 
     #[tokio::test]
@@ -1165,12 +1192,14 @@ mod tests {
 
         // Should have recommendations for cardholder data
         assert!(!recommendations.is_empty());
-        
-        let has_tokenization_rec = recommendations.iter()
+
+        let has_tokenization_rec = recommendations
+            .iter()
             .any(|r| r.recommendation_id == "PCI-REC-001");
         assert!(has_tokenization_rec, "Should recommend tokenization");
-        
-        let has_monitoring_rec = recommendations.iter()
+
+        let has_monitoring_rec = recommendations
+            .iter()
             .any(|r| r.recommendation_id == "PCI-REC-002");
         assert!(has_monitoring_rec, "Should recommend continuous monitoring");
     }

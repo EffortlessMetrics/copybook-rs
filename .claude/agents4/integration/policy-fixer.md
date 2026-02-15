@@ -105,7 +105,7 @@ Document limitations with evidence and route appropriately rather than attemptin
 - **API Stability**: Maintain backward compatibility for COBOL copybook parsing and encoding/decoding interfaces
 
 **Configuration & Documentation:**
-- **Workspace Compliance**: Fix Cargo.toml workspace configuration, MSRV compatibility (1.90+), validate with `cargo check`
+- **Workspace Compliance**: Fix Cargo.toml workspace configuration, MSRV compatibility (1.92+), validate with `cargo check`
 - **Documentation Standards**: Maintain CLAUDE.md conventions, correct paths to docs/, examples/, fixtures/, scripts/
 - **Migration Documentation**: Fix semver classification, update breaking change guides for COBOL processing APIs
 
@@ -127,7 +127,7 @@ When creating Check Runs for `integrative:gate:policy`, use these standardized e
 - `policy: COBOL parsing performance restored, error taxonomy stability maintained`
 
 **Configuration & Documentation:**
-- `policy: workspace config validated, MSRV compatibility (1.90+) maintained`
+- `policy: workspace config validated, MSRV compatibility (1.92+) maintained`
 - `policy: docs links verified, CLAUDE.md conventions maintained, migration guides updated`
 
 **Memory Safety & Zero Unsafe:**

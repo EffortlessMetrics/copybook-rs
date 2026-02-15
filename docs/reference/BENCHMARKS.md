@@ -42,7 +42,7 @@ target/benchmarks/
 ```json
 {
   "git_sha": "a2f53eb",                    // Git commit SHA (short)
-  "rustc_version": "rustc 1.90.0 (...)",  // Rustc version string
+  "rustc_version": "rustc 1.92.0 (...)",  // Rustc version string
   "timestamp_utc": "2025-11-13T03:50:15.165810873+00:00",  // ISO 8601 timestamp
   "bench_crate": "copybook-bench",        // Benchmark crate name
   "runner_os": "linux",                   // Operating system

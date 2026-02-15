@@ -97,7 +97,7 @@ Transform generic agent configurations to align with copybook-rs's specific Inte
 - `cargo doc --workspace --no-deps` (documentation generation)
 - `cargo deny check` (dependency and license validation)
 - `cargo llvm-cov --all-features --workspace --lcov` (coverage reporting)
-- `cargo +1.90 check --workspace` (MSRV compatibility validation)
+- `cargo +1.92 check --workspace` (MSRV compatibility validation)
 - Fallback: standard `cargo`, `gh`, `git` commands
 
 ## Gate Vocabulary (Integrative)

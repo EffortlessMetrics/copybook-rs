@@ -24,7 +24,7 @@ Your primary responsibility is to validate workspace feature compatibility matri
    - **Production-Ready**: Builds pass, tests pass, performance targets maintained
    - **Degraded**: Builds pass with warnings, tests pass but performance below targets
    - **Failing**: Build failures, test failures, or enterprise validation failures
-   - **MSRV-Incompatible**: Fails on Rust 1.90+ compatibility validation
+   - **MSRV-Incompatible**: Fails on Rust 1.92+ compatibility validation
 
 3. **Apply copybook-rs Enterprise Policy**: Validate against production standards:
    - **Zero unsafe code** enforcement across all feature combinations
@@ -32,7 +32,7 @@ Your primary responsibility is to validate workspace feature compatibility matri
    - **Performance targets** maintained: DISPLAY ≥80MB/s, COMP-3 ≥40MB/s
    - **COBOL parsing reliability** for mainframe compatibility
    - **Workspace coherence** with consistent dependency versions
-   - **MSRV compatibility** with Rust 1.90+ across all features
+   - **MSRV compatibility** with Rust 1.92+ across all features
 
 4. **Generate Enterprise Gate Decision**: Produce definitive pass/fail with enterprise evidence
 
@@ -43,7 +43,7 @@ Your primary responsibility is to validate workspace feature compatibility matri
 - Zero unsafe code violations across feature matrix
 - Enterprise performance targets maintained (DISPLAY/COMP-3 benchmarks)
 - Stable error taxonomy preserved (CBKP*/CBKS*/CBKD*/CBKE* codes)
-- MSRV compatibility (Rust 1.90+) validated
+- MSRV compatibility (Rust 1.92+) validated
 - COBOL parsing reliability maintained across feature variants
 - Workspace compatibility ratio ≥90% (enterprise threshold)
 
@@ -70,7 +70,7 @@ You must produce GitHub-native receipts:
 **Check Run Summary**:
 ```
 review:gate:features = pass
-workspace: 24/25 features validated (96%), MSRV: 1.90 compatible
+workspace: 24/25 features validated (96%), MSRV: 1.92 compatible
 enterprise: DISPLAY:4.1GiB/s, COMP-3:560MiB/s maintained, unsafe:0, errors:stable
 evidence: method: xtask+cargo; combinations: default/all/none per crate; perf: PERF=1 gated
 ```
@@ -88,7 +88,7 @@ FEATURE MATRIX:
 ✅ Enterprise: unsafe:0, error taxonomy stable (CBKP*/CBKS*/CBKD*/CBKE*)
 ❌ Experimental: copybook-gen advanced features (1 combination - acceptable)
 
-MSRV COMPATIBILITY: Rust 1.90+ validated across workspace
+MSRV COMPATIBILITY: Rust 1.92+ validated across workspace
 ROUTING: → enterprise-validator (enterprise hardening required)
 ```
 
@@ -110,7 +110,7 @@ cargo xtask ci --features-matrix          # Comprehensive feature testing
 just test-features                         # Feature combination testing
 cargo test --workspace --all-features     # All features test
 cargo test --workspace --no-default-features  # Minimal features test
-cargo +1.90 check --workspace            # MSRV compatibility validation
+cargo +1.92 check --workspace            # MSRV compatibility validation
 
 # Performance validation (gated)
 PERF=1 cargo bench --package copybook-bench  # Performance benchmarks
@@ -126,7 +126,7 @@ cargo nextest run --workspace --all-features  # Test execution fallback
 - **Incomplete Matrix**: Route back to feature-tester with specific missing combinations
 - **Performance Regression**: Set `review:gate:features = fail` with performance evidence
 - **Unsafe Code Detection**: Immediate failure with clippy pedantic evidence
-- **MSRV Incompatibility**: Failure with Rust 1.90+ compatibility evidence
+- **MSRV Incompatibility**: Failure with Rust 1.92+ compatibility evidence
 - **Enterprise Policy Violation**: Document enterprise standard violations
 
 ## copybook-rs Context Awareness

@@ -158,7 +158,7 @@ fn test_enterprise_readiness_assessment() -> Result<(), Box<dyn std::error::Erro
         "_metadata": {
             "timestamp": "2025-09-28T15:30:45Z",
             "git_commit": "a1b2c3d4",
-            "rust_version": "1.90.0",
+            "rust_version": "1.92.0",
             "environment": {
                 "platform": "x86_64-unknown-linux-gnu",
                 "cpu_cores": 8

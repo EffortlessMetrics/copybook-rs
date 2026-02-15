@@ -277,7 +277,7 @@ Tests use tags for categorization:
 
 2. **test** (pull_request, push, scheduled)
    - Feature matrix: default features, `comp3_fast`, `audit`
-   - Rust matrix: MSRV 1.90.0, stable, beta
+   - Rust matrix: MSRV 1.92.0, stable, beta
    - Platform matrix: ubuntu-latest, macos-latest, windows-latest
    - Command: `cargo test --workspace`
 

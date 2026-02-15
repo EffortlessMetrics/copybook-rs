@@ -444,9 +444,7 @@ fn test_fixture_round_trip_validation() -> Result<(), Box<dyn Error>> {
 
 /// Test enterprise-scale performance with real fixtures
 /// Tests fixture integration spec: SPEC.manifest.yml#enterprise-scale-fixture-performance
-/// NOTE: Ignored by default - performance tests require --release to avoid debug-mode variance
 #[test]
-#[ignore]
 fn test_enterprise_scale_fixture_performance() -> Result<(), Box<dyn Error>> {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

@@ -46,7 +46,6 @@ toml.workspace = true
 [features]
 default = []
 audit = ["copybook-core/audit", "dep:tokio"]
-soak = []
 metrics = [
     "copybook-codec/metrics",
     "dep:metrics",

@@ -124,7 +124,7 @@ jobs:
 
     strategy:
       matrix:
-        rust-version: ['1.90.0']  # Pin to specific version for consistency
+        rust-version: ['1.92.0']  # Pin to specific version for consistency
 
     env:
       PERF: 1

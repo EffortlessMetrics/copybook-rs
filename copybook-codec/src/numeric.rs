@@ -436,17 +436,10 @@ impl SmallDecimal {
     /// Format as string with fixed scale (NORMATIVE)
     ///
     /// Always render with exactly `scale` digits after decimal point.
-    /// Special case: zero values with scale > 0 are normalized to "0" (no decimal places)
-    /// to address packed decimal zero representation inconsistency.
     #[allow(clippy::inherent_to_string)] // Intentional - this is a specific numeric formatting
     #[inline]
     #[must_use = "Use the formatted string output"]
     pub fn to_string(&self) -> String {
-        // Handle zero normalization special case first
-        if self.is_zero_value() && self.scale > 0 {
-            return "0".to_string();
-        }
-
         let mut result = String::new();
         self.append_sign_if_negative(&mut result);
         self.append_formatted_value(&mut result);
@@ -587,8 +580,14 @@ impl SmallDecimal {
         expected_scale: i16,
         negative: bool,
     ) -> Result<Self> {
-        // Integer format - validate scale is 0 (NORMATIVE)
+        // Defense-in-depth: accept bare "0" for scaled fields (e.g., user-provided JSON)
         if expected_scale != 0 {
+            let value = Self::parse_integer_component(numeric_part)?;
+            if value == 0 {
+                let mut result = Self::new(0, expected_scale, negative);
+                result.normalize();
+                return Ok(result);
+            }
             return Err(Error::new(
                 ErrorCode::CBKE505_SCALE_MISMATCH,
                 format!("Scale mismatch: expected {expected_scale} decimal places, got integer"),
@@ -4074,6 +4073,21 @@ mod tests {
         // Negative decimal
         let decimal = SmallDecimal::new(12345, 2, true);
         assert_eq!(decimal.to_string(), "-123.45");
+    }
+
+    #[test]
+    fn test_zero_with_scale_preserves_decimal_places() {
+        // Zero with scale=2 must produce "0.00" (not "0")
+        let decimal = SmallDecimal::new(0, 2, false);
+        assert_eq!(decimal.to_string(), "0.00");
+
+        // Zero with scale=1
+        let decimal = SmallDecimal::new(0, 1, false);
+        assert_eq!(decimal.to_string(), "0.0");
+
+        // Zero with scale=4 and negative flag (normalizes sign away)
+        let decimal = SmallDecimal::new(0, 4, true);
+        assert_eq!(decimal.to_string(), "0.0000");
     }
 
     proptest! {

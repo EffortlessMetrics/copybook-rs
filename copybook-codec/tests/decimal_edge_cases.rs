@@ -90,11 +90,11 @@ fn test_packed_zero_handling() {
     let decoded =
         decode_record(&schema, &encoded, &decode_options).expect("Failed to decode positive zero");
 
-    // Verify zeros are handled consistently (decoder outputs canonical form)
+    // Verify zeros are handled consistently (decoder outputs canonical form with scale)
     assert_eq!(decoded["COMP3-2-0"], "0");
-    assert_eq!(decoded["COMP3-4-2"], "0");
+    assert_eq!(decoded["COMP3-4-2"], "0.00");
     assert_eq!(decoded["COMP3-9-0"], "0");
-    assert_eq!(decoded["COMP3-14-4"], "0");
+    assert_eq!(decoded["COMP3-14-4"], "0.0000");
     assert_eq!(decoded["COMP3-UNSIGNED"], "0");
 
     // Test negative zero (should be normalized to positive zero)
@@ -113,9 +113,9 @@ fn test_packed_zero_handling() {
 
     // Negative zero should be normalized to positive zero (sign nibble F)
     assert_eq!(decoded_neg["COMP3-2-0"], "0");
-    assert_eq!(decoded_neg["COMP3-4-2"], "0");
+    assert_eq!(decoded_neg["COMP3-4-2"], "0.00");
     assert_eq!(decoded_neg["COMP3-9-0"], "0");
-    assert_eq!(decoded_neg["COMP3-14-4"], "0");
+    assert_eq!(decoded_neg["COMP3-14-4"], "0.0000");
 }
 
 /// Test maximum digits and overflow detection for packed decimals

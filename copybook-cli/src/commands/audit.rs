@@ -425,7 +425,6 @@ pub async fn run(
         .with_operation_id("cli_audit_operation")
         .with_user("cli_user");
 
-
     // Initialize audit logger if requested
     let _audit_logger = if audit_command.audit_output.is_some() {
         let config = AuditLoggerConfig {

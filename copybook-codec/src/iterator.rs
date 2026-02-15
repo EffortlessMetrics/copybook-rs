@@ -211,9 +211,9 @@
 //! ```
 
 use crate::options::{DecodeOptions, RecordFormat};
-use copybook_core::{Error, ErrorCode, Result, Schema, parse_copybook};
+use copybook_core::{Error, ErrorCode, Result, Schema};
 use serde_json::Value;
-use std::io::{BufReader, Cursor, Read};
+use std::io::{BufReader, Read};
 
 const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record length (LRECL). \
      Set `schema.lrecl_fixed` or use `RecordFormat::Variable`.";
@@ -681,6 +681,7 @@ pub fn iter_records<R: Read>(
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
+    use crate::Codepage;
     use copybook_core::parse_copybook;
     use std::io::Cursor;
 
@@ -822,7 +823,6 @@ mod tests {
             assert_eq!(e.message, FIXED_FORMAT_LRECL_MISSING);
         }
     }
-}
 
     #[test]
     fn test_iterator_schema_and_options_accessors() {
@@ -832,12 +832,14 @@ mod tests {
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = Some(8);
         let test_data = b"001ALICE";
         let cursor = Cursor::new(test_data);
 
         let options = DecodeOptions {
             format: RecordFormat::Fixed,
+            codepage: Codepage::ASCII,
             ..DecodeOptions::default()
         };
 
@@ -858,7 +860,8 @@ mod tests {
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = Some(8);
 
         // Create test data: three 8-byte fixed records
         let test_data = b"001ALICE002BOB  003CAROL";
@@ -866,6 +869,7 @@ mod tests {
 
         let options = DecodeOptions {
             format: RecordFormat::Fixed,
+            codepage: Codepage::ASCII,
             ..DecodeOptions::default()
         };
 
@@ -897,11 +901,9 @@ mod tests {
         let test_data = vec![
             // Record 1
             0x00, 0x08, 0x00, 0x00, // RDW header: length=8
-            b'0', b'0', b'1', b'A', b'L', b'I', b'C', b'E',
-            // Record 2
+            b'0', b'0', b'1', b'A', b'L', b'I', b'C', b'E', // Record 2
             0x00, 0x06, 0x00, 0x00, // RDW header: length=6
-            b'0', b'0', b'2', b'B', b'O', b'B',
-            // Record 3
+            b'0', b'0', b'2', b'B', b'O', b'B', // Record 3
             0x00, 0x08, 0x00, 0x00, // RDW header: length=8
             b'0', b'0', b'3', b'C', b'A', b'R', b'O', b'L',
         ];
@@ -910,6 +912,7 @@ mod tests {
 
         let options = DecodeOptions {
             format: RecordFormat::RDW,
+            codepage: Codepage::ASCII,
             ..DecodeOptions::default()
         };
 
@@ -1015,13 +1018,15 @@ mod tests {
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = Some(8);
 
         let test_data = b"001ALICE002BOB  003CAROL";
         let cursor = Cursor::new(test_data);
 
         let options = DecodeOptions {
             format: RecordFormat::Fixed,
+            codepage: Codepage::ASCII,
             ..DecodeOptions::default()
         };
 
@@ -1044,7 +1049,8 @@ mod tests {
                05 NAME PIC X(5).
         ";
 
-        let schema = parse_copybook(copybook_text).unwrap();
+        let mut schema = parse_copybook(copybook_text).unwrap();
+        schema.lrecl_fixed = Some(8);
 
         // Create data that will decode successfully for first record
         let test_data = b"001ALICE";
@@ -1052,6 +1058,7 @@ mod tests {
 
         let options = DecodeOptions {
             format: RecordFormat::Fixed,
+            codepage: Codepage::ASCII,
             ..DecodeOptions::default()
         };
 
@@ -1065,3 +1072,4 @@ mod tests {
         // Second call should return None (EOF)
         assert!(iterator.next().is_none());
     }
+}

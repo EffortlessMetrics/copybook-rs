@@ -736,8 +736,7 @@ impl PciDssValidator {
         }
 
         // PCI DSS Requirement 8.2: Identify and authenticate access
-        if self.config.cardholder_data_validation
-            && !context.security.access_control.multi_factor_authentication
+        if self.config.mfa_required && !context.security.access_control.multi_factor_authentication
         {
             violations.push(ComplianceViolation {
                 violation_id: "PCI-8.2-001".to_string(),

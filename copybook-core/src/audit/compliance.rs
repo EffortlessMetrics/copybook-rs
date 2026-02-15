@@ -607,7 +607,7 @@ impl ComplianceValidator for GdprValidator {
     }
 }
 
-/// PCI DSS compliance validator (placeholder)
+/// PCI DSS compliance validator
 #[derive(Default)]
 pub struct PciDssValidator {
     config: PciDssConfig,
@@ -617,6 +617,183 @@ impl PciDssValidator {
     pub fn new(config: PciDssConfig) -> Self {
         Self { config }
     }
+
+    /// Validate PCI DSS Requirement 3: Protect stored cardholder data
+    fn validate_cardholder_data_protection(
+        &self,
+        context: &AuditContext,
+    ) -> Vec<ComplianceViolation> {
+        let mut violations = Vec::new();
+
+        // PCI DSS Requirement 3.1: Keep cardholder data storage to a minimum
+        if self.config.cardholder_data_validation
+            && context.metadata.contains_key("stores_full_pan")
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-3.1-001".to_string(),
+                regulation: "PCI DSS Requirement 3.1".to_string(),
+                severity: ComplianceSeverity::Critical,
+                title: "Full PAN Storage Detected".to_string(),
+                description: "Full Primary Account Number (PAN) is being stored in violation of PCI DSS data minimization requirements".to_string(),
+                remediation: "Implement PAN truncation (display only first 6 and last 4 digits) or use tokenization".to_string(),
+                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+            });
+        }
+
+        // PCI DSS Requirement 3.2: Render PAN unreadable
+        if self.config.cardholder_data_validation && !context.security.encryption.at_rest_encrypted
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-3.2-001".to_string(),
+                regulation: "PCI DSS Requirement 3.2".to_string(),
+                severity: ComplianceSeverity::Critical,
+                title: "Cardholder Data Not Encrypted at Rest".to_string(),
+                description: "Cardholder data is stored without encryption at rest".to_string(),
+                remediation: "Implement strong cryptography (AES-256 or equivalent) for all cardholder data at rest".to_string(),
+                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+            });
+        }
+
+        // PCI DSS Requirement 3.4: Render PAN unreadable when displayed
+        if self.config.cardholder_data_validation
+            && context.metadata.contains_key("displays_full_pan")
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-3.4-001".to_string(),
+                regulation: "PCI DSS Requirement 3.4".to_string(),
+                severity: ComplianceSeverity::High,
+                title: "Full PAN Displayed in Logs/UI".to_string(),
+                description: "Full PAN is displayed in logs or user interface in violation of PCI DSS masking requirements".to_string(),
+                remediation: "Implement PAN masking to display only first 6 and last 4 digits (e.g., XXXXXX123456XXXX)".to_string(),
+                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+            });
+        }
+
+        // PCI DSS Requirement 3.5: Protect cryptographic keys
+        if self.config.cardholder_data_validation
+            && context.security.encryption.at_rest_encrypted
+            && !context.security.audit_requirements.key_management
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-3.5-001".to_string(),
+                regulation: "PCI DSS Requirement 3.5".to_string(),
+                severity: ComplianceSeverity::Critical,
+                title: "Inadequate Key Management".to_string(),
+                description: "Cryptographic keys are not properly managed according to PCI DSS requirements".to_string(),
+                remediation: "Implement secure key generation, distribution, storage, rotation, and destruction processes".to_string(),
+                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+            });
+        }
+
+        violations
+    }
+
+    /// Validate PCI DSS Requirement 4: Encrypt transmission of cardholder data
+    fn validate_transmission_encryption(&self, context: &AuditContext) -> Vec<ComplianceViolation> {
+        let mut violations = Vec::new();
+
+        // PCI DSS Requirement 4.1: Use strong cryptography
+        if self.config.cardholder_data_validation
+            && context.metadata.contains_key("transmits_cardholder_data")
+            && !context.security.encryption.transit_encrypted
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-4.1-001".to_string(),
+                regulation: "PCI DSS Requirement 4.1".to_string(),
+                severity: ComplianceSeverity::Critical,
+                title: "Unencrypted Cardholder Data Transmission".to_string(),
+                description: "Cardholder data is transmitted over open networks without encryption".to_string(),
+                remediation: "Implement TLS 1.2 or higher with strong cipher suites for all cardholder data transmission".to_string(),
+                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+            });
+        }
+
+        violations
+    }
+
+    /// Validate PCI DSS Requirement 7: Restrict access to cardholder data
+    fn validate_access_controls(&self, context: &AuditContext) -> Vec<ComplianceViolation> {
+        let mut violations = Vec::new();
+
+        // PCI DSS Requirement 7.1: Limit access based on need-to-know
+        if self.config.cardholder_data_validation
+            && !context.security.access_control.role_based_access
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-7.1-001".to_string(),
+                regulation: "PCI DSS Requirement 7.1".to_string(),
+                severity: ComplianceSeverity::High,
+                title: "Inadequate Access Control".to_string(),
+                description:
+                    "Access to cardholder data is not restricted based on business need-to-know"
+                        .to_string(),
+                remediation: "Implement role-based access control with least privilege principles"
+                    .to_string(),
+                reference_url: Some(
+                    "https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string(),
+                ),
+            });
+        }
+
+        // PCI DSS Requirement 8.2: Identify and authenticate access
+        if self.config.cardholder_data_validation
+            && !context.security.access_control.multi_factor_authentication
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-8.2-001".to_string(),
+                regulation: "PCI DSS Requirement 8.2".to_string(),
+                severity: ComplianceSeverity::High,
+                title: "Missing Multi-Factor Authentication".to_string(),
+                description:
+                    "Multi-factor authentication is not required for access to cardholder data"
+                        .to_string(),
+                remediation: "Implement MFA for all access to cardholder data environments"
+                    .to_string(),
+                reference_url: Some(
+                    "https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string(),
+                ),
+            });
+        }
+
+        violations
+    }
+
+    /// Validate PCI DSS Requirement 10: Track and monitor all access
+    fn validate_audit_logging(&self, context: &AuditContext) -> Vec<ComplianceViolation> {
+        let mut violations = Vec::new();
+
+        // PCI DSS Requirement 10.1: Implement audit trails
+        if self.config.cardholder_data_validation
+            && !context.security.audit_requirements.comprehensive_logging
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-10.1-001".to_string(),
+                regulation: "PCI DSS Requirement 10.1".to_string(),
+                severity: ComplianceSeverity::High,
+                title: "Inadequate Audit Trails".to_string(),
+                description: "Comprehensive audit trails for all access to cardholder data are not implemented".to_string(),
+                remediation: "Implement audit trails that record all access to cardholder data, including user identity, timestamp, and action".to_string(),
+                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+            });
+        }
+
+        // PCI DSS Requirement 10.5.1: Secure audit trails
+        if self.config.cardholder_data_validation
+            && !context.security.audit_requirements.integrity_protection
+        {
+            violations.push(ComplianceViolation {
+                violation_id: "PCI-10.5.1-001".to_string(),
+                regulation: "PCI DSS Requirement 10.5.1".to_string(),
+                severity: ComplianceSeverity::High,
+                title: "Audit Trail Integrity Not Protected".to_string(),
+                description: "Audit trails are not protected against tampering or unauthorized modification".to_string(),
+                remediation: "Implement cryptographic integrity checks and immutable logging for audit trails".to_string(),
+                reference_url: Some("https://www.pcisecuritystandards.org/documents/PCI_DSS_v4-0.pdf".to_string()),
+            });
+        }
+
+        violations
+    }
 }
 
 #[async_trait::async_trait]
@@ -625,24 +802,67 @@ impl ComplianceValidator for PciDssValidator {
         &self,
         context: &AuditContext,
     ) -> AuditResult<ComplianceValidationResult> {
-        let violations = Vec::new();
+        let mut violations = Vec::new();
+        let mut warnings = Vec::new();
+
+        // Only validate if cardholder data is involved
         if self.config.cardholder_data_validation
-            && context.metadata.contains_key("has_cardholder_data")
+            && (context.metadata.contains_key("has_cardholder_data")
+                || context.metadata.contains_key("stores_full_pan")
+                || context.metadata.contains_key("transmits_cardholder_data"))
         {
-            // Placeholder for actual PCI DSS validation logic
-            // e.g., check for PAN truncation, encryption, etc.
+            violations.extend(self.validate_cardholder_data_protection(context));
+            violations.extend(self.validate_transmission_encryption(context));
+            violations.extend(self.validate_access_controls(context));
+            violations.extend(self.validate_audit_logging(context));
+
+            // PCI DSS Requirement 12: Maintain information security policy
+            if !context.metadata.contains_key("pci_security_policy") {
+                warnings.push(ComplianceWarning {
+                    warning_id: "PCI-12-001".to_string(),
+                    title: "Security Policy Not Documented".to_string(),
+                    description: "PCI DSS security policy documentation is not referenced".to_string(),
+                    recommendation: "Ensure PCI DSS information security policy is documented and communicated to all personnel".to_string(),
+                });
+            }
         }
+
         Ok(ComplianceValidationResult {
             violations,
-            warnings: Vec::new(),
+            warnings,
         })
     }
 
     async fn generate_recommendations(
         &self,
-        _context: &AuditContext,
+        context: &AuditContext,
     ) -> AuditResult<Vec<ComplianceRecommendation>> {
-        Ok(Vec::new())
+        let mut recommendations = Vec::new();
+
+        if self.config.cardholder_data_validation
+            && (context.metadata.contains_key("has_cardholder_data")
+                || context.metadata.contains_key("stores_full_pan"))
+        {
+            recommendations.push(ComplianceRecommendation {
+                recommendation_id: "PCI-REC-001".to_string(),
+                priority: RecommendationPriority::Critical,
+                title: "Implement Tokenization for Cardholder Data".to_string(),
+                description: "Replace sensitive cardholder data with non-sensitive equivalents (tokens) to reduce PCI DSS scope".to_string(),
+                implementation_effort: "4-6 weeks".to_string(),
+                compliance_benefit: "Significantly reduces PCI DSS compliance scope and risk exposure".to_string(),
+            });
+
+            recommendations.push(ComplianceRecommendation {
+                recommendation_id: "PCI-REC-002".to_string(),
+                priority: RecommendationPriority::High,
+                title: "Implement Continuous Compliance Monitoring".to_string(),
+                description: "Deploy automated monitoring for PCI DSS compliance with real-time violation detection".to_string(),
+                implementation_effort: "3-4 weeks".to_string(),
+                compliance_benefit: "Ensures ongoing PCI DSS compliance and reduces audit preparation time".to_string(),
+            });
+        }
+
+        Ok(recommendations)
     }
 }
 
@@ -729,12 +949,20 @@ impl Default for GdprConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PciDssConfig {
     pub cardholder_data_validation: bool,
+    pub pan_truncation_required: bool,
+    pub encryption_required: bool,
+    pub mfa_required: bool,
+    pub audit_logging_required: bool,
 }
 
 impl Default for PciDssConfig {
     fn default() -> Self {
         Self {
             cardholder_data_validation: true,
+            pan_truncation_required: true,
+            encryption_required: true,
+            mfa_required: true,
+            audit_logging_required: true,
         }
     }
 }
@@ -875,6 +1103,105 @@ mod tests {
 
         // Should have violations due to missing PHI protections in default context
         assert!(!result.violations.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_pci_dss_compliance_validation() {
+        let mut context = AuditContext::new()
+            .with_metadata("has_cardholder_data", "true")
+            .with_metadata("stores_full_pan", "true");
+
+        // Set up context with violations
+        context.security.encryption.at_rest_encrypted = false;
+        context.security.access_control.multi_factor_authentication = false;
+
+        let pci_validator = PciDssValidator::new(PciDssConfig::default());
+        let result = pci_validator
+            .validate_operation(&context)
+            .await
+            .expect("PCI DSS validation should not fail in test environment");
+
+        // Should have violations due to missing PCI DSS protections
+        assert!(!result.violations.is_empty());
+
+        // Check for specific violations
+        let has_pan_storage_violation = result
+            .violations
+            .iter()
+            .any(|v| v.violation_id == "PCI-3.1-001");
+        assert!(
+            has_pan_storage_violation,
+            "Should detect full PAN storage violation"
+        );
+
+        let has_encryption_violation = result
+            .violations
+            .iter()
+            .any(|v| v.violation_id == "PCI-3.2-001");
+        assert!(
+            has_encryption_violation,
+            "Should detect encryption violation"
+        );
+
+        let has_mfa_violation = result
+            .violations
+            .iter()
+            .any(|v| v.violation_id == "PCI-8.2-001");
+        assert!(has_mfa_violation, "Should detect MFA violation");
+    }
+
+    #[tokio::test]
+    async fn test_pci_dss_compliant_context() {
+        let mut context = AuditContext::new()
+            .with_metadata("has_cardholder_data", "true")
+            .with_metadata("pci_security_policy", "documented");
+
+        // Set up context with proper protections
+        context.security.encryption.at_rest_encrypted = true;
+        context.security.encryption.transit_encrypted = true;
+        context.security.access_control.multi_factor_authentication = true;
+        context.security.access_control.role_based_access = true;
+        context.security.audit_requirements.comprehensive_logging = true;
+        context.security.audit_requirements.integrity_protection = true;
+        context.security.audit_requirements.key_management = true;
+
+        let pci_validator = PciDssValidator::new(PciDssConfig::default());
+        let result = pci_validator
+            .validate_operation(&context)
+            .await
+            .expect("PCI DSS validation should not fail in test environment");
+
+        // Should have no violations with proper protections
+        assert!(
+            result.violations.is_empty(),
+            "Should be compliant with proper protections"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_pci_dss_recommendations() {
+        let context = AuditContext::new()
+            .with_metadata("has_cardholder_data", "true")
+            .with_metadata("stores_full_pan", "true");
+
+        let pci_validator = PciDssValidator::new(PciDssConfig::default());
+        let recommendations = pci_validator
+            .generate_recommendations(&context)
+            .await
+            .expect("PCI DSS recommendations should not fail in test environment");
+
+        // Should have recommendations for cardholder data
+        assert!(!recommendations.is_empty());
+
+        let has_tokenization_rec = recommendations
+            .iter()
+            .any(|r| r.recommendation_id == "PCI-REC-001");
+        assert!(has_tokenization_rec, "Should recommend tokenization");
+
+        let has_monitoring_rec = recommendations
+            .iter()
+            .any(|r| r.recommendation_id == "PCI-REC-002");
+        assert!(has_monitoring_rec, "Should recommend continuous monitoring");
     }
 
     #[test]

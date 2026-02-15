@@ -1,15 +1,13 @@
 name: Perf Receipts
 on:
-  # Run on demand, nightly, release tags, and opt-in PRs
+  # Run on demand, nightly, release tags, and all PRs
   workflow_dispatch:
   schedule:
     - cron: '0 3 * * *'   # nightly at 03:00 UTC
   push:
     tags:
       - 'v*'   # run on version tags (e.g., v0.3.1, v1.0.0)
-  # Opt-in for PRs via 'run-perf' label
   pull_request:
-    types: [labeled]
     paths:
       - "copybook-bench/**"
       - "copybook-codec/**"
@@ -29,10 +27,7 @@ permissions:
 
 jobs:
   perf:
-    # Only run on PRs when 'run-perf' label is present; always run on push/schedule/dispatch
-    if: |
-      github.event_name != 'pull_request' ||
-      contains(github.event.pull_request.labels.*.name, 'run-perf')
+    # Run on all PRs with relevant path changes, and always on push/schedule/dispatch
     runs-on: ubuntu-latest
 
     # Canonical Performance Environment
@@ -219,7 +214,7 @@ jobs:
           echo "display_delta=$DISPLAY_DELTA" >> "$GITHUB_OUTPUT"
           echo "comp3_delta=$COMP3_DELTA" >> "$GITHUB_OUTPUT"
           
-          # Determine status (advisory mode: warn on >5% regression, never fail)
+          # Determine status (blocking mode: fail on >5% regression)
           STATUS="pass"
           WARNINGS=""
           
@@ -227,16 +222,16 @@ jobs:
           if [[ "$DISPLAY_DELTA" != "N/A" ]]; then
             DELTA_NUM=$(echo "$DISPLAY_DELTA" | awk '{print $1}')
             if (( $(echo "$DELTA_NUM < -5" | bc -l) )); then
-              STATUS="warn"
-              WARNINGS="$WARNINGS\n- DISPLAY: ${DISPLAY_DELTA}% regression (warn threshold: -5%)"
+              STATUS="fail"
+              WARNINGS="$WARNINGS\n- DISPLAY: ${DISPLAY_DELTA}% regression (fail threshold: -5%)"
             fi
           fi
           
           if [[ "$COMP3_DELTA" != "N/A" ]]; then
             DELTA_NUM=$(echo "$COMP3_DELTA" | awk '{print $1}')
             if (( $(echo "$DELTA_NUM < -5" | bc -l) )); then
-              STATUS="warn"
-              WARNINGS="$WARNINGS\n- COMP-3: ${COMP3_DELTA}% regression (warn threshold: -5%)"
+              STATUS="fail"
+              WARNINGS="$WARNINGS\n- COMP-3: ${COMP3_DELTA}% regression (fail threshold: -5%)"
             fi
           fi
           
@@ -257,6 +252,12 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "⚠️ **Warnings**:" >> "$GITHUB_STEP_SUMMARY"
             echo -e "$WARNINGS" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          # Fail the job if status is fail (blocking regression gate)
+          if [[ "$STATUS" == "fail" ]]; then
+            echo "::error::Performance regression detected! See summary for details."
+            exit 1
           fi
 
       - name: Calculate enterprise overhead

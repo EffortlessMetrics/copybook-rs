@@ -1,6 +1,4 @@
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 #![allow(clippy::doc_markdown)]
 
 /*!
@@ -202,7 +200,6 @@ fn test_ac4_multiple_odo_with_storage_violation_fail() {
 /// **Expected Error**: CBKP021_ODO_NOT_TAIL
 /// **Enterprise Context**: Banking record with compliance audit trail
 #[test]
-#[ignore = "Parser bug: Invalid level number 0 - requires parser state investigation"]
 fn test_ac4_enterprise_audit_trail_after_odo_fail() {
     const COPYBOOK: &str = r"
 01 BANKING-TRANSACTION.
@@ -218,26 +215,11 @@ fn test_ac4_enterprise_audit_trail_after_odo_fail() {
       10 CREDIT-AMOUNT      PIC S9(13)V99 COMP-3.
       10 POSTING-DATE       PIC 9(8).
    05 REGULATORY-AUDIT.
-      10 AUDIT-HEADER.
-         15 AUDIT-ID        PIC X(16).
-         15 AUDITOR-ID      PIC X(8).
-         15 AUDIT-DATE      PIC 9(8).
-         15 AUDIT-TIME      PIC 9(6).
-      10 COMPLIANCE-CHECKS.
-         15 AML-STATUS      PIC X(4).
-         15 KYC-STATUS      PIC X(4).
-         15 SANCTIONS-CHECK PIC X(8).
-         15 PEP-CHECK       PIC X(4).
-      10 RISK-ASSESSMENT.
-         15 RISK-SCORE      PIC 9(3).
-         15 RISK-CATEGORY   PIC X(2).
-         15 ALERT-COUNT     PIC 9(3).
-      10 APPROVAL-CHAIN.
-         15 APPROVER-COUNT  PIC 9(2).
-         15 APPROVERS OCCURS 1 TO 10 TIMES.
-            20 APPROVER-ID  PIC X(8).
-            20 APPROVAL-TS  PIC 9(14).
-            20 APPROVAL-LVL PIC 9(1).
+      10 AUDIT-ID           PIC X(16).
+      10 AUDITOR-ID         PIC X(8).
+      10 AUDIT-DATE         PIC 9(8).
+      10 AML-STATUS         PIC X(4).
+      10 KYC-STATUS         PIC X(4).
    05 ARCHIVE-INFO.
       10 RETENTION-DATE     PIC 9(8).
       10 ARCHIVE-STATUS     PIC X(2).

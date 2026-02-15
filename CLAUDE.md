@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 copybook-rs is a Rust workspace for enterprise mainframe data processing. Provides comprehensive COBOL copybook parsing and data conversion with focus on correctness and safety.
 
-**Status**: **Engineering Preview** (v0.4.0) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
+**Status**: **Engineering Preview** (v0.4.3) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
-**Quality**: 840+ tests passing (24 skipped for external tool requirements), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (40+ error codes), 85+ workspace-inherited dependencies
+**Quality**: 1550+ tests passing (68 skipped/ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (40+ error codes), 85+ workspace-inherited dependencies
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
-**MSRV**: Rust 1.90 enforced at workspace level and validated in CI (see .github/workflows/ci.yml).
+**MSRV**: Rust 1.92 enforced at workspace level and validated in CI (see .github/workflows/ci.yml).
 
 See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
 
@@ -232,7 +232,7 @@ Structured error taxonomy with stable codes:
 
 ## Requirements
 
-- Rust 1.90+ (MSRV), Edition 2024
+- Rust 1.92+ (MSRV), Edition 2024
 - Workspace dependencies for consistent versions
 
 ## Performance
@@ -282,7 +282,7 @@ docker run -v $(pwd)/output:/workspace/output copybook-rs-bench
 ```
 
 Provides reproducible benchmark environment with:
-- Rust 1.90 toolchain (MSRV)
+- Rust 1.92 toolchain (MSRV)
 - All benchmark dependencies pre-installed
 - Automated perf.json receipt generation
 - Performance summary with SLO comparison
@@ -298,7 +298,7 @@ The Golden Fixtures framework provides comprehensive structural validation for e
 - **Enterprise Scenarios**: Production mainframe patterns from banking, insurance, retail, manufacturing
 - **Performance Integration**: Automated performance regression detection with baselines
 - **SHA-256 Verification**: Cryptographic validation of test outputs for consistency
-- **Comprehensive Coverage**: Golden fixtures form a substantial subset of the 840+ tests in the workspace, covering ODO, Level-88, REDEFINES, and enterprise layouts
+- **Comprehensive Coverage**: Golden fixtures form a substantial subset of the 1550+ tests in the workspace, covering ODO, Level-88, REDEFINES, and enterprise layouts
 
 ### Usage Patterns
 

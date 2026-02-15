@@ -1,7 +1,6 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::if_not_else, clippy::unnecessary_wraps)]
-#![allow(clippy::ignore_without_reason)]
 #![allow(clippy::panic)]
 #![allow(clippy::uninlined_format_args)] // Test output formatting for clarity
 
@@ -24,29 +23,9 @@
 /// - AC8: User-friendly error messages with structured error taxonomy
 mod common;
 
-use common::{TestResult, bin};
-
-#[cfg(feature = "soak")]
-use common::write_file;
-#[cfg(feature = "soak")]
+use common::{TestResult, bin, write_file};
 use std::fs;
-#[cfg(feature = "soak")]
 use std::process::Command;
-
-#[cfg(feature = "soak")]
-fn soak_enabled() -> bool {
-    std::env::var("COPYBOOK_TEST_SLOW").as_deref() == Ok("1")
-}
-
-#[cfg(feature = "soak")]
-fn skip_if_soak_disabled() -> bool {
-    if !soak_enabled() {
-        eprintln!("Skipping soak-only panic elimination test (set COPYBOOK_TEST_SLOW=1 to run).");
-        true
-    } else {
-        false
-    }
-}
 
 #[test]
 fn panic_elimination_cli_smoke() -> TestResult<()> {
@@ -64,7 +43,6 @@ fn panic_elimination_cli_smoke() -> TestResult<()> {
     Ok(())
 }
 
-#[cfg(feature = "soak")]
 mod panic_elimination_cli_command_tests {
     use super::*;
 
@@ -72,11 +50,7 @@ mod panic_elimination_cli_command_tests {
     /// AC:63-13 - CLI command execution with safe argument processing
 
     #[test] // AC:63-13-1 Parse command argument safety
-    #[ignore]
     fn test_parse_command_argument_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Parse command with invalid arguments that could cause panics
         let test_copybook_content = r"
        01 TEST-RECORD.
@@ -116,11 +90,7 @@ mod panic_elimination_cli_command_tests {
     }
 
     #[test] // AC:63-13-2 Inspect command file handling safety
-    #[ignore]
     fn test_inspect_command_file_handling_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Inspect command with missing or invalid files
         let nonexistent_path = std::env::temp_dir().join("nonexistent_file.cpy");
 
@@ -154,11 +124,7 @@ mod panic_elimination_cli_command_tests {
     }
 
     #[test] // AC:63-13-3 Decode command option validation safety
-    #[ignore]
     fn test_decode_command_option_validation_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Decode command with invalid option combinations
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(10).";
         let test_data = vec![b'T'; 10];
@@ -217,11 +183,7 @@ mod panic_elimination_cli_command_tests {
     }
 
     #[test] // AC:63-13-4 Encode command data processing safety
-    #[ignore]
     fn test_encode_command_data_processing_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Encode command with malformed JSON data
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(10).";
         let invalid_json_data = r#"{"FIELD": "valid"} invalid json follows"#;
@@ -279,11 +241,7 @@ mod panic_elimination_cli_command_tests {
     }
 
     #[test] // AC:63-13-5 Verify command integration safety
-    #[ignore]
     fn test_verify_command_integration_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Verify command with mismatched copybook and data
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(20)."; // Expects 20 bytes
         let test_data = vec![b'T'; 10]; // Only 10 bytes
@@ -350,7 +308,6 @@ mod panic_elimination_cli_command_tests {
     }
 }
 
-#[cfg(feature = "soak")]
 mod panic_elimination_cli_audit_tests {
     use super::*;
 
@@ -358,11 +315,7 @@ mod panic_elimination_cli_audit_tests {
     /// AC:63-14 - CLI audit integration with safe event processing
 
     #[test] // AC:63-14-1 Audit event generation safety
-    #[ignore]
     fn test_audit_event_generation_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: CLI operations that generate audit events
         let test_copybook_content = r"
        01 AUDIT-TEST-RECORD.
@@ -418,11 +371,7 @@ mod panic_elimination_cli_audit_tests {
     }
 
     #[test] // AC:63-14-2 Audit serialization safety
-    #[ignore]
     fn test_audit_serialization_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Complex operations that stress audit serialization
         let complex_copybook_content = r"
        01 COMPLEX-AUDIT-RECORD.
@@ -484,11 +433,7 @@ mod panic_elimination_cli_audit_tests {
     }
 
     #[test] // AC:63-14-3 Audit context preservation safety
-    #[ignore]
     fn test_audit_context_preservation_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Operations that require audit context preservation
         let context_copybook_content = r"
        01 CONTEXT-RECORD.
@@ -545,11 +490,7 @@ mod panic_elimination_cli_audit_tests {
     }
 
     #[test] // AC:63-14-4 Audit error recovery safety
-    #[ignore]
     fn test_audit_error_recovery_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Error conditions that trigger audit error recovery
         let malformed_copybook_content = r"
        01 MALFORMED-RECORD.
@@ -608,7 +549,6 @@ mod panic_elimination_cli_audit_tests {
     }
 }
 
-#[cfg(feature = "soak")]
 mod panic_elimination_cli_utils_tests {
     use super::*;
 
@@ -616,11 +556,7 @@ mod panic_elimination_cli_utils_tests {
     /// AC:63-15 - CLI utility functions with safe file operations
 
     #[test] // AC:63-15-1 File path validation safety
-    #[ignore]
     fn test_file_path_validation_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: CLI operations with invalid file paths
         let invalid_paths = vec![
             "",                      // Empty path
@@ -671,11 +607,7 @@ mod panic_elimination_cli_utils_tests {
     }
 
     #[test] // AC:63-15-2 File I/O operation safety
-    #[ignore]
     fn test_file_io_operation_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: CLI operations with file I/O that could fail
         let temp_dir = std::env::temp_dir();
         let readonly_path = temp_dir.join("readonly_test.cpy");
@@ -734,11 +666,7 @@ mod panic_elimination_cli_utils_tests {
     }
 
     #[test] // AC:63-15-3 Configuration parsing safety
-    #[ignore]
     fn test_configuration_parsing_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: CLI configuration parsing with invalid values
         let test_copybook_content = "       01 RECORD.\n           05 FIELD PIC X(10).";
         let test_data = vec![b'T'; 10];
@@ -821,7 +749,6 @@ mod panic_elimination_cli_utils_tests {
     }
 }
 
-#[cfg(feature = "soak")]
 mod panic_elimination_cli_integration_tests {
     use super::*;
 
@@ -829,12 +756,8 @@ mod panic_elimination_cli_integration_tests {
     /// AC:63-16 - End-to-end CLI safety validation
 
     #[test] // AC:63-16-1 Command pipeline safety
-    #[ignore]
     #[allow(clippy::too_many_lines)] // Test infrastructure for complex pipeline validation
     fn test_command_pipeline_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Full CLI pipeline from parse to decode to verify
         let pipeline_copybook_content = r"
        01 PIPELINE-RECORD.
@@ -969,11 +892,7 @@ mod panic_elimination_cli_integration_tests {
     }
 
     #[test] // AC:63-16-2 Error propagation safety
-    #[ignore]
     fn test_error_propagation_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Error propagation through CLI layers without panics
         let error_test_scenarios = vec![
             ("empty_copybook", ""),
@@ -1029,11 +948,7 @@ mod panic_elimination_cli_integration_tests {
     }
 
     #[test] // AC:63-16-3 Resource cleanup safety
-    #[ignore]
     fn test_resource_cleanup_safety() -> TestResult<()> {
-        if super::skip_if_soak_disabled() {
-            return Ok(());
-        }
         // Test case: Resource cleanup during error conditions
         let cleanup_copybook_content = r"
        01 CLEANUP-RECORD.

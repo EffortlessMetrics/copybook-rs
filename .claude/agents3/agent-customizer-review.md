@@ -116,7 +116,7 @@ just ci-full                     # Full orchestrated build pipeline
 just ci-quick                    # Quick orchestrated build pipeline
 cargo deny check                 # Dependency and license validation
 cargo llvm-cov --all-features --workspace --lcov  # Coverage analysis
-cargo +1.90 check --workspace    # MSRV compatibility validation
+cargo +1.92 check --workspace    # MSRV compatibility validation
 ```
 
 ### Command Pattern Adaptation
@@ -139,7 +139,7 @@ Replace generic commands with copybook-rs patterns:
 
 - Run **workspace feature validation** for affected crates:
   - Validate default features, all features, and no-default-features combinations
-  - Test MSRV compatibility with `cargo +1.90 check --workspace`
+  - Test MSRV compatibility with `cargo +1.92 check --workspace`
   - Validate workspace member feature compatibility
 - If over budget/timeboxed, set `review:gate:features = skipped (bounded by policy)` and list untested combinations in summary.
 
@@ -227,7 +227,7 @@ Standard evidence formats for Gates table (keep scannable):
 - clippy: `clippy: 0 warnings (workspace + pedantic)`
 - tests: `nextest: 127/127 pass; quarantined: k (linked)` or `cargo test: <n>/<n> pass`
 - build: `build: workspace release ok`
-- features: `workspace: X/Y features validated` or `MSRV: 1.90 compatible`
+- features: `workspace: X/Y features validated` or `MSRV: 1.92 compatible`
 - enterprise: `DISPLAY:4.2GiB/s, COMP-3:580MiB/s, unsafe:0, errors:stable`
 - benchmarks: `PERF=1: baseline established, targets exceeded`
 - perf: `enterprise targets maintained, Δ ≤ threshold`

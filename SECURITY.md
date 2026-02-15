@@ -118,11 +118,11 @@ copybook-rs implements multiple layers of security controls to ensure safe opera
 - **Memory Safety**: Rust's ownership model prevents buffer overflows, use-after-free, and data races
 - **Clippy Pedantic Enforcement**: All code passes `cargo clippy --workspace -- -D warnings -W clippy::pedantic`
 - **Edition 2024**: Modern Rust edition with enhanced safety guarantees
-- **MSRV Policy**: Rust 1.90+ enforced at workspace level and validated in CI
+- **MSRV Policy**: Rust 1.92+ enforced at workspace level and validated in CI
 
 ### Testing & Validation
 
-- **Comprehensive Test Suite**: 840+ tests passing (24 skipped for external tool requirements)
+- **Comprehensive Test Suite**: 1550+ tests passing (68 skipped/ignored)
 - **Golden Fixtures**: SHA-256 verification of test outputs with structural validation
 - **Determinism Validation**: Byte-identical results across runs and worker configurations
 - **Error Taxonomy**: Stable error codes (CBKP*, CBKS*, CBKD*, CBKE*, CBKR*) for predictable error handling

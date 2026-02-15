@@ -127,7 +127,7 @@ cargo build --workspace --release                                 # Production b
 PERF=1 cargo bench -p copybook-bench                             # Enterprise performance benchmarks
 cargo deny check                                                  # Security and license validation
 cargo llvm-cov --all-features --workspace --lcov                 # Coverage reporting
-cargo +1.90 check --workspace                                     # MSRV compatibility validation
+cargo +1.92 check --workspace                                     # MSRV compatibility validation
 
 # copybook-rs xtask + just integration
 cargo xtask ci                                                    # Comprehensive CI validation

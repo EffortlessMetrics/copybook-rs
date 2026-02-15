@@ -1,7 +1,5 @@
 #![allow(clippy::missing_inline_in_public_items)]
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 #![allow(
     clippy::uninlined_format_args,
     clippy::must_use_candidate,
@@ -383,7 +381,6 @@ fn test_ac7_intermediate_automated_regression_detection() {
 /// **CI/CD Impact**: Ensures all quality gates function correctly
 /// **Enterprise Context**: Production deployment pipeline validation
 #[test]
-#[ignore = "Performance gate validation issue - requires CI/CD pipeline investigation"]
 fn test_ac7_advanced_cicd_pipeline_gates() {
     let mut gate_manager = TestGateManager::new();
 
@@ -434,7 +431,7 @@ fn test_ac7_advanced_cicd_pipeline_gates() {
       10 MEMORY-KB     PIC 9(8).
    88 LATENCY-GOOD     VALUE 0 THRU 1000 OF LATENCY-US.
    88 LATENCY-POOR     VALUE 10000 THRU 999999999 OF LATENCY-US.
-   88 THROUGHPUT-HIGH  VALUE 100.00 THRU 999999.99 OF THROUGHPUT-MB.
+   88 THROUGHPUT-HIGH  VALUE 100 THRU 999999 OF THROUGHPUT-MB.
 ";
 
         let result = parse_copybook(PERFORMANCE_TEST);

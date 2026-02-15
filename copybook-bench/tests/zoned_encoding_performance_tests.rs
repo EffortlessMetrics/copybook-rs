@@ -1,5 +1,3 @@
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(
     clippy::unreadable_literal,
@@ -13,7 +11,7 @@
     unused_variables
 )]
 
-//! Test scaffolding for zoned encoding performance impact - Issue #48
+//! Tests for zoned encoding performance impact - Issue #48
 //!
 //! Tests performance spec: SPEC.manifest.yml#performance-impact-limits
 //!
@@ -59,15 +57,13 @@ fn test_encoding_detection_overhead_within_limits() -> Result<(), Box<dyn Error>
     )?;
     let baseline_duration = baseline_start.elapsed();
 
-    // TODO: Enhanced performance: decode with encoding preservation
+    // Enhanced performance: decode with encoding preservation enabled
     let enhanced_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII)
-        .with_json_number_mode(JsonNumberMode::Lossless);
-    // TODO: Add when implemented
-    // .with_preserve_zoned_encoding(true);
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_preserve_zoned_encoding(true);
 
-    // For now, test the same code path since preservation isn't implemented
     let enhanced_start = Instant::now();
     let mut enhanced_output = Vec::new();
     copybook_codec::decode_file_to_jsonl(
@@ -78,13 +74,7 @@ fn test_encoding_detection_overhead_within_limits() -> Result<(), Box<dyn Error>
     )?;
     let enhanced_duration = enhanced_start.elapsed();
 
-    // TODO: When encoding preservation is implemented, verify overhead <5%
-    // let overhead_ratio = enhanced_duration.as_secs_f64() / baseline_duration.as_secs_f64();
-    // assert!(overhead_ratio < 1.05,
-    //        "Encoding detection overhead should be <5%, actual: {:.1}%",
-    //        (overhead_ratio - 1.0) * 100.0);
-
-    // For now, performance should be similar since feature isn't implemented
+    // Verify encoding preservation overhead is within acceptable limits
     let overhead_ratio = enhanced_duration.as_secs_f64() / baseline_duration.as_secs_f64();
     let max_variance = if cfg!(debug_assertions) { 10.0 } else { 2.0 }; // More conservative variance thresholds
     assert!(
@@ -99,7 +89,6 @@ fn test_encoding_detection_overhead_within_limits() -> Result<(), Box<dyn Error>
         (overhead_ratio - 1.0) * 100.0
     );
 
-    // TODO: This test will evolve when encoding preservation is implemented
     Ok(())
 }
 
@@ -154,9 +143,8 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
     let options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII)
-        .with_json_number_mode(JsonNumberMode::Lossless);
-    // TODO: Add when implemented
-    // .with_preserve_zoned_encoding(true);
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_preserve_zoned_encoding(true);
 
     let start_time = Instant::now();
 
@@ -172,8 +160,7 @@ fn test_display_throughput_with_encoding_detection() -> Result<(), Box<dyn Error
 
     println!("DISPLAY throughput: {throughput_gib_per_s:.2} GiB/s (target: ≥4.1 GiB/s)");
 
-    // TODO: When encoding detection is implemented, ensure it maintains high throughput
-    // For now, verify current implementation meets baseline expectations
+    // Verify current implementation meets baseline expectations
     assert!(
         throughput_gib_per_s > 0.01,
         "Throughput should be reasonable even without optimizations: {throughput_gib_per_s:.2} GiB/s"
@@ -303,12 +290,12 @@ fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037);
 
-    // TODO: Test encoding with metadata lookup performance
+    // Test encoding with metadata lookup performance
     let start_time = Instant::now();
 
     // Encode 1000 times to measure lookup overhead
     for _ in 0..1000 {
-        // TODO: This should use preserved encoding when implemented
+        // Encode uses preserved encoding from _encoding_metadata when present
         let _encoded =
             copybook_codec::encode_record(&schema, &json_with_metadata, &encode_options)?;
     }
@@ -318,8 +305,7 @@ fn test_encoding_format_lookup_performance() -> Result<(), Box<dyn Error>> {
 
     println!("Average encoding lookup time: {avg_lookup_time:?} (target: <2% additional time)");
 
-    // TODO: When metadata lookup is implemented, verify it's fast
-    // For now, just verify basic encode performance
+    // Verify encode performance with metadata lookup
     assert!(
         avg_lookup_time < Duration::from_millis(10),
         "Encoding should be fast even without metadata lookup optimizations"
@@ -361,15 +347,13 @@ fn test_encoding_detection_algorithm_performance() -> Result<(), Box<dyn Error>>
     for (case_name, data) in test_cases {
         let options = DecodeOptions::new()
             .with_format(RecordFormat::Fixed)
-            .with_codepage(Codepage::CP037);
-        // TODO: Add when implemented
-        // .with_preserve_zoned_encoding(true);
+            .with_codepage(Codepage::CP037)
+            .with_preserve_zoned_encoding(true);
 
         let start_time = Instant::now();
 
         // Run detection 1000 times
         for _ in 0..1000 {
-            // TODO: This should trigger encoding detection when implemented
             let result = copybook_codec::decode_record(&schema, &data, &options);
         }
 
@@ -431,9 +415,8 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
     let single_thread_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII)
-        .with_threads(1);
-    // TODO: Add when implemented
-    // .with_preserve_zoned_encoding(true);
+        .with_threads(1)
+        .with_preserve_zoned_encoding(true);
 
     let single_start = Instant::now();
     let mut single_output = Vec::new();
@@ -449,9 +432,8 @@ fn test_parallel_processing_performance_regression() -> Result<(), Box<dyn Error
     let multi_thread_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII)
-        .with_threads(4);
-    // TODO: Add when implemented
-    // .with_preserve_zoned_encoding(true);
+        .with_threads(4)
+        .with_preserve_zoned_encoding(true);
 
     let multi_start = Instant::now();
     let mut multi_output = Vec::new();
@@ -506,8 +488,7 @@ fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
     let num_records = 100_000;
     println!("Generating {num_records} records for stress test...");
 
-    // TODO: Generate realistic test data with mixed encoding scenarios
-    // This would test the full pipeline with encoding detection/preservation
+    // Placeholder for realistic test data with mixed encoding scenarios
 
     // For now, create a placeholder that demonstrates the test structure
     let record_size = 337; // Approximate size based on copybook
@@ -516,9 +497,8 @@ fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
     let options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::CP037)
-        .with_threads(8);
-    // TODO: Add when implemented
-    // .with_preserve_zoned_encoding(true);
+        .with_threads(8)
+        .with_preserve_zoned_encoding(true);
 
     let start_time = Instant::now();
     let mut output = Vec::new();

@@ -7,6 +7,8 @@
 #![allow(clippy::missing_inline_in_public_items)]
 
 pub mod baseline;
+pub mod health;
+pub mod memory;
 pub mod regression;
 pub mod reporting;
 

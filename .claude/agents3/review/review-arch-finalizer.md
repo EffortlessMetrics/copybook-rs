@@ -48,7 +48,7 @@ cargo deny check                         # Dependency validation
 
 # Performance validation
 PERF=1 cargo bench -p copybook-bench     # Enterprise performance benchmarks
-cargo +1.90 check --workspace            # MSRV compatibility
+cargo +1.92 check --workspace            # MSRV compatibility
 ```
 
 **Fallback Commands** (when xtask/just unavailable):

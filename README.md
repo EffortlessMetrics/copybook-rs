@@ -13,13 +13,13 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 **Who should use it**: Teams migrating mainframe data to modern systems, data engineers processing legacy COBOL files, enterprises requiring auditable COBOL data conversion.
 
-**Status**: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag) - Stable CLI and library APIs; feature completeness is preview-level. Suitable for teams that validate copybooks against supported features before deployment.
+**Status**: Engineering Preview (v0.4.3) - Stable CLI and library APIs; feature completeness is preview-level. Suitable for teams that validate copybooks against supported features before deployment.
 
 **Key strengths**:
 
 - **Deterministic**: Byte-identical results across runs and worker configurations
 - **Memory-safe**: Zero `unsafe` code in public APIs; clippy pedantic enforcement
-- **Comprehensive testing**: 1135+ tests passing with BDD, property testing, fuzzing, mutation testing, and feature flagging
+- **Comprehensive testing**: 1550+ tests passing with BDD, property testing, fuzzing, mutation testing, and feature flagging
 - **Performance-validated**: 205 MiB/s (DISPLAY), 58 MiB/s (COMP-3) baseline established with CI receipts in `scripts/bench/perf.json`
 
 See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
@@ -45,7 +45,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 # Build from source
 git clone https://github.com/EffortlessMetrics/copybook-rs.git
 cd copybook-rs
-git checkout v0.4.1
+git checkout v0.4.3
 cargo build --release
 ```
 
@@ -115,7 +115,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI reports 1135+ tests passing (24 skipped for external tool requirements); canonical receipts live in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
+- **Transparent evidence**: CI reports 1550+ tests passing (68 skipped/ignored); canonical receipts live in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
@@ -251,23 +251,23 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 ### Toolchain
 
-- **Rust**: 1.90+ MSRV (workspace-enforced) | **Edition**: 2024
+- **Rust**: 1.92+ MSRV (workspace-enforced) | **Edition**: 2024
 - **Platforms**: Developed and tested primarily on Linux; community validation exists for macOS and Windows
 - **Memory**: Streaming decode/encode runs typically remain below 256 MiB on reference datasets
 - **Dependencies**: Zero unsafe code in public APIs; clippy pedantic enforced in CI
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo test --workspace` reports 1135+ tests passing (24 skipped for external tool requirements) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
+- **Tests**: `cargo test --workspace` reports 1550+ tests passing (68 skipped/ignored) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
 - **CI Mode**: Currently operating in CI-off mode with local gates and small PRs. See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state.
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
-- **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.0; see `docs/backlog/benchmark_tooling.md` for follow-ups
+- **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.3; see `docs/backlog/benchmark_tooling.md` for follow-ups
 - **Documentation**: Public messaging intentionally highlights correctness and open issues; performance receipts in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 
 ## Project Status & Roadmap
 
-### **Current Status: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag)** ⚠️
+### **Current Status: Engineering Preview (v0.4.3)** ⚠️
 
 **Canonical Status**: See [ROADMAP.md](docs/ROADMAP.md) for official project status and adoption guidance.
 
@@ -446,15 +446,15 @@ Version bumping is automated with `cargo-release`:
 # Install cargo-release (one-time setup)
 cargo install cargo-release
 
-# Preview a patch release (0.4.2 -> 0.4.3)
+# Preview a patch release (0.4.3 -> 0.4.4)
 cargo release patch --dry-run
 
 # Execute a patch release (bumps version, updates CHANGELOG, creates tag, pushes)
 cargo release patch
 
 # Minor/major releases
-cargo release minor  # 0.4.2 -> 0.5.0
-cargo release major  # 0.4.2 -> 1.0.0
+cargo release minor  # 0.4.3 -> 0.5.0
+cargo release major  # 0.4.3 -> 1.0.0
 ```
 
 The release process:

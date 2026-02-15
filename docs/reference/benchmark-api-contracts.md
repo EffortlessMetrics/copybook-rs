@@ -779,7 +779,7 @@ bench-report health-check
 
 // Output:
 // 🏥 Copybook Benchmark Health Check
-// ✅ Rust version: 1.90.0
+// ✅ Rust version: 1.92.0
 // ✅ Available memory: 28 GB
 // ⚠️ CPU governor: powersave (consider 'performance' for benchmarks)
 // ✅ Baseline exists: target/baselines/performance.json
@@ -791,7 +791,7 @@ bench-report health-check
 ```
 
 **Health Check Components**:
-- **Rust Version**: Validate MSRV compliance (1.90+)
+- **Rust Version**: Validate MSRV compliance (1.92+)
 - **Available Memory**: Check sufficient memory (4GB+ recommended)
 - **CPU Governor**: Recommend 'performance' mode for benchmarks
 - **Baseline Validation**: Check baseline file exists and is valid

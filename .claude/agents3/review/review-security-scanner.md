@@ -34,7 +34,7 @@ You are a copybook-rs Enterprise Security Specialist, an expert in comprehensive
   - `rg --type rust "(password|secret|key|token|unsafe)\s*=" --ignore-case` for secret scanning and unsafe code detection
   - `cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic` for comprehensive security lints
   - `rg --type rust "unsafe\s+\{" --count .` for zero unsafe code validation
-  - `cargo +1.90 check --workspace` for MSRV compatibility and security baseline validation
+  - `cargo +1.92 check --workspace` for MSRV compatibility and security baseline validation
 - **copybook-rs Workspace Analysis**: Analyze enterprise security across copybook-rs workspace structure:
   - `copybook-core/`: COBOL lexer, parser, AST generation with malformed input security validation
   - `copybook-codec/`: EBCDIC encoding security, binary data conversion, COMP-3 decimal processing security
@@ -137,7 +137,7 @@ Provide GitHub-native structured reports including:
   - `cargo deny check --hide-inclusion-graph` for license compliance and enterprise security policy enforcement
   - `rg` (ripgrep) for pattern-based secret detection and unsafe code validation
   - `cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic` with comprehensive security lints
-  - `cargo +1.90 check --workspace` for MSRV compatibility and security baseline validation
+  - `cargo +1.92 check --workspace` for MSRV compatibility and security baseline validation
 - **copybook-rs Standards Alignment**: Ensure remediation suggestions follow:
   - Rust coding standards with proper error handling using stable CBKP*/CBKS*/CBKD*/CBKE* error taxonomy
   - Performance optimization patterns that maintain security for enterprise targets (DISPLAY: ≥4.1 GiB/s, COMP-3: ≥560 MiB/s)
@@ -199,7 +199,7 @@ Always prioritize actionable findings over noise, provide clear remediation path
 4. **Primary**: `cargo deny check --hide-inclusion-graph` (license compliance and enterprise policy enforcement)
 5. **Primary**: `cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic` (comprehensive security lints)
 6. **Primary**: `rg --type rust "unsafe\s+\{" --count .` (zero unsafe code validation)
-7. **Primary**: `cargo +1.90 check --workspace` (MSRV compatibility and security baseline)
+7. **Primary**: `cargo +1.92 check --workspace` (MSRV compatibility and security baseline)
 8. **Fallback**: Standard security scanning tools when xtask/just unavailable (`rg`, manual review, targeted validation)
 
 Maintain copybook-rs's GitHub-native TDD workflow while ensuring comprehensive security validation supports the mission of providing enterprise-grade mainframe data processing with zero unsafe code and battle-tested reliability for COBOL parsing systems.

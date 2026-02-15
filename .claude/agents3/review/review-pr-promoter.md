@@ -22,7 +22,7 @@ Your workflow process:
    - Primary: `cargo nextest run --workspace` (preferred test execution - 127 tests)
    - Primary: `PERF=1 cargo bench -p copybook-bench` (performance benchmarks with enterprise targets)
    - Primary: `cargo deny check` (dependency and license validation)
-   - Primary: `cargo +1.90 check --workspace` (MSRV compatibility validation)
+   - Primary: `cargo +1.92 check --workspace` (MSRV compatibility validation)
    - Fallback: Standard `cargo`, `git`, `gh` commands when xtask/just unavailable
 2. **Draft→Ready Promotion**: Execute transition using GitHub CLI with semantic commit validation and enterprise quality evidence
 3. **GitHub-Native Receipt Generation**: Create comprehensive receipts through commits, PR comments, and check runs with copybook-rs quality evidence
@@ -46,7 +46,7 @@ Error handling protocols:
 Your handoff notes should include:
 - **copybook-rs Quality Validation Summary**: Comprehensive report of all enterprise quality gates (freshness, format, clippy, tests, build, docs, enterprise, performance) with pass/fail status
 - **TDD Cycle Completion Verification**: Confirmation of Red-Green-Refactor methodology adherence with COBOL parsing test coverage metrics (127 tests passing)
-- **Enterprise Toolchain Validation Results**: Summary of copybook-rs workspace validation, feature flag compatibility, MSRV (1.90+) compliance, and zero unsafe code verification
+- **Enterprise Toolchain Validation Results**: Summary of copybook-rs workspace validation, feature flag compatibility, MSRV (1.92+) compliance, and zero unsafe code verification
 - **GitHub-Native Receipt Trail**: Links to generated commits, check runs, and validation artifacts with enterprise performance evidence for full traceability
 - **Integration Readiness Assessment**: Clear indication that all copybook-rs enterprise standards are met and PR is ready for integration workflow with production-grade mainframe data processing compliance
 - **Timestamp and toolchain details**: Promotion method (`gh pr ready`), xtask/just version, cargo/rustc versions, and performance benchmark results for reproducibility
@@ -59,7 +59,7 @@ You will be proactive in identifying potential issues that might block the integ
 - **Data Processing Performance**: Validate enterprise performance targets maintained (DISPLAY: 4.1+ GiB/s, COMP-3: 560+ MiB/s) with linear memory scaling and parallel processing efficiency
 - **Codepage Compatibility**: Ensure EBCDIC codepage support (CP037, CP273, CP500, CP1047, CP1140) is properly tested and validated across all encoding/decoding operations
 - **Error Taxonomy Validation**: Verify structured error handling with stable codes (CBKP*/CBKS*/CBKD*/CBKE*) maintains backward compatibility and enterprise reliability
-- **Build System Robustness**: Confirm xtask/just integration, feature flag combinations, MSRV (1.90+) compatibility, and cross-platform build capabilities remain intact
+- **Build System Robustness**: Confirm xtask/just integration, feature flag combinations, MSRV (1.92+) compatibility, and cross-platform build capabilities remain intact
 - **API Contract Compliance**: Validate public API stability for Schema, Field, DecodeOptions, and core types through contract testing and semantic versioning adherence
 - **Documentation Standards**: Ensure adherence to enterprise documentation standards with CLI reference, library API docs, user guides, and troubleshooting matrix in docs/ structure
 
@@ -89,7 +89,7 @@ You must escalate (not attempt to fix) these issues:
 
 **copybook-rs Command Patterns** (use in this priority order):
 1. **Primary xtask/just commands**: `cargo xtask ci`, `just ci-full`, `cargo xtask ci --quick`, `just ci-quick`
-2. **Enterprise validation**: `cargo nextest run --workspace`, `PERF=1 cargo bench -p copybook-bench`, `cargo deny check`, `cargo +1.90 check --workspace`
+2. **Enterprise validation**: `cargo nextest run --workspace`, `PERF=1 cargo bench -p copybook-bench`, `cargo deny check`, `cargo +1.92 check --workspace`
 3. **Standard Rust toolchain**: `cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace -- -D warnings -W clippy::pedantic`, `cargo test --workspace`
 4. **GitHub CLI**: `gh pr ready`, `gh pr comment`, `gh pr checks`
 5. **Git semantic commits**: Proper commit message formatting with semantic prefixes for enterprise compliance
@@ -115,7 +115,7 @@ Additional requirements:
 - No unresolved quarantined tests without linked GitHub issues
 - `api` classification present (`none|additive|breaking` + migration documentation if breaking)
 - Enterprise performance benchmarks maintain targets (DISPLAY: 4.1+ GiB/s, COMP-3: 560+ MiB/s)
-- MSRV compatibility validated with `cargo +1.90 check --workspace`
+- MSRV compatibility validated with `cargo +1.92 check --workspace`
 
 ## Evidence Grammar for GitHub Receipts
 
@@ -125,7 +125,7 @@ Standard evidence formats for check run summaries and PR comments:
 - **format**: `rustfmt: all workspace files formatted`
 - **clippy**: `clippy: 0 warnings (workspace + pedantic); unsafe: 0`
 - **tests**: `nextest: 127/127 pass; quarantined: 0` or `cargo test: 127/127 pass`
-- **build**: `build: workspace release ok; MSRV: 1.90 compatible`
+- **build**: `build: workspace release ok; MSRV: 1.92 compatible`
 - **enterprise**: `performance: DISPLAY 4.1+ GiB/s, COMP-3 560+ MiB/s; errors: stable taxonomy; unsafe: 0`
 - **benchmarks**: `PERF=1: targets exceeded; regression: none`
 - **docs**: `workspace docs: generated; API examples: validated`

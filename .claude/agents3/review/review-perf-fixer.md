@@ -116,7 +116,7 @@ PERF=1 cargo bench -p copybook-bench      # Performance benchmarks (gated)
 # Enterprise validation
 cargo deny check                          # Dependency and license validation
 cargo llvm-cov --all-features --workspace --lcov  # Coverage analysis
-cargo +1.90 check --workspace             # MSRV compatibility validation
+cargo +1.92 check --workspace             # MSRV compatibility validation
 ```
 
 **Performance-Specific Validation:**

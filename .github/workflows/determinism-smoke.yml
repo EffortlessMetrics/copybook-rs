@@ -2,19 +2,9 @@ name: Determinism Smoke Tests
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "copybook-*/**"
-      - "fixtures/**"
-      - "scripts/ci/determinism_smoke.sh"
-      - ".github/workflows/determinism-smoke.yml"
+    branches: [main, develop]
   pull_request:
-    branches: [main]
-    paths:
-      - "copybook-*/**"
-      - "fixtures/**"
-      - "scripts/ci/determinism_smoke.sh"
-      - ".github/workflows/determinism-smoke.yml"
+    branches: [main, develop]
   workflow_dispatch:
 
 concurrency:
@@ -41,7 +31,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: 1.92.0
 
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2

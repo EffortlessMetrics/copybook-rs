@@ -49,7 +49,7 @@ You orchestrate the Generative Flow: transform requirements into Draft PRs throu
 - **Enterprise Validation:** `PERF=1 cargo bench -p copybook-bench` - performance safety margins
 - **Data Format Compatibility:** Fixed-length, RDW formats with EBCDIC codepage support (CP037, CP273, CP500, CP1047, CP1140)
 - **Round-trip Consistency:** Binary → JSON → Binary with lossless data preservation
-- **MSRV Compliance:** Rust 1.90+ Edition 2024; clippy pedantic compliance
+- **MSRV Compliance:** Rust 1.92+ Edition 2024; clippy pedantic compliance
 
 **Evidence Format Standards:**
 ```

@@ -53,7 +53,9 @@ pub mod performance;
 pub mod report;
 pub mod security;
 
-pub use compliance::{ComplianceEngine, ComplianceProfile, ComplianceResult, ComplianceViolation, ComplianceConfig};
+pub use compliance::{
+    ComplianceConfig, ComplianceEngine, ComplianceProfile, ComplianceResult, ComplianceViolation,
+};
 pub use context::{AuditContext, EnvironmentContext, ProcessingConfig, SecurityContext};
 pub use event::{AuditEvent, AuditEventType, AuditPayload, AuditSeverity};
 pub use lineage::{

@@ -351,10 +351,10 @@ mod tests {
         let detector = RegressionDetector::new().with_threshold(10.0);
 
         let current = ThroughputMetrics {
-            display_throughput: 800,  // 20% below
-            comp3_throughput: 400,  // 20% below
+            display_throughput: 800, // 20% below
+            comp3_throughput: 400,   // 20% below
             record_rate: 80,         // 20% below
-            peak_memory_mb: 120,      // 20% above
+            peak_memory_mb: 120,     // 20% above
         };
 
         let baseline = ThroughputMetrics {

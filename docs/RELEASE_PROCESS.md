@@ -21,6 +21,33 @@ git config --global tag.gpgsign true
 
 If GPG is not available, edit `release.toml` and set `sign-tag = false`.
 
+## Pre-Release Validation Gates
+
+All of the following gates must pass before executing any release. Running these checks ensures that formatting, linting, build integrity, test coverage, and documentation are in order.
+
+| Gate | Command | Pass Criteria |
+|------|---------|---------------|
+| Format | `cargo fmt --all --check` | Exit 0 |
+| Lint | `cargo clippy --workspace -- -D warnings -W clippy::pedantic` | Exit 0 |
+| Build | `cargo build --workspace --release` | Exit 0 |
+| Test | `cargo nextest run --workspace` | All pass |
+| Doctests | `cargo test --workspace --doc` | All pass |
+| Docs | `cargo doc --workspace --no-deps` | No warnings |
+| Changelog | manual | CHANGELOG.md has unreleased section |
+
+To run all automated gates in sequence:
+
+```bash
+cargo fmt --all --check \
+  && cargo clippy --workspace -- -D warnings -W clippy::pedantic \
+  && cargo build --workspace --release \
+  && cargo nextest run --workspace \
+  && cargo test --workspace --doc \
+  && cargo doc --workspace --no-deps
+```
+
+After the automated gates pass, manually verify that `CHANGELOG.md` contains an unreleased section with entries for the upcoming release.
+
 ## Quick Reference
 
 ```bash

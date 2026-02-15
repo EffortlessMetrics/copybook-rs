@@ -2347,11 +2347,36 @@ pub fn encode_zoned_decimal_with_format(
 
 /// Encode a zoned decimal using a caller-resolved format and zero-sign policy.
 ///
+/// This is the lowest-level zoned decimal encoder. The caller supplies both the
+/// encoding format override (ASCII vs EBCDIC) and the zero-sign policy, which
+/// together govern how the sign nibble of the last byte is produced.  Higher-level
+/// wrappers such as [`encode_zoned_decimal`] and [`encode_zoned_decimal_with_format`]
+/// resolve these parameters from codec defaults and then delegate here.
+///
+/// # Arguments
+/// * `value` - String representation of the decimal value to encode (e.g. `"123"`, `"-45.67"`)
+/// * `digits` - Number of digit positions in the COBOL field (PIC digit count)
+/// * `scale` - Number of implied decimal places (can be negative for scaling)
+/// * `signed` - Whether the field carries a sign (PIC S9 vs PIC 9)
+/// * `codepage` - Target character encoding (ASCII or EBCDIC variant)
+/// * `encoding_override` - Explicit format override; `None` falls back to codepage default
+/// * `zero_policy` - How the sign nibble is encoded for zero values
+///
+/// # Returns
+/// A vector of bytes containing the encoded zoned decimal in the target encoding.
+///
 /// # Policy
-/// Callers provide the resolved policy in precedence order: override → preserved → preferred for the target code page.
+/// Callers provide the resolved policy in precedence order:
+/// override → preserved metadata → preferred for the target code page.
 ///
 /// # Errors
-/// Returns an error if the value cannot be encoded as a zoned decimal with the specified parameters.
+/// * `CBKE510_NUMERIC_OVERFLOW` - if the value is too large for the digit count
+/// * `CBKE501_JSON_TYPE_MISMATCH` - if the input contains non-digit characters
+///
+/// # See Also
+/// * [`encode_zoned_decimal`] - Convenience wrapper that resolves policy from the codepage
+/// * [`encode_zoned_decimal_with_format`] - Accepts a format override without an explicit policy
+/// * [`encode_zoned_decimal_with_bwz`] - Adds BLANK WHEN ZERO support
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_format_and_policy(
@@ -2782,10 +2807,25 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
     }
 }
 
-/// Encode alphanumeric field with space padding
+/// Encode an alphanumeric (PIC X) field with right-padding to the declared length.
+///
+/// Converts the UTF-8 input string to the target codepage encoding and then
+/// right-pads with space characters (ASCII `0x20` or EBCDIC `0x40`) to fill
+/// the declared field length.
+///
+/// # Arguments
+/// * `text` - UTF-8 string value to encode
+/// * `field_len` - Declared byte length of the COBOL field
+/// * `codepage` - Target character encoding (ASCII or EBCDIC variant)
+///
+/// # Returns
+/// A vector of exactly `field_len` bytes containing the encoded and padded text.
 ///
 /// # Errors
-/// Returns an error if the text is too long for the field.
+/// * `CBKE501_JSON_TYPE_MISMATCH` - if the encoded text exceeds `field_len` bytes
+///
+/// # See Also
+/// * [`crate::charset::utf8_to_ebcdic`] - Underlying character conversion
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> Result<Vec<u8>> {
@@ -2814,9 +2854,23 @@ pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> 
     Ok(result)
 }
 
-/// Apply BLANK WHEN ZERO encoding policy
+/// Determine whether a value should be encoded as all spaces under the
+/// COBOL `BLANK WHEN ZERO` clause.
 ///
-/// Returns true if the value should be encoded as spaces instead of zeros
+/// Returns `true` when `bwz_encode` is enabled **and** the string value
+/// represents zero (including decimal zeros such as `"0.00"`).  Callers
+/// use this check before encoding to decide whether to emit a
+/// space-filled field instead of the normal numeric encoding.
+///
+/// # Arguments
+/// * `value` - String representation of the numeric value to test
+/// * `bwz_encode` - Whether the BLANK WHEN ZERO clause is active for this field
+///
+/// # Returns
+/// `true` if the field should be encoded as all spaces; `false` otherwise.
+///
+/// # See Also
+/// * [`encode_zoned_decimal_with_bwz`] - Uses this function to apply the BWZ policy
 #[inline]
 #[must_use]
 pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
@@ -2843,10 +2897,31 @@ pub fn should_encode_as_blank_when_zero(value: &str, bwz_encode: bool) -> bool {
     false
 }
 
-/// Encode zoned decimal with BWZ policy
+/// Encode a zoned decimal with COBOL `BLANK WHEN ZERO` support.
+///
+/// When `bwz_encode` is `true` and the value is zero (including decimal zeros
+/// like `"0.00"`), the entire field is filled with space bytes (ASCII `0x20`
+/// or EBCDIC `0x40`).  Otherwise, encoding delegates to [`encode_zoned_decimal`].
+///
+/// # Arguments
+/// * `value` - String representation of the decimal value to encode
+/// * `digits` - Number of digit positions in the COBOL field
+/// * `scale` - Number of implied decimal places
+/// * `signed` - Whether the field carries a sign
+/// * `codepage` - Target character encoding
+/// * `bwz_encode` - Whether the BLANK WHEN ZERO clause is active
+///
+/// # Returns
+/// A vector of bytes containing the encoded zoned decimal, or all-space bytes
+/// when the BWZ policy triggers.
 ///
 /// # Errors
-/// Returns an error if the value cannot be encoded.
+/// Returns an error if the value cannot be represented in the target zoned
+/// decimal format (delegates error handling to [`encode_zoned_decimal`]).
+///
+/// # See Also
+/// * [`should_encode_as_blank_when_zero`] - The predicate used to test zero values
+/// * [`encode_zoned_decimal`] - Non-BWZ zoned decimal encoding
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_bwz(
@@ -2869,9 +2944,23 @@ pub fn encode_zoned_decimal_with_bwz(
     encode_zoned_decimal(value, digits, scale, signed, codepage)
 }
 
-/// Get binary width mapping based on PIC digits (NORMATIVE)
+/// Map a COBOL PIC digit count to the corresponding USAGE BINARY storage width
+/// in bits (NORMATIVE).
 ///
-/// Maps digits to width: ≤4→2B, 5-9→4B, 10-18→8B
+/// Follows the COBOL standard mapping:
+/// - 1-4 digits  -> 16 bits (2 bytes, halfword)
+/// - 5-9 digits  -> 32 bits (4 bytes, fullword)
+/// - 10-18 digits -> 64 bits (8 bytes, doubleword)
+///
+/// # Arguments
+/// * `digits` - Number of digit positions declared in the PIC clause
+///
+/// # Returns
+/// The storage width in bits: 16, 32, or 64.
+///
+/// # See Also
+/// * [`validate_explicit_binary_width`] - For explicit `USAGE BINARY(n)` declarations
+/// * [`decode_binary_int`] - Decodes binary integer data at the determined width
 #[inline]
 #[must_use]
 pub fn get_binary_width_from_digits(digits: u16) -> u16 {
@@ -2882,12 +2971,23 @@ pub fn get_binary_width_from_digits(digits: u16) -> u16 {
     }
 }
 
-/// Validate explicit USAGE BINARY(n) width (NORMATIVE)
+/// Validate an explicit `USAGE BINARY(n)` byte-width declaration and return
+/// the equivalent bit width (NORMATIVE).
 ///
-/// Accept explicit USAGE BINARY(n) for n ∈ {1,2,4,8}
+/// Only the widths 1, 2, 4, and 8 bytes are valid.  Each is converted to
+/// the corresponding bit count (8, 16, 32, 64) for downstream codec use.
+///
+/// # Arguments
+/// * `width_bytes` - The explicit byte width from the copybook (1, 2, 4, or 8)
+///
+/// # Returns
+/// The equivalent width in bits: 8, 16, 32, or 64.
 ///
 /// # Errors
-/// Returns an error when the requested width is not one of the supported values.
+/// * `CBKE501_JSON_TYPE_MISMATCH` - if `width_bytes` is not 1, 2, 4, or 8
+///
+/// # See Also
+/// * [`get_binary_width_from_digits`] - Infers width from PIC digit count
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn validate_explicit_binary_width(width_bytes: u8) -> Result<u16> {
@@ -3634,10 +3734,31 @@ pub fn decode_packed_decimal_with_scratch(
     Ok(decimal)
 }
 
-/// Fast binary integer decoder with optimized paths for common widths
+/// Decode a COBOL binary integer (USAGE BINARY / COMP) with optimized fast
+/// paths for 16-, 32-, and 64-bit widths.
+///
+/// For the three common widths this function reads the big-endian bytes
+/// directly into the native integer type, avoiding the generic loop in
+/// [`decode_binary_int`].  Uncommon widths fall back to that generic
+/// implementation.
+///
+/// # Arguments
+/// * `data` - Raw big-endian byte data containing the binary integer
+/// * `bits` - Expected field width in bits (16, 32, or 64 for fast path)
+/// * `signed` - Whether the field is signed (PIC S9 COMP) or unsigned (PIC 9 COMP)
+///
+/// # Returns
+/// The decoded integer value as `i64`.
 ///
 /// # Errors
-/// Returns an error when the provided data exceeds the supported range for the requested width.
+/// * `CBKD401_COMP3_INVALID_NIBBLE` - if an unsigned 64-bit value exceeds `i64::MAX`
+/// * Delegates to [`decode_binary_int`] for unsupported widths, which may
+///   return its own errors.
+///
+/// # See Also
+/// * [`decode_binary_int`] - General-purpose binary integer decoder
+/// * [`encode_binary_int`] - Binary integer encoder
+/// * [`format_binary_int_to_string_with_scratch`] - Formats the decoded value to a string
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i64> {
@@ -3692,15 +3813,37 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
     }
 }
 
-/// Encode a zoned decimal using the configured code page and a caller-resolved policy while
-/// reusing scratch buffers.
+/// Encode a zoned decimal while reusing caller-owned scratch buffers to avoid
+/// per-call heap allocations on the hot path.
+///
+/// Converts the pre-parsed [`SmallDecimal`] to its string representation using
+/// the scratch buffer and then delegates to [`encode_zoned_decimal`].  The
+/// `_bwz_encode` parameter is reserved for future BLANK WHEN ZERO integration
+/// but is currently unused.
+///
+/// # Arguments
+/// * `decimal` - Pre-parsed decimal value to encode
+/// * `digits` - Number of digit positions in the COBOL field
+/// * `signed` - Whether the field carries a sign
+/// * `codepage` - Target character encoding (ASCII or EBCDIC variant)
+/// * `_bwz_encode` - Reserved for BLANK WHEN ZERO support (currently unused)
+/// * `scratch` - Reusable scratch buffers for zero-allocation string processing
+///
+/// # Returns
+/// A vector of bytes containing the encoded zoned decimal.
 ///
 /// # Policy
-/// Callers typically resolve policy using `zoned_encoding_override` → preserved metadata →
-/// `preferred_zoned_encoding`, matching the documented library behavior for zoned decimals.
+/// Callers typically resolve policy using `zoned_encoding_override` → preserved
+/// metadata → `preferred_zoned_encoding`, matching the documented library
+/// behavior for zoned decimals.
 ///
 /// # Errors
-/// Returns an error when the decimal value cannot be represented with the requested digits or encoding.
+/// Returns an error when the decimal value cannot be represented with the
+/// requested digit count or encoding format.
+///
+/// # See Also
+/// * [`encode_zoned_decimal`] - Underlying encoder
+/// * [`encode_packed_decimal_with_scratch`] - Scratch-based packed decimal encoder
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_zoned_decimal_with_scratch(
@@ -3732,11 +3875,31 @@ pub fn encode_zoned_decimal_with_scratch(
     )
 }
 
-/// Optimized packed decimal encoder using scratch buffers
-/// Minimizes allocations by reusing digit buffer
+/// Encode a packed decimal (COMP-3) while reusing caller-owned scratch buffers
+/// to minimize per-call allocations.
+///
+/// Converts the pre-parsed [`SmallDecimal`] to its string representation using
+/// the scratch buffer and then delegates to [`encode_packed_decimal`].  Intended
+/// for use on codec hot paths where many records are encoded sequentially with
+/// the same [`ScratchBuffers`] instance.
+///
+/// # Arguments
+/// * `decimal` - Pre-parsed decimal value to encode
+/// * `digits` - Number of decimal digits in the field (1-18)
+/// * `signed` - Whether the field is signed (`true`) or unsigned (`false`)
+/// * `scratch` - Reusable scratch buffers for zero-allocation string processing
+///
+/// # Returns
+/// A vector of bytes containing the encoded packed decimal (COMP-3 format).
 ///
 /// # Errors
-/// Returns an error when the decimal value cannot be encoded into the requested packed representation.
+/// Returns an error when the decimal value cannot be encoded into the
+/// requested packed representation (delegates to [`encode_packed_decimal`]).
+///
+/// # See Also
+/// * [`encode_packed_decimal`] - Underlying packed decimal encoder
+/// * [`encode_zoned_decimal_with_scratch`] - Scratch-based zoned decimal encoder
+/// * [`decode_packed_decimal_to_string_with_scratch`] - Scratch-based decoder
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn encode_packed_decimal_with_scratch(
@@ -3761,14 +3924,39 @@ pub fn encode_packed_decimal_with_scratch(
     encode_packed_decimal(&scratch.string_buffer, digits, decimal.scale, signed)
 }
 
-/// Optimized packed decimal decoder that formats to string using scratch buffer
-/// CRITICAL PERFORMANCE OPTIMIZATION for COMP-3 JSON conversion
+/// Decode a packed decimal (COMP-3) directly to a `String`, bypassing the
+/// intermediate [`SmallDecimal`] allocation.
 ///
-/// This avoids the `SmallDecimal` -> String allocation overhead that was causing
-/// the 94-96% performance regression in COMP-3 processing.
+/// This is a critical performance optimization for COMP-3 JSON conversion.
+/// By decoding nibbles and formatting the result in a single pass using the
+/// caller-owned scratch buffer, it avoids the `SmallDecimal` -> `String`
+/// allocation overhead that caused 94-96% throughput regression in COMP-3
+/// processing benchmarks.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the packed decimal (BCD with trailing sign nibble)
+/// * `digits` - Number of decimal digits in the field (1-18)
+/// * `scale` - Number of implied decimal places (can be negative for scaling)
+/// * `signed` - Whether the field is signed (`true`) or unsigned (`false`)
+/// * `scratch` - Reusable scratch buffers; the `string_buffer` is consumed via
+///   `std::mem::take` and returned as the result string.
+///
+/// # Returns
+/// The decoded value formatted as a string (e.g. `"123"`, `"-45.67"`, `"0"`).
 ///
 /// # Errors
-/// Returns an error when the packed decimal bytes are malformed for the requested digits or scale.
+/// * `CBKD401_COMP3_INVALID_NIBBLE` - if any data nibble is > 9 or the sign
+///   nibble is invalid
+///
+/// # Performance
+/// Includes a fast path for single-digit packed decimals (1 byte) and falls
+/// back to [`decode_packed_decimal_with_scratch`] plus
+/// [`SmallDecimal::format_to_scratch_buffer`] for larger values.
+///
+/// # See Also
+/// * [`decode_packed_decimal`] - Returns a `SmallDecimal` instead of a string
+/// * [`decode_packed_decimal_with_scratch`] - Scratch-based decoder returning `SmallDecimal`
+/// * [`encode_packed_decimal_with_scratch`] - Scratch-based packed decimal encoder
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_packed_decimal_to_string_with_scratch(
@@ -3952,14 +4140,38 @@ fn format_integer_with_leading_zeros_to_buffer(value: i64, width: u32, buffer: &
     SmallDecimal::format_integer_with_leading_zeros(value, width, buffer);
 }
 
-/// Optimized zoned decimal decoder that formats to string using scratch buffer
-/// CRITICAL PERFORMANCE OPTIMIZATION for zoned decimal JSON conversion
+/// Decode a zoned decimal directly to a `String`, bypassing the intermediate
+/// [`SmallDecimal`] allocation.
+///
+/// Analogous to [`decode_packed_decimal_to_string_with_scratch`] but for zoned
+/// decimal (PIC 9 / PIC S9) fields.  Decodes via
+/// [`decode_zoned_decimal_with_scratch`] and then formats the result into the
+/// scratch string buffer, avoiding a separate heap allocation.
+///
+/// # Arguments
+/// * `data` - Raw byte data containing the zoned decimal
+/// * `digits` - Number of digit characters (field length)
+/// * `scale` - Number of implied decimal places (can be negative for scaling)
+/// * `signed` - Whether the field carries a sign (overpunch in last byte)
+/// * `codepage` - Character encoding (ASCII or EBCDIC variant)
+/// * `blank_when_zero` - If `true`, all-space fields decode as `"0"`
+/// * `scratch` - Reusable scratch buffers; the `string_buffer` is consumed via
+///   `std::mem::take` and returned as the result string.
+///
+/// # Returns
+/// The decoded value formatted as a string (e.g. `"123"`, `"-45.67"`, `"0"`).
 ///
 /// # Policy
-/// Mirrors [`decode_zoned_decimal_with_scratch`], inheriting its default preferred-zero handling for EBCDIC data.
+/// Mirrors [`decode_zoned_decimal_with_scratch`], inheriting its default
+/// preferred-zero handling for EBCDIC data.
 ///
 /// # Errors
-/// Returns an error when the zoned decimal bytes are invalid for the requested digits or scale.
+/// * `CBKD411_ZONED_BAD_SIGN` - if the zone nibbles or sign are invalid
+///
+/// # See Also
+/// * [`decode_zoned_decimal`] - Returns a `SmallDecimal` instead of a string
+/// * [`decode_zoned_decimal_with_scratch`] - Scratch-based decoder returning `SmallDecimal`
+/// * [`decode_packed_decimal_to_string_with_scratch`] - Equivalent for packed decimals
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_zoned_decimal_to_string_with_scratch(

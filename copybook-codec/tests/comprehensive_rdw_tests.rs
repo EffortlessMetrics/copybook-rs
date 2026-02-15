@@ -367,14 +367,11 @@ fn test_rdw_with_odo_variable_length() {
 
     assert_eq!(json_record["COUNTER"], "03");
 
-    // TODO: ODO array processing is not working correctly in simple decode_record
-    // The VARIABLE-ARRAY should be ["ABC", "DEF", "GHI"] but is "ABCDEFGHI"
-    // This is a complex feature that needs proper ODO implementation
-    // let array = json_record["VARIABLE-ARRAY"].as_array().unwrap();
-    // assert_eq!(array.len(), 3);
-    // assert_eq!(array[0], "ABC");
-    // assert_eq!(array[1], "DEF");
-    // assert_eq!(array[2], "GHI");
+    let array = json_record["VARIABLE-ARRAY"].as_array().unwrap();
+    assert_eq!(array.len(), 3);
+    assert_eq!(array[0], "ABC");
+    assert_eq!(array[1], "DEF");
+    assert_eq!(array[2], "GHI");
 }
 
 #[test]

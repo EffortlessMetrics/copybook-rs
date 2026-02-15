@@ -55,6 +55,7 @@ fn build_json_envelope(
     record_index: u64,
     record_length: usize,
     raw_b64: Option<String>,
+    encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
 ) -> Value {
     let mut root = serde_json::Map::new();
     root.insert(
@@ -104,6 +105,15 @@ fn build_json_envelope(
     if let Some(raw) = raw_b64 {
         root.insert("raw_b64".to_string(), Value::String(raw.clone()));
         root.insert("__raw_b64".to_string(), Value::String(raw));
+    }
+
+    // Emit zoned encoding metadata when preserve_zoned_encoding is enabled
+    if options.preserve_zoned_encoding && !encoding_metadata.is_empty() {
+        let mut meta_map = serde_json::Map::new();
+        for (field_name, format) in encoding_metadata {
+            meta_map.insert(field_name, Value::String(format.to_string()));
+        }
+        root.insert("_encoding_metadata".to_string(), Value::Object(meta_map));
     }
 
     Value::Object(root)
@@ -420,6 +430,7 @@ fn decode_record_with_scratch_and_raw(
 
     let mut fields_map = Map::new();
     let mut record_raw = None;
+    let mut encoding_acc = Vec::new();
 
     if let Some(raw_bytes) = raw_data.filter(|_| {
         matches!(
@@ -430,7 +441,14 @@ fn decode_record_with_scratch_and_raw(
         record_raw = Some(base64::engine::general_purpose::STANDARD.encode(raw_bytes));
     }
 
-    process_fields_recursive_with_scratch(&schema.fields, data, &mut fields_map, options, scratch)?;
+    process_fields_recursive_with_scratch(
+        &schema.fields,
+        data,
+        &mut fields_map,
+        options,
+        scratch,
+        &mut encoding_acc,
+    )?;
 
     Ok(build_json_envelope(
         fields_map,
@@ -439,6 +457,7 @@ fn decode_record_with_scratch_and_raw(
         0,
         data.len(),
         record_raw,
+        encoding_acc,
     ))
 }
 
@@ -459,6 +478,7 @@ pub fn decode_record_with_raw_data(
 
     let mut fields_map = Map::new();
     let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
+    let mut encoding_acc = Vec::new();
 
     process_fields_recursive(
         &schema.fields,
@@ -466,6 +486,7 @@ pub fn decode_record_with_raw_data(
         &mut fields_map,
         options,
         &mut scratch_buffers,
+        &mut encoding_acc,
     )?;
 
     let mut record_raw = None;
@@ -493,6 +514,7 @@ pub fn decode_record_with_raw_data(
         0,
         data.len(),
         record_raw,
+        encoding_acc,
     ))
 }
 
@@ -506,6 +528,7 @@ fn process_fields_recursive(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::FieldKind;
 
@@ -522,6 +545,7 @@ fn process_fields_recursive(
                     options,
                     fields,
                     scratch_buffers,
+                    encoding_acc,
                 )?;
             }
             (FieldKind::Group, None) => {
@@ -531,6 +555,7 @@ fn process_fields_recursive(
                     json_obj,
                     options,
                     scratch_buffers,
+                    encoding_acc,
                 )?;
             }
             _ => {
@@ -542,6 +567,7 @@ fn process_fields_recursive(
                     json_obj,
                     options,
                     scratch_buffers,
+                    encoding_acc,
                 )?;
             }
         }
@@ -558,6 +584,7 @@ fn process_fields_recursive_with_scratch(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::FieldKind;
 
@@ -569,7 +596,14 @@ fn process_fields_recursive_with_scratch(
         match (&field.kind, &field.occurs) {
             (_, Some(occurs)) => {
                 process_array_field_with_scratch(
-                    field, occurs, data, json_obj, options, fields, scratch,
+                    field,
+                    occurs,
+                    data,
+                    json_obj,
+                    options,
+                    fields,
+                    scratch,
+                    encoding_acc,
                 )?;
             }
             (FieldKind::Group, None) => {
@@ -579,10 +613,18 @@ fn process_fields_recursive_with_scratch(
                     json_obj,
                     options,
                     scratch,
+                    encoding_acc,
                 )?;
             }
             _ => {
-                process_scalar_field_with_scratch(field, data, json_obj, options, scratch)?;
+                process_scalar_field_with_scratch(
+                    field,
+                    data,
+                    json_obj,
+                    options,
+                    scratch,
+                    encoding_acc,
+                )?;
             }
         }
     }
@@ -600,6 +642,7 @@ fn process_fields_recursive_with_scratch(
 /// * `json_obj` - The JSON map to populate
 /// * `options` - Decoding configuration
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn process_scalar_field_standard(
     field: &copybook_core::Field,
     field_index: usize,
@@ -608,6 +651,7 @@ fn process_scalar_field_standard(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
     if matches!(field.kind, copybook_core::FieldKind::Renames { .. }) {
@@ -677,6 +721,11 @@ fn process_scalar_field_standard(
     let field_data = &data[field_start..field_end];
     let value = decode_scalar_field_value_standard(field, field_data, options, scratch_buffers)?;
 
+    // Collect zoned encoding metadata when preservation is enabled
+    if options.preserve_zoned_encoding {
+        collect_zoned_encoding_info(field, field_data, options, encoding_acc);
+    }
+
     json_obj.insert(field.name.clone(), value);
     Ok(())
 }
@@ -691,6 +740,7 @@ fn process_scalar_field_with_scratch(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     // Special handling for RENAMES fields - they use resolved metadata, not field offset/len
     if matches!(field.kind, copybook_core::FieldKind::Renames { .. }) {
@@ -767,11 +817,17 @@ fn process_scalar_field_with_scratch(
     let field_data = &data[field_start..field_end];
     let value = decode_scalar_field_value_with_scratch(field, field_data, options, scratch)?;
 
+    // Collect zoned encoding metadata when preservation is enabled
+    if options.preserve_zoned_encoding {
+        collect_zoned_encoding_info(field, field_data, options, encoding_acc);
+    }
+
     json_obj.insert(field.name.clone(), value);
     Ok(())
 }
 
 /// Process an array field (with OCCURS clause)
+#[allow(clippy::too_many_arguments)]
 fn process_array_field(
     field: &copybook_core::Field,
     occurs: &copybook_core::Occurs,
@@ -780,6 +836,7 @@ fn process_array_field(
     options: &DecodeOptions,
     all_fields: &[copybook_core::Field],
     scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::{FieldKind, Occurs};
 
@@ -842,13 +899,23 @@ fn process_array_field(
                     &mut element_obj,
                     options,
                     scratch_buffers,
+                    encoding_acc,
                 )?;
                 Value::Object(element_obj)
             }
             FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
             _ => {
                 let element_data = &data[element_start..element_end];
-                decode_scalar_field_value_standard(field, element_data, options, scratch_buffers)?
+                let val = decode_scalar_field_value_standard(
+                    field,
+                    element_data,
+                    options,
+                    scratch_buffers,
+                )?;
+                if options.preserve_zoned_encoding {
+                    collect_zoned_encoding_info(field, element_data, options, encoding_acc);
+                }
+                val
             }
         };
 
@@ -860,6 +927,7 @@ fn process_array_field(
 }
 
 /// Process an array field with scratch buffers for COMP-3 optimization
+#[allow(clippy::too_many_arguments)]
 fn process_array_field_with_scratch(
     field: &copybook_core::Field,
     occurs: &copybook_core::Occurs,
@@ -868,6 +936,7 @@ fn process_array_field_with_scratch(
     options: &DecodeOptions,
     all_fields: &[copybook_core::Field],
     scratch: &mut crate::memory::ScratchBuffers,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::{FieldKind, Occurs};
     use serde_json::Value;
@@ -938,11 +1007,19 @@ fn process_array_field_with_scratch(
                     &mut group_obj,
                     options,
                     scratch,
+                    encoding_acc,
                 )?;
                 Value::Object(group_obj)
             }
             FieldKind::Condition { values } => condition_value(values, "CONDITION_ARRAY"),
-            _ => decode_scalar_field_value_with_scratch(field, element_data, options, scratch)?,
+            _ => {
+                let val =
+                    decode_scalar_field_value_with_scratch(field, element_data, options, scratch)?;
+                if options.preserve_zoned_encoding {
+                    collect_zoned_encoding_info(field, element_data, options, encoding_acc);
+                }
+                val
+            }
         };
 
         array_values.push(element_value);
@@ -1110,6 +1187,33 @@ fn is_filler_field(field: &copybook_core::Field) -> bool {
     field.name.eq_ignore_ascii_case("FILLER") || field.name.starts_with("_filler_")
 }
 
+/// Collect zoned encoding format info for a field when preservation is enabled.
+///
+/// Detects the encoding format (ASCII vs EBCDIC) from the raw field data
+/// and pushes it to the accumulator for later emission as `_encoding_metadata`.
+#[inline]
+fn collect_zoned_encoding_info(
+    field: &copybook_core::Field,
+    field_data: &[u8],
+    options: &DecodeOptions,
+    encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
+) {
+    if let copybook_core::FieldKind::ZonedDecimal { digits, signed, .. } = &field.kind
+        && let Ok((_, Some(info))) = crate::numeric::decode_zoned_decimal_with_encoding(
+            field_data,
+            *digits,
+            0, // scale doesn't affect encoding detection
+            *signed,
+            options.codepage,
+            field.blank_when_zero,
+            true,
+        )
+        && !info.has_mixed_encoding
+    {
+        encoding_acc.push((field.name.clone(), info.detected_format));
+    }
+}
+
 /// Decode a scalar field value from raw data (standard path)
 #[allow(clippy::too_many_lines)]
 fn decode_scalar_field_value_standard(
@@ -1153,9 +1257,8 @@ fn decode_scalar_field_value_standard(
                     decimal.to_string()
                 };
 
-                // Store encoding info for later use in metadata emission
-                // For now, we can't return it directly from this function
-                // This will be handled at the record level
+                // Encoding info is collected by collect_zoned_encoding_info() at the caller level
+                // and emitted as _encoding_metadata in the JSON envelope
                 Ok(Value::String(formatted))
             } else {
                 // Use standard decoding

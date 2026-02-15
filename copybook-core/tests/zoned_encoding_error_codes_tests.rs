@@ -20,20 +20,6 @@ use copybook_core::error::{Error, ErrorCode};
 /// Tests error handling spec: SPEC.manifest.yml#CBKD413-invalid-encoding
 #[test]
 fn test_cbkd413_zoned_invalid_encoding() {
-    // TODO: Move this test to copybook-codec crate since it depends on DecodeOptions
-    // let copybook = "01 ZONED-FIELD PIC 9(3).";
-    // let schema = parse_copybook(copybook).unwrap();
-
-    // let options = DecodeOptions::new()
-    //     .with_format(RecordFormat::Fixed)
-    //     .with_codepage(Codepage::ASCII)
-    //     .with_strict_mode(true);
-    //     // TODO: Add when implemented
-    //     // .with_preserve_zoned_encoding(true);
-
-    // TODO: Test error code definition when implemented
-    // For now, verify that existing error codes work and new ones don't exist yet
-
     // Test existing error code works
     let existing_error = Error::new(
         ErrorCode::CBKD411_ZONED_BAD_SIGN,
@@ -59,9 +45,6 @@ fn test_cbkd413_zoned_invalid_encoding() {
 /// Tests error handling spec: SPEC.manifest.yml#CBKD414-mixed-encoding
 #[test]
 fn test_cbkd414_zoned_mixed_encoding() {
-    // TODO: Test error code definition when implemented
-    // Runtime behavior tests are in copybook-codec crate
-
     // Test existing error code works
     let existing_error = Error::new(
         ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO,
@@ -81,9 +64,6 @@ fn test_cbkd414_zoned_mixed_encoding() {
 /// Tests error handling spec: SPEC.manifest.yml#CBKD415-detection-failed
 #[test]
 fn test_cbkd415_zoned_encoding_detection_failed() {
-    // TODO: Test error code definition when implemented
-    // Runtime behavior tests are in copybook-codec crate
-
     // Test error code taxonomy consistency
     let error_string = format!("{}", ErrorCode::CBKD411_ZONED_BAD_SIGN);
     assert_eq!(error_string, "CBKD411_ZONED_BAD_SIGN");
@@ -172,6 +152,3 @@ fn test_error_code_stability() {
     let error_415_string = format!("{}", ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS);
     assert_eq!(error_415_string, "CBKD415_ZONED_ENCODING_AMBIGUOUS");
 }
-
-// TODO: Add more comprehensive error integration tests when codec types are available in core
-// For now, tests that require DecodeOptions are moved to copybook-codec crate tests

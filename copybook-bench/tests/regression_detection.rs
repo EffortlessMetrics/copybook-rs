@@ -43,8 +43,19 @@ fn test_regression_pass_no_change() {
         "Expected no regressions for identical performance"
     );
 
-    // TODO: Validate exit code (0)
-    // TODO: Test with small variations (<1%)
+    // Exit codes are tested via the bench-report CLI binary (bench-report compare).
+
+    // Test with small variations (<1%): 0.4% change should not trigger regression
+    let mut small_variation = PerformanceReport::new();
+    small_variation.display_gibs = Some(2.49); // 0.4% slower
+    small_variation.comp3_mibs = Some(171.0); // ~0.58% slower
+    small_variation.commit = "small-variation-commit".to_string();
+
+    let regressions = store.check_regression(&small_variation, 5.0);
+    assert!(
+        regressions.is_empty(),
+        "Expected no regressions for <1% variation"
+    );
 }
 
 /// AC1: Test WARNING status with 5-10% regression
@@ -80,8 +91,27 @@ fn test_regression_warning_threshold() {
         "Expected 7% regression percentage"
     );
 
-    // TODO: Validate exit code (0 - WARNING does not fail CI)
-    // TODO: Test both DISPLAY and COMP-3 warnings simultaneously
+    // Exit codes are tested via the bench-report CLI binary (bench-report compare).
+
+    // Test both DISPLAY and COMP-3 warnings simultaneously (7% regression each)
+    let mut both_warning = PerformanceReport::new();
+    both_warning.display_gibs = Some(93.0); // 7% regression
+    both_warning.comp3_mibs = Some(93.0); // 7% regression
+
+    let regressions = store.check_regression(&both_warning, 5.0);
+    assert_eq!(
+        regressions.len(),
+        2,
+        "Expected 2 regression warnings (DISPLAY + COMP-3)"
+    );
+    assert!(
+        regressions[0].contains("DISPLAY regression"),
+        "Expected DISPLAY regression"
+    );
+    assert!(
+        regressions[1].contains("COMP-3 regression"),
+        "Expected COMP-3 regression"
+    );
 }
 
 /// AC1: Test FAILURE status with >10% regression
@@ -117,8 +147,8 @@ fn test_regression_failure_threshold() {
         "Expected 15% regression percentage"
     );
 
-    // TODO: Validate exit code (1 - FAILURE fails CI)
-    // TODO: Test PR blocking behavior
+    // Exit codes are tested via the bench-report CLI binary (bench-report compare).
+    // PR blocking is determined by the bench-report binary exit code (non-zero on regression).
 }
 
 /// AC1: Test NEUTRAL status with missing baseline
@@ -142,8 +172,18 @@ fn test_missing_baseline_neutral() {
         "Expected no regressions for missing baseline (NEUTRAL)"
     );
 
-    // TODO: Validate exit code (0 - NEUTRAL does not fail CI)
-    // TODO: Test PR comment generation for NEUTRAL status
+    // Exit codes are tested via the bench-report CLI binary (bench-report compare).
+
+    // Test PR comment generation for NEUTRAL status
+    let summary = current.format_pr_summary();
+    assert!(
+        !summary.is_empty(),
+        "PR summary should not be empty for NEUTRAL status"
+    );
+    assert!(
+        summary.contains("GiB/s") || summary.contains("N/A"),
+        "PR summary should contain metric units or N/A"
+    );
 }
 
 /// AC1: Test regression calculation accuracy
@@ -187,8 +227,30 @@ fn test_regression_calculation_accuracy() {
         "Expected exact 10.00% regression"
     );
 
-    // TODO: Test edge cases (0.01% regression)
-    // TODO: Validate floating-point precision
+    // Test edge case: 0.01% regression (baseline 10000.0, current 9999.0)
+    let mut store2 = BaselineStore::new();
+    let mut baseline2 = PerformanceReport::new();
+    baseline2.display_gibs = Some(10000.0);
+    store2.promote_baseline(&baseline2, "main", "baseline2");
+
+    let mut tiny_regression = PerformanceReport::new();
+    tiny_regression.display_gibs = Some(9999.0); // 0.01% regression
+
+    let regressions = store2.check_regression(&tiny_regression, 5.0);
+    assert!(
+        regressions.is_empty(),
+        "0.01% regression should not trigger at 5% threshold"
+    );
+
+    // Validate floating-point precision: exact threshold arithmetic
+    let mut precise = PerformanceReport::new();
+    precise.display_gibs = Some(9500.0); // Exactly 5.0% regression
+
+    let regressions = store2.check_regression(&precise, 5.0);
+    assert!(
+        regressions.is_empty(),
+        "Exactly 5.0% regression should not trigger (threshold is strictly greater than)"
+    );
 }
 
 /// AC1: Test threshold boundary conditions
@@ -226,8 +288,31 @@ fn test_threshold_boundary_conditions() {
         "Expected regression just over 5% threshold"
     );
 
-    // TODO: Test 10% boundary
-    // TODO: Test floating-point precision at boundaries
+    // Test 10% boundary: baseline 100.0, current 90.0 (exactly 10% regression)
+    let mut at_10pct = PerformanceReport::new();
+    at_10pct.display_gibs = Some(90.0); // Exactly 10%
+
+    let regressions = store.check_regression(&at_10pct, 5.0);
+    // 10% > 5% threshold, so this should trigger a regression
+    assert_eq!(
+        regressions.len(),
+        1,
+        "10% regression should trigger at 5% threshold"
+    );
+    assert!(
+        regressions[0].contains("10.00%"),
+        "Expected 10.00% regression"
+    );
+
+    // Test floating-point precision at boundary: just barely under threshold
+    let mut just_under = PerformanceReport::new();
+    just_under.display_gibs = Some(95.000_000_000_01); // Marginally above 95.0
+
+    let regressions = store.check_regression(&just_under, 5.0);
+    assert!(
+        regressions.is_empty(),
+        "Regression just under 5% threshold should not trigger"
+    );
 }
 
 /// AC1: Test regression message formatting
@@ -296,8 +381,24 @@ fn test_regression_message_formatting() {
     );
     assert!(comp3_msg.contains("MiB/s"), "Message must contain units");
 
-    // TODO: Test message format consistency
-    // TODO: Validate PR comment formatting
+    // Validate message format consistency
+    // Messages follow pattern: "{metric} regression: {pct}% ... ({current} vs {baseline} {units})"
+    assert!(
+        display_msg.contains("DISPLAY regression")
+            && display_msg.contains("GiB/s")
+            && display_msg.contains("%"),
+        "DISPLAY message should contain metric name, units, and percentage: {display_msg}"
+    );
+    assert!(
+        comp3_msg.contains("COMP-3 regression")
+            && comp3_msg.contains("MiB/s")
+            && comp3_msg.contains("%"),
+        "COMP-3 message should contain metric name, units, and percentage: {comp3_msg}"
+    );
+
+    // Validate PR comment formatting via format_pr_summary
+    let pr_summary = current.format_pr_summary();
+    assert!(!pr_summary.is_empty(), "PR summary should not be empty");
 }
 
 /// AC1: Test DISPLAY-only regression
@@ -326,8 +427,8 @@ fn test_display_only_regression() {
         "Expected DISPLAY regression"
     );
 
-    // TODO: Test COMP-3-only regression
-    // TODO: Test both metrics regressing
+    // COMP-3-only regression is tested in test_comp3_only_regression.
+    // Both metrics regressing is tested in test_multiple_metric_regression.
 }
 
 /// AC1: Test COMP-3-only regression
@@ -356,7 +457,7 @@ fn test_comp3_only_regression() {
         "Expected COMP-3 regression"
     );
 
-    // TODO: Test both metrics regressing simultaneously
+    // Both metrics regressing simultaneously is tested in test_multiple_metric_regression.
 }
 
 /// AC1: Test missing performance metrics
@@ -385,9 +486,27 @@ fn test_missing_performance_metrics() {
         "Expected no DISPLAY regression when metric is missing"
     );
 
-    // TODO: Test missing COMP-3 metric
-    // TODO: Test both metrics missing
-    // TODO: Validate error handling for missing metrics
+    // Test missing COMP-3 metric
+    let mut missing_comp3 = PerformanceReport::new();
+    missing_comp3.display_gibs = Some(100.0);
+    missing_comp3.comp3_mibs = None;
+
+    let regressions = store.check_regression(&missing_comp3, 5.0);
+    assert!(
+        regressions.is_empty() || regressions.iter().all(|r| !r.contains("COMP-3")),
+        "Expected no COMP-3 regression when metric is missing"
+    );
+
+    // Test both metrics missing
+    let mut both_missing = PerformanceReport::new();
+    both_missing.display_gibs = None;
+    both_missing.comp3_mibs = None;
+
+    let regressions = store.check_regression(&both_missing, 5.0);
+    assert!(
+        regressions.is_empty(),
+        "Expected no regressions when both metrics are missing"
+    );
 }
 
 /// AC1: Test performance improvement (negative regression)
@@ -416,8 +535,30 @@ fn test_performance_improvement() {
         "Performance improvements should not trigger regressions"
     );
 
-    // TODO: Test large improvements (>50%)
-    // TODO: Validate promotion of improved baselines
+    // Test large improvement (>50%): 200% improvement (baseline 100, current 300)
+    let mut large_improvement = PerformanceReport::new();
+    large_improvement.display_gibs = Some(300.0); // 200% improvement
+    large_improvement.comp3_mibs = Some(250.0); // 150% improvement
+
+    let regressions = store.check_regression(&large_improvement, 5.0);
+    assert!(
+        regressions.is_empty(),
+        "Large performance improvements should not trigger regressions"
+    );
+
+    // Validate that improved baselines can be promoted without error
+    let mut store2 = BaselineStore::new();
+    store2.promote_baseline(&baseline, "main", "original");
+    store2.promote_baseline(&large_improvement, "main", "improved");
+    assert!(
+        store2.current.is_some(),
+        "Improved baseline should be promotable"
+    );
+    assert_eq!(
+        store2.current.as_ref().expect("has current").display_gibs,
+        Some(300.0),
+        "Promoted baseline should reflect improved value"
+    );
 }
 
 /// AC1: Test WARNING threshold at 5.5% (specific example from task)

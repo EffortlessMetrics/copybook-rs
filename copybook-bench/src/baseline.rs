@@ -133,6 +133,72 @@ impl BaselineStore {
         regressions
     }
 
+    /// Check for performance regression with verbose calculation log.
+    ///
+    /// Returns `(regressions, calculation_log)` where `calculation_log` shows each step.
+    #[must_use]
+    pub fn check_regression_verbose(
+        &self,
+        report: &PerformanceReport,
+        threshold: f64,
+    ) -> (Vec<String>, Vec<String>) {
+        let mut regressions = Vec::new();
+        let mut log = Vec::new();
+
+        let Some(baseline) = &self.current else {
+            log.push("No baseline found - returning NEUTRAL".to_string());
+            return (regressions, log);
+        };
+
+        // Check DISPLAY
+        if let (Some(current_display), Some(baseline_display)) =
+            (report.display_gibs, baseline.display_gibs)
+            && baseline_display > 0.0
+        {
+            let regression_pct = (baseline_display - current_display) / baseline_display * 100.0;
+            log.push(format!(
+                "DISPLAY: baseline={baseline_display:.2}, current={current_display:.2}, delta={regression_pct:.2}%"
+            ));
+            if regression_pct > threshold {
+                regressions.push(format!(
+                    "DISPLAY regression: {regression_pct:.2}% slower than baseline ({current_display:.2} vs {baseline_display:.2} GiB/s)"
+                ));
+                log.push(format!(
+                    "DISPLAY: {regression_pct:.2}% > {threshold:.2}% threshold -> FAILURE"
+                ));
+            } else {
+                log.push(format!(
+                    "DISPLAY: {regression_pct:.2}% <= {threshold:.2}% threshold -> PASS"
+                ));
+            }
+        }
+
+        // Check COMP-3
+        if let (Some(current_comp3), Some(baseline_comp3)) =
+            (report.comp3_mibs, baseline.comp3_mibs)
+            && baseline_comp3 > 0.0
+        {
+            let regression_pct = (baseline_comp3 - current_comp3) / baseline_comp3 * 100.0;
+            log.push(format!(
+                "COMP-3: baseline={baseline_comp3:.2}, current={current_comp3:.2}, delta={regression_pct:.2}%"
+            ));
+            if regression_pct > threshold {
+                regressions.push(format!(
+                    "COMP-3 regression: {regression_pct:.2}% slower than baseline ({current_comp3:.0} vs {baseline_comp3:.0} MiB/s)"
+                ));
+                log.push(format!(
+                    "COMP-3: {regression_pct:.2}% > {threshold:.2}% threshold -> FAILURE"
+                ));
+            } else {
+                log.push(format!(
+                    "COMP-3: {regression_pct:.2}% <= {threshold:.2}% threshold -> PASS"
+                ));
+            }
+        }
+
+        (regressions, log)
+    }
+
     /// Apply retention policy (remove baselines older than days)
     pub fn apply_retention_policy(&mut self, retention_days: i64) {
         let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days);
@@ -227,5 +293,39 @@ mod tests {
         bad_report.comp3_mibs = Some(540.0); // 10% slower
         let regressions = store.check_regression(&bad_report, 5.0);
         assert_eq!(regressions.len(), 2);
+    }
+
+    #[test]
+    fn test_verbose_regression_detection() {
+        let mut store = BaselineStore::new();
+        let mut baseline_report = PerformanceReport::new();
+        baseline_report.display_gibs = Some(4.0);
+        baseline_report.comp3_mibs = Some(600.0);
+        store.promote_baseline(&baseline_report, "main", "baseline");
+
+        // No regression case
+        let mut good_report = PerformanceReport::new();
+        good_report.display_gibs = Some(4.0);
+        good_report.comp3_mibs = Some(600.0);
+        let (regressions, log) = store.check_regression_verbose(&good_report, 5.0);
+        assert!(regressions.is_empty());
+        assert!(log.iter().any(|l| l.contains("PASS")));
+
+        // Regression case
+        let mut bad_report = PerformanceReport::new();
+        bad_report.display_gibs = Some(3.0);
+        bad_report.comp3_mibs = Some(540.0);
+        let (regressions, log) = store.check_regression_verbose(&bad_report, 5.0);
+        assert_eq!(regressions.len(), 2);
+        assert!(log.iter().any(|l| l.contains("FAILURE")));
+    }
+
+    #[test]
+    fn test_verbose_no_baseline() {
+        let store = BaselineStore::new();
+        let report = PerformanceReport::new();
+        let (regressions, log) = store.check_regression_verbose(&report, 5.0);
+        assert!(regressions.is_empty());
+        assert!(log.iter().any(|l| l.contains("No baseline found")));
     }
 }

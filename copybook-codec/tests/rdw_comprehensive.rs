@@ -45,6 +45,7 @@ fn test_rdw_normal_processing() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // RDW: 4-byte header (length + reserved) + data
@@ -82,6 +83,7 @@ fn test_rdw_reserved_nonzero_warning() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // RDW with non-zero reserved bytes
@@ -118,6 +120,7 @@ fn test_rdw_reserved_nonzero_strict_fatal() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // RDW with non-zero reserved bytes
@@ -152,6 +155,7 @@ fn test_rdw_raw_preservation_with_reserved() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // RDW with non-zero reserved bytes
@@ -206,6 +210,7 @@ fn test_rdw_suspect_ascii_heuristic() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Create RDW that looks like ASCII digits (suspect corruption)
@@ -250,6 +255,7 @@ fn test_rdw_zero_length_record_valid() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Zero-length record: RDW with length 0
@@ -290,6 +296,7 @@ fn test_rdw_zero_length_record_invalid() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Zero-length record with fixed schema
@@ -329,6 +336,7 @@ fn test_rdw_length_recomputation_on_encode() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let original_data = b"\x00\x0A\x00\x00HELLO WRLD";
@@ -382,6 +390,7 @@ fn test_rdw_multiple_records() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Multiple RDW records
@@ -430,6 +439,7 @@ fn test_rdw_big_endian_length() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test big-endian length encoding
@@ -460,6 +470,7 @@ fn test_rdw_raw_record_only_mode() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let test_data = b"\x00\x0A\x00\x00HELLO WRLD";

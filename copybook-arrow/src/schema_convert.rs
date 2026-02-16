@@ -378,8 +378,10 @@ mod tests {
             make_field("DATA", FieldKind::Alphanum { len: 10 }, 0, 10),
             make_field("_filler_00000010", FieldKind::Alphanum { len: 5 }, 10, 5),
         ]);
-        let mut opts = ArrowOptions::default();
-        opts.emit_filler = true;
+        let opts = ArrowOptions {
+            emit_filler: true,
+            ..ArrowOptions::default()
+        };
         let arrow = cobol_schema_to_arrow(&schema, &opts).unwrap();
         assert_eq!(arrow.fields().len(), 2);
     }

@@ -4,7 +4,6 @@
 
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
-
 mod comp_float_parse {
     use copybook_core::parser::parse;
     use copybook_core::schema::FieldKind;

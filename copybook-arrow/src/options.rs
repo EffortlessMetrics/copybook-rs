@@ -22,6 +22,8 @@ pub struct ArrowOptions {
     pub embed_copybook: bool,
     /// Codepage for character conversion
     pub codepage: copybook_codec::Codepage,
+    /// Floating-point representation for COMP-1/COMP-2 fields
+    pub float_format: copybook_codec::FloatFormat,
 }
 
 /// How edited PIC fields are represented in Arrow
@@ -63,6 +65,7 @@ impl Default for ArrowOptions {
             row_group_size: 1_000_000,
             embed_copybook: false,
             codepage: copybook_codec::Codepage::CP037,
+            float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         }
     }
 }

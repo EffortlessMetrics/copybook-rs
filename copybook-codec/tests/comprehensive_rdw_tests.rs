@@ -34,6 +34,7 @@ fn create_rdw_decode_options(emit_raw: RawMode, strict: bool) -> DecodeOptions {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     }
 }
 

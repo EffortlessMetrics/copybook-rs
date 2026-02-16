@@ -199,9 +199,11 @@ mod tests {
             0,
             4,
         )]);
-        let mut opts = ArrowOptions::default();
-        opts.batch_size = 2; // small batch for testing
-        opts.codepage = copybook_codec::Codepage::ASCII;
+        let opts = ArrowOptions {
+            batch_size: 2, // small batch for testing
+            codepage: copybook_codec::Codepage::ASCII,
+            ..ArrowOptions::default()
+        };
 
         let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
         let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();

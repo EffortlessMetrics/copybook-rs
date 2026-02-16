@@ -945,6 +945,7 @@ impl Default for GdprConfig {
     }
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PciDssConfig {
     pub cardholder_data_validation: bool,

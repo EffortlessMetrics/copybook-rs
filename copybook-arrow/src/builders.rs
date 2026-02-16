@@ -10,9 +10,13 @@ use arrow::datatypes::{Int16Type, Int32Type, Int64Type, UInt16Type, UInt32Type, 
 use std::sync::Arc;
 
 use copybook_codec::Codepage;
+use copybook_codec::FloatFormat;
 use copybook_codec::UnmappablePolicy;
 use copybook_codec::charset::ebcdic_to_utf8;
-use copybook_codec::numeric::{decode_binary_int, decode_packed_decimal, decode_zoned_decimal};
+use copybook_codec::numeric::{
+    decode_binary_int, decode_float_double_with_format, decode_float_single_with_format,
+    decode_packed_decimal, decode_zoned_decimal,
+};
 use copybook_core::schema::FieldKind;
 
 use crate::options::ArrowOptions;
@@ -67,8 +71,8 @@ pub(crate) fn create_accumulator(
 
         FieldKind::BinaryInt { bits, signed } => make_int_accumulator(*bits, *signed),
 
-        FieldKind::FloatSingle => Ok(Box::new(Float32Accumulator::new())),
-        FieldKind::FloatDouble => Ok(Box::new(Float64Accumulator::new())),
+        FieldKind::FloatSingle => Ok(Box::new(Float32Accumulator::new(options.float_format))),
+        FieldKind::FloatDouble => Ok(Box::new(Float64Accumulator::new(options.float_format))),
 
         FieldKind::EditedNumeric { .. } => {
             // For now, edited numeric fields are stored as Utf8 strings
@@ -231,7 +235,7 @@ impl PackedDecimalAccumulator {
 
 impl ColumnAccumulator for PackedDecimalAccumulator {
     fn append_value(&mut self, data: &[u8]) -> Result<()> {
-        let expected_bytes = usize::from(self.digits).div_ceil(2) + 1;
+        let expected_bytes = usize::from((self.digits + 1).div_ceil(2));
         let slice = if data.len() >= expected_bytes {
             &data[..expected_bytes]
         } else {
@@ -346,13 +350,15 @@ impl_int_accumulator!(UInt64Type, u64);
 
 struct Float32Accumulator {
     builder: Float32Builder,
+    float_format: FloatFormat,
     count: usize,
 }
 
 impl Float32Accumulator {
-    fn new() -> Self {
+    fn new(float_format: FloatFormat) -> Self {
         Self {
             builder: Float32Builder::new(),
+            float_format,
             count: 0,
         }
     }
@@ -363,8 +369,8 @@ impl ColumnAccumulator for Float32Accumulator {
         if data.len() < 4 {
             self.builder.append_null();
         } else {
-            let bytes: [u8; 4] = [data[0], data[1], data[2], data[3]];
-            let val = f32::from_be_bytes(bytes);
+            let val = decode_float_single_with_format(data, self.float_format)
+                .map_err(|e| ArrowError::Codec(e.to_string()))?;
             if val.is_nan() || val.is_infinite() {
                 self.builder.append_null();
             } else {
@@ -391,13 +397,15 @@ impl ColumnAccumulator for Float32Accumulator {
 
 struct Float64Accumulator {
     builder: Float64Builder,
+    float_format: FloatFormat,
     count: usize,
 }
 
 impl Float64Accumulator {
-    fn new() -> Self {
+    fn new(float_format: FloatFormat) -> Self {
         Self {
             builder: Float64Builder::new(),
+            float_format,
             count: 0,
         }
     }
@@ -408,10 +416,8 @@ impl ColumnAccumulator for Float64Accumulator {
         if data.len() < 8 {
             self.builder.append_null();
         } else {
-            let bytes: [u8; 8] = [
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ];
-            let val = f64::from_be_bytes(bytes);
+            let val = decode_float_double_with_format(data, self.float_format)
+                .map_err(|e| ArrowError::Codec(e.to_string()))?;
             if val.is_nan() || val.is_infinite() {
                 self.builder.append_null();
             } else {

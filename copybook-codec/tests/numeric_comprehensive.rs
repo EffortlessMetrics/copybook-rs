@@ -38,6 +38,7 @@ fn test_zoned_decimal_ebcdic_sign_zones() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test positive signs (C zone = +)
@@ -82,6 +83,7 @@ fn test_zoned_decimal_ascii_sign_zones() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test ASCII positive overpunch
@@ -125,6 +127,7 @@ fn test_blank_when_zero_handling() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test all spaces (should decode to 0 with warning)
@@ -160,6 +163,7 @@ fn test_zoned_invalid_zone_error() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Invalid zone in last character
@@ -197,6 +201,7 @@ fn test_zoned_negative_zero_normalization() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Create -0 in ASCII overpunch (00} = -000)
@@ -230,6 +235,7 @@ fn test_packed_decimal_odd_digits() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Packed: 12345 = 0x12345F (3 bytes, unsigned sign nibble)
@@ -258,6 +264,7 @@ fn test_packed_decimal_even_digits() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Packed: 123456 = 0x0123456F (4 bytes, unsigned sign nibble with leading pad)
@@ -286,6 +293,7 @@ fn test_packed_decimal_sign_nibbles() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test C sign (positive)
@@ -340,6 +348,7 @@ fn test_packed_decimal_invalid_nibble() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Invalid nibble (A in digit position)
@@ -410,6 +419,7 @@ fn test_binary_signed_unsigned_edges() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Maximum unsigned 32-bit: 4294967295 (0xFFFFFFFF)
@@ -461,6 +471,7 @@ fn test_binary_alignment_padding() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Data: 1 byte char + 3 padding + 4 bytes binary + 3 bytes char
@@ -502,6 +513,7 @@ fn test_fixed_scale_rendering() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test data: 12345.67 (scale 2), 12345 (scale 0), 123.4567 (scale 4)

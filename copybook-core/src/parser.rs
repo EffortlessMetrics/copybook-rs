@@ -531,7 +531,9 @@ impl Parser {
             | FieldKind::ZonedDecimal { .. }
             | FieldKind::BinaryInt { .. }
             | FieldKind::PackedDecimal { .. }
-            | FieldKind::EditedNumeric { .. } => true, // Phase E1: EditedNumeric has storage
+            | FieldKind::EditedNumeric { .. }
+            | FieldKind::FloatSingle
+            | FieldKind::FloatDouble => true,
             FieldKind::Condition { .. } => false, // Level-88 fields don't have storage
             FieldKind::Renames { .. } => false,   // Level-66 fields don't have storage
         }
@@ -807,6 +809,20 @@ impl Parser {
                 self.convert_to_packed_field(field)?;
             }
             Some(TokenPos {
+                token: Token::Comp1,
+                ..
+            }) => {
+                self.advance();
+                field.kind = FieldKind::FloatSingle;
+            }
+            Some(TokenPos {
+                token: Token::Comp2,
+                ..
+            }) => {
+                self.advance();
+                field.kind = FieldKind::FloatDouble;
+            }
+            Some(TokenPos {
                 token: Token::Binary,
                 ..
             }) => {
@@ -943,6 +959,20 @@ impl Parser {
             }) => {
                 self.advance();
                 self.convert_to_packed_field(field)?;
+            }
+            Some(TokenPos {
+                token: Token::Comp1,
+                ..
+            }) => {
+                self.advance();
+                field.kind = FieldKind::FloatSingle;
+            }
+            Some(TokenPos {
+                token: Token::Comp2,
+                ..
+            }) => {
+                self.advance();
+                field.kind = FieldKind::FloatDouble;
             }
             Some(TokenPos {
                 token: Token::Binary,

@@ -1295,6 +1295,138 @@ pub fn decode_zoned_decimal_sign_separate(
     Ok(decimal)
 }
 
+/// Encode a zoned decimal value with SIGN SEPARATE clause.
+///
+/// The SIGN SEPARATE clause places the sign character in a separate byte
+/// (leading or trailing) rather than overpunching the last digit.
+///
+/// Total encoded length = digits + 1 (for the separate sign byte).
+///
+/// # Arguments
+/// * `value` - String representation of the numeric value (e.g., "123", "-456.78")
+/// * `digits` - Number of digit positions in the field
+/// * `scale` - Number of implied decimal places
+/// * `sign_separate` - Sign placement information (leading or trailing)
+/// * `codepage` - Character encoding (determines sign byte encoding)
+/// * `buffer` - Output buffer (must be at least digits + 1 bytes)
+///
+/// # Errors
+/// Returns `CBKE530_SIGN_SEPARATE_ENCODE_ERROR` if the value cannot be encoded.
+#[inline]
+pub fn encode_zoned_decimal_sign_separate(
+    value: &str,
+    digits: u16,
+    scale: i16,
+    sign_separate: &SignSeparateInfo,
+    codepage: Codepage,
+    buffer: &mut [u8],
+) -> Result<()> {
+    let expected_len = usize::from(digits) + 1;
+    if buffer.len() < expected_len {
+        return Err(Error::new(
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+            format!(
+                "SIGN SEPARATE encode buffer too small: need {expected_len} bytes, got {}",
+                buffer.len()
+            ),
+        ));
+    }
+
+    // Parse value string to determine sign and digit characters
+    let trimmed = value.trim();
+    let (is_negative, abs_str) = if let Some(rest) = trimmed.strip_prefix('-') {
+        (true, rest)
+    } else if let Some(rest) = trimmed.strip_prefix('+') {
+        (false, rest)
+    } else {
+        (false, trimmed)
+    };
+
+    // Build the scaled digit string
+    let scaled = build_scaled_digit_string(abs_str, scale);
+
+    // Pad with leading zeros or truncate to match digit count
+    let digits_usize = usize::from(digits);
+    let padded = match scaled.len().cmp(&digits_usize) {
+        std::cmp::Ordering::Less => {
+            format!("{scaled:0>digits_usize$}")
+        }
+        std::cmp::Ordering::Greater => {
+            // Take the rightmost digits (overflow)
+            scaled[scaled.len() - digits_usize..].to_string()
+        }
+        std::cmp::Ordering::Equal => scaled,
+    };
+
+    // Determine sign byte and digit encoding based on codepage
+    let (sign_byte, digit_base): (u8, u8) = if codepage.is_ascii() {
+        (if is_negative { b'-' } else { b'+' }, b'0')
+    } else {
+        // EBCDIC codepages
+        (if is_negative { 0x60 } else { 0x4E }, 0xF0)
+    };
+
+    // Write digits to buffer
+    let digit_offset = match sign_separate.placement {
+        SignPlacement::Leading => {
+            buffer[0] = sign_byte;
+            1
+        }
+        SignPlacement::Trailing => 0,
+    };
+
+    for (i, byte) in padded.bytes().enumerate() {
+        let digit = byte.wrapping_sub(b'0');
+        if digit > 9 {
+            return Err(Error::new(
+                ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+                format!("Invalid digit byte 0x{byte:02X} in value"),
+            ));
+        }
+        buffer[digit_offset + i] = digit_base + digit;
+    }
+
+    if matches!(sign_separate.placement, SignPlacement::Trailing) {
+        buffer[digits_usize] = sign_byte;
+    }
+
+    Ok(())
+}
+
+/// Build a digit string scaled to the given number of decimal places.
+///
+/// Splits the absolute value string at the decimal point (if present),
+/// pads or truncates the fractional part to `scale` digits, and concatenates.
+fn build_scaled_digit_string(abs_str: &str, scale: i16) -> String {
+    // Extract only digit characters (ignoring other formatting)
+    let digit_str: String = abs_str.chars().filter(char::is_ascii_digit).collect();
+
+    if scale <= 0 {
+        return digit_str;
+    }
+
+    let scale_usize = usize::try_from(scale).unwrap_or(0);
+    let (integer_part, fractional_part) = if let Some(pos) = abs_str.find('.') {
+        (&abs_str[..pos], &abs_str[pos + 1..])
+    } else {
+        (abs_str, "")
+    };
+
+    let int_digits: String = integer_part.chars().filter(char::is_ascii_digit).collect();
+    let frac_digits: String = fractional_part
+        .chars()
+        .filter(char::is_ascii_digit)
+        .collect();
+
+    // Pad or truncate fractional part to match scale
+    let padded_frac = if frac_digits.len() >= scale_usize {
+        frac_digits[..scale_usize].to_string()
+    } else {
+        format!("{frac_digits:0<scale_usize$}")
+    };
+    format!("{int_digits}{padded_frac}")
+}
+
 /// Decode zoned decimal field with encoding detection and preservation
 ///
 /// Returns both the decoded decimal and encoding information for preservation.
@@ -4224,6 +4356,82 @@ pub fn decode_zoned_decimal_to_string_with_scratch(
     // Fallback to general fixed-scale formatting using scratch buffer
     decimal.format_to_scratch_buffer(scale, &mut scratch.string_buffer);
     Ok(std::mem::take(&mut scratch.string_buffer))
+}
+
+// =============================================================================
+// IEEE 754 Floating-Point Codecs (COMP-1 / COMP-2)
+// =============================================================================
+
+/// Decode a COMP-1 (single-precision IEEE 754) field from big-endian bytes.
+///
+/// COMP-1 fields are 4-byte IEEE 754 binary32 values stored in big-endian order.
+///
+/// # Errors
+/// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 4 bytes.
+#[inline]
+pub fn decode_float_single(data: &[u8]) -> Result<f32> {
+    if data.len() < 4 {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!("COMP-1 requires 4 bytes, got {}", data.len()),
+        ));
+    }
+    let bytes: [u8; 4] = [data[0], data[1], data[2], data[3]];
+    Ok(f32::from_be_bytes(bytes))
+}
+
+/// Decode a COMP-2 (double-precision IEEE 754) field from big-endian bytes.
+///
+/// COMP-2 fields are 8-byte IEEE 754 binary64 values stored in big-endian order.
+///
+/// # Errors
+/// Returns `CBKD301_RECORD_TOO_SHORT` if the data slice has fewer than 8 bytes.
+#[inline]
+pub fn decode_float_double(data: &[u8]) -> Result<f64> {
+    if data.len() < 8 {
+        return Err(Error::new(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            format!("COMP-2 requires 8 bytes, got {}", data.len()),
+        ));
+    }
+    let bytes: [u8; 8] = [
+        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+    ];
+    Ok(f64::from_be_bytes(bytes))
+}
+
+/// Encode a single-precision float (COMP-1) to big-endian bytes.
+///
+/// # Errors
+/// Returns `CBKE510_NUMERIC_OVERFLOW` if the buffer has fewer than 4 bytes.
+#[inline]
+pub fn encode_float_single(value: f32, buffer: &mut [u8]) -> Result<()> {
+    if buffer.len() < 4 {
+        return Err(Error::new(
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+            format!("COMP-1 requires 4 bytes, buffer has {}", buffer.len()),
+        ));
+    }
+    let bytes = value.to_be_bytes();
+    buffer[..4].copy_from_slice(&bytes);
+    Ok(())
+}
+
+/// Encode a double-precision float (COMP-2) to big-endian bytes.
+///
+/// # Errors
+/// Returns `CBKE510_NUMERIC_OVERFLOW` if the buffer has fewer than 8 bytes.
+#[inline]
+pub fn encode_float_double(value: f64, buffer: &mut [u8]) -> Result<()> {
+    if buffer.len() < 8 {
+        return Err(Error::new(
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+            format!("COMP-2 requires 8 bytes, buffer has {}", buffer.len()),
+        ));
+    }
+    let bytes = value.to_be_bytes();
+    buffer[..8].copy_from_slice(&bytes);
+    Ok(())
 }
 
 #[cfg(test)]

@@ -43,6 +43,14 @@ pub enum Token {
     #[token("COMPUTATIONAL-3", ignore(case))]
     Comp3,
 
+    #[token("COMP-1", ignore(case))]
+    #[token("COMPUTATIONAL-1", ignore(case))]
+    Comp1,
+
+    #[token("COMP-2", ignore(case))]
+    #[token("COMPUTATIONAL-2", ignore(case))]
+    Comp2,
+
     #[token("BINARY", ignore(case))]
     Binary,
 
@@ -181,6 +189,8 @@ impl fmt::Display for Token {
             Token::Display => write!(f, "DISPLAY"),
             Token::Comp => write!(f, "COMP"),
             Token::Comp3 => write!(f, "COMP-3"),
+            Token::Comp1 => write!(f, "COMP-1"),
+            Token::Comp2 => write!(f, "COMP-2"),
             Token::Binary => write!(f, "BINARY"),
             Token::Redefines => write!(f, "REDEFINES"),
             Token::Renames => write!(f, "RENAMES"),

@@ -1237,9 +1237,23 @@ fn decode_scalar_field_value_standard(
             digits,
             scale,
             signed,
-            sign_separate: _,
+            sign_separate,
         } => {
-            if options.preserve_zoned_encoding {
+            if let Some(sign_sep) = sign_separate {
+                let decimal = crate::numeric::decode_zoned_decimal_sign_separate(
+                    field_data,
+                    *digits,
+                    *scale,
+                    sign_sep,
+                    options.codepage,
+                )?;
+                let formatted = if *scale == 0 {
+                    format_zoned_decimal_with_digits(&decimal, *digits, field.blank_when_zero)
+                } else {
+                    decimal.to_string()
+                };
+                Ok(Value::String(formatted))
+            } else if options.preserve_zoned_encoding {
                 // Use encoding-aware decoding for round-trip preservation
                 let (decimal, _encoding_info) = crate::numeric::decode_zoned_decimal_with_encoding(
                     field_data,
@@ -1385,6 +1399,28 @@ fn decode_scalar_field_value_standard(
             // Return as string (consistent with other numeric types)
             Ok(Value::String(numeric_value.to_decimal_string()))
         }
+        FieldKind::FloatSingle => {
+            let value = crate::numeric::decode_float_single(field_data)?;
+            if value.is_nan() || value.is_infinite() {
+                Ok(Value::Null)
+            } else {
+                Ok(Value::Number(
+                    serde_json::Number::from_f64(f64::from(value))
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                ))
+            }
+        }
+        FieldKind::FloatDouble => {
+            let value = crate::numeric::decode_float_double(field_data)?;
+            if value.is_nan() || value.is_infinite() {
+                Ok(Value::Null)
+            } else {
+                Ok(Value::Number(
+                    serde_json::Number::from_f64(value)
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                ))
+            }
+        }
     }
 }
 
@@ -1411,18 +1447,29 @@ fn decode_scalar_field_value_with_scratch(
             digits,
             scale,
             signed,
-            sign_separate: _,
+            sign_separate,
         } => {
-            let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
-                field_data,
-                *digits,
-                *scale,
-                *signed,
-                options.codepage,
-                field.blank_when_zero,
-                scratch,
-            )?;
-            Ok(Value::String(decimal_str))
+            if let Some(sign_sep) = sign_separate {
+                let decimal = crate::numeric::decode_zoned_decimal_sign_separate(
+                    field_data,
+                    *digits,
+                    *scale,
+                    sign_sep,
+                    options.codepage,
+                )?;
+                Ok(Value::String(decimal.to_string()))
+            } else {
+                let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    options.codepage,
+                    field.blank_when_zero,
+                    scratch,
+                )?;
+                Ok(Value::String(decimal_str))
+            }
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
@@ -1508,6 +1555,28 @@ fn decode_scalar_field_value_with_scratch(
 
             // Return as string (consistent with other numeric types)
             Ok(Value::String(numeric_value.to_decimal_string()))
+        }
+        FieldKind::FloatSingle => {
+            let value = crate::numeric::decode_float_single(field_data)?;
+            if value.is_nan() || value.is_infinite() {
+                Ok(Value::Null)
+            } else {
+                Ok(Value::Number(
+                    serde_json::Number::from_f64(f64::from(value))
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                ))
+            }
+        }
+        FieldKind::FloatDouble => {
+            let value = crate::numeric::decode_float_double(field_data)?;
+            if value.is_nan() || value.is_infinite() {
+                Ok(Value::Null)
+            } else {
+                Ok(Value::Number(
+                    serde_json::Number::from_f64(value)
+                        .unwrap_or_else(|| serde_json::Number::from(0)),
+                ))
+            }
         }
     }
 }
@@ -1700,6 +1769,7 @@ fn encode_fields_recursive(
 /// Orchestrates the encoding of various COBOL data types by delegating to
 /// specialized encoding functions.
 #[inline]
+#[allow(clippy::too_many_lines)]
 fn encode_single_field(
     field: &copybook_core::Field,
     field_path: &str,
@@ -1728,21 +1798,38 @@ fn encode_single_field(
             digits,
             scale,
             signed,
-            sign_separate: _,
-        } => encode_zoned_decimal_field(
-            field,
-            field_path,
-            json_obj,
-            encoding_metadata,
-            buffer,
-            current_offset,
-            options,
-            DecimalSpec {
-                digits: *digits,
-                scale: *scale,
-                signed: *signed,
-            },
-        ),
+            sign_separate,
+        } => {
+            if let Some(sign_sep) = sign_separate {
+                let field_len = field.len as usize;
+                if let Some(text) = json_obj.get(&field.name).and_then(|v| v.as_str()) {
+                    crate::numeric::encode_zoned_decimal_sign_separate(
+                        text,
+                        *digits,
+                        *scale,
+                        sign_sep,
+                        options.codepage,
+                        &mut buffer[current_offset..current_offset + field_len],
+                    )?;
+                }
+                Ok(current_offset + field_len)
+            } else {
+                encode_zoned_decimal_field(
+                    field,
+                    field_path,
+                    json_obj,
+                    encoding_metadata,
+                    buffer,
+                    current_offset,
+                    options,
+                    DecimalSpec {
+                        digits: *digits,
+                        scale: *scale,
+                        signed: *signed,
+                    },
+                )
+            }
+        }
         FieldKind::PackedDecimal {
             digits,
             scale,
@@ -1807,6 +1894,84 @@ fn encode_single_field(
                 }
             }
             Ok(current_offset + field.len as usize)
+        }
+        FieldKind::FloatSingle => {
+            let field_len = field.len as usize;
+            if let Some(val) = json_obj.get(&field.name) {
+                let f = match val {
+                    Value::Number(n) => {
+                        let f64_val = n.as_f64().unwrap_or(0.0);
+                        // Check for f64->f32 overflow
+                        if f64_val.is_finite()
+                            && (f64_val > f64::from(f32::MAX) || f64_val < f64::from(f32::MIN))
+                        {
+                            return Err(Error::new(
+                                ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
+                                format!("Value overflow for COMP-1 field '{}'", field.name),
+                            ));
+                        }
+                        // Overflow already checked above, truncation is intentional
+                        #[allow(clippy::cast_possible_truncation)]
+                        {
+                            f64_val as f32
+                        }
+                    }
+                    Value::String(s) => s.parse::<f32>().map_err(|e| {
+                        Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!(
+                                "Cannot parse '{}' as f32 for field '{}': {}",
+                                s, field.name, e
+                            ),
+                        )
+                    })?,
+                    Value::Null => f32::NAN,
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!("Expected number for COMP-1 field '{}'", field.name),
+                        ));
+                    }
+                };
+                if current_offset + field_len <= buffer.len() {
+                    crate::numeric::encode_float_single(
+                        f,
+                        &mut buffer[current_offset..current_offset + field_len],
+                    )?;
+                }
+            }
+            Ok(current_offset + field_len)
+        }
+        FieldKind::FloatDouble => {
+            let field_len = field.len as usize;
+            if let Some(val) = json_obj.get(&field.name) {
+                let f = match val {
+                    Value::Number(n) => n.as_f64().unwrap_or(0.0),
+                    Value::String(s) => s.parse::<f64>().map_err(|e| {
+                        Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!(
+                                "Cannot parse '{}' as f64 for field '{}': {}",
+                                s, field.name, e
+                            ),
+                        )
+                    })?,
+                    Value::Null => f64::NAN,
+                    _ => {
+                        return Err(Error::new(
+                            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                            format!("Expected number for COMP-2 field '{}'", field.name),
+                        ));
+                    }
+                };
+                if current_offset + field_len <= buffer.len() {
+                    crate::numeric::encode_float_double(
+                        f,
+                        &mut buffer[current_offset..current_offset + field_len],
+                    )?;
+                }
+            }
+            Ok(current_offset + field_len)
         }
     }
 }

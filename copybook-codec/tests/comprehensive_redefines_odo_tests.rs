@@ -40,8 +40,11 @@ fn create_test_decode_options(strict: bool) -> DecodeOptions {
     }
 }
 
-fn create_test_encode_options(_strict: bool) -> EncodeOptions {
+fn create_test_encode_options(strict: bool) -> EncodeOptions {
     EncodeOptions {
+        format: RecordFormat::Fixed,
+        codepage: Codepage::ASCII,
+        strict_mode: strict,
         ..EncodeOptions::default()
     }
 }

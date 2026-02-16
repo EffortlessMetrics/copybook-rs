@@ -255,8 +255,8 @@ fn test_batch_with_errors() {
     let mut data = Vec::new();
     for i in 0..20 {
         if i % 5 == 0 {
-            // Every 5th record is invalid (too short)
-            data.extend_from_slice(b"123");
+            // Every 5th record has invalid numeric content but correct record width.
+            data.extend_from_slice(b"12A45");
         } else {
             data.extend_from_slice(format!("{:05}", i).as_bytes());
         }
@@ -267,8 +267,10 @@ fn test_batch_with_errors() {
 
     let result = decode_file_to_jsonl(&schema, input, &mut output, &options);
 
-    // Should succeed but with some errors
+    // Should succeed but report decode errors for invalid records.
     assert!(result.is_ok());
+    let summary = result.unwrap();
+    assert!(summary.records_with_errors > 0);
 }
 
 #[test]
@@ -379,9 +381,10 @@ fn test_batch_rdw_format() {
     // Generate RDW records
     let mut data = Vec::new();
     for i in 0..10 {
-        // RDW header: 2 bytes for length (big-endian)
+        // RDW header: 2 bytes for length + 2 reserved bytes
         let record_len: u16 = 5; // 5 bytes of data
         data.extend_from_slice(&record_len.to_be_bytes());
+        data.extend_from_slice(&[0x00, 0x00]);
         // Record data
         data.extend_from_slice(format!("{:05}", i).as_bytes());
     }

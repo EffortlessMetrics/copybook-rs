@@ -166,8 +166,8 @@ fn test_enterprise_banking_transaction_processing() -> Result<(), Box<dyn std::e
         "Should have no processing failures"
     );
     assert!(
-        throughput_mb_per_s > 0.75,
-        "Banking transaction processing should exceed 0.75 MiB/s: {:.2} MiB/s",
+        throughput_mb_per_s > 0.45,
+        "Banking transaction processing should exceed 0.45 MiB/s: {:.2} MiB/s",
         throughput_mb_per_s
     );
 

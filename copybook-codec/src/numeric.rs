@@ -1287,7 +1287,17 @@ pub fn decode_zoned_decimal_sign_separate(
             byte - 0xF0
         };
 
-        value = value * 10 + i64::from(digit);
+        value = value
+            .checked_mul(10)
+            .and_then(|v| v.checked_add(i64::from(digit)))
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorCode::CBKD410_ZONED_OVERFLOW,
+                    format!(
+                        "SIGN SEPARATE zoned decimal value overflow for {digits} digits"
+                    ),
+                )
+            })?;
     }
 
     let mut decimal = SmallDecimal::new(value, scale, is_negative);

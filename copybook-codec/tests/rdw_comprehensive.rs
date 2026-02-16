@@ -179,6 +179,7 @@ fn test_rdw_raw_preservation_with_reserved() {
     let encode_options = EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
+        use_raw: true,
         ..EncodeOptions::default()
     };
 

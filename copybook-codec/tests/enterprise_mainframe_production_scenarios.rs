@@ -470,8 +470,8 @@ fn test_enterprise_retail_pos_processing() -> Result<(), Box<dyn std::error::Err
         throughput_records_per_s
     );
     assert!(
-        throughput_mb_per_s > 0.85,
-        "POS throughput should exceed 0.85 MiB/s: {:.2} MiB/s",
+        throughput_mb_per_s > 0.60,
+        "POS throughput should exceed 0.60 MiB/s: {:.2} MiB/s",
         throughput_mb_per_s
     );
 

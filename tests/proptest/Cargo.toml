@@ -8,6 +8,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "Property-based tests for copybook-rs using proptest"
+publish = false
 
 [[bin]]
 name = "proptest"

@@ -7,7 +7,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Performance benchmarks for copybook-rs"
+description = "Benchmark harness and baseline tooling for copybook-rs"
+keywords = ["cobol", "copybook", "benchmark", "performance", "mainframe"]
+categories = ["development-tools::profiling", "encoding"]
 publish = false
 
 [[bench]]

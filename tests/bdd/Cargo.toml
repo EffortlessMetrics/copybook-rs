@@ -8,11 +8,15 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "BDD tests for copybook-rs using Cucumber/Gherkin"
+readme = "README.md"
 publish = false
 
 [[bin]]
 name = "bdd"
 path = "bdd.rs"
+
+[lints]
+workspace = true
 
 [dependencies]
 cucumber.workspace = true

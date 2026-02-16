@@ -8,7 +8,11 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "Property-based tests for copybook-rs using proptest"
+readme = "README.md"
 publish = false
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "proptest"

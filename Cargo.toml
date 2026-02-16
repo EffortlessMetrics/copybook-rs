@@ -30,6 +30,7 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 copybook-core = { version = "=0.4.3", path = "copybook-core" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
 copybook-arrow = { version = "=0.4.3", path = "copybook-arrow" }
+copybook-bench = { version = "=0.4.3", path = "copybook-bench" }
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }
@@ -67,6 +68,8 @@ criterion = { version = "0.8.2", features = ["html_reports"] }
 hex = "0.4.3"
 assert_cmd = "2.1.2"
 predicates = "3.1.3"
+num_cpus = "1.17.0"
+roxmltree = "0.21.1"
 
 # BDD testing dependencies
 cucumber = "0.22.1"

@@ -179,6 +179,14 @@ fn fill_field_data(
             // Alternatively, could fill with EBCDIC spaces if codepage is EBCDIC
             let _ = width; // Suppress unused warning
         }
+        FieldKind::FloatSingle => {
+            // Fill with IEEE 754 zero (4 bytes of 0x00)
+            record[start..end].fill(0x00);
+        }
+        FieldKind::FloatDouble => {
+            // Fill with IEEE 754 zero (8 bytes of 0x00)
+            record[start..end].fill(0x00);
+        }
     }
 
     // Handle OCCURS
@@ -471,6 +479,14 @@ fn fill_performance_field_data(record: &mut [u8], field: &Field, record_idx: usi
         FieldKind::EditedNumeric { .. } => {
             // Phase E1: Fill with EBCDIC spaces as placeholder (edited fields not yet decodable)
             record[start..end].fill(0x40); // EBCDIC space
+        }
+        FieldKind::FloatSingle => {
+            // COMP-1: IEEE 754 single-precision zero
+            record[start..end].fill(0x00);
+        }
+        FieldKind::FloatDouble => {
+            // COMP-2: IEEE 754 double-precision zero
+            record[start..end].fill(0x00);
         }
     }
 }

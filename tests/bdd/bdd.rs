@@ -252,6 +252,8 @@ mod steps {
                 copybook_core::FieldKind::Renames { .. } => "renames",
                 copybook_core::FieldKind::Condition { .. } => "condition",
                 copybook_core::FieldKind::EditedNumeric { .. } => "edited",
+                copybook_core::FieldKind::FloatSingle => "float_single",
+                copybook_core::FieldKind::FloatDouble => "float_double",
             }
         };
 

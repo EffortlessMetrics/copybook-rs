@@ -362,6 +362,9 @@ proptest! {
                     prop_assert!(has_edited_marker,
                         "Edited PIC should include edited formatting characters");
                 }
+                FieldKind::FloatSingle | FieldKind::FloatDouble => {
+                    // COMP-1/COMP-2 are self-defining, no PIC clause needed
+                }
                 FieldKind::Group | FieldKind::Renames { .. } | FieldKind::Condition { .. } => {
                     // Group/renames/condition fields are handled elsewhere
                 }

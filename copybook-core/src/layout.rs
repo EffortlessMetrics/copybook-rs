@@ -505,6 +505,8 @@ fn calculate_field_size_and_alignment(kind: &FieldKind, synchronized: bool) -> (
         FieldKind::Condition { .. } => (0, 1u64), // Level-88 fields don't consume storage
         FieldKind::Renames { .. } => (0, 1u64), // Level-66 fields don't consume storage
         FieldKind::EditedNumeric { width, .. } => (u32::from(*width), 1u64), // Phase E1: use display width
+        FieldKind::FloatSingle => (4, if synchronized { 4u64 } else { 1u64 }),
+        FieldKind::FloatDouble => (8, if synchronized { 8u64 } else { 1u64 }),
     };
 
     let alignment = if synchronized && natural_alignment > 1 {

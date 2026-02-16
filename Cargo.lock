@@ -822,6 +822,7 @@ dependencies = [
  "assert_fs",
  "chrono",
  "clap",
+ "copybook-arrow",
  "copybook-codec",
  "copybook-core",
  "md5",

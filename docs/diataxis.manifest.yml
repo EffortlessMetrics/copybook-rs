@@ -1,0 +1,222 @@
+version: "1.1"
+updated: "2026-02-16"
+status: "active"
+purpose: "Diátaxis documentation mapping for copybook-rs"
+
+categories:
+  tutorials:
+    docs:
+      - docs/tutorials/README.md
+      - docs/tutorials/getting-started.md
+      - docs/tutorials/enterprise-deployment.md
+
+  how_to:
+    docs:
+      - docs/how-to/README.md
+      - docs/BDD_TESTING.md
+      - docs/how-to/benchmark-regression-testing.md
+      - docs/how-to/configure-security-scanning.md
+      - docs/how-to/error-handling-production.md
+      - docs/how-to/performance-optimization.md
+      - docs/CI_GATING_POLICY.md
+      - docs/ENTERPRISE_DEPLOYMENT.md
+      - docs/FUZZING.md
+      - docs/FUZZING_IMPLEMENTATION_SUMMARY.md
+      - docs/MERGE_RUNBOOK_CI_DOWN.md
+      - docs/MIGRATION_GUIDE.md
+      - docs/MUTATION_TESTING.md
+      - docs/MUTATION_TESTING_ANALYSIS_T4.md
+      - docs/PROPERTY_TESTING.md
+      - docs/RELEASE_PROCESS.md
+      - docs/RELEASE_RUNBOOK.md
+      - docs/TELEMETRY_ROLLOUT.md
+      - docs/telemetry-launch-checklist.md
+      - docs/TEST_COVERAGE.md
+      - docs/TESTING_COMMANDS.md
+      - docs/TEST_INFRASTRUCTURE_LANDSCAPE.md
+      - docs/TESTING_INTEGRATION_SUMMARY.md
+      - docs/VERIFY.md
+
+  explanation:
+    docs:
+      - docs/explanation/README.md
+      - docs/explanation/benchmark-reporting-architecture.md
+      - docs/explanation/enterprise-audit-architecture.md
+      - docs/explanation/enterprise-audit-api-contracts.md
+      - docs/explanation/enterprise-audit-implementation-blueprint.md
+      - docs/explanation/enterprise-audit-integration-patterns.md
+      - docs/explanation/enterprise-audit-performance-integration.md
+      - docs/explanation/enterprise-audit-security-architecture.md
+      - docs/explanation/panic-elimination-api-contracts.md
+      - docs/explanation/panic-elimination-architecture.md
+      - docs/explanation/panic-elimination-implementation-blueprint.md
+      - docs/explanation/performance-regression-monitoring.md
+      - docs/explanation/security-scanning-architecture.md
+      - docs/explanation/test-suite-api-contracts.md
+      - docs/explanation/test-suite-enhancement-architecture.md
+      - docs/BINARY_ROUNDTRIP_FIDELITY.md
+      - docs/COMP_1_2_DECISION.md
+      - docs/ENTERPRISE_CONTRACTS.md
+      - docs/ENTERPRISE_PERFORMANCE.md
+      - docs/ROADMAP.md
+      - docs/EVALUATION_REPORT.md
+      - docs/FEATURE_FLAGS.md
+      - docs/GOLDEN_FIXTURES_GUIDE.md
+      - docs/HISTORICAL_PERFORMANCE.md
+      - docs/IMPLEMENTATION_ROADMAP.md
+      - docs/NORMATIVE_SPEC.md
+      - docs/PERFORMANCE_GOVERNANCE.md
+      - docs/PERFORMANCE_RECEIPT_REFERENCE.md
+      - docs/PRODUCTION_READINESS.md
+      - docs/QUALITY_BLOCKERS.md
+      - docs/RENAMES_R4_R6.md
+      - docs/SIGN_SEPARATE.md
+      - docs/STRUCTURAL_VALIDATION_SPECS.md
+      - docs/THROUGHPUT_OPTIMIZATIONS.md
+      - docs/TROUBLESHOOTING_MATRIX.md
+      - docs/USER_GUIDE.md
+      - docs/VALIDATION_PROTOCOL.md
+      - docs/cli-interface-enhancements.md
+      - docs/exploration-benchmark-infrastructure.md
+      - docs/github-actions-ci-integration-spec.md
+      - docs/benchmark-python-utilities-architecture.md
+      - docs/benchmark-reporting-architectural-blueprint.md
+      - docs/enterprise-audit-compliance-reporting-spec.md
+      - docs/enterprise-compliance-guide.md
+      - docs/jsonl-schema.md
+      - docs/panic-elimination-domain-schemas.md
+      - docs/panic-elimination-implementation-blueprint.md
+      - docs/perf/CONTAINER_IMPLEMENTATION.md
+      - docs/perf/OPERATOR_RUNBOOK.md
+      - docs/risk-assessment.md
+      - docs/slo-validation-regression-detection-spec.md
+      - docs/specifications/benchmark-reporting-architecture.md
+      - docs/specifications/cicd-integration.md
+      - docs/specifications/enterprise-audit.md
+      - docs/specifications/perf-json-schema.md
+      - docs/specifications/validation-summary.md
+      - docs/specs/error-codes-specification.md
+      - docs/specs/golden-fixtures-spec.md
+      - docs/specs/issue-33-panic-elimination-spec.md
+      - docs/specs/issue-60-enterprise-audit-spec.md
+      - docs/specs/issue-enterprise-audit-spec.md
+      - docs/specs/specification-validation-summary.md
+      - docs/specs/structural-error-codes-spec.md
+      - docs/specs/structural-performance-requirements-spec.md
+      - docs/specs/enterprise-audit-system-spec.md
+      - docs/structural-validation-rules.md
+      - docs/zoned-encoding-domain.md
+      - docs/adr/ADR-001-audit-event-schema-design.md
+      - docs/adr/ADR-001-test-suite-enhancement-approach.md
+      - docs/adr/ADR-002-cryptographic-integrity-implementation.md
+      - docs/adr/ADR-002-performance-validation-strategy.md
+      - docs/adr/ADR-003-binary-fidelity-validation.md
+      - docs/adr/ADR-003-performance-optimization-strategy.md
+      - docs/adr/ADR-004-multi-framework-compliance-engine.md
+      - docs/adr/ADR-005-enterprise-integration-patterns.md
+      - docs/adr/ADR-odo-tail-and-occurs-semantics.md
+      - docs/adr/adr-001-benchmark-reporting-infrastructure.md
+      - docs/adr/adr-003-panic-elimination-enterprise-safety.md
+
+  reference:
+    docs:
+      - docs/reference/README.md
+      - docs/reference/BENCHMARKS.md
+      - docs/reference/CLI_EXAMPLES.md
+      - docs/reference/COBOL_SUPPORT_MATRIX.md
+      - docs/reference/ERROR_CODES.md
+      - docs/reference/GRAMMAR_RENAMES.md
+      - docs/reference/LIBRARY_API.md
+      - docs/reference/benchmark-api-contracts.md
+      - docs/reference/security-receipt-schema.json
+      - docs/reference/security-receipt-schema.md
+      - docs/API_FREEZE.md
+      - docs/CHANGELOG.md
+      - docs/CHANGELOG_GENERATION.md
+      - docs/ADAPTERS.md
+      - docs/CLI_REFERENCE.md
+      - docs/REPORT.md
+      - docs/benchmark-reporting-api-contracts.md
+      - docs/audit-api-reference.md
+      - docs/enterprise-audit-api-contracts.md
+      - docs/PERF_RECEIPTS.md
+      - docs/INVESTIGATION_REPORT.md
+      - docs/VERIFY_REPORT.schema.json
+
+  supporting:
+    description: >
+      Issue gate receipts, PR receipts, and archival implementation status documents
+      are intentionally left as operational records outside Diátaxis coverage.
+    docs:
+      - docs/ARCHITECTURE_REVIEW_REPORT.md
+      - docs/README.md
+      - docs/SPEC.manifest.yml
+      - docs/diataxis.manifest.yml
+      - docs/DOCS_GATE_ASSESSMENT_PANIC_ELIMINATION.md
+      - docs/DOCS_GATE_STATUS_COMPREHENSIVE.md
+      - docs/DOCS_GATE_STATUS_FINAL.md
+      - docs/DOCS_REVIEW_ASSESSMENT_PANIC_ELIMINATION.md
+      - docs/DOCUMENTATION_GATE_STATUS.md
+      - docs/DOCUMENTATION_UPDATE_STATUS.md
+      - docs/IMPLEMENTATION_FINALIZATION_STATUS.md
+      - docs/IMPLEMENTATION_SUMMARY.md
+      - docs/ISSUE-48.story.md
+      - docs/ISSUE_53_DOCUMENTATION_SUMMARY.md
+      - docs/MERGE_PROTOCOL.md
+      - docs/SPEC_FINALIZATION_REPORT.md
+      - docs/SPEC_GATE_STATUS.md
+      - docs/issue-49-spec-gate-receipt.md
+      - docs/issue-49-tdd-handoff-package.md
+      - docs/issue-49-traceability-matrix.md
+      - docs/issue-49-schema-validation-report.md
+      - docs/issue-49-spec.md
+      - docs/issue-52-spec.md
+      - docs/issue-63-spec.md
+      - docs/issue-63-technical-specification.md
+      - docs/issue-33-spec.md
+      - docs/issue-33-comprehensive-architectural-blueprint.md
+      - docs/issue-35-spec.md
+      - docs/issue-35-technical-approach.md
+      - docs/issue-35-ac-finalized.md
+      - docs/issue-102-spec.md
+      - docs/issue-102-technical-analysis.md
+      - docs/issue-102-architecture-review.md
+      - docs/issue-102-build-gate-receipt.md
+      - docs/issue-102-build-validation-summary.md
+      - docs/issue-102-contract-gate-receipt.md
+      - docs/issue-102-contract-review-progress.md
+      - docs/issue-102-docs-finalizer-receipt.md
+      - docs/issue-102-docs-gate-receipt.md
+      - docs/issue-102-performance-gate-receipt.md
+      - docs/issue-102-pr-publisher-receipt.md
+      - docs/issue-102-pr-test-validation-summary.md
+      - docs/issue-102-prep-finalizer-receipt.md
+      - docs/issue-102-ready-promoter-receipt.md
+      - docs/issue-102-security-gate-receipt.md
+      - docs/issue-102-spec-gate-receipt.md
+      - docs/issue-102-tests-gate-receipt.md
+      - docs/issue-104-policy-gatekeeper-receipt.md
+      - docs/pr-90-contract-gate-receipt.md
+      - docs/pr-90-hygiene-gate-receipt.md
+      - docs/pr-90-ledger-update.md
+      - docs/pr-90-performance-gate-receipt.md
+      - docs/pr-90-performance-regression-summary.md
+      - docs/pr-90-regression-detector-receipt.md
+      - docs/pr-105-docs-gate-receipt.md
+      - docs/pr-105-performance-gate-receipt.md
+      - docs/api/structural-validation.md
+      - docs/backlog/benchmark_tooling.md
+      - docs/design/DETERMINISM_CLI.md
+      - docs/design/NESTED_ODO_BEHAVIOR.md
+      - docs/design/RENAMES_NESTED_GROUPS.md
+      - docs/internal/ROADMAP_ISSUE_UPDATE.md
+      - docs/internal/features/d0_dialect_lever_contract.md
+      - docs/internal/features/e3_edited_pic_encode_contract.md
+      - docs/internal/historical/ROADMAP_MVP.md
+      - docs/internal/historical/ROADMAP_PRODUCTION.md
+      - docs/internal/quality/phase1_baseline.md
+      - docs/internal/state-and-path.md
+      - docs/planning/issue-74-closure-plan.md
+      - docs/planning/issue-74-closure-summary.md
+      - docs/templates/performance-section-template.md
+      - docs/templates/stakeholder-update-telemetry.md

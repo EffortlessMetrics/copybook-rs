@@ -8,13 +8,14 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "Test fixture and synthetic dataset generation for copybook-rs"
+readme = "README.md"
 keywords = ["cobol", "copybook", "fixtures", "testing", "mainframe"]
 categories = ["development-tools::testing", "encoding"]
 publish = false
 
 [dependencies]
-copybook-core = { path = "../copybook-core" }
-copybook-codec = { path = "../copybook-codec" }
+copybook-core = { workspace = true }
+copybook-codec = { workspace = true }
 serde.workspace = true
 serde_json.workspace = true
 rand.workspace = true

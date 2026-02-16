@@ -14,7 +14,7 @@
 
 use copybook_codec::numeric::decode_zoned_decimal_sign_separate;
 use copybook_codec::options::Codepage;
-use copybook_core::{SignPlacement, SignSeparateInfo};
+use copybook_core::{ErrorCode, SignPlacement, SignSeparateInfo};
 
 #[test]
 fn test_sign_separate_ascii_leading_positive() {
@@ -240,17 +240,17 @@ fn test_sign_separate_negative_with_scale() {
 
 #[test]
 fn test_sign_separate_large_number() {
-    // Test with large number of digits
+    // Values beyond i64 capacity should fail with a decode overflow error
     let data = b"+12345678901234567890";
     let sign_info = SignSeparateInfo {
         placement: SignPlacement::Leading,
     };
 
-    let result = decode_zoned_decimal_sign_separate(data, 20, 0, &sign_info, Codepage::ASCII)
-        .expect("Should decode successfully");
-
-    assert_eq!(result.to_string(), "12345678901234567890");
-    assert!(!result.is_negative());
+    let result = decode_zoned_decimal_sign_separate(data, 20, 0, &sign_info, Codepage::ASCII);
+    assert!(result.is_err(), "Should fail on i64 overflow");
+    if let Err(err) = result {
+        assert_eq!(err.code, ErrorCode::CBKD410_ZONED_OVERFLOW);
+    }
 }
 
 #[test]

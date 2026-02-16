@@ -38,10 +38,12 @@ fn create_rdw_decode_options(emit_raw: RawMode, strict: bool) -> DecodeOptions {
     }
 }
 
-fn create_rdw_encode_options(_use_raw: bool, _strict: bool) -> EncodeOptions {
+fn create_rdw_encode_options(use_raw: bool, strict: bool) -> EncodeOptions {
     EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
+        use_raw,
+        strict_mode: strict,
         ..EncodeOptions::default()
     }
 }

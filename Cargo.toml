@@ -76,7 +76,7 @@ futures = "0.3.31"
 anyhow = "1.0.101"
 
 # Random number generation dependencies
-rand = "0.9.2"
+rand = "0.10.0"
 rand_core = "0.9.5"
 
 # Enterprise audit dependencies

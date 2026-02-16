@@ -32,6 +32,7 @@ fn test_error_invalid_record_length() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide data that's too short
@@ -65,6 +66,7 @@ fn test_error_invalid_zoned_sign() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide data with invalid sign byte
@@ -152,6 +154,7 @@ fn test_error_propagation() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide multiple records, one invalid
@@ -184,6 +187,7 @@ fn test_error_recovery_with_max_errors() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide valid data
@@ -328,6 +332,7 @@ fn test_error_rdw_invalid_length() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide invalid RDW data (too short)
@@ -359,6 +364,7 @@ fn test_error_unmappable_character() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide ASCII data when expecting EBCDIC
@@ -392,6 +398,7 @@ fn test_error_json_number_mode() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide valid data
@@ -423,6 +430,7 @@ fn test_error_strict_mode() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide valid data
@@ -454,6 +462,7 @@ fn test_error_empty_input() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Provide empty data

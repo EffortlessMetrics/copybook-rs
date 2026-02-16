@@ -35,6 +35,7 @@ fn test_batch_decode_small_file() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate 10 records
@@ -71,6 +72,7 @@ fn test_batch_decode_medium_file() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate 100 records
@@ -107,6 +109,7 @@ fn test_batch_decode_large_file() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate 1000 records
@@ -215,6 +218,7 @@ fn test_batch_roundtrip() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let input2 = Cursor::new(&encoded);
@@ -244,6 +248,7 @@ fn test_batch_with_errors() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate records with some invalid data
@@ -285,6 +290,7 @@ fn test_batch_multithreaded() {
         threads: 4, // Use 4 threads
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate 100 records
@@ -327,6 +333,7 @@ fn test_batch_complex_record() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate 10 complex records
@@ -366,6 +373,7 @@ fn test_batch_rdw_format() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate RDW records
@@ -406,6 +414,7 @@ fn test_batch_with_ebcdic() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate EBCDIC records
@@ -446,6 +455,7 @@ fn test_batch_empty_input() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let data = Vec::new();
@@ -478,6 +488,7 @@ fn test_batch_performance_large_record() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Generate 10 large records

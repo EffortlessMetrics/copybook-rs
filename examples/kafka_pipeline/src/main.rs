@@ -177,6 +177,7 @@ async fn process_copybook_to_kafka(
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Read binary data

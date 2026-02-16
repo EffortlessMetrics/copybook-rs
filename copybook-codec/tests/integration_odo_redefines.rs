@@ -45,6 +45,7 @@ fn test_odo_redefines_integration() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test data: counter=3, original area, 3 array items
@@ -84,6 +85,7 @@ fn test_comprehensive_error_context() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Counter exceeds maximum

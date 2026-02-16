@@ -152,6 +152,7 @@ fn test_redefines_decode_all_views() -> TestResult {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let (summary, json_record) = decode_record_view(&schema, test_data, &options)?;
@@ -193,6 +194,7 @@ fn test_redefines_encode_ambiguity_error() -> TestResult {
     let options = EncodeOptions {
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         strict_mode: true,
         coerce_numbers: true,
         ..EncodeOptions::default()
@@ -233,6 +235,7 @@ fn test_redefines_encode_single_view_allowed() -> TestResult {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         use_raw: false,
         bwz_encode: false,
         strict_mode: false,
@@ -275,6 +278,7 @@ fn test_redefines_raw_data_precedence() -> TestResult {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let (decode_summary, mut decoded_json) =
@@ -294,6 +298,7 @@ fn test_redefines_raw_data_precedence() -> TestResult {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         use_raw: true, // Use raw data precedence
         bwz_encode: false,
         strict_mode: false,
@@ -338,6 +343,7 @@ fn test_redefines_round_trip_preservation() -> TestResult {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let (_, decode_json) = decode_record_view(&schema, original_data, &decode_options)?;
@@ -348,6 +354,7 @@ fn test_redefines_round_trip_preservation() -> TestResult {
         format: RecordFormat::Fixed,
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         use_raw: true,
         bwz_encode: false,
         strict_mode: false,

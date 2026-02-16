@@ -237,8 +237,10 @@ fn edited_pic_as_string() {
         0,
         9,
     )]);
-    let mut opts = ArrowOptions::default();
-    opts.edited_pic_as = EditedPicRepresentation::String;
+    let opts = ArrowOptions {
+        edited_pic_as: EditedPicRepresentation::String,
+        ..ArrowOptions::default()
+    };
     let arrow = cobol_schema_to_arrow(&schema, &opts).unwrap();
     assert_eq!(*arrow.field(0).data_type(), DataType::Utf8);
 }

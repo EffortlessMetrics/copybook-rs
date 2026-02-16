@@ -38,7 +38,7 @@ pub use lib_api::{
 pub use numeric::{SmallDecimal, ZonedEncodingInfo};
 
 pub use options::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat,
     UnmappablePolicy, ZonedEncodingFormat,
 };
 

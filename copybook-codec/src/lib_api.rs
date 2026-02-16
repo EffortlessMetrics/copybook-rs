@@ -1400,7 +1400,8 @@ fn decode_scalar_field_value_standard(
             Ok(Value::String(numeric_value.to_decimal_string()))
         }
         FieldKind::FloatSingle => {
-            let value = crate::numeric::decode_float_single(field_data)?;
+            let value =
+                crate::numeric::decode_float_single_with_format(field_data, options.float_format)?;
             if value.is_nan() || value.is_infinite() {
                 Ok(Value::Null)
             } else {
@@ -1411,7 +1412,8 @@ fn decode_scalar_field_value_standard(
             }
         }
         FieldKind::FloatDouble => {
-            let value = crate::numeric::decode_float_double(field_data)?;
+            let value =
+                crate::numeric::decode_float_double_with_format(field_data, options.float_format)?;
             if value.is_nan() || value.is_infinite() {
                 Ok(Value::Null)
             } else {
@@ -1557,7 +1559,8 @@ fn decode_scalar_field_value_with_scratch(
             Ok(Value::String(numeric_value.to_decimal_string()))
         }
         FieldKind::FloatSingle => {
-            let value = crate::numeric::decode_float_single(field_data)?;
+            let value =
+                crate::numeric::decode_float_single_with_format(field_data, options.float_format)?;
             if value.is_nan() || value.is_infinite() {
                 Ok(Value::Null)
             } else {
@@ -1568,7 +1571,8 @@ fn decode_scalar_field_value_with_scratch(
             }
         }
         FieldKind::FloatDouble => {
-            let value = crate::numeric::decode_float_double(field_data)?;
+            let value =
+                crate::numeric::decode_float_double_with_format(field_data, options.float_format)?;
             if value.is_nan() || value.is_infinite() {
                 Ok(Value::Null)
             } else {
@@ -1934,9 +1938,10 @@ fn encode_single_field(
                     }
                 };
                 if current_offset + field_len <= buffer.len() {
-                    crate::numeric::encode_float_single(
+                    crate::numeric::encode_float_single_with_format(
                         f,
                         &mut buffer[current_offset..current_offset + field_len],
+                        options.float_format,
                     )?;
                 }
             }
@@ -1965,9 +1970,10 @@ fn encode_single_field(
                     }
                 };
                 if current_offset + field_len <= buffer.len() {
-                    crate::numeric::encode_float_double(
+                    crate::numeric::encode_float_double_with_format(
                         f,
                         &mut buffer[current_offset..current_offset + field_len],
+                        options.float_format,
                     )?;
                 }
             }

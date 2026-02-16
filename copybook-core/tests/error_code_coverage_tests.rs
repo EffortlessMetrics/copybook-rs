@@ -112,9 +112,9 @@ fn test_cbks611_partial_occurs_with_r4r6_flag() {
 #[cfg(feature = "audit")]
 #[test]
 fn test_cbka001_baseline_load_missing_file() {
-    use copybook_core::audit::performance::PerformanceBaselineManager;
+    use copybook_core::audit::performance::BaselineManager;
 
-    let manager = PerformanceBaselineManager::new("/nonexistent/path/baseline.json");
+    let manager = BaselineManager::new("/nonexistent/path/baseline.json");
     let result = manager.load_baseline();
 
     assert!(result.is_err(), "Expected CBKA001 for missing file");

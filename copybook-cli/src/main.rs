@@ -8,7 +8,9 @@ use crate::exit_codes::ExitCode;
 use anyhow::{Error as AnyhowError, anyhow};
 use clap::error::ErrorKind as ClapErrorKind;
 use clap::{Args, ColorChoice, Parser, Subcommand, ValueEnum};
-use copybook_codec::{Codepage, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
+use copybook_codec::{
+    Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+};
 use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
 use std::borrow::Cow;
 use std::convert::TryFrom;
@@ -345,6 +347,9 @@ Field Projection:\n\
         /// Example: prefer EBCDIC 'F' zero punch for zero.
         #[arg(long, value_enum, default_value_t = ZonedEncodingPreference::Preferred)]
         preferred_zoned_encoding: ZonedEncodingPreference,
+        /// COMP-1/COMP-2 floating-point binary format.
+        #[arg(long, value_enum, default_value = "ieee-be")]
+        float_format: FloatFormat,
         /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
         #[arg(long, value_enum)]
         dialect: Option<DialectPreference>,
@@ -405,6 +410,9 @@ Field Projection:\n\
         /// Force zoned encoding format (ascii|ebcdic), ignoring preserved/preferred.
         #[arg(long, value_enum)]
         zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+        /// COMP-1/COMP-2 floating-point binary format.
+        #[arg(long, value_enum, default_value = "ieee-be")]
+        float_format: FloatFormat,
         /// Dialect for ODO `min_count` interpretation (n=normative, 0=zero-tolerant, 1=one-tolerant)
         #[arg(long, value_enum)]
         dialect: Option<DialectPreference>,
@@ -704,6 +712,7 @@ fn run() -> anyhow::Result<ExitCode> {
             strict_comments,
             preserve_zoned_encoding,
             preferred_zoned_encoding: preferred_zoned_encoding_cli,
+            float_format,
             dialect,
             select,
         } => {
@@ -727,6 +736,7 @@ fn run() -> anyhow::Result<ExitCode> {
                     strict_comments,
                     preserve_zoned_encoding,
                     preferred_zoned_encoding: preferred_zoned_encoding_cli.into(),
+                    float_format,
                     strict_policy,
                     dialect: effective_dialect.into(),
                     select: &select,
@@ -749,6 +759,7 @@ fn run() -> anyhow::Result<ExitCode> {
             coerce_numbers,
             strict_comments,
             zoned_encoding_override,
+            float_format,
             dialect,
             select,
         } => {
@@ -770,6 +781,7 @@ fn run() -> anyhow::Result<ExitCode> {
                         coerce_numbers,
                         strict_comments,
                         zoned_encoding_override,
+                        float_format,
                         dialect: effective_dialect.into(),
                         select: &select,
                     },

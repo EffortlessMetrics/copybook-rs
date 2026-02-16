@@ -11,4 +11,11 @@ allow-branch = ["main"]
 dependent-version = "fix"
 shared-version = true
 consolidate-commits = true
-pre-release-hook = ["git-cliff --unreleased --tag v{{version}} --output CHANGELOG.md"]
+pre-release-hook = [
+  "git-cliff",
+  "--unreleased",
+  "--tag",
+  "v{{version}}",
+  "--output",
+  "CHANGELOG.md",
+]

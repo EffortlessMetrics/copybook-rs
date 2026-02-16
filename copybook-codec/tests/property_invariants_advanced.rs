@@ -49,6 +49,7 @@ mod json_ordering {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             // First decode
@@ -93,6 +94,7 @@ mod json_ordering {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             // Decode
@@ -168,6 +170,7 @@ mod numeric_preservation {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             let input2 = Cursor::new(&encoded);
@@ -223,6 +226,7 @@ mod numeric_preservation {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             let input2 = Cursor::new(&encoded);
@@ -270,6 +274,7 @@ mod array_handling {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             // Decode
@@ -309,6 +314,7 @@ mod array_handling {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             // Decode
@@ -359,6 +365,7 @@ mod memory_management {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             // Decode multiple times (should not leak memory)
@@ -398,6 +405,7 @@ mod memory_management {
                 threads: 1,
                 preserve_zoned_encoding: false,
                 preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+                float_format: copybook_codec::FloatFormat::IeeeBigEndian,
             };
 
             // Decode large record

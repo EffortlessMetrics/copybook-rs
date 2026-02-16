@@ -21,8 +21,8 @@ license = "AGPL-3.0-or-later"
 authors = ["copybook-rs contributors"]
 repository = "https://github.com/EffortlessMetrics/copybook-rs"
 homepage = "https://github.com/EffortlessMetrics/copybook-rs"
-description = "Modern, memory-safe parser/codec for COBOL copybooks and fixed-record data"
-keywords = ["cobol", "mainframe", "etl", "parser", "codec"]
+description = "Rust toolkit for COBOL copybook parsing and deterministic fixed-record conversion (EBCDIC/ASCII <-> JSON)"
+keywords = ["cobol", "copybook", "mainframe", "ebcdic", "etl"]
 categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]

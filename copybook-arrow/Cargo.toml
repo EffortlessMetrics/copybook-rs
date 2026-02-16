@@ -8,8 +8,9 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "Arrow and Parquet adapters for copybook-rs"
-keywords.workspace = true
-categories.workspace = true
+documentation = "https://docs.rs/copybook-arrow"
+keywords = ["cobol", "copybook", "arrow", "parquet", "mainframe"]
+categories = ["encoding", "data-structures", "parsing"]
 
 [dependencies]
 # Internal workspace dependencies

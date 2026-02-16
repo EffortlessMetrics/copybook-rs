@@ -7,10 +7,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "CLI for parsing/decoding/encoding COBOL copybooks with transparent validation receipts."
+description = "CLI for parsing, decoding, encoding, and verifying COBOL copybook data."
 documentation = "https://docs.rs/copybook-cli"
 readme = "README.md"
-keywords = ["cobol", "copybook", "cli", "ebcdic"]
+keywords = ["cobol", "copybook", "cli", "mainframe", "ebcdic"]
 categories = ["command-line-utilities", "encoding"]
 build = "build.rs"
 

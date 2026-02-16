@@ -7,9 +7,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Test fixture and synthetic data generation for copybook-rs"
-keywords.workspace = true
-categories.workspace = true
+description = "Test fixture and synthetic dataset generation for copybook-rs"
+keywords = ["cobol", "copybook", "fixtures", "testing", "mainframe"]
+categories = ["development-tools::testing", "encoding"]
 publish = false
 
 [dependencies]

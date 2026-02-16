@@ -21,7 +21,7 @@ copybook-core = { workspace = true }
 copybook-codec = { workspace = true }
 
 # Kafka dependencies
-rdkafka = { version = "0.37", features = ["cmake-build", "ssl-vendored"] }
+rdkafka = { version = "0.39", features = ["cmake-build", "ssl-vendored"] }
 
 # Async runtime
 tokio = { workspace = true, features = ["full"] }

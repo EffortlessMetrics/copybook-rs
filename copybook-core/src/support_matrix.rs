@@ -116,7 +116,9 @@ pub fn all_features() -> &'static [FeatureSupport] {
             name: "Nested OCCURS DEPENDING ON",
             description: "ODO arrays inside ODO arrays (O1-O4 supported, O5/O6 rejected).",
             status: Partial,
-            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#nested-odo--occurs-behavior---support-status"),
+            doc_ref: Some(
+                "docs/reference/COBOL_SUPPORT_MATRIX.md#nested-odo--occurs-behavior---support-status",
+            ),
         },
     ]
 }

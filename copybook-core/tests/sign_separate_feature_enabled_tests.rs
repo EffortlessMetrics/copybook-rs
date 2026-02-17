@@ -2,8 +2,9 @@
 #![allow(clippy::unwrap_used)]
 
 use copybook_core::{
+    FieldKind, SignPlacement,
     feature_flags::{Feature, FeatureFlags},
-    parse_copybook, FieldKind, SignPlacement,
+    parse_copybook,
 };
 
 fn enable_sign_separate_feature() {

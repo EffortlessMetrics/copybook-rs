@@ -1293,9 +1293,7 @@ pub fn decode_zoned_decimal_sign_separate(
             .ok_or_else(|| {
                 Error::new(
                     ErrorCode::CBKD410_ZONED_OVERFLOW,
-                    format!(
-                        "SIGN SEPARATE zoned decimal value overflow for {digits} digits"
-                    ),
+                    format!("SIGN SEPARATE zoned decimal value overflow for {digits} digits"),
                 )
             })?;
     }

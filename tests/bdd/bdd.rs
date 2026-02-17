@@ -17,17 +17,17 @@
 //! Gherkin syntax.
 
 use copybook_codec::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
-    decode_file_to_jsonl, encode_jsonl_to_file,
-};
-use copybook_core::{
-    Error, ErrorCode, Feature, FeatureFlags, Occurs, ParseOptions, parse_copybook,
-    parse_copybook_with_options, project_schema,
+    decode_file_to_jsonl, encode_jsonl_to_file, Codepage, DecodeOptions, EncodeOptions,
+    JsonNumberMode, RawMode, RecordFormat,
 };
 use copybook_core::dialect::Dialect;
-use cucumber::{World as _, given, then, when};
-use std::collections::{BTreeMap, HashSet};
+use copybook_core::{
+    parse_copybook, parse_copybook_with_options, project_schema, Error, ErrorCode, Feature,
+    FeatureFlags, Occurs, ParseOptions,
+};
+use cucumber::{given, then, when, World as _};
 use serde_json::{Map, Value};
+use std::collections::{BTreeMap, HashSet};
 use std::io::Cursor;
 
 /// BDD World struct to maintain test state across steps
@@ -112,7 +112,9 @@ impl CopybookWorld {
 
     /// Get the projected schema or panic if not set
     fn projected_schema(&self) -> &copybook_core::Schema {
-        self.projected_schema.as_ref().expect("Projected schema not set")
+        self.projected_schema
+            .as_ref()
+            .expect("Projected schema not set")
     }
 
     /// Get the binary data or panic if not set
@@ -157,14 +159,13 @@ impl CopybookWorld {
 
     /// Get the first leaf field in the parsed schema
     fn first_leaf_field(&self) -> Option<&copybook_core::Field> {
-        self.all_leaf_fields()
-            .into_iter()
-            .find(|field| {
-                !matches!(
-                    field.kind,
-                    copybook_core::FieldKind::Condition { .. } | copybook_core::FieldKind::Renames { .. }
-                )
-            })
+        self.all_leaf_fields().into_iter().find(|field| {
+            !matches!(
+                field.kind,
+                copybook_core::FieldKind::Condition { .. }
+                    | copybook_core::FieldKind::Renames { .. }
+            )
+        })
     }
 
     /// Get the first numeric leaf field in the parsed schema
@@ -479,9 +480,7 @@ mod steps {
         let schema = world.schema().clone();
         let occurs = schema.all_fields().iter().find_map(|field| {
             let occurs = field.occurs.as_ref()?;
-            if matches!(occurs, Occurs::ODO { .. })
-                && does_path_match_counter(occurs, &counter)
-            {
+            if matches!(occurs, Occurs::ODO { .. }) && does_path_match_counter(occurs, &counter) {
                 Some(field)
             } else {
                 None
@@ -495,7 +494,9 @@ mod steps {
         let count_field = schema.all_fields().iter().find(|field| {
             field.name.eq_ignore_ascii_case(&counter) || path_ends_with(&field.path, &counter)
         });
-        let count_len = count_field.and_then(|field| usize::try_from(field.len).ok()).unwrap_or(3);
+        let count_len = count_field
+            .and_then(|field| usize::try_from(field.len).ok())
+            .unwrap_or(3);
         let count_text = format!("{:0width$}", element_count, width = count_len.max(1));
         let mut payload = Map::new();
 
@@ -512,9 +513,8 @@ mod steps {
             }
         };
         world.binary_data = Some(encoded);
-        world.json_data = Some(
-            serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"),
-        );
+        world.json_data =
+            Some(serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"));
     }
 
     #[given(expr = "binary data with {int} elements")]
@@ -553,9 +553,8 @@ mod steps {
             }
         };
         world.binary_data = Some(encoded);
-        world.json_data = Some(
-            serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"),
-        );
+        world.json_data =
+            Some(serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"));
     }
 
     #[given(expr = "binary data for all fields")]
@@ -591,9 +590,8 @@ mod steps {
             }
         };
         world.binary_data = Some(encoded);
-        world.json_data = Some(
-            serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"),
-        );
+        world.json_data =
+            Some(serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"));
     }
 
     #[given(expr = "strict parsing mode")]
@@ -656,7 +654,7 @@ mod steps {
     #[when(expr = "copybook is parsed")]
     async fn when_copybook_is_parsed(world: &mut CopybookWorld) {
         let copybook_text = world.copybook_text.as_ref().expect("Copybook text not set");
-        
+
         // Check if we're testing invalid dialect scenario
         if world.dialect.is_none() && world.parse_options.is_some() {
             // Simulate invalid dialect error
@@ -670,7 +668,7 @@ mod steps {
             world.schema = None;
             return;
         }
-        
+
         match &world.parse_options {
             Some(options) => {
                 world.schema = match parse_copybook_with_options(copybook_text, options) {
@@ -881,7 +879,11 @@ mod steps {
     }
 
     #[then(expr = "the field {string} should have level {int}")]
-    async fn then_field_has_level(world: &mut CopybookWorld, field_name: String, expected_level: u8) {
+    async fn then_field_has_level(
+        world: &mut CopybookWorld,
+        field_name: String,
+        expected_level: u8,
+    ) {
         let field = world
             .field_by_name_ci(&field_name)
             .expect(&format!("Field '{}' not found", field_name));
@@ -1042,7 +1044,10 @@ mod steps {
     }
 
     #[given(expr = "a copybook with SIGN SEPARATE LEADING:")]
-    async fn given_copybook_with_sign_separate_leading_block(world: &mut CopybookWorld, content: String) {
+    async fn given_copybook_with_sign_separate_leading_block(
+        world: &mut CopybookWorld,
+        content: String,
+    ) {
         world.copybook_text = Some(content);
     }
 
@@ -1057,7 +1062,10 @@ mod steps {
     }
 
     #[given(expr = "a copybook with SIGN SEPARATE TRAILING:")]
-    async fn given_copybook_with_sign_separate_trailing_block(world: &mut CopybookWorld, content: String) {
+    async fn given_copybook_with_sign_separate_trailing_block(
+        world: &mut CopybookWorld,
+        content: String,
+    ) {
         world.copybook_text = Some(content);
     }
 
@@ -1170,10 +1178,15 @@ mod steps {
 
     #[then(expr = "the field should have sign separate information")]
     async fn then_field_has_sign_separate(world: &mut CopybookWorld) {
-        let field = world.field_by_name("SIGNED-FIELD").expect("Field not found");
+        let field = world
+            .field_by_name("SIGNED-FIELD")
+            .expect("Field not found");
         match &field.kind {
             copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } => {
-                assert!(sign_separate.is_some(), "Field should have sign separate information")
+                assert!(
+                    sign_separate.is_some(),
+                    "Field should have sign separate information"
+                )
             }
             _ => panic!("Expected ZonedDecimal field"),
         }
@@ -1181,7 +1194,9 @@ mod steps {
 
     #[then(expr = "the sign placement should be LEADING")]
     async fn then_sign_placement_is_leading(world: &mut CopybookWorld) {
-        let field = world.field_by_name("SIGNED-FIELD").expect("Field not found");
+        let field = world
+            .field_by_name("SIGNED-FIELD")
+            .expect("Field not found");
         match &field.kind {
             copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } => {
                 let placement = sign_separate
@@ -1190,8 +1205,7 @@ mod steps {
                     .unwrap_or_else(|| "None".to_string())
                     .to_ascii_uppercase();
                 assert_eq!(
-                    placement,
-                    "LEADING",
+                    placement, "LEADING",
                     "Expected sign placement LEADING, got {}",
                     placement
                 );
@@ -1202,7 +1216,9 @@ mod steps {
 
     #[then(expr = "the sign placement should be TRAILING")]
     async fn then_sign_placement_is_trailing(world: &mut CopybookWorld) {
-        let field = world.field_by_name("SIGNED-FIELD").expect("Field not found");
+        let field = world
+            .field_by_name("SIGNED-FIELD")
+            .expect("Field not found");
         match &field.kind {
             copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } => {
                 let placement = sign_separate
@@ -1211,8 +1227,7 @@ mod steps {
                     .unwrap_or_else(|| "None".to_string())
                     .to_ascii_uppercase();
                 assert_eq!(
-                    placement,
-                    "TRAILING",
+                    placement, "TRAILING",
                     "Expected sign placement TRAILING, got {}",
                     placement
                 );
@@ -1258,10 +1273,15 @@ mod steps {
 
     #[then(expr = "the sign placement should be preserved")]
     async fn then_sign_placement_preserved(world: &mut CopybookWorld) {
-        let field = world.field_by_name("SIGNED-FIELD").expect("Field not found");
+        let field = world
+            .field_by_name("SIGNED-FIELD")
+            .expect("Field not found");
         match &field.kind {
             copybook_core::FieldKind::ZonedDecimal { sign_separate, .. } => {
-                assert!(sign_separate.is_some(), "Sign placement should be preserved")
+                assert!(
+                    sign_separate.is_some(),
+                    "Sign placement should be preserved"
+                )
             }
             _ => panic!("Expected ZonedDecimal field"),
         }
@@ -1284,10 +1304,7 @@ mod steps {
             .iter()
             .filter(|field| field.redefines_of.is_some())
             .count();
-        assert!(
-            count > 0,
-            "Should have REDEFINES fields to cover"
-        );
+        assert!(count > 0, "Should have REDEFINES fields to cover");
     }
 
     #[then(expr = "the alias should reference the ODO field")]
@@ -1325,9 +1342,7 @@ mod steps {
             .schema()
             .all_fields()
             .iter()
-            .any(|field| {
-                field.level == 88 && field.path.starts_with(&alias_prefix)
-            });
+            .any(|field| field.level == 88 && field.path.starts_with(&alias_prefix));
         assert!(
             has_condition_child || has_nested_condition,
             "Level-88 conditions should be associated with the alias"
@@ -1370,8 +1385,7 @@ mod steps {
             .as_ref()
             .expect("Encoded output not set");
         let output_text = String::from_utf8_lossy(output);
-        let original = serde_json::from_str::<Value>(world.json_data())
-            .expect("JSON data invalid");
+        let original = serde_json::from_str::<Value>(world.json_data()).expect("JSON data invalid");
         let first_value = original
             .as_object()
             .and_then(|obj| obj.values().next())
@@ -1405,10 +1419,7 @@ mod steps {
             renames.resolved_renames.is_some(),
             "RENAMES structure should remain resolved"
         );
-        assert!(
-            !renames.name.is_empty(),
-            "RENAMES name should remain set"
-        );
+        assert!(!renames.name.is_empty(), "RENAMES name should remain set");
     }
 
     #[then(expr = "the decoded output should contain Level-88 conditions")]
@@ -1505,9 +1516,8 @@ mod steps {
             }
         };
         world.binary_data = Some(encoded);
-        world.json_data = Some(
-            serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"),
-        );
+        world.json_data =
+            Some(serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"));
     }
 
     #[given(expr = "JSON data with 100 elements")]
@@ -1532,9 +1542,8 @@ mod steps {
             build_array_payload(fixed_field, 100).expect("Failed to build array payload"),
         );
 
-        world.json_data = Some(
-            serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"),
-        );
+        world.json_data =
+            Some(serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"));
     }
 
     #[given(expr = "EBCDIC binary data")]
@@ -1561,9 +1570,8 @@ mod steps {
             }
         };
         world.binary_data = Some(encoded);
-        world.json_data = Some(
-            serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"),
-        );
+        world.json_data =
+            Some(serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"));
     }
 
     #[given(expr = "ASCII JSON data")]
@@ -1578,9 +1586,8 @@ mod steps {
             .clone();
         let mut payload = Map::new();
         payload.insert(leaf, Value::String("ABCDEFGHIJ".to_string()));
-        world.json_data = Some(
-            serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"),
-        );
+        world.json_data =
+            Some(serde_json::to_string(&Value::Object(payload)).expect("Payload should serialize"));
     }
 
     #[given(expr = "emit_filler is false")]
@@ -1766,19 +1773,14 @@ mod steps {
             );
         } else {
             assert_eq!(
-                value,
-                expected,
+                value, expected,
                 "Expected decoded field '{field_name}' to be '{expected}', got '{value}'"
             );
         }
     }
 
     #[then(expr = "{word} should be {string}")]
-    async fn then_field_value(
-        world: &mut CopybookWorld,
-        field_name: String,
-        expected: String,
-    ) {
+    async fn then_field_value(world: &mut CopybookWorld, field_name: String, expected: String) {
         then_decoded_field_value(world, field_name, expected).await;
     }
 
@@ -1798,10 +1800,15 @@ mod steps {
     }
 
     #[then(expr = "there should be {int} {word} elements")]
-    async fn then_array_element_count(world: &mut CopybookWorld, expected: usize, field_name: String) {
+    async fn then_array_element_count(
+        world: &mut CopybookWorld,
+        expected: usize,
+        field_name: String,
+    ) {
         let record = world.first_decoded_record();
-        let value = json_value_for_field(&record, &field_name)
-            .expect(&format!("Decoded array field '{field_name}' should be present"));
+        let value = json_value_for_field(&record, &field_name).expect(&format!(
+            "Decoded array field '{field_name}' should be present"
+        ));
         let array = value
             .as_array()
             .expect(&format!("Decoded field '{field_name}' should be an array"));
@@ -2126,7 +2133,7 @@ mod steps {
     async fn when_schema_projected(world: &mut CopybookWorld) {
         let schema = world.schema().clone();
         let selection = world.field_selection.clone().unwrap_or_default();
-        
+
         match project_schema(&schema, &selection) {
             Ok(projected) => {
                 world.projected_schema = Some(projected);
@@ -2151,10 +2158,7 @@ mod steps {
 
     #[then(expr = "the projection should fail")]
     async fn then_projection_fails(world: &mut CopybookWorld) {
-        assert!(
-            world.projected_schema.is_none(),
-            "Projection should fail"
-        );
+        assert!(world.projected_schema.is_none(), "Projection should fail");
         assert!(
             world.error.is_some(),
             "An error should occur during projection"
@@ -2318,7 +2322,9 @@ fn generate_value_for_field(field: &copybook_core::Field, index: usize) -> Strin
         copybook_core::FieldKind::Condition { .. } => "1".to_string(),
         copybook_core::FieldKind::Renames { .. } => "0".to_string(),
         copybook_core::FieldKind::Group => "0".to_string(),
-        copybook_core::FieldKind::FloatSingle | copybook_core::FieldKind::FloatDouble => "0".to_string(),
+        copybook_core::FieldKind::FloatSingle | copybook_core::FieldKind::FloatDouble => {
+            "0".to_string()
+        }
         copybook_core::FieldKind::ZonedDecimal { .. }
         | copybook_core::FieldKind::BinaryInt { .. }
         | copybook_core::FieldKind::PackedDecimal { .. }
@@ -2326,10 +2332,7 @@ fn generate_value_for_field(field: &copybook_core::Field, index: usize) -> Strin
     }
 }
 
-fn build_array_payload(
-    array_field: &copybook_core::Field,
-    count: usize,
-) -> Result<Value, Error> {
+fn build_array_payload(array_field: &copybook_core::Field, count: usize) -> Result<Value, Error> {
     if array_field.occurs.is_none() {
         return Err(Error::new(
             ErrorCode::CBKI001_INVALID_STATE,
@@ -2370,7 +2373,10 @@ fn build_array_element(field: &copybook_core::Field, index: usize) -> Result<Val
                 build_array_payload(child, nested_count)?,
             );
         } else if child.children.is_empty() {
-            map.insert(child.name.clone(), Value::String(generate_value_for_field(child, index)));
+            map.insert(
+                child.name.clone(),
+                Value::String(generate_value_for_field(child, index)),
+            );
         } else {
             map.insert(child.name.clone(), build_array_element(child, index)?);
         }
@@ -2399,7 +2405,10 @@ fn build_binary_for_all_leaf_fields(world: &mut CopybookWorld) -> Result<Vec<u8>
     let mut payload = Map::new();
     for field in schema.all_fields() {
         if field.children.is_empty() {
-            payload.insert(field.name.clone(), Value::String(generate_value_for_field(field, 0)));
+            payload.insert(
+                field.name.clone(),
+                Value::String(generate_value_for_field(field, 0)),
+            );
         }
     }
     encode_from_payload(&payload, world)
@@ -2417,15 +2426,22 @@ fn encode_from_payload(
         }));
     }
     let schema = world.schema.as_ref().expect("Schema should exist");
-    let encode_options = world
-        .encode_options
-        .as_ref()
-        .ok_or_else(|| Error::new(ErrorCode::CBKI001_INVALID_STATE, "Encode options not configured"))?;
+    let encode_options = world.encode_options.as_ref().ok_or_else(|| {
+        Error::new(
+            ErrorCode::CBKI001_INVALID_STATE,
+            "Encode options not configured",
+        )
+    })?;
 
     let payload_text = serde_json::to_string(&Value::Object(payload.clone()))
         .map_err(|error| Error::new(ErrorCode::CBKC201_JSON_WRITE_ERROR, error.to_string()))?;
     let mut output = Vec::new();
-    encode_jsonl_to_file(schema, Cursor::new(payload_text.as_bytes()), &mut output, encode_options)?;
+    encode_jsonl_to_file(
+        schema,
+        Cursor::new(payload_text.as_bytes()),
+        &mut output,
+        encode_options,
+    )?;
     Ok(output)
 }
 
@@ -2481,7 +2497,9 @@ fn json_value_for_field<'a>(value: &'a Value, field_name: &str) -> Option<&'a Va
             }
             None
         }
-        Value::Array(values) => values.iter().find_map(|value| json_value_for_field(value, field_name)),
+        Value::Array(values) => values
+            .iter()
+            .find_map(|value| json_value_for_field(value, field_name)),
         _ => None,
     }
 }

@@ -1755,7 +1755,11 @@ fn validate_lib_api_redefines_encoding(
         let byte_offset = non_null_views
             .iter()
             .find_map(|view| schema.find_field(view).map(|field| field.offset as u64))
-            .or_else(|| schema.find_field(cluster_path).map(|field| field.offset as u64))
+            .or_else(|| {
+                schema
+                    .find_field(cluster_path)
+                    .map(|field| field.offset as u64)
+            })
             .unwrap_or(0);
 
         crate::odo_redefines::validate_redefines_encoding(

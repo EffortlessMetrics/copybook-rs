@@ -16,8 +16,8 @@
  * in mainframe applications by enforcing structural constraints.
  */
 
-use copybook_core::{ErrorCode, parse_copybook};
 use copybook_core::feature_flags::{Feature, FeatureFlags};
+use copybook_core::{ErrorCode, parse_copybook};
 
 fn enable_comp_flags_for_fixture_tests() {
     let mut flags = FeatureFlags::default();

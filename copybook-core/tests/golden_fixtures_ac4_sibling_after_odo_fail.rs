@@ -17,6 +17,14 @@
  */
 
 use copybook_core::{ErrorCode, parse_copybook};
+use copybook_core::feature_flags::{Feature, FeatureFlags};
+
+fn enable_comp_flags_for_fixture_tests() {
+    let mut flags = FeatureFlags::default();
+    flags.enable(Feature::Comp1);
+    flags.enable(Feature::Comp2);
+    FeatureFlags::set_global(flags);
+}
 
 /// AC4 Basic: Simple storage field after ODO (FAIL)
 ///
@@ -332,6 +340,7 @@ fn test_ac4_performance_large_scale_odo_tail_violation_fail() {
 /// **Enterprise Context**: Scientific computation record with COMP trailer fields
 #[test]
 fn test_ac4_comp_fields_after_odo_fail() {
+    enable_comp_flags_for_fixture_tests();
     const COPYBOOK: &str = r"
 01 SCIENTIFIC-RECORD.
    05 EXPERIMENT-ID      PIC X(12).
@@ -378,6 +387,7 @@ fn test_ac4_comp_fields_after_odo_fail() {
 /// **Enterprise Context**: Manufacturing record with diverse trailing data types
 #[test]
 fn test_ac4_mixed_storage_types_after_odo_fail() {
+    enable_comp_flags_for_fixture_tests();
     const COPYBOOK: &str = r"
 01 MANUFACTURING-RECORD.
    05 PRODUCTION-HEADER.

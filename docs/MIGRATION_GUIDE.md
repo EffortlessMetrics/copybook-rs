@@ -45,16 +45,16 @@ This guide helps users migrate from existing COBOL data processing tools to copy
 | PIC S9(n) | ✅ | ✅ | ✅ | ✅ | Signed numeric |
 | COMP/BINARY | ✅ | ✅ | ✅ | ✅ | Binary integers |
 | COMP-3 | ✅ | ✅ | ✅ | ✅ | Packed decimal |
-| COMP-1 | ❌ | ✅ | ✅ | ✅ | Use alternatives |
-| COMP-2 | ❌ | ✅ | ✅ | ✅ | Use alternatives |
+| COMP-1 | ⚠️ | ✅ | ✅ | ✅ | Experimental via `comp_1` feature flag |
+| COMP-2 | ⚠️ | ✅ | ✅ | ✅ | Experimental via `comp_2` feature flag |
 | REDEFINES | ✅ | ✅ | ✅ | ✅ | Full support |
 | OCCURS | ✅ | ✅ | ✅ | ✅ | Fixed arrays |
 | OCCURS DEPENDING ON | ✅ | ✅ | ✅ | ✅ | Tail position only |
 | SYNCHRONIZED | ✅ | ✅ | ✅ | ✅ | Alignment support |
 | BLANK WHEN ZERO | ✅ | ✅ | ✅ | ✅ | Special handling |
-| Edited PIC | ❌ | ✅ | ✅ | ✅ | Not supported |
-| SIGN SEPARATE | ❌ | ✅ | ✅ | ✅ | Not supported |
-| 66/88 levels | ⚠️ | ✅ | ✅ | ✅ | Parsed, ignored |
+| Edited PIC | ⚠️ | ✅ | ✅ | ✅ | Supported for E1-E3.7 |
+| SIGN SEPARATE | ⚠️ | ✅ | ✅ | ✅ | Supported behind `sign_separate` |
+| 66/88 levels | ✅ | ✅ | ✅ | ✅ | 66/88-level names/values supported (`66` aliasing and `88` condition handling) |
 
 Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
 
@@ -63,9 +63,9 @@ Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
 ### Enterprise COBOL / COBOL for z/OS
 
 **Common Differences:**
-- copybook-rs doesn't support COMP-1/COMP-2 floating point
-- Edited PIC clauses must be converted to non-edited format
-- SIGN SEPARATE clauses not supported
+- copybook-rs treats COMP-1/COMP-2 as experimental under feature flags and defaults to rejection
+- Edited PIC clauses are supported for E1-E3.7, but older runtimes should still validate before migration
+- SIGN SEPARATE clauses are now supported behind `sign_separate` and may vary by pattern
 
 **Migration Steps:**
 
@@ -570,9 +570,9 @@ done
 ## Migration Checklist
 
 - [ ] Inventory existing copybooks and identify unsupported features
-- [ ] Convert edited PIC clauses to non-edited format
-- [ ] Replace COMP-1/COMP-2 with supported alternatives
-- [ ] Remove SIGN SEPARATE clauses
+- [ ] Validate whether `sign_separate`, `comp_1`, and `comp_2` feature flags are required for your schema
+- [ ] Keep edited PIC clauses only where supported patterns are confirmed via parser tests
+- [ ] Replace unsupported nested ODO or R4-R6 RENAMES patterns with safer alternatives
 - [ ] Test copybook parsing with `copybook parse`
 - [ ] Validate data decoding with sample files
 - [ ] Compare outputs with existing tools

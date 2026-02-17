@@ -85,6 +85,25 @@ impl Parser {
         }
     }
 
+    fn require_feature_enabled(
+        &self,
+        feature: Feature,
+        field_name: &str,
+        feature_name: &str,
+        syntax: &str,
+    ) -> Result<()> {
+        if FeatureFlags::global().is_enabled(feature) {
+            return Ok(());
+        }
+
+        Err(Error::new(
+            ErrorCode::CBKP011_UNSUPPORTED_CLAUSE,
+            format!(
+                "{syntax} is not supported for field '{field_name}' (enable with --enable-features {feature_name})"
+            ),
+        ))
+    }
+
     /// Parse the complete schema
     fn parse_schema(&mut self) -> Result<Schema> {
         // Skip any leading comments or empty lines
@@ -813,6 +832,12 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
+                self.require_feature_enabled(
+                    Feature::Comp1,
+                    &field.name,
+                    "comp_1",
+                    "COMP-1",
+                )?;
                 field.kind = FieldKind::FloatSingle;
             }
             Some(TokenPos {
@@ -820,6 +845,12 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
+                self.require_feature_enabled(
+                    Feature::Comp2,
+                    &field.name,
+                    "comp_2",
+                    "COMP-2",
+                )?;
                 field.kind = FieldKind::FloatDouble;
             }
             Some(TokenPos {
@@ -965,6 +996,12 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
+                self.require_feature_enabled(
+                    Feature::Comp1,
+                    &field.name,
+                    "comp_1",
+                    "USAGE COMP-1",
+                )?;
                 field.kind = FieldKind::FloatSingle;
             }
             Some(TokenPos {
@@ -972,6 +1009,12 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
+                self.require_feature_enabled(
+                    Feature::Comp2,
+                    &field.name,
+                    "comp_2",
+                    "USAGE COMP-2",
+                )?;
                 field.kind = FieldKind::FloatDouble;
             }
             Some(TokenPos {
@@ -1163,10 +1206,59 @@ impl Parser {
         Ok(())
     }
 
-    /// Parse SIGN clause (SIGN IS [LEADING|TRAILING] [SEPARATE])
+    /// Parse SIGN clause (`SIGN [IS] [LEADING|TRAILING] [SEPARATE]` or
+    /// `SIGN [IS] SEPARATE [LEADING|TRAILING]`).
     fn parse_sign_clause(&mut self, field: &mut Field) -> Result<()> {
-        // Check for SEPARATE keyword first
-        if !self.consume(&Token::Separate) {
+        // Optional IS keyword
+        self.consume(&Token::Is);
+
+        // Parse SIGN clause components in either order:
+        //   SIGN [IS] [SEPARATE] [LEADING|TRAILING]
+        //   SIGN [IS] [LEADING|TRAILING] [SEPARATE]
+        let mut placement = SignPlacement::Leading;
+        let mut saw_placement = false;
+        let mut saw_separate = false;
+
+        for _ in 0..2 {
+            if self.consume(&Token::Separate) {
+                if saw_separate {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Invalid SIGN clause syntax: duplicate SEPARATE",
+                    ));
+                }
+                saw_separate = true;
+                continue;
+            }
+
+            if self.consume(&Token::Leading) {
+                if saw_placement {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Invalid SIGN clause syntax: duplicate LEADING/TRAILING",
+                    ));
+                }
+                placement = SignPlacement::Leading;
+                saw_placement = true;
+                continue;
+            }
+
+            if self.consume(&Token::Trailing) {
+                if saw_placement {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        "Invalid SIGN clause syntax: duplicate LEADING/TRAILING",
+                    ));
+                }
+                placement = SignPlacement::Trailing;
+                saw_placement = true;
+                continue;
+            }
+
+            break;
+        }
+
+        if !saw_separate {
             // SIGN without SEPARATE is not supported in this implementation
             // (it would use overpunching which is already handled by signed zoned decimals)
             return Err(Error::new(
@@ -1175,15 +1267,37 @@ impl Parser {
             ));
         }
 
-        // Determine placement: LEADING or TRAILING (default to LEADING)
-        let placement = if self.consume(&Token::Leading) {
-            SignPlacement::Leading
-        } else if self.consume(&Token::Trailing) {
-            SignPlacement::Trailing
-        } else {
-            // Default to LEADING if not specified
-            SignPlacement::Leading
-        };
+        // Do not allow unknown tokens to silently attach to the SIGN clause.
+        // The next token should be a field clause boundary or the field terminator.
+        if let Some(next) = self.current_token() {
+            let next_is_boundary = matches!(
+                &next.token,
+                Token::Period
+                    | Token::Newline
+                    | Token::InlineComment(_)
+                    | Token::Pic
+                    | Token::Usage
+                    | Token::Redefines
+                    | Token::Renames
+                    | Token::Occurs
+                    | Token::Synchronized
+                    | Token::Value
+                    | Token::Blank
+                    | Token::Sign
+                    | Token::Comp
+                    | Token::Comp3
+                    | Token::Comp1
+                    | Token::Comp2
+                    | Token::Binary
+            );
+
+            if !next_is_boundary {
+                return Err(Error::new(
+                    ErrorCode::CBKP001_SYNTAX,
+                    "Invalid SIGN clause syntax. Expected SEPARATE with optional LEADING/TRAILING",
+                ));
+            }
+        }
 
         // Validate that field is a numeric display field
         match &mut field.kind {
@@ -1410,24 +1524,13 @@ impl Parser {
         // Parse from-field qualified name
         let from_field = self.parse_qualified_name()?;
 
-        // Expect THROUGH or THRU keyword
-        match self.current_token() {
-            Some(TokenPos {
-                token: Token::Through | Token::Thru,
-                ..
-            }) => {
-                self.advance();
-            }
-            _ => {
-                return Err(Error::new(
-                    ErrorCode::CBKP001_SYNTAX,
-                    "Expected THROUGH or THRU keyword after from-field in RENAMES",
-                ));
-            }
-        }
-
-        // Parse thru-field qualified name
-        let thru_field = self.parse_qualified_name()?;
+        let thru_field = if self.check(&Token::Through) || self.check(&Token::Thru) {
+            self.advance();
+            self.parse_qualified_name()?
+        } else {
+            // R5 support uses single-field RENAMES without explicit THROUGH/THRU.
+            from_field.clone()
+        };
 
         // Set field kind to Renames
         field.kind = FieldKind::Renames {

@@ -26,7 +26,7 @@ regex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_plain.workspace = true
-chrono = { workspace = true, default-features = false, features = ["std", "clock"] }
+chrono = { workspace = true, features = ["std", "clock"] }
 copybook-core = { workspace = true }
 copybook-bench = { workspace = true }
 num_cpus = { workspace = true }

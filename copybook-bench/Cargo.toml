@@ -37,7 +37,7 @@ criterion.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 num_cpus = { workspace = true }
-chrono = { workspace = true, default-features = false, features = ["serde", "std", "clock"] }
+chrono = { workspace = true, features = ["serde", "std", "clock"] }
 serde = { workspace = true }
 anyhow.workspace = true
 

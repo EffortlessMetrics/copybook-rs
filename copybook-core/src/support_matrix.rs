@@ -66,7 +66,7 @@ pub fn all_features() -> &'static [FeatureSupport] {
         Comp1Comp2, EditedPic, Level66Renames, Level88Conditions, NestedOdo, OccursDepending,
         SignSeparate,
     };
-    use SupportStatus::{NotPlanned, Partial, Planned, Supported};
+    use SupportStatus::{Partial, Planned, Supported};
 
     &[
         FeatureSupport {
@@ -100,15 +100,15 @@ pub fn all_features() -> &'static [FeatureSupport] {
         FeatureSupport {
             id: Comp1Comp2,
             name: "COMP-1/COMP-2 floating-point",
-            description: "Single/double precision floating-point types.",
-            status: NotPlanned,
+            description: "Single/double precision floating-point types (requires `comp_1`/`comp_2` feature flags).",
+            status: Partial,
             doc_ref: None,
         },
         FeatureSupport {
             id: SignSeparate,
             name: "SIGN LEADING/TRAILING SEPARATE",
-            description: "Separate sign byte directives.",
-            status: Planned,
+            description: "Separate sign byte directives (requires `sign_separate` feature flag).",
+            status: Partial,
             doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#sign-handling"),
         },
         FeatureSupport {

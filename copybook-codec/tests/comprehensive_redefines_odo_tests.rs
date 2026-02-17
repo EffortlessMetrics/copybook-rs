@@ -164,10 +164,8 @@ fn test_redefines_encode_precedence_normative() {
     });
 
     let result = copybook_codec::encode_record(&schema, &ambiguous_json, &options);
-    assert!(
-        result.is_ok(),
-        "REDEFINES ambiguity is not enforced in the lib_api encoder path"
-    );
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
 
     // Test all null views (should error)
     let all_null_json = json!({
@@ -176,10 +174,8 @@ fn test_redefines_encode_precedence_normative() {
     });
 
     let result = copybook_codec::encode_record(&schema, &all_null_json, &options);
-    assert!(
-        result.is_ok(),
-        "Encoder currently treats all-null views as no-op"
-    );
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
 }
 
 #[test]
@@ -342,14 +338,12 @@ fn test_odo_decode_clamp_vs_strict() {
     // Set LRECL to match test data length for ODO schemas
     schema.lrecl_fixed = Some(u32::try_from(test_data.len()).unwrap());
 
-    let result = copybook_codec::decode_record(&schema, test_data, &lenient_options);
-    assert!(
-        result.is_err(),
-        "Current decoder returns an error for out-of-bounds counters"
-    );
-    if let Err(err) = result {
-        assert_eq!(err.code, ErrorCode::CBKS301_ODO_CLIPPED);
-    }
+    let result = copybook_codec::decode_record(&schema, test_data, &lenient_options).unwrap();
+    let values = result
+        .get("VARIABLE-ARRAY")
+        .and_then(Value::as_array)
+        .expect("decoded ODO array expected");
+    assert_eq!(values.len(), 5);
 
     // Test strict mode: error on out-of-bounds
     let strict_options = create_test_decode_options(true);
@@ -547,14 +541,12 @@ fn test_odo_minimum_counter_handling() {
     // Set LRECL for counter (2) + minimum 3 array elements (2 bytes each) = 2 + 6 = 8
     schema.lrecl_fixed = Some(8);
 
-    let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(
-        result.is_err(),
-        "Current decoder returns an error for below-min counters"
-    );
-    if let Err(err) = result {
-        assert_eq!(err.code, ErrorCode::CBKS302_ODO_RAISED);
-    }
+    let result = copybook_codec::decode_record(&schema, test_data, &options).unwrap();
+    let values = result
+        .get("VARIABLE-ARRAY")
+        .and_then(Value::as_array)
+        .expect("decoded ODO array expected");
+    assert_eq!(values.len(), 3);
 }
 
 #[test]

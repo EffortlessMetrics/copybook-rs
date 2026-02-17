@@ -5,35 +5,29 @@
 //! complete data lineage reporting.
 
 use crate::exit_codes::ExitCode;
-use crate::{write_stderr_line, write_stdout_line};
 use crate::utils::atomic_write;
+use crate::{write_stderr_line, write_stdout_line};
 use chrono::{self, DateTime, Duration as ChronoDuration, Utc};
 use clap::{Parser, Subcommand};
-use copybook_codec::{
-    Codepage, DecodeOptions, JsonNumberMode, RecordFormat, RawMode, RunSummary,
-};
+use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary};
 use copybook_core::audit::{
-    AccessAuditor, AccessEvent, AccessResult, AuditContext, AuditEvent, AuditEventType, AuditLogger,
-    AuditLoggerConfig, AuditPayload, BaselineManager, ComplianceConfig, ComplianceEngine,
-    ComplianceProfile, ComplianceResult, FieldLineage, ImpactAnalyzer, LogFormat, PerformanceAuditor,
-    PerformanceBaseline, ResourceMetrics, SecurityAuditor, SecurityMonitor, SecurityViolation,
-    ThroughputMetrics, TransformationType, RiskLevel,
+    AccessAuditor, AccessEvent, AccessResult, AuditContext, AuditEvent, AuditEventType,
+    AuditLogger, AuditLoggerConfig, AuditPayload, BaselineManager, ComplianceConfig,
+    ComplianceEngine, ComplianceProfile, ComplianceResult, FieldLineage, ImpactAnalyzer, LogFormat,
+    PerformanceAuditor, PerformanceBaseline, ResourceMetrics, RiskLevel, SecurityAuditor,
+    SecurityMonitor, SecurityViolation, ThroughputMetrics, TransformationType,
 };
 use copybook_core::{
-    audit::{
-        self as audit_core,
-        context::SecurityClassification,
-        PerformanceMeasurementType,
-        PerformanceMetrics,
-        SecurityEventType,
-        ComparisonResult,
-    },
     Field, FieldKind, Schema,
+    audit::{
+        self as audit_core, ComparisonResult, PerformanceMeasurementType, PerformanceMetrics,
+        SecurityEventType, context::SecurityClassification,
+    },
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::io::{self, ErrorKind, BufRead, BufReader, Cursor, Read, Write as IoWrite};
+use std::io::{self, BufRead, BufReader, Cursor, ErrorKind, Read, Write as IoWrite};
 use std::path::Path;
 use std::path::PathBuf;
 use std::{fs, str};
@@ -468,22 +462,22 @@ pub async fn run(
             output,
             format,
             compliance,
-        include_performance,
-        include_security,
-        include_lineage,
-        include_recommendations,
-        } => {
-            run_audit_report(
-            &copybook,
-            data_file.as_deref(),
-            &output,
-            format,
-            compliance.as_deref(),
             include_performance,
             include_security,
             include_lineage,
             include_recommendations,
-            audit_context,
+        } => {
+            run_audit_report(
+                &copybook,
+                data_file.as_deref(),
+                &output,
+                format,
+                compliance.as_deref(),
+                include_performance,
+                include_security,
+                include_lineage,
+                include_recommendations,
+                audit_context,
             )
             .await
         }
@@ -758,9 +752,7 @@ fn parse_health_events(path: &Path) -> AuditResult<(Vec<HealthEventRecord>, Vec<
     Ok((parsed, parse_issues))
 }
 
-fn parse_audit_events_for_health(
-    path: &Path,
-) -> AuditResult<(Vec<AuditEvent>, Vec<String>)> {
+fn parse_audit_events_for_health(path: &Path) -> AuditResult<(Vec<AuditEvent>, Vec<String>)> {
     let content = fs::read_to_string(path)?;
     let mut parse_issues = Vec::new();
 
@@ -795,7 +787,9 @@ fn normalize_health_event(raw: RawHealthEvent) -> Result<HealthEventRecord, Stri
     let event_id = raw
         .event_id
         .unwrap_or_else(|| format!("health-event-{}", generate_random_suffix()));
-    let timestamp = raw.timestamp.unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
+    let timestamp = raw
+        .timestamp
+        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
     let source = raw.source.unwrap_or_else(|| "copybook-core".to_string());
     let event_type = raw.event_type.unwrap_or_else(|| "Unknown".to_string());
     let integrity_hash = raw.integrity_hash.unwrap_or_else(|| "".to_string());
@@ -835,10 +829,19 @@ fn combine_exit_code(current: ExitCode, candidate: ExitCode) -> ExitCode {
 }
 
 fn sidecar_path(output: &Path, suffix: &str) -> PathBuf {
-    let stem = output.file_stem().and_then(|s| s.to_str()).unwrap_or("audit");
-    let ext = output.extension().and_then(|s| s.to_str()).unwrap_or("json");
+    let stem = output
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("audit");
+    let ext = output
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("json");
     let file_name = format!("{stem}.{suffix}.{ext}");
-    output.parent().unwrap_or_else(|| Path::new(".")).join(file_name)
+    output
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(file_name)
 }
 
 fn parse_compliance_profile(raw: &str) -> Option<ComplianceProfile> {
@@ -858,7 +861,11 @@ fn parse_compliance_profiles(
     let mut names = Vec::new();
     let mut seen = HashSet::new();
 
-    for raw in profiles.split(',').map(str::trim).filter(|item| !item.is_empty()) {
+    for raw in profiles
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+    {
         if let Some(profile) = parse_compliance_profile(raw) {
             if seen.insert(profile) {
                 names.push(raw.to_string());
@@ -958,7 +965,10 @@ fn parse_access_events(path: &Path) -> AuditResult<(Vec<AccessEvent>, Vec<String
         let line = match line_result {
             Ok(value) => value,
             Err(err) => {
-                parse_issues.push(format!("line {}: failed to read access event line: {err}", line_number + 1));
+                parse_issues.push(format!(
+                    "line {}: failed to read access event line: {err}",
+                    line_number + 1
+                ));
                 continue;
             }
         };
@@ -977,7 +987,10 @@ fn parse_access_events(path: &Path) -> AuditResult<(Vec<AccessEvent>, Vec<String
                     .or(raw.access_type)
                     .unwrap_or_else(|| "read".to_string());
                 let resource_type = raw.resource_type.unwrap_or_else(|| "resource".to_string());
-                let resource_id = raw.resource.or(raw.resource_id).unwrap_or_else(|| "generic".to_string());
+                let resource_id = raw
+                    .resource
+                    .or(raw.resource_id)
+                    .unwrap_or_else(|| "generic".to_string());
                 let result = parse_access_result(raw.result.as_deref().or(raw.status.as_deref()));
 
                 events.push(AccessEvent {
@@ -1026,7 +1039,9 @@ fn security_classification(
     classification: Option<DataClassification>,
 ) -> copybook_core::audit::context::SecurityClassification {
     match classification {
-        Some(DataClassification::Public) => copybook_core::audit::context::SecurityClassification::Public,
+        Some(DataClassification::Public) => {
+            copybook_core::audit::context::SecurityClassification::Public
+        }
         Some(DataClassification::Internal) => {
             copybook_core::audit::context::SecurityClassification::Internal
         }
@@ -1116,10 +1131,7 @@ async fn run_audit_report(
     let schema = parse_copybook_schema(copybook)?;
     let mut status_messages = Vec::new();
 
-    status_messages.push(format!(
-        "copybook_fields: {}",
-        schema.fields.len()
-    ));
+    status_messages.push(format!("copybook_fields: {}", schema.fields.len()));
 
     if let Some(compliance_profiles) = compliance {
         let sidecar = sidecar_path(output, "compliance");
@@ -1288,9 +1300,14 @@ async fn run_compliance_validation(
         .with_metadata("codepage", format!("{codepage}"));
 
     let engine = ComplianceEngine::new(compliance_config).with_profiles(&profiles);
-    let validation_result = engine.validate_processing_operation(&validation_context).await?;
+    let validation_result = engine
+        .validate_processing_operation(&validation_context)
+        .await?;
     let recommendations = if include_recommendations {
-        engine.generate_recommendations(&validation_context).await.unwrap_or_default()
+        engine
+            .generate_recommendations(&validation_context)
+            .await
+            .unwrap_or_default()
     } else {
         Vec::new()
     };
@@ -1447,11 +1464,12 @@ fn run_lineage_analysis(
         let source_path = source_field.path.clone();
         let target_path = target_field.path.clone();
 
-        let transformation = if source_path.eq_ignore_ascii_case(&target_path) && source_type == target_type {
-            TransformationType::DirectMapping
-        } else {
-            TransformationType::TypeConversion
-        };
+        let transformation =
+            if source_path.eq_ignore_ascii_case(&target_path) && source_type == target_type {
+                TransformationType::DirectMapping
+            } else {
+                TransformationType::TypeConversion
+            };
         let confidence = if source_path.eq_ignore_ascii_case(&target_path) {
             confidence_threshold
         } else {
@@ -1510,11 +1528,17 @@ fn run_lineage_analysis(
         }
     }
 
-    let chain_valid = tracker.validate_lineage_chain(&lineage_records).unwrap_or(false);
+    let chain_valid = tracker
+        .validate_lineage_chain(&lineage_records)
+        .unwrap_or(false);
     let avg_quality = if lineage_records.is_empty() {
         0.0
     } else {
-        lineage_records.iter().map(|record| record.quality_score).sum::<f64>() / lineage_records.len() as f64
+        lineage_records
+            .iter()
+            .map(|record| record.quality_score)
+            .sum::<f64>()
+            / lineage_records.len() as f64
     };
 
     let payload = AuditPayload::LineageTracking {
@@ -1522,7 +1546,9 @@ fn run_lineage_analysis(
         target_system: resolved_target_system.to_string(),
         field_mappings: field_mappings
             .iter()
-            .filter_map(|value| serde_json::from_value::<audit_core::event::FieldMapping>(value.clone()).ok())
+            .filter_map(|value| {
+                serde_json::from_value::<audit_core::event::FieldMapping>(value.clone()).ok()
+            })
             .map(|value| audit_core::event::FieldMapping {
                 source_field: value.source_field,
                 target_field: value.target_field,
@@ -1532,7 +1558,9 @@ fn run_lineage_analysis(
             .collect(),
         transformation_rules: transformation_rules
             .iter()
-            .filter_map(|value| serde_json::from_value::<audit_core::event::TransformationRule>(value.clone()).ok())
+            .filter_map(|value| {
+                serde_json::from_value::<audit_core::event::TransformationRule>(value.clone()).ok()
+            })
             .map(|value| audit_core::event::TransformationRule {
                 rule_id: value.rule_id,
                 rule_type: value.rule_type,
@@ -1546,11 +1574,20 @@ fn run_lineage_analysis(
                 affected_systems: impact_reports.len() as u32,
                 risk_level: if impact_reports.is_empty() {
                     "low".to_string()
-                } else if impact_reports.iter().any(|entry| entry["risk_level"].as_str() == Some("Critical")) {
+                } else if impact_reports
+                    .iter()
+                    .any(|entry| entry["risk_level"].as_str() == Some("Critical"))
+                {
                     "critical".to_string()
-                } else if impact_reports.iter().any(|entry| entry["risk_level"].as_str() == Some("High")) {
+                } else if impact_reports
+                    .iter()
+                    .any(|entry| entry["risk_level"].as_str() == Some("High"))
+                {
                     "high".to_string()
-                } else if impact_reports.iter().any(|entry| entry["risk_level"].as_str() == Some("Medium")) {
+                } else if impact_reports
+                    .iter()
+                    .any(|entry| entry["risk_level"].as_str() == Some("Medium"))
+                {
                     "medium".to_string()
                 } else {
                     "low".to_string()
@@ -1622,10 +1659,7 @@ fn run_lineage_analysis(
         Ok(())
     })?;
 
-    write_stdout_line(&format!(
-        "Lineage analysis written to {}",
-        output.display()
-    ))?;
+    write_stdout_line(&format!("Lineage analysis written to {}", output.display()))?;
     Ok(exit_code)
 }
 
@@ -1674,7 +1708,11 @@ fn run_lineage_analysis_impl(
     };
 
     if source_fields.is_empty() {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "source schema has no leaf fields").into());
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "source schema has no leaf fields",
+        )
+        .into());
     }
 
     let tracker = LineageTracker::new()
@@ -1692,12 +1730,15 @@ fn run_lineage_analysis_impl(
     let mut mapping_issues = Vec::new();
 
     for index in 0..max_records {
-        let source_field = source_fields.get(index).or(target_fields.get(index)).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("no source or target field at index {index}"),
-            )
-        })?;
+        let source_field = source_fields
+            .get(index)
+            .or(target_fields.get(index))
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("no source or target field at index {index}"),
+                )
+            })?;
         let target_field = target_fields.get(index).unwrap_or(source_field);
 
         let source_type = map_field_type_name(source_field);
@@ -1756,7 +1797,10 @@ fn run_lineage_analysis_impl(
             parameters.insert("source_type".to_string(), source_type);
             parameters.insert("target_type".to_string(), target_type);
             parameters.insert("source_system".to_string(), source_system.to_string());
-            parameters.insert("target_system".to_string(), resolved_target_system.to_string());
+            parameters.insert(
+                "target_system".to_string(),
+                resolved_target_system.to_string(),
+            );
             parameters.insert("target_format".to_string(), target_format.to_string());
 
             transformation_rules.push(audit_core::event::TransformationRule {
@@ -1799,17 +1843,23 @@ fn run_lineage_analysis_impl(
     let chain_valid = if chain_records.len() <= 1 {
         true
     } else {
-        tracker.validate_lineage_chain(&chain_records).unwrap_or(false)
+        tracker
+            .validate_lineage_chain(&chain_records)
+            .unwrap_or(false)
     };
 
     if !chain_valid {
-        mapping_issues.push("Lineage chain continuity is non-linear and requires manual review".to_string());
+        mapping_issues
+            .push("Lineage chain continuity is non-linear and requires manual review".to_string());
     }
 
     let avg_quality = if lineage_records.is_empty() {
         0.0
     } else {
-        lineage_records.iter().map(|record| record.quality_score).sum::<f64>()
+        lineage_records
+            .iter()
+            .map(|record| record.quality_score)
+            .sum::<f64>()
             / lineage_records.len() as f64
     };
 
@@ -1878,7 +1928,10 @@ fn run_lineage_analysis_impl(
         status = "pass";
     }
     if !chain_valid || !mapping_issues.is_empty() || !quality_ok {
-        status = if mapping_issues.iter().any(|entry| entry.contains("Low confidence")) {
+        status = if mapping_issues
+            .iter()
+            .any(|entry| entry.contains("Low confidence"))
+        {
             "warn"
         } else {
             "pass"
@@ -2045,7 +2098,11 @@ fn run_performance_audit_impl(
 
         run_summaries.push(summary);
         if iteration == 0 {
-            parse_issues.push(format!("iteration {} completed: {} bytes", iteration + 1, output_buffer.position()));
+            parse_issues.push(format!(
+                "iteration {} completed: {} bytes",
+                iteration + 1,
+                output_buffer.position()
+            ));
         }
     }
 
@@ -2054,14 +2111,26 @@ fn run_performance_audit_impl(
         return Err(io::Error::other("no benchmark runs were executed").into());
     }
 
-    let avg_processed_records: f64 =
-        run_summaries.iter().map(|summary| summary.records_processed as f64).sum::<f64>() / run_count;
-    let avg_throughput_mbps: f64 =
-        run_summaries.iter().map(|summary| summary.throughput_mbps).sum::<f64>() / run_count;
-    let avg_processing_ms: f64 =
-        run_summaries.iter().map(|summary| summary.processing_time_ms as f64).sum::<f64>() / run_count;
-    let avg_errors: f64 =
-        run_summaries.iter().map(|summary| summary.records_with_errors as f64).sum::<f64>() / run_count;
+    let avg_processed_records: f64 = run_summaries
+        .iter()
+        .map(|summary| summary.records_processed as f64)
+        .sum::<f64>()
+        / run_count;
+    let avg_throughput_mbps: f64 = run_summaries
+        .iter()
+        .map(|summary| summary.throughput_mbps)
+        .sum::<f64>()
+        / run_count;
+    let avg_processing_ms: f64 = run_summaries
+        .iter()
+        .map(|summary| summary.processing_time_ms as f64)
+        .sum::<f64>()
+        / run_count;
+    let avg_errors: f64 = run_summaries
+        .iter()
+        .map(|summary| summary.records_with_errors as f64)
+        .sum::<f64>()
+        / run_count;
 
     let avg_throughput_bytes = avg_throughput_mbps * 1024.0 * 1024.0;
     let record_rate = if avg_processing_ms > 0.0 {
@@ -2148,7 +2217,7 @@ fn run_performance_audit_impl(
     if establish_baseline {
         let target = baseline_file
             .map(|path| path.to_path_buf())
-            .unwrap_or_else(|| sidecar_path(output, \"baseline\"));
+            .unwrap_or_else(|| sidecar_path(output, "baseline"));
         let baseline_manager = BaselineManager::new(&target);
 
         let baseline = PerformanceBaseline {
@@ -2170,7 +2239,7 @@ fn run_performance_audit_impl(
         baseline_manager.save_baseline(&baseline)?;
         baseline_id = Some(baseline.baseline_id.clone());
         parse_issues.push(format!(
-            \"Baseline established at {} (display {:.3} GB/s, comp3 {:.2} MB/s)\",
+            "Baseline established at {} (display {:.3} GB/s, comp3 {:.2} MB/s)",
             target.display(),
             display_throughput_gbps,
             comp3_throughput_mbps
@@ -2180,7 +2249,7 @@ fn run_performance_audit_impl(
     if let Some(target_display) = target_display_gbps {
         if display_throughput_gbps < target_display {
             regressions.push(format!(
-                \"display throughput {:.3} GB/s below target {:.3} GB/s\",
+                "display throughput {:.3} GB/s below target {:.3} GB/s",
                 display_throughput_gbps, target_display
             ));
         }
@@ -2188,7 +2257,7 @@ fn run_performance_audit_impl(
     if let Some(target_comp3) = target_comp3_mbps {
         if comp3_throughput_mbps < target_comp3 {
             regressions.push(format!(
-                \"comp3 throughput {:.2} MB/s below target {:.2} MB/s\",
+                "comp3 throughput {:.2} MB/s below target {:.2} MB/s",
                 comp3_throughput_mbps, target_comp3
             ));
         }
@@ -2206,9 +2275,9 @@ fn run_performance_audit_impl(
 
     let regression_detected = !regressions.is_empty();
     let (status_code, status) = if regression_detected || avg_errors > 0.0 {
-        (ExitCode::Data, \"warn\")
+        (ExitCode::Data, "warn")
     } else {
-        (ExitCode::Ok, \"pass\")
+        (ExitCode::Ok, "pass")
     };
 
     let metrics = PerformanceMetrics {
@@ -2229,8 +2298,8 @@ fn run_performance_audit_impl(
     let event = AuditEvent::new(
         AuditEventType::PerformanceMeasurement,
         audit_context
-            .with_metadata(\"operation\", \"performance_audit\".to_string())
-            .with_metadata(\"iterations\", run_iterations.to_string()),
+            .with_metadata("operation", "performance_audit".to_string())
+            .with_metadata("iterations", run_iterations.to_string()),
         payload,
     );
 
@@ -2240,7 +2309,7 @@ fn run_performance_audit_impl(
             "copybook": copybook.display().to_string(),
             "data_file": data_file.map(|path| path.display().to_string()),
             "format": decode_format,
-            "codepage": format!(\"{:?}\", codepage),
+            "codepage": format!("{:?}", codepage),
             "iterations": run_iterations,
             "iterations_executed": run_summaries.len(),
             "display_throughput_gbps": display_throughput_gbps,
@@ -2254,7 +2323,7 @@ fn run_performance_audit_impl(
             "quality_ratio_display": display_ratio,
             "quality_ratio_comp3": comp3_ratio,
             "overhead_percent": overhead,
-            "comparison": format!(\"{:?}\", comparison_result),
+            "comparison": format!("{:?}", comparison_result),
             "regressions": regressions,
             "parse_issues": parse_issues,
             "include_regression_analysis": include_regression_analysis,
@@ -2262,7 +2331,7 @@ fn run_performance_audit_impl(
             "target_comp3_mbps": target_comp3_mbps,
             "max_overhead_percent": max_overhead_percent,
             "status": status,
-            "status_code": format!(\"{} ({})\", status_code.as_i32(), status_code),
+            "status_code": format!("{} ({})", status_code.as_i32(), status_code),
             "audit_event_id": event.event_id,
             "audit_event_integrity": event.integrity_hash,
         }
@@ -2271,12 +2340,12 @@ fn run_performance_audit_impl(
     atomic_write(output, |writer| {
         let body = serde_json::to_vec_pretty(&report)?;
         writer.write_all(&body)?;
-        writer.write_all(b\"\\n\")?;
+        writer.write_all(b"\n")?;
         Ok(())
     })?;
 
     write_stdout_line(&format!(
-        \"Performance audit written to {} ({} iterations)\",
+        "Performance audit written to {} ({} iterations)",
         output.display(),
         run_iterations
     ))?;
@@ -2434,7 +2503,9 @@ fn run_security_audit_impl(
         }
     }
 
-    if validation_depth == ValidationDepth::Forensic || validation_depth == ValidationDepth::Comprehensive {
+    if validation_depth == ValidationDepth::Forensic
+        || validation_depth == ValidationDepth::Comprehensive
+    {
         for event in &access_events {
             if event.source_ip.is_none() {
                 threat_indicators.push(format!(
@@ -2524,13 +2595,9 @@ fn run_security_audit_impl(
         .with_metadata("operation", "security_audit".to_string())
         .with_metadata("classification", format!("{classification:?}"))
         .with_metadata("validation_depth", format!("{validation_depth:?}"));
-    let security_context = security_context
-        .with_security_classification(security_classification(classification));
-    let event = AuditEvent::new(
-        AuditEventType::SecurityEvent,
-        security_context,
-        payload,
-    );
+    let security_context =
+        security_context.with_security_classification(security_classification(classification));
+    let event = AuditEvent::new(AuditEventType::SecurityEvent, security_context, payload);
 
     let mut report = serde_json::json!({
         "security_audit": {
@@ -2601,8 +2668,9 @@ fn run_security_audit_impl(
         report["security_audit"]["siem_exported_path"] =
             serde_json::Value::String(events_path.display().to_string());
     } else if siem_format.is_some() {
-        report["security_audit"]["siem_export_note"] =
-            serde_json::Value::String("siem_format provided without export_events path".to_string());
+        report["security_audit"]["siem_export_note"] = serde_json::Value::String(
+            "siem_format provided without export_events path".to_string(),
+        );
     }
 
     atomic_write(output, |writer| {
@@ -2704,15 +2772,13 @@ fn run_audit_health_check_impl(
 
         if perform_chain_validation {
             checks_executed += 1;
-            let chain_valid = health_events
-                .windows(2)
-                .all(|records| {
-                    records.get(1).is_some_and(|next| {
-                        next.previous_hash
-                            .as_deref()
-                            .is_none_or(|previous| previous == records[0].integrity_hash.as_str())
-                    })
-                });
+            let chain_valid = health_events.windows(2).all(|records| {
+                records.get(1).is_some_and(|next| {
+                    next.previous_hash
+                        .as_deref()
+                        .is_none_or(|previous| previous == records[0].integrity_hash.as_str())
+                })
+            });
             if !chain_valid {
                 chain_integrity_valid = false;
                 checks_failed += 1;
@@ -2731,7 +2797,9 @@ fn run_audit_health_check_impl(
             if !hashes_present {
                 hash_chain_valid = false;
                 checks_failed += 1;
-                diagnostics.push("audit_trail contains empty or missing integrity hash values".to_string());
+                diagnostics.push(
+                    "audit_trail contains empty or missing integrity hash values".to_string(),
+                );
             }
         }
 
@@ -2739,23 +2807,26 @@ fn run_audit_health_check_impl(
             checks_executed += 1;
             let timestamps = health_events
                 .iter()
-                .map(|record| DateTime::parse_from_rfc3339(&record.timestamp).map(|value| value.with_timezone(&chrono::Utc)))
+                .map(|record| {
+                    DateTime::parse_from_rfc3339(&record.timestamp)
+                        .map(|value| value.with_timezone(&chrono::Utc))
+                })
                 .collect::<Vec<_>>();
             for parsed in &timestamps {
                 if parsed.is_err() {
                     timestamps_valid = false;
                     checks_failed += 1;
-                    diagnostics.push("audit_trail timestamp parsing failed for one or more records".to_string());
+                    diagnostics.push(
+                        "audit_trail timestamp parsing failed for one or more records".to_string(),
+                    );
                     break;
                 }
             }
             if timestamps_valid {
                 if let Some(window) = retention_limit {
-                    let too_old = timestamps.iter().any(|entry| {
-                        entry
-                            .as_ref()
-                            .is_ok_and(|timestamp| timestamp < &window)
-                    });
+                    let too_old = timestamps
+                        .iter()
+                        .any(|entry| entry.as_ref().is_ok_and(|timestamp| timestamp < &window));
                     if too_old {
                         retention_compliant = false;
                     }
@@ -2880,7 +2951,8 @@ fn run_audit_health_check_impl(
 
     if continuous {
         diagnostics.push(
-            "continuous monitoring mode requested (one-shot validation only in this command)".to_string(),
+            "continuous monitoring mode requested (one-shot validation only in this command)"
+                .to_string(),
         );
     }
 
@@ -2933,14 +3005,8 @@ fn run_audit_health_check_impl(
                     .map(|path| path.display().to_string())
                     .unwrap_or_else(|| "none".to_string()),
             );
-            map.insert(
-                "checks_executed".to_string(),
-                checks_executed.to_string(),
-            );
-            map.insert(
-                "checks_failed".to_string(),
-                checks_failed.to_string(),
-            );
+            map.insert("checks_executed".to_string(), checks_executed.to_string());
+            map.insert("checks_failed".to_string(), checks_failed.to_string());
             map.insert(
                 "overall_health_score".to_string(),
                 overall_health_score.to_string(),
@@ -2958,13 +3024,15 @@ fn run_audit_health_check_impl(
     let health_context = audit_context
         .with_metadata("operation", "audit_health_check".to_string())
         .with_metadata("validate_integrity", format!("{validate_integrity}"))
-        .with_metadata("validate_chain_integrity", format!("{validate_chain_integrity}"))
-        .with_metadata("check_cryptographic_hashes", format!("{check_cryptographic_hashes}"));
-    let health_event = AuditEvent::new(
-        AuditEventType::ErrorEvent,
-        health_context,
-        health_payload,
-    );
+        .with_metadata(
+            "validate_chain_integrity",
+            format!("{validate_chain_integrity}"),
+        )
+        .with_metadata(
+            "check_cryptographic_hashes",
+            format!("{check_cryptographic_hashes}"),
+        );
+    let health_event = AuditEvent::new(AuditEventType::ErrorEvent, health_context, health_payload);
 
     let report = serde_json::json!({
         "audit_health": {

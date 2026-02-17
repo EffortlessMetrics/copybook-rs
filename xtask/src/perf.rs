@@ -42,6 +42,7 @@ pub const COMP3_SLO_MIBPS: f64 = 40.0;
 /// # Errors
 /// Returns error if benchmark execution fails, output directory creation fails,
 /// or if `enforce` is true and SLO violations are detected
+#[inline]
 pub fn run(enforce: bool, out_dir: Option<&str>) -> Result<()> {
     eprintln!("🚀 Running performance benchmarks...");
 
@@ -179,6 +180,7 @@ fn get_rustc_version() -> Result<String> {
 /// # Errors
 ///
 /// Returns error if JSON is malformed, missing required fields, or contains invalid throughput values.
+#[inline]
 #[allow(clippy::missing_errors_doc)]
 pub fn parse_perf_receipt(json_content: &str) -> Result<PerfSnapshot> {
     let data: Value = serde_json::from_str(json_content)?;
@@ -208,6 +210,7 @@ pub fn parse_perf_receipt(json_content: &str) -> Result<PerfSnapshot> {
 ///
 /// Returns Pass if both metrics meet or exceed SLO thresholds,
 /// otherwise Fail with percentage deltas.
+#[inline]
 #[must_use]
 pub fn evaluate_slo(snapshot: &PerfSnapshot) -> SloStatus {
     let display_delta_pct =
@@ -225,6 +228,7 @@ pub fn evaluate_slo(snapshot: &PerfSnapshot) -> SloStatus {
 }
 
 /// Format SLO status for human consumption
+#[inline]
 #[must_use]
 pub fn format_slo_summary(snapshot: &PerfSnapshot, status: &SloStatus) -> String {
     let display_delta_pct =

@@ -22,12 +22,12 @@ use copybook_codec::{
 };
 use copybook_core::dialect::Dialect;
 use copybook_core::{
-    parse_copybook, parse_copybook_with_options, project_schema, Error, ErrorCode, Feature,
-    FeatureFlags, Occurs, ParseOptions,
+    parse_copybook, parse_copybook_with_options, project_schema, Error, ErrorCode, Occurs,
+    ParseOptions,
 };
 use cucumber::{given, then, when, World as _};
 use serde_json::{Map, Value};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::io::Cursor;
 
 /// BDD World struct to maintain test state across steps
@@ -202,11 +202,11 @@ impl CopybookWorld {
     /// Check if a field exists in the projected schema (recursively)
     fn field_in_projection(&self, field_name: &str) -> bool {
         let schema = self.projected_schema();
-        self.find_field_recursive(schema, field_name)
+        Self::find_field_recursive(schema, field_name)
     }
 
     /// Recursively find a field by name in the schema
-    fn find_field_recursive(&self, schema: &copybook_core::Schema, field_name: &str) -> bool {
+    fn find_field_recursive(schema: &copybook_core::Schema, field_name: &str) -> bool {
         for field in &schema.fields {
             if field.name == field_name {
                 return true;
@@ -217,7 +217,7 @@ impl CopybookWorld {
                     fields: field.children.clone(),
                     ..Default::default()
                 };
-                if self.find_field_recursive(&child_schema, field_name) {
+                if Self::find_field_recursive(&child_schema, field_name) {
                     return true;
                 }
             }
@@ -443,10 +443,13 @@ mod steps {
 
     #[given(expr = "binary data with zero value")]
     async fn given_binary_data_with_zero_value(world: &mut CopybookWorld) {
-        let value_field = world
-            .first_numeric_leaf_field()
-            .or_else(|| world.first_leaf_field())
-            .expect("No suitable leaf field for zero value");
+        let field_name = {
+            let value_field = world
+                .first_numeric_leaf_field()
+                .or_else(|| world.first_leaf_field())
+                .expect("No suitable leaf field for zero value");
+            value_field.name.clone()
+        };
         world.ensure_schema_parsed();
         world.ensure_encode_options();
         if world.schema.is_none() {
@@ -454,7 +457,7 @@ mod steps {
         }
 
         let mut payload = Map::new();
-        payload.insert(value_field.name.clone(), Value::String("0".to_string()));
+        payload.insert(field_name, Value::String("0".to_string()));
         let encoded = match encode_from_payload(&payload, world) {
             Ok(value) => value,
             Err(error) => {
@@ -478,7 +481,8 @@ mod steps {
         }
 
         let schema = world.schema().clone();
-        let occurs = schema.all_fields().iter().find_map(|field| {
+        let all_fields = schema.all_fields();
+        let occurs = all_fields.iter().find_map(|field| {
             let occurs = field.occurs.as_ref()?;
             if matches!(occurs, Occurs::ODO { .. }) && does_path_match_counter(occurs, &counter) {
                 Some(field)
@@ -486,12 +490,11 @@ mod steps {
                 None
             }
         });
-        let occurs = match occurs {
-            Some(field) => field,
-            None => panic!("No ODO field found for counter {}", counter),
+        let Some(occurs) = occurs else {
+            unreachable!("No ODO field found for counter {}", counter)
         };
 
-        let count_field = schema.all_fields().iter().find(|field| {
+        let count_field = all_fields.iter().find(|field| {
             field.name.eq_ignore_ascii_case(&counter) || path_ends_with(&field.path, &counter)
         });
         let count_len = count_field
@@ -525,17 +528,13 @@ mod steps {
             return;
         }
 
-        let schema = world.schema();
-        let fixed_field = schema.all_fields().iter().find_map(|field| {
-            if let Some(Occurs::Fixed { .. }) = field.occurs {
-                Some(field)
-            } else {
-                None
-            }
-        });
-        let fixed_field = match fixed_field {
-            Some(field) => field,
-            None => panic!("No fixed OCCURS field found"),
+        let schema = world.schema().clone();
+        let all_fields = schema.all_fields();
+        let fixed_field = all_fields
+            .iter()
+            .find(|field| matches!(field.occurs, Some(Occurs::Fixed { .. })));
+        let Some(fixed_field) = fixed_field else {
+            unreachable!("No fixed OCCURS field found")
         };
 
         let mut payload = Map::new();
@@ -644,7 +643,7 @@ mod steps {
     async fn given_invalid_dialect(world: &mut CopybookWorld) {
         // This will be used to test error handling for invalid dialects
         world.dialect = None;
-        let mut options = world.parse_options.clone().unwrap_or_default();
+        let options = world.parse_options.clone().unwrap_or_default();
         // We'll simulate an invalid dialect by using a custom approach
         // in the when step
         world.parse_options = Some(options);
@@ -658,13 +657,10 @@ mod steps {
         // Check if we're testing invalid dialect scenario
         if world.dialect.is_none() && world.parse_options.is_some() {
             // Simulate invalid dialect error
-            world.error = Some(Error {
-                code: ErrorCode::CBKP001_SYNTAX,
-                message: "Invalid dialect mode specified".to_string(),
-                line: 1,
-                column: 1,
-                context: None,
-            });
+            world.error = Some(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                "Invalid dialect mode specified",
+            ));
             world.schema = None;
             return;
         }
@@ -812,7 +808,7 @@ mod steps {
                     actual
                 );
             }
-            _ => panic!("Expected field '{}' to be signed numeric", field_name),
+            _ => unreachable!("Expected field '{}' to be signed numeric", field_name),
         }
     }
 
@@ -905,8 +901,8 @@ mod steps {
             .expect(&format!("Field '{}' not found", field_name));
         let occurs = match &field.occurs {
             Some(Occurs::ODO { counter_path, .. }) => counter_path,
-            Some(_) => panic!("Field '{}' is not an ODO field", field_name),
-            None => panic!("Field '{}' is not an ODO field", field_name),
+            Some(_) => unreachable!("Field '{}' is not an ODO field", field_name),
+            None => unreachable!("Field '{}' is not an ODO field", field_name),
         };
         assert!(
             does_path_match_counter_string(occurs, &counter),
@@ -928,8 +924,8 @@ mod steps {
             .expect(&format!("Field '{}' not found", field_name));
         let occurs = match field.occurs {
             Some(Occurs::Fixed { count }) => count,
-            Some(_) => panic!("Field '{}' is ODO, not fixed occurs", field_name),
-            None => panic!("Field '{}' is not an OCCURS field", field_name),
+            Some(_) => unreachable!("Field '{}' is ODO, not fixed occurs", field_name),
+            None => unreachable!("Field '{}' is not an OCCURS field", field_name),
         };
         assert_eq!(
             occurs, expected_count,
@@ -1490,7 +1486,8 @@ mod steps {
             return;
         }
 
-        let fixed_field = schema.all_fields().iter().find_map(|field| {
+        let all_fields = schema.all_fields();
+        let fixed_field = all_fields.iter().find_map(|field| {
             if let Some(Occurs::Fixed { .. }) = field.occurs {
                 Some(field)
             } else {
@@ -1524,7 +1521,8 @@ mod steps {
     async fn given_json_data_with_100_elements(world: &mut CopybookWorld) {
         let schema = world.ensure_schema_and_return().clone();
 
-        let fixed_field = schema.all_fields().iter().find_map(|field| {
+        let all_fields = schema.all_fields();
+        let fixed_field = all_fields.iter().find_map(|field| {
             if let Some(Occurs::Fixed { .. }) = field.occurs {
                 Some(field)
             } else {
@@ -2386,6 +2384,7 @@ fn build_array_element(field: &copybook_core::Field, index: usize) -> Result<Val
 
 fn build_binary_for_all_leaf_fields(world: &mut CopybookWorld) -> Result<Vec<u8>, Error> {
     world.ensure_schema_parsed();
+    world.ensure_encode_options();
     let schema = match &world.schema {
         Some(schema) => schema,
         None => {
@@ -2394,7 +2393,6 @@ fn build_binary_for_all_leaf_fields(world: &mut CopybookWorld) -> Result<Vec<u8>
             }));
         }
     };
-    world.ensure_encode_options();
     if world.encode_options.is_none() {
         return Err(Error::new(
             ErrorCode::CBKI001_INVALID_STATE,

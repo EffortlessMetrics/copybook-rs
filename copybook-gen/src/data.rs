@@ -3,7 +3,7 @@
 use crate::GeneratorConfig;
 use copybook_core::{Field, FieldKind, Occurs, Schema};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 
 /// Data generation strategy
 #[derive(Debug, Clone, Copy)]

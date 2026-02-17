@@ -848,9 +848,9 @@ fn process_array_field(
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
                 field_path: field.path.clone(),
-                counter_path: counter_path.to_string(),
+                counter_path: counter_path.clone(),
                 record_index,
-                byte_offset: counter_field.offset as u64,
+                byte_offset: u64::from(counter_field.offset),
             };
             let validation = crate::odo_redefines::validate_odo_decode(
                 counter_value,
@@ -968,9 +968,9 @@ fn process_array_field_with_scratch(
             let counter_field = find_field_by_path(all_fields, counter_path)?;
             let validation_context = crate::odo_redefines::OdoValidationContext {
                 field_path: field.path.clone(),
-                counter_path: counter_path.to_string(),
+                counter_path: counter_path.clone(),
                 record_index,
-                byte_offset: counter_field.offset as u64,
+                byte_offset: u64::from(counter_field.offset),
             };
             let validation = crate::odo_redefines::validate_odo_decode(
                 counter_value,
@@ -1738,7 +1738,7 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     }
 }
 
-/// Validate REDEFINES encoding constraints for direct lib_api encoding.
+/// Validate REDEFINES encoding constraints for direct `lib_api` encoding.
 fn validate_lib_api_redefines_encoding(
     schema: &Schema,
     json_value: &Value,
@@ -1754,11 +1754,11 @@ fn validate_lib_api_redefines_encoding(
 
         let byte_offset = non_null_views
             .iter()
-            .find_map(|view| schema.find_field(view).map(|field| field.offset as u64))
+            .find_map(|view| schema.find_field(view).map(|field| u64::from(field.offset)))
             .or_else(|| {
                 schema
                     .find_field(cluster_path)
-                    .map(|field| field.offset as u64)
+                    .map(|field| u64::from(field.offset))
             })
             .unwrap_or(0);
 
@@ -1776,7 +1776,7 @@ fn validate_lib_api_redefines_encoding(
     Ok(())
 }
 
-/// Validate ODO encoding constraints for direct lib_api encoding.
+/// Validate ODO encoding constraints for direct `lib_api` encoding.
 fn validate_lib_api_odo_encoding(
     schema: &Schema,
     json_value: &Value,
@@ -1836,7 +1836,7 @@ fn validate_lib_api_odo_encoding(
                 &tail_odo.array_path,
                 schema,
                 0,
-                counter_field.offset as u64,
+                u64::from(counter_field.offset),
             ));
         }
 
@@ -1844,7 +1844,7 @@ fn validate_lib_api_odo_encoding(
             field_path: tail_odo.array_path.clone(),
             counter_path: tail_odo.counter_path.clone(),
             record_index: 0,
-            byte_offset: array_field.offset as u64,
+            byte_offset: u64::from(array_field.offset),
         };
 
         crate::odo_redefines::validate_odo_encode(
@@ -1859,7 +1859,7 @@ fn validate_lib_api_odo_encoding(
     Ok(())
 }
 
-fn json_lookup_value(value: &Value, field_path: &str) -> Option<&Value> {
+fn json_lookup_value<'a>(value: &'a Value, field_path: &str) -> Option<&'a Value> {
     let mut current = value;
     for segment in field_path.split('.') {
         current = current.as_object()?.get(segment)?;

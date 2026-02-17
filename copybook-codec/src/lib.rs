@@ -25,6 +25,8 @@ pub mod options;
 pub mod record;
 pub mod zoned_overpunch;
 
+mod odo_redefines;
+
 /// Stable JSONL schema identifier for decoder output.
 pub const JSON_SCHEMA_VERSION: &str = "copybook.v1";
 

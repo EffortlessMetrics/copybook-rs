@@ -66,7 +66,7 @@ pub fn all_features() -> &'static [FeatureSupport] {
         Comp1Comp2, EditedPic, Level66Renames, Level88Conditions, NestedOdo, OccursDepending,
         SignSeparate,
     };
-    use SupportStatus::{Partial, Planned, Supported};
+    use SupportStatus::{Partial, Supported};
 
     &[
         FeatureSupport {

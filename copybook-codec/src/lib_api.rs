@@ -27,23 +27,6 @@ pub fn redundant_inline() {
     println!("{}", format!("hi"));
 }
 
-/// Shared helper for ODO bounds validation used by both decode and verify paths
-fn validate_odo_bounds(count: u32, min: u32, max: u32) -> Result<()> {
-    if count > max {
-        return Err(Error::new(
-            ErrorCode::CBKS301_ODO_CLIPPED,
-            format!("ODO count {count} exceeds maximum {max}"),
-        ));
-    }
-    if count < min {
-        return Err(Error::new(
-            ErrorCode::CBKS302_ODO_RAISED,
-            format!("ODO count {count} is below minimum {min}"),
-        ));
-    }
-    Ok(())
-}
-
 /// Build a standard JSON envelope for a decoded COBOL record.
 ///
 /// Wraps the decoded fields with metadata like schema version, record index,
@@ -390,7 +373,7 @@ impl fmt::Display for RunSummary {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
-    decode_record_with_raw_data(schema, data, options, None)
+    decode_record_with_raw_data(schema, data, options, None, 0)
 }
 
 /// High-performance decode using reusable scratch buffers
@@ -415,7 +398,7 @@ pub fn decode_record_with_scratch(
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
 ) -> Result<Value> {
-    decode_record_with_scratch_and_raw(schema, data, options, None, scratch)
+    decode_record_with_scratch_and_raw(schema, data, options, None, 0, scratch)
 }
 
 /// Decode a record with optional raw data and scratch buffers for maximum performance
@@ -424,6 +407,7 @@ fn decode_record_with_scratch_and_raw(
     data: &[u8],
     options: &DecodeOptions,
     raw_data: Option<Vec<u8>>,
+    record_index: u64,
     scratch: &mut crate::memory::ScratchBuffers,
 ) -> Result<Value> {
     use serde_json::Map;
@@ -447,6 +431,7 @@ fn decode_record_with_scratch_and_raw(
         &mut fields_map,
         options,
         scratch,
+        record_index,
         &mut encoding_acc,
     )?;
 
@@ -454,7 +439,7 @@ fn decode_record_with_scratch_and_raw(
         fields_map,
         schema,
         options,
-        0,
+        record_index,
         data.len(),
         record_raw,
         encoding_acc,
@@ -472,6 +457,7 @@ pub fn decode_record_with_raw_data(
     data: &[u8],
     options: &DecodeOptions,
     raw_data_with_header: Option<&[u8]>,
+    record_index: u64,
 ) -> Result<Value> {
     use crate::options::RawMode;
     use serde_json::Map;
@@ -486,6 +472,7 @@ pub fn decode_record_with_raw_data(
         &mut fields_map,
         options,
         &mut scratch_buffers,
+        record_index,
         &mut encoding_acc,
     )?;
 
@@ -511,7 +498,7 @@ pub fn decode_record_with_raw_data(
         fields_map,
         schema,
         options,
-        0,
+        record_index,
         data.len(),
         record_raw,
         encoding_acc,
@@ -528,6 +515,7 @@ fn process_fields_recursive(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
+    record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::FieldKind;
@@ -545,6 +533,7 @@ fn process_fields_recursive(
                     options,
                     fields,
                     scratch_buffers,
+                    record_index,
                     encoding_acc,
                 )?;
             }
@@ -555,6 +544,7 @@ fn process_fields_recursive(
                     json_obj,
                     options,
                     scratch_buffers,
+                    record_index,
                     encoding_acc,
                 )?;
             }
@@ -584,6 +574,7 @@ fn process_fields_recursive_with_scratch(
     json_obj: &mut serde_json::Map<String, Value>,
     options: &DecodeOptions,
     scratch: &mut crate::memory::ScratchBuffers,
+    record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::FieldKind;
@@ -603,6 +594,7 @@ fn process_fields_recursive_with_scratch(
                     options,
                     fields,
                     scratch,
+                    record_index,
                     encoding_acc,
                 )?;
             }
@@ -613,6 +605,7 @@ fn process_fields_recursive_with_scratch(
                     json_obj,
                     options,
                     scratch,
+                    record_index,
                     encoding_acc,
                 )?;
             }
@@ -836,6 +829,7 @@ fn process_array_field(
     options: &DecodeOptions,
     all_fields: &[copybook_core::Field],
     scratch_buffers: &mut Option<crate::memory::ScratchBuffers>,
+    record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::{FieldKind, Occurs};
@@ -851,10 +845,27 @@ fn process_array_field(
             let counter_value =
                 find_and_read_counter_field(counter_path, all_fields, data, options)?;
 
-            // Validate ODO constraints using shared helper
-            validate_odo_bounds(counter_value, *min, *max)?;
+            let counter_field = find_field_by_path(all_fields, counter_path)?;
+            let validation_context = crate::odo_redefines::OdoValidationContext {
+                field_path: field.path.clone(),
+                counter_path: counter_path.to_string(),
+                record_index,
+                byte_offset: counter_field.offset as u64,
+            };
+            let validation = crate::odo_redefines::validate_odo_decode(
+                counter_value,
+                *min,
+                *max,
+                &validation_context,
+                options,
+            )?;
 
-            counter_value
+            if let Some(warning) = validation.warning {
+                tracing::warn!("{}", warning);
+                increment_warning_counter();
+            }
+
+            validation.actual_count
         }
     };
 
@@ -899,6 +910,7 @@ fn process_array_field(
                     &mut element_obj,
                     options,
                     scratch_buffers,
+                    record_index,
                     encoding_acc,
                 )?;
                 Value::Object(element_obj)
@@ -936,6 +948,7 @@ fn process_array_field_with_scratch(
     options: &DecodeOptions,
     all_fields: &[copybook_core::Field],
     scratch: &mut crate::memory::ScratchBuffers,
+    record_index: u64,
     encoding_acc: &mut Vec<(String, ZonedEncodingFormat)>,
 ) -> Result<()> {
     use copybook_core::{FieldKind, Occurs};
@@ -952,10 +965,27 @@ fn process_array_field_with_scratch(
             let counter_value =
                 find_and_read_counter_field(counter_path, all_fields, data, options)?;
 
-            // Validate ODO constraints using shared helper
-            validate_odo_bounds(counter_value, *min, *max)?;
+            let counter_field = find_field_by_path(all_fields, counter_path)?;
+            let validation_context = crate::odo_redefines::OdoValidationContext {
+                field_path: field.path.clone(),
+                counter_path: counter_path.to_string(),
+                record_index,
+                byte_offset: counter_field.offset as u64,
+            };
+            let validation = crate::odo_redefines::validate_odo_decode(
+                counter_value,
+                *min,
+                *max,
+                &validation_context,
+                options,
+            )?;
 
-            counter_value
+            if let Some(warning) = validation.warning {
+                tracing::warn!("{}", warning);
+                increment_warning_counter();
+            }
+
+            validation.actual_count
         }
     };
 
@@ -1007,6 +1037,7 @@ fn process_array_field_with_scratch(
                     &mut group_obj,
                     options,
                     scratch,
+                    record_index,
                     encoding_acc,
                 )?;
                 Value::Object(group_obj)
@@ -1686,6 +1717,9 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
     }
 
     // No raw data or not using raw - encode from fields
+    validate_lib_api_redefines_encoding(schema, fields_value, options)?;
+    validate_lib_api_odo_encoding(schema, fields_value, options)?;
+
     match options.format {
         RecordFormat::Fixed => {
             let payload = encode_fields_to_bytes(schema, fields_value, options)?;
@@ -1700,6 +1734,145 @@ pub fn encode_record(schema: &Schema, json: &Value, options: &EncodeOptions) -> 
             result.extend_from_slice(&rdw_record.header);
             result.extend_from_slice(&rdw_record.payload);
             Ok(result)
+        }
+    }
+}
+
+/// Validate REDEFINES encoding constraints for direct lib_api encoding.
+fn validate_lib_api_redefines_encoding(
+    schema: &Schema,
+    json_value: &Value,
+    options: &EncodeOptions,
+) -> Result<()> {
+    let redefines_context = crate::odo_redefines::build_redefines_context(schema, json_value);
+
+    for (cluster_path, non_null_views) in &redefines_context.cluster_views {
+        let field_path = non_null_views
+            .first()
+            .cloned()
+            .unwrap_or_else(|| cluster_path.clone());
+
+        let byte_offset = non_null_views
+            .iter()
+            .find_map(|view| schema.find_field(view).map(|field| field.offset as u64))
+            .or_else(|| schema.find_field(cluster_path).map(|field| field.offset as u64))
+            .unwrap_or(0);
+
+        crate::odo_redefines::validate_redefines_encoding(
+            &redefines_context,
+            cluster_path,
+            &field_path,
+            json_value,
+            options.use_raw,
+            0,
+            byte_offset,
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Validate ODO encoding constraints for direct lib_api encoding.
+fn validate_lib_api_odo_encoding(
+    schema: &Schema,
+    json_value: &Value,
+    options: &EncodeOptions,
+) -> Result<()> {
+    let Some(tail_odo) = &schema.tail_odo else {
+        return Ok(());
+    };
+
+    let fields_value = if let Some(fields_value) = json_value.get("fields") {
+        fields_value
+    } else {
+        json_value
+    };
+
+    let has_wrapper = json_value.get("fields").is_some();
+    if !fields_value.is_object() {
+        if has_wrapper {
+            return Err(Error::new(
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                "`fields` must be a JSON object",
+            ));
+        }
+        return Ok(());
+    }
+
+    if let Some(array) = json_lookup_array(fields_value, &tail_odo.array_path) {
+        let array_field = schema.find_field(&tail_odo.array_path).ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                format!(
+                    "ODO array field '{}' not found in schema",
+                    tail_odo.array_path
+                ),
+            )
+            .with_context(crate::odo_redefines::create_comprehensive_error_context(
+                0,
+                &tail_odo.array_path,
+                0,
+                None,
+            ))
+        })?;
+
+        let counter_field = schema.find_field(&tail_odo.counter_path).ok_or_else(|| {
+            crate::odo_redefines::handle_missing_counter_field(
+                &tail_odo.counter_path,
+                &tail_odo.array_path,
+                schema,
+                0,
+                0,
+            )
+        })?;
+
+        if json_lookup_value(fields_value, &tail_odo.counter_path).is_none() {
+            return Err(crate::odo_redefines::handle_missing_counter_field(
+                &tail_odo.counter_path,
+                &tail_odo.array_path,
+                schema,
+                0,
+                counter_field.offset as u64,
+            ));
+        }
+
+        let context = crate::odo_redefines::OdoValidationContext {
+            field_path: tail_odo.array_path.clone(),
+            counter_path: tail_odo.counter_path.clone(),
+            record_index: 0,
+            byte_offset: array_field.offset as u64,
+        };
+
+        crate::odo_redefines::validate_odo_encode(
+            array.len(),
+            tail_odo.min_count,
+            tail_odo.max_count,
+            &context,
+            options,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn json_lookup_value(value: &Value, field_path: &str) -> Option<&Value> {
+    let mut current = value;
+    for segment in field_path.split('.') {
+        current = current.as_object()?.get(segment)?;
+    }
+    Some(current)
+}
+
+fn json_lookup_array<'a>(value: &'a Value, field_path: &str) -> Option<&'a Vec<Value>> {
+    let leaf = field_path.split('.').next_back().unwrap_or("");
+    match json_lookup_value(value, field_path) {
+        Some(Value::Array(array)) => Some(array),
+        _ => {
+            if let Value::Object(obj) = value {
+                obj.get(leaf).and_then(|candidate| candidate.as_array())
+            } else {
+                None
+            }
         }
     }
 }
@@ -2270,8 +2443,10 @@ fn process_fixed_records<R: Read, W: Write>(
 ) -> Result<()> {
     let mut reader = crate::record::FixedRecordReader::new(reader, schema.lrecl_fixed)?;
     let mut scratch = crate::memory::ScratchBuffers::new();
+    let mut record_index = 0u64;
 
     while let Some(record_data) = reader.read_record()? {
+        record_index += 1;
         summary.bytes_processed += record_data.len() as u64;
         telemetry::record_read(record_data.len(), options);
 
@@ -2285,6 +2460,7 @@ fn process_fixed_records<R: Read, W: Write>(
             &record_data,
             options,
             raw_data_for_decode,
+            record_index,
             &mut scratch,
         ) {
             Ok(json_value) => {
@@ -2314,8 +2490,10 @@ fn process_rdw_records<R: Read, W: Write>(
 ) -> Result<()> {
     let mut reader = crate::record::RDWRecordReader::new(reader, options.strict_mode);
     let mut scratch = crate::memory::ScratchBuffers::new();
+    let mut record_index = 0u64;
 
     while let Some(rdw_record) = reader.read_record()? {
+        record_index += 1;
         summary.bytes_processed += rdw_record.payload.len() as u64;
         telemetry::record_read(rdw_record.payload.len(), options);
 
@@ -2357,6 +2535,7 @@ fn process_rdw_records<R: Read, W: Write>(
             &rdw_record.payload,
             options,
             full_raw_data,
+            record_index,
             &mut scratch,
         ) {
             Ok(json_value) => {

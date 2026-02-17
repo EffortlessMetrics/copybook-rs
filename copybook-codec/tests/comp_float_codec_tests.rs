@@ -6,6 +6,7 @@
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
 mod comp_float_codec {
+    use copybook_core::feature_flags::{Feature, FeatureFlags};
     use copybook_codec::FloatFormat;
     use copybook_codec::numeric::{
         decode_float_double, decode_float_double_ibm_hex, decode_float_double_with_format,
@@ -17,6 +18,13 @@ mod comp_float_codec {
         Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
         UnmappablePolicy, ZonedEncodingFormat,
     };
+
+    fn enable_comp_flags_for_codec_tests() {
+        let mut flags = FeatureFlags::default();
+        flags.enable(Feature::Comp1);
+        flags.enable(Feature::Comp2);
+        copybook_core::feature_flags::FeatureFlags::set_global(flags);
+    }
 
     // =========================================================================
     // decode_float_single tests
@@ -429,6 +437,7 @@ mod comp_float_codec {
 
     #[test]
     fn test_decode_record_uses_ibm_float_option() {
+        enable_comp_flags_for_codec_tests();
         let schema = copybook_core::parse_copybook("01 REC.\n 05 RATE COMP-1.").unwrap();
         let options = DecodeOptions {
             format: RecordFormat::Fixed,
@@ -453,6 +462,7 @@ mod comp_float_codec {
 
     #[test]
     fn test_encode_record_uses_ibm_float_option() {
+        enable_comp_flags_for_codec_tests();
         let schema = copybook_core::parse_copybook("01 REC.\n 05 RATE COMP-1.").unwrap();
         let options = EncodeOptions {
             format: RecordFormat::Fixed,

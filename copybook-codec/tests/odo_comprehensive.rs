@@ -191,9 +191,9 @@ fn test_odo_lenient_mode_clamp_with_warning() {
 
     // Counter value exceeds maximum (005 > 3)
     let test_data = b"005ITEM1     ITEM2     ITEM3     ";
-    // Current decode path treats ODO out-of-range as errors even in lenient mode
+    // Lenient mode should clamp and continue with a warning
     let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(result.is_err());
+    assert!(result.is_ok());
 
     match result {
         Err(error) => assert_eq!(error.code, ErrorCode::CBKS301_ODO_CLIPPED),
@@ -229,9 +229,9 @@ fn test_odo_lenient_mode_raise_to_minimum() {
 
     // Counter value below minimum (001 < 2)
     let test_data = b"001ITEM1     ITEM2     ";
-    // Current decode path treats ODO below minimum as an error even in lenient mode
+    // Lenient mode should clamp and continue with a warning
     let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(result.is_err());
+    assert!(result.is_ok());
 
     match result {
         Err(error) => assert_eq!(error.code, ErrorCode::CBKS302_ODO_RAISED),
@@ -374,11 +374,11 @@ fn test_odo_array_length_out_of_bounds_encode() {
     let input = Cursor::new(jsonl_data.as_bytes());
     let mut output = Vec::new();
 
-    // Current lib_api encoder path does not enforce ODO array length
+    // ODO array length is now enforced in lib_api encode path
     let summary =
         copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
-    assert_eq!(summary.records_with_errors, 0);
-    assert!(!output.is_empty());
+    assert_eq!(summary.records_with_errors, 1);
+    assert!(output.is_empty());
 }
 
 #[test]

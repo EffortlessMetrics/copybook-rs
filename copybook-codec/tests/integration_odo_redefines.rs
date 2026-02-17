@@ -52,13 +52,13 @@ fn test_odo_redefines_integration() {
     let test_data = b"003HELLO WORLD      ITEM1ITEM2ITEM3";
     schema.lrecl_fixed = Some(u32::try_from(test_data.len()).unwrap());
     let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(
-        result.is_err(),
-        "REDEFINES + ODO integration is not supported in the lib_api decoder path"
-    );
-    if let Err(err) = result {
-        assert_eq!(err.code, ErrorCode::CBKD301_RECORD_TOO_SHORT);
-    }
+    assert!(result.is_ok());
+    let value = result.unwrap();
+    let items = value
+        .get("VARIABLE-ARRAY")
+        .and_then(|v| v.as_array())
+        .expect("Expected ODO array decoded");
+    assert_eq!(items.len(), 3);
 }
 
 #[test]
@@ -140,11 +140,9 @@ fn test_redefines_encode_error_context() {
     let input = Cursor::new(formatted_json.as_bytes());
     let mut output = Vec::new();
 
-    let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options);
-    assert!(
-        result.is_ok(),
-        "REDEFINES ambiguity is not enforced in the lib_api encoder path"
-    );
+    let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options)
+        .expect("encode should complete with file-level error accounting");
+    assert_eq!(result.records_with_errors, 1);
 }
 
 #[test]
@@ -175,8 +173,10 @@ fn test_missing_counter_field_error() {
     let mut output = Vec::new();
 
     let result = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options);
-    assert!(
-        result.is_ok(),
-        "Missing ODO counter is not enforced in the lib_api encoder path"
-    );
+    assert!(result.is_err());
+
+    match result {
+        Err(error) => assert_eq!(error.code, ErrorCode::CBKS121_COUNTER_NOT_FOUND),
+        Ok(_) => panic!("expected error CBKS121_COUNTER_NOT_FOUND"),
+    }
 }

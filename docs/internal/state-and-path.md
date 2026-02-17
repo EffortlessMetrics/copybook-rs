@@ -52,12 +52,12 @@ The project is operating in **CI-off mode** with local gates and small PRs, foll
 
 | Gap | Impact | Priority |
 |------|--------|----------|
-| Edited PIC Encode (Phase E3) | Practical adoption blocker | HIGH |
-| Dialect Lever (#51) | Enterprise correctness knob | HIGH |
-| COMP-1/COMP-2 floats | Not in roadmap; rare in modern mainframes | LOW |
+| Edited PIC Encode (Phase E3) | ✅ Complete | LOW |
+| Dialect Lever (#51) | ✅ Complete | MEDIUM |
+| COMP-1/COMP-2 floats | ⚠️ Experimental (behind `comp_1`, `comp_2`) | LOW |
 | Nested ODO arrays | Explicitly rejected; architectural complexity | OUT OF SCOPE |
-| RENAMES R4-R6 | Out of scope; R1-R3 covers most use cases | OUT OF SCOPE |
-| SIGN LEADING/TRAILING SEPARATE | Unsupported; explicit design decision | OUT OF SCOPE |
+| RENAMES R4-R6 | ⚠️ Policy-limited (`renames_r4_r6`) | LOW |
+| SIGN LEADING/TRAILING SEPARATE | ⚠️ Partial (`sign_separate`); codec parity limited | LOW |
 
 ### Code Quality Metrics
 
@@ -133,29 +133,28 @@ The project is operating in **CI-off mode** with local gates and small PRs, foll
 
 #### 2.1 Edited PIC Encoding (Phase E3) - HIGH PRIORITY
 
-**Why**: This is the last major gap in core codec functionality. Phase E1 (parse) and E2 (decode) are complete; only E3 (encode) remains.
+**Status**: ✅ Complete
+
+**Why**: Full E1-E3 encode/decode coverage has been implemented; remaining work is parity hardening only.
 
 **Implementation Path**:
-1. Implement `encode_edited_numeric()` in [`copybook-codec/src/edited_pic.rs`](../../copybook-codec/src/edited_pic.rs:1)
-2. Add support for sign placement (leading/trailing +, -, CR, DB)
-3. Implement zero suppression (Z) and zero insertion (0) during encoding
-4. Handle asterisk fill (*) for check protection
-5. Add comprehensive tests matching decode coverage
+1. Maintain regression coverage as edited-PIC patterns evolve.
+2. Keep parity checks for sign/CR/DB/comma/asterisk/currency patterns.
+3. Keep release notes and support matrix evidence synchronized.
 
-**Effort Estimate**: 2-3 weeks
+**Effort Estimate**: 0.5 week (roadmap hygiene)
 
 #### 2.2 Dialect Lever (Issue #51) - HIGH PRIORITY
 
-**Why**: Enterprise COBOL dialects have different ODO lower bound behaviors. This is a documented blocker for v0.5.0.
+**Status**: ✅ Complete
+
+**Why**: D0-D4 Dialect contract is now complete (parser + layout + CLI + fixtures).
 
 **Implementation Path**:
-1. Add config option: `occurs_fixed_with_depends_lower_bound = "n" | "0" | "1"`
-2. Add CLI flag: `--dialect-odo-lower-bound`
-3. Update ODO validation in [`copybook-core/src/layout.rs`](../../copybook-core/src/layout.rs:1)
-4. Create golden fixtures for each dialect setting
-5. Update documentation
+1. Keep dialect contracts synchronized with parser and CLI docs.
+2. Expand golden fixtures as edge-case inputs are added.
 
-**Effort Estimate**: 1-2 weeks
+**Effort Estimate**: 0.5 week (roadmap hygiene)
 
 #### 2.3 Determinism CI Wiring (Phase 3) - MEDIUM PRIORITY
 

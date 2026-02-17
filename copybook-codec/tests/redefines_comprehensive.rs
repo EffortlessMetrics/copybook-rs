@@ -17,7 +17,7 @@ use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary,
     ZonedEncodingFormat,
 };
-use copybook_core::{FieldKind, Schema, parse_copybook};
+use copybook_core::{ErrorCode, FieldKind, Schema, parse_copybook};
 use serde_json::{Value, json};
 use std::io::Cursor;
 
@@ -203,19 +203,16 @@ fn test_redefines_encode_ambiguity_error() -> TestResult {
     let input = Cursor::new(jsonl_data.as_bytes());
     let mut output = Vec::new();
 
-    // Direct encode currently prefers the base view when multiple values are provided
-    let encoded = copybook_codec::encode_record(&schema, &json_data, &options)?;
-    assert_eq!(encoded.len(), 35);
-    assert_eq!(
-        encoded,
-        b"Hello World         1234567890\0\0\0\0\0".to_vec()
-    );
+    // Direct encode should fail when multiple REDEFINES views are non-null
+    let encoded_err = copybook_codec::encode_record(&schema, &json_data, &options)
+        .expect_err("Expected REDEFINES ambiguity to fail");
+    assert_eq!(encoded_err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
 
-    // File-based encode should mirror the single-record result
+    // File-based encode should record the error instead of writing output
     let summary = copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options)?;
     assert_eq!(summary.records_processed, 1);
-    assert_eq!(summary.records_with_errors, 0);
-    assert_eq!(output, encoded);
+    assert_eq!(summary.records_with_errors, 1);
+    assert!(output.is_empty());
     Ok(())
 }
 

@@ -2374,13 +2374,10 @@ fn build_array_element(field: &copybook_core::Field, index: usize) -> Result<Val
 fn build_binary_for_all_leaf_fields(world: &mut CopybookWorld) -> Result<Vec<u8>, Error> {
     world.ensure_schema_parsed();
     world.ensure_encode_options();
-    let schema = match &world.schema {
-        Some(schema) => schema,
-        None => {
-            return Err(world.error.clone().unwrap_or_else(|| {
-                Error::new(ErrorCode::CBKI001_INVALID_STATE, "Schema is not available")
-            }));
-        }
+    let Some(schema) = &world.schema else {
+        return Err(world.error.clone().unwrap_or_else(|| {
+            Error::new(ErrorCode::CBKI001_INVALID_STATE, "Schema is not available")
+        }));
     };
     if world.encode_options.is_none() {
         return Err(Error::new(
@@ -2435,7 +2432,7 @@ fn encode_from_payload(
 fn does_path_match_counter(occurs: &copybook_core::Occurs, counter: &str) -> bool {
     match occurs {
         Occurs::ODO { counter_path, .. } => path_ends_with(counter_path, counter),
-        _ => false,
+        Occurs::Fixed { .. } => false,
     }
 }
 

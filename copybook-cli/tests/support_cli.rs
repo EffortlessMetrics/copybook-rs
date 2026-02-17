@@ -126,14 +126,14 @@ fn support_json_includes_all_status_types() {
 }
 
 #[test]
-fn support_check_planned_feature_exits_nonzero() {
+fn support_check_partial_feature_exits_nonzero_nested_odo() {
     let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
-        .args(["support", "--check", "edited-pic"])
+        .args(["support", "--check", "nested-odo"])
         .output()
         .expect("failed to execute command");
 
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("not fully supported"));
-    assert!(stderr.contains("Planned"));
+    assert!(stderr.contains("Partial"));
 }

@@ -7,6 +7,7 @@
     clippy::map_unwrap_or,
     clippy::match_same_arms,
     clippy::single_char_pattern,
+    clippy::unreachable,
     unused_variables,
     dead_code
 )]
@@ -2514,7 +2515,7 @@ fn collect_string_values(value: &Value) -> Vec<String> {
         Value::String(value) => result.push(value.clone()),
         Value::Number(number) => result.push(number.to_string()),
         Value::Bool(value) => result.push(value.to_string()),
-        _ => {}
+        Value::Null => {}
     }
     result
 }

@@ -80,7 +80,7 @@ advisories ok, bans ok, licenses ok, sources ok
 **Status**: ✅ **CLEAN** - Zero hardcoded secrets
 
 **Benign Matches (False Positives - Auto-Triaged)**:
-1. `copybook-codec/LICENSE`: Standard GPLv3 license text containing words "authorization", "author" (expected legal language)
+1. `copybook-codec/LICENSE`: Standard AGPL-3.0 legal text containing words "authorization", "author" (expected legal language)
 2. `copybook-codec/Cargo.toml`: Package metadata `authors` field (expected package metadata)
 3. `copybook-codec/tests/cobol_fixture_zoned_encoding_tests.rs`: Documentation comment (expected test documentation)
 
@@ -210,7 +210,7 @@ return Err(Error::new(
 **License Distribution**:
 - **MIT License**: Primary dependencies (serde, encoding_rs, clap, serde_json, etc.)
 - **Apache-2.0**: Secondary dependencies (compatible with MIT)
-- **GPLv3**: copybook-rs project license (permissive for COBOL parsing library use)
+- **AGPL-3.0-or-later**: copybook-rs project license (strong copyleft, including network-serving requirements)
 
 **No Copyleft Conflicts**:
 - All dependencies allow proprietary use
@@ -282,7 +282,7 @@ licenses: MIT/Apache-2.0 compatible
 **Auto-Triage Results**: ✅ **All findings correctly classified**
 
 ### Benign Classifications (3 findings)
-1. **LICENSE file matches** - Standard GPLv3 legal text (expected)
+1. **LICENSE file matches** - Standard AGPL-3.0 legal text (expected)
 2. **Cargo.toml authors field** - Package metadata (expected)
 3. **Test documentation comments** - Fixture documentation (expected)
 

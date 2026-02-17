@@ -105,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **license**: Clarify AGPLv3 licensing and add CLA
+- **license**: Clarify AGPL-3.0-or-later licensing and add CLA
 - Update test counts to reflect current reality (615 passing, 54 skipped)
 - Replace unlinked performance claims with baseline values
 - Perf claims → baseline receipts; remove unlinked GiB/s (refs #74, #52)

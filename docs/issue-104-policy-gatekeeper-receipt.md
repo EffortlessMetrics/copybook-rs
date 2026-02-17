@@ -4,7 +4,7 @@
 **Gate:** security
 **Agent:** policy-gatekeeper
 **Issue:** #104 (Fix for Issue #102: RDW Codec Test Regression)
-**Commit:** b62e0a0 (docs(license): clarify AGPLv3 licensing and add CLA)
+**Commit:** b62e0a0 (docs(license): clarify AGPL-3.0-or-later licensing and add CLA)
 **Timestamp:** 2025-10-03T23:58:00Z
 
 ## Status
@@ -49,7 +49,7 @@ licenses ok
 - criterion = "0.7.0" - Benchmarking (Apache-2.0/MIT)
 - anyhow = "1.0.100" - Error utilities (MIT/Apache-2.0)
 
-**Assessment**: All dependencies appropriate for enterprise mainframe data processing, no unnecessary additions, versions consistent across workspace, all licenses compatible with AGPLv3.
+**Assessment**: All dependencies appropriate for enterprise mainframe data processing, no unnecessary additions, versions consistent across workspace, all licenses compatible with AGPL-3.0-or-later.
 
 ### 2. COBOL Parsing API Contracts ✅
 
@@ -263,7 +263,7 @@ The implementation is **production-ready** and meets copybook-rs governance requ
 ## Receipts
 
 - **Gate**: generative:gate:security = ✅ **PASS**
-- **Commit**: b62e0a0 (docs(license): clarify AGPLv3 licensing and add CLA)
+- **Commit**: b62e0a0 (docs(license): clarify AGPL-3.0-or-later licensing and add CLA)
 - **Timestamp**: 2025-10-03T23:58:00Z
 - **Agent**: policy-gatekeeper (generative flow)
 - **Issue**: #104 (RDW Codec Test Regression Fix)

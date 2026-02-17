@@ -7,10 +7,18 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Arrow and Parquet adapters for copybook-rs"
+description = "COBOL schema conversion to Apache Arrow and Parquet formats."
 documentation = "https://docs.rs/copybook-arrow"
+readme = "README.md"
 keywords = ["cobol", "copybook", "arrow", "parquet", "mainframe"]
 categories = ["encoding", "data-structures", "parsing"]
+
+# Keep tarballs slim; whitelist essential files
+include = ["src/**", "examples/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # Internal workspace dependencies

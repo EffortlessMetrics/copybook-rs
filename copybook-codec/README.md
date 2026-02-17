@@ -1,58 +1,42 @@
 # copybook-codec
 
-High-throughput COBOL copybook codec: decode/encode, streaming, codepages.
+High-performance COBOL copybook codec for mainframe-style fixed and RDW records.
 
-## Overview
+`copybook-codec` converts decoded/encoded records between COBOL binary formats (DISPLAY, COMP-3, COMP/BINARY) and JSON.
 
-`copybook-codec` provides high-performance encoding and decoding of COBOL binary data to/from JSON. It handles character conversion, numeric format translation, and streaming I/O for production data processing workloads.
+## What it does
 
-## Features
+- Parse and validate copybook schema output from `copybook-core`.
+- Decode fixed-length and variable-length (RDW) files into JSON records.
+- Encode JSON back to binary COBOL layouts with strict or tolerant mode.
+- Configure behavior through `DecodeOptions` / `EncodeOptions`.
+- Handle common mainframe codepages (`CP037`, `CP273`, `CP500`, `CP1047`, `CP1140`, ASCII).
 
-- **Exceptional Performance**: 4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3 processing
-- **Memory Efficient**: <256 MiB steady-state for multi-GB files
-- **Complete Codepage Support**: CP037, CP273, CP500, CP1047, CP1140 + ASCII
-- **Streaming Architecture**: Bounded memory usage with parallel processing
-- **Lossless Conversion**: Guaranteed round-trip fidelity for binary↔JSON
-- **Record Format Support**: Fixed-length and variable (RDW) records
-
-## Quick Start
+## Quick start
 
 ```rust
 use copybook_core::parse_copybook;
 use copybook_codec::{decode_record, DecodeOptions, Codepage, JsonNumberMode};
 
-// Parse copybook schema
-let schema = parse_copybook(copybook_text)?;
-
-// Configure decoder
+let schema = parse_copybook("01 A.\n   05 AMOUNT PIC S9(7)V99 COMP-3.\n")?;
 let options = DecodeOptions::new()
     .with_codepage(Codepage::CP037)
-    .with_json_number_mode(JsonNumberMode::Lossless)
-    .with_emit_meta(true);
+    .with_json_number_mode(JsonNumberMode::Lossless);
 
-// Decode binary record to JSON
-let json_value = decode_record(&schema, &record_data, &options)?;
+let json = decode_record(&schema, &vec![0x00; 4], &options)?;
+println!("{json}");
 ```
 
-## Streaming Processing
+## Features
 
-```rust
-use copybook_codec::iter_records_from_file;
+- Record streaming for large fixed-width files
+- Deterministic conversions with controlled rounding/precision behavior
+- Optional metrics and strict compatibility-policy checks
+- Optional audit-related feature path for enterprise usage
 
-let iterator = iter_records_from_file("data.bin", &schema, &options)?;
-for record_result in iterator {
-    let json_value = record_result?;
-    // Process record
-}
-```
+## API docs
 
-## API Documentation
-
-See the [full documentation](https://docs.rs/copybook-codec) for detailed API reference.
-
-## Performance & Production Use
-
-For complete performance specifications, benchmarks, and production deployment guidance, see the [main copybook-rs README](https://github.com/EffortlessMetrics/copybook-rs#readme).
+See [docs.rs/copybook-codec](https://docs.rs/copybook-codec).
 
 ## License
 

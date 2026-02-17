@@ -165,6 +165,7 @@ The project is organized as a Cargo workspace with the following crates:
 
 - **copybook-core**: Core parsing and schema types for COBOL copybooks (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Encoding/decoding codecs for COBOL data types, character conversion, record framing
+- **copybook-arrow**: Conversion from COBOL layouts/records to Apache Arrow and Parquet
 - **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, support)
 - **copybook-gen**: Test fixture and synthetic data generation utilities
 - **copybook-bench**: Performance benchmarks and testing harness

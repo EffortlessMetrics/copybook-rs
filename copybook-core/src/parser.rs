@@ -832,12 +832,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.require_feature_enabled(
-                    Feature::Comp1,
-                    &field.name,
-                    "comp_1",
-                    "COMP-1",
-                )?;
+                self.require_feature_enabled(Feature::Comp1, &field.name, "comp_1", "COMP-1")?;
                 field.kind = FieldKind::FloatSingle;
             }
             Some(TokenPos {
@@ -845,12 +840,7 @@ impl Parser {
                 ..
             }) => {
                 self.advance();
-                self.require_feature_enabled(
-                    Feature::Comp2,
-                    &field.name,
-                    "comp_2",
-                    "COMP-2",
-                )?;
+                self.require_feature_enabled(Feature::Comp2, &field.name, "comp_2", "COMP-2")?;
                 field.kind = FieldKind::FloatDouble;
             }
             Some(TokenPos {

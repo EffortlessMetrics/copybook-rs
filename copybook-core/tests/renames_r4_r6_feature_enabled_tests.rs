@@ -2,8 +2,9 @@
 #![allow(clippy::unwrap_used)]
 
 use copybook_core::{
+    FieldKind,
     feature_flags::{Feature, FeatureFlags},
-    parse_copybook, FieldKind,
+    parse_copybook,
 };
 
 fn enable_renames_r4_r6_feature() {
@@ -29,14 +30,18 @@ fn test_r4_single_redefines_renames_accepted_with_feature_flag() {
            66  PAYMENT-INFO RENAMES CHECK-DATA THRU CHECK-DATA.
     "#;
 
-    let schema = parse_copybook(copybook).expect("RENAMES over single REDEFINES should resolve when feature enabled");
+    let schema = parse_copybook(copybook)
+        .expect("RENAMES over single REDEFINES should resolve when feature enabled");
 
     let alias = schema
         .find_field_or_alias("PAYMENT-INFO")
         .expect("renames alias should be present");
 
     assert!(matches!(alias.kind, FieldKind::Renames { .. }));
-    let resolved = alias.resolved_renames.as_ref().expect("resolved renames expected");
+    let resolved = alias
+        .resolved_renames
+        .as_ref()
+        .expect("resolved renames expected");
 
     assert_eq!(resolved.members.len(), 2);
     assert!(resolved.members.iter().any(|m| m.ends_with("CHECK-NUM")));
@@ -64,7 +69,10 @@ fn test_r5_occurs_alias_accepted_with_feature_flag() {
         .expect("renames alias should be present");
 
     assert!(matches!(alias.kind, FieldKind::Renames { .. }));
-    let resolved = alias.resolved_renames.as_ref().expect("resolved renames expected");
+    let resolved = alias
+        .resolved_renames
+        .as_ref()
+        .expect("resolved renames expected");
 
     assert_eq!(resolved.members.len(), 2);
     assert!(resolved.members.iter().any(|m| m.ends_with("ITEM-CODE")));

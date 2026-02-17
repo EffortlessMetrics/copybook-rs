@@ -6,7 +6,6 @@
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
 mod comp_float_codec {
-    use copybook_core::feature_flags::{Feature, FeatureFlags};
     use copybook_codec::FloatFormat;
     use copybook_codec::numeric::{
         decode_float_double, decode_float_double_ibm_hex, decode_float_double_with_format,
@@ -18,6 +17,7 @@ mod comp_float_codec {
         Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
         UnmappablePolicy, ZonedEncodingFormat,
     };
+    use copybook_core::feature_flags::{Feature, FeatureFlags};
 
     fn enable_comp_flags_for_codec_tests() {
         let mut flags = FeatureFlags::default();

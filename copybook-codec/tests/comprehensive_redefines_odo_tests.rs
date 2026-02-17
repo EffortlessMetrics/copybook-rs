@@ -165,7 +165,10 @@ fn test_redefines_encode_precedence_normative() {
 
     let result = copybook_codec::encode_record(&schema, &ambiguous_json, &options);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(
+        result.unwrap_err().code,
+        ErrorCode::CBKE501_JSON_TYPE_MISMATCH
+    );
 
     // Test all null views (should error)
     let all_null_json = json!({
@@ -175,7 +178,10 @@ fn test_redefines_encode_precedence_normative() {
 
     let result = copybook_codec::encode_record(&schema, &all_null_json, &options);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    assert_eq!(
+        result.unwrap_err().code,
+        ErrorCode::CBKE501_JSON_TYPE_MISMATCH
+    );
 }
 
 #[test]

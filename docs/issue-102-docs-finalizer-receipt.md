@@ -4,7 +4,7 @@
 **Gate:** docs
 **Agent:** docs-finalizer
 **Issue:** #104 (RDW Codec Test Regression - Field Naming Inconsistency)
-**Commit:** b62e0a0 (docs(license): clarify AGPLv3 licensing and add CLA)
+**Commit:** b62e0a0 (docs(license): clarify AGPL-3.0-or-later licensing and add CLA)
 **Timestamp:** 2025-10-03T23:52:00Z
 
 ## Status
@@ -249,7 +249,7 @@ The documentation is **production-ready** and meets copybook-rs enterprise stand
 ## Receipts
 
 - **Gate**: generative:gate:docs = ✅ **PASS**
-- **Commit**: b62e0a0 (docs(license): clarify AGPLv3 licensing and add CLA)
+- **Commit**: b62e0a0 (docs(license): clarify AGPL-3.0-or-later licensing and add CLA)
 - **Timestamp**: 2025-10-03T23:52:00Z
 - **Agent**: docs-finalizer (generative flow)
 - **Issue Ledger**: Updated Issue #104 with comprehensive gate results

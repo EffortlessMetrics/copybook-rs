@@ -1516,16 +1516,11 @@ mod steps {
         let schema = world.ensure_schema_and_return().clone();
 
         let all_fields = schema.all_fields();
-        let fixed_field = all_fields.iter().find_map(|field| {
-            if let Some(Occurs::Fixed { .. }) = field.occurs {
-                Some(field)
-            } else {
-                None
-            }
-        });
-        let fixed_field = match fixed_field {
-            Some(field) => field,
-            None => panic!("No fixed OCCURS field found"),
+        let fixed_field = all_fields
+            .iter()
+            .find(|field| matches!(field.occurs, Some(Occurs::Fixed { .. })));
+        let Some(fixed_field) = fixed_field else {
+            unreachable!("No fixed OCCURS field found")
         };
 
         let mut payload = Map::new();
@@ -1755,7 +1750,7 @@ mod steps {
     ) {
         let record = world.first_decoded_record();
         let value = json_value_for_field(&record, &field_name)
-            .and_then(|value| field_value_as_string(value))
+            .and_then(field_value_as_string)
             .expect(&format!("Decoded field '{field_name}' should be present"));
 
         if expected.eq_ignore_ascii_case("blank") {

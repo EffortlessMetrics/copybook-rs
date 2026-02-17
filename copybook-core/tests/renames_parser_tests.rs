@@ -156,9 +156,12 @@ fn test_renames_requires_level_66() {
     );
 }
 
-/// Test that RENAMES requires THRU or THROUGH keyword
+/// Test that RENAMES without THRU/THROUGH is treated as a single-field rename.
+/// In COBOL, `66 ALIAS RENAMES FIELD-1.` is a valid single-field alias.
+/// The parser reads the first identifier after RENAMES as from_field and
+/// ignores trailing identifiers before the period.
 #[test]
-fn test_renames_requires_thru_keyword() {
+fn test_renames_without_thru_is_single_field() {
     let copybook = r"
        01 RECORD-E.
           05 FIELD-1 PIC X(10).
@@ -166,17 +169,26 @@ fn test_renames_requires_thru_keyword() {
        66 ALIAS-E RENAMES FIELD-1 FIELD-2.
     ";
 
-    let result = parse_copybook(copybook);
-    assert!(
-        result.is_err(),
-        "should reject RENAMES without THRU/THROUGH"
-    );
+    let schema = parse_copybook(copybook).expect("single-field RENAMES should parse");
+    let alias = schema
+        .all_fields()
+        .into_iter()
+        .find(|f| f.name == "ALIAS-E")
+        .expect("ALIAS-E should exist");
 
-    let err_msg = result.unwrap_err().to_string();
-    assert!(
-        err_msg.contains("THRU") || err_msg.contains("THROUGH"),
-        "error should mention THRU/THROUGH keyword"
-    );
+    match &alias.kind {
+        copybook_core::FieldKind::Renames {
+            from_field,
+            thru_field,
+        } => {
+            assert_eq!(from_field, "FIELD-1");
+            assert_eq!(
+                thru_field, "FIELD-1",
+                "single-field RENAMES should have from == thru"
+            );
+        }
+        other => panic!("expected Renames kind, got {other:?}"),
+    }
 }
 
 /// Test that RENAMES requires field name after RENAMES keyword

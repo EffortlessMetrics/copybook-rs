@@ -1,49 +1,22 @@
 # `copybook-gen`
 
-`copybook-gen` generates synthetic COBOL copybooks, synthetic binary payloads, and golden test artifacts for copybook-rs.
+Deterministic fixture generation utilities for `copybook-rs` tests.
 
-## Purpose
+Use `copybook-gen` to create synthetic copybooks, payloads, and golden test suites for parser/codec validation.
 
-- Deterministic fixture generation for copybook parser and codec tests.
-- Positive and negative dataset synthesis for edge-case coverage.
-- Golden test suite builders for repeatable regression checks.
-- Enterprise-style synthetic fixture generation for production-like scenarios.
+## What it does
 
-## Features
+- Generate valid copybooks with REDEFINES and ODO shapes for stress coverage.
+- Produce record payloads with deterministic pseudo-random seeds.
+- Create targeted invalid and corrupted fixtures to test error paths.
+- Build tagged golden test suites for reproducible regression checks.
 
-- Copybook generators for:
-  - Simple records
-  - REDEFINES and OCCURS structures
-  - OCCURS DEPENDING ON variants
-  - Invalid / malformed fixtures
-- Data generation strategies for realistic, corrupted, and targeted test data.
-- Golden test suite helpers with tagging and metadata.
-- Deterministic output with explicit random seed support.
-
-## Key Types
-
-- `GeneratorConfig`
-- `generate_complete_test_suite`
-- `generate_comprehensive_test_suite`
-- `generate_performance_test_suite`
-- `generate_negative_test_suite`
-- `generate_data`, `generate_data_with_strategy`
-- `generate_invalid_copybooks`
-- `generate_corrupted_data`
-
-## Quick Start
+## Quick start
 
 ```bash
 cargo test -p copybook-gen
-```
-
-Run the example generator:
-
-```bash
 cargo run --example roundtrip_repro -p copybook-gen
 ```
-
-## Example
 
 ```rust
 use copybook_gen::{GeneratorConfig, generate_copybook, generate_data_with_strategy};
@@ -57,16 +30,12 @@ let config = GeneratorConfig {
     include_invalid_data: false,
 };
 
-let copybook_text = generate_copybook(&config);
-let schema = parse_copybook(&copybook_text).expect("parse copybook");
-let data = generate_data_with_strategy(&schema, &config, DataStrategy::Normal);
+let copybook = generate_copybook(&config);
+let schema = parse_copybook(&copybook)?;
+let payloads = generate_data_with_strategy(&schema, &config, DataStrategy::Normal);
 
-println!("records: {}", data.len());
+println!("generated payloads: {}", payloads.len());
 ```
-
-## Test Fixtures
-
-The crate ships internal test sources under `tests/` and examples under `examples/`.
 
 ## License
 

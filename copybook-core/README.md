@@ -1,43 +1,40 @@
 # copybook-core
 
-Core COBOL copybook parser, schema, and validation primitives.
+Core parsing and schema primitives for COBOL copybooks.
 
-## Overview
+`copybook-core` is the foundation crate for all copybook-rs parsing and layout workflows.
 
-`copybook-core` provides the fundamental parsing and schema representation for COBOL copybooks. It handles lexical analysis, parsing, AST construction, and layout resolution to create a structured schema that can be used for data processing.
+## What it does
 
-## Features
+- Parse COBOL copybook text and emit a validated schema model.
+- Resolve field offsets, lengths, OCCURS/ODO, REDEFINES, and sync/alignment details.
+- Apply parser options and feature flags used by higher-level crates.
+- Report structured, location-aware errors for integration use.
 
-- **Complete COBOL Grammar**: Supports all major COBOL data types and structures
-- **Memory-Safe Parsing**: Zero unsafe code with comprehensive error handling
-- **Schema Generation**: Produces structured layouts for data processing
-- **Field Resolution**: Handles REDEFINES, ODO (Occurs Depending On), SYNC alignment
-- **Format Support**: COMP, COMP-3, DISPLAY, BINARY fields with proper sizing
-
-## Quick Start
+## API example
 
 ```rust
-use copybook_core::parse_copybook;
+use copybook_core::{parse_copybook, ParseOptions, parse_copybook_with_options};
 
-let copybook_text = r#"
+let text = r#"
 01 CUSTOMER-RECORD.
    05 CUSTOMER-ID    PIC 9(6).
    05 CUSTOMER-NAME  PIC X(30).
    05 BALANCE        PIC S9(7)V99 COMP-3.
 "#;
 
-let schema = parse_copybook(copybook_text)?;
-println!("Parsed {} fields", schema.fields().len());
+let schema = parse_copybook(text)?;
+let strict = ParseOptions { strict: true, allow_inline_comments: true, ..Default::default() };
+let strict_schema = parse_copybook_with_options(text, &strict)?;
+
+println!("fields: {}", schema.fields.len());
+println!("strict fields: {}", strict_schema.fields.len());
 ```
 
-## API Documentation
+## API docs
 
-See the [full documentation](https://docs.rs/copybook-core) for detailed API reference.
-
-## Performance & Production Use
-
-For performance specifications, production readiness details, and comprehensive examples, see the [main copybook-rs README](https://github.com/EffortlessMetrics/copybook-rs#readme).
+See [docs.rs/copybook-core](https://docs.rs/copybook-core).
 
 ## License
 
-Licensed under AGPL-3.0-or-later. See [LICENSE](../LICENSE) for details.
+Licensed under AGPL-3.0-or-later. See [LICENSE](../LICENSE).

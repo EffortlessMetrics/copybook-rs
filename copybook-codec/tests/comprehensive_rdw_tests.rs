@@ -145,7 +145,6 @@ fn test_rdw_raw_preservation_normative() {
 }
 
 #[test]
-#[ignore = "Known issue: RDW encoder needs to recompute length when payload changes (Issue #102)"]
 fn test_rdw_length_recomputation() {
     // Test that RDW length is recomputed if payload changes
     let copybook = "01 VARIABLE-RECORD PIC X(20).";

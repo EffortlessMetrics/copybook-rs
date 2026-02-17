@@ -1,47 +1,31 @@
 # `copybook-bench`
 
-`copybook-bench` is the benchmark and performance baseline crate for copybook-rs.
+Benchmark harness and baseline tooling for `copybook-rs`.
 
-## Purpose
+`copybook-bench` holds deterministic performance checks, baseline workflows, and issue-specific
+regression suites used by CI and release validation.
 
-- Run baseline and regression-oriented benchmark tests.
-- Produce performance receipts for CI and reporting workflows.
-- Provide benchmarks for:
-  - `decode_performance`
-  - `comp3`
-  - `progressive` (feature-gated via `PERF=1`)
-  - `diagnostics_benches` (feature-gated via `--features diagnostics`)
+## What it does
 
-## Quick Start
+- Define and run Criterion benches (`decode_performance`, `comp3`, etc.).
+- Run regression/acceptance test suites in CI-like conditions.
+- Produce performance receipts used by gating and reporting scripts.
+- Support optional modes:
+  - `progressive` for complexity ramp-up scenarios
+  - `diagnostics` for infrastructure overhead measurement
+  - `perf` for CI-style performance runs
+
+## Quick start
 
 ```bash
-# Run all bench tests (including issue-specific test suites)
-cargo test -p copybook-bench
+cargo bench -p copybook-bench
+cargo bench -p copybook-bench --bench comp3
+cargo test -p copybook-bench --features perf
 
-# Run issue 49-style test suites
 cargo test -p copybook-bench --test baseline_reconciliation
 cargo test -p copybook-bench --test regression_detection
 cargo test -p copybook-bench --test ci_integration
-
-# Run perf tests (writes perf receipts under `target/benchmarks`)
-cargo test -p copybook-bench --features perf
-
-# Run a specific benchmark
-cargo bench -p copybook-bench --bench comp3
 ```
-
-## Feature Flags
-
-- `progressive`: enables progressive complexity performance benchmarking.
-- `diagnostics`: enables infrastructure overhead diagnostics benchmark.
-- `perf`: activates dedicated perf test mode used by release/CI SLO checks.
-
-## Directory Layout
-
-- `tests/` – test suites and acceptance criteria scaffolding (including `README.md` for issue-specific context)
-- `src/` – benchmark support and reporting infrastructure
-- `benches/` – Criterion bench modules
-- `test_fixtures/` – deterministic fixture data
 
 ## License
 

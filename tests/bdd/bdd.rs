@@ -1182,9 +1182,9 @@ mod steps {
                 assert!(
                     sign_separate.is_some(),
                     "Field should have sign separate information"
-                )
+                );
             }
-            _ => panic!("Expected ZonedDecimal field"),
+            _ => unreachable!("Expected ZonedDecimal field"),
         }
     }
 
@@ -1206,7 +1206,7 @@ mod steps {
                     placement
                 );
             }
-            _ => panic!("Expected ZonedDecimal field"),
+            _ => unreachable!("Expected ZonedDecimal field"),
         }
     }
 
@@ -1228,7 +1228,7 @@ mod steps {
                     placement
                 );
             }
-            _ => panic!("Expected ZonedDecimal field"),
+            _ => unreachable!("Expected ZonedDecimal field"),
         }
     }
 
@@ -1277,9 +1277,9 @@ mod steps {
                 assert!(
                     sign_separate.is_some(),
                     "Sign placement should be preserved"
-                )
+                );
             }
-            _ => panic!("Expected ZonedDecimal field"),
+            _ => unreachable!("Expected ZonedDecimal field"),
         }
     }
 
@@ -1487,17 +1487,11 @@ mod steps {
         }
 
         let all_fields = schema.all_fields();
-        let fixed_field = all_fields.iter().find_map(|field| {
-            if let Some(Occurs::Fixed { .. }) = field.occurs {
-                Some(field)
-            } else {
-                None
-            }
-        });
-
-        let fixed_field = match fixed_field {
-            Some(field) => field,
-            None => panic!("No fixed OCCURS field found"),
+        let fixed_field = all_fields
+            .iter()
+            .find(|field| matches!(field.occurs, Some(Occurs::Fixed { .. })));
+        let Some(fixed_field) = fixed_field else {
+            unreachable!("No fixed OCCURS field found")
         };
 
         let mut payload = Map::new();

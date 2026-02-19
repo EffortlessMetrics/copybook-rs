@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use crossbeam_channel::{Receiver, Sender, bounded};
 use std::collections::BTreeMap;
 use tracing::{debug, warn};

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Property Testing Guide
 
 This document explains the property testing setup for the copybook-rs project and provides guidance on running and writing property tests.

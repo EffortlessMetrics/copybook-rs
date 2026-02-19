@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! AC5: Enhanced Diagnostics and Monitoring Tests
 //!
 //! Tests for diagnostic utilities, health checks, and verbose logging.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL schema to Arrow schema conversion
 //!
 //! Converts `copybook_core::Schema` to `arrow::datatypes::Schema` with proper

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Character set conversion utilities
 //!
 //! This module provides EBCDIC to UTF-8 conversion using static lookup tables

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Example: Generate comprehensive test suite
 //!
 //! This example demonstrates how to use copybook-gen to create

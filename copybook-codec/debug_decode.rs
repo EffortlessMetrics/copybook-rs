@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_core::parse_copybook;
 use copybook_codec::{decode_record, DecodeOptions, Codepage, JsonNumberMode, RecordFormat, RawMode, UnmappablePolicy};
 

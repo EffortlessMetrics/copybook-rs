@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Comprehensive schema tests for copybook-rs
 //!
 //! This test suite validates schema structures, field types, and

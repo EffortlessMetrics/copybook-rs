@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! CLI Tool Mutation Testing for bench-report
 //!
 //! Comprehensive mutation testing for the bench-report CLI tool to ensure

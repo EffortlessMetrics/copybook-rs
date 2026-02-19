@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Prep Finalizer Receipt - Issue #102
 
 **Flow:** generative

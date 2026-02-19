@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Receipt Reference Guide
 
 > **🎯 Purpose**: This document provides comprehensive guidance for working with canonical performance receipts in copybook-rs.

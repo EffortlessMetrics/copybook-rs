@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # PR #61 TDD Test Validation Report
 ## copybook-rs Enterprise Audit System - Draft→Ready Validation
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Determinism validation command implementation
 //!
 //! Provides CLI commands for verifying determinism of encode/decode operations

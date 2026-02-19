@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Tests for COMP-1 and COMP-2 floating-point support in copybook-core.
 //!
 //! Validates lexer tokenization, parser FieldKind creation, and layout sizing.

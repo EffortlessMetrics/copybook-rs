@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Documentation Governance Policy
 
 > **🎯 Objective**: Establish single canonical performance truth pipeline for copybook-rs to resolve inconsistencies between aspirational targets and actual implementation.

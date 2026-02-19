@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #63: Eliminate .unwrap() Panics in copybook-rs (Production Safety Critical)
 
 ## Context

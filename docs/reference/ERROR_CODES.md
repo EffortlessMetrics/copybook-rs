@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Error Codes Reference
 
 copybook-rs uses a comprehensive error taxonomy with stable codes for reliable error handling and troubleshooting. **All error handling is panic-safe** with zero risk of unwrap() or expect() panics in production environments.

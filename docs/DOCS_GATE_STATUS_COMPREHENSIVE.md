@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Documentation Gate Status - Enterprise Audit System
 ## PR #61 Comprehensive Documentation Review
 

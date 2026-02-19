@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # git-cliff Setup for copybook-rs
 
 This document describes the git-cliff automated changelog generation setup for the copybook-rs project.

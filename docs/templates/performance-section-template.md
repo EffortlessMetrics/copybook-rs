@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!-- Performance Documentation Template -->
 <!-- Use this template for all performance sections in copybook-rs documentation -->
 <!-- Replace placeholders with actual values from canonical receipts -->

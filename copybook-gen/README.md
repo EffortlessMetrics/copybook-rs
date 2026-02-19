@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # `copybook-gen`
 
 Deterministic fixture generation utilities for `copybook-rs` tests.

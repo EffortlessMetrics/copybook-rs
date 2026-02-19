@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#ci-enforcement-mechanisms
 /// Issue #33 - CI Enforcement Tests
 ///

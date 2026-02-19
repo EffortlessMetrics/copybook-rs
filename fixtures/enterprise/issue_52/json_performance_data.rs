@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! JSON Performance Data Fixtures for Issue #52 Machine-Readable Benchmark Reporting
 //!
 //! Provides realistic test data for perf.json schema validation and Python utility testing

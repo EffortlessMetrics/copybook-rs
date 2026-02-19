@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: pr-integration-validator
 description: Use this agent for comprehensive pre-merge validation after all PR issues have been resolved. This agent performs final quality gates, contract compliance checks, and performance regression validation before merge approval. <example>Context: PR cleanup is complete and all tests are passing user: "All issues have been resolved, ready for final validation before merge" assistant: "I'll use the pr-integration-validator agent to perform comprehensive pre-merge validation" <commentary>Since all issues are resolved, use the pr-integration-validator agent for final validation before merge.</commentary></example>

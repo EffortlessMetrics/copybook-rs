@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Security Audit System
 //!
 //! Provides comprehensive security monitoring, access control auditing,

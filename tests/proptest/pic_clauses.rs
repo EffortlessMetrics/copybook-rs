@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments, unused_imports, dead_code)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Property tests for PIC clause parsing and handling
 //!
 //! These tests verify that PIC clauses parse consistently and generate

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Validation Tests for Issue #52 Machine-Readable Benchmark Reporting Fixtures
 //!
 //! Comprehensive validation to ensure all fixtures support the test scaffolding requirements

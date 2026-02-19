@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Mutation Testing Guide
 
 This guide explains the mutation testing setup for the copybook-rs project, including how to run mutation tests locally, interpret results, and maintain high test quality.

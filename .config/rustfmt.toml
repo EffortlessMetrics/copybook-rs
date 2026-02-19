@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Rust formatting configuration for copybook-rs
 # Enforces consistent formatting across the enterprise COBOL data processing workspace
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
 if ! command -v gh >/dev/null 2>&1; then

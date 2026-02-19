@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Testing Commands Reference
 
 **Last Updated**: 2026-02-07

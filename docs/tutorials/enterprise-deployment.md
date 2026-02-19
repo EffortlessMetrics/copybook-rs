@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Deployment Tutorial
 
 Learn how to deploy copybook-rs in production environments with enterprise-grade reliability and monitoring.

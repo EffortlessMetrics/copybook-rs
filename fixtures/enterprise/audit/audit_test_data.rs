@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Audit Test Data and Event Fixtures
 //!
 //! Provides test data for audit events, integrity chains, and CEF logging scenarios

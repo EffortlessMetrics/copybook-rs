@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Verify Command
 
 The `copybook verify` command validates data files against COBOL copybook schemas, providing comprehensive error reporting and data integrity validation without generating output files.

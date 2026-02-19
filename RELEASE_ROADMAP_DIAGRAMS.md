@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Release Roadmap Visualizations
 
 ## Release Phase Flow Diagram

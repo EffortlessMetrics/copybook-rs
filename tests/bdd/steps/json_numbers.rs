@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::JsonNumberMode;
 use cucumber::{given, then};
 use serde_json::Value;

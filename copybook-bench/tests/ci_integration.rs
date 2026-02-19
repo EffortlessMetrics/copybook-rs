@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! AC3: CI Integration Validation Tests
 //!
 //! Tests validation of existing CI integration functionality from Issue #52.

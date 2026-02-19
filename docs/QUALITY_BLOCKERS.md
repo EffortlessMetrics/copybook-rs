@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Quality Blockers - Phase 1.2 Resolution
 
 **Status**: ✅ Resolved

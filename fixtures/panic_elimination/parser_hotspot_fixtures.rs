@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Panic Elimination Fixtures: Parser Hotspot Test Data
 /// Issue #33 - Parser.rs Panic Elimination (17 target instances)
 ///

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Test to verify COMP-3 format understanding
 
 #![allow(clippy::expect_used)]

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Integration Strategy for Enterprise Audit System
 ## Issue #60 - Maintaining copybook-rs Performance Excellence
 

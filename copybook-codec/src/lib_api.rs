@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Core library API implementation for task 9.1
 #![allow(clippy::missing_inline_in_public_items)]
 //!

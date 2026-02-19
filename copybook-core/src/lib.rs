@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Core parsing and schema types for COBOL copybooks
 //!
 //! This crate provides the fundamental types and parsing logic for COBOL copybook

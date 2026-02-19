@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # AC:3 - Dependabot configuration example for validation testing
 # Test fixture: validates Dependabot YAML syntax and grouping patterns
 # Specification: docs/explanation/security-scanning-architecture.md#3-dependabot-configuration

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Deployment Guide
 
 This guide provides comprehensive instructions for deploying copybook-rs in production environments with enterprise features enabled. It covers feature flag defaults, audit/monitoring configuration, compliance policies, performance considerations, determinism guarantees, and safe upgrade practices.

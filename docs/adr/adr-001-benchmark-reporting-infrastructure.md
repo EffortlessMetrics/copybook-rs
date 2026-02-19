@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # ADR-001: Machine-Readable Benchmark Reporting Infrastructure Architecture
 
 ## Status

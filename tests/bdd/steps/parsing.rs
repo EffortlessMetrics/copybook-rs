@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use cucumber::{given, then, when};
 
 use crate::helpers::does_path_match_counter;

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # API Freeze Documentation
 
 This document describes the API freeze policy and procedures for the copybook-rs project.

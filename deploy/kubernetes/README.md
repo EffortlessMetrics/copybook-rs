@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Kubernetes Deployment for copybook-rs
 
 This directory contains Kubernetes manifests for deploying copybook-rs as a batch processing system.

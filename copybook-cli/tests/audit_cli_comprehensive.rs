@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Comprehensive CLI Audit Command Tests
 //!
 //! Tests feature spec: enterprise-audit-system-spec.md#cli-integration

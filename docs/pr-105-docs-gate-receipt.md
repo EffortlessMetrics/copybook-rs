@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Documentation Quality Gate Receipt - PR #105
 
 **Gate:** `review:gate:docs`  

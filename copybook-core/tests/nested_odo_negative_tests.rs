@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Negative tests for Nested ODO (O5) and ODO + REDEFINES (O6) scenarios
 //!
 //! These tests validate that copybook-rs explicitly rejects unsupported

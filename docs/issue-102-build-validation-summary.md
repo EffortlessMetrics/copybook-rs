@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Build Validation Summary: Issue #102 (PR #105)
 
 **Agent**: Build Validator

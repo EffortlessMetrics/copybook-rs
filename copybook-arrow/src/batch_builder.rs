@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! `RecordBatch` builder that accumulates records and flushes Arrow batches
 //!
 //! Feeds decoded COBOL records into column accumulators and produces

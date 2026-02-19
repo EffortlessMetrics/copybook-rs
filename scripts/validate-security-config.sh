@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # AC:4,5,9 - Security configuration validation script
 # Specification: docs/how-to/configure-security-scanning.md
 # Issue: #35 - Dependency & Security Scanning Infrastructure

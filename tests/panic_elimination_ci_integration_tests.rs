@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: issue-63-spec.md#ac6-ci-enforcement-enabled
 /// Tests feature spec: issue-63-technical-specification.md#ci-enforcement-framework
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#ci-enforcement-validation

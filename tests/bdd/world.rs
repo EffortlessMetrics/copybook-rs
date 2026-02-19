@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::determinism::DeterminismResult;
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat};
 use copybook_core::{ParseOptions, parse_copybook, parse_copybook_with_options};

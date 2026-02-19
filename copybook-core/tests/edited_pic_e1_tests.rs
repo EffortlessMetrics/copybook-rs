@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Phase E1: Edited PIC comprehensive tests
 //!
 //! Tests for edited PIC parsing (E1 phase) and codec rejection.

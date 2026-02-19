@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Binary fidelity testing framework for round-trip validation
 //!
 //! Implements comprehensive validation ensuring lossless data preservation

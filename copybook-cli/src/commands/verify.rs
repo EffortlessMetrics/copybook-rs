@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Verify command implementation
 //!
 //! The verify command validates data file structure against copybook schema without output generation

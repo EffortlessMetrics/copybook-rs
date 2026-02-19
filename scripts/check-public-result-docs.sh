@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Lists public Result fns missing #[inline]/#[must_use]/# Errors
 set -euo pipefail
 

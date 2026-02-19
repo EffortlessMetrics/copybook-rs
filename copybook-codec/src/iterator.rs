@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Record iterator for streaming access to decoded records
 //!
 //! This module provides iterator-based access to records for programmatic processing,

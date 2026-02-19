@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # How to Configure Security Scanning Infrastructure
 ## Issue #35 - Enterprise Dependency & Security Compliance
 

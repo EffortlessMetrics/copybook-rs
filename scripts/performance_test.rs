@@ -1,4 +1,5 @@
 #!/usr/bin/env cargo +nightly -Zscript
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Performance validation script for copybook-rs throughput optimizations
 //! 
 //! This script validates that the optimizations meet the SLO targets:

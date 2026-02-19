@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Parser tests for correct group structure preservation around level-66 RENAMES.
 //!
 //! Issue #133 Phase R2a: The parser's level-66 handling was incorrectly "popping to level-01",

@@ -27,7 +27,7 @@ copybook-codec = { workspace = true }
 
 # Arrow and Parquet dependencies
 arrow = { version = "55.0", features = ["json"] }
-parquet = { version = "55.0", features = ["arrow"] }
+parquet = { version = "57.3", features = ["arrow"] }
 
 # Error handling
 thiserror = { workspace = true }

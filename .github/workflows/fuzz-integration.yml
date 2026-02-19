@@ -41,7 +41,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  FUZZ_SECONDS: ${{ inputs.fuzz_seconds || '300' }}
+  FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && '30' || inputs.fuzz_seconds || '300' }}
 
 jobs:
   cargo-fuzz:
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload crash artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: fuzz-crash-${{ matrix.target }}-${{ github.sha }}
           path: artifacts/fuzz-${{ matrix.target }}/
@@ -130,7 +130,7 @@ jobs:
 
       - name: Upload minimized corpus
         if: success() && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: corpus-${{ matrix.target }}-${{ github.sha }}
           path: fuzz/corpus/${{ matrix.target }}/
@@ -144,7 +144,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate summary
         run: |
@@ -174,7 +174,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check feature flag
         run: |

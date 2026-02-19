@@ -1798,13 +1798,37 @@ mod tests {
     }
 
     #[test]
-    fn test_sign_clause_acceptance() {
+    fn test_sign_clause_without_separate_rejected() {
+        // SIGN LEADING without SEPARATE is invalid — overpunching is handled by S in PIC.
         let input = "01 AMOUNT PIC S9(5) SIGN LEADING.";
         let result = parse(input);
 
-        assert!(result.is_err(), "SIGN clause should be rejected");
+        assert!(
+            result.is_err(),
+            "SIGN clause without SEPARATE should be rejected"
+        );
         let error = result.unwrap_err();
-        assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+        // SIGN SEPARATE is now always-enabled; rejection is a syntax error, not feature-flag error
+        assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
+    }
+
+    #[test]
+    fn test_sign_leading_separate_accepted() {
+        // SIGN IS LEADING SEPARATE is always accepted (promoted to stable)
+        let input = "01 AMOUNT PIC S9(5) SIGN IS LEADING SEPARATE.";
+        let result = parse(input);
+        assert!(
+            result.is_ok(),
+            "SIGN IS LEADING SEPARATE should be accepted"
+        );
+    }
+
+    #[test]
+    fn test_sign_trailing_separate_accepted() {
+        // SIGN TRAILING SEPARATE is always accepted (promoted to stable)
+        let input = "01 AMOUNT PIC S9(5) SIGN TRAILING SEPARATE.";
+        let result = parse(input);
+        assert!(result.is_ok(), "SIGN TRAILING SEPARATE should be accepted");
     }
 
     #[test]

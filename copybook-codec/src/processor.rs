@@ -857,14 +857,18 @@ impl DecodeProcessor {
             };
 
             // Validate ODO counter value
+            let validation_context = crate::odo_redefines::OdoValidationContext {
+                field_path: tail_odo.array_path.clone(),
+                counter_path: tail_odo.counter_path.clone(),
+                record_index,
+                byte_offset: counter_field.offset as u64,
+            };
+
             let validation_result = crate::odo_redefines::validate_odo_decode(
                 counter_value,
                 tail_odo.min_count,
                 tail_odo.max_count,
-                &tail_odo.array_path,
-                &tail_odo.counter_path,
-                record_index,
-                counter_field.offset as u64,
+                &validation_context,
                 &self.options,
             )?;
 
@@ -1107,50 +1111,93 @@ impl EncodeProcessor {
     ) -> Result<(), Error> {
         // Check if schema has tail ODO
         if let Some(ref tail_odo) = schema.tail_odo {
-            if let Value::Object(obj) = json_value {
-                // Find the array field in JSON
-                let array_field_name = tail_odo
-                    .array_path
-                    .split('.')
-                    .next_back()
-                    .unwrap_or(&tail_odo.array_path);
+            let fields_object = if let Some(fields_value) = json_value.get("fields") {
+                fields_value
+            } else {
+                json_value
+            };
 
-                if let Some(Value::Array(array)) = obj.get(array_field_name) {
-                    let array_field = schema.find_field(&tail_odo.array_path).ok_or_else(|| {
-                        Error::new(
-                            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-                            format!(
-                                "ODO array field '{}' not found in schema",
-                                tail_odo.array_path
-                            ),
-                        )
-                        .with_context(
-                            crate::odo_redefines::create_comprehensive_error_context(
-                                record_index,
-                                &tail_odo.array_path,
-                                0,
-                                None,
-                            ),
-                        )
-                    })?;
+            if let Some(array) = json_lookup_array(fields_object, &tail_odo.array_path) {
+                let array_field = schema.find_field(&tail_odo.array_path).ok_or_else(|| {
+                    Error::new(
+                        ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                        format!(
+                            "ODO array field '{}' not found in schema",
+                            tail_odo.array_path
+                        ),
+                    )
+                    .with_context(
+                        crate::odo_redefines::create_comprehensive_error_context(
+                            record_index,
+                            &tail_odo.array_path,
+                            0,
+                            None,
+                        ),
+                    )
+                })?;
 
-                    // Validate array length
-                    crate::odo_redefines::validate_odo_encode(
-                        array.len(),
-                        tail_odo.min_count,
-                        tail_odo.max_count,
-                        &tail_odo.array_path,
+                let counter_field = schema.find_field(&tail_odo.counter_path).ok_or_else(|| {
+                    crate::odo_redefines::handle_missing_counter_field(
                         &tail_odo.counter_path,
+                        &tail_odo.array_path,
+                        schema,
                         record_index,
-                        array_field.offset as u64,
-                        &self.options,
-                    )?;
+                        0,
+                    )
+                })?;
+
+                if json_lookup_value(fields_object, &tail_odo.counter_path).is_none() {
+                    return Err(crate::odo_redefines::handle_missing_counter_field(
+                        &tail_odo.counter_path,
+                        &tail_odo.array_path,
+                        schema,
+                        record_index,
+                        counter_field.offset as u64,
+                    ));
                 }
+
+                let validation_context = crate::odo_redefines::OdoValidationContext {
+                    field_path: tail_odo.array_path.clone(),
+                    counter_path: tail_odo.counter_path.clone(),
+                    record_index,
+                    byte_offset: array_field.offset as u64,
+                };
+
+                // Validate array length
+                crate::odo_redefines::validate_odo_encode(
+                    array.len(),
+                    tail_odo.min_count,
+                    tail_odo.max_count,
+                    &validation_context,
+                    &self.options,
+                )?;
             }
         }
 
         Ok(())
     }
+
+fn json_lookup_value(value: &serde_json::Value, field_path: &str) -> Option<&serde_json::Value> {
+    let mut current = value;
+    for segment in field_path.split('.') {
+        current = current.as_object()?.get(segment)?;
+    }
+    Some(current)
+}
+
+fn json_lookup_array(value: &serde_json::Value, field_path: &str) -> Option<&Vec<Value>> {
+    let leaf = field_path.split('.').next_back().unwrap_or("");
+    match json_lookup_value(value, field_path) {
+        Some(serde_json::Value::Array(array)) => Some(array),
+        _ => {
+            if let serde_json::Value::Object(obj) = value {
+                obj.get(leaf).and_then(|value| value.as_array())
+            } else {
+                None
+            }
+        }
+    }
+}
 
     /// Enhance encode error with comprehensive context information
     fn enhance_encode_error_context(&self, mut error: Error, record_index: u64) -> Error {

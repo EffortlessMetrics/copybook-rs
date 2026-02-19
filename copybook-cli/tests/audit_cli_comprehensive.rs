@@ -66,11 +66,8 @@ fn test_audit_report_comprehensive() -> TestResult<()> {
     assert!(output_file.exists());
     let _report_content = fs::read_to_string(&output_file)?;
 
-    // TODO: Verify comprehensive report structure when implemented
-    // assert!(report_content.contains("\"compliance_summary\""));
-    // assert!(report_content.contains("\"sox_validation\""));
-    // assert!(report_content.contains("\"recommendations\""));
-    // assert!(report_content.contains("\"data_lineage\""));
+    // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
+    // Expected report fields: compliance_summary, sox_validation, recommendations, data_lineage
 
     println!("Audit report test passed (implementation pending)");
     Ok(())
@@ -173,10 +170,8 @@ fn test_audit_lineage_field_level() -> TestResult<()> {
     if lineage_report.exists() {
         let _lineage_content = fs::read_to_string(&lineage_report)?;
 
-        // TODO: Verify comprehensive lineage structure when implemented
-        // assert!(lineage_content.contains("\"field_mappings\""));
-        // assert!(lineage_content.contains("\"transformation_rules\""));
-        // assert!(lineage_content.contains("\"quality_metrics\""));
+        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
+        // Expected lineage fields: field_mappings, transformation_rules, quality_metrics
 
         println!("Lineage report test passed (implementation pending)");
     }
@@ -252,10 +247,8 @@ fn test_audit_performance_baseline() -> TestResult<()> {
     if performance_report.exists() {
         let _report_content = fs::read_to_string(&performance_report)?;
 
-        // TODO: Verify performance metrics when implemented
-        // assert!(report_content.contains("\"display_throughput_gbps\""));
-        // assert!(report_content.contains("\"comp3_throughput_mbps\""));
-        // assert!(report_content.contains("\"overhead_percentage\""));
+        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
+        // Expected perf fields: display_throughput_gbps, comp3_throughput_mbps, overhead_percentage
 
         println!("Performance audit test passed (implementation pending)");
     }
@@ -314,10 +307,8 @@ fn test_audit_security_comprehensive() -> TestResult<()> {
     if security_report.exists() {
         let _report_content = fs::read_to_string(&security_report)?;
 
-        // TODO: Verify security analysis structure when implemented
-        // assert!(report_content.contains("\"sensitive_fields\""));
-        // assert!(report_content.contains("\"encryption_status\""));
-        // assert!(report_content.contains("\"access_anomalies\""));
+        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
+        // Expected security fields: sensitive_fields, encryption_status, access_anomalies
 
         println!("Security audit test passed (implementation pending)");
     }
@@ -364,10 +355,8 @@ f6g7h8\"}
     if health_report.exists() {
         let _report_content = fs::read_to_string(&health_report)?;
 
-        // TODO: Verify health check structure when implemented
-        // assert!(report_content.contains("\"chain_integrity_valid\""));
-        // assert!(report_content.contains("\"hash_verification_results\""));
-        // assert!(report_content.contains("\"overall_health_score\""));
+        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
+        // Expected health fields: chain_integrity_valid, hash_verification_results, overall_health_score
 
         println!("Health check test passed (implementation pending)");
     }
@@ -468,7 +457,7 @@ fn test_audit_siem_integration() -> TestResult<()> {
             .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
     );
 
-    // TODO: Verify CEF format output when implemented
+    // Audit feature (TDD Red phase) - CEF format output will be verified when audit feature is implemented
     if siem_output.exists() {
         let _cef_content = fs::read_to_string(&siem_output)?;
         println!("SIEM integration test generated CEF output (implementation pending)");

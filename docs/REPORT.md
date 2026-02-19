@@ -152,13 +152,11 @@ Comprehensive support for mainframe data formats:
 
 ### Unsupported COBOL Features
 
-- COMP-1/COMP-2 floating-point types (by design - rare in practice)
-- Edited PIC clauses (Z, /, comma, $, CR, DB)
-- SIGN LEADING/TRAILING SEPARATE
+- COMP-1/COMP-2 floating-point types (experimental when `comp_1` / `comp_2` are enabled)
+- Edited PIC clauses (E1-E3.7 fully supported)
+- SIGN LEADING/TRAILING SEPARATE (partial support via `sign_separate`)
 - Nested OCCURS DEPENDING ON arrays
-- 66-level (RENAMES) items – parser + same-scope resolver implemented; nested
-  group semantics and codec projection are still pending (see
-  docs/design/RENAMES_NESTED_GROUPS.md and Issues #110 / #133)
+- 66-level (RENAMES) items – R1-R3 supported; R4-R6 and nested interactions remain policy-limited (`renames_r4_r6`)
 
 **Note**: Level-88 condition values are fully supported with comprehensive
 parse, codec, and structural validation. See
@@ -278,10 +276,12 @@ remaining limitations are addressed.
   `docs/PERFORMANCE_GOVERNANCE.md`)
 - ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.1
   (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s)
-- ⚠️ **COBOL Completeness**: COMP-1/COMP-2, edited PIC clauses, SIGN SEPARATE,
-  nested ODOs remain unsupported; RENAMES (66-level) partially supported
-  (parser+resolver complete, nested groups+codec pending); Level-88 condition
-  values fully supported
+- ⚠️ **COBOL Completeness**: COMP-1/COMP-2 and SIGN SEPARATE are experimental
+  (`comp_1`/`comp_2`, `sign_separate`); edited PIC clauses are fully implemented
+  with current E1-E3 feature coverage; nested ODO arrays remain unsupported;
+  RENAMES (66-level) are supported for R1-R3 and policy-limited for R4-R6
+  (parser+resolver complete, policy exceptions documented); Level-88 condition
+  values are fully supported
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52)
   with baseline management (promote/show), comparison, validation, and summary
   commands

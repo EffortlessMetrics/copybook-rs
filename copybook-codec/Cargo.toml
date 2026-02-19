@@ -7,11 +7,11 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "High-throughput COBOL copybook codec: decode/encode, streaming, codepages."
+description = "Deterministic COBOL copybook codec for EBCDIC/ASCII fixed and RDW records."
 documentation = "https://docs.rs/copybook-codec"
 readme = "README.md"
 keywords = ["cobol", "copybook", "codec", "ebcdic", "streaming"]
-categories = ["encoding", "parsing", "command-line-utilities"]
+categories = ["encoding", "parsing", "data-structures"]
 
 # Keep tarballs slim; whitelist essential files
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]

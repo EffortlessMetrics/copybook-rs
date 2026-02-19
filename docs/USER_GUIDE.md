@@ -115,10 +115,11 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2> errors.l
 - ✅ **Multiple Codepages** (CP037, CP273, CP500, CP1047, CP1140)
 
 ### **Known Limitations** (By Design)
-- COMP-1/COMP-2 floating-point (rare in production)
+- COMP-1/COMP-2 floating-point (experimental behind `comp_1`/`comp_2`)
+- SIGN LEADING/TRAILING SEPARATE (partial support behind `sign_separate`)
 - Nested ODO arrays (O5: ODO inside ODO - rejected by design)
 - ODO over REDEFINES (O6 - rejected by design)
-- RENAMES interactions with REDEFINES/OCCURS (R4-R6 - out of scope)
+- RENAMES interactions with REDEFINES/OCCURS (R4-R6 - policy-limited; R1-R3 supported)
 
 ## Zoned Decimal Encoding Preservation
 

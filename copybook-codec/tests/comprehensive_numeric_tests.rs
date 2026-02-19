@@ -105,12 +105,67 @@ fn test_zoned_decimal_ascii_sign_zones_comprehensive() {
         }
     }
 
-    // TODO: When ASCII overpunch is fully implemented, test complete IBM overpunch table:
-    // - ASCII positive overpunch: A-I (0x41-0x49) for digits 1-9, { (0x7B) for 0
-    // - ASCII negative overpunch: J-R (0x4A-0x52) for digits 1-9, } (0x7D) for 0
-    println!(
-        "Note: Comprehensive ASCII overpunch testing deferred - feature implementation in progress"
-    );
+    // ASCII overpunch is fully implemented. Test the complete IBM overpunch table.
+    // For PIC S9(3) with ASCII codepage, the first two bytes are plain ASCII digits
+    // (zone 0x3) and the last byte uses overpunch encoding.
+
+    // Positive overpunch: { (0x7B) for 0, A-I (0x41-0x49) for 1-9
+    let positive_overpunch_tests: Vec<(&[u8], &str, &str)> = vec![
+        (b"12{", "120", "Positive overpunch { -> digit 0"),
+        (b"12A", "121", "Positive overpunch A -> digit 1"),
+        (b"12B", "122", "Positive overpunch B -> digit 2"),
+        (b"12C", "123", "Positive overpunch C -> digit 3"),
+        (b"12D", "124", "Positive overpunch D -> digit 4"),
+        (b"12E", "125", "Positive overpunch E -> digit 5"),
+        (b"12F", "126", "Positive overpunch F -> digit 6"),
+        (b"12G", "127", "Positive overpunch G -> digit 7"),
+        (b"12H", "128", "Positive overpunch H -> digit 8"),
+        (b"12I", "129", "Positive overpunch I -> digit 9"),
+    ];
+
+    for (data, expected, description) in &positive_overpunch_tests {
+        let input = Cursor::new(*data);
+        let mut output = Vec::new();
+
+        let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
+        assert!(result.is_ok(), "Failed for {description}: {result:?}");
+
+        let output_str = String::from_utf8(output).unwrap();
+        let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+        assert_eq!(
+            json_record["SIGNED-FIELD"], *expected,
+            "Failed for {description}"
+        );
+    }
+
+    // Negative overpunch: } (0x7D) for 0, J-R (0x4A-0x52) for 1-9
+    let negative_overpunch_tests: Vec<(&[u8], &str, &str)> = vec![
+        (b"12}", "-120", "Negative overpunch } -> digit 0"),
+        (b"12J", "-121", "Negative overpunch J -> digit 1"),
+        (b"12K", "-122", "Negative overpunch K -> digit 2"),
+        (b"12L", "-123", "Negative overpunch L -> digit 3"),
+        (b"12M", "-124", "Negative overpunch M -> digit 4"),
+        (b"12N", "-125", "Negative overpunch N -> digit 5"),
+        (b"12O", "-126", "Negative overpunch O -> digit 6"),
+        (b"12P", "-127", "Negative overpunch P -> digit 7"),
+        (b"12Q", "-128", "Negative overpunch Q -> digit 8"),
+        (b"12R", "-129", "Negative overpunch R -> digit 9"),
+    ];
+
+    for (data, expected, description) in &negative_overpunch_tests {
+        let input = Cursor::new(*data);
+        let mut output = Vec::new();
+
+        let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &options);
+        assert!(result.is_ok(), "Failed for {description}: {result:?}");
+
+        let output_str = String::from_utf8(output).unwrap();
+        let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+        assert_eq!(
+            json_record["SIGNED-FIELD"], *expected,
+            "Failed for {description}"
+        );
+    }
 }
 
 #[test]
@@ -160,32 +215,31 @@ fn test_zoned_negative_zero_normalization() {
     // Test that -0 is normalized to 0 (NORMATIVE)
     let copybook = "01 SIGNED-FIELD PIC S9(3).";
     let schema = parse_copybook(copybook).unwrap();
-    let _options = create_test_decode_options(Codepage::ASCII, false);
 
-    // TODO: Test negative zero normalization when ASCII overpunch is fully implemented
-    // For now, test basic zero normalization with EBCDIC data
+    // Test EBCDIC negative zero normalization
     let negative_zero_data = b"\xF0\xF0\xD0"; // EBCDIC -0
     let ebcdic_options = create_test_decode_options(Codepage::CP037, false);
     let input = Cursor::new(negative_zero_data);
     let mut output = Vec::new();
 
-    let result = copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &ebcdic_options);
-    if result.is_ok() && !output.is_empty() {
-        let output_str = String::from_utf8(output).unwrap();
-        if output_str.trim().is_empty() {
-            println!(
-                "Skipping negative zero normalization: no output produced (feature may be incomplete)"
-            );
-        } else {
-            let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
-            // Should be normalized to "0", not "-0"
-            assert_eq!(json_record["SIGNED-FIELD"], "0");
-        }
-    } else {
-        println!(
-            "Skipping negative zero normalization: decode failed (feature may be incomplete): {result:?}"
-        );
-    }
+    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &ebcdic_options).unwrap();
+    let output_str = String::from_utf8(output).unwrap();
+    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    // Should be normalized to "0", not "-0"
+    assert_eq!(json_record["SIGNED-FIELD"], "0");
+
+    // Test ASCII negative zero normalization using } (0x7D) overpunch for -0
+    // For PIC S9(3), data b"00}" means digits 0,0,0 with negative sign -> -0 -> normalized to 0
+    let ascii_options = create_test_decode_options(Codepage::ASCII, false);
+    let ascii_neg_zero_data = b"00}";
+    let input = Cursor::new(ascii_neg_zero_data);
+    let mut output = Vec::new();
+
+    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &ascii_options).unwrap();
+    let output_str = String::from_utf8(output).unwrap();
+    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+    // ASCII negative zero should also normalize to "0"
+    assert_eq!(json_record["SIGNED-FIELD"], "0");
 }
 
 #[test]
@@ -222,17 +276,17 @@ fn test_packed_decimal_sign_nibbles_comprehensive() {
     let schema = parse_copybook(copybook).unwrap();
     let options = create_test_decode_options(Codepage::ASCII, false);
 
-    // Test standard COMP-3 sign nibbles (only widely supported ones)
-    let sign_tests = vec![
-        (b"\x12\x3C", "123", "C sign (positive)"),
-        (b"\x12\x3D", "-123", "D sign (negative)"),
-        (b"\x12\x3F", "123", "F sign (unsigned positive)"),
+    // Test all COMP-3 sign nibbles supported by the codec:
+    // Standard: C (positive), D (negative), F (unsigned positive)
+    // Alternative: A (positive), E (positive), B (negative)
+    let sign_tests: Vec<(&[u8], &str, &str)> = vec![
+        (&[0x12, 0x3C], "123", "C sign (positive)"),
+        (&[0x12, 0x3D], "-123", "D sign (negative)"),
+        (&[0x12, 0x3F], "123", "F sign (unsigned positive)"),
+        (&[0x12, 0x3A], "123", "A sign (positive alternative)"),
+        (&[0x12, 0x3E], "123", "E sign (positive alternative)"),
+        (&[0x12, 0x3B], "-123", "B sign (negative alternative)"),
     ];
-
-    // TODO: Alternative signs that may not be universally supported:
-    // (b"\x12\x3A", "123", "A sign (positive alternative)") - May not be supported
-    // (b"\x12\x3E", "123", "E sign (positive alternative)") - May not be supported
-    // (b"\x12\x3B", "-123", "B sign (negative alternative)") - Often invalid
 
     for (data, expected, description) in sign_tests {
         let input = Cursor::new(data);
@@ -459,11 +513,68 @@ fn test_json_number_modes() {
    05 PACKED-FIELD PIC 9(3)V9 COMP-3.
    05 BINARY-FIELD PIC 9(5) COMP.
 ";
-    let _schema = parse_copybook(copybook).unwrap();
-    // TODO: This test is currently failing due to record length calculation changes after COMP-3 fix
-    // The COMP-3 encoding/decoding is working correctly (verified above), but the overall record
-    // processing has issues that need separate investigation
-    println!("SKIPPED: Test needs investigation for record length calculation after COMP-3 fix");
+    let schema = parse_copybook(copybook).unwrap();
+
+    // Record layout: PIC 9(5)V99 = 7 bytes zoned, PIC 9(3)V9 COMP-3 = 3 bytes, PIC 9(5) COMP = 4 bytes
+    // Total = 14 bytes
+    let mut test_data: Vec<u8> = Vec::new();
+    // ZONED-FIELD: 12345.67 -> ASCII "1234567" (7 bytes, unsigned zoned)
+    test_data.extend_from_slice(b"1234567");
+    // PACKED-FIELD: 123.4 -> COMP-3 with 4 digits unsigned = 0x01234F (3 bytes)
+    test_data.extend_from_slice(&[0x01, 0x23, 0x4F]);
+    // BINARY-FIELD: 99999 -> big-endian u32 = 0x0001869F (4 bytes)
+    test_data.extend_from_slice(&99999_u32.to_be_bytes());
+
+    // Test Lossless mode (string representation preserving scale)
+    let lossless_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Lossless)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(false)
+        .with_max_errors(None)
+        .with_unmappable_policy(UnmappablePolicy::Error)
+        .with_threads(1);
+
+    let input = Cursor::new(test_data.clone());
+    let mut output = Vec::new();
+    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &lossless_options).unwrap();
+    let output_str = String::from_utf8(output).unwrap();
+    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+
+    // Lossless mode renders numbers as strings with fixed scale
+    assert_eq!(json_record["ZONED-FIELD"], "12345.67");
+    assert_eq!(json_record["PACKED-FIELD"], "123.4");
+    assert_eq!(json_record["BINARY-FIELD"], "99999");
+
+    // Test Native mode: decode_file_to_jsonl uses the scratch-buffer path which
+    // always emits string values regardless of json_number_mode. The JsonNumberMode
+    // distinction applies in the JsonRecordBuilder fast path (json.rs), not here.
+    // Verify the values are still correctly decoded.
+    let native_options = DecodeOptions::new()
+        .with_format(RecordFormat::Fixed)
+        .with_codepage(Codepage::ASCII)
+        .with_json_number_mode(JsonNumberMode::Native)
+        .with_emit_filler(false)
+        .with_emit_meta(false)
+        .with_emit_raw(RawMode::Off)
+        .with_strict_mode(false)
+        .with_max_errors(None)
+        .with_unmappable_policy(UnmappablePolicy::Error)
+        .with_threads(1);
+
+    let input = Cursor::new(test_data);
+    let mut output = Vec::new();
+    copybook_codec::decode_file_to_jsonl(&schema, input, &mut output, &native_options).unwrap();
+    let output_str = String::from_utf8(output).unwrap();
+    let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
+
+    // decode_file_to_jsonl scratch path always renders as strings
+    assert_eq!(json_record["ZONED-FIELD"], "12345.67");
+    assert_eq!(json_record["PACKED-FIELD"], "123.4");
+    assert_eq!(json_record["BINARY-FIELD"], "99999");
 }
 
 #[test]

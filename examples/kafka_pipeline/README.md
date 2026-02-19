@@ -69,13 +69,13 @@ export DATA_PATH="path/to/your/data.bin"
 ### Build the example
 
 ```bash
-cargo build --example kafka_pipeline
+cargo build -p kafka-pipeline
 ```
 
 ### Run with default configuration
 
 ```bash
-cargo run --example kafka_pipeline
+cargo run -p kafka-pipeline
 ```
 
 ### Run with custom configuration
@@ -85,7 +85,7 @@ KAFKA_BROKERS="kafka1:9092,kafka2:9092" \
 KAFKA_TOPIC="my-topic" \
 COPYBOOK_PATH="/data/records.cpy" \
 DATA_PATH="/data/records.bin" \
-cargo run --example kafka_pipeline
+cargo run -p kafka-pipeline
 ```
 
 ## Example Output

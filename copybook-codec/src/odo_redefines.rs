@@ -69,13 +69,11 @@ pub fn validate_odo_counter(
         // In strict mode, ODO out-of-bounds is fatal (NORMATIVE)
         let error_msg = if counter_value < min_count {
             format!(
-                "ODO counter value {} is below minimum {} for array '{}'",
-                counter_value, min_count, field_path
+                "ODO counter value {counter_value} is below minimum {min_count} for array '{field_path}'"
             )
         } else {
             format!(
-                "ODO counter value {} exceeds maximum {} for array '{}'",
-                counter_value, max_count, field_path
+                "ODO counter value {counter_value} exceeds maximum {max_count} for array '{field_path}'"
             )
         };
 
@@ -86,8 +84,7 @@ pub fn validate_odo_counter(
                 byte_offset: Some(byte_offset),
                 line_number: None,
                 details: Some(format!(
-                    "counter_field={}, counter_value={}",
-                    counter_path, counter_value
+                    "counter_field={counter_path}, counter_value={counter_value}"
                 )),
             }),
         );
@@ -111,8 +108,7 @@ pub fn validate_odo_counter(
     let warning = Error::new(
         error_code,
         format!(
-            "ODO counter value {} {} {} for array '{}' (was {})",
-            counter_value, action, actual_count, field_path, counter_value
+            "ODO counter value {counter_value} {action} {actual_count} for array '{field_path}' (was {counter_value})"
         ),
     )
     .with_context(ErrorContext {
@@ -121,8 +117,7 @@ pub fn validate_odo_counter(
         byte_offset: Some(byte_offset),
         line_number: None,
         details: Some(format!(
-            "counter_field={}, original_value={}, clamped_value={}",
-            counter_path, counter_value, actual_count
+            "counter_field={counter_path}, original_value={counter_value}, clamped_value={actual_count}"
         )),
     });
 
@@ -142,6 +137,7 @@ pub fn validate_odo_counter(
 ///
 /// # Errors
 /// Returns an error if ODO constraints are violated.
+#[allow(dead_code)]
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn validate_odo_tail_position(
@@ -158,7 +154,7 @@ pub fn validate_odo_tail_position(
     let odo_field = schema.find_field(odo_field_path).ok_or_else(|| {
         Error::new(
             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!("ODO array field '{}' not found in schema", odo_field_path),
+            format!("ODO array field '{odo_field_path}' not found in schema"),
         )
     })?;
 
@@ -172,7 +168,7 @@ pub fn validate_odo_tail_position(
         _ => {
             return Err(Error::new(
                 ErrorCode::CBKP021_ODO_NOT_TAIL,
-                format!("Field '{}' is not an ODO array", odo_field_path),
+                format!("Field '{odo_field_path}' is not an ODO array"),
             ));
         }
     }
@@ -181,10 +177,7 @@ pub fn validate_odo_tail_position(
     let counter_field = schema.find_field(counter_field_path).ok_or_else(|| {
         Error::new(
             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!(
-                "ODO counter field '{}' not found in schema",
-                counter_field_path
-            ),
+            format!("ODO counter field '{counter_field_path}' not found in schema"),
         )
     })?;
 
@@ -193,8 +186,8 @@ pub fn validate_odo_tail_position(
         return Err(Error::new(
             ErrorCode::CBKP021_ODO_NOT_TAIL,
             format!(
-                "ODO counter '{}' (offset {}) must precede array '{}' (offset {}) in byte order",
-                counter_field_path, counter_field.offset, odo_field_path, odo_field.offset
+                "ODO counter '{counter_field_path}' (offset {}) must precede array '{odo_field_path}' (offset {}) in byte order",
+                counter_field.offset, odo_field.offset
             ),
         ));
     }
@@ -203,10 +196,7 @@ pub fn validate_odo_tail_position(
     if counter_field.redefines_of.is_some() {
         return Err(Error::new(
             ErrorCode::CBKS121_COUNTER_NOT_FOUND,
-            format!(
-                "ODO counter field '{}' cannot be inside a REDEFINES region",
-                counter_field_path
-            ),
+            format!("ODO counter field '{counter_field_path}' cannot be inside a REDEFINES region"),
         ));
     }
 
@@ -290,17 +280,14 @@ pub fn validate_redefines_encoding(
     if non_null_views == 0 {
         return Err(Error::new(
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-            format!(
-                "No non-null views found for REDEFINES cluster '{}'",
-                cluster_path
-            ),
+            format!("No non-null views found for REDEFINES cluster '{cluster_path}'"),
         )
         .with_context(ErrorContext {
             record_index: Some(record_index),
             field_path: Some(field_path.to_string()),
             byte_offset: Some(byte_offset),
             line_number: None,
-            details: Some(format!("cluster_path={}", cluster_path)),
+            details: Some(format!("cluster_path={cluster_path}")),
         }));
     }
 
@@ -321,8 +308,7 @@ pub fn validate_redefines_encoding(
     Err(Error::new(
         ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
         format!(
-            "Ambiguous REDEFINES write: multiple non-null views ({}) for cluster '{}'",
-            views_list, cluster_path
+            "Ambiguous REDEFINES write: multiple non-null views ({views_list}) for cluster '{cluster_path}'"
         ),
     )
     .with_context(ErrorContext {
@@ -331,8 +317,7 @@ pub fn validate_redefines_encoding(
         byte_offset: Some(byte_offset),
         line_number: None,
         details: Some(format!(
-            "cluster_path={}, non_null_views={}",
-            cluster_path, non_null_views
+            "cluster_path={cluster_path}, non_null_views={non_null_views}"
         )),
     }))
 }
@@ -367,14 +352,10 @@ pub fn handle_missing_counter_field(
     }
 
     let details = if suggestions.is_empty() {
-        format!(
-            "array_field={}, searched_paths=all_schema_fields",
-            array_path
-        )
+        format!("array_field={array_path}, searched_paths=all_schema_fields")
     } else {
         format!(
-            "array_field={}, similar_fields=[{}]",
-            array_path,
+            "array_field={array_path}, similar_fields=[{}]",
             suggestions.join(", ")
         )
     };
@@ -382,9 +363,7 @@ pub fn handle_missing_counter_field(
     Error::new(
         ErrorCode::CBKS121_COUNTER_NOT_FOUND,
         format!(
-            "ODO counter field '{}' not found for array '{}'. {}",
-            counter_path,
-            array_path,
+            "ODO counter field '{counter_path}' not found for array '{array_path}'. {}",
             if suggestions.is_empty() {
                 "No similar field names found in schema."
             } else {
@@ -544,13 +523,13 @@ pub fn validate_odo_encode(
     let array_length_u32 = u32::try_from(array_length).map_err(|_| {
         Error::new(
             ErrorCode::CBKE521_ARRAY_LEN_OOB,
-            format!("Array length {} exceeds u32::MAX", array_length),
+            format!("Array length {array_length} exceeds u32::MAX"),
         )
         .with_context(create_comprehensive_error_context(
             context.record_index,
             &context.field_path,
             context.byte_offset,
-            Some(format!("Array length: {}", array_length)),
+            Some(format!("Array length: {array_length}")),
         ))
     })?;
 
@@ -571,8 +550,8 @@ pub fn validate_odo_encode(
         return Err(Error::new(
             ErrorCode::CBKE521_ARRAY_LEN_OOB,
             format!(
-                "JSON array length {} is out of bounds for ODO field '{}' (min={}, max={})",
-                array_length, context.field_path, min_count, max_count
+                "JSON array length {array_length} is out of bounds for ODO field '{}' (min={min_count}, max={max_count})",
+                context.field_path
             ),
         )
         .with_context(create_comprehensive_error_context(
@@ -580,8 +559,8 @@ pub fn validate_odo_encode(
             &context.field_path,
             context.byte_offset,
             Some(format!(
-                "counter_field={}, array_length={}",
-                context.counter_path, array_length
+                "counter_field={}, array_length={array_length}",
+                context.counter_path
             )),
         )));
     }
@@ -611,6 +590,7 @@ mod tests {
                 digits: 3,
                 scale: 0,
                 signed: false,
+                sign_separate: None,
             },
             offset: 0,
             len: 3,
@@ -619,6 +599,7 @@ mod tests {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
+            resolved_renames: None,
             children: vec![],
         };
 
@@ -639,6 +620,7 @@ mod tests {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
+            resolved_renames: None,
             children: vec![],
         };
 
@@ -648,8 +630,7 @@ mod tests {
 
     #[test]
     fn test_odo_validation_within_bounds() -> TestResult {
-        let result =
-            validate_odo_counter(3, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
+        let result = validate_odo_counter(3, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
 
         assert_eq!(result.actual_count, 3);
         assert!(!result.was_clamped);
@@ -678,8 +659,7 @@ mod tests {
 
     #[test]
     fn test_odo_validation_lenient_mode_clamp_max() -> TestResult {
-        let result =
-            validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
+        let result = validate_odo_counter(10, 0, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
 
         assert_eq!(result.actual_count, 5);
         assert!(result.was_clamped);
@@ -694,8 +674,7 @@ mod tests {
 
     #[test]
     fn test_odo_validation_lenient_mode_raise_min() -> TestResult {
-        let result =
-            validate_odo_counter(0, 1, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
+        let result = validate_odo_counter(0, 1, 5, "ROOT.ARRAY", "ROOT.COUNTER", 1, 3, false)?;
 
         assert_eq!(result.actual_count, 1);
         assert!(result.was_clamped);
@@ -767,6 +746,7 @@ mod tests {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
+            resolved_renames: None,
             children: vec![],
         };
 
@@ -779,6 +759,7 @@ mod tests {
                 digits: 5,
                 scale: 0,
                 signed: false,
+                sign_separate: None,
             },
             offset: 0,
             len: 5,
@@ -787,6 +768,7 @@ mod tests {
             sync_padding: None,
             synchronized: false,
             blank_when_zero: false,
+            resolved_renames: None,
             children: vec![],
         };
 
@@ -801,7 +783,7 @@ mod tests {
 
         assert_eq!(context.field_to_cluster.len(), 1);
         assert!(context.field_to_cluster.contains_key("FIELD_B"));
-        assert_eq!(context.field_to_cluster["FIELD_B"], "ROOT.FIELD_A");
+        assert_eq!(context.field_to_cluster["FIELD_B"], "FIELD_A");
     }
 
     #[test]

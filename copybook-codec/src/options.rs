@@ -96,6 +96,21 @@ impl fmt::Display for ZonedEncodingFormat {
     }
 }
 
+/// Floating-point binary format for COMP-1/COMP-2 fields.
+///
+/// Copybooks define field usage but not the compiler's concrete floating-point
+/// representation. This option makes the decode/encode interpretation explicit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum, Default)]
+pub enum FloatFormat {
+    /// IEEE-754 big-endian binary format.
+    #[default]
+    #[value(name = "ieee-be", alias = "ieee", alias = "ieee-big-endian")]
+    IeeeBigEndian,
+    /// IBM hexadecimal floating-point format.
+    #[value(name = "ibm-hex", alias = "ibm")]
+    IbmHex,
+}
+
 /// Options for decoding operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)] // Many boolean options are needed for decode configuration
@@ -131,6 +146,9 @@ pub struct DecodeOptions {
     /// Used as fallback when `ZonedEncodingFormat::Auto` cannot determine the format
     /// from the data (e.g., all-zero fields, mixed encodings).
     pub preferred_zoned_encoding: ZonedEncodingFormat,
+    /// Floating-point representation for COMP-1/COMP-2 fields.
+    #[serde(default)]
+    pub float_format: FloatFormat,
 }
 
 /// Options for encoding operations
@@ -168,6 +186,9 @@ pub struct EncodeOptions {
     /// 2. Preserved format from decode metadata
     /// 3. EBCDIC default for mainframe compatibility
     pub zoned_encoding_override: Option<ZonedEncodingFormat>,
+    /// Floating-point representation for COMP-1/COMP-2 fields.
+    #[serde(default)]
+    pub float_format: FloatFormat,
 }
 
 /// Record format specification
@@ -338,6 +359,7 @@ impl Default for DecodeOptions {
             threads: 1,
             preserve_zoned_encoding: false,
             preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+            float_format: FloatFormat::IeeeBigEndian,
         }
     }
 }
@@ -457,6 +479,14 @@ impl DecodeOptions {
         self.preferred_zoned_encoding = preferred_zoned_encoding;
         self
     }
+
+    /// Set floating-point representation for COMP-1/COMP-2 fields
+    #[must_use]
+    #[inline]
+    pub fn with_float_format(mut self, float_format: FloatFormat) -> Self {
+        self.float_format = float_format;
+        self
+    }
 }
 
 impl Default for EncodeOptions {
@@ -474,6 +504,7 @@ impl Default for EncodeOptions {
             on_encode_unmappable: UnmappablePolicy::Error,
             json_number_mode: JsonNumberMode::Lossless,
             zoned_encoding_override: None,
+            float_format: FloatFormat::IeeeBigEndian,
         }
     }
 }
@@ -601,6 +632,14 @@ impl EncodeOptions {
         self.zoned_encoding_override = Some(format);
         self
     }
+
+    /// Set floating-point representation for COMP-1/COMP-2 fields
+    #[must_use]
+    #[inline]
+    pub fn with_float_format(mut self, float_format: FloatFormat) -> Self {
+        self.float_format = float_format;
+        self
+    }
 }
 impl fmt::Display for RecordFormat {
     #[inline]
@@ -655,6 +694,16 @@ impl fmt::Display for UnmappablePolicy {
             Self::Error => write!(f, "error"),
             Self::Replace => write!(f, "replace"),
             Self::Skip => write!(f, "skip"),
+        }
+    }
+}
+
+impl fmt::Display for FloatFormat {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::IeeeBigEndian => write!(f, "ieee-be"),
+            Self::IbmHex => write!(f, "ibm-hex"),
         }
     }
 }
@@ -762,6 +811,7 @@ mod tests {
         assert_eq!(options.threads, 1);
         assert!(!options.preserve_zoned_encoding);
         assert_eq!(options.preferred_zoned_encoding, ZonedEncodingFormat::Auto);
+        assert_eq!(options.float_format, FloatFormat::IeeeBigEndian);
     }
 
     #[test]
@@ -775,6 +825,7 @@ mod tests {
         assert!(!options.strict_mode);
         assert_eq!(options.on_encode_unmappable, UnmappablePolicy::Error);
         assert_eq!(options.json_number_mode, JsonNumberMode::Lossless);
+        assert_eq!(options.float_format, FloatFormat::IeeeBigEndian);
     }
 
     #[test]
@@ -828,6 +879,7 @@ mod tests {
             threads: 4,
             preserve_zoned_encoding: true,
             preferred_zoned_encoding: ZonedEncodingFormat::Ebcdic,
+            float_format: FloatFormat::IbmHex,
         };
 
         let serialized = serde_json::to_string(&options).unwrap();
@@ -847,5 +899,24 @@ mod tests {
             deserialized.preferred_zoned_encoding,
             ZonedEncodingFormat::Ebcdic
         );
+        assert_eq!(deserialized.float_format, FloatFormat::IbmHex);
+    }
+
+    #[test]
+    fn test_decode_options_deserialize_missing_float_format_defaults() {
+        let options = DecodeOptions::default();
+        let mut value = serde_json::to_value(options).unwrap();
+        value.as_object_mut().unwrap().remove("float_format");
+        let deserialized: DecodeOptions = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized.float_format, FloatFormat::IeeeBigEndian);
+    }
+
+    #[test]
+    fn test_encode_options_deserialize_missing_float_format_defaults() {
+        let options = EncodeOptions::default();
+        let mut value = serde_json::to_value(options).unwrap();
+        value.as_object_mut().unwrap().remove("float_format");
+        let deserialized: EncodeOptions = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized.float_format, FloatFormat::IeeeBigEndian);
     }
 }

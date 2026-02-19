@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Fuzzing Guide for copybook-rs
 
 This document explains the fuzzing infrastructure for the copybook-rs project, including how to run fuzzers locally, manage corpora, and triage issues.

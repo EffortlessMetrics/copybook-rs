@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs: Current State & Path to Full Implementation
 
 > **Last Updated**: 2026-02-19

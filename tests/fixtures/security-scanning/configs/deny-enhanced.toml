@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # AC:4 - Enhanced deny.toml configuration with stricter policies
 # Test fixture: represents target state with 7 enhanced policies
 # Specification: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies

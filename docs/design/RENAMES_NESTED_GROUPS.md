@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # RENAMES Nested Group Semantics (Issue #133)
 
 ## Status

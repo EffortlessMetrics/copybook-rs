@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Audit System API Contracts and Schemas
 ## Issue #60 - Comprehensive API Specification
 

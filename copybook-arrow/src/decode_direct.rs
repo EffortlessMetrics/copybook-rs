@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Direct record-to-column decoding without JSON intermediate representation
 //!
 //! Walks the schema field tree and dispatches each field's byte slice to the

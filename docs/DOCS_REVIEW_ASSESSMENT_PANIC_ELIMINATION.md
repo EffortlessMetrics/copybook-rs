@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Documentation Review Assessment - Panic Elimination Implementation
 
 **Assessment Date**: 2025-09-28

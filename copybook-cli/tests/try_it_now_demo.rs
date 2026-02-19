@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Integration test for README.md "Try It Now" demo
 //!
 //! This test verifies that the demo command shown in the README works as expected:

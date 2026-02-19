@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # ADR-002: Performance Validation Strategy for Maintaining 15-52x Safety Margins
 
 ## Status

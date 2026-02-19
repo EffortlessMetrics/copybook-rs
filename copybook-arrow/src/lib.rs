@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Typed Arrow and Parquet output for copybook-rs
 //!
 //! Converts COBOL binary data directly to Apache Arrow columnar format,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Golden fixture tests for COMP-1 (f32) and COMP-2 (f64) encode/decode.
 //!
 //! Validates full-stack encode and decode of IEEE 754 floating-point fields

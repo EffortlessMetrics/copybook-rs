@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Python Utilities Architecture for Machine-Readable Benchmark Reporting
 
 ## Document Information

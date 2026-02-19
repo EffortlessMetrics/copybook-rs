@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Performance regression detection for automated CI/CD integration
 //!
 //! Implements comprehensive performance regression detection with statistical analysis,

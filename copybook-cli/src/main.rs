@@ -1,4 +1,5 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Command-line interface for copybook-rs
 //!
 //! This binary provides a user-friendly CLI for parsing copybooks and

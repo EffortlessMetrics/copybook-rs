@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Throughput Optimizations for copybook-rs
 
 This document describes the performance optimizations implemented in task 8.2 to achieve the target throughput of ≥80 MB/s for DISPLAY-heavy workloads and ≥40 MB/s for COMP-3-heavy workloads.

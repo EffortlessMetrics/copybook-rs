@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_core::audit::context::SecurityClassification;
 use copybook_core::audit::event::{
     AccessResult as AuditAccessResult, AccessType as AuditAccessType, ComparisonResult,

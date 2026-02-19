@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Deterministic JSON output for COBOL records
 //!
 //! This module implements streaming JSON writer that produces deterministic output

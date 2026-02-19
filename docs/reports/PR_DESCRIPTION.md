@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # feat: Implement Issue #53 Golden Fixtures Framework with Level-88 Support
 
 **Issue**: #53

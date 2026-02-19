@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Layout resolution and field offset calculation
 //!
 //! This module handles the computation of field byte offsets,

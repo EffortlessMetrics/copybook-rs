@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Tests for level-66 RENAMES parsing (Issue #122, Slice-1)
 //!
 //! This test suite validates:

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 ---
 # Kubernetes CronJob for scheduled copybook-rs processing
 # This runs decode operations on a scheduled basis (e.g., nightly data processing)

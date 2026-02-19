@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Fuzzing Infrastructure
 
 This directory contains the fuzzing infrastructure for the copybook-rs project using [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz) with [libFuzzer](https://llvm.org/docs/LibFuzzer.html).

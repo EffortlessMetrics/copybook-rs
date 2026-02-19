@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Documentation Gate Status: Issue #53 Final Assessment
 
 ## Gate Status: ✅ PASS - Documentation Validated and Corrected

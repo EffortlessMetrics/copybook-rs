@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! CLI integration tests using golden fixtures
 //!
 //! These tests verify that the CLI commands work correctly with real fixtures

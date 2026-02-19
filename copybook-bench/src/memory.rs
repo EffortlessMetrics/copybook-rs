@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Memory measurement utilities for benchmark diagnostics.
 //!
 //! Provides RSS (Resident Set Size) and file descriptor monitoring

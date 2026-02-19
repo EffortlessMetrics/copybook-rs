@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Panic-safe utility functions and extension traits
 //!
 //! This module provides utilities to eliminate panic conditions in the copybook-rs

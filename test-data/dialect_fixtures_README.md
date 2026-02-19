@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Dialect Fixtures Documentation
 
 This directory contains comprehensive fixtures for testing the dialect lever behavior across all three modes ("n", "0", "1") with ODO (OCCURS DEPENDING ON) arrays.

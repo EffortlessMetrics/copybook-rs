@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Versioned verification report structures with stable contract
 
 use crate::exit_codes::ExitCode;

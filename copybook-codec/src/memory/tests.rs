@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use super::*;
 use anyhow::{Context, Result, anyhow};
 use std::time::Duration;

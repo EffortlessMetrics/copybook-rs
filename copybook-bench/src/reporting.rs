@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Machine-readable benchmark reporting for Issue #52
 //!
 //! Provides standardized JSON schema and result processing for copybook-rs

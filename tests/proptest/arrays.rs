@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments, unused_imports, dead_code)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Property tests for array/OCCURS handling
 //!
 //! These tests verify that array operations maintain length and content

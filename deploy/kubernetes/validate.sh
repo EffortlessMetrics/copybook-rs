@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Validation script for copybook-rs Kubernetes manifests
 # This script checks manifest syntax and validates configuration
 

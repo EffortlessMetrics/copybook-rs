@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Feature Flags
 
 This document describes the feature flag system in copybook-rs, which allows runtime control over experimental features, enterprise features, performance optimizations, debug capabilities, and testing hooks.

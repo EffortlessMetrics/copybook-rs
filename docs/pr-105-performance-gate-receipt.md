@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Gate Receipt: PR #105 - RDW Codec Field Naming and COMP-3 Fixes
 
 **Agent**: Integrative Benchmark Runner (T5.5)

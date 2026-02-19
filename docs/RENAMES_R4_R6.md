@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # RENAMES R4-R6 Advanced Scenarios Specification
 
 **Status**: Specification Complete | Implementation: Phase 3.2

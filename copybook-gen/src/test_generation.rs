@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Comprehensive test generation utilities
 //!
 //! This module provides high-level functions for generating complete test suites

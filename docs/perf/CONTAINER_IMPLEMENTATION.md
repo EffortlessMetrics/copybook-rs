@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Benchmark Container Implementation
 
 **Status**: ✅ **Complete** - Ready for testing

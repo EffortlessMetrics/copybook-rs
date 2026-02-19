@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # COBOL Architecture Review Report - PR #61
 **Enterprise Audit System Implementation**
 

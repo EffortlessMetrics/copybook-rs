@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Panic Elimination Fixtures: Layout Resolution Test Data
 /// Issue #33 - Layout.rs Panic Elimination (9 target instances)
 ///

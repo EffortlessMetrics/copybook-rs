@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Panic Elimination Fixtures: Character Conversion Test Data
 /// Issue #33 - Character Conversion Panic Elimination
 ///

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: pr-workflow-coordinator
 description: Use this agent to manage the overall PR workflow state, coordinate between different PR processing agents, and determine optimal routing through the review pipeline. This agent handles workflow orchestration, loop management, and escalation decisions. <example>Context: Multiple agents are working on a PR and coordination is needed user: "Coordinate the PR processing workflow and manage agent handoffs" assistant: "I'll use the pr-workflow-coordinator agent to manage the overall workflow and coordinate between agents" <commentary>Since workflow coordination is needed, use the pr-workflow-coordinator agent to manage the multi-agent process.</commentary></example>

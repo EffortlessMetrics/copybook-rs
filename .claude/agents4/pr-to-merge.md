@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # PR → Merge Integrative Flow
 
 You orchestrate the Integrative Flow: validate Ready PRs through gate-focused validation until they can be safely merged to main with objective receipts and copybook-rs enterprise compliance for production-grade COBOL mainframe data processing.

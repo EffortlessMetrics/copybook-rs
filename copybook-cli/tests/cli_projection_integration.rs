@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! CLI integration tests for field projection
 //!
 //! Tests the --select flag for decode, encode, and verify commands

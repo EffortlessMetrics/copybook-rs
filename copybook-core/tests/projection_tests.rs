@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Integration tests for field projection functionality
 //!
 //! Tests the `project_schema` function with various COBOL copybook patterns

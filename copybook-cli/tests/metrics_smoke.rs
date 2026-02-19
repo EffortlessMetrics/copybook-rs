@@ -1,4 +1,5 @@
 #![allow(clippy::expect_used)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::unwrap_used)]
 #![cfg(feature = "metrics")]
 // Integration smoke test for the /metrics exporter in a short failing run.

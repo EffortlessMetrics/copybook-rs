@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # PR #90 Performance Regression Detection Receipt
 
 **Branch**: feat/codec-perf-refactor

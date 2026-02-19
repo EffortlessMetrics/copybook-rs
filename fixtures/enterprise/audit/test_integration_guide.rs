@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Integration Guide for Enterprise Audit Test Fixtures
 //!
 //! This module demonstrates how to use the comprehensive audit fixtures

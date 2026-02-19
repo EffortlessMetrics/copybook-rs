@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # BDD Tests for copybook-rs
 
 This directory contains Behavior Driven Development (BDD) tests for the copybook-rs project using the [Cucumber](https://github.com/cucumber-rs/cucumber) framework and Gherkin syntax.

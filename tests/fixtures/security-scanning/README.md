@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Security Scanning Test Fixtures
 ## Issue #35 - Dependency & Security Scanning Infrastructure
 

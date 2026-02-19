@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Panic Elimination Fixtures: Enterprise Integration Test Data
 /// Issue #33 - Real-world Mainframe Pattern Validation
 ///

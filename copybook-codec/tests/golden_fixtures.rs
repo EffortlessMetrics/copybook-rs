@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Golden fixture tests for copybook-rs
 //!
 //! These tests verify that the library produces consistent, expected outputs

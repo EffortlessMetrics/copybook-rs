@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Historical (Archived)
 
 This is an archived copy of the former root `ROADMAP_MVP.md` (kept for reference).

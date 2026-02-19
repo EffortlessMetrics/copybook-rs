@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs PR #58 Promotion Validation Report
 
 **Promotion Validator Assessment**: **✅ AUTHORIZED - READY FOR PROMOTION**

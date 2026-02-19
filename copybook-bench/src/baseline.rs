@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Baseline management for Issue #52 AC5
 //!
 //! Handles baseline promotion workflows for main branch merges and

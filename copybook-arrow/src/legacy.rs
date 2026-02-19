@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Legacy JSON-based Arrow/Parquet conversion (deprecated)
 //!
 //! This module preserves the original naive JSON-to-Arrow conversion API.

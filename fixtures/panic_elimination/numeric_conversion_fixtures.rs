@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Panic Elimination Fixtures: Numeric Conversion Test Data
 /// Issue #33 - Numeric.rs (20 instances) and Zoned_overpunch.rs (24 instances) Panic Elimination
 ///

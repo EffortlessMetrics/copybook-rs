@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Transfer corruption detection utilities
 //!
 //! This module provides heuristics and detection methods for common data transfer

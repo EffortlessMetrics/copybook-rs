@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # D0 Dialect Lever Contract: OCCURS Fixed with DEPENDING ON Lower Bound
 
 **Issue:** #51  

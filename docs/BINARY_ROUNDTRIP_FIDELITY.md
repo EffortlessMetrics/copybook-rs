@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Binary Round-Trip Fidelity in copybook-rs
 
 ## Overview

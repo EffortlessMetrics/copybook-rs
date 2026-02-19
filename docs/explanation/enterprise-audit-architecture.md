@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Audit System Technical Architecture
 ## Issue #60 - Comprehensive Implementation Blueprint
 

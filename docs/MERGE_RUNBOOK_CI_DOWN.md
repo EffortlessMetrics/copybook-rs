@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Merge Runbook – CI Down, Local Validation Gate
 
 **Scenario**: GitHub Actions CI is unavailable/flaking, but PRs are semantically validated locally.

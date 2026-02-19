@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #48: Binary round-trip encoding inconsistency in encode/decode cycle
 
 ## Context

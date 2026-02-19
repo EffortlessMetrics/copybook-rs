@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Golden fixture tests for SIGN LEADING/TRAILING SEPARATE encode/decode.
 //!
 //! Validates full-stack encode and decode of SIGN SEPARATE fields through the

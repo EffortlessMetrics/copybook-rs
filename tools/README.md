@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Tools Directory
 
 Development and debugging tools for copybook-rs COBOL data processing.

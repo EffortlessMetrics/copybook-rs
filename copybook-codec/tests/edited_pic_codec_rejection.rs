@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Phase E1: Codec rejection tests for edited PIC
 //!
 //! Tests that edited PIC fields properly reject during decode/encode operations

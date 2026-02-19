@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! JSON Schema Fuzzing Tests
 //!
 //! Property-based and fuzzing tests for JSON schema validation to ensure

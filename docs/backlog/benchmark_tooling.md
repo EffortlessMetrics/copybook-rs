@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Benchmark Tooling Backlog (Issue #52)
 
 **Status**: In progress (bench-report shipped; CI polish pending)  

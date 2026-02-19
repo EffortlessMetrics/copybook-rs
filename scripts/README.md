@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Scripts Directory
 
 Automation and utility scripts for copybook-rs development and CI/CD.

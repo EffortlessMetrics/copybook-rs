@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Receipts Documentation
 
 > **🎯 Purpose**: This document describes how performance receipts are generated, stored, and used for regression detection in copybook-rs.

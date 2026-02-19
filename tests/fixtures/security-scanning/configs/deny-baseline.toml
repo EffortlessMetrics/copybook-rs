@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # AC:4 - Baseline deny.toml configuration for comparison testing
 # Test fixture: represents current state before enhancement
 # Specification: docs/explanation/security-scanning-architecture.md#4-enhanced-denytoml-policies

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #102: RDW Codec Test Regression - Technical Specification Analysis
 
 ## Executive Summary

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Canonical exit codes for the `copybook` CLI.
 //!
 //! The CLI reports structured exit codes that line up with the error taxonomy:

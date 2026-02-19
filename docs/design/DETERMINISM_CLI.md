@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Determinism CLI Design
 
 **Status**: Implemented (Issue #112 Phase 2, PR #160)

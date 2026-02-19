@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Panic Elimination Test Fixtures Module
 //!
 //! This module provides comprehensive test fixtures for Issue #63 panic elimination

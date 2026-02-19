@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Error Propagation Validation Fixtures for Panic Elimination
 //!
 //! This module provides comprehensive error propagation validation fixtures that ensure

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Audit System for copybook-rs
 //!
 //! **EXPERIMENTAL**: This module is experimental and subject to breaking changes.

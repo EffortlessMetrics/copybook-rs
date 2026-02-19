@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Panic Elimination Implementation Blueprint
 ## Issue #33 - Production Safety Enhancement
 

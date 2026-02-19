@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL Processing Integration Fixtures for Issue #52 Machine-Readable Benchmark Reporting
 //!
 //! Provides comprehensive COBOL copybook and data processing test fixtures

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Integration tests for perf summarize functionality
 //!
 //! Tests end-to-end behavior of `cargo run -p xtask -- perf --summarize-last`

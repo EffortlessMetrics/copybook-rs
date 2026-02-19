@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Edited PIC (Phase E2 + E3) decode and encode support
 //!
 //! This module implements decode and encode for edited numeric PICTURE clauses following IBM COBOL specifications.

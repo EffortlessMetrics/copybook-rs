@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! D3 Dialect Fixtures Tests
 //!
 //! These tests verify that the CLI dialect flags work correctly.

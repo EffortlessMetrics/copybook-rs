@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Test Fixtures for copybook-rs
 //!
 //! Provides comprehensive test data for enterprise mainframe data processing scenarios

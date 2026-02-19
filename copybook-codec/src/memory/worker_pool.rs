@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use crossbeam_channel::{Sender, bounded};
 use std::sync::Arc;
 use std::thread;

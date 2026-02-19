@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Memory management utilities for streaming record processing
 //!
 //! This module provides bounded memory usage patterns, reusable scratch buffers,

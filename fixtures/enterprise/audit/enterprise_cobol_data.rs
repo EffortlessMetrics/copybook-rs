@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise COBOL Data Processing Test Fixtures
 //!
 //! Realistic COBOL processing scenarios for audit system testing including

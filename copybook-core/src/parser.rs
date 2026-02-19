@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL copybook parser
 //!
 //! This module implements the parsing logic for COBOL copybooks,

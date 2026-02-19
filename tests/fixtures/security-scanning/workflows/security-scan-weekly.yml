@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # AC:2 - Example weekly security scan workflow for validation testing
 # Test fixture: validates scheduled workflow syntax and issue creation patterns
 # Specification: docs/explanation/security-scanning-architecture.md#2-weekly-security-scanning-workflow

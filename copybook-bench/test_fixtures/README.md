@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-bench Test Fixtures
 
 Comprehensive test fixtures for Issue #49 "Performance regression monitoring and benchmark optimization" following copybook-rs TDD patterns.

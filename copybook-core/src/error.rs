@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Error types and taxonomy for copybook-rs
 //!
 //! This module defines a comprehensive error taxonomy with stable error codes

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Tests for Schema alias lookup methods (find_field_or_alias, resolve_alias_to_target)
 //!
 //! Validates that RENAMES aliases can be resolved through Schema API methods.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Roadmap
 
 **Status:** ⚠️ Engineering Preview (v0.4.3)

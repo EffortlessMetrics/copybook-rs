@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: panic-elimination-api-contracts.md#error-handling-contracts
 /// Issue #33 - Error Path Validation Tests
 ///

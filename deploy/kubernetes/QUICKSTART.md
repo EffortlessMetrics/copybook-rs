@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Kubernetes Quick Start for copybook-rs
 
 This guide provides quick deployment commands for copybook-rs on Kubernetes.

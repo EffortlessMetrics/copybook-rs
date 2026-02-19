@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-arrow
 
 Typed conversion layer between `copybook-rs` schemas/records and Apache Arrow/Parquet.

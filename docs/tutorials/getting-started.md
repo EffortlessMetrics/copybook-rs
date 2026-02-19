@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Getting Started with copybook-rs
 
 A step-by-step tutorial for newcomers to COBOL copybook parsing with enterprise-grade reliability.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL feature support matrix registry
 //!
 //! Single source of truth for feature support status, used by CLI, docs, and CI.

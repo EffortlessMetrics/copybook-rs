@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Example GitHub Actions workflow for validating Kubernetes manifests
 # Copy this to .github/workflows/k8s-validate.yml to enable CI validation
 

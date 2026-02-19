@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-codec
 
 High-performance COBOL copybook codec for mainframe-style fixed and RDW records.

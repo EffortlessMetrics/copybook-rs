@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! CLI Integration Fixtures for copybook-cli Panic Elimination
 //!
 //! This module provides comprehensive test fixtures for eliminating 7 .unwrap()/.expect() calls

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Tests verifying COMP-1/COMP-2 are always enabled (promoted to stable).
 //!
 //! These features were previously experimental and required `COPYBOOK_FF_COMP_1`/

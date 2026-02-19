@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #35: Dependency & Security Scanning - Technical Approach & Architecture
 
 ## Executive Summary

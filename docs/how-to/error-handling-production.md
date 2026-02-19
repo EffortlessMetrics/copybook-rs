@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # How to Handle Errors in Production
 
 A task-oriented guide for implementing robust error handling patterns with copybook-rs in production environments.

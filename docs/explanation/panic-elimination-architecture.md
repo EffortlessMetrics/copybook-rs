@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Panic Elimination Technical Architecture
 ## Issue #33 - Enterprise Safety Enhancement
 

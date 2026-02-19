@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Ready Promoter Receipt - PR #105
 
 **Agent**: ready-promoter

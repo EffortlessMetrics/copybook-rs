@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # How to Optimize Performance with Panic-Safe Operations
 
 A practical guide for maximizing copybook-rs throughput while maintaining enterprise-grade reliability and safety.

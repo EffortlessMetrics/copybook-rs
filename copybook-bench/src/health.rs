@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Health check utilities for benchmark environment validation.
 //!
 //! Provides pre-flight checks to verify the benchmark environment

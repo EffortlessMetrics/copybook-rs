@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Structural Validation Error Code Specifications
 
 ## Document Information

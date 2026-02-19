@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Audit Reporting System
 //!
 //! Generates comprehensive audit reports for compliance, performance,

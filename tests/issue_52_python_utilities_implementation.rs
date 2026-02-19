@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test scaffolding for Issue #52 Python utilities implementation
 //!
 //! Tests feature spec: issue-52-spec.md#python-utilities-implementation

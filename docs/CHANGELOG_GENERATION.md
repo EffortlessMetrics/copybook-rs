@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Changelog Generation
 
 This project uses [git-cliff](https://git-cliff.org/) for automated changelog generation based on conventional commits.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Issue #63 Panic Elimination Performance Validation
 
 **Performance Baseline Specialist Assessment**: ⚠️ **PERFORMANCE REGRESSION DETECTED - REQUIRES OPTIMIZATION**

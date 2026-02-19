@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Integration tests for the `copybook support` command
 //!
 //! Tests the feature support matrix CLI functionality including:

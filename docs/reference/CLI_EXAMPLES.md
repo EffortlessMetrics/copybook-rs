@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # CLI Examples and Manpage
 
 Comprehensive examples for copybook-rs command-line usage patterns.

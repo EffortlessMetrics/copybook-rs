@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #35: Finalized Acceptance Criteria with Validation Commands
 
 **Status**: ✅ Issue Ledger Validated and Ready for Spec Creation

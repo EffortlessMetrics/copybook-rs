@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL Parsing Edge Case Fixtures for copybook-core Panic Elimination
 //!
 //! This module provides comprehensive test fixtures for eliminating 63 .unwrap()/.expect() calls

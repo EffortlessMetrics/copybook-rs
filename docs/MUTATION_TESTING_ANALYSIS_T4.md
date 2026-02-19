@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs PR #61 Mutation Testing Analysis Report
 
 **Analysis Date**: 2025-09-26

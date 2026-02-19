@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Panic Elimination Domain Schemas - Issue #63
 
 ## Executive Summary

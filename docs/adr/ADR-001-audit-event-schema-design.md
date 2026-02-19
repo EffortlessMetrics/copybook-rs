@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # ADR-001: Audit Event Schema Design for Enterprise Audit System
 
 ## Status

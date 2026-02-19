@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Specification Finalization Report: Issue #53
 
 ## Executive Summary

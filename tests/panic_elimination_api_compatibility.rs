@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: panic-elimination-api-contracts.md#backward-compatibility-guarantee
 /// Issue #33 - API Compatibility Tests
 ///

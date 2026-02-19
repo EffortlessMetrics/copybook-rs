@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#migration-patterns-for-zero-unsafe-code-policy
 /// Issue #33 - Property Tests for Random COBOL Data with Panic-Safe Guarantees
 ///

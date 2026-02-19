@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Semantic Validation Report
 
 **Date**: 2025-11-14

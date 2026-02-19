@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Contributing to copybook-rs
 
 Thank you for your interest in contributing to copybook-rs. This guide will help you get started with development and submitting contributions.

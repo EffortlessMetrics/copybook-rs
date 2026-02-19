@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # E3.0 Edited PIC Encode Contract
 
 **Version:** v0.5.0  

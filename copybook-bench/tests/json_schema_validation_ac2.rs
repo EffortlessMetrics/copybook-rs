@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! AC2: JSON Schema Validation Tests
 //!
 //! Comprehensive validation of the `PerformanceReport` JSON schema

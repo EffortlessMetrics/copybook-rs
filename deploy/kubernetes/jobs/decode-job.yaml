@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 ---
 # Kubernetes Job for copybook-rs decode operation
 # This runs a one-off batch job to decode COBOL binary data to JSONL

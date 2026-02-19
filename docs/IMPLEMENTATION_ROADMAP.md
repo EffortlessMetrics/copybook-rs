@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Implementation Roadmap: Issue #53 Golden Fixtures Enhancement
 
 ## Document Information

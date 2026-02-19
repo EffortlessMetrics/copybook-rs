@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Validation Protocol — Quick Reference
 
 ## When to Use Each Script

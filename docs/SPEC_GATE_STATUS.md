@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Specification Gate Status: Issue #53
 
 ## Gate Status: ✅ PASS

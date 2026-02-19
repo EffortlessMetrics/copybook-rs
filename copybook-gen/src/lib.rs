@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test fixture and synthetic data generation for copybook-rs
 //!
 //! This crate provides utilities for generating synthetic COBOL copybooks

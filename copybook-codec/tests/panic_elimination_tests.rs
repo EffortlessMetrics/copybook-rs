@@ -1,4 +1,5 @@
 #![allow(clippy::panic)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::expect_used)] // Test code validates production code doesn't panic
 #![allow(clippy::unwrap_used)] // Test infrastructure for panic elimination validation
 #![allow(clippy::uninlined_format_args)] // Test output formatting for clarity

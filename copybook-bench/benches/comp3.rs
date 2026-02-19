@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::unreachable)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     UnmappablePolicy, ZonedEncodingFormat, decode_record, decode_record_with_scratch,

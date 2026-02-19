@@ -28,3 +28,7 @@ serde_json.workspace = true
 tempfile.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
+
+[features]
+default = []
+audit = ["copybook-core/audit", "copybook-codec/audit"]

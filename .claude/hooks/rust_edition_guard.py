@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later
 """
 Block Bash tool calls that pass '--edition 2021' (or '--edition=2021')
 to cargo/rustc/rustfmt. Allow everything else.

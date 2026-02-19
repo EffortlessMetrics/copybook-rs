@@ -137,7 +137,6 @@ pub fn validate_odo_counter(
 ///
 /// # Errors
 /// Returns an error if ODO constraints are violated.
-#[allow(dead_code)]
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn validate_odo_tail_position(

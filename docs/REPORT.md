@@ -83,7 +83,7 @@ Performance is tracked via machine-readable receipts:
   `bash scripts/bench.sh`)
 - **Narrative summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
-**v0.4.1 policy (Engineering Preview)**:
+**v0.4.3 policy (Engineering Preview)**:
 
 - Floors are **advisory targets** (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s).
 - Receipts are environment-specific; validate on your target hardware before
@@ -152,9 +152,9 @@ Comprehensive support for mainframe data formats:
 
 ### Unsupported COBOL Features
 
-- COMP-1/COMP-2 floating-point types (experimental when `comp_1` / `comp_2` are enabled)
+- COMP-1/COMP-2 floating-point types (fully supported, promoted to stable in v0.4.3)
 - Edited PIC clauses (E1-E3.7 fully supported)
-- SIGN LEADING/TRAILING SEPARATE (partial support via `sign_separate`)
+- SIGN LEADING/TRAILING SEPARATE (fully supported, promoted to stable in v0.4.3)
 - Nested OCCURS DEPENDING ON arrays
 - 66-level (RENAMES) items – R1-R3 supported; R4-R6 and nested interactions remain policy-limited (`renames_r4_r6`)
 
@@ -250,13 +250,13 @@ Performance reporting is receipt-based (JSON) rather than single-number claims.
 - **Receipts**: `scripts/bench/perf.json` (via `bash scripts/bench.sh`)
 - **Summary**: `docs/PERFORMANCE_GOVERNANCE.md`
 
-In v0.4.1, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80
+In v0.4.3, performance floors are tracked as **advisory targets** (DISPLAY ≥ 80
 MiB/s; COMP-3 ≥ 40 MiB/s). Results are environment-specific; validate on your
 target hardware before production use.
 
 ## Readiness Assessment
 
-### Status: ⚠️ Engineering Preview (v0.4.1) - Cautious Adoption Recommended
+### Status: ⚠️ Engineering Preview (v0.4.3) - Cautious Adoption Recommended
 
 **Official Status**: See [ROADMAP.md](ROADMAP.md) for canonical project status
 and development timeline.
@@ -268,16 +268,16 @@ remaining limitations are addressed.
 
 #### Technical Signals
 
-- ⚠️ **Test Health**: `cargo test --workspace` reports 840+ tests passing (24
-  skipped for external tool requirements)
+- ✅ **Test Health**: `cargo test --workspace` reports 1825+ tests passing (10
+  ignored)
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ⚠️ **Performance Variance**: Receipts are environment-specific; validate on
   your target hardware (see `scripts/bench/perf.json` +
   `docs/PERFORMANCE_GOVERNANCE.md`)
-- ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.1
+- ⚠️ **Performance Policy**: Floors are advisory-only targets in v0.4.3
   (DISPLAY ≥ 80 MiB/s; COMP-3 ≥ 40 MiB/s)
-- ⚠️ **COBOL Completeness**: COMP-1/COMP-2 and SIGN SEPARATE are experimental
-  (`comp_1`/`comp_2`, `sign_separate`); edited PIC clauses are fully implemented
+- ✅ **COBOL Completeness**: COMP-1/COMP-2 and SIGN SEPARATE are fully supported
+  (promoted to stable in v0.4.3); edited PIC clauses are fully implemented
   with current E1-E3 feature coverage; nested ODO arrays remain unsupported;
   RENAMES (66-level) are supported for R1-R3 and policy-limited for R4-R6
   (parser+resolver complete, policy exceptions documented); Level-88 condition

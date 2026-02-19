@@ -1,6 +1,6 @@
 # Production Readiness Assessment
 
-## Status: ⚠️ Under Validation (v0.3.1)
+## Status: ⚠️ Under Validation (v0.4.3)
 
 copybook-rs currently serves teams that need a memory-safe COBOL parser with trustworthy error reporting, but we are deliberately avoiding "production-ready" language. Throughput still falls short of historic GiB/s targets, benchmark automation is intermittent, and some COBOL constructs are experimental or unsupported by policy. This document summarises the latest evidence so adopters can make informed decisions.
 
@@ -8,10 +8,10 @@ copybook-rs currently serves teams that need a memory-safe COBOL parser with tru
 
 | Area | Observation | Source |
 |------|-------------|--------|
-| Tests | `cargo test --workspace` reports 840+ tests passing (24 skipped for external tool requirements) | CI artifacts
+| Tests | `cargo test --workspace` reports 1825+ tests passing (10 ignored) | CI artifacts
 | Performance | Receipts live at `scripts/bench/perf.json`; baseline: DISPLAY 205 MiB/s, COMP-3 58 MiB/s (see `docs/PERFORMANCE_GOVERNANCE.md`) | `scripts/bench/perf.json`, `docs/PERFORMANCE_GOVERNANCE.md`
 | Memory | Streaming architecture stays below 256 MiB on reference fixtures | Bench logs (`performance-final-validation.log`)
-| COBOL Coverage | COMP-1/COMP-2 and SIGN SEPARATE are experimental (`comp_1`/`comp_2` and `sign_separate`); edited PIC and 88-level are implemented; nested ODOs and ODO-over-REDEFINES remain out of scope; RENAMES is partially supported (R1-R3, R4-R6 policy-limited) | `README.md`, `reference/COBOL_SUPPORT_MATRIX.md`, parser backlog |
+| COBOL Coverage | COMP-1/COMP-2 and SIGN SEPARATE are fully supported (promoted to stable in v0.4.3); edited PIC and 88-level are implemented; nested ODOs and ODO-over-REDEFINES remain out of scope; RENAMES is partially supported (R1-R3, R4-R6 policy-limited) | `README.md`, `reference/COBOL_SUPPORT_MATRIX.md`, parser backlog |
 | Tooling | Benchmark utilities (`bench_runner.py`, `baseline_manager.py`, `slo_validator.py`, etc.) not implemented; backlog opened | `docs/backlog/benchmark_tooling.md`
 
 ## Strengths

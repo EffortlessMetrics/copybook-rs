@@ -279,7 +279,7 @@ For commercial licensing or enterprise security inquiries, see [README.md](READM
 
 ---
 
-**Last Updated**: 2026-01-12
+**Last Updated**: 2026-02-19
 **Security Contact**: Use GitHub Security Advisories (preferred) or GitHub Issues with `security` label
 
 Thank you for helping keep copybook-rs and its users secure!

@@ -287,7 +287,7 @@ fn process_copybook(text: &str) -> Result<Schema> {
     let flags = FeatureFlags::global();
 
     if flags.is_enabled(Feature::SignSeparate) {
-        // Use experimental sign separate support
+        // Use stable sign separate support
         parse_with_sign_separate(text)
     } else {
         // Use standard parsing

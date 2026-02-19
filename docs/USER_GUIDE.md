@@ -9,7 +9,7 @@ copybook-rs is an **Engineering Preview** system for enterprise mainframe data p
 ### **Cautious Adoption Recommended** ⚠️
 
 copybook-rs is in **Engineering Preview** status with:
-- **840+ tests passing** (1135+ on development; comprehensive validation including golden fixtures)
+- **1825+ tests passing** (comprehensive validation including golden fixtures)
 - **Performance baseline established** (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s)
 - **Level-88 condition value support** with structural validation
 - **Golden fixtures framework** for enterprise scenario validation
@@ -115,8 +115,8 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2> errors.l
 - ✅ **Multiple Codepages** (CP037, CP273, CP500, CP1047, CP1140)
 
 ### **Known Limitations** (By Design)
-- COMP-1/COMP-2 floating-point (experimental behind `comp_1`/`comp_2`)
-- SIGN LEADING/TRAILING SEPARATE (partial support behind `sign_separate`)
+- COMP-1/COMP-2 floating-point (fully supported, promoted to stable in v0.4.3)
+- SIGN LEADING/TRAILING SEPARATE (fully supported, promoted to stable in v0.4.3)
 - Nested ODO arrays (O5: ODO inside ODO - rejected by design)
 - ODO over REDEFINES (O6 - rejected by design)
 - RENAMES interactions with REDEFINES/OCCURS (R4-R6 - policy-limited; R1-R3 supported)
@@ -326,10 +326,10 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2>&1 | \
 
 ### Production Support
 For production deployments:
-1. Review comprehensive test coverage (840+ tests on release tag, 1135+ on development)
+1. Review comprehensive test coverage (1825+ tests passing)
 2. Validate performance for your specific workload against established baseline
 3. Implement error monitoring using stable error codes
 4. Use verification mode for data quality auditing
 5. Validate representative copybooks against supported features before deployment
 
-**Status**: copybook-rs is in Engineering Preview (v0.4.0). Suitable for teams that validate copybooks against supported features. Production deployment requires pilot validation on representative workloads. See [ROADMAP.md](ROADMAP.md) for adoption guidance.
+**Status**: copybook-rs is in Engineering Preview (v0.4.3). Suitable for teams that validate copybooks against supported features. Production deployment requires pilot validation on representative workloads. See [ROADMAP.md](ROADMAP.md) for adoption guidance.

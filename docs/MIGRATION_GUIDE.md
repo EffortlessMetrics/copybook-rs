@@ -45,15 +45,15 @@ This guide helps users migrate from existing COBOL data processing tools to copy
 | PIC S9(n) | ✅ | ✅ | ✅ | ✅ | Signed numeric |
 | COMP/BINARY | ✅ | ✅ | ✅ | ✅ | Binary integers |
 | COMP-3 | ✅ | ✅ | ✅ | ✅ | Packed decimal |
-| COMP-1 | ⚠️ | ✅ | ✅ | ✅ | Experimental via `comp_1` feature flag |
-| COMP-2 | ⚠️ | ✅ | ✅ | ✅ | Experimental via `comp_2` feature flag |
+| COMP-1 | ✅ | ✅ | ✅ | ✅ | Fully supported |
+| COMP-2 | ✅ | ✅ | ✅ | ✅ | Fully supported |
 | REDEFINES | ✅ | ✅ | ✅ | ✅ | Full support |
 | OCCURS | ✅ | ✅ | ✅ | ✅ | Fixed arrays |
 | OCCURS DEPENDING ON | ✅ | ✅ | ✅ | ✅ | Tail position only |
 | SYNCHRONIZED | ✅ | ✅ | ✅ | ✅ | Alignment support |
 | BLANK WHEN ZERO | ✅ | ✅ | ✅ | ✅ | Special handling |
 | Edited PIC | ⚠️ | ✅ | ✅ | ✅ | Supported for E1-E3.7 |
-| SIGN SEPARATE | ⚠️ | ✅ | ✅ | ✅ | Supported behind `sign_separate` |
+| SIGN SEPARATE | ✅ | ✅ | ✅ | ✅ | Fully supported |
 | 66/88 levels | ✅ | ✅ | ✅ | ✅ | 66/88-level names/values supported (`66` aliasing and `88` condition handling) |
 
 Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
@@ -63,7 +63,7 @@ Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
 ### Enterprise COBOL / COBOL for z/OS
 
 **Common Differences:**
-- copybook-rs treats COMP-1/COMP-2 as experimental under feature flags and defaults to rejection
+- copybook-rs fully supports COMP-1/COMP-2 (promoted to stable in v0.4.3)
 - Edited PIC clauses are supported for E1-E3.7, but older runtimes should still validate before migration
 - SIGN SEPARATE clauses are now supported behind `sign_separate` and may vary by pattern
 

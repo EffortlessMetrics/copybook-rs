@@ -1,12 +1,12 @@
 # copybook-rs: Current State & Path to Full Implementation
 
-> **Last Updated**: 2025-12-23
-> **Current Version**: v0.4.2-dev (main branch)
-> **Latest Release**: v0.4.1 (2025-12-22)
+> **Last Updated**: 2026-02-19
+> **Current Version**: v0.4.3
+> **Latest Release**: v0.4.3
 
 ## Executive Summary
 
-**copybook-rs** is a Rust toolkit for COBOL copybook parsing and fixed-record data conversion. The project demonstrates excellent code quality with **0 production `panic!()` on main**, 840+ passing tests, and receipt-based performance governance.
+**copybook-rs** is a Rust toolkit for COBOL copybook parsing and fixed-record data conversion. The project demonstrates excellent code quality with **0 production `panic!()` on main**, 1825+ passing tests, and receipt-based performance governance.
 
 The project is operating in **CI-off mode** with local gates and small PRs, following a clear trajectory toward v1.0.0.
 
@@ -18,8 +18,8 @@ The project is operating in **CI-off mode** with local gates and small PRs, foll
 
 | Item | Status |
 |------|--------|
-| **Current Branch** | v0.4.2-dev on `main` |
-| **Latest Tagged Release** | v0.4.1 (2025-12-22) |
+| **Current Branch** | v0.4.3 on `main` |
+| **Latest Tagged Release** | v0.4.3 |
 | **Release Mode** | Engineering Preview |
 
 ### CI/CD Status
@@ -54,10 +54,10 @@ The project is operating in **CI-off mode** with local gates and small PRs, foll
 |------|--------|----------|
 | Edited PIC Encode (Phase E3) | ✅ Complete | LOW |
 | Dialect Lever (#51) | ✅ Complete | MEDIUM |
-| COMP-1/COMP-2 floats | ⚠️ Experimental (behind `comp_1`, `comp_2`) | LOW |
+| COMP-1/COMP-2 floats | ✅ Fully supported (promoted to stable in v0.4.3) | LOW |
 | Nested ODO arrays | Explicitly rejected; architectural complexity | OUT OF SCOPE |
 | RENAMES R4-R6 | ⚠️ Policy-limited (`renames_r4_r6`) | LOW |
-| SIGN LEADING/TRAILING SEPARATE | ⚠️ Partial (`sign_separate`); codec parity limited | LOW |
+| SIGN LEADING/TRAILING SEPARATE | ✅ Fully supported (promoted to stable in v0.4.3) | LOW |
 
 ### Code Quality Metrics
 
@@ -65,7 +65,7 @@ The project is operating in **CI-off mode** with local gates and small PRs, foll
 |--------|--------|
 | **Production `panic!()` calls** | 0 on main |
 | **Test-only `panic!()` calls** | Acceptable (in `#[cfg(test)]` modules) |
-| **Passing Tests** | 840+ |
+| **Passing Tests** | 1825+ |
 | **Unsafe Blocks (public APIs)** | 0 |
 | **Clippy Pedantic Compliance** | Enforced |
 

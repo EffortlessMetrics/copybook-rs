@@ -1,6 +1,6 @@
 # copybook-rs Roadmap — Accuracy-First to Production MVP
 
-**Status**: ⚠️ Engineering Preview (v0.4.2-dev on main; v0.4.1 latest tag)
+**Status**: ⚠️ Engineering Preview (v0.4.3)
 **Last Updated**: 2025-12-31
 **Canonical Reference**: [docs/ROADMAP.md](https://github.com/EffortlessMetrics/copybook-rs/blob/main/docs/ROADMAP.md)
 
@@ -134,9 +134,9 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Edited PIC encode (E3.0-E3.7) | ✅ | E1-E3.7 implemented; monitor feature parity for edge patterns |
-| COMP-1/COMP-2 | ⚠️ | Partial support behind feature flags (`comp_1`, `comp_2`) |
+| COMP-1/COMP-2 | ✅ | Fully supported (promoted to stable in v0.4.3) |
 | Dialect lever (D1-D4) | ✅ | Completed and documented |
-| SIGN SEPARATE | ✅ | Experimental support behind `sign_separate` |
+| SIGN SEPARATE | ✅ | Fully supported (promoted to stable in v0.4.3) |
 
 ### Not Supported (❌)
 

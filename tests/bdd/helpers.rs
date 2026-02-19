@@ -1,6 +1,6 @@
 use copybook_codec::{
-    encode_jsonl_to_file, Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode,
-    RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    encode_jsonl_to_file,
 };
 use copybook_core::Error;
 use serde_json::{Map, Value};

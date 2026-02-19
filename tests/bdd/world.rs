@@ -1,6 +1,6 @@
 use copybook_codec::determinism::DeterminismResult;
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat};
-use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions};
+use copybook_core::{ParseOptions, parse_copybook, parse_copybook_with_options};
 use serde_json::Value;
 
 use crate::helpers::{default_ascii_decode_options, default_ascii_encode_options};

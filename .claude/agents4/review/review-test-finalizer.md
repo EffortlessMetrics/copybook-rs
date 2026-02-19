@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: review-test-finalizer
 description: Use this agent when finalizing the test correctness stage after review-tests-runner, review-flake-detector, and review-coverage-analyzer have completed. This agent confirms all tests are green, documents quarantined tests, and provides final test gate validation before proceeding to mutation testing.

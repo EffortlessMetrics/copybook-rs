@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: rust-tooling-specialist
 description: Use this agent for advanced Rust tooling integration, modern development workflow optimization, and leveraging cutting-edge Rust ecosystem tools for enhanced productivity and code quality.

@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **audit**: Implement `Display` for `AuditEventType` and `AuditSeverity` enums
+- **audit**: Add additional Clippy lint enforcement to audit module
+- **feature-flags**: Promote COMP-1/COMP-2 and SIGN SEPARATE features to stable
+
+### Changed
+
+- **core**: Refactor `PicToken` methods for clarity and consistency
+- **codec**: Improve JSON writer functionality
+
 ### Fixed
 
-- Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites.
-- Release prep: stabilize enterprise throughput assertions in `enterprise_mainframe_production_scenarios` for CI-consistent performance checks.
+- Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites
+- Release prep: stabilize enterprise throughput assertions in `enterprise_mainframe_production_scenarios` for CI-consistent performance checks
+
+### Miscellaneous Tasks
+
+- Update GitHub Actions to use latest action versions
 
 ## [0.4.3] — 2026-02-11
 

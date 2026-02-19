@@ -7,6 +7,44 @@
 //! NOTE: This module is experimental and has relaxed clippy pedantic lints
 //! until the audit feature stabilizes. See ROADMAP.md for timeline.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::fn_params_excessive_bools,
+    clippy::map_unwrap_or,
+    clippy::if_not_else,
+    clippy::collapsible_if,
+    clippy::redundant_closure,
+    clippy::redundant_closure_for_method_calls,
+    clippy::uninlined_format_args,
+    clippy::needless_pass_by_value,
+    clippy::useless_conversion,
+    clippy::single_match_else,
+    clippy::match_same_arms,
+    clippy::unused_self,
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    clippy::similar_names,
+    clippy::module_name_repetitions,
+    clippy::items_after_statements,
+    clippy::used_underscore_items,
+    clippy::used_underscore_binding,
+    clippy::wildcard_imports,
+    clippy::unreadable_literal,
+    clippy::manual_let_else,
+    clippy::struct_excessive_bools,
+    clippy::needless_return,
+    clippy::nonminimal_bool,
+    clippy::cast_lossless,
+    clippy::unnecessary_wraps,
+    clippy::manual_string_new,
+    clippy::or_fun_call,
+    clippy::manual_div_ceil,
+    clippy::format_collect,
+    clippy::unwrap_or_default
+)]
+
 use crate::exit_codes::ExitCode;
 use crate::utils::atomic_write;
 use crate::{write_stderr_line, write_stdout_line};
@@ -698,6 +736,7 @@ struct HealthEventRecord {
 #[derive(Deserialize)]
 struct ReportSectionFile {
     #[serde(default)]
+    #[allow(dead_code)]
     audit_report: Option<Value>,
     #[serde(default)]
     compliance_validation: Option<Value>,
@@ -708,6 +747,7 @@ struct ReportSectionFile {
     #[serde(default)]
     security_audit: Option<Value>,
     #[serde(default)]
+    #[allow(dead_code)]
     audit_health: Option<Value>,
 }
 
@@ -1924,7 +1964,7 @@ fn run_performance_audit_impl(
     let comp3_throughput_mbps = bytes_to_mbps(avg_comp3_throughput_bps);
 
     let mut baseline_id = None;
-    let mut baseline_throughput = None;
+    let mut _baseline_throughput = None;
     let mut comparison_result = ComparisonResult::WithinBaseline;
     let mut regressions = Vec::new();
     let mut overhead = 0.0;
@@ -1934,7 +1974,7 @@ fn run_performance_audit_impl(
         let baseline_manager = BaselineManager::new(reference_path);
         let baseline = baseline_manager.load_baseline()?;
         baseline_id = Some(baseline.baseline_id.clone());
-        baseline_throughput = Some(baseline.throughput.clone());
+        _baseline_throughput = Some(baseline.throughput.clone());
 
         let current_metrics = ThroughputMetrics {
             display_throughput: clamp_u64(avg_display_throughput_bps),
@@ -2401,9 +2441,9 @@ fn run_security_audit_impl(
                     .into_iter()
                     .map(|event| {
                         format!(
-                            "CEF:0|copybook-rs|Audit|1.0|{:?}|Security Event|{:?}|src={} event={}\n",
+                            "CEF:0|copybook-rs|Audit|1.0|{}|Security Event|{}|src={} event={}\n",
                             event.event_type,
-                            event.severity,
+                            event.severity.cef_numeric(),
                             event.source,
                             event.context.operation_id
                         )
@@ -2415,7 +2455,7 @@ fn run_security_audit_impl(
                     .into_iter()
                     .map(|event| {
                         format!(
-                            "LEEF:2.0|copybook-rs|Audit|1.0|security|devTime={} src={} event={} sev={:?}\n",
+                            "LEEF:2.0|copybook-rs|Audit|1.0|security|devTime={} src={} event={} sev={}\n",
                             event.timestamp, event.source, event.event_id, event.severity
                         )
                     })

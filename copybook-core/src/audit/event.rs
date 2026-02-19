@@ -194,6 +194,49 @@ pub enum AuditSeverity {
     Critical,
 }
 
+impl std::fmt::Display for AuditEventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CopybookParse => f.write_str("CopybookParse"),
+            Self::DataValidation => f.write_str("DataValidation"),
+            Self::DataTransformation => f.write_str("DataTransformation"),
+            Self::PerformanceMeasurement => f.write_str("PerformanceMeasurement"),
+            Self::ComplianceCheck => f.write_str("ComplianceCheck"),
+            Self::SecurityEvent => f.write_str("SecurityEvent"),
+            Self::LineageTracking => f.write_str("LineageTracking"),
+            Self::ErrorEvent => f.write_str("ErrorEvent"),
+            Self::AccessEvent => f.write_str("AccessEvent"),
+            Self::ConfigurationChange => f.write_str("ConfigurationChange"),
+        }
+    }
+}
+
+impl std::fmt::Display for AuditSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Info => f.write_str("Info"),
+            Self::Low => f.write_str("Low"),
+            Self::Medium => f.write_str("Medium"),
+            Self::High => f.write_str("High"),
+            Self::Critical => f.write_str("Critical"),
+        }
+    }
+}
+
+impl AuditSeverity {
+    /// Return the CEF-spec numeric severity (0-10 scale).
+    #[must_use]
+    pub fn cef_numeric(self) -> u8 {
+        match self {
+            Self::Info => 1,
+            Self::Low => 3,
+            Self::Medium => 5,
+            Self::High => 7,
+            Self::Critical => 10,
+        }
+    }
+}
+
 /// Audit event payload containing event-specific data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
@@ -624,5 +667,33 @@ mod tests {
         );
 
         assert!(high_event.requires_immediate_attention());
+    }
+
+    #[test]
+    fn test_audit_severity_display() {
+        assert_eq!(AuditSeverity::Info.to_string(), "Info");
+        assert_eq!(AuditSeverity::Low.to_string(), "Low");
+        assert_eq!(AuditSeverity::Medium.to_string(), "Medium");
+        assert_eq!(AuditSeverity::High.to_string(), "High");
+        assert_eq!(AuditSeverity::Critical.to_string(), "Critical");
+    }
+
+    #[test]
+    fn test_audit_severity_cef_numeric() {
+        assert_eq!(AuditSeverity::Info.cef_numeric(), 1);
+        assert_eq!(AuditSeverity::Low.cef_numeric(), 3);
+        assert_eq!(AuditSeverity::Medium.cef_numeric(), 5);
+        assert_eq!(AuditSeverity::High.cef_numeric(), 7);
+        assert_eq!(AuditSeverity::Critical.cef_numeric(), 10);
+    }
+
+    #[test]
+    fn test_audit_event_type_display() {
+        assert_eq!(AuditEventType::SecurityEvent.to_string(), "SecurityEvent");
+        assert_eq!(AuditEventType::CopybookParse.to_string(), "CopybookParse");
+        assert_eq!(
+            AuditEventType::DataTransformation.to_string(),
+            "DataTransformation"
+        );
     }
 }

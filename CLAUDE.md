@@ -189,6 +189,17 @@ let projected_schema = project_schema(&schema, &selected_fields)?;
 let json_value = decode_record(&projected_schema, &record_data, &options)?;
 ```
 
+### Raw Data Capture Convention
+
+`__raw_b64` is the canonical raw-payload field emitted when raw mode is enabled.
+`RawMode::Record` stores only record payload bytes.
+`RawMode::RecordRDW` stores RDW header + payload bytes.
+`RawMode::Field` stores field-level raw values in `<FIELD_NAME>__raw_b64`.
+`RawMode::Off` stores no raw payload.
+
+For RDW records, `RecordRDW` preserves reserved bytes and payload bytes in the captured value.
+When `use_raw` is enabled for encode, RDW output preserves header bytes and recomputes length when payload changes.
+
 ## Architecture
 
 ### Processing Flow

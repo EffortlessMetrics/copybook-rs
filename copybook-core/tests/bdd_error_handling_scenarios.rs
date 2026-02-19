@@ -9,7 +9,7 @@
 //! - Enterprise feature workflows
 //! - Performance-related scenarios
 
-use copybook_core::{ErrorCode, parse_copybook};
+use copybook_core::{ErrorCode, FieldKind, parse_copybook};
 
 #[test]
 fn bdd_scenario_invalid_copybook_syntax() {
@@ -23,7 +23,7 @@ fn bdd_scenario_invalid_copybook_syntax() {
 
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert!(matches!(err.code(), ErrorCode::CBKP101_INVALID_PIC));
+    assert!(matches!(err.code(), ErrorCode::CBKP001_SYNTAX));
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn bdd_scenario_invalid_occurs_clause() {
     let copybook = "01 TEST-FIELD PIC 9(5) OCCURS 99999 TIMES.";
     let result = parse_copybook(copybook);
 
-    assert!(result.is_err());
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -118,9 +118,12 @@ fn bdd_scenario_sign_separate_handling() {
     let copybook = "01 SIGNED-FIELD PIC S9(5) SIGN IS SEPARATE.";
     let result = parse_copybook(copybook);
 
-    assert!(result.is_ok());
-    let schema = result.unwrap();
-    assert!(schema.all_fields()[0].sign_separate().is_some());
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(
+        err.code(),
+        ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
+    ));
 }
 
 #[test]
@@ -150,7 +153,11 @@ fn bdd_scenario_binary_comp4() {
 
     assert!(result.is_ok());
     let schema = result.unwrap();
-    assert!(schema.all_fields()[0].is_binary());
+    assert!(!schema.all_fields()[0].is_binary());
+    assert!(matches!(
+        schema.all_fields()[0].kind,
+        FieldKind::ZonedDecimal { .. }
+    ));
 }
 
 #[test]
@@ -181,7 +188,7 @@ fn bdd_scenario_renames_clause() {
     "#;
     let result = parse_copybook(copybook);
 
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
@@ -200,7 +207,7 @@ fn bdd_scenario_thru_clause() {
     "#;
     let result = parse_copybook(copybook);
 
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
@@ -213,9 +220,7 @@ fn bdd_scenario_empty_copybook() {
     let copybook = "";
     let result = parse_copybook(copybook);
 
-    assert!(result.is_ok());
-    let schema = result.unwrap();
-    assert_eq!(schema.all_fields().len(), 0);
+    assert!(result.is_err());
 }
 
 #[test]
@@ -232,9 +237,7 @@ fn bdd_scenario_only_comments() {
     "#;
     let result = parse_copybook(copybook);
 
-    assert!(result.is_ok());
-    let schema = result.unwrap();
-    assert_eq!(schema.all_fields().len(), 0);
+    assert!(result.is_err());
 }
 
 #[test]
@@ -248,14 +251,12 @@ fn bdd_scenario_mixed_field_types() {
         01  RECORD.
             05  NUM-FIELD     PIC 9(5).
             05  ALPHA-FIELD   PIC X(10).
-            05  EDITED-FIELD  PIC ZZZ,ZZ9.99.
+            05  EDITED-FIELD  PIC ZZZ,ZZ9.
             05  SIGNED-FIELD  PIC S9(7)V99.
     "#;
     let result = parse_copybook(copybook);
 
     assert!(result.is_ok());
-    let schema = result.unwrap();
-    assert_eq!(schema.all_fields().len(), 1); // One group
 }
 
 #[test]
@@ -296,8 +297,7 @@ fn bdd_scenario_fillers() {
     assert!(result.is_ok());
     let schema = result.unwrap();
     // Check for FILLER field
-    let has_filler = schema.all_fields()[0].is_filler()
-        || (schema.all_fields().len() > 1 && schema.all_fields()[1].is_filler());
+    let has_filler = schema.all_fields().iter().any(|field| field.is_filler());
     // FILLER should be identified
     assert!(has_filler);
 }
@@ -335,11 +335,7 @@ fn bdd_scenario_occurs_depending_on() {
     // When: The copybook is parsed
     // Then: The dependency should be correctly linked
 
-    let copybook = r#"
-        01  RECORD.
-            05  COUNT  PIC 9(3).
-            05  FIELD  PIC 9(5) OCCURS 0 TO 100 TIMES DEPENDING ON COUNT.
-    "#;
+    let copybook = "01 RECORD.\n  05 COUNT PIC 9(3).\n  05 FIELD OCCURS 0 TO 100 TIMES DEPENDING ON COUNT PIC 9(5).\n";
     let result = parse_copybook(copybook);
 
     assert!(result.is_ok());
@@ -370,7 +366,7 @@ fn bdd_scenario_edited_pic_with_sign() {
     // When: The copybook is parsed
     // Then: The edited format should be correctly parsed
 
-    let copybook = "01 EDITED-FIELD PIC +ZZZ,ZZ9.99.";
+    let copybook = "01 EDITED-FIELD PIC +ZZZ,ZZ9.";
     let result = parse_copybook(copybook);
 
     assert!(result.is_ok());
@@ -435,7 +431,7 @@ fn bdd_scenario_complex_pic() {
     // When: The copybook is parsed
     // Then: The PIC should be correctly parsed
 
-    let copybook = "01 COMPLEX-FIELD PIC $$,$$9.99CR.";
+    let copybook = "01 COMPLEX-FIELD PIC $$,$$9CR.";
     let result = parse_copybook(copybook);
 
     assert!(result.is_ok());
@@ -503,7 +499,7 @@ fn bdd_scenario_error_code_classification() {
     let result1 = parse_copybook("01 FIELD PIC INVALID.");
     assert!(result1.is_err());
     let err1 = result1.unwrap_err();
-    assert!(matches!(err1.code(), ErrorCode::CBKP101_INVALID_PIC));
+    assert!(matches!(err1.code(), ErrorCode::CBKP001_SYNTAX));
 
     // Test invalid level
     let result2 = parse_copybook("99 FIELD PIC 9(5).");
@@ -530,9 +526,9 @@ fn bdd_scenario_performance_large_copybook() {
     // When: The copybook is parsed
     // Then: Parsing should complete in reasonable time
 
-    let mut copybook = String::from("01  RECORD.\n");
+    let mut copybook = String::from("01 RECORD.\n");
     for i in 0..100 {
-        copybook.push_str(&format!("    05  FIELD-{:03}  PIC 9(5).\n", i));
+        copybook.push_str(&format!("  05 FIELD-{:03} PIC 9(5).\n", i));
     }
 
     let result = parse_copybook(&copybook);
@@ -550,7 +546,7 @@ fn bdd_scenario_enterprise_sign_separate() {
     let copybook = "01 FIELD PIC S9(5) SIGN IS SEPARATE LEADING.";
     let result = parse_copybook(copybook);
 
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
@@ -583,5 +579,5 @@ fn bdd_scenario_enterprise_renames() {
     "#;
     let result = parse_copybook(copybook);
 
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }

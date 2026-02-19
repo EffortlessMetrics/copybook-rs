@@ -8,6 +8,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "Project automation xtasks for copybook-rs"
+readme = "README.md"
 publish = false
 
 [[bin]]
@@ -20,15 +21,18 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow.workspace = true
-roxmltree = "0.21.1"
+roxmltree = { workspace = true }
 regex.workspace = true
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_plain.workspace = true
-chrono = { version = "0.4.43", default-features = false, features = ["std", "clock"] }
-copybook-core = { path = "../copybook-core" }
-copybook-bench = { path = "../copybook-bench" }
-num_cpus = "1.17.0"
+chrono = { workspace = true, features = ["std", "clock"] }
+copybook-core = { workspace = true }
+copybook-bench = { workspace = true }
+num_cpus = { workspace = true }
+
+[lints]
+workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true

@@ -354,16 +354,19 @@ impl ErrorReporter {
             | ErrorCode::CBKD410_ZONED_OVERFLOW
             | ErrorCode::CBKD411_ZONED_BAD_SIGN
             | ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT
-            | ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH => ErrorSeverity::Error,
+            | ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH
+            | ErrorCode::CBKD431_FLOAT_NAN
+            | ErrorCode::CBKD432_FLOAT_INFINITY => ErrorSeverity::Error,
 
             // BLANK WHEN ZERO is informational
             ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO
             | ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => ErrorSeverity::Warning,
 
             // Encode errors
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH | ErrorCode::CBKE521_ARRAY_LEN_OOB => {
-                ErrorSeverity::Error
-            }
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH
+            | ErrorCode::CBKE521_ARRAY_LEN_OOB
+            | ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR
+            | ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW => ErrorSeverity::Error,
 
             // Transfer corruption warnings
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
@@ -381,6 +384,13 @@ impl ErrorReporter {
 
             // Audit errors
             ErrorCode::CBKA001_BASELINE_ERROR => ErrorSeverity::Error,
+
+            // Arrow/Writer errors
+            ErrorCode::CBKW001_SCHEMA_CONVERSION
+            | ErrorCode::CBKW002_TYPE_MAPPING
+            | ErrorCode::CBKW003_DECIMAL_OVERFLOW
+            | ErrorCode::CBKW004_BATCH_BUILD
+            | ErrorCode::CBKW005_PARQUET_WRITE => ErrorSeverity::Error,
         }
     }
 

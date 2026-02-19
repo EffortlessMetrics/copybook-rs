@@ -133,18 +133,18 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Edited PIC encode (E3.2-E3.6) | v0.5.0 | Basic encoding done; sign/CR/DB/commas pending |
-| Dialect lever (D1-D4) | v0.5.0 | Contract defined; integration pending |
+| Edited PIC encode (E3.0-E3.7) | ✅ | E1-E3.7 implemented; monitor feature parity for edge patterns |
+| COMP-1/COMP-2 | ⚠️ | Partial support behind feature flags (`comp_1`, `comp_2`) |
+| Dialect lever (D1-D4) | ✅ | Completed and documented |
+| SIGN SEPARATE | ✅ | Experimental support behind `sign_separate` |
 
 ### Not Supported (❌)
 
 | Feature | Decision | Notes |
 |---------|----------|-------|
-| COMP-1/COMP-2 | By design | Rare in practice |
-| SIGN LEADING/TRAILING SEPARATE | #44 | Planned |
 | Nested ODO (O5) | #164 | Rejected by design |
 | ODO over REDEFINES (O6) | #164 | Rejected by design |
-| RENAMES R4-R6 | Out of scope | OCCURS/REDEFINES interactions |
+| RENAMES R4-R6 | Policy-limited (R1-R3 default, R4-R6 partial/guarded) | OCCURS/REDEFINES interactions |
 
 ---
 

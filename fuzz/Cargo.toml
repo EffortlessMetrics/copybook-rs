@@ -4,9 +4,20 @@ version = "0.0.0"
 publish = false
 edition = "2024"
 rust-version = "1.92"
+authors = ["Steven Zimmerman, CPA <git@effortlesssteven.com>"]
+license = "AGPL-3.0-or-later"
+description = "Fuzz targets for copybook-core and copybook-codec"
+repository = "https://github.com/EffortlessMetrics/copybook-rs"
+homepage = "https://github.com/EffortlessMetrics/copybook-rs"
+readme = "README.md"
+keywords = ["cobol", "copybook", "fuzz", "testing", "ebcdic"]
+categories = ["development-tools::fuzzing", "development-tools::testing"]
 
 [package.metadata]
 cargo-fuzz = true
+
+[lints]
+workspace = true
 
 [dependencies]
 libfuzzer-sys = "0.4.10"

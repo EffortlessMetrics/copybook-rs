@@ -93,6 +93,8 @@ pub fn run(
             copybook_core::FieldKind::EditedNumeric { pic_string, .. } => {
                 format!("EDITED PIC {pic_string}")
             }
+            copybook_core::FieldKind::FloatSingle => "COMP-1".to_string(),
+            copybook_core::FieldKind::FloatDouble => "COMP-2".to_string(),
         };
 
         let details = if let Some(ref occurs) = field.occurs {

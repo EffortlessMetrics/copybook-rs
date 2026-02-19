@@ -6,8 +6,8 @@
 //! Tests CLI interface spec: SPEC.manifest.yml#cli-interface-new-flags
 //!
 //! This test suite validates:
-//! - AC5: CLI decode command supports --preserve-encoding flag
-//! - AC6: CLI encode command supports --zoned-encoding flag
+//! - AC5: CLI decode command supports --preserve-zoned-encoding flag
+//! - AC6: CLI encode command supports --zoned-encoding-override flag
 //! - CLI argument parsing and validation
 
 mod test_utils;
@@ -39,8 +39,8 @@ where
     Ok(())
 }
 
-/// AC5: Test CLI decode command --preserve-encoding flag support
-/// Tests CLI interface spec: SPEC.manifest.yml#decode-command-preserve-encoding
+/// AC5: Test CLI decode command --preserve-zoned-encoding flag support
+/// Tests CLI interface spec: SPEC.manifest.yml#decode-command-preserve-zoned-encoding
 #[test]
 fn test_decode_preserve_encoding_flag() -> TestResult<()> {
     let temp_dir = TempDir::new()?;
@@ -58,24 +58,24 @@ fn test_decode_preserve_encoding_flag() -> TestResult<()> {
     let data_str = path_to_str(&data_path)?.to_owned();
     let output_str = path_to_str(&output_path)?.to_owned();
 
-    // TODO: Verify output contains encoding metadata when flag is working
-    // When implemented, should succeed and preserve ASCII encoding in output JSON
+    let output = command_output([
+        "decode",
+        "--preserve-zoned-encoding",
+        "--format",
+        "fixed",
+        "--codepage",
+        "ascii",
+        copybook_str.as_str(),
+        data_str.as_str(),
+        "--output",
+        output_str.as_str(),
+    ])?;
 
-    assert_cli_failure(
-        [
-            "decode",
-            "--preserve-encoding", // This flag should be implemented
-            "--format",
-            "fixed",
-            "--codepage",
-            "ascii",
-            copybook_str.as_str(),
-            data_str.as_str(),
-            "--output",
-            output_str.as_str(),
-        ],
-        "--preserve-encoding flag not yet implemented - expected TDD Red phase failure",
-    )?;
+    assert!(
+        output.status.success(),
+        "--preserve-zoned-encoding flag should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     Ok(())
 }
@@ -92,38 +92,41 @@ fn test_decode_preferred_zoned_encoding_flag() -> TestResult<()> {
     // Create test copybook
     fs::write(&copybook_path, "01 ZONED-FIELD PIC 9(3).")?;
 
-    // Create test data with ambiguous zones (all zeros)
-    fs::write(&data_path, b"\x00\x00\x00")?; // Zeros - ambiguous encoding
+    // Create test data with EBCDIC zoned decimal
+    fs::write(&data_path, b"\xF1\xF2\xF3")?; // EBCDIC "123"
 
     let copybook_str = path_to_str(&copybook_path)?.to_owned();
     let data_str = path_to_str(&data_path)?.to_owned();
     let output_str = path_to_str(&output_path)?.to_owned();
 
     for preference in ["ascii", "ebcdic", "auto"] {
-        assert_cli_failure(
-            [
-                "decode",
-                "--preserve-encoding",
-                "--preferred-zoned-encoding",
-                preference, // This flag should be implemented
-                "--format",
-                "fixed",
-                "--codepage",
-                "cp037",
-                copybook_str.as_str(),
-                data_str.as_str(),
-                "--output",
-                output_str.as_str(),
-            ],
-            "--preferred-zoned-encoding flag not yet implemented - expected TDD Red phase failure",
-        )?;
+        let output = command_output([
+            "decode",
+            "--preserve-zoned-encoding",
+            "--preferred-zoned-encoding",
+            preference,
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            copybook_str.as_str(),
+            data_str.as_str(),
+            "--output",
+            output_str.as_str(),
+        ])?;
+
+        assert!(
+            output.status.success(),
+            "--preferred-zoned-encoding {preference} should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     Ok(())
 }
 
-/// AC6: Test CLI encode command --zoned-encoding flag support
-/// Tests CLI interface spec: SPEC.manifest.yml#encode-command-zoned-encoding
+/// AC6: Test CLI encode command --zoned-encoding-override flag support
+/// Tests CLI interface spec: SPEC.manifest.yml#encode-command-zoned-encoding-override
 #[test]
 fn test_encode_zoned_encoding_flag() -> TestResult<()> {
     let temp_dir = TempDir::new()?;
@@ -142,21 +145,25 @@ fn test_encode_zoned_encoding_flag() -> TestResult<()> {
     let output_str = path_to_str(&output_path)?.to_owned();
 
     for encoding in ["ascii", "ebcdic", "auto"] {
-        assert_cli_failure(
-            [
-                "encode",
-                "--zoned-encoding",
-                encoding, // This flag should be implemented
-                "--format",
-                "fixed",
-                "--codepage",
-                "cp037",
-                copybook_str.as_str(),
-                input_str.as_str(),
-                output_str.as_str(),
-            ],
-            "--zoned-encoding flag not yet implemented - expected TDD Red phase failure",
-        )?;
+        let output = command_output([
+            "encode",
+            "--zoned-encoding-override",
+            encoding,
+            "--format",
+            "fixed",
+            "--codepage",
+            "cp037",
+            "--output",
+            output_str.as_str(),
+            copybook_str.as_str(),
+            input_str.as_str(),
+        ])?;
+
+        assert!(
+            output.status.success(),
+            "--zoned-encoding-override {encoding} should succeed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     Ok(())
@@ -179,12 +186,11 @@ fn test_cli_encoding_format_validation() -> TestResult<()> {
     let data_str = path_to_str(&data_path)?.to_owned();
     let output_str = path_to_str(&output_path)?.to_owned();
 
-    // Should fail with validation error when flag is implemented
-    // For now, will fail because flag doesn't exist
+    // Should fail with validation error for invalid enum value
     assert_cli_failure(
         [
             "decode",
-            "--preserve-encoding",
+            "--preserve-zoned-encoding",
             "--preferred-zoned-encoding",
             "invalid", // Invalid value
             "--format",
@@ -196,7 +202,7 @@ fn test_cli_encoding_format_validation() -> TestResult<()> {
             "--output",
             output_str.as_str(),
         ],
-        "Invalid encoding format value should be rejected - expected failure",
+        "Invalid encoding format value should be rejected",
     )?;
 
     Ok(())
@@ -213,13 +219,7 @@ fn test_cli_help_includes_zoned_encoding_flags() -> TestResult<()> {
 
     let decode_help_text = String::from_utf8(decode_help.stdout)?;
 
-    // TODO: These should be present when flags are implemented
-    // assert!(decode_help_text.contains("--preserve-encoding"),
-    //        "decode help should document --preserve-encoding flag");
-    // assert!(decode_help_text.contains("--preferred-zoned-encoding"),
-    //        "decode help should document --preferred-zoned-encoding flag");
-
-    // These flags should be present in decode help
+    // Verify decode help includes zoned encoding flags
     assert!(
         decode_help_text.contains("--preserve-zoned-encoding")
             || decode_help_text.contains("preserve-zoned-encoding"),
@@ -238,11 +238,7 @@ fn test_cli_help_includes_zoned_encoding_flags() -> TestResult<()> {
 
     let encode_help_text = String::from_utf8(encode_help.stdout)?;
 
-    // TODO: This should be present when flag is implemented
-    // assert!(encode_help_text.contains("--zoned-encoding"),
-    //        "encode help should document --zoned-encoding flag");
-
-    // This flag should be present in encode help
+    // Verify encode help includes zoned encoding override flag
     assert!(
         encode_help_text.contains("--zoned-encoding-override")
             || encode_help_text.contains("zoned-encoding-override"),
@@ -360,15 +356,13 @@ fn test_cli_zoned_encoding_error_messages() -> TestResult<()> {
     fs::write(&copybook_path, "01 ZONED-FIELD PIC 9(3).")?;
     fs::write(&data_path, b"\x31\x32\xFF")?; // Invalid zone in last byte
 
-    // TODO: When implemented, should produce clear error message for mixed/invalid encoding
     let copybook_str = path_to_str(&copybook_path)?.to_owned();
     let data_str = path_to_str(&data_path)?.to_owned();
     let output_str = path_to_str(&output_path)?.to_owned();
 
     let _output = command_output([
         "decode",
-        // TODO: Add when implemented
-        // "--preserve-encoding",
+        "--preserve-zoned-encoding",
         "--format",
         "fixed",
         "--codepage",
@@ -378,12 +372,6 @@ fn test_cli_zoned_encoding_error_messages() -> TestResult<()> {
         "--output",
         output_str.as_str(),
     ])?;
-
-    // For now, will use current error handling
-    // TODO: When zoned encoding detection is implemented, verify error codes
-    // let stderr = String::from_utf8(output.stderr)?;
-    // assert!(stderr.contains("CBKD414") || stderr.contains("mixed encoding"),
-    //        "Should produce clear error message for mixed encoding");
 
     Ok(())
 }

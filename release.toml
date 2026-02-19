@@ -7,8 +7,15 @@ publish = false
 push-remote = "origin"
 push = true
 pre-release-commit-message = "chore(release): prepare v{{version}}"
-allow-branch = ["main", "feature/v0.4.2-improvements"]
+allow-branch = ["main"]
 dependent-version = "fix"
 shared-version = true
 consolidate-commits = true
-pre-release-hook = ["git-cliff --unreleased --tag v{{version}} --output CHANGELOG.md"]
+pre-release-hook = [
+  "git-cliff",
+  "--unreleased",
+  "--tag",
+  "v{{version}}",
+  "--output",
+  "CHANGELOG.md",
+]

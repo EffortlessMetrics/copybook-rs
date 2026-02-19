@@ -5,7 +5,9 @@
 //! validation with proper error context.
 
 use crate::options::{DecodeOptions, EncodeOptions};
-use copybook_core::{Error, ErrorCode, ErrorContext, Field, Occurs, Result, Schema};
+#[cfg(test)]
+use copybook_core::Occurs;
+use copybook_core::{Error, ErrorCode, ErrorContext, Field, Result, Schema};
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{debug, warn};
@@ -137,7 +139,7 @@ pub fn validate_odo_counter(
 ///
 /// # Errors
 /// Returns an error if ODO constraints are violated.
-#[allow(dead_code)]
+#[cfg(test)]
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn validate_odo_tail_position(

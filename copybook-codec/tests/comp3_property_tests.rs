@@ -93,7 +93,6 @@ mod comp3_roundtrip_tests {
 
     proptest! {
         #[test]
-        #[ignore = "Temporarily disabled for PR #64 - floating point precision issues being tracked"]
         fn comp3_even_odd_digits(
             digits in 1u16..=10,
             neg in any::<bool>()
@@ -177,7 +176,6 @@ mod comp3_roundtrip_tests {
 
     proptest! {
         #[test]
-        #[ignore = "Temporarily disabled for PR #64 - floating point precision issues being tracked"]
         fn comp3_scale_handling(
             int_digits in 1u16..=14,
             scale in 1u16..=4,

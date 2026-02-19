@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #52: Machine-Readable Benchmark Reporting Infrastructure - Architectural Blueprint
 
 ## Document Information

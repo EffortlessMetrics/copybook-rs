@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Scenario Fixtures for Comprehensive Panic Elimination Testing
 //!
 //! This module provides comprehensive enterprise scenario fixtures that integrate

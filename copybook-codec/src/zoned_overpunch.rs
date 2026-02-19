@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Zoned decimal overpunch encoding and decoding
 //!
 //! This module provides centralized mapping for zoned decimal overpunch characters

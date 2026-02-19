@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Local benchmark reporting CLI tool for Issue #52
 //!
 //! Provides local development tools for baseline management and performance

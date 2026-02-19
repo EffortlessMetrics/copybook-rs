@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: issue-63-spec.md#ac4-performance-impact-limited
 /// Tests feature spec: issue-63-technical-specification.md#performance-specifications
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#performance-monitoring-integration

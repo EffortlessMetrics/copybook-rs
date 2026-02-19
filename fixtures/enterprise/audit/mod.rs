@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Audit System Test Fixtures Module
 //!
 //! Comprehensive test fixture loading utilities for copybook-rs Enterprise Audit System.

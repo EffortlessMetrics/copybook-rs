@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Reproducible benchmark container for copybook-rs performance testing
 # Provides consistent environment for running cargo bench and generating perf receipts
 #

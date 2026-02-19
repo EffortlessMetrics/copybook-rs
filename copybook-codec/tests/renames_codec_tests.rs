@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! RENAMES codec projection tests (Slice-2 for Issue #110)
 //!
 //! Tests decode/encode functionality for RENAMES (level-66) fields

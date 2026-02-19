@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Performance Test Data for copybook-bench Panic Elimination
 //!
 //! This module provides comprehensive test fixtures for eliminating 6 .unwrap()/.expect() calls

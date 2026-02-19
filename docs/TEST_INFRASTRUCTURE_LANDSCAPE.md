@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Test Infrastructure Landscape Analysis
 
 **Date**: October 2025  

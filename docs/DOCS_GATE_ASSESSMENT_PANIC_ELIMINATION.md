@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Documentation Gate Assessment - Panic Elimination & COMP-3 Optimizations
 
 ## Assessment Summary

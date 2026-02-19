@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Normative Specification Addendum
 
 This document defines the normative behaviors and decisions for copybook-rs to ensure deterministic, reproducible output across implementations and deployments.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Telemetry Phase 6 Operator Checklist
 
 Use this checklist when promoting the telemetry exporter to *launch-ready*. Each section pairs the exact commands with what to verify before checking the box.

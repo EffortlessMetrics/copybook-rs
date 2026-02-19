@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Dialect types for ODO (OCCURS DEPENDING ON) min_count behavior
 //!
 //! This module defines the dialect lever that controls how `min_count` is interpreted

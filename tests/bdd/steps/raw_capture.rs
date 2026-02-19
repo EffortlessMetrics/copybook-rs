@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use base64::Engine;
 use copybook_codec::RawMode;
 use cucumber::{given, then};

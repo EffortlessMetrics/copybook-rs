@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::{Codepage, RecordFormat, decode_file_to_jsonl, encode_jsonl_to_file};
 use cucumber::{given, then, when};
 use serde_json::Value;

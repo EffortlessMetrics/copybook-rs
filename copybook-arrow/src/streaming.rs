@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Streaming record reader that produces Arrow `RecordBatch` objects
 //!
 //! Reads fixed-length records from a byte reader and feeds them through

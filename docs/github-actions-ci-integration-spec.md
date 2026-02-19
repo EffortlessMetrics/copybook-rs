@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # GitHub Actions CI Integration for Machine-Readable Benchmark Reporting
 
 ## Document Information

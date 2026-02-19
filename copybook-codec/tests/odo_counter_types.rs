@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // ODO counter type tests - currently disabled as ODO support is not implemented
 // in the main decode path (json.rs just returns max_count for ODO fields).
 #![allow(clippy::expect_used)]

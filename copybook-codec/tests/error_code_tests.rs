@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Tests for specific error codes in the codec layer
 //!
 //! This module tests error conditions that are difficult to trigger through

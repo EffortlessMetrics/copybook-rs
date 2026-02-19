@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # SPEC.manifest.yml - Binary Round-trip Encoding Consistency
 # Issue #48: Binary round-trip encoding inconsistency in encode/decode cycle
 

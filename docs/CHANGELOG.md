@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Changelog (Docs)
 
 The canonical changelog now lives at the repository root in `CHANGELOG.md` so release workflows and publish notes point at a single source of truth. This file remains in `docs/` to avoid broken links and to redirect readers:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Feature flag system for copybook-rs
 //!
 //! This module provides a centralized feature flag system that allows runtime

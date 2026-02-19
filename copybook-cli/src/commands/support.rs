@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Support command for COBOL feature matrix
 //!
 //! Provides CLI access to the feature support matrix defined in `copybook-core::support_matrix`.

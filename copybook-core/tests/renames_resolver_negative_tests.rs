@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Negative tests for level-66 RENAMES resolver validation (Issue #122, Slice-2)
 //!
 //! This test suite validates resolver error conditions:

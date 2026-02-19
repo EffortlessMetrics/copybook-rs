@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_core::project_schema;
 use cucumber::{given, then, when};
 

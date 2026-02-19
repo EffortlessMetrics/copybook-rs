@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Data Encoding Test Fixtures for copybook-codec Panic Elimination
 //!
 //! This module provides comprehensive test fixtures for eliminating 134 .unwrap()/.expect() calls

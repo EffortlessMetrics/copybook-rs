@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Merge Protocol for Infrastructure & Tooling PRs
 
 ## Goals

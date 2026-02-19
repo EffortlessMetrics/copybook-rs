@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: panic-elimination-api-contracts.md#comprehensive-api-surface-validation
 /// Issue #33 - Integration Tests for End-to-End COBOL Processing
 ///

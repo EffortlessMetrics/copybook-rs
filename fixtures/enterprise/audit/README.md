@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Audit System Test Fixtures
 
 This directory contains comprehensive test fixtures for the copybook-rs Enterprise Audit System, supporting all 18 acceptance criteria with realistic data and integration scenarios.

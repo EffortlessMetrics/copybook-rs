@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Tests for RENAMES (level-66) hierarchy placement
 //!
 //! Validates that level-66 RENAMES entries are placed as siblings

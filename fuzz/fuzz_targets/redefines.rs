@@ -1,4 +1,5 @@
 #![no_main]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use libfuzzer_sys::fuzz_target;
 use copybook_core::{parse_copybook, parse_copybook_with_options, ParseOptions};
 

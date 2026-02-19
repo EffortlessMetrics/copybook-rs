@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Inspect command implementation
 
 use crate::exit_codes::ExitCode;

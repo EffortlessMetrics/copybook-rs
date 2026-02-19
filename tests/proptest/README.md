@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # `copybook-proptest`
 
 `copybook-proptest` is the property-based testing package for copybook-rs.

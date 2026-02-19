@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! ODO and REDEFINES error handling with comprehensive validation
 //!
 //! This module implements the normative error handling behavior for ODO (OCCURS DEPENDING ON)

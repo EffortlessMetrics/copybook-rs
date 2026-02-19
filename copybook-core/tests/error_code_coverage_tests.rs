@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Error code coverage tests for error codes lacking dedicated test assertions.
 //!
 //! This module fills gaps identified by the error code audit:

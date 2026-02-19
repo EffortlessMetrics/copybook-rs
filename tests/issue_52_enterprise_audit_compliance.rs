@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test scaffolding for Issue #52 enterprise audit compliance and regulatory framework validation
 //!
 //! Tests feature spec: issue-52-spec.md#enterprise-audit-capabilities

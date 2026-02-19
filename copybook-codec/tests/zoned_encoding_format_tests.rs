@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test scaffolding for `ZonedEncodingFormat` enum - Issue #48
 //!
 //! Tests COBOL zoned decimal encoding preservation spec: SPEC.manifest.yml#ZonedEncodingFormat

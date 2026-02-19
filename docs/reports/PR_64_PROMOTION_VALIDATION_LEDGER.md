@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs PR #64 Promotion Validation Report
 
 **Promotion Validator Assessment**: **⚠️ PERFORMANCE REGRESSION DETECTED**

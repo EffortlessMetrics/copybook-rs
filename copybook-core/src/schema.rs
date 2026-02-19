@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Schema types for COBOL copybook structures
 //!
 //! This module defines the core data structures that represent a parsed

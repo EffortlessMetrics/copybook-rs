@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Comprehensive Arrow integration tests for copybook-rs
 //!
 //! This test suite validates Arrow and Parquet conversion functionality,

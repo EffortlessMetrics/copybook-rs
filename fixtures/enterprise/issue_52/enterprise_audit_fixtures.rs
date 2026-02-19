@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Audit and Compliance Test Fixtures for Issue #52
 //!
 //! Provides comprehensive audit data for regulatory compliance validation

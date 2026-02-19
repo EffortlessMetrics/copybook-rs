@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Audit Event System
 //!
 //! Defines the core audit event structure and payload types for comprehensive

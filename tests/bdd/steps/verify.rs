@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::decode_file_to_jsonl;
 use cucumber::{then, when};
 use std::io::Cursor;

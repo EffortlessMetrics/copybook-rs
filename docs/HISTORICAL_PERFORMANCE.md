@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Historical Performance Claims - ARCHIVED
 
 > **⚠️ IMPORTANT**: This document contains historical performance targets that are no longer current.  

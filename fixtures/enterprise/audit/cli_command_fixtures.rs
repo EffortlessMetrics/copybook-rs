@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! CLI Command Test Fixtures for Enterprise Audit System
 //!
 //! Provides comprehensive test data for all 6 audit CLI subcommands:

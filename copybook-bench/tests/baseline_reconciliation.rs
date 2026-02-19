@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! AC2: Performance Baseline Reconciliation Tests
 //!
 //! Tests baseline measurement methodology, promotion procedures, and persistence.

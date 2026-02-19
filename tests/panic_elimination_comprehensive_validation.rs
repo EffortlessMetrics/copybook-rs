@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Comprehensive Panic Elimination Validation Test
 /// Issue #33 - Final Integration Test for Panic Elimination Fixtures
 ///

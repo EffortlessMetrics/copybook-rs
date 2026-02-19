@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 ---
 # Kubernetes Job for copybook-rs determinism validation
 # This runs determinism checks to ensure consistent processing results

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Baseline Measurement Methodology
 
 This document describes the canonical procedure for establishing and maintaining performance baselines for copybook-rs benchmark regression testing (Issue #49).

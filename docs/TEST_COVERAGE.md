@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Test Coverage Guide
 
 This document provides information about test coverage in the copybook-rs project, including how to run coverage locally, how to interpret coverage reports, and coverage goals.

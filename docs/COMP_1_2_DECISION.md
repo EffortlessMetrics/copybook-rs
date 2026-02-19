@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # COMP-1/COMP-2 Decision Gate Document
 
 **Document Version**: 1.0

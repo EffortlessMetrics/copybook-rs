@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! E3.1 Edited PIC Encode Tests
 //!
 //! Tests for minimal edited PIC encode path (E3.1).

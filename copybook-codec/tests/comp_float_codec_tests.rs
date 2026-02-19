@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Tests for COMP-1 and COMP-2 floating-point codec functions.
 //!
 //! Validates encode/decode of IEEE 754 single and double precision floats,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Data Lineage Tracking System
 //!
 //! Comprehensive data transformation and lineage tracking for copybook-rs

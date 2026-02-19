@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Hardware Specifications for Baseline Performance Measurements
 
 This document records the hardware and environment specifications used for canonical baseline measurements as part of Issue #49 AC2 (Performance Baseline Reconciliation).

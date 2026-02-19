@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Phase E2: Edited PIC decode comprehensive tests
 //!
 //! Tests the well-chosen subset of edited PIC patterns as specified:

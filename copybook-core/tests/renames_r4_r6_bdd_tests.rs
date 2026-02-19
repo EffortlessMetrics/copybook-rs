@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // BDD-style tests for RENAMES R4-R6 advanced scenarios
 //
 // This test suite covers:

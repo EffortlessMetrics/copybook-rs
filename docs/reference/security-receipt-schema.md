@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Security Receipt JSON Schema Reference
 ## Issue #35 - Enterprise Compliance Artifact Specification
 

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Integration Patterns for Audit System
 ## Issue #60 - SIEM, Monitoring, and Log Aggregation Integration
 

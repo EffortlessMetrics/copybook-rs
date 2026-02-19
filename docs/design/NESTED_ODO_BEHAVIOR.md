@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Nested ODO & OCCURS Behavior (Issue #164)
 
 **Status**: Design Contract (Phase N1)

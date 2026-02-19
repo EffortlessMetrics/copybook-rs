@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #49 Test Scaffolding Organization
 
 Comprehensive test scaffolding for Performance Regression Monitoring and Benchmark Optimization.

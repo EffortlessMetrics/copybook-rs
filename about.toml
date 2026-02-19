@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# cargo-about configuration for generating third-party notices
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "BSL-1.0",
+    "MPL-2.0",
+    "OpenSSL",
+    "CC0-1.0",
+    "Unlicense",
+    "AGPL-3.0-or-later",
+    "BlueOak-1.0.0",
+    "CDLA-Permissive-2.0",
+]
+
+# Workaround for deprecated SPDX identifiers in transitive deps
+[synthez]
+accepted = ["BlueOak-1.0.0"]
+
+[webpki-root-certs]
+accepted = ["CDLA-Permissive-2.0"]

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Compliance Engine
 //!
 //! Provides comprehensive compliance validation for regulatory frameworks

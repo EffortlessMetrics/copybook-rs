@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Security Scanning Infrastructure Architecture
 ## Issue #35 - Enterprise Dependency & Security Compliance
 

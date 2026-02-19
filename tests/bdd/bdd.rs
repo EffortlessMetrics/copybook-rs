@@ -30,8 +30,8 @@ use copybook_codec::{
     RecordFormat,
 };
 use copybook_core::{
-    parse_copybook, parse_copybook_with_options, project_schema, Error, ErrorCode, Occurs,
-    ParseOptions,
+    parse_copybook, parse_copybook_with_options, project_schema, Error, ErrorCode, FeatureCategory,
+    FeatureFlags, Occurs, ParseOptions,
 };
 use cucumber::{given, then, when, World as _};
 use serde_json::{Map, Value};
@@ -107,11 +107,10 @@ pub struct CopybookWorld {
 
 impl CopybookWorld {
     fn ensure_schema_parsed(&mut self) {
-        if self.schema.is_some() {
+        if self.schema.is_some() || self.error.is_some() {
             return;
         }
 
-        self.error = None;
         let copybook_text = self.copybook_text.as_ref().expect("Copybook text not set");
 
         match &self.parse_options {
@@ -146,9 +145,9 @@ impl CopybookWorld {
         }
     }
 
-    fn ensure_schema_and_return(&mut self) -> &copybook_core::Schema {
+    fn ensure_schema_and_return(&mut self) -> bool {
         self.ensure_schema_parsed();
-        self.schema.as_ref().expect("Schema should be parsed")
+        self.schema.is_some()
     }
 
     fn schema(&self) -> &copybook_core::Schema {
@@ -270,7 +269,9 @@ fn default_ascii_encode_options() -> EncodeOptions {
 }
 
 fn build_binary_for_all_leaf_fields(world: &mut CopybookWorld) -> Vec<u8> {
-    world.ensure_schema_and_return();
+    if !world.ensure_schema_and_return() {
+        return vec![];
+    }
     let schema = world.schema();
 
     // Use the fixed record length if available, otherwise compute from fields
@@ -291,7 +292,9 @@ fn encode_from_payload(
     payload: &Map<String, Value>,
     world: &mut CopybookWorld,
 ) -> Result<Vec<u8>, Error> {
-    world.ensure_schema_and_return();
+    if !world.ensure_schema_and_return() {
+        return Err(world.error.clone().expect("Parse error should be set"));
+    }
     world.ensure_encode_options();
 
     let payload_text = serde_json::to_string(&Value::Object(payload.clone())).unwrap();
@@ -902,7 +905,7 @@ mod steps {
 
     #[when(expr = "the binary data is decoded")]
     async fn when_binary_data_decoded(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         world.ensure_decode_options();
 
         let binary_data = world
@@ -932,7 +935,7 @@ mod steps {
 
     #[when(expr = "the JSON data is encoded")]
     async fn when_json_data_encoded(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         world.ensure_encode_options();
 
         let json_data = world.json_data.as_ref().expect("JSON data not set").clone();
@@ -958,7 +961,7 @@ mod steps {
 
     #[when(expr = "the data is round-tripped")]
     async fn when_data_roundtripped(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         world.ensure_decode_options();
         world.ensure_encode_options();
 
@@ -1142,7 +1145,7 @@ mod steps {
 
     #[when(expr = "field projection is applied")]
     async fn when_field_projection_applied(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let fields = world
             .field_selection
             .as_ref()
@@ -1223,14 +1226,14 @@ mod steps {
 
     #[given(expr = "binary data with {int} elements")]
     async fn given_binary_data_with_elements(world: &mut CopybookWorld, count: usize) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let binary = build_binary_for_all_leaf_fields(world);
         world.binary_data = Some(binary);
     }
 
     #[when(expr = "decode determinism is checked")]
     async fn when_decode_determinism_checked(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         world.ensure_decode_options();
 
         let binary_data = world
@@ -1257,7 +1260,7 @@ mod steps {
 
     #[when(expr = "encode determinism is checked")]
     async fn when_encode_determinism_checked(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         world.ensure_encode_options();
 
         let json_data = world.json_data.as_ref().expect("JSON data not set").clone();
@@ -1283,7 +1286,7 @@ mod steps {
 
     #[when(expr = "round-trip determinism is checked")]
     async fn when_roundtrip_determinism_checked(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         world.ensure_decode_options();
         world.ensure_encode_options();
 
@@ -2353,7 +2356,7 @@ mod steps {
 
     #[given(expr = "binary data for value {float}")]
     async fn given_binary_data_for_float(world: &mut CopybookWorld, value: f64) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let field = world.first_leaf_field().expect("No leaf field found");
         let len = field.len as usize;
         match &field.kind {
@@ -2440,7 +2443,7 @@ mod steps {
 
     #[given(expr = "binary data with zero value")]
     async fn given_binary_data_zero(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let schema = world.schema();
         let record_len = schema.lrecl_fixed.unwrap_or(10) as usize;
         world.binary_data = Some(vec![b'0'; record_len]);
@@ -2461,7 +2464,7 @@ mod steps {
 
     #[given(expr = "EBCDIC binary data")]
     async fn given_ebcdic_binary_data(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let schema = world.schema();
         let record_len = schema.lrecl_fixed.unwrap_or(10) as usize;
         // EBCDIC spaces are 0x40, 'A'-'I' are 0xC1-0xC9
@@ -2475,7 +2478,7 @@ mod steps {
 
     #[given(expr = "ASCII JSON data")]
     async fn given_ascii_json_data(world: &mut CopybookWorld) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let field = world.first_leaf_field().expect("No leaf field found");
         let name = field.name.clone();
         let len = field.len as usize;
@@ -2491,7 +2494,7 @@ mod steps {
 
     #[given(regex = r"^binary data with (\d+) elements$")]
     async fn given_binary_data_with_n_elements(world: &mut CopybookWorld, count: usize) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let schema = world.schema();
         // Find the array field's child to get element size
         let array_field = schema.all_fields().into_iter().find(|f| f.occurs.is_some());
@@ -2511,7 +2514,7 @@ mod steps {
 
     #[given(regex = r"^JSON data with (\d+) elements$")]
     async fn given_json_data_with_n_elements(world: &mut CopybookWorld, count: usize) {
-        world.ensure_schema_and_return();
+        if !world.ensure_schema_and_return() { return; }
         let schema = world.schema();
         let array_field = schema.all_fields().into_iter().find(|f| f.occurs.is_some());
         let (array_name, child_name) = if let Some(f) = array_field {
@@ -3125,5 +3128,11 @@ mod steps {
 
 #[tokio::main]
 async fn main() {
-    CopybookWorld::run("features").await;
+    FeatureFlags::set_global(
+        FeatureFlags::builder()
+            .enable_category(FeatureCategory::Experimental)
+            .enable_category(FeatureCategory::Enterprise)
+            .build(),
+    );
+    CopybookWorld::run(concat!(env!("CARGO_MANIFEST_DIR"), "/features")).await;
 }

@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: review-test-finalizer
 description: Finalizes test correctness validation for copybook-rs enterprise COBOL parsing reliability. Validates all 127+ tests maintain enterprise standards, confirms COBOL parsing test coverage across all scenarios, and ensures zero unsafe code compliance before mutation testing. Routes to review-mutation-tester on pass.

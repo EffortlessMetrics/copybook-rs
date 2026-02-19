@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: integrative-test-runner
 description: Executes comprehensive test suite for copybook-rs workspace with enterprise COBOL data processing validation, performance regression testing, and mainframe compatibility verification. Gate-focused pass/fail evidence for integrative flow merge readiness.

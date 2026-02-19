@@ -100,15 +100,15 @@ pub fn all_features() -> &'static [FeatureSupport] {
         FeatureSupport {
             id: Comp1Comp2,
             name: "COMP-1/COMP-2 floating-point",
-            description: "Single/double precision floating-point types (requires `comp_1`/`comp_2` feature flags).",
-            status: Partial,
-            doc_ref: None,
+            description: "Single/double precision IEEE 754 floating-point types; always enabled.",
+            status: Supported,
+            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#data-types"),
         },
         FeatureSupport {
             id: SignSeparate,
             name: "SIGN LEADING/TRAILING SEPARATE",
-            description: "Separate sign byte directives (requires `sign_separate` feature flag).",
-            status: Partial,
+            description: "Separate sign byte directives; always enabled.",
+            status: Supported,
             doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#sign-handling"),
         },
         FeatureSupport {

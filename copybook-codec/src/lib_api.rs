@@ -21,12 +21,6 @@ use std::fmt;
 use std::io::{BufRead, BufReader, Read, Write};
 use tracing::info;
 
-/// Pedantic tripwire: intentionally triggers `uninlined_format_args`
-#[allow(clippy::format_in_format_args)]
-pub fn redundant_inline() {
-    println!("{}", format!("hi"));
-}
-
 /// Build a standard JSON envelope for a decoded COBOL record.
 ///
 /// Wraps the decoded fields with metadata like schema version, record index,

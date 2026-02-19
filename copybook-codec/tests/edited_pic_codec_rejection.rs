@@ -21,16 +21,21 @@ fn test_e1_edited_pic_parses_successfully() {
     assert!(result.is_ok(), "Edited PIC should parse successfully");
 }
 
-/// Test E1-R3: SIGN clause rejected as edited PIC
+/// Test E1-R3: SIGN clause without SEPARATE is a syntax error
+///
+/// `SIGN LEADING` without the `SEPARATE` keyword is invalid COBOL syntax in this
+/// implementation (overpunching is handled by the `S` in the PIC clause itself).
+/// `SIGN IS LEADING SEPARATE` is the correct syntax and is always supported.
 #[test]
-fn test_e1_sign_clause_parses_as_edited() {
+fn test_e1_sign_clause_without_separate_rejected() {
     let copybook = "01 REC.\n   05 SIGNED-AMT PIC S9(5) SIGN LEADING.";
     let result = parse_copybook(copybook);
     assert!(
         result.is_err(),
-        "SIGN clause should be rejected until decode semantics exist"
+        "SIGN clause without SEPARATE should be rejected"
     );
     if let Err(err) = result {
-        assert_eq!(err.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+        // SIGN SEPARATE is now always-enabled; rejection is a syntax error, not a feature flag error
+        assert_eq!(err.code, ErrorCode::CBKP001_SYNTAX);
     }
 }

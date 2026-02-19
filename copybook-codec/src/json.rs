@@ -4,11 +4,7 @@
 //! following the normative requirements for field ordering, numeric representation,
 //! and REDEFINES handling.
 
-#![allow(
-    clippy::unused_self,
-    clippy::unnecessary_wraps,
-    clippy::missing_errors_doc
-)]
+#![allow(clippy::unused_self, clippy::unnecessary_wraps)]
 
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
 use crate::JSON_SCHEMA_VERSION;
@@ -337,7 +333,7 @@ impl<W: Write> JsonWriter<W> {
         let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
 
         // Convert to UTF-8
-        let text = crate::charset::ebcdic_to_utf8(field_data, self.options.codepage)?;
+        let text = crate::charset::ebcdic_to_utf8(field_data, self.options.codepage, self.options.on_decode_unmappable)?;
 
         // Write as JSON string with proper escaping
         self.json_buffer.push('"');
@@ -543,10 +539,7 @@ impl<W: Write> JsonWriter<W> {
         let count = self.get_actual_array_count(occurs, record_data)?;
         let mut array = Vec::new();
 
-        for i in 0..count {
-            // Element offset calculation - currently unused but preserved for debugging
-            #[allow(unused_variables)]
-            let element_offset = field.offset + (i * field.len);
+        for _i in 0..count {
             let mut element_obj = IndexMap::new();
 
             // Process children for this array element
@@ -2242,6 +2235,9 @@ impl JsonEncoder {
                 max_errors: None,
                 on_decode_unmappable: UnmappablePolicy::Error,
                 threads: 1,
+                preserve_zoned_encoding: false,
+                preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+                float_format: FloatFormat::IeeeBigEndian,
             },
         )?;
 
@@ -2392,7 +2388,7 @@ impl<W: Write> OrderedJsonWriter<W> {
     ) -> Result<()> {
         // For now, write directly (parallel processing will be implemented later)
         self.inner
-            .write_record(schema, record_data, record_index, byte_offset)
+            .write_record(record_data, record_index, byte_offset)
     }
 
     /// Finish writing and return the inner writer

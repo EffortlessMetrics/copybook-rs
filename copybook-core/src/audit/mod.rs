@@ -71,8 +71,8 @@ pub use report::{
     AuditReport, ComplianceReport, PerformanceReport, ReportFormat, ReportGenerator, SecurityReport,
 };
 pub use security::{
-    AccessAuditor, AccessEvent, AccessResult, SecurityAuditor, SecurityMonitor, SecurityValidation,
-    SecurityViolation,
+    AccessAuditor, AccessEvent, AccessResult, EncryptionConfig, EventMonitor, SecurityAuditor,
+    SecurityMonitor, SecurityValidation, SecurityViolation,
 };
 
 use serde::{Deserialize, Serialize};

@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 use super::context::SecurityClassification;
 use super::{AuditContext, AuditResult};
+use crate::Field;
 
 /// Enterprise compliance engine for regulatory validation
 pub struct ComplianceEngine {
@@ -1046,6 +1047,70 @@ pub enum RecommendationPriority {
     Critical,
 }
 
+/// Patterns per compliance profile for sensitive field detection
+fn sensitive_patterns_for_profile(profile: ComplianceProfile) -> &'static [&'static str] {
+    match profile {
+        ComplianceProfile::SOX => &["ACCOUNT", "BALANCE", "TRANSACTION", "LEDGER", "REVENUE"],
+        ComplianceProfile::HIPAA => &["SSN", "DOB", "PATIENT", "DIAGNOSIS", "INSURANCE", "MEDICAL"],
+        ComplianceProfile::PciDss => &["CARD", "PAN", "CVV", "EXPIRY", "CVC"],
+        ComplianceProfile::GDPR => &[
+            "NAME",
+            "ADDRESS",
+            "EMAIL",
+            "PHONE",
+            "NATIONAL-ID",
+            "PASSPORT",
+        ],
+    }
+}
+
+fn check_field_against_profiles(
+    field: &Field,
+    profiles: &[ComplianceProfile],
+    warnings: &mut Vec<ComplianceWarning>,
+) {
+    let upper_name = field.name.to_ascii_uppercase();
+    for &profile in profiles {
+        for &pattern in sensitive_patterns_for_profile(profile) {
+            if upper_name.contains(pattern) {
+                warnings.push(ComplianceWarning {
+                    warning_id: format!("{:?}-FIELD-{}", profile, field.name),
+                    title: format!("Sensitive field detected ({profile:?})"),
+                    description: format!(
+                        "Field '{}' matches {profile:?} sensitive pattern '{pattern}'",
+                        field.name,
+                    ),
+                    recommendation: format!(
+                        "Review field '{}' to ensure {profile:?} compliance requirements are met",
+                        field.name,
+                    ),
+                });
+                // Only emit one warning per (field, profile) pair
+                break;
+            }
+        }
+    }
+    // Recurse into children
+    for child in &field.children {
+        check_field_against_profiles(child, profiles, warnings);
+    }
+}
+
+/// Detect fields in a schema that may contain regulated data under the given compliance profiles.
+///
+/// Recursively inspects all fields (including group children) and emits a [`ComplianceWarning`]
+/// for each field name that matches a profile-specific sensitive-data pattern.
+pub fn detect_sensitive_fields(
+    fields: &[Field],
+    profiles: &[ComplianceProfile],
+) -> Vec<ComplianceWarning> {
+    let mut warnings = Vec::new();
+    for field in fields {
+        check_field_against_profiles(field, profiles, &mut warnings);
+    }
+    warnings
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
@@ -1395,5 +1460,126 @@ mod tests {
             ComplianceStatus::NonCompliant
         };
         assert_eq!(status, ComplianceStatus::NonCompliant);
+    }
+
+    // Helper to create a minimal leaf Field for testing
+    fn make_field(name: &str) -> crate::Field {
+        crate::Field {
+            path: name.to_string(),
+            name: name.to_string(),
+            level: 5,
+            kind: crate::FieldKind::Alphanum { len: 10 },
+            offset: 0,
+            len: 10,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children: Vec::new(),
+        }
+    }
+
+    fn make_group(name: &str, children: Vec<crate::Field>) -> crate::Field {
+        crate::Field {
+            path: name.to_string(),
+            name: name.to_string(),
+            level: 1,
+            kind: crate::FieldKind::Group,
+            offset: 0,
+            len: 0,
+            redefines_of: None,
+            occurs: None,
+            sync_padding: None,
+            synchronized: false,
+            blank_when_zero: false,
+            resolved_renames: None,
+            children,
+        }
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_empty() {
+        let warnings = detect_sensitive_fields(&[], &[ComplianceProfile::SOX]);
+        assert!(warnings.is_empty(), "No fields means no warnings");
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_sox_match() {
+        let fields = vec![make_field("ACCOUNT-NUMBER"), make_field("CUSTOMER-NAME")];
+        let warnings = detect_sensitive_fields(&fields, &[ComplianceProfile::SOX]);
+        assert_eq!(warnings.len(), 1, "Only ACCOUNT-NUMBER should match SOX");
+        assert!(warnings[0].warning_id.contains("SOX"));
+        assert!(warnings[0].description.contains("ACCOUNT-NUMBER"));
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_hipaa_match() {
+        let fields = vec![make_field("PATIENT-ID"), make_field("DIAGNOSIS-CODE")];
+        let warnings = detect_sensitive_fields(&fields, &[ComplianceProfile::HIPAA]);
+        assert_eq!(warnings.len(), 2, "Both fields should match HIPAA");
+        let ids: Vec<_> = warnings.iter().map(|w| &w.warning_id).collect();
+        assert!(ids.iter().any(|id| id.contains("PATIENT")));
+        assert!(ids.iter().any(|id| id.contains("DIAGNOSIS")));
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_pci_match() {
+        let fields = vec![make_field("CARD-NUM"), make_field("CVV-VALUE")];
+        let warnings = detect_sensitive_fields(&fields, &[ComplianceProfile::PciDss]);
+        assert_eq!(warnings.len(), 2, "Both fields should match PCI DSS");
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_gdpr_match() {
+        let fields = vec![make_field("CUSTOMER-EMAIL"), make_field("HOME-ADDRESS")];
+        let warnings = detect_sensitive_fields(&fields, &[ComplianceProfile::GDPR]);
+        assert_eq!(warnings.len(), 2, "Both fields should match GDPR");
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_no_match() {
+        let fields = vec![make_field("RECORD-TYPE"), make_field("FILLER")];
+        let warnings = detect_sensitive_fields(
+            &fields,
+            &[
+                ComplianceProfile::SOX,
+                ComplianceProfile::HIPAA,
+                ComplianceProfile::PciDss,
+                ComplianceProfile::GDPR,
+            ],
+        );
+        assert!(
+            warnings.is_empty(),
+            "Generic fields should not match any profile"
+        );
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_recurses_into_children() {
+        let child = make_field("SSN-FIELD");
+        let group = make_group("CUSTOMER-RECORD", vec![child]);
+        let warnings = detect_sensitive_fields(&[group], &[ComplianceProfile::HIPAA]);
+        assert_eq!(warnings.len(), 1, "Should find SSN in nested child");
+        assert!(warnings[0].description.contains("SSN-FIELD"));
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_multiple_profiles() {
+        let fields = vec![make_field("BALANCE"), make_field("PATIENT-NAME")];
+        let warnings =
+            detect_sensitive_fields(&fields, &[ComplianceProfile::SOX, ComplianceProfile::HIPAA]);
+        // BALANCE matches SOX, PATIENT-NAME matches HIPAA
+        assert_eq!(warnings.len(), 2);
+    }
+
+    #[test]
+    fn test_detect_sensitive_fields_case_insensitive() {
+        let fields = vec![make_field("account-balance")];
+        let warnings = detect_sensitive_fields(&fields, &[ComplianceProfile::SOX]);
+        // "account-balance" uppercased contains both "ACCOUNT" and "BALANCE"
+        // but we break after the first match per (field, profile)
+        assert_eq!(warnings.len(), 1, "Should match case-insensitively");
     }
 }

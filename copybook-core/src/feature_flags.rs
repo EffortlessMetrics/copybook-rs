@@ -176,8 +176,10 @@ impl Feature {
     /// Get the default enabled state for this feature
     pub fn default_enabled(&self) -> bool {
         match self {
+            // Promoted to stable: always enabled by default
+            Feature::SignSeparate | Feature::Comp1 | Feature::Comp2 => true,
             // Experimental features are disabled by default
-            Feature::SignSeparate | Feature::RenamesR4R6 | Feature::Comp1 | Feature::Comp2 => false,
+            Feature::RenamesR4R6 => false,
             // Enterprise features are disabled by default
             Feature::AuditSystem
             | Feature::SoxCompliance
@@ -660,7 +662,10 @@ mod tests {
 
     #[test]
     fn test_default_enabled() {
-        assert!(!Feature::SignSeparate.default_enabled());
+        // Promoted to stable: enabled by default
+        assert!(Feature::SignSeparate.default_enabled());
+        assert!(Feature::Comp1.default_enabled());
+        assert!(Feature::Comp2.default_enabled());
         assert!(Feature::LruCache.default_enabled());
         assert!(!Feature::VerboseLogging.default_enabled());
     }
@@ -669,7 +674,10 @@ mod tests {
     fn test_feature_flags_default() {
         let flags = FeatureFlags::default();
         assert!(flags.is_enabled(Feature::LruCache));
-        assert!(!flags.is_enabled(Feature::SignSeparate));
+        // Promoted to stable: now enabled by default
+        assert!(flags.is_enabled(Feature::SignSeparate));
+        assert!(flags.is_enabled(Feature::Comp1));
+        assert!(flags.is_enabled(Feature::Comp2));
     }
 
     #[test]
@@ -714,6 +722,9 @@ mod tests {
     #[test]
     fn test_feature_flags_handle() {
         let handle = FeatureFlagsHandle::new();
+        // SignSeparate is now enabled by default (promoted to stable)
+        assert!(handle.is_enabled(Feature::SignSeparate));
+        handle.disable(Feature::SignSeparate);
         assert!(!handle.is_enabled(Feature::SignSeparate));
         handle.enable(Feature::SignSeparate);
         assert!(handle.is_enabled(Feature::SignSeparate));
@@ -730,11 +741,13 @@ mod tests {
     #[test]
     fn test_enabled_in_category() {
         let mut flags = FeatureFlags::default();
-        flags.enable(Feature::SignSeparate);
+        // SignSeparate, Comp1, Comp2 are enabled by default; enable RenamesR4R6 too
         flags.enable(Feature::RenamesR4R6);
         let experimental = flags.enabled_in_category(FeatureCategory::Experimental);
-        assert_eq!(experimental.len(), 2);
+        assert_eq!(experimental.len(), 4);
         assert!(experimental.contains(&Feature::SignSeparate));
+        assert!(experimental.contains(&Feature::Comp1));
+        assert!(experimental.contains(&Feature::Comp2));
         assert!(experimental.contains(&Feature::RenamesR4R6));
     }
 

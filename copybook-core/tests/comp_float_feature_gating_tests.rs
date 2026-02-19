@@ -1,43 +1,45 @@
-//! Feature gating tests for COMP-1/COMP-2 parsing.
+//! Tests verifying COMP-1/COMP-2 are always enabled (promoted to stable).
 //!
-//! Verifies that experimental floating-point features are correctly rejected
-//! when feature flags are not enabled.
+//! These features were previously experimental and required `COPYBOOK_FF_COMP_1`/
+//! `COPYBOOK_FF_COMP_2` environment variables. They are now always-enabled.
 
 use copybook_core::{
-    ErrorCode,
     feature_flags::{Feature, FeatureFlags},
     parse_copybook,
 };
 
-fn disable_comp_flags_for_tests() {
-    let mut flags = FeatureFlags::default();
-    flags.disable(Feature::Comp1);
-    flags.disable(Feature::Comp2);
-    FeatureFlags::set_global(flags);
+#[test]
+fn test_comp1_enabled_by_default() {
+    let flags = FeatureFlags::default();
+    assert!(
+        flags.is_enabled(Feature::Comp1),
+        "COMP-1 should be enabled by default (promoted to stable)"
+    );
 }
 
 #[test]
-fn test_parser_comp1_without_feature_flag_is_rejected() {
-    disable_comp_flags_for_tests();
+fn test_comp2_enabled_by_default() {
+    let flags = FeatureFlags::default();
+    assert!(
+        flags.is_enabled(Feature::Comp2),
+        "COMP-2 should be enabled by default (promoted to stable)"
+    );
+}
+
+#[test]
+fn test_parser_comp1_accepted_without_env_var() {
     let result = parse_copybook("01 FIELD-A COMP-1.");
-
     assert!(
-        result.is_err(),
-        "COMP-1 should be rejected without feature flag"
+        result.is_ok(),
+        "COMP-1 should be accepted without any env var (always enabled)"
     );
-    let err = result.unwrap_err();
-    assert_eq!(err.code(), ErrorCode::CBKP011_UNSUPPORTED_CLAUSE);
 }
 
 #[test]
-fn test_parser_comp2_usage_without_feature_flag_is_rejected() {
-    disable_comp_flags_for_tests();
+fn test_parser_comp2_accepted_without_env_var() {
     let result = parse_copybook("01 FIELD-B USAGE COMP-2.");
-
     assert!(
-        result.is_err(),
-        "USAGE COMP-2 should be rejected without feature flag"
+        result.is_ok(),
+        "COMP-2 should be accepted without any env var (always enabled)"
     );
-    let err = result.unwrap_err();
-    assert_eq!(err.code(), ErrorCode::CBKP011_UNSUPPORTED_CLAUSE);
 }

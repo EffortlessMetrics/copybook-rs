@@ -1350,6 +1350,39 @@ pub fn encode_zoned_decimal_sign_separate(
         (false, trimmed)
     };
 
+    // Validate input characters before scaling
+    for ch in abs_str.chars() {
+        if !ch.is_ascii_digit() && ch != '.' {
+            return Err(Error::new(
+                ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+                format!("Unexpected character '{ch}' in numeric value '{value}'"),
+            ));
+        }
+    }
+
+    // Structural validation: reject ambiguous/empty numeric input
+    let dot_count = abs_str.chars().filter(|&c| c == '.').count();
+    let digit_count = abs_str.chars().filter(char::is_ascii_digit).count();
+
+    if digit_count == 0 {
+        return Err(Error::new(
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+            format!("No digits found in numeric value '{value}'"),
+        ));
+    }
+    if dot_count > 1 {
+        return Err(Error::new(
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+            format!("Multiple decimal points in numeric value '{value}'"),
+        ));
+    }
+    if scale <= 0 && dot_count == 1 {
+        return Err(Error::new(
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+            format!("Unexpected decimal point for scale {scale} in value '{value}'"),
+        ));
+    }
+
     // Build the scaled digit string
     let scaled = build_scaled_digit_string(abs_str, scale);
 
@@ -1360,8 +1393,14 @@ pub fn encode_zoned_decimal_sign_separate(
             format!("{scaled:0>digits_usize$}")
         }
         std::cmp::Ordering::Greater => {
-            // Take the rightmost digits (overflow)
-            scaled[scaled.len() - digits_usize..].to_string()
+            return Err(Error::new(
+                ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+                format!(
+                    "SIGN SEPARATE overflow: value requires {} digits but field allows {}",
+                    scaled.len(),
+                    digits_usize
+                ),
+            ));
         }
         std::cmp::Ordering::Equal => scaled,
     };

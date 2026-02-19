@@ -5,9 +5,9 @@
 
 use copybook_core::schema::{Field, FieldKind};
 
-use crate::Result;
 use crate::builders::ColumnAccumulator;
 use crate::options::ArrowOptions;
+use crate::{ArrowError, Result};
 
 /// Walk the schema and dispatch record bytes to the appropriate column accumulators.
 ///
@@ -27,6 +27,12 @@ pub(crate) fn decode_record_to_columns(
     let mut idx = 0;
     for field in &schema.fields {
         dispatch_field(field, record, accumulators, &mut idx, options)?;
+    }
+    if idx != accumulators.len() {
+        return Err(ArrowError::ColumnBuild(format!(
+            "Schema/accumulator mismatch: dispatched {idx} fields but have {} accumulators",
+            accumulators.len()
+        )));
     }
     Ok(())
 }
@@ -65,19 +71,24 @@ fn dispatch_field(
     }
 
     // Scalar field: extract the byte slice and feed it to the accumulator
-    if *idx < accumulators.len() {
-        let offset = field.offset as usize;
-        let len = field.len as usize;
-        let end = offset + len;
-
-        if end <= record.len() {
-            accumulators[*idx].append_value(&record[offset..end])?;
-        } else {
-            // Record too short for this field; append null
-            accumulators[*idx].append_null();
-        }
-        *idx += 1;
+    if *idx >= accumulators.len() {
+        return Err(ArrowError::ColumnBuild(format!(
+            "Accumulator index {} out of bounds (have {}), field '{}'",
+            *idx,
+            accumulators.len(),
+            field.name
+        )));
     }
+    let offset = field.offset as usize;
+    let len = field.len as usize;
+    let end = offset + len;
+    if end <= record.len() {
+        accumulators[*idx].append_value(&record[offset..end])?;
+    } else {
+        // Record too short for this field; append null
+        accumulators[*idx].append_null();
+    }
+    *idx += 1;
 
     Ok(())
 }

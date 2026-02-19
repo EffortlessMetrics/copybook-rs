@@ -599,7 +599,9 @@ impl BinaryFidelityValidator {
         match &field.kind {
             FieldKind::ZonedDecimal { .. }
             | FieldKind::PackedDecimal { .. }
-            | FieldKind::BinaryInt { .. } => true,
+            | FieldKind::BinaryInt { .. }
+            | FieldKind::FloatSingle
+            | FieldKind::FloatDouble => true,
             FieldKind::Alphanum { .. }
             | FieldKind::Group
             | FieldKind::Condition { .. }
@@ -663,6 +665,10 @@ impl BinaryFidelityValidator {
             FieldKind::EditedNumeric { .. } => {
                 // Phase E1: EditedNumeric treated as display for tolerance purposes
                 CobolFieldType::Display
+            }
+            FieldKind::FloatSingle | FieldKind::FloatDouble => {
+                // COMP-1/COMP-2 treated as binary for tolerance purposes
+                CobolFieldType::Binary
             }
         }
     }

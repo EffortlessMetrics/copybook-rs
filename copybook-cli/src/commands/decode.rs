@@ -8,7 +8,7 @@ use crate::utils::{
 };
 use crate::{ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stdout_all};
 use copybook_codec::{
-    Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::parse_copybook_with_options;
 use std::fmt::Write as _;
@@ -35,6 +35,7 @@ pub struct DecodeArgs<'a> {
     pub strict_comments: bool,
     pub preserve_zoned_encoding: bool,
     pub preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat,
+    pub float_format: FloatFormat,
     pub strict_policy: bool,
     pub dialect: copybook_core::dialect::Dialect,
     pub select: &'a [String],
@@ -123,7 +124,8 @@ pub fn run(args: &DecodeArgs) -> anyhow::Result<ExitCode> {
         .with_unmappable_policy(args.on_decode_unmappable)
         .with_threads(args.threads)
         .with_preserve_zoned_encoding(args.preserve_zoned_encoding)
-        .with_preferred_zoned_encoding(args.preferred_zoned_encoding);
+        .with_preferred_zoned_encoding(args.preferred_zoned_encoding)
+        .with_float_format(args.float_format);
 
     // Check if output is stdout
     let write_to_stdout = args.output.as_path() == Path::new("-");

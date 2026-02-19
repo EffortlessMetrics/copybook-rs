@@ -124,6 +124,10 @@ pub enum FieldKind {
         /// Whether field has sign editing
         signed: bool,
     },
+    /// Single-precision floating-point (COMP-1, IEEE 754 binary32, 4 bytes)
+    FloatSingle,
+    /// Double-precision floating-point (COMP-2, IEEE 754 binary64, 8 bytes)
+    FloatDouble,
 }
 
 /// Resolved RENAMES (level-66) alias information
@@ -145,7 +149,7 @@ pub struct SignSeparateInfo {
 }
 
 /// Sign placement for SIGN SEPARATE clause
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SignPlacement {
     /// Sign byte precedes the numeric digits
@@ -303,6 +307,8 @@ impl Schema {
             } => {
                 format!("EditedNumeric({pic_string},{width},scale={scale},signed={signed})")
             }
+            FieldKind::FloatSingle => "FloatSingle".to_string(),
+            FieldKind::FloatDouble => "FloatDouble".to_string(),
         };
         field_obj.insert("kind".to_string(), Value::String(kind_str));
 

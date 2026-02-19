@@ -7,10 +7,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "CLI for parsing/decoding/encoding COBOL copybooks with transparent validation receipts."
+description = "CLI for parsing, decoding, encoding, and verifying COBOL copybook data."
 documentation = "https://docs.rs/copybook-cli"
 readme = "README.md"
-keywords = ["cobol", "copybook", "cli", "ebcdic"]
+keywords = ["cobol", "copybook", "cli", "mainframe", "ebcdic"]
 categories = ["command-line-utilities", "encoding"]
 build = "build.rs"
 
@@ -38,6 +38,7 @@ chrono.workspace = true
 anyhow.workspace = true
 copybook-core = { workspace = true }
 copybook-codec = { workspace = true }
+copybook-arrow = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 metrics = { workspace = true, optional = true }
 metrics-exporter-prometheus = { version = "0.18.1", optional = true, features = ["http-listener"] }
@@ -45,6 +46,8 @@ toml.workspace = true
 
 [features]
 default = []
+soak = []
+arrow = ["dep:copybook-arrow"]
 audit = ["copybook-core/audit", "dep:tokio"]
 metrics = [
     "copybook-codec/metrics",

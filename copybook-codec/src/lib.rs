@@ -25,6 +25,8 @@ pub mod options;
 pub mod record;
 pub mod zoned_overpunch;
 
+mod odo_redefines;
+
 /// Stable JSONL schema identifier for decoder output.
 pub const JSON_SCHEMA_VERSION: &str = "copybook.v1";
 
@@ -38,7 +40,7 @@ pub use lib_api::{
 pub use numeric::{SmallDecimal, ZonedEncodingInfo};
 
 pub use options::{
-    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat,
     UnmappablePolicy, ZonedEncodingFormat,
 };
 

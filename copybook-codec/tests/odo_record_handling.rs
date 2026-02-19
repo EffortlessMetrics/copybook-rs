@@ -112,12 +112,17 @@ fn test_odo_array_count_raised() -> Result<()> {
     let raised_count_record = create_ebcdic_record(
         9,
         &[
-            // Provide some data (but count 9 exceeds max 5)
-            0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xF0,
+            // Provide data for 5 elements (max), but count says 9 (exceeds max 5)
+            0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4,
+            0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8,
+            0xF9, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xF0, 0xF1, 0xF2,
+            0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xF0,
         ],
     );
 
-    let options = DecodeOptions::new().with_codepage(Codepage::CP037);
+    let options = DecodeOptions::new()
+        .with_codepage(Codepage::CP037)
+        .with_strict_mode(true);
 
     let err = match decode_record(&schema, &raised_count_record, &options) {
         Ok(value) => bail!("Expected raised ODO count to fail, got {value:?}"),
@@ -143,7 +148,9 @@ fn test_odo_array_count_below_min() -> Result<()> {
         ],
     );
 
-    let options = DecodeOptions::new().with_codepage(Codepage::CP037);
+    let options = DecodeOptions::new()
+        .with_codepage(Codepage::CP037)
+        .with_strict_mode(true);
 
     let err = match decode_record(&schema, &below_min_record, &options) {
         Ok(value) => bail!("Expected ODO count below minimum to fail, got {value:?}"),
@@ -152,7 +159,7 @@ fn test_odo_array_count_below_min() -> Result<()> {
 
     assert_eq!(
         err.code,
-        ErrorCode::CBKS302_ODO_RAISED,
+        ErrorCode::CBKS301_ODO_CLIPPED,
         "Wrong error code for ODO count below minimum"
     );
     Ok(())

@@ -644,20 +644,20 @@ impl StandardEnterpriseGenerator {
 
     /// Generate customer record binary data
     fn generate_customer_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         // Create EBCDIC-encoded customer record data
         // This is simplified - real implementation would use proper EBCDIC encoding
         let mut record = Vec::with_capacity(320); // Customer record size
         // Customer ID (12 digits)
         let customer_id = format!(
             "{:012}",
-            self.rng.gen_range(100_000_000_000..999_999_999_999u64)
+            self.rng.random_range(100_000_000_000..999_999_999_999u64)
         );
         record.extend_from_slice(customer_id.as_bytes());
 
         // Customer type (3 chars)
         let customer_types = ["IND", "BUS", "GOV", "NPO"];
-        let customer_type = customer_types[self.rng.gen_range(0..customer_types.len())];
+        let customer_type = customer_types[self.rng.random_range(0..customer_types.len())];
         record.extend_from_slice(customer_type.as_bytes());
 
         // Name fields - simplified
@@ -700,13 +700,13 @@ impl StandardEnterpriseGenerator {
 
     /// Generate financial transaction binary data
     fn generate_transaction_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(392);
 
         // Transaction header
         let tx_id = format!(
             "TX{:018}",
-            self.rng.gen_range(1..999_999_999_999_999_999u64)
+            self.rng.random_range(1..999_999_999_999_999_999u64)
         );
         record.extend_from_slice(tx_id.as_bytes());
         record.extend_from_slice(b"XFER"); // Type
@@ -754,13 +754,13 @@ impl StandardEnterpriseGenerator {
 
     /// Generate other pattern data methods (simplified for brevity)
     fn generate_inventory_binary_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(500);
         // Simplified inventory data generation
         record.extend_from_slice(
             format!(
                 "SKU{:017}",
-                self.rng.gen_range(1..99_999_999_999_999_999u64)
+                self.rng.random_range(1..99_999_999_999_999_999u64)
             )
             .as_bytes(),
         );
@@ -769,31 +769,33 @@ impl StandardEnterpriseGenerator {
     }
 
     fn generate_payroll_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(420);
-        record.extend_from_slice(format!("EMP{:06}", self.rng.gen_range(1..999_999u32)).as_bytes());
+        record.extend_from_slice(
+            format!("EMP{:06}", self.rng.random_range(1..999_999u32)).as_bytes(),
+        );
         record.resize(420, b' ');
         record
     }
 
     fn generate_claim_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(912);
         record.extend_from_slice(
-            format!("CLM{:012}", self.rng.gen_range(1..999_999_999_999u64)).as_bytes(),
+            format!("CLM{:012}", self.rng.random_range(1..999_999_999_999u64)).as_bytes(),
         );
         record.resize(912, b' ');
         record
     }
 
     fn generate_banking_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(420);
         record.extend_from_slice(
             format!(
                 "{:020}",
                 self.rng
-                    .gen_range(10_000_000_000_000_000_000u64..18_446_744_073_709_551_615u64)
+                    .random_range(10_000_000_000_000_000_000u64..18_446_744_073_709_551_615u64)
             )
             .as_bytes(),
         );
@@ -802,12 +804,12 @@ impl StandardEnterpriseGenerator {
     }
 
     fn generate_audit_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(1580);
         record.extend_from_slice(
             format!(
                 "AUD{:017}",
-                self.rng.gen_range(1..99_999_999_999_999_999u64)
+                self.rng.random_range(1..99_999_999_999_999_999u64)
             )
             .as_bytes(),
         );
@@ -816,12 +818,12 @@ impl StandardEnterpriseGenerator {
     }
 
     fn generate_policy_binary_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(460);
         record.extend_from_slice(
             format!(
                 "POL{:017}",
-                self.rng.gen_range(1..99_999_999_999_999_999u64)
+                self.rng.random_range(1..99_999_999_999_999_999u64)
             )
             .as_bytes(),
         );
@@ -830,22 +832,22 @@ impl StandardEnterpriseGenerator {
     }
 
     fn generate_summary_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(340);
         record.extend_from_slice(
-            format!("ACC{:012}", self.rng.gen_range(1..999_999_999_999u64)).as_bytes(),
+            format!("ACC{:012}", self.rng.random_range(1..999_999_999_999u64)).as_bytes(),
         );
         record.resize(340, b' ');
         record
     }
 
     fn generate_history_data(&mut self) -> Vec<u8> {
-        use rand::Rng;
+        use rand::RngExt;
         let mut record = Vec::with_capacity(460);
         record.extend_from_slice(
             format!(
                 "TXN{:017}",
-                self.rng.gen_range(1..99_999_999_999_999_999u64)
+                self.rng.random_range(1..99_999_999_999_999_999u64)
             )
             .as_bytes(),
         );

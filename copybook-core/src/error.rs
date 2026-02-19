@@ -176,6 +176,10 @@ pub enum ErrorCode {
     CBKD422_EDITED_PIC_SIGN_MISMATCH,
     /// CBKD423: Edited PIC blank when zero handling error
     CBKD423_EDITED_PIC_BLANK_WHEN_ZERO,
+    /// CBKD431: Floating-point field contains NaN (decoded as null)
+    CBKD431_FLOAT_NAN,
+    /// CBKD432: Floating-point field contains infinity (decoded as null)
+    CBKD432_FLOAT_INFINITY,
 
     // =============================================================================
     // Infrastructure Errors (CBKI*) - Iterator and internal state validation
@@ -196,6 +200,10 @@ pub enum ErrorCode {
     CBKE515_STRING_LENGTH_VIOLATION,
     /// CBKE521: Array length exceeds ODO bounds
     CBKE521_ARRAY_LEN_OOB,
+    /// CBKE530: SIGN SEPARATE encode error
+    CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+    /// CBKE531: Float encode overflow (f64 value too large for f32 COMP-1 field)
+    CBKE531_FLOAT_ENCODE_OVERFLOW,
 
     // =============================================================================
     // File/Format Errors (CBKF*) - File structure and format validation
@@ -212,6 +220,20 @@ pub enum ErrorCode {
     // =============================================================================
     /// CBKA001: Performance baseline operation error
     CBKA001_BASELINE_ERROR,
+
+    // =============================================================================
+    // Arrow/Writer Errors (CBKW*) - Arrow and Parquet conversion errors
+    // =============================================================================
+    /// CBKW001: Failed COBOL to Arrow schema conversion
+    CBKW001_SCHEMA_CONVERSION,
+    /// CBKW002: FieldKind has no valid Arrow type mapping
+    CBKW002_TYPE_MAPPING,
+    /// CBKW003: Decimal precision exceeds Decimal128 limit (38 digits)
+    CBKW003_DECIMAL_OVERFLOW,
+    /// CBKW004: RecordBatch construction failure
+    CBKW004_BATCH_BUILD,
+    /// CBKW005: Parquet file write failure
+    CBKW005_PARQUET_WRITE,
 }
 
 impl fmt::Display for ErrorCode {
@@ -262,16 +284,25 @@ impl fmt::Display for ErrorCode {
             ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT => "CBKD421_EDITED_PIC_INVALID_FORMAT",
             ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH => "CBKD422_EDITED_PIC_SIGN_MISMATCH",
             ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => "CBKD423_EDITED_PIC_BLANK_WHEN_ZERO",
+            ErrorCode::CBKD431_FLOAT_NAN => "CBKD431_FLOAT_NAN",
+            ErrorCode::CBKD432_FLOAT_INFINITY => "CBKD432_FLOAT_INFINITY",
             ErrorCode::CBKI001_INVALID_STATE => "CBKI001_INVALID_STATE",
             ErrorCode::CBKE501_JSON_TYPE_MISMATCH => "CBKE501_JSON_TYPE_MISMATCH",
             ErrorCode::CBKE505_SCALE_MISMATCH => "CBKE505_SCALE_MISMATCH",
             ErrorCode::CBKE510_NUMERIC_OVERFLOW => "CBKE510_NUMERIC_OVERFLOW",
             ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => "CBKE515_STRING_LENGTH_VIOLATION",
             ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR => "CBKE530_SIGN_SEPARATE_ENCODE_ERROR",
+            ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW => "CBKE531_FLOAT_ENCODE_OVERFLOW",
             ErrorCode::CBKF102_RECORD_LENGTH_INVALID => "CBKF102_RECORD_LENGTH_INVALID",
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
             ErrorCode::CBKF221_RDW_UNDERFLOW => "CBKF221_RDW_UNDERFLOW",
             ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
+            ErrorCode::CBKW001_SCHEMA_CONVERSION => "CBKW001_SCHEMA_CONVERSION",
+            ErrorCode::CBKW002_TYPE_MAPPING => "CBKW002_TYPE_MAPPING",
+            ErrorCode::CBKW003_DECIMAL_OVERFLOW => "CBKW003_DECIMAL_OVERFLOW",
+            ErrorCode::CBKW004_BATCH_BUILD => "CBKW004_BATCH_BUILD",
+            ErrorCode::CBKW005_PARQUET_WRITE => "CBKW005_PARQUET_WRITE",
         };
         write!(f, "{code_str}")
     }
@@ -323,17 +354,26 @@ impl ErrorCode {
             | Self::CBKD415_ZONED_ENCODING_AMBIGUOUS
             | Self::CBKD421_EDITED_PIC_INVALID_FORMAT
             | Self::CBKD422_EDITED_PIC_SIGN_MISMATCH
-            | Self::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => "CBKD",
+            | Self::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO
+            | Self::CBKD431_FLOAT_NAN
+            | Self::CBKD432_FLOAT_INFINITY => "CBKD",
             Self::CBKI001_INVALID_STATE => "CBKI",
             Self::CBKE501_JSON_TYPE_MISMATCH
             | Self::CBKE505_SCALE_MISMATCH
             | Self::CBKE510_NUMERIC_OVERFLOW
             | Self::CBKE515_STRING_LENGTH_VIOLATION
-            | Self::CBKE521_ARRAY_LEN_OOB => "CBKE",
+            | Self::CBKE521_ARRAY_LEN_OOB
+            | Self::CBKE530_SIGN_SEPARATE_ENCODE_ERROR
+            | Self::CBKE531_FLOAT_ENCODE_OVERFLOW => "CBKE",
             Self::CBKF102_RECORD_LENGTH_INVALID
             | Self::CBKF104_RDW_SUSPECT_ASCII
             | Self::CBKF221_RDW_UNDERFLOW => "CBKF",
             Self::CBKA001_BASELINE_ERROR => "CBKA",
+            Self::CBKW001_SCHEMA_CONVERSION
+            | Self::CBKW002_TYPE_MAPPING
+            | Self::CBKW003_DECIMAL_OVERFLOW
+            | Self::CBKW004_BATCH_BUILD
+            | Self::CBKW005_PARQUET_WRITE => "CBKW",
         }
     }
 }

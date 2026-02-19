@@ -428,10 +428,10 @@ refresh, bench-report CLI
 ### 3. Feature Gaps (MEDIUM PRIORITY) — Est. 4-6 weeks
 
 - ~~**Edited PIC Space (`B`) insertion**~~ — ✅ Complete (E3.7)
-- **SIGN SEPARATE clause** — Rejected with CBKP051 until decode semantics implemented
+- **SIGN SEPARATE clause** — Experimental support behind `sign_separate` feature flag
+- **COMP-1/COMP-2 floating-point** — Experimental support behind `comp_1`/`comp_2` feature flags
 - **Nested ODO support** — Rejected by design
 - **RENAMES advanced scenarios (R4-R6)** — Partial implementation
-- **COMP-1/COMP-2 floating-point** — Not supported
 
 ### 4. Quality Assurance (MEDIUM PRIORITY) — Est. 2-3 weeks
 

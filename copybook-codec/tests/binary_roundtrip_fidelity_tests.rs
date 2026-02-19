@@ -117,7 +117,7 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
         .expect("failed to find copybook binary")
         .args([
             "decode",
-            // "--preserve-encoding", // TODO: Add when implemented
+            "--preserve-zoned-encoding",
             "--format",
             "fixed",
             "--codepage",
@@ -129,8 +129,6 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
         ])
         .output();
 
-    // For now, this will use current behavior (no preservation)
-    // TODO: When preservation is implemented, verify it works
     let decode_output = decode_output.expect("failed to invoke copybook CLI for decode");
     assert!(
         decode_output.status.success(),
@@ -142,7 +140,8 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
         .expect("failed to find copybook binary")
         .args([
             "encode",
-            // "--zoned-encoding", "ascii", // TODO: Add when implemented
+            "--zoned-encoding-override",
+            "ascii",
             "--format",
             "fixed",
             "--codepage",

@@ -7,7 +7,7 @@ use crate::utils::{
 };
 use crate::{write_stderr_all, write_stdout_all};
 use anyhow::{anyhow, bail};
-use copybook_codec::{Codepage, EncodeOptions, RecordFormat};
+use copybook_codec::{Codepage, EncodeOptions, FloatFormat, RecordFormat};
 use copybook_core::parse_copybook_with_options;
 use std::fmt::Write as _;
 use std::fs;
@@ -28,6 +28,7 @@ pub struct EncodeCliOptions<'a> {
     pub coerce_numbers: bool,
     pub strict_comments: bool,
     pub zoned_encoding_override: Option<copybook_codec::ZonedEncodingFormat>,
+    pub float_format: FloatFormat,
     pub dialect: copybook_core::dialect::Dialect,
     pub select: &'a [String],
 }
@@ -78,7 +79,8 @@ pub fn run(
         .with_max_errors(effective_max_errors)
         .with_threads(options.threads)
         .with_coerce_numbers(options.coerce_numbers)
-        .with_zoned_encoding_override(options.zoned_encoding_override);
+        .with_zoned_encoding_override(options.zoned_encoding_override)
+        .with_float_format(options.float_format);
 
     // Check if output is stdout
     let write_to_stdout = output == Path::new("-");

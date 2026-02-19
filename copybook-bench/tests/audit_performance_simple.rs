@@ -123,7 +123,7 @@ fn test_performance_regression_detection_scaffolding() {
     let _schema =
         parse_copybook(copybook_text).expect("Performance fixture should parse successfully");
 
-    // TODO: Implement regression detector
+    // Audit feature (TDD Red phase) - regression detector will be implemented with audit feature
     // For now, simulate baseline vs current performance comparison
 
     // Historical baseline (simulated)

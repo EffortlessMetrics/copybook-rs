@@ -12,7 +12,7 @@ use copybook_codec::numeric::encode_zoned_decimal;
 use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use proptest::prelude::*;
-use rand::{RngCore, SeedableRng};
+use rand::{Rng, SeedableRng};
 use serde_json::Value;
 
 use super::config::*;

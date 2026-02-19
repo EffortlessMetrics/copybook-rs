@@ -68,7 +68,7 @@ async fn test_hipaa_compliance_validation_scaffolding() {
     let compliance_engine = ComplianceEngine::new(ComplianceConfig::default())
         .with_profiles(&[ComplianceProfile::HIPAA]);
 
-    // TODO: Implement HIPAA-specific validation logic
+    // Audit feature (TDD Red phase) - HIPAA validation logic will be implemented with audit feature
     let result = compliance_engine
         .validate_processing_operation(&context)
         .await
@@ -191,7 +191,7 @@ async fn test_audit_trail_integrity_scaffolding() {
         events.push(event);
     }
 
-    // TODO: Implement comprehensive integrity validation
+    // Audit feature (TDD Red phase) - enhanced integrity validation will be added with audit feature
     // For now, use existing basic chain validation
     let is_valid = validate_audit_chain(&events).expect("Audit chain validation should succeed");
     assert!(is_valid);
@@ -229,8 +229,8 @@ fn test_performance_overhead_scaffolding() {
         .with_metadata("performance_test", "true")
         .with_metadata("schema_fingerprint", &schema.fingerprint);
 
-    // TODO: Implement performance overhead measurement
-    // This test should validate <5% overhead requirement
+    // Audit feature (TDD Red phase) - performance overhead measurement (<5% requirement)
+    // will be validated when audit feature is implemented.
     // For now, just verify audit context creation overhead is minimal
 
     let start = std::time::Instant::now();
@@ -321,7 +321,7 @@ fn test_data_lineage_scaffolding() {
         .with_metadata("schema_fingerprint", &schema.fingerprint)
         .with_metadata("lineage_tracking", "enabled");
 
-    // TODO: Implement data lineage tracking
+    // Audit feature (TDD Red phase) - data lineage tracking will be implemented with audit feature
     // For now, verify basic field structure for lineage
     assert!(!schema.fields.is_empty());
 
@@ -348,7 +348,7 @@ fn test_data_lineage_scaffolding() {
 /// Test enterprise configuration management scaffolding (AC13)
 #[test]
 fn test_enterprise_configuration_scaffolding() {
-    // TODO: Implement enterprise configuration management
+    // Audit feature (TDD Red phase) - enterprise configuration management will be added with audit feature
     // For now, test basic configuration structure
 
     let audit_config = AuditLoggerConfig {

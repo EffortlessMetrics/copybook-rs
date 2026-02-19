@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: docs-updater-pre-merge
 description: Use this agent to update documentation in PR branch BEFORE merge, after validation passes. Documentation ships with the PR for atomic code+docs landing. Examples: <example>Context: PR has passed validation and needs docs updated before merge. user: 'Validation passed, ready to finalize docs before merge' assistant: 'I'll use the docs-updater-pre-merge agent to update documentation in the PR branch before merge' <commentary>Since validation is complete, use docs-updater-pre-merge to finalize docs in the PR before merge.</commentary></example> <example>Context: Tests passed, need docs finalized. user: 'Tests complete, finalize docs for merge' assistant: 'I'll launch the docs-updater-pre-merge agent to update docs in the PR branch' <commentary>After tests pass, use docs-updater-pre-merge to prepare docs for atomic merge.</commentary></example>

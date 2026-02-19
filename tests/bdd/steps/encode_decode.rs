@@ -1,4 +1,4 @@
-use copybook_codec::{decode_file_to_jsonl, encode_jsonl_to_file, Codepage, RecordFormat};
+use copybook_codec::{Codepage, RecordFormat, decode_file_to_jsonl, encode_jsonl_to_file};
 use cucumber::{given, then, when};
 use serde_json::Value;
 use std::io::Cursor;

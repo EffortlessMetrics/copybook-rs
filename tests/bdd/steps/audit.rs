@@ -6,7 +6,7 @@ use copybook_core::audit::event::{
     TransformationResult, UserImpactLevel, ValidationResult as AuditValidationResult,
 };
 use copybook_core::audit::{
-    validate_audit_chain, AuditContext, AuditEvent, AuditEventType, AuditPayload, ComplianceProfile,
+    AuditContext, AuditEvent, AuditEventType, AuditPayload, ComplianceProfile, validate_audit_chain,
 };
 use copybook_core::parse_copybook;
 use cucumber::{given, then, when};

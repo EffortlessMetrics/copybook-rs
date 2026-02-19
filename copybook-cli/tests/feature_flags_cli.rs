@@ -150,7 +150,21 @@ fn test_lru_cache_enabled_by_default() {
 }
 
 #[test]
-fn test_experimental_features_disabled_by_default() {
+fn test_promoted_features_enabled_by_default() {
+    let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
+    // sign_separate, comp_1, comp_2 are now enabled by default (promoted to stable)
+    cargo_bin_cmd!("copybook")
+        .args(["--list-features", "parse"])
+        .arg(copybook)
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("sign_separate").and(predicate::str::contains("(enabled")),
+        );
+}
+
+#[test]
+fn test_experimental_renames_r4_r6_disabled_by_default() {
     let copybook = fixture_path("copybooks/simple.cpy").expect("fixture should exist");
     cargo_bin_cmd!("copybook")
         .args(["--list-features", "parse"])
@@ -158,6 +172,6 @@ fn test_experimental_features_disabled_by_default() {
         .assert()
         .success()
         .stdout(
-            predicate::str::contains("sign_separate").and(predicate::str::contains("(disabled)")),
+            predicate::str::contains("renames_r4_r6").and(predicate::str::contains("(disabled)")),
         );
 }

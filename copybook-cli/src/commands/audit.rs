@@ -3,31 +3,37 @@
 //! Provides comprehensive audit capabilities through CLI commands including
 //! compliance validation, performance assessment, security auditing, and
 //! complete data lineage reporting.
+//!
+//! NOTE: This module is experimental and has relaxed clippy pedantic lints
+//! until the audit feature stabilizes. See ROADMAP.md for timeline.
 
 use crate::exit_codes::ExitCode;
 use crate::utils::atomic_write;
 use crate::{write_stderr_line, write_stdout_line};
-use chrono::{self, DateTime, Duration as ChronoDuration, Utc};
+use chrono::{self, DateTime, Duration as ChronoDuration};
 use clap::{Parser, Subcommand};
-use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RunSummary};
+use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_file_to_jsonl};
 use copybook_core::audit::{
     AccessAuditor, AccessEvent, AccessResult, AuditContext, AuditEvent, AuditEventType,
     AuditLogger, AuditLoggerConfig, AuditPayload, BaselineManager, ComplianceConfig,
-    ComplianceEngine, ComplianceProfile, ComplianceResult, FieldLineage, ImpactAnalyzer, LogFormat,
-    PerformanceAuditor, PerformanceBaseline, ResourceMetrics, RiskLevel, SecurityAuditor,
-    SecurityMonitor, SecurityViolation, ThroughputMetrics, TransformationType,
+    ComplianceEngine, ComplianceProfile, FieldLineage, ImpactAnalyzer, PerformanceAuditor,
+    PerformanceBaseline, ResourceMetrics, RiskLevel, SecurityAuditor, SecurityMonitor,
+    SecurityViolation, ThroughputMetrics, TransformationType,
 };
 use copybook_core::{
     Field, FieldKind, Schema,
     audit::{
-        self as audit_core, ComparisonResult, PerformanceMeasurementType, PerformanceMetrics,
-        SecurityEventType, context::SecurityClassification,
+        self as audit_core, LineageTracker,
+        event::{
+            ComparisonResult, PerformanceMeasurementType, PerformanceMetrics, SecurityEventType,
+            UserImpactLevel,
+        },
     },
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::io::{self, BufRead, BufReader, Cursor, ErrorKind, Read, Write as IoWrite};
+use std::io::{self, BufRead, BufReader, Cursor};
 use std::path::Path;
 use std::path::PathBuf;
 use std::{fs, str};
@@ -426,7 +432,7 @@ pub enum DataClassification {
     PHI,
 }
 
-#[derive(clap::ValueEnum, Clone, Copy, Debug, serde::Serialize)]
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum ValidationDepth {
     Basic,
     Standard,
@@ -950,7 +956,7 @@ fn estimate_schema_bytes(schema: &Schema) -> (u64, u64, u64) {
 fn parse_access_result(raw: Option<&str>) -> AccessResult {
     match raw.unwrap_or_default().to_ascii_lowercase().as_str() {
         "deny" | "denied" | "forbidden" | "failure" | "failed" => AccessResult::Denied,
-        "error" | "invalid" | "blocked" | "blocked" => AccessResult::Failed,
+        "error" | "invalid" | "blocked" => AccessResult::Failed,
         _ => AccessResult::Success,
     }
 }
@@ -1001,6 +1007,7 @@ fn parse_access_events(path: &Path) -> AuditResult<(Vec<AccessEvent>, Vec<String
                     source_ip: raw.source_ip.or(raw.source_ip_address),
                     user_agent: raw.user_agent,
                     result,
+                    timestamp: None,
                 });
             }
             Err(err) => {
@@ -1065,7 +1072,14 @@ fn is_sensitive_field_name(name: &str) -> bool {
         || candidate.contains("CARD")
         || candidate.contains("ACCOUNT")
         || candidate.contains("DOB")
-        || candidate.contains("DOB")
+        || candidate.contains("BIRTH")
+        || candidate.contains("SALARY")
+        || candidate.contains("BALANCE")
+        || candidate.contains("ROUTING")
+        || candidate.contains("TAX-ID")
+        || candidate.contains("MEDICAL")
+        || candidate.contains("PATIENT")
+        || candidate.contains("DIAGNOSIS")
         || candidate.contains("PIN")
         || candidate.contains("ENCRYPT")
         || candidate.contains("SECRET")
@@ -1237,7 +1251,7 @@ async fn run_audit_report(
     let report = serde_json::json!({
         "audit_report": {
             "timestamp": chrono::Utc::now().to_rfc3339(),
-            "copybook": copybook.display(),
+            "copybook": copybook.display().to_string(),
             "status_code": format!("{} ({})", overall_code.as_i32(), overall_code),
             "status": if overall_code == ExitCode::Ok { "pass" } else { "fail" },
             "sections": sections,
@@ -1302,10 +1316,8 @@ async fn run_compliance_validation(
         .validate_processing_operation(&validation_context)
         .await?;
     let recommendations = if include_recommendations {
-        engine
-            .generate_recommendations(&validation_context)
-            .await
-            .unwrap_or_default()
+        let report = engine.generate_compliance_report(&validation_context).await;
+        report.map_or_else(|_| Vec::new(), |r| r.recommendations)
     } else {
         Vec::new()
     };
@@ -1657,8 +1669,8 @@ fn run_lineage_analysis_impl(
     let payload = AuditPayload::LineageTracking {
         source_system: source_system.to_string(),
         target_system: resolved_target_system.to_string(),
-        field_mappings,
-        transformation_rules,
+        field_mappings: field_mappings.clone(),
+        transformation_rules: transformation_rules.clone(),
         quality_score: avg_quality,
         impact_assessment: impact_summary,
     };
@@ -1727,8 +1739,8 @@ fn run_lineage_analysis_impl(
             "avg_quality_score": avg_quality,
             "chain_valid": chain_valid,
             "quality_ok": quality_ok,
-            "field_mappings": if field_level { serde_json::to_value(payload.field_mappings).unwrap_or_default() } else { serde_json::Value::Array(Vec::new()) },
-            "transformation_rules": serde_json::to_value(payload.transformation_rules).unwrap_or_default(),
+            "field_mappings": if field_level { serde_json::to_value(&field_mappings).unwrap_or_default() } else { serde_json::Value::Array(Vec::new()) },
+            "transformation_rules": serde_json::to_value(&transformation_rules).unwrap_or_default(),
             "impact_summary": impact_reports,
             "audit_event_id": event.event_id,
             "audit_event_integrity": event.integrity_hash,
@@ -2040,7 +2052,7 @@ fn run_performance_audit_impl(
         measurement_type: PerformanceMeasurementType::Throughput,
         baseline_id,
         metrics,
-        comparison_result: Some(comparison_result),
+        comparison_result: Some(comparison_result.clone()),
         regression_detected,
     };
     let event = AuditEvent::new(
@@ -2343,8 +2355,8 @@ fn run_security_audit_impl(
         .with_metadata("operation", "security_audit".to_string())
         .with_metadata("classification", format!("{classification:?}"))
         .with_metadata("validation_depth", format!("{validation_depth:?}"));
-    let security_context =
-        security_context.with_security_classification(security_classification(classification));
+    let security_context = security_context
+        .with_security_classification(security_classification(classification.clone()));
     let event = AuditEvent::new(AuditEventType::SecurityEvent, security_context, payload);
 
     let mut report = serde_json::json!({
@@ -2389,9 +2401,9 @@ fn run_security_audit_impl(
                     .into_iter()
                     .map(|event| {
                         format!(
-                            "CEF:0|copybook-rs|Audit|1.0|{}|Security Event|{}|src={} event={} resources={}\n",
-                            event.event_type as i32,
-                            event.severity as usize,
+                            "CEF:0|copybook-rs|Audit|1.0|{:?}|Security Event|{:?}|src={} event={}\n",
+                            event.event_type,
+                            event.severity,
                             event.source,
                             event.context.operation_id
                         )
@@ -2403,8 +2415,8 @@ fn run_security_audit_impl(
                     .into_iter()
                     .map(|event| {
                         format!(
-                            "LEEF:2.0|copybook-rs|Audit|1.0|security|devTime={} src={} event={} sev={}\n",
-                            event.timestamp, event.source, event.event_id, event.severity as usize
+                            "LEEF:2.0|copybook-rs|Audit|1.0|security|devTime={} src={} event={} sev={:?}\n",
+                            event.timestamp, event.source, event.event_id, event.severity
                         )
                     })
                     .collect::<String>()
@@ -2763,9 +2775,9 @@ fn run_audit_health_check_impl(
         },
         recovery_actions: diagnostics.clone(),
         user_impact: if status == "pass" {
-            copybook_core::audit::UserImpactLevel::None
+            UserImpactLevel::None
         } else {
-            copybook_core::audit::UserImpactLevel::Medium
+            UserImpactLevel::Medium
         },
     };
 
@@ -2834,7 +2846,7 @@ fn run_audit_health_check_impl(
         ))?;
     } else {
         write_stdout_line(&format!(
-            "Audit health check completed (status {}, score {overall_health_score})"
+            "Audit health check completed (status {status}, score {overall_health_score})"
         ))?;
     }
 

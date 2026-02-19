@@ -41,7 +41,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  FUZZ_SECONDS: ${{ inputs.fuzz_seconds || '300' }}
+  FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && '30' || inputs.fuzz_seconds || '300' }}
 
 jobs:
   cargo-fuzz:

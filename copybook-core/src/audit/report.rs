@@ -171,8 +171,10 @@ impl ReportGenerator {
             ReportFormat::Json => serde_json::to_string_pretty(report).map_err(|e| e.into()),
             ReportFormat::Csv => self.format_as_csv(report),
             ReportFormat::Xml => self.format_as_xml(report),
-            ReportFormat::Pdf | ReportFormat::Html => Err(super::AuditError::Configuration {
-                message: format!("{:?} format not yet implemented", format),
+            ReportFormat::Html => self.format_as_html(report),
+            ReportFormat::Pdf => Err(super::AuditError::Configuration {
+                message: "PDF export is planned for v1.0. Use HTML or JSON format instead."
+                    .to_string(),
             }),
         }
     }
@@ -256,6 +258,93 @@ impl ReportGenerator {
         } else {
             format!("{} Low-Severity Incidents", security_events.len())
         }
+    }
+
+    fn format_as_html(&self, report: &AuditReport) -> AuditResult<String> {
+        let compliance_badge_class = match report.summary.compliance_status.as_str() {
+            "Compliant" => "badge-green",
+            "Non-Compliant" => "badge-red",
+            _ => "badge-yellow",
+        };
+        let performance_badge_class = match report.summary.performance_status.as_str() {
+            s if s.contains("Regression") => "badge-red",
+            "Not Measured" => "badge-yellow",
+            _ => "badge-green",
+        };
+        let security_badge_class = match report.summary.security_status.as_str() {
+            "No Incidents" => "badge-green",
+            s if s.contains("Critical") => "badge-red",
+            _ => "badge-yellow",
+        };
+
+        let html = format!(
+            r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Report - {report_id}</title>
+<style>
+  body {{ font-family: Arial, sans-serif; margin: 2rem; color: #333; background: #f9f9f9; }}
+  h1 {{ color: #1a1a2e; border-bottom: 2px solid #4a4a8a; padding-bottom: 0.5rem; }}
+  h2 {{ color: #4a4a8a; }}
+  .meta-table {{ border-collapse: collapse; width: 100%; max-width: 600px; margin-bottom: 1.5rem; }}
+  .meta-table td {{ padding: 0.4rem 0.8rem; border: 1px solid #ddd; }}
+  .meta-table td:first-child {{ font-weight: bold; background: #f0f0f0; width: 40%; }}
+  .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }}
+  .summary-card {{ background: #fff; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }}
+  .summary-card h3 {{ margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #666; text-transform: uppercase; }}
+  .badge {{ display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: bold; font-size: 0.9rem; }}
+  .badge-green {{ background: #d4edda; color: #155724; }}
+  .badge-yellow {{ background: #fff3cd; color: #856404; }}
+  .badge-red {{ background: #f8d7da; color: #721c24; }}
+  .total-events {{ font-size: 2rem; font-weight: bold; color: #4a4a8a; }}
+</style>
+</head>
+<body>
+<h1>Audit Report</h1>
+<h2>Report Metadata</h2>
+<table class="meta-table">
+  <tr><td>Report ID</td><td>{report_id}</td></tr>
+  <tr><td>Report Type</td><td>{report_type:?}</td></tr>
+  <tr><td>Operation ID</td><td>{operation_id}</td></tr>
+  <tr><td>Created At</td><td>{created_at}</td></tr>
+</table>
+<h2>Summary</h2>
+<div class="summary-grid">
+  <div class="summary-card">
+    <h3>Total Events</h3>
+    <div class="total-events">{total_events}</div>
+  </div>
+  <div class="summary-card">
+    <h3>Compliance Status</h3>
+    <span class="badge {compliance_badge_class}">{compliance_status}</span>
+  </div>
+  <div class="summary-card">
+    <h3>Performance Status</h3>
+    <span class="badge {performance_badge_class}">{performance_status}</span>
+  </div>
+  <div class="summary-card">
+    <h3>Security Status</h3>
+    <span class="badge {security_badge_class}">{security_status}</span>
+  </div>
+</div>
+</body>
+</html>
+"#,
+            report_id = report.report_id,
+            report_type = report.report_type,
+            operation_id = report.operation_id,
+            created_at = report.created_at,
+            total_events = report.summary.total_events,
+            compliance_status = report.summary.compliance_status,
+            performance_status = report.summary.performance_status,
+            security_status = report.summary.security_status,
+            compliance_badge_class = compliance_badge_class,
+            performance_badge_class = performance_badge_class,
+            security_badge_class = security_badge_class,
+        );
+        Ok(html)
     }
 
     fn format_as_csv(&self, report: &AuditReport) -> AuditResult<String> {
@@ -535,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_report_unsupported_format() {
+    fn test_format_report_pdf_unsupported() {
         let generator = ReportGenerator::new();
 
         let report = AuditReport {
@@ -553,9 +642,63 @@ mod tests {
 
         let result = generator.format_report(&report, &ReportFormat::Pdf);
         assert!(result.is_err());
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("v1.0"),
+            "PDF error should mention v1.0 plan"
+        );
+    }
 
-        let result = generator.format_report(&report, &ReportFormat::Html);
-        assert!(result.is_err());
+    #[test]
+    fn test_format_report_html() {
+        let generator = ReportGenerator::new();
+
+        let report = AuditReport {
+            report_id: "test-report-html-001".to_string(),
+            report_type: ReportType::Comprehensive,
+            operation_id: "test-op-html-001".to_string(),
+            created_at: "2025-01-11T00:00:00Z".to_string(),
+            summary: AuditSummary {
+                total_events: 42,
+                compliance_status: "Compliant".to_string(),
+                performance_status: "Within Baseline".to_string(),
+                security_status: "No Incidents".to_string(),
+            },
+        };
+
+        let html = generator
+            .format_report(&report, &ReportFormat::Html)
+            .expect("Should generate HTML report");
+
+        assert!(
+            html.contains("<!DOCTYPE html>"),
+            "Should be a valid HTML document"
+        );
+        assert!(html.contains("<html"), "Should have html tag");
+        assert!(html.contains("</html>"), "Should close html tag");
+        assert!(
+            html.contains("test-report-html-001"),
+            "Should include report ID"
+        );
+        assert!(
+            html.contains("test-op-html-001"),
+            "Should include operation ID"
+        );
+        assert!(html.contains("42"), "Should include total events count");
+        assert!(
+            html.contains("Compliant"),
+            "Should include compliance status"
+        );
+        assert!(
+            html.contains("badge-green"),
+            "Should use green badge for Compliant"
+        );
+        assert!(
+            html.contains("No Incidents"),
+            "Should include security status"
+        );
+        assert!(html.contains("<style>"), "Should embed CSS");
+        assert!(html.contains("Audit Report"), "Should have report heading");
     }
 
     #[test]

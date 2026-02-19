@@ -16,7 +16,7 @@
 pub mod charset;
 pub mod determinism;
 pub mod edited_pic;
-pub mod fidelity;
+mod fidelity;
 pub mod iterator;
 pub mod lib_api;
 pub mod memory;

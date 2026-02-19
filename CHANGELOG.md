@@ -5,6 +5,13 @@ All notable changes to copybook-rs are documented here. This root file is the ca
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites.
+- Release prep: stabilize enterprise throughput assertions in `enterprise_mainframe_production_scenarios` for CI-consistent performance checks.
+
 ## [0.4.3] — 2026-02-11
 
 ### Added
@@ -98,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **license**: Clarify AGPLv3 licensing and add CLA
+- **license**: Clarify AGPL-3.0-or-later licensing and add CLA
 - Update test counts to reflect current reality (615 passing, 54 skipped)
 - Replace unlinked performance claims with baseline values
 - Perf claims → baseline receipts; remove unlinked GiB/s (refs #74, #52)

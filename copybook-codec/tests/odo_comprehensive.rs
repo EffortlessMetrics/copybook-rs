@@ -148,6 +148,7 @@ fn test_odo_strict_mode_clamp_fatal() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Counter value exceeds maximum (005 > 3)
@@ -185,13 +186,14 @@ fn test_odo_lenient_mode_clamp_with_warning() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Counter value exceeds maximum (005 > 3)
     let test_data = b"005ITEM1     ITEM2     ITEM3     ";
-    // Current decode path treats ODO out-of-range as errors even in lenient mode
+    // Lenient mode should clamp and continue with a warning
     let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(result.is_err());
+    assert!(result.is_ok());
 
     match result {
         Err(error) => assert_eq!(error.code, ErrorCode::CBKS301_ODO_CLIPPED),
@@ -222,13 +224,14 @@ fn test_odo_lenient_mode_raise_to_minimum() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Counter value below minimum (001 < 2)
     let test_data = b"001ITEM1     ITEM2     ";
-    // Current decode path treats ODO below minimum as an error even in lenient mode
+    // Lenient mode should clamp and continue with a warning
     let result = copybook_codec::decode_record(&schema, test_data, &options);
-    assert!(result.is_err());
+    assert!(result.is_ok());
 
     match result {
         Err(error) => assert_eq!(error.code, ErrorCode::CBKS302_ODO_RAISED),
@@ -259,6 +262,7 @@ fn test_odo_payload_length_correctness() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Test different array lengths
@@ -303,6 +307,7 @@ fn test_odo_encode_counter_update() {
     let options = EncodeOptions {
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         ..EncodeOptions::default()
     };
 
@@ -328,6 +333,7 @@ fn test_odo_encode_counter_update() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     let json_record = copybook_codec::decode_record(&schema, &output, &decode_options).unwrap();
@@ -360,6 +366,7 @@ fn test_odo_array_length_out_of_bounds_encode() {
     let options = EncodeOptions {
         codepage: Codepage::ASCII,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         strict_mode: true, // Strict mode
         ..EncodeOptions::default()
     };
@@ -367,11 +374,11 @@ fn test_odo_array_length_out_of_bounds_encode() {
     let input = Cursor::new(jsonl_data.as_bytes());
     let mut output = Vec::new();
 
-    // Current lib_api encoder path does not enforce ODO array length
+    // ODO array length is now enforced in lib_api encode path
     let summary =
         copybook_codec::encode_jsonl_to_file(&schema, input, &mut output, &options).unwrap();
-    assert_eq!(summary.records_with_errors, 0);
-    assert!(!output.is_empty());
+    assert_eq!(summary.records_with_errors, 1);
+    assert!(output.is_empty());
 }
 
 #[test]
@@ -456,6 +463,7 @@ fn test_odo_zero_length_record_handling() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Zero-length array (counter = 0)
@@ -491,6 +499,7 @@ fn test_odo_comprehensive_error_context() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Counter exceeds maximum

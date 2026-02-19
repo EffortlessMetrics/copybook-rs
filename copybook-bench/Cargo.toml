@@ -7,7 +7,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Performance benchmarks for copybook-rs"
+description = "Benchmark harness and baseline tooling for copybook-rs"
+readme = "README.md"
+keywords = ["cobol", "copybook", "benchmark", "performance", "mainframe"]
+categories = ["development-tools::profiling", "encoding"]
 publish = false
 
 [[bench]]
@@ -28,18 +31,21 @@ harness = false
 required-features = ["diagnostics"]
 
 [dependencies]
-copybook-core = { path = "../copybook-core" }
-copybook-codec = { path = "../copybook-codec" }
+copybook-core = { workspace = true }
+copybook-codec = { workspace = true }
 criterion.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
-num_cpus = "1.17.0"
-chrono = { version = "0.4.43", default-features = false, features = ["serde", "std", "clock"] }
-serde = { version = "1.0.228", features = ["derive"] }
+num_cpus = { workspace = true }
+chrono = { workspace = true, features = ["serde", "std", "clock"] }
+serde = { workspace = true }
 anyhow.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+regex.workspace = true
+[lints]
+workspace = true
 
 [features]
 default = []
@@ -49,5 +55,3 @@ progressive = []
 diagnostics = []
 # Performance-only tests: throughput assertions for dedicated perf workflow
 perf = []
-[lints]
-workspace = true

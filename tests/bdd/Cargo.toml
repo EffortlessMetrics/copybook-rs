@@ -1,17 +1,22 @@
 [package]
 name = "copybook-bdd"
 version.workspace = true
-edition.workspace = true
+edition = "2021"
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "BDD tests for copybook-rs using Cucumber/Gherkin"
+readme = "README.md"
+publish = false
 
 [[bin]]
 name = "bdd"
 path = "bdd.rs"
+
+[lints]
+workspace = true
 
 [dependencies]
 cucumber.workspace = true
@@ -23,3 +28,8 @@ serde_json.workspace = true
 tempfile.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
+base64.workspace = true
+
+[features]
+default = []
+audit = ["copybook-core/audit", "copybook-codec/audit"]

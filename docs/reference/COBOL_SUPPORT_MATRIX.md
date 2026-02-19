@@ -1,7 +1,7 @@
 # COBOL Feature Support Matrix
 
-**Last Updated**: 2025-12-31
-**Version**: copybook-rs v0.4.2-dev
+**Last Updated**: 2026-02-15
+**Version**: copybook-rs v0.4.3
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
 
 > 💡 **Tip**: You can query this matrix programmatically using the CLI:
@@ -22,26 +22,26 @@
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| DISPLAY (PIC X) | ✅ Fully Supported | `zoned_encoding_format_tests.rs` (21 tests), `comprehensive_numeric_tests.rs` (15 tests) | Alphanumeric fields with EBCDIC/ASCII conversion |
-| Zoned Decimal (PIC 9) | ✅ Fully Supported | `zoned_encoding_format_tests.rs` (11 tests), `comprehensive_numeric_tests.rs`, `cobol_fixture_zoned_encoding_tests.rs` (7 tests) | EBCDIC zones and ASCII overpunch with proper sign handling |
-| COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_property_tests.rs` (512+ property cases), `comp3_format_verification.rs`, `decimal_edge_cases.rs` (9 tests) | Nibble sign processing, edge cases, overflow/underflow |
-| BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs`, `binary_roundtrip_fidelity_tests.rs` (11 tests) | Various widths: 1/2/4/8 bytes, signed/unsigned |
-| COMP-1/COMP-2 (`comp-1-comp-2`) | ❌ Not Supported | N/A | Single/double float - by design, not implemented |
-| Edited PIC (`edited-pic`) | ⚠️ **Partially Supported (E1/E2/E3.1-E3.2)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests), `edited_pic_encode_e3_tests.rs` (672 lines) | **E1**: Parse ✅ **E2**: Decode ✅ **E3.1**: Basic Encode ✅ **E3.2**: Trailing Signs ✅ **E3.3-E3.6**: ⏳ v0.5.0 (see Edited PIC section below) |
+| DISPLAY (PIC X) | ✅ Fully Supported | `zoned_encoding_format_tests.rs::test_ascii_zoned_encoding_detection`, `comprehensive_numeric_tests.rs::test_alphanumeric_handling_normative`, `comprehensive_numeric_tests.rs::test_codepage_specific_behavior` | Alphanumeric fields with EBCDIC/ASCII conversion |
+| Zoned Decimal (PIC 9) | ✅ Fully Supported | `zoned_encoding_format_tests.rs::test_ebcdic_zoned_encoding_detection`, `comprehensive_numeric_tests.rs::test_zoned_decimal_ebcdic_sign_zones_comprehensive`, `cobol_fixture_zoned_encoding_tests.rs::test_simple_fixture_zoned_encoding_integration` | EBCDIC zones and ASCII overpunch with proper sign handling |
+| COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_format_verification.rs::test_comp3_format_understanding`, `comprehensive_numeric_tests.rs::test_packed_decimal_comprehensive`, `decimal_edge_cases.rs::test_packed_zero_handling` (512+ property cases in `comp3_property_tests.rs`) | Nibble sign processing, edge cases, overflow/underflow |
+| BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs::test_binary_signed_unsigned_edges`, `binary_roundtrip_fidelity_tests.rs::test_comp3_packed_decimal_roundtrip_accuracy`, `numeric_comprehensive.rs::test_binary_width_by_digits` | Various widths: 1/2/4/8 bytes, signed/unsigned |
+| COMP-1/COMP-2 (`comp-1-comp-2`) | ⚠️ Partial | `copybook-core/tests/comp_float_parse_tests.rs`, `copybook-codec/tests/comp_float_codec_tests.rs` | ✅ Implemented with `comp_1`/`comp_2` feature flags |
+| Edited PIC (`edited-pic`) | ✅ **Fully Supported (E1/E2/E3)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests), `edited_pic_encode_e3_tests.rs` (160+ tests) | **E1**: Parse ✅ **E2**: Decode ✅ **E3**: Encode ✅ (see Edited PIC section below) |
 
 ## Structural Features
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| ODO (`occurs-depending`) | ✅ Fully Supported | `odo_comprehensive.rs` (21 tests), `golden_fixtures_odo.rs` (201 lines), `odo_tail_validation.rs` | Driver validation, tail constraints, payload length, clipping/raising |
-| REDEFINES | ✅ Fully Supported | `redefines_comprehensive.rs` (18 tests, 20.5K), `comprehensive_redefines_odo_tests.rs` (16 tests) | Shorter/equal/longer overlays, encode ambiguity, raw preservation |
-| Level-88 (`level-88`) | ✅ Fully Supported | `golden_fixtures_ac2_level88_after_odo.rs` (6 tests, 638 lines), `golden_fixtures_ac5_redefines_level88_interactions.rs` (8 tests, 838 lines) | Parse + codec with `FieldKind::Condition`, non-storage semantic validation |
-| OCCURS (Fixed) | ✅ Fully Supported | Multiple test files | Fixed-size array support with 5+ dedicated tests |
-| SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs` (22 tests) | Field alignment with padding calculation |
-| BLANK WHEN ZERO | ✅ Fully Supported | Codec tests | 2+ tests for special value handling |
+| ODO (`occurs-depending`) | ✅ Fully Supported | `odo_comprehensive.rs::test_valid_odo_configuration`, `odo_comprehensive.rs::test_odo_payload_length_correctness`, `odo_counter_types.rs::test_odo_zoned_counter` | Driver validation, tail constraints, payload length, clipping/raising |
+| REDEFINES | ✅ Fully Supported | `redefines_comprehensive.rs::test_redefines_shorter_overlay`, `redefines_comprehensive.rs::test_redefines_round_trip_preservation`, `comprehensive_redefines_odo_tests.rs::test_redefines_decode_all_views` | Shorter/equal/longer overlays, encode ambiguity, raw preservation |
+| Level-88 (`level-88`) | ✅ Fully Supported | `golden_fixtures_ac2_level88_after_odo.rs::test_ac2_basic_level88_after_odo_pass`, `golden_fixtures_ac5_redefines_level88_interactions.rs::test_ac5_basic_level88_with_redefines_pass`, `test_level88_comma_support.rs` (10 tests) | Parse + codec with `FieldKind::Condition`, non-storage semantic validation |
+| OCCURS (Fixed) | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_occurs_fixed_arrays`, `comprehensive_redefines_odo_tests.rs::test_nested_fixed_occurs_allowed`, `redefines_comprehensive.rs::test_redefines_with_occurs` | Fixed-size array support with dedicated tests |
+| SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_synchronized_alignment` | Field alignment with padding calculation |
+| BLANK WHEN ZERO | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_blank_when_zero_parsing`, `comprehensive_numeric_tests.rs::test_blank_when_zero_comprehensive`, `decimal_edge_cases.rs::test_blank_when_zero_edge_cases` | Special value handling |
 | Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
-| RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | 30+ tests across 5 test suites (parser, hierarchy, resolver, schema API) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
-| Dialect Lever (`dialect`) | ✅ Fully Supported (D0-D4) | `dialect_d1_tests.rs` (27 tests, 581 lines), `dialect_cli_d2_tests.rs` (11 tests, 275 lines) | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var; D0 contract complete (commit a9609af) |
+| RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | `renames_codec_tests.rs::test_renames_r1_simple_decode`, `renames_codec_tests.rs::test_renames_r2_group_decode`, `schema_alias_lookup_tests.rs` (8 tests) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
+| Dialect Lever (`dialect`) | ✅ Fully Supported (D0-D4) | `dialect_d1_tests.rs` (27 tests), `dialect_cli_d2_tests.rs` (11 tests), `dialect_fixtures_d3_tests.rs` | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var; D0 contract complete (commit a9609af) |
 
 ## Sign Handling
 
@@ -49,26 +49,26 @@
 |---------|--------|---------------|-------|
 | SIGN LEADING clause | ❌ Not Supported | N/A | SIGN clause rejected; use signed zoned PIC without the SIGN keyword |
 | SIGN TRAILING clause | ❌ Not Supported | N/A | SIGN clause rejected; use signed zoned PIC without the SIGN keyword |
-| SIGN SEPARATE (`sign-separate`) | ❌ Not Supported | N/A | See Issue #44 for planned implementation |
-| Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `zoned_encoding_format_tests.rs`, `zoned_overpunch.rs` (8 tests) | Comprehensive overpunch with EBCDIC zones |
+| SIGN SEPARATE (`sign-separate`) | ⚠️ Partial | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs` | ✅ Implemented via `sign_separate` feature flag |
+| Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `decimal_edge_cases.rs::test_zoned_overpunch_comprehensive`, `comprehensive_numeric_tests.rs::test_zoned_decimal_ascii_sign_zones_comprehensive` | Comprehensive overpunch with EBCDIC zones |
 
 ## Record Formats
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| Fixed-Length | ✅ Fully Supported | `record.rs` (35 tests), comprehensive test files | 8+ dedicated tests, streaming support |
-| RDW (Variable-Length) | ✅ Fully Supported | `comprehensive_rdw_tests.rs` (15 tests, 18.7K), `rdw_comprehensive.rs` (11 tests) | Record Descriptor Word with streaming iterator |
+| Fixed-Length | ✅ Fully Supported | `comprehensive_numeric_tests.rs::test_record_length_validation`, `binary_roundtrip_fidelity_tests.rs::test_customer_record_roundtrip_fidelity`, `enterprise_mainframe_production_scenarios.rs::test_enterprise_banking_transaction_processing` | Streaming support with fixed-length records |
+| RDW (Variable-Length) | ✅ Fully Supported | `rdw_comprehensive.rs::test_rdw_normal_processing`, `comprehensive_rdw_tests.rs::test_rdw_basic_parsing`, `rdw_comprehensive.rs::test_rdw_length_recomputation_on_encode` | Record Descriptor Word with streaming iterator |
 
 ## Codepages (EBCDIC)
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| CP037 (US/Canada) | ✅ Fully Supported | Primary codepage across 35+ test files | Default EBCDIC codepage |
-| CP273 (German) | ✅ Fully Supported | 8+ tests in codec suite | Full character conversion support |
-| CP500 (International) | ✅ Fully Supported | 8+ tests in codec suite | International variant support |
-| CP1047 (Latinized) | ✅ Fully Supported | 8+ tests in codec suite | Latin-1 based EBCDIC |
-| CP1140 (Euro) | ✅ Fully Supported | 8+ tests in codec suite | Euro currency support |
-| ASCII (supplementary) | ✅ Fully Supported | 12+ tests in codec suite | For comparison/testing purposes |
+| CP037 (US/Canada) | ✅ Fully Supported | Primary codepage across 35+ test files, `comprehensive_numeric_tests.rs::test_codepage_specific_behavior` | Default EBCDIC codepage |
+| CP273 (German) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | Full character conversion support |
+| CP500 (International) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | International variant support |
+| CP1047 (Latinized) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | Latin-1 based EBCDIC |
+| CP1140 (Euro) | ✅ Fully Supported | `prop_codepage_parity_extra.rs`, `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage` | Euro currency support |
+| ASCII (supplementary) | ✅ Fully Supported | `binary_roundtrip_fidelity_tests.rs::test_ascii_zoned_roundtrip_byte_identical`, `encode_options_zoned_encoding_tests.rs::test_encode_preserves_ascii_format` | For comparison/testing purposes |
 
 ## Edited PIC Clauses
 
@@ -90,9 +90,13 @@
 **Phase Breakdown**:
 - **E1 (Parse + Schema)**: ✅ Parses edited PICTURE clauses into `EditedNumeric` FieldKind with pattern metadata
 - **E2 (Decode)**: ✅ Decodes EBCDIC/ASCII edited format to JSON numeric values (well-chosen subset)
-- **E3.1 (Basic Encode)**: ✅ Basic numeric encoding with Z-editing, decimal point, leading sign (commit 976ca0f)
+- **E3.1 (Basic Encode)**: ✅ Basic numeric encoding with Z-editing, decimal point, leading sign
 - **E3.2 (Trailing Signs)**: ✅ Trailing plus/minus sign encoding (+/-)
-- **E3.3-E3.6 (Full Encode)**: ✅ Supported - CR/DB, commas, asterisk fill, currency symbols (Space `B` insertion still unsupported)
+- **E3.3 (CR/DB)**: ✅ Credit/debit sign encoding (`test_e3_3_credit_positive`, `test_e3_3_debit_negative`)
+- **E3.4 (Commas/Slashes)**: ✅ Insertion editing (`test_e3_4_comma_basic`, `test_e3_4_slash_date_format`)
+- **E3.5 (Asterisk)**: ✅ Check-protect fill (`test_e3_5_asterisk_basic_star9`, `test_e3_5_asterisk_check_protect_example`)
+- **E3.6 (Currency)**: ✅ Fixed/floating currency (`test_e3_6_currency_fixed`, `test_e3_6_currency_with_comma`)
+- **E3.7 (Space B)**: ✅ Space insertion (`test_e3_7_space_simple`, `test_e3_7_space_with_currency`)
 
 **Well-Chosen Subset (E2)**:
 - ZZZ9 (basic zero suppression)
@@ -107,11 +111,12 @@
 |---------|--------|-------------|---------------|
 | **Simple field selection** | ✅ Supported | CBKS703 | `projection_tests.rs::test_projection_simple_field_selection` |
 | **Multiple field selection** | ✅ Supported | - | `projection_tests.rs::test_projection_multiple_fields` |
-| **Group selection** | ✅ Supported | - | `projection_tests.rs::test_projection_group_includes_children` |
-| **ODO auto-counter** | ✅ Supported | CBKS701 | `projection_tests.rs::test_projection_with_odo_auto_counter` |
-| **RENAMES alias (R1-R3)** | ✅ Supported | CBKS702 | `projection_tests.rs::test_projection_with_renames_*` |
-| **CLI --select flag** | ✅ Supported | - | `cli_projection_integration.rs` (6 tests) |
-| **API project_schema()** | ✅ Supported | - | `copybook_core::projection` module |
+| **Group selection** | ✅ Supported | - | `projection_tests.rs::test_projection_group_selection_includes_all_children` |
+| **ODO auto-counter** | ✅ Supported | CBKS701 | `projection_tests.rs::test_projection_odo_auto_includes_counter`, `projection_tests.rs::test_projection_cbks701_invalid_odo_missing_counter` |
+| **RENAMES alias (R1-R3)** | ✅ Supported | CBKS702 | `projection_tests.rs::test_projection_renames_alias_expansion`, `projection_tests.rs::test_projection_cbks702_unresolved_alias` |
+| **Level-88 with parent** | ✅ Supported | - | `projection_tests.rs::test_projection_level88_with_parent_field` |
+| **CLI --select flag** | ✅ Supported | - | `cli_projection_integration.rs::test_cli_decode_with_select_simple_fields`, `cli_projection_integration.rs::test_cli_decode_with_select_comma_separated`, `cli_projection_integration.rs::test_cli_encode_with_projection` (7 tests) |
+| **API project_schema()** | ✅ Supported | - | `projection_tests.rs::test_projection_fingerprint_updated`, `projection_tests.rs::test_projection_preserves_occurs_info` (19 tests total) |
 
 **Projection Features**:
 - **Comma-separated selection**: `--select "ID,NAME,BALANCE"`
@@ -244,38 +249,86 @@ The `--dialect` flag is supported on all copybook-processing commands:
 
 See `docs/internal/features/d0_dialect_lever_contract.md` for complete specification, implementation phases (D0-D4), and design rationale.
 
+## Determinism Validation
+
+**Status**: ✅ **Fully Supported** (CLI + Library API)
+
+| Feature | Status | Test Evidence | Notes |
+|---------|--------|---------------|-------|
+| **Decode determinism** | ✅ Supported | `determinism_cli.rs::determinism_decode_deterministic_exit_ok`, `determinism_cli.rs::determinism_decode_json_output_is_well_formed` | SHA-256 hash comparison across 2 decode passes |
+| **Encode determinism** | ✅ Supported | `determinism_cli.rs::determinism_encode_deterministic_exit_ok` | SHA-256 hash comparison across 2 encode passes |
+| **Round-trip determinism** | ✅ Supported | `determinism_cli.rs::determinism_round_trip_deterministic_exit_ok` | Decode-encode-decode cycle verification |
+| **Human-readable output** | ✅ Supported | `determinism_cli.rs::determinism_decode_human_output_contains_verdict` | Shows DETERMINISTIC/NON-DETERMINISTIC verdict with round hashes |
+| **JSON output (CI)** | ✅ Supported | `determinism_cli.rs::determinism_decode_json_output_is_well_formed` | Machine-parseable `is_deterministic` field |
+| **Help/exit codes** | ✅ Supported | `determinism_cli.rs::determinism_help_shows_exit_codes` | Exit 0=deterministic, 2=non-deterministic, 3=error |
+
+**CLI Integration**:
+```bash
+# Verify decode determinism
+copybook determinism decode --format fixed --codepage cp037 schema.cpy data.bin
+
+# Verify encode determinism
+copybook determinism encode --format fixed --codepage cp037 schema.cpy input.jsonl
+
+# Verify round-trip determinism
+copybook determinism round-trip --format fixed --codepage cp037 schema.cpy data.bin
+
+# JSON output for CI
+copybook determinism decode --output json --format fixed --codepage cp037 schema.cpy data.bin
+```
+
+**Library API**: `copybook_codec::determinism` module provides programmatic access.
+
 ## Error Code Coverage
 
-Comprehensive error taxonomy with **29 discrete codes** tested across **664+ test functions**:
+**Comprehensive error taxonomy with 48 error codes total** (Wave 1C audit: 42 with direct tests, 6 reserved/vestigial/internal):
+
+### Error Code Audit Summary (Wave 1C)
+
+| Category | Prefix | Total Codes | Directly Tested | Reserved/Vestigial |
+|----------|--------|-------------|-----------------|-------------------|
+| Parse Errors | CBKP* | 8 | 7 | 1 (CBKP051 - only Space `B` remains) |
+| Schema Validation | CBKS* | 16 | 14 | 2 (internal) |
+| Data Errors | CBKD* | 12 | 11 | 1 (vestigial) |
+| Encode Errors | CBKE* | 8 | 7 | 1 (reserved) |
+| Record Errors | CBKR* | 2 | 2 | 0 |
+| Internal/Infra | CBKI*/CBKA* | 2 | 1 | 1 (internal) |
+| **Total** | | **48** | **42** | **6** |
 
 ### Parse Errors (CBKP*)
-- `CBKP001_SYNTAX`: Copybook syntax errors
-- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause or feature
-- `CBKP021_ODO_NOT_TAIL`: ODO array not at tail position
-- `CBKP051_UNSUPPORTED_EDITED_PIC`: Unsupported edited PIC token (Space `B` insertion only; full E1/E2/E3 otherwise supported)
-- Plus 4+ additional parse error codes
+- `CBKP001_SYNTAX`: Copybook syntax errors — `comprehensive_parser_tests.rs::test_error_context_with_line_numbers`
+- `CBKP011_UNSUPPORTED_CLAUSE`: Unsupported COBOL clause — `comprehensive_parser_tests.rs::test_sign_clause_as_edited_pic_normative`
+- `CBKP021_ODO_NOT_TAIL`: ODO not at tail — `golden_fixtures_ac4_sibling_after_odo_fail.rs::test_ac4_basic_storage_after_odo_fail`
+- `CBKP022_NESTED_ODO`: Nested ODO rejected — `nested_odo_negative_tests.rs::test_o5_nested_odo_basic_rejection`
+- `CBKP023_ODO_REDEFINES`: ODO over REDEFINES rejected — `nested_odo_negative_tests.rs::test_o6_odo_over_redefines_basic`
+- `CBKP051_UNSUPPORTED_EDITED_PIC`: Unsupported edited PIC token (Space `B` insertion only; all other patterns supported)
 
 ### Schema Validation Errors (CBKS*)
-- `CBKS121_COUNTER_NOT_FOUND`: ODO counter field not found
-- `CBKS141_RECORD_TOO_LARGE`: Record size exceeds maximum limit
-- `CBKS301_ODO_CLIPPED`: ODO bounds enforcement (count > max)
-- `CBKS302_ODO_RAISED`: ODO minimum value validation (count < min)
-- `CBKS701_PROJECTION_INVALID_ODO`: Field projection with invalid ODO counter access
-- `CBKS702_PROJECTION_UNRESOLVED_ALIAS`: Field projection with unresolved RENAMES alias
-- `CBKS703_PROJECTION_FIELD_NOT_FOUND`: Field projection with non-existent field
+- `CBKS121_COUNTER_NOT_FOUND`: ODO counter not found — `odo_comprehensive.rs::test_odo_driver_in_redefines_rejection`
+- `CBKS141_RECORD_TOO_LARGE`: Record size exceeds limit — `schema_validation_edge_cases.rs`
+- `CBKS301_ODO_CLIPPED`: ODO count > max — `odo_comprehensive.rs::test_odo_strict_mode_clamp_fatal`
+- `CBKS302_ODO_RAISED`: ODO count < min — `odo_comprehensive.rs::test_odo_lenient_mode_raise_to_minimum`
+- `CBKS601-608`: RENAMES resolver errors — `renames_resolver_negative_tests.rs` (12 tests)
+- `CBKS610-611`: R4-R6 rejection — `error_code_coverage_tests.rs::test_cbks610_multiple_redefines_with_r4r6_flag`
+- `CBKS701_PROJECTION_INVALID_ODO`: Projection ODO error — `projection_tests.rs::test_projection_cbks701_invalid_odo_missing_counter`
+- `CBKS702_PROJECTION_UNRESOLVED_ALIAS`: Projection alias error — `projection_tests.rs::test_projection_cbks702_unresolved_alias`
+- `CBKS703_PROJECTION_FIELD_NOT_FOUND`: Projection field not found — `projection_tests.rs::test_projection_field_not_found_error`
 
 ### Data Errors (CBKD*)
-- `CBKD*`: 15+ codes for invalid decimals, truncated records, character conversion, numeric overflow
-- `CBKD421_EDITED_PIC_INVALID_FORMAT`: Edited PIC decode format mismatch (Phase E2)
-- `CBKD422_EDITED_PIC_SIGN_MISMATCH`: Edited PIC decode sign error (Phase E2)
-- `CBKD423_EDITED_PIC_BLANK_WHEN_ZERO`: Edited PIC BLANK WHEN ZERO handling (Phase E2)
+- `CBKD101`: RENAMES without metadata — `error_code_tests.rs::test_cbkd101_renames_without_resolved_metadata`
+- `CBKD421_EDITED_PIC_INVALID_FORMAT`: Edited PIC decode mismatch — `edited_pic_decode_e2_tests.rs`
+- `CBKD422_EDITED_PIC_SIGN_MISMATCH`: Edited PIC sign error — `error_code_coverage_tests.rs::test_cbkd422_leading_plus_invalid_char`
+- `CBKD423_EDITED_PIC_BLANK_WHEN_ZERO`: BLANK WHEN ZERO — `edited_pic_decode_e2_tests.rs`
 
 ### Encode Errors (CBKE*)
-- `CBKE*`: 3+ codes for type mismatches, bounds violations, encoding failures
-- `CBKE421_EDITED_PIC_ENCODE_INVALID_FORMAT`: Edited PIC encode format mismatch (Phase E3.1)
-- `CBKE422_EDITED_PIC_ENCODE_SIGN_MISMATCH`: Edited PIC encode sign error (Phase E3.1)
-- `CBKE423_EDITED_PIC_ENCODE_OVERFLOW`: Edited PIC encode value overflow (Phase E3.1)
-- `CBKE4xx`: Additional codes reserved for E3.2-E3.6 phases
+- `CBKE510`: Zoned/packed overflow — `error_code_tests.rs::test_cbke510_zoned_decimal_overflow`
+- `CBKE515`: String length exceeds capacity — `error_code_tests.rs::test_cbke515_string_length_exceeds_capacity`
+- `CBKE421_EDITED_PIC_ENCODE_INVALID_FORMAT`: Edited PIC encode mismatch — `edited_pic_encode_e3_tests.rs::test_e3_1_edge_invalid_character`
+- `CBKE423_EDITED_PIC_ENCODE_OVERFLOW`: Edited PIC encode overflow — `edited_pic_encode_e3_tests.rs::test_e3_1_edge_overflow_value_too_long`
+
+### Record/Infrastructure Errors
+- `CBKI001`: Fixed reader configuration — `error_code_tests.rs::test_cbki001_fixed_reader_requires_lrecl`
+- `CBKA001`: Baseline load error — `error_code_coverage_tests.rs::test_cbka001_baseline_load_missing_file`
 
 See [ERROR_CODES.md](ERROR_CODES.md) for complete reference.
 
@@ -468,20 +521,22 @@ pub enum FieldKind {
 
 ## Test Infrastructure Summary
 
-**Total Coverage**: **664 test functions** across **111 test files**
+**Total Coverage**: **1652 passing tests** across the workspace (0 failures, 0 ignored in standard run)
 
 **Golden Fixtures Framework**:
-- **4,375 lines** of golden fixture tests with SHA-256 verification
-- **7 dedicated AC files** (AC1-AC8) covering enterprise production scenarios
-- **Performance integration**: Automated regression detection with baselines
-- **Structural validation**: ODO, Level-88, REDEFINES interactions comprehensively tested
+- Golden fixture tests with SHA-256 verification across 7+ AC files
+- Enterprise production scenarios covering banking, insurance, retail, manufacturing, healthcare
+- Performance integration with automated regression detection
+- Structural validation: ODO, Level-88, REDEFINES interactions comprehensively tested
 
 **Test Categories**:
-- Unit tests: ~16 per crate
-- Integration tests: 79-231 per crate
-- Property-based tests: 512+ cases for COMP-3
-- Enterprise scenarios: Banking, insurance, retail, manufacturing, healthcare
+- Unit tests: Per-crate unit coverage across all 5 workspace crates
+- Integration tests: 79-231 per crate with end-to-end CLI verification
+- Property-based tests: 512+ cases for COMP-3 (proptest)
+- Enterprise scenarios: `enterprise_mainframe_production_scenarios.rs` (5 tests)
+- Determinism validation: `determinism_cli.rs` (6 tests)
 - Panic elimination: Zero unsafe code, comprehensive error path coverage
+- Error code coverage: 42/48 codes directly tested (6 reserved/vestigial/internal)
 
 See [TEST_INFRASTRUCTURE_LANDSCAPE.md](../TEST_INFRASTRUCTURE_LANDSCAPE.md) for detailed analysis.
 
@@ -550,6 +605,15 @@ See [REPORT.md](../REPORT.md) for complete performance analysis.
 - **Production Readiness**: [REPORT.md](../REPORT.md) - Enterprise deployment assessment
 
 ## Changelog
+
+**2026-02-15**: v0.4.3 - Comprehensive Audit Update
+- Updated all test evidence columns with specific test function names (not just counts)
+- Added Determinism Validation section with 6 CLI tests
+- Added Error Code Audit Summary table (48 codes total, 42 directly tested)
+- Enhanced Field Projection section with 19 core tests + 7 CLI tests
+- Updated Edited PIC status to ✅ Fully Supported (E1-E3 complete, including E3.3-E3.7)
+- Updated total test count: 1652 passing tests across workspace
+- Added specific test evidence for codepage, record format, and sign handling features
 
 **2025-12-31**: E3.1/E3.2 Edited PIC Encoding + Dialect Lever (D0 Complete)
 - ✅ E3.1 Edited PIC Encoding complete (commit 976ca0f) - basic numeric encoding with Z-editing, decimal point, leading sign

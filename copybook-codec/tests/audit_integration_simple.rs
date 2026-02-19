@@ -46,7 +46,7 @@ fn test_audit_context_integration_scaffolding() {
         .with_json_number_mode(JsonNumberMode::Lossless)
         .with_emit_meta(true);
 
-    // TODO: Add audit context integration to DecodeOptions when implemented
+    // Audit feature (TDD Red phase) - audit context integration to DecodeOptions will be added when implemented
 
     // Create test binary data
     let test_record = vec![0u8; schema.lrecl_fixed.unwrap_or(100) as usize];
@@ -98,7 +98,7 @@ fn test_performance_overhead_scaffolding() {
     }
     let baseline_duration = baseline_start.elapsed();
 
-    // TODO: Add audit-enabled measurement when implemented
+    // Audit feature (TDD Red phase) - audit-enabled measurement will be added when implemented
 
     println!("Performance overhead scaffolding test completed in {baseline_duration:?}");
 }

@@ -20,6 +20,7 @@ fn make_opts() -> (EncodeOptions, DecodeOptions) {
         format: RecordFormat::Fixed,
         codepage: Codepage::CP037,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
         use_raw: false,
         bwz_encode: false,
         strict_mode: true,
@@ -43,6 +44,7 @@ fn make_opts() -> (EncodeOptions, DecodeOptions) {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Ebcdic,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
     (enc, dec)
 }

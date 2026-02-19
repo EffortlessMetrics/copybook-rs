@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -66,6 +67,7 @@ fn main() {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: copybook_codec::ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     };
 
     // Sample binary data (simulated EBCDIC-encoded transaction records)

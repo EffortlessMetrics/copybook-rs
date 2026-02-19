@@ -877,7 +877,7 @@ mod tests {
 
         // Read all records
         let mut count = 0;
-        while let Some(result) = iterator.next() {
+        for result in iterator.by_ref() {
             assert!(result.is_ok(), "Record {count} should decode successfully");
             count += 1;
         }
@@ -920,7 +920,7 @@ mod tests {
 
         // Read all records
         let mut count = 0;
-        while let Some(result) = iterator.next() {
+        for result in iterator.by_ref() {
             assert!(result.is_ok(), "Record {count} should decode successfully");
             count += 1;
         }

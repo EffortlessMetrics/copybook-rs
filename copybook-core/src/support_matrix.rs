@@ -66,7 +66,7 @@ pub fn all_features() -> &'static [FeatureSupport] {
         Comp1Comp2, EditedPic, Level66Renames, Level88Conditions, NestedOdo, OccursDepending,
         SignSeparate,
     };
-    use SupportStatus::{NotPlanned, Partial, Planned, Supported};
+    use SupportStatus::{Partial, Supported};
 
     &[
         FeatureSupport {
@@ -93,30 +93,32 @@ pub fn all_features() -> &'static [FeatureSupport] {
         FeatureSupport {
             id: EditedPic,
             name: "Edited PIC clauses",
-            description: "Masks like PIC Z,ZZZ.99; parsing and round-trip support.",
-            status: Planned,
-            doc_ref: Some("docs/ROADMAP.md#v0.5.0-dialect-features"),
+            description: "Masks like PIC Z,ZZZ.99; full parse/decode/encode support.",
+            status: Supported,
+            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#edited-pic"),
         },
         FeatureSupport {
             id: Comp1Comp2,
             name: "COMP-1/COMP-2 floating-point",
-            description: "Single/double precision floating-point types.",
-            status: NotPlanned,
+            description: "Single/double precision floating-point types (requires `comp_1`/`comp_2` feature flags).",
+            status: Partial,
             doc_ref: None,
         },
         FeatureSupport {
             id: SignSeparate,
             name: "SIGN LEADING/TRAILING SEPARATE",
-            description: "Separate sign byte directives.",
-            status: Planned,
-            doc_ref: Some("docs/ROADMAP.md#v0.5.0-dialect-features"),
+            description: "Separate sign byte directives (requires `sign_separate` feature flag).",
+            status: Partial,
+            doc_ref: Some("docs/reference/COBOL_SUPPORT_MATRIX.md#sign-handling"),
         },
         FeatureSupport {
             id: NestedOdo,
             name: "Nested OCCURS DEPENDING ON",
-            description: "ODO arrays inside ODO arrays.",
-            status: NotPlanned,
-            doc_ref: None,
+            description: "ODO arrays inside ODO arrays (O1-O4 supported, O5/O6 rejected).",
+            status: Partial,
+            doc_ref: Some(
+                "docs/reference/COBOL_SUPPORT_MATRIX.md#nested-odo--occurs-behavior---support-status",
+            ),
         },
     ]
 }

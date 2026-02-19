@@ -2,7 +2,7 @@
 
 use crate::GeneratorConfig;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::fmt::Write;
 
 /// Safe writeln! wrapper that ignores write errors for String targets

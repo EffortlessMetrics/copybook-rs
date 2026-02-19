@@ -34,13 +34,16 @@ fn create_rdw_decode_options(emit_raw: RawMode, strict: bool) -> DecodeOptions {
         threads: 1,
         preserve_zoned_encoding: false,
         preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: copybook_codec::FloatFormat::IeeeBigEndian,
     }
 }
 
-fn create_rdw_encode_options(_use_raw: bool, _strict: bool) -> EncodeOptions {
+fn create_rdw_encode_options(use_raw: bool, strict: bool) -> EncodeOptions {
     EncodeOptions {
         format: RecordFormat::RDW,
         codepage: Codepage::ASCII,
+        use_raw,
+        strict_mode: strict,
         ..EncodeOptions::default()
     }
 }
@@ -142,7 +145,6 @@ fn test_rdw_raw_preservation_normative() {
 }
 
 #[test]
-#[ignore = "Known issue: RDW encoder needs to recompute length when payload changes (Issue #102)"]
 fn test_rdw_length_recomputation() {
     // Test that RDW length is recomputed if payload changes
     let copybook = "01 VARIABLE-RECORD PIC X(20).";
@@ -367,14 +369,11 @@ fn test_rdw_with_odo_variable_length() {
 
     assert_eq!(json_record["COUNTER"], "03");
 
-    // TODO: ODO array processing is not working correctly in simple decode_record
-    // The VARIABLE-ARRAY should be ["ABC", "DEF", "GHI"] but is "ABCDEFGHI"
-    // This is a complex feature that needs proper ODO implementation
-    // let array = json_record["VARIABLE-ARRAY"].as_array().unwrap();
-    // assert_eq!(array.len(), 3);
-    // assert_eq!(array[0], "ABC");
-    // assert_eq!(array[1], "DEF");
-    // assert_eq!(array[2], "GHI");
+    let array = json_record["VARIABLE-ARRAY"].as_array().unwrap();
+    assert_eq!(array.len(), 3);
+    assert_eq!(array[0], "ABC");
+    assert_eq!(array[1], "DEF");
+    assert_eq!(array[2], "GHI");
 }
 
 #[test]

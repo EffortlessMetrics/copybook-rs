@@ -869,10 +869,7 @@ impl ComplianceValidator for PciDssValidator {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceConfig {
-    pub strict_mode: bool,
     pub review_interval_days: Option<u32>,
-    pub auto_remediation: bool,
-    pub notification_endpoints: Vec<String>,
     pub sox: SoxConfig,
     pub hipaa: HipaaConfig,
     pub gdpr: GdprConfig,
@@ -882,10 +879,7 @@ pub struct ComplianceConfig {
 impl Default for ComplianceConfig {
     fn default() -> Self {
         Self {
-            strict_mode: true,
             review_interval_days: Some(90),
-            auto_remediation: false,
-            notification_endpoints: Vec::new(),
             sox: SoxConfig::default(),
             hipaa: HipaaConfig::default(),
             gdpr: GdprConfig::default(),
@@ -932,7 +926,6 @@ impl Default for HipaaConfig {
 pub struct GdprConfig {
     pub legal_basis_validation: bool,
     pub data_subject_rights_automation: bool,
-    pub cross_border_transfer_monitoring: bool,
 }
 
 impl Default for GdprConfig {
@@ -940,29 +933,21 @@ impl Default for GdprConfig {
         Self {
             legal_basis_validation: true,
             data_subject_rights_automation: true,
-            cross_border_transfer_monitoring: true,
         }
     }
 }
 
-#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PciDssConfig {
     pub cardholder_data_validation: bool,
-    pub pan_truncation_required: bool,
-    pub encryption_required: bool,
     pub mfa_required: bool,
-    pub audit_logging_required: bool,
 }
 
 impl Default for PciDssConfig {
     fn default() -> Self {
         Self {
             cardholder_data_validation: true,
-            pan_truncation_required: true,
-            encryption_required: true,
             mfa_required: true,
-            audit_logging_required: true,
         }
     }
 }

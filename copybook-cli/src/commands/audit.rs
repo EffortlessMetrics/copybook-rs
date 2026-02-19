@@ -1284,9 +1284,7 @@ async fn run_compliance_validation(
     write_stdout_line("Running compliance validation...")?;
 
     let (profiles, framework_names) = parse_compliance_profiles(compliance)?;
-    let mut compliance_config = ComplianceConfig::default();
-    compliance_config.strict_mode = strict;
-    compliance_config.auto_remediation = auto_remediate;
+    let compliance_config = ComplianceConfig::default();
 
     let mut schema = parse_copybook_schema(copybook)?;
     if schema.lrecl_fixed.is_none() {

@@ -33,17 +33,6 @@ pub enum ZeroSignPolicy {
     Preferred,
 }
 
-/// Overpunch mapping table entry: (digit, sign, codepage) -> byte
-#[derive(Debug, Clone, Copy)]
-pub struct OverpunchMapping {
-    /// The digit value (0-9)
-    pub digit: u8,
-    /// Whether this represents a negative value
-    pub is_negative: bool,
-    /// The encoded byte value
-    pub byte_value: u8,
-}
-
 /// ASCII overpunch for the *last* digit in a field.
 /// +0..+9 encode to `{`, `A`..`I`; -0..-9 encode to `}`, `J`..`R`.
 /// Non-final digits MUST be bare ASCII `0`..`9`; helpers enforce this.

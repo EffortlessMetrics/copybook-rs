@@ -45,7 +45,6 @@ pub enum PicToken {
     Debit,
 }
 
-
 impl std::fmt::Display for PicToken {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

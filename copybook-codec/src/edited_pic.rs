@@ -45,33 +45,6 @@ pub enum PicToken {
     Debit,
 }
 
-impl PicToken {
-    /// Returns true if this token represents a numeric position
-    #[inline]
-    #[allow(dead_code)] // May be used in future optimizations
-    const fn is_numeric(&self) -> bool {
-        matches!(
-            self,
-            Self::Digit | Self::ZeroSuppress | Self::ZeroInsert | Self::AsteriskFill
-        )
-    }
-
-    /// Returns true if this token is a sign editing symbol
-    #[inline]
-    #[allow(dead_code)] // May be used in future optimizations
-    const fn is_sign(&self) -> bool {
-        matches!(
-            self,
-            Self::LeadingPlus
-                | Self::LeadingMinus
-                | Self::TrailingPlus
-                | Self::TrailingMinus
-                | Self::Credit
-                | Self::Debit
-        )
-    }
-}
-
 impl std::fmt::Display for PicToken {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

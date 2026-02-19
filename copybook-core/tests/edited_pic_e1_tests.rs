@@ -68,12 +68,15 @@ fn test_e1_asterisk_fill_parses() {
 
 /// Test E1.4: SIGN clause rejected as unsupported edited PIC
 #[test]
-fn test_e1_sign_clause_parses() {
+fn test_e1_sign_clause_without_separate_rejected() {
+    // SIGN LEADING without SEPARATE is a syntax error (overpunching is handled by S in PIC)
+    // SIGN SEPARATE is always-enabled, so the feature-flag path is no longer hit;
+    // instead the parser validates that SEPARATE must be present.
     let copybook = "01 REC.\n   05 SIGNED-AMT PIC S9(5) SIGN LEADING.";
     let Err(error) = parse_copybook(copybook) else {
-        panic!("SIGN clause should be rejected as unsupported");
+        panic!("SIGN clause without SEPARATE should be rejected");
     };
-    assert_eq!(error.code, ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC);
+    assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
 }
 
 /// Test E1.5: Verify edited PIC fields have storage in schema

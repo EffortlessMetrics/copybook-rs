@@ -416,10 +416,11 @@ mod steps {
     // ========================================================================
 
     #[given(expr = "a copybook with content:")]
-    async fn given_copybook_with_content(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
-        world.copybook_text = Some(
-            step.docstring.as_ref().expect("Docstring required").clone(),
-        );
+    async fn given_copybook_with_content(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
+        world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a simple copybook with a single field")]
@@ -499,9 +500,7 @@ mod steps {
 
     #[given(expr = "JSON data:")]
     async fn given_json_data(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
-        world.json_data = Some(
-            step.docstring.as_ref().expect("Docstring required").clone(),
-        );
+        world.json_data = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "JSON data: {string}")]
@@ -905,7 +904,9 @@ mod steps {
 
     #[when(expr = "the binary data is decoded")]
     async fn when_binary_data_decoded(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         world.ensure_decode_options();
 
         let binary_data = world
@@ -935,7 +936,9 @@ mod steps {
 
     #[when(expr = "the JSON data is encoded")]
     async fn when_json_data_encoded(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         world.ensure_encode_options();
 
         let json_data = world.json_data.as_ref().expect("JSON data not set").clone();
@@ -961,7 +964,9 @@ mod steps {
 
     #[when(expr = "the data is round-tripped")]
     async fn when_data_roundtripped(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         world.ensure_decode_options();
         world.ensure_encode_options();
 
@@ -1145,7 +1150,9 @@ mod steps {
 
     #[when(expr = "field projection is applied")]
     async fn when_field_projection_applied(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let fields = world
             .field_selection
             .as_ref()
@@ -1226,14 +1233,18 @@ mod steps {
 
     #[given(expr = "binary data with {int} elements")]
     async fn given_binary_data_with_elements(world: &mut CopybookWorld, count: usize) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let binary = build_binary_for_all_leaf_fields(world);
         world.binary_data = Some(binary);
     }
 
     #[when(expr = "decode determinism is checked")]
     async fn when_decode_determinism_checked(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         world.ensure_decode_options();
 
         let binary_data = world
@@ -1260,7 +1271,9 @@ mod steps {
 
     #[when(expr = "encode determinism is checked")]
     async fn when_encode_determinism_checked(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         world.ensure_encode_options();
 
         let json_data = world.json_data.as_ref().expect("JSON data not set").clone();
@@ -1286,7 +1299,9 @@ mod steps {
 
     #[when(expr = "round-trip determinism is checked")]
     async fn when_roundtrip_determinism_checked(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         world.ensure_decode_options();
         world.ensure_encode_options();
 
@@ -2106,7 +2121,13 @@ mod steps {
     async fn given_field_selection_bracket(world: &mut CopybookWorld, fields: String) {
         let field_list: Vec<String> = fields
             .split(',')
-            .map(|s| s.trim().trim_matches('"').trim_matches('\'').trim().to_string())
+            .map(|s| {
+                s.trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .trim()
+                    .to_string()
+            })
             .filter(|s| !s.is_empty())
             .collect();
         world.field_selection = Some(field_list);
@@ -2164,7 +2185,10 @@ mod steps {
     }
 
     #[given(expr = "a copybook with edited PIC:")]
-    async fn given_copybook_with_edited_pic(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_with_edited_pic(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
@@ -2202,12 +2226,18 @@ mod steps {
     }
 
     #[given(expr = "a copybook with SIGN SEPARATE LEADING:")]
-    async fn given_copybook_sign_sep_leading(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_sign_sep_leading(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with SIGN SEPARATE TRAILING:")]
-    async fn given_copybook_sign_sep_trailing(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_sign_sep_trailing(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
@@ -2217,22 +2247,34 @@ mod steps {
     }
 
     #[given(expr = "a copybook with SYNCHRONIZED:")]
-    async fn given_copybook_synchronized(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_synchronized(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with RENAMES:")]
-    async fn given_copybook_renames_docstring(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_renames_docstring(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with multiple RENAMES:")]
-    async fn given_copybook_multiple_renames(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_multiple_renames(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with ODO:")]
-    async fn given_copybook_odo_docstring(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_odo_docstring(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
@@ -2242,22 +2284,34 @@ mod steps {
     }
 
     #[given(expr = "a copybook with Level-88:")]
-    async fn given_copybook_level88_docstring(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_level88_docstring(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with Level-88 VALUE THROUGH:")]
-    async fn given_copybook_level88_through(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_level88_through(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with multiple edited PICs:")]
-    async fn given_copybook_multiple_edited(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_multiple_edited(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with nested groups:")]
-    async fn given_copybook_nested_groups(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_nested_groups(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
@@ -2272,12 +2326,18 @@ mod steps {
     }
 
     #[given(expr = "a copybook with large OCCURS:")]
-    async fn given_copybook_large_occurs(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_large_occurs(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with various levels:")]
-    async fn given_copybook_various_levels(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_copybook_various_levels(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
@@ -2291,22 +2351,34 @@ mod steps {
     // ========================================================================
 
     #[given(expr = "a copybook with SIGN SEPARATE LEADING clause")]
-    async fn given_sign_sep_leading_clause(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_sign_sep_leading_clause(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with SIGN SEPARATE TRAILING clause")]
-    async fn given_sign_sep_trailing_clause(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_sign_sep_trailing_clause(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with SIGN SEPARATE LEADING")]
-    async fn given_sign_sep_leading_bare(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_sign_sep_leading_bare(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
     #[given(expr = "a copybook with SIGN SEPARATE TRAILING")]
-    async fn given_sign_sep_trailing_bare(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_sign_sep_trailing_bare(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
@@ -2346,7 +2418,10 @@ mod steps {
     }
 
     #[given(expr = "a copybook with invalid RENAMES range")]
-    async fn given_invalid_renames_range(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
+    async fn given_invalid_renames_range(
+        world: &mut CopybookWorld,
+        step: &cucumber::gherkin::Step,
+    ) {
         world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
     }
 
@@ -2355,20 +2430,32 @@ mod steps {
     // ========================================================================
 
     #[given(expr = "binary data for value {float}")]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_lossless
+    )]
     async fn given_binary_data_for_float(world: &mut CopybookWorld, value: f64) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let field = world.first_leaf_field().expect("No leaf field found");
         let len = field.len as usize;
         match &field.kind {
-            copybook_core::FieldKind::PackedDecimal { digits, scale, signed } => {
+            copybook_core::FieldKind::PackedDecimal {
+                digits,
+                scale,
+                signed,
+            } => {
                 let value_str = format!("{}", value);
-                match copybook_codec::numeric::encode_packed_decimal(&value_str, *digits, *scale, *signed) {
-                    Ok(bytes) => world.binary_data = Some(bytes),
-                    Err(_) => {
-                        let mut buf = vec![0u8; len];
-                        buf[len - 1] = 0x0C;
-                        world.binary_data = Some(buf);
-                    }
+                if let Ok(bytes) = copybook_codec::numeric::encode_packed_decimal(
+                    &value_str, *digits, *scale, *signed,
+                ) {
+                    world.binary_data = Some(bytes);
+                } else {
+                    let mut buf = vec![0u8; len];
+                    buf[len - 1] = 0x0C;
+                    world.binary_data = Some(buf);
                 }
             }
             copybook_core::FieldKind::BinaryInt { bits, signed } => {
@@ -2389,7 +2476,12 @@ mod steps {
                 };
                 world.binary_data = Some(bytes);
             }
-            copybook_core::FieldKind::ZonedDecimal { digits, scale, signed, sign_separate } => {
+            copybook_core::FieldKind::ZonedDecimal {
+                digits,
+                scale,
+                signed,
+                sign_separate,
+            } => {
                 let int_val = if *scale > 0 {
                     (value * 10f64.powi(*scale as i32)).round() as i64
                 } else {
@@ -2431,6 +2523,7 @@ mod steps {
     }
 
     #[given(expr = "binary data for value {int}")]
+    #[allow(clippy::cast_precision_loss)]
     async fn given_binary_data_for_int(world: &mut CopybookWorld, value: i64) {
         given_binary_data_for_float(world, value as f64).await;
     }
@@ -2443,7 +2536,9 @@ mod steps {
 
     #[given(expr = "binary data with zero value")]
     async fn given_binary_data_zero(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let schema = world.schema();
         let record_len = schema.lrecl_fixed.unwrap_or(10) as usize;
         world.binary_data = Some(vec![b'0'; record_len]);
@@ -2464,12 +2559,15 @@ mod steps {
 
     #[given(expr = "EBCDIC binary data")]
     async fn given_ebcdic_binary_data(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let schema = world.schema();
         let record_len = schema.lrecl_fixed.unwrap_or(10) as usize;
         // EBCDIC spaces are 0x40, 'A'-'I' are 0xC1-0xC9
         let mut data = Vec::with_capacity(record_len);
-        let ebcdic_letters: Vec<u8> = vec![0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xD1];
+        let ebcdic_letters: Vec<u8> =
+            vec![0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xD1];
         for i in 0..record_len {
             data.push(ebcdic_letters[i % ebcdic_letters.len()]);
         }
@@ -2478,7 +2576,9 @@ mod steps {
 
     #[given(expr = "ASCII JSON data")]
     async fn given_ascii_json_data(world: &mut CopybookWorld) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let field = world.first_leaf_field().expect("No leaf field found");
         let name = field.name.clone();
         let len = field.len as usize;
@@ -2494,7 +2594,9 @@ mod steps {
 
     #[given(regex = r"^binary data with (\d+) elements$")]
     async fn given_binary_data_with_n_elements(world: &mut CopybookWorld, count: usize) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let schema = world.schema();
         // Find the array field's child to get element size
         let array_field = schema.all_fields().into_iter().find(|f| f.occurs.is_some());
@@ -2514,11 +2616,17 @@ mod steps {
 
     #[given(regex = r"^JSON data with (\d+) elements$")]
     async fn given_json_data_with_n_elements(world: &mut CopybookWorld, count: usize) {
-        if !world.ensure_schema_and_return() { return; }
+        if !world.ensure_schema_and_return() {
+            return;
+        }
         let schema = world.schema();
         let array_field = schema.all_fields().into_iter().find(|f| f.occurs.is_some());
         let (array_name, child_name) = if let Some(f) = array_field {
-            let cn = f.children.first().map(|c| c.name.clone()).unwrap_or_else(|| "ELEMENT".to_string());
+            let cn = f
+                .children
+                .first()
+                .map(|c| c.name.clone())
+                .unwrap_or_else(|| "ELEMENT".to_string());
             (f.name.clone(), cn)
         } else {
             ("ARRAY".to_string(), "ELEMENT".to_string())
@@ -2574,20 +2682,23 @@ mod steps {
             world.projected_schema.is_some(),
             "Projection should succeed"
         );
-        assert!(world.error.is_none(), "No error should occur during projection");
+        assert!(
+            world.error.is_none(),
+            "No error should occur during projection"
+        );
     }
 
     #[then(expr = "the projection should fail")]
     async fn then_projection_should_fail(world: &mut CopybookWorld) {
-        assert!(
-            world.error.is_some(),
-            "Projection should fail"
-        );
+        assert!(world.error.is_some(), "Projection should fail");
     }
 
     #[then(expr = "the projected schema should contain {int} top-level field(s)")]
     async fn then_projected_schema_top_level_fields(world: &mut CopybookWorld, count: usize) {
-        let schema = world.projected_schema.as_ref().expect("Projected schema not set");
+        let schema = world
+            .projected_schema
+            .as_ref()
+            .expect("Projected schema not set");
         assert_eq!(
             schema.fields.len(),
             count,
@@ -2631,7 +2742,10 @@ mod steps {
 
     #[then(expr = "the encoded output should be {int} bytes")]
     async fn then_encoded_output_bytes(world: &mut CopybookWorld, expected: usize) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
         assert_eq!(
             output.len(),
             expected,
@@ -2643,19 +2757,22 @@ mod steps {
 
     #[then(expr = "the encoded output should start with RDW header")]
     async fn then_encoded_output_starts_rdw(world: &mut CopybookWorld) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
         assert!(output.len() >= 4, "Encoded output too short for RDW header");
         // RDW header: 2-byte length (big-endian) + 2-byte reserved
         let rdw_len = u16::from_be_bytes([output[0], output[1]]) as usize;
-        assert!(
-            rdw_len > 0,
-            "RDW length field should be > 0"
-        );
+        assert!(rdw_len > 0, "RDW length field should be > 0");
     }
 
     #[then(regex = r"^(\d+) records should be processed$")]
     async fn then_n_records_processed(world: &mut CopybookWorld, expected: usize) {
-        let output = world.decoded_output.as_ref().expect("Decoded output not set");
+        let output = world
+            .decoded_output
+            .as_ref()
+            .expect("Decoded output not set");
         let count = output.lines().filter(|l| !l.trim().is_empty()).count();
         assert_eq!(
             count, expected,
@@ -2666,18 +2783,12 @@ mod steps {
 
     #[then(expr = "decoding should fail")]
     async fn then_decoding_should_fail(world: &mut CopybookWorld) {
-        assert!(
-            world.error.is_some(),
-            "Decoding should fail"
-        );
+        assert!(world.error.is_some(), "Decoding should fail");
     }
 
     #[then(expr = "encoding should fail")]
     async fn then_encoding_should_fail(world: &mut CopybookWorld) {
-        assert!(
-            world.error.is_some(),
-            "Encoding should fail"
-        );
+        assert!(world.error.is_some(), "Encoding should fail");
     }
 
     #[then(expr = "error should contain {string}")]
@@ -2727,7 +2838,10 @@ mod steps {
 
     #[then(expr = "the round 1 hash should equal to round 2 hash")]
     async fn then_hashes_equal(world: &mut CopybookWorld) {
-        let result = world.determinism_result.as_ref().expect("Determinism result not set");
+        let result = world
+            .determinism_result
+            .as_ref()
+            .expect("Determinism result not set");
         assert_eq!(
             result.round1_hash, result.round2_hash,
             "Round 1 hash ({}) should equal round 2 hash ({})",
@@ -2737,16 +2851,26 @@ mod steps {
 
     #[then(expr = "there should be no byte differences")]
     async fn then_no_byte_differences(world: &mut CopybookWorld) {
-        let result = world.determinism_result.as_ref().expect("Determinism result not set");
+        let result = world
+            .determinism_result
+            .as_ref()
+            .expect("Determinism result not set");
         match &result.byte_differences {
             None => {} // No differences recorded
-            Some(diffs) => assert!(diffs.is_empty(), "Expected no byte differences, got {}", diffs.len()),
+            Some(diffs) => assert!(
+                diffs.is_empty(),
+                "Expected no byte differences, got {}",
+                diffs.len()
+            ),
         }
     }
 
     #[then(expr = "the JSON should contain {string}")]
     async fn then_json_contains(world: &mut CopybookWorld, expected: String) {
-        let result = world.determinism_result.as_ref().expect("Determinism result not set");
+        let result = world
+            .determinism_result
+            .as_ref()
+            .expect("Determinism result not set");
         let json = serde_json::to_string(result).expect("Failed to serialize determinism result");
         assert!(
             json.contains(&expected),
@@ -2758,8 +2882,15 @@ mod steps {
 
     #[then(regex = r#"^the human-readable output should show "(.+)"$"#)]
     async fn then_human_readable_shows(world: &mut CopybookWorld, expected: String) {
-        let result = world.determinism_result.as_ref().expect("Determinism result not set");
-        let verdict = if result.is_deterministic { "DETERMINISTIC" } else { "NON-DETERMINISTIC" };
+        let result = world
+            .determinism_result
+            .as_ref()
+            .expect("Determinism result not set");
+        let verdict = if result.is_deterministic {
+            "DETERMINISTIC"
+        } else {
+            "NON-DETERMINISTIC"
+        };
         assert!(
             verdict.contains(&expected),
             "Expected human-readable to show '{}', got '{}'",
@@ -2770,7 +2901,10 @@ mod steps {
 
     #[then(regex = r#"^the output should contain "(.+)"$"#)]
     async fn then_output_contains(world: &mut CopybookWorld, expected: String) {
-        let result = world.determinism_result.as_ref().expect("Determinism result not set");
+        let result = world
+            .determinism_result
+            .as_ref()
+            .expect("Determinism result not set");
         let output = format!(
             "Round 1 hash: {}\nRound 2 hash: {}\nDeterministic: {}",
             result.round1_hash, result.round2_hash, result.is_deterministic
@@ -2789,17 +2923,28 @@ mod steps {
 
     #[then(expr = "schema should be successfully parsed")]
     async fn then_schema_parsed_bare(world: &mut CopybookWorld) {
-        assert!(world.schema.is_some(), "Schema should be parsed successfully");
+        assert!(
+            world.schema.is_some(),
+            "Schema should be parsed successfully"
+        );
         assert!(world.error.is_none(), "No error should occur");
     }
 
     #[then(expr = "field {string} should have type {string}")]
-    async fn then_field_type_bare(world: &mut CopybookWorld, field_name: String, expected_type: String) {
+    async fn then_field_type_bare(
+        world: &mut CopybookWorld,
+        field_name: String,
+        expected_type: String,
+    ) {
         then_field_has_type(world, field_name, expected_type).await;
     }
 
     #[then(expr = "field {string} should have level {int}")]
-    async fn then_field_level_bare(world: &mut CopybookWorld, field_name: String, expected_level: u8) {
+    async fn then_field_level_bare(
+        world: &mut CopybookWorld,
+        field_name: String,
+        expected_level: u8,
+    ) {
         then_field_has_level(world, field_name, expected_level).await;
     }
 
@@ -2832,7 +2977,11 @@ mod steps {
         let field = world
             .find_field_by_name_ci(&field_name)
             .expect(&format!("Field '{}' not found", field_name));
-        assert!(field.blank_when_zero, "Field '{}' should have blank_when_zero", field_name);
+        assert!(
+            field.blank_when_zero,
+            "Field '{}' should have blank_when_zero",
+            field_name
+        );
     }
 
     #[then(expr = "field {string} should have synchronized true")]
@@ -2840,19 +2989,31 @@ mod steps {
         let field = world
             .find_field_by_name_ci(&field_name)
             .expect(&format!("Field '{}' not found", field_name));
-        assert!(field.synchronized, "Field '{}' should be synchronized", field_name);
+        assert!(
+            field.synchronized,
+            "Field '{}' should be synchronized",
+            field_name
+        );
     }
 
     #[then(regex = r"^there should be (\d+) fields$")]
     async fn then_n_fields(world: &mut CopybookWorld, expected: usize) {
         let count = world.all_leaf_fields().len();
-        assert_eq!(count, expected, "Expected {} leaf fields, got {}", expected, count);
+        assert_eq!(
+            count, expected,
+            "Expected {} leaf fields, got {}",
+            expected, count
+        );
     }
 
     #[then(regex = r"^there should be (\d+) leaf fields$")]
     async fn then_n_leaf_fields_bare(world: &mut CopybookWorld, expected: usize) {
         let count = world.all_leaf_fields().len();
-        assert_eq!(count, expected, "Expected {} leaf fields, got {}", expected, count);
+        assert_eq!(
+            count, expected,
+            "Expected {} leaf fields, got {}",
+            expected, count
+        );
     }
 
     // ========================================================================
@@ -2864,7 +3025,11 @@ mod steps {
         let record = world.first_decoded_record();
         let values = collect_string_values(&record);
         let found = values.iter().any(|v| v.trim() == expected);
-        assert!(found, "Expected decoded value '{}' in {:?}", expected, values);
+        assert!(
+            found,
+            "Expected decoded value '{}' in {:?}",
+            expected, values
+        );
     }
 
     #[then(expr = "the decoded value should be {string}")]
@@ -2874,16 +3039,32 @@ mod steps {
 
     #[then(expr = "encoded length should be {int} bytes")]
     async fn then_encoded_length(world: &mut CopybookWorld, expected: usize) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
-        assert_eq!(output.len(), expected, "Expected encoded length {} bytes, got {}", expected, output.len());
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
+        assert_eq!(
+            output.len(),
+            expected,
+            "Expected encoded length {} bytes, got {}",
+            expected,
+            output.len()
+        );
     }
 
     #[then(regex = r#"^decoded COUNT should be "(.+)"$"#)]
     async fn then_decoded_count(world: &mut CopybookWorld, expected: String) {
         let record = world.first_decoded_record();
-        let value = json_value_for_field(&record, "COUNT").expect("COUNT not found in decoded output");
+        let value =
+            json_value_for_field(&record, "COUNT").expect("COUNT not found in decoded output");
         let actual = field_value_as_string(value).unwrap_or_default();
-        assert_eq!(actual.trim(), expected, "Expected COUNT='{}', got '{}'", expected, actual.trim());
+        assert_eq!(
+            actual.trim(),
+            expected,
+            "Expected COUNT='{}', got '{}'",
+            expected,
+            actual.trim()
+        );
     }
 
     #[then(regex = r"^there should be (\d+) ARRAY elements$")]
@@ -2893,7 +3074,11 @@ mod steps {
         // Find the first array value in the JSON
         let array = obj.values().find(|v| v.is_array());
         let count = array.map(|a| a.as_array().unwrap().len()).unwrap_or(0);
-        assert_eq!(count, expected, "Expected {} array elements, got {}", expected, count);
+        assert_eq!(
+            count, expected,
+            "Expected {} array elements, got {}",
+            expected, count
+        );
     }
 
     #[then(expr = "all fields should be decoded")]
@@ -2903,10 +3088,16 @@ mod steps {
     }
 
     #[then(regex = r#"^([A-Z][A-Z0-9-]*) should be "(.+)"$"#)]
-    async fn then_bare_field_value(world: &mut CopybookWorld, field_name: String, expected: String) {
+    async fn then_bare_field_value(
+        world: &mut CopybookWorld,
+        field_name: String,
+        expected: String,
+    ) {
         let record = world.first_decoded_record();
-        let value = json_value_for_field(&record, &field_name)
-            .expect(&format!("Field '{}' not found in decoded output", field_name));
+        let value = json_value_for_field(&record, &field_name).expect(&format!(
+            "Field '{}' not found in decoded output",
+            field_name
+        ));
         let actual = field_value_as_string(value).unwrap_or_default();
         assert_eq!(
             actual.trim(),
@@ -2926,24 +3117,37 @@ mod steps {
             .iter()
             .map(|f| format!("{:?}", std::mem::discriminant(&f.kind)))
             .collect();
-        assert!(types.len() > 1, "Expected diverse field types, got {:?}", types);
+        assert!(
+            types.len() > 1,
+            "Expected diverse field types, got {:?}",
+            types
+        );
     }
 
     #[then(expr = "decoded value should be converted to ASCII")]
     async fn then_decoded_value_ascii(world: &mut CopybookWorld) {
-        let output = world.decoded_output.as_ref().expect("Decoded output not set");
+        let output = world
+            .decoded_output
+            .as_ref()
+            .expect("Decoded output not set");
         assert!(output.is_ascii(), "Decoded output should be ASCII");
     }
 
     #[then(expr = "encoded data should be in EBCDIC")]
     async fn then_encoded_ebcdic(world: &mut CopybookWorld) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
         assert!(!output.is_empty(), "Encoded output should not be empty");
     }
 
     #[then(expr = "encoded data should be blank")]
     async fn then_encoded_blank(world: &mut CopybookWorld) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
         assert!(
             output.iter().all(|&b| b == b' ' || b == b'0'),
             "Expected encoded data to be blank"
@@ -2957,8 +3161,12 @@ mod steps {
 
     #[then(expr = "FILLER should not be in output")]
     async fn then_filler_not_in_output(world: &mut CopybookWorld) {
-        let output = world.decoded_output.as_ref().expect("Decoded output not set");
-        let record: Value = serde_json::from_str(output.lines().next().unwrap_or("{}")).unwrap_or_default();
+        let output = world
+            .decoded_output
+            .as_ref()
+            .expect("Decoded output not set");
+        let record: Value =
+            serde_json::from_str(output.lines().next().unwrap_or("{}")).unwrap_or_default();
         let json_str = serde_json::to_string(&record).unwrap_or_default();
         // FILLER fields are renamed to _filler_XXXXXXXX
         let has_filler = json_str.contains("_filler_") || json_str.contains("FILLER");
@@ -2967,8 +3175,12 @@ mod steps {
 
     #[then(expr = "FILLER should be in output")]
     async fn then_filler_in_output(world: &mut CopybookWorld) {
-        let output = world.decoded_output.as_ref().expect("Decoded output not set");
-        let record: Value = serde_json::from_str(output.lines().next().unwrap_or("{}")).unwrap_or_default();
+        let output = world
+            .decoded_output
+            .as_ref()
+            .expect("Decoded output not set");
+        let record: Value =
+            serde_json::from_str(output.lines().next().unwrap_or("{}")).unwrap_or_default();
         let json_str = serde_json::to_string(&record).unwrap_or_default();
         let has_filler = json_str.contains("_filler_") || json_str.contains("FILLER");
         assert!(has_filler, "FILLER should be in decoded output");
@@ -2994,38 +3206,73 @@ mod steps {
 
     #[then(expr = "the field should have sign separate information")]
     async fn then_field_has_sign_separate(world: &mut CopybookWorld) {
-        let field = world.first_numeric_leaf_field().expect("No numeric leaf field found");
-        assert!(field.sign_separate().is_some(), "Field should have sign separate info");
+        let field = world
+            .first_numeric_leaf_field()
+            .expect("No numeric leaf field found");
+        assert!(
+            field.sign_separate().is_some(),
+            "Field should have sign separate info"
+        );
     }
 
     #[then(expr = "the sign placement should be LEADING")]
     async fn then_sign_placement_leading(world: &mut CopybookWorld) {
-        let field = world.first_numeric_leaf_field().expect("No numeric leaf field found");
-        let info = field.sign_separate().expect("Field should have sign separate info");
-        assert_eq!(info.placement, copybook_core::SignPlacement::Leading, "Sign placement should be LEADING");
+        let field = world
+            .first_numeric_leaf_field()
+            .expect("No numeric leaf field found");
+        let info = field
+            .sign_separate()
+            .expect("Field should have sign separate info");
+        assert_eq!(
+            info.placement,
+            copybook_core::SignPlacement::Leading,
+            "Sign placement should be LEADING"
+        );
     }
 
     #[then(expr = "the sign placement should be TRAILING")]
     async fn then_sign_placement_trailing(world: &mut CopybookWorld) {
-        let field = world.first_numeric_leaf_field().expect("No numeric leaf field found");
-        let info = field.sign_separate().expect("Field should have sign separate info");
-        assert_eq!(info.placement, copybook_core::SignPlacement::Trailing, "Sign placement should be TRAILING");
+        let field = world
+            .first_numeric_leaf_field()
+            .expect("No numeric leaf field found");
+        let info = field
+            .sign_separate()
+            .expect("Field should have sign separate info");
+        assert_eq!(
+            info.placement,
+            copybook_core::SignPlacement::Trailing,
+            "Sign placement should be TRAILING"
+        );
     }
 
     #[then(expr = "the encoded data should have leading sign")]
     async fn then_encoded_leading_sign(world: &mut CopybookWorld) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
         assert!(!output.is_empty(), "Encoded output should not be empty");
         let first = output[0];
-        assert!(first == b'+' || first == b'-', "First byte should be sign, got {}", first as char);
+        assert!(
+            first == b'+' || first == b'-',
+            "First byte should be sign, got {}",
+            first as char
+        );
     }
 
     #[then(expr = "the encoded data should have trailing sign")]
     async fn then_encoded_trailing_sign(world: &mut CopybookWorld) {
-        let output = world.encoded_output.as_ref().expect("Encoded output not set");
+        let output = world
+            .encoded_output
+            .as_ref()
+            .expect("Encoded output not set");
         assert!(!output.is_empty(), "Encoded output should not be empty");
         let last = output[output.len() - 1];
-        assert!(last == b'+' || last == b'-', "Last byte should be sign, got {}", last as char);
+        assert!(
+            last == b'+' || last == b'-',
+            "Last byte should be sign, got {}",
+            last as char
+        );
     }
 
     #[then(expr = "round-trip should be lossless")]
@@ -3036,12 +3283,17 @@ mod steps {
     #[then(expr = "the sign placement should be preserved")]
     async fn then_sign_preserved(world: &mut CopybookWorld) {
         // If round-trip succeeded, sign placement is preserved
-        assert!(world.encoded_output.is_some(), "Encoded output should exist after round-trip");
+        assert!(
+            world.encoded_output.is_some(),
+            "Encoded output should exist after round-trip"
+        );
     }
 
     #[then(expr = "RENAMES field should be resolved")]
     async fn then_renames_resolved(world: &mut CopybookWorld) {
-        let field = world.renames_field().expect("No RENAMES (level-66) field found");
+        let field = world
+            .renames_field()
+            .expect("No RENAMES (level-66) field found");
         assert!(
             field.resolved_renames.is_some(),
             "RENAMES field should have resolved_renames"
@@ -3051,21 +3303,33 @@ mod steps {
     #[then(expr = "the alias should cover all REDEFINES fields")]
     async fn then_alias_covers_redefines(world: &mut CopybookWorld) {
         let field = world.renames_field().expect("No RENAMES field found");
-        let resolved = field.resolved_renames.as_ref().expect("RENAMES should be resolved");
-        assert!(!resolved.members.is_empty(), "RENAMES alias should cover fields");
+        let resolved = field
+            .resolved_renames
+            .as_ref()
+            .expect("RENAMES should be resolved");
+        assert!(
+            !resolved.members.is_empty(),
+            "RENAMES alias should cover fields"
+        );
     }
 
     #[then(expr = "the alias should reference the ODO field")]
     async fn then_alias_references_odo(world: &mut CopybookWorld) {
         let field = world.renames_field().expect("No RENAMES field found");
-        assert!(field.resolved_renames.is_some(), "RENAMES should be resolved");
+        assert!(
+            field.resolved_renames.is_some(),
+            "RENAMES should be resolved"
+        );
     }
 
     #[then(expr = "RENAMES field should have Level-88 conditions")]
     async fn then_renames_has_level88(world: &mut CopybookWorld) {
         let field = world.renames_field().expect("No RENAMES field found");
         let has_conditions = field.children.iter().any(|c| c.level == 88);
-        assert!(has_conditions, "RENAMES field should have Level-88 conditions");
+        assert!(
+            has_conditions,
+            "RENAMES field should have Level-88 conditions"
+        );
     }
 
     #[then(expr = "the conditions should be properly associated")]
@@ -3077,29 +3341,47 @@ mod steps {
 
     #[then(expr = "the encoded data should match the original")]
     async fn then_encoded_matches_original(world: &mut CopybookWorld) {
-        assert!(world.encoded_output.is_some(), "Encoded output should exist");
+        assert!(
+            world.encoded_output.is_some(),
+            "Encoded output should exist"
+        );
     }
 
     #[then(expr = "the RENAMES structure should be preserved")]
     async fn then_renames_preserved(world: &mut CopybookWorld) {
-        assert!(world.encoded_output.is_some(), "Encoded output should exist");
+        assert!(
+            world.encoded_output.is_some(),
+            "Encoded output should exist"
+        );
     }
 
     #[then(expr = "the array should be properly decoded")]
     async fn then_array_decoded(world: &mut CopybookWorld) {
-        let output = world.decoded_output.as_ref().expect("Decoded output not set");
-        assert!(!output.trim().is_empty(), "Decoded output should not be empty");
+        let output = world
+            .decoded_output
+            .as_ref()
+            .expect("Decoded output not set");
+        assert!(
+            !output.trim().is_empty(),
+            "Decoded output should not be empty"
+        );
     }
 
     #[then(expr = "the decoded output should contain Level-88 conditions")]
     async fn then_output_has_level88(world: &mut CopybookWorld) {
         // Level-88 conditions are not emitted in decoded JSON - just verify decode succeeded
-        assert!(world.decoded_output.is_some(), "Decoded output should exist");
+        assert!(
+            world.decoded_output.is_some(),
+            "Decoded output should exist"
+        );
     }
 
     #[then(expr = "the sign should be properly handled")]
     async fn then_sign_handled(world: &mut CopybookWorld) {
-        assert!(world.decoded_output.is_some(), "Decoded output should exist");
+        assert!(
+            world.decoded_output.is_some(),
+            "Decoded output should exist"
+        );
     }
 
     #[then(expr = "the error should indicate invalid SIGN SEPARATE placement")]
@@ -3107,7 +3389,9 @@ mod steps {
         let error = world.error.as_ref().expect("Error should be set");
         let msg = format!("{}", error);
         assert!(
-            msg.to_uppercase().contains("SIGN") || msg.to_uppercase().contains("SEPARATE") || msg.contains("INVALID"),
+            msg.to_uppercase().contains("SIGN")
+                || msg.to_uppercase().contains("SEPARATE")
+                || msg.contains("INVALID"),
             "Error should indicate invalid SIGN SEPARATE placement, got: {}",
             msg
         );
@@ -3118,12 +3402,13 @@ mod steps {
         let error = world.error.as_ref().expect("Error should be set");
         let msg = format!("{}", error);
         assert!(
-            msg.to_uppercase().contains("RENAMES") || msg.contains("NONEXISTENT") || msg.contains("not found"),
+            msg.to_uppercase().contains("RENAMES")
+                || msg.contains("NONEXISTENT")
+                || msg.contains("not found"),
             "Error should indicate invalid RENAMES range, got: {}",
             msg
         );
     }
-
 }
 
 #[tokio::main]

@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: integrative-test-runner
 description: Use this agent when the feature matrix has passed and build is successful, requiring comprehensive test execution across the entire copybook-rs workspace with all features enabled. This is a Tier-3 gate in the integrative testing pipeline that validates COBOL data processing quality before proceeding to mutation testing or routing failures for investigation.

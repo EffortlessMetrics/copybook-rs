@@ -1,4 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Copybook-RS Worktree Workflow Guide
 
 This document outlines the proper worktree-based development workflow for copybook-rs agents and developers.

@@ -1551,46 +1551,6 @@ fn is_consumer_closed(err: &io::Error) -> bool {
 
 mod commands {
     #[cfg(feature = "audit")]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_precision_loss,
-        clippy::cast_sign_loss,
-        clippy::fn_params_excessive_bools,
-        clippy::map_unwrap_or,
-        clippy::if_not_else,
-        clippy::collapsible_if,
-        clippy::redundant_closure,
-        clippy::redundant_closure_for_method_calls,
-        clippy::uninlined_format_args,
-        clippy::needless_pass_by_value,
-        clippy::useless_conversion,
-        clippy::single_match_else,
-        clippy::match_same_arms,
-        clippy::unused_self,
-        clippy::too_many_arguments,
-        clippy::too_many_lines,
-        clippy::similar_names,
-        clippy::module_name_repetitions,
-        clippy::items_after_statements,
-        clippy::used_underscore_items,
-        clippy::used_underscore_binding,
-        clippy::wildcard_imports,
-        clippy::unreadable_literal,
-        clippy::manual_let_else,
-        clippy::struct_excessive_bools,
-        clippy::needless_return,
-        clippy::nonminimal_bool,
-        clippy::cast_lossless,
-        clippy::unnecessary_wraps,
-        clippy::manual_string_new,
-        clippy::or_fun_call,
-        clippy::manual_div_ceil,
-        clippy::format_collect,
-        dead_code,
-        unused_variables,
-        unused_assignments,
-        clippy::unwrap_or_default
-    )]
     pub mod audit;
     pub mod decode;
     pub mod determinism;

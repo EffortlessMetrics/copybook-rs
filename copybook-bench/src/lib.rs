@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Performance benchmarks for copybook-rs
 //!
 //! This crate contains criterion benchmarks for measuring the performance

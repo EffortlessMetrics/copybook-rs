@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # JSONL Schema (`copybook.v1`)
 
 copybook-rs emits a versioned JSON envelope for each decoded record. Each line in the

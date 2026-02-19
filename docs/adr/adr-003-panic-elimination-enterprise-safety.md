@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # ADR-003: Panic Elimination for Enterprise Safety and Regulatory Compliance
 
 ## Status

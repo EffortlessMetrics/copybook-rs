@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Memory-bounded streaming processor
 ///
 /// Tracks memory usage and provides backpressure signals to maintain

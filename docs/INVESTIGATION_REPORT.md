@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Investigation Report: `copybook-rs` Goals vs. Reality
 
 This report summarizes an investigation into the `copybook-rs` project, comparing its documented goals against its actual, observable behavior.

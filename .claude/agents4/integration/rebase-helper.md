@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: rebase-helper
 description: Use this agent when you need to perform a git rebase operation on a PR branch onto its base branch. Examples: <example>Context: The user has a feature branch that needs to be rebased onto main before merging.\nuser: "My PR branch is behind main and needs to be rebased"\nassistant: "I'll use the rebase-helper agent to perform the git rebase operation."\n<commentary>The user needs a rebase operation performed, so use the rebase-helper agent to handle the git rebase process.</commentary></example> <example>Context: A CI check has failed indicating the branch needs rebasing.\nuser: "The rebase check failed, can you fix it?"\nassistant: "I'll use the rebase-helper agent to perform the necessary git rebase."\n<commentary>The rebase check failure indicates a rebase is needed, so use the rebase-helper agent to resolve this.</commentary></example>

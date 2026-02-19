@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Column accumulator implementations for building Arrow arrays from raw COBOL data.
 //!
 //! Each accumulator type wraps an Arrow builder and knows how to extract a typed

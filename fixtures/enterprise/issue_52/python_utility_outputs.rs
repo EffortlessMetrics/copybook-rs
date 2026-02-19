@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Python Utility Output Fixtures for Issue #52 Machine-Readable Benchmark Reporting
 //!
 //! Provides mock outputs from scripts/bench/ Python utilities for comprehensive testing

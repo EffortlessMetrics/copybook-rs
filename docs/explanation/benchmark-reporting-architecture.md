@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Machine-Readable Benchmark Reporting Architecture
 ## Issue #52 - Enterprise Performance Validation Infrastructure
 

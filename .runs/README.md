@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Build Receipts and Validation Evidence
 
 This directory stores build receipts and validation evidence from agentic development workflows. Receipts provide verifiable artifacts that prove development work happened correctly.

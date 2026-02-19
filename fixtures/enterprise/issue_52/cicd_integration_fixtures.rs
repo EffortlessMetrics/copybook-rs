@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! CI/CD Integration Test Fixtures for Issue #52 Machine-Readable Benchmark Reporting
 //!
 //! Provides test data for GitHub Actions workflows, PR automation, and CI/CD pipeline integration

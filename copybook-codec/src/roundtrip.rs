@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Round-trip encoding/decoding tests with golden SHA-256 validation
 //!
 //! This module provides comprehensive testing for round-trip fidelity,

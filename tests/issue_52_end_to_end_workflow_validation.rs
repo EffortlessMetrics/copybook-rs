@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test scaffolding for Issue #52 end-to-end workflow validation and CI/CD integration
 //!
 //! Tests feature spec: issue-52-spec.md#end-to-end-workflow-validation

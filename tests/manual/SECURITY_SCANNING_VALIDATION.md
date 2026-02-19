@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Manual Security Scanning Validation Procedures
 ## Issue #35 - Dependency & Security Scanning Infrastructure
 

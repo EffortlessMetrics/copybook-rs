@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Migration Guide
 
 Guide for migrating from other COBOL data processing tools to copybook-rs.

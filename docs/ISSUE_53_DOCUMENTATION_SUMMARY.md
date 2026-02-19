@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #53 Documentation Summary: Final Handoff Report
 
 ## Executive Summary

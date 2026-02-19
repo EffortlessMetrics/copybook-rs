@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Kustomization file for copybook-rs Kubernetes deployment
 # This allows easy customization and overlay management for different environments
 

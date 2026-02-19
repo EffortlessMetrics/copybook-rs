@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # SLO Validation Framework and Performance Regression Detection
 
 ## Document Information

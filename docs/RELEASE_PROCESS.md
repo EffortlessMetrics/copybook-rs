@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Release Process
 
 This document describes the automated release process for copybook-rs using `cargo-release` and `git-cliff`.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """
 Script to adapt all review agents in .claude/agents4/review/ to copybook-rs standards.
 This replaces BitNet.rs-specific content with copybook-rs enterprise mainframe patterns.

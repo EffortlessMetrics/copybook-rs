@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Parquet file writer with configurable compression and metadata embedding
 
 use arrow::array::RecordBatch;

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Library API Reference
 
 Complete reference for using copybook-rs as a Rust library.

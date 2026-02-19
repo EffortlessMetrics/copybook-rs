@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#panic-detection-baseline
 /// Issue #33 - Panic Elimination Baseline Tests
 ///

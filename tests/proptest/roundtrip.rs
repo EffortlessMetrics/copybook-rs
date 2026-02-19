@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments, unused_imports, dead_code)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Property tests for round-trip encoding/decoding
 //!
 //! These tests verify that encode(decode(data)) == data for various

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Benchmark Receipts and Performance Tracking
 
 This document describes copybook-rs's performance benchmarking infrastructure, including how to run benchmarks locally, interpret results, and understand the CI integration.

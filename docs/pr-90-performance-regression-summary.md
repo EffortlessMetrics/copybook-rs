@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # PR #90 Performance Regression Analysis Summary
 
 **Date**: 2025-10-04

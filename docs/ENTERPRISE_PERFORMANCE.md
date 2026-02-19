@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Mode Performance Impact
 
 This document defines performance targets and overhead delta targets for enterprise features in copybook-rs. Enterprise features include audit logging, compliance validation, and security monitoring.

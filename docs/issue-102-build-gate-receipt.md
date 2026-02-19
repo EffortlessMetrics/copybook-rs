@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Build Gate Receipt: Issue #102 - RDW Codec Field Naming and COMP-3 Fixes
 
 **Agent**: Build Validator

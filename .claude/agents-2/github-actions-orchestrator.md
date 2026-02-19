@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: github-actions-orchestrator
 description: Use this agent to orchestrate local validation workflows and manage GitHub integration via gh commands. This agent specializes in coordinating copybook-rs testing and validation processes while leveraging gh CLI for PR management and issue tracking. GitHub CI/Actions are disabled, focus on local orchestration.

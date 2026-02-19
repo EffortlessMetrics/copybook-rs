@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! High-level processing engine with integrated error reporting
 //!
 //! This module provides the main processing logic that integrates structured error

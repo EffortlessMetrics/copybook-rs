@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Enterprise batch processing example
 // High-performance, production-ready COBOL data processing with comprehensive error handling
 //

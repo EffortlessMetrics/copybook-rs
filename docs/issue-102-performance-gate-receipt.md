@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance Gate Receipt: Issue #102 - RDW Codec Field Naming and COMP-3 Fixes
 
 **Agent**: Performance Baseline Specialist

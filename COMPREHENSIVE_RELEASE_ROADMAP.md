@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Comprehensive Release Roadmap
 **Target: Production Release v1.0.0 by Q2 2026**
 

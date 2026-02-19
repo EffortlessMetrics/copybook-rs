@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Audit Context Test Fixtures
 //!
 //! Provides realistic audit context test data for all compliance frameworks

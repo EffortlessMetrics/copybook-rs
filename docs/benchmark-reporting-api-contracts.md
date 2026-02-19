@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Benchmark Reporting API Contracts and Integration Specifications
 
 ## Document Information

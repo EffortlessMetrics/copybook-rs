@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments, unused_imports, dead_code)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Property tests for numeric field handling
 //!
 //! These tests verify that numeric conversions preserve values within

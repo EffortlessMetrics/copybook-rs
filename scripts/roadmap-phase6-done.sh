@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 set -euo pipefail
 
 branch="roadmap/phase6-done-$(date +%Y%m%d%H%M%S)"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test utilities for finding fixture files
 
 #![allow(clippy::expect_used)]

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test Fixtures for copybook-rs
 //!
 //! Comprehensive test data collection supporting all copybook-rs testing scenarios

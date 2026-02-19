@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Record framing and I/O utilities
 //!
 //! This module handles fixed-length and RDW variable-length record processing.

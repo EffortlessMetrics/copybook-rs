@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Enterprise Security Architecture for Audit System
 ## Issue #60 - Comprehensive Security Design
 

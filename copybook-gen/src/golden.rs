@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Golden test utilities with SHA-256 validation
 
 use serde::{Deserialize, Serialize};

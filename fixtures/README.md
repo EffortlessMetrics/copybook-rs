@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Test Fixtures
 
 This directory contains test fixtures for copybook-rs including:

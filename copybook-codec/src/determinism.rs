@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Determinism validation for COBOL copybook encoding and decoding operations.
 #![allow(clippy::missing_inline_in_public_items)]
 //!

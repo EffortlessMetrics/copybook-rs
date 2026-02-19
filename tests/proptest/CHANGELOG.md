@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Changelog
 
 All notable changes to copybook-rs are documented here. This root file is the canonical source used by release workflows; `docs/CHANGELOG.md` now defers to it.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Examples
 
 This directory contains practical examples demonstrating copybook-rs usage patterns for COBOL copybook parsing and mainframe data processing.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Contributor License Agreement (CLA)
 
 ## copybook-rs Individual Contributor License Agreement

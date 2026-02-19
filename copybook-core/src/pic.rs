@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! PIC clause parsing and validation for COBOL data types
 //!
 //! This module handles parsing of COBOL PICTURE clauses, which define the format

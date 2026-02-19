@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ---
 name: copybook-pipeline-validator
 description: Use this agent for comprehensive copybook-rs validation, including end-to-end COBOL data processing tests, schema parsing validation, codec integrity checks, and throughput performance validation. This agent specializes in validating the complete Parse→Encode/Decode→Transform pipeline flow with enterprise-grade reliability.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-cli
 
 CLI for working with COBOL copybooks and mainframe record data.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Common testing infrastructure for copybook-rs
 //!
 //! Provides shared utilities and infrastructure for comprehensive testing

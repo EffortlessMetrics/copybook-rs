@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_core::support_matrix;
 use cucumber::{then, when};
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # cargo-release configuration for copybook-rs workspace
 tag-name = "v{{version}}"
 tag-message = "Release v{{version}}"

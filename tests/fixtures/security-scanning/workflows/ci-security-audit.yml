@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # AC:1 - Example cargo-audit PR gate workflow for validation testing
 # Test fixture: validates YAML syntax and cargo-audit integration patterns
 # Specification: docs/explanation/security-scanning-architecture.md#1-cargo-audit-ci-integration

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! AC4: Progressive Complexity Benchmarks
 //!
 //! Progressive benchmark suite with scaling data sizes (1KB → 10KB → 100KB → 1MB)

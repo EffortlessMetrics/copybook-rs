@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 name: Bug Report
 description: Report a bug in copybook-rs COBOL data processing
 title: "[BUG] "

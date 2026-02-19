@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! AC1: Regression Detection Validation Tests
 //!
 //! Tests validation of existing regression detection functionality from Issue #52.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! D1 Core Dialect Lever Tests
 //!
 //! Comprehensive tests for dialect lever that controls how `min_count` is

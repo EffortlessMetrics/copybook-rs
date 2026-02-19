@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Architecture Review: PR #105 - RDW Codec Field Naming and COMP-3 Decoding Fixes
 
 **Review Date:** 2025-10-04

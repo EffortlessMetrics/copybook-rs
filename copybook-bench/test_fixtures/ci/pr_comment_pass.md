@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 ## 📊 Performance Benchmark Results
 
 **Status**: ✅ **PASS** - No performance regressions detected

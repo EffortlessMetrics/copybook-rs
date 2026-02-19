@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: panic-elimination-implementation-blueprint.md#performance-preservation-strategy
 /// Issue #33 - Performance Preservation Tests
 ///

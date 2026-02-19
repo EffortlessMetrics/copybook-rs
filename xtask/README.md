@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # `xtask`
 
 Internal build/maintenance tasks for `copybook-rs`.

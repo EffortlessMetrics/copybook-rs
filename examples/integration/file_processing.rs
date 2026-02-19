@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Complete file processing workflow example
 // Demonstrates end-to-end copybook parsing and data conversion
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /// Tests feature spec: issue-63-spec.md#ac3-integration-with-error-taxonomy
 /// Tests feature spec: issue-63-technical-specification.md#error-taxonomy-integration
 /// Tests feature spec: panic-elimination-domain-schemas.md#error-taxonomy-mapping

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! # Numeric Type Codecs for COBOL Data
 //!
 //! This module provides encoding and decoding functions for the three main COBOL numeric

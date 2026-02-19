@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # API Baseline Management Script
 # This script manages API baselines for semver checking
 

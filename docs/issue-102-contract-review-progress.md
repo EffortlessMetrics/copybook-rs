@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Contract Review Progress: PR #105
 
 **Agent**: Contract Reviewer

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Release Runbook
 
 **Purpose**: Repeatable release process for publishing the copybook-rs crates to crates.io.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Configuration options for Arrow/Parquet output
 
 /// Options for COBOL-to-Arrow conversion.

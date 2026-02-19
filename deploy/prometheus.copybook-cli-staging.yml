@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 - job_name: copybook-cli-staging
   metrics_path: /metrics
   scrape_interval: 15s

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #49 Schema and API Contract Validation Report
 ## Performance Regression Monitoring - Comprehensive Gate Validation
 

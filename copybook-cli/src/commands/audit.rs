@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Enterprise Audit Command Implementation
 //!
 //! Provides comprehensive audit capabilities through CLI commands including

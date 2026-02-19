@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments, unused_imports, dead_code)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Property-based tests for copybook-rs
 //!
 //! This is the entry point for all property tests. Property tests verify

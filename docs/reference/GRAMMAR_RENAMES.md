@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # RENAMES (Level-66) — Grammar (Slice-1: parse only)
 
 ```

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Test scaffolding for Issue #52 JSON schema integration and API contracts
 //!
 //! Tests feature spec: issue-52-spec.md#json-schema-validation

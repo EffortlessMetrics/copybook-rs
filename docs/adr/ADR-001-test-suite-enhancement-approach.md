@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # ADR-001: Test Suite Enhancement Approach for Real-World Data Integration
 
 ## Status

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Project Assessment Report
 
 *This report provides a comprehensive evaluation of the copybook-rs project status following systematic code quality improvements and comprehensive testing validation.*

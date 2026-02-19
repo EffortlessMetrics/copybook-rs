@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Phase 1 Baseline Documentation
 
 **Project**: copybook-rs v0.4.2-dev  

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 **Telemetry rollout (staging): LIVE**
 
 - `/metrics` exposed by `copybook-cli` (feature-gated; `--metrics-listen :9300`)

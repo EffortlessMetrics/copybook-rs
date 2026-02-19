@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-core
 
 Core parsing and schema primitives for COBOL copybooks.

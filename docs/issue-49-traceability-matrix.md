@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #49 Traceability Matrix
 ## Performance Regression Monitoring - AC to Specification Mapping
 

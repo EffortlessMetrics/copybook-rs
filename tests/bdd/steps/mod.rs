@@ -1,0 +1,27 @@
+#[cfg(feature = "audit")]
+pub(crate) mod audit;
+pub(crate) mod determinism;
+pub(crate) mod dialect;
+pub(crate) mod edited_pic;
+pub(crate) mod encode_decode;
+pub(crate) mod enterprise;
+pub(crate) mod error_handling;
+pub(crate) mod field_projection;
+pub(crate) mod golden_fixtures;
+pub(crate) mod parsing;
+pub(crate) mod rdw;
+pub(crate) mod sign_separate_renames;
+
+// New feature step modules
+pub(crate) mod codepage;
+pub(crate) mod error_strategies;
+pub(crate) mod exit_codes;
+pub(crate) mod filler;
+pub(crate) mod json_numbers;
+pub(crate) mod metadata;
+pub(crate) mod parallel;
+pub(crate) mod parsing_modes;
+pub(crate) mod raw_capture;
+pub(crate) mod support;
+pub(crate) mod verify;
+pub(crate) mod zoned_encoding;

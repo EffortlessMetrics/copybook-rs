@@ -797,6 +797,7 @@ name = "copybook-bdd"
 version = "0.4.3"
 dependencies = [
  "anyhow",
+ "base64",
  "copybook-codec",
  "copybook-core",
  "cucumber",

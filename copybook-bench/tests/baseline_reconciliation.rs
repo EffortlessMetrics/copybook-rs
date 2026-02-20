@@ -304,10 +304,13 @@ fn test_baseline_persistence() {
         "JSON should contain history array"
     );
 
-    // Test persistence error handling
-    let invalid_path = "/invalid/path/baseline.json";
-    let result = store.save(invalid_path);
-    assert!(result.is_err(), "Should fail to save to invalid path");
+    // Test persistence error handling (cross-platform: create a file where the parent dir should be)
+    let error_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let blocker = error_dir.path().join("not_a_dir");
+    std::fs::write(&blocker, b"x").expect("Failed to create blocker file");
+    let invalid_path = blocker.join("baseline.json");
+    let result = store.save(&invalid_path);
+    assert!(result.is_err(), "Should fail to save when parent is a file");
 }
 
 /// AC2: Test baseline documentation requirements

@@ -16,7 +16,7 @@
 - Soak matrix → p50/p90/p99 + RSS caps → attach artifacts to release notes
 
 Links:
-- Grafana dashboard: https://grafana.effortlessmetrics.dev/d/copybook-telemetry/copybook-telemetry
+- Grafana dashboard: (internal — configure per deployment)
 - Perf check-run: https://github.com/effortlessmetrics/copybook-rs/actions/workflows/perf.yml
 - Release: https://github.com/effortlessmetrics/copybook-rs/releases
 ## License

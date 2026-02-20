@@ -106,7 +106,7 @@ As a **copybook-rs maintainer**, I want **comprehensive automated dependency and
 - Documentation includes steps for false positive handling and advisory ignore workflow
 - Documentation includes escalation path for CRITICAL vulnerabilities requiring immediate patching
 - Documentation includes procedure for generating ad-hoc security receipts for audits
-- Documentation includes contact information for security team (security@effortlessmetrics.com)
+- Documentation includes contact information for security team (see SECURITY.md)
 
 ## Technical Implementation Notes
 

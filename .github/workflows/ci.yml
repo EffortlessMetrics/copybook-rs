@@ -163,8 +163,9 @@ jobs:
       run: cargo build --workspace --examples
     - name: Build copybook-arrow examples
       run: cargo build -p copybook-arrow --examples
-    - name: Build kafka_pipeline example
-      run: cargo build -p kafka-pipeline
+    - name: Build kafka_pipeline example (Linux only)
+      if: matrix.os == 'ubuntu-latest'
+      run: cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
 
   security:
     name: Security Checks

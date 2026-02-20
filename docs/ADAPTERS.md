@@ -136,7 +136,7 @@ The Kafka adapter (`examples/kafka_pipeline`) provides a streaming pipeline for 
 The Kafka adapter is provided as an example. Build it:
 
 ```bash
-cargo build --example kafka_pipeline
+cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
 ```
 
 ### Configuration
@@ -160,7 +160,7 @@ export COPYBOOK_PATH="path/to/copybook.cpy"
 export DATA_PATH="path/to/data.bin"
 
 # Run the pipeline
-cargo run --example kafka_pipeline
+cargo run --manifest-path examples/kafka_pipeline/Cargo.toml
 ```
 
 ### Features
@@ -195,10 +195,10 @@ cargo run --example kafka_pipeline
 
 ```bash
 # Build the example
-cargo build --example kafka_pipeline
+cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
 
 # Build with release optimizations
-cargo build --example kafka_pipeline --release
+cargo build --manifest-path examples/kafka_pipeline/Cargo.toml --release
 ```
 
 ## Building and Running Examples
@@ -216,7 +216,7 @@ cargo build --workspace --examples
 cargo build -p copybook-arrow --examples
 
 # Kafka pipeline example
-cargo build --example kafka_pipeline
+cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
 ```
 
 ### Run Examples
@@ -228,7 +228,7 @@ cargo run --example decode_to_parquet -p copybook-arrow
 cargo run --example batch_processing -p copybook-arrow
 
 # Kafka example
-cargo run --example kafka_pipeline
+cargo run --manifest-path examples/kafka_pipeline/Cargo.toml
 ```
 
 ### Using Just

@@ -10,7 +10,6 @@ members = [
     "xtask",
     "tests/bdd",
     "tests/proptest",
-    "examples/kafka_pipeline",
 ]
 resolver = "2"
 

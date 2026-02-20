@@ -23,7 +23,7 @@
 //! # Running the example
 //!
 //! ```bash
-//! cargo run --example kafka_pipeline
+//! cargo run --manifest-path examples/kafka_pipeline/Cargo.toml
 //! ```
 
 use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy};

@@ -1,17 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# NOTE: This crate is NOT a workspace member (requires rdkafka/openssl).
+# Versions must be updated manually on release since workspace inheritance
+# does not apply. Keep in sync with the root Cargo.toml [workspace.package].
 [package]
 name = "kafka-pipeline"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
-authors.workspace = true
-repository.workspace = true
-homepage.workspace = true
+version = "0.4.3"
+edition = "2024"
+rust-version = "1.92"
+license = "AGPL-3.0-or-later"
+authors = ["Steven Zimmerman, CPA <git@effortlesssteven.com>"]
+repository = "https://github.com/EffortlessMetrics/copybook-rs"
+homepage = "https://github.com/EffortlessMetrics/copybook-rs"
 description = "Kafka pipeline example for copybook-rs"
 readme = "README.md"
-keywords.workspace = true
-categories.workspace = true
+keywords = ["cobol", "copybook", "mainframe", "ebcdic", "etl"]
+categories = ["parsing", "encoding", "command-line-utilities"]
 publish = false
 
 [[bin]]
@@ -20,25 +24,38 @@ path = "src/main.rs"
 
 [dependencies]
 # Internal workspace dependencies
-copybook-core = { workspace = true }
-copybook-codec = { workspace = true }
+copybook-core = { version = "=0.4.3", path = "../../copybook-core" }
+copybook-codec = { version = "=0.4.3", path = "../../copybook-codec" }
 
 # Kafka dependencies
 rdkafka = { version = "0.37", features = ["cmake-build", "ssl-vendored"] }
 
 # Async runtime
-tokio = { workspace = true, features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
 
 # Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
 
 # Error handling
-thiserror = { workspace = true }
+thiserror = "2.0.18"
 
 # Logging
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unreachable = "deny"
+todo = "deny"
+unimplemented = "deny"
+missing_inline_in_public_items = "warn"
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"

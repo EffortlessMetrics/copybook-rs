@@ -31,7 +31,16 @@ pub struct HealthCheck {
 /// Run all health checks and return results.
 #[must_use]
 pub fn run_health_checks(baseline_path: &Path) -> Vec<HealthCheck> {
+    #[cfg(target_os = "linux")]
     let mut checks = vec![
+        check_rust_version(),
+        check_baseline_exists(baseline_path),
+        check_disk_space(),
+        check_memory(),
+    ];
+
+    #[cfg(not(target_os = "linux"))]
+    let checks = vec![
         check_rust_version(),
         check_baseline_exists(baseline_path),
         check_disk_space(),

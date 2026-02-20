@@ -39,7 +39,7 @@ Please provide as much information as possible:
 
 - **Description**: Clear description of the vulnerability and its potential impact
 - **Reproduction Steps**: Detailed steps to reproduce the issue
-- **Affected Components**: Which copybook-rs crates are affected (copybook-core, copybook-codec, copybook-cli, copybook-gen, copybook-bench)
+- **Affected Components**: Which copybook-rs crates are affected (copybook-core, copybook-codec, copybook-arrow, copybook-cli, copybook-gen, copybook-bench)
 - **Attack Scenario**: Realistic exploitation scenario demonstrating impact
 - **COBOL copybook or data samples** (if relevant, but please anonymize sensitive data)
 - **Suggested Fix** (Optional): Proposed mitigation or patch if you have one
@@ -231,6 +231,7 @@ Security issues within these copybook-rs workspace crates:
 - **copybook-codec**: Data encoding/decoding, character conversion, structural validation
 - **copybook-cli**: Command-line interface and subcommands
 - **copybook-gen**: Test fixture generation (development-only, lower priority)
+- **copybook-arrow**: Apache Arrow and Parquet format conversion (experimental)
 - **copybook-bench**: Performance benchmarks (development-only, lower priority)
 
 ### Out of Scope

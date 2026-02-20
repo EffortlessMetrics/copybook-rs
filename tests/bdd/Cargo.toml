@@ -16,6 +16,11 @@ publish = false
 name = "bdd"
 path = "bdd.rs"
 
+[[test]]
+name = "bdd_smoke"
+path = "bdd_smoke.rs"
+harness = false
+
 [lints]
 workspace = true
 

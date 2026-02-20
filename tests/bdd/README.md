@@ -11,46 +11,41 @@ BDD tests describe the expected behavior of the copybook-rs library in human-rea
 
 ```
 tests/bdd/
-├── Cargo.toml              # BDD test dependencies
-├── bdd.rs                  # Main test runner and step definitions
+├── Cargo.toml              # BDD test package + smoke target
+├── bdd.rs                  # Full exploratory runner
+├── bdd_smoke.rs            # CI-gated smoke runner (tag-filtered)
 ├── features/               # Gherkin feature files
-│   ├── copybook_parsing.feature
-│   ├── encode_decode.feature
-│   └── error_handling.feature
+│   ├── verify_command.feature
+│   ├── raw_data_capture.feature
+│   ├── metadata_emission.feature
+│   └── ...
 └── README.md              # This file
 ```
 
 ## Running BDD Tests
 
-### Run all BDD tests
+### Run CI-gated smoke BDD suite
 
 ```bash
-cargo test -p copybook-bdd
+cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
 ```
 
-### Run specific feature file
+### Run full exploratory BDD suite
 
 ```bash
-# Run only copybook parsing tests
-cargo test -p copybook-bdd -- features/copybook_parsing.feature
-
-# Run only encode/decode tests
-cargo test -p copybook-bdd -- features/encode_decode.feature
-
-# Run only error handling tests
-cargo test -p copybook-bdd -- features/error_handling.feature
+cargo run -p copybook-bdd --bin bdd
 ```
 
-### Run with verbose output
+### Run specific feature file (exploratory runner)
 
 ```bash
-cargo test -p copybook-bdd -- --nocapture
+cargo run -p copybook-bdd --bin bdd -- -i "verify_command.feature"
 ```
 
-### Run specific scenario
+### Run specific scenario name (exploratory runner)
 
 ```bash
-cargo test -p copybook-bdd -- "Parse a simple copybook with a single field"
+cargo run -p copybook-bdd --bin bdd -- --name "Verify valid fixed-length data"
 ```
 
 ## Feature Files
@@ -187,7 +182,7 @@ The BDD framework supports various step patterns:
 
 ## CI Integration
 
-BDD tests are automatically run as part of the CI workflow. See the `.github/workflows/ci.yml` file for details.
+The smoke BDD suite (`bdd_smoke`) is run in CI and local quick gates. The full runner (`bdd`) remains available for exploratory coverage and scenario development.
 
 ## Troubleshooting
 

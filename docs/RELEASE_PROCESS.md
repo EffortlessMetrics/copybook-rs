@@ -157,15 +157,16 @@ After verifying the release on GitHub:
 ```bash
 # Publish core first (dependency order)
 cargo publish -p copybook-core
-sleep 10  # Wait for crates.io to index
+sleep 90  # Wait for crates.io to index (matches CI workflow)
 
 cargo publish -p copybook-codec
-sleep 10
+sleep 90  # Wait for crates.io to index (matches CI workflow)
+
+cargo publish -p copybook-arrow
+sleep 90  # Wait for crates.io to index (matches CI workflow)
 
 cargo publish -p copybook-cli
-cargo publish -p copybook-gen
-cargo publish -p copybook-bench
-# Note: xtask is typically not published
+# Note: copybook-gen, copybook-bench, xtask, tests/bdd, tests/proptest have publish = false
 ```
 
 ## Configuration

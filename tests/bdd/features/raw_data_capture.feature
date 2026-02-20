@@ -24,11 +24,25 @@ Feature: Raw Data Capture
     Then decoding should succeed
     And the decoded output should contain "__raw_b64"
 
+  Scenario: Raw mode record base64 decodes to original payload
+    Given raw mode "record"
+    And binary data: "HELLOWORLD"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the raw_b64 field should decode to the original binary data
+
   Scenario: Raw mode field emits field-level raw
     Given raw mode "field"
     And binary data: "HELLOWORLD"
     When the binary data is decoded
     Then decoding should succeed
+
+  Scenario: Raw mode record preserves binary literal bytes
+    Given raw mode "record"
+    And binary data: "\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4A"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the raw_b64 field should decode to the original binary data
 
   Scenario: Default raw mode is off
     Given binary data: "HELLOWORLD"

@@ -34,6 +34,9 @@ JOBS=$(( JOBS>2 ? JOBS-2 : 1 ))
 # Run tests with bounded parallelism (panic=abort requires nightly -Zpanic_abort_tests)
 cargo nextest run --workspace --exclude copybook-bench -j "$JOBS" --failure-output=immediate
 
+echo "==> Running BDD smoke tests"
+cargo test -p copybook-bdd --test bdd_smoke
+
 # Doc tests (fail on warnings)
 echo "==> Running doc tests"
 RUSTDOCFLAGS="--deny warnings" cargo test --doc --workspace --exclude copybook-bench

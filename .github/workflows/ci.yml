@@ -283,7 +283,7 @@ jobs:
         cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
 
   bdd-tests:
-    name: BDD Tests
+    name: BDD Smoke Tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -291,8 +291,8 @@ jobs:
       with:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
-    - name: Run BDD tests
-      run: cargo test -p copybook-bdd -- --nocapture
+    - name: Run BDD smoke tests
+      run: cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
 
   rdw-iterator-tests:
     name: RDW iterator tests

@@ -321,10 +321,12 @@ fn get_baseline_path() -> PathBuf {
     let current_dir = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     // Check for temp directory using multiple indicators
-    let is_temp_dir = current_dir.to_string_lossy().contains("/tmp")
-        || current_dir.to_string_lossy().contains("tmp.")
-        || current_dir.to_string_lossy().contains("/var/folders")  // macOS temp
-        || current_dir.to_string_lossy().contains("/Temp")  // Windows temp
+    let current_dir_str = current_dir.to_string_lossy();
+    let is_temp_dir = current_dir_str.contains("/tmp")
+        || current_dir_str.contains("tmp.")
+        || current_dir_str.contains("/var/folders")  // macOS temp
+        || current_dir_str.contains("/Temp")  // Windows temp (forward slash)
+        || current_dir_str.contains("\\Temp")  // Windows temp (backslash)
         || env::var("COPYBOOK_TEST_TEMP").is_ok(); // Explicit test flag
 
     if is_temp_dir {

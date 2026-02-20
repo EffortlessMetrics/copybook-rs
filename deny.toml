@@ -45,11 +45,6 @@ allow = [
     "BlueOak-1.0.0",
 ]
 
-# Add exceptions surgically for crates that include OpenSSL text
-exceptions = [
-    { name = "aws-lc-sys", version = "*", allow = ["OpenSSL"] },
-]
-
 [bans]
 # Lint level for when multiple versions of the same crate are detected
 multiple-versions = "warn"
@@ -70,10 +65,6 @@ deny = [
 # Certain crates/versions that will be skipped when doing duplicate detection
 skip = [
     { name = "windows-sys", reason = "transitive, multiple versions unavoidable" },
-    { name = "windows-targets", reason = "transitive, multiple versions unavoidable" },
-    { name = "windows-link", reason = "transitive, multiple versions unavoidable" },
-    { name = "windows_x86_64_gnu", reason = "transitive, multiple versions unavoidable" },
-    { name = "windows_x86_64_msvc", reason = "transitive, multiple versions unavoidable" },
 ]
 # Similarly to `skip` allows you to skip certain crates from being checked
 skip-tree = []

@@ -571,7 +571,7 @@ def fetch_security_receipts(repo, workflow_name, github_token):
                 # ... (implementation specific to SIEM platform)
 
 # Usage
-fetch_security_receipts("EffortlessMetrics/copybook-rs", "ci.yml", "ghp_token123...")
+fetch_security_receipts("EffortlessMetrics/copybook-rs", "ci.yml", "<your-github-token>")
 ```
 
 **Integration Pattern 2: S3 Export**

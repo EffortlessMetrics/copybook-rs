@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-copybook-rs maintains a **highly organized and comprehensive test suite** with **664 individual test functions** distributed across 5 crates. The test infrastructure implements:
+copybook-rs maintains a **highly organized and comprehensive test suite** with **664 individual test functions** distributed across 6 crates. The test infrastructure implements:
 
 - **Structured test organization** with golden fixtures (AC1-AC8), panic elimination suites, enterprise scenarios, and property-based testing
 - **Extensive feature coverage** for COBOL constructs (ODO, REDEFINES, Level-88, COMP-3, DISPLAY, packed decimal, zoned decimal)

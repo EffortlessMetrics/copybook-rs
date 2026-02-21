@@ -476,10 +476,10 @@ fn generate_test_data(schema: &copybook_core::Schema) -> Vec<u8> {
         let field_len = field.len as usize;
         match &field.kind {
             FieldKind::ZonedDecimal { .. } | FieldKind::EditedNumeric { .. } => {
-                data.extend(std::iter::repeat(b'0').take(field_len));
+                data.extend(std::iter::repeat_n(b'0', field_len));
             }
             FieldKind::Alphanum { .. } => {
-                data.extend(std::iter::repeat(b'A').take(field_len));
+                data.extend(std::iter::repeat_n(b'A', field_len));
             }
             FieldKind::PackedDecimal { signed, .. } => {
                 let mut bytes = vec![0u8; field_len];
@@ -489,10 +489,10 @@ fn generate_test_data(schema: &copybook_core::Schema) -> Vec<u8> {
                 data.extend_from_slice(&bytes);
             }
             FieldKind::BinaryInt { .. } => {
-                data.extend(std::iter::repeat(0u8).take(field_len));
+                data.extend(std::iter::repeat_n(0u8, field_len));
             }
             _ => {
-                data.extend(std::iter::repeat(0u8).take(field_len));
+                data.extend(std::iter::repeat_n(0u8, field_len));
             }
         }
     }

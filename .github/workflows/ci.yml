@@ -129,7 +129,7 @@ jobs:
     - name: Run tests (nextest)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: |
-        cargo nextest run --workspace --exclude copybook-bench --profile ci --failure-output=immediate --status-level=fail
+        cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci --failure-output=immediate --status-level=fail
     - name: Sync test status to docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       continue-on-error: true

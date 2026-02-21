@@ -8,20 +8,19 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 
-use copybook_core::{parse_copybook, Field, FieldKind, Occurs};
+use copybook_core::{Field, FieldKind, Occurs, parse_copybook};
 use proptest::prelude::*;
 use proptest::strategy::Strategy;
 
 /// Generate a valid field level (1-49, excluding 66 and 88)
 fn field_level() -> impl Strategy<Value = u8> {
-    prop::sample::select(vec![
-        1u8, 2, 3, 4, 5, 10, 20, 30, 40, 49,
-    ])
+    prop::sample::select(vec![1u8, 2, 3, 4, 5, 10, 20, 30, 40, 49])
 }
 
-/// Generate a valid field name (1-30 characters, alphanumeric and hyphen)
+/// Generate a valid COBOL field name that avoids parser ambiguity with PIC patterns.
+/// Names always contain a hyphen so they can never be confused with PIC X/Z/9 patterns.
 fn field_name() -> impl Strategy<Value = String> {
-    "[A-Z0-9-]{1,30}".prop_map(|s| s)
+    ("[A-Z]{1,5}", "[A-Z]{1,5}").prop_map(|(a, b)| format!("{a}-{b}"))
 }
 
 /// Property: Schema field offsets are monotonically increasing within a group
@@ -110,15 +109,14 @@ proptest! {
         max_count in 5u32..20,
     ) {
         let copybook = format!(
-            "       05  COUNTER PIC 9(3).\n\
-             05  TEST-FIELD PIC X({}) OCCURS {} TO {} TIMES DEPENDING ON COUNTER.",
+            "       05  CTR PIC 9(3).\n       05  TF PIC X({}) OCCURS {} TO {}\n           TIMES DEPENDING ON CTR.",
             field_len, min_count, max_count
         );
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
 
         // Find the ODO field (should be the second one)
         let odo_field = schema.fields.iter()
-            .find(|f| f.name == "TEST-FIELD")
+            .find(|f| f.name == "TF")
             .expect("Failed to find ODO field");
 
         prop_assert_eq!(odo_field.len, field_len);
@@ -138,9 +136,7 @@ proptest! {
         name in field_name(),
     ) {
         let copybook = format!(
-            "       01  {}.\n\
-             05  CHILD1 PIC X(5).\n\
-             05  CHILD2 PIC X(5).",
+            "       01  {}.\n       05  CHILD1 PIC X(5).\n       05  CHILD2 PIC X(5).",
             name
         );
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
@@ -199,7 +195,7 @@ proptest! {
         // Verify fields match
         prop_assert_eq!(deserialized.fields.len(), schema.fields.len());
         for (orig, deser) in schema.fields.iter().zip(deserialized.fields.iter()) {
-            prop_assert_eq!(orig.name, deser.name);
+            prop_assert_eq!(orig.name.clone(), deser.name.clone());
             prop_assert_eq!(orig.level, deser.level);
             prop_assert_eq!(orig.offset, deser.offset);
             prop_assert_eq!(orig.len, deser.len);
@@ -220,8 +216,7 @@ proptest! {
         child_name in field_name(),
     ) {
         let copybook = format!(
-            "       01  {}.\n\
-             05  {} PIC X(5).",
+            "       01  {}.\n       05  {} PIC X(5).",
             group_name, child_name
         );
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
@@ -233,7 +228,7 @@ proptest! {
 
         // Child path should include parent name
         let expected_path = format!("{}.{}", group_name, child_name);
-        prop_assert_eq!(child_field.path, expected_path);
+        prop_assert_eq!(child_field.path.clone(), expected_path);
     }
 }
 
@@ -290,9 +285,7 @@ proptest! {
         length in 1u32..20,
     ) {
         let copybook = format!(
-            "       05  BASE-FIELD PIC X({}).\n\
-             05  REDEF1 PIC 9({}).\n\
-             05  REDEF2 PIC S9({}).",
+            "       05  BF PIC X({}).\n       05  R1 REDEFINES BF PIC 9({}).\n       05  R2 REDEFINES BF PIC S9({}).",
             length, length, length
         );
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
@@ -308,8 +301,8 @@ proptest! {
         prop_assert_eq!(redef2.offset, base_field.offset);
 
         // REDEFINES fields should indicate what they redefine
-        prop_assert_eq!(redef1.redefines_of, Some(base_field.path.clone()));
-        prop_assert_eq!(redef2.redefines_of, Some(base_field.path.clone()));
+        prop_assert_eq!(redef1.redefines_of.clone(), Some(base_field.path.clone()));
+        prop_assert_eq!(redef2.redefines_of.clone(), Some(base_field.path.clone()));
     }
 }
 
@@ -327,23 +320,22 @@ proptest! {
         max_count in 5u32..20,
     ) {
         let copybook = format!(
-            "       05  COUNTER PIC 9(3).\n\
-             05  ARRAY-FIELD PIC X({}) OCCURS {} TO {} TIMES DEPENDING ON COUNTER.",
+            "       05  CTR PIC 9(3).\n       05  AF PIC X({}) OCCURS {} TO {}\n           TIMES DEPENDING ON CTR.",
             field_len, min_count, max_count
         );
         let schema = parse_copybook(&copybook).expect("Failed to parse copybook");
 
         // Find the ODO field
         let odo_field = schema.fields.iter()
-            .find(|f| f.name == "ARRAY-FIELD")
+            .find(|f| f.name == "AF")
             .expect("Failed to find ODO field");
 
         // Verify OCCURS structure
         prop_assert!(odo_field.occurs.is_some());
-        if let Some(Occurs::ODO { min, max, counter_path }) = odo_field.occurs {
-            prop_assert_eq!(min, min_count);
-            prop_assert_eq!(max, max_count);
-            prop_assert!(counter_path.contains("COUNTER"));
+        if let Some(Occurs::ODO { min, max, counter_path }) = &odo_field.occurs {
+            prop_assert_eq!(*min, min_count);
+            prop_assert_eq!(*max, max_count);
+            prop_assert!(counter_path.contains("CTR"));
         } else {
             prop_assert!(false, "Expected ODO occurrence type");
         }

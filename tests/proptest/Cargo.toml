@@ -19,6 +19,10 @@ workspace = true
 name = "proptest"
 path = "main.rs"
 
+[lib]
+name = "copybook_proptest"
+path = "mod.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

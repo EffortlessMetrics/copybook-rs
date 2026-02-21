@@ -3,6 +3,7 @@
 
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
+#![allow(clippy::missing_inline_in_public_items)]
 
 use assert_cmd::Command;
 use assert_cmd::cargo::cargo_bin_cmd;

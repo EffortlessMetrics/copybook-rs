@@ -83,8 +83,8 @@ jobs:
     - name: Generate baseline for current version
       if: steps.freeze-check.outputs.freeze_active == 'false'
       run: |
-        # Generate current API signature for future comparison
-        cargo semver-checks build-metadata --workspace
+        # Generate current API docs for future comparison
+        cargo doc --workspace --no-deps
 
     - name: Check API compatibility
       if: steps.freeze-check.outputs.freeze_active == 'true'
@@ -93,9 +93,7 @@ jobs:
         # Use the last released version as baseline
         cargo semver-checks check-release \
           --workspace \
-          --baseline-root=origin/main \
-          --current-root=. \
-          --error-on-missing
+          --baseline-rev=origin/main
 
     - name: Allow docs/bench/tests only changes during freeze
       if: steps.freeze-check.outputs.freeze_active == 'true' && steps.changed-paths.outputs.api_only_changes == 'true'
@@ -128,7 +126,5 @@ jobs:
         # Generate detailed API diff for debugging
         cargo semver-checks check-release \
           --workspace \
-          --baseline-root=origin/main \
-          --current-root=. \
-          --error-on-missing \
+          --baseline-rev=origin/main \
           2>&1 || true

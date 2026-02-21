@@ -11,6 +11,9 @@ members = [
     "tests/bdd",
     "tests/proptest",
 ]
+exclude = [
+    "examples/kafka_pipeline",
+]
 resolver = "2"
 
 [workspace.package]

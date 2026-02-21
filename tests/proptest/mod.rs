@@ -1,4 +1,9 @@
 #![allow(unused_doc_comments, unused_imports, dead_code)]
+#![allow(clippy::missing_inline_in_public_items)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::expect_used)]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Property testing module for copybook-rs
 //!
@@ -7,13 +12,13 @@
 //! of randomly generated inputs, helping to catch edge cases that traditional
 //! unit tests might miss.
 
-pub mod generators;
-pub mod roundtrip;
-pub mod parsing;
-pub mod numeric;
 pub mod arrays;
+pub mod generators;
+pub mod numeric;
+pub mod parsing;
 pub mod pic_clauses;
 pub mod redefines;
+pub mod roundtrip;
 pub mod schema_invariants;
 
 use copybook_core::Schema;

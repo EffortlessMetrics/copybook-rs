@@ -52,6 +52,7 @@ jobs:
           --exclude-files 'copybook-cli/tests/*' \
           --exclude-files 'copybook-core/tests/*' \
           --exclude-files 'copybook-codec/tests/*' \
+          --exclude-files 'copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage \
           --verbose \

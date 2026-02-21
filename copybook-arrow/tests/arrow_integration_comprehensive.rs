@@ -6,6 +6,7 @@
 
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::expect_used)]
+#![allow(clippy::panic)]
 #![allow(deprecated)]
 
 use arrow::array::{ArrayRef, Int64Array, StringArray};

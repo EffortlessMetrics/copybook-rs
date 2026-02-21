@@ -1,15 +1,15 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Test Infrastructure Landscape Analysis
 
-**Date**: October 2025  
-**Scope**: Comprehensive test inventory, feature coverage matrix, and CI/CD configuration  
+**Date**: October 2025 (Updated Feb 2026 for feature accuracy)
+**Scope**: Comprehensive test inventory, feature coverage matrix, and CI/CD configuration
 **Objective**: Map test landscape to inform PR-B (test truth binding) and PR-D (support matrix generation)
 
 ---
 
 ## Executive Summary
 
-copybook-rs maintains a **highly organized and comprehensive test suite** with **664 individual test functions** distributed across 6 crates. The test infrastructure implements:
+copybook-rs maintains a **highly organized and comprehensive test suite** with **664 individual test functions** distributed across the workspace crates and workspace-level tests. The test infrastructure implements:
 
 - **Structured test organization** with golden fixtures (AC1-AC8), panic elimination suites, enterprise scenarios, and property-based testing
 - **Extensive feature coverage** for COBOL constructs (ODO, REDEFINES, Level-88, COMP-3, DISPLAY, packed decimal, zoned decimal)
@@ -178,10 +178,10 @@ copybook-rs maintains a **highly organized and comprehensive test suite** with *
 | **OCCURS** | Array | 5+ | Parse, Codec | Fixed occurs (non-ODO) |
 | **SYNCHRONIZED** | Alignment | 3+ | Parse | Field alignment |
 | **BLANK WHEN ZERO** | Special | 2+ | Codec | Special value handling |
-| **Edited PIC** | Format | 2 | Parse | **Not supported** (expected failures tested) |
+| **Edited PIC** | Format | 40+ | Parse, Codec | **Supported** (E1 parse, E2 decode, E3 encode — all phases complete) |
 | **COMP-1/2** | Numeric | 0 | N/A | **Not supported** (by design) |
 | **SIGN SEPARATE** | Sign | 0 | N/A | **Not supported** |
-| **RENAMES (66)** | Structure | 0 | N/A | **Not supported** |
+| **RENAMES (66)** | Structure | 10+ | Parse, Codec, CLI | **Supported** (R1-R3 scenarios: same-scope, group alias, nested groups) |
 | **Nested ODO** | Structure | 0 | N/A | **Not supported** (by design) |
 
 ### Error Code Test Coverage

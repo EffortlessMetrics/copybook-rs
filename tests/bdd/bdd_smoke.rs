@@ -1,5 +1,5 @@
-#![allow(
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#![allow(
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::unused_async,

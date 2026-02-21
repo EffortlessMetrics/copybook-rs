@@ -58,14 +58,15 @@ The copybook-rs project has implemented a comprehensive testing strategy with fi
 
 **Running BDD Tests**:
 ```bash
-cargo test -p copybook-bdd
+cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
+bash scripts/ci/governance-bdd-smoke.sh
 ```
 
 ### 2. Feature Flagging ✅
 
 **Status**: Complete (22 flags across 5 categories)
 
-**Framework**: Custom feature flag system in [`copybook-core/src/feature_flags.rs`](copybook-core/src/feature_flags.rs)
+**Framework**: Custom feature flag contracts in [`copybook-contracts/src/feature_flags.rs`](../copybook-contracts/src/feature_flags.rs) with governance runtime layering
 
 **Testing-Related Feature Flags**:
 - `mutation_testing` - Enable mutation testing hooks

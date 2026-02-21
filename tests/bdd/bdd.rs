@@ -25,7 +25,7 @@ mod helpers;
 mod steps;
 mod world;
 
-use copybook_core::{FeatureCategory, FeatureFlags};
+use copybook_governance::{FeatureCategory, FeatureFlags};
 use cucumber::World as _;
 
 use crate::world::CopybookWorld;

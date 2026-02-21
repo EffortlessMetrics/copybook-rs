@@ -170,6 +170,13 @@ The project is organized as a Cargo workspace with the following crates:
 - **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, support)
 - **copybook-gen**: Test fixture and synthetic data generation utilities
 - **copybook-bench**: Performance benchmarks and testing harness
+- **copybook-codec-memory**: Shared scratch/streaming/worker-pool memory primitives for codec hot paths
+- **copybook-contracts**: Canonical feature-flag contracts
+- **copybook-support-matrix**: Canonical COBOL support matrix contract data
+- **copybook-governance-contracts**: Unified façade combining contracts + support matrix
+- **copybook-governance-grid**: Static mapping from support rows to runtime flags
+- **copybook-governance-runtime**: Runtime governance-state evaluation from active feature flags
+- **copybook-governance**: Backward-compatible governance façade re-exporting the layered governance stack
 
 ## Library API Usage
 
@@ -424,8 +431,14 @@ cargo test --workspace
 # Run with coverage
 cargo test --workspace -- --nocapture
 
-# Run BDD tests (Behavior Driven Development)
-cargo test -p copybook-bdd
+# Run CI-gated BDD smoke tests
+cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
+
+# Run governance microcrates + BDD smoke gate (CI parity)
+bash scripts/ci/governance-bdd-smoke.sh
+
+# Run full exploratory BDD runner (non-gated)
+cargo run -p copybook-bdd --bin bdd
 
 # Run performance benchmarks (JSON receipts)
 just bench-json

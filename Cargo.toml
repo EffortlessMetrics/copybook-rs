@@ -3,10 +3,17 @@
 members = [
     "copybook-core",
     "copybook-codec",
+    "copybook-codec-memory",
     "copybook-cli",
     "copybook-gen",
+    "copybook-governance",
+    "copybook-governance-grid",
+    "copybook-governance-runtime",
+    "copybook-governance-contracts",
     "copybook-bench",
     "copybook-arrow",
+    "copybook-contracts",
+    "copybook-support-matrix",
     "xtask",
     "tests/bdd",
     "tests/proptest",
@@ -32,8 +39,15 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 # Internal workspace crates (pin exact versions for publish)
 copybook-core = { version = "=0.4.3", path = "copybook-core" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
+copybook-codec-memory = { version = "=0.4.3", path = "copybook-codec-memory" }
 copybook-arrow = { version = "=0.4.3", path = "copybook-arrow" }
+copybook-governance = { version = "=0.4.3", path = "copybook-governance" }
+copybook-governance-grid = { version = "=0.4.3", path = "copybook-governance-grid" }
+copybook-governance-runtime = { version = "=0.4.3", path = "copybook-governance-runtime" }
+copybook-governance-contracts = { version = "=0.4.3", path = "copybook-governance-contracts" }
 copybook-bench = { version = "=0.4.3", path = "copybook-bench" }
+copybook-contracts = { version = "=0.4.3", path = "copybook-contracts" }
+copybook-support-matrix = { version = "=0.4.3", path = "copybook-support-matrix" }
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }

@@ -36,6 +36,27 @@ bdd-smoke:
 bdd-full:
     cargo run -p copybook-bdd --bin bdd
 
+# Build only governance microcrate stack
+governance-build:
+    cargo check -p copybook-contracts -p copybook-support-matrix -p copybook-governance-contracts -p copybook-governance-grid -p copybook-governance-runtime -p copybook-governance
+
+# Test only governance microcrate stack
+governance-test:
+    cargo test -p copybook-contracts -p copybook-support-matrix -p copybook-governance-contracts -p copybook-governance-grid -p copybook-governance-runtime -p copybook-governance
+
+# Run governance microcrate checks + BDD smoke (CI parity gate)
+governance-bdd-smoke:
+    bash scripts/ci/governance-bdd-smoke.sh
+
+# Clean governance microcrate build artifacts
+governance-clean:
+    cargo clean -p copybook-contracts
+    cargo clean -p copybook-support-matrix
+    cargo clean -p copybook-governance-contracts
+    cargo clean -p copybook-governance-grid
+    cargo clean -p copybook-governance-runtime
+    cargo clean -p copybook-governance
+
 # Run clippy lints with pedantic warnings
 lint:
     cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic

@@ -32,9 +32,17 @@
 
 - [ ] copybook-core (parsing, schema, AST)
 - [ ] copybook-codec (encoding, decoding, character conversion)
+- [ ] copybook-codec-memory (shared memory primitives for codec hot paths)
 - [ ] copybook-cli (CLI commands and options)
 - [ ] copybook-gen (test fixture generation)
 - [ ] copybook-bench (performance benchmarks)
+- [ ] copybook-contracts (feature flag contracts)
+- [ ] copybook-support-matrix (COBOL support contract data)
+- [ ] copybook-governance-contracts (contracts + support matrix facade)
+- [ ] copybook-governance-grid (support-to-flag mapping)
+- [ ] copybook-governance-runtime (runtime governance state evaluation)
+- [ ] copybook-governance (governance compatibility facade)
+- [ ] copybook-bdd (BDD smoke/exploratory runners)
 
 ## Checklist
 
@@ -46,6 +54,7 @@
 - [ ] `cargo fmt --all` passes
 - [ ] `cargo clippy --workspace -- -D warnings -W clippy::pedantic` passes
 - [ ] `cargo test --workspace` passes (or `cargo nextest run --workspace`)
+- [ ] `bash scripts/ci/governance-bdd-smoke.sh` passes (if governance or BDD touched)
 - [ ] Follows [conventional commit format](https://www.conventionalcommits.org/) (e.g., `feat(core):`, `fix(codec):`)
 - [ ] MSRV compliance (Rust 1.92+) verified if dependencies changed
 - [ ] Golden fixtures updated if applicable

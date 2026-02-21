@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-codec-memory"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Reusable memory utilities for copybook codec streaming and parallelism."
+documentation = "https://docs.rs/copybook-codec-memory"
+readme = "README.md"
+keywords = ["cobol", "copybook", "ebcdic", "codec", "memory", "parallelism"]
+categories = ["encoding", "concurrency", "data-structures"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+crossbeam-channel.workspace = true
+smallvec.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true

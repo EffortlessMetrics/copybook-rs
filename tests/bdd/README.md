@@ -24,13 +24,19 @@ tests/bdd/
 
 ## Running BDD Tests
 
+### Run governance microcrates + BDD smoke gate (CI parity)
+
+```bash
+bash scripts/ci/governance-bdd-smoke.sh
+```
+
 ### Run CI-gated smoke BDD suite
 
 ```bash
 cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
 ```
 
-### Run full exploratory BDD suite
+### Run full exploratory BDD suite (may include known failing scenarios)
 
 ```bash
 cargo run -p copybook-bdd --bin bdd

@@ -66,7 +66,7 @@ Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
 **Common Differences:**
 - copybook-rs fully supports COMP-1/COMP-2 (promoted to stable in v0.4.3)
 - Edited PIC clauses are supported for E1-E3.7, but older runtimes should still validate before migration
-- SIGN SEPARATE clauses are fully supported (promoted to stable; always enabled)
+- SIGN SEPARATE clauses are fully supported (promoted to stable; enabled by default)
 
 **Migration Steps:**
 
@@ -80,7 +80,7 @@ Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
    05 CUSTOMER-ID    PIC 9(8).
    05 CUSTOMER-NAME  PIC X(30).
    05 BALANCE        PIC ZZ,ZZ9.99.       // Edited PIC (E1/E2/E3)
-   05 RATE           PIC S9(3)V99 COMP-1. // Floating point (always enabled)
+   05 RATE           PIC S9(3)V99 COMP-1. // Floating point (enabled by default)
 ```
 
 2. **Update Processing Scripts:**
@@ -315,7 +315,7 @@ copybook decode schema.cpy data.bin --output data.jsonl --format fixed --codepag
 
 ### 2. COMP-1/COMP-2 Floating Point
 
-COMP-1 and COMP-2 floating-point types are **fully supported** (always enabled since v0.4.3). No conversion needed — use directly.
+COMP-1 and COMP-2 floating-point types are **fully supported** (enabled by default since v0.4.3). No conversion needed — use directly.
 
 ```cobol
 // Use COMP-1/COMP-2 directly
@@ -325,7 +325,7 @@ COMP-1 and COMP-2 floating-point types are **fully supported** (always enabled s
 
 ### 3. SIGN SEPARATE
 
-SIGN LEADING/TRAILING SEPARATE is **fully supported** (always enabled since v0.4.3). No conversion needed — use directly.
+SIGN LEADING/TRAILING SEPARATE is **fully supported** (enabled by default since v0.4.3). No conversion needed — use directly.
 
 ```cobol
 // Use SIGN SEPARATE directly
@@ -553,7 +553,7 @@ done
 ## Migration Checklist
 
 - [ ] Inventory existing copybooks and identify unsupported features
-- [ ] Confirm COMP-1/2, SIGN SEPARATE, and Edited PIC features are active (always enabled since v0.4.3)
+- [ ] Confirm COMP-1/2, SIGN SEPARATE, and Edited PIC features are active (enabled by default since v0.4.3)
 - [ ] Replace unsupported nested ODO or R4-R6 RENAMES patterns with safer alternatives
 - [ ] Test copybook parsing with `copybook parse`
 - [ ] Validate data decoding with sample files

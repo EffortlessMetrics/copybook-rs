@@ -36,7 +36,7 @@ fn test_e1_sign_clause_without_separate_rejected() {
         "SIGN clause without SEPARATE should be rejected"
     );
     if let Err(err) = result {
-        // SIGN SEPARATE is now always-enabled; rejection is a syntax error, not a feature flag error
+        // SIGN SEPARATE is enabled by default; rejection is a syntax error, not a feature flag error
         assert_eq!(err.code, ErrorCode::CBKP001_SYNTAX);
     }
 }

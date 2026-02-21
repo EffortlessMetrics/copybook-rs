@@ -201,7 +201,7 @@ For detailed test evidence and feature coverage, see [COBOL_SUPPORT_MATRIX.md](d
 | | Packed Decimal (COMP-3) | ✅ Full | Enhanced sign nibble handling |
 | | Binary Integer (COMP/BINARY) | ✅ Full | 1-8 bytes, explicit width (BINARY(w)) |
 | | Edited PIC (ZZZ9, $, +/-, CR/DB) | ✅ Full | E1/E2/E3 phases complete |
-| | COMP-1/COMP-2 (float) | ✅ Full | IEEE 754 and IBM HFP; always enabled |
+| | COMP-1/COMP-2 (float) | ✅ Full | IEEE 754 and IBM HFP; enabled by default (v0.4.3+) |
 | **Structure** | Level Numbers (01-49) | ✅ Full | Hierarchical grouping |
 | | Level-88 (Conditions) | ✅ Full | VALUE clauses, parse + codec |
 | | REDEFINES | ✅ Full | Multiple storage views |

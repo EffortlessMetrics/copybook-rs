@@ -1809,7 +1809,7 @@ mod tests {
             "SIGN clause without SEPARATE should be rejected"
         );
         let error = result.unwrap_err();
-        // SIGN SEPARATE is now always-enabled; rejection is a syntax error, not feature-flag error
+        // SIGN SEPARATE is enabled by default; rejection is a syntax error, not feature-flag error
         assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
     }
 

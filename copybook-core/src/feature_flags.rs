@@ -177,7 +177,7 @@ impl Feature {
     /// Get the default enabled state for this feature
     pub fn default_enabled(&self) -> bool {
         match self {
-            // Promoted to stable: always enabled by default
+            // Promoted to stable: enabled by default
             Feature::SignSeparate | Feature::Comp1 | Feature::Comp2 => true,
             // Experimental features are disabled by default
             Feature::RenamesR4R6 => false,

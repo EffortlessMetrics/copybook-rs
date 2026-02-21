@@ -27,7 +27,7 @@
 | Zoned Decimal (PIC 9) | ✅ Fully Supported | `zoned_encoding_format_tests.rs::test_ebcdic_zoned_encoding_detection`, `comprehensive_numeric_tests.rs::test_zoned_decimal_ebcdic_sign_zones_comprehensive`, `cobol_fixture_zoned_encoding_tests.rs::test_simple_fixture_zoned_encoding_integration` | EBCDIC zones and ASCII overpunch with proper sign handling |
 | COMP-3 (Packed Decimal) | ✅ Fully Supported | `comp3_format_verification.rs::test_comp3_format_understanding`, `comprehensive_numeric_tests.rs::test_packed_decimal_comprehensive`, `decimal_edge_cases.rs::test_packed_zero_handling` (512+ property cases in `comp3_property_tests.rs`) | Nibble sign processing, edge cases, overflow/underflow |
 | BINARY (COMP) | ✅ Fully Supported | `comprehensive_numeric_tests.rs::test_binary_signed_unsigned_edges`, `binary_roundtrip_fidelity_tests.rs::test_comp3_packed_decimal_roundtrip_accuracy`, `numeric_comprehensive.rs::test_binary_width_by_digits` | Various widths: 1/2/4/8 bytes, signed/unsigned |
-| COMP-1/COMP-2 (`comp-1-comp-2`) | ✅ **Fully Supported** | `copybook-core/tests/comp_float_parse_tests.rs`, `copybook-codec/tests/comp_float_codec_tests.rs`, `copybook-codec/tests/comp_float_golden_tests.rs` | IEEE 754 and IBM HFP formats; always enabled (promoted from experimental) |
+| COMP-1/COMP-2 (`comp-1-comp-2`) | ✅ **Fully Supported** | `copybook-core/tests/comp_float_parse_tests.rs`, `copybook-codec/tests/comp_float_codec_tests.rs`, `copybook-codec/tests/comp_float_golden_tests.rs` | IEEE 754 and IBM HFP formats; enabled by default (promoted from experimental) |
 | Edited PIC (`edited-pic`) | ✅ **Fully Supported (E1/E2/E3)** | `edited_pic_e1_tests.rs` (15 tests), `edited_pic_decode_e2_tests.rs` (28 tests), `edited_pic_encode_e3_tests.rs` (160+ tests) | **E1**: Parse ✅ **E2**: Decode ✅ **E3**: Encode ✅ (see Edited PIC section below) |
 
 ## Structural Features
@@ -48,9 +48,9 @@
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| SIGN LEADING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN IS LEADING SEPARATE supported; always enabled |
-| SIGN TRAILING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN TRAILING SEPARATE supported; always enabled |
-| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Always enabled (promoted from experimental); encode + decode + round-trip |
+| SIGN LEADING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN IS LEADING SEPARATE supported; enabled by default |
+| SIGN TRAILING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN TRAILING SEPARATE supported; enabled by default |
+| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Enabled by default (promoted from experimental); encode + decode + round-trip |
 | Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `decimal_edge_cases.rs::test_zoned_overpunch_comprehensive`, `comprehensive_numeric_tests.rs::test_zoned_decimal_ascii_sign_zones_comprehensive` | Comprehensive overpunch with EBCDIC zones |
 
 ## Record Formats

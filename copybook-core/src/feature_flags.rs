@@ -723,7 +723,9 @@ mod tests {
     #[test]
     fn test_feature_flags_handle() {
         let handle = FeatureFlagsHandle::new();
-        // SignSeparate is now enabled by default (promoted to stable)
+        // Don't assert initial state — it depends on env (e.g. COPYBOOK_FF_SIGN_SEPARATE).
+        // Test the enable/disable API instead.
+        handle.enable(Feature::SignSeparate);
         assert!(handle.is_enabled(Feature::SignSeparate));
         handle.disable(Feature::SignSeparate);
         assert!(!handle.is_enabled(Feature::SignSeparate));

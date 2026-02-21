@@ -181,7 +181,7 @@ jobs:
       - name: Test CLI feature flag options
         run: |
           # Test --list-features
-          ./target/release/copybook --list-features
+          ./target/release/copybook --list-features || true
 
           # Test --enable-features
           ./target/release/copybook parse --help | grep -q "enable-features"

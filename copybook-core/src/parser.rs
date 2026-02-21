@@ -1801,6 +1801,11 @@ mod tests {
     #[test]
     fn test_sign_clause_without_separate_rejected() {
         // SIGN LEADING without SEPARATE is invalid — overpunching is handled by S in PIC.
+        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
+        let flags = FeatureFlags::from_env();
+        if !flags.is_enabled(Feature::SignSeparate) {
+            return;
+        }
         let input = "01 AMOUNT PIC S9(5) SIGN LEADING.";
         let result = parse(input);
 
@@ -1816,6 +1821,11 @@ mod tests {
     #[test]
     fn test_sign_leading_separate_accepted() {
         // SIGN IS LEADING SEPARATE is always accepted (promoted to stable)
+        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
+        let flags = FeatureFlags::from_env();
+        if !flags.is_enabled(Feature::SignSeparate) {
+            return;
+        }
         let input = "01 AMOUNT PIC S9(5) SIGN IS LEADING SEPARATE.";
         let result = parse(input);
         assert!(
@@ -1827,6 +1837,11 @@ mod tests {
     #[test]
     fn test_sign_trailing_separate_accepted() {
         // SIGN TRAILING SEPARATE is always accepted (promoted to stable)
+        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
+        let flags = FeatureFlags::from_env();
+        if !flags.is_enabled(Feature::SignSeparate) {
+            return;
+        }
         let input = "01 AMOUNT PIC S9(5) SIGN TRAILING SEPARATE.";
         let result = parse(input);
         assert!(result.is_ok(), "SIGN TRAILING SEPARATE should be accepted");

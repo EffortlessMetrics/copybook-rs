@@ -66,17 +66,17 @@ copybook parse problematic.cpy 2>&1 | grep -A5 -B5 "CBKP001"
 ### CBKP011_UNSUPPORTED_CLAUSE
 
 **Symptoms:**
-- "Unsupported COBOL clause: COMP-1"
+- "Unsupported COBOL clause: EXTERNAL"
 - "Feature not implemented"
 
 **Common Unsupported Features:**
 
 | Feature | Alternative | Migration |
 |---------|-------------|-----------|
-| COMP-1 | COMP-3 | `PIC S9(3)V99 COMP-1` → `PIC S9(3)V99 COMP-3` |
-| COMP-2 | COMP-3 | `PIC S9(5)V99 COMP-2` → `PIC S9(5)V99 COMP-3` |
 | EXTERNAL | Remove | `05 FIELD PIC X(10) EXTERNAL` → `05 FIELD PIC X(10)` |
 | GLOBAL | Remove | `05 FIELD PIC X(10) GLOBAL` → `05 FIELD PIC X(10)` |
+
+> **Note:** COMP-1, COMP-2, SIGN SEPARATE, and Edited PIC are now fully supported (v0.4.3+). See [COBOL Support Matrix](reference/COBOL_SUPPORT_MATRIX.md) for details.
 
 **Solution Steps:**
 1. Identify unsupported clause in error message

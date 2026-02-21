@@ -201,7 +201,7 @@ For detailed test evidence and feature coverage, see [COBOL_SUPPORT_MATRIX.md](d
 | | Packed Decimal (COMP-3) | ✅ Full | Enhanced sign nibble handling |
 | | Binary Integer (COMP/BINARY) | ✅ Full | 1-8 bytes, explicit width (BINARY(w)) |
 | | Edited PIC (ZZZ9, $, +/-, CR/DB) | ✅ Full | E1/E2/E3 phases complete |
-| | COMP-1/COMP-2 (float) | ❌ None | Rare in practice |
+| | COMP-1/COMP-2 (float) | ✅ Full | IEEE 754 and IBM HFP; always enabled |
 | **Structure** | Level Numbers (01-49) | ✅ Full | Hierarchical grouping |
 | | Level-88 (Conditions) | ✅ Full | VALUE clauses, parse + codec |
 | | REDEFINES | ✅ Full | Multiple storage views |
@@ -277,7 +277,7 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set, but known limitations mean cautious adoption is recommended:
 
-- ⚠️ **Feature Coverage**: COMP-1/COMP-2, SIGN SEPARATE, and nested ODOs remain unsupported; Edited PIC (E1/E2/E3), RENAMES (R1-R3), and Level-88 condition values are fully supported
+- ⚠️ **Feature Coverage**: Nested ODOs (O5/O6) remain unsupported by design; COMP-1/COMP-2, SIGN SEPARATE, Edited PIC (E1/E2/E3), RENAMES (R1-R3), and Level-88 condition values are fully supported
 - ⚠️ **Performance Variance**: Performance governance is receipt-based. See `scripts/bench/perf.json` for current measurements and [`docs/PERFORMANCE_GOVERNANCE.md`](docs/PERFORMANCE_GOVERNANCE.md) for governance policy. Historical performance targets are quarantined in [`docs/HISTORICAL_PERFORMANCE.md`](docs/HISTORICAL_PERFORMANCE.md).
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management, comparison, and validation commands
 - ✅ **Quality Signals**: Release gate is green; zero unsafe code; comprehensive error taxonomy including CBKR* family

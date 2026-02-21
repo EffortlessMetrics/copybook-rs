@@ -48,6 +48,8 @@ toml.workspace = true
 [features]
 default = []
 soak = []
+# No-op: allows ci-mutants.yml to pass --features comprehensive-tests uniformly
+comprehensive-tests = []
 arrow = ["dep:copybook-arrow"]
 audit = ["copybook-core/audit", "dep:tokio"]
 metrics = [

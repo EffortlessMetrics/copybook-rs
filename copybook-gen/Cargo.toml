@@ -25,5 +25,10 @@ chrono.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+
+[features]
+# No-op: allows ci-mutants.yml to pass --features comprehensive-tests uniformly
+comprehensive-tests = []
+
 [lints]
 workspace = true

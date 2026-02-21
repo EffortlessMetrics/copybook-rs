@@ -134,6 +134,11 @@ jobs:
           --exclude copybook-bench \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
+          --exclude-files 'xtask/*' \
+          --exclude-files 'copybook-cli/tests/*' \
+          --exclude-files 'copybook-core/tests/*' \
+          --exclude-files 'copybook-codec/tests/*' \
+          --exclude-files 'copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage-base \
           --timeout 300 \
@@ -146,6 +151,11 @@ jobs:
           --exclude copybook-bench \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
+          --exclude-files 'xtask/*' \
+          --exclude-files 'copybook-cli/tests/*' \
+          --exclude-files 'copybook-core/tests/*' \
+          --exclude-files 'copybook-codec/tests/*' \
+          --exclude-files 'copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage-pr \
           --timeout 300 \

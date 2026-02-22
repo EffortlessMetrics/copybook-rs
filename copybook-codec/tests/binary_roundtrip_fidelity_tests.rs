@@ -16,7 +16,6 @@ use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat};
 use copybook_core::parse_copybook;
 use std::error::Error;
 use std::fs;
-use std::process::Command;
 use tempfile::TempDir;
 
 /// AC7: Test ASCII zoned decimal round-trip with byte-identical output
@@ -159,16 +158,12 @@ fn test_cli_roundtrip_cmp_validation() -> Result<(), Box<dyn Error>> {
         "Encode should work with current implementation"
     );
 
-    // Use cmp utility to verify byte-identical files
-    let cmp_output = Command::new("cmp")
-        .args([
-            original_data_path.to_str().unwrap(),
-            roundtrip_data_path.to_str().unwrap(),
-        ])
-        .output()?;
+    // Compare files directly for byte-identical validation (cross-platform)
+    let original_data = fs::read(&original_data_path)?;
+    let roundtrip_data = fs::read(&roundtrip_data_path)?;
 
     assert!(
-        cmp_output.status.success(),
+        original_data == roundtrip_data,
         "Round-trip files should be byte-identical when preservation is implemented"
     );
 

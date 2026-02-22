@@ -22,6 +22,7 @@ mod test_utils;
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
+use serde_json::Value;
 use std::fs;
 use tempfile::tempdir;
 use test_utils::TestResult;
@@ -57,20 +58,17 @@ fn test_audit_report_comprehensive() -> TestResult<()> {
         .arg("--include-lineage")
         .arg(&copybook_file);
 
-    // Should fail with stub warning (audit not implemented yet)
-    cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
+    // Report may return non-zero when compliance violations are detected,
+    // but should still produce the report file.
+    let _ = cmd.output()?;
+
+    assert!(output_file.exists(), "audit report should be generated");
+    let report: Value = serde_json::from_str(&fs::read_to_string(&output_file)?)?;
+    assert!(
+        report.get("audit_report").is_some(),
+        "expected top-level audit_report section"
     );
 
-    // Verify output file exists and contains expected structure
-    assert!(output_file.exists());
-    let _report_content = fs::read_to_string(&output_file)?;
-
-    // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
-    // Expected report fields: compliance_summary, sox_validation, recommendations, data_lineage
-
-    println!("Audit report test passed (implementation pending)");
     Ok(())
 }
 
@@ -109,17 +107,20 @@ fn test_audit_validate_multi_compliance() -> TestResult<()> {
         .arg("--include-recommendations")
         .arg(&copybook_file);
 
-    // Should fail with stub warning (audit not implemented yet)
-    cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
+    // Compliance validation may return non-zero when violations are found,
+    // but should still produce a report.
+    let _ = cmd.output()?;
+
+    assert!(
+        validation_report.exists(),
+        "validation report should be generated"
+    );
+    let report: Value = serde_json::from_str(&fs::read_to_string(&validation_report)?)?;
+    assert!(
+        report.get("compliance_validation").is_some(),
+        "expected top-level compliance_validation section"
     );
 
-    // Verify validation report generated
-    if validation_report.exists() {
-        let report_content = fs::read_to_string(&validation_report)?;
-        println!("Validation report generated: {report_content}");
-    }
     Ok(())
 }
 
@@ -161,21 +162,26 @@ fn test_audit_lineage_field_level() -> TestResult<()> {
         .arg(&lineage_report)
         .arg(&source_copybook);
 
-    // Should fail with stub warning (audit not implemented yet)
-    cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
+    let _ = cmd.output()?;
+
+    assert!(
+        lineage_report.exists(),
+        "lineage report should be generated"
+    );
+    let report: Value = serde_json::from_str(&fs::read_to_string(&lineage_report)?)?;
+    let lineage = report
+        .get("lineage_analysis")
+        .and_then(|v| v.as_object())
+        .expect("expected lineage_analysis object");
+    assert_eq!(
+        lineage.get("source_system").and_then(Value::as_str),
+        Some("test-system")
+    );
+    assert_eq!(
+        lineage.get("field_level").and_then(Value::as_bool),
+        Some(true)
     );
 
-    // Verify lineage report structure
-    if lineage_report.exists() {
-        let _lineage_content = fs::read_to_string(&lineage_report)?;
-
-        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
-        // Expected lineage fields: field_mappings, transformation_rules, quality_metrics
-
-        println!("Lineage report test passed (implementation pending)");
-    }
     Ok(())
 }
 
@@ -185,7 +191,6 @@ fn test_audit_lineage_field_level() -> TestResult<()> {
 fn test_audit_performance_baseline() -> TestResult<()> {
     let temp_dir = tempdir()?;
     let performance_copybook = temp_dir.path().join("performance_test.cpy");
-    let baseline_file = temp_dir.path().join("performance_baseline.json");
     let performance_report = temp_dir.path().join("performance_report.json");
 
     // Create performance test copybook
@@ -204,55 +209,29 @@ fn test_audit_performance_baseline() -> TestResult<()> {
     ",
     )?;
 
-    // Test baseline establishment
-    let mut baseline_cmd = cargo_bin_cmd!("copybook");
-    baseline_cmd
-        .arg("audit")
+    let mut cmd = cargo_bin_cmd!("copybook");
+    cmd.arg("audit")
         .arg("performance")
-        .arg("--establish-baseline")
-        .arg("--baseline-file")
-        .arg(&baseline_file)
-        .arg("--target-display-gbps")
-        .arg("4.1")
-        .arg("--target-comp3-mbps")
-        .arg("560")
         .arg("--output")
         .arg(&performance_report)
+        .arg("--iterations")
+        .arg("1")
         .arg(&performance_copybook);
 
-    baseline_cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
+    // Performance audit may return non-zero (warn) depending on decode error rate;
+    // it should still emit a report.
+    let _ = cmd.output()?;
+
+    assert!(
+        performance_report.exists(),
+        "performance report should be generated"
+    );
+    let report: Value = serde_json::from_str(&fs::read_to_string(&performance_report)?)?;
+    assert!(
+        report.get("performance_audit").is_some(),
+        "expected top-level performance_audit section"
     );
 
-    // Test performance validation against baseline
-    let mut validation_cmd = cargo_bin_cmd!("copybook");
-    validation_cmd
-        .arg("audit")
-        .arg("performance")
-        .arg("--validate-against-baseline")
-        .arg(&baseline_file)
-        .arg("--max-overhead-percent")
-        .arg("5.0") // AC11: <5% overhead
-        .arg("--output")
-        .arg(&performance_report)
-        .arg("--include-regression-analysis")
-        .arg(&performance_copybook);
-
-    validation_cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
-    );
-
-    // Verify performance report generated
-    if performance_report.exists() {
-        let _report_content = fs::read_to_string(&performance_report)?;
-
-        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
-        // Expected perf fields: display_throughput_gbps, comp3_throughput_mbps, overhead_percentage
-
-        println!("Performance audit test passed (implementation pending)");
-    }
     Ok(())
 }
 
@@ -298,21 +277,20 @@ fn test_audit_security_comprehensive() -> TestResult<()> {
         .arg(&security_report)
         .arg(&security_copybook);
 
-    // Should fail with stub warning (audit not implemented yet)
-    cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
+    // Security audit may return non-zero when findings are detected,
+    // but should still produce the report file.
+    let _ = cmd.output()?;
+
+    assert!(
+        security_report.exists(),
+        "security report should be generated"
+    );
+    let report: Value = serde_json::from_str(&fs::read_to_string(&security_report)?)?;
+    assert!(
+        report.get("security_audit").is_some(),
+        "expected top-level security_audit section"
     );
 
-    // Verify security report structure
-    if security_report.exists() {
-        let _report_content = fs::read_to_string(&security_report)?;
-
-        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
-        // Expected security fields: sensitive_fields, encryption_status, access_anomalies
-
-        println!("Security audit test passed (implementation pending)");
-    }
     Ok(())
 }
 
@@ -324,15 +302,13 @@ fn test_audit_health_integrity() -> TestResult<()> {
     let audit_log = temp_dir.path().join("audit_trail.jsonl");
     let health_report = temp_dir.path().join("health_report.json");
 
-    // Create mock audit trail
-    fs::write(&audit_log, "
-{\"event_id\": \"audit-001\", \"timestamp\": \"2024-09-25T10:00:00Z\", \"integrity_hash\": \"a1b2c3d4\", \"previous_hash\": null
-}
-{\"event_id\": \"audit-002\", \"timestamp\": \"2024-09-25T10:01:00Z\", \"integrity_hash\": \"e5f6g7h8\", \"previous_hash\": \"a1
-b2c3d4\"}
-{\"event_id\": \"audit-003\", \"timestamp\": \"2024-09-25T10:02:00Z\", \"integrity_hash\": \"i9j0k1l2\", \"previous_hash\": \"e5
-f6g7h8\"}
-    ")?;
+    // Create mock audit trail (valid JSONL — one JSON object per line)
+    fs::write(
+        &audit_log,
+        "{\"event_id\":\"audit-001\",\"timestamp\":\"2024-09-25T10:00:00Z\",\"integrity_hash\":\"a1b2c3d4\",\"previous_hash\":null}\n\
+         {\"event_id\":\"audit-002\",\"timestamp\":\"2024-09-25T10:01:00Z\",\"integrity_hash\":\"e5f6g7h8\",\"previous_hash\":\"a1b2c3d4\"}\n\
+         {\"event_id\":\"audit-003\",\"timestamp\":\"2024-09-25T10:02:00Z\",\"integrity_hash\":\"i9j0k1l2\",\"previous_hash\":\"e5f6g7h8\"}\n",
+    )?;
 
     let mut cmd = cargo_bin_cmd!("copybook");
     cmd.arg("audit")
@@ -346,21 +322,17 @@ f6g7h8\"}
         .arg(&health_report)
         .arg("--detailed-diagnostics");
 
-    // Should fail with stub warning (audit not implemented yet)
-    cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
+    // Health check may return non-zero (warn) when issues are detected,
+    // but should still produce the report file.
+    let _ = cmd.output()?;
+
+    assert!(health_report.exists(), "health report should be generated");
+    let report: Value = serde_json::from_str(&fs::read_to_string(&health_report)?)?;
+    assert!(
+        report.get("audit_health").is_some(),
+        "expected top-level audit_health section"
     );
 
-    // Verify health report generated
-    if health_report.exists() {
-        let _report_content = fs::read_to_string(&health_report)?;
-
-        // Audit feature (TDD Red phase) - assertions will be updated when audit feature is implemented
-        // Expected health fields: chain_integrity_valid, hash_verification_results, overall_health_score
-
-        println!("Health check test passed (implementation pending)");
-    }
     Ok(())
 }
 
@@ -452,16 +424,26 @@ fn test_audit_siem_integration() -> TestResult<()> {
         .arg(&security_report)
         .arg(&copybook_file);
 
-    // Should fail with stub warning (audit not implemented yet)
-    cmd.assert().failure().stderr(
-        predicate::str::contains("audit")
-            .or(predicate::str::contains("stub").or(predicate::str::contains("not implemented"))),
+    // Security audit may return non-zero when findings are detected,
+    // but should still produce the report and SIEM export files.
+    let _ = cmd.output()?;
+
+    assert!(
+        security_report.exists(),
+        "security report should be generated"
+    );
+    let report: Value = serde_json::from_str(&fs::read_to_string(&security_report)?)?;
+    let sec = report
+        .get("security_audit")
+        .and_then(|v| v.as_object())
+        .expect("expected security_audit object");
+    assert!(
+        sec.get("siem_exported_path").is_some(),
+        "expected siem_exported_path when --export-events is set"
     );
 
-    // Audit feature (TDD Red phase) - CEF format output will be verified when audit feature is implemented
-    if siem_output.exists() {
-        let _cef_content = fs::read_to_string(&siem_output)?;
-        println!("SIEM integration test generated CEF output (implementation pending)");
-    }
+    // SIEM export file should exist
+    assert!(siem_output.exists(), "SIEM events file should be generated");
+
     Ok(())
 }

@@ -31,3 +31,7 @@ serde_json.workspace = true
 proptest.workspace = true
 rand.workspace = true
 anyhow.workspace = true
+
+[features]
+default = []
+comp3_fast = ["copybook-codec/comp3_fast"]

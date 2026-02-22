@@ -19,12 +19,17 @@ See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [copybook-
 
 ## Workspace Structure
 
-5 crates:
+4 published crates:
 - **copybook-core**: COBOL parsing (lexer, parser, AST, layout) with Level-88 condition value support
 - **copybook-codec**: Data encoding/decoding, character conversion with structural validation and determinism validation
+- **copybook-arrow**: Apache Arrow and Parquet format conversion (experimental)
 - **copybook-cli**: CLI with subcommands (parse, inspect, decode, encode, verify, determinism)
+
+2 dev-only crates (publish = false):
 - **copybook-gen**: Test fixture generation with golden fixture framework
 - **copybook-bench**: Performance benchmarks with regression detection
+
+Additional workspace members (not published): xtask, tests/bdd, tests/proptest
 
 ## Development Commands
 
@@ -636,11 +641,10 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
 
 ### Unsupported COBOL Features
 
-- COMP-1/COMP-2 floating-point types (rare in practice)
-- SIGN LEADING/TRAILING SEPARATE directives
 - Nested OCCURS DEPENDING ON (O5: ODO inside ODO) – rejected by design; see Issue #164
 - ODO over REDEFINES (O6) – rejected by design; see Issue #164
 - RENAMES interactions with REDEFINES/OCCURS (R4-R6) – out of scope; see docs/design/RENAMES_NESTED_GROUPS.md
+- EXTERNAL / GLOBAL clauses
 
 **Note**:
 - **OCCURS/ODO support** (O1-O4): Simple tail ODO ✅, tail ODO with DYNAMIC ✅, group-with-ODO tail ✅, ODO with sibling after 🚫 (CBKP021_ODO_NOT_TAIL). See docs/design/NESTED_ODO_BEHAVIOR.md and docs/reference/COBOL_SUPPORT_MATRIX.md for complete O1-O7 scenario breakdown.

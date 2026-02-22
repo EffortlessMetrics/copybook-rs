@@ -259,6 +259,7 @@ fn test_golden_comp1_roundtrip_positive_ieee() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn test_golden_comp1_roundtrip_negative_ieee() {
     let copybook = "01 RATE COMP-1.";
     let schema = parse_copybook(copybook).expect("should parse");

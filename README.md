@@ -170,6 +170,13 @@ The project is organized as a Cargo workspace with the following crates:
 - **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, support)
 - **copybook-gen**: Test fixture and synthetic data generation utilities
 - **copybook-bench**: Performance benchmarks and testing harness
+- **copybook-codec-memory**: Shared scratch/streaming/worker-pool memory primitives for codec hot paths
+- **copybook-contracts**: Canonical feature-flag contracts
+- **copybook-support-matrix**: Canonical COBOL support matrix contract data
+- **copybook-governance-contracts**: Unified façade combining contracts + support matrix
+- **copybook-governance-grid**: Static mapping from support rows to runtime flags
+- **copybook-governance-runtime**: Runtime governance-state evaluation from active feature flags
+- **copybook-governance**: Backward-compatible governance façade re-exporting the layered governance stack
 
 ## Library API Usage
 
@@ -201,7 +208,7 @@ For detailed test evidence and feature coverage, see [COBOL_SUPPORT_MATRIX.md](d
 | | Packed Decimal (COMP-3) | ✅ Full | Enhanced sign nibble handling |
 | | Binary Integer (COMP/BINARY) | ✅ Full | 1-8 bytes, explicit width (BINARY(w)) |
 | | Edited PIC (ZZZ9, $, +/-, CR/DB) | ✅ Full | E1/E2/E3 phases complete |
-| | COMP-1/COMP-2 (float) | ❌ None | Rare in practice |
+| | COMP-1/COMP-2 (float) | ✅ Full | IEEE 754 and IBM HFP; enabled by default (v0.4.3+) |
 | **Structure** | Level Numbers (01-49) | ✅ Full | Hierarchical grouping |
 | | Level-88 (Conditions) | ✅ Full | VALUE clauses, parse + codec |
 | | REDEFINES | ✅ Full | Multiple storage views |
@@ -277,7 +284,7 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 copybook-rs is suitable for teams that validate their copybooks against the supported feature set, but known limitations mean cautious adoption is recommended:
 
-- ⚠️ **Feature Coverage**: COMP-1/COMP-2, SIGN SEPARATE, and nested ODOs remain unsupported; Edited PIC (E1/E2/E3), RENAMES (R1-R3), and Level-88 condition values are fully supported
+- ⚠️ **Feature Coverage**: Nested ODOs (O5/O6) remain unsupported by design; COMP-1/COMP-2, SIGN SEPARATE, Edited PIC (E1/E2/E3), RENAMES (R1-R3), and Level-88 condition values are fully supported
 - ⚠️ **Performance Variance**: Performance governance is receipt-based. See `scripts/bench/perf.json` for current measurements and [`docs/PERFORMANCE_GOVERNANCE.md`](docs/PERFORMANCE_GOVERNANCE.md) for governance policy. Historical performance targets are quarantined in [`docs/HISTORICAL_PERFORMANCE.md`](docs/HISTORICAL_PERFORMANCE.md).
 - ✅ **Benchmark Automation**: `bench-report` CLI tool available (Issue #52) with baseline management, comparison, and validation commands
 - ✅ **Quality Signals**: Release gate is green; zero unsafe code; comprehensive error taxonomy including CBKR* family
@@ -424,8 +431,14 @@ cargo test --workspace
 # Run with coverage
 cargo test --workspace -- --nocapture
 
-# Run BDD tests (Behavior Driven Development)
-cargo test -p copybook-bdd
+# Run CI-gated BDD smoke tests
+cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
+
+# Run governance microcrates + BDD smoke gate (CI parity)
+bash scripts/ci/governance-bdd-smoke.sh
+
+# Run full exploratory BDD runner (non-gated)
+cargo run -p copybook-bdd --bin bdd
 
 # Run performance benchmarks (JSON receipts)
 just bench-json

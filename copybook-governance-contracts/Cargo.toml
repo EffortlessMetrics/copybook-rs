@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-governance-contracts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Contracts façade for copybook-rs feature flags and support matrix interoperability."
+documentation = "https://docs.rs/copybook-governance-contracts"
+keywords = ["cobol", "copybook", "feature-flags", "support-matrix", "contracts"]
+categories = ["config", "development-tools"]
+
+# Keep tarballs slim; whitelist essential files
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+copybook-contracts.workspace = true
+copybook-support-matrix.workspace = true
+
+[lints]
+workspace = true

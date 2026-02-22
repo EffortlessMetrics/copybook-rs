@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-governance-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Runtime governance state evaluation for support-matrix and feature-flag interoperability."
+documentation = "https://docs.rs/copybook-governance-runtime"
+readme = "README.md"
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+keywords = ["cobol", "copybook", "feature-flags", "support-matrix", "runtime"]
+categories = ["development-tools", "data-management"]
+
+[dependencies]
+copybook-governance-grid.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

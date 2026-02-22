@@ -32,6 +32,7 @@ on:
       - 'copybook-core/**'
       - 'copybook-codec/**'
       - 'copybook-cli/**'
+      - 'copybook-arrow/**'
       - 'mutants.toml'
       - '.github/workflows/ci-mutants.yml'
 
@@ -110,6 +111,9 @@ jobs:
           - crate: copybook-gen
             threshold: 60
             timeout: 150
+          - crate: copybook-arrow
+            threshold: 60
+            timeout: 180
 
     steps:
       - name: Checkout code

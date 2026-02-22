@@ -53,6 +53,7 @@ impl<T> SequencedRecord<T> {
     /// assert_eq!(record.data, vec![1, 2, 3]);
     /// ```
     #[inline]
+    #[must_use]
     pub fn new(sequence_id: u64, data: T) -> Self {
         Self { sequence_id, data }
     }

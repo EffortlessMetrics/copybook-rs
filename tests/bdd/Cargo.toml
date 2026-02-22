@@ -16,6 +16,11 @@ publish = false
 name = "bdd"
 path = "bdd.rs"
 
+[[test]]
+name = "bdd_smoke"
+path = "bdd_smoke.rs"
+harness = false
+
 [lints]
 workspace = true
 
@@ -24,6 +29,8 @@ cucumber.workspace = true
 futures.workspace = true
 copybook-core.workspace = true
 copybook-codec.workspace = true
+copybook-governance.workspace = true
+copybook-governance-runtime.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true

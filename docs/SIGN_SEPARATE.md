@@ -8,9 +8,9 @@ This document specifies the behavior of SIGN SEPARATE clause support in copybook
 ## Feature Status
 
 - **Feature Flag**: `sign_separate`
-- **Default**: Disabled (false)
-- **Category**: Experimental
-- **Error Code**: CBKP051 (when flag is disabled)
+- **Default**: Enabled by default (since v0.4.3; can be disabled via `COPYBOOK_FF_SIGN_SEPARATE=0`)
+- **Category**: Stable (promoted from Experimental in v0.4.3)
+- **Error Code**: CBKP051 (when feature is disabled via override)
 
 ## COBOL Syntax
 
@@ -88,9 +88,9 @@ Digits are stored as standard display characters:
 
 ## Error Handling
 
-### When Feature Flag is Disabled
+### When Feature Flag is Disabled (Override Mode)
 
-If the `sign_separate` feature flag is disabled:
+If the `sign_separate` feature flag is explicitly disabled (e.g., `COPYBOOK_FF_SIGN_SEPARATE=0`):
 
 - **Error Code**: CBKP051_UNSUPPORTED_EDITED_PIC
 - **Error Message**: "SIGN clause on field '{field_name}' is not supported yet"
@@ -207,19 +207,13 @@ struct SignSeparateInfo {
 
 ## Migration Path
 
-### Phase 3.1 (Current)
-- Implement decode semantics behind feature flag
-- Default: disabled
-- Error: CBKP051 when flag disabled
+All phases are complete as of v0.4.3:
 
-### Phase 3.2 (Future)
-- Add encode semantics
-- Comprehensive testing
-- Performance validation
+- **Phase 3.1** ✅ Decode semantics implemented
+- **Phase 3.2** ✅ Encode semantics implemented with comprehensive testing
+- **Phase 3.3** ✅ Promoted to enabled by default (v0.4.3)
 
-### Phase 3.3 (Future)
-- Consider promoting to default-on
-- Remove feature flag after stabilization
+The feature flag remains available for compatibility testing (`COPYBOOK_FF_SIGN_SEPARATE=0`).
 
 ## References
 

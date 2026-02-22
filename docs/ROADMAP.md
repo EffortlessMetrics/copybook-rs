@@ -58,14 +58,15 @@ The copybook-rs project has implemented a comprehensive testing strategy with fi
 
 **Running BDD Tests**:
 ```bash
-cargo test -p copybook-bdd
+cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
+bash scripts/ci/governance-bdd-smoke.sh
 ```
 
 ### 2. Feature Flagging ✅
 
 **Status**: Complete (22 flags across 5 categories)
 
-**Framework**: Custom feature flag system in [`copybook-core/src/feature_flags.rs`](copybook-core/src/feature_flags.rs)
+**Framework**: Custom feature flag contracts in [`copybook-contracts/src/feature_flags.rs`](../copybook-contracts/src/feature_flags.rs) with governance runtime layering
 
 **Testing-Related Feature Flags**:
 - `mutation_testing` - Enable mutation testing hooks
@@ -484,7 +485,7 @@ refresh, bench-report CLI
 ### Phase 5: API Freeze & Release (4 weeks) — Jun 2026 to ~Jul 2026
 
 1. API freeze window (only doc/bench/test changes)
-2. Implement ecosystem adapters (Arrow/Parquet, Kafka example)
+2. Stabilize ecosystem adapters (copybook-arrow published; Kafka example)
 3. Finalize support policy documentation
 4. Add "Stability Guarantees" section to README
 5. Verify example integrations build in CI
@@ -512,7 +513,7 @@ refresh, bench-report CLI
 ### Deliverables
 
 * **API freeze window** (4 weeks): only doc/bench/test changes
-* **Ecosystem adapters** (best-effort): Arrow/Parquet writer crate prototype,
+* **Ecosystem adapters** (best-effort): copybook-arrow crate stabilization (published, experimental),
   Kafka example pipeline
 * **Support policy**: 6-month minor support window; security patches anytime
 

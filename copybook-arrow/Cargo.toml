@@ -44,6 +44,8 @@ tempfile = { workspace = true }
 default = []
 # Enable experimental features
 experimental = []
+# No-op: allows ci-mutants.yml to pass --features comprehensive-tests uniformly
+comprehensive-tests = []
 
 [lints]
 workspace = true

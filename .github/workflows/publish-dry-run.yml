@@ -50,6 +50,12 @@ jobs:
         cargo package -p copybook-codec --list
         echo "✅ copybook-codec package file list generated"
 
+    - name: Package manifest check (copybook-arrow)
+      run: |
+        echo "📦 Checking copybook-arrow package contents..."
+        cargo package -p copybook-arrow --list
+        echo "✅ copybook-arrow package file list generated"
+
     - name: Package manifest check (copybook-cli)
       run: |
         echo "📦 Checking copybook-cli package contents..."
@@ -64,6 +70,7 @@ jobs:
         echo "Validated:"
         echo "  1. copybook-core: cargo publish --dry-run"
         echo "  2. copybook-codec: cargo package --list"
-        echo "  3. copybook-cli: cargo package --list"
+        echo "  3. copybook-arrow: cargo package --list"
+        echo "  4. copybook-cli: cargo package --list"
         echo ""
         echo "Downstream publish dry-runs are run just-in-time in .github/workflows/publish.yml after upstream crates exist on crates.io."

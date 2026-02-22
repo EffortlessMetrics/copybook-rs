@@ -759,6 +759,8 @@ dependencies = [
  "base64",
  "copybook-codec",
  "copybook-core",
+ "copybook-governance",
+ "copybook-governance-runtime",
  "cucumber",
  "futures",
  "serde",
@@ -796,6 +798,7 @@ dependencies = [
  "copybook-arrow",
  "copybook-codec",
  "copybook-core",
+ "copybook-governance",
  "md5",
  "metrics",
  "metrics-exporter-prometheus",
@@ -823,8 +826,8 @@ dependencies = [
  "base64",
  "blake3",
  "clap",
+ "copybook-codec-memory",
  "copybook-core",
- "crossbeam-channel",
  "hex",
  "indexmap",
  "metrics",
@@ -833,10 +836,28 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "smallvec",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "copybook-codec-memory"
+version = "0.4.3"
+dependencies = [
+ "anyhow",
+ "crossbeam-channel",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
+name = "copybook-contracts"
+version = "0.4.3"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_plain",
 ]
 
 [[package]]
@@ -846,6 +867,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "copybook-governance-contracts",
  "hex",
  "logos",
  "proptest",
@@ -875,6 +897,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-governance"
+version = "0.4.3"
+dependencies = [
+ "copybook-governance-grid",
+ "copybook-governance-runtime",
+]
+
+[[package]]
+name = "copybook-governance-contracts"
+version = "0.4.3"
+dependencies = [
+ "copybook-contracts",
+ "copybook-support-matrix",
+]
+
+[[package]]
+name = "copybook-governance-grid"
+version = "0.4.3"
+dependencies = [
+ "copybook-governance-contracts",
+]
+
+[[package]]
+name = "copybook-governance-runtime"
+version = "0.4.3"
+dependencies = [
+ "copybook-governance-grid",
+ "serde",
+]
+
+[[package]]
 name = "copybook-proptest"
 version = "0.4.3"
 dependencies = [
@@ -885,6 +938,15 @@ dependencies = [
  "rand 0.10.0",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "copybook-support-matrix"
+version = "0.4.3"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_plain",
 ]
 
 [[package]]

@@ -28,6 +28,35 @@ test-all:
 test-legacy:
     cargo test --workspace
 
+# Run gated BDD smoke tests (Cucumber/Gherkin)
+bdd-smoke:
+    cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
+
+# Run the full exploratory BDD suite (may include known failing scenarios)
+bdd-full:
+    cargo run -p copybook-bdd --bin bdd
+
+# Build only governance microcrate stack
+governance-build:
+    cargo check -p copybook-contracts -p copybook-support-matrix -p copybook-governance-contracts -p copybook-governance-grid -p copybook-governance-runtime -p copybook-governance
+
+# Test only governance microcrate stack
+governance-test:
+    cargo test -p copybook-contracts -p copybook-support-matrix -p copybook-governance-contracts -p copybook-governance-grid -p copybook-governance-runtime -p copybook-governance
+
+# Run governance microcrate checks + BDD smoke (CI parity gate)
+governance-bdd-smoke:
+    bash scripts/ci/governance-bdd-smoke.sh
+
+# Clean governance microcrate build artifacts
+governance-clean:
+    cargo clean -p copybook-contracts
+    cargo clean -p copybook-support-matrix
+    cargo clean -p copybook-governance-contracts
+    cargo clean -p copybook-governance-grid
+    cargo clean -p copybook-governance-runtime
+    cargo clean -p copybook-governance
+
 # Run clippy lints with pedantic warnings
 lint:
     cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic
@@ -261,12 +290,14 @@ perf-compare baseline pr:
 ci-quick-legacy:
     just build
     just test
+    just bdd-smoke
     just lint
 
 # Full CI checks (includes docs and deny)
 ci-full:
     just build
     just test
+    just bdd-smoke
     just lint
     just fmt-check
     just deny
@@ -311,8 +342,8 @@ scheduled:
     read -p "Run BDD tests? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "==> Running BDD tests"
-        cargo test -p copybook-bdd -- --nocapture
+        echo "==> Running BDD smoke tests"
+        just bdd-smoke
     fi
     read -p "Run extended proptest (1024 cases)? (y/N) " -n 1 -r
     echo
@@ -367,9 +398,9 @@ watch-crate crate:
 xtask *ARGS:
     cargo run --package xtask --bin xtask -- {{ARGS}}
 
-# Quick local CI using xtask (replaces GitHub Actions)
+# Local CI gate (alias for `just ci`)
 ci-local:
-    cargo run --package xtask --bin xtask -- ci
+    @just ci
 
 # Quick local CI (skip docs and deny for speed)
 ci-quick:

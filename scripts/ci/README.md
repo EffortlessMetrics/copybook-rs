@@ -17,7 +17,7 @@ These scripts are the **single source of truth** for CI validation. Run them loc
 
 ### `quick.sh` — Fast Quality Gates
 
-Runs fmt, clippy, build, tests, doctests. This is what runs on every PR.
+Runs fmt, clippy, build, tests, governance microcrate checks, BDD smoke, and doctests. This is what runs on every PR.
 
 ```bash
 # Run locally
@@ -29,10 +29,27 @@ Runs fmt, clippy, build, tests, doctests. This is what runs on every PR.
 # 3. cargo clippy (tests, allows unwrap/expect/panic/dbg/print, still -D warnings)
 # 4. cargo build --workspace --release
 # 5. cargo nextest run (bounded parallelism)
-# 6. cargo test --doc (with warnings denied)
+# 6. scripts/ci/governance-bdd-smoke.sh
+# 7. cargo test --doc (with warnings denied)
 ```
 
 **Expected time**: 5-10 minutes (cold), 2-5 minutes (warm)
+
+### `governance-bdd-smoke.sh` — Governance + BDD Gate
+
+Runs explicit governance microcrate checks/tests and the CI-gated BDD smoke suite.
+
+```bash
+# Run locally
+./scripts/ci/governance-bdd-smoke.sh
+
+# What it does:
+# 1. cargo check -p copybook-contracts -p copybook-support-matrix -p copybook-governance-contracts -p copybook-governance-grid -p copybook-governance-runtime -p copybook-governance
+# 2. cargo test  -p copybook-contracts -p copybook-support-matrix -p copybook-governance-contracts -p copybook-governance-grid -p copybook-governance-runtime -p copybook-governance
+# 3. cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
+```
+
+**Expected time**: 1-3 minutes
 
 ### `security.sh` — Security Scanning
 
@@ -86,10 +103,11 @@ just ci
 #   3. cargo clippy (tests: allows unwrap/expect/panic)
 #   4. cargo build --workspace --release
 #   5. cargo nextest run (bounded parallelism)
-#   6. cargo test --doc (deny warnings)
+#   6. scripts/ci/governance-bdd-smoke.sh
+#   7. cargo test --doc (deny warnings)
 # Phase 2: Security gates
-#   7. cargo deny check
-#   8. cargo audit (only if Cargo.lock changed)
+#   8. cargo deny check
+#   9. cargo audit (only if Cargo.lock changed)
 ```
 
 **Expected time**: 5-10 minutes (cold), 2-5 minutes (warm)

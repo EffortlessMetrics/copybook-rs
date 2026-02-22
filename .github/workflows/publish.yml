@@ -82,6 +82,25 @@ jobs:
         echo "Waiting 90 seconds for crates.io index to propagate..."
         sleep 90
 
+    - name: Dry run publish (copybook-arrow)
+      run: |
+        echo "📦 Testing copybook-arrow packaging..."
+        cargo publish -p copybook-arrow --dry-run
+        echo "✅ copybook-arrow dry-run successful"
+
+    - name: Publish copybook-arrow
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      run: |
+        echo "Publishing copybook-arrow..."
+        cargo publish -p copybook-arrow
+        echo "✅ copybook-arrow published successfully"
+
+    - name: Wait for crates.io index propagation
+      run: |
+        echo "Waiting 90 seconds for crates.io index to propagate..."
+        sleep 90
+
     - name: Dry run publish (copybook-cli)
       run: |
         echo "📦 Testing copybook-cli packaging..."
@@ -118,11 +137,13 @@ jobs:
           **Crates:**
           - [copybook-core ${version}](https://crates.io/crates/copybook-core/${version})
           - [copybook-codec ${version}](https://crates.io/crates/copybook-codec/${version})
+          - [copybook-arrow ${version}](https://crates.io/crates/copybook-arrow/${version})
           - [copybook-cli ${version}](https://crates.io/crates/copybook-cli/${version})
 
           **Documentation:**
           - [copybook-core docs](https://docs.rs/copybook-core/${version})
           - [copybook-codec docs](https://docs.rs/copybook-codec/${version})
+          - [copybook-arrow docs](https://docs.rs/copybook-arrow/${version})
           - [copybook-cli docs](https://docs.rs/copybook-cli/${version})
 
           See [CHANGELOG.md](https://github.com/EffortlessMetrics/copybook-rs/blob/${tag}/CHANGELOG.md) for details.`,
@@ -138,25 +159,28 @@ jobs:
     steps:
     - uses: dtolnay/rust-toolchain@stable
 
-    - name: Test installation in clean environment
+    - name: Install copybook-cli (default features)
       run: |
-        # Create temporary project to test installation
-        cargo new /tmp/copybook-smoke-test
-        cd /tmp/copybook-smoke-test
-
-        # Extract version from tag
         VERSION="${{ github.ref_name || github.event.inputs.tag }}"
-        VERSION=${VERSION#v}  # Remove 'v' prefix
+        VERSION=${VERSION#v}
 
         echo "Testing installation of copybook-cli@${VERSION}"
+        cargo install copybook-cli@${VERSION} --locked --root /tmp/copybook-default
+        /tmp/copybook-default/bin/copybook --version
+        /tmp/copybook-default/bin/copybook --help >/dev/null
 
-        # Test cargo add works
-        cargo add copybook-cli@${VERSION}
+        echo "✅ Smoke test passed: copybook-cli@${VERSION} installs and runs"
 
-        # Test build works
-        cargo build --quiet
+    - name: Install copybook-cli (arrow feature compile check)
+      run: |
+        VERSION="${{ github.ref_name || github.event.inputs.tag }}"
+        VERSION=${VERSION#v}
 
-        echo "✅ Smoke test passed: cargo add copybook-cli@${VERSION} works"
+        echo "Testing installation with --features arrow"
+        cargo install copybook-cli@${VERSION} --locked --features arrow --root /tmp/copybook-arrow
+        /tmp/copybook-arrow/bin/copybook --version
+
+        echo "✅ Arrow feature resolves from crates.io"
 
     - name: Validate docs.rs builds
       run: |
@@ -169,7 +193,7 @@ jobs:
         sleep 300
 
         # Check if docs are available (docs.rs builds asynchronously)
-        for crate in copybook-core copybook-codec copybook-cli; do
+        for crate in copybook-core copybook-codec copybook-arrow copybook-cli; do
           url="https://docs.rs/${crate}/${VERSION}"
           echo "Docs will be available at: ${url}"
         done
@@ -194,9 +218,11 @@ jobs:
         echo "📚 Documentation:"
         echo "   https://docs.rs/copybook-core/${VERSION}"
         echo "   https://docs.rs/copybook-codec/${VERSION}"
+        echo "   https://docs.rs/copybook-arrow/${VERSION}"
         echo "   https://docs.rs/copybook-cli/${VERSION}"
         echo ""
         echo "🔗 Crates.io:"
         echo "   https://crates.io/crates/copybook-core"
         echo "   https://crates.io/crates/copybook-codec"
+        echo "   https://crates.io/crates/copybook-arrow"
         echo "   https://crates.io/crates/copybook-cli"

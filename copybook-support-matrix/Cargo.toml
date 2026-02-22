@@ -1,0 +1,28 @@
+[package]
+name = "copybook-support-matrix"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "COBOL feature support matrix contract and status registry."
+documentation = "https://docs.rs/copybook-support-matrix"
+readme = "README.md"
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+keywords = ["cobol", "copybook", "support-matrix"]
+categories = ["config", "development-tools"]
+
+[dependencies]
+serde.workspace = true
+serde_plain.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[features]
+default = []
+
+[lints]
+workspace = true

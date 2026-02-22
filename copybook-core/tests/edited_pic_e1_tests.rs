@@ -71,7 +71,7 @@ fn test_e1_asterisk_fill_parses() {
 #[test]
 fn test_e1_sign_clause_without_separate_rejected() {
     // SIGN LEADING without SEPARATE is a syntax error (overpunching is handled by S in PIC)
-    // SIGN SEPARATE is always-enabled, so the feature-flag path is no longer hit;
+    // SIGN SEPARATE is enabled by default, so the feature-flag path is no longer hit;
     // instead the parser validates that SEPARATE must be present.
     let copybook = "01 REC.\n   05 SIGNED-AMT PIC S9(5) SIGN LEADING.";
     let Err(error) = parse_copybook(copybook) else {

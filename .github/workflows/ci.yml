@@ -129,7 +129,7 @@ jobs:
     - name: Run tests (nextest)
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       run: |
-        cargo nextest run --workspace --exclude copybook-bench --profile ci --failure-output=immediate --status-level=fail
+        cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci --failure-output=immediate --status-level=fail
     - name: Sync test status to docs
       if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable' && matrix.features == ''
       continue-on-error: true
@@ -163,6 +163,11 @@ jobs:
       run: cargo build --workspace --examples
     - name: Build copybook-arrow examples
       run: cargo build -p copybook-arrow --examples
+    - name: Install system deps (kafka_pipeline)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libcurl4-openssl-dev
     - name: Build kafka_pipeline example (Linux only)
       if: matrix.os == 'ubuntu-latest'
       run: cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
@@ -283,7 +288,7 @@ jobs:
         cargo test -p copybook-cli --features soak -- --ignored --test-threads=1 --nocapture
 
   bdd-tests:
-    name: BDD Tests
+    name: Governance + BDD Smoke
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -291,8 +296,8 @@ jobs:
       with:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
-    - name: Run BDD tests
-      run: cargo test -p copybook-bdd -- --nocapture
+    - name: Run governance microcrate + BDD smoke gate
+      run: bash scripts/ci/governance-bdd-smoke.sh
 
   rdw-iterator-tests:
     name: RDW iterator tests

@@ -29,6 +29,7 @@ thiserror.workspace = true
 tracing.workspace = true
 logos.workspace = true
 sha2.workspace = true
+copybook-governance-contracts.workspace = true
 
 # Audit system dependencies (only when audit feature is enabled)
 async-trait = { workspace = true, optional = true }

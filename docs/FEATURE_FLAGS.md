@@ -111,10 +111,12 @@ Experimental features are under active development and may change without notice
 
 | Flag | Default | Description |
 |-------|----------|-------------|
-| `sign_separate` | Disabled | Enable SIGN SEPARATE clause support |
+| `sign_separate` | **Enabled** | SIGN SEPARATE clause support (promoted to stable v0.4.3) |
 | `renames_r4_r6` | Disabled | Enable RENAMES R4-R6 advanced scenarios |
-| `comp_1` | Disabled | Enable COMP-1 (single precision floating point) support |
-| `comp_2` | Disabled | Enable COMP-2 (double precision floating point) support |
+| `comp_1` | **Enabled** | COMP-1 single precision floating point (promoted to stable v0.4.3) |
+| `comp_2` | **Enabled** | COMP-2 double precision floating point (promoted to stable v0.4.3) |
+
+> **Note:** `sign_separate`, `comp_1`, and `comp_2` remain in the "experimental" category for organizational purposes but are **enabled by default since v0.4.3** (promoted to stable). They can still be disabled via `COPYBOOK_FF_SIGN_SEPARATE=0`, `COPYBOOK_FF_COMP_1=0`, or `COPYBOOK_FF_COMP_2=0` for compatibility testing.
 
 ### Enterprise Features
 
@@ -264,9 +266,9 @@ copybook parse --feature-flags-config production-flags.toml input.cpy
 
 ### Example 3: Gradual Rollout
 
-Stage 1: Enable for testing
+Stage 1: Enable for testing (features disabled by default)
 ```bash
-export COPYBOOK_FF_SIGN_SEPARATE=1
+export COPYBOOK_FF_RENAMES_R4_R6=1
 copybook parse test.cpy
 ```
 
@@ -274,7 +276,7 @@ Stage 2: Enable for subset of production
 ```bash
 # In production config
 [feature_flags]
-enabled = ["sign_separate"]
+enabled = ["renames_r4_r6"]
 ```
 
 Stage 3: Full rollout (remove flag once stable)
@@ -287,11 +289,11 @@ use copybook_core::{Feature, FeatureFlags};
 fn process_copybook(text: &str) -> Result<Schema> {
     let flags = FeatureFlags::global();
 
-    if flags.is_enabled(Feature::SignSeparate) {
-        // Use stable sign separate support
-        parse_with_sign_separate(text)
+    if flags.is_enabled(Feature::RenamesR4R6) {
+        // Use advanced RENAMES R4-R6 scenarios
+        parse_with_advanced_renames(text)
     } else {
-        // Use standard parsing
+        // Use standard parsing (R1-R3 always available)
         parse_copybook(text)
     }
 }

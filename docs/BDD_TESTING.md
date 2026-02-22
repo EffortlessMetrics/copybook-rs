@@ -34,13 +34,15 @@ copybook-rs uses the **[Cucumber](https://github.com/cucumber-rs/cucumber)** fra
 
 ```
 tests/bdd/
-├── Cargo.toml              # BDD test dependencies
-├── bdd.rs                  # Main test runner and step definitions
+├── Cargo.toml              # BDD package dependencies
+├── bdd.rs                  # Full exploratory runner
+├── bdd_smoke.rs            # CI-gated smoke runner
 ├── features/               # Gherkin feature files
 │   ├── copybook_parsing.feature
 │   ├── encode_decode.feature
 │   └── error_handling.feature
-└── README.md              # BDD test documentation
+├── steps/                  # Step definition modules
+└── README.md               # BDD package documentation
 ```
 
 ### Feature Files
@@ -92,35 +94,36 @@ async fn then_schema_successfully_parsed(world: &mut CopybookWorld) {
 
 ## Running BDD Tests
 
-### Run all BDD tests
+### Run CI-gated smoke BDD suite (recommended)
 
 ```bash
-cargo test -p copybook-bdd
+cargo test -p copybook-bdd --test bdd_smoke -- --nocapture
 ```
 
-### Run specific feature file
+### Run governance microcrates + BDD smoke gate (recommended for PRs)
 
 ```bash
-# Run only copybook parsing tests
-cargo test -p copybook-bdd -- features/copybook_parsing.feature
-
-# Run only encode/decode tests
-cargo test -p copybook-bdd -- features/encode_decode.feature
-
-# Run only error handling tests
-cargo test -p copybook-bdd -- features/error_handling.feature
+bash scripts/ci/governance-bdd-smoke.sh
 ```
 
-### Run with verbose output
+### Run full exploratory BDD suite
 
 ```bash
-cargo test -p copybook-bdd -- --nocapture
+cargo run -p copybook-bdd --bin bdd
 ```
 
-### Run specific scenario
+The exploratory runner is intentionally non-gated and may include scenarios still under active development.
+
+### Run specific feature file (exploratory runner)
 
 ```bash
-cargo test -p copybook-bdd -- "Parse a simple copybook with a single field"
+cargo run -p copybook-bdd --bin bdd -- -i "verify_command.feature"
+```
+
+### Run specific scenario by name (exploratory runner)
+
+```bash
+cargo run -p copybook-bdd --bin bdd -- --name "Verify valid fixed-length data"
 ```
 
 ## BDD Test Coverage
@@ -246,11 +249,11 @@ let runner = CopybookWorld::init(&[
 
 ## CI Integration
 
-BDD tests are automatically run as part of the CI workflow. The BDD test job is defined in `.github/workflows/ci.yml`:
+BDD smoke tests are automatically run as part of CI, together with explicit governance microcrate checks. The CI job is defined in `.github/workflows/ci.yml`:
 
 ```yaml
 bdd-tests:
-  name: BDD Tests
+  name: Governance + BDD Smoke
   runs-on: ubuntu-latest
   steps:
   - uses: actions/checkout@v6
@@ -258,8 +261,8 @@ bdd-tests:
     with:
       toolchain: stable
   - uses: Swatinem/rust-cache@v2
-  - name: Run BDD tests
-    run: cargo test -p copybook-bdd -- --nocapture
+  - name: Run governance microcrate + BDD smoke gate
+    run: bash scripts/ci/governance-bdd-smoke.sh
 ```
 
 ## Relationship to Other Tests
@@ -293,7 +296,7 @@ Check that your assertions in the step definitions are correct and match the exp
 
 ### CI failures
 
-Check the CI logs for detailed error messages. BDD tests run with `--nocapture` to provide detailed output.
+Check CI logs for detailed errors. The quick lane and the dedicated `bdd-tests` lane both run `scripts/ci/governance-bdd-smoke.sh`.
 
 ## Resources
 

@@ -1,15 +1,20 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # copybook-rs Test Infrastructure Landscape Analysis
 
-**Date**: October 2025  
-**Scope**: Comprehensive test inventory, feature coverage matrix, and CI/CD configuration  
+**Date**: October 2025 (Updated Feb 2026 for feature accuracy)
+**Scope**: Comprehensive test inventory, feature coverage matrix, and CI/CD configuration
 **Objective**: Map test landscape to inform PR-B (test truth binding) and PR-D (support matrix generation)
 
 ---
 
 ## Executive Summary
 
-copybook-rs maintains a **highly organized and comprehensive test suite** with **664 individual test functions** distributed across 5 crates. The test infrastructure implements:
+> **Note**: The canonical source of truth for COBOL feature support status is
+> [`docs/reference/COBOL_SUPPORT_MATRIX.md`](reference/COBOL_SUPPORT_MATRIX.md).
+> Test counts and feature claims in this document are approximate snapshots;
+> consult the support matrix for current evidence-linked status.
+
+copybook-rs maintains a **highly organized and comprehensive test suite** with **664 individual test functions** distributed across the workspace crates and workspace-level tests. The test infrastructure implements:
 
 - **Structured test organization** with golden fixtures (AC1-AC8), panic elimination suites, enterprise scenarios, and property-based testing
 - **Extensive feature coverage** for COBOL constructs (ODO, REDEFINES, Level-88, COMP-3, DISPLAY, packed decimal, zoned decimal)
@@ -178,10 +183,10 @@ copybook-rs maintains a **highly organized and comprehensive test suite** with *
 | **OCCURS** | Array | 5+ | Parse, Codec | Fixed occurs (non-ODO) |
 | **SYNCHRONIZED** | Alignment | 3+ | Parse | Field alignment |
 | **BLANK WHEN ZERO** | Special | 2+ | Codec | Special value handling |
-| **Edited PIC** | Format | 2 | Parse | **Not supported** (expected failures tested) |
-| **COMP-1/2** | Numeric | 0 | N/A | **Not supported** (by design) |
-| **SIGN SEPARATE** | Sign | 0 | N/A | **Not supported** |
-| **RENAMES (66)** | Structure | 0 | N/A | **Not supported** |
+| **Edited PIC** | Format | 40+ | Parse, Codec | **Supported** (E1 parse, E2 decode, E3 encode — all phases complete) |
+| **COMP-1/2** | Numeric | 10+ | Parse, Codec | **Supported** (promoted to stable v0.4.3; see [COBOL_SUPPORT_MATRIX](reference/COBOL_SUPPORT_MATRIX.md)) |
+| **SIGN SEPARATE** | Sign | 5+ | Parse, Codec | **Supported** (promoted to stable v0.4.3; see [COBOL_SUPPORT_MATRIX](reference/COBOL_SUPPORT_MATRIX.md)) |
+| **RENAMES (66)** | Structure | 10+ | Parse, Codec, CLI | **Supported** (R1-R3 scenarios: same-scope, group alias, nested groups) |
 | **Nested ODO** | Structure | 0 | N/A | **Not supported** (by design) |
 
 ### Error Code Test Coverage
@@ -191,7 +196,7 @@ copybook-rs maintains a **highly organized and comprehensive test suite** with *
 | Code | Category | Test Count | Example |
 |------|----------|-----------|---------|
 | CBKP001 | Parse Syntax | 8+ | Invalid copybook syntax |
-| CBKP011 | Parse Unsupported | 5+ | COMP-1/2, SIGN SEPARATE |
+| CBKP011 | Parse Unsupported | 5+ | Nested ODO, unsupported clauses |
 | CBKP021 | Parse ODO Tail | 12+ | ODO not at tail, storage after ODO |
 | CBKP051 | Parse Edited PIC | 0 | Reserved for future unsupported patterns (all edited PICs now supported) |
 | CBKS121 | Schema Counter | 6+ | ODO driver not found |
@@ -454,9 +459,9 @@ TestSuiteBuilder::new("name", "description")
 ### Unsupported Features (By Design)
 
 ❌ **Not Tested** (expected to fail):
-- Edited PIC (Z, /, comma, $, CR, DB): 2 negative tests
-- COMP-1/COMP-2 floating-point: 0 tests
-- SIGN LEADING/TRAILING SEPARATE: 0 tests
+- Nested ODO (O5: ODO inside ODO): rejected by design
+- ODO over REDEFINES (O6): rejected by design
+- RENAMES interactions with REDEFINES/OCCURS (R4-R6): out of scope
 
 ### Test Coverage Density
 

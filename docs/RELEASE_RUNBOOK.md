@@ -47,7 +47,9 @@ cargo publish -p copybook-core --dry-run
 2. Wait for crates.io index propagation
 3. Dry-run (then publish) `copybook-codec`
 4. Wait for crates.io index propagation
-5. Dry-run (then publish) `copybook-cli`
+5. Dry-run (then publish) `copybook-arrow`
+6. Wait for crates.io index propagation
+7. Dry-run (then publish) `copybook-cli`
 
 The repository publish workflow (`.github/workflows/publish.yml`) follows this order.
 
@@ -73,7 +75,8 @@ The `--no-verify` flag skips the build verification step and allows inspection o
 - Publish in order:
   1. `copybook-core`
   2. `copybook-codec`
-  3. `copybook-cli`
+  3. `copybook-arrow`
+  4. `copybook-cli`
 
 ---
 
@@ -82,6 +85,7 @@ The `--no-verify` flag skips the build verification step and allows inspection o
 - docs.rs builds complete for:
   - `copybook-core`
   - `copybook-codec`
+  - `copybook-arrow`
   - `copybook-cli`
 - Install works on a clean machine:
   ```bash
@@ -121,6 +125,7 @@ If you published a bad release:
 ```bash
 # Yank in reverse dependency order
 cargo yank copybook-cli@0.4.0
+cargo yank copybook-arrow@0.4.0
 cargo yank copybook-codec@0.4.0
 cargo yank copybook-core@0.4.0
 ```

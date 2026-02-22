@@ -56,3 +56,5 @@ progressive = []
 diagnostics = []
 # Performance-only tests: throughput assertions for dedicated perf workflow
 perf = []
+# No-op: allows ci-mutants.yml to pass --features comprehensive-tests uniformly
+comprehensive-tests = []

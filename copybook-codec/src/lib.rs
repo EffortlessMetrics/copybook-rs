@@ -20,7 +20,7 @@ pub mod edited_pic;
 mod fidelity;
 pub mod iterator;
 pub mod lib_api;
-pub mod memory;
+pub use copybook_codec_memory as memory;
 pub mod numeric;
 pub mod options;
 pub mod record;

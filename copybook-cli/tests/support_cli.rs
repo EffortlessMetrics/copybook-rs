@@ -127,6 +127,40 @@ fn support_json_includes_all_status_types() {
 }
 
 #[test]
+fn support_json_with_governance_outputs_runtime_fields() {
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(["support", "--format", "json", "--with-governance"])
+        .output()
+        .expect("failed to execute command");
+
+    assert!(output.status.success());
+
+    let values: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout)
+        .expect("support --format json --with-governance should emit valid JSON array");
+
+    assert!(!values.is_empty());
+    assert!(
+        values
+            .iter()
+            .all(|value| value.get("runtime_enabled").is_some()),
+        "runtime fields must be present when governance is requested",
+    );
+}
+
+#[test]
+fn support_check_with_governance_includes_runtime_flags() {
+    let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+        .args(["support", "--check", "level-88", "--with-governance"])
+        .output()
+        .expect("failed to execute command");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Runtime-Available"));
+    assert!(stdout.contains("Required Feature Flags"));
+}
+
+#[test]
 fn support_check_partial_feature_exits_nonzero_nested_odo() {
     let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
         .args(["support", "--check", "nested-odo"])

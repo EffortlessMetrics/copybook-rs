@@ -1,3 +1,4 @@
+@projection_smoke
 Feature: Test Projection Minimal
 
   Background:

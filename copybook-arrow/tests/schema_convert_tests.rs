@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Schema conversion tests for COBOL -> Arrow type mapping
 
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::panic)]
 
 use arrow::datatypes::DataType;
 use copybook_arrow::options::{ArrowOptions, EditedPicRepresentation};

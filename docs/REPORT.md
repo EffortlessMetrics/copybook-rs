@@ -26,8 +26,9 @@ advisory targets in v0.4.3 (Engineering Preview).
 
 ## Overview
 
-The `copybook-rs` workspace combines five Rust crates (core, codec, CLI,
-generator, and benchmarks) to provide deterministic COBOL→JSON processing. The
+The `copybook-rs` workspace combines four published Rust crates (core, codec,
+arrow, and CLI) and two dev-only crates (generator and benchmarks) to provide
+deterministic COBOL→JSON processing. The
 focus is on transparent validation rather than performance bravado: adopters
 must review known COBOL feature gaps and performance limitations before
 committing production workloads.
@@ -41,9 +42,10 @@ responsibilities:
   resolution)
 - **copybook-codec**: Encoding/decoding codecs for COBOL data types with
   character conversion
+- **copybook-arrow**: Apache Arrow and Parquet format conversion (experimental)
 - **copybook-cli**: Command-line interface with comprehensive subcommands
-- **copybook-gen**: Test fixture and synthetic data generation utilities
-- **copybook-bench**: Performance benchmarks and validation harness
+- **copybook-gen**: Test fixture and synthetic data generation utilities (dev-only)
+- **copybook-bench**: Performance benchmarks and validation harness (dev-only)
 
 ## Validation Results
 

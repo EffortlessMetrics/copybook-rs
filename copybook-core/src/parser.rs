@@ -13,6 +13,28 @@ use crate::schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparat
 use crate::utils::VecExt;
 use crate::{Error, Result};
 
+/// Returns true if `s` is a valid COBOL data name (letter-start, alphanumeric + hyphen).
+fn is_cobol_data_name(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
+}
+
+/// Extract a data name from a token, accepting `Identifier` directly and
+/// `EditedPic`/`PicClause` when the text is a valid COBOL data name.
+fn try_extract_data_name(token_pos: &TokenPos) -> Option<String> {
+    match &token_pos.token {
+        Token::Identifier(name) => Some(name.clone()),
+        Token::EditedPic(text) | Token::PicClause(text) if is_cobol_data_name(text) => {
+            Some(text.clone())
+        }
+        _ => None,
+    }
+}
+
 /// Parse a COBOL copybook text into a schema
 ///
 /// # Errors
@@ -676,14 +698,10 @@ impl Parser {
         };
 
         // Get field name
-        let mut name = match self.current_token() {
-            Some(TokenPos {
-                token: Token::Identifier(name),
-                ..
-            }) => {
-                let name = name.clone();
+        let mut name = match self.current_token().and_then(try_extract_data_name) {
+            Some(n) => {
                 self.advance();
-                name
+                n
             }
             _ => {
                 return Err(Error::new(
@@ -1027,14 +1045,10 @@ impl Parser {
 
     /// Parse REDEFINES clause
     fn parse_redefines_clause(&mut self, field: &mut Field) -> Result<()> {
-        let target = match self.current_token() {
-            Some(TokenPos {
-                token: Token::Identifier(name),
-                ..
-            }) => {
-                let name = name.clone();
+        let target = match self.current_token().and_then(try_extract_data_name) {
+            Some(n) => {
                 self.advance();
-                name
+                n
             }
             _ => {
                 return Err(Error::new(
@@ -1128,14 +1142,10 @@ impl Parser {
                 ));
             }
 
-            let counter_field = match self.current_token() {
-                Some(TokenPos {
-                    token: Token::Identifier(name),
-                    ..
-                }) => {
-                    let name = name.clone();
+            let counter_field = match self.current_token().and_then(try_extract_data_name) {
+                Some(n) => {
                     self.advance();
-                    name
+                    n
                 }
                 _ => {
                     return Err(Error::new(
@@ -1443,12 +1453,9 @@ impl Parser {
         let mut parts = Vec::new();
 
         // Parse first identifier
-        match self.current_token() {
-            Some(TokenPos {
-                token: Token::Identifier(name),
-                ..
-            }) => {
-                parts.push(name.clone());
+        match self.current_token().and_then(try_extract_data_name) {
+            Some(n) => {
+                parts.push(n);
                 self.advance();
             }
             _ => {
@@ -1467,13 +1474,10 @@ impl Parser {
                     ..
                 }) if name.eq_ignore_ascii_case("OF") => {
                     self.advance(); // consume OF
-                    match self.current_token() {
-                        Some(TokenPos {
-                            token: Token::Identifier(next_name),
-                            ..
-                        }) => {
+                    match self.current_token().and_then(try_extract_data_name) {
+                        Some(n) => {
                             parts.push("OF".to_string());
-                            parts.push(next_name.clone());
+                            parts.push(n);
                             self.advance();
                         }
                         _ => {
@@ -1801,6 +1805,11 @@ mod tests {
     #[test]
     fn test_sign_clause_without_separate_rejected() {
         // SIGN LEADING without SEPARATE is invalid — overpunching is handled by S in PIC.
+        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
+        let flags = FeatureFlags::from_env();
+        if !flags.is_enabled(Feature::SignSeparate) {
+            return;
+        }
         let input = "01 AMOUNT PIC S9(5) SIGN LEADING.";
         let result = parse(input);
 
@@ -1809,13 +1818,18 @@ mod tests {
             "SIGN clause without SEPARATE should be rejected"
         );
         let error = result.unwrap_err();
-        // SIGN SEPARATE is now always-enabled; rejection is a syntax error, not feature-flag error
+        // SIGN SEPARATE is enabled by default; rejection is a syntax error, not feature-flag error
         assert_eq!(error.code, ErrorCode::CBKP001_SYNTAX);
     }
 
     #[test]
     fn test_sign_leading_separate_accepted() {
         // SIGN IS LEADING SEPARATE is always accepted (promoted to stable)
+        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
+        let flags = FeatureFlags::from_env();
+        if !flags.is_enabled(Feature::SignSeparate) {
+            return;
+        }
         let input = "01 AMOUNT PIC S9(5) SIGN IS LEADING SEPARATE.";
         let result = parse(input);
         assert!(
@@ -1827,6 +1841,11 @@ mod tests {
     #[test]
     fn test_sign_trailing_separate_accepted() {
         // SIGN TRAILING SEPARATE is always accepted (promoted to stable)
+        // Skip when sign_separate feature is disabled by env (e.g. COPYBOOK_FF_SIGN_SEPARATE=0).
+        let flags = FeatureFlags::from_env();
+        if !flags.is_enabled(Feature::SignSeparate) {
+            return;
+        }
         let input = "01 AMOUNT PIC S9(5) SIGN TRAILING SEPARATE.";
         let result = parse(input);
         assert!(result.is_ok(), "SIGN TRAILING SEPARATE should be accepted");
@@ -2006,5 +2025,43 @@ mod tests {
         let field = &schema.fields[0];
         assert!(field.synchronized);
         assert!(matches!(field.kind, FieldKind::BinaryInt { .. }));
+    }
+
+    #[test]
+    fn test_edited_pic_ambiguous_field_name() {
+        // "Z-Z" is tokenized as EditedPic but is a valid COBOL data name
+        let input = "01 Z-Z PIC X(10).";
+        let schema = parse(input).expect("should parse Z-Z as field name");
+        assert_eq!(schema.fields.len(), 1);
+        assert_eq!(schema.fields[0].name, "Z-Z");
+    }
+
+    #[test]
+    fn test_pic_clause_ambiguous_field_name() {
+        // "ZZ" is tokenized as PicClause/EditedPic but is a valid COBOL data name
+        let input = "01 ZZ PIC X(5).";
+        let schema = parse(input).expect("should parse ZZ as field name");
+        assert_eq!(schema.fields.len(), 1);
+        assert_eq!(schema.fields[0].name, "ZZ");
+    }
+
+    #[test]
+    fn test_redefines_target_ambiguous_name() {
+        let input = "01 Z-Z PIC X(10).\n01 ALT REDEFINES Z-Z PIC X(10).";
+        let schema = parse(input).expect("should parse REDEFINES Z-Z");
+        assert_eq!(schema.fields[1].redefines_of.as_deref(), Some("Z-Z"));
+    }
+
+    #[test]
+    fn test_depending_on_ambiguous_name() {
+        let input = "01 Z-Z PIC 9(3).\n01 ITEMS PIC X(5) OCCURS 5 TIMES DEPENDING ON Z-Z.";
+        let schema = parse(input).expect("should parse DEPENDING ON Z-Z");
+        let items = &schema.fields[1];
+        match &items.occurs {
+            Some(Occurs::ODO { counter_path, .. }) => {
+                assert_eq!(counter_path, "Z-Z");
+            }
+            other => panic!("Expected ODO occurs, got {:?}", other),
+        }
     }
 }

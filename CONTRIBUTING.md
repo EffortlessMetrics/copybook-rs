@@ -140,13 +140,14 @@ Use [feature_request.yml](.github/ISSUE_TEMPLATE/feature_request.yml) template. 
 
 ## Architecture Overview
 
-copybook-rs is a Cargo workspace with 5 crates:
+copybook-rs is a Cargo workspace with 4 published crates and 2 dev-only crates:
 
 - **copybook-core**: COBOL copybook parsing (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Data encoding/decoding, character conversion, record framing
+- **copybook-arrow**: Apache Arrow and Parquet format conversion (experimental)
 - **copybook-cli**: Command-line interface (parse, inspect, decode, encode, verify, determinism)
-- **copybook-gen**: Test fixture and synthetic data generation
-- **copybook-bench**: Performance benchmarks and regression detection
+- **copybook-gen**: Test fixture and synthetic data generation (dev-only)
+- **copybook-bench**: Performance benchmarks and regression detection (dev-only)
 
 **Processing Flow**: copybook-core (parse) → copybook-codec (encode/decode) → copybook-cli (commands)
 

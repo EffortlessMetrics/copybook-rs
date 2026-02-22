@@ -66,25 +66,21 @@ Legend: ✅ Supported, ❌ Not supported, ⚠️ Partial support
 **Common Differences:**
 - copybook-rs fully supports COMP-1/COMP-2 (promoted to stable in v0.4.3)
 - Edited PIC clauses are supported for E1-E3.7, but older runtimes should still validate before migration
-- SIGN SEPARATE clauses are now supported behind `sign_separate` and may vary by pattern
+- SIGN SEPARATE clauses are fully supported (promoted to stable; enabled by default)
 
 **Migration Steps:**
 
 1. **Convert Copybooks:**
-```cobol
-// Before (IBM COBOL)
-01 CUSTOMER-RECORD.
-   05 CUSTOMER-ID    PIC 9(8).
-   05 CUSTOMER-NAME  PIC X(30).
-   05 BALANCE        PIC ZZ,ZZ9.99.     // Edited PIC
-   05 RATE           PIC S9(3)V99 COMP-1. // Floating point
 
-// After (copybook-rs compatible)
+   No conversion needed for Edited PIC, COMP-1, or COMP-2 — copybook-rs supports them directly:
+
+```cobol
+// IBM COBOL — use as-is with copybook-rs
 01 CUSTOMER-RECORD.
    05 CUSTOMER-ID    PIC 9(8).
    05 CUSTOMER-NAME  PIC X(30).
-   05 BALANCE        PIC 9(5)V99.       // Non-edited
-   05 RATE           PIC S9(3)V99 COMP-3. // Packed decimal
+   05 BALANCE        PIC ZZ,ZZ9.99.       // Edited PIC (E1/E2/E3)
+   05 RATE           PIC S9(3)V99 COMP-1. // Floating point (enabled by default)
 ```
 
 2. **Update Processing Scripts:**
@@ -305,50 +301,36 @@ val df = spark.read.json("data.jsonl")
 
 ### 1. Edited PIC Clauses
 
-**Problem:** copybook-rs doesn't support edited PIC clauses.
-
-**Solution:** Convert to non-edited format and handle formatting in post-processing.
+Edited PIC clauses are **fully supported** (E1/E2/E3 — parse, decode, encode). No conversion needed.
 
 ```cobol
-// Before
+// Use edited PIC directly
 05 AMOUNT PIC $$$,$$9.99.
-
-// After
-05 AMOUNT PIC 9(6)V99.
 ```
 
 ```bash
-# Post-process for formatting
-copybook decode schema.cpy data.bin --output data.jsonl
-jq '.AMOUNT = (.AMOUNT | tonumber | . / 100 | "$\(. | tostring)")' data.jsonl
+# Decode edited PIC fields directly
+copybook decode schema.cpy data.bin --output data.jsonl --format fixed --codepage cp037
 ```
 
 ### 2. COMP-1/COMP-2 Floating Point
 
-**Problem:** copybook-rs doesn't support floating point types.
-
-**Solution:** Convert to packed decimal or handle as binary.
+COMP-1 and COMP-2 floating-point types are **fully supported** (enabled by default since v0.4.3). No conversion needed — use directly.
 
 ```cobol
-// Before
+// Use COMP-1/COMP-2 directly
 05 RATE PIC S9(3)V99 COMP-1.
-
-// After
-05 RATE PIC S9(3)V99 COMP-3.
+05 PRECISE-RATE PIC S9(5)V99 COMP-2.
 ```
 
 ### 3. SIGN SEPARATE
 
-**Problem:** copybook-rs doesn't support separate sign.
-
-**Solution:** Convert to standard signed format.
+SIGN LEADING/TRAILING SEPARATE is **fully supported** (enabled by default since v0.4.3). No conversion needed — use directly.
 
 ```cobol
-// Before
+// Use SIGN SEPARATE directly
 05 BALANCE PIC S9(7)V99 SIGN LEADING SEPARATE.
-
-// After
-05 BALANCE PIC S9(7)V99.
+05 AMOUNT  PIC S9(5)V99 SIGN TRAILING SEPARATE.
 ```
 
 ### 4. Different Binary Formats
@@ -571,8 +553,7 @@ done
 ## Migration Checklist
 
 - [ ] Inventory existing copybooks and identify unsupported features
-- [ ] Validate whether `sign_separate`, `comp_1`, and `comp_2` feature flags are required for your schema
-- [ ] Keep edited PIC clauses only where supported patterns are confirmed via parser tests
+- [ ] Confirm COMP-1/2, SIGN SEPARATE, and Edited PIC features are active (enabled by default since v0.4.3)
 - [ ] Replace unsupported nested ODO or R4-R6 RENAMES patterns with safer alternatives
 - [ ] Test copybook parsing with `copybook parse`
 - [ ] Validate data decoding with sample files

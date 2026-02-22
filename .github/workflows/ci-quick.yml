@@ -68,7 +68,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Quick gates (fmt→clippy→build→nextest→doctests)
+      - name: Quick gates (fmt→clippy→build→nextest→governance+bdd→doctests)
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || 'HEAD' }}

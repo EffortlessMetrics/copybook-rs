@@ -1,5 +1,5 @@
-#![allow(
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#![allow(
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::unused_async,
@@ -25,7 +25,7 @@ mod helpers;
 mod steps;
 mod world;
 
-use copybook_core::{FeatureCategory, FeatureFlags};
+use copybook_governance::{FeatureCategory, FeatureFlags};
 use cucumber::World as _;
 
 use crate::world::CopybookWorld;

@@ -1,7 +1,5 @@
-#![allow(clippy::expect_used)]
-// SPDX-License-Identifier: AGPL-3.0-or-later
-#![allow(clippy::unwrap_used)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 /*!
  * AC2: Level-88 after ODO Validation Fixtures (PASS Scenarios)

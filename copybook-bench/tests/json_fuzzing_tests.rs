@@ -4,8 +4,6 @@
 //! Property-based and fuzzing tests for JSON schema validation to ensure
 //! robust handling of malformed, adversarial, and edge-case inputs.
 
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

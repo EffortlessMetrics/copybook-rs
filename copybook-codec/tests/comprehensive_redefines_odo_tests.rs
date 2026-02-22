@@ -1,8 +1,5 @@
-#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // SPDX-License-Identifier: AGPL-3.0-or-later
-#![allow(clippy::unwrap_used)]
-#![allow(clippy::panic)]
-#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "comprehensive-tests")]
 #![allow(
     clippy::needless_raw_string_hashes,

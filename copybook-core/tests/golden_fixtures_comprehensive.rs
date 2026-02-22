@@ -1,7 +1,5 @@
 #![allow(clippy::missing_inline_in_public_items)]
 // SPDX-License-Identifier: AGPL-3.0-or-later
-#![allow(clippy::expect_used)]
-#![allow(clippy::unwrap_used)]
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,

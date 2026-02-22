@@ -1,12 +1,10 @@
-#![allow(clippy::expect_used)]
-// SPDX-License-Identifier: AGPL-3.0-or-later
-#![allow(clippy::unwrap_used)]
 #![allow(
-    clippy::unwrap_used,
     clippy::expect_used,
+    clippy::unwrap_used,
     clippy::panic,
     clippy::assertions_on_constants
 )]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 #![cfg(feature = "comprehensive-tests")]
 //! Comprehensive numeric type tests: zoned, packed, binary with all edge cases
 //!

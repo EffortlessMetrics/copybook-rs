@@ -1,7 +1,5 @@
-#![allow(clippy::expect_used)]
-// SPDX-License-Identifier: AGPL-3.0-or-later
-#![allow(clippy::unwrap_used)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 #![cfg(feature = "comprehensive-tests")]
 #![allow(clippy::uninlined_format_args, clippy::too_many_lines)]
 //! Comprehensive parser tests covering all normative grammar rules and edge cases

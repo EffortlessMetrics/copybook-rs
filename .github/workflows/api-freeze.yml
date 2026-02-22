@@ -36,7 +36,7 @@ jobs:
 
     - name: Install cargo-semver-checks
       run: |
-        cargo install --locked cargo-semver-checks --version 0.37.0
+        cargo install --locked cargo-semver-checks --version 0.46.0
 
     - name: Check if API freeze is active
       id: freeze-check

@@ -152,11 +152,7 @@ mod tests {
     fn test_sign_separate_and_comp12_mapped_to_flags() {
         let sign_flags = feature_flags_for_support_id(FeatureId::SignSeparate)
             .expect("sign-separate should have mapping");
-        assert!(
-            sign_flags
-                .iter()
-                .any(|feature| *feature == Feature::SignSeparate)
-        );
+        assert!(sign_flags.contains(&Feature::SignSeparate));
 
         let comp12_flags = feature_flags_for_support_id(FeatureId::Comp1Comp2)
             .expect("comp-1-comp-2 should have mapping");

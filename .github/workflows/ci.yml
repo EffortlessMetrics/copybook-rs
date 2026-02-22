@@ -163,6 +163,11 @@ jobs:
       run: cargo build --workspace --examples
     - name: Build copybook-arrow examples
       run: cargo build -p copybook-arrow --examples
+    - name: Install system deps (kafka_pipeline)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libcurl4-openssl-dev
     - name: Build kafka_pipeline example (Linux only)
       if: matrix.os == 'ubuntu-latest'
       run: cargo build --manifest-path examples/kafka_pipeline/Cargo.toml

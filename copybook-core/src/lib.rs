@@ -129,7 +129,9 @@
 #[cfg(feature = "audit")]
 pub mod audit;
 pub mod dialect;
-pub mod error;
+pub mod error {
+    pub use copybook_error::*;
+}
 pub mod error_reporter;
 pub mod feature_flags;
 pub mod layout;

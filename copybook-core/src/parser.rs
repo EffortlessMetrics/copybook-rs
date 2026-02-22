@@ -4,7 +4,7 @@
 //! This module implements the parsing logic for COBOL copybooks,
 //! including lexical analysis and AST construction.
 
-use crate::error;
+use crate::error::error;
 use crate::error::{ErrorCode, ErrorContext};
 use crate::feature_flags::{Feature, FeatureFlags};
 use crate::lexer::{Lexer, Token, TokenPos};

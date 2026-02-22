@@ -828,6 +828,7 @@ dependencies = [
  "clap",
  "copybook-codec-memory",
  "copybook-core",
+ "copybook-error",
  "hex",
  "indexmap",
  "metrics",
@@ -867,6 +868,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "copybook-error",
  "copybook-governance-contracts",
  "hex",
  "logos",
@@ -880,6 +882,15 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "copybook-error"
+version = "0.4.3"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

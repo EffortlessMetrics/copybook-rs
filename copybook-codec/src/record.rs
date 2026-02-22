@@ -5,8 +5,8 @@
 
 use crate::options::RawMode;
 use crate::options::RecordFormat;
-use copybook_core::error::ErrorContext;
-use copybook_core::{Error, ErrorCode, Result, Schema};
+use copybook_core::Schema;
+use copybook_error::{Error, ErrorCode, ErrorContext, Result};
 use std::convert::TryFrom;
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use tracing::{debug, warn};

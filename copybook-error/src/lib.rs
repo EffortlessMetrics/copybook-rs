@@ -452,7 +452,7 @@ impl Error {
     ///
     /// # Example
     /// ```rust
-    /// use copybook_core::{Error, ErrorCode};
+    /// use copybook_error::{Error, ErrorCode};
     ///
     /// // Static message
     /// let error1 = Error::new(
@@ -534,16 +534,15 @@ impl Error {
 #[macro_export]
 macro_rules! error {
     ($code:expr, $msg:expr) => {
-        $crate::error::Error::new($code, $msg)
+        $crate::Error::new($code, $msg)
     };
     ($code:expr, $fmt:expr, $($arg:tt)*) => {
-        $crate::error::Error::new($code, format!($fmt, $($arg)*))
+        $crate::Error::new($code, format!($fmt, $($arg)*))
     };
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
-#[allow(clippy::unwrap_used)]
 #[allow(clippy::unwrap_used)] // Allow unwrap in tests for brevity
 mod tests {
     use super::*;

@@ -6,7 +6,7 @@
 
 use crate::dialect::{Dialect, effective_min_count};
 use crate::feature_flags::{Feature, FeatureFlags};
-use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error};
+use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error::error};
 use std::collections::HashMap;
 use tracing::debug;
 

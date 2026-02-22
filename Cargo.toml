@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [workspace]
 members = [
+    "copybook-error",
     "copybook-core",
     "copybook-codec",
     "copybook-codec-memory",
@@ -37,6 +38,7 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
 # Internal workspace crates (pin exact versions for publish)
+copybook-error = { version = "=0.4.3", path = "copybook-error" }
 copybook-core = { version = "=0.4.3", path = "copybook-core" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
 copybook-codec-memory = { version = "=0.4.3", path = "copybook-codec-memory" }

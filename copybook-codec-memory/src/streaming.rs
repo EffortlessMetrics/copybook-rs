@@ -35,7 +35,7 @@
 /// ## Basic Streaming with Memory Bounds
 ///
 /// ```rust
-/// use copybook_codec::memory::StreamingProcessor;
+/// use copybook_codec_memory::StreamingProcessor;
 ///
 /// let mut processor = StreamingProcessor::with_default_limit(); // 256 MiB
 ///
@@ -71,7 +71,7 @@
 /// ## File Processing with Adaptive Batching
 ///
 /// ```rust
-/// use copybook_codec::memory::StreamingProcessor;
+/// use copybook_codec_memory::StreamingProcessor;
 ///
 /// let mut processor = StreamingProcessor::new(512); // 512 MiB limit
 /// let mut batch = Vec::new();
@@ -130,7 +130,7 @@ impl StreamingProcessor {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::StreamingProcessor;
+    /// use copybook_codec_memory::StreamingProcessor;
     ///
     /// let processor = StreamingProcessor::new(512); // 512 MiB limit
     /// assert!(!processor.is_memory_pressure());
@@ -154,7 +154,7 @@ impl StreamingProcessor {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::StreamingProcessor;
+    /// use copybook_codec_memory::StreamingProcessor;
     ///
     /// let processor = StreamingProcessor::with_default_limit();
     /// let stats = processor.stats();
@@ -175,7 +175,7 @@ impl StreamingProcessor {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::StreamingProcessor;
+    /// use copybook_codec_memory::StreamingProcessor;
     ///
     /// let mut processor = StreamingProcessor::new(1); // 1 MiB limit
     ///
@@ -206,7 +206,7 @@ impl StreamingProcessor {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::StreamingProcessor;
+    /// use copybook_codec_memory::StreamingProcessor;
     ///
     /// let mut processor = StreamingProcessor::new(256);
     ///
@@ -244,7 +244,7 @@ impl StreamingProcessor {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::StreamingProcessor;
+    /// use copybook_codec_memory::StreamingProcessor;
     ///
     /// let mut processor = StreamingProcessor::with_default_limit();
     ///
@@ -269,7 +269,7 @@ impl StreamingProcessor {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::StreamingProcessor;
+    /// use copybook_codec_memory::StreamingProcessor;
     ///
     /// let mut processor = StreamingProcessor::new(100); // 100 MiB
     /// processor.update_memory_usage(50 * 1024 * 1024); // 50 MiB

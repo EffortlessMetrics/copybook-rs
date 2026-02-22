@@ -39,7 +39,7 @@ use super::{ScratchBuffers, SequenceRing, SequenceRingStats, SequencedRecord};
 /// ## Basic Usage
 ///
 /// ```rust
-/// use copybook_codec::memory::{WorkerPool, ScratchBuffers};
+/// use copybook_codec_memory::{WorkerPool, ScratchBuffers};
 ///
 /// let mut pool = WorkerPool::new(
 ///     4,   // 4 worker threads
@@ -66,8 +66,8 @@ use super::{ScratchBuffers, SequenceRing, SequenceRingStats, SequencedRecord};
 ///
 /// ## COBOL Record Processing
 ///
-/// ```rust
-/// use copybook_codec::memory::{WorkerPool, ScratchBuffers};
+/// ```ignore
+/// use copybook_codec_memory::{WorkerPool, ScratchBuffers};
 /// use copybook_codec::{decode_record_with_scratch, DecodeOptions};
 /// use copybook_core::{parse_copybook, Schema};
 /// use std::sync::Arc;

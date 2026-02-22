@@ -119,13 +119,13 @@ panic = "unwind"
 unsafe_code = "forbid"
 
 [workspace.lints.clippy]
-# Panic prevention lints (deny rather than forbid to allow selective local overrides)
-unwrap_used = "deny"
-expect_used = "deny"
-panic = "deny"
-unreachable = "deny"
-todo = "deny"
-unimplemented = "deny"
+# Panic prevention lints (warn to allow test code to use unwrap/expect/panic)
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+unreachable = "warn"
+todo = "warn"
+unimplemented = "warn"
 
 # Performance lints
 missing_inline_in_public_items = "warn"

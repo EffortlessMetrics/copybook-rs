@@ -13,7 +13,7 @@ use tracing::{debug, warn};
 /// # Examples
 ///
 /// ```rust
-/// use copybook_codec::memory::SequencedRecord;
+/// use copybook_codec_memory::SequencedRecord;
 ///
 /// let record1 = SequencedRecord::new(1, "first record");
 /// let record2 = SequencedRecord::new(2, "second record");
@@ -46,7 +46,7 @@ impl<T> SequencedRecord<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::SequencedRecord;
+    /// use copybook_codec_memory::SequencedRecord;
     ///
     /// let record = SequencedRecord::new(42, vec![1, 2, 3]);
     /// assert_eq!(record.sequence_id, 42);
@@ -86,7 +86,7 @@ impl<T> SequencedRecord<T> {
 /// # Examples
 ///
 /// ```rust
-/// use copybook_codec::memory::{SequenceRing, SequencedRecord};
+/// use copybook_codec_memory::{SequenceRing, SequencedRecord};
 ///
 /// let mut ring = SequenceRing::new(100, 50); // 100 capacity, 50 max window
 /// let sender = ring.sender();
@@ -144,7 +144,7 @@ impl<T> SequenceRing<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::SequenceRing;
+    /// use copybook_codec_memory::SequenceRing;
     ///
     /// // For 4-worker pool: 16 capacity, 8 window
     /// let ring: SequenceRing<String> = SequenceRing::new(16, 8);
@@ -176,7 +176,7 @@ impl<T> SequenceRing<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::{SequenceRing, SequencedRecord};
+    /// use copybook_codec_memory::{SequenceRing, SequencedRecord};
     /// use std::thread;
     ///
     /// let mut ring = SequenceRing::new(10, 5);
@@ -311,7 +311,7 @@ impl<T> SequenceRing<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::{SequenceRing, SequencedRecord};
+    /// use copybook_codec_memory::{SequenceRing, SequencedRecord};
     /// use crossbeam_channel::TryRecvError;
     ///
     /// let mut ring = SequenceRing::new(10, 5);

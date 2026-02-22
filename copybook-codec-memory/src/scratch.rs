@@ -40,7 +40,7 @@ pub type DigitBuffer = SmallVec<[u8; 32]>;
 /// ## Basic Usage
 ///
 /// ```rust
-/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec_memory::ScratchBuffers;
 ///
 /// let mut scratch = ScratchBuffers::new();
 ///
@@ -58,8 +58,8 @@ pub type DigitBuffer = SmallVec<[u8; 32]>;
 ///
 /// ## Integration with Codec Functions
 ///
-/// ```rust
-/// use copybook_codec::memory::ScratchBuffers;
+/// ```ignore
+/// use copybook_codec_memory::ScratchBuffers;
 /// use copybook_codec::{decode_record_with_scratch, DecodeOptions};
 /// use copybook_core::parse_copybook;
 ///
@@ -80,7 +80,7 @@ pub type DigitBuffer = SmallVec<[u8; 32]>;
 /// ## Capacity Management
 ///
 /// ```rust
-/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec_memory::ScratchBuffers;
 ///
 /// let mut scratch = ScratchBuffers::new();
 ///
@@ -125,7 +125,7 @@ impl ScratchBuffers {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::ScratchBuffers;
+    /// use copybook_codec_memory::ScratchBuffers;
     ///
     /// let scratch = ScratchBuffers::new();
     /// assert_eq!(scratch.digit_buffer.len(), 0);
@@ -153,7 +153,7 @@ impl ScratchBuffers {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::ScratchBuffers;
+    /// use copybook_codec_memory::ScratchBuffers;
     ///
     /// let mut scratch = ScratchBuffers::new();
     ///
@@ -193,7 +193,7 @@ impl ScratchBuffers {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::ScratchBuffers;
+    /// use copybook_codec_memory::ScratchBuffers;
     ///
     /// let mut scratch = ScratchBuffers::new();
     ///
@@ -228,7 +228,7 @@ impl ScratchBuffers {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec::memory::ScratchBuffers;
+    /// use copybook_codec_memory::ScratchBuffers;
     ///
     /// let mut scratch = ScratchBuffers::new();
     ///

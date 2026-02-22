@@ -26,7 +26,7 @@
 //! ## Basic Scratch Buffer Usage
 //!
 //! ```rust
-//! use copybook_codec::memory::ScratchBuffers;
+//! use copybook_codec_memory::ScratchBuffers;
 //!
 //! let mut scratch = ScratchBuffers::new();
 //!
@@ -42,7 +42,7 @@
 //! ## Parallel Processing with Deterministic Output
 //!
 //! ```rust
-//! use copybook_codec::memory::{WorkerPool, ScratchBuffers};
+//! use copybook_codec_memory::{WorkerPool, ScratchBuffers};
 //!
 //! // Create worker pool with 4 threads
 //! let mut pool = WorkerPool::new(
@@ -77,7 +77,7 @@
 //! ## Memory-Bounded Streaming
 //!
 //! ```rust
-//! use copybook_codec::memory::StreamingProcessor;
+//! use copybook_codec_memory::StreamingProcessor;
 //! # let records: Vec<Vec<u8>> = vec![vec![1, 2, 3]];
 //!
 //! let mut processor = StreamingProcessor::with_default_limit(); // 256 MiB

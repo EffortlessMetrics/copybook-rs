@@ -178,29 +178,29 @@ fn test_sequence_ring_empty() {
 }
 
 #[test]
-fn test_sequence_ring_channel_capacity() {
+fn test_sequence_ring_channel_capacity() -> TestResult {
     let ring = SequenceRing::new(2, 1); // Small channel
     let sender = ring.sender();
 
     // Fill channel
-    sender.try_send(SequencedRecord::new(1, "first")).unwrap();
-    sender.try_send(SequencedRecord::new(2, "second")).unwrap();
+    sender.try_send(SequencedRecord::new(1, "first"))?;
+    sender.try_send(SequencedRecord::new(2, "second"))?;
 
     // Third send should fail (channel full)
     let result = sender.try_send(SequencedRecord::new(3, "third"));
     assert!(result.is_err());
+
+    Ok(())
 }
 
 #[test]
-fn test_sequence_ring_stats() {
+fn test_sequence_ring_stats() -> TestResult {
     let mut ring = SequenceRing::new(10, 5);
     let sender = ring.sender();
 
     // Send records
     for i in 1..=5 {
-        sender
-            .send(SequencedRecord::new(i, format!("record_{i}")))
-            .unwrap();
+        sender.send(SequencedRecord::new(i, format!("record_{i}")))?;
     }
 
     // Get stats after sending (next_sequence_id hasn't advanced yet)
@@ -210,13 +210,15 @@ fn test_sequence_ring_stats() {
 
     // Receive all records
     for _ in 1..=5 {
-        assert!(ring.recv_ordered().unwrap().is_some());
+        assert!(ring.recv_ordered()?.is_some());
     }
 
     // Get final stats
     let stats = ring.stats();
     assert_eq!(stats.next_sequence_id, 6); // After receiving all 5
     assert_eq!(stats.reorder_buffer_size, 0); // All received
+
+    Ok(())
 }
 
 #[test]

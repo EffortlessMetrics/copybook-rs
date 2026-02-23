@@ -839,6 +839,7 @@ dependencies = [
  "copybook-codec-memory",
  "copybook-core",
  "copybook-error",
+ "copybook-overpunch",
  "hex",
  "indexmap",
  "metrics",
@@ -980,6 +981,15 @@ name = "copybook-overflow"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
+]
+
+[[package]]
+name = "copybook-overpunch"
+version = "0.4.3"
+dependencies = [
+ "copybook-codepage",
+ "copybook-error",
+ "proptest",
 ]
 
 [[package]]

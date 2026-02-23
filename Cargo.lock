@@ -790,10 +790,8 @@ dependencies = [
 name = "copybook-charset"
 version = "0.4.3"
 dependencies = [
- "clap",
+ "copybook-codepage",
  "copybook-error",
- "serde",
- "thiserror 2.0.18",
  "tracing",
 ]
 
@@ -862,6 +860,14 @@ dependencies = [
  "crossbeam-channel",
  "smallvec",
  "tracing",
+]
+
+[[package]]
+name = "copybook-codepage"
+version = "0.4.3"
+dependencies = [
+ "clap",
+ "serde",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [package]
-name = "copybook-charset"
+name = "copybook-codepage"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Character set conversion utilities for EBCDIC/ASCII encoding"
-documentation = "https://docs.rs/copybook-charset"
+description = "Codepage and unmappable-character policy types for copybook-rs."
+documentation = "https://docs.rs/copybook-codepage"
 readme = "README.md"
-keywords = ["cobol", "charset", "ebcdic", "encoding", "ascii"]
+keywords = ["cobol", "codepage", "ebcdic", "encoding", "ascii"]
 categories = ["encoding", "data-structures"]
 
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
@@ -21,13 +21,12 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-copybook-codepage.workspace = true
-copybook-error.workspace = true
-tracing.workspace = true
+clap = { workspace = true, optional = true }
+serde.workspace = true
 
 [features]
 default = []
-clap = ["copybook-codepage/clap"]
+clap = ["dep:clap"]
 
 [lints]
 workspace = true

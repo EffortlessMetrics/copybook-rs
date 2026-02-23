@@ -4,6 +4,5 @@
 //! This module re-exports from copybook-charset for backward compatibility.
 
 pub use copybook_charset::{
-    ebcdic_to_utf8, get_zoned_sign_table, space_byte, utf8_to_ebcdic, Codepage,
-    UnmappablePolicy,
+    Codepage, UnmappablePolicy, ebcdic_to_utf8, get_zoned_sign_table, space_byte, utf8_to_ebcdic,
 };

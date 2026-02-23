@@ -6,7 +6,7 @@ use copybook_codec::{
     encode_jsonl_to_file,
 };
 use copybook_core::{ErrorCode, parse_copybook};
-use copybook_rdw::RdwHeader;
+use copybook_rdw::{RDWRecord, RdwHeader};
 use std::io::Cursor;
 
 #[test]
@@ -57,4 +57,36 @@ fn rdw_encode_emits_header_consistent_with_microcrate() {
     assert_eq!(header.length(), 5);
     assert_eq!(header.reserved(), 0);
     assert_eq!(&output[4..], b"HELLO");
+}
+
+#[test]
+fn codec_record_writer_accepts_microcrate_record_type() {
+    let record = RDWRecord::try_with_reserved(b"ABCD".to_vec(), 0x0000)
+        .expect("microcrate should build RDW record");
+
+    let mut output = Vec::new();
+    let mut writer = copybook_codec::record::RDWRecordWriter::new(&mut output);
+    writer
+        .write_record(&record)
+        .expect("codec writer should accept microcrate record");
+
+    assert_eq!(writer.record_count(), 1);
+    assert_eq!(output, vec![0x00, 0x04, 0x00, 0x00, b'A', b'B', b'C', b'D']);
+}
+
+#[test]
+fn codec_rdw_reader_returns_microcrate_record_shape() {
+    let data = vec![0x00, 0x03, 0x00, 0x00, b'X', b'Y', b'Z'];
+    let mut reader = copybook_codec::record::RDWRecordReader::new(Cursor::new(data), false);
+    let record = reader
+        .read_record()
+        .expect("rdw read should succeed")
+        .expect("one record expected");
+
+    assert_eq!(record.length(), 3);
+    assert_eq!(record.reserved(), 0);
+    assert_eq!(
+        record.as_bytes(),
+        vec![0x00, 0x03, 0x00, 0x00, b'X', b'Y', b'Z']
+    );
 }

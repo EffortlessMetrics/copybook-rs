@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use copybook_rdw::{
-    RDW_HEADER_LEN, RdwHeader, rdw_payload_len_to_u16, rdw_read_len, rdw_slice_body,
-    rdw_try_peek_len, rdw_validate_and_finish,
+    RDW_HEADER_LEN, RDWRecord, RDWRecordWriter, RdwHeader, rdw_payload_len_to_u16, rdw_read_len,
+    rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
 };
 use libfuzzer_sys::fuzz_target;
 use std::io::{BufRead, Cursor};
@@ -19,6 +19,25 @@ fuzz_target!(|data: &[u8]| {
         let _ = header.reserved();
         let _ = header.looks_ascii_corrupt();
         let _ = RdwHeader::from_payload_len(header.length() as usize, header.reserved());
+    }
+
+    if let Ok(record) = RDWRecord::try_with_reserved(
+        data.to_vec(),
+        if data.len() >= 2 {
+            u16::from_be_bytes([data[0], data[1]])
+        } else {
+            0
+        },
+    ) {
+        let _ = record.length();
+        let _ = record.reserved();
+        let _ = record.as_bytes();
+
+        let mut out = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut out);
+        let _ = writer.write_record(&record);
+        let _ = writer.write_record_from_payload(&record.payload, Some(record.reserved()));
+        let _ = writer.flush();
     }
 
     let mut peek_cursor = Cursor::new(data);

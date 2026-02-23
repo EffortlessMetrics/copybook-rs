@@ -761,6 +761,7 @@ dependencies = [
  "copybook-core",
  "copybook-governance",
  "copybook-governance-runtime",
+ "copybook-rdw",
  "cucumber",
  "futures",
  "serde",
@@ -1011,6 +1012,7 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-determinism",
+ "copybook-rdw",
  "proptest",
  "rand 0.10.0",
  "serde",
@@ -1023,6 +1025,7 @@ version = "0.4.3"
 dependencies = [
  "copybook-error",
  "proptest",
+ "tracing",
 ]
 
 [[package]]

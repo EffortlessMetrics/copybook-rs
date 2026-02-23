@@ -43,6 +43,7 @@ Feature: RDW (Record Descriptor Word) Processing
     Then encoding should succeed
     And the encoded output should be 14 bytes
     And the encoded output should start with RDW header
+    And the encoded output should round-trip through the RDW microcrate
 
   Scenario: Round-trip with RDW processing
     Given a copybook with content:

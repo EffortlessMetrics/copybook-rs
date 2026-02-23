@@ -8,6 +8,8 @@ buffered helpers for RDW framing (`peek/read/slice`).
 ## Public API
 
 - `RdwHeader`
+- `RDWRecord`
+- `RDWRecordWriter`
 - `rdw_try_peek_len`
 - `rdw_read_len`
 - `rdw_slice_body`

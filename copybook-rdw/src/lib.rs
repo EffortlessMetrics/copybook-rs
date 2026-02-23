@@ -5,8 +5,9 @@
 //! This crate intentionally focuses on one concern:
 //! parsing and constructing RDW framing metadata plus minimal buffered helpers.
 
-use copybook_error::{Error, ErrorCode, Result};
-use std::io::BufRead;
+use copybook_error::{Error, ErrorCode, ErrorContext, Result};
+use std::io::{BufRead, Write};
+use tracing::debug;
 
 /// Size of an RDW header in bytes.
 pub const RDW_HEADER_LEN: usize = 4;
@@ -204,10 +205,247 @@ pub fn rdw_try_peek_len<R: BufRead>(reader: &mut R) -> Result<Option<()>> {
     Ok(Some(()))
 }
 
+/// An RDW record with header and payload bytes.
+#[derive(Debug, Clone)]
+pub struct RDWRecord {
+    /// 4-byte RDW header (length + reserved).
+    pub header: [u8; RDW_HEADER_LEN],
+    /// Record payload bytes.
+    pub payload: Vec<u8>,
+}
+
+impl RDWRecord {
+    /// Create a new RDW record from payload (fallible constructor).
+    ///
+    /// # Errors
+    /// Returns an error when payload length exceeds `u16::MAX`.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn try_new(payload: Vec<u8>) -> Result<Self> {
+        let header = RdwHeader::from_payload_len(payload.len(), 0)?.bytes();
+        Ok(Self { header, payload })
+    }
+
+    /// Create a new RDW record from payload.
+    ///
+    /// # Panics
+    /// Panics when payload length exceeds `u16::MAX`.
+    #[deprecated(
+        since = "0.4.3",
+        note = "use try_new() instead for fallible construction"
+    )]
+    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
+    #[inline]
+    #[must_use]
+    pub fn new(payload: Vec<u8>) -> Self {
+        Self::try_new(payload).expect("RDW payload exceeds maximum size (65535 bytes)")
+    }
+
+    /// Create an RDW record preserving reserved bytes (fallible constructor).
+    ///
+    /// # Errors
+    /// Returns an error when payload length exceeds `u16::MAX`.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn try_with_reserved(payload: Vec<u8>, reserved: u16) -> Result<Self> {
+        let header = RdwHeader::from_payload_len(payload.len(), reserved)?.bytes();
+        Ok(Self { header, payload })
+    }
+
+    /// Create an RDW record preserving reserved bytes.
+    ///
+    /// # Panics
+    /// Panics when payload length exceeds `u16::MAX`.
+    #[deprecated(
+        since = "0.4.3",
+        note = "use try_with_reserved() instead for fallible construction"
+    )]
+    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
+    #[inline]
+    #[must_use]
+    pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
+        Self::try_with_reserved(payload, reserved)
+            .expect("RDW payload exceeds maximum size (65535 bytes)")
+    }
+
+    /// Get payload length from header.
+    #[inline]
+    #[must_use]
+    pub fn length(&self) -> u16 {
+        RdwHeader::from_bytes(self.header).length()
+    }
+
+    /// Get reserved bytes from header.
+    #[inline]
+    #[must_use]
+    pub fn reserved(&self) -> u16 {
+        RdwHeader::from_bytes(self.header).reserved()
+    }
+
+    /// Recompute the header length field from payload length.
+    ///
+    /// # Errors
+    /// Returns an error when payload length exceeds `u16::MAX`.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn try_recompute_length(&mut self) -> Result<()> {
+        self.header = RdwHeader::from_payload_len(self.payload.len(), self.reserved())?.bytes();
+        Ok(())
+    }
+
+    /// Recompute the header length field from payload length.
+    ///
+    /// # Panics
+    /// Panics when payload length exceeds `u16::MAX`.
+    #[deprecated(
+        since = "0.4.3",
+        note = "use try_recompute_length() instead for fallible operation"
+    )]
+    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
+    #[inline]
+    pub fn recompute_length(&mut self) {
+        self.try_recompute_length()
+            .expect("RDW payload exceeds maximum size (65535 bytes)");
+    }
+
+    /// Serialize record as `header + payload`.
+    #[inline]
+    #[must_use]
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut result = Vec::with_capacity(RDW_HEADER_LEN + self.payload.len());
+        result.extend_from_slice(&self.header);
+        result.extend_from_slice(&self.payload);
+        result
+    }
+}
+
+/// RDW record writer for variable-length records.
+#[derive(Debug)]
+pub struct RDWRecordWriter<W: Write> {
+    output: W,
+    record_count: u64,
+}
+
+impl<W: Write> RDWRecordWriter<W> {
+    /// Create a new RDW record writer.
+    #[inline]
+    #[must_use]
+    pub fn new(output: W) -> Self {
+        Self {
+            output,
+            record_count: 0,
+        }
+    }
+
+    /// Write an RDW record.
+    ///
+    /// # Errors
+    /// Returns an error if writing header or payload fails.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn write_record(&mut self, record: &RDWRecord) -> Result<()> {
+        self.output.write_all(&record.header).map_err(|e| {
+            Error::new(
+                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                format!("I/O error writing RDW header: {e}"),
+            )
+            .with_context(ErrorContext {
+                record_index: Some(self.record_count + 1),
+                field_path: None,
+                byte_offset: None,
+                line_number: None,
+                details: None,
+            })
+        })?;
+
+        self.output.write_all(&record.payload).map_err(|e| {
+            Error::new(
+                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                format!("I/O error writing RDW payload: {e}"),
+            )
+            .with_context(ErrorContext {
+                record_index: Some(self.record_count + 1),
+                field_path: None,
+                byte_offset: Some(4),
+                line_number: None,
+                details: None,
+            })
+        })?;
+
+        self.record_count += 1;
+        debug!(
+            "Wrote RDW record {} with {} byte payload",
+            self.record_count,
+            record.payload.len()
+        );
+        Ok(())
+    }
+
+    /// Write an RDW record directly from payload.
+    ///
+    /// # Errors
+    /// Returns an error if payload length exceeds `u16::MAX` or I/O fails.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn write_record_from_payload(
+        &mut self,
+        payload: &[u8],
+        preserve_reserved: Option<u16>,
+    ) -> Result<()> {
+        let length = payload.len();
+        let header =
+            RdwHeader::from_payload_len(length, preserve_reserved.unwrap_or(0)).map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "RDW payload too large: {length} bytes exceeds maximum of {}",
+                        u16::MAX
+                    ),
+                )
+                .with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: None,
+                    line_number: None,
+                    details: Some("RDW length field is 16-bit".to_string()),
+                })
+            })?;
+
+        let record = RDWRecord {
+            header: header.bytes(),
+            payload: payload.to_vec(),
+        };
+        self.write_record(&record)
+    }
+
+    /// Flush writer output.
+    ///
+    /// # Errors
+    /// Returns an error when flush fails.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn flush(&mut self) -> Result<()> {
+        self.output.flush().map_err(|e| {
+            Error::new(
+                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                format!("I/O error flushing output: {e}"),
+            )
+        })
+    }
+
+    /// Number of written RDW records.
+    #[inline]
+    #[must_use]
+    pub fn record_count(&self) -> u64 {
+        self.record_count
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+    use proptest::collection::vec;
     use proptest::prelude::*;
     use std::io::{BufRead, Cursor};
 
@@ -260,6 +498,100 @@ mod tests {
         assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
     }
 
+    #[test]
+    fn rdw_record_try_new_roundtrip() {
+        let record = RDWRecord::try_new(b"hello".to_vec()).unwrap();
+        assert_eq!(record.length(), 5);
+        assert_eq!(record.reserved(), 0);
+        assert_eq!(record.payload, b"hello");
+    }
+
+    #[test]
+    fn rdw_record_try_with_reserved_roundtrip() {
+        let record = RDWRecord::try_with_reserved(b"test".to_vec(), 0x1234).unwrap();
+        assert_eq!(record.length(), 4);
+        assert_eq!(record.reserved(), 0x1234);
+        assert_eq!(record.payload, b"test");
+    }
+
+    #[test]
+    fn rdw_record_try_recompute_updates_length() {
+        let mut record = RDWRecord::try_new(b"test".to_vec()).unwrap();
+        record.payload = b"longer_payload".to_vec();
+        record.try_recompute_length().unwrap();
+        assert_eq!(record.length(), 14);
+    }
+
+    #[test]
+    fn rdw_record_as_bytes_prepends_header() {
+        let record = RDWRecord::try_new(b"hi".to_vec()).unwrap();
+        assert_eq!(record.as_bytes(), vec![0, 2, 0, 0, b'h', b'i']);
+    }
+
+    #[test]
+    fn rdw_writer_writes_record() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        let record = RDWRecord::try_new(b"test".to_vec()).unwrap();
+        writer.write_record(&record).unwrap();
+        assert_eq!(writer.record_count(), 1);
+        assert_eq!(output, vec![0, 4, 0, 0, b't', b'e', b's', b't']);
+    }
+
+    #[test]
+    fn rdw_writer_writes_record_from_payload_with_reserved() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        writer
+            .write_record_from_payload(b"test", Some(0x1234))
+            .unwrap();
+        assert_eq!(output, vec![0, 4, 0x12, 0x34, b't', b'e', b's', b't']);
+    }
+
+    #[test]
+    fn rdw_writer_payload_too_large_is_cbke501() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        let large_payload = vec![0u8; usize::from(u16::MAX) + 1];
+        let err = writer
+            .write_record_from_payload(&large_payload, None)
+            .unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    }
+
+    #[test]
+    fn rdw_record_oversize_try_new_is_cbkf102() {
+        let large_payload = vec![0u8; usize::from(u16::MAX) + 1];
+        let err = RDWRecord::try_new(large_payload).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(err.message.contains("RDW payload too large"));
+    }
+
+    #[test]
+    fn rdw_record_oversize_try_with_reserved_is_cbkf102() {
+        let large_payload = vec![0u8; usize::from(u16::MAX) + 1];
+        let err = RDWRecord::try_with_reserved(large_payload, 0x1234).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(err.message.contains("RDW payload too large"));
+    }
+
+    #[test]
+    fn rdw_record_oversize_try_recompute_is_cbkf102() {
+        let mut record = RDWRecord::try_new(b"test".to_vec()).unwrap();
+        record.payload = vec![0u8; usize::from(u16::MAX) + 1];
+        let err = record.try_recompute_length().unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(err.message.contains("RDW payload too large"));
+    }
+
+    #[test]
+    #[should_panic(expected = "RDW payload exceeds maximum size")]
+    #[allow(deprecated)]
+    fn rdw_record_new_panics_on_oversize_payload() {
+        let payload = vec![0u8; usize::from(u16::MAX) + 1];
+        let _ = RDWRecord::new(payload);
+    }
+
     proptest! {
         #[test]
         fn prop_header_payload_len_roundtrip(payload_len in 0u16..=u16::MAX, reserved in any::<u16>()) {
@@ -275,6 +607,28 @@ mod tests {
             let expected = (b'0'..=b'9').contains(&b0) && (b'0'..=b'9').contains(&b1);
             prop_assert_eq!(rdw_is_suspect_ascii_corruption(header), expected);
             prop_assert_eq!(RdwHeader::from_bytes(header).looks_ascii_corrupt(), expected);
+        }
+
+        #[test]
+        fn prop_rdw_record_length_matches_payload(payload in vec(any::<u8>(), 0..=1024), reserved in any::<u16>()) {
+            let record = RDWRecord::try_with_reserved(payload.clone(), reserved).unwrap();
+            prop_assert_eq!(usize::from(record.length()), payload.len());
+            prop_assert_eq!(record.reserved(), reserved);
+            let bytes = record.as_bytes();
+            prop_assert_eq!(bytes.len(), RDW_HEADER_LEN + payload.len());
+            prop_assert_eq!(&bytes[RDW_HEADER_LEN..], payload.as_slice());
+        }
+
+        #[test]
+        fn prop_rdw_writer_from_payload_encodes_header(payload in vec(any::<u8>(), 0..=512), reserved in any::<u16>()) {
+            let mut output = Vec::new();
+            let mut writer = RDWRecordWriter::new(&mut output);
+            writer.write_record_from_payload(&payload, Some(reserved)).unwrap();
+            prop_assert_eq!(writer.record_count(), 1);
+            let header = RdwHeader::from_bytes(output[0..RDW_HEADER_LEN].try_into().unwrap());
+            prop_assert_eq!(usize::from(header.length()), payload.len());
+            prop_assert_eq!(header.reserved(), reserved);
+            prop_assert_eq!(&output[RDW_HEADER_LEN..], payload.as_slice());
         }
     }
 }

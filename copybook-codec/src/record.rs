@@ -3,15 +3,15 @@
 //!
 //! This module handles fixed-length and RDW variable-length record processing.
 
-use crate::options::RawMode;
 use crate::options::RecordFormat;
 use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};
-use copybook_rdw::{RdwHeader, rdw_is_suspect_ascii_corruption};
+use copybook_rdw::rdw_is_suspect_ascii_corruption;
 use std::convert::TryFrom;
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use tracing::{debug, warn};
 
+pub use copybook_rdw::{RDWRecord, RDWRecordWriter};
 pub(crate) use copybook_rdw::{
     rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
 };
@@ -683,257 +683,6 @@ impl<R: Read> RDWRecordReader<R> {
     }
 }
 
-/// RDW record writer for writing variable-length records
-#[derive(Debug)]
-pub struct RDWRecordWriter<W: Write> {
-    output: W,
-    record_count: u64,
-}
-
-impl<W: Write> RDWRecordWriter<W> {
-    /// Create a new RDW record writer
-    #[inline]
-    pub fn new(output: W) -> Self {
-        Self {
-            output,
-            record_count: 0,
-        }
-    }
-
-    /// Write an RDW record
-    ///
-    /// # Errors
-    /// Returns an error if the record cannot be written due to I/O errors.
-    #[inline]
-    #[must_use = "Handle the Result or propagate the error"]
-    pub fn write_record(&mut self, record: &RDWRecord) -> Result<()> {
-        // Write the RDW header
-        self.output.write_all(&record.header).map_err(|e| {
-            Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error writing RDW header: {e}"),
-            )
-            .with_context(ErrorContext {
-                record_index: Some(self.record_count + 1),
-                field_path: None,
-                byte_offset: None,
-                line_number: None,
-                details: None,
-            })
-        })?;
-
-        // Write the payload
-        self.output.write_all(&record.payload).map_err(|e| {
-            Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error writing RDW payload: {e}"),
-            )
-            .with_context(ErrorContext {
-                record_index: Some(self.record_count + 1),
-                field_path: None,
-                byte_offset: Some(4),
-                line_number: None,
-                details: None,
-            })
-        })?;
-
-        self.record_count += 1;
-        debug!(
-            "Wrote RDW record {} with {} byte payload",
-            self.record_count,
-            record.payload.len()
-        );
-
-        Ok(())
-    }
-
-    /// Write a record from payload data, generating the RDW header
-    ///
-    /// # Errors
-    /// Returns an error if the record cannot be written due to I/O errors.
-    #[inline]
-    #[must_use = "Handle the Result or propagate the error"]
-    pub fn write_record_from_payload(
-        &mut self,
-        payload: &[u8],
-        preserve_reserved: Option<u16>,
-    ) -> Result<()> {
-        let length = payload.len();
-
-        let header =
-            RdwHeader::from_payload_len(length, preserve_reserved.unwrap_or(0)).map_err(|_| {
-                Error::new(
-                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                    format!(
-                        "RDW payload too large: {length} bytes exceeds maximum of {}",
-                        u16::MAX
-                    ),
-                )
-                .with_context(ErrorContext {
-                    record_index: Some(self.record_count + 1),
-                    field_path: None,
-                    byte_offset: None,
-                    line_number: None,
-                    details: Some("RDW length field is 16-bit".to_string()),
-                })
-            })?;
-
-        let record = RDWRecord {
-            header: header.bytes(),
-            payload: payload.to_vec(),
-        };
-
-        self.write_record(&record)
-    }
-
-    /// Flush the output
-    ///
-    /// # Errors
-    /// Returns an error if the flush operation fails.
-    #[inline]
-    #[must_use = "Handle the Result or propagate the error"]
-    pub fn flush(&mut self) -> Result<()> {
-        self.output.flush().map_err(|e| {
-            Error::new(
-                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-                format!("I/O error flushing output: {e}"),
-            )
-        })
-    }
-
-    /// Get the current record count
-    #[must_use]
-    #[inline]
-    pub fn record_count(&self) -> u64 {
-        self.record_count
-    }
-}
-
-/// An RDW record with header and payload
-#[derive(Debug, Clone)]
-pub struct RDWRecord {
-    /// 4-byte RDW header (length + reserved)
-    pub header: [u8; 4],
-    /// Record payload data
-    pub payload: Vec<u8>,
-}
-
-impl RDWRecord {
-    /// Create a new RDW record from payload (fallible version)
-    ///
-    /// # Errors
-    /// Returns an error if the payload exceeds the maximum RDW record size (65535 bytes).
-    #[inline]
-    #[must_use = "Handle the Result or propagate the error"]
-    pub fn try_new(payload: Vec<u8>) -> Result<Self> {
-        let header = RdwHeader::from_payload_len(payload.len(), 0)?.bytes();
-
-        Ok(Self { header, payload })
-    }
-
-    /// Create a new RDW record from payload
-    ///
-    /// # Panics
-    /// Panics if payload exceeds 65535 bytes. Prefer [`Self::try_new`] for fallible construction.
-    #[deprecated(
-        since = "0.4.2",
-        note = "use try_new() instead for fallible construction"
-    )]
-    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
-    #[must_use]
-    #[inline]
-    pub fn new(payload: Vec<u8>) -> Self {
-        Self::try_new(payload).expect("RDW payload exceeds maximum size (65535 bytes)")
-    }
-
-    /// Create a new RDW record with preserved reserved bytes (fallible version)
-    ///
-    /// # Errors
-    /// Returns an error if the payload exceeds the maximum RDW record size (65535 bytes).
-    #[inline]
-    #[must_use = "Handle the Result or propagate the error"]
-    pub fn try_with_reserved(payload: Vec<u8>, reserved: u16) -> Result<Self> {
-        let header = RdwHeader::from_payload_len(payload.len(), reserved)?.bytes();
-
-        Ok(Self { header, payload })
-    }
-
-    /// Create a new RDW record with preserved reserved bytes
-    ///
-    /// # Panics
-    /// Panics if payload exceeds 65535 bytes. Prefer [`Self::try_with_reserved`] for fallible construction.
-    #[deprecated(
-        since = "0.4.2",
-        note = "use try_with_reserved() instead for fallible construction"
-    )]
-    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
-    #[must_use]
-    #[inline]
-    pub fn with_reserved(payload: Vec<u8>, reserved: u16) -> Self {
-        Self::try_with_reserved(payload, reserved)
-            .expect("RDW payload exceeds maximum size (65535 bytes)")
-    }
-
-    /// Get the length from the RDW header
-    #[must_use]
-    #[inline]
-    pub fn length(&self) -> u16 {
-        RdwHeader::from_bytes(self.header).length()
-    }
-
-    /// Get the reserved bytes from the RDW header
-    #[must_use]
-    #[inline]
-    pub fn reserved(&self) -> u16 {
-        RdwHeader::from_bytes(self.header).reserved()
-    }
-
-    /// Update the length field to match the payload size (fallible version)
-    ///
-    /// # Errors
-    /// Returns an error if the payload exceeds the maximum RDW record size (65535 bytes).
-    #[inline]
-    pub fn try_recompute_length(&mut self) -> Result<()> {
-        self.header = RdwHeader::from_payload_len(self.payload.len(), self.reserved())?.bytes();
-        Ok(())
-    }
-
-    /// Update the length field to match the payload size
-    ///
-    /// # Panics
-    /// Panics if payload exceeds 65535 bytes. Prefer [`Self::try_recompute_length`] for fallible operation.
-    #[deprecated(
-        since = "0.4.2",
-        note = "use try_recompute_length() instead for fallible operation"
-    )]
-    #[allow(clippy::expect_used)] // Intentional panic for deprecated API
-    #[inline]
-    pub fn recompute_length(&mut self) {
-        self.try_recompute_length()
-            .expect("RDW payload exceeds maximum size (65535 bytes)");
-    }
-
-    /// Get the complete record data (header + payload)
-    #[must_use]
-    #[inline]
-    pub fn as_bytes(&self) -> Vec<u8> {
-        let mut result = Vec::with_capacity(4 + self.payload.len());
-        result.extend_from_slice(&self.header);
-        result.extend_from_slice(&self.payload);
-        result
-    }
-
-    /// Get the record data for specific raw modes
-    #[must_use]
-    #[inline]
-    pub fn get_data_for_raw_mode(&self, raw_mode: RawMode) -> Vec<u8> {
-        match raw_mode {
-            RawMode::RecordRDW => self.as_bytes(), // Include RDW header
-            _ => self.payload.clone(),             // Just payload
-        }
-    }
-}
-
 /// Read a single record from input (legacy interface)
 ///
 /// # Errors
@@ -1243,16 +992,10 @@ mod tests {
     }
 
     #[test]
-    fn test_rdw_record_get_data_for_raw_mode() {
+    fn test_rdw_record_payload_and_header_views() {
         let record = RDWRecord::try_new(b"test".to_vec()).unwrap();
-
-        // Record+RDW mode includes header
-        let with_header = record.get_data_for_raw_mode(RawMode::RecordRDW);
-        assert_eq!(with_header, vec![0, 4, 0, 0, b't', b'e', b's', b't']);
-
-        // Other modes just return payload
-        let payload_only = record.get_data_for_raw_mode(RawMode::Record);
-        assert_eq!(payload_only, b"test");
+        assert_eq!(record.as_bytes(), vec![0, 4, 0, 0, b't', b'e', b's', b't']);
+        assert_eq!(record.payload, b"test");
     }
 
     #[test]

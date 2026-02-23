@@ -27,6 +27,7 @@ path = "mod.rs"
 copybook-core.workspace = true
 copybook-codec.workspace = true
 copybook-determinism.workspace = true
+copybook-rdw.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 proptest.workspace = true

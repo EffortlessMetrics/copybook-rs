@@ -16,6 +16,7 @@ mod generators;
 mod numeric;
 mod parsing;
 mod pic_clauses;
+mod rdw;
 mod redefines;
 mod roundtrip;
 

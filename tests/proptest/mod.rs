@@ -18,6 +18,7 @@ pub mod generators;
 pub mod numeric;
 pub mod parsing;
 pub mod pic_clauses;
+pub mod rdw;
 pub mod redefines;
 pub mod roundtrip;
 pub mod schema_invariants;

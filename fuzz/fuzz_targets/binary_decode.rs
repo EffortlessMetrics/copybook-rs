@@ -1,7 +1,8 @@
 #![no_main]
+// SPDX-License-Identifier: AGPL-3.0-or-later
+use copybook_codec::{Codepage, DecodeOptions, RawMode, RecordFormat, decode_record};
 use libfuzzer_sys::fuzz_target;
 use copybook_core::parse_copybook;
-use copybook_codec::{decode_record, DecodeOptions, Codepage};
 
 /// Fuzz target for binary data decoding
 ///
@@ -28,28 +29,28 @@ fuzz_target!(|data: &[u8]| {
 
     // Test with default options
     let options = DecodeOptions::default();
-    let _ = decode_record(data, &schema, &options);
+    let _ = decode_record(&schema, data, &options);
 
     // Test with different codepages
-    for codepage in [Codepage::Cp037, Codepage::Utf8, Codepage::Cp1047] {
+    for codepage in [Codepage::CP037, Codepage::ASCII, Codepage::CP1047] {
         let options = DecodeOptions {
             codepage,
             ..Default::default()
         };
-        let _ = decode_record(data, &schema, &options);
+        let _ = decode_record(&schema, data, &options);
     }
 
     // Test with RDW format
     let rdw_options = DecodeOptions {
-        record_format: copybook_codec::RecordFormat::Rdw,
+        format: RecordFormat::RDW,
         ..Default::default()
     };
-    let _ = decode_record(data, &schema, &rdw_options);
+    let _ = decode_record(&schema, data, &rdw_options);
 
     // Test with raw mode
     let raw_options = DecodeOptions {
-        raw_mode: copybook_codec::RawMode::All,
+        emit_raw: RawMode::Record,
         ..Default::default()
     };
-    let _ = decode_record(data, &schema, &raw_options);
+    let _ = decode_record(&schema, data, &raw_options);
 });

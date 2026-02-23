@@ -1,8 +1,8 @@
 #![no_main]
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use libfuzzer_sys::fuzz_target;
+use copybook_codec::{Codepage, EncodeOptions, RecordFormat, encode_record};
 use copybook_core::parse_copybook;
-use copybook_codec::{encode_record, EncodeOptions, DecodeOptions, Codepage};
+use libfuzzer_sys::fuzz_target;
 use serde_json::Value;
 
 /// Fuzz target for JSON encoding
@@ -33,22 +33,22 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(value) = json_value {
         // Test encoding with default options
         let options = EncodeOptions::default();
-        let _ = encode_record(&value, &schema, &options);
+        let _ = encode_record(&schema, &value, &options);
 
         // Test with different codepages
-        for codepage in [Codepage::Cp037, Codepage::Utf8, Codepage::Cp1047] {
+        for codepage in [Codepage::CP037, Codepage::ASCII, Codepage::CP1047] {
             let options = EncodeOptions {
                 codepage,
                 ..Default::default()
             };
-            let _ = encode_record(&value, &schema, &options);
+            let _ = encode_record(&schema, &value, &options);
         }
 
         // Test with RDW format
         let rdw_options = EncodeOptions {
-            record_format: copybook_codec::RecordFormat::Rdw,
+            format: RecordFormat::RDW,
             ..Default::default()
         };
-        let _ = encode_record(&value, &schema, &rdw_options);
+        let _ = encode_record(&schema, &value, &rdw_options);
     }
 });

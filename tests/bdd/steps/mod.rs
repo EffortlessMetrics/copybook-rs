@@ -21,6 +21,7 @@ pub(crate) mod exit_codes;
 pub(crate) mod filler;
 pub(crate) mod json_numbers;
 pub(crate) mod metadata;
+pub(crate) mod options_contracts;
 pub(crate) mod parallel;
 pub(crate) mod parsing_modes;
 pub(crate) mod raw_capture;

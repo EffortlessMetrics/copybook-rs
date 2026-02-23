@@ -842,6 +842,7 @@ dependencies = [
  "copybook-determinism",
  "copybook-error",
  "copybook-fixed",
+ "copybook-options",
  "copybook-overpunch",
  "copybook-rdw",
  "hex",
@@ -998,6 +999,17 @@ version = "0.4.3"
 dependencies = [
  "copybook-governance-grid",
  "serde",
+]
+
+[[package]]
+name = "copybook-options"
+version = "0.4.3"
+dependencies = [
+ "clap",
+ "copybook-charset",
+ "proptest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

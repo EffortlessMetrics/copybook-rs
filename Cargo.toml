@@ -11,6 +11,7 @@ members = [
     "copybook-determinism",
     "copybook-codepage",
     "copybook-charset",
+    "copybook-options",
     "copybook-core",
     "copybook-dialect",
     "copybook-codec",
@@ -59,6 +60,7 @@ copybook-overpunch = { version = "=0.4.3", path = "copybook-overpunch" }
 copybook-determinism = { version = "=0.4.3", path = "copybook-determinism" }
 copybook-codepage = { version = "=0.4.3", path = "copybook-codepage" }
 copybook-charset = { version = "=0.4.3", path = "copybook-charset" }
+copybook-options = { version = "=0.4.3", path = "copybook-options" }
 copybook-core = { version = "=0.4.3", path = "copybook-core" }
 copybook-dialect = { version = "=0.4.3", path = "copybook-dialect" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }

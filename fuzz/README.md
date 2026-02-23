@@ -43,6 +43,7 @@ cargo fuzz run <target> <crash_file>
 | `rdw_header` | Fuzz RDW header parsing/framing primitives |
 | `fixed_record` | Fuzz fixed-length (LRECL) record framing primitives |
 | `determinism_compare` | Fuzz determinism hash/diff comparison primitives |
+| `options_contract` | Fuzz options microcrate serde and builder contracts |
 
 ## Directory Structure
 
@@ -59,7 +60,8 @@ fuzz/
 │   ├── redefines.rs
 │   ├── rdw_header.rs
 │   ├── fixed_record.rs
-│   └── determinism_compare.rs
+│   ├── determinism_compare.rs
+│   └── options_contract.rs
 └── corpus/                 # Initial corpus for each target
     ├── copybook_parse/
     ├── binary_decode/
@@ -69,7 +71,8 @@ fuzz/
     ├── redefines/
     ├── rdw_header/
     ├── fixed_record/
-    └── determinism_compare/
+    ├── determinism_compare/
+    └── options_contract/
 ```
 
 ## Corpus Management

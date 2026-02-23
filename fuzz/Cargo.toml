@@ -24,12 +24,16 @@ workspace = true
 libfuzzer-sys = "0.4.10"
 copybook-core = { path = "../copybook-core" }
 copybook-codec = { path = "../copybook-codec" }
+copybook-rdw = { path = "../copybook-rdw" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
 
 [[bin]]
 name = "copybook_parse"
@@ -54,3 +58,7 @@ path = "fuzz_targets/occurs_odo.rs"
 [[bin]]
 name = "redefines"
 path = "fuzz_targets/redefines.rs"
+
+[[bin]]
+name = "rdw_header"
+path = "fuzz_targets/rdw_header.rs"

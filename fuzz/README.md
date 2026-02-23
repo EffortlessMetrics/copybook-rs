@@ -40,6 +40,7 @@ cargo fuzz run <target> <crash_file>
 | `pic_clause` | Fuzz PIC clause parsing |
 | `occurs_odo` | Fuzz OCCURS/ODO handling |
 | `redefines` | Fuzz REDEFINES processing |
+| `rdw_header` | Fuzz RDW header parsing/framing primitives |
 
 ## Directory Structure
 
@@ -53,14 +54,16 @@ fuzz/
 │   ├── json_encode.rs
 │   ├── pic_clause.rs
 │   ├── occurs_odo.rs
-│   └── redefines.rs
+│   ├── redefines.rs
+│   └── rdw_header.rs
 └── corpus/                 # Initial corpus for each target
     ├── copybook_parse/
     ├── binary_decode/
     ├── json_encode/
     ├── pic_clause/
     ├── occurs_odo/
-    └── redefines/
+    ├── redefines/
+    └── rdw_header/
 ```
 
 ## Corpus Management

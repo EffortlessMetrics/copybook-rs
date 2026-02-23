@@ -840,6 +840,7 @@ dependencies = [
  "copybook-core",
  "copybook-error",
  "copybook-overpunch",
+ "copybook-rdw",
  "hex",
  "indexmap",
  "metrics",
@@ -1004,6 +1005,14 @@ dependencies = [
  "rand 0.10.0",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "copybook-rdw"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "proptest",
 ]
 
 [[package]]

@@ -85,6 +85,18 @@ Feature: RDW (Record Descriptor Word) Processing
     Then decoding should fail
     And error should contain "RDW"
 
+  Scenario: RDW header validation rejects ASCII-corrupted length bytes
+    Given a copybook with content:
+      """
+      01 ASCII-CORRUPT-RECORD PIC X(5).
+      """
+    And RDW record format
+    And ASCII codepage
+    And binary data: "12\x00\x00HELLO"
+    When the binary data is decoded
+    Then decoding should fail
+    And error should contain "ASCII-corrupted"
+
   Scenario: Multiple records with RDW processing
     Given a copybook with content:
       """

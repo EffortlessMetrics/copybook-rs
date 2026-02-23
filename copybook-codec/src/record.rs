@@ -7,103 +7,14 @@ use crate::options::RawMode;
 use crate::options::RecordFormat;
 use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};
+use copybook_rdw::{RdwHeader, rdw_is_suspect_ascii_corruption};
 use std::convert::TryFrom;
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use tracing::{debug, warn};
 
-/// Read a 2-byte big-endian RDW *body length* and consume the header.
-///
-/// # Errors
-/// Returns an error if the header is malformed or cannot be read.
-/// EOF/short header handling is done by the caller (see `rdw_try_peek_len`).
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub(crate) fn rdw_read_len<R: BufRead>(r: &mut R) -> Result<u16> {
-    let buf = r.fill_buf().map_err(|e| {
-        Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-            format!("I/O error peeking RDW length: {e}"),
-        )
-    })?;
-    if buf.len() < 2 {
-        return Err(Error::new(
-            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-            format!(
-                "Incomplete RDW header: expected 2 bytes for length (have {})",
-                buf.len()
-            ),
-        ));
-    }
-
-    let hi = buf[0];
-    let lo = buf[1];
-    r.consume(2);
-
-    Ok(u16::from_be_bytes([hi, lo]))
-}
-
-/// Borrow the RDW body slice for `len` bytes without consuming.
-///
-/// # Errors
-/// Returns an error if fewer than `len` bytes are currently available in the buffer.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub(crate) fn rdw_slice_body<R: BufRead>(r: &mut R, len: u16) -> Result<&[u8]> {
-    let need = usize::from(len);
-    if need == 0 {
-        return Ok(&[]);
-    }
-
-    let buf = r.fill_buf().map_err(|e| {
-        Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-            format!("I/O error reading RDW payload: {e}"),
-        )
-    })?;
-
-    if buf.len() < need {
-        return Err(Error::new(
-            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-            format!(
-                "Incomplete RDW record payload: expected {} bytes (have {})",
-                need,
-                buf.len()
-            ),
-        ));
-    }
-
-    Ok(&buf[..need])
-}
-
-/// Validate the RDW body slice (placeholder; extend with CRC/terminator later).
-///
-/// # Errors
-/// Returns an error if additional format checks fail (currently none).
-#[inline]
-pub(crate) fn rdw_validate_and_finish(body: &[u8]) -> &[u8] {
-    body
-}
-
-/// Helper for EOF/short-header detection used by readers/iterators.
-/// - 0 or 1 buffered bytes → `Ok(None)` (treat as EOF/short read, not an error)
-/// - ≥ 2 bytes             → `Ok(Some(()))` (caller may proceed to `rdw_read_len`)
-///
-/// # Errors
-/// Returns an error if the RDW header cannot be peeked from the underlying reader.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub(crate) fn rdw_try_peek_len<R: BufRead>(r: &mut R) -> Result<Option<()>> {
-    let buf = r.fill_buf().map_err(|e| {
-        Error::new(
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
-            format!("I/O error peeking RDW header: {e}"),
-        )
-    })?;
-    if buf.len() <= 1 {
-        return Ok(None);
-    }
-    Ok(Some(()))
-}
+pub(crate) use copybook_rdw::{
+    rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
+};
 
 /// Fixed record reader for processing fixed-length records
 #[derive(Debug)]
@@ -761,12 +672,7 @@ impl<R: Read> RDWRecordReader<R> {
 
     /// Detect ASCII transfer corruption heuristic
     fn is_suspect_ascii_corruption(rdw_header: [u8; 4]) -> bool {
-        // Heuristic: if the length bytes look like ASCII digits, it might be corrupted
-        // ASCII digits are 0x30-0x39
-        let length_bytes = [rdw_header[0], rdw_header[1]];
-
-        // Check if both length bytes are ASCII digits
-        length_bytes.iter().all(|&b| (0x30..=0x39).contains(&b))
+        rdw_is_suspect_ascii_corruption(rdw_header)
     }
 
     /// Get the current record count
@@ -854,35 +760,26 @@ impl<W: Write> RDWRecordWriter<W> {
     ) -> Result<()> {
         let length = payload.len();
 
-        let length_u16 = u16::try_from(length).map_err(|_| {
-            Error::new(
-                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
-                format!(
-                    "RDW payload too large: {length} bytes exceeds maximum of {}",
-                    u16::MAX
-                ),
-            )
-            .with_context(ErrorContext {
-                record_index: Some(self.record_count + 1),
-                field_path: None,
-                byte_offset: None,
-                line_number: None,
-                details: Some("RDW length field is 16-bit".to_string()),
-            })
-        })?;
-
-        // Create RDW header
-        let length_bytes = length_u16.to_be_bytes();
-        let reserved_bytes = preserve_reserved.unwrap_or(0).to_be_bytes();
-        let header = [
-            length_bytes[0],
-            length_bytes[1],
-            reserved_bytes[0],
-            reserved_bytes[1],
-        ];
+        let header =
+            RdwHeader::from_payload_len(length, preserve_reserved.unwrap_or(0)).map_err(|_| {
+                Error::new(
+                    ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                    format!(
+                        "RDW payload too large: {length} bytes exceeds maximum of {}",
+                        u16::MAX
+                    ),
+                )
+                .with_context(ErrorContext {
+                    record_index: Some(self.record_count + 1),
+                    field_path: None,
+                    byte_offset: None,
+                    line_number: None,
+                    details: Some("RDW length field is 16-bit".to_string()),
+                })
+            })?;
 
         let record = RDWRecord {
-            header,
+            header: header.bytes(),
             payload: payload.to_vec(),
         };
 
@@ -912,21 +809,6 @@ impl<W: Write> RDWRecordWriter<W> {
     }
 }
 
-/// Convert payload length to u16, returning CBKF102 error if too large.
-#[inline]
-fn rdw_payload_len_to_u16(len: usize) -> Result<u16> {
-    u16::try_from(len).map_err(|_| {
-        Error::new(
-            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
-            format!(
-                "RDW payload too large: {} bytes exceeds maximum of {}",
-                len,
-                u16::MAX
-            ),
-        )
-    })
-}
-
 /// An RDW record with header and payload
 #[derive(Debug, Clone)]
 pub struct RDWRecord {
@@ -944,9 +826,7 @@ impl RDWRecord {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn try_new(payload: Vec<u8>) -> Result<Self> {
-        let length = rdw_payload_len_to_u16(payload.len())?;
-        let length_bytes = length.to_be_bytes();
-        let header = [length_bytes[0], length_bytes[1], 0, 0]; // Reserved bytes are zero
+        let header = RdwHeader::from_payload_len(payload.len(), 0)?.bytes();
 
         Ok(Self { header, payload })
     }
@@ -973,15 +853,7 @@ impl RDWRecord {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn try_with_reserved(payload: Vec<u8>, reserved: u16) -> Result<Self> {
-        let length = rdw_payload_len_to_u16(payload.len())?;
-        let length_bytes = length.to_be_bytes();
-        let reserved_bytes = reserved.to_be_bytes();
-        let header = [
-            length_bytes[0],
-            length_bytes[1],
-            reserved_bytes[0],
-            reserved_bytes[1],
-        ];
+        let header = RdwHeader::from_payload_len(payload.len(), reserved)?.bytes();
 
         Ok(Self { header, payload })
     }
@@ -1006,14 +878,14 @@ impl RDWRecord {
     #[must_use]
     #[inline]
     pub fn length(&self) -> u16 {
-        u16::from_be_bytes([self.header[0], self.header[1]])
+        RdwHeader::from_bytes(self.header).length()
     }
 
     /// Get the reserved bytes from the RDW header
     #[must_use]
     #[inline]
     pub fn reserved(&self) -> u16 {
-        u16::from_be_bytes([self.header[2], self.header[3]])
+        RdwHeader::from_bytes(self.header).reserved()
     }
 
     /// Update the length field to match the payload size (fallible version)
@@ -1022,10 +894,7 @@ impl RDWRecord {
     /// Returns an error if the payload exceeds the maximum RDW record size (65535 bytes).
     #[inline]
     pub fn try_recompute_length(&mut self) -> Result<()> {
-        let length = rdw_payload_len_to_u16(self.payload.len())?;
-        let length_bytes = length.to_be_bytes();
-        self.header[0] = length_bytes[0];
-        self.header[1] = length_bytes[1];
+        self.header = RdwHeader::from_payload_len(self.payload.len(), self.reserved())?.bytes();
         Ok(())
     }
 

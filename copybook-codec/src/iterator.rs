@@ -213,6 +213,7 @@
 
 use crate::options::{DecodeOptions, RecordFormat};
 use copybook_core::{Error, ErrorCode, Result, Schema};
+use copybook_rdw::RdwHeader;
 use serde_json::Value;
 use std::io::{BufReader, Read};
 
@@ -425,7 +426,7 @@ impl<R: Read> RecordIterator<R> {
                 }
 
                 // Parse length (payload bytes only)
-                let length = u16::from_be_bytes([rdw_header[0], rdw_header[1]]) as usize;
+                let length = usize::from(RdwHeader::from_bytes(rdw_header).length());
 
                 // Read payload
                 self.buffer.resize(length, 0);

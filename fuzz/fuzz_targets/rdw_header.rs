@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use copybook_rdw::{
-    RDW_HEADER_LEN, RDWRecord, RDWRecordWriter, RdwHeader, rdw_payload_len_to_u16, rdw_read_len,
-    rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
+    RDW_HEADER_LEN, RDWRecord, RDWRecordReader, RDWRecordWriter, RdwHeader, rdw_payload_len_to_u16,
+    rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
 };
 use libfuzzer_sys::fuzz_target;
 use std::io::{BufRead, Cursor};
@@ -49,5 +49,12 @@ fuzz_target!(|data: &[u8]| {
                 let _ = rdw_validate_and_finish(body);
             }
         }
+    }
+
+    let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+    while let Ok(Some(record)) = reader.read_record() {
+        let _ = record.length();
+        let _ = record.reserved();
+        let _ = record.as_bytes();
     }
 });

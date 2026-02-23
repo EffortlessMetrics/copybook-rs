@@ -6,7 +6,7 @@ use copybook_codec::{
     encode_jsonl_to_file,
 };
 use copybook_core::{ErrorCode, parse_copybook};
-use copybook_rdw::{RDWRecord, RdwHeader};
+use copybook_rdw::{RDWRecord, RDWRecordReader, RdwHeader};
 use std::io::Cursor;
 
 #[test]
@@ -88,5 +88,38 @@ fn codec_rdw_reader_returns_microcrate_record_shape() {
     assert_eq!(
         record.as_bytes(),
         vec![0x00, 0x03, 0x00, 0x00, b'X', b'Y', b'Z']
+    );
+}
+
+#[test]
+fn microcrate_rdw_reader_decodes_codec_encoded_output() {
+    let schema = parse_copybook(
+        r"
+        01 SIMPLE-RECORD PIC X(5).
+    ",
+    )
+    .expect("schema should parse");
+
+    let options = EncodeOptions::new()
+        .with_format(RecordFormat::RDW)
+        .with_codepage(Codepage::ASCII);
+
+    let json = r#"{"schema":"copybook.v1","record_index":0,"codepage":"ASCII","fields":{"SIMPLE-RECORD":"HELLO"},"SIMPLE-RECORD":"HELLO"}"#;
+    let mut output = Vec::new();
+
+    encode_jsonl_to_file(&schema, Cursor::new(json.as_bytes()), &mut output, &options)
+        .expect("RDW encode should succeed");
+
+    let mut reader = RDWRecordReader::new(Cursor::new(output), false);
+    let record = reader
+        .read_record()
+        .expect("microcrate reader should parse output")
+        .expect("one record expected");
+    assert_eq!(record.payload, b"HELLO");
+    assert!(
+        reader
+            .read_record()
+            .expect("EOF read should succeed")
+            .is_none()
     );
 }

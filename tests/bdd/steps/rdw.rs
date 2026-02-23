@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::RecordFormat;
 use copybook_rdw::{
-    RdwHeader, rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
+    RDWRecordReader, RdwHeader, rdw_read_len, rdw_slice_body, rdw_try_peek_len,
+    rdw_validate_and_finish,
 };
 use cucumber::{given, then};
 use std::io::{BufRead, Cursor};
@@ -61,5 +62,37 @@ async fn then_encoded_output_roundtrips_through_rdw_microcrate(world: &mut Copyb
         usize::from(header.length()),
         payload.len(),
         "RDW header length should match payload length"
+    );
+}
+
+#[then(expr = "the encoded output should be readable by the RDW reader microcrate")]
+async fn then_encoded_output_readable_by_rdw_reader_microcrate(world: &mut CopybookWorld) {
+    let output = world
+        .encoded_output
+        .as_ref()
+        .expect("Encoded output not set");
+
+    let mut reader = RDWRecordReader::new(Cursor::new(output.as_slice()), false);
+    let record = reader
+        .read_record()
+        .expect("RDW reader should parse encoded output")
+        .expect("one RDW record should be present");
+
+    let header = RdwHeader::from_bytes(
+        output[0..4]
+            .try_into()
+            .expect("Encoded output should include 4-byte RDW header"),
+    );
+    assert_eq!(
+        usize::from(header.length()),
+        record.payload.len(),
+        "RDW reader payload length should match header length"
+    );
+    assert!(
+        reader
+            .read_record()
+            .expect("reader EOF check should succeed")
+            .is_none(),
+        "Encoded output should contain exactly one RDW record for this scenario"
     );
 }

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::expect_used)]
 
-use copybook_rdw::{RDW_HEADER_LEN, RDWRecord, RDWRecordWriter, RdwHeader, rdw_payload_len_to_u16};
+use copybook_rdw::{
+    RDW_HEADER_LEN, RDWRecord, RDWRecordReader, RDWRecordWriter, RdwHeader, rdw_payload_len_to_u16,
+};
+use std::io::Cursor;
 
 #[test]
 fn facade_exposes_rdw_record_surface() {
@@ -23,6 +26,18 @@ fn facade_exposes_rdw_writer_surface() {
     drop(writer);
     let header = RdwHeader::from_bytes(output[0..RDW_HEADER_LEN].try_into().expect("header"));
     assert_eq!(header.length(), 3);
+}
+
+#[test]
+fn facade_exposes_rdw_reader_surface() {
+    let data = vec![0x00, 0x03, 0x00, 0x00, b'A', b'P', b'I'];
+    let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+    let record = reader
+        .read_record()
+        .expect("reader should parse one record")
+        .expect("record expected");
+    assert_eq!(record.payload, b"API");
+    assert_eq!(reader.record_count(), 1);
 }
 
 #[test]

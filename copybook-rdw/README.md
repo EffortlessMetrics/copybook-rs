@@ -3,12 +3,13 @@
 RDW (Record Descriptor Word) header primitives for copybook-rs.
 
 This crate has one responsibility: parse/build RDW headers and provide
-buffered helpers for RDW framing (`peek/read/slice`).
+buffered helpers plus reader/writer types for RDW framing.
 
 ## Public API
 
 - `RdwHeader`
 - `RDWRecord`
+- `RDWRecordReader`
 - `RDWRecordWriter`
 - `rdw_try_peek_len`
 - `rdw_read_len`

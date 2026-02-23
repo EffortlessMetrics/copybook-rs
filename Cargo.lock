@@ -1036,6 +1036,7 @@ dependencies = [
 name = "copybook-rdw"
 version = "0.4.3"
 dependencies = [
+ "copybook-core",
  "copybook-error",
  "proptest",
  "tracing",

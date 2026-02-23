@@ -6,8 +6,8 @@
 #![allow(clippy::unwrap_used)]
 
 use copybook_rdw::{
-    RDW_HEADER_LEN, RDWRecord, RDWRecordWriter, RdwHeader, rdw_read_len, rdw_slice_body,
-    rdw_try_peek_len, rdw_validate_and_finish,
+    RDW_HEADER_LEN, RDWRecord, RDWRecordReader, RDWRecordWriter, RdwHeader, rdw_read_len,
+    rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
 };
 use proptest::collection::vec;
 use proptest::prelude::*;
@@ -63,5 +63,27 @@ proptest! {
 
         prop_assert_eq!(usize::from(length), payload.len());
         prop_assert_eq!(body, payload.as_slice());
+    }
+
+    #[test]
+    fn prop_rdw_writer_output_is_readable_with_reader(
+        payload in vec(any::<u8>(), 0..=1024),
+        reserved in any::<u16>(),
+    ) {
+        let mut encoded = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut encoded);
+        writer
+            .write_record_from_payload(&payload, Some(reserved))
+            .expect("bounded payload should encode");
+
+        let mut reader = RDWRecordReader::new(Cursor::new(encoded), false);
+        let record = reader
+            .read_record()
+            .expect("reader should parse encoded bytes")
+            .expect("one record expected");
+
+        prop_assert_eq!(record.payload.as_slice(), payload.as_slice());
+        prop_assert_eq!(record.reserved(), reserved);
+        prop_assert!(reader.read_record().expect("EOF read should succeed").is_none());
     }
 }

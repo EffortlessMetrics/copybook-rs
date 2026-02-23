@@ -143,6 +143,7 @@ pub mod schema;
 pub mod support_matrix;
 pub mod utils;
 
+pub use copybook_utils::{OptionExt, SliceExt, VecExt, safe_ops};
 pub use dialect::Dialect;
 pub use error::{Error, ErrorCode, ErrorContext, Result};
 pub use error_reporter::{ErrorMode, ErrorReport, ErrorReporter, ErrorSeverity, ErrorSummary};
@@ -150,7 +151,6 @@ pub use feature_flags::{Feature, FeatureCategory, FeatureFlags, FeatureFlagsHand
 pub use parser::ParseOptions;
 pub use projection::project_schema;
 pub use schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo, TailODO};
-pub use utils::{OptionExt, SliceExt, VecExt, safe_ops};
 
 #[cfg(feature = "audit")]
 pub use audit::*;

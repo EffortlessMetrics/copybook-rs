@@ -870,6 +870,7 @@ dependencies = [
  "chrono",
  "copybook-error",
  "copybook-governance-contracts",
+ "copybook-utils",
  "hex",
  "logos",
  "proptest",
@@ -958,6 +959,13 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_plain",
+]
+
+[[package]]
+name = "copybook-utils"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
 ]
 
 [[package]]

@@ -2,6 +2,7 @@
 [workspace]
 members = [
     "copybook-error",
+    "copybook-utils",
     "copybook-core",
     "copybook-codec",
     "copybook-codec-memory",
@@ -39,6 +40,7 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 [workspace.dependencies]
 # Internal workspace crates (pin exact versions for publish)
 copybook-error = { version = "=0.4.3", path = "copybook-error" }
+copybook-utils = { version = "=0.4.3", path = "copybook-utils" }
 copybook-core = { version = "=0.4.3", path = "copybook-core" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
 copybook-codec-memory = { version = "=0.4.3", path = "copybook-codec-memory" }

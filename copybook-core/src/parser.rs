@@ -661,7 +661,7 @@ impl Parser {
                     let line_number = *line;
                     // Convert line number safely, omitting from context if conversion fails
                     // to avoid silently corrupting error information with u32::MAX
-                    let safe_line_number = crate::utils::safe_ops::safe_usize_to_u32(
+                    let safe_line_number = copybook_overflow::safe_usize_to_u32(
                         line_number,
                         "error context line number",
                     )

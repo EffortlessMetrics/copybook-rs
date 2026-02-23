@@ -227,25 +227,7 @@ pub mod safe_ops {
         item_size: usize,
         context: &str,
     ) -> Result<usize> {
-        let total_size = count.checked_mul(item_size).ok_or_else(|| {
-            Error::new(
-                ErrorCode::CBKP021_ODO_NOT_TAIL,
-                format!(
-                    "Array size overflow in {}: {} * {} would overflow",
-                    context, count, item_size
-                ),
-            )
-        })?;
-
-        base.checked_add(total_size).ok_or_else(|| {
-            Error::new(
-                ErrorCode::CBKP021_ODO_NOT_TAIL,
-                format!(
-                    "Array offset overflow in {}: {} + {} would overflow",
-                    context, base, total_size
-                ),
-            )
-        })
+        copybook_overflow::safe_array_bound(base, count, item_size, context)
     }
 
     /// Safely format data into string buffer for JSON generation
@@ -302,21 +284,7 @@ pub mod safe_ops {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
-        // Fast path: direct cast if value is guaranteed to fit
-        #[allow(clippy::checked_conversions)]
-        if value <= u32::MAX as u64 {
-            // SAFETY: We just checked the bounds above
-            Ok(value as u32)
-        } else {
-            // Slow path: comprehensive error with context
-            Err(Error::new(
-                ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                format!(
-                    "Integer overflow converting u64 to u32 in {}: {} exceeds u32::MAX",
-                    context, value
-                ),
-            ))
-        }
+        copybook_overflow::safe_u64_to_u32(value, context)
     }
 
     /// Safely convert u64 to u16 with overflow checking
@@ -331,21 +299,7 @@ pub mod safe_ops {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
-        // Fast path: direct cast if value is guaranteed to fit
-        #[allow(clippy::checked_conversions)]
-        if value <= u16::MAX as u64 {
-            // SAFETY: We just checked the bounds above
-            Ok(value as u16)
-        } else {
-            // Slow path: comprehensive error with context
-            Err(Error::new(
-                ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                format!(
-                    "Integer overflow converting u64 to u16 in {}: {} exceeds u16::MAX",
-                    context, value
-                ),
-            ))
-        }
+        copybook_overflow::safe_u64_to_u16(value, context)
     }
 
     /// Safely convert usize to u32 with overflow checking
@@ -357,21 +311,7 @@ pub mod safe_ops {
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
-        // Fast path: direct cast if value is guaranteed to fit
-        #[allow(clippy::checked_conversions)]
-        if value <= u32::MAX as usize {
-            // SAFETY: We just checked the bounds above
-            Ok(value as u32)
-        } else {
-            // Slow path: comprehensive error with context
-            Err(Error::new(
-                ErrorCode::CBKS141_RECORD_TOO_LARGE,
-                format!(
-                    "Integer overflow converting usize to u32 in {}: {} exceeds u32::MAX",
-                    context, value
-                ),
-            ))
-        }
+        copybook_overflow::safe_usize_to_u32(value, context)
     }
 
     /// Access a slice index with explicit parser-aware bounds checking.

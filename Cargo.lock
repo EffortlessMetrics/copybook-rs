@@ -890,6 +890,7 @@ dependencies = [
  "copybook-error",
  "copybook-error-reporter",
  "copybook-governance-contracts",
+ "copybook-overflow",
  "copybook-utils",
  "hex",
  "logos",
@@ -975,6 +976,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-overflow"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+]
+
+[[package]]
 name = "copybook-proptest"
 version = "0.4.3"
 dependencies = [
@@ -1001,6 +1009,7 @@ name = "copybook-utils"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
+ "copybook-overflow",
 ]
 
 [[package]]

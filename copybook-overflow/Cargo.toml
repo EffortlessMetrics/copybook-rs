@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [package]
-name = "copybook-utils"
+name = "copybook-overflow"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Panic-safe utility functions and extension traits for copybook-rs"
-documentation = "https://docs.rs/copybook-utils"
+description = "Overflow-safe integer narrowing and bounds arithmetic for copybook-rs"
+documentation = "https://docs.rs/copybook-overflow"
 readme = "README.md"
-keywords = ["cobol", "copybook", "utility", "error-handling"]
+keywords = ["cobol", "overflow", "conversion", "bounds"]
 categories = ["parsing", "data-structures"]
 
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
@@ -22,7 +22,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 copybook-error.workspace = true
-copybook-overflow.workspace = true
 
 [lints]
 workspace = true

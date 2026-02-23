@@ -888,6 +888,7 @@ dependencies = [
  "chrono",
  "copybook-dialect",
  "copybook-error",
+ "copybook-error-reporter",
  "copybook-governance-contracts",
  "copybook-utils",
  "hex",
@@ -918,6 +919,14 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "copybook-error-reporter"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "tracing",
 ]
 
 [[package]]

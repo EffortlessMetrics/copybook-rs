@@ -2,6 +2,8 @@
 //! Configuration options for encoding and decoding operations
 #![allow(clippy::missing_inline_in_public_items)]
 
+// Re-export from copybook-charset for public API
+pub use copybook_charset::{Codepage, UnmappablePolicy};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -224,67 +226,6 @@ impl RecordFormat {
     }
 }
 
-/// Character encoding specification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
-pub enum Codepage {
-    /// ASCII encoding
-    ASCII,
-    /// EBCDIC Code Page 037 (US/Canada)
-    CP037,
-    /// EBCDIC Code Page 273 (Germany/Austria)
-    CP273,
-    /// EBCDIC Code Page 500 (International)
-    CP500,
-    /// EBCDIC Code Page 1047 (Open Systems)
-    CP1047,
-    /// EBCDIC Code Page 1140 (US/Canada with Euro)
-    CP1140,
-}
-
-impl Codepage {
-    /// Check if this is an ASCII codepage
-    #[must_use]
-    #[inline]
-    pub const fn is_ascii(self) -> bool {
-        matches!(self, Self::ASCII)
-    }
-
-    /// Check if this is an EBCDIC codepage
-    #[must_use]
-    #[inline]
-    pub const fn is_ebcdic(self) -> bool {
-        !self.is_ascii()
-    }
-
-    /// Get the numeric code page identifier
-    #[must_use]
-    #[inline]
-    pub const fn code_page_number(self) -> Option<u16> {
-        match self {
-            Self::ASCII => None,
-            Self::CP037 => Some(37),
-            Self::CP273 => Some(273),
-            Self::CP500 => Some(500),
-            Self::CP1047 => Some(1047),
-            Self::CP1140 => Some(1140),
-        }
-    }
-
-    /// Get a human-readable description of the codepage
-    #[must_use]
-    #[inline]
-    pub const fn description(self) -> &'static str {
-        match self {
-            Self::ASCII => "ASCII encoding",
-            Self::CP037 => "EBCDIC Code Page 037 (US/Canada)",
-            Self::CP273 => "EBCDIC Code Page 273 (Germany/Austria)",
-            Self::CP500 => "EBCDIC Code Page 500 (International)",
-            Self::CP1047 => "EBCDIC Code Page 1047 (Open Systems)",
-            Self::CP1140 => "EBCDIC Code Page 1140 (US/Canada with Euro)",
-        }
-    }
-}
-
 /// JSON number representation mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 pub enum JsonNumberMode {
@@ -332,17 +273,6 @@ pub enum RawMode {
     /// Capture record and RDW header
     #[value(name = "record+rdw")]
     RecordRDW,
-}
-
-/// Policy for handling unmappable characters during decode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
-pub enum UnmappablePolicy {
-    /// Error on unmappable characters
-    Error,
-    /// Replace with U+FFFD
-    Replace,
-    /// Skip unmappable characters
-    Skip,
 }
 
 impl Default for DecodeOptions {
@@ -652,20 +582,6 @@ impl fmt::Display for RecordFormat {
     }
 }
 
-impl fmt::Display for Codepage {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ASCII => write!(f, "ascii"),
-            Self::CP037 => write!(f, "cp037"),
-            Self::CP273 => write!(f, "cp273"),
-            Self::CP500 => write!(f, "cp500"),
-            Self::CP1047 => write!(f, "cp1047"),
-            Self::CP1140 => write!(f, "cp1140"),
-        }
-    }
-}
-
 impl fmt::Display for JsonNumberMode {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -684,17 +600,6 @@ impl fmt::Display for RawMode {
             Self::Record => write!(f, "record"),
             Self::Field => write!(f, "field"),
             Self::RecordRDW => write!(f, "record+rdw"),
-        }
-    }
-}
-
-impl fmt::Display for UnmappablePolicy {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Error => write!(f, "error"),
-            Self::Replace => write!(f, "replace"),
-            Self::Skip => write!(f, "skip"),
         }
     }
 }

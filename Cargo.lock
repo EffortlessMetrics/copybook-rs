@@ -787,6 +787,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-charset"
+version = "0.4.3"
+dependencies = [
+ "clap",
+ "copybook-error",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "copybook-cli"
 version = "0.4.3"
 dependencies = [
@@ -826,6 +837,7 @@ dependencies = [
  "base64",
  "blake3",
  "clap",
+ "copybook-charset",
  "copybook-codec-memory",
  "copybook-core",
  "copybook-error",
@@ -868,6 +880,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "copybook-dialect",
  "copybook-error",
  "copybook-governance-contracts",
  "copybook-utils",
@@ -883,6 +896,13 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "copybook-dialect"
+version = "0.4.3"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

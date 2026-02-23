@@ -24,6 +24,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 copybook-error.workspace = true
 copybook-utils.workspace = true
+copybook-dialect.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_plain.workspace = true

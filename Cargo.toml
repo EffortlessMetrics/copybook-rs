@@ -3,7 +3,9 @@
 members = [
     "copybook-error",
     "copybook-utils",
+    "copybook-charset",
     "copybook-core",
+    "copybook-dialect",
     "copybook-codec",
     "copybook-codec-memory",
     "copybook-cli",
@@ -41,7 +43,9 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 # Internal workspace crates (pin exact versions for publish)
 copybook-error = { version = "=0.4.3", path = "copybook-error" }
 copybook-utils = { version = "=0.4.3", path = "copybook-utils" }
+copybook-charset = { version = "=0.4.3", path = "copybook-charset" }
 copybook-core = { version = "=0.4.3", path = "copybook-core" }
+copybook-dialect = { version = "=0.4.3", path = "copybook-dialect" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
 copybook-codec-memory = { version = "=0.4.3", path = "copybook-codec-memory" }
 copybook-arrow = { version = "=0.4.3", path = "copybook-arrow" }

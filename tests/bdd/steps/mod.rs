@@ -25,6 +25,7 @@ pub(crate) mod options_contracts;
 pub(crate) mod parallel;
 pub(crate) mod parsing_modes;
 pub(crate) mod raw_capture;
+pub(crate) mod record_io;
 pub(crate) mod support;
 pub(crate) mod verify;
 pub(crate) mod zoned_encoding;

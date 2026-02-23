@@ -763,6 +763,7 @@ dependencies = [
  "copybook-governance",
  "copybook-governance-runtime",
  "copybook-rdw",
+ "copybook-record-io",
  "cucumber",
  "futures",
  "serde",
@@ -845,6 +846,7 @@ dependencies = [
  "copybook-options",
  "copybook-overpunch",
  "copybook-rdw",
+ "copybook-record-io",
  "hex",
  "indexmap",
  "metrics",
@@ -1038,6 +1040,7 @@ dependencies = [
  "copybook-determinism",
  "copybook-fixed",
  "copybook-rdw",
+ "copybook-record-io",
  "proptest",
  "rand 0.10.0",
  "serde",
@@ -1052,6 +1055,17 @@ dependencies = [
  "copybook-error",
  "proptest",
  "tracing",
+]
+
+[[package]]
+name = "copybook-record-io"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "copybook-fixed",
+ "copybook-options",
+ "copybook-rdw",
+ "proptest",
 ]
 
 [[package]]

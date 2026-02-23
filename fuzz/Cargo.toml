@@ -26,6 +26,7 @@ copybook-core = { path = "../copybook-core" }
 copybook-codec = { path = "../copybook-codec" }
 copybook-fixed = { path = "../copybook-fixed" }
 copybook-rdw = { path = "../copybook-rdw" }
+copybook-record-io = { path = "../copybook-record-io" }
 copybook-determinism = { path = "../copybook-determinism" }
 copybook-options = { path = "../copybook-options" }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -77,3 +78,7 @@ path = "fuzz_targets/determinism_compare.rs"
 [[bin]]
 name = "options_contract"
 path = "fuzz_targets/options_contract.rs"
+
+[[bin]]
+name = "record_io_dispatch"
+path = "fuzz_targets/record_io_dispatch.rs"

@@ -27,6 +27,7 @@ TARGETS=(
     "pic_clause"
     "occurs_odo"
     "redefines"
+    "record_io_dispatch"
 )
 
 # Function to print usage

@@ -18,6 +18,7 @@ mod numeric;
 mod parsing;
 mod pic_clauses;
 mod rdw;
+mod record_io;
 mod redefines;
 mod roundtrip;
 

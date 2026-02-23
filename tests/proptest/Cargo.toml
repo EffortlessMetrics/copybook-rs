@@ -29,6 +29,7 @@ copybook-codec.workspace = true
 copybook-determinism.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
+copybook-record-io.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 proptest.workspace = true

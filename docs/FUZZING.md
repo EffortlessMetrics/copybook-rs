@@ -29,6 +29,7 @@ The project includes the following fuzz targets:
 | `pic_clause` | Fuzz PIC clause parsing | `copybook-core::pic` |
 | `occurs_odo` | Fuzz OCCURS/ODO handling | `copybook-core::layout` |
 | `redefines` | Fuzz REDEFINES processing | `copybook-core::layout` |
+| `record_io_dispatch` | Fuzz fixed-vs-RDW record dispatch facade | `copybook-record-io` |
 
 ### Target Descriptions
 
@@ -87,6 +88,14 @@ Tests REDEFINES clauses with various inputs including:
 - REDEFINES with ODO
 - Invalid REDEFINES positioning
 - Complex REDEFINES hierarchies
+
+#### record_io_dispatch
+
+Tests the record I/O dispatch microcrate with various inputs including:
+- Fixed and RDW format selector permutations
+- Valid and invalid fixed-format LRECL contracts
+- RDW header/payload framing through dispatch helpers
+- Raw malformed buffers and truncated inputs
 
 ## Running Fuzzers Locally
 

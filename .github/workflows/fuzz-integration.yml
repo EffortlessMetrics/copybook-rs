@@ -22,6 +22,7 @@ on:
           - pic_clause
           - occurs_odo
           - redefines
+          - record_io_dispatch
   schedule:
     # Run nightly at 2 AM UTC
     - cron: '0 2 * * *'
@@ -29,6 +30,7 @@ on:
     paths:
       - 'copybook-core/**'
       - 'copybook-codec/**'
+      - 'copybook-record-io/**'
       - 'fuzz/**'
       - '.github/workflows/fuzz-integration.yml'
 
@@ -65,6 +67,8 @@ jobs:
           - target: occurs_odo
             package: copybook-fuzz
           - target: redefines
+            package: copybook-fuzz
+          - target: record_io_dispatch
             package: copybook-fuzz
 
     steps:
@@ -162,6 +166,7 @@ jobs:
           echo "| pic_clause | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| occurs_odo | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| redefines | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| record_io_dispatch | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "- Review any crash artifacts uploaded" >> $GITHUB_STEP_SUMMARY

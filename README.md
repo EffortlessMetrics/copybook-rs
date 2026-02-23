@@ -165,7 +165,7 @@ Exit code 0 indicates success; exit code 1 indicates unhandled failures. See [ER
 The project is organized as a Cargo workspace with the following crates:
 
 - **copybook-core**: Core parsing and schema types for COBOL copybooks (lexer, parser, AST, layout resolution)
-- **copybook-codec**: Encoding/decoding codecs for COBOL data types, character conversion, record framing
+- **copybook-codec**: Encoding/decoding codecs for COBOL data types and character conversion
 - **copybook-options**: Shared encode/decode option contracts and configuration primitives
 - **copybook-arrow**: Conversion from COBOL layouts/records to Apache Arrow and Parquet
 - **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, support)
@@ -173,6 +173,8 @@ The project is organized as a Cargo workspace with the following crates:
 - **copybook-bench**: Performance benchmarks and testing harness
 - **copybook-codec-memory**: Shared scratch/streaming/worker-pool memory primitives for codec hot paths
 - **copybook-fixed**: Fixed-length (LRECL) record framing reader/writer primitives
+- **copybook-rdw**: RDW (record descriptor word) framing primitives
+- **copybook-record-io**: Fixed-vs-RDW legacy record dispatch facade over framing microcrates
 - **copybook-sequence-ring**: Deterministic sequence reordering primitive used by parallel worker pipelines
 - **copybook-contracts**: Canonical feature-flag contracts
 - **copybook-support-matrix**: Canonical COBOL support matrix contract data

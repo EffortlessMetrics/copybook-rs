@@ -1,4 +1,10 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 // SPDX-License-Identifier: AGPL-3.0-or-later
+//! Deterministic sequence reordering primitive for parallel pipelines.
+//!
+//! `SequenceRing` accepts potentially out-of-order records tagged with a
+//! sequence ID and emits them in-order.
+
 use crossbeam_channel::{Receiver, Sender, bounded};
 use std::collections::BTreeMap;
 use tracing::{debug, warn};
@@ -13,7 +19,7 @@ use tracing::{debug, warn};
 /// # Examples
 ///
 /// ```rust
-/// use copybook_codec_memory::SequencedRecord;
+/// use copybook_sequence_ring::SequencedRecord;
 ///
 /// let record1 = SequencedRecord::new(1, "first record");
 /// let record2 = SequencedRecord::new(2, "second record");
@@ -46,7 +52,7 @@ impl<T> SequencedRecord<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec_memory::SequencedRecord;
+    /// use copybook_sequence_ring::SequencedRecord;
     ///
     /// let record = SequencedRecord::new(42, vec![1, 2, 3]);
     /// assert_eq!(record.sequence_id, 42);
@@ -86,7 +92,7 @@ impl<T> SequencedRecord<T> {
 /// # Examples
 ///
 /// ```rust
-/// use copybook_codec_memory::{SequenceRing, SequencedRecord};
+/// use copybook_sequence_ring::{SequenceRing, SequencedRecord};
 ///
 /// let mut ring = SequenceRing::new(100, 50); // 100 capacity, 50 max window
 /// let sender = ring.sender();
@@ -144,7 +150,7 @@ impl<T> SequenceRing<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec_memory::SequenceRing;
+    /// use copybook_sequence_ring::SequenceRing;
     ///
     /// // For 4-worker pool: 16 capacity, 8 window
     /// let ring: SequenceRing<String> = SequenceRing::new(16, 8);
@@ -176,7 +182,7 @@ impl<T> SequenceRing<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec_memory::{SequenceRing, SequencedRecord};
+    /// use copybook_sequence_ring::{SequenceRing, SequencedRecord};
     /// use std::thread;
     ///
     /// let mut ring = SequenceRing::new(10, 5);
@@ -311,7 +317,7 @@ impl<T> SequenceRing<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use copybook_codec_memory::{SequenceRing, SequencedRecord};
+    /// use copybook_sequence_ring::{SequenceRing, SequencedRecord};
     /// use crossbeam_channel::TryRecvError;
     ///
     /// let mut ring = SequenceRing::new(10, 5);
@@ -364,4 +370,76 @@ pub struct SequenceRingStats {
     ///
     /// Maximum records in flight between workers and consumer.
     pub channel_capacity: usize,
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crossbeam_channel::TryRecvError;
+
+    #[test]
+    fn sequenced_record_creation() {
+        let record = SequencedRecord::new(42, "test data");
+        assert_eq!(record.sequence_id, 42);
+        assert_eq!(record.data, "test data");
+    }
+
+    #[test]
+    fn recv_ordered_emits_input_order() {
+        let mut ring = SequenceRing::new(10, 5);
+        let sender = ring.sender();
+
+        sender.send(SequencedRecord::new(2, "second")).unwrap();
+        sender.send(SequencedRecord::new(1, "first")).unwrap();
+        sender.send(SequencedRecord::new(3, "third")).unwrap();
+
+        assert_eq!(ring.recv_ordered().unwrap(), Some("first"));
+        assert_eq!(ring.recv_ordered().unwrap(), Some("second"));
+        assert_eq!(ring.recv_ordered().unwrap(), Some("third"));
+    }
+
+    #[test]
+    fn try_recv_empty_reports_empty() {
+        let mut ring = SequenceRing::<&str>::new(10, 5);
+        assert!(matches!(ring.try_recv_ordered(), Err(TryRecvError::Empty)));
+    }
+
+    #[test]
+    fn sender_respects_channel_capacity() {
+        let ring = SequenceRing::new(2, 1);
+        let sender = ring.sender();
+
+        sender.try_send(SequencedRecord::new(1, "first")).unwrap();
+        sender.try_send(SequencedRecord::new(2, "second")).unwrap();
+
+        let full = sender.try_send(SequencedRecord::new(3, "third"));
+        assert!(full.is_err());
+    }
+
+    #[test]
+    fn stats_reflect_progress() {
+        let mut ring = SequenceRing::new(10, 5);
+        let sender = ring.sender();
+
+        for i in 1..=5 {
+            sender
+                .send(SequencedRecord::new(i, format!("record_{i}")))
+                .unwrap();
+        }
+
+        let before = ring.stats();
+        assert_eq!(before.next_sequence_id, 1);
+        assert_eq!(before.reorder_buffer_size, 0);
+        assert_eq!(before.channel_capacity, 10);
+        assert_eq!(before.max_window_size, 5);
+
+        for _ in 1..=5 {
+            assert!(ring.recv_ordered().unwrap().is_some());
+        }
+
+        let after = ring.stats();
+        assert_eq!(after.next_sequence_id, 6);
+        assert_eq!(after.reorder_buffer_size, 0);
+    }
 }

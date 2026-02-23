@@ -858,6 +858,7 @@ name = "copybook-codec-memory"
 version = "0.4.3"
 dependencies = [
  "anyhow",
+ "copybook-sequence-ring",
  "crossbeam-channel",
  "smallvec",
  "tracing",
@@ -1003,6 +1004,14 @@ dependencies = [
  "rand 0.10.0",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "copybook-sequence-ring"
+version = "0.4.3"
+dependencies = [
+ "crossbeam-channel",
+ "tracing",
 ]
 
 [[package]]

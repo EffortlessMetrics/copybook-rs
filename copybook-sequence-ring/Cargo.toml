@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-sequence-ring"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Deterministic sequence reordering primitive for parallel copybook pipelines"
+documentation = "https://docs.rs/copybook-sequence-ring"
+readme = "README.md"
+keywords = ["cobol", "sequence", "ordering", "parallelism"]
+categories = ["concurrency", "data-structures"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+crossbeam-channel.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

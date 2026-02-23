@@ -236,13 +236,16 @@ mod tests {
 
     #[test]
     fn test_codepage_from_str_defaults_to_cp037() {
-        assert_eq!(Codepage::from_str("unknown").unwrap(), Codepage::CP037);
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("unknown").unwrap(),
+            Codepage::CP037
+        );
     }
 
     #[test]
     fn test_unmappable_policy_from_str_defaults_to_error() {
         assert_eq!(
-            UnmappablePolicy::from_str("unknown").unwrap(),
+            <UnmappablePolicy as std::str::FromStr>::from_str("unknown").unwrap(),
             UnmappablePolicy::Error
         );
     }

@@ -12,6 +12,7 @@ members = [
     "copybook-dialect",
     "copybook-codec",
     "copybook-codec-memory",
+    "copybook-sequence-ring",
     "copybook-cli",
     "copybook-gen",
     "copybook-governance",
@@ -56,6 +57,7 @@ copybook-core = { version = "=0.4.3", path = "copybook-core" }
 copybook-dialect = { version = "=0.4.3", path = "copybook-dialect" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
 copybook-codec-memory = { version = "=0.4.3", path = "copybook-codec-memory" }
+copybook-sequence-ring = { version = "=0.4.3", path = "copybook-sequence-ring" }
 copybook-arrow = { version = "=0.4.3", path = "copybook-arrow" }
 copybook-governance = { version = "=0.4.3", path = "copybook-governance" }
 copybook-governance-grid = { version = "=0.4.3", path = "copybook-governance-grid" }

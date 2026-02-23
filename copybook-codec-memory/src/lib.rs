@@ -99,14 +99,13 @@
 //! ```
 
 mod scratch;
-mod sequence_ring;
 mod streaming;
 mod worker_pool;
 
 #[cfg(test)]
 mod tests;
 
+pub use copybook_sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};
 pub use scratch::{DigitBuffer, ScratchBuffers};
-pub use sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};
 pub use streaming::{StreamingProcessor, StreamingProcessorStats};
 pub use worker_pool::{WorkerPool, WorkerPoolStats};

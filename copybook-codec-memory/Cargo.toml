@@ -17,6 +17,7 @@ include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]
 crossbeam-channel.workspace = true
+copybook-sequence-ring.workspace = true
 smallvec.workspace = true
 tracing.workspace = true
 

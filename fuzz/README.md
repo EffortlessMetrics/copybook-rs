@@ -41,6 +41,7 @@ cargo fuzz run <target> <crash_file>
 | `occurs_odo` | Fuzz OCCURS/ODO handling |
 | `redefines` | Fuzz REDEFINES processing |
 | `rdw_header` | Fuzz RDW header parsing/framing primitives |
+| `determinism_compare` | Fuzz determinism hash/diff comparison primitives |
 
 ## Directory Structure
 
@@ -55,7 +56,8 @@ fuzz/
 │   ├── pic_clause.rs
 │   ├── occurs_odo.rs
 │   ├── redefines.rs
-│   └── rdw_header.rs
+│   ├── rdw_header.rs
+│   └── determinism_compare.rs
 └── corpus/                 # Initial corpus for each target
     ├── copybook_parse/
     ├── binary_decode/
@@ -63,7 +65,8 @@ fuzz/
     ├── pic_clause/
     ├── occurs_odo/
     ├── redefines/
-    └── rdw_header/
+    ├── rdw_header/
+    └── determinism_compare/
 ```
 
 ## Corpus Management

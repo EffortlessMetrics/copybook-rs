@@ -15,7 +15,7 @@ async fn given_copybook_with_content(world: &mut CopybookWorld, step: &cucumber:
 
 #[given(expr = "a simple copybook with a single field")]
 async fn given_simple_copybook(world: &mut CopybookWorld) {
-    world.copybook_text = Some("01 TEST-RECORD.\n    05 TEST-FIELD PIC X(10).".to_string());
+    world.copybook_text = Some("01 TEST-RECORD.\n   05 TEST-FIELD PIC X(10).".to_string());
 }
 
 #[given(expr = "a copybook with numeric fields")]

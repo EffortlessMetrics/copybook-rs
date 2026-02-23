@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-determinism"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Determinism primitives for stable hash/diff comparison in copybook-rs"
+documentation = "https://docs.rs/copybook-determinism"
+readme = "README.md"
+keywords = ["determinism", "hash", "diff", "testing"]
+categories = ["encoding", "data-structures", "development-tools::testing"]
+
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+serde.workspace = true
+blake3.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

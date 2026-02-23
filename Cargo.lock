@@ -833,11 +833,11 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "base64",
- "blake3",
  "clap",
  "copybook-charset",
  "copybook-codec-memory",
  "copybook-core",
+ "copybook-determinism",
  "copybook-error",
  "copybook-overpunch",
  "copybook-rdw",
@@ -907,6 +907,15 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "copybook-determinism"
+version = "0.4.3"
+dependencies = [
+ "blake3",
+ "proptest",
+ "serde",
 ]
 
 [[package]]
@@ -1001,6 +1010,7 @@ dependencies = [
  "anyhow",
  "copybook-codec",
  "copybook-core",
+ "copybook-determinism",
  "proptest",
  "rand 0.10.0",
  "serde",

@@ -7,6 +7,34 @@ use serde_json::Value;
 
 use crate::world::CopybookWorld;
 
+fn determinism_result_or_panic(
+    world: &CopybookWorld,
+) -> &copybook_codec::determinism::DeterminismResult {
+    if let Some(result) = world.determinism_result.as_ref() {
+        return result;
+    }
+
+    if let Some(error) = world.error.as_ref() {
+        panic!("Determinism result should be set; captured error: {error}");
+    }
+
+    panic!("Determinism result should be set; no result and no captured error");
+}
+
+fn assert_canonical_blake3_hex(hash: &str, label: &str) {
+    assert_eq!(
+        hash.len(),
+        64,
+        "Expected {label} hash length to be 64 hex chars, got {}",
+        hash.len()
+    );
+    assert!(
+        hash.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        "Expected {label} hash to be lowercase hex, got {hash}"
+    );
+}
+
 #[when(expr = "decode determinism is checked")]
 async fn when_decode_determinism_checked(world: &mut CopybookWorld) {
     if !world.ensure_schema_and_return() {
@@ -100,10 +128,7 @@ async fn when_roundtrip_determinism_checked(world: &mut CopybookWorld) {
 
 #[then(expr = "determinism should pass")]
 async fn then_determinism_passes(world: &mut CopybookWorld) {
-    let result = world
-        .determinism_result
-        .as_ref()
-        .expect("Determinism result should be set");
+    let result = determinism_result_or_panic(world);
 
     assert!(
         result.is_deterministic,
@@ -113,10 +138,7 @@ async fn then_determinism_passes(world: &mut CopybookWorld) {
 
 #[then(expr = "determinism should fail")]
 async fn then_determinism_fails(world: &mut CopybookWorld) {
-    let result = world
-        .determinism_result
-        .as_ref()
-        .expect("Determinism result should be set");
+    let result = determinism_result_or_panic(world);
 
     assert!(
         !result.is_deterministic,
@@ -141,10 +163,7 @@ async fn then_roundtrip_deterministic(world: &mut CopybookWorld) {
 
 #[then(expr = "the round 1 hash should equal to round 2 hash")]
 async fn then_hashes_equal(world: &mut CopybookWorld) {
-    let result = world
-        .determinism_result
-        .as_ref()
-        .expect("Determinism result not set");
+    let result = determinism_result_or_panic(world);
     assert_eq!(
         result.round1_hash, result.round2_hash,
         "Round 1 hash ({}) should equal round 2 hash ({})",
@@ -154,10 +173,7 @@ async fn then_hashes_equal(world: &mut CopybookWorld) {
 
 #[then(expr = "there should be no byte differences")]
 async fn then_no_byte_differences(world: &mut CopybookWorld) {
-    let result = world
-        .determinism_result
-        .as_ref()
-        .expect("Determinism result not set");
+    let result = determinism_result_or_panic(world);
     match &result.byte_differences {
         None => {}
         Some(diffs) => assert!(
@@ -170,10 +186,7 @@ async fn then_no_byte_differences(world: &mut CopybookWorld) {
 
 #[then(expr = "the JSON should contain {string}")]
 async fn then_json_contains(world: &mut CopybookWorld, expected: String) {
-    let result = world
-        .determinism_result
-        .as_ref()
-        .expect("Determinism result not set");
+    let result = determinism_result_or_panic(world);
     let json = serde_json::to_string(result).expect("Failed to serialize determinism result");
     assert!(
         json.contains(&expected),
@@ -185,10 +198,7 @@ async fn then_json_contains(world: &mut CopybookWorld, expected: String) {
 
 #[then(regex = r#"^the human-readable output should show "(.+)"$"#)]
 async fn then_human_readable_shows(world: &mut CopybookWorld, expected: String) {
-    let result = world
-        .determinism_result
-        .as_ref()
-        .expect("Determinism result not set");
+    let result = determinism_result_or_panic(world);
     let verdict = if result.is_deterministic {
         "DETERMINISTIC"
     } else {
@@ -204,10 +214,7 @@ async fn then_human_readable_shows(world: &mut CopybookWorld, expected: String) 
 
 #[then(regex = r#"^the output should contain "(.+)"$"#)]
 async fn then_output_contains(world: &mut CopybookWorld, expected: String) {
-    let result = world
-        .determinism_result
-        .as_ref()
-        .expect("Determinism result not set");
+    let result = determinism_result_or_panic(world);
     let output = format!(
         "Round 1 hash: {}\nRound 2 hash: {}\nDeterministic: {}",
         result.round1_hash, result.round2_hash, result.is_deterministic
@@ -218,4 +225,16 @@ async fn then_output_contains(world: &mut CopybookWorld, expected: String) {
         expected,
         output
     );
+}
+
+#[then(expr = "the round 1 hash should be canonical blake3 hex")]
+async fn then_round1_hash_is_canonical(world: &mut CopybookWorld) {
+    let result = determinism_result_or_panic(world);
+    assert_canonical_blake3_hex(&result.round1_hash, "round 1");
+}
+
+#[then(expr = "the round 2 hash should be canonical blake3 hex")]
+async fn then_round2_hash_is_canonical(world: &mut CopybookWorld) {
+    let result = determinism_result_or_panic(world);
+    assert_canonical_blake3_hex(&result.round2_hash, "round 2");
 }

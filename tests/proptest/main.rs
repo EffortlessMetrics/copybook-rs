@@ -11,6 +11,7 @@
 
 mod arrays;
 mod config;
+mod determinism;
 mod generators;
 mod numeric;
 mod parsing;

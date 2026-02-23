@@ -13,6 +13,7 @@
 //! unit tests might miss.
 
 pub mod arrays;
+pub mod determinism;
 pub mod generators;
 pub mod numeric;
 pub mod parsing;

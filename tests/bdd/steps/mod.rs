@@ -8,6 +8,7 @@ pub(crate) mod encode_decode;
 pub(crate) mod enterprise;
 pub(crate) mod error_handling;
 pub(crate) mod field_projection;
+pub(crate) mod fixed;
 pub(crate) mod golden_fixtures;
 pub(crate) mod parsing;
 pub(crate) mod rdw;

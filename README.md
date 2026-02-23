@@ -171,6 +171,7 @@ The project is organized as a Cargo workspace with the following crates:
 - **copybook-gen**: Test fixture and synthetic data generation utilities
 - **copybook-bench**: Performance benchmarks and testing harness
 - **copybook-codec-memory**: Shared scratch/streaming/worker-pool memory primitives for codec hot paths
+- **copybook-fixed**: Fixed-length (LRECL) record framing reader/writer primitives
 - **copybook-sequence-ring**: Deterministic sequence reordering primitive used by parallel worker pipelines
 - **copybook-contracts**: Canonical feature-flag contracts
 - **copybook-support-matrix**: Canonical COBOL support matrix contract data

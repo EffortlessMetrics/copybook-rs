@@ -14,6 +14,7 @@
 
 pub mod arrays;
 pub mod determinism;
+pub mod fixed;
 pub mod generators;
 pub mod numeric;
 pub mod parsing;

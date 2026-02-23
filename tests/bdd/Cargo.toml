@@ -29,6 +29,7 @@ cucumber.workspace = true
 futures.workspace = true
 copybook-core.workspace = true
 copybook-codec.workspace = true
+copybook-fixed.workspace = true
 copybook-rdw.workspace = true
 copybook-governance.workspace = true
 copybook-governance-runtime.workspace = true

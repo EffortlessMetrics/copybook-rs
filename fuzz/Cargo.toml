@@ -24,6 +24,7 @@ workspace = true
 libfuzzer-sys = "0.4.10"
 copybook-core = { path = "../copybook-core" }
 copybook-codec = { path = "../copybook-codec" }
+copybook-fixed = { path = "../copybook-fixed" }
 copybook-rdw = { path = "../copybook-rdw" }
 copybook-determinism = { path = "../copybook-determinism" }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -63,6 +64,10 @@ path = "fuzz_targets/redefines.rs"
 [[bin]]
 name = "rdw_header"
 path = "fuzz_targets/rdw_header.rs"
+
+[[bin]]
+name = "fixed_record"
+path = "fuzz_targets/fixed_record.rs"
 
 [[bin]]
 name = "determinism_compare"

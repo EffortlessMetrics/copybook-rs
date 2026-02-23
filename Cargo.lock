@@ -759,6 +759,7 @@ dependencies = [
  "base64",
  "copybook-codec",
  "copybook-core",
+ "copybook-fixed",
  "copybook-governance",
  "copybook-governance-runtime",
  "copybook-rdw",
@@ -840,6 +841,7 @@ dependencies = [
  "copybook-core",
  "copybook-determinism",
  "copybook-error",
+ "copybook-fixed",
  "copybook-overpunch",
  "copybook-rdw",
  "hex",
@@ -944,6 +946,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-fixed"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-error",
+ "proptest",
+ "tracing",
+]
+
+[[package]]
 name = "copybook-gen"
 version = "0.4.3"
 dependencies = [
@@ -1012,6 +1024,7 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-determinism",
+ "copybook-fixed",
  "copybook-rdw",
  "proptest",
  "rand 0.10.0",

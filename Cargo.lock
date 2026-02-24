@@ -840,6 +840,7 @@ dependencies = [
  "copybook-charset",
  "copybook-codec-memory",
  "copybook-core",
+ "copybook-corruption",
  "copybook-determinism",
  "copybook-error",
  "copybook-fixed",
@@ -913,6 +914,15 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "copybook-corruption"
+version = "0.4.3"
+dependencies = [
+ "anyhow",
+ "copybook-core",
+ "proptest",
 ]
 
 [[package]]
@@ -1037,6 +1047,7 @@ dependencies = [
  "anyhow",
  "copybook-codec",
  "copybook-core",
+ "copybook-corruption",
  "copybook-determinism",
  "copybook-fixed",
  "copybook-rdw",

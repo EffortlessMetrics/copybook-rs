@@ -28,6 +28,7 @@ copybook-options.workspace = true
 copybook-overpunch.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
+copybook-corruption.workspace = true
 copybook-record-io.workspace = true
 copybook-determinism.workspace = true
 copybook-error.workspace = true

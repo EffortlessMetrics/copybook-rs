@@ -196,6 +196,18 @@ Feature: Enterprise COBOL Features
     When binary data is decoded
     Then decoded value should be "12345.67"
 
+  Scenario: Reject corrupted COMP-3 packed decimal data
+    Given a copybook with COMP-3 field:
+      """
+      01 PACKED-RECORD.
+          05 AMOUNT PIC S9(4) COMP-3.
+      """
+    And strict mode
+    And binary data: "\xA2\x34\x5C"
+    When the binary data is decoded
+    Then decoding should fail
+    And error code should be "CBKD401_COMP3_INVALID_NIBBLE"
+
   Scenario: Encode COMP-3 packed decimal data
     Given a copybook with COMP-3 field:
       """

@@ -26,6 +26,7 @@ path = "mod.rs"
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true
+copybook-corruption.workspace = true
 copybook-determinism.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true

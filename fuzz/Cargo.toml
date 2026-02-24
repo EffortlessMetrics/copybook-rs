@@ -25,6 +25,7 @@ libfuzzer-sys = "0.4.10"
 copybook-core = { path = "../crates/copybook-core" }
 copybook-codec = { path = "../crates/copybook-codec" }
 copybook-fixed = { path = "../crates/copybook-fixed" }
+copybook-corruption = { path = "../crates/copybook-corruption" }
 copybook-rdw = { path = "../crates/copybook-rdw" }
 copybook-record-io = { path = "../crates/copybook-record-io" }
 copybook-determinism = { path = "../crates/copybook-determinism" }
@@ -46,6 +47,10 @@ path = "fuzz_targets/copybook_parse.rs"
 [[bin]]
 name = "binary_decode"
 path = "fuzz_targets/binary_decode.rs"
+
+[[bin]]
+name = "corruption"
+path = "fuzz_targets/corruption.rs"
 
 [[bin]]
 name = "json_encode"

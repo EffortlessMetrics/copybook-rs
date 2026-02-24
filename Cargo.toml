@@ -14,6 +14,7 @@ members = [
     "crates/copybook-charset",
     "crates/copybook-options",
     "crates/copybook-core",
+    "crates/copybook-corruption",
     "crates/copybook-dialect",
     "crates/copybook-codec",
     "crates/copybook-codec-memory",
@@ -64,6 +65,7 @@ copybook-codepage = { version = "=0.4.3", path = "crates/copybook-codepage" }
 copybook-charset = { version = "=0.4.3", path = "crates/copybook-charset" }
 copybook-options = { version = "=0.4.3", path = "crates/copybook-options" }
 copybook-core = { version = "=0.4.3", path = "crates/copybook-core" }
+copybook-corruption = { version = "=0.4.3", path = "crates/copybook-corruption" }
 copybook-dialect = { version = "=0.4.3", path = "crates/copybook-dialect" }
 copybook-codec = { version = "=0.4.3", path = "crates/copybook-codec" }
 copybook-codec-memory = { version = "=0.4.3", path = "crates/copybook-codec-memory" }

@@ -5,7 +5,7 @@
 //! reporting, corruption detection, and configurable error handling modes.
 
 use crate::RunSummary;
-use crate::corruption::{
+use copybook_corruption::{
     detect_ebcdic_corruption, detect_packed_corruption, detect_rdw_ascii_corruption,
 };
 use crate::memory::{ScratchBuffers, StreamingProcessor, WorkerPool};

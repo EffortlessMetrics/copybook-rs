@@ -27,5 +27,6 @@ pub(crate) mod parsing_modes;
 pub(crate) mod raw_capture;
 pub(crate) mod record_io;
 pub(crate) mod support;
+pub(crate) mod safe_ops;
 pub(crate) mod verify;
 pub(crate) mod zoned_encoding;

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [package]
-name = "copybook-utils"
+name = "copybook-safe-ops"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,13 +8,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Panic-safe utility functions and extension traits for copybook-rs"
-documentation = "https://docs.rs/copybook-utils"
+description = "Panic-safe conversion and numeric helper operations"
+documentation = "https://docs.rs/copybook-safe-ops"
 readme = "README.md"
-keywords = ["cobol", "copybook", "utility", "error-handling"]
-categories = ["parsing", "data-structures"]
+keywords = ["cobol", "copybook", "utils", "safety"]
+categories = ["parsing", "encoding", "data-structures"]
 
-include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**", "Cargo.toml", "README.md"]
 
 [package.metadata.docs.rs]
 all-features = false
@@ -22,10 +22,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 copybook-error.workspace = true
-copybook-safe-ops.workspace = true
+copybook-overflow.workspace = true
 
 [dev-dependencies]
-copybook-safe-ops.workspace = true
+proptest.workspace = true
 
 [lints]
 workspace = true

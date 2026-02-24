@@ -20,6 +20,7 @@ members = [
     "crates/copybook-codec",
     "crates/copybook-codec-memory",
     "crates/copybook-sequence-ring",
+    "crates/copybook-safe-ops",
     "crates/copybook-cli",
     "crates/copybook-cli-determinism",
     "crates/copybook-governance",
@@ -63,6 +64,7 @@ copybook-rdw = { version = "=0.4.3", path = "crates/copybook-rdw" }
 copybook-record-io = { version = "=0.4.3", path = "crates/copybook-record-io" }
 copybook-overpunch = { version = "=0.4.3", path = "crates/copybook-overpunch" }
 copybook-determinism = { version = "=0.4.3", path = "crates/copybook-determinism" }
+copybook-safe-ops = { version = "=0.4.3", path = "crates/copybook-safe-ops" }
 copybook-codepage = { version = "=0.4.3", path = "crates/copybook-codepage" }
 copybook-charset = { version = "=0.4.3", path = "crates/copybook-charset" }
 copybook-options = { version = "=0.4.3", path = "crates/copybook-options" }

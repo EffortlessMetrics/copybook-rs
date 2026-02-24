@@ -49,6 +49,11 @@ pub struct CopybookWorld {
     pub(crate) exit_code_result: Option<i32>,
     /// Last zoned encoding detected from a byte probe
     pub(crate) detected_zoned_encoding: Option<copybook_codec::ZonedEncodingFormat>,
+    /// Safe-op scratch state for BDD coverage of `copybook-safe-ops`.
+    pub(crate) safe_ops_input: Option<String>,
+    pub(crate) safe_ops_usize: Option<usize>,
+    pub(crate) safe_ops_array_bound: Option<usize>,
+    pub(crate) safe_ops_error_code: Option<copybook_core::ErrorCode>,
     /// Audit-related fields (for enterprise audit testing)
     #[cfg(feature = "audit")]
     pub(crate) audit_context: Option<copybook_core::audit::AuditContext>,

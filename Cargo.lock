@@ -765,6 +765,7 @@ dependencies = [
  "copybook-governance-runtime",
  "copybook-rdw",
  "copybook-record-io",
+ "copybook-safe-ops",
  "cucumber",
  "futures",
  "serde",
@@ -1106,6 +1107,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-safe-ops"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "copybook-overflow",
+ "proptest",
+]
+
+[[package]]
 name = "copybook-sequence-ring"
 version = "0.4.3"
 dependencies = [
@@ -1127,7 +1137,7 @@ name = "copybook-utils"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
- "copybook-overflow",
+ "copybook-safe-ops",
 ]
 
 [[package]]

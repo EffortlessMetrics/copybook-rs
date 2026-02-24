@@ -773,6 +773,7 @@ dependencies = [
  "copybook-safe-index",
  "copybook-safe-ops",
  "copybook-safe-text",
+ "copybook-zoned-format",
  "cucumber",
  "futures",
  "serde",
@@ -1076,6 +1077,7 @@ version = "0.4.3"
 dependencies = [
  "clap",
  "copybook-charset",
+ "copybook-zoned-format",
  "proptest",
  "serde",
  "serde_json",
@@ -1203,6 +1205,16 @@ version = "0.4.3"
 dependencies = [
  "copybook-error",
  "copybook-safe-ops",
+]
+
+[[package]]
+name = "copybook-zoned-format"
+version = "0.4.3"
+dependencies = [
+ "clap",
+ "proptest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_codec::{
     DecodeOptions, EncodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat,
-    ZonedEncodingFormat,
 };
+use copybook_zoned_format::ZonedEncodingFormat;
 use cucumber::{given, then, when};
 
 use crate::world::CopybookWorld;

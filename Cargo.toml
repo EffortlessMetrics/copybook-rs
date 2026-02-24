@@ -4,6 +4,7 @@ members = [
     "crates/copybook-error",
     "crates/copybook-error-reporter",
     "crates/copybook-utils",
+    "crates/copybook-zoned-format",
     "crates/copybook-overflow",
     "crates/copybook-fixed",
     "crates/copybook-rdw",
@@ -65,6 +66,7 @@ copybook-error = { version = "=0.4.3", path = "crates/copybook-error" }
 copybook-error-reporter = { version = "=0.4.3", path = "crates/copybook-error-reporter" }
 copybook-utils = { version = "=0.4.3", path = "crates/copybook-utils" }
 copybook-overflow = { version = "=0.4.3", path = "crates/copybook-overflow" }
+copybook-zoned-format = { version = "=0.4.3", path = "crates/copybook-zoned-format" }
 copybook-fixed = { version = "=0.4.3", path = "crates/copybook-fixed" }
 copybook-rdw = { version = "=0.4.3", path = "crates/copybook-rdw" }
 copybook-record-io = { version = "=0.4.3", path = "crates/copybook-record-io" }

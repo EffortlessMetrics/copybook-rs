@@ -40,6 +40,7 @@ copybook-rdw.workspace = true
 copybook-rdw-predicates.workspace = true
 copybook-record-io.workspace = true
 copybook-corruption-predicates.workspace = true
+copybook-zoned-format.workspace = true
 copybook-governance.workspace = true
 copybook-governance-runtime.workspace = true
 copybook-corruption-detectors.workspace = true

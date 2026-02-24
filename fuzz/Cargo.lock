@@ -281,13 +281,30 @@ name = "copybook-corruption"
 version = "0.4.3"
 dependencies = [
  "copybook-core",
+ "copybook-corruption-detectors",
+ "copybook-corruption-rdw",
+]
+
+[[package]]
+name = "copybook-corruption-detectors"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
  "copybook-corruption-predicates",
- "copybook-rdw-predicates",
 ]
 
 [[package]]
 name = "copybook-corruption-predicates"
 version = "0.4.3"
+
+[[package]]
+name = "copybook-corruption-rdw"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-corruption-predicates",
+ "copybook-rdw-predicates",
+]
 
 [[package]]
 name = "copybook-determinism"
@@ -337,7 +354,9 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-corruption",
+ "copybook-corruption-detectors",
  "copybook-corruption-predicates",
+ "copybook-corruption-rdw",
  "copybook-determinism",
  "copybook-fixed",
  "copybook-lexer",
@@ -348,6 +367,7 @@ dependencies = [
  "copybook-safe-index",
  "copybook-safe-ops",
  "copybook-safe-text",
+ "copybook-zoned-format",
  "libfuzzer-sys",
  "serde",
  "serde_json",
@@ -374,6 +394,7 @@ version = "0.4.3"
 dependencies = [
  "clap",
  "copybook-charset",
+ "copybook-zoned-format",
  "serde",
 ]
 
@@ -462,6 +483,14 @@ version = "0.4.3"
 dependencies = [
  "copybook-error",
  "copybook-safe-ops",
+]
+
+[[package]]
+name = "copybook-zoned-format"
+version = "0.4.3"
+dependencies = [
+ "clap",
+ "serde",
 ]
 
 [[package]]

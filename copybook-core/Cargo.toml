@@ -38,7 +38,7 @@ copybook-governance-contracts.workspace = true
 
 # Audit system dependencies (only when audit feature is enabled)
 async-trait = { workspace = true, optional = true }
-chrono = { version = "0.4.43", features = ["serde"], optional = true }
+chrono = { version = "0.4.44", features = ["serde"], optional = true }
 hex = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 

@@ -2495,6 +2495,9 @@ fn process_rdw_records<R: Read, W: Write>(
         record_index += 1;
         summary.bytes_processed += rdw_record.payload.len() as u64;
         telemetry::record_read(rdw_record.payload.len(), options);
+        if rdw_record.reserved() != 0 {
+            increment_warning_counter();
+        }
 
         if let Some(schema_lrecl) = schema.lrecl_fixed
             && rdw_record.payload.len() < schema_lrecl as usize

@@ -11,10 +11,14 @@
 
 mod arrays;
 mod config;
+mod determinism;
+mod fixed;
 mod generators;
 mod numeric;
 mod parsing;
 mod pic_clauses;
+mod rdw;
+mod record_io;
 mod redefines;
 mod roundtrip;
 

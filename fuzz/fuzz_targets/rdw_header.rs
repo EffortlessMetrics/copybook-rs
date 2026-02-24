@@ -1,0 +1,60 @@
+#![no_main]
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+use copybook_rdw::{
+    RDW_HEADER_LEN, RDWRecord, RDWRecordReader, RDWRecordWriter, RdwHeader, rdw_payload_len_to_u16,
+    rdw_read_len, rdw_slice_body, rdw_try_peek_len, rdw_validate_and_finish,
+};
+use libfuzzer_sys::fuzz_target;
+use std::io::{BufRead, Cursor};
+
+fuzz_target!(|data: &[u8]| {
+    let _ = rdw_payload_len_to_u16(data.len());
+
+    if data.len() >= RDW_HEADER_LEN {
+        let mut bytes = [0u8; RDW_HEADER_LEN];
+        bytes.copy_from_slice(&data[..RDW_HEADER_LEN]);
+        let header = RdwHeader::from_bytes(bytes);
+        let _ = header.length();
+        let _ = header.reserved();
+        let _ = header.looks_ascii_corrupt();
+        let _ = RdwHeader::from_payload_len(header.length() as usize, header.reserved());
+    }
+
+    if let Ok(record) = RDWRecord::try_with_reserved(
+        data.to_vec(),
+        if data.len() >= 2 {
+            u16::from_be_bytes([data[0], data[1]])
+        } else {
+            0
+        },
+    ) {
+        let _ = record.length();
+        let _ = record.reserved();
+        let _ = record.as_bytes();
+
+        let mut out = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut out);
+        let _ = writer.write_record(&record);
+        let _ = writer.write_record_from_payload(&record.payload, Some(record.reserved()));
+        let _ = writer.flush();
+    }
+
+    let mut peek_cursor = Cursor::new(data);
+    if rdw_try_peek_len(&mut peek_cursor).ok().flatten().is_some() {
+        let mut read_cursor = Cursor::new(data);
+        if let Ok(len) = rdw_read_len(&mut read_cursor) {
+            read_cursor.consume(2);
+            if let Ok(body) = rdw_slice_body(&mut read_cursor, len) {
+                let _ = rdw_validate_and_finish(body);
+            }
+        }
+    }
+
+    let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+    while let Ok(Some(record)) = reader.read_record() {
+        let _ = record.length();
+        let _ = record.reserved();
+        let _ = record.as_bytes();
+    }
+});

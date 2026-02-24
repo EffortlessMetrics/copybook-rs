@@ -759,8 +759,11 @@ dependencies = [
  "base64",
  "copybook-codec",
  "copybook-core",
+ "copybook-fixed",
  "copybook-governance",
  "copybook-governance-runtime",
+ "copybook-rdw",
+ "copybook-record-io",
  "cucumber",
  "futures",
  "serde",
@@ -784,6 +787,15 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "copybook-charset"
+version = "0.4.3"
+dependencies = [
+ "copybook-codepage",
+ "copybook-error",
+ "tracing",
 ]
 
 [[package]]
@@ -824,10 +836,17 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "base64",
- "blake3",
  "clap",
+ "copybook-charset",
  "copybook-codec-memory",
  "copybook-core",
+ "copybook-determinism",
+ "copybook-error",
+ "copybook-fixed",
+ "copybook-options",
+ "copybook-overpunch",
+ "copybook-rdw",
+ "copybook-record-io",
  "hex",
  "indexmap",
  "metrics",
@@ -846,9 +865,18 @@ name = "copybook-codec-memory"
 version = "0.4.3"
 dependencies = [
  "anyhow",
+ "copybook-sequence-ring",
  "crossbeam-channel",
  "smallvec",
  "tracing",
+]
+
+[[package]]
+name = "copybook-codepage"
+version = "0.4.3"
+dependencies = [
+ "clap",
+ "serde",
 ]
 
 [[package]]
@@ -867,7 +895,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "copybook-dialect",
+ "copybook-error",
+ "copybook-error-reporter",
  "copybook-governance-contracts",
+ "copybook-overflow",
+ "copybook-utils",
  "hex",
  "logos",
  "proptest",
@@ -879,6 +912,49 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "copybook-determinism"
+version = "0.4.3"
+dependencies = [
+ "blake3",
+ "proptest",
+ "serde",
+]
+
+[[package]]
+name = "copybook-dialect"
+version = "0.4.3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "copybook-error"
+version = "0.4.3"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "copybook-error-reporter"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "tracing",
+]
+
+[[package]]
+name = "copybook-fixed"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-error",
+ "proptest",
  "tracing",
 ]
 
@@ -928,16 +1004,76 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-options"
+version = "0.4.3"
+dependencies = [
+ "clap",
+ "copybook-charset",
+ "proptest",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "copybook-overflow"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+]
+
+[[package]]
+name = "copybook-overpunch"
+version = "0.4.3"
+dependencies = [
+ "copybook-codepage",
+ "copybook-error",
+ "proptest",
+]
+
+[[package]]
 name = "copybook-proptest"
 version = "0.4.3"
 dependencies = [
  "anyhow",
  "copybook-codec",
  "copybook-core",
+ "copybook-determinism",
+ "copybook-fixed",
+ "copybook-rdw",
+ "copybook-record-io",
  "proptest",
  "rand 0.10.0",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "copybook-rdw"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-error",
+ "proptest",
+ "tracing",
+]
+
+[[package]]
+name = "copybook-record-io"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "copybook-fixed",
+ "copybook-options",
+ "copybook-rdw",
+ "proptest",
+]
+
+[[package]]
+name = "copybook-sequence-ring"
+version = "0.4.3"
+dependencies = [
+ "crossbeam-channel",
+ "tracing",
 ]
 
 [[package]]
@@ -947,6 +1083,14 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_plain",
+]
+
+[[package]]
+name = "copybook-utils"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "copybook-overflow",
 ]
 
 [[package]]

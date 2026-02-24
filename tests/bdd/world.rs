@@ -47,6 +47,8 @@ pub struct CopybookWorld {
     pub(crate) baseline_output: Option<String>,
     /// Exit code result
     pub(crate) exit_code_result: Option<i32>,
+    /// Last zoned encoding detected from a byte probe
+    pub(crate) detected_zoned_encoding: Option<copybook_codec::ZonedEncodingFormat>,
     /// Audit-related fields (for enterprise audit testing)
     #[cfg(feature = "audit")]
     pub(crate) audit_context: Option<copybook_core::audit::AuditContext>,

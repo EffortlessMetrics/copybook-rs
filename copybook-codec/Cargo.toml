@@ -23,6 +23,14 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 copybook-core = { workspace = true }
+copybook-charset = { workspace = true, features = ["clap"] }
+copybook-options.workspace = true
+copybook-overpunch.workspace = true
+copybook-fixed.workspace = true
+copybook-rdw.workspace = true
+copybook-record-io.workspace = true
+copybook-determinism.workspace = true
+copybook-error.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -30,7 +38,6 @@ tracing.workspace = true
 clap.workspace = true
 base64.workspace = true
 sha2.workspace = true
-blake3.workspace = true
 copybook-codec-memory.workspace = true
 indexmap.workspace = true
 metrics = { workspace = true, optional = true }
@@ -42,6 +49,7 @@ tempfile.workspace = true
 anyhow.workspace = true
 assert_cmd.workspace = true
 predicates.workspace = true
+copybook-options.workspace = true
 
 [features]
 default = ["comp3_fast"]

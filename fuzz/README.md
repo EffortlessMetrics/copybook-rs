@@ -40,6 +40,11 @@ cargo fuzz run <target> <crash_file>
 | `pic_clause` | Fuzz PIC clause parsing |
 | `occurs_odo` | Fuzz OCCURS/ODO handling |
 | `redefines` | Fuzz REDEFINES processing |
+| `rdw_header` | Fuzz RDW header parsing/framing primitives |
+| `fixed_record` | Fuzz fixed-length (LRECL) record framing primitives |
+| `determinism_compare` | Fuzz determinism hash/diff comparison primitives |
+| `options_contract` | Fuzz options microcrate serde and builder contracts |
+| `record_io_dispatch` | Fuzz fixed-vs-RDW record dispatch microcrate facade |
 
 ## Directory Structure
 
@@ -53,14 +58,24 @@ fuzz/
 │   ├── json_encode.rs
 │   ├── pic_clause.rs
 │   ├── occurs_odo.rs
-│   └── redefines.rs
+│   ├── redefines.rs
+│   ├── rdw_header.rs
+│   ├── fixed_record.rs
+│   ├── determinism_compare.rs
+│   ├── options_contract.rs
+│   └── record_io_dispatch.rs
 └── corpus/                 # Initial corpus for each target
     ├── copybook_parse/
     ├── binary_decode/
     ├── json_encode/
     ├── pic_clause/
     ├── occurs_odo/
-    └── redefines/
+    ├── redefines/
+    ├── rdw_header/
+    ├── fixed_record/
+    ├── determinism_compare/
+    ├── options_contract/
+    └── record_io_dispatch/
 ```
 
 ## Corpus Management

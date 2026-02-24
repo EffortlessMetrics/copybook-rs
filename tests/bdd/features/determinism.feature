@@ -16,7 +16,10 @@ Feature: Determinism Validation
   Scenario: Encode determinism with identical output
     Given a simple copybook with a single field
     And ASCII codepage
-    And JSON data: "{\"TEST-FIELD\":\"ABCDEFGHIJ\"}"
+    And JSON data:
+      """
+      {"TEST-FIELD":"ABCDEFGHIJ"}
+      """
     When encode determinism is checked
     Then the encode should be deterministic
     And the round 1 hash should equal to round 2 hash
@@ -52,7 +55,10 @@ Feature: Determinism Validation
          05 FIELD-2 PIC X(5).
       """
     And ASCII codepage
-    And JSON data: "{\"FIELD-1\":\"ABCDE\",\"FIELD-2\":\"12345\"}"
+    And JSON data:
+      """
+      {"FIELD-1":"ABCDE","FIELD-2":"12345"}
+      """
     When encode determinism is checked
     Then the encode should be deterministic
     And the round 1 hash should equal to round 2 hash
@@ -75,3 +81,11 @@ Feature: Determinism Validation
     Then the human-readable output should show "DETERMINISTIC"
     And the output should contain "Round 1 hash"
     And the output should contain "Round 2 hash"
+
+  Scenario: Determinism hashes use canonical BLAKE3 hex shape
+    Given a simple copybook with a single field
+    And ASCII codepage
+    And binary data: "ABCDEFGHIJ"
+    When decode determinism is checked
+    Then the round 1 hash should be canonical blake3 hex
+    And the round 2 hash should be canonical blake3 hex

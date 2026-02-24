@@ -118,7 +118,7 @@ pub fn summarize_governance() -> GovernanceSummary {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::support_matrix::all_features;

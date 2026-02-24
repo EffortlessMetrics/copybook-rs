@@ -1,0 +1,453 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//! Panic-safe utility functions and extension traits
+//!
+//! This crate provides utilities to eliminate panic conditions in the copybook-rs
+//! codebase, replacing unwrap() calls with structured error handling.
+
+use copybook_error::{Error, ErrorCode};
+
+/// Result type alias using copybook-error's Error
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// Extension trait for `Option<T>` providing panic-safe unwrapping with context
+pub trait OptionExt<T> {
+    /// Unwrap an option safely, returning a structured error with context if None
+    fn ok_or_cbkp_error(self, code: ErrorCode, message: impl Into<String>) -> Result<T>;
+
+    /// Unwrap an option safely with a specific error context
+    fn ok_or_error(self, error: Error) -> Result<T>;
+}
+
+impl<T> OptionExt<T> for Option<T> {
+    // PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path error handling
+    #[allow(clippy::inline_always)]
+    #[inline]
+    fn ok_or_cbkp_error(self, code: ErrorCode, message: impl Into<String>) -> Result<T> {
+        match self {
+            Some(value) => Ok(value),
+            None => {
+                // Mark error construction as cold path
+                Err(Error::new(code, message.into()))
+            }
+        }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn ok_or_error(self, error: Error) -> Result<T> {
+        match self {
+            Some(value) => Ok(value),
+            None => Err(error),
+        }
+    }
+}
+
+/// Extension trait for `Vec<T>` providing panic-safe access operations
+pub trait VecExt<T> {
+    /// Pop from vector safely, returning a structured error if empty
+    fn pop_or_cbkp_error(&mut self, code: ErrorCode, message: impl Into<String>) -> Result<T>;
+
+    /// Get last element safely, returning a structured error if empty
+    fn last_or_cbkp_error(&self, code: ErrorCode, message: impl Into<String>) -> Result<&T>;
+
+    /// Get last mutable element safely, returning a structured error if empty
+    fn last_mut_or_cbkp_error(
+        &mut self,
+        code: ErrorCode,
+        message: impl Into<String>,
+    ) -> Result<&mut T>;
+}
+
+impl<T> VecExt<T> for Vec<T> {
+    // PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path vector operations
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn pop_or_cbkp_error(&mut self, code: ErrorCode, message: impl Into<String>) -> Result<T> {
+        // Fast path: check length and pop in one operation
+        match self.pop() {
+            Some(value) => Ok(value),
+            None => Err(Error::new(code, message.into())),
+        }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn last_or_cbkp_error(&self, code: ErrorCode, message: impl Into<String>) -> Result<&T> {
+        // Fast path: direct slice access when non-empty
+        #[allow(clippy::if_not_else)]
+        if !self.is_empty() {
+            // SAFETY: We just checked that the vector is not empty
+            Ok(&self[self.len() - 1])
+        } else {
+            Err(Error::new(code, message.into()))
+        }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn last_mut_or_cbkp_error(
+        &mut self,
+        code: ErrorCode,
+        message: impl Into<String>,
+    ) -> Result<&mut T> {
+        // Fast path: direct slice access when non-empty
+        #[allow(clippy::if_not_else)]
+        if !self.is_empty() {
+            let len = self.len();
+            // SAFETY: We just checked that the vector is not empty
+            Ok(&mut self[len - 1])
+        } else {
+            Err(Error::new(code, message.into()))
+        }
+    }
+}
+
+/// Extension trait for slice indexing providing panic-safe access
+pub trait SliceExt<T> {
+    /// Get element at index safely, returning a structured error if out of bounds
+    fn get_or_cbkp_error(
+        &self,
+        index: usize,
+        code: ErrorCode,
+        message: impl Into<String>,
+    ) -> Result<&T>;
+
+    /// Get mutable element at index safely, returning a structured error if out of bounds
+    fn get_mut_or_cbkp_error(
+        &mut self,
+        index: usize,
+        code: ErrorCode,
+        message: impl Into<String>,
+    ) -> Result<&mut T>;
+}
+
+impl<T> SliceExt<T> for [T] {
+    // PERFORMANCE OPTIMIZATION: Aggressive inlining for hot path slice access
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn get_or_cbkp_error(
+        &self,
+        index: usize,
+        code: ErrorCode,
+        message: impl Into<String>,
+    ) -> Result<&T> {
+        // Fast path: bounds check with likely hint
+        if index < self.len() {
+            // SAFETY: We just checked the bounds above
+            Ok(&self[index])
+        } else {
+            Err(Error::new(code, message.into()))
+        }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn get_mut_or_cbkp_error(
+        &mut self,
+        index: usize,
+        code: ErrorCode,
+        message: impl Into<String>,
+    ) -> Result<&mut T> {
+        // Fast path: bounds check with likely hint
+        if index < self.len() {
+            // SAFETY: We just checked the bounds above
+            Ok(&mut self[index])
+        } else {
+            Err(Error::new(code, message.into()))
+        }
+    }
+}
+
+/// Utility functions for panic-safe operations
+pub mod safe_ops {
+    use super::{Error, ErrorCode, Result};
+    use std::fmt::Write;
+
+    /// Safely convert a string to usize, returning an error on failure
+    ///
+    /// # Errors
+    /// Returns an error if the string cannot be parsed as an unsigned integer.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
+        s.parse().map_err(|_| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!("Invalid numeric value '{}' in {}", s, context),
+            )
+        })
+    }
+
+    /// Safely convert a string to isize, returning an error on failure
+    ///
+    /// # Errors
+    /// Returns an error if the string cannot be parsed as a signed integer.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
+        s.parse().map_err(|_| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!("Invalid signed numeric value '{}' in {}", s, context),
+            )
+        })
+    }
+
+    /// Safely divide two numbers, checking for division by zero
+    ///
+    /// # Errors
+    /// Returns an error if the denominator is zero.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_divide(numerator: usize, denominator: usize, context: &str) -> Result<usize> {
+        if denominator == 0 {
+            return Err(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!("Division by zero in {}", context),
+            ));
+        }
+        Ok(numerator / denominator)
+    }
+
+    /// Safely calculate COBOL array bounds with overflow protection
+    ///
+    /// Critical for ODO (Occurs Depending On) arrays and OCCURS clauses where
+    /// arithmetic overflow could compromise mainframe data processing integrity.
+    ///
+    /// # Performance
+    /// Uses hardware overflow detection for maximum performance on modern CPUs.
+    ///
+    /// # Errors
+    /// Returns `CBKP021_ODO_NOT_TAIL` for overflow conditions with detailed context.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_array_bound(
+        base: usize,
+        count: usize,
+        item_size: usize,
+        context: &str,
+    ) -> Result<usize> {
+        copybook_overflow::safe_array_bound(base, count, item_size, context)
+    }
+
+    /// Safely format data into string buffer for JSON generation
+    ///
+    /// Used in high-performance COBOL to JSON conversion where formatting
+    /// errors must be handled gracefully without panics.
+    ///
+    /// # Performance
+    /// Zero allocation overhead beyond normal string formatting.
+    ///
+    /// # Errors
+    /// Returns an error if formatting into the buffer fails.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_write(buffer: &mut String, args: std::fmt::Arguments<'_>) -> Result<()> {
+        buffer.write_fmt(args).map_err(|e| {
+            Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!("String formatting error: {}", e),
+            )
+        })
+    }
+
+    /// Safely append string slice to buffer for JSON field construction
+    ///
+    /// Optimized for high-throughput JSON generation during COBOL data conversion
+    /// with comprehensive error handling for enterprise reliability.
+    ///
+    /// # Performance
+    /// Single bounds check and direct memory copy for maximum efficiency.
+    ///
+    /// # Errors
+    /// Returns an error if writing to the buffer fails.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_write_str(buffer: &mut String, s: &str) -> Result<()> {
+        buffer.write_str(s).map_err(|e| {
+            Error::new(
+                ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+                format!("String write error: {}", e),
+            )
+        })
+    }
+
+    /// Safely convert u64 to u32 with overflow checking
+    ///
+    /// Critical for COBOL field offset calculations where overflow could
+    /// compromise mainframe data processing accuracy.
+    ///
+    /// PERFORMANCE OPTIMIZATION: Fast path for common case where values fit in u32
+    ///
+    /// # Errors
+    /// Returns an error if the value exceeds the u32 range.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
+        copybook_overflow::safe_u64_to_u32(value, context)
+    }
+
+    /// Safely convert u64 to u16 with overflow checking
+    ///
+    /// Used for sync padding calculations and small field sizes where
+    /// overflow protection is essential for enterprise reliability.
+    ///
+    /// PERFORMANCE OPTIMIZATION: Fast path for common case where values fit in u16
+    ///
+    /// # Errors
+    /// Returns an error if the value exceeds the u16 range.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
+        copybook_overflow::safe_u64_to_u16(value, context)
+    }
+
+    /// Safely convert usize to u32 with overflow checking
+    ///
+    /// PERFORMANCE OPTIMIZATION: Fast path for common case where values fit in u32
+    ///
+    /// # Errors
+    /// Returns an error if the value exceeds the u32 range.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
+        copybook_overflow::safe_usize_to_u32(value, context)
+    }
+
+    /// Access a slice index with explicit parser-aware bounds checking.
+    ///
+    /// # Errors
+    /// Returns an error when the requested index is out of bounds.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>
+    where
+        T: Copy,
+    {
+        // Use likely hint to optimize for successful case
+        if index < slice.len() {
+            // SAFETY: We just checked the bounds above
+            Ok(slice[index])
+        } else {
+            Err(Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!(
+                    "Slice bounds violation in {}: index {} >= length {}",
+                    context,
+                    index,
+                    slice.len()
+                ),
+            ))
+        }
+    }
+
+    /// Safely parse string as u16 with context
+    ///
+    /// Used for COBOL numeric field parsing where invalid digits could cause
+    /// parse errors during copybook processing.
+    ///
+    /// # Errors
+    /// Returns an error if the string cannot be parsed as a u16.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
+        s.parse().map_err(|_| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!("Invalid u16 value '{}' in {}", s, context),
+            )
+        })
+    }
+
+    /// Safely access string character with bounds checking
+    ///
+    /// Essential for PIC clause parsing where character access beyond string
+    /// bounds could cause panics during COBOL syntax processing.
+    ///
+    /// # Errors
+    /// Returns an error if the index is out of bounds for the string.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
+        s.chars().nth(index).ok_or_else(|| {
+            Error::new(
+                ErrorCode::CBKP001_SYNTAX,
+                format!(
+                    "String character access out of bounds in {}: index {} >= length {}",
+                    context,
+                    index,
+                    s.len()
+                ),
+            )
+        })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::{OptionExt, VecExt, safe_ops};
+    use copybook_error::{ErrorCode, Result};
+
+    #[test]
+    fn test_option_ext_some() -> Result<()> {
+        let opt = Some(42);
+        let value = opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test")?;
+        assert_eq!(value, 42);
+        Ok(())
+    }
+
+    #[test]
+    fn test_option_ext_none() {
+        let opt: Option<i32> = None;
+        let result = opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test error");
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
+    }
+
+    #[test]
+    fn test_vec_ext_pop() -> Result<()> {
+        let mut vec = vec![1, 2, 3];
+        let value = vec.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test")?;
+        assert_eq!(value, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn test_vec_ext_pop_empty() {
+        let mut empty_vec: Vec<i32> = vec![];
+        let result = empty_vec.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "test error");
+        assert!(matches!(result, Err(error) if error.code == ErrorCode::CBKP001_SYNTAX));
+    }
+
+    #[test]
+    fn test_safe_parse() -> Result<()> {
+        let parsed = safe_ops::parse_usize("123", "test")?;
+        assert_eq!(parsed, 123);
+
+        let result = safe_ops::parse_usize("invalid", "test");
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_safe_divide() -> Result<()> {
+        let quotient = safe_ops::safe_divide(10, 2, "test")?;
+        assert_eq!(quotient, 5);
+
+        let result = safe_ops::safe_divide(10, 0, "test");
+        assert!(matches!(
+            result,
+            Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
+        ));
+
+        Ok(())
+    }
+}

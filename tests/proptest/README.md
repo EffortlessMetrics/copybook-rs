@@ -15,6 +15,7 @@
 - Parsing and encoding/decoding properties
 - PIC-clause behavior coverage
 - Numerical parsing and REDEFINES scenarios
+- Determinism hash/diff invariants
 - Negative/edge-case generation checks
 
 ## Running
@@ -33,7 +34,7 @@ cargo test -p copybook-proptest -- --test-threads=1
 ## Structure
 
 - `tests/proptest/main.rs` main entrypoint
-- `tests/proptest/{arrays,numeric,parsing,pic_clauses,redefines,roundtrip,schema_invariants}.rs`
+- `tests/proptest/{arrays,determinism,numeric,parsing,pic_clauses,rdw,redefines,roundtrip,schema_invariants}.rs`
   for grouped property modules
 - `tests/proptest/config.rs` and `tests/proptest/generators.rs` for generator definitions
 

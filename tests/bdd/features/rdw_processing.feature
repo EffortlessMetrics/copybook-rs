@@ -43,6 +43,8 @@ Feature: RDW (Record Descriptor Word) Processing
     Then encoding should succeed
     And the encoded output should be 14 bytes
     And the encoded output should start with RDW header
+    And the encoded output should round-trip through the RDW microcrate
+    And the encoded output should be readable by the RDW reader microcrate
 
   Scenario: Round-trip with RDW processing
     Given a copybook with content:
@@ -84,6 +86,18 @@ Feature: RDW (Record Descriptor Word) Processing
     When the binary data is decoded
     Then decoding should fail
     And error should contain "RDW"
+
+  Scenario: RDW header validation rejects ASCII-corrupted length bytes
+    Given a copybook with content:
+      """
+      01 ASCII-CORRUPT-RECORD PIC X(5).
+      """
+    And RDW record format
+    And ASCII codepage
+    And binary data: "12\x00\x00HELLO"
+    When the binary data is decoded
+    Then decoding should fail
+    And error should contain "ASCII-corrupted"
 
   Scenario: Multiple records with RDW processing
     Given a copybook with content:

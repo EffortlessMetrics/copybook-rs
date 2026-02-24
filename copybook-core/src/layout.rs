@@ -6,7 +6,7 @@
 
 use crate::dialect::{Dialect, effective_min_count};
 use crate::feature_flags::{Feature, FeatureFlags};
-use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error};
+use crate::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema, TailODO, error::error};
 use std::collections::HashMap;
 use tracing::debug;
 
@@ -157,15 +157,14 @@ fn resolve_field_layout(
     // PERFORMANCE OPTIMIZATION: Common case optimization for small padding values
     if padding_bytes > 0 {
         // Most sync padding is small (≤16 bytes), so this is the fast path
-        field.sync_padding = Some(crate::utils::safe_ops::safe_u64_to_u16(
+        field.sync_padding = Some(copybook_overflow::safe_u64_to_u16(
             padding_bytes,
             "sync padding calculation",
         )?);
     }
 
     // PERFORMANCE OPTIMIZATION: Most field offsets fit comfortably in u32
-    field.offset =
-        crate::utils::safe_ops::safe_u64_to_u32(aligned_offset, "field offset calculation")?;
+    field.offset = copybook_overflow::safe_u64_to_u32(aligned_offset, "field offset calculation")?;
     context.current_offset = aligned_offset;
 
     // Record field path and offset
@@ -280,7 +279,7 @@ fn resolve_field_layout(
         }
 
         field.len =
-            crate::utils::safe_ops::safe_u64_to_u32(group_size, "group field length calculation")?;
+            copybook_overflow::safe_u64_to_u32(group_size, "group field length calculation")?;
 
         // Calculate effective size including OCCURS on the group
         let group_effective_size = match &field.occurs {
@@ -361,16 +360,14 @@ fn resolve_redefines_field(
     let padding_bytes = aligned_offset - target_offset;
 
     if padding_bytes > 0 {
-        field.sync_padding = Some(crate::utils::safe_ops::safe_u64_to_u16(
+        field.sync_padding = Some(copybook_overflow::safe_u64_to_u16(
             padding_bytes,
             "redefines sync padding calculation",
         )?);
     }
 
-    field.offset = crate::utils::safe_ops::safe_u64_to_u32(
-        aligned_offset,
-        "redefines field offset calculation",
-    )?;
+    field.offset =
+        copybook_overflow::safe_u64_to_u32(aligned_offset, "redefines field offset calculation")?;
 
     // Calculate effective size including arrays
     let effective_size = match &field.occurs {
@@ -404,7 +401,7 @@ fn resolve_redefines_field(
             group_size = group_size.max(child_end_offset - aligned_offset);
         }
 
-        field.len = crate::utils::safe_ops::safe_u64_to_u32(
+        field.len = copybook_overflow::safe_u64_to_u32(
             group_size,
             "redefines group field length calculation",
         )?;
@@ -619,7 +616,7 @@ fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) -
             total_size = total_size.max(cluster_end);
         }
 
-        schema.lrecl_fixed = Some(crate::utils::safe_ops::safe_u64_to_u32(
+        schema.lrecl_fixed = Some(copybook_overflow::safe_u64_to_u32(
             total_size,
             "fixed record length calculation",
         )?);

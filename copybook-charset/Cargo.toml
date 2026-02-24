@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-charset"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Character set conversion utilities for EBCDIC/ASCII encoding"
+documentation = "https://docs.rs/copybook-charset"
+readme = "README.md"
+keywords = ["cobol", "charset", "ebcdic", "encoding", "ascii"]
+categories = ["encoding", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-codepage.workspace = true
+copybook-error.workspace = true
+tracing.workspace = true
+
+[features]
+default = []
+clap = ["copybook-codepage/clap"]
+
+[lints]
+workspace = true

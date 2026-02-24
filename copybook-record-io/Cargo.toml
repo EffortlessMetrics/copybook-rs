@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-record-io"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Record-format dispatch microcrate bridging fixed and RDW framing primitives"
+documentation = "https://docs.rs/copybook-record-io"
+readme = "README.md"
+keywords = ["cobol", "record", "rdw", "lrecl", "framing"]
+categories = ["encoding", "parsing", "data-structures"]
+
+include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-error.workspace = true
+copybook-options.workspace = true
+copybook-fixed.workspace = true
+copybook-rdw.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

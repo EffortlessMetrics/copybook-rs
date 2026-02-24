@@ -30,7 +30,7 @@ jobs:
           shared-key: advisory-db
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked || true
+        run: cargo install cargo-deny@0.19.0 --locked || true
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked || true

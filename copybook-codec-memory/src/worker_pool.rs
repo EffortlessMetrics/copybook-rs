@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+use copybook_sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};
 use crossbeam_channel::{Sender, bounded};
 use std::sync::Arc;
 use std::thread;
 use tracing::{debug, warn};
 
-use super::{ScratchBuffers, SequenceRing, SequenceRingStats, SequencedRecord};
+use super::ScratchBuffers;
 
 /// Worker pool for parallel record processing with bounded memory
 ///
@@ -39,7 +40,7 @@ use super::{ScratchBuffers, SequenceRing, SequenceRingStats, SequencedRecord};
 /// ## Basic Usage
 ///
 /// ```rust
-/// use copybook_codec::memory::{WorkerPool, ScratchBuffers};
+/// use copybook_codec_memory::{WorkerPool, ScratchBuffers};
 ///
 /// let mut pool = WorkerPool::new(
 ///     4,   // 4 worker threads
@@ -66,8 +67,8 @@ use super::{ScratchBuffers, SequenceRing, SequenceRingStats, SequencedRecord};
 ///
 /// ## COBOL Record Processing
 ///
-/// ```rust
-/// use copybook_codec::memory::{WorkerPool, ScratchBuffers};
+/// ```ignore
+/// use copybook_codec_memory::{WorkerPool, ScratchBuffers};
 /// use copybook_codec::{decode_record_with_scratch, DecodeOptions};
 /// use copybook_core::{parse_copybook, Schema};
 /// use std::sync::Arc;

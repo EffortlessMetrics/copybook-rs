@@ -31,8 +31,8 @@ additional_cargo_args = ["--in-place"]
 # Generated code, test fixtures, and boilerplate are excluded
 exclude = [
     # Generated code
-    "copybook-gen/src/*_gen.rs",
-    "copybook-gen/examples/*_gen.rs",
+    "tools/copybook-gen/src/*_gen.rs",
+    "tools/copybook-gen/examples/*_gen.rs",
 
     # Test code (don't mutate tests)
     "*/tests/*",
@@ -46,15 +46,15 @@ exclude = [
     "*/error_reporter.rs",
 
     # Memory management (low-level, well-tested)
-    "copybook-codec/src/memory/*",
+    "crates/copybook-codec/src/memory/*",
 
     # CLI boilerplate
-    "copybook-cli/src/exit_codes.rs",
-    "copybook-cli/src/utils.rs",
+    "crates/copybook-cli/src/exit_codes.rs",
+    "crates/copybook-cli/src/utils.rs",
 
     # Benchmark utilities
-    "copybook-bench/src/baseline.rs",
-    "copybook-bench/src/reporting.rs",
+    "tools/copybook-bench/src/baseline.rs",
+    "tools/copybook-bench/src/reporting.rs",
 ]
 
 # Per-crate settings
@@ -68,7 +68,7 @@ exclude = [
     "*/benches/*",
     "*/error.rs",
     "*/error_reporter.rs",
-    "copybook-core/src/audit/*",  # Experimental audit system
+    "crates/copybook-core/src/audit/*",  # Experimental audit system
 ]
 
 [mutants.copybook-codec]
@@ -79,7 +79,7 @@ threshold = 75
 exclude = [
     "*/tests/*",
     "*/benches/*",
-    "copybook-codec/src/memory/*",
+    "crates/copybook-codec/src/memory/*",
 ]
 
 [mutants.copybook-cli]
@@ -89,8 +89,8 @@ threshold = 65
 # Exclude CLI boilerplate and command templates
 exclude = [
     "*/tests/*",
-    "copybook-cli/src/exit_codes.rs",
-    "copybook-cli/src/utils.rs",
+    "crates/copybook-cli/src/exit_codes.rs",
+    "crates/copybook-cli/src/utils.rs",
 ]
 
 [mutants.copybook-bench]
@@ -100,8 +100,8 @@ threshold = 60
 # Most benchmark code is boilerplate
 exclude = [
     "*/benches/*",
-    "copybook-bench/src/baseline.rs",
-    "copybook-bench/src/reporting.rs",
+    "tools/copybook-bench/src/baseline.rs",
+    "tools/copybook-bench/src/reporting.rs",
 ]
 
 [mutants.copybook-gen]
@@ -111,7 +111,7 @@ threshold = 60
 # Exclude generated code templates
 exclude = [
     "*/tests/*",
-    "copybook-gen/examples/*_gen.rs",
+    "tools/copybook-gen/examples/*_gen.rs",
 ]
 
 # Mutation operator settings

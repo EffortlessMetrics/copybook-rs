@@ -35,6 +35,8 @@ fn tool_available(program: &str, args: &[&str]) -> bool {
 fn project_root() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
+        .expect("tools dir")
+        .parent()
         .expect("workspace root")
         .to_path_buf()
 }

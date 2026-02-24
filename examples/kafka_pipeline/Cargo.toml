@@ -24,8 +24,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Internal workspace dependencies
-copybook-core = { version = "=0.4.3", path = "../../copybook-core" }
-copybook-codec = { version = "=0.4.3", path = "../../copybook-codec" }
+copybook-core = { version = "=0.4.3", path = "../../crates/copybook-core" }
+copybook-codec = { version = "=0.4.3", path = "../../crates/copybook-codec" }
 
 # Kafka dependencies
 rdkafka = { version = "0.37", features = ["cmake-build", "ssl-vendored"] }

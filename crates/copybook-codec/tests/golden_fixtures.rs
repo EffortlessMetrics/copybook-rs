@@ -21,13 +21,13 @@ use std::io::Cursor;
 /// Test that verifies COMP-3 round-trip encoding and decoding works correctly
 #[test]
 fn test_comp3_roundtrip_golden() -> Result<()> {
-    let copybook_text = fs::read_to_string("../fixtures/copybooks/comp3_test.cpy")
+    let copybook_text = fs::read_to_string("../../fixtures/copybooks/comp3_test.cpy")
         .context("Failed to read COMP-3 test copybook")?;
 
     let schema = parse_copybook(&copybook_text).context("Failed to parse COMP-3 test copybook")?;
 
     // Read test JSONL data
-    let jsonl_data = fs::read_to_string("../fixtures/data/comp3_test.jsonl")
+    let jsonl_data = fs::read_to_string("../../fixtures/data/comp3_test.jsonl")
         .context("Failed to read COMP-3 test JSONL")?;
 
     // Configure encode options
@@ -112,10 +112,10 @@ fn test_comp3_roundtrip_golden() -> Result<()> {
 #[test]
 fn test_schema_parsing_golden() -> Result<()> {
     let copybooks = [
-        "../fixtures/copybooks/simple.cpy",
-        "../fixtures/copybooks/complex.cpy",
-        "../fixtures/copybooks/odo.cpy",
-        "../fixtures/copybooks/comp3_test.cpy",
+        "../../fixtures/copybooks/simple.cpy",
+        "../../fixtures/copybooks/complex.cpy",
+        "../../fixtures/copybooks/odo.cpy",
+        "../../fixtures/copybooks/comp3_test.cpy",
     ];
 
     for copybook_path in &copybooks {
@@ -162,10 +162,10 @@ fn test_create_golden_hashes() -> Result<()> {
     // Normally it should be ignored in CI, but useful for updating fixtures
     if std::env::var("CREATE_GOLDEN_HASHES").is_ok() {
         let test_files = [
-            "../fixtures/copybooks/simple.cpy",
-            "../fixtures/copybooks/complex.cpy",
-            "../fixtures/copybooks/odo.cpy",
-            "../fixtures/copybooks/comp3_test.cpy",
+            "../../fixtures/copybooks/simple.cpy",
+            "../../fixtures/copybooks/complex.cpy",
+            "../../fixtures/copybooks/odo.cpy",
+            "../../fixtures/copybooks/comp3_test.cpy",
         ];
 
         for file_path in &test_files {

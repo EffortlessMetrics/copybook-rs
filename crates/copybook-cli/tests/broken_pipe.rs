@@ -16,6 +16,8 @@ const CBKE: i32 = 3;
 fn simple_copybook_fixture() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
+        .expect("crates dir")
+        .parent()
         .expect("workspace root")
         .join("fixtures/copybooks/simple.cpy")
 }

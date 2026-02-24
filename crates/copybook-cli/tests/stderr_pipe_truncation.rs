@@ -83,6 +83,8 @@ fn simple_data_fixture() -> PathBuf {
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
+        .expect("crates dir")
+        .parent()
         .expect("workspace root")
         .to_path_buf()
 }

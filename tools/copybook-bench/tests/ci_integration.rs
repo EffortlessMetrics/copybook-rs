@@ -363,7 +363,7 @@ fn test_artifact_retention_policy() {
 
     // Validate retention policy metadata from fixture
     let retention_metadata = std::fs::read_to_string(
-        base_path.join("copybook-bench/test_fixtures/ci/artifact_retention_metadata.json"),
+        base_path.join("tools/copybook-bench/test_fixtures/ci/artifact_retention_metadata.json"),
     )
     .expect("Failed to read retention metadata fixture");
 
@@ -530,7 +530,7 @@ fn test_missing_baseline_neutral_ci() {
 
     // Test PR comment generation for NEUTRAL status using fixture
     let neutral_fixture = std::fs::read_to_string(
-        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_neutral.md"),
+        base_path.join("tools/copybook-bench/test_fixtures/ci/pr_comment_neutral.md"),
     )
     .expect("Failed to read NEUTRAL comment fixture");
 
@@ -874,17 +874,17 @@ fn test_pr_comment_updates() {
 
     // Test fixture validation for comment formats
     let pass_fixture = std::fs::read_to_string(
-        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_pass.md"),
+        base_path.join("tools/copybook-bench/test_fixtures/ci/pr_comment_pass.md"),
     )
     .expect("Failed to read PASS comment fixture");
 
     let warning_fixture = std::fs::read_to_string(
-        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_warning.md"),
+        base_path.join("tools/copybook-bench/test_fixtures/ci/pr_comment_warning.md"),
     )
     .expect("Failed to read WARNING comment fixture");
 
     let failure_fixture = std::fs::read_to_string(
-        base_path.join("copybook-bench/test_fixtures/ci/pr_comment_failure.md"),
+        base_path.join("tools/copybook-bench/test_fixtures/ci/pr_comment_failure.md"),
     )
     .expect("Failed to read FAILURE comment fixture");
 

@@ -76,7 +76,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
         # Check if only docs/bench/tests changed
-        if echo "$CHANGED_FILES" | grep -vE '^(docs/|copybook-bench/|tests/|\.github/|scripts/)' | grep -q .; then
+        if echo "$CHANGED_FILES" | grep -vE '^(docs/|tools/copybook-bench/|tests/|\.github/|scripts/)' | grep -q .; then
           echo "api_only_changes=false" >> $GITHUB_OUTPUT
           echo "📝 Non-docs/bench/tests changes detected"
         else
@@ -111,7 +111,7 @@ jobs:
         echo ""
         echo "During API freeze, only the following changes are allowed:"
         echo "  - Documentation changes (docs/)"
-        echo "  - Benchmark changes (copybook-bench/)"
+        echo "  - Benchmark changes (tools/copybook-bench/)"
         echo "  - Test changes (tests/)"
         echo "  - CI/CD changes (.github/, scripts/)"
         echo ""

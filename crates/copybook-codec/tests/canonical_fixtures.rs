@@ -57,7 +57,7 @@ fn hex_to_binary(hex: &str) -> Result<Vec<u8>, hex::FromHexError> {
 /// Canonical fixture test for COMP-3 encoding/decoding
 #[test]
 fn test_comp3_canonical() {
-    let copybook_text = fs::read_to_string("../fixtures/copybooks/comp3_test.cpy")
+    let copybook_text = fs::read_to_string("../../fixtures/copybooks/comp3_test.cpy")
         .expect("Failed to read COMP-3 test copybook");
 
     let schema = parse_copybook(&copybook_text).expect("Failed to parse COMP-3 test copybook");

@@ -56,7 +56,7 @@ fn test_audit_performance_baseline_scaffolding() {
 #[test]
 fn test_audit_overhead_scaffolding() {
     let copybook_text =
-        std::fs::read_to_string("../fixtures/enterprise/audit/performance_baseline_record.cpy")
+        std::fs::read_to_string("../../fixtures/enterprise/audit/performance_baseline_record.cpy")
             .expect("Failed to load performance baseline fixture");
 
     let schema = parse_copybook(&copybook_text)

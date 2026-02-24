@@ -26,6 +26,8 @@ fn test_simple_fixture_zoned_encoding_integration() -> Result<(), Box<dyn Error>
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
+        .parent()
+        .unwrap()
         .join("fixtures");
     let copybook_path = fixtures_dir.join("copybooks/simple.cpy");
     let data_path = fixtures_dir.join("data/simple.bin");
@@ -101,6 +103,8 @@ fn test_simple_fixture_zoned_encoding_integration() -> Result<(), Box<dyn Error>
 #[test]
 fn test_comp3_fixture_mixed_field_types() -> Result<(), Box<dyn Error>> {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
         .parent()
         .unwrap()
         .join("fixtures");
@@ -196,6 +200,8 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
+        .parent()
+        .unwrap()
         .join("fixtures");
     let copybook_path = fixtures_dir.join("copybooks/complex.cpy");
 
@@ -277,6 +283,8 @@ fn test_odo_fixture_variable_length_zoned() -> Result<(), Box<dyn Error>> {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
+        .parent()
+        .unwrap()
         .join("fixtures");
     let copybook_path = fixtures_dir.join("copybooks/odo.cpy");
 
@@ -355,6 +363,8 @@ fn test_odo_fixture_variable_length_zoned() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_fixture_round_trip_validation() -> Result<(), Box<dyn Error>> {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
         .parent()
         .unwrap()
         .join("fixtures");
@@ -443,6 +453,8 @@ fn test_enterprise_scale_fixture_performance() -> Result<(), Box<dyn Error>> {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
+        .parent()
+        .unwrap()
         .join("fixtures");
     let copybook_path = fixtures_dir.join("copybooks/simple.cpy");
     let data_path = fixtures_dir.join("data/simple.bin");
@@ -516,6 +528,8 @@ fn test_enterprise_scale_fixture_performance() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_mainframe_compatibility_scenarios() -> Result<(), Box<dyn Error>> {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
         .parent()
         .unwrap()
         .join("fixtures");

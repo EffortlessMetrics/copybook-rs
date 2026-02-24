@@ -28,8 +28,8 @@ pub fn find_workspace_root() -> TestResult<PathBuf> {
 
     loop {
         if current.join("Cargo.toml").exists()
-            && current.join("copybook-cli").exists()
-            && current.join("copybook-codec").exists()
+            && current.join("crates").exists()
+            && current.join("tools").exists()
         {
             return Ok(current);
         }
@@ -114,8 +114,8 @@ mod tests {
             "workspace root missing Cargo.toml"
         );
         assert!(
-            root.join("copybook-cli").exists(),
-            "workspace root missing copybook-cli crate"
+            root.join("crates").exists(),
+            "workspace root missing crates directory"
         );
         Ok(())
     }

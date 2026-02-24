@@ -28,7 +28,7 @@ fn find_workspace_root() -> TestResult<PathBuf> {
 
     loop {
         if current.join("Cargo.toml").exists()
-            && current.join("copybook-cli").exists()
+            && current.join("crates").exists()
             && current.join("fixtures").exists()
         {
             return Ok(current);

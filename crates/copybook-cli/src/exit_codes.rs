@@ -288,7 +288,7 @@ mod tests {
 
     #[test]
     fn readme_exit_code_table_matches_source_of_truth() -> TestResult<()> {
-        let readme = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../README.md"));
+        let readme = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md"));
         let mut rows = readme
             .lines()
             .skip_while(|line| *line != "| Code | Tag  | Meaning (1-liner) | Test |");

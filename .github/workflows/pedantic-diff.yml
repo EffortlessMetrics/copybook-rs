@@ -4,9 +4,9 @@ name: Pedantic Diff Guard
 on:
   pull_request:
     paths:
-      - "copybook-codec/**"
-      - "copybook-core/**"
-      - "copybook-cli/**"
+      - "crates/copybook-codec/**"
+      - "crates/copybook-core/**"
+      - "crates/copybook-cli/**"
       - "scripts/clippy-pedantic-diff.sh"
       - "scripts/guard-hotpaths.sh"
       - "justfile"

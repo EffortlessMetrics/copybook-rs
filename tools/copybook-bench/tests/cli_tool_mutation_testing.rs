@@ -27,6 +27,8 @@ fn cargo_bench_report(working_dir: Option<&Path>) -> Command {
     let workspace_manifest = PathBuf::from(manifest_dir)
         .parent()
         .unwrap()
+        .parent()
+        .unwrap()
         .join("Cargo.toml");
 
     let mut cmd = Command::new("cargo");

@@ -22,13 +22,13 @@ workspace = true
 
 [dependencies]
 libfuzzer-sys = "0.4.10"
-copybook-core = { path = "../copybook-core" }
-copybook-codec = { path = "../copybook-codec" }
-copybook-fixed = { path = "../copybook-fixed" }
-copybook-rdw = { path = "../copybook-rdw" }
-copybook-record-io = { path = "../copybook-record-io" }
-copybook-determinism = { path = "../copybook-determinism" }
-copybook-options = { path = "../copybook-options" }
+copybook-core = { path = "../crates/copybook-core" }
+copybook-codec = { path = "../crates/copybook-codec" }
+copybook-fixed = { path = "../crates/copybook-fixed" }
+copybook-rdw = { path = "../crates/copybook-rdw" }
+copybook-record-io = { path = "../crates/copybook-record-io" }
+copybook-determinism = { path = "../crates/copybook-determinism" }
+copybook-options = { path = "../crates/copybook-options" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 

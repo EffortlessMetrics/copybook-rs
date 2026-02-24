@@ -29,10 +29,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'copybook-core/**'
-      - 'copybook-codec/**'
-      - 'copybook-cli/**'
-      - 'copybook-arrow/**'
+      - 'crates/copybook-core/**'
+      - 'crates/copybook-codec/**'
+      - 'crates/copybook-cli/**'
+      - 'crates/copybook-arrow/**'
       - 'mutants.toml'
       - '.github/workflows/ci-mutants.yml'
 

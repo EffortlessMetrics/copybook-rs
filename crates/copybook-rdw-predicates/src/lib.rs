@@ -49,12 +49,12 @@ mod tests {
 
     #[test]
     fn short_headers_are_not_suspect() {
-        assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1', b'2']));
+        assert!(!rdw_is_suspect_ascii_corruption_slice(b"12"));
     }
 
     #[test]
     fn slice_uses_same_rule_as_array() {
         let header = [b'7', b'8', 0x10, 0x20];
-        assert_eq!(rdw_is_suspect_ascii_corruption_slice(&header), true);
+        assert!(rdw_is_suspect_ascii_corruption_slice(&header));
     }
 }

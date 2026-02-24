@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Clippy configuration for copybook-rs
+
+# Cognitive complexity limits for enterprise mainframe code
+cognitive-complexity-threshold = 30
+
+# Documentation requirements
+missing-docs-in-crate-items = true
+
+# Performance and efficiency
+enum-variant-size-threshold = 200
+trivial-copy-size-limit = 128
+pass-by-value-size-limit = 256
+
+# Safety and correctness
+avoid-breaking-exported-api = true
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+allow-panic-in-tests = true
+
+# Code style preferences
+allow-one-hash-in-raw-strings = true
+
+# Enterprise patterns
+max-suggested-slice-pattern-length = 3
+msrv = "1.92"

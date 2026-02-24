@@ -1051,7 +1051,7 @@ mod tests {
         #[test]
         fn prop_ascii_corruption_heuristic_matches_manual(b0 in any::<u8>(), b1 in any::<u8>(), b2 in any::<u8>(), b3 in any::<u8>()) {
             let header = [b0, b1, b2, b3];
-            let expected = (b'0'..=b'9').contains(&b0) && (b'0'..=b'9').contains(&b1);
+            let expected = b0.is_ascii_digit() && b1.is_ascii_digit();
             prop_assert_eq!(rdw_is_suspect_ascii_corruption(header), expected);
             prop_assert_eq!(RdwHeader::from_bytes(header).looks_ascii_corrupt(), expected);
         }

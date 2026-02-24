@@ -3,7 +3,6 @@
 
 use copybook_options::ZonedEncodingFormat;
 use copybook_zoned_format::ZonedEncodingFormat as Zf;
-use serde_json;
 
 #[test]
 fn options_reexports_zoned_encoding_format_without_behavior_drift() {

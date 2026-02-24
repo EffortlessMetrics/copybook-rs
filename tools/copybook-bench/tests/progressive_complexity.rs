@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#![allow(clippy::drop_non_drop)]
 //! AC4: Progressive Complexity Testing
 //!
 //! Tests for progressive benchmark execution with scaling data sizes

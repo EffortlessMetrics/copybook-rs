@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#![allow(clippy::expect_used)]
 //! Common test helpers for copybook-codec tests
 //!
 //! This module provides reusable test utilities to reduce code duplication

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#![allow(clippy::unwrap_used)]
 //! Phase E3: Edited PIC encode comprehensive tests
 //!
 //! Tests edited PIC encode functionality - COMPLETE as of v0.4.0.

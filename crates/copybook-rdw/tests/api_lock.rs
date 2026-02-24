@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::drop_non_drop)]
 
 use copybook_rdw::{
     RDW_HEADER_LEN, RDWRecord, RDWRecordReader, RDWRecordWriter, RdwHeader, rdw_payload_len_to_u16,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::drop_non_drop)]
 
 use copybook_fixed::{FixedRecordReader, FixedRecordWriter};
 use std::io::Cursor;

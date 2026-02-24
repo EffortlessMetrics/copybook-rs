@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#![allow(clippy::expect_used)]
+
 use copybook_cli_determinism::{
     CommonDeterminismArgs, DecodeDeterminismArgs, DeterminismCommand, DeterminismModeCommand,
     DeterminismVerdict, EncodeDeterminismArgs, OutputFormat, RoundTripDeterminismArgs, run,

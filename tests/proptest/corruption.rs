@@ -68,7 +68,7 @@ proptest! {
     ) {
         let header = [b0, b1, b2, b3];
         let expected =
-            (b'0'..=b'9').contains(&b0) && (b'0'..=b'9').contains(&b1);
+            b0.is_ascii_digit() && b1.is_ascii_digit();
 
         let heuristic = rdw_is_suspect_ascii_corruption_slice(&header);
         let detect =

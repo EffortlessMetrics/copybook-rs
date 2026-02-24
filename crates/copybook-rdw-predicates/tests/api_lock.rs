@@ -16,7 +16,7 @@ fn exposes_ascii_corruption_heuristic_function() {
 
 #[test]
 fn slices_with_incomplete_headers_are_false() {
-    assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1', b'2']));
+    assert!(!rdw_is_suspect_ascii_corruption_slice(b"12"));
 }
 
 #[test]

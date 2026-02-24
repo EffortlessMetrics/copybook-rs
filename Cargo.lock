@@ -757,6 +757,7 @@ version = "0.4.3"
 dependencies = [
  "anyhow",
  "base64",
+ "copybook-cli-determinism",
  "copybook-codec",
  "copybook-core",
  "copybook-fixed",
@@ -808,6 +809,7 @@ dependencies = [
  "chrono",
  "clap",
  "copybook-arrow",
+ "copybook-cli-determinism",
  "copybook-codec",
  "copybook-core",
  "copybook-governance",
@@ -827,6 +829,20 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "copybook-cli-determinism"
+version = "0.4.3"
+dependencies = [
+ "anyhow",
+ "clap",
+ "copybook-codec",
+ "copybook-core",
+ "copybook-determinism",
+ "proptest",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -10,8 +10,8 @@ use clap::{Args, Subcommand, ValueEnum};
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat,
     determinism::{
-        ByteDiff, DeterminismMode, DeterminismResult, check_decode_determinism,
-        check_encode_determinism, check_round_trip_determinism,
+        DeterminismResult, check_decode_determinism, check_encode_determinism,
+        check_round_trip_determinism,
     },
 };
 use copybook_core::{Schema, parse_copybook};
@@ -20,8 +20,8 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-pub use copybook_determinism::{DEFAULT_MAX_DIFFS, BLAKE3_HEX_LEN};
 pub use copybook_codec::determinism::DeterminismMode as DeterminismCheckMode;
+pub use copybook_determinism::{BLAKE3_HEX_LEN, DEFAULT_MAX_DIFFS};
 
 /// Determinism command façade for CLI surface.
 #[derive(Args, Debug, Clone)]
@@ -79,7 +79,7 @@ pub struct CommonDeterminismArgs {
 }
 
 /// Available output rendering modes.
-#[derive(ValueEnum, Debug, Clone, Copy)]
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
     /// Human-readable output with symbols and diff table.
     Human,
@@ -121,7 +121,7 @@ pub struct RoundTripDeterminismArgs {
 }
 
 /// Result of running a determinism command execution.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct DeterminismRun {
     pub verdict: DeterminismVerdict,
     pub output: String,
@@ -129,6 +129,7 @@ pub struct DeterminismRun {
 
 impl DeterminismRun {
     /// Convert command verdict to CLI exit code semantics.
+    #[inline]
     #[must_use]
     pub const fn exit_code(&self) -> i32 {
         self.verdict.exit_code()
@@ -154,6 +155,7 @@ impl DeterminismVerdict {
     }
 
     /// Convert verdict to a CLI-style exit code.
+    #[inline]
     #[must_use]
     pub const fn exit_code(&self) -> i32 {
         match self {
@@ -164,6 +166,11 @@ impl DeterminismVerdict {
 }
 
 /// Execute a determinism subcommand and return output plus verdict.
+///
+/// # Errors
+///
+/// Returns an error if schema loading, data reading, or determinism checks fail.
+#[inline]
 pub fn run(cmd: &DeterminismCommand) -> anyhow::Result<DeterminismRun> {
     let result = match &cmd.mode {
         DeterminismModeCommand::Decode(args) => run_decode(args),
@@ -206,7 +213,8 @@ fn run_encode(args: &EncodeDeterminismArgs) -> anyhow::Result<DeterminismRun> {
         .lines()
         .next()
         .ok_or_else(|| anyhow::anyhow!("JSON input file is empty"))?;
-    let value: serde_json::Value = serde_json::from_str(first_line).context("Failed to parse JSON input")?;
+    let value: serde_json::Value =
+        serde_json::from_str(first_line).context("Failed to parse JSON input")?;
 
     let result = check_encode_determinism(&schema, &value, &encode_opts)
         .context("Encode determinism check failed")?;
@@ -239,7 +247,7 @@ fn render_result(
 ) -> anyhow::Result<DeterminismRun> {
     let output = match common.output {
         OutputFormat::Json => render_json_result(result),
-        OutputFormat::Human => render_human_result(result, common.max_diffs),
+        OutputFormat::Human => Ok(render_human_result(result, common.max_diffs)),
     }?;
 
     Ok(DeterminismRun {
@@ -249,29 +257,44 @@ fn render_result(
 }
 
 /// Create JSON formatted output string.
+///
+/// # Errors
+///
+/// Returns an error if JSON serialization fails.
+#[inline]
 pub fn render_json_result(result: &DeterminismResult) -> anyhow::Result<String> {
     serde_json::to_string_pretty(result).context("Failed to serialize determinism result to JSON")
 }
 
 /// Create human-readable output string.
+#[inline]
+#[must_use]
 pub fn render_human_result(result: &DeterminismResult, max_diffs: usize) -> String {
     let mut output = String::new();
 
-    writeln!(&mut output, "Determinism mode: {:?}", result.mode).expect("infallible");
-    writeln!(&mut output, "Round 1 hash: {}", truncate_hash(&result.round1_hash)).expect("infallible");
-    writeln!(&mut output, "Round 2 hash: {}", truncate_hash(&result.round2_hash)).expect("infallible");
+    let _ = writeln!(&mut output, "Determinism mode: {:?}", result.mode);
+    let _ = writeln!(
+        &mut output,
+        "Round 1 hash: {}",
+        truncate_hash(&result.round1_hash)
+    );
+    let _ = writeln!(
+        &mut output,
+        "Round 2 hash: {}",
+        truncate_hash(&result.round2_hash)
+    );
 
     if result.is_deterministic {
-        writeln!(&mut output, "\n✅ DETERMINISTIC").expect("infallible");
+        let _ = writeln!(&mut output, "\n✅ DETERMINISTIC");
     } else {
-        writeln!(&mut output, "\n❌ NON-DETERMINISTIC").expect("infallible");
+        let _ = writeln!(&mut output, "\n❌ NON-DETERMINISTIC");
     }
 
     if let Some(diffs) = &result.byte_differences {
         let count = diffs.len();
         let shown = diffs.iter().take(max_diffs);
 
-        writeln!(&mut output, "\nByte differences: {count} total").expect("infallible");
+        let _ = writeln!(&mut output, "\nByte differences: {count} total");
         if count > 0 {
             output.push_str("\n  Offset  Round1  Round2\n");
             output.push_str("  ------  ------  ------\n");
@@ -299,6 +322,8 @@ pub fn render_human_result(result: &DeterminismResult, max_diffs: usize) -> Stri
 }
 
 /// Build `DecodeOptions` from shared arguments.
+#[inline]
+#[must_use]
 pub fn build_decode_options(common: &CommonDeterminismArgs) -> DecodeOptions {
     DecodeOptions::new()
         .with_codepage(common.codepage)
@@ -308,18 +333,28 @@ pub fn build_decode_options(common: &CommonDeterminismArgs) -> DecodeOptions {
 }
 
 /// Build `EncodeOptions` from shared arguments.
+#[inline]
+#[must_use]
 pub fn build_encode_options(common: &CommonDeterminismArgs) -> EncodeOptions {
     EncodeOptions::new().with_codepage(common.codepage)
 }
 
 /// Load and parse schema from a file or stdin.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or parsed.
+#[inline]
 pub fn load_schema(path: &Path) -> anyhow::Result<Schema> {
     let text = read_text_or_stdin(path)?;
-    let schema = parse_copybook(&text).with_context(|| format!("Failed to parse copybook: {}", path.display()))?;
+    let schema = parse_copybook(&text)
+        .with_context(|| format!("Failed to parse copybook: {}", path.display()))?;
     Ok(schema)
 }
 
 /// Truncate BLAKE3 hash for human output.
+#[inline]
+#[must_use]
 pub fn truncate_hash(hash: &str) -> String {
     if hash.len() > 16 {
         format!("{}...", &hash[..16])
@@ -354,7 +389,8 @@ fn read_bytes_or_stdin(path: &Path) -> anyhow::Result<Vec<u8>> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use copybook_determinism::{ByteDiff, DeterminismMode};
+    use copybook_determinism::ByteDiff;
+    use copybook_determinism::DeterminismMode as CodecDeterminismMode;
     use proptest::prelude::*;
 
     #[test]
@@ -369,9 +405,11 @@ mod tests {
     #[test]
     fn human_result_includes_diff_metadata() {
         let result = DeterminismResult {
-            mode: DeterminismMode::DecodeOnly,
-            round1_hash: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12".to_string(),
-            round2_hash: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeff1".to_string(),
+            mode: CodecDeterminismMode::DecodeOnly,
+            round1_hash: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+                .to_string(),
+            round2_hash: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeff1"
+                .to_string(),
             is_deterministic: false,
             byte_differences: Some(vec![
                 ByteDiff {
@@ -432,7 +470,7 @@ mod tests {
             };
 
             let result = DeterminismResult {
-                mode: DeterminismMode::RoundTrip,
+                mode: CodecDeterminismMode::RoundTrip,
                 round1_hash: make_hash(&hash_a),
                 round2_hash: if deterministic {
                     make_hash(&hash_a)

@@ -3,7 +3,8 @@
 //! microcrate without behavior drift.
 
 use copybook_corruption::{
-    detect_ebcdic_corruption as detect_via_facade, detect_packed_corruption as detect_packed_via_facade,
+    detect_ebcdic_corruption as detect_via_facade,
+    detect_packed_corruption as detect_packed_via_facade,
 };
 use copybook_corruption_detectors::{
     detect_ebcdic_corruption as detect_via_microcrate,

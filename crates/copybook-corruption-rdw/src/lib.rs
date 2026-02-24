@@ -47,15 +47,16 @@ pub fn detect_rdw_ascii_corruption(rdw_bytes: &[u8]) -> Option<Error> {
         return Some(Error::new(
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
             format!(
-                "RDW length field suspiciously large ({}), may be ASCII-corrupted: 0x{:04X}",
-                length,
-                length
+                "RDW length field suspiciously large ({length}), may be ASCII-corrupted: 0x{length:04X}"
             ),
         ));
     }
 
     // Heuristic 3: Reserved bytes contain ASCII-like printable bytes.
-    if is_ascii_printable(rdw_bytes[2]) && is_ascii_printable(rdw_bytes[3]) && rdw_bytes[2..4] != [0x00, 0x00] {
+    if is_ascii_printable(rdw_bytes[2])
+        && is_ascii_printable(rdw_bytes[3])
+        && rdw_bytes[2..4] != [0x00, 0x00]
+    {
         return Some(Error::new(
             ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
             format!(
@@ -96,7 +97,9 @@ mod tests {
         let reserved_bytes = [data[2], data[3]];
         rdw_is_suspect_ascii_corruption_slice(data)
             || (0x3030u16..=0x3939u16).contains(&length)
-            || (is_ascii_printable(data[2]) && is_ascii_printable(data[3]) && reserved_bytes != [0x00, 0x00])
+            || (is_ascii_printable(data[2])
+                && is_ascii_printable(data[3])
+                && reserved_bytes != [0x00, 0x00])
     }
 
     #[test]
@@ -112,15 +115,18 @@ mod tests {
 
     #[test]
     fn detects_reserved_printables() {
-        let error =
-            detect_rdw_ascii_corruption(&[0x00, 0x50, b'A', b'B']).expect("reserved bytes should be flagged");
+        let error = detect_rdw_ascii_corruption(&[0x00, 0x50, b'A', b'B'])
+            .expect("reserved bytes should be flagged");
         assert_eq!(error.code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII);
     }
 
     #[test]
     fn ascii_heuristic_and_reference_match() {
         let header = [b'0', b'1', b'2', b'3'];
-        assert_eq!(detect_rdw_ascii_corruption(&header).is_some(), expected_corruption_present(&header));
+        assert_eq!(
+            detect_rdw_ascii_corruption(&header).is_some(),
+            expected_corruption_present(&header)
+        );
     }
 
     proptest! {

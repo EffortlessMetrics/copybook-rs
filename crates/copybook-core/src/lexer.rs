@@ -32,7 +32,7 @@ impl<'a> Lexer<'a> {
         };
 
         Self {
-            inner: copybook_lexer::Lexer::new_with_options(input, &lexer_options),
+            inner: copybook_lexer::Lexer::new_with_options(input, lexer_options),
         }
     }
 

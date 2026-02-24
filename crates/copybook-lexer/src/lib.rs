@@ -178,9 +178,10 @@ pub enum Token {
 }
 
 impl fmt::Display for Token {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::Level(n) => write!(f, "{:02}", n),
+            Token::Level(n) => write!(f, "{n:02}"),
             Token::Level66 => write!(f, "66"),
             Token::Level77 => write!(f, "77"),
             Token::Level88 => write!(f, "88"),
@@ -211,16 +212,14 @@ impl fmt::Display for Token {
             Token::Blank => write!(f, "BLANK"),
             Token::When => write!(f, "WHEN"),
             Token::Zero => write!(f, "ZERO"),
-            Token::PicClause(s) => write!(f, "{}", s),
-            Token::EditedPic(s) => write!(f, "{}", s),
-            Token::Identifier(s) => write!(f, "{}", s),
-            Token::Number(n) => write!(f, "{}", n),
-            Token::StringLiteral(s) => write!(f, "\"{}\"", s),
+            Token::PicClause(s) | Token::EditedPic(s) | Token::Identifier(s) => write!(f, "{s}"),
+            Token::Number(n) => write!(f, "{n}"),
+            Token::StringLiteral(s) => write!(f, "\"{s}\""),
             Token::Period => write!(f, "."),
             Token::Comma => write!(f, ","),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
-            Token::InlineComment(s) => write!(f, "*> {}", s),
+            Token::InlineComment(s) => write!(f, "*> {s}"),
             Token::Newline => write!(f, "\\n"),
             Token::Eof => write!(f, "EOF"),
         }
@@ -250,6 +249,7 @@ pub struct LexerOptions {
 }
 
 impl Default for LexerOptions {
+    #[inline]
     fn default() -> Self {
         Self {
             allow_inline_comments: true,
@@ -278,12 +278,14 @@ struct ProcessedLine<'a> {
 
 impl<'a> Lexer<'a> {
     /// Create a new lexer for the given input
+    #[inline]
     pub fn new(input: &'a str) -> Self {
-        Self::new_with_options(input, &LexerOptions::default())
+        Self::new_with_options(input, LexerOptions::default())
     }
 
     /// Create a new lexer for the given input with specific options
-    pub fn new_with_options(input: &'a str, options: &LexerOptions) -> Self {
+    #[inline]
+    pub fn new_with_options(input: &'a str, options: LexerOptions) -> Self {
         let format = detect_format(input);
         let lines = preprocess_lines(input, format, options);
 
@@ -297,11 +299,13 @@ impl<'a> Lexer<'a> {
     }
 
     /// Get the detected format
+    #[inline]
     pub fn format(&self) -> CobolFormat {
         self.format
     }
 
     /// Tokenize the input and return all tokens with positions
+    #[inline]
     pub fn tokenize(&mut self) -> Vec<TokenPos> {
         let mut tokens = Vec::new();
         let processed_text = self.build_processed_text();
@@ -434,11 +438,11 @@ fn detect_format(input: &str) -> CobolFormat {
 }
 
 /// Preprocess lines according to the detected format
-fn preprocess_lines<'a>(
-    input: &'a str,
+fn preprocess_lines(
+    input: &str,
     format: CobolFormat,
-    options: &LexerOptions,
-) -> Vec<ProcessedLine<'a>> {
+    options: LexerOptions,
+) -> Vec<ProcessedLine<'_>> {
     let mut result = Vec::new();
 
     for (line_num, line) in input.lines().enumerate() {
@@ -489,11 +493,7 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
 }
 
 /// Process a free-form COBOL line
-fn process_free_form_line<'a>(
-    line: &'a str,
-    line_num: usize,
-    options: &LexerOptions,
-) -> ProcessedLine<'a> {
+fn process_free_form_line(line: &str, line_num: usize, options: LexerOptions) -> ProcessedLine<'_> {
     let trimmed = line.trim_start();
 
     if trimmed.starts_with('*') {
@@ -556,7 +556,10 @@ mod tests {
         let tokens = lexer.tokenize();
 
         assert_eq!(tokens[0].token, Token::Level(1));
-        assert_eq!(tokens[1].token, Token::Identifier("CUSTOMER-ID".to_string()));
+        assert_eq!(
+            tokens[1].token,
+            Token::Identifier("CUSTOMER-ID".to_string())
+        );
         assert_eq!(tokens[2].token, Token::Pic);
         assert_eq!(tokens[3].token, Token::PicClause("X(10)".to_string()));
         assert_eq!(tokens[4].token, Token::Period);
@@ -599,7 +602,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize();
 
-        let comma_tokens: Vec<_> = tokens.iter().filter(|t| matches!(t.token, Token::Comma)).collect();
+        let comma_tokens: Vec<_> = tokens
+            .iter()
+            .filter(|t| matches!(t.token, Token::Comma))
+            .collect();
         assert_eq!(comma_tokens.len(), 2);
 
         let edited_pic_commas: Vec<_> = tokens
@@ -615,10 +621,14 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize();
 
-        let edited_pic = tokens.iter().find(|t| matches!(t.token, Token::EditedPic(_)));
+        let edited_pic = tokens
+            .iter()
+            .find(|t| matches!(t.token, Token::EditedPic(_)));
         assert!(edited_pic.is_some());
 
-        if let Some(token_pos) = edited_pic && let Token::EditedPic(pattern) = &token_pos.token {
+        if let Some(token_pos) = edited_pic
+            && let Token::EditedPic(pattern) = &token_pos.token
+        {
             assert!(pattern.contains(','));
         }
     }
@@ -633,9 +643,10 @@ mod tests {
         let tokens2 = lexer2.tokenize();
         assert!(matches!(tokens2[0].token, Token::EditedPic(_)));
 
+        // Comma inside a string literal is NOT tokenized as Comma
         let mut lexer3 = Lexer::new(r#""A,B""#);
         let tokens3 = lexer3.tokenize();
-        assert!(tokens3.iter().any(|t| matches!(t.token, Token::Comma)));
+        assert!(!tokens3.iter().any(|t| matches!(t.token, Token::Comma)));
     }
 
     #[test]
@@ -644,7 +655,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize();
 
-        let comma_count = tokens.iter().filter(|t| matches!(t.token, Token::Comma)).count();
+        let comma_count = tokens
+            .iter()
+            .filter(|t| matches!(t.token, Token::Comma))
+            .count();
         assert_eq!(comma_count, 2);
     }
 

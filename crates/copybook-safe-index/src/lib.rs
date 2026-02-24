@@ -11,6 +11,10 @@ use copybook_error::{Error, ErrorCode};
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Safely divide two numbers, checking for division by zero.
+///
+/// # Errors
+///
+/// Returns `CBKP001_SYNTAX` if `denominator` is zero.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_divide(numerator: usize, denominator: usize, context: &str) -> Result<usize> {
@@ -24,6 +28,10 @@ pub fn safe_divide(numerator: usize, denominator: usize, context: &str) -> Resul
 }
 
 /// Access a slice index with explicit bounds checking.
+///
+/// # Errors
+///
+/// Returns `CBKP001_SYNTAX` if `index` is out of bounds.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>

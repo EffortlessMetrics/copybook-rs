@@ -10,6 +10,10 @@ use copybook_error::{Error, ErrorCode};
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Safely convert a string to `usize`, returning an error on failure.
+///
+/// # Errors
+///
+/// Returns `CBKP001_SYNTAX` if `s` cannot be parsed as `usize`.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
@@ -22,6 +26,10 @@ pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
 }
 
 /// Safely convert a string to `isize`, returning an error on failure.
+///
+/// # Errors
+///
+/// Returns `CBKP001_SYNTAX` if `s` cannot be parsed as `isize`.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
@@ -34,6 +42,10 @@ pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
 }
 
 /// Safely convert `u16` with parse error handling.
+///
+/// # Errors
+///
+/// Returns `CBKP001_SYNTAX` if `s` cannot be parsed as `u16`.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
@@ -46,6 +58,10 @@ pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
 }
 
 /// Safely access a string character with bounds checking.
+///
+/// # Errors
+///
+/// Returns `CBKP001_SYNTAX` if `index` is out of bounds.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
@@ -61,6 +77,10 @@ pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char>
 }
 
 /// Safely format data into a string buffer for JSON generation.
+///
+/// # Errors
+///
+/// Returns `CBKD101_INVALID_FIELD_TYPE` if formatting fails.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_write(buffer: &mut String, args: std::fmt::Arguments<'_>) -> Result<()> {
@@ -74,6 +94,10 @@ pub fn safe_write(buffer: &mut String, args: std::fmt::Arguments<'_>) -> Result<
 }
 
 /// Safely append a string slice to a buffer for JSON field construction.
+///
+/// # Errors
+///
+/// Returns `CBKD101_INVALID_FIELD_TYPE` if the write fails.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_write_str(buffer: &mut String, s: &str) -> Result<()> {
@@ -120,7 +144,10 @@ mod tests {
 
     #[test]
     fn safe_string_char_at_ok() {
-        assert_eq!(safe_string_char_at("abc", 1, "test").expect("char index"), 'b');
+        assert_eq!(
+            safe_string_char_at("abc", 1, "test").expect("char index"),
+            'b'
+        );
     }
 
     #[test]

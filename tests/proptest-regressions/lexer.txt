@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 78c18a363a246c4ceb2f1fdd6307f79c3afccd3de3c5de8c8ee337a4618112dd # shrinks to bytes = [128, 128, 128]
 cc ea6c22f9135f970872266ca6417bc8103e60ca50968e1689c6e19fb42616bbdb # shrinks to bytes = [13]
+cc 3474b3c40a0fb3f13d64d3dac3517db1728a17782b0eed1c96caad47c75aa7c1 # shrinks to seed = "AA¡0 \u{b}𐀀\0𐀀\0a0¡ࠀ\0aࠀ0𐀀𐀀\u{b}0 a ࠀ\u{e}¡¡A\u{b}\u{b}0\u{b}0"

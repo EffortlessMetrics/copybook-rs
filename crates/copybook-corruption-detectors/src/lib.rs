@@ -21,8 +21,7 @@ pub fn detect_ebcdic_corruption(data: &[u8], field_path: &str) -> Vec<Error> {
             let error = Error::new(
                 ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
                 format!(
-                    "Potentially corrupted EBCDIC byte 0x{:02X} at position {} in field {}",
-                    byte, i, field_path
+                    "Potentially corrupted EBCDIC byte 0x{byte:02X} at position {i} in field {field_path}"
                 ),
             )
             .with_field(field_path)
@@ -49,8 +48,7 @@ pub fn detect_packed_corruption(data: &[u8], field_path: &str) -> Vec<Error> {
             let error = Error::new(
                 ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                 format!(
-                    "invalid high nibble 0x{:X} in packed decimal at byte {} (full byte: 0x{:02X})",
-                    high_nibble, i, byte
+                    "invalid high nibble 0x{high_nibble:X} in packed decimal at byte {i} (full byte: 0x{byte:02X})"
                 ),
             )
             .with_field(field_path)
@@ -64,10 +62,7 @@ pub fn detect_packed_corruption(data: &[u8], field_path: &str) -> Vec<Error> {
                 let error = Error::new(
                     ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                     format!(
-                        "invalid sign nibble 0x{:X} in packed decimal (should be C/D/F), byte {} (full byte: 0x{:02X})",
-                        low_nibble,
-                        i,
-                        byte
+                        "invalid sign nibble 0x{low_nibble:X} in packed decimal (should be C/D/F), byte {i} (full byte: 0x{byte:02X})"
                     ),
                 )
                 .with_field(field_path)
@@ -79,10 +74,7 @@ pub fn detect_packed_corruption(data: &[u8], field_path: &str) -> Vec<Error> {
             let error = Error::new(
                 ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
                 format!(
-                    "invalid low nibble 0x{:X} in packed decimal at byte {} (full byte: 0x{:02X})",
-                    low_nibble,
-                    i,
-                    byte
+                    "invalid low nibble 0x{low_nibble:X} in packed decimal at byte {i} (full byte: 0x{byte:02X})"
                 ),
             )
             .with_field(field_path)
@@ -118,15 +110,24 @@ mod tests {
         let invalid_sign = [0x12, 0x34, 0x56];
         let errors = detect_packed_corruption(&invalid_sign, "TEST.FIELD");
         assert!(!errors.is_empty());
-        assert!(errors.iter().any(|e| e.message.contains("invalid sign nibble")));
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.message.contains("invalid sign nibble"))
+        );
     }
 
     #[test]
     fn detect_packed_corruption_flags_invalid_high_nibble() {
-        let invalid = [0x12, 0x34, 0x5A];
+        // 0xA2: high nibble A (>9) is invalid for packed decimal
+        let invalid = [0xA2, 0x34, 0x5C];
         let errors = detect_packed_corruption(&invalid, "TEST.FIELD");
         assert!(!errors.is_empty());
-        assert!(errors.iter().any(|e| e.message.contains("invalid high nibble")));
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.message.contains("invalid high nibble"))
+        );
     }
 
     #[test]

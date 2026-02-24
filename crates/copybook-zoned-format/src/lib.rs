@@ -96,8 +96,14 @@ mod tests {
 
     #[test]
     fn detect_from_byte_known_bytes() {
-        assert_eq!(ZonedEncodingFormat::detect_from_byte(0x35), Some(ZonedEncodingFormat::Ascii));
-        assert_eq!(ZonedEncodingFormat::detect_from_byte(0xF4), Some(ZonedEncodingFormat::Ebcdic));
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0x35),
+            Some(ZonedEncodingFormat::Ascii)
+        );
+        assert_eq!(
+            ZonedEncodingFormat::detect_from_byte(0xF4),
+            Some(ZonedEncodingFormat::Ebcdic)
+        );
         assert_eq!(ZonedEncodingFormat::detect_from_byte(0x00), None);
     }
 
@@ -106,6 +112,9 @@ mod tests {
         assert!(ZonedEncodingFormat::Ascii.is_ascii());
         assert!(!ZonedEncodingFormat::Auto.is_ascii());
         assert_eq!(format!("{}", ZonedEncodingFormat::Ascii), "ascii");
-        assert_eq!(ZonedEncodingFormat::Auto.description(), "Automatic detection based on zone nibbles");
+        assert_eq!(
+            ZonedEncodingFormat::Auto.description(),
+            "Automatic detection based on zone nibbles"
+        );
     }
 }

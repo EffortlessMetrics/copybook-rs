@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_cli_determinism::{
-    build_decode_options, build_encode_options, render_human_result, render_json_result, OutputFormat,
-    CommonDeterminismArgs, DeterminismCommand, DeterminismModeCommand, DeterminismRun,
-    DeterminismVerdict, DecodeDeterminismArgs, EncodeDeterminismArgs,
+    CommonDeterminismArgs, DecodeDeterminismArgs, DeterminismCommand, DeterminismModeCommand,
+    DeterminismRun, DeterminismVerdict, EncodeDeterminismArgs, OutputFormat, build_decode_options,
+    build_encode_options, render_human_result, render_json_result,
 };
 use copybook_codec::{Codepage, JsonNumberMode, RecordFormat};
 use copybook_determinism::{DeterminismMode, DeterminismResult};

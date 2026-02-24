@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use cucumber::{given, then, when};
 
-use copybook_core::lexer::{Lexer, Token};
 use crate::helpers::does_path_match_counter;
 use crate::world::CopybookWorld;
+use copybook_core::lexer::{Lexer, Token};
 
 // ========================================================================
 // Copybook Parsing Steps
@@ -575,8 +575,7 @@ async fn then_lexer_should_not_treat_value_list_commas_as_edited_pic(world: &mut
         .count();
 
     assert_eq!(
-        edited_pic_count,
-        0,
+        edited_pic_count, 0,
         "Expected VALUE-list separators to stay as comma tokens, not edited picture"
     );
 }

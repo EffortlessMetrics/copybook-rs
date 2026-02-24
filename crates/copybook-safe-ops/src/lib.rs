@@ -14,6 +14,10 @@ pub use copybook_safe_text::{
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Safely calculate COBOL array bounds with overflow protection.
+///
+/// # Errors
+///
+/// Returns an error if the computation overflows.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_array_bound(
@@ -26,6 +30,10 @@ pub fn safe_array_bound(
 }
 
 /// Safely convert `u64` to `u32` with overflow checking.
+///
+/// # Errors
+///
+/// Returns an error if `value` exceeds `u32::MAX`.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
@@ -33,6 +41,10 @@ pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
 }
 
 /// Safely convert `u64` to `u16` with overflow checking.
+///
+/// # Errors
+///
+/// Returns an error if `value` exceeds `u16::MAX`.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
@@ -40,6 +52,10 @@ pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
 }
 
 /// Safely convert `usize` to `u32` with overflow checking.
+///
+/// # Errors
+///
+/// Returns an error if `value` exceeds `u32::MAX`.
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {

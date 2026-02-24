@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use copybook_core::{ParseOptions, lexer::{CobolFormat, Token}};
 use copybook_core::lexer::Lexer;
+use copybook_core::{
+    ParseOptions,
+    lexer::{CobolFormat, Token},
+};
 
 #[test]
 fn lexer_integration_defaults_to_free_form_for_unmarked_copybook() {
@@ -51,5 +54,10 @@ fn lexer_integration_handles_fixed_form_input() {
     let fixed_like = "       01 FIXED-RECORD.\n      -    PIC X(10).";
     let mut lexer = Lexer::new_with_options(fixed_like, &ParseOptions::default());
     assert_eq!(lexer.format(), CobolFormat::Fixed);
-    assert!(lexer.tokenize().iter().any(|token| matches!(token.token, Token::Period)));
+    assert!(
+        lexer
+            .tokenize()
+            .iter()
+            .any(|token| matches!(token.token, Token::Period))
+    );
 }

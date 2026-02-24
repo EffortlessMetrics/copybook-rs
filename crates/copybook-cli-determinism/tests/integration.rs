@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use copybook_cli_determinism::{
-    DeterminismCommand, DeterminismModeCommand, DeterminismVerdict, OutputFormat,
-    CommonDeterminismArgs, DecodeDeterminismArgs, EncodeDeterminismArgs, RoundTripDeterminismArgs,
-    run,
+    CommonDeterminismArgs, DecodeDeterminismArgs, DeterminismCommand, DeterminismModeCommand,
+    DeterminismVerdict, EncodeDeterminismArgs, OutputFormat, RoundTripDeterminismArgs, run,
 };
 use copybook_codec::{Codepage, JsonNumberMode, RecordFormat};
 use std::fs;
@@ -65,10 +64,7 @@ fn decode_determinism_command_supports_json_output() {
     common.output = OutputFormat::Json;
 
     let command = DeterminismCommand {
-        mode: DeterminismModeCommand::Decode(DecodeDeterminismArgs {
-            common,
-            data,
-        }),
+        mode: DeterminismModeCommand::Decode(DecodeDeterminismArgs { common, data }),
     };
 
     let result = run(&command).expect("determinism decode run");

@@ -17,7 +17,7 @@ fuzz_target!(|data: &[u8]| {
     let _ = Lexer::new(&input).tokenize();
     let _ = Lexer::new_with_options(
         &input,
-        &LexerOptions {
+        LexerOptions {
             allow_inline_comments: false,
             strict_comments: true,
         },
@@ -27,7 +27,7 @@ fuzz_target!(|data: &[u8]| {
     if input.contains("*>") {
         let with_comment_strip = Lexer::new_with_options(
             &input,
-            &LexerOptions {
+            LexerOptions {
                 allow_inline_comments: true,
                 strict_comments: false,
             },
@@ -35,7 +35,7 @@ fuzz_target!(|data: &[u8]| {
         .tokenize();
         let with_comment_strict = Lexer::new_with_options(
             &input,
-            &LexerOptions {
+            LexerOptions {
                 allow_inline_comments: true,
                 strict_comments: true,
             },

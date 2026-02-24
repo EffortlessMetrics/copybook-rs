@@ -20,12 +20,7 @@ pub const fn rdw_is_suspect_ascii_corruption(rdw_header: [u8; RDW_HEADER_LEN]) -
 #[must_use]
 pub fn rdw_is_suspect_ascii_corruption_slice(rdw_bytes: &[u8]) -> bool {
     rdw_bytes.len() >= RDW_HEADER_LEN
-        && rdw_is_suspect_ascii_corruption([
-            rdw_bytes[0],
-            rdw_bytes[1],
-            rdw_bytes[2],
-            rdw_bytes[3],
-        ])
+        && rdw_is_suspect_ascii_corruption([rdw_bytes[0], rdw_bytes[1], rdw_bytes[2], rdw_bytes[3]])
 }
 
 #[inline]

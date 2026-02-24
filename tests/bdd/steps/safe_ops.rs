@@ -119,7 +119,12 @@ async fn then_safe_ops_char_result(world: &mut CopybookWorld, expected: String) 
 }
 
 #[when(expr = "safe_array_bound is called with base {int}, count {int}, and item size {int}")]
-async fn when_safe_array_bound(world: &mut CopybookWorld, base: usize, count: usize, item_size: usize) {
+async fn when_safe_array_bound(
+    world: &mut CopybookWorld,
+    base: usize,
+    count: usize,
+    item_size: usize,
+) {
     match safe_array_bound(base, count, item_size, "bdd-safe-ops") {
         Ok(value) => {
             world.safe_ops_array_bound = Some(value);

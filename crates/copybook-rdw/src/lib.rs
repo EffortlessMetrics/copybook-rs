@@ -7,7 +7,6 @@
 
 use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};
-use copybook_rdw_predicates;
 use std::io::{BufRead, BufReader, Read, Write};
 use tracing::{debug, warn};
 

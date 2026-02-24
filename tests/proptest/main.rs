@@ -11,10 +11,10 @@
 
 mod arrays;
 mod config;
+mod corruption;
 mod determinism;
 mod fixed;
 mod generators;
-mod corruption;
 mod lexer;
 mod numeric;
 mod parsing;

@@ -9,15 +9,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-/// Dialect for ODO min_count interpretation
+/// Dialect for ODO `min_count` interpretation
 ///
 /// The dialect lever controls how `min_count` is interpreted for ODO arrays:
 ///
-/// | Dialect | min_count Interpretation | Description |
+/// | Dialect | `min_count` Interpretation | Description |
 /// |---------|------------------------|-------------|
-/// | `Normative` | min_count is enforced | Counter must be ≥ min_count (strict) |
-/// | `ZeroTolerant` | min_count is ignored | Counter can be 0..max_count (relaxed) |
-/// | `OneTolerant` | min_count clamped to 1 | Counter must be ≥ max(1, min_count) |
+/// | `Normative` | `min_count` is enforced | Counter must be ≥ `min_count` (strict) |
+/// | `ZeroTolerant` | `min_count` is ignored | Counter can be `0..max_count` (relaxed) |
+/// | `OneTolerant` | `min_count` clamped to 1 | Counter must be ≥ `max(1, min_count)` |
 ///
 /// # Examples
 ///
@@ -43,25 +43,26 @@ use std::str::FromStr;
 pub enum Dialect {
     /// Normative dialect - `min_count` is strictly enforced
     ///
-    /// Counter must be ≥ min_count. This is the default behavior.
+    /// Counter must be ≥ `min_count`. This is the default behavior.
     #[default]
     Normative,
 
     /// Zero-tolerant dialect - `min_count` is ignored
     ///
-    /// Counter can be 0..max_count, regardless of declared min_count.
+    /// Counter can be `0..max_count`, regardless of declared `min_count`.
     ZeroTolerant,
 
     /// One-tolerant dialect - `min_count` is clamped to 1
     ///
-    /// Counter must be ≥ max(1, min_count). This allows zero-length arrays
-    /// when min_count is 0, but enforces at least one element otherwise.
+    /// Counter must be ≥ `max(1, min_count)`. This allows zero-length arrays
+    /// when `min_count` is 0, but enforces at least one element otherwise.
     OneTolerant,
 }
 
 impl FromStr for Dialect {
     type Err = String;
 
+    #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim() {
             "n" | "N" => Ok(Self::Normative),
@@ -75,6 +76,7 @@ impl FromStr for Dialect {
 }
 
 impl fmt::Display for Dialect {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Normative => write!(f, "n"),
@@ -101,7 +103,7 @@ impl fmt::Display for Dialect {
 /// | Dialect | Result |
 /// |---------|--------|
 /// | `Normative` | Returns `declared_min_count` unchanged |
-/// | `ZeroTolerant` | Returns `0` (ignores declared min_count) |
+/// | `ZeroTolerant` | Returns `0` (ignores declared `min_count`) |
 /// | `OneTolerant` | Returns `max(1, declared_min_count)` |
 ///
 /// # Examples

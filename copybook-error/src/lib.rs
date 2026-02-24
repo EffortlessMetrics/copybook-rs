@@ -227,11 +227,11 @@ pub enum ErrorCode {
     // =============================================================================
     /// CBKW001: Failed COBOL to Arrow schema conversion
     CBKW001_SCHEMA_CONVERSION,
-    /// CBKW002: FieldKind has no valid Arrow type mapping
+    /// CBKW002: `FieldKind` has no valid Arrow type mapping
     CBKW002_TYPE_MAPPING,
     /// CBKW003: Decimal precision exceeds Decimal128 limit (38 digits)
     CBKW003_DECIMAL_OVERFLOW,
-    /// CBKW004: RecordBatch construction failure
+    /// CBKW004: `RecordBatch` construction failure
     CBKW004_BATCH_BUILD,
     /// CBKW005: Parquet file write failure
     CBKW005_PARQUET_WRITE,

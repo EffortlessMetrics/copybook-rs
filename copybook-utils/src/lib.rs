@@ -2,7 +2,7 @@
 //! Panic-safe utility functions and extension traits
 //!
 //! This crate provides utilities to eliminate panic conditions in the copybook-rs
-//! codebase, replacing unwrap() calls with structured error handling.
+//! codebase, replacing `unwrap()` calls with structured error handling.
 
 use copybook_error::{Error, ErrorCode};
 
@@ -12,9 +12,15 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Extension trait for `Option<T>` providing panic-safe unwrapping with context
 pub trait OptionExt<T> {
     /// Unwrap an option safely, returning a structured error with context if None
+    ///
+    /// # Errors
+    /// Returns the specified error code and message if the option is `None`.
     fn ok_or_cbkp_error(self, code: ErrorCode, message: impl Into<String>) -> Result<T>;
 
     /// Unwrap an option safely with a specific error context
+    ///
+    /// # Errors
+    /// Returns the provided error if the option is `None`.
     fn ok_or_error(self, error: Error) -> Result<T>;
 }
 
@@ -45,12 +51,21 @@ impl<T> OptionExt<T> for Option<T> {
 /// Extension trait for `Vec<T>` providing panic-safe access operations
 pub trait VecExt<T> {
     /// Pop from vector safely, returning a structured error if empty
+    ///
+    /// # Errors
+    /// Returns the specified error code and message if the vector is empty.
     fn pop_or_cbkp_error(&mut self, code: ErrorCode, message: impl Into<String>) -> Result<T>;
 
     /// Get last element safely, returning a structured error if empty
+    ///
+    /// # Errors
+    /// Returns the specified error code and message if the vector is empty.
     fn last_or_cbkp_error(&self, code: ErrorCode, message: impl Into<String>) -> Result<&T>;
 
     /// Get last mutable element safely, returning a structured error if empty
+    ///
+    /// # Errors
+    /// Returns the specified error code and message if the vector is empty.
     fn last_mut_or_cbkp_error(
         &mut self,
         code: ErrorCode,
@@ -105,6 +120,9 @@ impl<T> VecExt<T> for Vec<T> {
 /// Extension trait for slice indexing providing panic-safe access
 pub trait SliceExt<T> {
     /// Get element at index safely, returning a structured error if out of bounds
+    ///
+    /// # Errors
+    /// Returns the specified error code and message if the index is out of bounds.
     fn get_or_cbkp_error(
         &self,
         index: usize,
@@ -113,6 +131,9 @@ pub trait SliceExt<T> {
     ) -> Result<&T>;
 
     /// Get mutable element at index safely, returning a structured error if out of bounds
+    ///
+    /// # Errors
+    /// Returns the specified error code and message if the index is out of bounds.
     fn get_mut_or_cbkp_error(
         &mut self,
         index: usize,
@@ -173,7 +194,7 @@ pub mod safe_ops {
         s.parse().map_err(|_| {
             Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                format!("Invalid numeric value '{}' in {}", s, context),
+                format!("Invalid numeric value '{s}' in {context}"),
             )
         })
     }
@@ -188,7 +209,7 @@ pub mod safe_ops {
         s.parse().map_err(|_| {
             Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                format!("Invalid signed numeric value '{}' in {}", s, context),
+                format!("Invalid signed numeric value '{s}' in {context}"),
             )
         })
     }
@@ -203,7 +224,7 @@ pub mod safe_ops {
         if denominator == 0 {
             return Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                format!("Division by zero in {}", context),
+                format!("Division by zero in {context}"),
             ));
         }
         Ok(numerator / denominator)
@@ -246,7 +267,7 @@ pub mod safe_ops {
         buffer.write_fmt(args).map_err(|e| {
             Error::new(
                 ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                format!("String formatting error: {}", e),
+                format!("String formatting error: {e}"),
             )
         })
     }
@@ -267,7 +288,7 @@ pub mod safe_ops {
         buffer.write_str(s).map_err(|e| {
             Error::new(
                 ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-                format!("String write error: {}", e),
+                format!("String write error: {e}"),
             )
         })
     }
@@ -332,9 +353,7 @@ pub mod safe_ops {
             Err(Error::new(
                 ErrorCode::CBKP001_SYNTAX,
                 format!(
-                    "Slice bounds violation in {}: index {} >= length {}",
-                    context,
-                    index,
+                    "Slice bounds violation in {context}: index {index} >= length {}",
                     slice.len()
                 ),
             ))
@@ -354,7 +373,7 @@ pub mod safe_ops {
         s.parse().map_err(|_| {
             Error::new(
                 ErrorCode::CBKP001_SYNTAX,
-                format!("Invalid u16 value '{}' in {}", s, context),
+                format!("Invalid u16 value '{s}' in {context}"),
             )
         })
     }
@@ -373,9 +392,7 @@ pub mod safe_ops {
             Error::new(
                 ErrorCode::CBKP001_SYNTAX,
                 format!(
-                    "String character access out of bounds in {}: index {} >= length {}",
-                    context,
-                    index,
+                    "String character access out of bounds in {context}: index {index} >= length {}",
                     s.len()
                 ),
             )

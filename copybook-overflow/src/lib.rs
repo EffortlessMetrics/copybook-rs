@@ -21,20 +21,14 @@ pub fn safe_array_bound(
     let total_size = count.checked_mul(item_size).ok_or_else(|| {
         Error::new(
             ErrorCode::CBKP021_ODO_NOT_TAIL,
-            format!(
-                "Array size overflow in {}: {} * {} would overflow",
-                context, count, item_size
-            ),
+            format!("Array size overflow in {context}: {count} * {item_size} would overflow"),
         )
     })?;
 
     base.checked_add(total_size).ok_or_else(|| {
         Error::new(
             ErrorCode::CBKP021_ODO_NOT_TAIL,
-            format!(
-                "Array offset overflow in {}: {} + {} would overflow",
-                context, base, total_size
-            ),
+            format!("Array offset overflow in {context}: {base} + {total_size} would overflow"),
         )
     })
 }
@@ -46,18 +40,14 @@ pub fn safe_array_bound(
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
-    #[allow(clippy::checked_conversions)]
-    if value <= u32::MAX as u64 {
-        Ok(value as u32)
-    } else {
-        Err(Error::new(
+    u32::try_from(value).map_err(|_| {
+        Error::new(
             ErrorCode::CBKS141_RECORD_TOO_LARGE,
             format!(
-                "Integer overflow converting u64 to u32 in {}: {} exceeds u32::MAX",
-                context, value
+                "Integer overflow converting u64 to u32 in {context}: {value} exceeds u32::MAX"
             ),
-        ))
-    }
+        )
+    })
 }
 
 /// Safely convert `u64` to `u16` with overflow checking.
@@ -67,18 +57,14 @@ pub fn safe_u64_to_u32(value: u64, context: &str) -> Result<u32> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
-    #[allow(clippy::checked_conversions)]
-    if value <= u16::MAX as u64 {
-        Ok(value as u16)
-    } else {
-        Err(Error::new(
+    u16::try_from(value).map_err(|_| {
+        Error::new(
             ErrorCode::CBKS141_RECORD_TOO_LARGE,
             format!(
-                "Integer overflow converting u64 to u16 in {}: {} exceeds u16::MAX",
-                context, value
+                "Integer overflow converting u64 to u16 in {context}: {value} exceeds u16::MAX"
             ),
-        ))
-    }
+        )
+    })
 }
 
 /// Safely convert `usize` to `u32` with overflow checking.
@@ -88,18 +74,14 @@ pub fn safe_u64_to_u16(value: u64, context: &str) -> Result<u16> {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
-    #[allow(clippy::checked_conversions)]
-    if value <= u32::MAX as usize {
-        Ok(value as u32)
-    } else {
-        Err(Error::new(
+    u32::try_from(value).map_err(|_| {
+        Error::new(
             ErrorCode::CBKS141_RECORD_TOO_LARGE,
             format!(
-                "Integer overflow converting usize to u32 in {}: {} exceeds u32::MAX",
-                context, value
+                "Integer overflow converting usize to u32 in {context}: {value} exceeds u32::MAX"
             ),
-        ))
-    }
+        )
+    })
 }
 
 #[cfg(test)]

@@ -170,7 +170,7 @@ impl ErrorReporter {
         };
 
         // Check for transfer corruption patterns
-        if self.is_corruption_warning(&report.error) {
+        if is_corruption_warning(&report.error) {
             self.summary.corruption_warnings += 1;
             report
                 .metadata
@@ -185,7 +185,7 @@ impl ErrorReporter {
     #[inline]
     pub fn start_record(&mut self, record_index: u64) {
         self.summary.total_records = record_index;
-        debug!("Processing record {}", record_index);
+        debug!("Processing record {record_index}");
     }
 
     /// Get the current error summary
@@ -213,6 +213,7 @@ impl ErrorReporter {
     }
 
     /// Check if any warnings have been reported
+    #[must_use]
     #[inline]
     pub fn has_warnings(&self) -> bool {
         self.summary
@@ -223,6 +224,7 @@ impl ErrorReporter {
     }
 
     /// Get total error count (excluding warnings)
+    #[must_use]
     #[inline]
     pub fn error_count(&self) -> u64 {
         self.summary
@@ -237,6 +239,7 @@ impl ErrorReporter {
     }
 
     /// Get total warning count
+    #[must_use]
     #[inline]
     pub fn warning_count(&self) -> u64 {
         *self
@@ -247,6 +250,7 @@ impl ErrorReporter {
     }
 
     /// Generate a detailed error report for display
+    #[must_use]
     #[inline]
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
@@ -267,7 +271,7 @@ impl ErrorReporter {
             report.push_str("\nError counts by severity:\n");
             for (severity, count) in &self.summary.error_counts {
                 if *count > 0 {
-                    let _ = writeln!(report, "  {:?}: {}", severity, count);
+                    let _ = writeln!(report, "  {severity:?}: {count}");
                 }
             }
         }
@@ -276,7 +280,7 @@ impl ErrorReporter {
             report.push_str("\nError counts by code:\n");
             for (code, count) in &self.summary.error_codes {
                 if *count > 0 {
-                    let _ = writeln!(report, "  {}: {}", code, count);
+                    let _ = writeln!(report, "  {code}: {count}");
                 }
             }
         }
@@ -299,6 +303,7 @@ impl ErrorReporter {
     }
 
     /// Determine error severity based on error code
+    #[inline]
     fn determine_severity(&self, error: &Error) -> ErrorSeverity {
         match error.code {
             // Parse errors are typically fatal
@@ -308,10 +313,9 @@ impl ErrorReporter {
             | ErrorCode::CBKP022_NESTED_ODO
             | ErrorCode::CBKP023_ODO_REDEFINES
             | ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC
-            | ErrorCode::CBKP101_INVALID_PIC => ErrorSeverity::Fatal,
-
-            // Schema errors can be fatal or errors depending on context
-            ErrorCode::CBKS121_COUNTER_NOT_FOUND
+            | ErrorCode::CBKP101_INVALID_PIC
+            // Schema errors are fatal
+            | ErrorCode::CBKS121_COUNTER_NOT_FOUND
             | ErrorCode::CBKS141_RECORD_TOO_LARGE
             | ErrorCode::CBKS601_RENAME_UNKNOWN_FROM
             | ErrorCode::CBKS602_RENAME_UNKNOWN_THRU
@@ -330,32 +334,31 @@ impl ErrorReporter {
             | ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND
             | ErrorCode::CBKE505_SCALE_MISMATCH
             | ErrorCode::CBKE510_NUMERIC_OVERFLOW
-            | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => ErrorSeverity::Fatal,
+            | ErrorCode::CBKE515_STRING_LENGTH_VIOLATION
+            // JSON write errors are typically fatal
+            | ErrorCode::CBKC201_JSON_WRITE_ERROR
+            // Iterator/internal state errors are fatal
+            | ErrorCode::CBKI001_INVALID_STATE => ErrorSeverity::Fatal,
 
             // ODO clipping is a warning in lenient mode, error in strict mode
-            ErrorCode::CBKS301_ODO_CLIPPED | ErrorCode::CBKS302_ODO_RAISED => {
-                if self.mode == ErrorMode::Strict {
-                    ErrorSeverity::Fatal
-                } else {
-                    ErrorSeverity::Warning
-                }
-            }
-
+            ErrorCode::CBKS301_ODO_CLIPPED
+            | ErrorCode::CBKS302_ODO_RAISED
             // Record format warnings
-            ErrorCode::CBKR211_RDW_RESERVED_NONZERO => {
+            | ErrorCode::CBKR211_RDW_RESERVED_NONZERO => {
                 if self.mode == ErrorMode::Strict {
                     ErrorSeverity::Fatal
                 } else {
                     ErrorSeverity::Warning
                 }
             }
-            ErrorCode::CBKF102_RECORD_LENGTH_INVALID => ErrorSeverity::Error,
-            ErrorCode::CBKF221_RDW_UNDERFLOW => ErrorSeverity::Error,
 
-            // Character conversion warnings
-            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => ErrorSeverity::Warning,
+            // Character conversion warnings, BLANK WHEN ZERO, transfer corruption
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE
+            | ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO
+            | ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO
+            | ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
 
-            // Data decode errors
+            // Data decode errors, encode errors, format errors, audit, arrow/writer
             ErrorCode::CBKD101_INVALID_FIELD_TYPE
             | ErrorCode::CBKD301_RECORD_TOO_SHORT
             | ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED
@@ -365,37 +368,18 @@ impl ErrorReporter {
             | ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT
             | ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH
             | ErrorCode::CBKD431_FLOAT_NAN
-            | ErrorCode::CBKD432_FLOAT_INFINITY => ErrorSeverity::Error,
-
-            // BLANK WHEN ZERO is informational
-            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO
-            | ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => ErrorSeverity::Warning,
-
-            // Encode errors
-            ErrorCode::CBKE501_JSON_TYPE_MISMATCH
+            | ErrorCode::CBKD432_FLOAT_INFINITY
+            | ErrorCode::CBKD413_ZONED_INVALID_ENCODING
+            | ErrorCode::CBKD414_ZONED_MIXED_ENCODING
+            | ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS
+            | ErrorCode::CBKE501_JSON_TYPE_MISMATCH
             | ErrorCode::CBKE521_ARRAY_LEN_OOB
             | ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR
-            | ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW => ErrorSeverity::Error,
-
-            // Transfer corruption warnings
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII => ErrorSeverity::Warning,
-
-            // JSON write errors are typically fatal
-            ErrorCode::CBKC201_JSON_WRITE_ERROR => ErrorSeverity::Fatal,
-
-            // Zoned encoding errors - validation errors
-            ErrorCode::CBKD413_ZONED_INVALID_ENCODING
-            | ErrorCode::CBKD414_ZONED_MIXED_ENCODING
-            | ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => ErrorSeverity::Error,
-
-            // Iterator/internal state errors are fatal
-            ErrorCode::CBKI001_INVALID_STATE => ErrorSeverity::Fatal,
-
-            // Audit errors
-            ErrorCode::CBKA001_BASELINE_ERROR => ErrorSeverity::Error,
-
-            // Arrow/Writer errors
-            ErrorCode::CBKW001_SCHEMA_CONVERSION
+            | ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW
+            | ErrorCode::CBKF102_RECORD_LENGTH_INVALID
+            | ErrorCode::CBKF221_RDW_UNDERFLOW
+            | ErrorCode::CBKA001_BASELINE_ERROR
+            | ErrorCode::CBKW001_SCHEMA_CONVERSION
             | ErrorCode::CBKW002_TYPE_MAPPING
             | ErrorCode::CBKW003_DECIMAL_OVERFLOW
             | ErrorCode::CBKW004_BATCH_BUILD
@@ -404,6 +388,7 @@ impl ErrorReporter {
     }
 
     /// Update error statistics
+    #[inline]
     fn update_statistics(&mut self, report: &ErrorReport) {
         // Update severity counts
         *self
@@ -438,6 +423,7 @@ impl ErrorReporter {
     }
 
     /// Log error with appropriate level and detail
+    #[inline]
     fn log_error(&self, report: &ErrorReport) {
         let error_msg = if self.verbose_logging {
             format!("{}", report.error)
@@ -446,10 +432,9 @@ impl ErrorReporter {
         };
 
         match report.severity {
-            ErrorSeverity::Fatal => error!("{}", error_msg),
-            ErrorSeverity::Error => error!("{}", error_msg),
-            ErrorSeverity::Warning => warn!("{}", error_msg),
-            ErrorSeverity::Info => debug!("{}", error_msg),
+            ErrorSeverity::Fatal | ErrorSeverity::Error => error!("{error_msg}"),
+            ErrorSeverity::Warning => warn!("{error_msg}"),
+            ErrorSeverity::Info => debug!("{error_msg}"),
         }
 
         // Log additional context if available and verbose
@@ -459,17 +444,18 @@ impl ErrorReporter {
                 || context.field_path.is_some()
                 || context.byte_offset.is_some())
         {
-            debug!("  Context: {}", context);
+            debug!("  Context: {context}");
         }
     }
+}
 
-    /// Check if error indicates transfer corruption
-    fn is_corruption_warning(&self, error: &Error) -> bool {
-        matches!(
-            error.code,
-            ErrorCode::CBKF104_RDW_SUSPECT_ASCII | ErrorCode::CBKC301_INVALID_EBCDIC_BYTE
-        )
-    }
+/// Check if error indicates transfer corruption
+#[inline]
+fn is_corruption_warning(error: &Error) -> bool {
+    matches!(
+        error.code,
+        ErrorCode::CBKF104_RDW_SUSPECT_ASCII | ErrorCode::CBKC301_INVALID_EBCDIC_BYTE
+    )
 }
 
 impl fmt::Display for ErrorSeverity {
@@ -486,6 +472,7 @@ impl fmt::Display for ErrorSeverity {
 
 impl ErrorSummary {
     /// Check if processing had any errors
+    #[must_use]
     #[inline]
     pub fn has_errors(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0) > &0
@@ -493,12 +480,14 @@ impl ErrorSummary {
     }
 
     /// Check if processing had any warnings
+    #[must_use]
     #[inline]
     pub fn has_warnings(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0) > &0
     }
 
     /// Get total error count (excluding warnings)
+    #[must_use]
     #[inline]
     pub fn error_count(&self) -> u64 {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0)
@@ -506,6 +495,7 @@ impl ErrorSummary {
     }
 
     /// Get total warning count
+    #[must_use]
     #[inline]
     pub fn warning_count(&self) -> u64 {
         *self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0)

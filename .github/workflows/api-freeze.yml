@@ -69,7 +69,11 @@ jobs:
         # Detect which paths changed
         CHANGED_FILES=$(git diff --name-only $BASE_REF...HEAD || echo "")
 
-        echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+        {
+          echo "changed_files<<EOF"
+          echo "$CHANGED_FILES"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
 
         # Check if only docs/bench/tests changed
         if echo "$CHANGED_FILES" | grep -vE '^(docs/|copybook-bench/|tests/|\.github/|scripts/)' | grep -q .; then

@@ -22,6 +22,10 @@ on:
           - pic_clause
           - occurs_odo
           - redefines
+          - rdw_header
+          - fixed_record
+          - determinism_compare
+          - options_contract
           - record_io_dispatch
   schedule:
     # Run nightly at 2 AM UTC
@@ -30,6 +34,10 @@ on:
     paths:
       - 'copybook-core/**'
       - 'copybook-codec/**'
+      - 'copybook-fixed/**'
+      - 'copybook-rdw/**'
+      - 'copybook-determinism/**'
+      - 'copybook-options/**'
       - 'copybook-record-io/**'
       - 'fuzz/**'
       - '.github/workflows/fuzz-integration.yml'
@@ -67,6 +75,14 @@ jobs:
           - target: occurs_odo
             package: copybook-fuzz
           - target: redefines
+            package: copybook-fuzz
+          - target: rdw_header
+            package: copybook-fuzz
+          - target: fixed_record
+            package: copybook-fuzz
+          - target: determinism_compare
+            package: copybook-fuzz
+          - target: options_contract
             package: copybook-fuzz
           - target: record_io_dispatch
             package: copybook-fuzz
@@ -166,6 +182,10 @@ jobs:
           echo "| pic_clause | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| occurs_odo | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| redefines | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| rdw_header | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| fixed_record | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| determinism_compare | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| options_contract | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| record_io_dispatch | ${{ needs.cargo-fuzz.result }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Next Steps" >> $GITHUB_STEP_SUMMARY

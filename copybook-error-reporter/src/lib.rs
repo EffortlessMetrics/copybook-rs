@@ -160,6 +160,7 @@ impl ErrorReporter {
     }
 
     /// Report a warning (always continues processing)
+    #[inline]
     pub fn report_warning(&mut self, error: Error) {
         let mut report = ErrorReport {
             error,
@@ -181,6 +182,7 @@ impl ErrorReporter {
     }
 
     /// Report record processing start (for context tracking)
+    #[inline]
     pub fn start_record(&mut self, record_index: u64) {
         self.summary.total_records = record_index;
         debug!("Processing record {}", record_index);
@@ -188,12 +190,14 @@ impl ErrorReporter {
 
     /// Get the current error summary
     #[must_use]
+    #[inline]
     pub fn summary(&self) -> &ErrorSummary {
         &self.summary
     }
 
     /// Check if any errors have been reported
     #[must_use]
+    #[inline]
     pub fn has_errors(&self) -> bool {
         self.summary
             .error_counts
@@ -209,6 +213,7 @@ impl ErrorReporter {
     }
 
     /// Check if any warnings have been reported
+    #[inline]
     pub fn has_warnings(&self) -> bool {
         self.summary
             .error_counts
@@ -218,6 +223,7 @@ impl ErrorReporter {
     }
 
     /// Get total error count (excluding warnings)
+    #[inline]
     pub fn error_count(&self) -> u64 {
         self.summary
             .error_counts
@@ -231,6 +237,7 @@ impl ErrorReporter {
     }
 
     /// Get total warning count
+    #[inline]
     pub fn warning_count(&self) -> u64 {
         *self
             .summary
@@ -240,6 +247,7 @@ impl ErrorReporter {
     }
 
     /// Generate a detailed error report for display
+    #[inline]
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
 
@@ -465,6 +473,7 @@ impl ErrorReporter {
 }
 
 impl fmt::Display for ErrorSeverity {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ErrorSeverity::Info => write!(f, "INFO"),
@@ -477,23 +486,27 @@ impl fmt::Display for ErrorSeverity {
 
 impl ErrorSummary {
     /// Check if processing had any errors
+    #[inline]
     pub fn has_errors(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0) > &0
             || self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0) > &0
     }
 
     /// Check if processing had any warnings
+    #[inline]
     pub fn has_warnings(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0) > &0
     }
 
     /// Get total error count (excluding warnings)
+    #[inline]
     pub fn error_count(&self) -> u64 {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0)
             + self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0)
     }
 
     /// Get total warning count
+    #[inline]
     pub fn warning_count(&self) -> u64 {
         *self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0)
     }

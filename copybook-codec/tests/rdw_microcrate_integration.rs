@@ -34,6 +34,49 @@ fn rdw_decode_rejects_ascii_corrupted_header() {
 }
 
 #[test]
+fn rdw_reserved_nonzero_increments_run_summary_warnings() {
+    let schema = parse_copybook(
+        r"
+        01 SIMPLE-RECORD PIC X(5).
+    ",
+    )
+    .expect("schema should parse");
+
+    let options = DecodeOptions::new()
+        .with_format(RecordFormat::RDW)
+        .with_codepage(Codepage::ASCII)
+        .with_strict_mode(false);
+
+    // Baseline: reserved bytes are zero, so warning count should be unchanged.
+    let mut out0 = Vec::new();
+    let summary0 = decode_file_to_jsonl(
+        &schema,
+        Cursor::new(vec![0x00, 0x05, 0x00, 0x00, b'H', b'E', b'L', b'L', b'O']),
+        &mut out0,
+        &options,
+    )
+    .expect("decode should succeed");
+    let baseline_warnings = summary0.warnings;
+
+    // Non-zero reserved bytes should decode in lenient mode and increment warnings.
+    let mut out1 = Vec::new();
+    let summary1 = decode_file_to_jsonl(
+        &schema,
+        Cursor::new(vec![0x00, 0x05, 0x12, 0x34, b'H', b'E', b'L', b'L', b'O']),
+        &mut out1,
+        &options,
+    )
+    .expect("decode should succeed in lenient mode");
+
+    assert_eq!(summary1.warnings, baseline_warnings + 1);
+    assert!(
+        String::from_utf8(out1)
+            .expect("decoded jsonl should be valid UTF-8")
+            .contains("HELLO")
+    );
+}
+
+#[test]
 fn rdw_encode_emits_header_consistent_with_microcrate() {
     let schema = parse_copybook(
         r"

@@ -12,6 +12,7 @@ members = [
     "crates/copybook-determinism",
     "crates/copybook-codepage",
     "crates/copybook-charset",
+    "crates/copybook-lexer",
     "crates/copybook-options",
     "crates/copybook-core",
     "crates/copybook-corruption",
@@ -64,6 +65,7 @@ copybook-determinism = { version = "=0.4.3", path = "crates/copybook-determinism
 copybook-codepage = { version = "=0.4.3", path = "crates/copybook-codepage" }
 copybook-charset = { version = "=0.4.3", path = "crates/copybook-charset" }
 copybook-options = { version = "=0.4.3", path = "crates/copybook-options" }
+copybook-lexer = { version = "=0.4.3", path = "crates/copybook-lexer" }
 copybook-core = { version = "=0.4.3", path = "crates/copybook-core" }
 copybook-corruption = { version = "=0.4.3", path = "crates/copybook-corruption" }
 copybook-dialect = { version = "=0.4.3", path = "crates/copybook-dialect" }

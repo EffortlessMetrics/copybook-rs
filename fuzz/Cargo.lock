@@ -196,6 +196,7 @@ dependencies = [
  "copybook-charset",
  "copybook-codec-memory",
  "copybook-core",
+ "copybook-corruption",
  "copybook-determinism",
  "copybook-error",
  "copybook-fixed",
@@ -245,6 +246,7 @@ dependencies = [
  "copybook-error",
  "copybook-error-reporter",
  "copybook-governance-contracts",
+ "copybook-lexer",
  "copybook-overflow",
  "copybook-utils",
  "logos",
@@ -254,6 +256,13 @@ dependencies = [
  "sha2",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "copybook-corruption"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
 ]
 
 [[package]]
@@ -302,8 +311,10 @@ version = "0.0.0"
 dependencies = [
  "copybook-codec",
  "copybook-core",
+ "copybook-corruption",
  "copybook-determinism",
  "copybook-fixed",
+ "copybook-lexer",
  "copybook-options",
  "copybook-rdw",
  "copybook-record-io",
@@ -318,6 +329,13 @@ version = "0.4.3"
 dependencies = [
  "copybook-contracts",
  "copybook-support-matrix",
+]
+
+[[package]]
+name = "copybook-lexer"
+version = "0.4.3"
+dependencies = [
+ "logos",
 ]
 
 [[package]]

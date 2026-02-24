@@ -28,6 +28,7 @@ copybook-core.workspace = true
 copybook-codec.workspace = true
 copybook-corruption.workspace = true
 copybook-determinism.workspace = true
+copybook-lexer.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
 copybook-record-io.workspace = true

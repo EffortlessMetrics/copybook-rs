@@ -15,6 +15,7 @@ mod determinism;
 mod fixed;
 mod generators;
 mod corruption;
+mod lexer;
 mod numeric;
 mod parsing;
 mod pic_clauses;

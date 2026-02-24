@@ -24,6 +24,7 @@ workspace = true
 libfuzzer-sys = "0.4.10"
 copybook-core = { path = "../crates/copybook-core" }
 copybook-codec = { path = "../crates/copybook-codec" }
+copybook-lexer = { path = "../crates/copybook-lexer" }
 copybook-fixed = { path = "../crates/copybook-fixed" }
 copybook-corruption = { path = "../crates/copybook-corruption" }
 copybook-rdw = { path = "../crates/copybook-rdw" }
@@ -43,6 +44,10 @@ unsafe_code = "forbid"
 [[bin]]
 name = "copybook_parse"
 path = "fuzz_targets/copybook_parse.rs"
+
+[[bin]]
+name = "lexer"
+path = "fuzz_targets/lexer.rs"
 
 [[bin]]
 name = "binary_decode"

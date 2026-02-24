@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use cucumber::{given, then, when};
 
+use copybook_core::lexer::{Lexer, Token};
 use crate::helpers::does_path_match_counter;
 use crate::world::CopybookWorld;
 
@@ -537,5 +538,45 @@ async fn then_field_present_bare(world: &mut CopybookWorld, field_name: String) 
         world.find_field_by_name_ci(&field_name).is_some(),
         "Field '{}' should be present",
         field_name
+    );
+}
+
+#[given(expr = "a copybook with an inline VALUE-list for Level-88")]
+async fn given_copybook_with_level88_inline_values(world: &mut CopybookWorld) {
+    world.copybook_text = Some(
+        "01 STATUS-RECORD.\n\
+         05 STATUS-CODE PIC X(1).\n\
+             88 STATUS-ACTIVE VALUE \"A\", \"B\", \"C\"."
+            .to_string(),
+    );
+}
+
+#[then(expr = "the lexer should produce {int} comma token(s)")]
+async fn then_lexer_should_produce_comma_tokens(world: &mut CopybookWorld, expected: usize) {
+    let copybook_text = world.copybook_text.as_ref().expect("Copybook text not set");
+    let mut lexer = Lexer::new(copybook_text);
+    let comma_count = lexer
+        .tokenize()
+        .iter()
+        .filter(|token_pos| matches!(token_pos.token, Token::Comma))
+        .count();
+
+    assert_eq!(comma_count, expected);
+}
+
+#[then(expr = "the lexer should not treat VALUE-list separators as edited-picture tokens")]
+async fn then_lexer_should_not_treat_value_list_commas_as_edited_pic(world: &mut CopybookWorld) {
+    let copybook_text = world.copybook_text.as_ref().expect("Copybook text not set");
+    let mut lexer = Lexer::new(copybook_text);
+    let edited_pic_count = lexer
+        .tokenize()
+        .iter()
+        .filter(|token_pos| matches!(token_pos.token, Token::EditedPic(_)))
+        .count();
+
+    assert_eq!(
+        edited_pic_count,
+        0,
+        "Expected VALUE-list separators to stay as comma tokens, not edited picture"
     );
 }

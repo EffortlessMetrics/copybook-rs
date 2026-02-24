@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-corruption-predicates"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Pure byte predicate helpers for transfer-corruption detection."
+documentation = "https://docs.rs/copybook-corruption-predicates"
+readme = "README.md"
+keywords = ["copybook", "corruption", "predicates", "comp3", "ebcdic"]
+categories = ["parsing", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[lints]
+workspace = true

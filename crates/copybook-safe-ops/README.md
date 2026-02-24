@@ -10,5 +10,9 @@ This crate owns narrowly scoped helpers that keep operations fallible:
 - checked string and slice access helpers,
 - safe string write utilities.
 
+Division and slice access helpers are delegated to `copybook-safe-index`.
+Text-oriented parsing/write helpers (`parse_*`, `safe_parse_*`, `safe_string_char_at`,
+`safe_write*`) are delegated to `copybook-safe-text`.
+
 All helpers return `copybook_error::Result` with explicit `copybook-error` codes and are intended
 for internal copybook-rs crates where panic-free execution is required.

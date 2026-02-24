@@ -1,7 +1,12 @@
 # copybook-corruption
 
-Small, focused crate for transfer-corruption heuristics used by copybook decoding.
+Transfer-corruption detection façade crate.
 
-This crate intentionally owns only lightweight heuristics for detecting common
-binary-to-text corruption patterns so higher-level codecs can decide how to
-report and handle violations.
+This crate re-exports the focused detector microcrates used by higher-level codec
+logic:
+
+- `copybook-corruption-detectors` for packed-decimal and EBCDIC detector bodies.
+- `copybook-corruption-rdw` for RDW ASCII corruption heuristics.
+
+It keeps a compact public API while preserving existing callsites that depend on
+`copybook-corruption` directly.

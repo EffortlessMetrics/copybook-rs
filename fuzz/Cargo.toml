@@ -28,11 +28,17 @@ copybook-cli-determinism = { path = "../crates/copybook-cli-determinism" }
 copybook-lexer = { path = "../crates/copybook-lexer" }
 copybook-fixed = { path = "../crates/copybook-fixed" }
 copybook-corruption = { path = "../crates/copybook-corruption" }
+copybook-corruption-detectors = { path = "../crates/copybook-corruption-detectors" }
+copybook-corruption-predicates = { path = "../crates/copybook-corruption-predicates" }
 copybook-rdw = { path = "../crates/copybook-rdw" }
+copybook-corruption-rdw = { path = "../crates/copybook-corruption-rdw" }
 copybook-record-io = { path = "../crates/copybook-record-io" }
 copybook-determinism = { path = "../crates/copybook-determinism" }
+copybook-rdw-predicates = { path = "../crates/copybook-rdw-predicates" }
 copybook-options = { path = "../crates/copybook-options" }
 copybook-safe-ops = { path = "../crates/copybook-safe-ops" }
+copybook-safe-index = { path = "../crates/copybook-safe-index" }
+copybook-safe-text = { path = "../crates/copybook-safe-text" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 
@@ -102,3 +108,11 @@ path = "fuzz_targets/record_io_dispatch.rs"
 [[bin]]
 name = "safe_ops"
 path = "fuzz_targets/safe_ops.rs"
+
+[[bin]]
+name = "safe_text"
+path = "fuzz_targets/safe_text.rs"
+
+[[bin]]
+name = "safe_index"
+path = "fuzz_targets/safe_index.rs"

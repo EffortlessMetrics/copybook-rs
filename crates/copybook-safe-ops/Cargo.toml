@@ -23,6 +23,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 copybook-error.workspace = true
 copybook-overflow.workspace = true
+copybook-safe-index.workspace = true
+copybook-safe-text.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

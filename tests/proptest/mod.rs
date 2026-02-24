@@ -23,6 +23,8 @@ pub mod rdw;
 pub mod record_io;
 pub mod redefines;
 pub mod roundtrip;
+pub mod safe_text;
+pub mod safe_index;
 pub mod schema_invariants;
 
 use copybook_core::Schema;

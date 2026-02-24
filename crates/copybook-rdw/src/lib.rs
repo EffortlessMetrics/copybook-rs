@@ -7,6 +7,7 @@
 
 use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};
+use copybook_rdw_predicates;
 use std::io::{BufRead, BufReader, Read, Write};
 use tracing::{debug, warn};
 
@@ -108,9 +109,7 @@ pub fn rdw_payload_len_to_u16(len: usize) -> Result<u16> {
 #[must_use]
 #[inline]
 pub const fn rdw_is_suspect_ascii_corruption(rdw_header: [u8; RDW_HEADER_LEN]) -> bool {
-    let b0 = rdw_header[0];
-    let b1 = rdw_header[1];
-    (b'0' <= b0 && b0 <= b'9') && (b'0' <= b1 && b1 <= b'9')
+    copybook_rdw_predicates::rdw_is_suspect_ascii_corruption(rdw_header)
 }
 
 /// Read a 2-byte big-endian RDW body length and consume those two bytes.

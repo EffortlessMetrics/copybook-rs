@@ -760,12 +760,19 @@ dependencies = [
  "copybook-cli-determinism",
  "copybook-codec",
  "copybook-core",
+ "copybook-corruption",
+ "copybook-corruption-detectors",
+ "copybook-corruption-predicates",
+ "copybook-corruption-rdw",
  "copybook-fixed",
  "copybook-governance",
  "copybook-governance-runtime",
  "copybook-rdw",
+ "copybook-rdw-predicates",
  "copybook-record-io",
+ "copybook-safe-index",
  "copybook-safe-ops",
+ "copybook-safe-text",
  "cucumber",
  "futures",
  "serde",
@@ -938,8 +945,32 @@ dependencies = [
 name = "copybook-corruption"
 version = "0.4.3"
 dependencies = [
- "anyhow",
  "copybook-core",
+ "copybook-corruption-detectors",
+ "copybook-corruption-rdw",
+]
+
+[[package]]
+name = "copybook-corruption-detectors"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-corruption-predicates",
+ "proptest",
+]
+
+[[package]]
+name = "copybook-corruption-predicates"
+version = "0.4.3"
+
+[[package]]
+name = "copybook-corruption-rdw"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-corruption",
+ "copybook-corruption-predicates",
+ "copybook-rdw-predicates",
  "proptest",
 ]
 
@@ -1074,11 +1105,17 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-corruption",
+ "copybook-corruption-detectors",
+ "copybook-corruption-predicates",
+ "copybook-corruption-rdw",
  "copybook-determinism",
  "copybook-fixed",
  "copybook-lexer",
  "copybook-rdw",
+ "copybook-rdw-predicates",
  "copybook-record-io",
+ "copybook-safe-index",
+ "copybook-safe-text",
  "proptest",
  "rand 0.10.0",
  "serde",
@@ -1091,8 +1128,18 @@ version = "0.4.3"
 dependencies = [
  "copybook-core",
  "copybook-error",
+ "copybook-rdw-predicates",
  "proptest",
  "tracing",
+]
+
+[[package]]
+name = "copybook-rdw-predicates"
+version = "0.4.3"
+dependencies = [
+ "copybook-corruption",
+ "copybook-corruption-rdw",
+ "copybook-rdw",
 ]
 
 [[package]]
@@ -1107,12 +1154,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-safe-index"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "proptest",
+]
+
+[[package]]
 name = "copybook-safe-ops"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
  "copybook-overflow",
+ "copybook-safe-index",
+ "copybook-safe-text",
  "proptest",
+]
+
+[[package]]
+name = "copybook-safe-text"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "copybook-safe-ops",
 ]
 
 [[package]]

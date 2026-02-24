@@ -18,10 +18,11 @@ include = ["src/**", "Cargo.toml", "README.md"]
 
 [dependencies]
 copybook-core.workspace = true
+copybook-corruption-rdw.workspace = true
+copybook-corruption-detectors.workspace = true
 
 [dev-dependencies]
-anyhow.workspace = true
-proptest.workspace = true
+copybook-corruption-detectors.workspace = true
 
 [lints]
 workspace = true

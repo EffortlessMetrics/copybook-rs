@@ -52,8 +52,13 @@ pub struct CopybookWorld {
     /// Safe-op scratch state for BDD coverage of `copybook-safe-ops`.
     pub(crate) safe_ops_input: Option<String>,
     pub(crate) safe_ops_usize: Option<usize>,
+    pub(crate) safe_ops_isize: Option<isize>,
+    pub(crate) safe_ops_u16: Option<u16>,
+    pub(crate) safe_ops_char: Option<char>,
     pub(crate) safe_ops_array_bound: Option<usize>,
     pub(crate) safe_ops_error_code: Option<copybook_core::ErrorCode>,
+    /// RDW ASCII heuristic result for BDD coverage.
+    pub(crate) rdw_predicate_result: Option<bool>,
     /// Audit-related fields (for enterprise audit testing)
     #[cfg(feature = "audit")]
     pub(crate) audit_context: Option<copybook_core::audit::AuditContext>,

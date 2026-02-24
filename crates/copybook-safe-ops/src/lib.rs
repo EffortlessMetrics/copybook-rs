@@ -1,51 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Panic-safe conversion and arithmetic helper functions.
 //!
-//! This crate centralizes small, low-level helper functions that convert
-//! untrusted values into checked, typed operations and return structured
-//! `copybook_error::Error` values instead of panicking.
+//! This crate centralizes arithmetic-focused helpers and re-exports text-oriented
+//! panic-safe operations from `copybook_safe_text`.
 
-use copybook_error::{Error, ErrorCode};
+use copybook_error::Error;
+pub use copybook_safe_index::{safe_divide, safe_slice_get};
+pub use copybook_safe_text::{
+    parse_isize, parse_usize, safe_parse_u16, safe_string_char_at, safe_write, safe_write_str,
+};
 
 /// Result type alias using `copybook-error`.
 pub type Result<T> = std::result::Result<T, Error>;
-
-/// Safely convert a string to `usize`, returning an error on failure.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn parse_usize(s: &str, context: &str) -> Result<usize> {
-    s.parse().map_err(|_| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!("Invalid numeric value '{s}' in {context}"),
-        )
-    })
-}
-
-/// Safely convert a string to `isize`, returning an error on failure.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn parse_isize(s: &str, context: &str) -> Result<isize> {
-    s.parse().map_err(|_| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!("Invalid signed numeric value '{s}' in {context}"),
-        )
-    })
-}
-
-/// Safely divide two numbers, checking for division by zero.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn safe_divide(numerator: usize, denominator: usize, context: &str) -> Result<usize> {
-    if denominator == 0 {
-        return Err(Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!("Division by zero in {context}"),
-        ));
-    }
-    Ok(numerator / denominator)
-}
 
 /// Safely calculate COBOL array bounds with overflow protection.
 #[inline]
@@ -57,32 +23,6 @@ pub fn safe_array_bound(
     context: &str,
 ) -> Result<usize> {
     copybook_overflow::safe_array_bound(base, count, item_size, context)
-}
-
-/// Safely format data into string buffer for JSON generation.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn safe_write(buffer: &mut String, args: std::fmt::Arguments<'_>) -> Result<()> {
-    use std::fmt::Write;
-    buffer.write_fmt(args).map_err(|e| {
-        Error::new(
-            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-            format!("String formatting error: {e}"),
-        )
-    })
-}
-
-/// Safely append a string slice to a buffer for JSON field construction.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn safe_write_str(buffer: &mut String, s: &str) -> Result<()> {
-    use std::fmt::Write;
-    buffer.write_str(s).map_err(|e| {
-        Error::new(
-            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
-            format!("String write error: {e}"),
-        )
-    })
 }
 
 /// Safely convert `u64` to `u32` with overflow checking.
@@ -106,57 +46,11 @@ pub fn safe_usize_to_u32(value: usize, context: &str) -> Result<u32> {
     copybook_overflow::safe_usize_to_u32(value, context)
 }
 
-/// Access a slice index with explicit parser-aware bounds checking.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn safe_slice_get<T>(slice: &[T], index: usize, context: &str) -> Result<T>
-where
-    T: Copy,
-{
-    if index < slice.len() {
-        Ok(slice[index])
-    } else {
-        Err(Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!(
-                "Slice bounds violation in {context}: index {index} >= length {}",
-                slice.len()
-            ),
-        ))
-    }
-}
-
-/// Parse `u16` with parse error handling.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn safe_parse_u16(s: &str, context: &str) -> Result<u16> {
-    s.parse().map_err(|_| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!("Invalid u16 value '{s}' in {context}"),
-        )
-    })
-}
-
-/// Safely access a string character with bounds checking.
-#[inline]
-#[must_use = "Handle the Result or propagate the error"]
-pub fn safe_string_char_at(s: &str, index: usize, context: &str) -> Result<char> {
-    s.chars().nth(index).ok_or_else(|| {
-        Error::new(
-            ErrorCode::CBKP001_SYNTAX,
-            format!(
-                "String character access out of bounds in {context}: index {index} >= length {}",
-                s.len()
-            ),
-        )
-    })
-}
-
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use copybook_error::ErrorCode;
     use proptest::prelude::*;
 
     #[test]

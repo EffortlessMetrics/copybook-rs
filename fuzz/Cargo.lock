@@ -281,7 +281,13 @@ name = "copybook-corruption"
 version = "0.4.3"
 dependencies = [
  "copybook-core",
+ "copybook-corruption-predicates",
+ "copybook-rdw-predicates",
 ]
+
+[[package]]
+name = "copybook-corruption-predicates"
+version = "0.4.3"
 
 [[package]]
 name = "copybook-determinism"
@@ -331,13 +337,17 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-corruption",
+ "copybook-corruption-predicates",
  "copybook-determinism",
  "copybook-fixed",
  "copybook-lexer",
  "copybook-options",
  "copybook-rdw",
+ "copybook-rdw-predicates",
  "copybook-record-io",
+ "copybook-safe-index",
  "copybook-safe-ops",
+ "copybook-safe-text",
  "libfuzzer-sys",
  "serde",
  "serde_json",
@@ -388,8 +398,13 @@ version = "0.4.3"
 dependencies = [
  "copybook-core",
  "copybook-error",
+ "copybook-rdw-predicates",
  "tracing",
 ]
+
+[[package]]
+name = "copybook-rdw-predicates"
+version = "0.4.3"
 
 [[package]]
 name = "copybook-record-io"
@@ -402,11 +417,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-safe-index"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+]
+
+[[package]]
 name = "copybook-safe-ops"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
  "copybook-overflow",
+ "copybook-safe-index",
+ "copybook-safe-text",
+]
+
+[[package]]
+name = "copybook-safe-text"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
 ]
 
 [[package]]

@@ -97,6 +97,7 @@ impl FromStr for Codepage {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
             "ascii" => Self::ASCII,
+            "cp037" => Self::CP037,
             "cp273" => Self::CP273,
             "cp500" => Self::CP500,
             "cp1047" => Self::CP1047,

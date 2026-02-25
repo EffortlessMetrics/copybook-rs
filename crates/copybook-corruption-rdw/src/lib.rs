@@ -7,9 +7,6 @@ use copybook_core::{Error, ErrorCode};
 use copybook_corruption_predicates::is_ascii_printable;
 use copybook_rdw_predicates::rdw_is_suspect_ascii_corruption_slice;
 
-/// Result type alias using `copybook-error`.
-pub type Result<T> = std::result::Result<T, Error>;
-
 /// Heuristics for detecting ASCII transfer corruption in RDW headers.
 ///
 /// This function implements the `CBKF104_RDW_SUSPECT_ASCII` detection logic by
@@ -17,7 +14,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// transfer by mistake (for example, EBCDIC/ASCII confusion around the length
 /// field).
 #[inline]
-#[must_use = "Handle the Result or propagate the error"]
+#[must_use = "Handle the returned error when corruption is detected"]
 pub fn detect_rdw_ascii_corruption(rdw_bytes: &[u8]) -> Option<Error> {
     if rdw_bytes.len() < 4 {
         return None;

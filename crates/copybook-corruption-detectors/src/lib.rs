@@ -12,7 +12,7 @@ use copybook_corruption_predicates::{
 
 /// Detect potential EBCDIC corruption in text fields.
 #[inline]
-#[must_use = "Handle the Result or propagate the error"]
+#[must_use = "Inspect the returned errors to handle corruption findings"]
 pub fn detect_ebcdic_corruption(data: &[u8], field_path: &str) -> Vec<Error> {
     let mut errors = Vec::new();
 
@@ -36,7 +36,7 @@ pub fn detect_ebcdic_corruption(data: &[u8], field_path: &str) -> Vec<Error> {
 
 /// Detect patterns in packed decimal that suggest corruption.
 #[inline]
-#[must_use = "Handle the Result or propagate the error"]
+#[must_use = "Inspect the returned errors to handle corruption findings"]
 pub fn detect_packed_corruption(data: &[u8], field_path: &str) -> Vec<Error> {
     let mut errors = Vec::new();
 

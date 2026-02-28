@@ -674,4 +674,314 @@ mod tests {
             .collect();
         assert_eq!(string_tokens.len(), 1);
     }
+
+    // ── Additional tests ─────────────────────────────────────────────
+
+    #[test]
+    fn test_empty_input() {
+        let mut lexer = Lexer::new("");
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens.last().unwrap().token, Token::Eof);
+    }
+
+    #[test]
+    fn test_whitespace_only_input() {
+        let mut lexer = Lexer::new("   \t  ");
+        let tokens = lexer.tokenize();
+        // Should get newline and Eof
+        assert!(tokens.iter().any(|t| t.token == Token::Eof));
+    }
+
+    #[test]
+    fn test_level_numbers_01_to_49() {
+        for level in 1..=49u8 {
+            let input = format!("{level:02} FIELD PIC X.");
+            let mut lexer = Lexer::new(&input);
+            let tokens = lexer.tokenize();
+            assert_eq!(tokens[0].token, Token::Level(level), "level {level:02}");
+        }
+    }
+
+    #[test]
+    fn test_level_66() {
+        let input = "66 ALIAS-FIELD RENAMES ORIG-FIELD.";
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens[0].token, Token::Level66);
+        assert_eq!(tokens[2].token, Token::Renames);
+    }
+
+    #[test]
+    fn test_level_77() {
+        let input = "77 STANDALONE-FIELD PIC 9(5).";
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens[0].token, Token::Level77);
+    }
+
+    #[test]
+    fn test_level_88() {
+        let input = r#"88 IS-TRUE VALUE "Y"."#;
+        let mut lexer = Lexer::new(input);
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens[0].token, Token::Level88);
+        assert_eq!(tokens[2].token, Token::Value);
+    }
+
+    #[test]
+    fn test_pic_keyword_case_insensitive() {
+        for kw in &["PIC", "pic", "Pic", "PICTURE", "picture"] {
+            let input = format!("{kw} X(5)");
+            let mut lexer = Lexer::new(&input);
+            let tokens = lexer.tokenize();
+            assert!(
+                tokens.iter().any(|t| t.token == Token::Pic),
+                "failed for keyword: {kw}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_comp_variants() {
+        let mut lx = Lexer::new("COMP");
+        assert!(lx.tokenize().iter().any(|t| t.token == Token::Comp));
+
+        let mut lx = Lexer::new("COMP-1");
+        assert!(lx.tokenize().iter().any(|t| t.token == Token::Comp1));
+
+        let mut lx = Lexer::new("COMP-2");
+        assert!(lx.tokenize().iter().any(|t| t.token == Token::Comp2));
+
+        let mut lx = Lexer::new("COMP-3");
+        assert!(lx.tokenize().iter().any(|t| t.token == Token::Comp3));
+    }
+
+    #[test]
+    fn test_computational_variants() {
+        let mut lx = Lexer::new("COMPUTATIONAL");
+        assert!(lx.tokenize().iter().any(|t| t.token == Token::Comp));
+
+        let mut lx = Lexer::new("COMPUTATIONAL-3");
+        assert!(lx.tokenize().iter().any(|t| t.token == Token::Comp3));
+    }
+
+    #[test]
+    fn test_keyword_tokens() {
+        let cases = vec![
+            ("USAGE", Token::Usage),
+            ("DISPLAY", Token::Display),
+            ("BINARY", Token::Binary),
+            ("REDEFINES", Token::Redefines),
+            ("OCCURS", Token::Occurs),
+            ("DEPENDING", Token::Depending),
+            ("ON", Token::On),
+            ("TO", Token::To),
+            ("TIMES", Token::Times),
+            ("SYNCHRONIZED", Token::Synchronized),
+            ("SYNC", Token::Synchronized),
+            ("VALUE", Token::Value),
+            ("THRU", Token::Thru),
+            ("THROUGH", Token::Through),
+            ("SIGN", Token::Sign),
+            ("LEADING", Token::Leading),
+            ("IS", Token::Is),
+            ("TRAILING", Token::Trailing),
+            ("SEPARATE", Token::Separate),
+            ("BLANK", Token::Blank),
+            ("WHEN", Token::When),
+            ("ZERO", Token::Zero),
+            ("ZEROS", Token::Zero),
+            ("ZEROES", Token::Zero),
+        ];
+
+        for (input, expected) in cases {
+            let mut lx = Lexer::new(input);
+            let tokens = lx.tokenize();
+            assert!(
+                tokens.iter().any(|t| t.token == expected),
+                "keyword {input} not matched"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_literal_double_quotes() {
+        let mut lx = Lexer::new(r#""HELLO WORLD""#);
+        let tokens = lx.tokenize();
+        assert_eq!(
+            tokens[0].token,
+            Token::StringLiteral("HELLO WORLD".to_string())
+        );
+    }
+
+    #[test]
+    fn test_string_literal_single_quotes() {
+        let mut lx = Lexer::new("'HELLO WORLD'");
+        let tokens = lx.tokenize();
+        assert_eq!(
+            tokens[0].token,
+            Token::StringLiteral("HELLO WORLD".to_string())
+        );
+    }
+
+    #[test]
+    fn test_number_token() {
+        let mut lx = Lexer::new("OCCURS 100 TIMES");
+        let tokens = lx.tokenize();
+        assert_eq!(tokens[1].token, Token::Number(100));
+        assert_eq!(tokens[2].token, Token::Times);
+    }
+
+    #[test]
+    fn test_parentheses() {
+        let mut lx = Lexer::new("(50)");
+        let tokens = lx.tokenize();
+        assert_eq!(tokens[0].token, Token::LeftParen);
+        assert_eq!(tokens[1].token, Token::Number(50));
+        assert_eq!(tokens[2].token, Token::RightParen);
+    }
+
+    #[test]
+    fn test_period_token() {
+        let mut lx = Lexer::new("FIELD-NAME.");
+        let tokens = lx.tokenize();
+        let last_non_eof = tokens
+            .iter()
+            .rev()
+            .find(|t| t.token != Token::Eof && t.token != Token::Newline)
+            .unwrap();
+        assert_eq!(last_non_eof.token, Token::Period);
+    }
+
+    #[test]
+    fn test_pic_clause_patterns() {
+        let patterns = vec![
+            ("X(10)", "X(10)"),
+            ("9(5)", "9(5)"),
+            ("S9(5)V9(2)", "S9(5)V9(2)"),
+            ("XXX", "XXX"),
+            ("S999V99", "S999V99"),
+        ];
+
+        for (input, expected) in patterns {
+            let full = format!("PIC {input}");
+            let mut lx = Lexer::new(&full);
+            let tokens = lx.tokenize();
+            let pic_clause = tokens
+                .iter()
+                .find(|t| matches!(&t.token, Token::PicClause(_)));
+            assert!(pic_clause.is_some(), "no PicClause for pattern: {input}");
+            if let Some(tp) = pic_clause {
+                assert_eq!(tp.token, Token::PicClause(expected.to_string()));
+            }
+        }
+    }
+
+    #[test]
+    fn test_identifier_with_hyphens() {
+        let mut lx = Lexer::new("CUSTOMER-RECORD-ID");
+        let tokens = lx.tokenize();
+        assert_eq!(
+            tokens[0].token,
+            Token::Identifier("CUSTOMER-RECORD-ID".to_string())
+        );
+    }
+
+    #[test]
+    fn test_inline_comment_in_free_form() {
+        // Inline comments are stripped during preprocessing in free form.
+        // Verify that content before the comment is preserved.
+        let input = "01 FIELD PIC X. *> this is a comment";
+        let mut lx = Lexer::new(input);
+        let tokens = lx.tokenize();
+        // The comment should be stripped; the field definition should parse
+        assert!(tokens.iter().any(|t| t.token == Token::Level(1)));
+        assert!(tokens.iter().any(|t| t.token == Token::Period));
+    }
+
+    #[test]
+    fn test_token_display_trait() {
+        assert_eq!(format!("{}", Token::Level(5)), "05");
+        assert_eq!(format!("{}", Token::Level66), "66");
+        assert_eq!(format!("{}", Token::Level77), "77");
+        assert_eq!(format!("{}", Token::Level88), "88");
+        assert_eq!(format!("{}", Token::Pic), "PIC");
+        assert_eq!(format!("{}", Token::Comp3), "COMP-3");
+        assert_eq!(format!("{}", Token::Period), ".");
+        assert_eq!(format!("{}", Token::Comma), ",");
+        assert_eq!(format!("{}", Token::LeftParen), "(");
+        assert_eq!(format!("{}", Token::RightParen), ")");
+        assert_eq!(format!("{}", Token::Eof), "EOF");
+        assert_eq!(format!("{}", Token::Newline), "\\n");
+        assert_eq!(format!("{}", Token::Number(42)), "42");
+        assert_eq!(
+            format!("{}", Token::StringLiteral("test".to_string())),
+            "\"test\""
+        );
+        assert_eq!(
+            format!("{}", Token::InlineComment("comment".to_string())),
+            "*> comment"
+        );
+    }
+
+    #[test]
+    fn test_lexer_options_default() {
+        let opts = LexerOptions::default();
+        assert!(opts.allow_inline_comments);
+        assert!(!opts.strict_comments);
+    }
+
+    #[test]
+    fn test_lexer_format_accessor() {
+        let lexer = Lexer::new("01 FIELD PIC X.");
+        // Free form since it's a short line
+        assert_eq!(lexer.format(), CobolFormat::Free);
+    }
+
+    #[test]
+    fn test_cobol_format_eq() {
+        assert_eq!(CobolFormat::Fixed, CobolFormat::Fixed);
+        assert_eq!(CobolFormat::Free, CobolFormat::Free);
+        assert_ne!(CobolFormat::Fixed, CobolFormat::Free);
+    }
+
+    #[test]
+    fn test_token_last_is_always_eof() {
+        for input in &["01 X PIC X.", "", "OCCURS 5 TIMES.", "  "] {
+            let mut lx = Lexer::new(input);
+            let tokens = lx.tokenize();
+            assert_eq!(tokens.last().unwrap().token, Token::Eof);
+        }
+    }
+
+    #[test]
+    fn test_tokenpos_has_position_info() {
+        let mut lx = Lexer::new("01 FIELD PIC X.");
+        let tokens = lx.tokenize();
+        let first = &tokens[0];
+        assert_eq!(first.line, 1);
+        assert!(first.column >= 1);
+        assert!(!first.span.is_empty());
+    }
+
+    #[test]
+    fn test_occurs_depending_on_clause() {
+        let input = "OCCURS 1 TO 10 DEPENDING ON COUNTER";
+        let mut lx = Lexer::new(input);
+        let tokens = lx.tokenize();
+        let token_types: Vec<_> = tokens.iter().map(|t| &t.token).collect();
+        assert!(token_types.contains(&&Token::Occurs));
+        assert!(token_types.contains(&&Token::To));
+        assert!(token_types.contains(&&Token::Depending));
+        assert!(token_types.contains(&&Token::On));
+    }
+
+    #[test]
+    fn test_value_thru_clause() {
+        let input = "VALUE 1 THRU 100";
+        let mut lx = Lexer::new(input);
+        let tokens = lx.tokenize();
+        assert!(tokens.iter().any(|t| t.token == Token::Value));
+        assert!(tokens.iter().any(|t| t.token == Token::Thru));
+    }
 }

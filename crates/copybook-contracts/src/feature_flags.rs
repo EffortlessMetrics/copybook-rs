@@ -711,4 +711,138 @@ mod tests {
         );
         assert_eq!(Feature::LruCache.env_var_name(), "COPYBOOK_FF_LRU_CACHE");
     }
+
+    #[test]
+    fn test_feature_serde_json_roundtrip() {
+        let feature = Feature::ParallelDecode;
+        let json = serde_json::to_string(&feature).unwrap();
+        let back: Feature = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, feature);
+    }
+
+    #[test]
+    fn test_feature_category_serde_roundtrip() {
+        let cat = FeatureCategory::Enterprise;
+        let json = serde_json::to_string(&cat).unwrap();
+        let back: FeatureCategory = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, cat);
+    }
+
+    #[test]
+    fn test_feature_lifecycle_display() {
+        assert_eq!(FeatureLifecycle::Experimental.to_string(), "experimental");
+        assert_eq!(FeatureLifecycle::Stable.to_string(), "stable");
+        assert_eq!(FeatureLifecycle::Deprecated.to_string(), "deprecated");
+    }
+
+    #[test]
+    fn test_feature_category_display() {
+        assert_eq!(FeatureCategory::Experimental.to_string(), "experimental");
+        assert_eq!(FeatureCategory::Enterprise.to_string(), "enterprise");
+        assert_eq!(FeatureCategory::Performance.to_string(), "performance");
+        assert_eq!(FeatureCategory::Debug.to_string(), "debug");
+        assert_eq!(FeatureCategory::Testing.to_string(), "testing");
+    }
+
+    #[test]
+    fn test_feature_flags_all_disabled() {
+        let mut flags = FeatureFlags::default();
+        for feature in all_features() {
+            flags.disable(feature);
+        }
+        for feature in all_features() {
+            assert!(!flags.is_enabled(feature), "{feature} should be disabled");
+        }
+    }
+
+    #[test]
+    fn test_feature_flags_all_enabled() {
+        let mut flags = FeatureFlags::default();
+        for feature in all_features() {
+            flags.enable(feature);
+        }
+        for feature in all_features() {
+            assert!(flags.is_enabled(feature), "{feature} should be enabled");
+        }
+    }
+
+    #[test]
+    fn test_builder_disable_category() {
+        let flags = FeatureFlags::builder()
+            .enable_category(FeatureCategory::Debug)
+            .disable_category(FeatureCategory::Debug)
+            .build();
+        let debug_features = flags.enabled_in_category(FeatureCategory::Debug);
+        assert!(debug_features.is_empty());
+    }
+
+    #[test]
+    fn test_handle_toggle_and_snapshot() {
+        let handle = FeatureFlagsHandle::new();
+        let initially_enabled = handle.is_enabled(Feature::LruCache);
+        handle.toggle(Feature::LruCache);
+        assert_ne!(handle.is_enabled(Feature::LruCache), initially_enabled);
+        let snap = handle.snapshot();
+        assert_ne!(snap.is_enabled(Feature::LruCache), initially_enabled);
+    }
+
+    #[test]
+    fn test_handle_clone_is_independent() {
+        let handle = FeatureFlagsHandle::new();
+        handle.enable(Feature::Profiling);
+        let cloned = handle.clone();
+        handle.disable(Feature::Profiling);
+        assert!(cloned.is_enabled(Feature::Profiling));
+        assert!(!handle.is_enabled(Feature::Profiling));
+    }
+
+    #[test]
+    fn test_features_in_category_counts() {
+        let experimental = FeatureFlags::features_in_category(FeatureCategory::Experimental);
+        assert_eq!(experimental.len(), 4);
+        let enterprise = FeatureFlags::features_in_category(FeatureCategory::Enterprise);
+        assert_eq!(enterprise.len(), 6);
+        let performance = FeatureFlags::features_in_category(FeatureCategory::Performance);
+        assert_eq!(performance.len(), 4);
+        let debug = FeatureFlags::features_in_category(FeatureCategory::Debug);
+        assert_eq!(debug.len(), 4);
+        let testing = FeatureFlags::features_in_category(FeatureCategory::Testing);
+        assert_eq!(testing.len(), 4);
+    }
+
+    #[test]
+    fn test_enabled_features_iterator_count() {
+        let flags = FeatureFlags::default();
+        let count = flags.enabled_features().count();
+        // Default-enabled: SignSeparate, Comp1, Comp2, LruCache
+        assert_eq!(count, 4);
+    }
+
+    #[test]
+    fn test_description_nonempty_for_all_features() {
+        for feature in all_features() {
+            assert!(
+                !feature.description().is_empty(),
+                "{feature} has empty description"
+            );
+        }
+    }
+
+    #[test]
+    fn test_from_str_unknown_returns_err() {
+        assert!(Feature::from_str("does_not_exist").is_err());
+        assert!(Feature::from_str("").is_err());
+    }
+
+    #[test]
+    fn test_feature_flags_serde_json_roundtrip() {
+        let flags = FeatureFlags::builder()
+            .enable(Feature::Profiling)
+            .disable(Feature::LruCache)
+            .build();
+        let json = serde_json::to_string(&flags).unwrap();
+        let back: FeatureFlags = serde_json::from_str(&json).unwrap();
+        assert!(back.is_enabled(Feature::Profiling));
+        assert!(!back.is_enabled(Feature::LruCache));
+    }
 }

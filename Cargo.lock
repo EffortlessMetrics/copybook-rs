@@ -903,6 +903,7 @@ version = "0.4.3"
 dependencies = [
  "clap",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -982,6 +983,7 @@ dependencies = [
  "blake3",
  "proptest",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -989,6 +991,17 @@ name = "copybook-dialect"
 version = "0.4.3"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "copybook-e2e"
+version = "0.4.3"
+dependencies = [
+ "copybook-codec",
+ "copybook-core",
+ "copybook-error",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -1105,6 +1118,8 @@ version = "0.4.3"
 dependencies = [
  "anyhow",
  "copybook-codec",
+ "copybook-codec-memory",
+ "copybook-contracts",
  "copybook-core",
  "copybook-corruption",
  "copybook-corruption-detectors",
@@ -1112,12 +1127,16 @@ dependencies = [
  "copybook-corruption-rdw",
  "copybook-determinism",
  "copybook-fixed",
+ "copybook-governance-grid",
+ "copybook-governance-runtime",
  "copybook-lexer",
+ "copybook-overflow",
  "copybook-rdw",
  "copybook-rdw-predicates",
  "copybook-record-io",
  "copybook-safe-index",
  "copybook-safe-text",
+ "copybook-support-matrix",
  "proptest",
  "rand 0.10.0",
  "serde",

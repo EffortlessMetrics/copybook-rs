@@ -129,7 +129,10 @@ fn snapshot_odo_copybook_schema_json() {
     assert_eq!(line_items["children"][0]["path"], "LINE-ITEMS.ITEM-CODE");
     assert_eq!(line_items["children"][0]["kind"]["Alphanum"]["len"], 5);
     assert_eq!(line_items["children"][1]["name"], "QUANTITY");
-    assert_eq!(line_items["children"][1]["kind"]["ZonedDecimal"]["digits"], 4);
+    assert_eq!(
+        line_items["children"][1]["kind"]["ZonedDecimal"]["digits"],
+        4
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +205,10 @@ fn snapshot_schema_fingerprint_is_deterministic() {
     let schema2 = parse_copybook(copybook).unwrap();
 
     assert_eq!(schema1.fingerprint, schema2.fingerprint);
-    assert!(!schema1.fingerprint.is_empty(), "fingerprint must be non-empty");
+    assert!(
+        !schema1.fingerprint.is_empty(),
+        "fingerprint must be non-empty"
+    );
 }
 
 // ---------------------------------------------------------------------------

@@ -8,10 +8,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use copybook_codec::{
-    decode_record, encode_record, Codepage, DecodeOptions, EncodeOptions, JsonNumberMode,
-    RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
+    encode_record,
 };
-use copybook_core::{parse_copybook, ErrorCode};
+use copybook_core::{ErrorCode, parse_copybook};
 use serde_json::json;
 
 fn decode_opts() -> DecodeOptions {
@@ -107,7 +107,10 @@ fn error_encode_odo_bounds() {
 
     let result = encode_record(&schema, &bad_json, &encode_opts());
 
-    assert!(result.is_err(), "Encoding over-capacity ODO array must fail");
+    assert!(
+        result.is_err(),
+        "Encoding over-capacity ODO array must fail"
+    );
     let err = result.unwrap_err();
     let code_str = err.code.to_string();
     assert!(

@@ -6,8 +6,8 @@
 
 use copybook_options::RecordFormat;
 use copybook_record_io::{
-    FixedRecordReader, FixedRecordWriter, RDWRecord, RDWRecordReader, RDWRecordWriter,
-    read_record, write_record,
+    FixedRecordReader, FixedRecordWriter, RDWRecord, RDWRecordReader, RDWRecordWriter, read_record,
+    write_record,
 };
 use std::io::{self, Cursor, Read, Write};
 
@@ -160,7 +160,10 @@ struct FailingReader;
 
 impl Read for FailingReader {
     fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
-        Err(io::Error::new(io::ErrorKind::BrokenPipe, "simulated read failure"))
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "simulated read failure",
+        ))
     }
 }
 
@@ -169,10 +172,16 @@ struct FailingWriter;
 
 impl Write for FailingWriter {
     fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
-        Err(io::Error::new(io::ErrorKind::BrokenPipe, "simulated write failure"))
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "simulated write failure",
+        ))
     }
     fn flush(&mut self) -> io::Result<()> {
-        Err(io::Error::new(io::ErrorKind::BrokenPipe, "simulated flush failure"))
+        Err(io::Error::new(
+            io::ErrorKind::BrokenPipe,
+            "simulated flush failure",
+        ))
     }
 }
 
@@ -242,7 +251,10 @@ fn read_fixed_truncated_record_returns_error() {
     // Input has only 3 bytes but lrecl expects 8 — partial record is an error
     let mut cursor = Cursor::new(b"ABC".to_vec());
     let result = read_record(&mut cursor, RecordFormat::Fixed, Some(8));
-    assert!(result.is_err(), "truncated fixed record should return error");
+    assert!(
+        result.is_err(),
+        "truncated fixed record should return error"
+    );
 }
 
 #[test]

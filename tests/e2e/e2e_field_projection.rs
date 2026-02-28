@@ -6,8 +6,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use copybook_codec::{decode_record, Codepage, DecodeOptions, JsonNumberMode, RecordFormat};
-use copybook_core::{parse_copybook, project_schema, ErrorCode};
+use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RecordFormat, decode_record};
+use copybook_core::{ErrorCode, parse_copybook, project_schema};
 
 fn decode_opts() -> DecodeOptions {
     DecodeOptions::new()
@@ -47,8 +47,14 @@ fn projection_select_subset() {
     assert!(json.get("FIELD-A").is_some(), "FIELD-A must be in output");
     assert!(json.get("FIELD-C").is_some(), "FIELD-C must be in output");
     // Non-selected fields must be absent
-    assert!(json.get("FIELD-B").is_none(), "FIELD-B must NOT be in output");
-    assert!(json.get("FIELD-D").is_none(), "FIELD-D must NOT be in output");
+    assert!(
+        json.get("FIELD-B").is_none(),
+        "FIELD-B must NOT be in output"
+    );
+    assert!(
+        json.get("FIELD-D").is_none(),
+        "FIELD-D must NOT be in output"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -141,17 +147,21 @@ fn projection_group_includes_children() {
 
     // When a group is selected, its children are included in the output.
     // The decoder may flatten the group or preserve hierarchy.
-    let child1 = json.get("CHILD-1").or_else(|| {
-        json.get("SEC-A")
-            .and_then(|g| g.get("CHILD-1"))
-    });
-    let child2 = json.get("CHILD-2").or_else(|| {
-        json.get("SEC-A")
-            .and_then(|g| g.get("CHILD-2"))
-    });
+    let child1 = json
+        .get("CHILD-1")
+        .or_else(|| json.get("SEC-A").and_then(|g| g.get("CHILD-1")));
+    let child2 = json
+        .get("CHILD-2")
+        .or_else(|| json.get("SEC-A").and_then(|g| g.get("CHILD-2")));
 
-    assert!(child1.is_some(), "CHILD-1 must be present in projected output");
-    assert!(child2.is_some(), "CHILD-2 must be present in projected output");
+    assert!(
+        child1.is_some(),
+        "CHILD-1 must be present in projected output"
+    );
+    assert!(
+        child2.is_some(),
+        "CHILD-2 must be present in projected output"
+    );
 
     // Non-selected group must be absent
     assert!(json.get("SEC-B").is_none(), "SEC-B must NOT be in output");
@@ -190,8 +200,5 @@ fn projection_multiple_fields_mixed() {
         json.get("NAME-FIELD").is_none(),
         "NAME-FIELD must NOT be present"
     );
-    assert!(
-        json.get("AMOUNT").is_none(),
-        "AMOUNT must NOT be present"
-    );
+    assert!(json.get("AMOUNT").is_none(), "AMOUNT must NOT be present");
 }

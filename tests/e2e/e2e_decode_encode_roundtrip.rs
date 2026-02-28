@@ -8,8 +8,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use copybook_codec::{
-    decode_record, encode_record, Codepage, DecodeOptions, EncodeOptions, JsonNumberMode,
-    RecordFormat,
+    Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
+    encode_record,
 };
 use copybook_core::parse_copybook;
 
@@ -126,7 +126,10 @@ fn roundtrip_redefines_decode_both_views() {
     let json = decode_record(&schema, &data, &dopts).expect("decode");
 
     // Both REDEFINES views decode from the same storage
-    assert_eq!(json["FIELD-A"], json["FIELD-B"], "REDEFINES views share storage");
+    assert_eq!(
+        json["FIELD-A"], json["FIELD-B"],
+        "REDEFINES views share storage"
+    );
     assert_eq!(json["TRAILER"], "ZZZZZ");
 
     // Determinism: decode the same data again → identical JSON
@@ -208,5 +211,8 @@ fn roundtrip_fixture_simple_cpy() {
     // JSON round-trip
     let re_encoded = encode_record(&schema, &json1, &eopts).expect("encode");
     let json2 = decode_record(&schema, &re_encoded, &dopts).expect("re-decode");
-    assert_eq!(json1, json2, "JSON round-trip must produce identical output");
+    assert_eq!(
+        json1, json2,
+        "JSON round-trip must produce identical output"
+    );
 }

@@ -126,6 +126,76 @@ mod tests {
         );
     }
 
+    #[test]
+    fn empty_input_returns_none() {
+        assert!(detect_rdw_ascii_corruption(&[]).is_none());
+    }
+
+    #[test]
+    fn exactly_3_bytes_returns_none() {
+        assert!(detect_rdw_ascii_corruption(&[b'1', b'2', 0x00]).is_none());
+    }
+
+    #[test]
+    fn clean_binary_header_returns_none() {
+        // Normal RDW: length=80, reserved=0x0000
+        assert!(detect_rdw_ascii_corruption(&[0x00, 0x50, 0x00, 0x00]).is_none());
+    }
+
+    #[test]
+    fn heuristic2_length_in_ascii_range_0x3031() {
+        // 0x3031 is within 0x3030..=0x3939 (ASCII "01")
+        let result = detect_rdw_ascii_corruption(&[0x30, 0x31, 0x00, 0x00]);
+        // Heuristic 1 fires first since both are ASCII digits
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().code, ErrorCode::CBKF104_RDW_SUSPECT_ASCII);
+    }
+
+    #[test]
+    fn heuristic2_length_0x3939_upper_bound() {
+        // 0x3939 = ASCII "99", within suspect range
+        let result = detect_rdw_ascii_corruption(&[0x39, 0x39, 0x00, 0x00]);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn heuristic3_reserved_both_printable() {
+        // Length bytes are not ASCII digits, but reserved bytes are printable
+        let result = detect_rdw_ascii_corruption(&[0x00, 0x10, b'X', b'Y']);
+        assert!(result.is_some());
+        assert!(result.unwrap().message.contains("reserved bytes"));
+    }
+
+    #[test]
+    fn heuristic3_reserved_one_printable_one_not() {
+        // Only one reserved byte is printable — not flagged by heuristic 3
+        assert!(detect_rdw_ascii_corruption(&[0x00, 0x10, b'X', 0x01]).is_none());
+    }
+
+    #[test]
+    fn heuristic3_reserved_both_zero_not_flagged() {
+        // Reserved bytes [0x00, 0x00] are excluded even though 0x00 is not printable
+        assert!(detect_rdw_ascii_corruption(&[0x00, 0x10, 0x00, 0x00]).is_none());
+    }
+
+    #[test]
+    fn longer_input_only_first_4_bytes_matter() {
+        let data = [b'5', b'6', 0x00, 0x00, 0xFF, 0xFF, 0xFF];
+        let result = detect_rdw_ascii_corruption(&data);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn all_zeros_returns_none() {
+        assert!(detect_rdw_ascii_corruption(&[0x00, 0x00, 0x00, 0x00]).is_none());
+    }
+
+    #[test]
+    fn all_0xff_returns_none() {
+        // 0xFF is not an ASCII digit and not ASCII printable
+        assert!(detect_rdw_ascii_corruption(&[0xFF, 0xFF, 0xFF, 0xFF]).is_none());
+    }
+
     proptest! {
         #[test]
         fn matches_reference_model(data in prop::collection::vec(any::<u8>(), 0..128)) {

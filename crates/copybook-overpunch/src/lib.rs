@@ -536,4 +536,345 @@ mod tests {
         assert!(ebcdic_bytes.contains(&0xD9));
         assert!(ebcdic_bytes.contains(&0xF5));
     }
+
+    // ── Exhaustive overpunch tests ──────────────────────────────────────
+
+    #[test]
+    fn test_ascii_decode_each_positive_overpunch_char() {
+        let expected: [(u8, u8); 10] = [
+            (b'{', 0),
+            (b'A', 1),
+            (b'B', 2),
+            (b'C', 3),
+            (b'D', 4),
+            (b'E', 5),
+            (b'F', 6),
+            (b'G', 7),
+            (b'H', 8),
+            (b'I', 9),
+        ];
+        for (byte, digit) in expected {
+            let (d, neg) = decode_overpunch_byte(byte, Codepage::ASCII).unwrap();
+            assert_eq!(d, digit, "positive overpunch char 0x{byte:02X}");
+            assert!(
+                !neg,
+                "positive overpunch char 0x{byte:02X} should not be negative"
+            );
+        }
+    }
+
+    #[test]
+    fn test_ascii_decode_each_negative_overpunch_char() {
+        let expected: [(u8, u8); 10] = [
+            (b'}', 0),
+            (b'J', 1),
+            (b'K', 2),
+            (b'L', 3),
+            (b'M', 4),
+            (b'N', 5),
+            (b'O', 6),
+            (b'P', 7),
+            (b'Q', 8),
+            (b'R', 9),
+        ];
+        for (byte, digit) in expected {
+            let (d, neg) = decode_overpunch_byte(byte, Codepage::ASCII).unwrap();
+            assert_eq!(d, digit, "negative overpunch char 0x{byte:02X}");
+            assert!(
+                neg,
+                "negative overpunch char 0x{byte:02X} should be negative"
+            );
+        }
+    }
+
+    #[test]
+    fn test_ascii_encode_each_digit_positive() {
+        let expected_bytes: [u8; 10] = [b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I'];
+        for digit in 0u8..=9 {
+            let enc =
+                encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive)
+                    .unwrap();
+            assert_eq!(
+                enc, expected_bytes[digit as usize],
+                "encode positive digit {digit}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_ascii_encode_each_digit_negative() {
+        let expected_bytes: [u8; 10] = [b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R'];
+        for digit in 0u8..=9 {
+            let enc = encode_overpunch_byte(digit, true, Codepage::ASCII, ZeroSignPolicy::Positive)
+                .unwrap();
+            assert_eq!(
+                enc, expected_bytes[digit as usize],
+                "encode negative digit {digit}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_ebcdic_codepage_variants_encode_decode() {
+        let ebcdic_codepages = [
+            Codepage::CP037,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+            Codepage::CP1140,
+        ];
+        for cp in ebcdic_codepages {
+            for digit in 0u8..=9 {
+                for is_negative in [false, true] {
+                    let enc =
+                        encode_overpunch_byte(digit, is_negative, cp, ZeroSignPolicy::Positive)
+                            .unwrap_or_else(|e| {
+                                panic!("{cp:?} digit={digit} neg={is_negative}: {e}")
+                            });
+                    let (d, neg) = decode_overpunch_byte(enc, cp)
+                        .unwrap_or_else(|e| panic!("{cp:?} byte=0x{enc:02X}: {e}"));
+                    assert_eq!(d, digit, "{cp:?} digit={digit} neg={is_negative}");
+                    assert_eq!(neg, is_negative, "{cp:?} digit={digit} neg={is_negative}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_ebcdic_zone_nibbles_all_codepages() {
+        let ebcdic_codepages = [
+            Codepage::CP037,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+            Codepage::CP1140,
+        ];
+        for cp in ebcdic_codepages {
+            for digit in 0u8..=9 {
+                let pos =
+                    encode_overpunch_byte(digit, false, cp, ZeroSignPolicy::Positive).unwrap();
+                assert_eq!(
+                    (pos >> 4) & 0x0F,
+                    0xC,
+                    "{cp:?} positive zone for digit {digit}"
+                );
+                assert_eq!(
+                    pos & 0x0F,
+                    digit,
+                    "{cp:?} positive digit nibble for {digit}"
+                );
+
+                let neg = encode_overpunch_byte(digit, true, cp, ZeroSignPolicy::Positive).unwrap();
+                assert_eq!(
+                    (neg >> 4) & 0x0F,
+                    0xD,
+                    "{cp:?} negative zone for digit {digit}"
+                );
+                assert_eq!(
+                    neg & 0x0F,
+                    digit,
+                    "{cp:?} negative digit nibble for {digit}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_invalid_ascii_overpunch_bytes() {
+        let invalid_bytes: [u8; 10] = [b'S', b'T', b'Z', b'a', b'z', b'!', b'@', b'#', 0x00, 0xFF];
+        for byte in invalid_bytes {
+            let result = decode_overpunch_byte(byte, Codepage::ASCII);
+            assert!(
+                result.is_err(),
+                "byte 0x{byte:02X} should be invalid ASCII overpunch"
+            );
+            assert!(!is_valid_overpunch(byte, Codepage::ASCII));
+        }
+    }
+
+    #[test]
+    fn test_invalid_ebcdic_overpunch_bytes() {
+        // Invalid zone nibbles (not 0xC, 0xD, or 0xF)
+        let invalid_zones: [u8; 6] = [0x0, 0x1, 0x2, 0xA, 0xB, 0xE];
+        for zone in invalid_zones {
+            let byte = (zone << 4) | 0x05; // digit 5 with invalid zone
+            let result = decode_overpunch_byte(byte, Codepage::CP037);
+            assert!(
+                result.is_err(),
+                "zone 0x{zone:X} should be invalid for EBCDIC"
+            );
+            assert!(!is_valid_overpunch(byte, Codepage::CP037));
+        }
+        // Invalid digit nibbles (> 9)
+        for digit_nibble in 0xAu8..=0xF {
+            let byte = (0xC << 4) | digit_nibble; // positive zone with invalid digit
+            let result = decode_overpunch_byte(byte, Codepage::CP037);
+            assert!(
+                result.is_err(),
+                "digit nibble 0x{digit_nibble:X} should be invalid"
+            );
+            assert!(!is_valid_overpunch(byte, Codepage::CP037));
+        }
+    }
+
+    #[test]
+    fn test_encode_invalid_digit_rejected() {
+        for digit in [10u8, 11, 15, 99, 255] {
+            let r1 = encode_overpunch_byte(digit, false, Codepage::ASCII, ZeroSignPolicy::Positive);
+            assert!(r1.is_err(), "digit {digit} should be rejected for ASCII");
+            let r2 = encode_overpunch_byte(digit, false, Codepage::CP037, ZeroSignPolicy::Positive);
+            assert!(r2.is_err(), "digit {digit} should be rejected for EBCDIC");
+        }
+    }
+
+    #[test]
+    fn test_ascii_round_trip_all_digit_sign_combinations() {
+        for digit in 0u8..=9 {
+            for is_negative in [false, true] {
+                let enc = encode_overpunch_byte(
+                    digit,
+                    is_negative,
+                    Codepage::ASCII,
+                    ZeroSignPolicy::Positive,
+                )
+                .unwrap();
+                let (d, neg) = decode_overpunch_byte(enc, Codepage::ASCII).unwrap();
+                assert_eq!(d, digit);
+                assert_eq!(neg, is_negative);
+            }
+        }
+    }
+
+    #[test]
+    fn test_ebcdic_preferred_zero_round_trip_all_codepages() {
+        let ebcdic_codepages = [
+            Codepage::CP037,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+            Codepage::CP1140,
+        ];
+        for cp in ebcdic_codepages {
+            // Preferred zero: both pos and neg zero encode to 0xF0, decode as positive
+            let enc_pos = encode_overpunch_byte(0, false, cp, ZeroSignPolicy::Preferred).unwrap();
+            let enc_neg = encode_overpunch_byte(0, true, cp, ZeroSignPolicy::Preferred).unwrap();
+            assert_eq!(enc_pos, 0xF0, "{cp:?} preferred +0");
+            assert_eq!(enc_neg, 0xF0, "{cp:?} preferred -0");
+
+            let (d_pos, neg_pos) = decode_overpunch_byte(enc_pos, cp).unwrap();
+            assert_eq!(d_pos, 0);
+            assert!(!neg_pos, "{cp:?} preferred zero decodes as positive");
+
+            // Non-zero digits should not be affected by preferred policy
+            for digit in 1u8..=9 {
+                let enc =
+                    encode_overpunch_byte(digit, true, cp, ZeroSignPolicy::Preferred).unwrap();
+                let zone = (enc >> 4) & 0x0F;
+                assert_eq!(
+                    zone, 0xD,
+                    "{cp:?} preferred policy should not affect digit {digit}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_positive_and_negative_zero_ascii() {
+        // Positive zero
+        let enc_pos =
+            encode_overpunch_byte(0, false, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();
+        assert_eq!(enc_pos, b'{');
+        let (d, neg) = decode_overpunch_byte(enc_pos, Codepage::ASCII).unwrap();
+        assert_eq!(d, 0);
+        assert!(!neg);
+
+        // Negative zero
+        let enc_neg =
+            encode_overpunch_byte(0, true, Codepage::ASCII, ZeroSignPolicy::Positive).unwrap();
+        assert_eq!(enc_neg, b'}');
+        let (d, neg) = decode_overpunch_byte(enc_neg, Codepage::ASCII).unwrap();
+        assert_eq!(d, 0);
+        assert!(neg);
+    }
+
+    #[test]
+    fn test_positive_and_negative_zero_ebcdic() {
+        // Positive zero with Positive policy -> zone 0xC
+        let enc =
+            encode_overpunch_byte(0, false, Codepage::CP037, ZeroSignPolicy::Positive).unwrap();
+        assert_eq!(enc, 0xC0);
+        let (d, neg) = decode_overpunch_byte(enc, Codepage::CP037).unwrap();
+        assert_eq!(d, 0);
+        assert!(!neg);
+
+        // Negative zero with Positive policy -> zone 0xD
+        let enc =
+            encode_overpunch_byte(0, true, Codepage::CP037, ZeroSignPolicy::Positive).unwrap();
+        assert_eq!(enc, 0xD0);
+        let (d, neg) = decode_overpunch_byte(enc, Codepage::CP037).unwrap();
+        assert_eq!(d, 0);
+        assert!(neg);
+
+        // Preferred zero (either sign) -> zone 0xF, decodes positive
+        let enc =
+            encode_overpunch_byte(0, true, Codepage::CP037, ZeroSignPolicy::Preferred).unwrap();
+        assert_eq!(enc, 0xF0);
+        let (d, neg) = decode_overpunch_byte(enc, Codepage::CP037).unwrap();
+        assert_eq!(d, 0);
+        assert!(!neg, "preferred zero always decodes as positive");
+    }
+
+    #[test]
+    fn test_ascii_regular_digits_decode_as_unsigned_positive() {
+        // Plain ASCII digits 0-9 are valid overpunch and decode as positive
+        for digit in 0u8..=9 {
+            let byte = b'0' + digit;
+            let (d, neg) = decode_overpunch_byte(byte, Codepage::ASCII).unwrap();
+            assert_eq!(d, digit);
+            assert!(!neg, "plain digit {digit} should decode as positive");
+            assert!(is_valid_overpunch(byte, Codepage::ASCII));
+        }
+    }
+
+    #[test]
+    fn test_ebcdic_f_zone_digits_decode_as_positive() {
+        // 0xF zone (unsigned/preferred) decodes as positive for all digits
+        for digit in 0u8..=9 {
+            let byte = 0xF0 | digit;
+            let (d, neg) = decode_overpunch_byte(byte, Codepage::CP037).unwrap();
+            assert_eq!(d, digit);
+            assert!(!neg, "F-zone digit {digit} should decode as positive");
+        }
+    }
+
+    #[test]
+    fn test_boundary_single_digit_encode_decode() {
+        // Boundary: smallest (0) and largest (9) single digit
+        for &(digit, is_neg) in &[(0u8, false), (0, true), (9, false), (9, true)] {
+            let ascii_enc =
+                encode_overpunch_byte(digit, is_neg, Codepage::ASCII, ZeroSignPolicy::Positive)
+                    .unwrap();
+            let (d, n) = decode_overpunch_byte(ascii_enc, Codepage::ASCII).unwrap();
+            assert_eq!(d, digit);
+            assert_eq!(n, is_neg);
+
+            let ebcdic_enc =
+                encode_overpunch_byte(digit, is_neg, Codepage::CP037, ZeroSignPolicy::Positive)
+                    .unwrap();
+            let (d, n) = decode_overpunch_byte(ebcdic_enc, Codepage::CP037).unwrap();
+            assert_eq!(d, digit);
+            assert_eq!(n, is_neg);
+        }
+    }
+
+    #[test]
+    fn test_ascii_preferred_zero_policy_has_no_effect() {
+        // ASCII ignores ZeroSignPolicy – the encode always uses the sign tables
+        let pos =
+            encode_overpunch_byte(0, false, Codepage::ASCII, ZeroSignPolicy::Preferred).unwrap();
+        let neg =
+            encode_overpunch_byte(0, true, Codepage::ASCII, ZeroSignPolicy::Preferred).unwrap();
+        assert_eq!(pos, b'{', "ASCII preferred +0 should still be '{{' ");
+        assert_eq!(neg, b'}', "ASCII preferred -0 should still be '}}' ");
+    }
 }

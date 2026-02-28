@@ -1099,4 +1099,124 @@ mod tests {
             prop_assert!(reader.read_record().unwrap().is_none());
         }
     }
+
+    // ---- additional coverage for RDW framing ----
+
+    #[test]
+    fn rdw_header_big_endian_length_parsing() {
+        // 0x0100 big-endian = 256
+        let header = RdwHeader::from_bytes([0x01, 0x00, 0x00, 0x00]);
+        assert_eq!(header.length(), 256);
+        assert_eq!(header.reserved(), 0);
+
+        // 0xFF_FF big-endian = 65535 (max)
+        let header = RdwHeader::from_bytes([0xFF, 0xFF, 0x00, 0x00]);
+        assert_eq!(header.length(), u16::MAX);
+    }
+
+    #[test]
+    fn rdw_header_reserved_bytes_preserved() {
+        let header = RdwHeader::from_bytes([0x00, 0x0A, 0xDE, 0xAD]);
+        assert_eq!(header.length(), 10);
+        assert_eq!(header.reserved(), 0xDEAD);
+    }
+
+    #[test]
+    fn rdw_reader_empty_file_returns_none() {
+        let mut reader = RDWRecordReader::new(Cursor::new(Vec::<u8>::new()), false);
+        assert!(reader.read_record().unwrap().is_none());
+        assert_eq!(reader.record_count(), 0);
+    }
+
+    #[test]
+    fn rdw_reader_empty_file_strict_returns_none() {
+        let mut reader = RDWRecordReader::new(Cursor::new(Vec::<u8>::new()), true);
+        assert!(reader.read_record().unwrap().is_none());
+        assert_eq!(reader.record_count(), 0);
+    }
+
+    #[test]
+    fn rdw_reader_zero_length_record() {
+        let data = vec![0x00, 0x00, 0x00, 0x00];
+        let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+        let record = reader.read_record().unwrap().unwrap();
+        assert_eq!(record.length(), 0);
+        assert!(record.payload.is_empty());
+        assert_eq!(reader.record_count(), 1);
+        assert!(reader.read_record().unwrap().is_none());
+    }
+
+    #[test]
+    fn rdw_reader_max_record_size() {
+        let payload = vec![0xABu8; u16::MAX as usize];
+        let mut data = Vec::with_capacity(RDW_HEADER_LEN + payload.len());
+        data.extend_from_slice(&[0xFF, 0xFF, 0x00, 0x00]);
+        data.extend_from_slice(&payload);
+
+        let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+        let record = reader.read_record().unwrap().unwrap();
+        assert_eq!(record.length(), u16::MAX);
+        assert_eq!(record.payload.len(), u16::MAX as usize);
+        assert!(record.payload.iter().all(|&b| b == 0xAB));
+    }
+
+    #[test]
+    fn rdw_multi_record_write_read_roundtrip() {
+        let payloads: Vec<&[u8]> = vec![b"alpha", b"", b"gamma delta", b"x"];
+        let mut encoded = Vec::new();
+        {
+            let mut writer = RDWRecordWriter::new(&mut encoded);
+            for p in &payloads {
+                writer.write_record_from_payload(p, None).unwrap();
+            }
+            writer.flush().unwrap();
+            assert_eq!(writer.record_count(), 4);
+        }
+
+        let mut reader = RDWRecordReader::new(Cursor::new(&encoded), false);
+        for expected in &payloads {
+            let record = reader.read_record().unwrap().unwrap();
+            assert_eq!(record.payload.as_slice(), *expected);
+        }
+        assert!(reader.read_record().unwrap().is_none());
+        assert_eq!(reader.record_count(), 4);
+    }
+
+    #[test]
+    fn rdw_streaming_many_records() {
+        let record_count = 500;
+        let payload = b"STREAMING_TEST";
+        let mut encoded = Vec::new();
+        {
+            let mut writer = RDWRecordWriter::new(&mut encoded);
+            for _ in 0..record_count {
+                writer.write_record_from_payload(payload, None).unwrap();
+            }
+            writer.flush().unwrap();
+        }
+
+        let mut reader = RDWRecordReader::new(Cursor::new(&encoded), false);
+        let mut count = 0u64;
+        while let Some(record) = reader.read_record().unwrap() {
+            assert_eq!(record.payload, payload);
+            count += 1;
+        }
+        assert_eq!(count, record_count);
+        assert_eq!(reader.record_count(), record_count);
+    }
+
+    #[test]
+    fn rdw_reader_single_byte_header_lenient_is_eof() {
+        let data = vec![0x00];
+        let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+        assert!(reader.read_record().unwrap().is_none());
+    }
+
+    #[test]
+    fn rdw_reader_single_byte_header_strict_is_underflow() {
+        let data = vec![0x00];
+        let mut reader = RDWRecordReader::new(Cursor::new(data), true);
+        let err = reader.read_record().unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    }
 }

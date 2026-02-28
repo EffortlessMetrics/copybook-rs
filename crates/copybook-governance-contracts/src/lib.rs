@@ -20,3 +20,101 @@ pub use feature_flags::{
 pub use support_matrix::{
     FeatureId, FeatureSupport, SupportStatus, all_features, find_feature, find_feature_by_id,
 };
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_reexported_feature_flags_builder() {
+        let flags = FeatureFlags::builder()
+            .enable(Feature::Comp1)
+            .disable(Feature::LruCache)
+            .build();
+        assert!(flags.is_enabled(Feature::Comp1));
+        assert!(!flags.is_enabled(Feature::LruCache));
+    }
+
+    #[test]
+    fn test_reexported_feature_category() {
+        assert_eq!(Feature::Comp1.category(), FeatureCategory::Experimental);
+    }
+
+    #[test]
+    fn test_reexported_feature_lifecycle() {
+        // Ensure FeatureLifecycle is accessible through facade
+        let _lc = FeatureLifecycle::Experimental;
+        let _lc2 = FeatureLifecycle::Stable;
+        let _lc3 = FeatureLifecycle::Deprecated;
+    }
+
+    #[test]
+    fn test_reexported_support_matrix_all_features() {
+        let features = all_features();
+        assert_eq!(features.len(), 7);
+    }
+
+    #[test]
+    fn test_reexported_find_feature_by_id() {
+        let f = find_feature_by_id(FeatureId::EditedPic);
+        assert!(f.is_some());
+        assert_eq!(f.unwrap().status, SupportStatus::Supported);
+    }
+
+    #[test]
+    fn test_reexported_find_feature_by_string() {
+        let f = find_feature("nested-odo");
+        assert!(f.is_some());
+        assert_eq!(f.unwrap().id, FeatureId::NestedOdo);
+    }
+
+    #[test]
+    fn test_feature_flags_default_has_expected_defaults() {
+        let flags = FeatureFlags::default();
+        assert!(flags.is_enabled(Feature::SignSeparate));
+        assert!(flags.is_enabled(Feature::Comp1));
+        assert!(flags.is_enabled(Feature::Comp2));
+        assert!(flags.is_enabled(Feature::LruCache));
+        assert!(!flags.is_enabled(Feature::AuditSystem));
+    }
+
+    #[test]
+    fn test_feature_flags_handle_via_facade() {
+        let handle = FeatureFlagsHandle::new();
+        handle.enable(Feature::Profiling);
+        assert!(handle.is_enabled(Feature::Profiling));
+        handle.toggle(Feature::Profiling);
+        assert!(!handle.is_enabled(Feature::Profiling));
+    }
+
+    #[test]
+    fn test_support_status_variants_accessible() {
+        let _s = SupportStatus::Supported;
+        let _p = SupportStatus::Partial;
+        let _pl = SupportStatus::Planned;
+        let _np = SupportStatus::NotPlanned;
+    }
+
+    #[test]
+    fn test_find_feature_unknown_returns_none() {
+        assert!(find_feature("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_cross_module_feature_id_equality() {
+        let from_matrix = find_feature_by_id(FeatureId::Level88Conditions).unwrap();
+        let from_string = find_feature("level-88").unwrap();
+        assert_eq!(from_matrix.id, from_string.id);
+    }
+
+    #[test]
+    fn test_feature_flags_enable_disable_category_via_facade() {
+        let flags = FeatureFlags::builder()
+            .enable_category(FeatureCategory::Testing)
+            .build();
+        assert!(flags.is_enabled(Feature::MutationTesting));
+        assert!(flags.is_enabled(Feature::FuzzingIntegration));
+    }
+}

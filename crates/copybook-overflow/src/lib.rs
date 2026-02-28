@@ -151,7 +151,10 @@ mod tests {
 
     #[test]
     fn safe_u64_to_u32_at_max_boundary() {
-        assert_eq!(safe_u64_to_u32(u64::from(u32::MAX), "boundary").unwrap(), u32::MAX);
+        assert_eq!(
+            safe_u64_to_u32(u64::from(u32::MAX), "boundary").unwrap(),
+            u32::MAX
+        );
     }
 
     #[test]
@@ -161,7 +164,10 @@ mod tests {
 
     #[test]
     fn safe_u64_to_u16_at_max_boundary() {
-        assert_eq!(safe_u64_to_u16(u64::from(u16::MAX), "boundary").unwrap(), u16::MAX);
+        assert_eq!(
+            safe_u64_to_u16(u64::from(u16::MAX), "boundary").unwrap(),
+            u16::MAX
+        );
     }
 
     #[test]
@@ -200,7 +206,10 @@ mod tests {
 
     #[test]
     fn safe_usize_to_u32_at_max_boundary() {
-        assert_eq!(safe_usize_to_u32(u32::MAX as usize, "boundary").unwrap(), u32::MAX);
+        assert_eq!(
+            safe_usize_to_u32(u32::MAX as usize, "boundary").unwrap(),
+            u32::MAX
+        );
     }
 
     // --- safe_array_bound boundary tests ---

@@ -13,6 +13,8 @@ use copybook_codec::{
     decode_file_to_jsonl, Codepage, DecodeOptions, JsonNumberMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::parse_copybook;
+use std::fs::File;
+use std::io::BufWriter;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
@@ -93,7 +95,7 @@ impl BatchProcessor {
             .with_emit_meta(true) // Include metadata for audit
             .with_strict_mode(false) // Handle malformed data gracefully
             .with_max_errors(Some(1000)) // Limit error collection
-            .with_unmappable_policy(UnmappablePolicy::Substitute)
+            .with_unmappable_policy(UnmappablePolicy::Replace)
             .with_threads(std::thread::available_parallelism()?.get().min(8)); // Optimal threading
 
         tracing::info!(
@@ -220,16 +222,20 @@ impl BatchProcessor {
     ) -> Result<ProcessingStats, Box<dyn std::error::Error>> {
         let start_time = Instant::now();
 
+        let input_file = File::open(input_path)?;
+        let output_file = File::create(output_path)?;
+        let output_writer = BufWriter::new(output_file);
+
         let summary = decode_file_to_jsonl(
             &self.schema,
-            input_path,
-            output_path,
+            input_file,
+            output_writer,
             &self.options,
         )?;
 
         Ok(ProcessingStats {
             records_processed: summary.records_processed,
-            error_count: summary.errors.len() as u64,
+            error_count: summary.records_with_errors,
             processing_time: start_time.elapsed(),
         })
     }

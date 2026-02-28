@@ -490,9 +490,11 @@ mod tests {
             round1_hash: "d".repeat(64),
             round2_hash: "e".repeat(64),
             is_deterministic: false,
-            byte_differences: Some(vec![
-                ByteDiff { offset: 5, round1_byte: 0x10, round2_byte: 0x20 },
-            ]),
+            byte_differences: Some(vec![ByteDiff {
+                offset: 5,
+                round1_byte: 0x10,
+                round2_byte: 0x20,
+            }]),
         };
         let json = render_json_result(&result).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();

@@ -198,7 +198,9 @@ mod tests {
     #[test]
     fn test_detect_from_byte_invalid_zones() {
         // Zone nibbles 0x0, 0x1, 0x2, 0x4-0xE should return None
-        let invalid_samples: &[u8] = &[0x00, 0x10, 0x20, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0];
+        let invalid_samples: &[u8] = &[
+            0x00, 0x10, 0x20, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0,
+        ];
         for &byte in invalid_samples {
             assert_eq!(
                 ZonedEncodingFormat::detect_from_byte(byte),
@@ -219,7 +221,10 @@ mod tests {
         ] {
             let json = serde_json::to_string(&variant).unwrap();
             let deserialized: ZonedEncodingFormat = serde_json::from_str(&json).unwrap();
-            assert_eq!(variant, deserialized, "Serde round-trip failed for {variant:?}");
+            assert_eq!(
+                variant, deserialized,
+                "Serde round-trip failed for {variant:?}"
+            );
         }
     }
 

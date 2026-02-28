@@ -266,3 +266,247 @@ fn test_streaming_processor_record_tracking() {
     assert_eq!(stats.records_processed, 2);
     assert_eq!(stats.bytes_processed, 3072);
 }
+
+// ---------------------------------------------------------------------------
+// ScratchBuffers – creation, reset, growth, reuse, edge cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_scratch_buffers_initial_capacities() {
+    let scratch = ScratchBuffers::new();
+    assert_eq!(scratch.digit_buffer.len(), 0);
+    assert!(scratch.byte_buffer.capacity() >= 1024);
+    assert!(scratch.string_buffer.capacity() >= 512);
+}
+
+#[test]
+fn test_scratch_buffers_default_trait() {
+    let scratch = ScratchBuffers::default();
+    assert_eq!(scratch.digit_buffer.len(), 0);
+    assert!(scratch.byte_buffer.capacity() >= 1024);
+    assert!(scratch.string_buffer.capacity() >= 512);
+}
+
+#[test]
+fn test_scratch_buffers_clear_preserves_capacity() {
+    let mut scratch = ScratchBuffers::new();
+
+    // Fill buffers to grow them
+    scratch.byte_buffer.extend_from_slice(&[0xAA; 4096]);
+    scratch.string_buffer.push_str(&"x".repeat(2048));
+    for i in 0..64_u8 {
+        scratch.digit_buffer.push(i);
+    }
+
+    let byte_cap = scratch.byte_buffer.capacity();
+    let string_cap = scratch.string_buffer.capacity();
+    let digit_cap = scratch.digit_buffer.capacity();
+
+    scratch.clear();
+
+    assert_eq!(scratch.byte_buffer.len(), 0);
+    assert_eq!(scratch.string_buffer.len(), 0);
+    assert_eq!(scratch.digit_buffer.len(), 0);
+
+    // Capacity must not shrink after clear
+    assert_eq!(scratch.byte_buffer.capacity(), byte_cap);
+    assert_eq!(scratch.string_buffer.capacity(), string_cap);
+    assert_eq!(scratch.digit_buffer.capacity(), digit_cap);
+}
+
+#[test]
+fn test_scratch_buffers_ensure_byte_capacity_growth() {
+    let mut scratch = ScratchBuffers::new();
+    let original_cap = scratch.byte_buffer.capacity();
+
+    // Request capacity larger than initial
+    scratch.ensure_byte_capacity(8192);
+    assert!(scratch.byte_buffer.capacity() >= 8192);
+
+    // Requesting smaller capacity is a no-op
+    let cap_after_grow = scratch.byte_buffer.capacity();
+    scratch.ensure_byte_capacity(1024);
+    assert_eq!(scratch.byte_buffer.capacity(), cap_after_grow);
+
+    // Requesting same capacity is a no-op
+    scratch.ensure_byte_capacity(cap_after_grow);
+    assert_eq!(scratch.byte_buffer.capacity(), cap_after_grow);
+
+    let _ = original_cap; // suppress unused warning
+}
+
+#[test]
+fn test_scratch_buffers_ensure_string_capacity_growth() {
+    let mut scratch = ScratchBuffers::new();
+
+    scratch.ensure_string_capacity(4096);
+    assert!(scratch.string_buffer.capacity() >= 4096);
+
+    let cap = scratch.string_buffer.capacity();
+    scratch.ensure_string_capacity(2048);
+    assert_eq!(scratch.string_buffer.capacity(), cap);
+}
+
+#[test]
+fn test_scratch_buffers_multiple_reuse_cycles() {
+    let mut scratch = ScratchBuffers::new();
+
+    for cycle in 0..100 {
+        // Simulate per-record work
+        scratch.digit_buffer.push((cycle % 10) as u8);
+        scratch
+            .byte_buffer
+            .extend_from_slice(format!("record-{cycle}").as_bytes());
+        scratch.string_buffer.push_str(&format!("output-{cycle}"));
+
+        assert!(!scratch.byte_buffer.is_empty());
+        assert!(!scratch.string_buffer.is_empty());
+        assert!(!scratch.digit_buffer.is_empty());
+
+        scratch.clear();
+
+        assert_eq!(scratch.byte_buffer.len(), 0);
+        assert_eq!(scratch.string_buffer.len(), 0);
+        assert_eq!(scratch.digit_buffer.len(), 0);
+    }
+
+    // After many cycles, capacity should have grown to accommodate the data
+    // but lengths must be zero
+    assert!(scratch.byte_buffer.capacity() > 0);
+    assert!(scratch.string_buffer.capacity() > 0);
+}
+
+#[test]
+fn test_scratch_buffers_zero_length_operations() {
+    let mut scratch = ScratchBuffers::new();
+
+    // Zero-length extend / push
+    scratch.byte_buffer.extend_from_slice(b"");
+    scratch.string_buffer.push_str("");
+
+    assert_eq!(scratch.byte_buffer.len(), 0);
+    assert_eq!(scratch.string_buffer.len(), 0);
+
+    // Clearing empty buffers is safe
+    scratch.clear();
+    assert_eq!(scratch.byte_buffer.len(), 0);
+
+    // ensure_*_capacity(0) is a no-op
+    scratch.ensure_byte_capacity(0);
+    scratch.ensure_string_capacity(0);
+}
+
+#[test]
+fn test_scratch_buffers_large_allocation() {
+    let mut scratch = ScratchBuffers::new();
+
+    // 1 MiB byte buffer
+    let large_data = vec![0x42_u8; 1_048_576];
+    scratch.byte_buffer.extend_from_slice(&large_data);
+    assert_eq!(scratch.byte_buffer.len(), 1_048_576);
+
+    // 512 KiB string
+    let large_str: String = "A".repeat(524_288);
+    scratch.string_buffer.push_str(&large_str);
+    assert_eq!(scratch.string_buffer.len(), 524_288);
+
+    scratch.clear();
+    assert_eq!(scratch.byte_buffer.len(), 0);
+    assert_eq!(scratch.string_buffer.len(), 0);
+
+    // Capacity still available for reuse
+    assert!(scratch.byte_buffer.capacity() >= 1_048_576);
+    assert!(scratch.string_buffer.capacity() >= 524_288);
+}
+
+#[test]
+fn test_scratch_buffers_digit_buffer_stack_to_heap() {
+    let mut scratch = ScratchBuffers::new();
+
+    // SmallVec<[u8; 32]> — first 32 bytes stay on stack
+    for i in 0..32_u8 {
+        scratch.digit_buffer.push(i);
+    }
+    assert_eq!(scratch.digit_buffer.len(), 32);
+    assert!(!scratch.digit_buffer.spilled()); // still inline
+
+    // Push past 32 → spills to heap
+    scratch.digit_buffer.push(32);
+    assert_eq!(scratch.digit_buffer.len(), 33);
+    assert!(scratch.digit_buffer.spilled());
+
+    scratch.clear();
+    assert_eq!(scratch.digit_buffer.len(), 0);
+}
+
+#[test]
+fn test_scratch_buffers_send_across_threads() {
+    // ScratchBuffers should be Send so worker threads can own them
+    let scratch = ScratchBuffers::new();
+    let handle = std::thread::spawn(move || {
+        let mut s = scratch;
+        s.byte_buffer.extend_from_slice(b"thread");
+        s.clear();
+        s.byte_buffer.len()
+    });
+    assert_eq!(handle.join().unwrap(), 0);
+}
+
+#[test]
+fn test_scratch_buffers_ensure_capacity_after_partial_fill() {
+    let mut scratch = ScratchBuffers::new();
+
+    // Partially fill, then request larger capacity
+    scratch.byte_buffer.extend_from_slice(&[1; 512]);
+    scratch.ensure_byte_capacity(4096);
+    assert!(scratch.byte_buffer.capacity() >= 4096);
+    // Existing data preserved
+    assert_eq!(scratch.byte_buffer.len(), 512);
+
+    scratch.string_buffer.push_str("abc");
+    scratch.ensure_string_capacity(2048);
+    assert!(scratch.string_buffer.capacity() >= 2048);
+    assert_eq!(&scratch.string_buffer, "abc");
+}
+
+// ---------------------------------------------------------------------------
+// StreamingProcessor – edge cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_streaming_processor_saturating_underflow() {
+    let mut processor = StreamingProcessor::new(1);
+
+    // Negative delta larger than current usage → saturates to 0
+    processor.update_memory_usage(100);
+    processor.update_memory_usage(-500);
+    assert_eq!(processor.stats().current_memory_bytes, 0);
+}
+
+#[test]
+fn test_streaming_processor_utilization_percent() {
+    let mut processor = StreamingProcessor::new(100); // 100 MiB
+
+    processor.update_memory_usage(50 * 1024 * 1024); // 50 MiB
+    let stats = processor.stats();
+    assert_eq!(stats.memory_utilization_percent, 50);
+
+    processor.update_memory_usage(50 * 1024 * 1024); // 100 MiB total
+    let stats = processor.stats();
+    assert_eq!(stats.memory_utilization_percent, 100);
+}
+
+#[test]
+fn test_streaming_processor_pressure_boundary() {
+    let mut processor = StreamingProcessor::new(1); // 1 MiB = 1_048_576 bytes
+    let limit = 1_048_576_usize;
+
+    // Exactly 80% — threshold is > 80%, so at 80% there is no pressure
+    let eighty_pct = limit * 80 / 100; // 838_860
+    processor.update_memory_usage(eighty_pct as isize);
+    assert!(!processor.is_memory_pressure());
+
+    // One byte over 80%
+    processor.update_memory_usage(1);
+    assert!(processor.is_memory_pressure());
+}

@@ -40,6 +40,10 @@ copybook-safe-ops = { path = "../crates/copybook-safe-ops" }
 copybook-safe-index = { path = "../crates/copybook-safe-index" }
 copybook-safe-text = { path = "../crates/copybook-safe-text" }
 copybook-zoned-format = { path = "../crates/copybook-zoned-format" }
+copybook-overpunch = { path = "../crates/copybook-overpunch" }
+copybook-charset = { path = "../crates/copybook-charset" }
+copybook-codepage = { path = "../crates/copybook-codepage" }
+copybook-governance-runtime = { path = "../crates/copybook-governance-runtime" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 
@@ -121,3 +125,31 @@ path = "fuzz_targets/safe_index.rs"
 [[bin]]
 name = "zoned_format"
 path = "fuzz_targets/zoned_format.rs"
+
+[[bin]]
+name = "fuzz_codec_decode"
+path = "fuzz_targets/fuzz_codec_decode.rs"
+
+[[bin]]
+name = "fuzz_codec_encode"
+path = "fuzz_targets/fuzz_codec_encode.rs"
+
+[[bin]]
+name = "fuzz_edited_pic"
+path = "fuzz_targets/fuzz_edited_pic.rs"
+
+[[bin]]
+name = "fuzz_overpunch_decode"
+path = "fuzz_targets/fuzz_overpunch_decode.rs"
+
+[[bin]]
+name = "fuzz_charset_convert"
+path = "fuzz_targets/fuzz_charset_convert.rs"
+
+[[bin]]
+name = "fuzz_corruption_detect"
+path = "fuzz_targets/fuzz_corruption_detect.rs"
+
+[[bin]]
+name = "fuzz_governance_eval"
+path = "fuzz_targets/fuzz_governance_eval.rs"

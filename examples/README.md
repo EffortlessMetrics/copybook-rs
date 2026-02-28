@@ -23,17 +23,16 @@ Production-ready patterns for enterprise environments:
 
 ## Running Examples
 
-All examples can be run directly with cargo:
+The standalone example files (`basic/`, `integration/`, `enterprise/`) are reference
+implementations demonstrating copybook-rs API usage patterns. They are not registered
+as cargo examples — review them as code samples.
+
+The Kafka pipeline is a standalone crate that can be built separately (requires
+`rdkafka` and its native dependencies — see [kafka_pipeline/README.md](kafka_pipeline/README.md)):
 
 ```bash
-# Run a basic example
-cargo run --example basic/test_decode_record
-
-# Run with specific features
-cargo run --example enterprise/batch_processor --features comp3_fast
-
-# Build all examples
-cargo build --examples
+# Build the Kafka pipeline example (requires cmake, perl, openssl)
+cargo build --manifest-path examples/kafka_pipeline/Cargo.toml
 ```
 
 ## Example Data

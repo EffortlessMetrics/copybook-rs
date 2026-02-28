@@ -431,10 +431,12 @@ pub fn decode_edited_numeric(
             PicToken::LeadingPlus => {
                 if input_char == '+' || input_char == ' ' {
                     sign = Sign::Positive;
+                } else if input_char == '-' {
+                    sign = Sign::Negative;
                 } else {
                     return Err(Error::new(
                         ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH,
-                        format!("Expected '+' for leading plus but found '{input_char}'"),
+                        format!("Expected '+' or '-' for leading plus but found '{input_char}'"),
                     ));
                 }
                 input_idx += 1;
@@ -455,10 +457,12 @@ pub fn decode_edited_numeric(
             PicToken::TrailingPlus => {
                 if input_char == '+' || input_char == ' ' {
                     sign = Sign::Positive;
+                } else if input_char == '-' {
+                    sign = Sign::Negative;
                 } else {
                     return Err(Error::new(
                         ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH,
-                        format!("Expected '+' for trailing plus but found '{input_char}'"),
+                        format!("Expected '+' or '-' for trailing plus but found '{input_char}'"),
                     ));
                 }
                 input_idx += 1;

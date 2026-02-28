@@ -57,4 +57,80 @@ mod tests {
         let header = [b'7', b'8', 0x10, 0x20];
         assert!(rdw_is_suspect_ascii_corruption_slice(&header));
     }
+
+    // ── Additional tests ─────────────────────────────────────────────
+
+    #[test]
+    fn rdw_header_len_is_four() {
+        assert_eq!(RDW_HEADER_LEN, 4);
+    }
+
+    #[test]
+    fn all_ascii_digit_pairs_suspect() {
+        for b0 in b'0'..=b'9' {
+            for b1 in b'0'..=b'9' {
+                assert!(
+                    rdw_is_suspect_ascii_corruption([b0, b1, 0x00, 0x00]),
+                    "expected suspect for ({b0}, {b1})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn first_byte_non_digit_not_suspect() {
+        // First byte is 0x2F (just below '0')
+        assert!(!rdw_is_suspect_ascii_corruption([0x2F, b'5', 0x00, 0x00]));
+        // First byte is 0x3A (just above '9')
+        assert!(!rdw_is_suspect_ascii_corruption([0x3A, b'5', 0x00, 0x00]));
+    }
+
+    #[test]
+    fn second_byte_non_digit_not_suspect() {
+        assert!(!rdw_is_suspect_ascii_corruption([b'5', 0x2F, 0x00, 0x00]));
+        assert!(!rdw_is_suspect_ascii_corruption([b'5', 0x3A, 0x00, 0x00]));
+    }
+
+    #[test]
+    fn reserved_bytes_do_not_affect_detection() {
+        // Detection only looks at first two bytes
+        assert!(rdw_is_suspect_ascii_corruption([b'0', b'0', 0xFF, 0xFF]));
+        assert!(rdw_is_suspect_ascii_corruption([b'9', b'9', b'A', b'B']));
+    }
+
+    #[test]
+    fn all_zeros_not_suspect() {
+        assert!(!rdw_is_suspect_ascii_corruption([0x00, 0x00, 0x00, 0x00]));
+    }
+
+    #[test]
+    fn all_0xff_not_suspect() {
+        assert!(!rdw_is_suspect_ascii_corruption([0xFF, 0xFF, 0xFF, 0xFF]));
+    }
+
+    #[test]
+    fn slice_empty_not_suspect() {
+        assert!(!rdw_is_suspect_ascii_corruption_slice(&[]));
+    }
+
+    #[test]
+    fn slice_exactly_4_bytes() {
+        assert!(rdw_is_suspect_ascii_corruption_slice(&[
+            b'3', b'4', 0x00, 0x00
+        ]));
+        assert!(!rdw_is_suspect_ascii_corruption_slice(&[
+            0x00, 0x50, 0x00, 0x00
+        ]));
+    }
+
+    #[test]
+    fn slice_longer_than_4_uses_first_4() {
+        let data = [b'1', b'2', 0x00, 0x00, 0xFF, 0xFF, 0xFF];
+        assert!(rdw_is_suspect_ascii_corruption_slice(&data));
+    }
+
+    #[test]
+    fn slice_3_bytes_not_suspect() {
+        assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1', b'2', 0x00]));
+    }
 }

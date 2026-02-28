@@ -17,10 +17,7 @@ use copybook_error::{Error, ErrorCode, ErrorContext};
 #[test]
 fn snapshot_parse_error_code_display() {
     // Validates that CBKP family codes render as their variant name
-    assert_eq!(
-        format!("{}", ErrorCode::CBKP001_SYNTAX),
-        "CBKP001_SYNTAX"
-    );
+    assert_eq!(format!("{}", ErrorCode::CBKP001_SYNTAX), "CBKP001_SYNTAX");
     assert_eq!(
         format!("{}", ErrorCode::CBKP011_UNSUPPORTED_CLAUSE),
         "CBKP011_UNSUPPORTED_CLAUSE"
@@ -110,10 +107,7 @@ fn snapshot_file_error_code_display() {
 #[test]
 fn snapshot_error_display_without_context() {
     // Validates the base format: "CODE: message"
-    let error = Error::new(
-        ErrorCode::CBKP001_SYNTAX,
-        "Unexpected token at line 5",
-    );
+    let error = Error::new(ErrorCode::CBKP001_SYNTAX, "Unexpected token at line 5");
     assert_eq!(
         format!("{error}"),
         "CBKP001_SYNTAX: Unexpected token at line 5"
@@ -160,11 +154,8 @@ fn snapshot_error_display_with_full_context() {
         line_number: None,
         details: Some("expected 5 bytes, got 3".to_string()),
     };
-    let error = Error::new(
-        ErrorCode::CBKD301_RECORD_TOO_SHORT,
-        "Truncated record",
-    )
-    .with_context(ctx);
+    let error =
+        Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "Truncated record").with_context(ctx);
 
     assert_eq!(
         format!("{error}"),
@@ -212,12 +203,21 @@ fn snapshot_family_prefix_mapping() {
     // Each family prefix is a stable 4-char string used for programmatic grouping
     assert_eq!(ErrorCode::CBKP001_SYNTAX.family_prefix(), "CBKP");
     assert_eq!(ErrorCode::CBKS121_COUNTER_NOT_FOUND.family_prefix(), "CBKS");
-    assert_eq!(ErrorCode::CBKR211_RDW_RESERVED_NONZERO.family_prefix(), "CBKR");
+    assert_eq!(
+        ErrorCode::CBKR211_RDW_RESERVED_NONZERO.family_prefix(),
+        "CBKR"
+    );
     assert_eq!(ErrorCode::CBKC201_JSON_WRITE_ERROR.family_prefix(), "CBKC");
     assert_eq!(ErrorCode::CBKD301_RECORD_TOO_SHORT.family_prefix(), "CBKD");
     assert_eq!(ErrorCode::CBKI001_INVALID_STATE.family_prefix(), "CBKI");
-    assert_eq!(ErrorCode::CBKE501_JSON_TYPE_MISMATCH.family_prefix(), "CBKE");
-    assert_eq!(ErrorCode::CBKF102_RECORD_LENGTH_INVALID.family_prefix(), "CBKF");
+    assert_eq!(
+        ErrorCode::CBKE501_JSON_TYPE_MISMATCH.family_prefix(),
+        "CBKE"
+    );
+    assert_eq!(
+        ErrorCode::CBKF102_RECORD_LENGTH_INVALID.family_prefix(),
+        "CBKF"
+    );
     assert_eq!(ErrorCode::CBKA001_BASELINE_ERROR.family_prefix(), "CBKA");
     assert_eq!(ErrorCode::CBKW001_SCHEMA_CONVERSION.family_prefix(), "CBKW");
 }

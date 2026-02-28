@@ -592,4 +592,291 @@ mod tests {
         assert!(report.contains("Total records processed: 1"));
         assert!(report.contains("CBKD401_COMP3_INVALID_NIBBLE: 1"));
     }
+
+    // --- New tests below ---
+
+    #[test]
+    fn test_empty_reporter_no_errors_no_warnings() {
+        let reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        assert!(!reporter.has_errors());
+        assert!(!reporter.has_warnings());
+        assert_eq!(reporter.error_count(), 0);
+        assert_eq!(reporter.warning_count(), 0);
+
+        let summary = reporter.summary();
+        assert!(!summary.has_errors());
+        assert!(!summary.has_warnings());
+        assert_eq!(summary.error_count(), 0);
+        assert_eq!(summary.warning_count(), 0);
+        assert!(summary.first_error.is_none());
+        assert!(summary.last_error.is_none());
+        assert_eq!(summary.corruption_warnings, 0);
+        assert_eq!(summary.total_records, 0);
+        assert_eq!(summary.records_with_errors, 0);
+    }
+
+    #[test]
+    fn test_empty_reporter_report_output() {
+        let reporter = ErrorReporter::new(ErrorMode::Strict, None);
+        let report = reporter.generate_report();
+
+        assert!(report.contains("=== Error Summary ==="));
+        assert!(report.contains("Total records processed: 0"));
+        assert!(report.contains("Records with errors: 0"));
+        // No error counts section when empty
+        assert!(!report.contains("Error counts by severity:"));
+        assert!(!report.contains("Error counts by code:"));
+    }
+
+    #[test]
+    fn test_fatal_error_stops_in_lenient_mode() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        // Fatal errors stop processing regardless of mode
+        let error = Error::new(ErrorCode::CBKP001_SYNTAX, "Unexpected token");
+        let result = reporter.report_error(error);
+        assert!(result.is_err());
+        assert!(reporter.has_errors());
+    }
+
+    #[test]
+    fn test_multiple_errors_summary_counts() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        let errors = [
+            Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "nibble 1"),
+            Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "nibble 2"),
+            Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "bad sign"),
+        ];
+        for e in errors {
+            let _ = reporter.report_error(e);
+        }
+
+        assert_eq!(reporter.error_count(), 3);
+        let summary = reporter.summary();
+        assert_eq!(
+            *summary
+                .error_codes
+                .get(&ErrorCode::CBKD401_COMP3_INVALID_NIBBLE)
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            *summary
+                .error_codes
+                .get(&ErrorCode::CBKD411_ZONED_BAD_SIGN)
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_first_and_last_error_tracked() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        let _ = reporter.report_error(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            "first error",
+        ));
+        let _ = reporter.report_error(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "second error",
+        ));
+        let _ = reporter.report_error(Error::new(ErrorCode::CBKD410_ZONED_OVERFLOW, "third error"));
+
+        let summary = reporter.summary();
+        let first = summary.first_error.as_ref().unwrap();
+        let last = summary.last_error.as_ref().unwrap();
+        assert_eq!(first.error.code, ErrorCode::CBKD401_COMP3_INVALID_NIBBLE);
+        assert_eq!(first.error.message, "first error");
+        assert_eq!(last.error.code, ErrorCode::CBKD410_ZONED_OVERFLOW);
+        assert_eq!(last.error.message, "third error");
+    }
+
+    #[test]
+    fn test_max_errors_boundary_exact_limit() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, Some(3));
+
+        // Errors 1-3 should be OK (under limit)
+        for i in 1..=3 {
+            let e = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, format!("err {i}"));
+            assert!(reporter.report_error(e).is_ok(), "error {i} should succeed");
+        }
+
+        // Error 4 should fail (limit reached)
+        let e4 = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "err 4");
+        assert!(reporter.report_error(e4).is_err());
+        assert_eq!(reporter.error_count(), 4);
+    }
+
+    #[test]
+    fn test_max_errors_unlimited_in_lenient() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        for i in 0..100 {
+            let e = Error::new(
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                format!("error {i}"),
+            );
+            assert!(reporter.report_error(e).is_ok());
+        }
+        assert_eq!(reporter.error_count(), 100);
+    }
+
+    #[test]
+    fn test_severity_display_formatting() {
+        assert_eq!(format!("{}", ErrorSeverity::Info), "INFO");
+        assert_eq!(format!("{}", ErrorSeverity::Warning), "WARN");
+        assert_eq!(format!("{}", ErrorSeverity::Error), "ERROR");
+        assert_eq!(format!("{}", ErrorSeverity::Fatal), "FATAL");
+    }
+
+    #[test]
+    fn test_severity_ordering() {
+        assert!(ErrorSeverity::Info < ErrorSeverity::Warning);
+        assert!(ErrorSeverity::Warning < ErrorSeverity::Error);
+        assert!(ErrorSeverity::Error < ErrorSeverity::Fatal);
+    }
+
+    #[test]
+    fn test_odo_clipped_severity_depends_on_mode() {
+        // In lenient mode: warning (continues)
+        let mut lenient = ErrorReporter::new(ErrorMode::Lenient, None);
+        let e = Error::new(ErrorCode::CBKS301_ODO_CLIPPED, "ODO clipped");
+        assert!(lenient.report_error(e).is_ok());
+        assert!(!lenient.has_errors());
+        assert!(lenient.has_warnings());
+
+        // In strict mode: fatal (stops)
+        let mut strict = ErrorReporter::new(ErrorMode::Strict, None);
+        let e = Error::new(ErrorCode::CBKS301_ODO_CLIPPED, "ODO clipped");
+        assert!(strict.report_error(e).is_err());
+    }
+
+    #[test]
+    fn test_mixed_errors_and_warnings_report() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        reporter.report_warning(Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "blank"));
+        let _ = reporter.report_error(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            "bad nibble",
+        ));
+        reporter.report_warning(Error::new(
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+            "bad byte",
+        ));
+
+        let report = reporter.generate_report();
+        assert!(report.contains("Error counts by severity:"));
+        assert!(report.contains("Error counts by code:"));
+        assert_eq!(reporter.error_count(), 1);
+        assert_eq!(reporter.warning_count(), 2);
+    }
+
+    #[test]
+    fn test_corruption_detection_ebcdic_byte() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        reporter.report_warning(Error::new(
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+            "Invalid EBCDIC byte 0xFF",
+        ));
+
+        assert_eq!(reporter.summary().corruption_warnings, 1);
+        assert!(reporter.has_warnings());
+        assert!(!reporter.has_errors());
+    }
+
+    #[test]
+    fn test_multiple_corruption_warnings_counted() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        for _ in 0..5 {
+            reporter.report_warning(Error::new(
+                ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+                "ASCII suspected",
+            ));
+        }
+        reporter.report_warning(Error::new(
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+            "Bad EBCDIC",
+        ));
+
+        assert_eq!(reporter.summary().corruption_warnings, 6);
+        assert_eq!(reporter.warning_count(), 6);
+    }
+
+    #[test]
+    fn test_verbose_logging_toggle() {
+        let reporter = ErrorReporter::new(ErrorMode::Lenient, None).with_verbose_logging(false);
+        // Verify the builder pattern works and reporter is usable
+        assert!(!reporter.has_errors());
+        assert_eq!(reporter.error_count(), 0);
+    }
+
+    #[test]
+    fn test_very_long_error_message() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        let long_msg = "x".repeat(10_000);
+        let e = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, long_msg.clone());
+        let _ = reporter.report_error(e);
+
+        let first = reporter.summary().first_error.as_ref().unwrap();
+        assert_eq!(first.error.message.len(), 10_000);
+
+        let report = reporter.generate_report();
+        assert!(report.contains("First error:"));
+    }
+
+    #[test]
+    fn test_start_record_tracks_total_records() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        reporter.start_record(0);
+        assert_eq!(reporter.summary().total_records, 0);
+
+        reporter.start_record(42);
+        assert_eq!(reporter.summary().total_records, 42);
+
+        reporter.start_record(100);
+        assert_eq!(reporter.summary().total_records, 100);
+
+        let report = reporter.generate_report();
+        assert!(report.contains("Total records processed: 100"));
+    }
+
+    #[test]
+    fn test_error_report_contains_first_error_in_output() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        let _ = reporter.report_error(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            "the very first problem",
+        ));
+        let _ = reporter.report_error(Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "second problem",
+        ));
+
+        let report = reporter.generate_report();
+        assert!(report.contains("First error:"));
+        assert!(report.contains("the very first problem"));
+        // Last error is not shown in generate_report output
+    }
+
+    #[test]
+    fn test_error_summary_default_is_clean() {
+        let summary = ErrorSummary::default();
+        assert!(!summary.has_errors());
+        assert!(!summary.has_warnings());
+        assert_eq!(summary.error_count(), 0);
+        assert_eq!(summary.warning_count(), 0);
+        assert!(summary.first_error.is_none());
+        assert!(summary.last_error.is_none());
+        assert_eq!(summary.records_with_errors, 0);
+        assert_eq!(summary.total_records, 0);
+        assert_eq!(summary.corruption_warnings, 0);
+    }
 }

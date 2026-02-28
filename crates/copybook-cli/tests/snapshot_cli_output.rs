@@ -40,9 +40,15 @@ fn snapshot_parse_json_output_structure() -> TestResult<()> {
 
     // Top-level keys must exist
     assert!(json.get("fields").is_some(), "missing 'fields' key");
-    assert!(json.get("lrecl_fixed").is_some(), "missing 'lrecl_fixed' key");
+    assert!(
+        json.get("lrecl_fixed").is_some(),
+        "missing 'lrecl_fixed' key"
+    );
     assert!(json.get("tail_odo").is_some(), "missing 'tail_odo' key");
-    assert!(json.get("fingerprint").is_some(), "missing 'fingerprint' key");
+    assert!(
+        json.get("fingerprint").is_some(),
+        "missing 'fingerprint' key"
+    );
 
     // fields array contains the parsed fields (01-level children inlined)
     let fields = json["fields"].as_array().unwrap();
@@ -87,10 +93,7 @@ fn snapshot_inspect_output_format() -> TestResult<()> {
         stdout.contains("Copybook Layout"),
         "missing 'Copybook Layout' header"
     );
-    assert!(
-        stdout.contains("Codepage:"),
-        "missing 'Codepage:' line"
-    );
+    assert!(stdout.contains("Codepage:"), "missing 'Codepage:' line");
     assert!(
         stdout.contains("Fixed LRECL:"),
         "missing 'Fixed LRECL:' line"
@@ -101,36 +104,15 @@ fn snapshot_inspect_output_format() -> TestResult<()> {
         stdout.contains("Field Path"),
         "missing 'Field Path' column header"
     );
-    assert!(
-        stdout.contains("Offset"),
-        "missing 'Offset' column header"
-    );
-    assert!(
-        stdout.contains("Length"),
-        "missing 'Length' column header"
-    );
-    assert!(
-        stdout.contains("Type"),
-        "missing 'Type' column header"
-    );
+    assert!(stdout.contains("Offset"), "missing 'Offset' column header");
+    assert!(stdout.contains("Length"), "missing 'Length' column header");
+    assert!(stdout.contains("Type"), "missing 'Type' column header");
 
     // Field rows
-    assert!(
-        stdout.contains("CUSTOMER-ID"),
-        "missing CUSTOMER-ID field"
-    );
-    assert!(
-        stdout.contains("X(10)"),
-        "missing X(10) type annotation"
-    );
-    assert!(
-        stdout.contains("BALANCE"),
-        "missing BALANCE field"
-    );
-    assert!(
-        stdout.contains("COMP-3"),
-        "missing COMP-3 type annotation"
-    );
+    assert!(stdout.contains("CUSTOMER-ID"), "missing CUSTOMER-ID field");
+    assert!(stdout.contains("X(10)"), "missing X(10) type annotation");
+    assert!(stdout.contains("BALANCE"), "missing BALANCE field");
+    assert!(stdout.contains("COMP-3"), "missing COMP-3 type annotation");
 
     Ok(())
 }
@@ -142,9 +124,7 @@ fn snapshot_inspect_output_format() -> TestResult<()> {
 #[test]
 fn snapshot_main_help_lists_all_subcommands() -> TestResult<()> {
     // Validates that --help lists all expected subcommands
-    let output = cargo_bin_cmd!("copybook")
-        .arg("--help")
-        .output()?;
+    let output = cargo_bin_cmd!("copybook").arg("--help").output()?;
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout)?;
 
@@ -254,9 +234,7 @@ fn snapshot_parse_error_on_missing_file() -> TestResult<()> {
 #[test]
 fn snapshot_version_output_format() -> TestResult<()> {
     // Validates that --version produces a line starting with "copybook"
-    let output = cargo_bin_cmd!("copybook")
-        .arg("--version")
-        .output()?;
+    let output = cargo_bin_cmd!("copybook").arg("--version").output()?;
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout)?;
 

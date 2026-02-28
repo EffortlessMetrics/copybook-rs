@@ -236,4 +236,140 @@ mod tests {
         assert!(support_matrix::find_feature_by_id(FeatureId::NestedOdo).is_some());
         assert!(support_matrix::find_feature_by_id(FeatureId::SignSeparate).is_some());
     }
+
+    #[test]
+    fn test_support_states_count_matches_all_features() {
+        let states = support_states();
+        assert_eq!(states.len(), support_matrix::all_features().len());
+    }
+
+    #[test]
+    fn test_support_states_all_have_empty_required_flags() {
+        for state in support_states() {
+            assert!(
+                state.required_feature_flags.is_empty(),
+                "support_states should have no required flags for {:?}",
+                state.support_id
+            );
+            assert!(state.missing_feature_flags.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_governance_states_with_all_defaults() {
+        let flags = FeatureFlags::default();
+        let states = governance_states(&flags);
+        assert!(!states.is_empty());
+        // With defaults, SignSeparate/Comp1/Comp2 are enabled, RenamesR4R6 is not
+        let renames_state = states
+            .iter()
+            .find(|s| s.support_id == FeatureId::Level66Renames)
+            .expect("Level66Renames should be in governance states");
+        assert!(!renames_state.runtime_enabled);
+    }
+
+    #[test]
+    fn test_governance_states_with_all_features_enabled() {
+        let mut flags = FeatureFlags::default();
+        for feature in feature_flags::all_features() {
+            flags.enable(feature);
+        }
+        let states = governance_states(&flags);
+        for state in &states {
+            assert!(
+                state.runtime_enabled,
+                "{:?} should be runtime enabled when all flags on",
+                state.support_id
+            );
+            assert!(state.missing_feature_flags.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_governance_states_with_all_features_disabled() {
+        let mut flags = FeatureFlags::default();
+        for feature in feature_flags::all_features() {
+            flags.disable(feature);
+        }
+        let states = governance_states(&flags);
+        // Features with non-empty required_feature_flags should be disabled
+        for state in &states {
+            if !state.required_feature_flags.is_empty() {
+                assert!(
+                    !state.runtime_enabled,
+                    "{:?} should be disabled when all flags off",
+                    state.support_id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_runtime_summary_with_all_enabled() {
+        let mut flags = FeatureFlags::default();
+        for feature in feature_flags::all_features() {
+            flags.enable(feature);
+        }
+        let summary = runtime_summary(&flags);
+        assert!(!summary.has_runtime_unavailable_features());
+        assert_eq!(summary.runtime_disabled_features, 0);
+        assert_eq!(
+            summary.runtime_enabled_features,
+            summary.mapped_support_features
+        );
+    }
+
+    #[test]
+    fn test_runtime_summary_all_support_rows_present() {
+        let flags = FeatureFlags::default();
+        let summary = runtime_summary(&flags);
+        assert!(summary.all_support_rows_present());
+        assert_eq!(summary.total_support_features, 7);
+        assert_eq!(summary.mapped_support_features, 7);
+    }
+
+    #[test]
+    fn test_from_support_sets_no_governance_rationale() {
+        let feature = support_matrix::find_feature_by_id(FeatureId::EditedPic).unwrap();
+        let state = FeatureGovernanceState::from_support(feature);
+        assert_eq!(state.rationale, "No runtime governance mapping requested.");
+        assert!(state.runtime_enabled);
+        assert!(state.required_feature_flags.is_empty());
+        assert!(state.missing_feature_flags.is_empty());
+    }
+
+    #[test]
+    fn test_governance_state_for_support_id_preserves_metadata() {
+        let flags = FeatureFlags::default();
+        let state = governance_state_for_support_id(FeatureId::SignSeparate, &flags).unwrap();
+        assert_eq!(state.support_id, FeatureId::SignSeparate);
+        assert!(!state.support_name.is_empty());
+        assert!(!state.support_description.is_empty());
+        assert!(state.doc_ref.is_some());
+        assert!(!state.rationale.is_empty());
+    }
+
+    #[test]
+    fn test_is_support_runtime_available_for_ungoverned_feature() {
+        // Level88 has no feature flags, so it's always available
+        let flags = FeatureFlags::default();
+        let state = governance_state_for_support_id(FeatureId::Level88Conditions, &flags).unwrap();
+        assert!(state.runtime_enabled);
+        assert!(state.required_feature_flags.is_empty());
+    }
+
+    #[test]
+    fn test_runtime_summary_disabled_count_matches_expectations() {
+        let flags = FeatureFlags::builder()
+            .disable(Feature::SignSeparate)
+            .disable(Feature::Comp1)
+            .disable(Feature::Comp2)
+            .build();
+        let summary = runtime_summary(&flags);
+        // SignSeparate disabled -> SignSeparate row disabled
+        // Comp1+Comp2 disabled -> Comp1Comp2 row disabled
+        // RenamesR4R6 not default-enabled -> Level66Renames row disabled
+        assert!(summary.runtime_disabled_features >= 3);
+        assert!(summary.has_runtime_unavailable_features());
+    }
 }

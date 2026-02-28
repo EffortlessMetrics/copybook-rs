@@ -307,23 +307,50 @@ mod tests {
 
     #[test]
     fn test_codepage_from_str_all_valid_variants() {
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("ascii").unwrap(), Codepage::ASCII);
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp273").unwrap(), Codepage::CP273);
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp500").unwrap(), Codepage::CP500);
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp1047").unwrap(), Codepage::CP1047);
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp1140").unwrap(), Codepage::CP1140);
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("ascii").unwrap(),
+            Codepage::ASCII
+        );
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("cp273").unwrap(),
+            Codepage::CP273
+        );
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("cp500").unwrap(),
+            Codepage::CP500
+        );
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("cp1047").unwrap(),
+            Codepage::CP1047
+        );
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("cp1140").unwrap(),
+            Codepage::CP1140
+        );
     }
 
     #[test]
     fn test_codepage_from_str_case_insensitive() {
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("ASCII").unwrap(), Codepage::ASCII);
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("CP273").unwrap(), Codepage::CP273);
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("Cp500").unwrap(), Codepage::CP500);
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("ASCII").unwrap(),
+            Codepage::ASCII
+        );
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("CP273").unwrap(),
+            Codepage::CP273
+        );
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("Cp500").unwrap(),
+            Codepage::CP500
+        );
     }
 
     #[test]
     fn test_codepage_from_str_empty_string_defaults_to_cp037() {
-        assert_eq!(<Codepage as std::str::FromStr>::from_str("").unwrap(), Codepage::CP037);
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("").unwrap(),
+            Codepage::CP037
+        );
     }
 
     // --- Codepage is_ebcdic exhaustive ---
@@ -395,7 +422,11 @@ mod tests {
     fn test_get_zoned_sign_table_ebcdic_unsigned_nibbles() {
         let table = get_zoned_sign_table(Codepage::CP037);
         for i in 0..=0xB {
-            assert_eq!(table[i], (false, false), "Expected unsigned at nibble 0x{i:X}");
+            assert_eq!(
+                table[i],
+                (false, false),
+                "Expected unsigned at nibble 0x{i:X}"
+            );
         }
         assert_eq!(table[0xE], (false, false));
     }

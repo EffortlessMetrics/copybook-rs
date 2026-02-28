@@ -164,4 +164,157 @@ mod tests {
         let serialized = serde_plain::to_string(&id).expect("serialization should succeed");
         assert_eq!(serialized, "level-88");
     }
+
+    #[test]
+    fn test_all_features_returns_seven_entries() {
+        assert_eq!(all_features().len(), 7);
+    }
+
+    #[test]
+    fn test_find_feature_by_id_all_variants() {
+        let ids = [
+            FeatureId::Level88Conditions,
+            FeatureId::Level66Renames,
+            FeatureId::OccursDepending,
+            FeatureId::EditedPic,
+            FeatureId::Comp1Comp2,
+            FeatureId::SignSeparate,
+            FeatureId::NestedOdo,
+        ];
+        for id in ids {
+            assert!(
+                find_feature_by_id(id).is_some(),
+                "missing feature for {id:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_find_feature_all_kebab_strings() {
+        let names = [
+            "level-88",
+            "level-66-renames",
+            "occurs-depending",
+            "edited-pic",
+            "comp-1-comp-2",
+            "sign-separate",
+            "nested-odo",
+        ];
+        for name in names {
+            assert!(
+                find_feature(name).is_some(),
+                "missing feature for string '{name}'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_features_have_nonempty_name_and_description() {
+        for f in all_features() {
+            assert!(!f.name.is_empty(), "feature {:?} has empty name", f.id);
+            assert!(
+                !f.description.is_empty(),
+                "feature {:?} has empty description",
+                f.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_features_have_doc_ref() {
+        for f in all_features() {
+            assert!(
+                f.doc_ref.is_some(),
+                "feature {:?} should have a doc_ref",
+                f.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_supported_status_for_known_features() {
+        let f = find_feature_by_id(FeatureId::Level88Conditions).unwrap();
+        assert_eq!(f.status, SupportStatus::Supported);
+
+        let f = find_feature_by_id(FeatureId::EditedPic).unwrap();
+        assert_eq!(f.status, SupportStatus::Supported);
+
+        let f = find_feature_by_id(FeatureId::Comp1Comp2).unwrap();
+        assert_eq!(f.status, SupportStatus::Supported);
+
+        let f = find_feature_by_id(FeatureId::SignSeparate).unwrap();
+        assert_eq!(f.status, SupportStatus::Supported);
+    }
+
+    #[test]
+    fn test_partial_status_for_known_features() {
+        let f = find_feature_by_id(FeatureId::Level66Renames).unwrap();
+        assert_eq!(f.status, SupportStatus::Partial);
+
+        let f = find_feature_by_id(FeatureId::OccursDepending).unwrap();
+        assert_eq!(f.status, SupportStatus::Partial);
+
+        let f = find_feature_by_id(FeatureId::NestedOdo).unwrap();
+        assert_eq!(f.status, SupportStatus::Partial);
+    }
+
+    #[test]
+    fn test_feature_id_serde_all_variants() {
+        let expected = [
+            (FeatureId::Level88Conditions, "level-88"),
+            (FeatureId::Level66Renames, "level-66-renames"),
+            (FeatureId::OccursDepending, "occurs-depending"),
+            (FeatureId::EditedPic, "edited-pic"),
+            (FeatureId::Comp1Comp2, "comp-1-comp-2"),
+            (FeatureId::SignSeparate, "sign-separate"),
+            (FeatureId::NestedOdo, "nested-odo"),
+        ];
+        for (id, expected_str) in expected {
+            let s = serde_plain::to_string(&id).unwrap();
+            assert_eq!(s, expected_str, "serde mismatch for {id:?}");
+        }
+    }
+
+    #[test]
+    fn test_feature_id_deserialize_roundtrip() {
+        let id = FeatureId::EditedPic;
+        let s = serde_plain::to_string(&id).unwrap();
+        let back: FeatureId = serde_plain::from_str(&s).unwrap();
+        assert_eq!(back, id);
+    }
+
+    #[test]
+    fn test_support_status_serialization() {
+        let json = serde_json::to_string(&SupportStatus::Supported).unwrap();
+        assert_eq!(json, "\"supported\"");
+        let json = serde_json::to_string(&SupportStatus::Partial).unwrap();
+        assert_eq!(json, "\"partial\"");
+        let json = serde_json::to_string(&SupportStatus::Planned).unwrap();
+        assert_eq!(json, "\"planned\"");
+        let json = serde_json::to_string(&SupportStatus::NotPlanned).unwrap();
+        assert_eq!(json, "\"not-planned\"");
+    }
+
+    #[test]
+    fn test_feature_support_json_serialization() {
+        let f = find_feature_by_id(FeatureId::Level88Conditions).unwrap();
+        let json = serde_json::to_value(f).unwrap();
+        assert_eq!(json["id"], "level-88");
+        assert_eq!(json["status"], "supported");
+        assert!(json["name"].is_string());
+        assert!(json["description"].is_string());
+    }
+
+    #[test]
+    fn test_no_duplicate_feature_ids() {
+        let ids: Vec<FeatureId> = all_features().iter().map(|f| f.id).collect();
+        for (i, id) in ids.iter().enumerate() {
+            assert!(!ids[i + 1..].contains(id), "duplicate feature id: {id:?}");
+        }
+    }
+
+    #[test]
+    fn test_find_feature_empty_string_returns_none() {
+        assert!(find_feature("").is_none());
+    }
 }

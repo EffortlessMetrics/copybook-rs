@@ -477,4 +477,115 @@ mod tests {
             prop_assert_eq!(error.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
         }
     }
+
+    // ---- additional coverage for fixed-length framing ----
+
+    #[test]
+    fn fixed_reader_empty_file_returns_none() {
+        let mut reader = FixedRecordReader::new(Cursor::new(Vec::<u8>::new()), Some(8)).unwrap();
+        assert!(reader.read_record().unwrap().is_none());
+        assert_eq!(reader.record_count(), 0);
+    }
+
+    #[test]
+    fn fixed_reader_single_byte_lrecl() {
+        let data = b"ABCDE";
+        let mut reader = FixedRecordReader::new(Cursor::new(data.as_slice()), Some(1)).unwrap();
+        for expected in b"ABCDE" {
+            let record = reader.read_record().unwrap().unwrap();
+            assert_eq!(record, vec![*expected]);
+        }
+        assert!(reader.read_record().unwrap().is_none());
+        assert_eq!(reader.record_count(), 5);
+    }
+
+    #[test]
+    fn fixed_reader_lrecl_accessor() {
+        let reader = FixedRecordReader::new(Cursor::new(Vec::<u8>::new()), Some(42)).unwrap();
+        assert_eq!(reader.lrecl(), 42);
+    }
+
+    #[test]
+    fn fixed_writer_lrecl_accessor() {
+        let mut output = Vec::new();
+        let writer = FixedRecordWriter::new(&mut output, Some(42)).unwrap();
+        assert_eq!(writer.lrecl(), 42);
+    }
+
+    #[test]
+    fn fixed_writer_exact_lrecl_no_padding() {
+        let mut output = Vec::new();
+        let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
+        writer.write_record(b"ABCD").unwrap();
+        writer.flush().unwrap();
+        assert_eq!(output, b"ABCD");
+    }
+
+    #[test]
+    fn fixed_writer_empty_payload_full_padding() {
+        let mut output = Vec::new();
+        let mut writer = FixedRecordWriter::new(&mut output, Some(4)).unwrap();
+        writer.write_record(b"").unwrap();
+        writer.flush().unwrap();
+        assert_eq!(output, vec![0u8; 4]);
+    }
+
+    #[test]
+    fn fixed_multi_record_write_read_roundtrip() {
+        let lrecl = 10u32;
+        let payloads: Vec<&[u8]> = vec![b"AAAAAAAAAA", b"BB", b"CCCCCCCCCC"];
+        let mut encoded = Vec::new();
+        {
+            let mut writer = FixedRecordWriter::new(&mut encoded, Some(lrecl)).unwrap();
+            for p in &payloads {
+                writer.write_record(p).unwrap();
+            }
+            writer.flush().unwrap();
+            assert_eq!(writer.record_count(), 3);
+        }
+        assert_eq!(encoded.len(), 30);
+
+        let mut reader = FixedRecordReader::new(Cursor::new(&encoded), Some(lrecl)).unwrap();
+        for (i, expected) in payloads.iter().enumerate() {
+            let record = reader.read_record().unwrap().unwrap();
+            assert_eq!(
+                &record[..expected.len()],
+                *expected,
+                "record {i} data mismatch"
+            );
+            // remaining bytes are zero-padded
+            assert!(
+                record[expected.len()..].iter().all(|&b| b == 0),
+                "record {i} padding mismatch"
+            );
+        }
+        assert!(reader.read_record().unwrap().is_none());
+        assert_eq!(reader.record_count(), 3);
+    }
+
+    #[test]
+    fn fixed_streaming_many_records() {
+        let lrecl = 16u32;
+        let record_count = 500u64;
+        let payload = b"STREAMING_FIXED_";
+        assert_eq!(payload.len(), lrecl as usize);
+
+        let mut encoded = Vec::new();
+        {
+            let mut writer = FixedRecordWriter::new(&mut encoded, Some(lrecl)).unwrap();
+            for _ in 0..record_count {
+                writer.write_record(payload).unwrap();
+            }
+            writer.flush().unwrap();
+        }
+
+        let mut reader = FixedRecordReader::new(Cursor::new(&encoded), Some(lrecl)).unwrap();
+        let mut count = 0u64;
+        while let Some(record) = reader.read_record().unwrap() {
+            assert_eq!(record.as_slice(), payload.as_slice());
+            count += 1;
+        }
+        assert_eq!(count, record_count);
+        assert_eq!(reader.record_count(), record_count);
+    }
 }

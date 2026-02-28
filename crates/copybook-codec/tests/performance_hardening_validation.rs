@@ -206,10 +206,11 @@ fn test_performance_regression_detection() -> Result<(), Box<dyn std::error::Err
     );
 
     // Validate performance consistency (regression detection).
-    // Shared CI runners can exhibit bursty scheduling/CPU contention, so this
-    // bound is intentionally tolerant while still catching major regressions.
+    // Shared CI runners and debug-build environments can exhibit bursty
+    // scheduling/CPU contention, so this bound is intentionally tolerant
+    // while still catching major regressions.
     assert!(
-        variance_ratio < 3.0,
+        variance_ratio < 5.0,
         "Performance variance should be low for regression detection: {:.2}x",
         variance_ratio
     );

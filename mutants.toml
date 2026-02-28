@@ -1,178 +1,86 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # cargo-mutants configuration for copybook-rs
-# See: https://github.com/sourcefrog/cargo-mutants
+# See: https://mutants.rs/config-file.html
+#
+# Usage: cargo mutants --config mutants.toml [--package <crate>]
+# CI uses --config mutants.toml to load this from the repo root.
 
-# Global settings
-[mutants]
-# Minimum mutation score threshold (percentage)
-# Below this threshold, the mutation test will fail
-threshold = 70
-
-# Timeout for each mutation test in seconds
-# Increased for complex COBOL parsing operations
-timeout = 300
-
-# Maximum number of concurrent mutation tests
-# Reduced to avoid overwhelming CI resources
-jobs = 4
-
-# Output verbosity (error, warn, info, debug, trace)
-log_level = "info"
-
-# Test tool to use (cargo, nextest)
-# nextest is preferred for faster test execution
+# --- Test runner ---
 test_tool = "nextest"
 
-# Additional cargo arguments for running tests
-# Use in-place testing to avoid rebuild overhead
-additional_cargo_args = ["--in-place"]
+# --- Timeout tuning ---
+# Multiplier applied to baseline test duration for mutant timeout
+timeout_multiplier = 3.0
+# Floor timeout (seconds) to avoid flaky kills on fast tests
+minimum_test_timeout = 20.0
+# Multiplier applied to baseline build duration
+build_timeout_multiplier = 2.0
 
-# Exclusion patterns for files to skip
-# Generated code, test fixtures, and boilerplate are excluded
-exclude = [
-    # Generated code
-    "tools/copybook-gen/src/*_gen.rs",
-    "tools/copybook-gen/examples/*_gen.rs",
+# --- Concurrency ---
+# Cap lints to avoid warnings causing build failures in mutated code
+cap_lints = true
 
-    # Test code (don't mutate tests)
-    "*/tests/*",
-    "*/benches/*",
+# --- Feature activation ---
+# Enable comprehensive-tests feature so all code paths are exercised
+features = ["comprehensive-tests"]
 
+# --- Source file targeting ---
+# Focus mutation testing on the most critical crates
+examine_globs = [
+    "crates/copybook-core/src/**/*.rs",
+    "crates/copybook-codec/src/**/*.rs",
+    "crates/copybook-error/src/**/*.rs",
+    "crates/copybook-overpunch/src/**/*.rs",
+    "crates/copybook-overflow/src/**/*.rs",
+]
+
+# Exclude non-production code even within targeted crates
+exclude_globs = [
+    # Test and bench harnesses
+    "**/tests/**",
+    "**/benches/**",
+    "**/examples/**",
     # Build scripts
-    "*/build.rs",
-
-    # Boilerplate and error handling
-    "*/error.rs",
-    "*/error_reporter.rs",
-
-    # Memory management (low-level, well-tested)
-    "crates/copybook-codec/src/memory/*",
-
-    # CLI boilerplate
-    "crates/copybook-cli/src/exit_codes.rs",
-    "crates/copybook-cli/src/utils.rs",
-
-    # Benchmark utilities
-    "tools/copybook-bench/src/baseline.rs",
-    "tools/copybook-bench/src/reporting.rs",
+    "**/build.rs",
+    # Tools and test-only crates (belt-and-suspenders with examine_globs)
+    "tools/**",
+    "tests/**",
+    # Generated / fixture code
+    "**/*_gen.rs",
+    "fixtures/**",
 ]
 
-# Per-crate settings
-[mutants.copybook-core]
-# Core parser requires higher threshold due to critical nature
-threshold = 75
-
-# Core parsing modules are critical - exclude fewer files
-exclude = [
-    "*/tests/*",
-    "*/benches/*",
-    "*/error.rs",
-    "*/error_reporter.rs",
-    "crates/copybook-core/src/audit/*",  # Experimental audit system
+# --- Mutant name filters (regex) ---
+# Exclude trivial / boilerplate mutations that produce noise
+exclude_re = [
+    # Display and Debug trait impls – cosmetic, not logic
+    "impl (Display|Debug) for",
+    # From/Into conversions – type plumbing
+    "impl From<.+> for",
+    "impl Into<.+> for",
+    # Error trait boilerplate
+    "fn source\\(",
+    "fn description\\(",
+    # Trivial Default impls
+    "impl Default for",
 ]
 
-[mutants.copybook-codec]
-# Codec requires high threshold for encoding/decoding correctness
-threshold = 75
-
-# Exclude low-level memory management
-exclude = [
-    "*/tests/*",
-    "*/benches/*",
-    "crates/copybook-codec/src/memory/*",
+# --- Skip calls to noisy functions ---
+# Mutations inside calls to these are skipped (logging, panics, etc.)
+skip_calls = [
+    "log",
+    "trace",
+    "debug",
+    "info",
+    "warn",
+    "error",
+    "println",
+    "eprintln",
+    "write",
+    "writeln",
+    "unreachable",
+    "todo",
+    "unimplemented",
+    "tracing::instrument",
 ]
-
-[mutants.copybook-cli]
-# CLI has more boilerplate, lower threshold acceptable
-threshold = 65
-
-# Exclude CLI boilerplate and command templates
-exclude = [
-    "*/tests/*",
-    "crates/copybook-cli/src/exit_codes.rs",
-    "crates/copybook-cli/src/utils.rs",
-]
-
-[mutants.copybook-bench]
-# Benchmark code has lower priority for mutation testing
-threshold = 60
-
-# Most benchmark code is boilerplate
-exclude = [
-    "*/benches/*",
-    "tools/copybook-bench/src/baseline.rs",
-    "tools/copybook-bench/src/reporting.rs",
-]
-
-[mutants.copybook-gen]
-# Generator code is test infrastructure
-threshold = 60
-
-# Exclude generated code templates
-exclude = [
-    "*/tests/*",
-    "tools/copybook-gen/examples/*_gen.rs",
-]
-
-# Mutation operator settings
-[mutants.operators]
-# Enable all mutation operators by default
-# Disable specific operators that are too noisy for this codebase
-
-# Arithmetic mutations (e.g., + -> -, * -> /)
-arithmetic = true
-
-# Boolean mutations (e.g., true -> false, && -> ||)
-boolean = true
-
-# Bitwise mutations (e.g., & -> |, ^ -> &)
-bitwise = true
-
-# Comparison mutations (e.g., < -> <=, == -> !=)
-comparison = true
-
-# Function call mutations (e.g., saturating_add -> wrapping_add)
-function_call = true
-
-# Iterator mutations (e.g., iter() -> iter_mut())
-iterator = true
-
-# Logical mutations (e.g., && -> ||)
-logical = true
-
-# Pattern matching mutations (e.g., Some(x) -> None)
-pattern = true
-
-# String mutations (e.g., to_string() -> to_owned())
-string = true
-
-# Integer overflow mutations (e.g., wrapping_add -> saturating_add)
-overflow = true
-
-# Panic mutations (e.g., unwrap() -> expect("..."))
-panic = true
-
-# Disable certain operators that are too noisy for COBOL parsing
-# These often create false positives in data conversion code
-[mutants.operators.disabled]
-# Disable panic mutations for error handling code
-# Many errors are expected and handled properly
-panic = false
-
-# Disable some arithmetic mutations for numeric conversions
-# COBOL data types have specific conversion rules
-arithmetic = false
-
-# Feature-specific settings
-[features]
-# Enable comprehensive-tests feature during mutation testing
-# This ensures all code paths are exercised
-additional_features = ["comprehensive-tests"]
-
-# Workspace settings
-[workspace]
-# Run mutation tests on entire workspace
-run_on_workspace = true
-
-# Exclude specific packages from workspace mutation testing
-exclude_packages = []
+skip_calls_defaults = true

@@ -30,8 +30,6 @@ jobs:
 
     - name: Setup Rust toolchain
       uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
 
     - name: Cache cargo artifacts
       uses: Swatinem/rust-cache@v2
@@ -113,8 +111,6 @@ jobs:
 
     - name: Setup Rust toolchain
       uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
 
     - name: Cache cargo artifacts
       uses: Swatinem/rust-cache@v2

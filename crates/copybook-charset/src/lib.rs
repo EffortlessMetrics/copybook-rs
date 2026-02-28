@@ -644,8 +644,7 @@ mod tests {
     fn test_ebcdic_roundtrip_cp037() {
         let original = "Hello World 123";
         let ebcdic = utf8_to_ebcdic(original, Codepage::CP037).unwrap();
-        let roundtrip =
-            ebcdic_to_utf8(&ebcdic, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        let roundtrip = ebcdic_to_utf8(&ebcdic, Codepage::CP037, UnmappablePolicy::Error).unwrap();
         assert_eq!(roundtrip, original);
     }
 
@@ -653,8 +652,7 @@ mod tests {
     fn test_ebcdic_roundtrip_cp500() {
         let original = "Test 789";
         let ebcdic = utf8_to_ebcdic(original, Codepage::CP500).unwrap();
-        let roundtrip =
-            ebcdic_to_utf8(&ebcdic, Codepage::CP500, UnmappablePolicy::Error).unwrap();
+        let roundtrip = ebcdic_to_utf8(&ebcdic, Codepage::CP500, UnmappablePolicy::Error).unwrap();
         assert_eq!(roundtrip, original);
     }
 
@@ -662,8 +660,351 @@ mod tests {
     fn test_ebcdic_roundtrip_cp1047() {
         let original = "COBOL DATA";
         let ebcdic = utf8_to_ebcdic(original, Codepage::CP1047).unwrap();
-        let roundtrip =
-            ebcdic_to_utf8(&ebcdic, Codepage::CP1047, UnmappablePolicy::Error).unwrap();
+        let roundtrip = ebcdic_to_utf8(&ebcdic, Codepage::CP1047, UnmappablePolicy::Error).unwrap();
         assert_eq!(roundtrip, original);
+    }
+
+    // ====================================================================
+    // Exhaustive charset conversion tests
+    // ====================================================================
+
+    /// All EBCDIC codepages under test.
+    const ALL_EBCDIC: [Codepage; 5] = [
+        Codepage::CP037,
+        Codepage::CP273,
+        Codepage::CP500,
+        Codepage::CP1047,
+        Codepage::CP1140,
+    ];
+
+    // --- 1. Full printable ASCII range (both directions) per codepage ---
+
+    #[test]
+    fn test_printable_ascii_roundtrip_cp037() {
+        roundtrip_printable_ascii(Codepage::CP037);
+    }
+
+    #[test]
+    fn test_printable_ascii_roundtrip_cp273() {
+        roundtrip_printable_ascii(Codepage::CP273);
+    }
+
+    #[test]
+    fn test_printable_ascii_roundtrip_cp500() {
+        roundtrip_printable_ascii(Codepage::CP500);
+    }
+
+    #[test]
+    fn test_printable_ascii_roundtrip_cp1047() {
+        roundtrip_printable_ascii(Codepage::CP1047);
+    }
+
+    #[test]
+    fn test_printable_ascii_roundtrip_cp1140() {
+        roundtrip_printable_ascii(Codepage::CP1140);
+    }
+
+    /// Encode every printable ASCII char (0x20..=0x7E) to EBCDIC then back,
+    /// asserting perfect round-trip for the given codepage.
+    fn roundtrip_printable_ascii(cp: Codepage) {
+        let printable: String = (0x20u8..=0x7Eu8).map(|b| b as char).collect();
+        let ebcdic =
+            utf8_to_ebcdic(&printable, cp).unwrap_or_else(|e| panic!("{cp:?} encode failed: {e}"));
+        let back = ebcdic_to_utf8(&ebcdic, cp, UnmappablePolicy::Error)
+            .unwrap_or_else(|e| panic!("{cp:?} decode failed: {e}"));
+        assert_eq!(back, printable, "Round-trip mismatch for {cp:?}");
+    }
+
+    // --- 2. Special characters ---
+
+    #[test]
+    fn test_cp1140_euro_sign_roundtrip() {
+        // CP1140 byte 0xFF maps to U+20AC (€)
+        let decoded = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+        assert_eq!(decoded, "€");
+        let encoded = utf8_to_ebcdic("€", Codepage::CP1140).unwrap();
+        assert_eq!(encoded, &[0xFF]);
+    }
+
+    #[test]
+    fn test_cp037_currency_sign_at_9f() {
+        // CP037 0x9F maps to U+00A4 (¤) – the international currency sign
+        let decoded = ebcdic_to_utf8(&[0x9F], Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(decoded, "¤");
+    }
+
+    #[test]
+    fn test_cp273_national_chars() {
+        // CP273 has German national characters at different positions than CP037
+        // 0x4A -> Ä (U+00C4), 0x6A -> ö (U+00F6), 0xC0 -> ä (U+00E4)
+        let data: &[u8] = &[0x4A, 0x6A, 0xC0];
+        let decoded = ebcdic_to_utf8(data, Codepage::CP273, UnmappablePolicy::Error).unwrap();
+        assert_eq!(decoded, "Äöä");
+        // Round-trip
+        let encoded = utf8_to_ebcdic("Äöä", Codepage::CP273).unwrap();
+        assert_eq!(encoded, data);
+    }
+
+    #[test]
+    fn test_cp1140_vs_cp037_difference() {
+        // CP1140 is identical to CP037 except at byte 0x9F:
+        //   CP037  0x9F -> U+00A4 (¤)
+        //   CP1140 byte 0x9F -> U+00A4 (¤) as well, but 0xFF differs:
+        //   CP037  0xFF -> U+009F (control)
+        //   CP1140 0xFF -> U+20AC (€)
+        let cp037_ff = ebcdic_to_utf8(&[0xFF], Codepage::CP037, UnmappablePolicy::Replace).unwrap();
+        let cp1140_ff = ebcdic_to_utf8(&[0xFF], Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+        assert_ne!(cp037_ff, cp1140_ff, "CP037 and CP1140 must differ at 0xFF");
+        assert_eq!(cp1140_ff, "€");
+    }
+
+    // --- 3. Control characters ---
+
+    #[test]
+    fn test_control_chars_error_policy_all_codepages() {
+        // EBCDIC 0x00 maps to U+0000 (NUL) on all codepages – a control char
+        for cp in ALL_EBCDIC {
+            let err = ebcdic_to_utf8(&[0x00], cp, UnmappablePolicy::Error).unwrap_err();
+            assert_eq!(
+                err.code,
+                ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                "Expected error for NUL on {cp:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_control_chars_replace_policy_all_codepages() {
+        for cp in ALL_EBCDIC {
+            let result = ebcdic_to_utf8(&[0x00], cp, UnmappablePolicy::Replace).unwrap();
+            assert_eq!(result, "\u{FFFD}", "Replace policy failed for {cp:?}");
+        }
+    }
+
+    #[test]
+    fn test_control_chars_skip_policy_all_codepages() {
+        for cp in ALL_EBCDIC {
+            let result = ebcdic_to_utf8(&[0x00], cp, UnmappablePolicy::Skip).unwrap();
+            assert_eq!(result, "", "Skip policy failed for {cp:?}");
+        }
+    }
+
+    #[test]
+    fn test_allowed_control_chars_tab_lf_cr_all_codepages() {
+        // Tab (0x05), LF (0x25), CR (0x0D) should pass through on all EBCDIC codepages
+        for cp in ALL_EBCDIC {
+            let tab = ebcdic_to_utf8(&[0x05], cp, UnmappablePolicy::Error).unwrap();
+            assert_eq!(tab, "\t", "Tab failed for {cp:?}");
+
+            let lf = ebcdic_to_utf8(&[0x25], cp, UnmappablePolicy::Error).unwrap();
+            assert_eq!(lf, "\n", "LF failed for {cp:?}");
+
+            let cr = ebcdic_to_utf8(&[0x0D], cp, UnmappablePolicy::Error).unwrap();
+            assert_eq!(cr, "\r", "CR failed for {cp:?}");
+        }
+    }
+
+    // --- 4. Unmappable character handling (utf8_to_ebcdic direction) ---
+
+    #[test]
+    fn test_utf8_to_ebcdic_unmappable_cjk_all_codepages() {
+        // CJK character '日' cannot be mapped to any EBCDIC codepage
+        for cp in ALL_EBCDIC {
+            let err = utf8_to_ebcdic("日", cp).unwrap_err();
+            assert_eq!(
+                err.code,
+                ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+                "Expected unmappable error for {cp:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_emoji_unmappable() {
+        let err = utf8_to_ebcdic("😀", Codepage::CP037).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKC301_INVALID_EBCDIC_BYTE);
+    }
+
+    // --- 5. Empty input ---
+
+    #[test]
+    fn test_empty_input_all_codepages_both_directions() {
+        for cp in ALL_EBCDIC {
+            let decoded = ebcdic_to_utf8(&[], cp, UnmappablePolicy::Error).unwrap();
+            assert_eq!(decoded, "", "Empty decode failed for {cp:?}");
+
+            let encoded = utf8_to_ebcdic("", cp).unwrap();
+            assert!(encoded.is_empty(), "Empty encode failed for {cp:?}");
+        }
+        // Also ASCII
+        let decoded = ebcdic_to_utf8(&[], Codepage::ASCII, UnmappablePolicy::Error).unwrap();
+        assert_eq!(decoded, "");
+        let encoded = utf8_to_ebcdic("", Codepage::ASCII).unwrap();
+        assert!(encoded.is_empty());
+    }
+
+    // --- 6. Full round-trip consistency (EBCDIC -> UTF-8 -> EBCDIC) per codepage ---
+
+    #[test]
+    fn test_full_byte_roundtrip_cp037() {
+        full_byte_roundtrip(Codepage::CP037);
+    }
+
+    #[test]
+    fn test_full_byte_roundtrip_cp273() {
+        full_byte_roundtrip(Codepage::CP273);
+    }
+
+    #[test]
+    fn test_full_byte_roundtrip_cp500() {
+        full_byte_roundtrip(Codepage::CP500);
+    }
+
+    #[test]
+    fn test_full_byte_roundtrip_cp1047() {
+        full_byte_roundtrip(Codepage::CP1047);
+    }
+
+    #[test]
+    fn test_full_byte_roundtrip_cp1140() {
+        full_byte_roundtrip(Codepage::CP1140);
+    }
+
+    /// For every EBCDIC byte 0x00..=0xFF that decodes to a non-control Unicode
+    /// character, verify EBCDIC → UTF-8 → EBCDIC produces the original byte.
+    fn full_byte_roundtrip(cp: Codepage) {
+        for byte in 0x00u8..=0xFF {
+            let decoded = match ebcdic_to_utf8(&[byte], cp, UnmappablePolicy::Skip) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            if decoded.is_empty() {
+                // Skipped control char – that's fine
+                continue;
+            }
+            let re_encoded = match utf8_to_ebcdic(&decoded, cp) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            assert_eq!(
+                re_encoded,
+                &[byte],
+                "{cp:?}: byte 0x{byte:02X} decoded to {decoded:?} but re-encoded to {re_encoded:?}"
+            );
+        }
+    }
+
+    // --- 7. Large buffer conversion ---
+
+    #[test]
+    fn test_large_buffer_decode_cp037() {
+        // 10 000 EBCDIC spaces (0x40) should decode to 10 000 ASCII spaces
+        let large_input = vec![0x40u8; 10_000];
+        let result =
+            ebcdic_to_utf8(&large_input, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result.len(), 10_000);
+        assert!(result.chars().all(|c| c == ' '));
+    }
+
+    #[test]
+    fn test_large_buffer_encode_cp037() {
+        let large_text: String = std::iter::repeat_n('A', 10_000).collect();
+        let encoded = utf8_to_ebcdic(&large_text, Codepage::CP037).unwrap();
+        assert_eq!(encoded.len(), 10_000);
+        assert!(encoded.iter().all(|&b| b == 0xC1)); // 'A' in CP037
+    }
+
+    #[test]
+    fn test_large_buffer_roundtrip_all_codepages() {
+        let pattern = "HELLO WORLD 12345 ";
+        let large_text: String = pattern.repeat(500); // ~9 000 chars
+        for cp in ALL_EBCDIC {
+            let encoded = utf8_to_ebcdic(&large_text, cp)
+                .unwrap_or_else(|e| panic!("{cp:?} large encode failed: {e}"));
+            let decoded = ebcdic_to_utf8(&encoded, cp, UnmappablePolicy::Error)
+                .unwrap_or_else(|e| panic!("{cp:?} large decode failed: {e}"));
+            assert_eq!(decoded, large_text, "Large roundtrip failed for {cp:?}");
+        }
+    }
+
+    // --- 8. Mixed content with unmappable bytes ---
+
+    #[test]
+    fn test_mixed_valid_and_control_replace_all_codepages() {
+        // Byte sequence: NUL, 'A' (0xC1 on CP037/500/1047/1140, 0xC1 on CP273), NUL
+        for cp in ALL_EBCDIC {
+            let data: &[u8] = &[0x00, 0xC1, 0x00];
+            let result = ebcdic_to_utf8(data, cp, UnmappablePolicy::Replace).unwrap();
+            // Should have replacement chars around the letter
+            assert_eq!(
+                result.matches('\u{FFFD}').count(),
+                2,
+                "Replace count wrong for {cp:?}"
+            );
+            assert!(result.contains('A'), "Missing 'A' for {cp:?}");
+        }
+    }
+
+    #[test]
+    fn test_mixed_valid_and_control_skip_preserves_valid() {
+        // NUL, space (0x40), digit-1 (0xF1), NUL
+        for cp in ALL_EBCDIC {
+            let data: &[u8] = &[0x00, 0x40, 0xF1, 0x00];
+            let result = ebcdic_to_utf8(data, cp, UnmappablePolicy::Skip).unwrap();
+            assert_eq!(result, " 1", "Skip mixed content wrong for {cp:?}");
+        }
+    }
+
+    // --- 9. Codepage-specific letter position differences ---
+
+    #[test]
+    fn test_uppercase_letters_all_codepages() {
+        // Verify A-I, J-R, S-Z positions are correct per codepage
+        let alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for cp in ALL_EBCDIC {
+            let encoded =
+                utf8_to_ebcdic(alpha, cp).unwrap_or_else(|e| panic!("{cp:?} alpha encode: {e}"));
+            let decoded = ebcdic_to_utf8(&encoded, cp, UnmappablePolicy::Error)
+                .unwrap_or_else(|e| panic!("{cp:?} alpha decode: {e}"));
+            assert_eq!(decoded, alpha, "Alphabet roundtrip failed for {cp:?}");
+            // EBCDIC letters live in C1-C9 (A-I), D1-D9 (J-R), E2-E9 (S-Z)
+            assert_eq!(encoded[0], 0xC1, "{cp:?}: 'A' should be 0xC1");
+            assert_eq!(encoded[9], 0xD1, "{cp:?}: 'J' should be 0xD1");
+            assert_eq!(encoded[18], 0xE2, "{cp:?}: 'S' should be 0xE2");
+        }
+    }
+
+    #[test]
+    fn test_lowercase_letters_all_codepages() {
+        let alpha = "abcdefghijklmnopqrstuvwxyz";
+        for cp in ALL_EBCDIC {
+            let encoded =
+                utf8_to_ebcdic(alpha, cp).unwrap_or_else(|e| panic!("{cp:?} lower encode: {e}"));
+            let decoded = ebcdic_to_utf8(&encoded, cp, UnmappablePolicy::Error)
+                .unwrap_or_else(|e| panic!("{cp:?} lower decode: {e}"));
+            assert_eq!(decoded, alpha, "Lowercase roundtrip failed for {cp:?}");
+            // EBCDIC lowercase: 81-89 (a-i), 91-99 (j-r), A2-A9 (s-z)
+            assert_eq!(encoded[0], 0x81, "{cp:?}: 'a' should be 0x81");
+            assert_eq!(encoded[9], 0x91, "{cp:?}: 'j' should be 0x91");
+            assert_eq!(encoded[18], 0xA2, "{cp:?}: 's' should be 0xA2");
+        }
+    }
+
+    #[test]
+    fn test_digits_all_codepages() {
+        let digits = "0123456789";
+        for cp in ALL_EBCDIC {
+            let encoded =
+                utf8_to_ebcdic(digits, cp).unwrap_or_else(|e| panic!("{cp:?} digit encode: {e}"));
+            assert_eq!(encoded.len(), 10);
+            // Digits are always F0-F9 on all EBCDIC codepages
+            for (i, &b) in encoded.iter().enumerate() {
+                assert_eq!(
+                    b,
+                    0xF0 + u8::try_from(i).unwrap(),
+                    "{cp:?}: digit {i} wrong"
+                );
+            }
+        }
     }
 }

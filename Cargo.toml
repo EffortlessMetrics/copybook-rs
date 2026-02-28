@@ -42,6 +42,7 @@ members = [
     "tools/xtask",
     "tests/bdd",
     "tests/proptest",
+    "tests/e2e",
 ]
 exclude = [
     "examples/kafka_pipeline",

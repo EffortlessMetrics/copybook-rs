@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-e2e"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "End-to-end integration tests for copybook-rs"
+publish = false
+
+[lints]
+workspace = true
+
+[[test]]
+name = "e2e_decode_encode_roundtrip"
+path = "e2e_decode_encode_roundtrip.rs"
+
+[[test]]
+name = "e2e_field_projection"
+path = "e2e_field_projection.rs"
+
+[[test]]
+name = "e2e_error_handling"
+path = "e2e_error_handling.rs"
+
+[[test]]
+name = "e2e_determinism"
+path = "e2e_determinism.rs"
+
+[dependencies]
+copybook-core.workspace = true
+copybook-codec.workspace = true
+copybook-error.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

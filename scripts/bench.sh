@@ -215,19 +215,27 @@ report = {
 output_dir = ROOT / "scripts" / "bench"
 output_dir.mkdir(parents=True, exist_ok=True)
 output_path = output_dir / "perf.json"
-output_path.write_text(json.dumps(report, indent=2) + "\n")
-report_file_sha = sha256_of_file(output_path)
-if non_wsl_status == "available":
-    non_wsl_baseline_checksum = report_file_sha
-
-report["report_file_sha256"] = report_file_sha
+# Compute content signature before adding file-level hashes
 report["report_signature"] = hashlib.sha256(
     json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 ).hexdigest()
 report["non_wsl_evidence_checksum"] = non_wsl_baseline_checksum
+
+# Write report (without report_file_sha256) so we can hash the content
 output_path.write_text(json.dumps(report, indent=2) + "\n")
+report_file_sha = sha256_of_file(output_path)
+
+# Embed the content hash and update non-WSL checksum
+report["report_file_sha256"] = report_file_sha
+if non_wsl_status == "available":
+    report["non_wsl_evidence_checksum"] = report_file_sha
+
+# Final write with all integrity fields
+output_path.write_text(json.dumps(report, indent=2) + "\n")
+
+# Sidecar SHA matches the actual final file on disk
 sha_path = output_path.with_suffix(".json.sha256")
-sha_path.write_text(f"{report['report_file_sha256']}  perf.json\n")
+sha_path.write_text(f"{sha256_of_file(output_path)}  perf.json\n")
 print(f"✅ receipts: {output_path.relative_to(ROOT)}")
 PY
 

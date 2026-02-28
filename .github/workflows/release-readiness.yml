@@ -269,6 +269,8 @@ PY
           ref: ${{ needs.version-check.outputs.tag }}
 
       - name: Verify non-WSL performance baseline evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -294,11 +296,11 @@ PY
 
             ARTIFACT_ID="$(gh api \
               "/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
-              --jq '[.artifacts[] | select(.name | startswith("non-wsl-perf-json-"))] | sort_by(.created_at) | reverse | .[0].id // empty' \
+              --jq '([.artifacts[] | select(.name | startswith("non-wsl-perf-json-"))] + [.artifacts[] | select(.name | startswith("perf-json-"))]) | sort_by(.created_at) | reverse | .[0].id // empty' \
               2>/dev/null || true)"
 
             if [[ -z "${ARTIFACT_ID}" ]]; then
-              echo "::error::No non-WSL perf artifact found for run ${RUN_ID}."
+              echo "::error::No perf artifact found for run ${RUN_ID}."
               exit 1
             fi
 

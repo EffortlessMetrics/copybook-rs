@@ -1,0 +1,493 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Release Readiness
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.4.3)'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to validate (e.g., v0.4.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+  checks: read
+  security-events: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  version-check:
+    name: Version check
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      sha: ${{ steps.version.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify tag and crate versions
+        id: version
+        run: |
+          set -euo pipefail
+
+          TAG="${{ inputs.tag }}"
+          if [[ "$TAG" != v* ]]; then
+            echo "::error::Release tag must be v-prefixed semantic version (e.g., v0.4.3): $TAG"
+            exit 1
+          fi
+
+          if ! git rev-parse -q --verify "$TAG^{commit}" >/dev/null; then
+            echo "::error::Tag $TAG does not resolve to a commit in this checkout."
+            exit 1
+          fi
+
+          TAG_COMMIT="$(git rev-parse "$TAG^{commit}")"
+          git fetch --no-tags --depth=1 origin main
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
+            echo "::error::Tag $TAG is not reachable from origin/main. Release tags must be created from main."
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          WORKSPACE_VERSION="$(python3 - <<'PY'
+import tomllib
+
+with open("Cargo.toml", "rb") as f:
+    workspace = tomllib.load(f)
+
+print(workspace["workspace"]["package"]["version"])
+PY
+)"
+
+          if [[ "$WORKSPACE_VERSION" != "$VERSION" ]]; then
+            echo "::error::Workspace version ${WORKSPACE_VERSION} does not match tag version ${VERSION}."
+            exit 1
+          fi
+
+          FAILED=0
+          for crate in copybook-core copybook-codec copybook-cli; do
+            CRATE_VERSION="$(python3 - "$crate" <<'PY'
+import sys
+import tomllib
+
+with open(f"{sys.argv[1]}/Cargo.toml", "rb") as f:
+    crate = tomllib.load(f)
+
+print(crate["package"]["version"])
+PY
+)"
+            if [[ "$CRATE_VERSION" != "$VERSION" ]]; then
+              echo "::error::$crate version ${CRATE_VERSION} does not match tag version ${VERSION}."
+              FAILED=1
+            fi
+          done
+
+          if [[ "$FAILED" -ne 0 ]]; then
+            echo "::error::Release version mismatch detected."
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$TAG_COMMIT" >> "$GITHUB_OUTPUT"
+
+  security_scan:
+    name: Security scan findings
+    needs: [version-check]
+    uses: ./.github/workflows/security-scan.yml
+    with:
+      enforce: true
+
+  workflow-prereqs:
+    name: Required upstream workflows
+    runs-on: ubuntu-latest
+    needs: [version-check]
+    steps:
+      - name: Check CI / coverage / secbot status
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const requirements = [
+              {
+                label: "CI Gate",
+                workflowFile: ".github/workflows/ci.yml",
+              },
+              {
+                label: "Code Coverage Gate",
+                workflowFile: ".github/workflows/ci-coverage.yml",
+              },
+              {
+                label: "CI Security",
+                workflowFile: ".github/workflows/ci-security.yml",
+              },
+            ];
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const expectedRepo = `${owner}/${repo}`;
+            const sha = "${{ needs.version-check.outputs.sha }}";
+            const failures = [];
+            const allowedEventsByWorkflow = {
+              ".github/workflows/ci.yml": ["pull_request", "push"],
+              ".github/workflows/ci-coverage.yml": ["pull_request", "push"],
+              ".github/workflows/ci-security.yml": ["pull_request", "push"],
+            };
+
+            const isAllowedWorkflowSource = (run, workflowFile) => {
+              const allowedEvents = allowedEventsByWorkflow[workflowFile] || ["pull_request", "push"];
+              if (!allowedEvents.includes(run.event)) {
+                return false;
+              }
+              if (run.conclusion !== "success") {
+                return false;
+              }
+              if (run.head_sha !== sha) {
+                return false;
+              }
+              if (!run.repository || run.repository.full_name !== expectedRepo) {
+                return false;
+              }
+              if (run.head_repository && run.head_repository.full_name !== expectedRepo) {
+                return false;
+              }
+
+              if (run.event === "pull_request") {
+                const pulls = run.pull_requests || [];
+                const hasMainBaseRef = pulls.length === 0 || pulls.every((pull) => pull.base && pull.base.ref === "main");
+
+                if (!hasMainBaseRef) {
+                  return false;
+                }
+                if (!run.head_repository || run.head_repository.full_name !== expectedRepo) {
+                  return false;
+                }
+                return true;
+              }
+
+              return run.event === "push" && run.head_branch === "main";
+            };
+
+            const hasSuccessfulWorkflow = async (workflowFile) => {
+              const response = await github.request(
+                "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+                {
+                  owner,
+                  repo,
+                  workflow_id: workflowFile,
+                  status: "completed",
+                  per_page: 50,
+                }
+              );
+
+              return response.data.workflow_runs.find((run) => isAllowedWorkflowSource(run, workflowFile));
+            };
+
+            for (const req of requirements) {
+              const workflowRun = await hasSuccessfulWorkflow(req.workflowFile);
+              if (workflowRun) {
+                core.info(`✅ ${req.label}: workflow passed on ${workflowRun.html_url}`);
+                continue;
+              }
+
+              failures.push(req.label);
+            }
+
+            if (failures.length > 0) {
+              core.setFailed(`Missing required upstream checks for ${sha}: ${failures.join(", ")}`);
+            }
+
+  changelog-check:
+    name: Changelog check
+    runs-on: ubuntu-latest
+    needs: [version-check]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.version-check.outputs.tag }}
+
+      - name: Verify CHANGELOG has release entry
+        id: changelog
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.version-check.outputs.version }}"
+          if ! rg -q "^## \\[${VERSION}\\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md is missing a release section for ${VERSION} (pattern: ## [${VERSION}])."
+            exit 1
+          fi
+          echo "✅ CHANGELOG.md contains a release section for ${VERSION}."
+
+  publishable-crates-dry-run:
+    name: Publishable crates dry run
+    runs-on: ubuntu-latest
+    needs: [version-check]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.version-check.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Dry run publish release crates
+        run: |
+          set -euo pipefail
+
+          for crate in copybook-core copybook-codec copybook-cli; do
+            echo "Running cargo publish --dry-run -p ${crate}"
+            cargo publish -p "${crate}" --dry-run
+          done
+
+          echo "✅ Release crates pass dry-run publish checks."
+
+  non-wsl-benchmark-evidence:
+    name: Non-WSL benchmark evidence
+    runs-on: ubuntu-latest
+    needs: [version-check]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.version-check.outputs.tag }}
+
+      - name: Verify non-WSL performance baseline evidence
+        run: |
+          set -euo pipefail
+
+          PERF_EVIDENCE_PATH="artifacts/perf/non-wsl/perf.json"
+          if [[ ! -f "${PERF_EVIDENCE_PATH}" ]]; then
+            if ! command -v gh >/dev/null 2>&1; then
+              echo "::error::Missing non-WSL benchmark evidence at ${PERF_EVIDENCE_PATH} and gh CLI is not available to recover artifacts."
+              exit 1
+            fi
+
+            echo "⚠️ Non-WSL evidence file missing locally; attempting to restore from perf workflow artifacts."
+            TARGET_SHA="${{ needs.version-check.outputs.sha }}"
+
+            RUN_ID="$(gh api \
+              "/repos/${{ github.repository }}/actions/workflows/perf.yml/runs?head_sha=${TARGET_SHA}&status=completed&conclusion=success&per_page=5" \
+              --jq '.workflow_runs[0].id // empty' \
+              2>/dev/null || true)"
+
+            if [[ -z "${RUN_ID}" ]]; then
+              echo "::error::No successful perf workflow run found for commit ${TARGET_SHA}."
+              exit 1
+            fi
+
+            ARTIFACT_ID="$(gh api \
+              "/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
+              --jq '[.artifacts[] | select(.name | startswith("non-wsl-perf-json-"))] | sort_by(.created_at) | reverse | .[0].id // empty' \
+              2>/dev/null || true)"
+
+            if [[ -z "${ARTIFACT_ID}" ]]; then
+              echo "::error::No non-WSL perf artifact found for run ${RUN_ID}."
+              exit 1
+            fi
+
+            TMP_DIR="$(mktemp -d)"
+            trap 'rm -rf "${TMP_DIR}"' EXIT
+
+            ARTIFACT_ZIP="${TMP_DIR}/non-wsl-perf.zip"
+            if ! gh api "/repos/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}/zip" > "${ARTIFACT_ZIP}"; then
+              echo "::error::Failed to download non-WSL perf artifact ${ARTIFACT_ID}."
+              exit 1
+            fi
+
+            if ! unzip -q "${ARTIFACT_ZIP}" -d "${TMP_DIR}"; then
+              echo "::error::Failed to extract non-WSL perf artifact ${ARTIFACT_ID}."
+              exit 1
+            fi
+
+            RESTORED_JSON="$(find "${TMP_DIR}" -type f -name "perf.json" | head -n 1)"
+            if [[ -z "${RESTORED_JSON}" ]]; then
+              echo "::error::Restored non-WSL artifact does not contain perf.json."
+              exit 1
+            fi
+
+            mkdir -p "$(dirname "${PERF_EVIDENCE_PATH}")"
+            cp "${RESTORED_JSON}" "${PERF_EVIDENCE_PATH}"
+          fi
+
+          python3 - <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path("artifacts/perf/non-wsl/perf.json")
+try:
+    payload = json.loads(path.read_text())
+except (OSError, json.JSONDecodeError) as exc:
+    print(f"::error::{exc}")
+    sys.exit(1)
+
+legacy = payload.get("evidence_references", {})
+status = payload.get("non_wsl_evidence_status", "") or legacy.get("non_wsl_evidence_status", "")
+if status not in {"available", "available-from-cache"}:
+    print(f"::error::non_wsl_evidence_status is '{status}', expected available or available-from-cache.")
+    sys.exit(1)
+
+baseline = payload.get("non_wsl_baseline", "") or legacy.get("non_wsl_baseline", "")
+if not baseline:
+    print("::error::non_wsl_baseline must be present for release validation.")
+    sys.exit(1)
+
+checksum = (
+    payload.get("non_wsl_evidence_checksum", "")
+    or payload.get("report_file_sha256", "")
+    or payload.get("integrity", {}).get("sha256", "")
+    or legacy.get("non_wsl_evidence_checksum", "")
+)
+if not checksum:
+    print("::error::non_wsl_evidence_checksum is required to ensure replay integrity.")
+    sys.exit(1)
+
+environment = payload.get("environment", {})
+wsl2 = environment.get("wsl2_detected", True)
+if isinstance(wsl2, str):
+    wsl2 = wsl2.strip().lower() in {"true", "1", "yes"}
+if wsl2:
+    print("::error::non-WSL evidence must not come from a WSL/WSL2 environment.")
+    sys.exit(1)
+
+if len(checksum) != 64:
+    print(f"::error::non_wsl_evidence_checksum must be a SHA-256 digest, got {len(checksum)} chars.")
+    sys.exit(1)
+
+print(f"✅ non-WSL benchmark evidence verified for {payload.get('environment', {}).get('os', 'unknown')} at {baseline}.")
+PY
+
+  sbom-provenance:
+    name: SBOM + provenance
+    runs-on: ubuntu-latest
+    needs: [version-check]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.version-check.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate SBOM
+        id: generate-sbom
+        run: |
+          cargo install --locked cargo-cyclonedx --version 0.5.7
+          cargo cyclonedx --manifest-path copybook-cli/Cargo.toml --format json
+          mv copybook-cli/copybook-cli.cdx.json sbom.cdx.json
+
+          SBOM_SHA="$(sha256sum sbom.cdx.json | awk '{print $1}')"
+          echo "SBOM SHA-256: $SBOM_SHA"
+          echo "sbom_sha=$SBOM_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Emit SBOM provenance
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.version-check.outputs.version }}"
+          TAG="${{ needs.version-check.outputs.tag }}"
+          TAG_COMMIT="${{ needs.version-check.outputs.sha }}"
+          SBOM_SHA="${{ steps.generate-sbom.outputs.sbom_sha }}"
+          GENERATED_AT="$(git show -s --format=%cI "${TAG_COMMIT}")"
+
+          cat > sbom-provenance.json <<EOF
+{
+  "schemaVersion": "0.1",
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "subject": {
+    "name": "copybook-cli-sbom",
+    "version": "${VERSION}",
+    "tag": "${TAG}"
+  },
+          "materials": [
+            {
+              "uri": "git+https://github.com/${{ github.repository }}.git",
+              "digest": {
+                "sha1": "${TAG_COMMIT}"
+              }
+            }
+          ],
+  "artifacts": {
+    "sbom": {
+      "path": "sbom.cdx.json",
+      "sha256": "${SBOM_SHA}"
+    }
+  },
+  "generatedAt": "${GENERATED_AT}",
+  "generator": "github-actions/release-readiness"
+}
+EOF
+
+      - name: Upload SBOM and provenance
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-readiness-sbom-provenance-${{ needs.version-check.outputs.version }}
+          path: |
+            sbom.cdx.json
+            sbom-provenance.json
+
+  release-gate:
+    name: Release gate
+    runs-on: ubuntu-latest
+    needs:
+      - version-check
+      - changelog-check
+      - workflow-prereqs
+      - security_scan
+      - publishable-crates-dry-run
+      - non-wsl-benchmark-evidence
+      - sbom-provenance
+    if: always()
+    steps:
+      - name: Evaluate readiness gates
+        run: |
+          set -euo pipefail
+
+          status_version="${{ needs.version-check.result }}"
+          status_changelog="${{ needs.changelog-check.result }}"
+          status_workflows="${{ needs.workflow-prereqs.result }}"
+          status_security_scan="${{ needs.security_scan.result }}"
+          status_publishable="${{ needs.publishable-crates-dry-run.result }}"
+          status_non_wsl_evidence="${{ needs.non-wsl-benchmark-evidence.result }}"
+          status_sbom="${{ needs.sbom-provenance.result }}"
+
+          failed=0
+
+          echo "## Release Readiness Gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| version-check | ${status_version} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| changelog-check | ${status_changelog} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| required upstream gate checks | ${status_workflows} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| security findings (high severity) | ${status_security_scan} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| security findings count | has_high=${{ needs.security_scan.outputs.has_high_severity }} total=${{ needs.security_scan.outputs.total_vulnerabilities }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| publishable-crates-dry-run | ${status_publishable} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| non-wsl benchmark evidence | ${status_non_wsl_evidence} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| sbom-provenance | ${status_sbom} |" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$status_version" != "success" || "$status_workflows" != "success" || "$status_security_scan" != "success" || "$status_changelog" != "success" || "$status_publishable" != "success" || "$status_non_wsl_evidence" != "success" || "$status_sbom" != "success" ]]; then
+            failed=1
+          fi
+
+          if [[ "$failed" -eq 1 ]]; then
+            echo "::error::Release readiness gates failed; blocking publish."
+            exit 1
+          fi
+
+          echo "✅ All release-readiness checks passed for ${{ needs.version-check.outputs.version }}."

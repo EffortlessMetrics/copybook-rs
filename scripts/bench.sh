@@ -12,12 +12,57 @@ RUSTFLAGS="-C target-cpu=native" PERF=1 \
 python3 <<'PY'
 import datetime
 import json
+import hashlib
+import os
 import pathlib
+import platform
 import subprocess
 import sys
 
 ROOT = pathlib.Path.cwd()
 CRITERION_ROOT = ROOT / "target" / "criterion" / "slo_validation"
+NON_WSL_EVIDENCE_PATH = "artifacts/perf/non-wsl/perf.json"
+NON_WSL_EVIDENCE_MISSING_STATUS = "not-collected-on-wsl"
+
+
+def read_overhead_threshold(name: str, fallback: float) -> float:
+    try:
+        return float(os.environ.get(name, str(fallback)))
+    except ValueError:
+        return fallback
+
+
+def sha256_of_file(path: pathlib.Path) -> str:
+    try:
+        digest = hashlib.sha256()
+    except Exception:
+        return ""
+
+    try:
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return ""
+
+
+AC11_BASELINE_REGRESSION_THRESHOLD_PERCENT = read_overhead_threshold(
+    "AC11_BASELINE_REGRESSION_THRESHOLD_PERCENT", 5.0
+)
+AC11_AUDIT_OVERHEAD_THRESHOLD_PERCENT = read_overhead_threshold(
+    "AC11_AUDIT_OVERHEAD_THRESHOLD_PERCENT", 2.0
+)
+AC11_COMPLIANCE_OVERHEAD_THRESHOLD_PERCENT = read_overhead_threshold(
+    "AC11_COMPLIANCE_OVERHEAD_THRESHOLD_PERCENT", 3.0
+)
+AC11_SECURITY_OVERHEAD_THRESHOLD_PERCENT = read_overhead_threshold(
+    "AC11_SECURITY_OVERHEAD_THRESHOLD_PERCENT", 1.0
+)
+AC11_COMBINED_OVERHEAD_THRESHOLD_PERCENT = read_overhead_threshold(
+    "AC11_COMBINED_OVERHEAD_THRESHOLD_PERCENT", 5.0
+)
+
 
 def load_throughput(name: str):
     bench_dir = CRITERION_ROOT / name / "new"
@@ -39,6 +84,63 @@ def load_throughput(name: str):
         "mean_mibps": mibps,
     }
 
+
+def detect_wsl2() -> bool:
+    proc_version = pathlib.Path("/proc/version")
+    if not proc_version.is_file():
+        return False
+
+    try:
+        contents = proc_version.read_text(errors="ignore").lower()
+    except OSError:
+        return False
+
+    return "microsoft" in contents or "wsl" in contents
+
+
+def read_cached_non_wsl_date(path: pathlib.Path) -> tuple[str, str]:
+    if not path.is_file():
+        return "", ""
+
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return "", ""
+
+    timestamp = payload.get("timestamp", "")
+    run_date = timestamp[:10] if isinstance(timestamp, str) else ""
+    checksum = payload.get("report_file_sha256", "")
+    if not checksum:
+        checksum = payload.get("integrity", {}).get("sha256", "")
+    if not checksum:
+        checksum = payload.get("report_signature", "")
+    if not checksum:
+        checksum = ""
+    if not isinstance(checksum, str):
+        checksum = ""
+    return run_date, checksum
+
+
+def get_cpu_model() -> str:
+    cpuinfo = pathlib.Path("/proc/cpuinfo")
+    if cpuinfo.is_file():
+        try:
+            for line in cpuinfo.read_text(errors="ignore").splitlines():
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+        except OSError:
+            pass
+    return platform.processor() or platform.machine()
+
+
+def get_cpu_cores() -> int:
+    return os.cpu_count() or 0
+
+
+def get_kernel_version() -> str:
+    return platform.release() or "unknown"
+
+
 display = load_throughput("display_heavy_slo_80mbps")
 comp3 = load_throughput("comp3_heavy_slo_40mbps")
 
@@ -47,26 +149,92 @@ commit = subprocess.check_output(
     ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True
 ).strip()
 
+non_wsl_baseline = ""
+non_wsl_baseline_checksum = ""
+non_wsl_status = NON_WSL_EVIDENCE_MISSING_STATUS
+wsl2_detected = detect_wsl2()
+
+if wsl2_detected:
+    cached_non_wsl_date, cached_non_wsl_checksum = read_cached_non_wsl_date(
+        ROOT / NON_WSL_EVIDENCE_PATH
+    )
+    if cached_non_wsl_date:
+        non_wsl_baseline = cached_non_wsl_date
+        non_wsl_baseline_checksum = cached_non_wsl_checksum
+        non_wsl_status = "available-from-cache"
+else:
+    non_wsl_baseline = timestamp[:10]
+    non_wsl_status = "available"
+
 report = {
     "timestamp": timestamp,
     "commit": commit,
     "toolchain": "cargo bench (criterion)",
+    "format_version": "1.0.0",
+    "build_profile": "release",
+    "target_cpu": "native",
+    "environment": {
+        "os": platform.system(),
+        "kernel": get_kernel_version(),
+        "cpu_model": get_cpu_model(),
+        "cpu_cores": get_cpu_cores(),
+        "wsl2_detected": wsl2_detected,
+    },
     "status": "pass",
     "display_mibps": display["mean_mibps"],
     "display_gibps": display["mean_mibps"] / 1024.0,
     "comp3_mibps": comp3["mean_mibps"],
     "benchmarks": [display, comp3],
+    "evidence_references": {
+        "display": {
+            "metric": "display_mibps",
+            "value_mibps": display["mean_mibps"],
+            "run_timestamp": timestamp,
+            "run_date": timestamp[:10],
+            "scenario": "slo_validation/display_heavy_slo_80mbps",
+        },
+        "comp3": {
+            "metric": "comp3_mibps",
+            "value_mibps": comp3["mean_mibps"],
+            "run_timestamp": timestamp,
+            "run_date": timestamp[:10],
+            "scenario": "slo_validation/comp3_heavy_slo_40mbps",
+        },
+    },
+    "non_wsl_baseline": non_wsl_baseline,
+    "non_wsl_baseline_path": NON_WSL_EVIDENCE_PATH,
+    "non_wsl_evidence_status": non_wsl_status,
+    "non_wsl_evidence_checksum": non_wsl_baseline_checksum,
+    "ac11_regression_threshold_percent": AC11_BASELINE_REGRESSION_THRESHOLD_PERCENT,
+    "ac11_audit_overhead_threshold_percent": AC11_AUDIT_OVERHEAD_THRESHOLD_PERCENT,
+    "ac11_compliance_overhead_threshold_percent": AC11_COMPLIANCE_OVERHEAD_THRESHOLD_PERCENT,
+    "ac11_security_overhead_threshold_percent": AC11_SECURITY_OVERHEAD_THRESHOLD_PERCENT,
+    "ac11_combined_overhead_threshold_percent": AC11_COMBINED_OVERHEAD_THRESHOLD_PERCENT,
 }
 
 output_dir = ROOT / "scripts" / "bench"
 output_dir.mkdir(parents=True, exist_ok=True)
 output_path = output_dir / "perf.json"
 output_path.write_text(json.dumps(report, indent=2) + "\n")
+report_file_sha = sha256_of_file(output_path)
+if non_wsl_status == "available":
+    non_wsl_baseline_checksum = report_file_sha
+
+report["report_file_sha256"] = report_file_sha
+report["report_signature"] = hashlib.sha256(
+    json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+).hexdigest()
+report["non_wsl_evidence_checksum"] = non_wsl_baseline_checksum
+output_path.write_text(json.dumps(report, indent=2) + "\n")
+sha_path = output_path.with_suffix(".json.sha256")
+sha_path.write_text(f"{report['report_file_sha256']}  perf.json\n")
 print(f"✅ receipts: {output_path.relative_to(ROOT)}")
 PY
 
 TMP_JSON="scripts/bench/perf.json"
 SUMMARY_JSON="scripts/bench/summary.json"
+NON_WSL_EVIDENCE_PATH="artifacts/perf/non-wsl/perf.json"
+NON_WSL_UNAVAILABLE_NOTE='not-collected-on-wsl'
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "❌ jq is required to append summary to ${TMP_JSON}" >&2
@@ -133,4 +301,16 @@ if [[ -x "scripts/soak-aggregate.sh" ]]; then
   bash scripts/soak-aggregate.sh
 else
   echo "⚠️ scripts/soak-aggregate.sh missing or not executable; skipping percentile aggregate."
+fi
+
+if [[ -f /proc/version ]] && grep -qiE "microsoft|wsl" /proc/version; then
+  if [[ -f "${NON_WSL_EVIDENCE_PATH}" ]]; then
+    echo "⚠️ WSL/WSL2 run detected; using cached non-WSL evidence date from ${NON_WSL_EVIDENCE_PATH}."
+  else
+    echo "⚠️ WSL/WSL2 run detected and no cached non-WSL evidence snapshot exists at ${NON_WSL_EVIDENCE_PATH}; non-WSL baseline remains \"${NON_WSL_UNAVAILABLE_NOTE}\"."
+  fi
+else
+  mkdir -p "$(dirname "${NON_WSL_EVIDENCE_PATH}")"
+  cp "${TMP_JSON}" "${NON_WSL_EVIDENCE_PATH}"
+  echo "✅ exported non-WSL performance evidence snapshot to ${NON_WSL_EVIDENCE_PATH}."
 fi

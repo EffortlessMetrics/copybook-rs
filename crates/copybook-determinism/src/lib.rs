@@ -229,6 +229,90 @@ mod tests {
         assert_eq!(result.byte_differences.as_ref().unwrap()[0].offset, 2);
     }
 
+    #[test]
+    fn blake3_hex_empty_input_produces_valid_hash() {
+        let hash = blake3_hex(b"");
+        assert_eq!(hash.len(), BLAKE3_HEX_LEN);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn blake3_hex_different_inputs_produce_different_hashes() {
+        let h1 = blake3_hex(b"hello");
+        let h2 = blake3_hex(b"world");
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn blake3_hex_identical_inputs_produce_same_hash() {
+        let h1 = blake3_hex(b"determinism");
+        let h2 = blake3_hex(b"determinism");
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn compare_outputs_empty_slices_are_deterministic() {
+        let result = compare_outputs(DeterminismMode::DecodeOnly, b"", b"");
+        assert!(result.passed());
+        assert_eq!(result.diff_count(), 0);
+        assert!(result.byte_differences.is_none());
+        assert_eq!(result.round1_hash, result.round2_hash);
+    }
+
+    #[test]
+    fn compare_outputs_empty_vs_non_empty_is_non_deterministic() {
+        let result = compare_outputs(DeterminismMode::EncodeOnly, b"", b"X");
+        assert!(!result.passed());
+        assert_eq!(result.diff_count(), 1);
+        let diffs = result.byte_differences.as_ref().unwrap();
+        assert_eq!(diffs[0].offset, 0);
+        assert_eq!(diffs[0].round1_byte, 0);
+        assert_eq!(diffs[0].round2_byte, b'X');
+    }
+
+    #[test]
+    fn compare_outputs_round_trip_mode_sets_mode_field() {
+        let result = compare_outputs(DeterminismMode::RoundTrip, b"ABC", b"ABC");
+        assert_eq!(result.mode, DeterminismMode::RoundTrip);
+        assert!(result.passed());
+    }
+
+    #[test]
+    fn compare_outputs_with_limit_caps_reported_diffs() {
+        let a = vec![0u8; 50];
+        let b = vec![1u8; 50];
+        let result = compare_outputs_with_limit(DeterminismMode::DecodeOnly, &a, &b, 5);
+        assert!(!result.passed());
+        assert_eq!(result.diff_count(), 5);
+    }
+
+    #[test]
+    fn find_byte_differences_identical_inputs_returns_empty() {
+        let data = b"identical bytes";
+        let diffs = find_byte_differences(data, data);
+        assert!(diffs.is_empty());
+    }
+
+    #[test]
+    fn find_byte_differences_with_limit_zero_returns_empty() {
+        let diffs = find_byte_differences_with_limit(b"AAA", b"BBB", 0);
+        assert!(diffs.is_empty());
+    }
+
+    #[test]
+    fn determinism_result_serde_round_trip() {
+        let result = DeterminismResult {
+            mode: DeterminismMode::EncodeOnly,
+            round1_hash: blake3_hex(b"test"),
+            round2_hash: blake3_hex(b"test"),
+            is_deterministic: true,
+            byte_differences: None,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: DeterminismResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, result);
+    }
+
     proptest! {
         #[test]
         fn prop_identical_inputs_always_deterministic(data in prop::collection::vec(any::<u8>(), 0..512)) {

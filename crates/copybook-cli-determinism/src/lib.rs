@@ -431,6 +431,130 @@ mod tests {
         assert!(output.contains("... 1 more differences not shown"));
     }
 
+    #[test]
+    fn human_result_deterministic_shows_checkmark() {
+        let result = DeterminismResult {
+            mode: CodecDeterminismMode::DecodeOnly,
+            round1_hash: "a".repeat(64),
+            round2_hash: "a".repeat(64),
+            is_deterministic: true,
+            byte_differences: None,
+        };
+        let output = render_human_result(&result, 100);
+        assert!(output.contains("✅ DETERMINISTIC"));
+        assert!(!output.contains("NON-DETERMINISTIC"));
+        assert!(output.contains("Byte differences: none"));
+    }
+
+    #[test]
+    fn human_result_non_deterministic_shows_cross() {
+        let result = DeterminismResult {
+            mode: CodecDeterminismMode::EncodeOnly,
+            round1_hash: "a".repeat(64),
+            round2_hash: "b".repeat(64),
+            is_deterministic: false,
+            byte_differences: Some(vec![ByteDiff {
+                offset: 0,
+                round1_byte: 0x41,
+                round2_byte: 0x42,
+            }]),
+        };
+        let output = render_human_result(&result, 100);
+        assert!(output.contains("❌ NON-DETERMINISTIC"));
+        assert!(output.contains("Byte differences: 1 total"));
+        assert!(output.contains("0x0000"));
+        assert!(output.contains("0x41"));
+        assert!(output.contains("0x42"));
+    }
+
+    #[test]
+    fn render_json_deterministic_round_trips_correctly() {
+        let result = DeterminismResult {
+            mode: CodecDeterminismMode::RoundTrip,
+            round1_hash: "c".repeat(64),
+            round2_hash: "c".repeat(64),
+            is_deterministic: true,
+            byte_differences: None,
+        };
+        let json = render_json_result(&result).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["is_deterministic"], true);
+        assert_eq!(parsed["mode"], "round_trip");
+        assert!(parsed.get("byte_differences").is_none());
+    }
+
+    #[test]
+    fn render_json_non_deterministic_includes_diffs() {
+        let result = DeterminismResult {
+            mode: CodecDeterminismMode::DecodeOnly,
+            round1_hash: "d".repeat(64),
+            round2_hash: "e".repeat(64),
+            is_deterministic: false,
+            byte_differences: Some(vec![
+                ByteDiff { offset: 5, round1_byte: 0x10, round2_byte: 0x20 },
+            ]),
+        };
+        let json = render_json_result(&result).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["is_deterministic"], false);
+        let diffs = parsed["byte_differences"].as_array().unwrap();
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0]["offset"], 5);
+    }
+
+    #[test]
+    fn verdict_exit_codes_are_stable() {
+        assert_eq!(DeterminismVerdict::Deterministic.exit_code(), 0);
+        assert_eq!(DeterminismVerdict::NonDeterministic.exit_code(), 2);
+    }
+
+    #[test]
+    fn determinism_run_exit_code_delegates_to_verdict() {
+        let run_pass = DeterminismRun {
+            verdict: DeterminismVerdict::Deterministic,
+            output: String::new(),
+        };
+        assert_eq!(run_pass.exit_code(), 0);
+
+        let run_fail = DeterminismRun {
+            verdict: DeterminismVerdict::NonDeterministic,
+            output: String::new(),
+        };
+        assert_eq!(run_fail.exit_code(), 2);
+    }
+
+    #[test]
+    fn truncate_hash_exactly_16_chars() {
+        let hash = "0123456789abcdef";
+        assert_eq!(truncate_hash(hash), "0123456789abcdef");
+    }
+
+    #[test]
+    fn truncate_hash_empty_string() {
+        assert_eq!(truncate_hash(""), "");
+    }
+
+    #[test]
+    fn human_result_shows_mode_name() {
+        for mode in [
+            CodecDeterminismMode::DecodeOnly,
+            CodecDeterminismMode::EncodeOnly,
+            CodecDeterminismMode::RoundTrip,
+        ] {
+            let result = DeterminismResult {
+                mode,
+                round1_hash: "f".repeat(64),
+                round2_hash: "f".repeat(64),
+                is_deterministic: true,
+                byte_differences: None,
+            };
+            let output = render_human_result(&result, 100);
+            assert!(output.contains("Determinism mode:"));
+            assert!(output.contains("Round 1 hash:"));
+            assert!(output.contains("Round 2 hash:"));
+        }
+    }
+
     proptest! {
         #[test]
         fn prop_hash_truncation_is_prefix_plus_ellipsis(bytes in prop::collection::vec(any::<u8>(), 0..128)) {

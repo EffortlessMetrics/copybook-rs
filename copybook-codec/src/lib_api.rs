@@ -11,7 +11,7 @@
 //! - `RecordIterator` (for programmatic access)
 
 use crate::JSON_SCHEMA_VERSION;
-use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
+use crate::options::{DecodeOptions, EncodeOptions, RawMode, RecordFormat, ZonedEncodingFormat};
 use crate::zoned_overpunch::ZeroSignPolicy;
 use base64::Engine;
 use copybook_core::{Error, ErrorCode, Result, Schema};
@@ -35,7 +35,16 @@ fn build_json_envelope(
     raw_b64: Option<String>,
     encoding_metadata: Vec<(String, ZonedEncodingFormat)>,
 ) -> Value {
-    let mut root = serde_json::Map::new();
+    let mut root = serde_json::Map::with_capacity(
+        fields.len()
+            + 8
+            + if raw_b64.is_some() { 1 } else { 0 }
+            + if options.preserve_zoned_encoding {
+                1
+            } else {
+                0
+            },
+    );
     root.insert(
         "schema".to_string(),
         Value::String(JSON_SCHEMA_VERSION.to_string()),
@@ -227,6 +236,8 @@ pub struct RunSummary {
     pub bytes_processed: u64,
     /// Schema fingerprint used for processing
     pub schema_fingerprint: String,
+    /// Lineage identifier derived from schema fingerprint
+    pub lineage_id: String,
     /// Processing throughput in MB/s
     pub throughput_mbps: f64,
     /// Peak memory usage in bytes (if available)
@@ -322,9 +333,20 @@ impl RunSummary {
         self.schema_fingerprint = fingerprint;
     }
 
+    /// Set the lineage identifier
+    pub fn set_lineage_id(&mut self, lineage_id: String) {
+        self.lineage_id = lineage_id;
+    }
+
     /// Set the peak memory usage
     pub fn set_peak_memory_bytes(&mut self, bytes: u64) {
         self.peak_memory_bytes = Some(bytes);
+    }
+
+    /// Get the lineage identifier
+    #[must_use]
+    pub const fn lineage_id(&self) -> &str {
+        &self.lineage_id
     }
 }
 
@@ -351,7 +373,26 @@ impl fmt::Display for RunSummary {
         if !self.schema_fingerprint.is_empty() {
             writeln!(f, "  Schema fingerprint: {}", self.schema_fingerprint)?;
         }
+        if !self.lineage_id.is_empty() {
+            writeln!(f, "  Lineage ID: {}", self.lineage_id)?;
+        }
         Ok(())
+    }
+}
+
+#[cfg(feature = "audit")]
+#[inline]
+fn derive_lineage_id(fingerprint: &str) -> String {
+    copybook_core::audit::derive_lineage_id_from_fingerprint(fingerprint)
+}
+
+#[cfg(not(feature = "audit"))]
+#[inline]
+fn derive_lineage_id(fingerprint: &str) -> String {
+    if fingerprint.is_empty() {
+        String::new()
+    } else {
+        format!("lineage-{fingerprint}")
     }
 }
 
@@ -368,7 +409,8 @@ impl fmt::Display for RunSummary {
 #[inline]
 #[must_use = "Handle the Result or propagate the error"]
 pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> Result<Value> {
-    decode_record_with_raw_data(schema, data, options, None, 0)
+    let mut scratch = crate::memory::ScratchBuffers::new();
+    decode_record_with_scratch_and_raw(schema, data, options, None, 0, &mut scratch)
 }
 
 /// High-performance decode using reusable scratch buffers
@@ -407,14 +449,18 @@ fn decode_record_with_scratch_and_raw(
 ) -> Result<Value> {
     use serde_json::Map;
 
-    let mut fields_map = Map::new();
+    let mut fields_map = Map::with_capacity(schema.fields.len());
     let mut record_raw = None;
-    let mut encoding_acc = Vec::new();
+    let mut encoding_acc = if options.preserve_zoned_encoding {
+        Vec::with_capacity(schema.fields.len())
+    } else {
+        Vec::new()
+    };
 
     if let Some(raw_bytes) = raw_data.filter(|_| {
         matches!(
             options.emit_raw,
-            crate::options::RawMode::Record | crate::options::RawMode::RecordRDW
+            crate::options::RawMode::Record | crate::options::RawMode::Field | crate::options::RawMode::RecordRDW
         )
     }) {
         record_raw = Some(base64::engine::general_purpose::STANDARD.encode(raw_bytes));
@@ -454,50 +500,23 @@ pub fn decode_record_with_raw_data(
     raw_data_with_header: Option<&[u8]>,
     record_index: u64,
 ) -> Result<Value> {
-    use crate::options::RawMode;
-    use serde_json::Map;
+    use crate::memory::ScratchBuffers;
+    let mut scratch = ScratchBuffers::new();
 
-    let mut fields_map = Map::new();
-    let mut scratch_buffers: Option<crate::memory::ScratchBuffers> = None;
-    let mut encoding_acc = Vec::new();
+    let raw_data = match options.emit_raw {
+        RawMode::Off => None,
+        RawMode::Record | RawMode::Field => Some(data.to_vec()),
+        RawMode::RecordRDW => Some(raw_data_with_header.unwrap_or(data).to_vec()),
+    };
 
-    process_fields_recursive(
-        &schema.fields,
-        data,
-        &mut fields_map,
-        options,
-        &mut scratch_buffers,
-        record_index,
-        &mut encoding_acc,
-    )?;
-
-    let mut record_raw = None;
-    match options.emit_raw {
-        RawMode::Off => {}
-        RawMode::Record | RawMode::Field => {
-            let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-            record_raw = Some(raw_b64);
-        }
-        RawMode::RecordRDW => {
-            if let Some(full_raw) = raw_data_with_header {
-                let raw_b64 = base64::engine::general_purpose::STANDARD.encode(full_raw);
-                record_raw = Some(raw_b64);
-            } else {
-                let raw_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-                record_raw = Some(raw_b64);
-            }
-        }
-    }
-
-    Ok(build_json_envelope(
-        fields_map,
+    decode_record_with_scratch_and_raw(
         schema,
+        data,
         options,
+        raw_data,
         record_index,
-        data.len(),
-        record_raw,
-        encoding_acc,
-    ))
+        &mut scratch,
+    )
 }
 
 /// Recursively process schema fields to decode record data into a JSON map.
@@ -518,6 +537,10 @@ fn process_fields_recursive(
     let total_fields = fields.len();
 
     for (field_index, field) in fields.iter().enumerate() {
+        if is_filler_field(field) && !options.emit_filler {
+            continue;
+        }
+
         match (&field.kind, &field.occurs) {
             (_, Some(occurs)) => {
                 process_array_field(
@@ -1332,9 +1355,17 @@ fn decode_scalar_field_value_standard(
             scale,
             signed,
         } => {
-            let decimal =
-                crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            Ok(Value::String(decimal.to_string()))
+            // Wave-3 regression posture: keep PACKED on the scratch-backed decoder path.
+            let scratch = scratch_buffers
+                .get_or_insert_with(crate::memory::ScratchBuffers::new);
+            let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                field_data,
+                *digits,
+                *scale,
+                *signed,
+                scratch,
+            )?;
+            Ok(Value::String(decimal_str))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
@@ -2316,6 +2347,19 @@ fn encode_zoned_decimal_field(
             zero_policy,
         )?;
 
+        debug_assert!(
+            current_offset + field_len <= buffer.len(),
+            "buffer too small for zoned-decimal field {}",
+            field.name
+        );
+        debug_assert_eq!(
+            encoded.len(),
+            field_len,
+            "encoded zoned-decimal size mismatch for field {}: expected {}, got {}",
+            field.name,
+            field_len,
+            encoded.len()
+        );
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
             buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
         }
@@ -2338,6 +2382,19 @@ fn encode_packed_decimal_field(
     if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
         let encoded =
             crate::numeric::encode_packed_decimal(text, spec.digits, spec.scale, spec.signed)?;
+        debug_assert!(
+            current_offset + field_len <= buffer.len(),
+            "buffer too small for packed-decimal field {}",
+            field.name
+        );
+        debug_assert_eq!(
+            encoded.len(),
+            field_len,
+            "encoded packed-decimal size mismatch for field {}: expected {}, got {}",
+            field.name,
+            field_len,
+            encoded.len()
+        );
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
             buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
         }
@@ -2369,6 +2426,19 @@ fn encode_binary_int_field(
         .and_then(|text| text.parse::<i64>().ok())
     {
         let encoded = crate::numeric::encode_binary_int(num, spec.bits, spec.signed)?;
+        debug_assert!(
+            current_offset + field_len <= buffer.len(),
+            "buffer too small for binary integer field {}",
+            field.name
+        );
+        debug_assert_eq!(
+            encoded.len(),
+            field_len,
+            "encoded binary integer size mismatch for field {}: expected {}, got {}",
+            field.name,
+            field_len,
+            encoded.len()
+        );
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
             buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
         }
@@ -2392,6 +2462,7 @@ pub fn decode_file_to_jsonl(
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
     summary.set_schema_fingerprint(schema.fingerprint.clone());
+    summary.set_lineage_id(derive_lineage_id(&schema.fingerprint));
 
     WARNING_COUNTER.with(|counter| {
         *counter.borrow_mut() = 0;
@@ -2601,6 +2672,7 @@ pub fn encode_jsonl_to_file(
     let start_time = std::time::Instant::now();
     let mut summary = RunSummary::new();
     summary.set_schema_fingerprint(schema.fingerprint.clone());
+    summary.set_lineage_id(derive_lineage_id(&schema.fingerprint));
 
     let reader = BufReader::new(input);
     let mut record_count = 0u64;

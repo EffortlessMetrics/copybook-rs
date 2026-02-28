@@ -7,12 +7,9 @@ concurrency:
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
-  schedule:
-    - cron: "23 3 * * *"
-  workflow_dispatch:
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -145,6 +142,18 @@ jobs:
       if: matrix.features != ''
       run: cargo test --workspace --exclude copybook-bench --features ${{ matrix.features }} -j 2
 
+  doctests:
+    name: Doctests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run doctests
+      env:
+        RUSTDOCFLAGS: -D warnings
+      run: cargo test --doc --workspace --exclude copybook-bench --all-features
+
   examples:
     name: Build Examples
     runs-on: ${{ matrix.os }}
@@ -165,6 +174,30 @@ jobs:
       run: cargo build -p copybook-arrow --examples
     - name: Build kafka_pipeline example
       run: cargo build -p kafka-pipeline
+
+  locked-build:
+    name: Locked Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Build workspace with lockfile
+      run: cargo build --workspace --all-features --locked --exclude copybook-bench
+
+  dependency-hygiene:
+    name: Dependency Hygiene
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run dependency hygiene checks
+      uses: EmbarkStudios/cargo-deny-action@v2
+      with:
+        log-level: warn
+        command: check
+        arguments: --all-features
 
   security:
     name: Security Checks
@@ -230,20 +263,23 @@ jobs:
       run: |
         echo "## Determinism Smoke Test Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        if [ -f target/determinism-decode.json ]; then
-          echo "### Decode Determinism" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat target/determinism-decode.json >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+        for report in target/determinism-*.json; do
+          if [ -f "${report}" ]; then
+            echo "### $(basename "${report}")" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat "${report}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+        if [ -f target/determinism-failure-details.txt ]; then
+          echo "### Reproducibility details (on failure)" >> $GITHUB_STEP_SUMMARY
+          cat target/determinism-failure-details.txt >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Determinism smoke checks failed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ All determinism checks passed" >> $GITHUB_STEP_SUMMARY
         fi
-        if [ -f target/determinism-encode.json ]; then
-          echo "### Encode Determinism" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat target/determinism-encode.json >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ All determinism checks passed" >> $GITHUB_STEP_SUMMARY
     - name: Upload determinism reports
       if: failure()
       uses: actions/upload-artifact@v6
@@ -251,8 +287,60 @@ jobs:
         name: determinism-reports-${{ github.sha }}
         path: |
           target/determinism-*.json
+          target/determinism-failure-details.txt
         retention-days: 7
         if-no-files-found: warn
+
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs:
+      - fmt
+      - clippy
+      - test
+      - doctests
+      - examples
+      - locked-build
+      - dependency-hygiene
+      - determinism-smoke
+    steps:
+      - name: Aggregate required CI prereqs
+        if: always()
+        run: |
+          set -euo pipefail
+
+          echo "## CI Gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          for item in \
+            "fmt:${{ needs.fmt.result }}" \
+            "clippy:${{ needs.clippy.result }}" \
+            "test:${{ needs.test.result }}" \
+            "doctests:${{ needs.doctests.result }}" \
+            "examples:${{ needs.examples.result }}" \
+            "locked-build:${{ needs.locked-build.result }}" \
+            "dependency-hygiene:${{ needs.dependency-hygiene.result }}" \
+            "determinism-smoke:${{ needs.determinism-smoke.result }}"; do
+            name="${item%%:*}"
+            status="${item#*:}"
+            echo "| ${name} | ${status} |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$status" != "success" ]; then
+              echo "::error::CI Gate prerequisite '${name}' failed with status '${status}'."
+              failed=1
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::CI Gate failed. All listed prerequisites must pass."
+            exit 1
+          fi
+
+          echo "✅ CI Gate passed for commit ${GITHUB_SHA}."
 
   # ============================================================================
   # SCHEDULED LANE JOBS (Stochastic/Expensive, non-blocking)

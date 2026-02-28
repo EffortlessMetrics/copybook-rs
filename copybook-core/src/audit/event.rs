@@ -9,6 +9,10 @@ use std::collections::HashMap;
 
 use super::{AuditContext, generate_audit_id, generate_integrity_hash};
 
+fn serialize_audit_event_for_hashing(event: &AuditEvent) -> Option<Vec<u8>> {
+    serde_json::to_vec(event).ok()
+}
+
 /// Core audit event structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditEvent {
@@ -67,18 +71,8 @@ impl AuditEvent {
         // Generate integrity hash (exclude hash field from calculation)
         let mut event_for_hash = event.clone();
         event_for_hash.integrity_hash = String::new();
-        let event_bytes = match serde_json::to_vec(&event_for_hash) {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                // Fallback to a minimal serializable representation on serialization failure
-                let fallback_data = format!(
-                    "{{\"event_id\":\"{}\",\"timestamp\":\"{}\",\"event_type\":\"{:?}\",\"serialization_error\":\"{}\"}}",
-                    event.event_id, event.timestamp, event.event_type, e
-                );
-                fallback_data.into_bytes()
-            }
-        };
-        event.integrity_hash = generate_integrity_hash(&event_bytes, None);
+        event.integrity_hash = serialize_audit_event_for_hashing(&event_for_hash)
+            .map_or_else(String::new, |event_bytes| generate_integrity_hash(&event_bytes, None));
 
         event
     }
@@ -91,18 +85,8 @@ impl AuditEvent {
         // Regenerate integrity hash with updated severity (exclude hash field from calculation)
         let mut event_for_hash = self.clone();
         event_for_hash.integrity_hash = String::new();
-        let event_bytes = match serde_json::to_vec(&event_for_hash) {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                // Fallback to a minimal serializable representation on serialization failure
-                let fallback_data = format!(
-                    "{{\"event_id\":\"{}\",\"timestamp\":\"{}\",\"event_type\":\"{:?}\",\"severity\":\"{:?}\",\"serialization_error\":\"{}\"}}",
-                    self.event_id, self.timestamp, self.event_type, self.severity, e
-                );
-                fallback_data.into_bytes()
-            }
-        };
-        self.integrity_hash = generate_integrity_hash(&event_bytes, None);
+        self.integrity_hash = serialize_audit_event_for_hashing(&event_for_hash)
+            .map_or_else(String::new, |event_bytes| generate_integrity_hash(&event_bytes, None));
 
         self
     }
@@ -112,22 +96,14 @@ impl AuditEvent {
     pub fn with_previous_hash(mut self, previous_hash: String) -> Self {
         self.previous_hash = Some(previous_hash);
 
-        // Regenerate integrity hash with previous hash (exclude hash field from calculation)
+        // Regenerate integrity hash with previous hash (exclude previous hash from serialization)
         let mut event_for_hash = self.clone();
         event_for_hash.integrity_hash = String::new();
         event_for_hash.previous_hash = None; // Also exclude previous_hash from serialization
-        let event_bytes = match serde_json::to_vec(&event_for_hash) {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                // Fallback to a minimal serializable representation on serialization failure
-                let fallback_data = format!(
-                    "{{\"event_id\":\"{}\",\"timestamp\":\"{}\",\"event_type\":\"{:?}\",\"serialization_error\":\"{}\"}}",
-                    self.event_id, self.timestamp, self.event_type, e
-                );
-                fallback_data.into_bytes()
-            }
-        };
-        self.integrity_hash = generate_integrity_hash(&event_bytes, self.previous_hash.as_deref());
+        self.integrity_hash = serialize_audit_event_for_hashing(&event_for_hash).map_or_else(
+            String::new,
+            |event_bytes| generate_integrity_hash(&event_bytes, self.previous_hash.as_deref()),
+        );
 
         self
     }
@@ -598,6 +574,28 @@ mod tests {
             .with_severity(AuditSeverity::Critical);
 
         assert_eq!(event.severity, AuditSeverity::Critical);
+    }
+
+    #[test]
+    fn test_audit_event_hashing_rejects_unserializable_payload() {
+        let context = AuditContext::new();
+        let payload = AuditPayload::LineageTracking {
+            source_system: "source-system".to_string(),
+            target_system: "target-system".to_string(),
+            field_mappings: vec![],
+            transformation_rules: vec![],
+            quality_score: f64::NAN,
+            impact_assessment: None,
+        };
+
+        let event = AuditEvent::new(
+            AuditEventType::LineageTracking,
+            context,
+            payload,
+        );
+
+        assert!(event.integrity_hash.is_empty());
+        assert!(validate_audit_chain(&[event]).is_err());
     }
 
     #[test]

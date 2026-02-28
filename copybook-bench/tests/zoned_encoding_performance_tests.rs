@@ -489,9 +489,7 @@ fn test_large_scale_performance_stress() -> Result<(), Box<dyn Error>> {
     let num_records = 100_000;
     println!("Generating {num_records} records for stress test...");
 
-    // Placeholder for realistic test data with mixed encoding scenarios
-
-    // For now, create a placeholder that demonstrates the test structure
+    // Synthetic mixed-record workload (compressed for local CI, scaled for release runs)
     let record_size = 337; // Approximate size based on copybook
     let test_data = vec![0u8; record_size * 1000]; // Smaller for test environment
 

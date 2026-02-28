@@ -265,7 +265,7 @@ fn test_complex_fixture_enterprise_patterns() -> Result<(), Box<dyn Error>> {
         Err(e) => {
             println!("Complex fixture decode error (expected during development): {e}");
             // Complex schemas may have features not yet supported
-            // This is acceptable during TDD Red phase
+            // Complex schemas may still require an additional decode pass for full parity.
         }
     }
 

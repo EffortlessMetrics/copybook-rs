@@ -3,6 +3,9 @@
 
 This document describes copybook-rs's performance benchmarking infrastructure, including how to run benchmarks locally, interpret results, and understand the CI integration.
 
+**Single-source rule**:
+- Performance status claims in this repository are defined here and by [ROADMAP.md](../ROADMAP.md). Any dated historical planning text is labeled with explicit `[Historical: YYYY-MM-DD]` notes in the affected document.
+
 ## Overview
 
 copybook-rs uses a **receipt-based benchmarking system** to track performance over time and detect regressions. Benchmarks emit machine-readable JSON "receipts" that capture:
@@ -57,7 +60,17 @@ target/benchmarks/
 - **DISPLAY**: ≥80 MiB/s
 - **COMP-3**: ≥40 MiB/s
 
-In v0.4.0 these floors are tracked for visibility and regression discussion; they are not enforced as hard CI gates by default. See [ROADMAP.md](../ROADMAP.md) for current policy and guidance.
+These floors are tracked for visibility and regression discussion; they are not enforced as hard CI gates by default. See [ROADMAP.md](../ROADMAP.md) for current policy and guidance.
+
+**AC11 threshold compatibility note:** AC11 threshold configuration is schema-alias compatible, with precedence: CLI `--max-overhead-percent` (when set), then baseline file `max_overhead_percent`, then default `5.0`.
+
+### Wave-5 performance evidence (date-stamped)
+
+Latest evidence references for `scripts/bench/perf.json`:
+
+- **DISPLAY**: `1349.6524445004138 MiB/s` (`slo_validation/display_heavy_slo_80mbps`, evidence date `2025-12-29`)
+- **COMP-3**: `16.24215679348751 MiB/s` (`slo_validation/comp3_heavy_slo_40mbps`, evidence date `2025-12-29`)
+- **Release/non-WSL replay**: **Pending by release decision** (status=warn; owner=@EffortlessSteven; evidence=run a canonical non-WSL replay into `artifacts/perf/non-wsl/perf.json` using native Linux runner, include execution timestamp/checksum, and verify variance against current WSL baseline before RC promotion).
 
 ## Running Benchmarks Locally
 

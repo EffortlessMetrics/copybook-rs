@@ -305,9 +305,9 @@ val df = spark.read.json("data.jsonl")
 
 ### 1. Edited PIC Clauses
 
-**Problem:** copybook-rs doesn't support edited PIC clauses.
+**Problem:** `copybook-rs` supports edited PIC clauses, but Space (`B`) insertion is unsupported.
 
-**Solution:** Convert to non-edited format and handle formatting in post-processing.
+**Solution:** Keep edited PIC clauses intact, then handle `B` insertion explicitly in post-processing when it appears.
 
 ```cobol
 // Before
@@ -325,31 +325,13 @@ jq '.AMOUNT = (.AMOUNT | tonumber | . / 100 | "$\(. | tostring)")' data.jsonl
 
 ### 2. COMP-1/COMP-2 Floating Point
 
-**Problem:** copybook-rs doesn't support floating point types.
-
-**Solution:** Convert to packed decimal or handle as binary.
-
-```cobol
-// Before
-05 RATE PIC S9(3)V99 COMP-1.
-
-// After
-05 RATE PIC S9(3)V99 COMP-3.
-```
+**Status:** copybook-rs supports COMP-1/COMP-2 (stable in v0.4.3).
+**Recommendation:** Keep clauses in place when downstream consumers support them. Only normalize to COMP-3 when a downstream parser explicitly requires packed decimal.
 
 ### 3. SIGN SEPARATE
 
-**Problem:** copybook-rs doesn't support separate sign.
-
-**Solution:** Convert to standard signed format.
-
-```cobol
-// Before
-05 BALANCE PIC S9(7)V99 SIGN LEADING SEPARATE.
-
-// After
-05 BALANCE PIC S9(7)V99.
-```
+**Status:** copybook-rs supports SIGN LEADING/TRAILING SEPARATE (stable in v0.4.3).
+**Recommendation:** Keep `SIGN SEPARATE` clauses if your downstream tooling supports them. Normalize to inline sign only for legacy consumers that do not.
 
 ### 4. Different Binary Formats
 
@@ -521,7 +503,7 @@ done
 ### 1. Schema Parsing Errors
 
 **Error:** `CBKP051_UNSUPPORTED_EDITED_PIC`
-**Solution:** Remove Space (`B`) insertion from PIC clause (all other edited patterns supported in v0.4.0+)
+**Solution:** Remove Space (`B`) insertion from PIC clause (all other edited patterns supported in v0.4.3+)
 
 **Error:** `CBKP021_ODO_NOT_TAIL`
 **Solution:** Move ODO arrays to end of containing group

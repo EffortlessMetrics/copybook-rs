@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Default percentage tolerance for performance regression checks.
+pub const DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT: f64 = 5.0;
+
 /// Performance audit system for tracking and validating processing metrics
 pub struct PerformanceAuditor {
     baseline_manager: BaselineManager,
@@ -113,6 +116,26 @@ pub struct PerformanceBaseline {
     pub throughput: ThroughputMetrics,
     pub resources: ResourceMetrics,
     pub created_at: String,
+    #[serde(default)]
+    pub max_overhead_percent: Option<f64>,
+    #[serde(default)]
+    pub ac11_audit_overhead_threshold_percent: Option<f64>,
+}
+
+impl PerformanceBaseline {
+    /// Returns the configured overhead threshold with compatibility fallback.
+    ///
+    /// Preference order:
+    /// 1. `max_overhead_percent`
+    /// 2. `ac11_audit_overhead_threshold_percent`
+    /// 3. `DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT`
+    #[inline]
+    #[must_use = "Use the returned threshold value directly"]
+    pub fn overhead_threshold_percent(&self) -> f64 {
+        self.max_overhead_percent
+            .or(self.ac11_audit_overhead_threshold_percent)
+            .unwrap_or(DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT)
+    }
 }
 
 /// Throughput performance metrics
@@ -143,7 +166,7 @@ impl RegressionDetector {
     /// Creates a new RegressionDetector with a default threshold.
     pub fn new() -> Self {
         Self {
-            threshold_percent: 5.0, // 5% degradation threshold
+            threshold_percent: DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT, // 5% degradation threshold
         }
     }
 
@@ -162,6 +185,28 @@ impl RegressionDetector {
         baseline: &ThroughputMetrics,
     ) -> Vec<String> {
         let mut regressions = Vec::new();
+
+        if !self.threshold_percent.is_finite() {
+            regressions.push("Invalid performance regression threshold: must be a finite percentage".to_string());
+            return regressions;
+        }
+
+        if self.threshold_percent < 0.0 {
+            regressions.push(format!(
+                "Invalid performance regression threshold: {} is negative",
+                self.threshold_percent
+            ));
+            return regressions;
+        }
+
+        if self.threshold_percent > 100.0 {
+            regressions.push(format!(
+                "Invalid performance regression threshold: {} exceeds 100",
+                self.threshold_percent
+            ));
+            return regressions;
+        }
+
         let threshold_multiplier = 1.0 - (self.threshold_percent / 100.0);
 
         if (current.record_rate as f64) < (baseline.record_rate as f64) * threshold_multiplier {
@@ -231,6 +276,84 @@ mod tests {
     fn test_regression_detector_custom_threshold() {
         let detector = RegressionDetector::new().with_threshold(15.0);
         assert_eq!(detector.threshold_percent, 15.0);
+    }
+
+    #[test]
+    fn test_regression_detector_rejects_negative_threshold() {
+        let detector = RegressionDetector::new().with_threshold(-1.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert!(
+            regressions
+                .iter()
+                .any(|item| item.contains("Invalid performance regression threshold"))
+        );
+    }
+
+    #[test]
+    fn test_regression_detector_rejects_non_finite_threshold() {
+        let detector = RegressionDetector::new().with_threshold(f64::NAN);
+
+        let current = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert!(
+            regressions
+                .iter()
+                .any(|item| item.contains("Invalid performance regression threshold"))
+        );
+    }
+
+    #[test]
+    fn test_regression_detector_rejects_excessive_threshold() {
+        let detector = RegressionDetector::new().with_threshold(150.0);
+
+        let current = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let baseline = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+
+        let regressions = detector.check_regression(&current, &baseline);
+        assert!(
+            regressions
+                .iter()
+                .any(|item| item.contains("Invalid performance regression threshold"))
+        );
     }
 
     #[test]
@@ -398,11 +521,88 @@ mod tests {
                 network_bytes: 5000,
             },
             created_at: "2024-01-01T00:00:00Z".to_string(),
+            max_overhead_percent: Some(DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT),
+            ac11_audit_overhead_threshold_percent: None,
         };
 
         let json = serde_json::to_string(&baseline).expect("Failed to serialize");
         assert!(json.contains("test-baseline"));
         assert!(json.contains("display_throughput"));
+    }
+
+    #[test]
+    fn test_performance_baseline_overhead_threshold_prefers_max_overhead_percent() {
+        let baseline = PerformanceBaseline {
+            baseline_id: "test-baseline".to_string(),
+            throughput: ThroughputMetrics {
+                display_throughput: 1000,
+                comp3_throughput: 500,
+                record_rate: 100,
+                peak_memory_mb: 100,
+            },
+            resources: ResourceMetrics {
+                cpu_usage_percent: 50.0,
+                memory_usage_mb: 100,
+                io_operations: 1000,
+                network_bytes: 5000,
+            },
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            max_overhead_percent: Some(10.0),
+            ac11_audit_overhead_threshold_percent: Some(20.0),
+        };
+
+        assert_eq!(baseline.overhead_threshold_percent(), 10.0);
+    }
+
+    #[test]
+    fn test_performance_baseline_overhead_threshold_falls_back_to_ac11_alias() {
+        let baseline = PerformanceBaseline {
+            baseline_id: "test-baseline".to_string(),
+            throughput: ThroughputMetrics {
+                display_throughput: 1000,
+                comp3_throughput: 500,
+                record_rate: 100,
+                peak_memory_mb: 100,
+            },
+            resources: ResourceMetrics {
+                cpu_usage_percent: 50.0,
+                memory_usage_mb: 100,
+                io_operations: 1000,
+                network_bytes: 5000,
+            },
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            max_overhead_percent: None,
+            ac11_audit_overhead_threshold_percent: Some(7.5),
+        };
+
+        assert_eq!(baseline.overhead_threshold_percent(), 7.5);
+    }
+
+    #[test]
+    fn test_performance_baseline_overhead_threshold_defaults() {
+        let baseline = PerformanceBaseline {
+            baseline_id: "test-baseline".to_string(),
+            throughput: ThroughputMetrics {
+                display_throughput: 1000,
+                comp3_throughput: 500,
+                record_rate: 100,
+                peak_memory_mb: 100,
+            },
+            resources: ResourceMetrics {
+                cpu_usage_percent: 50.0,
+                memory_usage_mb: 100,
+                io_operations: 1000,
+                network_bytes: 5000,
+            },
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            max_overhead_percent: None,
+            ac11_audit_overhead_threshold_percent: None,
+        };
+
+        assert_eq!(
+            baseline.overhead_threshold_percent(),
+            DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT
+        );
     }
 
     #[test]

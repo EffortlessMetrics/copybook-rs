@@ -34,7 +34,20 @@ All of the following gates must pass before executing any release. Running these
 | Test | `cargo nextest run --workspace` | All pass |
 | Doctests | `cargo test --workspace --doc` | All pass |
 | Docs | `cargo doc --workspace --no-deps` | No warnings |
-| Changelog | manual | CHANGELOG.md has unreleased section |
+| Changelog | manual | CHANGELOG.md has release entry for target version |
+
+## Release Readiness Gate
+
+Before any publish, the `release-readiness` workflow now runs:
+
+- `version-check` (tag and Cargo.toml workspace/crate versions aligned)
+- `changelog-check` (release section exists in `CHANGELOG.md`)
+- `non-wsl-benchmark-evidence` (requires `artifacts/perf/non-wsl/perf.json` with `non_wsl_evidence_status` in `available|available-from-cache`, a baseline date, and checksum)
+- `publishable-crates-dry-run` (`cargo publish --dry-run` for `copybook-core`, `copybook-codec`, and `copybook-cli`)
+- `sbom-provenance` (SBOM and provenance artifacts generated)
+- `release-gate` (all required checks above must succeed)
+
+This is now the required precondition for `.github/workflows/publish.yml` on tag-based releases.
 
 To run all automated gates in sequence:
 
@@ -48,6 +61,25 @@ cargo fmt --all --check \
 ```
 
 After the automated gates pass, manually verify that `CHANGELOG.md` contains an unreleased section with entries for the upcoming release.
+
+## AC9 Validation (Optional, Non-Production)
+
+AC9 monitoring paths are deterministic stubs and are disabled by default.
+Validate them only when explicitly requested for controlled testing.
+Use the shared, non-production/stub-only command documented in:
+
+[Shared AC9 monitoring validation command](../README.md#ac9-monitoring-stub-validation-non-production-stub-only)
+
+Release teams should not treat this as production audit evidence.
+
+## Release Status Register (triaged blockers)
+
+| Blocker | Status | Owner | Timestamp | Evidence |
+|---|---|---|---|---|
+| `TODO(AC5)` (`copybook-core/src/audit/security.rs`) | pass | @EffortlessSteven | 2026-02-28 | (status=pass; owner=@EffortlessSteven; evidence=[security audit implementation](copybook-core/src/audit/security.rs), [security audit path](copybook-cli/src/commands/audit.rs), [AC5 gate contract](copybook-core/src/audit/mod.rs)) |
+| `TODO(AC11)` (`copybook-core/src/audit/performance.rs`) | pass | @EffortlessSteven | 2026-02-28 | (status=pass; owner=@EffortlessSteven; evidence=[performance objective checks](copybook-cli/src/commands/audit.rs), [AC11 baseline model](copybook-core/src/audit/performance.rs)) |
+| `TODO(AC16)` (`copybook-core/src/audit/lineage.rs`) | pass | @EffortlessSteven | 2026-02-28 | (status=pass; owner=@EffortlessSteven; evidence=Parser and codec lineage IDs are emitted and compared in `run_lineage_analysis`.) |
+| Environment-gate risk (`artifacts/perf/non-wsl/perf.json`) | fail | @EffortlessSteven | 2026-02-28 | Release readiness blocks RC unless this artifact has `non_wsl_evidence_status`=`available|available-from-cache`, a baseline date, and checksum. |
 
 ## Quick Reference
 
@@ -87,6 +119,7 @@ When you run `cargo release <level>`, the following happens automatically:
 6. **Manual Publishing**: Does NOT auto-publish to crates.io
    - Review the release on GitHub
    - Manually publish with `cargo publish -p <crate>` if desired
+   - The `Publish Crates` workflow now runs release-readiness before attempting publish
 
 ## Detailed Steps
 
@@ -262,6 +295,16 @@ git push --force origin main
 5. **Verify GPG signatures** on tags
 6. **Wait for CI** to pass before publishing to crates.io
 7. **Coordinate with team** before major releases
+
+## Performance Gate Semantics
+
+Two performance workflows now have explicit, different gate roles:
+
+- `benchmark.yml`: historical benchmark baselines are generated and commented on, but outcomes are advisory only; failures do **not** fail the workflow.
+- `perf.yml`: release-sensitive runs (PRs and `v*` tags) include a required regression gate. These runs must satisfy:
+  - no >5% regression versus the current main baseline when comparison is available, and
+  - throughput floor (`DISPLAY >= 80 MiB/s`, `COMP-3 >= 40 MiB/s`).
+  - Throughput check failure in this context fails the workflow.
 
 ## See Also
 

@@ -67,7 +67,7 @@ The `--no-verify` flag skips the build verification step and allows inspection o
 - Ensure `CHANGELOG.md` matches the tag date (or keep it `Unreleased` until you tag).
 - Create the tag:
   ```bash
-  git tag -a v0.4.0 -m "v0.4.0"
+  git tag -a v0.4.3 -m "v0.4.3"
   git push origin main --tags
   ```
 - Publish in order:
@@ -85,7 +85,7 @@ The `--no-verify` flag skips the build verification step and allows inspection o
   - `copybook-cli`
 - Install works on a clean machine:
   ```bash
-  cargo install copybook-cli@0.4.0
+  cargo install copybook-cli@0.4.3
   ```
 
 ---
@@ -120,9 +120,9 @@ If you published a bad release:
 
 ```bash
 # Yank in reverse dependency order
-cargo yank copybook-cli@0.4.0
-cargo yank copybook-codec@0.4.0
-cargo yank copybook-core@0.4.0
+cargo yank copybook-cli@0.4.3
+cargo yank copybook-codec@0.4.3
+cargo yank copybook-core@0.4.3
 ```
 
 Then cut a patch release with fixes and re-run this runbook.

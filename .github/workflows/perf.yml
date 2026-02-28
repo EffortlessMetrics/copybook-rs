@@ -82,6 +82,39 @@ jobs:
 
       - name: Annotate perf with host info
         run: bash scripts/perf-annotate-host.sh
+
+      - name: Capture deterministic non-WSL artifact path
+        id: non_wsl_snapshot
+        run: |
+          set -euo pipefail
+          PERF_JSON="scripts/bench/perf.json"
+          NON_WSL_PERF_JSON="artifacts/perf/non-wsl/perf.json"
+
+          if [[ ! -f "$PERF_JSON" ]]; then
+            echo "❌ missing ${PERF_JSON}" >&2
+            exit 1
+          fi
+
+          WSL2_DETECTED="false"
+          if [[ -f /proc/version ]] && grep -qiE "microsoft|wsl" /proc/version; then
+            WSL2_DETECTED="true"
+          fi
+
+          if [[ "$WSL2_DETECTED" == "true" ]]; then
+            echo "non_wsl_available=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ WSL/WSL2 runner detected; keeping non-WSL baseline in fallback mode."
+            exit 0
+          fi
+
+          mkdir -p artifacts/perf/non-wsl
+          cp "$PERF_JSON" "$NON_WSL_PERF_JSON"
+          NON_WSL_PERF_SHA="$(sha256sum "$NON_WSL_PERF_JSON" | awk '{print $1}')"
+          echo "$NON_WSL_PERF_SHA  $NON_WSL_PERF_JSON" > "${NON_WSL_PERF_JSON}.sha256"
+          echo "non_wsl_available=true" >> "$GITHUB_OUTPUT"
+          echo "non_wsl_path=${NON_WSL_PERF_JSON}" >> "$GITHUB_OUTPUT"
+          echo "non_wsl_sha256=${NON_WSL_PERF_SHA}" >> "$GITHUB_OUTPUT"
+          echo "✅ captured deterministic non-WSL receipt at ${NON_WSL_PERF_JSON}."
+
       - name: Perf headline (summary)
         run: |
           jq -r '
@@ -113,6 +146,16 @@ jobs:
           path: scripts/bench/perf.json
           retention-days: 90
 
+      - name: Upload deterministic non-WSL perf artifact (90 days)
+        if: steps.non_wsl_snapshot.outputs.non_wsl_available == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: non-wsl-perf-json-${{ github.sha }}
+          path: |
+            artifacts/perf/non-wsl/perf.json
+            artifacts/perf/non-wsl/perf.json.sha256
+          retention-days: 90
+
       - name: Upload enterprise perf receipts (90 days)
         uses: actions/upload-artifact@v6
         with:
@@ -133,50 +176,116 @@ jobs:
         id: baseline
         if: github.event_name == 'pull_request'
         run: |
-          # Try to download the most recent perf artifact from main branch
-          echo "Attempting to fetch baseline from main branch..."
-          
-          # Get the latest successful workflow run on main
-          RUNS=$(gh api \
+          set -euo pipefail
+
+          # Try to download the most recent successful perf artifact from main branch.
+          RUN_ID=$(gh api \
             --method GET \
             -H "Accept: application/vnd.github+json" \
             "/repos/${{ github.repository }}/actions/workflows/perf.yml/runs?branch=main&status=success&per_page=1" \
-            --jq '.workflow_runs[0].id' 2>/dev/null || echo "")
-          
-          if [[ -n "$RUNS" && "$RUNS" != "null" ]]; then
-            echo "Found workflow run: $RUNS"
-            
-            # List artifacts from that run
-            ARTIFACTS=$(gh api \
-              --method GET \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/${{ github.repository }}/actions/runs/${RUNS}/artifacts" \
-              --jq '.artifacts[] | select(.name | startswith("perf-json-")) | .name' 2>/dev/null || echo "")
-            
-            if [[ -n "$ARTIFACTS" ]]; then
-              FIRST_ARTIFACT=$(echo "$ARTIFACTS" | head -1)
-              echo "Downloading artifact: $FIRST_ARTIFACT"
-              
-              gh api \
-                --method GET \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/${{ github.repository }}/actions/artifacts/${FIRST_ARTIFACT}/zip" \
-                > baseline.zip && unzip -o baseline.zip && mv perf.json baseline-perf.json || {
-                echo "⚠️ Failed to download baseline artifact"
-                echo "baseline_found=false" >> "$GITHUB_OUTPUT"
-                exit 0
-              }
-              
-              echo "baseline_found=true" >> "$GITHUB_OUTPUT"
-              echo "baseline_path=baseline-perf.json" >> "$GITHUB_OUTPUT"
-            else
-              echo "No perf artifacts found in baseline run"
-              echo "baseline_found=false" >> "$GITHUB_OUTPUT"
-            fi
+            --jq '.workflow_runs[0].id // empty' 2>/dev/null || true)
+
+          if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
+            echo "No successful workflow runs found on main."
+            echo "baseline_found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found workflow run: $RUN_ID"
+
+          ARTIFACT_ID=$(gh api \
+            --method GET \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
+            --jq '[.artifacts[] | select(.name | startswith("perf-json-"))] | sort_by(.created_at) | reverse | .[0].id // empty' 2>/dev/null || true)
+
+          if [[ -z "$ARTIFACT_ID" || "$ARTIFACT_ID" == "null" ]]; then
+            echo "No perf artifacts found in baseline run."
+            echo "baseline_found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! gh api \
+            --method GET \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            > baseline.zip; then
+            echo "⚠️ Failed to download baseline artifact ${ARTIFACT_ID}"
+            echo "baseline_found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          rm -rf baseline-artifacts
+          mkdir -p baseline-artifacts
+          BASELINE_PATH=""
+
+          if ! unzip -q baseline.zip -d baseline-artifacts; then
+            echo "⚠️ Failed to extract baseline artifact"
+            echo "baseline_found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -f baseline-artifacts/scripts/bench/perf.json ]; then
+            cp baseline-artifacts/scripts/bench/perf.json baseline-perf.json
+            BASELINE_PATH=baseline-perf.json
+            echo "baseline_found=true" >> "$GITHUB_OUTPUT"
+            echo "baseline_path=baseline-perf.json" >> "$GITHUB_OUTPUT"
+          elif [ -f baseline-artifacts/perf.json ]; then
+            cp baseline-artifacts/perf.json baseline-perf.json
+            BASELINE_PATH=baseline-perf.json
+            echo "baseline_found=true" >> "$GITHUB_OUTPUT"
+            echo "baseline_path=baseline-perf.json" >> "$GITHUB_OUTPUT"
           else
-            echo "No successful workflow runs found on main"
+            echo "⚠️ baseline artifact does not contain scripts/bench/perf.json"
             echo "baseline_found=false" >> "$GITHUB_OUTPUT"
           fi
+
+          read_threshold() {
+            local file="$1"
+            local json_path="$2"
+            local default="$3"
+            local value
+            value=$(jq -r "$json_path // empty" "$file" 2>/dev/null || true)
+            if [[ -z "$value" || "$value" == "null" ]]; then
+              value="$default"
+            fi
+            printf '%s' "$value"
+          }
+
+          if [[ -n "${BASELINE_PATH}" ]]; then
+            BASELINE_REGRESSION_THRESHOLD=$(read_threshold \
+              "$BASELINE_PATH" \
+              '.ac11_regression_threshold_percent' \
+              '5.0')
+            AC11_AUDIT_THRESHOLD=$(read_threshold \
+              "$BASELINE_PATH" \
+              '.ac11_audit_overhead_threshold_percent' \
+              '2.0')
+            AC11_COMPLIANCE_THRESHOLD=$(read_threshold \
+              "$BASELINE_PATH" \
+              '.ac11_compliance_overhead_threshold_percent' \
+              '3.0')
+            AC11_SECURITY_THRESHOLD=$(read_threshold \
+              "$BASELINE_PATH" \
+              '.ac11_security_overhead_threshold_percent' \
+              '1.0')
+            AC11_COMBINED_THRESHOLD=$(read_threshold \
+              "$BASELINE_PATH" \
+              '.ac11_combined_overhead_threshold_percent' \
+              '5.0')
+          else
+            BASELINE_REGRESSION_THRESHOLD='5.0'
+            AC11_AUDIT_THRESHOLD='2.0'
+            AC11_COMPLIANCE_THRESHOLD='3.0'
+            AC11_SECURITY_THRESHOLD='1.0'
+            AC11_COMBINED_THRESHOLD='5.0'
+          fi
+
+          echo "ac11_regression_threshold=${BASELINE_REGRESSION_THRESHOLD}" >> "$GITHUB_OUTPUT"
+          echo "ac11_audit_threshold=${AC11_AUDIT_THRESHOLD}" >> "$GITHUB_OUTPUT"
+          echo "ac11_compliance_threshold=${AC11_COMPLIANCE_THRESHOLD}" >> "$GITHUB_OUTPUT"
+          echo "ac11_security_threshold=${AC11_SECURITY_THRESHOLD}" >> "$GITHUB_OUTPUT"
+          echo "ac11_combined_threshold=${AC11_COMBINED_THRESHOLD}" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -186,6 +295,7 @@ jobs:
         run: |
           BASELINE="${{ steps.baseline.outputs.baseline_path }}"
           CURRENT="scripts/bench/perf.json"
+          REGRESSION_THRESHOLD="${{ steps.baseline.outputs.ac11_regression_threshold }}"
           
           echo "Comparing $CURRENT against $BASELINE"
           
@@ -214,6 +324,7 @@ jobs:
           echo "curr_comp3=$CURR_COMP3" >> "$GITHUB_OUTPUT"
           echo "display_delta=$DISPLAY_DELTA" >> "$GITHUB_OUTPUT"
           echo "comp3_delta=$COMP3_DELTA" >> "$GITHUB_OUTPUT"
+          echo "regression_threshold=$REGRESSION_THRESHOLD" >> "$GITHUB_OUTPUT"
           
           # Determine status (blocking mode: fail on >5% regression)
           STATUS="pass"
@@ -222,17 +333,17 @@ jobs:
           # Check for regressions (negative delta means regression)
           if [[ "$DISPLAY_DELTA" != "N/A" ]]; then
             DELTA_NUM=$(echo "$DISPLAY_DELTA" | awk '{print $1}')
-            if (( $(echo "$DELTA_NUM < -5" | bc -l) )); then
+            if (( $(echo "$DELTA_NUM < -$REGRESSION_THRESHOLD" | bc -l) )); then
               STATUS="fail"
-              WARNINGS="$WARNINGS\n- DISPLAY: ${DISPLAY_DELTA}% regression (fail threshold: -5%)"
+              WARNINGS="$WARNINGS\n- DISPLAY: ${DISPLAY_DELTA}% regression (fail threshold: -${REGRESSION_THRESHOLD}%)"
             fi
           fi
           
           if [[ "$COMP3_DELTA" != "N/A" ]]; then
             DELTA_NUM=$(echo "$COMP3_DELTA" | awk '{print $1}')
-            if (( $(echo "$DELTA_NUM < -5" | bc -l) )); then
+            if (( $(echo "$DELTA_NUM < -$REGRESSION_THRESHOLD" | bc -l) )); then
               STATUS="fail"
-              WARNINGS="$WARNINGS\n- COMP-3: ${COMP3_DELTA}% regression (fail threshold: -5%)"
+              WARNINGS="$WARNINGS\n- COMP-3: ${COMP3_DELTA}% regression (fail threshold: -${REGRESSION_THRESHOLD}%)"
             fi
           fi
           
@@ -263,10 +374,46 @@ jobs:
 
       - name: Calculate enterprise overhead
         id: enterprise_overhead
+        env:
+          BASELINE_AC11_AUDIT_THRESHOLD: ${{ steps.baseline.outputs.ac11_audit_threshold }}
+          BASELINE_AC11_COMPLIANCE_THRESHOLD: ${{ steps.baseline.outputs.ac11_compliance_threshold }}
+          BASELINE_AC11_SECURITY_THRESHOLD: ${{ steps.baseline.outputs.ac11_security_threshold }}
+          BASELINE_AC11_COMBINED_THRESHOLD: ${{ steps.baseline.outputs.ac11_combined_threshold }}
         run: |
           echo "### Enterprise Performance Overhead" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          
+
+          DEFAULT_AUDIT_THRESHOLD="2.0"
+          DEFAULT_COMPLIANCE_THRESHOLD="3.0"
+          DEFAULT_SECURITY_THRESHOLD="1.0"
+          DEFAULT_COMBINED_THRESHOLD="5.0"
+
+          AC11_AUDIT_THRESHOLD="${BASELINE_AC11_AUDIT_THRESHOLD:-$DEFAULT_AUDIT_THRESHOLD}"
+          AC11_COMPLIANCE_THRESHOLD="${BASELINE_AC11_COMPLIANCE_THRESHOLD:-$DEFAULT_COMPLIANCE_THRESHOLD}"
+          AC11_SECURITY_THRESHOLD="${BASELINE_AC11_SECURITY_THRESHOLD:-$DEFAULT_SECURITY_THRESHOLD}"
+          AC11_COMBINED_THRESHOLD="${BASELINE_AC11_COMBINED_THRESHOLD:-$DEFAULT_COMBINED_THRESHOLD}"
+
+          read_threshold() {
+            local raw_value="$1"
+            local fallback="$2"
+            if [[ -z "$raw_value" || "$raw_value" == "null" ]]; then
+              printf '%s' "$fallback"
+            else
+              printf '%s' "$raw_value"
+            fi
+          }
+
+          AUDIT_OVERHEAD_THRESHOLD=$(read_threshold "$AC11_AUDIT_THRESHOLD" "$DEFAULT_AUDIT_THRESHOLD")
+          COMPLIANCE_OVERHEAD_THRESHOLD=$(read_threshold "$AC11_COMPLIANCE_THRESHOLD" "$DEFAULT_COMPLIANCE_THRESHOLD")
+          SECURITY_OVERHEAD_THRESHOLD=$(read_threshold "$AC11_SECURITY_THRESHOLD" "$DEFAULT_SECURITY_THRESHOLD")
+          COMBINED_OVERHEAD_THRESHOLD=$(read_threshold "$AC11_COMBINED_THRESHOLD" "$DEFAULT_COMBINED_THRESHOLD")
+
+          exceeds_threshold() {
+            local value="$1"
+            local threshold="$2"
+            awk "BEGIN {print ($value > $threshold) ? 1 : 0}"
+          }
+
           # Extract baseline and enterprise throughput from criterion outputs
           BASELINE_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_baseline/new/estimates.json 2>/dev/null || echo "0")
           AUDIT_MEAN=$(jq -r '.mean.point_estimate // 0' target/criterion/enterprise_audit/new/estimates.json 2>/dev/null || echo "0")
@@ -290,46 +437,86 @@ jobs:
           # Output to summary
           echo "| Feature | Overhead | Target | Status |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---------|----------|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
-          
-          # Audit overhead (target: < 2%)
+
+          AC11_OVERHEAD_STATUS="pass"
+          OVERHEAD_WARNINGS=""
+
+          # Audit overhead
           if [[ "$AUDIT_OVERHEAD" != "N/A" ]]; then
-            AUDIT_STATUS=$(awk "BEGIN {print ($AUDIT_OVERHEAD < 2.0) ? \"✅\" : \"⚠️\"}")
-            echo "| Audit | ${AUDIT_OVERHEAD}% | < 2% | $AUDIT_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+            if [[ "$(exceeds_threshold "$AUDIT_OVERHEAD" "$AUDIT_OVERHEAD_THRESHOLD")" == "1" ]]; then
+              AUDIT_STATUS="⚠️"
+              AC11_OVERHEAD_STATUS="fail"
+              OVERHEAD_WARNINGS="$OVERHEAD_WARNINGS\n- Audit: ${AUDIT_OVERHEAD}% > ${AUDIT_OVERHEAD_THRESHOLD}%"
+            else
+              AUDIT_STATUS="✅"
+            fi
+            echo "| Audit | ${AUDIT_OVERHEAD}% | < ${AUDIT_OVERHEAD_THRESHOLD}% | $AUDIT_STATUS |" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "| Audit | N/A | < 2% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Audit | N/A | < ${AUDIT_OVERHEAD_THRESHOLD}% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
           fi
-          
-          # Compliance overhead (target: < 3%)
+
+          # Compliance overhead
           if [[ "$COMPLIANCE_OVERHEAD" != "N/A" ]]; then
-            COMPLIANCE_STATUS=$(awk "BEGIN {print ($COMPLIANCE_OVERHEAD < 3.0) ? \"✅\" : \"⚠️\"}")
-            echo "| Compliance | ${COMPLIANCE_OVERHEAD}% | < 3% | $COMPLIANCE_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+            if [[ "$(exceeds_threshold "$COMPLIANCE_OVERHEAD" "$COMPLIANCE_OVERHEAD_THRESHOLD")" == "1" ]]; then
+              COMPLIANCE_STATUS="⚠️"
+              AC11_OVERHEAD_STATUS="fail"
+              OVERHEAD_WARNINGS="$OVERHEAD_WARNINGS\n- Compliance: ${COMPLIANCE_OVERHEAD}% > ${COMPLIANCE_OVERHEAD_THRESHOLD}%"
+            else
+              COMPLIANCE_STATUS="✅"
+            fi
+            echo "| Compliance | ${COMPLIANCE_OVERHEAD}% | < ${COMPLIANCE_OVERHEAD_THRESHOLD}% | $COMPLIANCE_STATUS |" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "| Compliance | N/A | < 3% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Compliance | N/A | < ${COMPLIANCE_OVERHEAD_THRESHOLD}% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
           fi
-          
-          # Security overhead (target: < 1%)
+
+          # Security overhead
           if [[ "$SECURITY_OVERHEAD" != "N/A" ]]; then
-            SECURITY_STATUS=$(awk "BEGIN {print ($SECURITY_OVERHEAD < 1.0) ? \"✅\" : \"⚠️\"}")
-            echo "| Security | ${SECURITY_OVERHEAD}% | < 1% | $SECURITY_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+            if [[ "$(exceeds_threshold "$SECURITY_OVERHEAD" "$SECURITY_OVERHEAD_THRESHOLD")" == "1" ]]; then
+              SECURITY_STATUS="⚠️"
+              AC11_OVERHEAD_STATUS="fail"
+              OVERHEAD_WARNINGS="$OVERHEAD_WARNINGS\n- Security: ${SECURITY_OVERHEAD}% > ${SECURITY_OVERHEAD_THRESHOLD}%"
+            else
+              SECURITY_STATUS="✅"
+            fi
+            echo "| Security | ${SECURITY_OVERHEAD}% | < ${SECURITY_OVERHEAD_THRESHOLD}% | $SECURITY_STATUS |" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "| Security | N/A | < 1% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Security | N/A | < ${SECURITY_OVERHEAD_THRESHOLD}% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
           fi
-          
-          # Combined overhead (target: < 5%)
+
+          # Combined overhead
           if [[ "$COMBINED_OVERHEAD" != "N/A" ]]; then
-            COMBINED_STATUS=$(awk "BEGIN {print ($COMBINED_OVERHEAD < 5.0) ? \"✅\" : \"⚠️\"}")
-            echo "| Combined | ${COMBINED_OVERHEAD}% | < 5% | $COMBINED_STATUS |" >> "$GITHUB_STEP_SUMMARY"
+            if [[ "$(exceeds_threshold "$COMBINED_OVERHEAD" "$COMBINED_OVERHEAD_THRESHOLD")" == "1" ]]; then
+              COMBINED_STATUS="⚠️"
+              AC11_OVERHEAD_STATUS="fail"
+              OVERHEAD_WARNINGS="$OVERHEAD_WARNINGS\n- Combined: ${COMBINED_OVERHEAD}% > ${COMBINED_OVERHEAD_THRESHOLD}%"
+            else
+              COMBINED_STATUS="✅"
+            fi
+            echo "| Combined | ${COMBINED_OVERHEAD}% | < ${COMBINED_OVERHEAD_THRESHOLD}% | $COMBINED_STATUS |" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "| Combined | N/A | < 5% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Combined | N/A | < ${COMBINED_OVERHEAD_THRESHOLD}% | ❓ |" >> "$GITHUB_STEP_SUMMARY"
           fi
-          
+
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          
+          echo "**AC11 Overhead Status**: $AC11_OVERHEAD_STATUS" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ -n "$OVERHEAD_WARNINGS" ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ **AC11 Overhead Warnings:**" >> "$GITHUB_STEP_SUMMARY"
+            echo -e "$OVERHEAD_WARNINGS" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
           # Set outputs for PR comment
           echo "audit_overhead=$AUDIT_OVERHEAD" >> "$GITHUB_OUTPUT"
           echo "compliance_overhead=$COMPLIANCE_OVERHEAD" >> "$GITHUB_OUTPUT"
           echo "security_overhead=$SECURITY_OVERHEAD" >> "$GITHUB_OUTPUT"
           echo "combined_overhead=$COMBINED_OVERHEAD" >> "$GITHUB_OUTPUT"
+          echo "ac11_overhead_status=$AC11_OVERHEAD_STATUS" >> "$GITHUB_OUTPUT"
+          echo "ac11_overhead_warnings=$OVERHEAD_WARNINGS" >> "$GITHUB_OUTPUT"
+          echo "ac11_audit_threshold=$AUDIT_OVERHEAD_THRESHOLD" >> "$GITHUB_OUTPUT"
+          echo "ac11_compliance_threshold=$COMPLIANCE_OVERHEAD_THRESHOLD" >> "$GITHUB_OUTPUT"
+          echo "ac11_security_threshold=$SECURITY_OVERHEAD_THRESHOLD" >> "$GITHUB_OUTPUT"
+          echo "ac11_combined_threshold=$COMBINED_OVERHEAD_THRESHOLD" >> "$GITHUB_OUTPUT"
 
       - name: Post PR comment
         if: github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
@@ -348,6 +535,13 @@ jobs:
           COMPLIANCE_OVERHEAD: ${{ steps.enterprise_overhead.outputs.compliance_overhead }}
           SECURITY_OVERHEAD: ${{ steps.enterprise_overhead.outputs.security_overhead }}
           COMBINED_OVERHEAD: ${{ steps.enterprise_overhead.outputs.combined_overhead }}
+          AC11_OVERHEAD_STATUS: ${{ steps.enterprise_overhead.outputs.ac11_overhead_status }}
+          AC11_OVERHEAD_WARNINGS: ${{ steps.enterprise_overhead.outputs.ac11_overhead_warnings }}
+          AC11_AUDIT_THRESHOLD: ${{ steps.enterprise_overhead.outputs.ac11_audit_threshold }}
+          AC11_COMPLIANCE_THRESHOLD: ${{ steps.enterprise_overhead.outputs.ac11_compliance_threshold }}
+          AC11_SECURITY_THRESHOLD: ${{ steps.enterprise_overhead.outputs.ac11_security_threshold }}
+          AC11_COMBINED_THRESHOLD: ${{ steps.enterprise_overhead.outputs.ac11_combined_threshold }}
+          REGRESSION_THRESHOLD: ${{ steps.compare.outputs.regression_threshold }}
         with:
           script: |
             const { context, github } = require('@actions/github');
@@ -370,11 +564,12 @@ jobs:
               
               const displayStatus = displayDelta !== 'N/A' && parseFloat(displayDelta) < 0 ? '⚠️' : '✅';
               const comp3Status = comp3Delta !== 'N/A' && parseFloat(comp3Delta) < 0 ? '⚠️' : '✅';
+              const regressionThreshold = process.env.REGRESSION_THRESHOLD || '5.0';
               
               body += '| Metric | Baseline | PR | Delta |\n';
               body += '|--------|----------|-----|-------|\n';
-              body += `| DISPLAY | ${baseDisplay} MiB/s | ${currDisplay} MiB/s | ${displayDelta}% ${displayStatus} |\n`;
-              body += `| COMP-3 | ${baseComp3} MiB/s | ${currComp3} MiB/s | ${comp3Delta}% ${comp3Status} |\n\n`;
+              body += `| DISPLAY | ${baseDisplay} MiB/s | ${currDisplay} MiB/s | ${displayDelta}% (threshold: -${regressionThreshold}%) ${displayStatus} |\n`;
+              body += `| COMP-3 | ${baseComp3} MiB/s | ${currComp3} MiB/s | ${comp3Delta}% (threshold: -${regressionThreshold}%) ${comp3Status} |\n\n`;
               
               if (warnings) {
                 body += '⚠️ **Warnings:**\n';
@@ -392,38 +587,49 @@ jobs:
             const complianceOverhead = process.env.COMPLIANCE_OVERHEAD;
             const securityOverhead = process.env.SECURITY_OVERHEAD;
             const combinedOverhead = process.env.COMBINED_OVERHEAD;
+            const ac11OverheadStatus = process.env.AC11_OVERHEAD_STATUS || 'pass';
+            const ac11OverheadWarnings = process.env.AC11_OVERHEAD_WARNINGS || '';
+            const auditThreshold = process.env.AC11_AUDIT_THRESHOLD || '2.0';
+            const complianceThreshold = process.env.AC11_COMPLIANCE_THRESHOLD || '3.0';
+            const securityThreshold = process.env.AC11_SECURITY_THRESHOLD || '1.0';
+            const combinedThreshold = process.env.AC11_COMBINED_THRESHOLD || '5.0';
             
             if (auditOverhead && auditOverhead !== 'N/A') {
-              const auditStatus = parseFloat(auditOverhead) < 2.0 ? '✅' : '⚠️';
-              body += `| Audit | ${auditOverhead}% | < 2% | ${auditStatus} |\n`;
+              const auditStatus = parseFloat(auditOverhead) < parseFloat(auditThreshold) ? '✅' : '⚠️';
+              body += `| Audit | ${auditOverhead}% | < ${auditThreshold}% | ${auditStatus} |\n`;
             } else {
-              body += '| Audit | N/A | < 2% | ❓ |\n';
+              body += `| Audit | N/A | < ${auditThreshold}% | ❓ |\n`;
             }
             
             if (complianceOverhead && complianceOverhead !== 'N/A') {
-              const complianceStatus = parseFloat(complianceOverhead) < 3.0 ? '✅' : '⚠️';
-              body += `| Compliance | ${complianceOverhead}% | < 3% | ${complianceStatus} |\n`;
+              const complianceStatus = parseFloat(complianceOverhead) < parseFloat(complianceThreshold) ? '✅' : '⚠️';
+              body += `| Compliance | ${complianceOverhead}% | < ${complianceThreshold}% | ${complianceStatus} |\n`;
             } else {
-              body += '| Compliance | N/A | < 3% | ❓ |\n';
+              body += `| Compliance | N/A | < ${complianceThreshold}% | ❓ |\n`;
             }
             
             if (securityOverhead && securityOverhead !== 'N/A') {
-              const securityStatus = parseFloat(securityOverhead) < 1.0 ? '✅' : '⚠️';
-              body += `| Security | ${securityOverhead}% | < 1% | ${securityStatus} |\n`;
+              const securityStatus = parseFloat(securityOverhead) < parseFloat(securityThreshold) ? '✅' : '⚠️';
+              body += `| Security | ${securityOverhead}% | < ${securityThreshold}% | ${securityStatus} |\n`;
             } else {
-              body += '| Security | N/A | < 1% | ❓ |\n';
+              body += `| Security | N/A | < ${securityThreshold}% | ❓ |\n`;
             }
             
             if (combinedOverhead && combinedOverhead !== 'N/A') {
-              const combinedStatus = parseFloat(combinedOverhead) < 5.0 ? '✅' : '⚠️';
-              body += `| Combined | ${combinedOverhead}% | < 5% | ${combinedStatus} |\n`;
+              const combinedStatus = parseFloat(combinedOverhead) < parseFloat(combinedThreshold) ? '✅' : '⚠️';
+              body += `| Combined | ${combinedOverhead}% | < ${combinedThreshold}% | ${combinedStatus} |\n`;
             } else {
-              body += '| Combined | N/A | < 5% | ❓ |\n';
+              body += `| Combined | N/A | < ${combinedThreshold}% | ❓ |\n`;
             }
             
             body += '\n';
+            if (ac11OverheadWarnings) {
+              body += '⚠️ **AC11 Warnings:**\n';
+              body += `${ac11OverheadWarnings.replace(/\\n/g, '\n')}\n\n`;
+            }
             
-            body += `**Status:** ${status === 'warn' ? '⚠️ Warning' : '✅ Pass'}\n\n`;
+            const overallStatus = status === 'fail' || ac11OverheadStatus === 'fail' ? 'fail' : 'pass';
+            body += `**Status:** ${overallStatus === 'fail' ? '⚠️ Warning' : '✅ Pass'}\n\n`;
             body += `**Commit:** \`${context.sha.substring(0, 7)}\`\n`;
             body += `**Workflow:** [View Details](${context.payload.repository.html_url}/actions/runs/${context.runId})\n\n`;
             body += '---\n';
@@ -544,6 +750,39 @@ jobs:
               }
             });
             core.setOutput('ok', ok ? 'true' : 'false');
+
+      - name: Required performance regression gate (PR/release)
+        if: ${{ github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if [[ "${{ steps.baseline.outputs.baseline_found }}" == "true" ]]; then
+              if [[ "${{ steps.compare.outcome }}" != "success" ]]; then
+                echo "::error::Failed to compute baseline regression comparison."
+                exit 1
+              fi
+
+              if [[ "${{ steps.compare.outputs.status }}" == "fail" ]]; then
+                echo "::error::PR performance baseline regression exceeded the ${{ steps.compare.outputs.regression_threshold }}% threshold."
+                exit 1
+              fi
+            else
+              echo "⚠️ Skipping baseline regression gate (no baseline available)."
+            fi
+          fi
+
+          if [[ "${{ steps.enterprise_overhead.outputs.ac11_overhead_status }}" == "fail" ]]; then
+            echo "::error::AC11 enterprise overhead exceeded one or more thresholds."
+            exit 1
+          fi
+
+          if [[ "${{ steps.throughput.outputs.ok }}" != "true" ]]; then
+            echo "::error::Required throughput floor check failed (DISPLAY >= 80 MiB/s, COMP-3 >= 40 MiB/s)."
+            exit 1
+          fi
+
+          echo "✅ Required perf gate passed for this PR/release-sensitive run."
 
       - name: Label perf success
         if: ${{ success() && steps.throughput.outputs.ok == 'true' && github.event.pull_request.number }}

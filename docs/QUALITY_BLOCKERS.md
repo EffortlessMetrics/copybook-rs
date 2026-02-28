@@ -2,8 +2,20 @@
 # Quality Blockers - Phase 1.2 Resolution
 
 **Status**: ✅ Resolved
-**Date**: 2026-02-07
+**Date**: 2026-02-28
 **Phase**: 1.2 - Fix 3 Known CI Quality Blockers
+
+## Release-blocker tracking
+
+> [Historical: 2026-02-28] (status=pass; owner=@EffortlessSteven; evidence=leak-detection workflow setup, metrics smoke-test determinism fix, and WSL2 variance policy must all remain documented in this file and linked CI configuration (`.github/workflows/leak-detection.yml`, `metrics-smoke.yml`, `perf.yml`).)
+
+| Item | Status | Added | Resolved |
+|---|---|---|---|
+| Leak detectors | ✅ Resolved | 2026-02-28 | 2026-02-28 |
+| Timing-sensitive metrics smoke test | ✅ Resolved | 2026-02-28 | 2026-02-28 |
+| WSL2 performance variance policy | ✅ Resolved | 2026-02-28 | 2026-02-28 |
+
+**AC11 threshold compatibility note:** AC11 threshold config is schema-alias compatible and resolves in order: `--max-overhead-percent` (CLI), then baseline `max_overhead_percent`, then default `5.0`.
 
 ## Overview
 
@@ -49,7 +61,8 @@ Created [`.github/workflows/leak-detection.yml`](../.github/workflows/leak-detec
    - Uploads test output and valgrind logs as artifacts
    - 30-day retention for investigation
 
-**Current Status**: ✅ **No leaks detected** (initial run)
+**Current Status**: ✅ **No leaks detected** (initial run)  
+**Resolved On**: 2026-02-28
 
 **Classification**: Since no actual leaks were found in the initial implementation, the "8 leak detectors" were classified as **historical documentation artifacts** rather than actual issues.
 
@@ -150,7 +163,8 @@ if !server_ready {
 - ✅ **Robust**: 5-second timeout prevents hanging
 - ✅ **Clear error messages**: Reports if server fails to start
 
-**Current Status**: ✅ **Test is now deterministic**
+**Current Status**: ✅ **Test is now deterministic**  
+**Resolved On**: 2026-02-28
 
 **Regression Test**: The test itself serves as the regression test - any future timing sensitivity will cause the test to fail with a clear error message about the timeout.
 
@@ -234,7 +248,8 @@ The script now adds `wsl2_detected` to perf receipts:
 >
 > Local development in WSL2 is encouraged for convenience, but performance comparisons should account for the expected overhead.
 
-**Current Status**: ✅ **Canonical environment defined and documented**
+**Current Status**: ✅ **Canonical environment defined and documented**  
+**Resolved On**: 2026-02-28
 
 **Reproduction Commands:**
 
@@ -275,8 +290,8 @@ gh workflow run perf.yml
 
 | Blocker | Status | Resolution |
 |----------|--------|------------|
-| 8 leak detectors flagged | ✅ Resolved | Implemented leak detection from scratch; no actual leaks found |
-| 1 timing-sensitive test failure | ✅ Resolved | Made metrics_smoke.rs deterministic via polling |
+| 8 leak detectors flagged | ✅ Resolved (Date: 2026-02-28) | Implemented leak detection from scratch; no actual leaks found |
+| 1 timing-sensitive test failure | ✅ Resolved (Date: 2026-02-28) | Made metrics_smoke.rs deterministic via polling |
 | WSL2 vs native Linux perf variance | ✅ Resolved | Defined GitHub Linux runners as canonical; added WSL2 detection |
 
 ### Remaining Actions

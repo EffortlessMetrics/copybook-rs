@@ -223,6 +223,33 @@ fn test_o5_o6_combined_nested_odo_and_redefines() {
 }
 
 // =============================================================================
+// O7: ODO under RENAMES span (policy-limited by R4-R6 scope)
+// =============================================================================
+
+#[test]
+fn test_o7_odo_under_renames_policy_limited() {
+    let copybook = r#"
+       01 ORDER-REC.
+          05 ORDER-ID PIC 9(8).
+          05 LINE-COUNT PIC 9(2).
+          05 LINE-ITEMS OCCURS 1 TO 50 TIMES DEPENDING ON LINE-COUNT.
+             10 ITEM-ID PIC 9(4).
+             10 ITEM-AMT PIC 9(7)V99.
+          66 LINE-ITEMS-ALIAS RENAMES LINE-ITEMS THRU LINE-ITEMS.
+    "#;
+
+    let err = parse_copybook(copybook)
+        .expect_err("O7 (ODO + RENAMES span) must be rejected by policy");
+
+    assert_eq!(
+        err.code,
+        ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED,
+        "Expected CBKS612_RENAME_ODO_NOT_SUPPORTED for O7 policy-limited scenario, got: {:?}",
+        err
+    );
+}
+
+// =============================================================================
 // Regression Tests: Ensure O1-O4 still work correctly
 // =============================================================================
 

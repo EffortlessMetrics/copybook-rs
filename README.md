@@ -21,7 +21,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 - **Deterministic**: Byte-identical results across runs and worker configurations
 - **Memory-safe**: Zero `unsafe` code in public APIs; clippy pedantic enforcement
 - **Comprehensive testing**: 1550+ tests passing with BDD, property testing, fuzzing, mutation testing, and feature flagging
-- **Performance-validated**: 205 MiB/s (DISPLAY), 58 MiB/s (COMP-3) baseline established with CI receipts in `scripts/bench/perf.json`
+- **Performance-validated**: 1349.6524445004138 MiB/s (DISPLAY) and 16.24215679348751 MiB/s (COMP-3) evidence date 2025-12-29 in `scripts/bench/perf.json`; non-WSL replay status is `not-collected-on-wsl` (status=warn; owner=Perf WG; source: `artifacts/perf/non-wsl/perf.json`; evidence-required: canonical non-WSL replay with checksum before production claims).
 
 See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 
@@ -147,6 +147,19 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 - **Verification & Validation**: Built-in data quality auditing without conversion overhead
 - **Enterprise Audit System**: Optional compliance framework support (SOX, HIPAA, GDPR, PCI DSS) - see [enterprise-audit-system-spec.md](docs/specs/enterprise-audit-system-spec.md) for details (experimental, feature-gated)
 
+#### AC9 Monitoring Stub Validation (Non-Production Stub-Only)
+
+This section defines the **shared, non-production/stub-only** AC9 validation command.
+AC9 monitoring is intentionally **non-production/stub-only** and must not be treated as production evidence; it is feature-gated by default and intended for engineering checks only.
+
+```bash
+COPYBOOK_AUDIT_ENTERPRISE_READY=1 cargo run -p copybook-cli \
+  --features audit,deterministic_audit_stubs -- \
+  audit security fixtures/copybooks/simple.cpy \
+  --output /tmp/ac9-audit.json \
+  --real-time-monitoring --threat-assessment
+```
+
 ### **CLI Exit Codes**
 
 The `copybook` CLI reports structured exit codes aligned with the error taxonomy for integration with CI/CD pipelines and orchestration systems:
@@ -219,9 +232,10 @@ For detailed test evidence and feature coverage, see [COBOL_SUPPORT_MATRIX.md](d
 
 **CI Gating**: Perf workflow enforces throughput floors (DISPLAY ≥ 80 MiB/s, COMP-3 ≥ 40 MiB/s); baseline comparisons remain advisory.
 
-**Baseline Established**: 2025-09-30 (Commit 1fa63633)
-- **DISPLAY-heavy**: 205 MiB/s (2.56x enterprise target of 80 MiB/s)
-- **COMP-3-heavy**: 58 MiB/s (1.45x enterprise target of 40 MiB/s)
+**Wave-5 Baseline Evidence**: 2025-12-29 (Commit 976ca0f)
+- **DISPLAY-heavy**: 1349.6524445004138 MiB/s (16.7x enterprise target of 80 MiB/s)
+- **COMP-3-heavy**: 16.24215679348751 MiB/s (below enterprise target of 40 MiB/s)
+- **Non-WSL/CI replay baseline**: `not-collected-on-wsl` (status=warn; owner=Perf WG; evidence-required: generate canonical non-WSL run artifact in `artifacts/perf/non-wsl/perf.json` with timestamp and digest).
 - **Memory**: <256 MiB steady-state for multi-GB files
 - **Variance**: ~5% (DISPLAY), ~8% (COMP-3) across benchmark runs
 - **Environment**: WSL2 on AMD Ryzen 9 9950X3D (32 threads, 196 GiB RAM)

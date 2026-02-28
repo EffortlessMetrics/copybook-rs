@@ -53,9 +53,11 @@ use chrono::{self, DateTime, Duration as ChronoDuration};
 use clap::{Parser, Subcommand};
 use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_file_to_jsonl};
 use copybook_core::audit::{
-    AccessAuditor, AccessEvent, AccessResult, AuditContext, AuditEvent, AuditEventType,
+    AccessAuditor, AccessEvent, AccessResult, AuditContext, AuditEvent,
+    AuditEventType,
     AuditLogger, AuditLoggerConfig, AuditPayload, BaselineManager, ComplianceConfig,
-    ComplianceEngine, ComplianceProfile, FieldLineage, ImpactAnalyzer, PerformanceAuditor,
+    ComplianceEngine, ComplianceProfile, DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT,
+    FieldLineage, ImpactAnalyzer, PerformanceAuditor,
     PerformanceBaseline, ResourceMetrics, RiskLevel, SecurityAuditor, SecurityMonitor,
     SecurityViolation, ThroughputMetrics, TransformationType,
 };
@@ -75,9 +77,107 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{self, BufRead, BufReader, Cursor};
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::{fs, str};
 
 type AuditResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+fn require_audit_release_gate(feature: &str, blocker: &str) -> AuditResult<()> {
+    audit_core::require_audit_release_gate(blocker).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("{feature}: {error}"),
+        )
+    })?;
+
+    Ok(())
+}
+
+fn require_audit_release_gates(
+    feature: &str,
+    blockers: &[&str],
+) -> AuditResult<()> {
+    for blocker in blockers {
+        require_audit_release_gate(feature, blocker)?;
+    }
+    Ok(())
+}
+
+fn validate_health_check_request(
+    validate_integrity: bool,
+    validate_chain_integrity: bool,
+    check_cryptographic_hashes: bool,
+    verify_timestamps: bool,
+    check_retention: bool,
+) -> AuditResult<()> {
+    if !(validate_integrity
+        || validate_chain_integrity
+        || check_cryptographic_hashes
+        || verify_timestamps
+        || check_retention)
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "audit health checks are required for AC10: set at least one of --validate-integrity, --validate-chain-integrity, --check-cryptographic-hashes, --verify-timestamps, or --check-retention",
+        )
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_lineage_confidence_threshold(confidence_threshold: f64) -> AuditResult<()> {
+    if !confidence_threshold.is_finite() || !(0.0..=1.0).contains(&confidence_threshold) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "lineage confidence_threshold must be within [0.0, 1.0]",
+        )
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_performance_audit_objective(
+    establish_baseline: bool,
+    validate_against_baseline: bool,
+    target_display_gbps: Option<f64>,
+    target_comp3_mbps: Option<f64>,
+) -> AuditResult<()> {
+    if !(establish_baseline
+        || validate_against_baseline
+        || target_display_gbps.is_some()
+        || target_comp3_mbps.is_some())
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "performance audit requires AC11 objective: set --establish-baseline, --validate-against-baseline, --target-display-gbps, or --target-comp3-mbps",
+        )
+        .into());
+    }
+
+    if let Some(target_display_gbps) = target_display_gbps {
+        if !target_display_gbps.is_finite() || target_display_gbps < 0.0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "target-display-gbps must be a finite non-negative number",
+            )
+            .into());
+        }
+    }
+
+    if let Some(target_comp3_mbps) = target_comp3_mbps {
+        if !target_comp3_mbps.is_finite() || target_comp3_mbps < 0.0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "target-comp3-mbps must be a finite non-negative number",
+            )
+            .into());
+        }
+    }
+
+    Ok(())
+}
 
 /// Enterprise audit command with comprehensive regulatory compliance
 #[derive(Parser)]
@@ -484,6 +584,8 @@ pub enum ValidationDepth {
 pub async fn run(
     audit_command: AuditCommand,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+    require_audit_release_gates("audit command dispatch", &["AC17"])?;
+
     // Initialize audit context
     let audit_context = AuditContext::new()
         .with_operation_id("cli_audit_operation")
@@ -706,6 +808,8 @@ struct RawAccessEvent {
     user_agent: Option<String>,
     #[serde(default)]
     source_ip_address: Option<String>,
+    #[serde(default)]
+    timestamp: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -724,7 +828,7 @@ struct RawHealthEvent {
     previous_hash: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct HealthEventRecord {
     event_id: String,
     timestamp: String,
@@ -831,15 +935,14 @@ fn parse_audit_events_for_health(path: &Path) -> AuditResult<(Vec<AuditEvent>, V
 }
 
 fn normalize_health_event(raw: RawHealthEvent) -> Result<HealthEventRecord, String> {
-    let event_id = raw
-        .event_id
-        .unwrap_or_else(|| format!("health-event-{}", generate_random_suffix()));
-    let timestamp = raw
-        .timestamp
-        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
-    let source = raw.source.unwrap_or_else(|| "copybook-core".to_string());
-    let event_type = raw.event_type.unwrap_or_else(|| "Unknown".to_string());
-    let integrity_hash = raw.integrity_hash.unwrap_or_else(|| "".to_string());
+    let event_id = required_string_field(raw.event_id, "event_id")?;
+    let timestamp = required_string_field(raw.timestamp, "timestamp")?;
+    if chrono::DateTime::parse_from_rfc3339(&timestamp).is_err() {
+        return Err(format!("invalid timestamp for event {event_id}: expected RFC3339"));
+    }
+    let source = required_string_field(raw.source, "source")?;
+    let event_type = required_string_field(raw.event_type, "event_type")?;
+    let integrity_hash = required_string_field(raw.integrity_hash, "integrity_hash")?;
 
     Ok(HealthEventRecord {
         event_id,
@@ -852,9 +955,92 @@ fn normalize_health_event(raw: RawHealthEvent) -> Result<HealthEventRecord, Stri
 }
 
 fn generate_random_suffix() -> String {
-    chrono::Utc::now()
-        .timestamp_nanos_opt()
-        .map_or_else(|| "fallback".to_string(), |value| value.to_string())
+    static SUFFIX_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0u128, |duration| duration.as_nanos());
+    let sequence = SUFFIX_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("{nanos:020}-{sequence}")
+}
+
+fn required_string_field(value: Option<String>, label: &str) -> Result<String, String> {
+    let value = value.unwrap_or_default().trim().to_string();
+    if value.is_empty() {
+        return Err(format!("{label} is required"));
+    }
+    Ok(value)
+}
+
+fn pick_required_string_field(
+    primary: Option<String>,
+    fallback: Option<String>,
+    label: &str,
+) -> Result<String, String> {
+    let primary = primary.unwrap_or_default().trim().to_string();
+    let fallback = fallback.unwrap_or_default().trim().to_string();
+
+    match (primary.is_empty(), fallback.is_empty()) {
+        (true, true) => required_string_field(None, label),
+        (false, false) if primary != fallback => Err(format!(
+            "{label} is contradictory: '{primary}' vs '{fallback}'"
+        )),
+        (false, _) => Ok(primary),
+        (_, false) => Ok(fallback),
+    }
+}
+
+fn pick_optional_string_field(
+    primary: Option<String>,
+    fallback: Option<String>,
+    label: &str,
+) -> Result<Option<String>, String> {
+    let primary = primary.unwrap_or_default().trim().to_string();
+    let fallback = fallback.unwrap_or_default().trim().to_string();
+
+    match (primary.is_empty(), fallback.is_empty()) {
+        (true, true) => Ok(None),
+        (false, false) if primary != fallback => Err(format!(
+            "{label} is contradictory: '{primary}' vs '{fallback}'"
+        )),
+        (false, _) => Ok(Some(primary)),
+        (_, false) => Ok(Some(fallback)),
+    }
+}
+
+fn normalize_access_timestamp(raw_timestamp: Option<String>) -> Result<Option<String>, String> {
+    let Some(raw_timestamp) = raw_timestamp else {
+        return Ok(None);
+    };
+    let value = raw_timestamp.trim().to_string();
+
+    if value.is_empty() {
+        return Err("timestamp is required to be RFC3339 when provided".to_string());
+    }
+
+    if chrono::DateTime::parse_from_rfc3339(&value).is_err() {
+        return Err(format!("timestamp must be RFC3339: '{value}'"));
+    }
+
+    Ok(Some(value))
+}
+
+fn parse_access_result(raw: Option<&str>, user_id: &str) -> Result<AccessResult, String> {
+    let normalized = raw
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+
+    if normalized.is_empty() {
+        return Err(format!("missing access result for user {user_id}"));
+    }
+
+    match normalized.as_str() {
+        "deny" | "denied" | "forbidden" | "failure" | "failed" => Ok(AccessResult::Denied),
+        "error" | "invalid" | "blocked" => Ok(AccessResult::Failed),
+        "success" | "ok" | "passed" | "allow" | "allowed" => Ok(AccessResult::Success),
+        _ => Err(format!("invalid access result '{raw:?}' for user {user_id}")),
+    }
 }
 
 #[inline]
@@ -934,6 +1120,17 @@ fn parse_copybook_schema(path: &Path) -> AuditResult<Schema> {
     Ok(copybook_core::parse_copybook(&copybook_text)?)
 }
 
+#[cfg(feature = "audit")]
+fn parse_copybook_schema_with_lineage_metadata(
+    path: &Path,
+) -> AuditResult<(Schema, String)> {
+    let copybook_text = fs::read_to_string(path)?;
+    let options = copybook_core::ParseOptions::default();
+    let (schema, metadata) =
+        copybook_core::parser::parse_with_audit_lineage_metadata(&copybook_text, &options)?;
+    Ok((schema, metadata.lineage_id))
+}
+
 fn collect_leaf_fields<'a>(fields: &'a [Field], out: &mut Vec<&'a Field>) {
     for field in fields {
         if field.children.is_empty() {
@@ -994,14 +1191,6 @@ fn estimate_schema_bytes(schema: &Schema) -> (u64, u64, u64) {
     (display_bytes, comp3_bytes, total_bytes)
 }
 
-fn parse_access_result(raw: Option<&str>) -> AccessResult {
-    match raw.unwrap_or_default().to_ascii_lowercase().as_str() {
-        "deny" | "denied" | "forbidden" | "failure" | "failed" => AccessResult::Denied,
-        "error" | "invalid" | "blocked" => AccessResult::Failed,
-        _ => AccessResult::Success,
-    }
-}
-
 fn parse_access_events(path: &Path) -> AuditResult<(Vec<AccessEvent>, Vec<String>)> {
     let file = fs::File::open(path)?;
     let reader = BufReader::new(file);
@@ -1025,30 +1214,116 @@ fn parse_access_events(path: &Path) -> AuditResult<(Vec<AccessEvent>, Vec<String
 
         match serde_json::from_str::<RawAccessEvent>(&line) {
             Ok(raw) => {
-                let user_id = raw
-                    .user
-                    .or(raw.user_id)
-                    .unwrap_or_else(|| "unknown-user".to_string());
-                let access_type = raw
-                    .action
-                    .or(raw.access_type)
-                    .unwrap_or_else(|| "read".to_string());
-                let resource_type = raw.resource_type.unwrap_or_else(|| "resource".to_string());
-                let resource_id = raw
-                    .resource
-                    .or(raw.resource_id)
-                    .unwrap_or_else(|| "generic".to_string());
-                let result = parse_access_result(raw.result.as_deref().or(raw.status.as_deref()));
+                let user_id =
+                    match pick_required_string_field(raw.user, raw.user_id, "user/user_id") {
+                        Ok(value) => value,
+                        Err(err) => {
+                            parse_issues.push(format!(
+                                "line {}: failed to normalize access event: {err}",
+                                line_number + 1
+                            ));
+                            continue;
+                        }
+                    };
+                let access_type = match pick_required_string_field(
+                    raw.action,
+                    raw.access_type,
+                    "action/access_type",
+                ) {
+                    Ok(value) => value,
+                    Err(err) => {
+                        parse_issues.push(format!(
+                            "line {}: failed to normalize access event: {err}",
+                            line_number + 1
+                        ));
+                        continue;
+                    }
+                };
+                let resource_type = match required_string_field(raw.resource_type, "resource_type") {
+                    Ok(value) => value,
+                    Err(err) => {
+                        parse_issues.push(format!(
+                            "line {}: failed to normalize access event: {err}",
+                            line_number + 1
+                        ));
+                        continue;
+                    }
+                };
+                let source_ip = match pick_optional_string_field(
+                    raw.source_ip,
+                    raw.source_ip_address,
+                    "source_ip/source_ip_address",
+                ) {
+                    Ok(value) => value,
+                    Err(err) => {
+                        parse_issues.push(format!(
+                            "line {}: failed to normalize access event: {err}",
+                            line_number + 1
+                        ));
+                        continue;
+                    }
+                };
+                let resource_id = match pick_required_string_field(
+                    raw.resource,
+                    raw.resource_id,
+                    "resource/resource_id",
+                ) {
+                    Ok(value) => value,
+                    Err(err) => {
+                        parse_issues.push(format!(
+                            "line {}: failed to normalize access event: {err}",
+                            line_number + 1
+                        ));
+                        continue;
+                    }
+                };
+                let normalized_result = match pick_required_string_field(
+                    raw.result,
+                    raw.status,
+                    "result/status",
+                ) {
+                    Ok(value) => value,
+                    Err(err) => {
+                        parse_issues.push(format!(
+                            "line {}: failed to normalize access event: {err}",
+                            line_number + 1
+                        ));
+                        continue;
+                    }
+                };
+                let result = match parse_access_result(
+                    Some(&normalized_result),
+                    &user_id,
+                ) {
+                    Ok(value) => value,
+                    Err(err) => {
+                        parse_issues.push(format!(
+                            "line {}: failed to normalize access event: {err}",
+                            line_number + 1
+                        ));
+                        continue;
+                    }
+                };
+                let timestamp = match normalize_access_timestamp(raw.timestamp) {
+                    Ok(value) => value,
+                    Err(err) => {
+                        parse_issues.push(format!(
+                            "line {}: failed to normalize access event: {err}",
+                            line_number + 1
+                        ));
+                        continue;
+                    }
+                };
 
                 events.push(AccessEvent {
                     user_id,
                     resource_type,
                     resource_id,
                     access_type,
-                    source_ip: raw.source_ip.or(raw.source_ip_address),
+                    source_ip,
                     user_agent: raw.user_agent,
                     result,
-                    timestamp: None,
+                    timestamp,
                 });
             }
             Err(err) => {
@@ -1080,6 +1355,20 @@ fn risk_level_rank(level: &RiskLevel) -> u8 {
         RiskLevel::Medium => 2,
         RiskLevel::High => 3,
         RiskLevel::Critical => 4,
+    }
+}
+
+fn normalize_threat_severity(severity: &str) -> Result<&'static str, &'static str> {
+    if severity.eq_ignore_ascii_case("critical") {
+        Ok("critical")
+    } else if severity.eq_ignore_ascii_case("high") {
+        Ok("high")
+    } else if severity.eq_ignore_ascii_case("medium") {
+        Ok("medium")
+    } else if severity.eq_ignore_ascii_case("low") {
+        Ok("low")
+    } else {
+        Err("unknown")
     }
 }
 
@@ -1174,6 +1463,18 @@ async fn run_audit_report(
     include_recommendations: bool,
     audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+    if include_performance {
+        require_audit_release_gates("audit report performance section", &["AC11"])?;
+    }
+
+    if include_security {
+        require_audit_release_gates("audit report security section", &["AC5"])?;
+    }
+
+    if include_lineage {
+        require_audit_release_gates("audit report lineage section", &["AC16"])?;
+    }
+
     let mut overall_code = ExitCode::Ok;
     if !matches!(format, OutputFormat::Json) {
         write_stderr_line("Report format for audit report is currently limited to json")?;
@@ -1221,7 +1522,7 @@ async fn run_audit_report(
             Some(RecordFormat::Fixed),
             Codepage::CP037,
             sidecar,
-            false,
+            true,
             None,
             None,
             None,
@@ -1447,6 +1748,10 @@ fn run_lineage_analysis(
     confidence_threshold: f64,
     audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+    require_audit_release_gates("data lineage execution", &["AC16"])?;
+
+    validate_lineage_confidence_threshold(confidence_threshold)?;
+
     run_lineage_analysis_impl(
         source_copybook,
         target_copybook,
@@ -1489,8 +1794,41 @@ fn run_lineage_analysis_impl(
     let source_path = source.unwrap_or(source_copybook);
     let target_path = target_copybook.unwrap_or(source_copybook);
     let resolved_target_system = target_system.unwrap_or("target-system");
-    let source_schema = parse_copybook_schema(source_path)?;
-    let target_schema = parse_copybook_schema(target_path)?;
+    let (source_schema, source_lineage_id) = parse_copybook_schema_with_lineage_metadata(source_path)?;
+    let (target_schema, target_lineage_id) = parse_copybook_schema_with_lineage_metadata(target_path)?;
+    let lineage_analysis_id = audit_core::generate_lineage_id();
+
+    let mut source_codec_output = io::sink();
+    let source_codec_lineage_id = decode_file_to_jsonl(
+        &source_schema,
+        Cursor::new(Vec::new()),
+        &mut source_codec_output,
+        &DecodeOptions::default(),
+    )
+    .map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("failed codec lineage derivation for source schema: {error}"),
+        )
+    })?
+    .lineage_id()
+    .to_string();
+
+    let mut target_codec_output = io::sink();
+    let target_codec_lineage_id = decode_file_to_jsonl(
+        &target_schema,
+        Cursor::new(Vec::new()),
+        &mut target_codec_output,
+        &DecodeOptions::default(),
+    )
+    .map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("failed codec lineage derivation for target schema: {error}"),
+        )
+    })?
+    .lineage_id()
+    .to_string();
 
     let mut source_fields = Vec::new();
     let mut target_fields = Vec::new();
@@ -1530,6 +1868,18 @@ fn run_lineage_analysis_impl(
     let mut impact_reports: Vec<serde_json::Value> = Vec::new();
     let mut mapping_issues = Vec::new();
 
+    if source_lineage_id != source_codec_lineage_id {
+        mapping_issues.push(format!(
+            "Source lineage mismatch (parser: {source_lineage_id}, codec: {source_codec_lineage_id})"
+        ));
+    }
+
+    if target_lineage_id != target_codec_lineage_id {
+        mapping_issues.push(format!(
+            "Target lineage mismatch (parser: {target_lineage_id}, codec: {target_codec_lineage_id})"
+        ));
+    }
+
     for index in 0..max_records {
         let source_field = source_fields
             .get(index)
@@ -1567,13 +1917,13 @@ fn run_lineage_analysis_impl(
         let source_info = FieldLineage {
             field_path: source_path.clone(),
             system_id: source_system.to_string(),
-            schema_version: source_fingerprint.clone(),
+            schema_version: source_lineage_id.clone(),
             data_type: source_type.clone(),
         };
         let target_info = FieldLineage {
             field_path: target_path.clone(),
             system_id: resolved_target_system.to_string(),
-            schema_version: target_fingerprint.clone(),
+            schema_version: target_lineage_id.clone(),
             data_type: target_type.clone(),
         };
 
@@ -1719,7 +2069,12 @@ fn run_lineage_analysis_impl(
         AuditEventType::LineageTracking,
         audit_context
             .with_metadata("operation", "lineage_analysis".to_string())
-            .with_metadata("target_format", target_format.to_string()),
+            .with_metadata("target_format", target_format.to_string())
+            .with_metadata("lineage_analysis_id", lineage_analysis_id.clone())
+            .with_metadata("source_lineage_id", source_lineage_id.clone())
+            .with_metadata("target_lineage_id", target_lineage_id.clone())
+            .with_metadata("source_codec_lineage_id", source_codec_lineage_id.clone())
+            .with_metadata("target_codec_lineage_id", target_codec_lineage_id.clone()),
         payload,
     );
 
@@ -1768,6 +2123,11 @@ fn run_lineage_analysis_impl(
             "target_copybook": target_path.display().to_string(),
             "source_fingerprint": source_fingerprint,
             "target_fingerprint": target_fingerprint,
+            "lineage_analysis_id": lineage_analysis_id,
+            "source_lineage_id": source_lineage_id,
+            "target_lineage_id": target_lineage_id,
+            "source_codec_lineage_id": source_codec_lineage_id,
+            "target_codec_lineage_id": target_codec_lineage_id,
             "source_schema_fields": source_fields.len(),
             "target_schema_fields": target_fields.len(),
             "target_format": target_format,
@@ -1826,6 +2186,15 @@ fn run_performance_audit(
     _iterations: u32,
     _audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+    require_audit_release_gates("performance audit execution", &["AC11"])?;
+
+    validate_performance_audit_objective(
+        _establish_baseline,
+        _validate_against_baseline.is_some(),
+        _target_display_gbps,
+        _target_comp3_mbps,
+    )?;
+
     return run_performance_audit_impl(
         _copybook,
         _data_file,
@@ -1842,6 +2211,39 @@ fn run_performance_audit(
         _iterations,
         _audit_context,
     );
+}
+
+fn resolve_performance_overhead_threshold(
+    max_overhead_percent: Option<f64>,
+    validate_against_baseline: Option<&std::path::Path>,
+) -> Result<f64, Box<dyn std::error::Error + Send + Sync>> {
+    if let Some(candidate) = max_overhead_percent {
+        if !candidate.is_finite() || !(0.0..=100.0).contains(&candidate) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "max_overhead_percent must be a finite percentage in the range [0.0, 100.0]",
+            )
+            .into());
+        }
+
+        return Ok(candidate);
+    }
+
+    if let Some(reference_path) = validate_against_baseline {
+        let baseline = BaselineManager::new(reference_path).load_baseline()?;
+        let candidate = baseline.overhead_threshold_percent();
+        if !candidate.is_finite() || !(0.0..=100.0).contains(&candidate) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "baseline max_overhead_percent must be a finite percentage in the range [0.0, 100.0]",
+            )
+            .into());
+        }
+
+        return Ok(candidate);
+    }
+
+    Ok(DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT)
 }
 
 #[allow(
@@ -1970,7 +2372,10 @@ fn run_performance_audit_impl(
     let mut regressions = Vec::new();
     let mut overhead = 0.0;
 
-    let threshold_percent = max_overhead_percent.unwrap_or(5.0);
+    let threshold_percent = resolve_performance_overhead_threshold(
+        max_overhead_percent,
+        validate_against_baseline,
+    )?;
     if let Some(reference_path) = validate_against_baseline {
         let baseline_manager = BaselineManager::new(reference_path);
         let baseline = baseline_manager.load_baseline()?;
@@ -2036,6 +2441,8 @@ fn run_performance_audit_impl(
                 network_bytes: 0,
             },
             created_at: chrono::Utc::now().to_rfc3339(),
+            max_overhead_percent: Some(threshold_percent),
+            ac11_audit_overhead_threshold_percent: None,
         };
         baseline_manager.save_baseline(&baseline)?;
         baseline_id = Some(baseline.baseline_id.clone());
@@ -2130,7 +2537,7 @@ fn run_performance_audit_impl(
             "include_regression_analysis": include_regression_analysis,
             "target_display_gbps": target_display_gbps,
             "target_comp3_mbps": target_comp3_mbps,
-            "max_overhead_percent": max_overhead_percent,
+            "max_overhead_percent": Some(threshold_percent),
             "status": status,
             "status_code": format!("{} ({})", status_code.as_i32(), status_code),
             "audit_event_id": event.event_id,
@@ -2172,8 +2579,27 @@ fn run_security_audit(
     real_time_monitoring: bool,
     validation_depth: ValidationDepth,
     threat_assessment: bool,
-    _audit_context: AuditContext,
+    audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+    require_audit_release_gate(
+        "security audit execution",
+        "AC5",
+    )?;
+
+    if real_time_monitoring {
+        require_audit_release_gate(
+            "security-audit real-time monitoring",
+            "AC9",
+        )?;
+    }
+
+    if threat_assessment {
+        require_audit_release_gate(
+            "security-audit threat-assessment monitoring",
+            "AC9",
+        )?;
+    }
+
     return run_security_audit_impl(
         _copybook,
         _classification,
@@ -2188,7 +2614,7 @@ fn run_security_audit(
         real_time_monitoring,
         validation_depth,
         threat_assessment,
-        _audit_context,
+        audit_context,
     );
 }
 
@@ -2209,6 +2635,22 @@ fn run_security_audit_impl(
     audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
     write_stdout_line("Running security audit (implemented)...")?;
+
+    let ac9_monitoring_requested = real_time_monitoring || threat_assessment;
+    let ac9_monitoring_mode = if real_time_monitoring && threat_assessment {
+        "real-time+threat-assessment"
+    } else if threat_assessment {
+        "threat-assessment"
+    } else if real_time_monitoring {
+        "real-time"
+    } else {
+        "disabled"
+    };
+    let ac9_gate_status = if ac9_monitoring_requested {
+        audit_core::security::ac9_monitoring_gate_status()
+    } else {
+        "not-requested"
+    };
 
     let schema = parse_copybook_schema(copybook)?;
     let sensitive_fields = collect_sensitive_fields(&schema);
@@ -2264,6 +2706,15 @@ fn run_security_audit_impl(
     all_violations.extend(pattern_violations);
     if threat_assessment || detect_anomalies {
         all_violations.extend(anomaly_violations.clone());
+    }
+    for violation in &mut all_violations {
+        let normalized_severity = normalize_threat_severity(&violation.severity).map_err(|severity| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("unknown threat severity '{severity}' in security violation {}", violation.violation_id),
+            )
+        })?;
+        violation.severity = normalized_severity.to_string();
     }
 
     for violation in &all_violations {
@@ -2395,7 +2846,13 @@ fn run_security_audit_impl(
     let security_context = audit_context
         .with_metadata("operation", "security_audit".to_string())
         .with_metadata("classification", format!("{classification:?}"))
-        .with_metadata("validation_depth", format!("{validation_depth:?}"));
+        .with_metadata("validation_depth", format!("{validation_depth:?}"))
+        .with_metadata("ac9_monitoring_mode", ac9_monitoring_mode.to_string())
+        .with_metadata("ac9_monitoring_gate_status", ac9_gate_status.to_string())
+        .with_metadata(
+            "ac9_monitoring_gate_env",
+            audit_core::security::ac9_monitoring_gate_env().to_string(),
+        );
     let security_context = security_context
         .with_security_classification(security_classification(classification.clone()));
     let event = AuditEvent::new(AuditEventType::SecurityEvent, security_context, payload);
@@ -2419,6 +2876,12 @@ fn run_security_audit_impl(
             "real_time_monitoring": real_time_monitoring,
             "siem_vendor": siem_vendor,
             "sensitive_encryption_risk": sensitive_encryption_risk,
+            "ac9_monitoring": {
+                "requested": ac9_monitoring_requested,
+                "mode": ac9_monitoring_mode,
+                "status": ac9_gate_status,
+                "release_gate_env": audit_core::security::ac9_monitoring_gate_env(),
+            },
             "threat_count": all_violations.len(),
             "threat_indicators": threat_indicators,
             "access_failures": access_failures,
@@ -2502,8 +2965,25 @@ fn run_audit_health_check(
     detailed_diagnostics: bool,
     check_interval: u32,
     continuous: bool,
-    _audit_context: AuditContext,
+    audit_context: AuditContext,
 ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+    require_audit_release_gates("audit health execution", &["AC10"])?;
+
+    validate_health_check_request(
+        validate_integrity,
+        validate_chain_integrity,
+        check_cryptographic_hashes,
+        verify_timestamps,
+        check_retention,
+    )?;
+
+    if continuous {
+        require_audit_release_gate(
+            "audit-health continuous monitoring",
+            "AC9",
+        )?;
+    }
+
     return run_audit_health_check_impl(
         audit_trail,
         audit_log,
@@ -2516,7 +2996,7 @@ fn run_audit_health_check(
         detailed_diagnostics,
         check_interval,
         continuous,
-        _audit_context,
+        audit_context,
     );
 }
 
@@ -2565,6 +3045,8 @@ fn run_audit_health_check_impl(
 
     let perform_chain_validation = validate_integrity || validate_chain_integrity;
     let perform_hash_validation = validate_integrity || check_cryptographic_hashes;
+    let checks_selected =
+        perform_chain_validation || perform_hash_validation || verify_timestamps || check_retention;
 
     if let Some(audit_trail_path) = audit_trail {
         let (records, issues) = parse_health_events(audit_trail_path)?;
@@ -2572,86 +3054,164 @@ fn run_audit_health_check_impl(
         health_events = records;
 
         if perform_chain_validation {
-            checks_executed += 1;
-            let chain_valid = health_events.windows(2).all(|records| {
-                records.get(1).is_some_and(|next| {
-                    next.previous_hash
-                        .as_deref()
-                        .is_none_or(|previous| previous == records[0].integrity_hash.as_str())
-                })
-            });
-            if !chain_valid {
-                chain_integrity_valid = false;
-                checks_failed += 1;
-                diagnostics.push("audit_trail chain continuity broken".to_string());
-            }
-            if chain_integrity_valid {
-                diagnostics.push("audit_trail chain continuity valid".to_string());
+            if health_events.is_empty() {
+                diagnostics.push("audit_trail chain continuity skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                let chain_valid = health_events.windows(2).all(|records| {
+                    records.get(1).is_some_and(|next| {
+                        next.previous_hash
+                            .as_deref()
+                            .is_none_or(|previous| previous == records[0].integrity_hash.as_str())
+                    })
+                });
+                if !chain_valid {
+                    chain_integrity_valid = false;
+                    checks_failed += 1;
+                    diagnostics.push("audit_trail chain continuity broken".to_string());
+                }
+                if chain_integrity_valid {
+                    diagnostics.push("audit_trail chain continuity valid".to_string());
+                }
             }
         }
 
         if perform_hash_validation {
-            checks_executed += 1;
-            let hashes_present = health_events
-                .iter()
-                .all(|record| !record.integrity_hash.is_empty());
-            if !hashes_present {
-                hash_chain_valid = false;
-                checks_failed += 1;
-                diagnostics.push(
-                    "audit_trail contains empty or missing integrity hash values".to_string(),
-                );
+            if health_events.is_empty() {
+                diagnostics.push("audit_trail hash validation skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                let mut hashes_valid = true;
+                for (index, record) in health_events.iter().enumerate() {
+                    let previous_hash = if index == 0 {
+                        None
+                    } else {
+                        Some(health_events[index - 1].integrity_hash.as_str())
+                    };
+
+                    if record.previous_hash.as_deref() != previous_hash {
+                        hashes_valid = false;
+                        diagnostics.push(format!(
+                            "audit_trail previous_hash mismatch for event {}",
+                            record.event_id
+                        ));
+                        break;
+                    }
+
+                    let mut event_for_hash = record.clone();
+                    event_for_hash.integrity_hash = String::new();
+                    event_for_hash.previous_hash = None;
+
+                    let event_bytes = match serde_json::to_vec(&event_for_hash) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            hashes_valid = false;
+                            diagnostics.push(format!(
+                                "audit_trail hash serialization failed for {}: {error}",
+                                record.event_id
+                            ));
+                            break;
+                        }
+                    };
+
+                    let expected_hash = audit_core::generate_integrity_hash(&event_bytes, previous_hash);
+                    if record.integrity_hash != expected_hash {
+                        hashes_valid = false;
+                        diagnostics.push(format!(
+                            "audit_trail hash mismatch for event {}",
+                            record.event_id
+                        ));
+                        break;
+                    }
+                }
+
+                if !hashes_valid {
+                    hash_chain_valid = false;
+                    checks_failed += 1;
+                } else {
+                    diagnostics.push("audit_trail hash chain valid".to_string());
+                }
             }
         }
 
         if verify_timestamps {
-            checks_executed += 1;
-            let timestamps = health_events
-                .iter()
-                .map(|record| {
-                    DateTime::parse_from_rfc3339(&record.timestamp)
-                        .map(|value| value.with_timezone(&chrono::Utc))
-                })
-                .collect::<Vec<_>>();
-            for parsed in &timestamps {
-                if parsed.is_err() {
-                    timestamps_valid = false;
-                    checks_failed += 1;
-                    diagnostics.push(
-                        "audit_trail timestamp parsing failed for one or more records".to_string(),
-                    );
-                    break;
-                }
-            }
-            if timestamps_valid {
-                if let Some(window) = retention_limit {
-                    let too_old = timestamps
-                        .iter()
-                        .any(|entry| entry.as_ref().is_ok_and(|timestamp| timestamp < &window));
-                    if too_old {
-                        retention_compliant = false;
+            if health_events.is_empty() {
+                diagnostics.push("audit_trail timestamp validation skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                let timestamps = health_events
+                    .iter()
+                    .map(|record| {
+                        DateTime::parse_from_rfc3339(&record.timestamp)
+                            .map(|value| value.with_timezone(&chrono::Utc))
+                    })
+                    .collect::<Vec<_>>();
+                for parsed in &timestamps {
+                    if parsed.is_err() {
+                        timestamps_valid = false;
+                        checks_failed += 1;
+                        diagnostics.push(
+                            "audit_trail timestamp parsing failed for one or more records"
+                                .to_string(),
+                        );
+                        break;
                     }
                 }
-                diagnostics.push("audit_trail timestamps parsed successfully".to_string());
+                if timestamps_valid {
+                    if let Some(window) = retention_limit {
+                        let too_old = timestamps
+                            .iter()
+                            .any(|entry| {
+                                entry.as_ref().is_ok_and(|timestamp| timestamp < &window)
+                            });
+                        if too_old {
+                            retention_compliant = false;
+                        }
+                    }
+                    diagnostics.push("audit_trail timestamps parsed successfully".to_string());
+                }
             }
         }
 
         if check_retention {
-            checks_executed += 1;
-            if let Some(window) = retention_limit {
-                let old_records = health_events.iter().filter(|record| {
-                    DateTime::parse_from_rfc3339(&record.timestamp)
-                        .map(|timestamp| timestamp.with_timezone(&chrono::Utc) < window)
-                        .unwrap_or(false)
-                });
-                if old_records.clone().count() > 0 {
-                    retention_compliant = false;
-                    checks_failed += 1;
-                    diagnostics.push(format!(
-                        "audit_trail has {} record(s) older than {} minute retention window",
-                        old_records.count(),
-                        check_interval
-                    ));
+            if health_events.is_empty() {
+                diagnostics.push("audit_trail retention check skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                if let Some(window) = retention_limit {
+                    let mut old_records = 0u32;
+                    let mut retention_parse_failed = false;
+
+                    for record in &health_events {
+                        match DateTime::parse_from_rfc3339(&record.timestamp)
+                            .map(|timestamp| timestamp.with_timezone(&chrono::Utc))
+                        {
+                            Ok(timestamp) if timestamp < window => old_records += 1,
+                            Ok(_) => {}
+                            Err(_) => {
+                                retention_parse_failed = true;
+                                retention_compliant = false;
+                                if !verify_timestamps || timestamps_valid {
+                                    checks_failed += 1;
+                                    diagnostics.push(
+                                        "audit_trail contains invalid timestamp for retention check"
+                                            .to_string(),
+                                    );
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if !retention_parse_failed && old_records > 0 {
+                        retention_compliant = false;
+                        checks_failed += 1;
+                        diagnostics.push(format!(
+                            "audit_trail has {} record(s) older than {} minute retention window",
+                            old_records,
+                            check_interval
+                        ));
+                    }
                 }
             }
         }
@@ -2661,88 +3221,150 @@ fn run_audit_health_check_impl(
         let (events, issues) = parse_audit_events_for_health(audit_log_path)?;
         parse_issues.extend(issues);
         security_events = events;
+        let audit_log_chain_result =
+            if perform_chain_validation || perform_hash_validation {
+                if security_events.is_empty() {
+                    None
+                } else {
+                    Some(audit_core::validate_audit_chain(&security_events))
+                }
+            } else {
+                None
+            };
 
         if perform_chain_validation {
-            checks_executed += 1;
-            match audit_core::validate_audit_chain(&security_events) {
-                Ok(true) => diagnostics.push("audit_log chain integrity validated".to_string()),
-                Ok(false) | Err(_) => {
-                    chain_integrity_valid = false;
-                    checks_failed += 1;
-                    diagnostics.push("audit_log chain integrity validation failed".to_string());
+            if security_events.is_empty() {
+                diagnostics.push("audit_log chain integrity skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                match audit_log_chain_result.as_ref() {
+                    Some(Ok(_)) => {
+                        diagnostics.push("audit_log chain integrity validated".to_string())
+                    }
+                    Some(Err(_)) | None => {
+                        chain_integrity_valid = false;
+                        checks_failed += 1;
+                        diagnostics.push("audit_log chain integrity validation failed".to_string());
+                    }
                 }
             }
         }
 
         if perform_hash_validation {
-            checks_executed += 1;
-            let mut valid = true;
-            for window in security_events.windows(2) {
-                let previous = &window[0];
-                let current = &window[1];
-                if current.previous_hash.as_deref() != Some(previous.integrity_hash.as_str()) {
-                    valid = false;
-                    break;
+            if security_events.is_empty() {
+                diagnostics.push("audit_log cryptographic hash validation skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                match audit_log_chain_result.as_ref() {
+                    Some(Ok(_)) => {
+                        diagnostics.push("audit_log cryptographic hash validation passed".to_string());
+                    }
+                    Some(Err(error)) => {
+                        hash_chain_valid = false;
+                        checks_failed += 1;
+                        diagnostics.push(format!(
+                            "audit_log cryptographic hash validation failed: {error}"
+                        ));
+                    }
+                    None => {
+                        hash_chain_valid = false;
+                        checks_failed += 1;
+                        diagnostics.push(
+                            "audit_log cryptographic hash validation unavailable".to_string(),
+                        );
+                    }
                 }
-            }
-            hash_chain_valid &= valid;
-            if !valid {
-                checks_failed += 1;
-                diagnostics.push("audit_log previous_hash linkage broken".to_string());
             }
         }
 
         if verify_timestamps {
-            checks_executed += 1;
-            let mut last = None;
-            for event in &security_events {
-                let parsed = match DateTime::parse_from_rfc3339(&event.timestamp) {
-                    Ok(value) => value.with_timezone(&chrono::Utc),
-                    Err(_) => {
-                        timestamps_valid = false;
-                        checks_failed += 1;
-                        diagnostics.push("audit_log timestamp parsing failed".to_string());
-                        break;
+            if security_events.is_empty() {
+                diagnostics.push("audit_log timestamp validation skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                let mut last = None;
+                for event in &security_events {
+                    let parsed = match DateTime::parse_from_rfc3339(&event.timestamp) {
+                        Ok(value) => value.with_timezone(&chrono::Utc),
+                        Err(_) => {
+                            timestamps_valid = false;
+                            checks_failed += 1;
+                            diagnostics.push("audit_log timestamp parsing failed".to_string());
+                            break;
+                        }
+                    };
+                    if let Some(prev) = last {
+                        if parsed < prev {
+                            timestamps_valid = false;
+                            checks_failed += 1;
+                            diagnostics
+                                .push("audit_log timestamp order is not monotonic".to_string());
+                            break;
+                        }
                     }
-                };
-                if let Some(prev) = last {
-                    if parsed < prev {
-                        timestamps_valid = false;
-                        checks_failed += 1;
-                        diagnostics.push("audit_log timestamp order is not monotonic".to_string());
-                        break;
-                    }
+                    last = Some(parsed);
                 }
-                last = Some(parsed);
             }
         }
 
         if check_retention {
-            checks_executed += 1;
-            if let Some(window) = retention_limit {
-                let mut old_records = 0u32;
-                for event in &security_events {
-                    let parsed = DateTime::parse_from_rfc3339(&event.timestamp)
-                        .map(|timestamp| timestamp.with_timezone(&chrono::Utc));
-                    if parsed.is_ok_and(|timestamp| timestamp < window) {
-                        old_records += 1;
+            if security_events.is_empty() {
+                diagnostics.push("audit_log retention check skipped (no events)".to_string());
+            } else {
+                checks_executed += 1;
+                if let Some(window) = retention_limit {
+                    let mut old_records = 0u32;
+                    let mut retention_parse_failed = false;
+
+                    for event in &security_events {
+                        match DateTime::parse_from_rfc3339(&event.timestamp)
+                            .map(|timestamp| timestamp.with_timezone(&chrono::Utc))
+                        {
+                            Ok(timestamp) if timestamp < window => old_records += 1,
+                            Ok(_) => {}
+                            Err(_) => {
+                                retention_parse_failed = true;
+                                retention_compliant = false;
+                                if !verify_timestamps || timestamps_valid {
+                                    checks_failed += 1;
+                                    diagnostics.push(
+                                        "audit_log contains invalid timestamp for retention check"
+                                            .to_string(),
+                                    );
+                                }
+                                break;
+                            }
+                        }
                     }
-                }
-                if old_records > 0 {
-                    retention_compliant = false;
-                    checks_failed += 1;
-                    diagnostics.push(format!(
-                        "audit_log has {old_records} record(s) outside configured retention window ({} min)",
-                        check_interval
-                    ));
+
+                    if !retention_parse_failed && old_records > 0 {
+                        retention_compliant = false;
+                        checks_failed += 1;
+                        diagnostics.push(format!(
+                            "audit_log has {old_records} record(s) outside configured retention window ({} min)",
+                            check_interval
+                        ));
+                    }
                 }
             }
         }
     }
 
-    if perform_chain_validation || perform_hash_validation || verify_timestamps || check_retention {
-        checks_executed = checks_executed.max(1);
-    } else if diagnostics.is_empty() {
+    audit_core::require_health_execution_evidence(
+        checks_selected,
+        health_events.len(),
+        security_events.len(),
+    )?;
+
+    if checks_selected && checks_executed == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            audit_core::AC10_HEALTH_EXECUTION_EVIDENCE_ERROR,
+        )
+        .into());
+    }
+
+    if !checks_selected && diagnostics.is_empty() {
         diagnostics.push("no checks selected".to_string());
     }
 
@@ -2750,12 +3372,11 @@ fn run_audit_health_check_impl(
         diagnostics.retain(|message| !message.is_empty());
     }
 
-    if continuous {
-        diagnostics.push(
-            "continuous monitoring mode requested (one-shot validation only in this command)"
-                .to_string(),
-        );
-    }
+    let ac9_monitoring_gate_status = if continuous {
+        audit_core::security::ac9_monitoring_gate_status()
+    } else {
+        "not-requested"
+    };
 
     let overall_health_score = if checks_executed == 0 {
         0
@@ -2832,6 +3453,11 @@ fn run_audit_health_check_impl(
         .with_metadata(
             "check_cryptographic_hashes",
             format!("{check_cryptographic_hashes}"),
+        )
+        .with_metadata("ac9_monitoring_status", ac9_monitoring_gate_status.to_string())
+        .with_metadata(
+            "ac9_monitoring_gate_env",
+            audit_core::security::ac9_monitoring_gate_env().to_string(),
         );
     let health_event = AuditEvent::new(AuditEventType::ErrorEvent, health_context, health_payload);
 
@@ -2848,6 +3474,11 @@ fn run_audit_health_check_impl(
             "detailed_diagnostics": detailed_diagnostics,
             "check_interval_minutes": check_interval,
             "continuous": continuous,
+            "ac9_monitoring": {
+                "requested": continuous,
+                "status": ac9_monitoring_gate_status,
+                "release_gate_env": audit_core::security::ac9_monitoring_gate_env(),
+            },
             "health_status": {
                 "overall": status,
                 "overall_health_score": overall_health_score,
@@ -2900,6 +3531,287 @@ fn run_audit_health_check_impl(
 mod tests {
     use super::*;
 
+    fn with_audit_gate_value<T>(value: Option<&str>, action: impl FnOnce() -> T) -> T {
+        use std::sync::{Mutex, OnceLock};
+
+        static AUDIT_GATE_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+        let _guard = AUDIT_GATE_MUTEX
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("audit gate mutex lock");
+
+        let key = audit_core::AUDIT_ENTERPRISE_RELEASE_GATE_ENV;
+        let previous = std::env::var_os(key);
+
+        match value {
+            Some(value) => std::env::set_var(key, value),
+            None => std::env::remove_var(key),
+        }
+
+        let result = action();
+
+        match previous {
+            Some(previous) => std::env::set_var(key, previous),
+            None => std::env::remove_var(key),
+        }
+
+        result
+    }
+
+    fn with_audit_gate_enabled<T>(action: impl FnOnce() -> T) -> T {
+        with_audit_gate_value(Some("1"), action)
+    }
+
+    fn with_audit_gate_disabled<T>(action: impl FnOnce() -> T) -> T {
+        with_audit_gate_value(None, action)
+    }
+
+    fn create_temp_copybook() -> tempfile::NamedTempFile {
+        use std::io::Write;
+
+        let mut temp_copybook = tempfile::NamedTempFile::new().expect("temp copybook file");
+        writeln!(
+            temp_copybook,
+            r"       01 TEST-RECORD.
+           05 TEST-FIELD           PIC X(10)."
+        )
+        .expect("write copybook content");
+        temp_copybook
+    }
+
+    fn run_security_audit_test_context(
+        copybook_path: &std::path::Path,
+        real_time_monitoring: bool,
+        threat_assessment: bool,
+        validate_encryption: bool,
+        check_access_patterns: bool,
+        detect_anomalies: bool,
+    ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let output_path = temp_dir.path().join("security_audit.json");
+        run_security_audit(
+            copybook_path,
+            Some(DataClassification::Internal),
+            &output_path,
+            None,
+            detect_anomalies,
+            validate_encryption,
+            check_access_patterns,
+            None,
+            None,
+            None,
+            real_time_monitoring,
+            ValidationDepth::Basic,
+            threat_assessment,
+        AuditContext::new(),
+        )
+    }
+
+    fn run_audit_command_sync(
+        audit_command: AuditCommand,
+    ) -> Result<ExitCode, Box<dyn std::error::Error + Send + Sync>> {
+        let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");
+        runtime.block_on(run(audit_command))
+    }
+
+    #[test]
+    fn test_run_security_audit_requires_enterprise_gate() {
+        let temp_copybook = create_temp_copybook();
+        let copybook_path = temp_copybook.path().to_path_buf();
+
+        let result = with_audit_gate_disabled(|| {
+            run_security_audit_test_context(&copybook_path, false, false, false, false, false)
+        });
+
+        let err = result.expect_err("run should fail without AC5 gate");
+        assert!(
+            err.to_string().contains("AC5"),
+            "expected AC5 gating error, got {err}"
+        );
+    }
+
+    #[test]
+    fn test_run_security_audit_succeeds_when_enterprise_gate_enabled() {
+        let temp_copybook = create_temp_copybook();
+        let copybook_path = temp_copybook.path().to_path_buf();
+
+        with_audit_gate_enabled(|| {
+            let status = run_security_audit_test_context(
+                &copybook_path,
+                false,
+                false,
+                false,
+                false,
+                false,
+            )
+            .expect("run security audit");
+
+            assert_eq!(status, ExitCode::Ok);
+        });
+    }
+
+    #[test]
+    fn test_run_security_audit_reports_ac9_enabled_status_when_real_time_monitoring_requested() {
+        let temp_copybook = create_temp_copybook();
+        let copybook_path = temp_copybook.path().to_path_buf();
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let output_path = temp_dir.path().join("security_audit.json");
+
+        with_audit_gate_enabled(|| {
+            let status = run_security_audit(
+                &copybook_path,
+                Some(DataClassification::Internal),
+                &output_path,
+                None,
+                false,
+                false,
+                false,
+                None,
+                None,
+                None,
+                true,
+                ValidationDepth::Basic,
+                false,
+                AuditContext::new(),
+            )
+            .expect("run security audit");
+
+            assert_eq!(status, ExitCode::Ok);
+            let payload: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&output_path).expect("read security report"),
+            )
+            .expect("parse security report");
+            assert_eq!(
+                payload["security_audit"]["ac9_monitoring"]["status"].as_str(),
+                Some("production-gated-enabled"),
+                "expected AC9 enabled status for real-time monitoring"
+            );
+        });
+    }
+
+    #[test]
+    fn test_run_audit_command_dispatch_requires_ac17_enterprise_gate() {
+        let temp_copybook = create_temp_copybook();
+        let copybook_path = temp_copybook.path().to_path_buf();
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let output_path = temp_dir.path().join("validate_report.json");
+
+        let command = AuditCommand {
+            verbose: false,
+            audit_output: None,
+            monitor: false,
+            command: AuditSubcommand::Validate {
+                copybook: copybook_path,
+                data_file: None,
+                compliance: "sox".to_string(),
+                format: None,
+                codepage: Codepage::CP037,
+                strict: false,
+                output: output_path.clone(),
+                auto_remediate: false,
+                report_violations: false,
+                include_recommendations: false,
+            },
+        };
+
+        let err = with_audit_gate_disabled(|| run_audit_command_sync(command))
+            .expect_err("audit command dispatch should fail without AC17");
+        assert!(
+            err.to_string().contains("AC17"),
+            "expected AC17 gating error, got {err}"
+        );
+    }
+
+    #[test]
+    fn test_run_audit_command_dispatch_succeeds_when_ac17_gate_enabled() {
+        let temp_copybook = create_temp_copybook();
+        let copybook_path = temp_copybook.path().to_path_buf();
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let output_path = temp_dir.path().join("validate_report.json");
+
+        let command = AuditCommand {
+            verbose: false,
+            audit_output: None,
+            monitor: false,
+            command: AuditSubcommand::Validate {
+                copybook: copybook_path,
+                data_file: None,
+                compliance: "sox".to_string(),
+                format: None,
+                codepage: Codepage::CP037,
+                strict: false,
+                output: output_path,
+                auto_remediate: false,
+                report_violations: false,
+                include_recommendations: false,
+            },
+        };
+
+        let exit_code = with_audit_gate_enabled(|| run_audit_command_sync(command))
+            .expect("run audit command should succeed with AC17");
+        assert_ne!(exit_code, ExitCode::Internal);
+        assert_eq!(output_path.exists(), true);
+    }
+
+    #[test]
+    fn test_run_security_audit_reports_ac9_enabled_status_when_threat_assessment_requested() {
+        let temp_copybook = create_temp_copybook();
+        let copybook_path = temp_copybook.path().to_path_buf();
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let output_path = temp_dir.path().join("security_audit.json");
+
+        with_audit_gate_enabled(|| {
+            let status = run_security_audit(
+                &copybook_path,
+                Some(DataClassification::Internal),
+                &output_path,
+                None,
+                false,
+                false,
+                false,
+                None,
+                None,
+                None,
+                false,
+                ValidationDepth::Basic,
+                true,
+                AuditContext::new(),
+            )
+            .expect("run security audit");
+
+            assert_eq!(status, ExitCode::Ok);
+            let payload: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&output_path).expect("read security report"),
+            )
+            .expect("parse security report");
+            assert_eq!(
+                payload["security_audit"]["ac9_monitoring"]["status"].as_str(),
+                Some("production-gated-enabled"),
+                "expected AC9 enabled status for threat assessment monitoring"
+            );
+        });
+    }
+
+    #[test]
+    fn test_run_security_audit_succeeds_with_real_time_monitoring_when_ac9_gate_enabled() {
+        let temp_copybook = create_temp_copybook();
+        let copybook_path = temp_copybook.path().to_path_buf();
+
+        with_audit_gate_value(Some("1"), || {
+            // Keep AC5 + AC9 gates enabled by setting same env key; no stub fallback required.
+            let status = run_security_audit_test_context(
+                &copybook_path,
+                true,
+                false,
+                false,
+                false,
+                false,
+            )
+            .expect("run security audit");
+            assert_eq!(status, ExitCode::Ok);
+        });
+    }
+
     #[test]
     fn test_compliance_framework_conversion() {
         assert_eq!(
@@ -2918,6 +3830,604 @@ mod tests {
             ComplianceProfile::from(ComplianceFramework::PCI),
             ComplianceProfile::PciDss
         );
+    }
+
+    #[test]
+    fn test_validate_health_check_request_requires_selector() {
+        assert!(
+            validate_health_check_request(false, false, false, false, false).is_err()
+        );
+
+        assert!(
+            validate_health_check_request(true, false, false, false, false).is_ok()
+        );
+        assert!(
+            validate_health_check_request(false, true, false, false, false).is_ok()
+        );
+        assert!(
+            validate_health_check_request(false, false, true, false, false).is_ok()
+        );
+        assert!(
+            validate_health_check_request(false, false, false, true, false).is_ok()
+        );
+        assert!(
+            validate_health_check_request(false, false, false, false, true).is_ok()
+        );
+    }
+
+    #[test]
+    fn test_run_audit_health_check_rejects_empty_inputs_for_requested_checks() {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().expect("temp dir");
+        let audit_log = temp_dir.path().join("empty_audit_log.jsonl");
+        std::fs::write(&audit_log, "").expect("empty file");
+
+        let result = run_audit_health_check_impl(
+            None,
+            Some(&audit_log),
+            false,
+            false,
+            true,
+            false,
+            false,
+            None,
+            true,
+            60,
+            false,
+            AuditContext::new(),
+        );
+
+        let err = result.expect_err("run should reject empty execution inputs");
+        assert!(
+            err.to_string().contains("AC10"),
+            "expected AC10 execution evidence error, got {err}"
+        );
+    }
+
+    #[test]
+    fn test_validate_performance_audit_objective_requires_goal() {
+        assert!(
+            validate_performance_audit_objective(false, false, None, None).is_err()
+        );
+
+        assert!(
+            validate_performance_audit_objective(true, false, None, None).is_ok()
+        );
+        assert!(
+            validate_performance_audit_objective(false, true, None, None).is_ok()
+        );
+        assert!(
+            validate_performance_audit_objective(false, false, Some(1.5), None).is_ok()
+        );
+        assert!(
+            validate_performance_audit_objective(false, false, None, Some(1.2)).is_ok()
+        );
+    }
+
+    #[test]
+    fn test_validate_performance_audit_objective_rejects_negative_targets() {
+        assert!(
+            validate_performance_audit_objective(false, false, Some(-0.1), None).is_err()
+        );
+        assert!(
+            validate_performance_audit_objective(false, false, None, Some(-5.0)).is_err()
+        );
+    }
+
+    #[test]
+    fn test_validate_performance_audit_objective_rejects_non_finite_targets() {
+        assert!(
+            validate_performance_audit_objective(false, false, Some(f64::NAN), None).is_err()
+        );
+        assert!(
+            validate_performance_audit_objective(false, false, None, Some(f64::INFINITY)).is_err()
+        );
+    }
+
+    #[test]
+    fn test_validate_lineage_confidence_threshold_bounds() {
+        assert!(validate_lineage_confidence_threshold(0.0).is_ok());
+        assert!(validate_lineage_confidence_threshold(1.0).is_ok());
+        assert!(validate_lineage_confidence_threshold(0.5).is_ok());
+        assert!(validate_lineage_confidence_threshold(-0.01).is_err());
+        assert!(validate_lineage_confidence_threshold(1.01).is_err());
+        assert!(validate_lineage_confidence_threshold(f64::NAN).is_err());
+    }
+
+    #[test]
+    fn test_run_lineage_analysis_emits_lineage_ids() {
+        use std::io::Write;
+        use tempfile::{tempdir, NamedTempFile};
+
+        let source_copybook = "01 SOURCE-ID PIC X(4).";
+        let target_copybook = "01 TARGET-ID PIC X(8).";
+
+        let mut source_file = NamedTempFile::new().expect("create source copybook");
+        writeln!(source_file, "{source_copybook}").expect("write source copybook");
+        let mut target_file = NamedTempFile::new().expect("create target copybook");
+        writeln!(target_file, "{target_copybook}").expect("write target copybook");
+
+        let temp_dir = tempdir().expect("temp dir");
+        let output = temp_dir.path().join("lineage.json");
+
+        let _status = run_lineage_analysis_impl(
+            source_file.path(),
+            Some(target_file.path()),
+            "source-system",
+            Some("target-system"),
+            &output,
+            Some(source_file.path()),
+            "json",
+            true,
+            true,
+            true,
+            true,
+            0.8,
+            AuditContext::new(),
+        )
+        .expect("run lineage analysis");
+
+        let report_text = std::fs::read_to_string(&output).expect("read lineage report");
+        let report: Value = serde_json::from_str(&report_text).expect("parse lineage report JSON");
+        let analysis = report
+            .get("lineage_analysis")
+            .expect("missing lineage analysis section");
+
+        let source_metadata = copybook_core::parser::parse_with_audit_lineage_metadata(
+            source_copybook,
+            &copybook_core::ParseOptions::default(),
+        )
+        .expect("parse source metadata");
+        let target_metadata = copybook_core::parser::parse_with_audit_lineage_metadata(
+            target_copybook,
+            &copybook_core::ParseOptions::default(),
+        )
+        .expect("parse target metadata");
+
+        assert!(analysis["source_lineage_id"].as_str().is_some());
+        assert!(analysis["target_lineage_id"].as_str().is_some());
+        assert!(analysis["lineage_analysis_id"].as_str().is_some());
+        assert_eq!(
+            analysis["source_lineage_id"].as_str(),
+            Some(&source_metadata.1.lineage_id)
+        );
+        assert_eq!(
+            analysis["target_lineage_id"].as_str(),
+            Some(&target_metadata.1.lineage_id)
+        );
+
+        assert!(analysis["source_codec_lineage_id"].as_str().is_some());
+        assert!(analysis["target_codec_lineage_id"].as_str().is_some());
+        assert_eq!(
+            analysis["source_codec_lineage_id"].as_str(),
+            Some(&source_metadata.1.lineage_id)
+        );
+        assert_eq!(
+            analysis["target_codec_lineage_id"].as_str(),
+            Some(&target_metadata.1.lineage_id)
+        );
+    }
+
+    #[test]
+    fn test_resolve_performance_overhead_threshold_prefers_max_overhead_over_alias() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir()?;
+        let baseline_path = temp_dir.path().join("baseline.json");
+
+        let throughput = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+        let resources = ResourceMetrics {
+            cpu_usage_percent: 50.0,
+            memory_usage_mb: 100,
+            io_operations: 1,
+            network_bytes: 1,
+        };
+
+        let with_both = serde_json::json!({
+            "baseline_id": "test-baseline",
+            "throughput": throughput.clone(),
+            "resources": resources.clone(),
+            "created_at": "2026-01-01T00:00:00Z",
+            "max_overhead_percent": 12.0,
+            "ac11_audit_overhead_threshold_percent": 7.0,
+        });
+        std::fs::write(
+            &baseline_path,
+            serde_json::to_vec_pretty(&with_both)?,
+        )?;
+        assert_eq!(
+            resolve_performance_overhead_threshold(None, Some(&baseline_path))?,
+            12.0
+        );
+
+        let with_alias_only = serde_json::json!({
+            "baseline_id": "test-baseline",
+            "throughput": throughput.clone(),
+            "resources": resources.clone(),
+            "created_at": "2026-01-01T00:00:00Z",
+            "ac11_audit_overhead_threshold_percent": 7.0,
+        });
+        std::fs::write(
+            &baseline_path,
+            serde_json::to_vec_pretty(&with_alias_only)?,
+        )?;
+        assert_eq!(
+            resolve_performance_overhead_threshold(None, Some(&baseline_path))?,
+            7.0
+        );
+
+        let without_threshold = serde_json::json!({
+            "baseline_id": "test-baseline",
+            "throughput": throughput,
+            "resources": resources,
+            "created_at": "2026-01-01T00:00:00Z",
+        });
+        std::fs::write(
+            &baseline_path,
+            serde_json::to_vec_pretty(&without_threshold)?,
+        )?;
+        assert_eq!(
+            resolve_performance_overhead_threshold(None, Some(&baseline_path))?,
+            DEFAULT_PERFORMANCE_REGRESSION_THRESHOLD_PERCENT
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_performance_overhead_threshold_rejects_invalid_values() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir()?;
+        let baseline_path = temp_dir.path().join("baseline.json");
+
+        let throughput = ThroughputMetrics {
+            display_throughput: 1000,
+            comp3_throughput: 500,
+            record_rate: 100,
+            peak_memory_mb: 100,
+        };
+        let resources = ResourceMetrics {
+            cpu_usage_percent: 50.0,
+            memory_usage_mb: 100,
+            io_operations: 1,
+            network_bytes: 1,
+        };
+
+        let above_range = serde_json::json!({
+            "baseline_id": "test-baseline",
+            "throughput": throughput.clone(),
+            "resources": resources.clone(),
+            "created_at": "2026-01-01T00:00:00Z",
+            "max_overhead_percent": 150.0,
+        });
+        std::fs::write(&baseline_path, serde_json::to_vec_pretty(&above_range)?)?;
+        assert!(resolve_performance_overhead_threshold(Some(150.0), None).is_err());
+        assert!(resolve_performance_overhead_threshold(None, Some(&baseline_path)).is_err());
+
+        let baseline_with_alias_only = serde_json::json!({
+            "baseline_id": "test-baseline",
+            "throughput": throughput,
+            "resources": resources,
+            "created_at": "2026-01-01T00:00:00Z",
+            "ac11_audit_overhead_threshold_percent": 150.0,
+        });
+        std::fs::write(
+            &baseline_path,
+            serde_json::to_vec_pretty(&baseline_with_alias_only)?,
+        )?;
+        assert!(resolve_performance_overhead_threshold(None, Some(&baseline_path)).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_health_event_requires_required_fields() {
+        let missing_id = RawHealthEvent {
+            event_id: None,
+            timestamp: Some("2026-02-28T00:00:00Z".to_string()),
+            source: Some("copybook-core".to_string()),
+            event_type: Some("audit".to_string()),
+            integrity_hash: Some("hash".to_string()),
+            previous_hash: None,
+        };
+        assert!(normalize_health_event(missing_id).is_err());
+
+        let invalid_timestamp = RawHealthEvent {
+            event_id: Some("evt-1".to_string()),
+            timestamp: Some("invalid".to_string()),
+            source: Some("copybook-core".to_string()),
+            event_type: Some("audit".to_string()),
+            integrity_hash: Some("hash".to_string()),
+            previous_hash: None,
+        };
+        assert!(normalize_health_event(invalid_timestamp).is_err());
+    }
+
+    #[test]
+    fn test_parse_access_events_rejects_invalid_records() {
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().expect("temp dir");
+        let access_log = temp_dir.path().join("access.jsonl");
+        let mut file = std::fs::File::create(&access_log).expect("create log file");
+
+        writeln!(
+            file,
+            "{{\"user\":\"alice\",\"resource_type\":\"record\",\"resource\":\"R1\",\"action\":\"read\",\"result\":\"unknown\"}}"
+        )
+        .expect("write malformed access event");
+        writeln!(
+            file,
+            "{{\"resource_type\":\"record\",\"resource\":\"R1\",\"action\":\"read\",\"result\":\"success\"}}"
+        )
+        .expect("write event missing user");
+        writeln!(
+            file,
+            "{{\"user\":\"alice\",\"user_id\":\"bob\",\"resource_type\":\"record\",\"resource\":\"R1\",\"action\":\"read\",\"result\":\"success\"}}"
+        )
+        .expect("write access event with contradictory user aliases");
+        writeln!(
+            file,
+            "{{\"user\":\"alice\",\"resource_type\":\"record\",\"resource\":\"R1\",\"action\":\"read\",\"result\":\"success\",\"source_ip\":\"10.0.0.1\",\"source_ip_address\":\"192.168.1.1\"}}"
+        )
+        .expect("write access event with contradictory source ip aliases");
+
+        let (_events, issues) = parse_access_events(&access_log).expect("parse access events");
+        assert_eq!(_events.len(), 0);
+        assert_eq!(issues.len(), 4);
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("user/user_id is contradictory")),
+            "missing contradictory user alias issue"
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("source_ip/source_ip_address is contradictory")),
+            "missing contradictory source_ip alias issue"
+        );
+    }
+
+    #[test]
+    fn test_parse_access_events_rejects_invalid_timestamps() {
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().expect("temp dir");
+        let access_log = temp_dir.path().join("access.jsonl");
+        let mut file = std::fs::File::create(&access_log).expect("create log file");
+
+        writeln!(
+            file,
+            "{{\"user\":\"alice\",\"resource_type\":\"record\",\"resource\":\"R1\",\"action\":\"read\",\"result\":\"success\",\"timestamp\":\"2026-02-28T00:00:00Z\"}}"
+        )
+        .expect("write valid access event");
+        writeln!(
+            file,
+            "{{\"user\":\"alice\",\"resource_type\":\"record\",\"resource\":\"R1\",\"action\":\"read\",\"result\":\"success\",\"timestamp\":\"invalid\"}}"
+        )
+        .expect("write invalid timestamp access event");
+
+        let (_events, issues) = parse_access_events(&access_log).expect("parse access events");
+        assert_eq!(_events.len(), 1);
+        assert_eq!(issues.len(), 1);
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("timestamp must be RFC3339")),
+            "missing RFC3339 timestamp issue"
+        );
+    }
+
+    #[test]
+    fn test_normalize_threat_severity_returns_error_for_unknown() {
+        assert_eq!(normalize_threat_severity("critical"), Ok("critical"));
+        assert_eq!(normalize_threat_severity("high"), Ok("high"));
+        assert_eq!(normalize_threat_severity("medium"), Ok("medium"));
+        assert_eq!(normalize_threat_severity("low"), Ok("low"));
+        assert!(normalize_threat_severity("UNKNOWN").is_err());
+        assert!(normalize_threat_severity("").is_err());
+    }
+
+    #[test]
+    fn test_health_check_rejects_invalid_timestamps_when_retention_check_enabled() {
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().expect("temp dir");
+        let audit_log = temp_dir.path().join("audit_log.jsonl");
+        let mut file = std::fs::File::create(&audit_log).expect("create audit log");
+
+        let event = AuditEvent::new(
+            AuditEventType::CopybookParse,
+            AuditContext::new(),
+            AuditPayload::CopybookParse {
+                copybook_path: "test.cpy".to_string(),
+                schema_fingerprint: "schema".to_string(),
+                parse_result: audit_core::ParseResult::Success,
+                parsing_duration_ms: 5,
+                field_count: 1,
+                level_88_count: 0,
+                error_count: 0,
+                warnings: vec![],
+            },
+        );
+
+        let mut event_value = serde_json::to_value(event).expect("serialize audit event");
+        event_value["timestamp"] = serde_json::Value::String("invalid-timestamp".to_string());
+        writeln!(
+            file,
+            "{}",
+            serde_json::to_string(&event_value).expect("serialize malformed event")
+        )
+        .expect("write malformed event");
+
+        let status = run_audit_health_check_impl(
+            None,
+            Some(&audit_log),
+            false,
+            false,
+            false,
+            false,
+            true,
+            None,
+            true,
+            60,
+            false,
+            AuditContext::new(),
+        )
+        .expect("run health check");
+
+        assert_eq!(status, ExitCode::Data);
+    }
+
+    #[test]
+    fn test_health_check_rejects_tampered_audit_log_hashes() {
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        let temp_dir = tempdir().expect("temp dir");
+        let audit_log = temp_dir.path().join("audit_log.jsonl");
+        let mut file = std::fs::File::create(&audit_log).expect("create audit log");
+
+        let first = AuditEvent::new(
+            AuditEventType::CopybookParse,
+            AuditContext::new(),
+            AuditPayload::CopybookParse {
+                copybook_path: "test.cpy".to_string(),
+                schema_fingerprint: "schema".to_string(),
+                parse_result: audit_core::ParseResult::Success,
+                parsing_duration_ms: 5,
+                field_count: 1,
+                level_88_count: 0,
+                error_count: 0,
+                warnings: vec![],
+            },
+        );
+
+        let mut second = AuditEvent::new(
+            AuditEventType::CopybookParse,
+            AuditContext::new(),
+            AuditPayload::CopybookParse {
+                copybook_path: "test.cpy".to_string(),
+                schema_fingerprint: "schema".to_string(),
+                parse_result: audit_core::ParseResult::Success,
+                parsing_duration_ms: 6,
+                field_count: 1,
+                level_88_count: 0,
+                error_count: 0,
+                warnings: vec![],
+            },
+        )
+        .with_previous_hash(first.integrity_hash.clone());
+
+        second.integrity_hash.push_str("tampered");
+
+        writeln!(file, "{}", serde_json::to_string(&first).expect("serialize first event"))
+            .expect("write first event");
+        writeln!(file, "{}", serde_json::to_string(&second).expect("serialize second event"))
+            .expect("write tampered second event");
+
+        let status = run_audit_health_check_impl(
+            None,
+            Some(&audit_log),
+            false,
+            false,
+            true,
+            false,
+            false,
+            None,
+            true,
+            60,
+            false,
+            AuditContext::new(),
+        )
+        .expect("run health check");
+
+        assert_eq!(status, ExitCode::Data);
+    }
+
+    #[test]
+    fn test_health_check_rejects_tampered_audit_trail_hashes() {
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        fn compute_health_record_hash(
+            record: &HealthEventRecord,
+            previous_hash: Option<&str>,
+        ) -> String {
+            let mut event_for_hash = record.clone();
+            event_for_hash.integrity_hash = String::new();
+            event_for_hash.previous_hash = None;
+            let event_bytes =
+                serde_json::to_vec(&event_for_hash).expect("serialize health trail record");
+            audit_core::generate_integrity_hash(&event_bytes, previous_hash)
+        }
+
+        let temp_dir = tempdir().expect("temp dir");
+        let audit_trail = temp_dir.path().join("audit_trail.jsonl");
+        let mut file = std::fs::File::create(&audit_trail).expect("create audit trail");
+
+        let mut first = HealthEventRecord {
+            event_id: "evt-1".to_string(),
+            timestamp: "2024-09-25T10:00:00Z".to_string(),
+            source: "copybook-core".to_string(),
+            event_type: "copybook_parse".to_string(),
+            integrity_hash: String::new(),
+            previous_hash: None,
+        };
+        first.integrity_hash = compute_health_record_hash(&first, None);
+
+        let mut second = HealthEventRecord {
+            event_id: "evt-2".to_string(),
+            timestamp: "2024-09-25T10:01:00Z".to_string(),
+            source: "copybook-core".to_string(),
+            event_type: "copybook_parse".to_string(),
+            integrity_hash: String::new(),
+            previous_hash: Some(first.integrity_hash.clone()),
+        };
+        second.integrity_hash = compute_health_record_hash(&second, Some(&first.integrity_hash));
+        second.integrity_hash.push_str("tampered");
+
+        writeln!(
+            file,
+            "{}",
+            serde_json::to_string(&first).expect("serialize first trail record")
+        )
+        .expect("write first trail record");
+        writeln!(
+            file,
+            "{}",
+            serde_json::to_string(&second).expect("serialize second trail record")
+        )
+        .expect("write tampered second trail record");
+
+        let status = run_audit_health_check_impl(
+            Some(&audit_trail),
+            None,
+            false,
+            false,
+            true,
+            false,
+            false,
+            None,
+            true,
+            60,
+            false,
+            AuditContext::new(),
+        )
+        .expect("run health check");
+
+        assert_eq!(status, ExitCode::Data);
     }
 
     #[tokio::test]

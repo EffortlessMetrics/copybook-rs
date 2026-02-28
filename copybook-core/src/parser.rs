@@ -12,6 +12,14 @@ use crate::pic::PicClause;
 use crate::schema::{Field, FieldKind, Occurs, Schema, SignPlacement, SignSeparateInfo};
 use crate::utils::VecExt;
 use crate::{Error, Result};
+#[cfg(feature = "audit")]
+use crate::audit::derive_lineage_id_from_fingerprint;
+
+#[cfg(feature = "audit")]
+#[derive(Debug, Clone)]
+pub struct LineageParseMetadata {
+    pub lineage_id: String,
+}
 
 /// Parse a COBOL copybook text into a schema
 ///
@@ -37,6 +45,17 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
     let tokens = Lexer::new_with_options(text, options).tokenize();
     let mut parser = Parser::with_options(tokens, options.clone());
     parser.parse_schema()
+}
+
+#[cfg(feature = "audit")]
+pub fn parse_with_audit_lineage_metadata(
+    text: &str,
+    options: &ParseOptions,
+) -> Result<(Schema, LineageParseMetadata)> {
+    let schema = parse_with_options(text, options)?;
+    let lineage_id = derive_lineage_id_from_fingerprint(&schema.fingerprint);
+
+    Ok((schema, LineageParseMetadata { lineage_id }))
 }
 
 /// Options for parsing behavior
@@ -295,12 +314,14 @@ impl Parser {
     /// Process field names for duplicates and FILLER handling
     fn process_field_names(&mut self, fields: &mut [Field]) {
         // First pass: handle FILLER fields
+        let mut filler_sequence = 0u64;
         for field in fields.iter_mut() {
-            if field.name.to_uppercase() == "FILLER" {
+            if field.name.eq_ignore_ascii_case("FILLER") {
                 if self.options.emit_filler {
-                    // Replace FILLER with _filler_<offset> (offset will be calculated later in layout resolution)
-                    // For now, use a placeholder that will be updated
-                    field.name = format!("_filler_{}", 0);
+                    // STATUS: emit deterministic filler identifiers for downstream traceability.
+                    // This keeps fallback naming explicit and stable without AC-gated updates.
+                    field.name = format!("_filler_{filler_sequence:08}");
+                    filler_sequence += 1;
                 } else {
                     // Keep FILLER name for now, will be filtered out in layout resolution
                     field.name = "FILLER".to_string();
@@ -851,7 +872,19 @@ impl Parser {
                 self.advance();
                 self.convert_to_binary_field(field)?;
             }
-            _ => {
+            Some(token_pos) => {
+                if self.options.strict {
+                    return Err(Error::new(
+                        ErrorCode::CBKP001_SYNTAX,
+                        format!(
+                            "Unsupported clause '{:?}' in strict mode for level {} field '{}'",
+                            token_pos.token,
+                            field.level,
+                            field.name
+                        ),
+                    ));
+                }
+
                 // Unknown clause - advance and continue
                 self.advance();
             }
@@ -1839,18 +1872,42 @@ mod tests {
 
         // Should have a non-empty fingerprint
         assert!(!schema.fingerprint.is_empty());
-        assert_ne!(schema.fingerprint, "placeholder");
+        assert_ne!(schema.fingerprint, "uninitialized_fingerprint");
 
         // Same input should produce same fingerprint
         let schema2 = parse(input).unwrap();
         assert_eq!(schema.fingerprint, schema2.fingerprint);
     }
 
+    #[cfg(feature = "audit")]
+    #[test]
+    fn test_parse_with_audit_lineage_metadata() {
+        let input = "01 CUSTOMER-ID PIC X(10).";
+        let options = ParseOptions::default();
+        let (schema, metadata) = parse_with_audit_lineage_metadata(input, &options).unwrap();
+
+        assert!(!schema.fingerprint.is_empty());
+        assert_eq!(
+            metadata.lineage_id,
+            derive_lineage_id_from_fingerprint(&schema.fingerprint)
+        );
+    }
+
+    #[test]
+    fn test_unknown_clause_rejected_in_strict_mode() {
+        let mut options = ParseOptions::default();
+        options.strict = true;
+
+        let result = parse_with_options("01 FIELD PIC X(10) FOO.", &options);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, ErrorCode::CBKP001_SYNTAX);
+    }
+
     #[test]
     fn test_duplicate_name_handling() {
         let input = r"
 01 RECORD-A.
-   05 FIELD-NAME PIC X(10).
+05 FIELD-NAME PIC X(10).
    05 FIELD-NAME PIC 9(5).
 ";
         let schema = parse(input).unwrap();

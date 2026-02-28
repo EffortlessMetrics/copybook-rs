@@ -8,6 +8,7 @@
 #![allow(clippy::unused_self, clippy::unnecessary_wraps)]
 
 use crate::options::{DecodeOptions, JsonNumberMode, RawMode, UnmappablePolicy};
+use crate::memory::ScratchBuffers;
 use crate::JSON_SCHEMA_VERSION;
 use base64::{engine::general_purpose, Engine as _};
 use copybook_core::{Error, ErrorCode, Field, FieldKind, Occurs, Result, Schema};
@@ -24,6 +25,7 @@ pub struct JsonWriter<W: Write> {
     sequence_id: u64,
     /// Buffer for building JSON strings without intermediate allocations
     json_buffer: String,
+    scratch: ScratchBuffers,
     /// Schema reference for field lookup
     schema: Schema,
 }
@@ -36,6 +38,7 @@ impl<W: Write> JsonWriter<W> {
             options,
             sequence_id: 0,
             json_buffer: String::with_capacity(4096), // Pre-allocate 4KB buffer
+            scratch: ScratchBuffers::new(),
             schema,
         }
     }
@@ -394,12 +397,19 @@ impl<W: Write> JsonWriter<W> {
     ) -> Result<()> {
         let field_data = &record_data[field.offset as usize..(field.offset + field.len) as usize];
 
-        // Decode packed decimal
-        let decimal = crate::numeric::decode_packed_decimal(field_data, digits, scale, signed)?;
+        // Wave-3 regression posture: keep COMP-3 decode on the scratch-backed
+        // hot path to avoid reintroducing per-field allocation overhead.
+        let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+            field_data,
+            digits,
+            scale,
+            signed,
+            &mut self.scratch,
+        )?;
 
         // Write as JSON string with fixed scale (NORMATIVE)
         self.json_buffer.push('"');
-        self.json_buffer.push_str(&decimal.to_string());
+        self.json_buffer.push_str(&decimal_str);
         self.json_buffer.push('"');
         Ok(())
     }
@@ -685,11 +695,15 @@ impl<W: Write> JsonWriter<W> {
                 scale,
                 signed,
             } => {
-                let decimal =
-                    crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-
-                // Fixed-scale rendering - NORMATIVE
-                let decimal_str = decimal.to_fixed_scale_string(*scale);
+                // Wave-3 regression posture: this must stay on the scratch-backed
+                // COMP-3 path to protect throughput in packed-heavy workloads.
+                let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    &mut self.scratch,
+                )?;
 
                 match self.options.json_number_mode {
                     JsonNumberMode::Lossless => Ok(Value::String(decimal_str)),
@@ -949,11 +963,13 @@ impl<W: Write> JsonWriter<W> {
                 scale,
                 signed,
             } => {
-                let decimal =
-                    crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-
-                // Fixed-scale rendering - NORMATIVE
-                let decimal_str = decimal.to_fixed_scale_string(*scale);
+                let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
+                    field_data,
+                    *digits,
+                    *scale,
+                    *signed,
+                    &mut self.scratch,
+                )?;
 
                 match self.options.json_number_mode {
                     JsonNumberMode::Lossless => {

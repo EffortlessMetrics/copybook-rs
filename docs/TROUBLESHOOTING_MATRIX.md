@@ -66,15 +66,13 @@ copybook parse problematic.cpy 2>&1 | grep -A5 -B5 "CBKP001"
 ### CBKP011_UNSUPPORTED_CLAUSE
 
 **Symptoms:**
-- "Unsupported COBOL clause: COMP-1"
+- "Unsupported COBOL clause: EXTERNAL"
 - "Feature not implemented"
 
-**Common Unsupported Features:**
+**Common Unsupported Features (legacy runtime interop):**
 
 | Feature | Alternative | Migration |
 |---------|-------------|-----------|
-| COMP-1 | COMP-3 | `PIC S9(3)V99 COMP-1` → `PIC S9(3)V99 COMP-3` |
-| COMP-2 | COMP-3 | `PIC S9(5)V99 COMP-2` → `PIC S9(5)V99 COMP-3` |
 | EXTERNAL | Remove | `05 FIELD PIC X(10) EXTERNAL` → `05 FIELD PIC X(10)` |
 | GLOBAL | Remove | `05 FIELD PIC X(10) GLOBAL` → `05 FIELD PIC X(10)` |
 
@@ -115,15 +113,12 @@ copybook inspect problematic.cpy --show-offsets
 
 ### CBKP051_UNSUPPORTED_EDITED_PIC
 
-**v0.4.2+ Note:** All edited PIC patterns are now fully supported (E1/E2/E3 phases), including Space (`B`) insertion. This error code is reserved for future unsupported editing tokens if any are discovered.
+**v0.4.3+ Note:** `copybook-rs` supports E1/E2/E3 edited PIC patterns except Space (`B`) insertion.
 
-**Supported Edited PIC Patterns (All Now Supported):**
-- `PIC ZZ9.99` - Zero suppression with decimal ✅
-- `PIC $$$,$$9.99` - Currency with comma ✅
-- `PIC +999.99` / `PIC -999.99` - Sign editing ✅
-- `PIC 999.99CR` / `PIC 999.99DB` - Credit/debit indicators ✅
-- `PIC ***,**9.99` - Check protection (asterisk fill) ✅
-- `PIC 99B99B99` - Space (B) insertion ✅
+**Supported edited patterns:** `Z`, `$`, `+/-`, `CR/DB`, commas, asterisks, and currency.
+
+**Unsupported for now:** Space (`B`) insertion should be removed before decode:
+`PIC 99B99B99` → `PIC 999999`.
 
 ## Schema Errors
 

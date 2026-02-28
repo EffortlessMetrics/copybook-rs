@@ -2,18 +2,45 @@
 name: Security (weekly)
 
 on:
+  workflow_call:
+    inputs:
+      enforce:
+        description: "Fail this workflow on high-severity vulnerabilities."
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      has_high_severity:
+        description: "Whether high-severity vulnerabilities were found."
+        value: ${{ jobs.security-check.outputs.has_high_severity }}
+      high_severity_count:
+        description: "Count of high-severity vulnerabilities."
+        value: ${{ jobs.security-check.outputs.high_severity_count }}
+      total_vulnerabilities:
+        description: "Total vulnerabilities found in cargo-audit JSON output."
+        value: ${{ jobs.security-check.outputs.total_vulnerabilities }}
   schedule:
     - cron: "0 9 * * 1"   # Mondays 09:00 UTC
   workflow_dispatch:
+    inputs:
+      enforce:
+        description: "Fail this workflow on high-severity vulnerabilities."
+        required: false
+        default: false
+        type: boolean
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  weekly-audit:
-    name: Weekly Security Audit
+  security-check:
+    name: Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      has_high_severity: ${{ steps.assess.outputs.has_high_severity }}
+      high_severity_count: ${{ steps.assess.outputs.high_severity_count }}
+      total_vulnerabilities: ${{ steps.assess.outputs.total_vulnerabilities }}
     permissions:
       contents: read
       issues: write  # For automated issue creation
@@ -43,6 +70,48 @@ jobs:
         run: |
           cargo audit -q --json > target/security.audit.json || true
 
+      - name: Assess findings
+        id: assess
+        run: |
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import os
+
+          path = pathlib.Path("target/security.audit.json")
+          vulnerabilities = []
+          if path.exists():
+            try:
+              data = json.loads(path.read_text())
+              vulnerabilities = data.get("vulnerabilities", {}).get("list", [])
+              if not isinstance(vulnerabilities, list):
+                vulnerabilities = []
+            except Exception:
+              vulnerabilities = []
+
+          def is_high_or_critical(item):
+            advisory = item.get("advisory", {})
+            severity = str(advisory.get("severity", "")).lower()
+            if severity in {"high", "critical"}:
+              return True
+            cvss = advisory.get("cvss") or {}
+            score = cvss.get("score") if isinstance(cvss, dict) else None
+            try:
+              return float(score) >= 7.0
+            except (TypeError, ValueError):
+              return False
+
+          high = [item for item in vulnerabilities if is_high_or_critical(item)]
+
+          print(f"total_vulnerabilities={len(vulnerabilities)}")
+          print(f"high_severity_count={len(high)}")
+          print(f"has_high_severity={'true' if high else 'false'}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+            out.write(f"total_vulnerabilities={len(vulnerabilities)}\n")
+            out.write(f"high_severity_count={len(high)}\n")
+            out.write(f"has_high_severity={'true' if high else 'false'}\n")
+          PY
+
       - name: Open/update roll-up issue on findings
         uses: actions/github-script@v8
         with:
@@ -50,13 +119,17 @@ jobs:
             const fs = require('fs');
             let txt = '';
             try { txt = fs.readFileSync('target/security.audit.json','utf8'); } catch {}
-            const hasFindings = txt.includes('"vulnerabilities"') && !txt.includes('"list":[]');
+            const totalVulnerabilities = Number(process.env.TOTAL_VULNERABILITIES || '0');
+            const highSeverityCount = Number(process.env.HIGH_SEVERITY_COUNT || '0');
+            const hasFindings = totalVulnerabilities > 0;
+            const hasHighSeverity = highSeverityCount > 0;
             const title = "Weekly Security Audit Findings";
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "security"
             });
             const body = hasFindings
-              ? "New vulnerabilities detected. See artifact `security.audit.json`."
+              ? `Security audit detected ${totalVulnerabilities} vulnerabilities (${highSeverityCount} high/critical). See artifact ` +
+                "`security.audit.json`."
               : "No vulnerabilities detected by cargo-audit.";
             const existing = issues.find(i => i.title === title);
             if (existing) {
@@ -64,6 +137,35 @@ jobs:
             } else if (hasFindings) {
               await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["security","infrastructure"] });
             }
+        env:
+          TOTAL_VULNERABILITIES: ${{ steps.assess.outputs.total_vulnerabilities }}
+          HIGH_SEVERITY_COUNT: ${{ steps.assess.outputs.high_severity_count }}
+
+      - name: Add guidance and evidence summary
+        run: |
+          echo "## Security Scan Evidence" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Total vulnerabilities: ${{ steps.assess.outputs.total_vulnerabilities }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- High/Critical vulnerabilities: ${{ steps.assess.outputs.high_severity_count }}" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ steps.assess.outputs.has_high_severity }}" == "true" ]]; then
+            if [[ "${{ inputs.enforce }}" == "true" ]]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "⚠️ High-severity vulnerabilities are present. Release-readiness will fail until these are remediated." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "ℹ️ High-severity vulnerabilities were found. For local/dev workflows this is advisory only." >> "$GITHUB_STEP_SUMMARY"
+              echo "Recommended next step: open an issue from the roll-up and review `target/security.audit.json` in this run's artifacts." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "✅ No high-severity vulnerabilities detected." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Enforce high-severity release gate
+        if: inputs.enforce == true && steps.assess.outputs.has_high_severity == 'true'
+        run: |
+          echo "::error::High-severity vulnerabilities detected: ${{ steps.assess.outputs.high_severity_count }}."
+          echo "Release-readiness checks that enforce security policy will block until this is remediated."
+          exit 1
 
       - name: Upload security receipts
         if: always()

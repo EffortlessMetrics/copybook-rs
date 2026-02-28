@@ -75,7 +75,9 @@ pub(crate) fn rdw_slice_body<R: BufRead>(r: &mut R, len: u16) -> Result<&[u8]> {
     Ok(&buf[..need])
 }
 
-/// Validate the RDW body slice (placeholder; extend with CRC/terminator later).
+/// Validate the RDW body slice.
+/// STATUS(CODEC: non-production): this is a deterministic no-op validation stage.
+/// Extend with CRC/terminator checks in a future implementation pass.
 ///
 /// # Errors
 /// Returns an error if additional format checks fail (currently none).

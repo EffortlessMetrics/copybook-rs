@@ -45,6 +45,12 @@ fn test_audit_performance_baseline_scaffolding() {
     // Verify schema structure suitable for performance testing
     assert!(schema.lrecl_fixed.unwrap_or(0) > 0);
     assert!(!schema.fields.is_empty());
+    assert!(
+        schema
+            .fields
+            .iter()
+            .any(|field| field.name.eq_ignore_ascii_case("ACCOUNT-BALANCE"))
+    );
 
     println!(
         "Audit performance baseline scaffolding test passed ({} bytes, {} fields)",
@@ -70,8 +76,8 @@ fn test_audit_overhead_scaffolding() {
     // Baseline measurement without audit
     let baseline_start = Instant::now();
     for _ in 0..iterations {
-        // Simulate baseline processing
-        let _processing_overhead = std::hint::black_box(record_size);
+    // Simulate baseline processing
+    let _processing_overhead = std::hint::black_box(record_size);
     }
     let baseline_duration = baseline_start.elapsed();
 
@@ -103,6 +109,8 @@ fn test_audit_overhead_scaffolding() {
     } else {
         0.0
     };
+    assert!(!overhead_percentage.is_nan());
+    assert!(!overhead_percentage.is_infinite());
 
     println!(
         "Enterprise audit overhead scaffolding: {overhead_percentage:.2}% (context creation only)"
@@ -124,9 +132,6 @@ fn test_performance_regression_detection_scaffolding() {
     let _schema =
         parse_copybook(copybook_text).expect("Performance fixture should parse successfully");
 
-    // Audit feature (TDD Red phase) - regression detector will be implemented with audit feature
-    // For now, simulate baseline vs current performance comparison
-
     // Historical baseline (simulated)
     let historical_throughput = 4.2f64;
     let current_throughput = 3.8f64; // 9.5% regression
@@ -136,10 +141,8 @@ fn test_performance_regression_detection_scaffolding() {
         ((historical_throughput - current_throughput) / historical_throughput) * 100.0;
 
     // Verify regression calculation
-    assert!(
-        throughput_regression > 5.0,
-        "Throughput regression should be significant"
-    );
+    assert!((1f64..100f64).contains(&throughput_regression));
+    assert!(throughput_regression > 5.0, "Throughput regression should be significant");
 
     println!("Performance regression detection scaffolding:");
     println!("  Throughput regression: {throughput_regression:.1}%");

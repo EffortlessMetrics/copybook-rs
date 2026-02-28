@@ -4,13 +4,14 @@
 ## Overview
 
 copybook-rs is an **Engineering Preview** system for enterprise mainframe data processing. This guide covers deployment, configuration, and best practices for production environments.
+**Last Reviewed**: 2026-02-28
 
 ## Production Deployment
 
 ### **Cautious Adoption Recommended** ⚠️
 
 copybook-rs is in **Engineering Preview** status with:
-- **1825+ tests passing** (comprehensive validation including golden fixtures)
+- **1652+ tests passing** (comprehensive validation including golden fixtures)
 - **Performance baseline established** (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s)
 - **Level-88 condition value support** with structural validation
 - **Golden fixtures framework** for enterprise scenario validation
@@ -66,6 +67,13 @@ copybook verify schema.cpy production-data.bin \
   --report audit-results.json
 ```
 
+### 4. AC9 Monitoring Stub Validation (Non-Production)
+
+AC9 monitoring is intentionally **non-production/stub-only** and must not be treated as production evidence. Use this
+command during engineering checks only via the shared, non-production/stub-only snippet:
+
+[Shared AC9 monitoring validation command](../README.md#ac9-monitoring-stub-validation-non-production-stub-only)
+
 ## Performance Characteristics
 
 ### **Enterprise-Grade Throughput**
@@ -120,6 +128,7 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2> errors.l
 - SIGN LEADING/TRAILING SEPARATE (fully supported, promoted to stable in v0.4.3)
 - Nested ODO arrays (O5: ODO inside ODO - rejected by design)
 - ODO over REDEFINES (O6 - rejected by design)
+- ODO over RENAMES (O7: spans crossing R4-R6 policy-limited aliases; O1-R3 supported)
 - RENAMES interactions with REDEFINES/OCCURS (R4-R6 - policy-limited; R1-R3 supported)
 
 ## Zoned Decimal Encoding Preservation
@@ -217,7 +226,7 @@ Encoding detection adds minimal overhead:
 - **Detection**: <1% performance impact during decode
 - **Preservation**: Metadata storage scales with field count
 - **Encode**: Format lookup optimizes encoding path
-- **Enterprise Targets**: Maintained at 4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3
+- **Enterprise Targets**: Established around DISPLAY 205 MiB/s and COMP-3 58 MiB/s
 
 ## Production Best Practices
 
@@ -327,7 +336,7 @@ copybook decode schema.cpy data.bin --verbose --output results.jsonl 2>&1 | \
 
 ### Production Support
 For production deployments:
-1. Review comprehensive test coverage (1825+ tests passing)
+1. Review comprehensive test coverage (1652+ tests passing)
 2. Validate performance for your specific workload against established baseline
 3. Implement error monitoring using stable error codes
 4. Use verification mode for data quality auditing

@@ -21,15 +21,15 @@ This specification provides a comprehensive technical analysis and implementatio
 | AC6 | Data lineage tracker with field-level transformation tracking | ⚠️ **PARTIAL** - Structure defined, COBOL integration pending | MEDIUM |
 | AC7 | CLI integration with 6 audit subcommands | ✅ **IMPLEMENTED** - Complete CLI with all 6 subcommands | LOW |
 | AC8 | Enterprise API integration (SIEM, log aggregation) | ⚠️ **PARTIAL** - CEF format support, SIEM integration pending | MEDIUM |
-| AC9 | Real-time audit monitoring capabilities | ❌ **NOT IMPLEMENTED** - Requires monitoring infrastructure | HIGH |
-| AC10 | Audit trail integrity validation and health checking | ⚠️ **FAILING TESTS** - Implementation exists but integrity tests fail | HIGH |
-| AC11 | Performance impact <5% overhead on COBOL processing | ❌ **VALIDATION NEEDED** - No performance impact assessment | CRITICAL |
+| AC9 | Real-time audit monitoring capabilities | ⚠️ **PARTIAL** - Deterministic stub hooks are available via `deterministic_audit_stubs` feature | HIGH |
+| AC10 | Audit trail integrity validation and health checking | ⚠️ **PARTIAL** - Fail-fast objective checks now reject empty/no-op health check selectors | HIGH |
+| AC11 | Performance impact <5% overhead on COBOL processing | ⚠️ **PARTIAL** - AC11 objective checks now required to avoid silent no-op execution | CRITICAL |
 | AC12 | Zero unsafe code with comprehensive error taxonomy | ✅ **IMPLEMENTED** - Zero unsafe code, comprehensive error types | LOW |
 | AC13 | Enterprise configuration management system | ⚠️ **PARTIAL** - YAML config defined, runtime loading needed | MEDIUM |
 | AC14 | Automated compliance reporting and validation | ✅ **IMPLEMENTED** - Complete reporting framework | LOW |
 | AC15 | Audit trail retention and rotation policies | ⚠️ **PARTIAL** - Policies defined, enforcement mechanism pending | MEDIUM |
-| AC16 | Integration with existing copybook-rs workflow | ⚠️ **PARTIAL** - CLI integrated, core parsing integration pending | HIGH |
-| AC17 | Comprehensive test coverage for all audit components | ⚠️ **FAILING TESTS** - Tests exist but 3 critical failures | HIGH |
+| AC16 | Integration with existing copybook-rs workflow | ⚠️ **PARTIAL** - Deterministic lineage confidence validation added; core parser/codec integration remains pending | HIGH |
+| AC17 | Comprehensive test coverage for all audit components | ⚠️ **PARTIAL** - Added deterministic guard tests for AC10/AC11/AC16/AC17 validation paths | HIGH |
 | AC18 | Production-ready documentation and examples | ✅ **IMPLEMENTED** - Comprehensive documentation and examples | LOW |
 
 ### Priority Assessment
@@ -43,6 +43,31 @@ This specification provides a comprehensive technical analysis and implementatio
 - AC9: Real-time monitoring infrastructure
 - AC16: COBOL parsing integration points
 - AC17: Test suite stability and coverage
+
+### Wave-3 Release Gates
+
+- Release execution for gated audit paths requires:
+  - `COPYBOOK_AUDIT_ENTERPRISE_READY=1` (explicit opt-in for blocked paths)
+- Blocked criteria are fail-fast gated in production mode (no silent completion when gated):
+  - `TODO(AC5)` — status: blocked
+    - owner: Audit Security WG
+    - evidence-required: replace placeholder security audit path with production threat-assessment and access-control coverage in `copybook-core/src/audit/security.rs` and validate via integration tests.
+  - `AC9`: Real-time monitoring routes to deterministic stub hooks when `deterministic_audit_stubs` is enabled, but full streaming infrastructure remains pending.
+    - status: warn
+    - owner: Monitoring WG
+    - evidence-required: publish completion proof for streaming ingestion, bounded buffering, alert fanout, and signed evidence outputs.
+  - `TODO(AC10)` — status: warn
+    - owner: CLI Reliability WG
+    - evidence-required: show non-noop production behavior with explicit health selectors and CI assertions that previously silent no-op paths are rejected.
+  - `TODO(AC11)` — status: warn
+    - owner: Performance WG
+    - evidence-required: provide benchmark evidence that AC11 overhead remains below 5% under representative workloads.
+  - `TODO(AC16)` — status: warn
+    - owner: Parser/Codec WG
+    - evidence-required: wire parser/codec lifecycle into lineage event generation and prove with end-to-end fixtures.
+  - `TODO(AC17)` — status: warn
+    - owner: Test WG
+    - evidence-required: expand coverage beyond guard assertions into production-path integration and recovery tests.
 
 ## Architecture Analysis
 
@@ -744,10 +769,17 @@ time cargo run --bin copybook -- decode schema.cpy data.bin --audit > with_audit
 ## Success Criteria
 
 ### Functional Requirements
-- ✅ **AC1-AC18**: All 18 acceptance criteria implemented and validated
+- ⚠️ **AC1-AC18**: Core acceptance criteria are partially complete; AC5, AC9, AC11, AC16, and AC17 remain active completion targets
 - ✅ **Zero Unsafe Code**: Maintained throughout audit system implementation
 - ✅ **Comprehensive Error Taxonomy**: Structured error codes for all audit components
 - ✅ **Enterprise Configuration**: YAML-based configuration with runtime loading
+- ✅ **AC9**: Deterministic streaming stub hooks are present for `--continuous`, `--real-time-monitoring`, and `--threat-assessment` modes
+
+### AC9 Completion Criteria (Wave-6)
+
+- ✅ Command-line paths now execute deterministic stub loops for continuous monitoring modes when compiled with `deterministic_audit_stubs`.
+- ⚠️ `deterministic_audit_stubs` is disabled by default; builds without it still reject AC9 paths explicitly.
+- ❌ Production readiness requires replacing stub loops with full event-stream processing, bounded buffering, and alert dispatch integration before declaring operational AC9 completeness.
 
 ### Performance Requirements (Critical)
 - 🎯 **AC11**: <5% performance overhead for COBOL processing operations

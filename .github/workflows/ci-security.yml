@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: CI Security
 on:
-  schedule:
-    - cron: '17 5 * * 1'  # Weekly, Monday 05:17 UTC
-  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 concurrency:
   group: ci-security
@@ -16,6 +17,9 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     steps:
       - uses: actions/checkout@v6
 

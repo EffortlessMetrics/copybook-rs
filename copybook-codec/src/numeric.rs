@@ -335,7 +335,9 @@ impl ZonedEncodingInfo {
     /// Analyze bytes to identify the zoned encoding mix for downstream encode.
     ///
     /// # Errors
-    /// Returns an error if detection fails (currently never fails).
+    /// Returns an error if detection fails. In this wave, the implementation
+    /// returns `Ok` for supported byte patterns and uses a deterministic fallback
+    /// for empty data.
     #[inline]
     #[must_use = "Handle the Result or propagate the error"]
     pub fn detect_from_data(data: &[u8]) -> Result<Self> {
@@ -477,9 +479,10 @@ impl SmallDecimal {
             // Normal integer format (scale = 0)
             self.value
         };
-        // Writing to String should never fail, but handle gracefully for panic elimination
+        // Writing to String should not fail here; keep the deterministic fallback
+        // path for non-panicking behavior if it ever occurs.
         if write!(result, "{scaled_value}").is_err() {
-            // Fallback: append a placeholder if formatting somehow fails
+            // Deterministic fallback path: emit the explicit "ERR" marker.
             result.push_str("ERR");
         }
     }
@@ -490,14 +493,15 @@ impl SmallDecimal {
         let integer_part = self.value / divisor;
         let fractional_part = self.value % divisor;
 
-        // Writing to String should never fail, but handle gracefully for panic elimination
+        // Writing to String should not fail here; keep the deterministic fallback
+        // path for non-panicking behavior if it ever occurs.
         let width = usize::try_from(self.scale).unwrap_or_else(|_| {
             debug_assert!(false, "scale should be positive when formatting decimal");
             0
         });
 
         if write!(result, "{integer_part}.{fractional_part:0width$}").is_err() {
-            // Fallback: append a placeholder if formatting somehow fails
+            // Deterministic fallback path: emit the explicit "ERR" marker.
             result.push_str("ERR");
         }
     }
@@ -1899,6 +1903,8 @@ fn decode_packed_fast_len1(
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
+    // Wave-3 regression guard: 1-byte COMP-3 fields should only represent 1-digit values.
+    debug_assert!(digits == 1);
     let high_nibble = (byte >> 4) & 0x0F;
     let low_nibble = byte & 0x0F;
     let mut value = 0i64;
@@ -1951,6 +1957,8 @@ fn decode_packed_fast_len2(
     scale: i16,
     signed: bool,
 ) -> Result<SmallDecimal> {
+    // Wave-3 regression guard: 2-byte COMP-3 payloads cover only 2- or 3-digit values.
+    debug_assert!(digits == 2 || digits == 3);
     let byte0 = data[0];
     let byte1 = data[1];
 
@@ -2018,6 +2026,8 @@ fn decode_packed_fast_len2(
 /// * `signed` - Whether the field is signed
 #[inline]
 fn decode_packed_fast_len3(data: &[u8], scale: i16, signed: bool) -> Result<SmallDecimal> {
+    // Wave-3 regression guard: 3-byte COMP-3 payloads cover 4- or 5-digit values.
+    debug_assert!(data.len() == 3);
     let byte0 = data[0];
     let byte1 = data[1];
     let byte2 = data[2];
@@ -3998,15 +4008,15 @@ pub fn decode_binary_int_fast(data: &[u8], bits: u16, signed: bool) -> Result<i6
 ///
 /// Converts the pre-parsed [`SmallDecimal`] to its string representation using
 /// the scratch buffer and then delegates to [`encode_zoned_decimal`].  The
-/// `_bwz_encode` parameter is reserved for future BLANK WHEN ZERO integration
-/// but is currently unused.
+/// `_bwz_encode` parameter is intentionally a no-op in this wave; it is reserved
+/// for future BLANK WHEN ZERO integration.
 ///
 /// # Arguments
 /// * `decimal` - Pre-parsed decimal value to encode
 /// * `digits` - Number of digit positions in the COBOL field
 /// * `signed` - Whether the field carries a sign
 /// * `codepage` - Target character encoding (ASCII or EBCDIC variant)
-/// * `_bwz_encode` - Reserved for BLANK WHEN ZERO support (currently unused)
+/// * `_bwz_encode` - Reserved for BLANK WHEN ZERO support (currently a no-op).
 /// * `scratch` - Reusable scratch buffers for zero-allocation string processing
 ///
 /// # Returns
@@ -4043,9 +4053,8 @@ pub fn encode_zoned_decimal_with_scratch(
     scratch.string_buffer.clear();
     scratch.string_buffer.push_str(&decimal.to_string());
 
-    // Use the standard encode function but with optimized digit processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
+    // Use the standard encode function, retaining current deterministic output
+    // while keeping the scratch-buffer path for future AC9-like optimization work.
     encode_zoned_decimal(
         &scratch.string_buffer,
         digits,
@@ -4058,10 +4067,9 @@ pub fn encode_zoned_decimal_with_scratch(
 /// Encode a packed decimal (COMP-3) while reusing caller-owned scratch buffers
 /// to minimize per-call allocations.
 ///
-/// Converts the pre-parsed [`SmallDecimal`] to its string representation using
-/// the scratch buffer and then delegates to [`encode_packed_decimal`].  Intended
-/// for use on codec hot paths where many records are encoded sequentially with
-/// the same [`ScratchBuffers`] instance.
+/// Encodes a pre-parsed [`SmallDecimal`] directly into packed bytes, avoiding any
+/// intermediate `String` allocations. Intended for use on codec hot paths where
+/// many records are encoded sequentially with the same [`ScratchBuffers`] instance.
 ///
 /// # Arguments
 /// * `decimal` - Pre-parsed decimal value to encode
@@ -4074,7 +4082,7 @@ pub fn encode_zoned_decimal_with_scratch(
 ///
 /// # Errors
 /// Returns an error when the decimal value cannot be encoded into the
-/// requested packed representation (delegates to [`encode_packed_decimal`]).
+/// requested packed representation.
 ///
 /// # See Also
 /// * [`encode_packed_decimal`] - Underlying packed decimal encoder
@@ -4089,19 +4097,107 @@ pub fn encode_packed_decimal_with_scratch(
     scratch: &mut ScratchBuffers,
 ) -> Result<Vec<u8>> {
     // Clear and prepare buffers
+    debug_assert!(digits > 0, "Packed decimal fields must have at least one digit");
     scratch.digit_buffer.clear();
     scratch.byte_buffer.clear();
+    scratch.digit_buffer.reserve(usize::from(digits));
     let expected_bytes = usize::from((digits + 1).div_ceil(2));
-    scratch.byte_buffer.reserve(expected_bytes);
+    debug_assert!(expected_bytes > 0, "Packed decimal fields must occupy at least one byte");
+    scratch.byte_buffer.resize(expected_bytes, 0u8);
 
-    // Convert decimal to string using scratch buffer
-    scratch.string_buffer.clear();
-    scratch.string_buffer.push_str(&decimal.to_string());
+    let is_negative = decimal.negative && decimal.value != 0;
+    debug_assert!(
+        signed || !is_negative,
+        "Negative packed decimal provided to unsigned field"
+    );
+    let abs_value = decimal.value.abs();
 
-    // Use the standard encode function but with optimized nibble processing
-    // This is a placeholder for now - the actual optimization would involve
-    // rewriting the encode logic to use the scratch buffers
-    encode_packed_decimal(&scratch.string_buffer, digits, decimal.scale, signed)
+    if abs_value == 0 {
+        // Fast path for zero value: sign-only in final nibble
+        let sign_nibble = if signed {
+            if is_negative { 0x0D } else { 0x0C }
+        } else {
+            0x0F
+        };
+        if let Some(last_byte) = scratch.byte_buffer.last_mut() {
+            *last_byte = sign_nibble;
+        }
+        return Ok(std::mem::take(&mut scratch.byte_buffer));
+    }
+
+    let mut temp_value = abs_value;
+    while temp_value > 0 {
+        scratch
+            .digit_buffer
+            .push(digit_from_value(temp_value % 10));
+        temp_value /= 10;
+    }
+
+    let digit_count = scratch.digit_buffer.len();
+    let digits_usize = usize::from(digits);
+    if digit_count > digits_usize {
+        return Err(Error::new(
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+            format!("Value too large for {digits} digits"),
+        ));
+    }
+
+    let has_padding = digits.is_multiple_of(2); // Even digit count requires padding
+    let total_nibbles = digits_usize + 1 + usize::from(has_padding);
+
+    for byte_idx in 0..expected_bytes {
+        let mut byte_val = 0u8;
+
+        // High nibble handling
+        let high_nibble_idx = byte_idx * 2;
+        if high_nibble_idx < total_nibbles - 1 {
+            if has_padding && high_nibble_idx == 0 {
+                // Leading padding for even digit counts
+            } else {
+                let digit_idx = if has_padding {
+                    high_nibble_idx - 1
+                } else {
+                    high_nibble_idx
+                };
+                if digit_idx >= digits_usize.saturating_sub(digit_count) {
+                    let actual_digit_idx = digit_idx - (digits_usize - digit_count);
+                    if actual_digit_idx < digit_count {
+                        let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
+                        let digit = scratch.digit_buffer[digit_pos_from_right];
+                        byte_val |= digit << 4;
+                    }
+                }
+            }
+        }
+
+        // Low nibble handling
+        let low_nibble_idx = high_nibble_idx + 1;
+        if low_nibble_idx == total_nibbles - 1 {
+            byte_val |= if signed {
+                if is_negative { 0x0D } else { 0x0C }
+            } else {
+                0x0F
+            };
+        } else if low_nibble_idx < total_nibbles - 1 {
+            let digit_idx = if has_padding {
+                low_nibble_idx - 1
+            } else {
+                low_nibble_idx
+            };
+            if digit_idx >= digits_usize.saturating_sub(digit_count) {
+                let actual_digit_idx = digit_idx - (digits_usize - digit_count);
+                if actual_digit_idx < digit_count {
+                    let digit_pos_from_right = digit_count - 1 - actual_digit_idx;
+                    let digit = scratch.digit_buffer[digit_pos_from_right];
+                    byte_val |= digit;
+                }
+            }
+        }
+
+        scratch.byte_buffer[byte_idx] = byte_val;
+    }
+
+    Ok(std::mem::take(&mut scratch.byte_buffer))
 }
 
 /// Decode a packed decimal (COMP-3) directly to a `String`, bypassing the
@@ -4155,7 +4251,9 @@ pub fn decode_packed_decimal_to_string_with_scratch(
 
     // CRITICAL OPTIMIZATION: Direct decode-to-string path to avoid SmallDecimal allocation
     if data.is_empty() {
-        return Ok("0".to_string());
+        scratch.string_buffer.clear();
+        scratch.string_buffer.push('0');
+        return Ok(std::mem::take(&mut scratch.string_buffer));
     }
 
     // Fast path for common single-digit packed decimals

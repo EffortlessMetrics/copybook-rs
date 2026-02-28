@@ -116,6 +116,8 @@ impl AuditLogger {
     fn format_as_cef(&self, event: &AuditEvent) -> AuditResult<String> {
         // CEF format: CEF:Version|Device Vendor|Device Product|Device Version|Device Event Class ID|Name|Severity|[Extension]
         let event_class_id = format!("{:?}", event.event_type);
+        let context = serde_json::to_string(&event.context)?;
+
         let event_name = match &event.payload {
             super::AuditPayload::SecurityEvent { .. } => "SecurityEvent",
             super::AuditPayload::ComplianceCheck { .. } => "ComplianceEvent",
@@ -137,7 +139,7 @@ impl AuditLogger {
             self.map_severity_to_cef(event.severity),
             event.source,
             event.context.operation_id,
-            serde_json::to_string(&event.context).unwrap_or_default(),
+            context,
             event.severity as u32,
         );
 

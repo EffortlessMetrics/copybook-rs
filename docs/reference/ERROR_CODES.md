@@ -3,6 +3,8 @@
 
 copybook-rs uses a comprehensive error taxonomy with stable codes for reliable error handling and troubleshooting. **All error handling is panic-safe** with zero risk of unwrap() or expect() panics in production environments.
 
+**Canonical Status**: This is the authoritative source for error code semantics. Any historical or proposed code adjustments referenced in release docs are date-labeled as `[Historical: YYYY-MM-DD]`.
+
 ## Error Code Format
 
 Error codes follow the pattern `CBK[Category][Number]_[Description]`:
@@ -471,7 +473,7 @@ Possible text-mode transfer corruption
 #### "CBKP051_UNSUPPORTED_EDITED_PIC"
 **Problem**: Copybook contains Space (`B`) insertion in PIC clause
 **Solution**:
-- **v0.4.0+**: All edited PIC phases (E1/E2/E3) are fully supported except Space (`B`) insertion
+- **v0.4.3+**: All edited PIC phases (E1/E2/E3) are fully supported except Space (`B`) insertion
 - Remove `B` tokens from PIC clause: `PIC 99B99B99` → `PIC 999999` (post-process for formatting)
 - All other edited patterns (Z, $, +/-, CR/DB, commas, asterisk, currency) work correctly
 
@@ -682,8 +684,8 @@ let token = tokens
 Panic elimination has **minimal performance impact**:
 
 - **<5% overhead** while maintaining enterprise throughput targets
-- **DISPLAY processing**: 2.15+ GiB/s (32x enterprise baseline)
-- **COMP-3 processing**: 100+ MiB/s (3x enterprise baseline)
+- **DISPLAY processing**: 205 MiB/s (reference baseline, advisory floor is 80 MiB/s)
+- **COMP-3 processing**: 58 MiB/s (reference baseline, advisory floor is 40 MiB/s)
 - **Hardware optimization**: Uses CPU overflow detection for maximum efficiency
 
 #### Error Context Enhancement

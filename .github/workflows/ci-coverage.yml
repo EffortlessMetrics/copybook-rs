@@ -7,16 +7,15 @@ concurrency:
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
-  schedule:
-    - cron: "23 3 * * 2"  # Weekly on Tuesdays
-  workflow_dispatch:
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  COVERAGE_MINIMUM: "80.0"
+  COVERAGE_FLOOR: 80
 
 jobs:
   coverage:
@@ -59,6 +58,43 @@ jobs:
           --all-features \
           --test-threads 4
 
+    - name: Enforce minimum coverage floor
+      id: enforce-coverage
+      run: |
+        set -euo pipefail
+
+        COVERAGE_PERCENT=$(python3 - <<'PY'
+import os
+import sys
+import xml.etree.ElementTree as ET
+
+coverage_file = "coverage/cobertura.xml"
+minimum = float(os.environ["COVERAGE_MINIMUM"])
+
+if not os.path.exists(coverage_file):
+    print(f"ERROR: {coverage_file} does not exist", file=sys.stderr)
+    sys.exit(1)
+
+root = ET.parse(coverage_file).getroot()
+line_rate = root.attrib.get("line-rate")
+if line_rate is None:
+    package = root.find(".//package")
+    if package is None or package.attrib.get("line-rate") is None:
+        print("ERROR: coverage report missing line-rate", file=sys.stderr)
+        sys.exit(1)
+    line_rate = package.attrib.get("line-rate")
+
+coverage = round(float(line_rate) * 100, 2)
+print(f"{coverage}")
+if coverage < minimum:
+    print(f"::error::Coverage floor failed: {coverage}% < {minimum}%", file=sys.stderr)
+    sys.exit(1)
+
+print(f"Coverage floor passed: {coverage}% >= {minimum}%", file=sys.stderr)
+PY
+        )
+        echo "coverage_percent=$COVERAGE_PERCENT" >> "$GITHUB_OUTPUT"
+
     - name: Generate coverage summary
       run: |
         if [ -f coverage/cobertura.xml ]; then
@@ -68,6 +104,35 @@ jobs:
           echo "ERROR: Coverage report not found"
           exit 1
         fi
+
+    - name: Enforce coverage floor
+      run: |
+        python3 - <<'PY'
+        import os
+        import pathlib
+        import sys
+        import xml.etree.ElementTree as ET
+
+        report = pathlib.Path("coverage/cobertura.xml")
+        if not report.exists():
+            print("ERROR: coverage report missing at coverage/cobertura.xml")
+            sys.exit(1)
+
+        floor = float(os.environ["COVERAGE_FLOOR"])
+        tree = ET.parse(report)
+        root = tree.getroot()
+        line_rate = float(root.attrib.get("line-rate", "0"))
+        coverage = line_rate * 100
+
+        print(f"Coverage line-rate: {coverage:.2f}%")
+        print(f"Coverage floor:   {floor:.2f}%")
+
+        if coverage < floor:
+            print(f"FAIL: Coverage floor not met ({coverage:.2f}% < {floor:.2f}%)")
+            sys.exit(1)
+
+        print("PASS: Coverage floor met")
+        PY
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
@@ -94,6 +159,7 @@ jobs:
         echo "## Coverage Details" >> $GITHUB_STEP_SUMMARY
         echo "- **Tool**: cargo-tarpaulin 0.31.5" >> $GITHUB_STEP_SUMMARY
         echo "- **Features**: All features enabled" >> $GITHUB_STEP_SUMMARY
+        echo "- **Line coverage**: ${{ steps.enforce-coverage.outputs.coverage_percent }}% (minimum: ${COVERAGE_MINIMUM}%)" >> $GITHUB_STEP_SUMMARY
         echo "- **Excluded**: copybook-bench, examples, integration tests" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "View detailed coverage report on [Codecov](https://codecov.io/gh/${{ github.repository }})." >> $GITHUB_STEP_SUMMARY
@@ -170,3 +236,47 @@ jobs:
             repo: context.repo.repo,
             body: comment
           });
+
+  coverage-gate:
+    name: Coverage Gate
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs:
+      - coverage
+      - coverage-diff
+    steps:
+      - name: Aggregate required coverage prereqs
+        if: always()
+        run: |
+          set -euo pipefail
+
+          echo "## Coverage Gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          echo "| coverage | ${{ needs.coverage.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ needs.coverage.result }}" != "success" ]; then
+            echo "::error::Coverage job failed with status '${{ needs.coverage.result }}'."
+            failed=1
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "| coverage-diff | ${{ needs['coverage-diff'].result }} |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "${{ needs['coverage-diff'].result }}" != "success" ]; then
+              echo "::error::Coverage diff job failed with status '${{ needs['coverage-diff'].result }}'."
+              failed=1
+            fi
+          else
+            echo "| coverage-diff | skipped |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::Coverage Gate failed."
+            exit 1
+          fi
+
+          echo "| coverage-percent | ${{ needs.coverage.outputs.coverage_percent }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Coverage Gate passed for commit ${GITHUB_SHA}."

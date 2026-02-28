@@ -48,8 +48,13 @@ toml.workspace = true
 [features]
 default = []
 soak = []
+# Core audit CLI integrations require explicit runtime readiness gate:
+# set `COPYBOOK_AUDIT_ENTERPRISE_READY=1` (or true/yes/on) to enable AC gates.
 arrow = ["dep:copybook-arrow"]
 audit = ["copybook-core/audit", "dep:tokio"]
+# AC9 monitoring is feature-agnostic at build time. Set `COPYBOOK_AUDIT_ENTERPRISE_READY=1`
+# (or true/yes/on) and the command-level AC9 gate to enable runtime monitoring features.
+deterministic_audit_stubs = []
 metrics = [
     "copybook-codec/metrics",
     "dep:metrics",

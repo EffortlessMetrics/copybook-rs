@@ -84,10 +84,11 @@ copybook-rs is currently at **Engineering Preview v0.4.3** with significant arch
 
 ### Performance Benchmarks and Validation
 **Current Performance (Environment-Specific)**:
-- DISPLAY throughput: 66-95 MiB/s (target: ≥80 MiB/s) ✅
-- COMP-3 throughput: 18-25 MiB/s (target: ≥40 MiB/s) ❌
+- DISPLAY throughput: 1349.6524445004138 MiB/s (evidence date: 2025-12-29, target: ≥80 MiB/s) ✅
+- COMP-3 throughput: 16.24215679348751 MiB/s (evidence date: 2025-12-29, target: ≥40 MiB/s) ⚠️
 - Memory usage: <256 MiB validated ✅
 - Variance: <5% native, <8% WSL2 (partially met)
+- Non-WSL/CI replay baseline: `not-collected-on-wsl` (status=warn; owner=@EffortlessSteven; evidence=Release readiness blocks RC until `artifacts/perf/non-wsl/perf.json` provides a valid `non_wsl_evidence_status`, date, and checksum. )
 
 **Performance Issues**:
 - COMP-3 processing 45-55% below target
@@ -113,6 +114,15 @@ copybook-rs is currently at **Engineering Preview v0.4.3** with significant arch
 - Performance impact assessment incomplete
 - Security monitoring integration incomplete
 - Compliance validation not production-ready
+
+### Release Blocker Status Register
+
+| Blocker | Status | Owner | Timestamp | Evidence |
+|---|---|---|---|---|
+| `TODO(AC5)` (`copybook-core/src/audit/security.rs`) | blocked | @EffortlessSteven | 2026-02-28 | (status=blocked; owner=@EffortlessSteven; evidence=[security audit implementation](copybook-core/src/audit/security.rs), [security tests](copybook-core/src/audit/security.rs), [AC5 gate contract](copybook-core/src/audit/mod.rs)) |
+| `TODO(AC11)` (`copybook-core/src/audit/performance.rs`) | warn | @EffortlessSteven | 2026-02-28 | (status=warn; owner=@EffortlessSteven; evidence=[AC11 performance checks](copybook-cli/src/commands/audit.rs), [AC11 baseline model](copybook-core/src/audit/performance.rs)) |
+| `TODO(AC16)` (`copybook-core/src/audit/lineage.rs`) | warn | @EffortlessSteven | 2026-02-28 | (status=warn; owner=@EffortlessSteven; evidence=Parser and codec lineage IDs are emitted from `parse_with_audit_lineage_metadata` and `decode_file_to_jsonl`, correlated in `run_lineage_analysis` via `lineage_analysis_id`, `source_lineage_id`, `target_lineage_id`, `source_codec_lineage_id`, and `target_codec_lineage_id`; hardening coverage remains in-progress with production fixtures.) |
+| Environment-gate risk (`artifacts/perf/non-wsl/perf.json`) | fail | @EffortlessSteven | 2026-02-28 | (status=fail; owner=@EffortlessSteven; evidence=Release readiness blocks if `artifacts/perf/non-wsl/perf.json` is missing, `non_wsl_evidence_status` is not `available|available-from-cache`, or checksum/baseline fields are absent.) |
 
 ## Critical Blockers Analysis
 

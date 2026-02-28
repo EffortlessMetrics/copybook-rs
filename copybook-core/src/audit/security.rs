@@ -5,12 +5,34 @@
 //! and threat detection for copybook-rs enterprise operations.
 
 use std::collections::{HashMap, HashSet};
+use std::net::IpAddr;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use super::{AuditResult, generate_audit_id};
+use super::{
+    AuditError, AuditResult, SecuritySeverity, AUDIT_ENTERPRISE_RELEASE_GATE_ENV,
+    generate_audit_id, is_audit_enterprise_release_gate_enabled, require_audit_release_gate,
+};
 
-// Security audit functionality - implementation placeholder
+/// AC9 status helper for CLI-facing metadata and diagnostics.
+#[must_use]
+pub fn ac9_monitoring_gate_status() -> &'static str {
+    if is_audit_enterprise_release_gate_enabled() {
+        "production-gated-enabled"
+    } else {
+        "production-gated-blocked"
+    }
+}
+
+/// AC9 status helper for environment-variable-aware reporting.
+#[must_use]
+pub const fn ac9_monitoring_gate_env() -> &'static str {
+    AUDIT_ENTERPRISE_RELEASE_GATE_ENV
+}
+
+// AC5 status: deterministic, non-silent policy checks suitable for gated
+// production use while retaining compatibility for existing behavior.
 
 /// Security audit system for monitoring and validation
 pub struct SecurityAuditor;
@@ -21,8 +43,79 @@ impl SecurityAuditor {
         Self
     }
 
+    fn validate_access_event(event: &AccessEvent) -> AuditResult<()> {
+        let user_id = event.user_id.trim();
+        let resource_type = event.resource_type.trim();
+        let resource_id = event.resource_id.trim();
+        let access_type = event.access_type.trim();
+
+        if user_id.is_empty()
+            || resource_type.is_empty()
+            || resource_id.is_empty()
+            || access_type.is_empty()
+        {
+            return Err(AuditError::SecurityValidationFailed {
+                message: "Access event must include user_id, resource_type, resource_id, and access_type"
+                    .to_string(),
+                severity: SecuritySeverity::High,
+            });
+        }
+
+        if let Some(source_ip) = &event.source_ip {
+            if source_ip.trim().is_empty() {
+                return Err(AuditError::SecurityValidationFailed {
+                    message: "Invalid source_ip format: empty".to_string(),
+                    severity: SecuritySeverity::Medium,
+                });
+            }
+
+            if IpAddr::from_str(source_ip)
+                .is_err()
+            {
+                return Err(AuditError::SecurityValidationFailed {
+                    message: format!("Invalid source_ip format: {source_ip}"),
+                    severity: SecuritySeverity::Medium,
+                });
+            }
+        }
+
+        if let Some(user_agent) = &event.user_agent
+            && user_agent.trim().is_empty()
+        {
+            return Err(AuditError::SecurityValidationFailed {
+                message: "user_agent must be non-empty when provided".to_string(),
+                severity: SecuritySeverity::Medium,
+            });
+        }
+
+        if let Some(timestamp) = &event.timestamp {
+            let timestamp = timestamp.trim();
+
+            if timestamp.is_empty() {
+                return Err(AuditError::SecurityValidationFailed {
+                    message: "timestamp is required to be RFC3339 when provided"
+                        .to_string(),
+                    severity: SecuritySeverity::High,
+                });
+            }
+
+            if chrono::DateTime::parse_from_rfc3339(timestamp).is_err() {
+                return Err(AuditError::SecurityValidationFailed {
+                    message: format!("timestamp must be RFC3339: {timestamp}"),
+                    severity: SecuritySeverity::High,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     /// Audit an access event and validate for security violations
     pub fn audit_access_event(&self, event: &AccessEvent) -> AuditResult<SecurityValidation> {
+        require_audit_release_gate("AC5")?;
+
+        Self::validate_access_event(event)?;
+
         let mut violations = Vec::new();
 
         // Check for failed access attempts
@@ -39,7 +132,8 @@ impl SecurityAuditor {
 
         // Check for suspicious source IP patterns
         if let Some(source_ip) = &event.source_ip
-            && (source_ip.starts_with("0.0.0.0") || source_ip == "127.0.0.1")
+            && IpAddr::from_str(source_ip)
+                .is_ok_and(|ip| ip.is_loopback() || ip.is_unspecified())
         {
             violations.push(SecurityViolation {
                 violation_id: generate_audit_id(),
@@ -59,17 +153,31 @@ impl SecurityAuditor {
     /// Check if security severity requires immediate attention
     #[must_use]
     pub fn check_sensitive_operation(&self, severity: &str) -> bool {
-        matches!(severity, "critical" | "high")
+        matches!(
+            severity.trim().to_ascii_lowercase().as_str(),
+            "critical" | "high"
+        )
     }
 
     /// Validate encryption configuration against security policy
     #[must_use]
     pub fn validate_encryption_config(&self, config: &EncryptionConfig) -> Vec<SecurityViolation> {
         let mut violations = Vec::new();
+        let at_rest_algorithm = config.at_rest_algorithm.trim();
+        let in_transit_protocol = config.in_transit_protocol.trim();
+
+        if at_rest_algorithm.is_empty() {
+            violations.push(SecurityViolation {
+                violation_id: generate_audit_id(),
+                severity: "high".to_string(),
+                description: "At-rest encryption algorithm is required".to_string(),
+            });
+        }
 
         // Check at-rest algorithm: must be AES-256 or higher
-        let at_rest_ok = config.at_rest_algorithm.to_uppercase().contains("AES-256")
-            || config.at_rest_algorithm.to_uppercase().contains("AES256");
+        let at_rest_upper = at_rest_algorithm.to_ascii_uppercase();
+        let at_rest_ok = at_rest_upper.contains("AES-256")
+            || at_rest_upper.contains("AES256");
         if !at_rest_ok {
             violations.push(SecurityViolation {
                 violation_id: generate_audit_id(),
@@ -82,7 +190,25 @@ impl SecurityAuditor {
         }
 
         // Check in-transit protocol: must be TLS 1.2+
-        let in_transit_upper = config.in_transit_protocol.to_uppercase();
+        if in_transit_protocol.is_empty() {
+            violations.push(SecurityViolation {
+                violation_id: generate_audit_id(),
+                severity: "high".to_string(),
+                description: "In-transit protocol is required".to_string(),
+            });
+        }
+
+        // Check key rotation: 0 disables key hygiene enforcement
+        if config.key_rotation_days == 0 {
+            violations.push(SecurityViolation {
+                violation_id: generate_audit_id(),
+                severity: "medium".to_string(),
+                description: "Key rotation period of 0 days disables configured rotation policy"
+                    .to_string(),
+            });
+        }
+
+        let in_transit_upper = in_transit_protocol.to_ascii_uppercase();
         let tls_ok = in_transit_upper.contains("TLS 1.2")
             || in_transit_upper.contains("TLS1.2")
             || in_transit_upper.contains("TLS 1.3")
@@ -204,14 +330,129 @@ impl AccessAuditor {
     #[must_use]
     pub fn audit_access_pattern(&self, events: &[AccessEvent]) -> Vec<SecurityViolation> {
         let mut violations = Vec::new();
+        const DENIED_ACCESS_WINDOW_SECS: i64 = 300;
+        const DENIED_ACCESS_WARNING_THRESHOLD: usize = 3;
+        const DENIED_ACCESS_HIGH_THRESHOLD: usize = 5;
+        const DENY_LOOP_WINDOW_SECS: i64 = 120;
+        const DENY_LOOP_WARNING_THRESHOLD: usize = 4;
+        const DENY_LOOP_HIGH_THRESHOLD: usize = 6;
+        const USER_RESOURCE_BURST_WINDOW_SECS: i64 = 120;
+        const USER_RESOURCE_BURST_WARNING_THRESHOLD: usize = 6;
+        const USER_RESOURCE_BURST_HIGH_THRESHOLD: usize = 10;
 
         // Count failures by user
         let mut user_failures: HashMap<String, usize> = HashMap::new();
+        let mut denied_by_source_and_bucket: HashMap<(String, Option<i64>), usize> =
+            HashMap::new();
+        let mut denied_loop_by_user_resource_source: HashMap<(String, String, String, i64), usize> =
+            HashMap::new();
+        let mut user_resource_burst_by_window: HashMap<(String, i64), HashSet<String>> =
+            HashMap::new();
 
         for event in events {
-            if matches!(event.result, AccessResult::Failed | AccessResult::Denied) {
-                *user_failures.entry(event.user_id.clone()).or_insert(0) += 1;
+            let user_id = event.user_id.trim();
+            let resource_id = event.resource_id.trim();
+
+            if user_id.is_empty()
+                || event.resource_type.trim().is_empty()
+                || resource_id.is_empty()
+                || event.access_type.trim().is_empty()
+            {
+                violations.push(SecurityViolation {
+                    violation_id: generate_audit_id(),
+                    severity: "high".to_string(),
+                    description: "Correlation input rejected: access event must include user_id, resource_type, resource_id, and access_type".to_string(),
+                });
+                continue;
             }
+
+            if matches!(event.result, AccessResult::Failed | AccessResult::Denied) {
+                *user_failures.entry(user_id.to_string()).or_insert(0) += 1;
+            }
+
+            if let AccessResult::Denied = event.result {
+                let Some(source_ip) = event
+                    .source_ip
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                else {
+                    violations.push(SecurityViolation {
+                        violation_id: generate_audit_id(),
+                        severity: "high".to_string(),
+                        description: format!(
+                            "Correlation input rejected: denied access for user {user_id} to {resource_id} is missing source_ip"
+                        ),
+                    });
+                    continue;
+                };
+
+                let Some(timestamp) = event.timestamp.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+                    violations.push(SecurityViolation {
+                        violation_id: generate_audit_id(),
+                        severity: "high".to_string(),
+                        description: format!(
+                            "Deny-loop correlation rejected: denied access for user {user_id} to {resource_id} is missing timestamp"
+                        ),
+                    });
+                    continue;
+                };
+
+                let Some(deny_bucket) =
+                    chrono::DateTime::parse_from_rfc3339(timestamp)
+                        .ok()
+                        .map(|timestamp| timestamp.timestamp() / DENY_LOOP_WINDOW_SECS)
+                else {
+                    violations.push(SecurityViolation {
+                        violation_id: generate_audit_id(),
+                        severity: "high".to_string(),
+                        description: format!(
+                            "Deny-loop correlation rejected: denied access for user {user_id} to {resource_id} has invalid RFC3339 timestamp"
+                        ),
+                    });
+                    continue;
+                };
+
+                *denied_loop_by_user_resource_source
+                    .entry((user_id.to_string(), resource_id.to_string(), source_ip.to_string(), deny_bucket))
+                    .or_insert(0) += 1;
+
+                let bucket = event
+                    .timestamp
+                    .as_deref()
+                    .and_then(|timestamp| {
+                        chrono::DateTime::parse_from_rfc3339(timestamp)
+                            .ok()
+                            .map(|timestamp| timestamp.timestamp() / DENIED_ACCESS_WINDOW_SECS)
+                    });
+
+                *denied_by_source_and_bucket
+                    .entry((source_ip.to_string(), bucket))
+                    .or_insert(0) += 1;
+            }
+
+            let Some(timestamp) = event.timestamp.as_deref().map(str::trim).filter(|value| !value.is_empty()) else {
+                continue;
+            };
+
+            let Some(burst_bucket) = chrono::DateTime::parse_from_rfc3339(timestamp)
+                .ok()
+                .map(|timestamp| timestamp.timestamp() / USER_RESOURCE_BURST_WINDOW_SECS)
+            else {
+                violations.push(SecurityViolation {
+                    violation_id: generate_audit_id(),
+                    severity: "high".to_string(),
+                    description: format!(
+                        "User-resource burst correlation rejected: invalid timestamp for user {user_id} and resource {resource_id}"
+                    ),
+                });
+                continue;
+            };
+
+            user_resource_burst_by_window
+                .entry((user_id.to_string(), burst_bucket))
+                .or_default()
+                .insert(resource_id.to_string());
         }
 
         // Generate violations for users with multiple failures
@@ -227,6 +468,63 @@ impl AccessAuditor {
                     description: format!(
                         "User {} has {} failed access attempts - possible brute force attack",
                         user_id, failure_count
+                    ),
+                });
+            }
+        }
+
+        for ((source_ip, bucket), denied_count) in denied_by_source_and_bucket {
+            if denied_count >= DENIED_ACCESS_WARNING_THRESHOLD {
+                violations.push(SecurityViolation {
+                    violation_id: generate_audit_id(),
+                    severity: if denied_count >= DENIED_ACCESS_HIGH_THRESHOLD {
+                        "high".to_string()
+                    } else {
+                        "medium".to_string()
+                    },
+                    description: if bucket.is_some() {
+                        format!(
+                            "Source IP {source_ip} has {denied_count} denied access attempts in a 5-minute window",
+                        )
+                    } else {
+                        format!(
+                            "Source IP {source_ip} has {denied_count} denied access attempts without a valid timestamp",
+                        )
+                    },
+                });
+            }
+        }
+
+        for ((user_id, resource_id, source_ip, denied_count), _bucket) in
+            denied_loop_by_user_resource_source
+        {
+            if denied_count >= DENY_LOOP_WARNING_THRESHOLD {
+                violations.push(SecurityViolation {
+                    violation_id: generate_audit_id(),
+                    severity: if denied_count >= DENY_LOOP_HIGH_THRESHOLD {
+                        "high".to_string()
+                    } else {
+                        "medium".to_string()
+                    },
+                    description: format!(
+                        "Deny-loop correlation detected: user {user_id} denied {denied_count} times for resource {resource_id} from source {source_ip} in a 2-minute window"
+                    ),
+                });
+            }
+        }
+
+        for ((user_id, _bucket), resources) in user_resource_burst_by_window {
+            let resource_count = resources.len();
+            if resource_count >= USER_RESOURCE_BURST_WARNING_THRESHOLD {
+                violations.push(SecurityViolation {
+                    violation_id: generate_audit_id(),
+                    severity: if resource_count >= USER_RESOURCE_BURST_HIGH_THRESHOLD {
+                        "high".to_string()
+                    } else {
+                        "medium".to_string()
+                    },
+                    description: format!(
+                        "User-resource burst correlation detected: user {user_id} accessed {resource_count} distinct resources in a 2-minute window"
                     ),
                 });
             }
@@ -310,7 +608,7 @@ fn severity_to_num(severity: &str) -> u8 {
         "high" => 7,
         "medium" => 5,
         "low" => 3,
-        _ => 1,
+        _ => 5,
     }
 }
 
@@ -474,6 +772,43 @@ impl EventMonitor {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use std::{env, sync::Mutex};
+
+    static AUDIT_ENTERPRISE_GATE_MUTEX: Mutex<()> = Mutex::new(());
+
+    fn with_audit_gate_value<T>(value: Option<&str>, operation: impl FnOnce() -> T) -> T {
+        let _guard = AUDIT_ENTERPRISE_GATE_MUTEX.lock().unwrap();
+        let previous = env::var_os(AUDIT_ENTERPRISE_RELEASE_GATE_ENV);
+
+        match value {
+            Some(enabled) => env::set_var(AUDIT_ENTERPRISE_RELEASE_GATE_ENV, enabled),
+            None => env::remove_var(AUDIT_ENTERPRISE_RELEASE_GATE_ENV),
+        }
+
+        let result = operation();
+
+        match previous {
+            Some(previous_value) => env::set_var(AUDIT_ENTERPRISE_RELEASE_GATE_ENV, previous_value),
+            None => env::remove_var(AUDIT_ENTERPRISE_RELEASE_GATE_ENV),
+        }
+
+        result
+    }
+
+    fn with_audit_gate_enabled<T>(operation: impl FnOnce() -> T) -> T {
+        with_audit_gate_value(Some("1"), operation)
+    }
+
+    fn with_audit_gate_disabled<T>(operation: impl FnOnce() -> T) -> T {
+        with_audit_gate_value(None, operation)
+    }
+
+    fn audit_access_event_with_gate(
+        auditor: &SecurityAuditor,
+        event: &AccessEvent,
+    ) -> AuditResult<SecurityValidation> {
+        with_audit_gate_enabled(|| auditor.audit_access_event(event))
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -490,6 +825,91 @@ mod tests {
             result,
             timestamp: None,
         }
+    }
+
+    fn make_event_with_timestamp_and_source(
+        user_id: &str,
+        resource_id: &str,
+        result: AccessResult,
+        source_ip: Option<&str>,
+        timestamp: &str,
+    ) -> AccessEvent {
+        AccessEvent {
+            user_id: user_id.to_string(),
+            resource_type: "database".to_string(),
+            resource_id: resource_id.to_string(),
+            access_type: "read".to_string(),
+            source_ip: source_ip.map(str::to_string),
+            user_agent: None,
+            result,
+            timestamp: Some(timestamp.to_string()),
+        }
+    }
+
+    #[test]
+    fn test_validate_access_event_rejects_missing_required_fields() {
+        let mut event = make_event("user123", "prod-db", AccessResult::Success);
+        event.user_id = String::new();
+
+        let err = SecurityAuditor::validate_access_event(&event)
+            .expect_err("event should fail when required fields are missing");
+        assert!(matches!(err, AuditError::SecurityValidationFailed { .. }));
+    }
+
+    #[test]
+    fn test_validate_access_event_rejects_invalid_source_ip() {
+        let mut event = make_event("user123", "prod-db", AccessResult::Success);
+        event.source_ip = Some("999.999.999.999".to_string());
+
+        let err = SecurityAuditor::validate_access_event(&event)
+            .expect_err("event should fail for invalid source_ip");
+        assert!(matches!(err, AuditError::SecurityValidationFailed { .. }));
+    }
+
+    #[test]
+    fn test_validate_access_event_rejects_empty_user_agent_when_present() {
+        let mut event = make_event("user123", "prod-db", AccessResult::Success);
+        event.user_agent = Some("   ".to_string());
+
+        let err = SecurityAuditor::validate_access_event(&event)
+            .expect_err("event should fail for empty user_agent");
+        assert!(matches!(err, AuditError::SecurityValidationFailed { .. }));
+    }
+
+    #[test]
+    fn test_validate_access_event_rejects_invalid_timestamp() {
+        let mut event = make_event("user123", "prod-db", AccessResult::Success);
+        event.timestamp = Some("invalid-timestamp".to_string());
+
+        let err = SecurityAuditor::validate_access_event(&event)
+            .expect_err("event should fail for invalid timestamp");
+        assert!(matches!(
+            err,
+            AuditError::SecurityValidationFailed {
+                message: _,
+                severity: SecuritySeverity::High,
+            }
+        ));
+    }
+
+    #[test]
+    fn test_security_auditor_audit_access_event_requires_enterprise_gate() {
+        let auditor = SecurityAuditor::new();
+        let event = AccessEvent {
+            user_id: "gate-check".to_string(),
+            resource_type: "database".to_string(),
+            resource_id: "prod-db".to_string(),
+            access_type: "read".to_string(),
+            source_ip: None,
+            user_agent: None,
+            result: AccessResult::Success,
+            timestamp: None,
+        };
+
+        let err = with_audit_gate_disabled(|| auditor.audit_access_event(&event))
+            .expect_err("audit should fail when enterprise gate is disabled");
+        assert!(err.to_string().contains("enterprise"));
+        assert!(err.to_string().contains("AC5"));
     }
 
     // -------------------------------------------------------------------------
@@ -510,8 +930,7 @@ mod tests {
             timestamp: None,
         };
 
-        let validation = auditor
-            .audit_access_event(&event)
+        let validation = audit_access_event_with_gate(&auditor, &event)
             .expect("Audit should succeed");
 
         assert!(validation.is_compliant);
@@ -532,8 +951,7 @@ mod tests {
             timestamp: None,
         };
 
-        let validation = auditor
-            .audit_access_event(&event)
+        let validation = audit_access_event_with_gate(&auditor, &event)
             .expect("Audit should succeed");
 
         assert!(!validation.is_compliant);
@@ -555,8 +973,7 @@ mod tests {
             timestamp: None,
         };
 
-        let validation = auditor
-            .audit_access_event(&event)
+        let validation = audit_access_event_with_gate(&auditor, &event)
             .expect("Audit should succeed");
 
         assert!(!validation.is_compliant);
@@ -582,8 +999,7 @@ mod tests {
             timestamp: None,
         };
 
-        let validation = auditor
-            .audit_access_event(&event)
+        let validation = audit_access_event_with_gate(&auditor, &event)
             .expect("Audit should succeed");
 
         assert!(!validation.is_compliant);
@@ -602,8 +1018,10 @@ mod tests {
 
         assert!(auditor.check_sensitive_operation("critical"));
         assert!(auditor.check_sensitive_operation("high"));
+        assert!(auditor.check_sensitive_operation("Critical"));
         assert!(!auditor.check_sensitive_operation("medium"));
         assert!(!auditor.check_sensitive_operation("low"));
+        assert!(!auditor.check_sensitive_operation("unknown"));
     }
 
     // -------------------------------------------------------------------------
@@ -624,6 +1042,18 @@ mod tests {
             "Expected no violations, got: {:?}",
             violations
         );
+    }
+
+    #[test]
+    fn test_validate_encryption_config_rejects_missing_policy_fields() {
+        let auditor = SecurityAuditor::new();
+        let config = EncryptionConfig {
+            at_rest_algorithm: "   ".to_string(),
+            in_transit_protocol: "   ".to_string(),
+            key_rotation_days: 0,
+        };
+        let violations = auditor.validate_encryption_config(&config);
+        assert!(violations.iter().any(|v| v.description.contains("required")));
     }
 
     #[test]
@@ -777,6 +1207,174 @@ mod tests {
             violations[0]
                 .description
                 .contains("5 failed access attempts")
+        );
+    }
+
+    #[test]
+    fn test_access_auditor_audit_access_pattern_denied_source_ip_window() {
+        let auditor = AccessAuditor::new();
+        let events = vec![
+            make_event_with_timestamp_and_source(
+                "alice",
+                "resource-a",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                "2026-02-28T10:00:00Z",
+            ),
+            make_event_with_timestamp_and_source(
+                "bob",
+                "resource-b",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                "2026-02-28T10:01:00Z",
+            ),
+            make_event_with_timestamp_and_source(
+                "carol",
+                "resource-c",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                "2026-02-28T10:02:00Z",
+            ),
+        ];
+
+        let violations = auditor.audit_access_pattern(&events);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].severity, "medium");
+        assert!(
+            violations[0]
+                .description
+                .contains("Source IP 198.51.100.10 has 3 denied access attempts in a 5-minute window")
+        );
+    }
+
+    #[test]
+    fn test_access_auditor_audit_access_pattern_deny_loop_correlation_medium() {
+        let auditor = AccessAuditor::new();
+        let events = vec![
+            make_event_with_timestamp_and_source(
+                "attacker",
+                "resource-alpha",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                "2026-02-28T10:00:00Z",
+            ),
+            make_event_with_timestamp_and_source(
+                "attacker",
+                "resource-alpha",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                "2026-02-28T10:00:20Z",
+            ),
+            make_event_with_timestamp_and_source(
+                "attacker",
+                "resource-alpha",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                "2026-02-28T10:00:40Z",
+            ),
+            make_event_with_timestamp_and_source(
+                "attacker",
+                "resource-alpha",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                "2026-02-28T10:01:00Z",
+            ),
+        ];
+
+        let violations = auditor.audit_access_pattern(&events);
+        assert!(violations
+            .iter()
+            .any(|v| v.description.contains("Deny-loop correlation detected")));
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.description.contains("4 times"))
+        );
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.severity == "medium" && v.description.contains("Deny-loop correlation detected"))
+        );
+    }
+
+    #[test]
+    fn test_access_auditor_audit_access_pattern_deny_loop_correlation_high() {
+        let auditor = AccessAuditor::new();
+        let mut events = Vec::new();
+        for i in 0..6 {
+            events.push(make_event_with_timestamp_and_source(
+                "attacker",
+                "resource-alpha",
+                AccessResult::Denied,
+                Some("198.51.100.10"),
+                &format!("2026-02-28T10:00:{:02}Z", i * 10),
+            ));
+        }
+
+        let violations = auditor.audit_access_pattern(&events);
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.severity == "high" && v.description.contains("Deny-loop correlation detected"))
+        );
+    }
+
+    #[test]
+    fn test_access_auditor_audit_access_pattern_user_resource_burst_correlation() {
+        let auditor = AccessAuditor::new();
+        let mut events = Vec::new();
+        for i in 0..7 {
+            events.push(make_event_with_timestamp_and_source(
+                "analyst",
+                &format!("resource-{i}"),
+                AccessResult::Success,
+                Some("203.0.113.20"),
+                &format!("2026-02-28T10:05:{:02}Z", i),
+            ));
+        }
+
+        let violations = auditor.audit_access_pattern(&events);
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.severity == "medium" && v.description.contains("User-resource burst correlation detected"))
+        );
+    }
+
+    #[test]
+    fn test_access_auditor_audit_access_pattern_rejects_malformed_correlation_inputs() {
+        let auditor = AccessAuditor::new();
+        let events = vec![
+            AccessEvent {
+                user_id: "".to_string(),
+                resource_type: "database".to_string(),
+                resource_id: "resource-x".to_string(),
+                access_type: "read".to_string(),
+                source_ip: None,
+                user_agent: None,
+                result: AccessResult::Denied,
+                timestamp: Some("not-a-timestamp".to_string()),
+            },
+            make_event_with_timestamp_and_source(
+                "attacker",
+                "resource-y",
+                AccessResult::Denied,
+                None,
+                "2026-02-28T10:10:00Z",
+            ),
+        ];
+
+        let violations = auditor.audit_access_pattern(&events);
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.description
+                    .contains("Correlation input rejected: access event must include user_id, resource_type, resource_id, and access_type"))
+        );
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.description.contains("is missing source_ip"))
         );
     }
 
@@ -953,6 +1551,7 @@ mod tests {
             ("high", "7"),
             ("medium", "5"),
             ("low", "3"),
+            ("unknown", "5"),
         ] {
             let v = SecurityViolation {
                 violation_id: "x".to_string(),

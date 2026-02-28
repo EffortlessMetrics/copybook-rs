@@ -154,9 +154,10 @@ jobs:
         Path('perf.json').write_text(json.dumps(results, indent=2))
 
         # Set outputs for GitHub Actions
-        print(f"::set-output name=status::{results['status']}")
-        print(f"::set-output name=display_gibs::{results['display_gibs'] or 'N/A'}")
-        print(f"::set-output name=comp3_mibs::{results['comp3_mibs'] or 'N/A'}")
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"status={results['status']}\n")
+            output.write(f"display_gibs={results['display_gibs'] or 'N/A'}\n")
+            output.write(f"comp3_mibs={results['comp3_mibs'] or 'N/A'}\n")
 
         # Report status (advisory only per #74, #75)
         if results["status"] == "failure":
@@ -174,6 +175,23 @@ jobs:
             print(f"   COMP-3: {results['comp3_mibs']} MiB/s")
         EOF
 
+    - name: Capture deterministic non-WSL artifact path
+      id: non_wsl_snapshot
+      if: always()
+      run: |
+        set -euo pipefail
+
+        if [[ -f perf.json ]]; then
+          mkdir -p artifacts/perf/non-wsl
+          cp perf.json artifacts/perf/non-wsl/perf.json
+          echo "path=artifacts/perf/non-wsl/perf.json" >> "$GITHUB_OUTPUT"
+          echo "status=available" >> "$GITHUB_OUTPUT"
+          echo "✅ Captured benchmark result at artifacts/perf/non-wsl/perf.json."
+        else
+          echo "status=missing" >> "$GITHUB_OUTPUT"
+          echo "⚠️ perf.json missing; skipping deterministic non-WSL artifact path."
+        fi
+
     - name: Upload benchmark artifacts
       uses: actions/upload-artifact@v6
       if: always()
@@ -187,6 +205,15 @@ jobs:
           target/criterion/**/*.html
         retention-days: 14
         compression-level: 6
+
+    - name: Upload deterministic non-WSL benchmark artifacts
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: non-wsl-bench-json-${{ github.sha }}
+        path: artifacts/perf/non-wsl/perf.json
+        retention-days: 14
+        if-no-files-found: ignore
 
     - name: Comment PR with benchmark results
       if: github.event_name == 'pull_request'
@@ -268,28 +295,61 @@ jobs:
       id: baseline_check
       if: github.event_name == 'pull_request'
       run: |
-        # Download existing baseline if available
-        gh api repos/${{ github.repository }}/actions/artifacts \
-          --jq '.artifacts[] | select(.name | startswith("baseline-main")) | select(.created_at | . != null) | .archive_download_url' \
-          --paginate | head -1 | xargs -I {} sh -c '
-          if [ -n "{}" ]; then
-            echo "Downloading latest main baseline..."
-            gh api {} > baseline.zip 2>/dev/null || true
-            if [ -s baseline.zip ]; then
-              unzip -q baseline.zip 2>/dev/null || true
-              if [ -f performance.json ]; then
-                echo "Found baseline, running comparison..."
-                cargo run --bin bench-report -p copybook-bench -- compare perf.json
-              else
-                echo "No valid baseline found in artifact"
-              fi
-            else
-              echo "Failed to download baseline"
-            fi
-          else
-            echo "No baseline artifact found"
-          fi
-        ' || echo "Baseline comparison skipped (no baseline available)"
+        set -euo pipefail
+
+        # Download the latest successful benchmark baseline from main.
+        RUN_ID=$(gh api \
+          --method GET \
+          -H "Accept: application/vnd.github+json" \
+          "/repos/${{ github.repository }}/actions/workflows/benchmark.yml/runs?branch=main&status=success&per_page=1" \
+          --jq '.workflow_runs[0].id // empty' 2>/dev/null || true)
+
+        if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
+          echo "No successful benchmark runs found on main."
+          echo "Baseline comparison skipped (no baseline available)"
+          exit 0
+        fi
+
+        ARTIFACT_ID=$(gh api \
+          --method GET \
+          -H "Accept: application/vnd.github+json" \
+          "/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
+          --jq '[.artifacts[] | select(.name | startswith("baseline-main-"))] | sort_by(.created_at) | reverse | .[0].id // empty' 2>/dev/null || true)
+
+        if [[ -z "$ARTIFACT_ID" || "$ARTIFACT_ID" == "null" ]]; then
+          echo "No baseline artifact found in workflow run ${RUN_ID}."
+          echo "Baseline comparison skipped (no baseline available)"
+          exit 0
+        fi
+
+        if ! gh api \
+          --method GET \
+          -H "Accept: application/vnd.github+json" \
+          "/repos/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}/zip" > baseline.zip; then
+          echo "Failed to download baseline artifact ${ARTIFACT_ID}."
+          echo "Baseline comparison skipped (no baseline available)"
+          exit 0
+        fi
+
+        rm -rf baseline-artifacts
+        mkdir -p baseline-artifacts
+
+        if ! unzip -q baseline.zip -d baseline-artifacts; then
+          echo "Failed to extract baseline artifact ${ARTIFACT_ID}."
+          exit 1
+        fi
+
+        if [[ -f baseline-artifacts/performance.json ]]; then
+          cp baseline-artifacts/performance.json performance.json
+          echo "Found baseline, running comparison..."
+          cargo run --bin bench-report -p copybook-bench -- compare perf.json
+        elif [[ -f baseline-artifacts/target/baselines/performance.json ]]; then
+          cp baseline-artifacts/target/baselines/performance.json performance.json
+          echo "Found baseline, running comparison..."
+          cargo run --bin bench-report -p copybook-bench -- compare perf.json
+        else
+          echo "No valid baseline found in artifact"
+        fi
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -308,7 +368,7 @@ jobs:
         path: target/baselines/performance.json
         retention-days: 90
 
-    - name: Advisory SLO status (neutral gate)
+    - name: Advisory SLO status (neutral, non-blocking)
       if: steps.process.outputs.status == 'failure'
       run: |
         echo "⚠️ Historic SLO targets not met (advisory only)"

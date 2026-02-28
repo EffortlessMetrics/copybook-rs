@@ -47,32 +47,36 @@ jobs:
           chmod +x scripts/ci/determinism_smoke.sh
           scripts/ci/determinism_smoke.sh
 
-      - name: Summary
-        if: always()
-        run: |
-          echo "## Determinism Smoke Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f target/determinism-decode.json ]; then
-            echo "### Decode Determinism" >> $GITHUB_STEP_SUMMARY
+    - name: Summary
+      if: always()
+      run: |
+        echo "## Determinism Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        for report in target/determinism-*.json; do
+          if [ -f "${report}" ]; then
+            echo "### $(basename "${report}")" >> $GITHUB_STEP_SUMMARY
             echo '```json' >> $GITHUB_STEP_SUMMARY
-            cat target/determinism-decode.json >> $GITHUB_STEP_SUMMARY
+            cat "${report}" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
           fi
-          if [ -f target/determinism-encode.json ]; then
-            echo "### Encode Determinism" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            cat target/determinism-encode.json >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+        done
+        if [ -f target/determinism-failure-details.txt ]; then
+          echo "### Reproducibility details (on failure)" >> $GITHUB_STEP_SUMMARY
+          cat target/determinism-failure-details.txt >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Determinism smoke checks failed" >> $GITHUB_STEP_SUMMARY
+        else
           echo "✅ All determinism checks passed" >> $GITHUB_STEP_SUMMARY
+        fi
 
-      - name: Upload determinism reports
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: determinism-reports-${{ github.sha }}
-          path: |
-            target/determinism-*.json
-          retention-days: 7
-          if-no-files-found: warn
+    - name: Upload determinism reports
+      if: failure()
+      uses: actions/upload-artifact@v6
+      with:
+        name: determinism-reports-${{ github.sha }}
+        path: |
+          target/determinism-*.json
+          target/determinism-failure-details.txt
+        retention-days: 7
+        if-no-files-found: warn

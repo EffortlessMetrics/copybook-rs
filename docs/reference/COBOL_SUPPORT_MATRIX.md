@@ -4,6 +4,7 @@
 **Last Updated**: 2026-02-15
 **Version**: copybook-rs v0.4.3
 **Canonical Reference**: This document is the authoritative source for COBOL feature support
+**Historical Notes**: Status transitions and prior constraints are intentionally labeled as `[Historical: YYYY-MM-DD]` when included.
 
 > 💡 **Tip**: You can query this matrix programmatically using the CLI:
 > ```bash
@@ -40,17 +41,17 @@
 | OCCURS (Fixed) | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_occurs_fixed_arrays`, `comprehensive_redefines_odo_tests.rs::test_nested_fixed_occurs_allowed`, `redefines_comprehensive.rs::test_redefines_with_occurs` | Fixed-size array support with dedicated tests |
 | SYNCHRONIZED | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_synchronized_alignment` | Field alignment with padding calculation |
 | BLANK WHEN ZERO | ✅ Fully Supported | `comprehensive_parser_tests.rs::test_blank_when_zero_parsing`, `comprehensive_numeric_tests.rs::test_blank_when_zero_comprehensive`, `decimal_edge_cases.rs::test_blank_when_zero_edge_cases` | Special value handling |
-| Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5-O6🚫 rejected by design; see Issue #164 |
-| RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | `renames_codec_tests.rs::test_renames_r1_simple_decode`, `renames_codec_tests.rs::test_renames_r2_group_decode`, `schema_alias_lookup_tests.rs` (8 tests) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 out of scope) |
+| Nested ODO / OCCURS (`nested-odo`) | ✅ O1-O4 Supported | See [Nested ODO Support Status](#nested-odo--occurs-behavior---support-status) for scenario breakdown | O1-O4✅ supported; O5/O6🚫 rejected by design; O7🚫 policy-limited by R4-R6 (`CBKS612_RENAME_ODO_NOT_SUPPORTED`) |
+| RENAMES (`level-66-renames`) | ✅ Fully Supported (R1-R3) | `renames_codec_tests.rs::test_renames_r1_simple_decode`, `renames_codec_tests.rs::test_renames_r2_group_decode`, `schema_alias_lookup_tests.rs` (8 tests) | See [RENAMES Support Status](#renames-level-66---support-status) for scenario breakdown (R1-R3✅ with alias-aware lookup, R4-R6🚫 policy-limited) |
 | Dialect Lever (`dialect`) | ✅ Fully Supported (D0-D4) | `dialect_d1_tests.rs` (27 tests), `dialect_cli_d2_tests.rs` (11 tests), `dialect_fixtures_d3_tests.rs` | ODO `min_count` interpretation: Normative (n), ZeroTolerant (0), OneTolerant (1) modes with CLI `--dialect` flag and `COPYBOOK_DIALECT` env var; D0 contract complete (commit a9609af) |
 
 ## Sign Handling
 
 | Feature | Status | Test Evidence | Notes |
 |---------|--------|---------------|-------|
-| SIGN LEADING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN IS LEADING SEPARATE supported; always enabled |
-| SIGN TRAILING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN TRAILING SEPARATE supported; always enabled |
-| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Always enabled (promoted from experimental); encode + decode + round-trip |
+| SIGN LEADING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN IS LEADING SEPARATE supported; default-enabled stable policy |
+| SIGN TRAILING clause | ✅ Fully Supported | `copybook-core/tests/sign_separate_feature_enabled_tests.rs` | SIGN TRAILING SEPARATE supported; default-enabled stable policy |
+| SIGN SEPARATE (`sign-separate`) | ✅ **Fully Supported** | `copybook-core/tests/sign_separate_feature_enabled_tests.rs`, `copybook-core/tests/schema_validation_edge_cases.rs`, `copybook-codec/tests/numeric_sign_separate_comprehensive.rs`, `copybook-codec/tests/sign_separate_golden_tests.rs`, `copybook-codec/tests/sign_separate_tests.rs` | Default-enabled; can be disabled explicitly via feature flag; encode + decode + round-trip |
 | Overpunch (EBCDIC/ASCII) | ✅ Fully Supported | `decimal_edge_cases.rs::test_zoned_overpunch_by_codepage`, `decimal_edge_cases.rs::test_zoned_overpunch_comprehensive`, `comprehensive_numeric_tests.rs::test_zoned_decimal_ascii_sign_zones_comprehensive` | Comprehensive overpunch with EBCDIC zones |
 
 ## Record Formats
@@ -97,7 +98,7 @@
 - **E3.4 (Commas/Slashes)**: ✅ Insertion editing (`test_e3_4_comma_basic`, `test_e3_4_slash_date_format`)
 - **E3.5 (Asterisk)**: ✅ Check-protect fill (`test_e3_5_asterisk_basic_star9`, `test_e3_5_asterisk_check_protect_example`)
 - **E3.6 (Currency)**: ✅ Fixed/floating currency (`test_e3_6_currency_fixed`, `test_e3_6_currency_with_comma`)
-- **E3.7 (Space B)**: ✅ Space insertion (`test_e3_7_space_simple`, `test_e3_7_space_with_currency`)
+- **E3.7 (Space B)**: 🚫 Not supported (`Space B` insertion remains unsupported in current parser/codec behavior)
 
 **Well-Chosen Subset (E2)**:
 - ZZZ9 (basic zero suppression)
@@ -378,7 +379,7 @@ See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specif
 | O4  | ODO with sibling after (AC4)            | 🚫     | CBKP021_ODO_NOT_TAIL  | `golden_fixtures_ac4_sibling_after_odo_fail.rs` (8 negative tests)|
 | O5  | Nested ODO (ODO inside ODO)             | 🚫     | CBKP022_NESTED_ODO    | Phase N1: reject; Phase N2: review if user demand emerges        |
 | O6  | ODO over REDEFINES                      | 🚫     | CBKP023_ODO_REDEFINES | Phase N1: reject; Phase N3: dedicated design required            |
-| O7  | ODO over RENAMES span (R4/R5 scenarios) | 🚫     | Out of scope          | RENAMES R4-R6 explicitly deferred (see RENAMES section)          |
+| O7  | ODO over RENAMES span (R4-R6 scenarios) | 🚫     | CBKS612_RENAME_ODO_NOT_SUPPORTED | Policy-limited by R4-R6 scope; parser rejects ODO spans |
 
 **Evidence:**
 
@@ -414,7 +415,7 @@ See `docs/design/NESTED_ODO_BEHAVIOR.md` (Issue #164) for complete design specif
   - **Future**: Phase N3 with dedicated REDEFINES + OCCURS design
 
 - **O7 (ODO over RENAMES)**:
-  - **Decision**: 🚫 Out of scope per RENAMES R4-R6 policy
+  - **Decision**: 🚫 Policy-limited by RENAMES R4-R6 scope; parser emits `CBKS612_RENAME_ODO_NOT_SUPPORTED`
   - **Reference**: See [RENAMES Support Status](#renames-level-66---support-status)
 
 **Layout Impact**:
@@ -443,7 +444,7 @@ for i in 0..clamped_count {
 **Known Limitations:**
 - **Nested ODO** (O5): Not supported by design; pre-normalize on mainframe or use fixed OCCURS
 - **ODO + REDEFINES** (O6): Not supported; use REDEFINES with fixed OCCURS instead
-- **ODO + RENAMES** (O7): Out of scope per RENAMES R4-R6 policy
+- **ODO + RENAMES** (O7): Rejected by policy in RENAMES R4-R6 scope (`CBKS612_RENAME_ODO_NOT_SUPPORTED`)
 
 **Implementation Phases:**
 - **Phase N1 (Current)**: Design contract + support matrix + negative error codes ✅
@@ -463,6 +464,7 @@ See `docs/design/RENAMES_NESTED_GROUPS.md` for complete design specification.
 | `renames-codec-projection`  | 66-level – codec projection  | ✅      | Schema provides `find_field_or_alias` and `resolve_alias_to_target` for codec integration |
 | `renames-redefines`         | 66-level – over REDEFINES    | 🚫      | Out of scope; requires separate design for interaction semantics |
 | `renames-occurs`            | 66-level – over OCCURS       | 🚫      | Out of scope; requires separate design for array aliasing        |
+| `renames-odo`               | 66-level – over ODO          | 🚫      | Policy-limited; ODO in RENAMES span is not supported (`CBKS612_RENAME_ODO_NOT_SUPPORTED`) |
 
 **Evidence:**
 

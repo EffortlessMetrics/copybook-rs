@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: Metrics Smoke (on-demand)
+# Timing-sensitive test blocker status: Resolved in docs/QUALITY_BLOCKERS.md (Date: 2026-02-28)
 
 on:
   workflow_dispatch: {}
 
 jobs:
   smoke:
+    name: Metrics Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -13,10 +15,33 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      - name: Enforce timing-sensitive test policy
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          source = pathlib.Path("copybook-cli/tests/metrics_smoke.rs")
+          text = source.read_text()
+
+          required_test = "metrics_shows_descriptors_and_cbkf_on_short_error"
+          if required_test not in text:
+              print(f"ERROR: timing-sensitive test {required_test} not found in {source}")
+              sys.exit(1)
+
+          if re.search(r"thread::sleep\(Duration::from_millis\(", text):
+              print("ERROR: fixed sleep was detected in timing-sensitive path")
+              print("Use bounded polling instead of fixed delays.")
+              sys.exit(1)
+
+          print("Timing-sensitive policy checks passed")
+          PY
+
       - name: Build CLI with metrics
         run: cargo build -p copybook-cli --features metrics
 
       - name: Run metrics smoke (ignored test)
         env:
           RUST_LOG: info
-        run: cargo test -p copybook-cli --features metrics --test metrics_smoke -- --ignored --nocapture
+        run: cargo test -p copybook-cli --features metrics --test metrics_smoke -- --ignored --exact metrics_shows_descriptors_and_cbkf_on_short_error --nocapture

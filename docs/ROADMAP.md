@@ -2,13 +2,16 @@
 # copybook-rs Roadmap
 
 **Status:** ⚠️ Engineering Preview (v0.4.3)
-**Last Updated**: 2026-02-07
+**Last Updated**: 2026-02-28
 **Production Readiness**: 35% (see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md))
 **Target Release**: v1.0.0 (Q2-Q3 2026)
 
 > **Canonical Status Source**: This file is the authoritative reference
 > for copybook-rs project status, adoption guidance, and development timeline.
 > For detailed technical assessment, see [REPORT.md](REPORT.md).
+> **Performance/Feature Sources**:
+> - Support coverage and constraints: [COBOL_SUPPORT_MATRIX.md](reference/COBOL_SUPPORT_MATRIX.md)
+> - Performance policy and measurement posture: [BENCHMARKS.md](reference/BENCHMARKS.md)
 
 This roadmap tracks **what we will ship**, **how we'll measure it**, and
 **when it's done**. Each milestone has: Objectives → Deliverables → Exit
@@ -30,7 +33,7 @@ Criteria → Risks/Mitigations.
 | PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
 | PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
 
-**Test Status**: 1550+ passing (cargo test --workspace)
+**Test Status**: 1652+ passing (cargo test --workspace)
 **CI Mode**: Currently operating in CI-off mode with local gates
 
 ---
@@ -79,7 +82,7 @@ cargo test -p copybook-bdd
 - CLI integration: `--list-features`, `--enable-features`, `--disable-features`
 
 **Categories**:
-- Experimental (4 flags): SignSeparate, RenamesR4R6, Comp1, Comp2
+- Experimental (1 flag): RenamesR4R6 (SIGN SEPARATE and COMP-1/COMP-2 are stable and default enabled)
 - Enterprise (6 flags): AuditSystem, SoxCompliance, HipaaCompliance, GdprCompliance, PciDssCompliance, SecurityMonitoring
 - Performance (4 flags): AdvancedOptimization, LruCache, ParallelDecode, ZeroCopy
 - Debug (4 flags): VerboseLogging, DiagnosticOutput, Profiling, MemoryTracking
@@ -207,8 +210,19 @@ See [`docs/TESTING_COMMANDS.md`](docs/TESTING_COMMANDS.md) for:
 | **Production Automation** | 🔴 High | 6-8 weeks | CI-off mode |
 | **Enterprise Features** | 🔴 High | 8-12 weeks | Incomplete |
 | **Feature Gaps** | 🟡 Medium | 4-6 weeks | Partial |
-| **Quality Assurance** | 🟡 Medium | 2-3 weeks | 8 leaks + 1 timing test |
+| **Quality Assurance** | 🟢 Low | 2-3 weeks | ✅ Leak detector/timing blockers resolved (Date: 2026-02-28) |
 | **Documentation** | 🟢 Low | 1-2 weeks | 22 functions need docs |
+
+### Release Blocker Status Register (triaged)
+
+| Blocker | Status | Owner | Timestamp | Evidence |
+|--------|--------|-------|-----------|----------|
+| `TODO(AC5)` (`copybook-core/src/audit/security.rs`) | pass | @EffortlessSteven | 2026-02-28 | (status=pass; owner=@EffortlessSteven; evidence=[security audit implementation](copybook-core/src/audit/security.rs), [security tests](copybook-core/src/audit/security.rs), [AC5 gate contract](copybook-core/src/audit/mod.rs)) |
+| `TODO(AC11)` (`copybook-core/src/audit/performance.rs`) | pass | @EffortlessSteven | 2026-02-28 | (status=pass; owner=@EffortlessSteven; evidence=[objective performance checks](copybook-cli/src/commands/audit.rs), [performance baseline model](copybook-core/src/audit/performance.rs)) |
+| `TODO(AC16)` (`copybook-core/src/audit/lineage.rs`) | pass | @EffortlessSteven | 2026-02-28 | (status=pass; owner=@EffortlessSteven; evidence=Parser and codec lineage IDs are emitted from `parse_with_audit_lineage_metadata` and `decode_file_to_jsonl`, and compared in `run_lineage_analysis` via `lineage_analysis_id`, `source_lineage_id`, `target_lineage_id`, `source_codec_lineage_id`, and `target_codec_lineage_id`.) |
+| Environment-gate risk (`artifacts/perf/non-wsl/perf.json`) | fail | @EffortlessSteven | 2026-02-28 | (status=fail; owner=@EffortlessSteven; evidence=Release readiness blocks if `artifacts/perf/non-wsl/perf.json` is missing, `non_wsl_evidence_status` is not `available|available-from-cache`, or checksum/baseline fields are absent.) |
+
+**AC11 threshold compatibility note:** AC11 threshold config is schema-alias compatible. Effective threshold resolution order is: `--max-overhead-percent` CLI argument first, then baseline `max_overhead_percent`, then fallback default `5.0`.
 
 **Issues closed (2025-12-31)**: #113, #51, #110 ✅
 
@@ -426,18 +440,24 @@ refresh, bench-report CLI
 - **Security monitoring integration** — Incomplete
 - **Performance impact assessment** — Incomplete
 
+`AC9` real-time/continuous monitoring is currently stubbed and only activated with explicit build/runtime gates.
+This is **non-production/stub-only** validation and is **not** production-compliance evidence (**status=warn; owner=@EffortlessSteven; evidence=Streaming-only path is placeholder; see [AC9 validation guidance](README.md#ac9-monitoring-stub-validation-non-production-stub-only)**). It is intended for engineering checks only and remains feature-gated.
+Use the shared command here:
+
+[Shared AC9 monitoring validation command](README.md#ac9-monitoring-stub-validation-non-production-stub-only)
+
 ### 3. Feature Gaps (MEDIUM PRIORITY) — Est. 4-6 weeks
 
 - ~~**Edited PIC Space (`B`) insertion**~~ — ✅ Complete (E3.7)
 - **SIGN SEPARATE clause** — Fully supported (promoted to stable in v0.4.3)
 - **COMP-1/COMP-2 floating-point** — Fully supported (promoted to stable in v0.4.3)
-- **Nested ODO support** — Rejected by design
+- **Nested ODO support** — O1-O4 supported; O5/O6 rejected by design; O7 remains policy-limited via RENAMES `R4-R6`
 - **RENAMES advanced scenarios (R4-R6)** — Partial implementation
 
 ### 4. Quality Assurance (MEDIUM PRIORITY) — Est. 2-3 weeks
 
-- **8 leak detectors flagged** in CI
-- **1 timing-sensitive test failure**
+- **8 leak detectors flagged** in CI — ✅ Resolved (Date: 2026-02-28)
+- **1 timing-sensitive test failure** — ✅ Resolved (Date: 2026-02-28)
 - **Performance variance** between WSL2 and native Linux
 
 ### 5. Documentation (LOW PRIORITY) — Est. 1-2 weeks
@@ -455,8 +475,10 @@ refresh, bench-report CLI
 ### Phase 1: Unblock CI (6-8 weeks) — Now to ~Feb 2026
 
 1. Re-enable full CI for PRs (remove CI-off mode)
-2. Resolve 8 leak detectors
-3. Fix 1 timing-sensitive test failure
+2. ✅ Resolve 8 leak detectors — Status: Resolved (Date: 2026-02-28); see
+   `docs/QUALITY_BLOCKERS.md`
+3. ✅ Fix 1 timing-sensitive test failure — Status: Resolved (Date: 2026-02-28); see
+   `docs/QUALITY_BLOCKERS.md`
 4. Implement PR comments and artifact uploads
 5. Make performance regression gates blocking (after baseline stabilization)
 
@@ -469,9 +491,9 @@ refresh, bench-report CLI
 
 ### Phase 3: Feature Completion (4-6 weeks) — May 2026 to ~Jun 2026
 
-1. Implement SIGN SEPARATE clause decode semantics
+1. Document and verify COMP-1/COMP-2 and SIGN SEPARATE edge-case behavior for downstream integrations
 2. Complete RENAMES advanced scenarios (R4-R6)
-3. Implement COMP-1/COMP-2 floating-point support (if required)
+3. Finalize compatibility guidance for floating-point and sign-separated migrations (if required)
 
 ### Phase 4: Documentation & Polish (1-2 weeks) — Jun 2026
 
@@ -660,8 +682,10 @@ and are tracked for future sprints:
   — Fixed 2025-12-31 with 3 new tests in `error_code_tests.rs`
 * [ ] Add unit tests for memory/iterator infrastructure
 * [ ] Improve audit feature test coverage (currently ~10%)
-* [ ] Resolve 8 leak detectors flagged in CI
-* [ ] Fix 1 timing-sensitive test failure
+* [x] Resolve 8 leak detectors flagged in CI — ✅ Resolved (Date: 2026-02-28)  
+  Reference: `docs/QUALITY_BLOCKERS.md`
+* [x] Fix 1 timing-sensitive test failure — ✅ Resolved (Date: 2026-02-28)  
+  Reference: `docs/QUALITY_BLOCKERS.md`
 
 ### Code Quality (Completed in v0.4.0+)
 

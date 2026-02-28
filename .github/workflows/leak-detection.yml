@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: Leak Detection
+# Leak blocker status: Resolved in docs/QUALITY_BLOCKERS.md (Date: 2026-02-28)
 
 on:
   workflow_dispatch: {}
@@ -56,12 +57,23 @@ jobs:
         if: always()
         run: |
           echo "=== Leak Detection Summary ==="
-          if grep -q "SUMMARY: LeakSanitizer" test_output.log 2>/dev/null; then
-            echo "⚠️ Memory leaks detected"
+          if ! grep -q "SUMMARY: LeakSanitizer" test_output.log 2>/dev/null; then
+            echo "ERROR: LeakSanitizer summary missing from test output"
+            exit 1
+          fi
+
+          if grep -E "SUMMARY: LeakSanitizer: [1-9][0-9]* byte[s]? leaked" test_output.log >/dev/null; then
+            echo "Memory leaks detected"
             grep -A 5 "SUMMARY: LeakSanitizer" test_output.log || true
             exit 1
-          else
+          fi
+
+          if grep -Eq "SUMMARY: LeakSanitizer: 0 byte[s]?\(s\) leaked" test_output.log; then
             echo "✅ No memory leaks detected"
+          else
+            echo "ERROR: Unexpected LeakSanitizer summary format"
+            grep -A 5 "SUMMARY: LeakSanitizer" test_output.log || true
+            exit 1
           fi
 
       - name: Run valgrind on CLI
@@ -74,13 +86,27 @@ jobs:
         if: always()
         run: |
           echo "=== Valgrind Summary ==="
-          if grep -q "LEAK SUMMARY" valgrind_output.log; then
-            echo "⚠️ Memory leaks detected by valgrind"
+          if ! grep -q "LEAK SUMMARY" valgrind_output.log; then
+            echo "ERROR: Valgrind leak summary missing"
+            exit 1
+          fi
+
+          if grep -Eq "definitely lost:[[:space:]]*[1-9][0-9]*[[:space:]]+byte[s]?" valgrind_output.log \
+             || grep -Eq "indirectly lost:[[:space:]]*[1-9][0-9]*[[:space:]]+byte[s]?" valgrind_output.log \
+             || grep -Eq "possibly lost:[[:space:]]*[1-9][0-9]*[[:space:]]+byte[s]?" valgrind_output.log \
+             || grep -Eq "still reachable:[[:space:]]*[1-9][0-9]*[[:space:]]+byte[s]?" valgrind_output.log; then
+            echo "Memory leaks detected by valgrind"
             grep "LEAK SUMMARY" valgrind_output.log
             exit 1
-          else
-            echo "✅ No memory leaks detected by valgrind"
           fi
+
+          if grep -Eq "ERROR SUMMARY: [1-9][0-9]* errors from" valgrind_output.log; then
+            echo "Valgrind reported runtime errors"
+            grep "ERROR SUMMARY" valgrind_output.log
+            exit 1
+          fi
+
+          echo "✅ No memory leaks detected by valgrind"
 
       - name: Upload leak detection artifacts
         if: always()

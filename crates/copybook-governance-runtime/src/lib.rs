@@ -72,20 +72,27 @@ impl FeatureGovernanceState {
 #[derive(Debug, Clone, Copy, Serialize)]
 #[non_exhaustive]
 pub struct FeatureGovernanceSummary {
+    /// Total number of support-matrix feature entries.
     pub total_support_features: usize,
+    /// Number of support features with at least one governance binding.
     pub mapped_support_features: usize,
+    /// Total number of feature-flag bindings across all entries.
     pub total_linked_feature_flags: usize,
+    /// Number of features that are currently enabled at runtime.
     pub runtime_enabled_features: usize,
+    /// Number of features that are currently disabled at runtime.
     pub runtime_disabled_features: usize,
 }
 
 impl FeatureGovernanceSummary {
+    /// Returns `true` when every support feature has at least one governance row.
     #[inline]
     #[must_use]
     pub const fn all_support_rows_present(&self) -> bool {
         self.total_support_features == self.mapped_support_features
     }
 
+    /// Returns `true` when at least one feature is disabled at runtime.
     #[inline]
     #[must_use]
     pub const fn has_runtime_unavailable_features(&self) -> bool {

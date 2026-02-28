@@ -229,22 +229,31 @@ impl fmt::Display for Token {
 /// Position information for tokens
 #[derive(Debug, Clone, PartialEq)]
 pub struct TokenPos {
+    /// The token value.
     pub token: Token,
+    /// 1-based line number where the token starts.
     pub line: usize,
+    /// 1-based column number where the token starts.
     pub column: usize,
+    /// Byte range within the source text.
     pub span: std::ops::Range<usize>,
 }
 
 /// COBOL format detection
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CobolFormat {
+    /// Traditional fixed-format (columns 1–6 sequence, 7 indicator, 8–72 code).
     Fixed,
+    /// Free-format source (no column restrictions).
     Free,
 }
 
+/// Configuration options for the COBOL lexer.
 #[derive(Debug, Clone, Copy)]
 pub struct LexerOptions {
+    /// When `true`, COBOL-2002 inline comments (`*>`) are recognised.
     pub allow_inline_comments: bool,
+    /// When `true`, only column-7 indicators are treated as comment markers.
     pub strict_comments: bool,
 }
 

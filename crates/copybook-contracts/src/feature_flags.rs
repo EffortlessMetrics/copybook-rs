@@ -273,10 +273,15 @@ impl FromStr for Feature {
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum FeatureCategory {
+    /// Pre-release features under active development.
     Experimental,
+    /// Compliance and audit-related features for regulated environments.
     Enterprise,
+    /// Optimization features for throughput and memory.
     Performance,
+    /// Diagnostic and profiling features for development.
     Debug,
+    /// Testing infrastructure hooks (mutation, fuzzing, coverage).
     Testing,
 }
 
@@ -298,8 +303,11 @@ impl fmt::Display for FeatureCategory {
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum FeatureLifecycle {
+    /// Feature is under active development and may change.
     Experimental,
+    /// Feature is production-ready with stable API.
     Stable,
+    /// Feature is scheduled for removal in a future release.
     Deprecated,
 }
 
@@ -376,22 +384,26 @@ impl FeatureFlags {
         flags
     }
 
+    /// Check whether a specific feature is currently enabled.
     #[inline]
     #[must_use]
     pub fn is_enabled(&self, feature: Feature) -> bool {
         self.enabled.contains(&feature)
     }
 
+    /// Enable a feature flag.
     #[inline]
     pub fn enable(&mut self, feature: Feature) {
         self.enabled.insert(feature);
     }
 
+    /// Disable a feature flag.
     #[inline]
     pub fn disable(&mut self, feature: Feature) {
         self.enabled.remove(&feature);
     }
 
+    /// Toggle a feature flag between enabled and disabled.
     #[inline]
     pub fn toggle(&mut self, feature: Feature) {
         if self.enabled.contains(&feature) {
@@ -401,11 +413,13 @@ impl FeatureFlags {
         }
     }
 
+    /// Iterate over all currently enabled features.
     #[inline]
     pub fn enabled_features(&self) -> impl Iterator<Item = &Feature> {
         self.enabled.iter()
     }
 
+    /// Return all enabled features belonging to a specific category.
     #[inline]
     #[must_use]
     pub fn enabled_in_category(&self, category: FeatureCategory) -> Vec<Feature> {
@@ -416,6 +430,7 @@ impl FeatureFlags {
             .collect()
     }
 
+    /// Return all features (enabled or not) that belong to a category.
     #[inline]
     #[must_use]
     pub fn features_in_category(category: FeatureCategory) -> Vec<Feature> {
@@ -425,6 +440,7 @@ impl FeatureFlags {
             .collect()
     }
 
+    /// Create a new [`FeatureFlagsBuilder`] starting from defaults.
     #[inline]
     #[must_use]
     pub fn builder() -> FeatureFlagsBuilder {
@@ -432,12 +448,14 @@ impl FeatureFlags {
     }
 }
 
+/// Builder for constructing [`FeatureFlags`] with a fluent API.
 #[derive(Debug, Clone, Default)]
 pub struct FeatureFlagsBuilder {
     flags: FeatureFlags,
 }
 
 impl FeatureFlagsBuilder {
+    /// Enable a single feature flag.
     #[inline]
     #[must_use]
     pub fn enable(mut self, feature: Feature) -> Self {
@@ -445,6 +463,7 @@ impl FeatureFlagsBuilder {
         self
     }
 
+    /// Disable a single feature flag.
     #[inline]
     #[must_use]
     pub fn disable(mut self, feature: Feature) -> Self {
@@ -452,6 +471,7 @@ impl FeatureFlagsBuilder {
         self
     }
 
+    /// Enable all features in a category.
     #[inline]
     #[must_use]
     pub fn enable_category(mut self, category: FeatureCategory) -> Self {
@@ -461,6 +481,7 @@ impl FeatureFlagsBuilder {
         self
     }
 
+    /// Disable all features in a category.
     #[inline]
     #[must_use]
     pub fn disable_category(mut self, category: FeatureCategory) -> Self {
@@ -470,6 +491,7 @@ impl FeatureFlagsBuilder {
         self
     }
 
+    /// Consume the builder and return the configured [`FeatureFlags`].
     #[inline]
     #[must_use]
     pub fn build(self) -> FeatureFlags {
@@ -479,6 +501,7 @@ impl FeatureFlagsBuilder {
 
 static GLOBAL_FLAGS: OnceLock<FeatureFlags> = OnceLock::new();
 
+/// Thread-safe, mutable handle to [`FeatureFlags`] for runtime toggling.
 #[derive(Debug)]
 pub struct FeatureFlagsHandle {
     flags: RwLock<FeatureFlags>,
@@ -494,12 +517,14 @@ impl Default for FeatureFlagsHandle {
 }
 
 impl FeatureFlagsHandle {
+    /// Create a new handle initialized from environment variables.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Check whether a feature is enabled in this handle.
     #[inline]
     #[must_use]
     pub fn is_enabled(&self, feature: Feature) -> bool {
@@ -509,6 +534,7 @@ impl FeatureFlagsHandle {
             .unwrap_or(false)
     }
 
+    /// Enable a feature flag through the handle.
     #[inline]
     pub fn enable(&self, feature: Feature) {
         if let Ok(mut flags) = self.flags.write() {
@@ -516,6 +542,7 @@ impl FeatureFlagsHandle {
         }
     }
 
+    /// Disable a feature flag through the handle.
     #[inline]
     pub fn disable(&self, feature: Feature) {
         if let Ok(mut flags) = self.flags.write() {
@@ -523,6 +550,7 @@ impl FeatureFlagsHandle {
         }
     }
 
+    /// Toggle a feature flag through the handle.
     #[inline]
     pub fn toggle(&self, feature: Feature) {
         if let Ok(mut flags) = self.flags.write() {
@@ -530,6 +558,7 @@ impl FeatureFlagsHandle {
         }
     }
 
+    /// Take an immutable snapshot of the current feature flags.
     #[inline]
     #[must_use]
     pub fn snapshot(&self) -> FeatureFlags {
@@ -549,6 +578,7 @@ impl Clone for FeatureFlagsHandle {
     }
 }
 
+/// Return a list of every defined [`Feature`] variant.
 #[inline]
 #[must_use]
 pub fn all_features() -> Vec<Feature> {

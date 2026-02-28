@@ -5,6 +5,7 @@
 
 use crate::{feature_flags::Feature, support_matrix::FeatureId};
 
+/// A single link between a support-matrix entry and its runtime feature flags.
 #[derive(Debug, Clone, Copy)]
 pub struct GovernedFeatureBinding {
     /// Support-matrix feature identity.
@@ -74,10 +75,14 @@ pub fn feature_flags_for_support_id(support_id: FeatureId) -> Option<&'static [F
         .map(|entry| entry.feature_flags)
 }
 
+/// Aggregate counts describing the governance grid coverage.
 #[derive(Debug)]
 pub struct GovernanceSummary {
+    /// Total number of support-matrix feature entries.
     pub total_support_features: usize,
+    /// Number of support features that have at least one governance binding.
     pub mapped_support_features: usize,
+    /// Total number of feature-flag bindings across all support entries.
     pub total_linked_feature_flags: usize,
 }
 

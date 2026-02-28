@@ -27,7 +27,7 @@ async fn given_sign_sep_trailing_bare(world: &mut CopybookWorld, step: &cucumber
     world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
 }
 
-#[given(expr = "a copybook with RENAMES R4 (multiple REDEFINES)")]
+#[given(regex = r"^a copybook with RENAMES R4 \(multiple REDEFINES\)$")]
 async fn given_renames_r4_full(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
     world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
 }
@@ -37,7 +37,7 @@ async fn given_renames_r4(world: &mut CopybookWorld, step: &cucumber::gherkin::S
     world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
 }
 
-#[given(expr = "a copybook with RENAMES R5 (ODO)")]
+#[given(regex = r"^a copybook with RENAMES R5 \(ODO\)$")]
 async fn given_renames_r5_full(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
     world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
 }
@@ -47,7 +47,7 @@ async fn given_renames_r5(world: &mut CopybookWorld, step: &cucumber::gherkin::S
     world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
 }
 
-#[given(expr = "a copybook with RENAMES R6 (Level-88 after RENAMES)")]
+#[given(regex = r"^a copybook with RENAMES R6 \(Level-88 after RENAMES\)$")]
 async fn given_renames_r6_full(world: &mut CopybookWorld, step: &cucumber::gherkin::Step) {
     world.copybook_text = Some(step.docstring.as_ref().expect("Docstring required").clone());
 }

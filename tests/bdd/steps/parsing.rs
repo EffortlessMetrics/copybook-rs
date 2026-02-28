@@ -40,7 +40,7 @@ async fn given_copybook_with_occurs(world: &mut CopybookWorld) {
     );
 }
 
-#[given(expr = "a copybook with ODO (OCCURS DEPENDING ON)")]
+#[given(regex = r"^a copybook with ODO \(OCCURS DEPENDING ON\)$")]
 async fn given_copybook_with_odo(world: &mut CopybookWorld) {
     world.copybook_text = Some(
         "01 ODO-RECORD.\n\

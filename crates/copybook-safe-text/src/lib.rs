@@ -157,4 +157,119 @@ mod tests {
             Err(error) if error.code == ErrorCode::CBKP001_SYNTAX
         ));
     }
+
+    // --- safe_write tests ---
+
+    #[test]
+    fn test_safe_write_basic() {
+        let mut buf = String::new();
+        safe_write(&mut buf, format_args!("hello {}", 42)).unwrap();
+        assert_eq!(buf, "hello 42");
+    }
+
+    #[test]
+    fn test_safe_write_empty_format() {
+        let mut buf = String::new();
+        safe_write(&mut buf, format_args!("")).unwrap();
+        assert_eq!(buf, "");
+    }
+
+    #[test]
+    fn test_safe_write_append() {
+        let mut buf = String::from("prefix:");
+        safe_write(&mut buf, format_args!("value")).unwrap();
+        assert_eq!(buf, "prefix:value");
+    }
+
+    // --- safe_write_str tests ---
+
+    #[test]
+    fn test_safe_write_str_basic() {
+        let mut buf = String::new();
+        safe_write_str(&mut buf, "hello").unwrap();
+        assert_eq!(buf, "hello");
+    }
+
+    #[test]
+    fn test_safe_write_str_empty() {
+        let mut buf = String::new();
+        safe_write_str(&mut buf, "").unwrap();
+        assert_eq!(buf, "");
+    }
+
+    #[test]
+    fn test_safe_write_str_append() {
+        let mut buf = String::from("first");
+        safe_write_str(&mut buf, " second").unwrap();
+        assert_eq!(buf, "first second");
+    }
+
+    #[test]
+    fn test_safe_write_str_unicode() {
+        let mut buf = String::new();
+        safe_write_str(&mut buf, "日本語").unwrap();
+        assert_eq!(buf, "日本語");
+    }
+
+    // --- parse edge cases ---
+
+    #[test]
+    fn parse_usize_zero() {
+        assert_eq!(parse_usize("0", "test").unwrap(), 0);
+    }
+
+    #[test]
+    fn parse_usize_whitespace_err() {
+        assert!(parse_usize(" 123", "test").is_err());
+    }
+
+    #[test]
+    fn parse_usize_negative_err() {
+        assert!(parse_usize("-1", "test").is_err());
+    }
+
+    #[test]
+    fn parse_isize_zero() {
+        assert_eq!(parse_isize("0", "test").unwrap(), 0);
+    }
+
+    #[test]
+    fn parse_isize_positive() {
+        assert_eq!(parse_isize("42", "test").unwrap(), 42);
+    }
+
+    #[test]
+    fn parse_isize_empty_err() {
+        assert!(parse_isize("", "test").is_err());
+    }
+
+    #[test]
+    fn safe_parse_u16_zero() {
+        assert_eq!(safe_parse_u16("0", "test").unwrap(), 0);
+    }
+
+    #[test]
+    fn safe_parse_u16_max() {
+        assert_eq!(safe_parse_u16("65535", "test").unwrap(), u16::MAX);
+    }
+
+    #[test]
+    fn safe_parse_u16_negative_err() {
+        assert!(safe_parse_u16("-1", "test").is_err());
+    }
+
+    #[test]
+    fn safe_string_char_at_empty_string() {
+        assert!(safe_string_char_at("", 0, "test").is_err());
+    }
+
+    #[test]
+    fn safe_string_char_at_first_char() {
+        assert_eq!(safe_string_char_at("x", 0, "test").unwrap(), 'x');
+    }
+
+    #[test]
+    fn safe_string_char_at_unicode() {
+        assert_eq!(safe_string_char_at("日本", 1, "test").unwrap(), '本');
+    }
 }

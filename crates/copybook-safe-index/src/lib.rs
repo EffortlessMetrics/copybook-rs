@@ -85,6 +85,72 @@ mod tests {
         ));
     }
 
+    // --- safe_divide edge cases ---
+
+    #[test]
+    fn safe_divide_zero_numerator() {
+        assert_eq!(safe_divide(0, 5, "test").expect("0/5"), 0);
+    }
+
+    #[test]
+    fn safe_divide_same_values() {
+        assert_eq!(safe_divide(7, 7, "test").expect("7/7"), 1);
+    }
+
+    #[test]
+    fn safe_divide_integer_truncation() {
+        assert_eq!(safe_divide(7, 2, "test").expect("7/2"), 3);
+    }
+
+    #[test]
+    fn safe_divide_large_values() {
+        assert_eq!(
+            safe_divide(usize::MAX, 1, "test").expect("max/1"),
+            usize::MAX
+        );
+    }
+
+    #[test]
+    fn safe_divide_error_message_contains_context() {
+        let err = safe_divide(1, 0, "my-context").unwrap_err();
+        assert!(
+            format!("{}", err.message).contains("my-context"),
+            "Error message should contain context"
+        );
+    }
+
+    // --- safe_slice_get edge cases ---
+
+    #[test]
+    fn safe_slice_get_empty_slice() {
+        let data: &[u8] = &[];
+        assert!(safe_slice_get(data, 0, "test").is_err());
+    }
+
+    #[test]
+    fn safe_slice_get_first_element() {
+        let data = [42u8];
+        assert_eq!(safe_slice_get(&data, 0, "test").expect("first"), 42);
+    }
+
+    #[test]
+    fn safe_slice_get_last_element() {
+        let data = [1u8, 2, 3, 4, 5];
+        assert_eq!(safe_slice_get(&data, 4, "test").expect("last"), 5);
+    }
+
+    #[test]
+    fn safe_slice_get_exactly_out_of_bounds() {
+        let data = [1u8, 2, 3];
+        assert!(safe_slice_get(&data, 3, "test").is_err());
+    }
+
+    #[test]
+    fn safe_slice_get_with_i32_type() {
+        let data = [10i32, 20, 30];
+        assert_eq!(safe_slice_get(&data, 2, "test").expect("i32"), 30);
+    }
+
     proptest! {
         #[test]
         fn safe_divide_round_trip(

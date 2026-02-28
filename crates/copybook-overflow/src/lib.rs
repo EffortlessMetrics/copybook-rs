@@ -143,4 +143,91 @@ mod tests {
         let err = safe_usize_to_u32(u32::MAX as usize + 1, "usize->u32").unwrap_err();
         assert_eq!(err.code, ErrorCode::CBKS141_RECORD_TOO_LARGE);
     }
+
+    // --- Boundary value tests ---
+
+    #[test]
+    fn safe_u64_to_u32_at_max_boundary() {
+        assert_eq!(safe_u64_to_u32(u64::from(u32::MAX), "boundary").unwrap(), u32::MAX);
+    }
+
+    #[test]
+    fn safe_u64_to_u32_zero() {
+        assert_eq!(safe_u64_to_u32(0, "zero").unwrap(), 0);
+    }
+
+    #[test]
+    fn safe_u64_to_u16_at_max_boundary() {
+        assert_eq!(safe_u64_to_u16(u64::from(u16::MAX), "boundary").unwrap(), u16::MAX);
+    }
+
+    #[test]
+    fn safe_u64_to_u16_zero() {
+        assert_eq!(safe_u64_to_u16(0, "zero").unwrap(), 0);
+    }
+
+    #[test]
+    fn safe_u64_to_u16_just_over_max() {
+        let err = safe_u64_to_u16(u64::from(u16::MAX) + 1, "over-max").unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKS141_RECORD_TOO_LARGE);
+    }
+
+    #[test]
+    fn safe_u64_to_u32_just_over_max() {
+        let err = safe_u64_to_u32(u64::from(u32::MAX) + 1, "over-max").unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKS141_RECORD_TOO_LARGE);
+    }
+
+    #[test]
+    fn safe_u64_to_u32_u64_max() {
+        let err = safe_u64_to_u32(u64::MAX, "u64-max").unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKS141_RECORD_TOO_LARGE);
+    }
+
+    #[test]
+    fn safe_u64_to_u16_u64_max() {
+        let err = safe_u64_to_u16(u64::MAX, "u64-max").unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKS141_RECORD_TOO_LARGE);
+    }
+
+    #[test]
+    fn safe_usize_to_u32_zero() {
+        assert_eq!(safe_usize_to_u32(0, "zero").unwrap(), 0);
+    }
+
+    #[test]
+    fn safe_usize_to_u32_at_max_boundary() {
+        assert_eq!(safe_usize_to_u32(u32::MAX as usize, "boundary").unwrap(), u32::MAX);
+    }
+
+    // --- safe_array_bound boundary tests ---
+
+    #[test]
+    fn safe_array_bound_zero_count() {
+        assert_eq!(safe_array_bound(10, 0, 4, "zero-count").unwrap(), 10);
+    }
+
+    #[test]
+    fn safe_array_bound_zero_base() {
+        assert_eq!(safe_array_bound(0, 5, 3, "zero-base").unwrap(), 15);
+    }
+
+    #[test]
+    fn safe_array_bound_zero_item_size() {
+        assert_eq!(safe_array_bound(10, 1000, 0, "zero-item").unwrap(), 10);
+    }
+
+    #[test]
+    fn safe_array_bound_all_zeros() {
+        assert_eq!(safe_array_bound(0, 0, 0, "all-zero").unwrap(), 0);
+    }
+
+    #[test]
+    fn safe_array_bound_error_message_contains_context() {
+        let err = safe_array_bound(0, usize::MAX, 2, "my-context").unwrap_err();
+        assert!(
+            format!("{}", err.message).contains("my-context"),
+            "Error message should contain context"
+        );
+    }
 }

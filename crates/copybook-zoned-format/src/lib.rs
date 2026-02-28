@@ -91,6 +91,7 @@ impl fmt::Display for ZonedEncodingFormat {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -116,5 +117,118 @@ mod tests {
             ZonedEncodingFormat::Auto.description(),
             "Automatic detection based on zone nibbles"
         );
+    }
+
+    // --- is_ebcdic ---
+
+    #[test]
+    fn test_is_ebcdic() {
+        assert!(ZonedEncodingFormat::Ebcdic.is_ebcdic());
+        assert!(!ZonedEncodingFormat::Ascii.is_ebcdic());
+        assert!(!ZonedEncodingFormat::Auto.is_ebcdic());
+    }
+
+    // --- is_auto ---
+
+    #[test]
+    fn test_is_auto() {
+        assert!(ZonedEncodingFormat::Auto.is_auto());
+        assert!(!ZonedEncodingFormat::Ascii.is_auto());
+        assert!(!ZonedEncodingFormat::Ebcdic.is_auto());
+    }
+
+    // --- Default ---
+
+    #[test]
+    fn test_default_is_auto() {
+        assert_eq!(ZonedEncodingFormat::default(), ZonedEncodingFormat::Auto);
+    }
+
+    // --- Display all variants ---
+
+    #[test]
+    fn test_display_all_variants() {
+        assert_eq!(format!("{}", ZonedEncodingFormat::Ascii), "ascii");
+        assert_eq!(format!("{}", ZonedEncodingFormat::Ebcdic), "ebcdic");
+        assert_eq!(format!("{}", ZonedEncodingFormat::Auto), "auto");
+    }
+
+    // --- description all variants ---
+
+    #[test]
+    fn test_description_all_variants() {
+        assert_eq!(
+            ZonedEncodingFormat::Ascii.description(),
+            "ASCII digit zones (0x30-0x39)"
+        );
+        assert_eq!(
+            ZonedEncodingFormat::Ebcdic.description(),
+            "EBCDIC digit zones (0xF0-0xF9)"
+        );
+        assert_eq!(
+            ZonedEncodingFormat::Auto.description(),
+            "Automatic detection based on zone nibbles"
+        );
+    }
+
+    // --- detect_from_byte comprehensive ---
+
+    #[test]
+    fn test_detect_from_byte_all_ascii_digits() {
+        for byte in 0x30..=0x3F {
+            assert_eq!(
+                ZonedEncodingFormat::detect_from_byte(byte),
+                Some(ZonedEncodingFormat::Ascii),
+                "Failed for byte 0x{byte:02X}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_detect_from_byte_all_ebcdic_digits() {
+        for byte in 0xF0..=0xFF {
+            assert_eq!(
+                ZonedEncodingFormat::detect_from_byte(byte),
+                Some(ZonedEncodingFormat::Ebcdic),
+                "Failed for byte 0x{byte:02X}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_detect_from_byte_invalid_zones() {
+        // Zone nibbles 0x0, 0x1, 0x2, 0x4-0xE should return None
+        let invalid_samples: &[u8] = &[0x00, 0x10, 0x20, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0];
+        for &byte in invalid_samples {
+            assert_eq!(
+                ZonedEncodingFormat::detect_from_byte(byte),
+                None,
+                "Expected None for byte 0x{byte:02X}"
+            );
+        }
+    }
+
+    // --- Serde round-trip ---
+
+    #[test]
+    fn test_serde_roundtrip() {
+        for variant in [
+            ZonedEncodingFormat::Ascii,
+            ZonedEncodingFormat::Ebcdic,
+            ZonedEncodingFormat::Auto,
+        ] {
+            let json = serde_json::to_string(&variant).unwrap();
+            let deserialized: ZonedEncodingFormat = serde_json::from_str(&json).unwrap();
+            assert_eq!(variant, deserialized, "Serde round-trip failed for {variant:?}");
+        }
+    }
+
+    // --- Clone / Copy / Eq ---
+
+    #[test]
+    fn test_clone_and_eq() {
+        let a = ZonedEncodingFormat::Ebcdic;
+        let b = a;
+        assert_eq!(a, b);
     }
 }

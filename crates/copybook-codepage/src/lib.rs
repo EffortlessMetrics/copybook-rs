@@ -97,12 +97,12 @@ impl FromStr for Codepage {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
             "ascii" => Self::ASCII,
-            "cp037" => Self::CP037,
             "cp273" => Self::CP273,
             "cp500" => Self::CP500,
             "cp1047" => Self::CP1047,
             "cp1140" => Self::CP1140,
-            _ => Self::CP037, // Default to CP037 for backward compatibility
+            // Default to CP037 for backward compatibility
+            _ => Self::CP037,
         })
     }
 }
@@ -197,6 +197,7 @@ pub const fn space_byte(codepage: Codepage) -> u8 {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -261,5 +262,172 @@ mod tests {
         assert_eq!(table[0xC], (true, false));
         assert_eq!(table[0xD], (true, true));
         assert_eq!(table[0xF], (true, false));
+    }
+
+    // --- Codepage::description tests ---
+
+    #[test]
+    fn test_codepage_description_all_variants() {
+        assert_eq!(Codepage::ASCII.description(), "ASCII encoding");
+        assert_eq!(
+            Codepage::CP037.description(),
+            "EBCDIC Code Page 037 (US/Canada)"
+        );
+        assert_eq!(
+            Codepage::CP273.description(),
+            "EBCDIC Code Page 273 (Germany/Austria)"
+        );
+        assert_eq!(
+            Codepage::CP500.description(),
+            "EBCDIC Code Page 500 (International)"
+        );
+        assert_eq!(
+            Codepage::CP1047.description(),
+            "EBCDIC Code Page 1047 (Open Systems)"
+        );
+        assert_eq!(
+            Codepage::CP1140.description(),
+            "EBCDIC Code Page 1140 (US/Canada with Euro)"
+        );
+    }
+
+    // --- Codepage Display tests ---
+
+    #[test]
+    fn test_codepage_display_all_variants() {
+        assert_eq!(format!("{}", Codepage::ASCII), "ascii");
+        assert_eq!(format!("{}", Codepage::CP037), "cp037");
+        assert_eq!(format!("{}", Codepage::CP273), "cp273");
+        assert_eq!(format!("{}", Codepage::CP500), "cp500");
+        assert_eq!(format!("{}", Codepage::CP1047), "cp1047");
+        assert_eq!(format!("{}", Codepage::CP1140), "cp1140");
+    }
+
+    // --- Codepage FromStr tests ---
+
+    #[test]
+    fn test_codepage_from_str_all_valid_variants() {
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("ascii").unwrap(), Codepage::ASCII);
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp273").unwrap(), Codepage::CP273);
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp500").unwrap(), Codepage::CP500);
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp1047").unwrap(), Codepage::CP1047);
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("cp1140").unwrap(), Codepage::CP1140);
+    }
+
+    #[test]
+    fn test_codepage_from_str_case_insensitive() {
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("ASCII").unwrap(), Codepage::ASCII);
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("CP273").unwrap(), Codepage::CP273);
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("Cp500").unwrap(), Codepage::CP500);
+    }
+
+    #[test]
+    fn test_codepage_from_str_empty_string_defaults_to_cp037() {
+        assert_eq!(<Codepage as std::str::FromStr>::from_str("").unwrap(), Codepage::CP037);
+    }
+
+    // --- Codepage is_ebcdic exhaustive ---
+
+    #[test]
+    fn test_codepage_is_ebcdic_all_variants() {
+        assert!(!Codepage::ASCII.is_ebcdic());
+        assert!(Codepage::CP037.is_ebcdic());
+        assert!(Codepage::CP273.is_ebcdic());
+        assert!(Codepage::CP500.is_ebcdic());
+        assert!(Codepage::CP1047.is_ebcdic());
+        assert!(Codepage::CP1140.is_ebcdic());
+    }
+
+    // --- Codepage code_page_number exhaustive ---
+
+    #[test]
+    fn test_codepage_code_page_number_all_variants() {
+        assert_eq!(Codepage::ASCII.code_page_number(), None);
+        assert_eq!(Codepage::CP037.code_page_number(), Some(37));
+        assert_eq!(Codepage::CP273.code_page_number(), Some(273));
+        assert_eq!(Codepage::CP500.code_page_number(), Some(500));
+        assert_eq!(Codepage::CP1047.code_page_number(), Some(1047));
+        assert_eq!(Codepage::CP1140.code_page_number(), Some(1140));
+    }
+
+    // --- UnmappablePolicy Display tests ---
+
+    #[test]
+    fn test_unmappable_policy_display_all_variants() {
+        assert_eq!(format!("{}", UnmappablePolicy::Error), "error");
+        assert_eq!(format!("{}", UnmappablePolicy::Replace), "replace");
+        assert_eq!(format!("{}", UnmappablePolicy::Skip), "skip");
+    }
+
+    // --- UnmappablePolicy FromStr tests ---
+
+    #[test]
+    fn test_unmappable_policy_from_str_all_valid() {
+        assert_eq!(
+            <UnmappablePolicy as std::str::FromStr>::from_str("replace").unwrap(),
+            UnmappablePolicy::Replace
+        );
+        assert_eq!(
+            <UnmappablePolicy as std::str::FromStr>::from_str("skip").unwrap(),
+            UnmappablePolicy::Skip
+        );
+        assert_eq!(
+            <UnmappablePolicy as std::str::FromStr>::from_str("error").unwrap(),
+            UnmappablePolicy::Error
+        );
+    }
+
+    #[test]
+    fn test_unmappable_policy_from_str_case_insensitive() {
+        assert_eq!(
+            <UnmappablePolicy as std::str::FromStr>::from_str("REPLACE").unwrap(),
+            UnmappablePolicy::Replace
+        );
+        assert_eq!(
+            <UnmappablePolicy as std::str::FromStr>::from_str("SKIP").unwrap(),
+            UnmappablePolicy::Skip
+        );
+    }
+
+    // --- Zoned sign table exhaustive ---
+
+    #[test]
+    fn test_get_zoned_sign_table_ebcdic_unsigned_nibbles() {
+        let table = get_zoned_sign_table(Codepage::CP037);
+        for i in 0..=0xB {
+            assert_eq!(table[i], (false, false), "Expected unsigned at nibble 0x{i:X}");
+        }
+        assert_eq!(table[0xE], (false, false));
+    }
+
+    #[test]
+    fn test_get_zoned_sign_table_all_ebcdic_codepages_same() {
+        let cp037 = get_zoned_sign_table(Codepage::CP037);
+        let cp273 = get_zoned_sign_table(Codepage::CP273);
+        let cp500 = get_zoned_sign_table(Codepage::CP500);
+        let cp1047 = get_zoned_sign_table(Codepage::CP1047);
+        let cp1140 = get_zoned_sign_table(Codepage::CP1140);
+        assert_eq!(cp037, cp273);
+        assert_eq!(cp037, cp500);
+        assert_eq!(cp037, cp1047);
+        assert_eq!(cp037, cp1140);
+    }
+
+    // --- Serde round-trip ---
+
+    #[test]
+    fn test_codepage_serde_roundtrip() {
+        let cp = Codepage::CP037;
+        let json = serde_json::to_string(&cp).unwrap();
+        let deserialized: Codepage = serde_json::from_str(&json).unwrap();
+        assert_eq!(cp, deserialized);
+    }
+
+    #[test]
+    fn test_unmappable_policy_serde_roundtrip() {
+        let policy = UnmappablePolicy::Replace;
+        let json = serde_json::to_string(&policy).unwrap();
+        let deserialized: UnmappablePolicy = serde_json::from_str(&json).unwrap();
+        assert_eq!(policy, deserialized);
     }
 }

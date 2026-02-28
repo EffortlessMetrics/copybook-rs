@@ -429,8 +429,10 @@ pub fn utf8_to_ebcdic(text: &str, codepage: Codepage) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use copybook_error::ErrorCode;
 
     #[test]
     fn test_space_byte_ascii() {
@@ -464,5 +466,204 @@ mod tests {
         assert_eq!(Codepage::ASCII.code_page_number(), None);
         assert_eq!(Codepage::CP037.code_page_number(), Some(37));
         assert_eq!(Codepage::CP1140.code_page_number(), Some(1140));
+    }
+
+    // --- ebcdic_to_utf8 tests ---
+
+    #[test]
+    fn test_ebcdic_to_utf8_empty_input() {
+        let result = ebcdic_to_utf8(&[], Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_ascii_passthrough() {
+        let data = b"Hello, World!";
+        let result = ebcdic_to_utf8(data, Codepage::ASCII, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "Hello, World!");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_ascii_passthrough_non_utf8() {
+        // Non-UTF8 bytes get replaced with U+FFFD via from_utf8_lossy
+        let data: &[u8] = &[0xFF, 0xFE];
+        let result = ebcdic_to_utf8(data, Codepage::ASCII, UnmappablePolicy::Error).unwrap();
+        assert!(result.contains('\u{FFFD}'));
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp037_space() {
+        // EBCDIC 0x40 = space in CP037
+        let data: &[u8] = &[0x40];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, " ");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp037_digits() {
+        // EBCDIC 0xF0-0xF9 = digits 0-9 in CP037
+        let data: Vec<u8> = (0xF0..=0xF9).collect();
+        let result = ebcdic_to_utf8(&data, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "0123456789");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp037_uppercase() {
+        // EBCDIC 0xC1-0xC9 = A-I in CP037
+        let data: &[u8] = &[0xC1, 0xC2, 0xC3];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "ABC");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp037_lowercase() {
+        // EBCDIC 0x81-0x89 = a-i in CP037
+        let data: &[u8] = &[0x81, 0x82, 0x83];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "abc");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_unmappable_error_policy() {
+        // EBCDIC 0x00 maps to U+0000 (NUL) which is < 0x20 and not tab/LF/CR
+        let data: &[u8] = &[0x00];
+        let err = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Error).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKC301_INVALID_EBCDIC_BYTE);
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_unmappable_replace_policy() {
+        let data: &[u8] = &[0x00];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Replace).unwrap();
+        assert_eq!(result, "\u{FFFD}");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_unmappable_skip_policy() {
+        let data: &[u8] = &[0x00];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Skip).unwrap();
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_mixed_valid_and_unmappable_skip() {
+        // 0x00 (unmappable), 0xC1 (A), 0x00 (unmappable), 0xC2 (B)
+        let data: &[u8] = &[0x00, 0xC1, 0x00, 0xC2];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Skip).unwrap();
+        assert_eq!(result, "AB");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_all_codepages_digits() {
+        // Digits 0xF0-0xF9 should map to 0-9 on all EBCDIC codepages
+        let data: Vec<u8> = (0xF0..=0xF9).collect();
+        for cp in [
+            Codepage::CP037,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+        ] {
+            let result = ebcdic_to_utf8(&data, cp, UnmappablePolicy::Error).unwrap();
+            assert_eq!(result, "0123456789", "Failed for {cp:?}");
+        }
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp1140_euro_sign() {
+        // CP1140 maps 0x9F to € (U+20AC) — unlike CP037 which maps it to a control char
+        let data: &[u8] = &[0xFF];
+        let result = ebcdic_to_utf8(data, Codepage::CP1140, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "€");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp037_tab_allowed() {
+        // EBCDIC 0x05 -> U+0009 (tab) — should be allowed (not unmappable)
+        let data: &[u8] = &[0x05];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "\t");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp037_lf_allowed() {
+        // EBCDIC 0x25 -> U+000A (LF) — should be allowed
+        let data: &[u8] = &[0x25];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "\n");
+    }
+
+    #[test]
+    fn test_ebcdic_to_utf8_cp037_cr_allowed() {
+        // EBCDIC 0x0D -> U+000D (CR) — should be allowed
+        let data: &[u8] = &[0x0D];
+        let result = ebcdic_to_utf8(data, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(result, "\r");
+    }
+
+    // --- utf8_to_ebcdic tests ---
+
+    #[test]
+    fn test_utf8_to_ebcdic_empty_input() {
+        let result = utf8_to_ebcdic("", Codepage::CP037).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_ascii_passthrough() {
+        let result = utf8_to_ebcdic("Hello", Codepage::ASCII).unwrap();
+        assert_eq!(result, b"Hello");
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_cp037_space() {
+        let result = utf8_to_ebcdic(" ", Codepage::CP037).unwrap();
+        assert_eq!(result, &[0x40]);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_cp037_digits() {
+        let result = utf8_to_ebcdic("0123456789", Codepage::CP037).unwrap();
+        let expected: Vec<u8> = (0xF0..=0xF9).collect();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_cp037_uppercase() {
+        let result = utf8_to_ebcdic("ABC", Codepage::CP037).unwrap();
+        assert_eq!(result, &[0xC1, 0xC2, 0xC3]);
+    }
+
+    #[test]
+    fn test_utf8_to_ebcdic_unmappable_character() {
+        // Chinese character cannot be mapped to CP037
+        let err = utf8_to_ebcdic("日", Codepage::CP037).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKC301_INVALID_EBCDIC_BYTE);
+    }
+
+    #[test]
+    fn test_ebcdic_roundtrip_cp037() {
+        let original = "Hello World 123";
+        let ebcdic = utf8_to_ebcdic(original, Codepage::CP037).unwrap();
+        let roundtrip =
+            ebcdic_to_utf8(&ebcdic, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+        assert_eq!(roundtrip, original);
+    }
+
+    #[test]
+    fn test_ebcdic_roundtrip_cp500() {
+        let original = "Test 789";
+        let ebcdic = utf8_to_ebcdic(original, Codepage::CP500).unwrap();
+        let roundtrip =
+            ebcdic_to_utf8(&ebcdic, Codepage::CP500, UnmappablePolicy::Error).unwrap();
+        assert_eq!(roundtrip, original);
+    }
+
+    #[test]
+    fn test_ebcdic_roundtrip_cp1047() {
+        let original = "COBOL DATA";
+        let ebcdic = utf8_to_ebcdic(original, Codepage::CP1047).unwrap();
+        let roundtrip =
+            ebcdic_to_utf8(&ebcdic, Codepage::CP1047, UnmappablePolicy::Error).unwrap();
+        assert_eq!(roundtrip, original);
     }
 }

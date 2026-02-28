@@ -169,39 +169,47 @@ pub mod audit {
     }
 
     impl AuditContext {
+        /// Create a new audit context (no-op stub).
         #[inline]
         pub fn new() -> Self {
             Self::default()
         }
+        /// Create a lightweight audit context (no-op stub).
         #[inline]
         pub fn new_lightweight() -> Self {
             Self::default()
         }
+        /// Set the operation ID (no-op stub).
         #[inline]
         #[must_use]
         pub fn with_operation_id(self, _id: impl Into<String>) -> Self {
             self // No-op for zero-cost optimization
         }
+        /// Set the user identity (no-op stub).
         #[inline]
         #[must_use]
         pub fn with_user(self, _user: impl Into<String>) -> Self {
             self
         }
+        /// Set the security classification (no-op stub).
         #[inline]
         #[must_use]
         pub fn with_security_classification(self, _classification: SecurityClassification) -> Self {
             self
         }
+        /// Set the compliance profile (no-op stub).
         #[inline]
         #[must_use]
         pub fn with_compliance_profile(self, _profile: ComplianceProfile) -> Self {
             self
         }
+        /// Add a key-value metadata pair (no-op stub).
         #[inline]
         #[must_use]
         pub fn with_metadata(self, _key: impl Into<String>, _value: impl Into<String>) -> Self {
             self
         }
+        /// Create a child context for nested operations (no-op stub).
         #[inline]
         #[must_use]
         pub fn create_lightweight_child_context(&self, _id: impl Into<String>) -> Self {
@@ -210,22 +218,31 @@ pub mod audit {
         }
     }
 
-    /// Stub compliance profile enum
+    /// Stub compliance profile enum (no-op when audit is disabled).
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub enum ComplianceProfile {
+        /// Sarbanes-Oxley Act.
         SOX,
+        /// Health Insurance Portability and Accountability Act.
         HIPAA,
+        /// General Data Protection Regulation.
         GDPR,
+        /// Payment Card Industry Data Security Standard.
         PCIQDSS,
     }
 
-    /// Stub security classification enum
+    /// Stub security classification enum (no-op when audit is disabled).
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub enum SecurityClassification {
+        /// Publicly accessible data.
         Public,
+        /// Internal-only data.
         Internal,
+        /// Confidential business data.
         Confidential,
+        /// Material transaction data (SOX-relevant).
         MaterialTransaction,
+        /// Protected Health Information (HIPAA-relevant).
         PHI,
     }
 

@@ -629,8 +629,10 @@ impl SmallDecimal {
             })
     }
 
-    /// Format as string with fixed scale (NORMATIVE)
-    /// Always render with exactly `scale` digits after decimal
+    /// Format as string with the given fixed scale.
+    ///
+    /// Always renders with exactly `scale` digits after the decimal point,
+    /// independent of the `SmallDecimal`'s own scale. Used for lossless JSON output.
     #[inline]
     #[must_use]
     pub fn to_fixed_scale_string(&self, scale: i16) -> String {
@@ -671,8 +673,10 @@ impl SmallDecimal {
         result
     }
 
-    /// High-performance format using scratch buffer (zero-allocation optimization)
-    /// CRITICAL for COMP-3 JSON conversion performance
+    /// Format the decimal into a caller-owned string buffer to avoid allocation.
+    ///
+    /// This is the hot-path formatter used in COMP-3 JSON conversion. The buffer
+    /// is cleared before writing.
     #[inline]
     pub fn format_to_scratch_buffer(&self, scale: i16, scratch_buffer: &mut String) {
         scratch_buffer.clear();

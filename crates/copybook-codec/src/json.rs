@@ -17,7 +17,10 @@ use std::collections::HashMap;
 use std::io::Write;
 use core::fmt::Write as _;
 
-/// Streaming JSON writer for deterministic output
+/// Streaming JSON writer for deterministic COBOL record output.
+///
+/// Produces JSONL (one JSON object per line) with stable field ordering
+/// following the copybook schema structure. Used by the decode pipeline.
 pub struct JsonWriter<W: Write> {
     writer: W,
     options: DecodeOptions,
@@ -29,7 +32,7 @@ pub struct JsonWriter<W: Write> {
 }
 
 impl<W: Write> JsonWriter<W> {
-    /// Create a new JSON writer
+    /// Create a new JSON writer wrapping the given output stream.
     pub fn new(writer: W, schema: Schema, options: DecodeOptions) -> Self {
         Self {
             writer,
@@ -1128,13 +1131,16 @@ impl<W: Write> JsonWriter<W> {
     }
 }
 
-/// JSON encoder for converting JSON back to binary records
+/// JSON encoder for converting JSON values back to COBOL binary records.
+///
+/// Pairs with [`JsonWriter`] for encode operations, using the schema
+/// to map JSON fields back into their binary representations.
 pub struct JsonEncoder {
     options: crate::options::EncodeOptions,
 }
 
 impl JsonEncoder {
-    /// Create a new JSON encoder
+    /// Create a new JSON encoder with the given encoding options.
     #[must_use]
     pub fn new(options: crate::options::EncodeOptions) -> Self {
         Self { options }
@@ -2352,7 +2358,7 @@ impl JsonEncoder {
     }
 }
 
-/// Ordered JSON writer for parallel processing
+/// Ordered JSON writer for deterministic output from parallel processing.
 ///
 /// This writer maintains deterministic output ordering even when records
 /// are processed in parallel by using sequence IDs and a bounded reordering window.
@@ -2364,7 +2370,7 @@ pub struct OrderedJsonWriter<W: Write> {
 }
 
 impl<W: Write> OrderedJsonWriter<W> {
-    /// Create a new ordered JSON writer
+    /// Create a new ordered JSON writer with the specified reorder window size.
     pub fn new(writer: W, schema: Schema, options: DecodeOptions, window_size: usize) -> Self {
         Self {
             inner: JsonWriter::new(writer, schema, options),

@@ -19,7 +19,10 @@ use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, warn};
 
-/// High-level processor for decoding operations with integrated error handling
+/// High-level processor for decoding operations with integrated error handling.
+///
+/// Wraps [`decode_file_to_jsonl`](crate::decode_file_to_jsonl) with structured
+/// error reporting, corruption detection, and configurable error modes.
 pub struct DecodeProcessor {
     /// Error reporter for structured error handling
     error_reporter: ErrorReporter,
@@ -33,7 +36,10 @@ pub struct DecodeProcessor {
     workload_type: WorkloadType,
 }
 
-/// High-level processor for encoding operations with integrated error handling
+/// High-level processor for encoding operations with integrated error handling.
+///
+/// Wraps [`encode_jsonl_to_file`](crate::encode_jsonl_to_file) with structured
+/// error reporting and configurable error modes.
 pub struct EncodeProcessor {
     /// Error reporter for structured error handling
     error_reporter: ErrorReporter,
@@ -46,7 +52,7 @@ pub struct EncodeProcessor {
 }
 
 impl DecodeProcessor {
-    /// Create a new decode processor with the given options
+    /// Create a new decode processor with the given options.
     pub fn new(options: DecodeOptions) -> Self {
         let error_mode = if options.strict_mode {
             ErrorMode::Strict

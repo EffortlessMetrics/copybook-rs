@@ -10,7 +10,10 @@ use copybook_core::{Schema, Result};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-/// Round-trip test configuration
+/// Round-trip test configuration for validating encode/decode fidelity.
+///
+/// Defines a single test case with schema, input data, and codec options
+/// for verifying lossless binary round-trips with SHA-256 integrity checks.
 #[derive(Debug, Clone)]
 pub struct RoundTripConfig {
     /// Schema to use for testing
@@ -25,7 +28,7 @@ pub struct RoundTripConfig {
     pub expected_hash: Option<String>,
 }
 
-/// Round-trip test result
+/// Result of a round-trip (decode → encode) test execution.
 #[derive(Debug, Clone)]
 pub struct RoundTripResult {
     /// Whether the round-trip was successful
@@ -158,26 +161,26 @@ impl RoundTripConfig {
     }
 }
 
-/// Test suite for round-trip validation
+/// Test suite for running multiple round-trip validation tests.
 pub struct RoundTripTestSuite {
     tests: Vec<RoundTripConfig>,
 }
 
 impl RoundTripTestSuite {
-    /// Create a new test suite
+    /// Create an empty test suite.
     pub fn new() -> Self {
         Self {
             tests: Vec::new(),
         }
     }
 
-    /// Add a test to the suite
+    /// Add a test configuration to the suite.
     pub fn add_test(mut self, test: RoundTripConfig) -> Self {
         self.tests.push(test);
         self
     }
 
-    /// Run all tests in the suite
+    /// Run all tests and collect results.
     pub fn run_all(&self) -> Vec<RoundTripResult> {
         self.tests.iter().map(|test| test.run().unwrap_or_else(|e| {
             RoundTripResult {
@@ -191,7 +194,7 @@ impl RoundTripTestSuite {
         })).collect()
     }
 
-    /// Check if all tests passed
+    /// Returns `true` if every test in the suite produced a successful round-trip.
     pub fn all_passed(&self) -> bool {
         self.run_all().iter().all(|result| result.success)
     }
@@ -203,7 +206,7 @@ impl Default for RoundTripTestSuite {
     }
 }
 
-/// Create a comprehensive test suite for various data types and scenarios
+/// Create a comprehensive test suite covering various COBOL data types and scenarios.
 pub fn create_comprehensive_test_suite() -> RoundTripTestSuite {
     let mut suite = RoundTripTestSuite::new();
 

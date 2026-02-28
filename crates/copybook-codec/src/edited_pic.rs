@@ -11,7 +11,10 @@
 use copybook_core::{Error, ErrorCode, Result};
 use tracing::warn;
 
-/// Pattern tokens for edited PIC clauses
+/// Pattern tokens for edited PIC clauses.
+///
+/// Each variant represents a formatting symbol in an edited PICTURE clause,
+/// used during decode and encode of edited numeric fields.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PicToken {
     /// Numeric digit (9) - always displays
@@ -67,12 +70,12 @@ impl std::fmt::Display for PicToken {
     }
 }
 
-/// Sign extracted from edited PIC
+/// Sign extracted from an edited PIC field during decode.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Sign {
-    /// Positive or unsigned
+    /// Positive or unsigned value.
     Positive,
-    /// Negative
+    /// Negative value.
     Negative,
 }
 
@@ -230,7 +233,10 @@ where
     }
 }
 
-/// Decoded numeric value from edited PIC
+/// Decoded numeric value extracted from an edited PIC field.
+///
+/// Contains the sign, raw digit string, and scale needed to
+/// produce a JSON numeric representation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NumericValue {
     /// Sign of the number

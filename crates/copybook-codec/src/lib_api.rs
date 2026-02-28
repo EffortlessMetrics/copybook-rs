@@ -212,26 +212,29 @@ mod telemetry {
     }
 }
 
-/// Summary of processing run with comprehensive statistics
+/// Summary of a processing run with comprehensive statistics.
+///
+/// Captures record counts, error rates, throughput, and resource usage
+/// for a complete decode or encode operation.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct RunSummary {
-    /// Total records processed successfully
+    /// Total number of records decoded or encoded successfully.
     pub records_processed: u64,
-    /// Number of records with errors
+    /// Number of records that encountered errors during processing.
     pub records_with_errors: u64,
-    /// Number of warnings generated
+    /// Number of non-fatal warnings generated during processing.
     pub warnings: u64,
-    /// Processing time in milliseconds
+    /// Wall-clock processing time in milliseconds.
     pub processing_time_ms: u64,
-    /// Total bytes processed
+    /// Total bytes read from input.
     pub bytes_processed: u64,
-    /// Schema fingerprint used for processing
+    /// SHA-256 fingerprint of the schema used for processing.
     pub schema_fingerprint: String,
-    /// Processing throughput in MB/s
+    /// Processing throughput in MiB/s.
     pub throughput_mbps: f64,
-    /// Peak memory usage in bytes (if available)
+    /// Peak memory usage in bytes, if available from the runtime.
     pub peak_memory_bytes: Option<u64>,
-    /// Number of threads used for processing
+    /// Number of worker threads used for parallel processing.
     pub threads_used: usize,
 }
 
@@ -2575,7 +2578,10 @@ fn write_json_record<W: Write>(output: &mut W, value: &Value) -> Result<()> {
     Ok(())
 }
 
-/// Increment warning counter (thread-local)
+/// Increment the thread-local warning counter.
+///
+/// Called internally when non-fatal issues (e.g., BWZ blanks, ODO clamping)
+/// are encountered during decode. The count is aggregated into [`RunSummary::warnings`].
 pub fn increment_warning_counter() {
     WARNING_COUNTER.with(|counter| {
         *counter.borrow_mut() += 1;

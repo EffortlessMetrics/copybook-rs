@@ -27,22 +27,29 @@ use crate::{Error, Result};
 use std::fmt;
 
 /// Parsed PIC clause information
+///
+/// Represents the result of parsing a COBOL PICTURE clause, capturing the
+/// data type, sign, digit count, and decimal scale.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PicClause {
+    /// The data type category of this PIC clause.
     pub kind: PicKind,
+    /// Whether this field is signed (`S` prefix in PIC clause).
     pub signed: bool,
+    /// Total number of digit or character positions.
     pub digits: u16,
-    pub scale: i16, // Decimal places (negative for implied scaling)
+    /// Number of decimal places (digits after `V`). Negative for implied scaling.
+    pub scale: i16,
 }
 
 /// Types of PIC clauses
 #[derive(Debug, Clone, PartialEq)]
 pub enum PicKind {
-    /// Alphanumeric field (X)
+    /// Alphanumeric field (`PIC X`).
     Alphanumeric,
-    /// Numeric display field (9)
+    /// Numeric display field (`PIC 9`).
     NumericDisplay,
-    /// Edited picture (rejected)
+    /// Edited numeric picture (e.g., `PIC ZZ,ZZZ.99`). Handled by Phase E1/E2/E3.
     Edited,
 }
 
@@ -217,7 +224,9 @@ impl PicClause {
         })
     }
 
-    /// Get the byte length of this field when stored
+    /// Get the byte length of this field when stored in a record.
+    ///
+    /// For `Edited` PIC kinds, returns 0 because the display width is used instead.
     pub fn byte_length(&self) -> u32 {
         match self.kind {
             PicKind::Alphanumeric => self.digits as u32,

@@ -61,21 +61,24 @@ pub fn parse_with_options(text: &str, options: &ParseOptions) -> Result<Schema> 
     parser.parse_schema()
 }
 
-/// Options for parsing behavior
+/// Options for controlling COBOL copybook parsing behavior.
+///
+/// Configures how the parser handles various COBOL dialect features,
+/// comment styles, and validation strictness.
 #[derive(Debug, Clone)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ParseOptions {
-    /// Whether to emit FILLER fields in output
+    /// Whether to emit FILLER fields in the parsed schema output.
     pub emit_filler: bool,
-    /// Codepage for fingerprint calculation
+    /// Codepage identifier used for fingerprint calculation (e.g., `"cp037"`).
     pub codepage: String,
-    /// Whether to allow inline comments (*>)
+    /// Whether to allow COBOL-2002 inline comments (`*>`).
     pub allow_inline_comments: bool,
-    /// Whether to run in strict mode (more error intolerance)
+    /// Whether to run in strict mode with less error tolerance.
     pub strict: bool,
-    /// Whether to enforce strict comment parsing rules
+    /// Whether to enforce strict comment parsing rules.
     pub strict_comments: bool,
-    /// Dialect for ODO min_count interpretation
+    /// Dialect for ODO `min_count` interpretation.
     pub dialect: crate::dialect::Dialect,
 }
 

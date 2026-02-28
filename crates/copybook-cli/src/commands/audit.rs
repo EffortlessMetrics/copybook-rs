@@ -104,6 +104,292 @@ pub struct AuditCommand {
     pub monitor: bool,
 }
 
+/// Arguments for the `audit report` subcommand.
+#[derive(clap::Args)]
+pub struct AuditReportArgs {
+    /// Copybook file path for analysis
+    pub copybook: PathBuf,
+
+    /// Data file path for processing audit
+    pub data_file: Option<PathBuf>,
+
+    /// Output report file
+    #[arg(short, long)]
+    pub output: PathBuf,
+
+    /// Report format
+    #[arg(long, value_enum, default_value = "json")]
+    pub format: OutputFormat,
+
+    /// Compliance frameworks to include in report
+    #[arg(long)]
+    pub compliance: Option<String>,
+
+    /// Include performance analysis
+    #[arg(long)]
+    pub include_performance: bool,
+
+    /// Include security assessment
+    #[arg(long)]
+    pub include_security: bool,
+
+    /// Include data lineage
+    #[arg(long)]
+    pub include_lineage: bool,
+
+    /// Include remediation recommendations
+    #[arg(long)]
+    pub include_recommendations: bool,
+}
+
+/// Arguments for the `audit validate` subcommand.
+#[derive(clap::Args)]
+pub struct AuditValidateArgs {
+    /// Copybook file path
+    pub copybook: PathBuf,
+
+    /// Data file path for validation
+    pub data_file: Option<PathBuf>,
+
+    /// Compliance frameworks to validate against (comma-separated)
+    #[arg(long)]
+    pub compliance: String,
+
+    /// Record format
+    #[arg(long)]
+    pub format: Option<RecordFormat>,
+
+    /// Character encoding
+    #[arg(long, default_value = "cp037")]
+    pub codepage: Codepage,
+
+    /// Enable strict compliance validation
+    #[arg(long)]
+    pub strict: bool,
+
+    /// Output validation report
+    #[arg(short, long)]
+    pub output: PathBuf,
+
+    /// Auto-remediation mode
+    #[arg(long)]
+    pub auto_remediate: bool,
+
+    /// Report compliance violations in detail
+    #[arg(long)]
+    pub report_violations: bool,
+
+    /// Include remediation recommendations
+    #[arg(long)]
+    pub include_recommendations: bool,
+}
+
+/// Arguments for the `audit lineage` subcommand.
+#[derive(clap::Args)]
+pub struct AuditLineageArgs {
+    /// Source copybook file
+    pub source_copybook: PathBuf,
+
+    /// Target copybook file (optional)
+    pub target_copybook: Option<PathBuf>,
+
+    /// Source system identifier
+    #[arg(long)]
+    pub source_system: String,
+
+    /// Target system identifier
+    #[arg(long)]
+    pub target_system: Option<String>,
+
+    /// Output lineage report
+    #[arg(short, long)]
+    pub output: PathBuf,
+
+    /// Source copybook for comparison
+    #[arg(long)]
+    pub source: Option<PathBuf>,
+
+    /// Target format for lineage report
+    #[arg(long, default_value = "json")]
+    pub target_format: String,
+
+    /// Enable field-level lineage tracking
+    #[arg(long)]
+    pub field_level: bool,
+
+    /// Include transformation details
+    #[arg(long)]
+    pub transformation_details: bool,
+
+    /// Include data quality metrics
+    #[arg(long)]
+    pub quality_metrics: bool,
+
+    /// Include impact analysis
+    #[arg(long)]
+    pub impact_analysis: bool,
+
+    /// Transformation confidence threshold
+    #[arg(long, default_value = "0.8")]
+    pub confidence_threshold: f64,
+}
+
+/// Arguments for the `audit performance` subcommand.
+#[derive(clap::Args)]
+pub struct AuditPerformanceArgs {
+    /// Copybook file path
+    pub copybook: PathBuf,
+
+    /// Test data file path
+    pub data_file: Option<PathBuf>,
+
+    /// Record format
+    #[arg(long)]
+    pub format: Option<RecordFormat>,
+
+    /// Character encoding
+    #[arg(long, default_value = "cp037")]
+    pub codepage: Codepage,
+
+    /// Output performance report
+    #[arg(short, long)]
+    pub output: PathBuf,
+
+    /// Establish new performance baseline
+    #[arg(long)]
+    pub establish_baseline: bool,
+
+    /// Baseline file path
+    #[arg(long)]
+    pub baseline_file: Option<PathBuf>,
+
+    /// Validate against existing baseline
+    #[arg(long)]
+    pub validate_against_baseline: Option<PathBuf>,
+
+    /// Target DISPLAY throughput in GiB/s
+    #[arg(long)]
+    pub target_display_gbps: Option<f64>,
+
+    /// Target COMP-3 throughput in MiB/s
+    #[arg(long)]
+    pub target_comp3_mbps: Option<f64>,
+
+    /// Maximum overhead percentage
+    #[arg(long)]
+    pub max_overhead_percent: Option<f64>,
+
+    /// Include regression analysis
+    #[arg(long)]
+    pub include_regression_analysis: bool,
+
+    /// Performance test iterations
+    #[arg(long, default_value = "10")]
+    pub iterations: u32,
+}
+
+/// Arguments for the `audit security` subcommand.
+#[derive(clap::Args)]
+pub struct AuditSecurityArgs {
+    /// Copybook file path
+    pub copybook: PathBuf,
+
+    /// Data classification level
+    #[arg(long, value_enum)]
+    pub classification: Option<DataClassification>,
+
+    /// Output security report
+    #[arg(short, long)]
+    pub output: PathBuf,
+
+    /// Access log file for analysis
+    #[arg(long)]
+    pub access_log: Option<PathBuf>,
+
+    /// Enable anomaly detection
+    #[arg(long)]
+    pub detect_anomalies: bool,
+
+    /// Validate encryption status
+    #[arg(long)]
+    pub validate_encryption: bool,
+
+    /// Check access patterns
+    #[arg(long)]
+    pub check_access_patterns: bool,
+
+    /// SIEM format for export
+    #[arg(long)]
+    pub siem_format: Option<String>,
+
+    /// SIEM vendor integration
+    #[arg(long)]
+    pub siem_vendor: Option<String>,
+
+    /// Export events file path
+    #[arg(long)]
+    pub export_events: Option<PathBuf>,
+
+    /// Enable real-time monitoring
+    #[arg(long)]
+    pub real_time_monitoring: bool,
+
+    /// Security validation depth
+    #[arg(long, value_enum, default_value = "standard")]
+    pub validation_depth: ValidationDepth,
+
+    /// Include threat assessment
+    #[arg(long)]
+    pub threat_assessment: bool,
+}
+
+/// Arguments for the `audit health` subcommand.
+#[derive(clap::Args)]
+pub struct AuditHealthArgs {
+    /// Audit trail file path
+    pub audit_trail: Option<PathBuf>,
+
+    /// Audit log file path
+    #[arg(long)]
+    pub audit_log: Option<PathBuf>,
+
+    /// Validate integrity chain
+    #[arg(long)]
+    pub validate_integrity: bool,
+
+    /// Validate chain integrity
+    #[arg(long)]
+    pub validate_chain_integrity: bool,
+
+    /// Check cryptographic hashes
+    #[arg(long)]
+    pub check_cryptographic_hashes: bool,
+
+    /// Verify timestamps
+    #[arg(long)]
+    pub verify_timestamps: bool,
+
+    /// Check retention compliance
+    #[arg(long)]
+    pub check_retention: bool,
+
+    /// Output health report
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+
+    /// Enable detailed diagnostics
+    #[arg(long)]
+    pub detailed_diagnostics: bool,
+
+    /// Health check interval in minutes
+    #[arg(long, default_value = "60")]
+    pub check_interval: u32,
+
+    /// Enable continuous monitoring
+    #[arg(long)]
+    pub continuous: bool,
+}
+
 #[derive(Subcommand)]
 pub enum AuditSubcommand {
     /// Generate comprehensive audit reports
@@ -113,41 +399,7 @@ pub enum AuditSubcommand {
                       performance metrics, security assessment, and data lineage \
                       for regulatory requirements and enterprise governance."
     )]
-    Report {
-        /// Copybook file path for analysis
-        copybook: PathBuf,
-
-        /// Data file path for processing audit
-        data_file: Option<PathBuf>,
-
-        /// Output report file
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Report format
-        #[arg(long, value_enum, default_value = "json")]
-        format: OutputFormat,
-
-        /// Compliance frameworks to include in report
-        #[arg(long)]
-        compliance: Option<String>,
-
-        /// Include performance analysis
-        #[arg(long)]
-        include_performance: bool,
-
-        /// Include security assessment
-        #[arg(long)]
-        include_security: bool,
-
-        /// Include data lineage
-        #[arg(long)]
-        include_lineage: bool,
-
-        /// Include remediation recommendations
-        #[arg(long)]
-        include_recommendations: bool,
-    },
+    Report(Box<AuditReportArgs>),
 
     /// Validate compliance against regulatory frameworks
     #[command(
@@ -156,45 +408,7 @@ pub enum AuditSubcommand {
                       against SOX, HIPAA, GDPR, and PCI DSS compliance requirements \
                       with detailed violation reporting and remediation guidance."
     )]
-    Validate {
-        /// Copybook file path
-        copybook: PathBuf,
-
-        /// Data file path for validation
-        data_file: Option<PathBuf>,
-
-        /// Compliance frameworks to validate against (comma-separated)
-        #[arg(long)]
-        compliance: String,
-
-        /// Record format
-        #[arg(long)]
-        format: Option<RecordFormat>,
-
-        /// Character encoding
-        #[arg(long, default_value = "cp037")]
-        codepage: Codepage,
-
-        /// Enable strict compliance validation
-        #[arg(long)]
-        strict: bool,
-
-        /// Output validation report
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Auto-remediation mode
-        #[arg(long)]
-        auto_remediate: bool,
-
-        /// Report compliance violations in detail
-        #[arg(long)]
-        report_violations: bool,
-
-        /// Include remediation recommendations
-        #[arg(long)]
-        include_recommendations: bool,
-    },
+    Validate(Box<AuditValidateArgs>),
 
     /// Analyze data lineage and transformation impact
     #[command(
@@ -203,53 +417,7 @@ pub enum AuditSubcommand {
                       and analyzes the impact of schema or processing changes \
                       on downstream systems and data consumers."
     )]
-    Lineage {
-        /// Source copybook file
-        source_copybook: PathBuf,
-
-        /// Target copybook file (optional)
-        target_copybook: Option<PathBuf>,
-
-        /// Source system identifier
-        #[arg(long)]
-        source_system: String,
-
-        /// Target system identifier
-        #[arg(long)]
-        target_system: Option<String>,
-
-        /// Output lineage report
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Source copybook for comparison
-        #[arg(long)]
-        source: Option<PathBuf>,
-
-        /// Target format for lineage report
-        #[arg(long, default_value = "json")]
-        target_format: String,
-
-        /// Enable field-level lineage tracking
-        #[arg(long)]
-        field_level: bool,
-
-        /// Include transformation details
-        #[arg(long)]
-        transformation_details: bool,
-
-        /// Include data quality metrics
-        #[arg(long)]
-        quality_metrics: bool,
-
-        /// Include impact analysis
-        #[arg(long)]
-        impact_analysis: bool,
-
-        /// Transformation confidence threshold
-        #[arg(long, default_value = "0.8")]
-        confidence_threshold: f64,
-    },
+    Lineage(Box<AuditLineageArgs>),
 
     /// Run performance audit and baseline validation
     #[command(
@@ -258,57 +426,7 @@ pub enum AuditSubcommand {
                       detects performance regressions, and generates performance \
                       audit reports with recommendations for optimization."
     )]
-    Performance {
-        /// Copybook file path
-        copybook: PathBuf,
-
-        /// Test data file path
-        data_file: Option<PathBuf>,
-
-        /// Record format
-        #[arg(long)]
-        format: Option<RecordFormat>,
-
-        /// Character encoding
-        #[arg(long, default_value = "cp037")]
-        codepage: Codepage,
-
-        /// Output performance report
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Establish new performance baseline
-        #[arg(long)]
-        establish_baseline: bool,
-
-        /// Baseline file path
-        #[arg(long)]
-        baseline_file: Option<PathBuf>,
-
-        /// Validate against existing baseline
-        #[arg(long)]
-        validate_against_baseline: Option<PathBuf>,
-
-        /// Target DISPLAY throughput in GiB/s
-        #[arg(long)]
-        target_display_gbps: Option<f64>,
-
-        /// Target COMP-3 throughput in MiB/s
-        #[arg(long)]
-        target_comp3_mbps: Option<f64>,
-
-        /// Maximum overhead percentage
-        #[arg(long)]
-        max_overhead_percent: Option<f64>,
-
-        /// Include regression analysis
-        #[arg(long)]
-        include_regression_analysis: bool,
-
-        /// Performance test iterations
-        #[arg(long, default_value = "10")]
-        iterations: u32,
-    },
+    Performance(Box<AuditPerformanceArgs>),
 
     /// Run security audit and access pattern analysis
     #[command(
@@ -317,58 +435,7 @@ pub enum AuditSubcommand {
                       control validation, encryption status checking, and \
                       anomaly detection for copybook processing operations."
     )]
-    Security {
-        /// Copybook file path
-        copybook: PathBuf,
-
-        /// Data classification level
-        #[arg(long, value_enum)]
-        classification: Option<DataClassification>,
-
-        /// Output security report
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Access log file for analysis
-        #[arg(long)]
-        access_log: Option<PathBuf>,
-
-        /// Enable anomaly detection
-        #[arg(long)]
-        detect_anomalies: bool,
-
-        /// Validate encryption status
-        #[arg(long)]
-        validate_encryption: bool,
-
-        /// Check access patterns
-        #[arg(long)]
-        check_access_patterns: bool,
-
-        /// SIEM format for export
-        #[arg(long)]
-        siem_format: Option<String>,
-
-        /// SIEM vendor integration
-        #[arg(long)]
-        siem_vendor: Option<String>,
-
-        /// Export events file path
-        #[arg(long)]
-        export_events: Option<PathBuf>,
-
-        /// Enable real-time monitoring
-        #[arg(long)]
-        real_time_monitoring: bool,
-
-        /// Security validation depth
-        #[arg(long, value_enum, default_value = "standard")]
-        validation_depth: ValidationDepth,
-
-        /// Include threat assessment
-        #[arg(long)]
-        threat_assessment: bool,
-    },
+    Security(Box<AuditSecurityArgs>),
 
     /// Monitor audit trail health and integrity
     #[command(
@@ -377,50 +444,7 @@ pub enum AuditSubcommand {
                       checks for audit trail tampering, and monitors audit \
                       system health including retention compliance."
     )]
-    Health {
-        /// Audit trail file path
-        audit_trail: Option<PathBuf>,
-
-        /// Audit log file path
-        #[arg(long)]
-        audit_log: Option<PathBuf>,
-
-        /// Validate integrity chain
-        #[arg(long)]
-        validate_integrity: bool,
-
-        /// Validate chain integrity
-        #[arg(long)]
-        validate_chain_integrity: bool,
-
-        /// Check cryptographic hashes
-        #[arg(long)]
-        check_cryptographic_hashes: bool,
-
-        /// Verify timestamps
-        #[arg(long)]
-        verify_timestamps: bool,
-
-        /// Check retention compliance
-        #[arg(long)]
-        check_retention: bool,
-
-        /// Output health report
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Enable detailed diagnostics
-        #[arg(long)]
-        detailed_diagnostics: bool,
-
-        /// Health check interval in minutes
-        #[arg(long, default_value = "60")]
-        check_interval: u32,
-
-        /// Enable continuous monitoring
-        #[arg(long)]
-        continuous: bool,
-    },
+    Health(Box<AuditHealthArgs>),
 }
 
 #[derive(clap::ValueEnum, Clone)]
@@ -501,175 +525,101 @@ pub async fn run(
     };
 
     match audit_command.command {
-        AuditSubcommand::Report {
-            copybook,
-            data_file,
-            output,
-            format,
-            compliance,
-            include_performance,
-            include_security,
-            include_lineage,
-            include_recommendations,
-        } => {
+        AuditSubcommand::Report(args) => {
             run_audit_report(
-                &copybook,
-                data_file.as_deref(),
-                &output,
-                format,
-                compliance.as_deref(),
-                include_performance,
-                include_security,
-                include_lineage,
-                include_recommendations,
+                &args.copybook,
+                args.data_file.as_deref(),
+                &args.output,
+                args.format,
+                args.compliance.as_deref(),
+                args.include_performance,
+                args.include_security,
+                args.include_lineage,
+                args.include_recommendations,
                 audit_context,
             )
             .await
         }
 
-        AuditSubcommand::Validate {
-            copybook,
-            data_file,
-            compliance,
-            format,
-            codepage,
-            strict,
-            output,
-            auto_remediate,
-            report_violations,
-            include_recommendations,
-        } => {
+        AuditSubcommand::Validate(args) => {
             run_compliance_validation(
-                &compliance,
-                &copybook,
-                data_file.as_deref(),
-                format,
-                codepage,
-                strict,
-                &output,
-                auto_remediate,
-                report_violations,
-                include_recommendations,
+                &args.compliance,
+                &args.copybook,
+                args.data_file.as_deref(),
+                args.format,
+                args.codepage,
+                args.strict,
+                &args.output,
+                args.auto_remediate,
+                args.report_violations,
+                args.include_recommendations,
                 audit_context,
             )
             .await
         }
 
-        AuditSubcommand::Lineage {
-            source_copybook,
-            target_copybook,
-            source_system,
-            target_system,
-            output,
-            source,
-            target_format,
-            field_level,
-            transformation_details,
-            quality_metrics,
-            impact_analysis,
-            confidence_threshold,
-        } => run_lineage_analysis(
-            &source_copybook,
-            target_copybook.as_deref(),
-            &source_system,
-            target_system.as_deref(),
-            &output,
-            source.as_deref(),
-            &target_format,
-            field_level,
-            transformation_details,
-            quality_metrics,
-            impact_analysis,
-            confidence_threshold,
+        AuditSubcommand::Lineage(args) => run_lineage_analysis(
+            &args.source_copybook,
+            args.target_copybook.as_deref(),
+            &args.source_system,
+            args.target_system.as_deref(),
+            &args.output,
+            args.source.as_deref(),
+            &args.target_format,
+            args.field_level,
+            args.transformation_details,
+            args.quality_metrics,
+            args.impact_analysis,
+            args.confidence_threshold,
             audit_context,
         ),
 
-        AuditSubcommand::Performance {
-            copybook,
-            data_file,
-            format,
-            codepage,
-            output,
-            establish_baseline,
-            baseline_file,
-            validate_against_baseline,
-            target_display_gbps,
-            target_comp3_mbps,
-            max_overhead_percent,
-            include_regression_analysis,
-            iterations,
-        } => run_performance_audit(
-            &copybook,
-            data_file.as_deref(),
-            format,
-            codepage,
-            &output,
-            establish_baseline,
-            baseline_file.as_deref(),
-            validate_against_baseline.as_deref(),
-            target_display_gbps,
-            target_comp3_mbps,
-            max_overhead_percent,
-            include_regression_analysis,
-            iterations,
+        AuditSubcommand::Performance(args) => run_performance_audit(
+            &args.copybook,
+            args.data_file.as_deref(),
+            args.format,
+            args.codepage,
+            &args.output,
+            args.establish_baseline,
+            args.baseline_file.as_deref(),
+            args.validate_against_baseline.as_deref(),
+            args.target_display_gbps,
+            args.target_comp3_mbps,
+            args.max_overhead_percent,
+            args.include_regression_analysis,
+            args.iterations,
             audit_context,
         ),
 
-        AuditSubcommand::Security {
-            copybook,
-            classification,
-            output,
-            access_log,
-            detect_anomalies,
-            validate_encryption,
-            check_access_patterns,
-            siem_format,
-            siem_vendor,
-            export_events,
-            real_time_monitoring,
-            validation_depth,
-            threat_assessment,
-        } => run_security_audit(
-            &copybook,
-            classification,
-            &output,
-            access_log.as_deref(),
-            detect_anomalies,
-            validate_encryption,
-            check_access_patterns,
-            siem_format.as_deref(),
-            siem_vendor.as_deref(),
-            export_events.as_deref(),
-            real_time_monitoring,
-            validation_depth,
-            threat_assessment,
+        AuditSubcommand::Security(args) => run_security_audit(
+            &args.copybook,
+            args.classification,
+            &args.output,
+            args.access_log.as_deref(),
+            args.detect_anomalies,
+            args.validate_encryption,
+            args.check_access_patterns,
+            args.siem_format.as_deref(),
+            args.siem_vendor.as_deref(),
+            args.export_events.as_deref(),
+            args.real_time_monitoring,
+            args.validation_depth,
+            args.threat_assessment,
             audit_context,
         ),
 
-        AuditSubcommand::Health {
-            audit_trail,
-            audit_log,
-            validate_integrity,
-            validate_chain_integrity,
-            check_cryptographic_hashes,
-            verify_timestamps,
-            check_retention,
-            output,
-            detailed_diagnostics,
-            check_interval,
-            continuous,
-        } => run_audit_health_check(
-            audit_trail.as_deref(),
-            audit_log.as_deref(),
-            validate_integrity,
-            validate_chain_integrity,
-            check_cryptographic_hashes,
-            verify_timestamps,
-            check_retention,
-            output.as_deref(),
-            detailed_diagnostics,
-            check_interval,
-            continuous,
+        AuditSubcommand::Health(args) => run_audit_health_check(
+            args.audit_trail.as_deref(),
+            args.audit_log.as_deref(),
+            args.validate_integrity,
+            args.validate_chain_integrity,
+            args.check_cryptographic_hashes,
+            args.verify_timestamps,
+            args.check_retention,
+            args.output.as_deref(),
+            args.detailed_diagnostics,
+            args.check_interval,
+            args.continuous,
             audit_context,
         ),
     }

@@ -4,13 +4,24 @@
 //!
 //! This crate deliberately owns one concern: route legacy single-record I/O
 //! calls to either fixed-LRECL or RDW framing implementations.
+//!
+//! Use [`read_record`] and [`write_record`] for format-agnostic single-record
+//! I/O, or import the framing types directly for streaming access.
 
 use copybook_error::{Error, ErrorCode, Result};
 use copybook_options::RecordFormat;
 use std::io::{Read, Write};
 
-pub use copybook_fixed::{FixedRecordReader, FixedRecordWriter};
-pub use copybook_rdw::{RDWRecord, RDWRecordReader, RDWRecordWriter};
+/// Re-export fixed-length record reader from [`copybook_fixed`].
+pub use copybook_fixed::FixedRecordReader;
+/// Re-export fixed-length record writer from [`copybook_fixed`].
+pub use copybook_fixed::FixedRecordWriter;
+/// Re-export RDW record type from [`copybook_rdw`].
+pub use copybook_rdw::RDWRecord;
+/// Re-export RDW record reader from [`copybook_rdw`].
+pub use copybook_rdw::RDWRecordReader;
+/// Re-export RDW record writer from [`copybook_rdw`].
+pub use copybook_rdw::RDWRecordWriter;
 
 /// Read one record from input using the selected record format.
 ///

@@ -4,6 +4,9 @@
 //! This crate defines the dialect lever that controls how `min_count` is interpreted
 //! for ODO arrays. Different dialects provide different levels of strictness in
 //! enforcing the minimum count constraint.
+//!
+//! Use [`Dialect`] to select the interpretation mode and [`effective_min_count`]
+//! to apply it.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Configuration options for encoding and decoding operations
+//! Configuration option types shared across copybook-rs crates.
+//!
+//! This crate defines [`DecodeOptions`], [`EncodeOptions`], [`RecordFormat`],
+//! [`JsonNumberMode`], [`RawMode`], and [`FloatFormat`] — the common configuration
+//! surface used by the codec and CLI layers.
 #![allow(clippy::missing_inline_in_public_items)]
 
 // Re-export from copybook-charset for public API
-pub use copybook_charset::{Codepage, UnmappablePolicy};
+/// Codepage identifier for EBCDIC/ASCII character encoding.
+pub use copybook_charset::Codepage;
+/// Policy for handling unmappable characters during codepage conversion.
+pub use copybook_charset::UnmappablePolicy;
+/// Zoned decimal encoding format (ASCII, EBCDIC, or auto-detect).
 pub use copybook_zoned_format::ZonedEncodingFormat;
 use serde::{Deserialize, Serialize};
 use std::fmt;

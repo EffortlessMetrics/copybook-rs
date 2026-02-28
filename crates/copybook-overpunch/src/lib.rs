@@ -1,6 +1,6 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Zoned decimal overpunch encoding and decoding
+//! Zoned decimal overpunch encoding and decoding.
 //!
 //! This module provides centralized mapping for zoned decimal overpunch characters
 //! across different codepages (ASCII and EBCDIC variants).
@@ -8,6 +8,9 @@
 //! Overpunch encoding combines the last digit with sign information:
 //! - ASCII: uses letters A-I for positive digits 1-9, J-R for negative digits 1-9
 //! - EBCDIC: uses zone nibbles 0xC (positive) and 0xD (negative)
+//!
+//! Use [`encode_overpunch_byte`] and [`decode_overpunch_byte`] for single-byte
+//! conversion, or the lower-level zone helpers for EBCDIC-specific work.
 //!
 //! ### Overpunch rules (cheatsheet)
 //! - ASCII last-digit:

@@ -3,6 +3,9 @@
 //!
 //! This crate isolates checked arithmetic and checked narrowing conversions
 //! that are performance-sensitive and correctness-critical.
+//!
+//! All functions return structured [`copybook_error::Error`] values with
+//! domain-specific error codes on overflow.
 
 use copybook_error::{Error, ErrorCode, Result};
 

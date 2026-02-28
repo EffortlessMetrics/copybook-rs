@@ -4,6 +4,11 @@
 //!
 //! This crate intentionally focuses on one concern:
 //! parsing and constructing RDW framing metadata plus minimal buffered helpers.
+//!
+//! The RDW format prefixes each variable-length record with a 4-byte header
+//! (2-byte big-endian payload length + 2 reserved bytes). Use [`RDWRecordReader`]
+//! and [`RDWRecordWriter`] for streaming record I/O, or the lower-level helpers
+//! ([`rdw_read_len`], [`rdw_slice_body`]) for custom framing.
 
 use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};

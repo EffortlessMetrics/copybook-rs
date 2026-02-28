@@ -5,6 +5,9 @@
 //! This crate intentionally focuses on one concern:
 //! reading and writing LRECL-framed records with deterministic padding and
 //! structured error mapping.
+//!
+//! Use [`FixedRecordReader`] to consume fixed-length records from a byte stream
+//! and [`FixedRecordWriter`] to produce them with automatic null-byte padding.
 
 use copybook_core::Schema;
 use copybook_error::{Error, ErrorCode, ErrorContext, Result};

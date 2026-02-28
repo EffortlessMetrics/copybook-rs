@@ -5,6 +5,9 @@
 //!
 //! This crate isolates one responsibility:
 //! compare two output byte streams, hash them, and report bounded byte-level differences.
+//!
+//! Use [`compare_outputs`] to check whether two codec runs produced identical bytes,
+//! and [`blake3_hex`] for stable content hashing.
 
 use serde::{Deserialize, Serialize};
 

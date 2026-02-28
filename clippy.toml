@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Clippy configuration for copybook-rs
+# NOTE: Clippy reads `clippy.toml` from the workspace root; `.config/clippy.toml` is ignored.
 
 # Cognitive complexity limits for enterprise mainframe code
 cognitive-complexity-threshold = 30

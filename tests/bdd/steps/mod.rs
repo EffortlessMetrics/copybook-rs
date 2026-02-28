@@ -31,3 +31,6 @@ pub(crate) mod safe_ops;
 pub(crate) mod support;
 pub(crate) mod verify;
 pub(crate) mod zoned_encoding;
+
+// Expanded BDD coverage modules
+pub(crate) mod error_taxonomy;

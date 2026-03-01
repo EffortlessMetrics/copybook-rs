@@ -11,7 +11,9 @@ use std::io::Cursor;
 use std::panic::catch_unwind;
 
 use copybook_charset::ebcdic_to_utf8;
-use copybook_codec::{Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_record, encode_record};
+use copybook_codec::{
+    Codepage, DecodeOptions, EncodeOptions, RecordFormat, decode_record, encode_record,
+};
 use copybook_codepage::UnmappablePolicy;
 use copybook_core::parse_copybook;
 use copybook_fixed::FixedRecordReader;

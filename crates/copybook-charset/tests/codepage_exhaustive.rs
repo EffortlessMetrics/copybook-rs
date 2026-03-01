@@ -60,7 +60,10 @@ fn assert_printable_roundtrip(cp: Codepage) {
     );
     let decoded = ebcdic_to_utf8(&ebcdic, cp, UnmappablePolicy::Error)
         .unwrap_or_else(|e| panic!("{cp}: decode all printable failed: {e}"));
-    assert_eq!(decoded, printable, "{cp}: printable ASCII round-trip mismatch");
+    assert_eq!(
+        decoded, printable,
+        "{cp}: printable ASCII round-trip mismatch"
+    );
 }
 
 #[test]
@@ -70,7 +73,11 @@ fn roundtrip_individual_printable_chars_all_codepages() {
             let ch = String::from(byte as char);
             let ebcdic = utf8_to_ebcdic(&ch, cp)
                 .unwrap_or_else(|e| panic!("{cp}: encode 0x{byte:02X} '{ch}' failed: {e}"));
-            assert_eq!(ebcdic.len(), 1, "{cp}: single char must encode to single byte");
+            assert_eq!(
+                ebcdic.len(),
+                1,
+                "{cp}: single char must encode to single byte"
+            );
             let decoded = ebcdic_to_utf8(&ebcdic, cp, UnmappablePolicy::Error)
                 .unwrap_or_else(|e| panic!("{cp}: decode 0x{byte:02X} '{ch}' failed: {e}"));
             assert_eq!(
@@ -135,8 +142,7 @@ fn assert_byte_range_roundtrip(cp: Codepage) {
                 "{cp}: byte 0x{byte:02X} wrong error code"
             );
             // Verify Skip omits it
-            let skip_result =
-                ebcdic_to_utf8(&input, cp, UnmappablePolicy::Skip).unwrap();
+            let skip_result = ebcdic_to_utf8(&input, cp, UnmappablePolicy::Skip).unwrap();
             assert!(
                 skip_result.is_empty(),
                 "{cp}: byte 0x{byte:02X} Skip should produce empty string"
@@ -204,8 +210,8 @@ fn uppercase_a_z_identical_across_cp037_cp1047_cp1140() {
     let reference = utf8_to_ebcdic(&alpha, Codepage::CP037).unwrap();
 
     for cp in codepages {
-        let encoded = utf8_to_ebcdic(&alpha, cp)
-            .unwrap_or_else(|e| panic!("{cp}: encode A-Z failed: {e}"));
+        let encoded =
+            utf8_to_ebcdic(&alpha, cp).unwrap_or_else(|e| panic!("{cp}: encode A-Z failed: {e}"));
         assert_eq!(
             encoded, reference,
             "{cp}: A-Z EBCDIC bytes differ from CP037 reference"
@@ -220,8 +226,8 @@ fn lowercase_a_z_identical_across_cp037_cp1047_cp1140() {
     let reference = utf8_to_ebcdic(&alpha, Codepage::CP037).unwrap();
 
     for cp in codepages {
-        let encoded = utf8_to_ebcdic(&alpha, cp)
-            .unwrap_or_else(|e| panic!("{cp}: encode a-z failed: {e}"));
+        let encoded =
+            utf8_to_ebcdic(&alpha, cp).unwrap_or_else(|e| panic!("{cp}: encode a-z failed: {e}"));
         assert_eq!(
             encoded, reference,
             "{cp}: a-z EBCDIC bytes differ from CP037 reference"
@@ -232,13 +238,9 @@ fn lowercase_a_z_identical_across_cp037_cp1047_cp1140() {
 #[test]
 fn space_0x20_encodes_to_0x40_all_codepages() {
     for cp in ALL_EBCDIC {
-        let encoded = utf8_to_ebcdic(" ", cp)
-            .unwrap_or_else(|e| panic!("{cp}: encode space failed: {e}"));
-        assert_eq!(
-            encoded,
-            vec![0x40],
-            "{cp}: space must encode to 0x40"
-        );
+        let encoded =
+            utf8_to_ebcdic(" ", cp).unwrap_or_else(|e| panic!("{cp}: encode space failed: {e}"));
+        assert_eq!(encoded, vec![0x40], "{cp}: space must encode to 0x40");
     }
 }
 
@@ -361,7 +363,10 @@ fn utf8_to_ebcdic_rejects_cjk_all_codepages() {
     for cp in ALL_EBCDIC {
         let result = utf8_to_ebcdic("\u{4E2D}", cp); // 中
         assert!(result.is_err(), "{cp}: CJK character must be unmappable");
-        assert_eq!(result.unwrap_err().code, ErrorCode::CBKC301_INVALID_EBCDIC_BYTE);
+        assert_eq!(
+            result.unwrap_err().code,
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE
+        );
     }
 }
 
@@ -443,11 +448,7 @@ fn cp1140_0xff_is_euro_sign() {
         "CP1140: 0xFF must decode to € (U+20AC)"
     );
     let reencoded = utf8_to_ebcdic("\u{20AC}", Codepage::CP1140).unwrap();
-    assert_eq!(
-        reencoded,
-        vec![0xFF],
-        "CP1140: € must encode to 0xFF"
-    );
+    assert_eq!(reencoded, vec![0xFF], "CP1140: € must encode to 0xFF");
 }
 
 #[test]
@@ -659,7 +660,10 @@ fn cp1140_differs_from_cp037_only_at_0x9f() {
         diff_positions.len() <= 2,
         "CP1140 differs from CP037 at {} positions (expected ≤ 2): {:?}",
         diff_positions.len(),
-        diff_positions.iter().map(|p| format!("0x{p:02X}")).collect::<Vec<_>>()
+        diff_positions
+            .iter()
+            .map(|p| format!("0x{p:02X}"))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -691,8 +695,12 @@ fn ascii_passthrough_is_identity() {
         printable.as_bytes(),
         "ASCII codepage must be identity encoding"
     );
-    let decoded =
-        ebcdic_to_utf8(printable.as_bytes(), Codepage::ASCII, UnmappablePolicy::Error).unwrap();
+    let decoded = ebcdic_to_utf8(
+        printable.as_bytes(),
+        Codepage::ASCII,
+        UnmappablePolicy::Error,
+    )
+    .unwrap();
     assert_eq!(
         decoded, printable,
         "ASCII codepage must be identity decoding"

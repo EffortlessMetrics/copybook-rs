@@ -42,7 +42,10 @@ fn sha256_hex(data: &[u8]) -> String {
 }
 
 /// Assert a JSON field is numerically close to `expected`.
-#[expect(clippy::panic, reason = "test helper — panics are the assertion mechanism")]
+#[expect(
+    clippy::panic,
+    reason = "test helper — panics are the assertion mechanism"
+)]
 fn assert_numeric_value(json: &serde_json::Value, field: &str, expected: f64) {
     let val = &json[field];
     assert!(!val.is_null(), "{field} not found in JSON");

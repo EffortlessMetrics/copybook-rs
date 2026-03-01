@@ -35,6 +35,7 @@ mod prop_overflow;
 mod prop_overflow_extended;
 mod prop_overflow_safety;
 mod prop_rdw;
+mod prop_schema_gen;
 mod prop_schema_invariants;
 mod prop_schema_projection;
 mod prop_sign_separate;

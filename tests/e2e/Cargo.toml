@@ -82,6 +82,14 @@ path = "e2e_decode_encode_comprehensive.rs"
 name = "e2e_projection_dialect"
 path = "e2e_projection_dialect.rs"
 
+[[test]]
+name = "e2e_cli_subcommands"
+path = "e2e_cli_subcommands.rs"
+
+[[test]]
+name = "e2e_streaming"
+path = "e2e_streaming.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true
@@ -90,3 +98,6 @@ copybook-sequence-ring.workspace = true
 tempfile.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+base64.workspace = true
+assert_cmd.workspace = true
+predicates.workspace = true

@@ -35,6 +35,7 @@ pub mod prop_overflow;
 pub mod prop_overflow_extended;
 pub mod prop_overflow_safety;
 pub mod prop_rdw;
+pub mod prop_schema_gen;
 pub mod prop_schema_invariants;
 pub mod prop_schema_projection;
 pub mod prop_sign_separate;

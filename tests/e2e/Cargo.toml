@@ -74,6 +74,10 @@ path = "e2e_parallel_determinism.rs"
 name = "e2e_error_codes"
 path = "e2e_error_codes.rs"
 
+[[test]]
+name = "e2e_decode_encode_comprehensive"
+path = "e2e_decode_encode_comprehensive.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

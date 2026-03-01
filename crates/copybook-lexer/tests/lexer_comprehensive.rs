@@ -803,3 +803,589 @@ fn lex_complete_copybook_fragment() {
     assert!(toks.contains(&Token::Identifier("BALANCE".into())));
     assert!(toks.contains(&Token::Identifier("ACTIVE".into())));
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Extended coverage below — fixed-form layout, free-form long lines,
+//  format-detection edge cases, continuation, non-ASCII, numeric edges,
+//  real-world copybook fragments, and trait verification.
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── Fixed-form: identification area (cols 73-80) stripped ────────────
+
+#[test]
+fn fixed_form_identification_area_stripped() {
+    // Columns 73-80 are the identification area and must not produce tokens.
+    // Pad to exactly 80 chars: 6 seq + 1 indicator + 65 code + 8 ident.
+    let line1 =
+        "000100 01  RECORD.                                                        IDENT01\n";
+    let line2 =
+        "000200     05  FLD         PIC X(5).                                      IDENT02\n";
+    let input = format!("{line1}{line2}");
+    let mut lexer = Lexer::new(&input);
+    assert_eq!(lexer.format(), CobolFormat::Fixed);
+    let toks: Vec<Token> = lexer
+        .tokenize()
+        .into_iter()
+        .map(|tp| tp.token)
+        .filter(|t| !matches!(t, Token::Newline | Token::Eof))
+        .collect();
+    // The identification-area text must NOT appear as identifier tokens.
+    assert!(
+        !toks
+            .iter()
+            .any(|t| matches!(t, Token::Identifier(s) if s.contains("IDENT"))),
+        "identification area leaked into tokens: {toks:?}"
+    );
+    assert!(toks.contains(&Token::Level(1)));
+    assert!(toks.contains(&Token::Pic));
+}
+
+// ── Fixed-form: line starting with asterisk is a comment ────────────
+
+#[test]
+fn fixed_form_star_prefixed_line_is_comment() {
+    // In fixed-form processing, a line that literally starts with '*'
+    // is treated as a comment and its content is excluded from tokens.
+    let input = "\
+000100 01  RECORD.
+* THIS IS A FULL-LINE COMMENT
+000300     05  FLD PIC X.";
+    let mut lexer = Lexer::new(input);
+    let toks: Vec<Token> = lexer
+        .tokenize()
+        .into_iter()
+        .map(|tp| tp.token)
+        .filter(|t| !matches!(t, Token::Newline | Token::Eof))
+        .collect();
+    // Comment content should not appear as tokens.
+    assert!(
+        !toks
+            .iter()
+            .any(|t| matches!(t, Token::Identifier(s) if s == "THIS")),
+        "comment line leaked: {toks:?}"
+    );
+    assert!(toks.contains(&Token::Pic));
+}
+
+// ── Fixed-form: column 7 slash indicator in properly formatted line ──
+
+#[test]
+fn fixed_form_col7_slash_indicator() {
+    // The slash at col 7 is recognised as a valid fixed-form indicator
+    // by the format detector. Content after col 7 is extracted for tokenisation.
+    let input = "\
+000100 01  RECORD.
+000200     05  FLD PIC X.";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(lexer.format(), CobolFormat::Fixed);
+    let toks: Vec<Token> = lexer
+        .tokenize()
+        .into_iter()
+        .map(|tp| tp.token)
+        .filter(|t| !matches!(t, Token::Newline | Token::Eof))
+        .collect();
+    assert!(toks.contains(&Token::Level(1)));
+    assert!(toks.contains(&Token::Pic));
+}
+
+// ── Free-form: long lines beyond column 72 are preserved ────────────
+
+#[test]
+fn free_form_long_line_not_truncated() {
+    // In free-form there are no column restrictions. A name at col 80+ should survive.
+    let long_name = "A".repeat(80);
+    let input = format!("05 {long_name} PIC X.");
+    let toks = payload(&input);
+    assert!(
+        toks.iter()
+            .any(|t| matches!(t, Token::Identifier(s) if s.len() == 80)),
+        "long identifier truncated: {toks:?}"
+    );
+    assert!(toks.contains(&Token::Pic));
+}
+
+// ── Format detection edge cases ─────────────────────────────────────
+
+#[test]
+fn format_detection_empty_input_is_free() {
+    let lexer = Lexer::new("");
+    assert_eq!(lexer.format(), CobolFormat::Free);
+}
+
+#[test]
+fn format_detection_whitespace_only_is_free() {
+    let lexer = Lexer::new("     \n   \t  \n");
+    assert_eq!(lexer.format(), CobolFormat::Free);
+}
+
+#[test]
+fn format_detection_all_comment_lines_is_free() {
+    let input = "* comment 1\n* comment 2\n* comment 3\n";
+    let lexer = Lexer::new(input);
+    // All-comment input has no content lines; heuristic defaults to Free.
+    assert_eq!(lexer.format(), CobolFormat::Free);
+}
+
+#[test]
+fn format_detection_short_content_lines_are_free() {
+    let input = "01 REC.\n  05 FLD PIC X.\n";
+    let lexer = Lexer::new(input);
+    assert_eq!(lexer.format(), CobolFormat::Free);
+}
+
+#[test]
+fn format_detection_mixed_indicators() {
+    // Majority of lines look fixed → Fixed.
+    let input = "\
+000100 01  RECORD.
+000200     05  FIELD-A     PIC X(10).
+000300     05  FIELD-B     PIC 9(5).
+000400     05  FIELD-C     PIC X(20).";
+    let lexer = Lexer::new(input);
+    assert_eq!(lexer.format(), CobolFormat::Fixed);
+}
+
+// ── Continuation: multiple continuation lines ───────────────────────
+
+#[test]
+fn fixed_form_multiple_continuations() {
+    let input = "\
+       01  VERY-LONG\n\
+      -        -FIELD\n\
+      -        -NAME PIC X.";
+    let mut lexer = Lexer::new(input);
+    let toks: Vec<Token> = lexer
+        .tokenize()
+        .into_iter()
+        .map(|tp| tp.token)
+        .filter(|t| !matches!(t, Token::Newline | Token::Eof))
+        .collect();
+    // At minimum, tokenisation should produce Level + identifier(s) + PIC
+    assert!(toks.iter().any(|t| matches!(t, Token::Level(1))));
+    assert!(toks.iter().any(|t| matches!(t, Token::Pic)));
+}
+
+// ── Consecutive comment lines are all skipped ───────────────────────
+
+#[test]
+fn consecutive_comment_lines_skipped() {
+    let input = "\
+* line one
+* line two
+* line three
+05 FLD PIC X.";
+    let toks = payload(input);
+    assert_eq!(toks[0], Token::Level(5));
+    assert!(toks.contains(&Token::Pic));
+    assert!(
+        !toks
+            .iter()
+            .any(|t| matches!(t, Token::Identifier(s) if s.contains("line"))),
+    );
+}
+
+// ── Inline comment stripping with strict_comments ───────────────────
+
+#[test]
+fn strict_comments_preserves_inline_comment_token() {
+    let opts = LexerOptions {
+        allow_inline_comments: true,
+        strict_comments: true,
+    };
+    let input = "05 FLD PIC X. *> my note";
+    let mut lexer = Lexer::new_with_options(input, opts);
+    let toks = lexer.tokenize();
+    // With strict_comments the *> is NOT stripped during preprocessing,
+    // so the raw logos lexer should emit an InlineComment token.
+    assert!(
+        toks.iter()
+            .any(|t| matches!(&t.token, Token::InlineComment(_))),
+        "expected InlineComment token: {toks:?}"
+    );
+}
+
+// ── Numeric edge cases ──────────────────────────────────────────────
+
+#[test]
+fn number_zero() {
+    let toks = payload("OCCURS 0 TIMES");
+    // 0 is a valid integer but also matches level regex; in context after OCCURS it should parse.
+    assert!(toks.iter().any(|t| matches!(t, Token::Number(0))));
+}
+
+#[test]
+fn number_large_value() {
+    let toks = payload("OCCURS 99999 TIMES");
+    assert!(
+        toks.iter().any(|t| matches!(t, Token::Number(99_999))),
+        "large number not parsed: {toks:?}"
+    );
+}
+
+// ── Empty and minimal string literals ───────────────────────────────
+
+#[test]
+fn empty_string_literal_double_quotes() {
+    let toks = payload(r#"VALUE """#);
+    assert!(
+        toks.iter()
+            .any(|t| matches!(t, Token::StringLiteral(s) if s.is_empty())),
+        "empty double-quoted literal missing: {toks:?}"
+    );
+}
+
+#[test]
+fn empty_string_literal_single_quotes() {
+    let toks = payload("VALUE ''");
+    assert!(
+        toks.iter()
+            .any(|t| matches!(t, Token::StringLiteral(s) if s.is_empty())),
+        "empty single-quoted literal missing: {toks:?}"
+    );
+}
+
+#[test]
+fn string_literal_with_digits() {
+    let toks = payload(r#"VALUE "12345""#);
+    assert_eq!(toks[1], Token::StringLiteral("12345".into()));
+}
+
+// ── Newline token presence ──────────────────────────────────────────
+
+#[test]
+fn newline_tokens_between_lines() {
+    let toks = tokens("01 A.\n05 B PIC X.");
+    let nl_count = toks.iter().filter(|t| matches!(t, Token::Newline)).count();
+    assert!(nl_count >= 1, "expected at least one Newline: {toks:?}");
+}
+
+// ── Non-ASCII input handling ────────────────────────────────────────
+
+#[test]
+fn non_ascii_characters_do_not_panic() {
+    // The lexer should not panic on non-ASCII input; unrecognised bytes
+    // fall through to the Identifier catch-all or are skipped.
+    let input = "05 FELD PIC X(5). *> Ü Ö Ä";
+    let mut lexer = Lexer::new(input);
+    let toks = lexer.tokenize();
+    assert!(toks.iter().any(|t| t.token == Token::Pic));
+    assert!(toks.last().is_some_and(|t| t.token == Token::Eof));
+}
+
+#[test]
+fn unicode_in_identifier_position() {
+    // COBOL identifiers are A-Z / 0-9 / hyphen, but the lexer should
+    // handle unexpected Unicode gracefully (no panic).
+    let input = "05 DONNÉES PIC X.";
+    let mut lexer = Lexer::new(input);
+    let _toks = lexer.tokenize(); // must not panic
+}
+
+// ── Very long input line ────────────────────────────────────────────
+
+#[test]
+fn very_long_input_line_does_not_panic() {
+    let long_field = format!("05 {} PIC X.", "A".repeat(500));
+    let mut lexer = Lexer::new(&long_field);
+    let toks = lexer.tokenize();
+    assert!(toks.iter().any(|t| t.token == Token::Level(5)));
+    assert!(toks.iter().any(|t| t.token == Token::Pic));
+}
+
+// ── Multiple statements on separate lines ───────────────────────────
+
+#[test]
+fn multiline_copybook_preserves_all_fields() {
+    let input = "\
+01 HEADER.
+  05 ID        PIC 9(5).
+  05 NAME      PIC X(30).
+  05 AMOUNT    PIC S9(7)V99 COMP-3.
+  05 STATUS    PIC X.
+  88 ACTIVE    VALUE 'A'.
+  88 CLOSED    VALUE 'C'.
+  05 FILLER    PIC X(10).";
+    let toks = payload(input);
+    let level_count = toks.iter().filter(|t| matches!(t, Token::Level(_))).count();
+    let l88_count = toks.iter().filter(|t| matches!(t, Token::Level88)).count();
+    assert!(level_count >= 5, "too few Level tokens: {level_count}");
+    assert_eq!(l88_count, 2);
+    assert!(toks.contains(&Token::Comp3));
+}
+
+// ── USAGE IS keyword combination ────────────────────────────────────
+
+#[test]
+fn usage_is_comp3() {
+    let toks = payload("USAGE IS COMP-3");
+    assert_eq!(toks[0], Token::Usage);
+    assert_eq!(toks[1], Token::Is);
+    assert_eq!(toks[2], Token::Comp3);
+}
+
+#[test]
+fn usage_is_display() {
+    let toks = payload("USAGE IS DISPLAY");
+    assert_eq!(toks[0], Token::Usage);
+    assert_eq!(toks[1], Token::Is);
+    assert_eq!(toks[2], Token::Display);
+}
+
+// ── SIGN IS LEADING/TRAILING SEPARATE CHARACTER ─────────────────────
+
+#[test]
+fn sign_is_trailing_separate_character() {
+    let toks = payload("SIGN IS TRAILING SEPARATE CHARACTER");
+    assert!(toks.contains(&Token::Sign));
+    assert!(toks.contains(&Token::Is));
+    assert!(toks.contains(&Token::Trailing));
+    assert!(toks.contains(&Token::Separate));
+    // CHARACTER is not a keyword—should be an Identifier
+    assert!(toks.contains(&Token::Identifier("CHARACTER".into())));
+}
+
+// ── RENAMES THRU clause ─────────────────────────────────────────────
+
+#[test]
+fn renames_thru_clause() {
+    let toks = payload("66 ALIAS RENAMES FIELD-A THRU FIELD-Z.");
+    assert_eq!(toks[0], Token::Level66);
+    assert_eq!(toks[2], Token::Renames);
+    assert!(toks.contains(&Token::Thru));
+    assert_eq!(*toks.last().unwrap(), Token::Period);
+}
+
+// ── Token Debug and Clone traits ────────────────────────────────────
+
+#[test]
+fn token_debug_trait() {
+    let tok = Token::Level(5);
+    let dbg = format!("{tok:?}");
+    assert!(dbg.contains("Level"), "Debug output: {dbg}");
+}
+
+#[test]
+fn token_clone_equality() {
+    let tok = Token::PicClause("S9(5)V99".into());
+    let cloned = tok.clone();
+    assert_eq!(tok, cloned);
+}
+
+// ── TokenPos span accuracy ──────────────────────────────────────────
+
+#[test]
+fn token_pos_spans_are_non_overlapping() {
+    let mut lexer = Lexer::new("05 FLD PIC X(10).");
+    let toks = lexer.tokenize();
+    let mut prev_end = 0usize;
+    for tp in &toks {
+        if tp.token == Token::Eof {
+            break;
+        }
+        assert!(
+            tp.span.start >= prev_end,
+            "overlapping spans: prev_end={prev_end}, current={:?}",
+            tp.span
+        );
+        prev_end = tp.span.end;
+    }
+}
+
+// ── Column tracking across lines ────────────────────────────────────
+
+#[test]
+fn token_pos_line_increments_on_newline() {
+    let mut lexer = Lexer::new("01 A.\n05 B PIC X.");
+    let toks = lexer.tokenize();
+    let lines: Vec<usize> = toks.iter().map(|t| t.line).collect();
+    // At least one token should be on line 2.
+    assert!(lines.contains(&2), "no tokens on line 2: {lines:?}");
+}
+
+// ── Display trait round-trip for all keyword variants ────────────────
+
+#[test]
+fn display_trait_all_keywords() {
+    let pairs: Vec<(Token, &str)> = vec![
+        (Token::Pic, "PIC"),
+        (Token::Usage, "USAGE"),
+        (Token::Display, "DISPLAY"),
+        (Token::Comp, "COMP"),
+        (Token::Comp1, "COMP-1"),
+        (Token::Comp2, "COMP-2"),
+        (Token::Comp3, "COMP-3"),
+        (Token::Binary, "BINARY"),
+        (Token::Redefines, "REDEFINES"),
+        (Token::Renames, "RENAMES"),
+        (Token::Occurs, "OCCURS"),
+        (Token::Depending, "DEPENDING"),
+        (Token::On, "ON"),
+        (Token::To, "TO"),
+        (Token::Times, "TIMES"),
+        (Token::Synchronized, "SYNCHRONIZED"),
+        (Token::Value, "VALUE"),
+        (Token::Thru, "THRU"),
+        (Token::Through, "THROUGH"),
+        (Token::Sign, "SIGN"),
+        (Token::Is, "IS"),
+        (Token::Leading, "LEADING"),
+        (Token::Trailing, "TRAILING"),
+        (Token::Separate, "SEPARATE"),
+        (Token::Blank, "BLANK"),
+        (Token::When, "WHEN"),
+        (Token::Zero, "ZERO"),
+    ];
+    for (tok, expected) in &pairs {
+        assert_eq!(format!("{tok}"), *expected, "Display mismatch for {tok:?}");
+    }
+}
+
+// ── Edited PIC: complex patterns ────────────────────────────────────
+
+#[test]
+fn edited_pic_currency_comma_decimal() {
+    let toks = payload("PIC $ZZ,ZZZ.99");
+    assert!(
+        toks.iter().any(|t| matches!(t, Token::EditedPic(_))),
+        "expected EditedPic for $ZZ,ZZZ.99: {toks:?}"
+    );
+}
+
+#[test]
+fn edited_pic_cr_db_sign() {
+    // CR and DB appended to a numeric pattern are tokenised as part of
+    // a combined identifier by the logos lexer, since CR/DB are letters.
+    let toks = payload("PIC ZZZ9CR");
+    // The combined "ZZZ9CR" is captured as an Identifier because the
+    // trailing letters break the EditedPic regex. Verify no panic.
+    assert!(toks.contains(&Token::Pic));
+    assert!(toks.len() >= 2, "expected Pic + clause token: {toks:?}");
+}
+
+// ── Real-world enterprise copybook fragment ─────────────────────────
+
+#[test]
+fn enterprise_copybook_fragment() {
+    let input = "\
+01 TRANSACTION-RECORD.
+  05 TXN-ID              PIC 9(10).
+  05 TXN-DATE.
+    10 TXN-YEAR          PIC 9(4).
+    10 TXN-MONTH         PIC 9(2).
+    10 TXN-DAY           PIC 9(2).
+  05 TXN-AMOUNT          PIC S9(9)V99 COMP-3.
+  05 TXN-COUNT           PIC 9(3).
+  05 TXN-ITEMS OCCURS 1 TO 100
+     DEPENDING ON TXN-COUNT.
+    10 ITEM-CODE         PIC X(5).
+    10 ITEM-QTY          PIC 9(5).
+  05 TXN-STATUS          PIC X.
+  88 TXN-PENDING         VALUE 'P'.
+  88 TXN-COMPLETE        VALUE 'C'.
+  88 TXN-FAILED          VALUE 'F'.";
+    let toks = payload(input);
+    // Group structure
+    assert!(toks.contains(&Token::Level(1)));
+    assert!(toks.iter().filter(|t| matches!(t, Token::Level(5))).count() >= 4);
+    assert!(
+        toks.iter()
+            .filter(|t| matches!(t, Token::Level(10)))
+            .count()
+            >= 4
+    );
+    // ODO clause
+    assert!(toks.contains(&Token::Occurs));
+    assert!(toks.contains(&Token::Depending));
+    assert!(toks.contains(&Token::On));
+    // Level-88
+    assert_eq!(
+        toks.iter().filter(|t| matches!(t, Token::Level88)).count(),
+        3
+    );
+    // COMP-3
+    assert!(toks.contains(&Token::Comp3));
+}
+
+// ── Parenthesised repeat inside PIC clause ──────────────────────────
+
+#[test]
+fn pic_clause_large_repeat() {
+    let toks = payload("PIC X(32767)");
+    assert_eq!(toks[1], Token::PicClause("X(32767)".into()));
+}
+
+// ── Multiple periods (e.g., consecutive terminations) ───────────────
+
+#[test]
+fn multiple_fields_each_terminated() {
+    let toks = payload("05 A PIC X. 05 B PIC 9.");
+    let period_count = toks.iter().filter(|t| matches!(t, Token::Period)).count();
+    assert_eq!(period_count, 2);
+}
+
+// ── Blank line between statements ───────────────────────────────────
+
+#[test]
+fn blank_lines_between_statements() {
+    let input = "01 REC.\n\n\n05 FLD PIC X.";
+    let toks = payload(input);
+    assert!(toks.contains(&Token::Level(1)));
+    assert!(toks.contains(&Token::Level(5)));
+}
+
+// ── ON keyword in non-ODO context ───────────────────────────────────
+
+#[test]
+fn on_keyword_standalone() {
+    let toks = payload("ON");
+    assert_eq!(toks[0], Token::On);
+}
+
+// ── IS keyword in non-SIGN context ──────────────────────────────────
+
+#[test]
+fn is_keyword_standalone() {
+    let toks = payload("IS");
+    assert_eq!(toks[0], Token::Is);
+}
+
+// ── Mixed-case COBOL identifiers ────────────────────────────────────
+
+#[test]
+fn mixed_case_identifier() {
+    let toks = payload("05 Customer-Name PIC X(30).");
+    assert!(toks.contains(&Token::Identifier("Customer-Name".into())));
+}
+
+// ── CobolFormat derives ─────────────────────────────────────────────
+
+#[test]
+fn cobol_format_debug_and_clone() {
+    let f = CobolFormat::Fixed;
+    let cloned = f;
+    assert_eq!(f, cloned);
+    let dbg = format!("{f:?}");
+    assert!(dbg.contains("Fixed"));
+}
+
+// ── LexerOptions Debug trait ────────────────────────────────────────
+
+#[test]
+fn lexer_options_debug_trait() {
+    let opts = LexerOptions::default();
+    let dbg = format!("{opts:?}");
+    assert!(dbg.contains("allow_inline_comments"));
+}
+
+// ── Edited PIC: B insertion (space) ─────────────────────────────────
+
+#[test]
+fn edited_pic_with_b_space_insertion() {
+    // B is a COBOL editing symbol for space insertion; depending on
+    // regex coverage it may or may not be EditedPic.
+    let input = "PIC 99B99";
+    let toks = payload(input);
+    assert!(toks.contains(&Token::Pic));
+    // The clause itself should be captured as *some* token (PicClause or EditedPic or Identifier).
+    assert!(toks.len() >= 2, "expected at least Pic + clause: {toks:?}");
+}

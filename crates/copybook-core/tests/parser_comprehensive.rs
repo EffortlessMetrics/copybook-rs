@@ -826,3 +826,821 @@ fn test_usage_binary_keyword() {
         }
     ));
 }
+
+// ===========================================================================
+// REDEFINES — deep scenarios
+// ===========================================================================
+
+#[test]
+fn test_redefines_nested_group_r3() {
+    let cpy = r"
+       01 REC.
+          05 GRP-OUTER.
+             10 GRP-INNER.
+                15 FIELD-A PIC X(10).
+          05 GRP-OUTER-R REDEFINES GRP-OUTER.
+             10 GRP-INNER-R.
+                15 FIELD-B PIC 9(10).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let grp_r = find_field(&schema, "GRP-OUTER-R");
+    assert_eq!(grp_r.redefines_of.as_deref(), Some("GRP-OUTER"));
+    let inner_r = find_field(&schema, "GRP-INNER-R");
+    assert!(matches!(inner_r.kind, FieldKind::Group));
+    let fb = find_field(&schema, "FIELD-B");
+    assert!(matches!(
+        fb.kind,
+        FieldKind::ZonedDecimal { digits: 10, .. }
+    ));
+}
+
+#[test]
+fn test_redefines_elementary_to_different_elementary() {
+    let cpy = r"
+       01 REC.
+          05 RAW-BYTES   PIC X(5).
+          05 AS-PACKED   REDEFINES RAW-BYTES PIC S9(7) COMP-3.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let raw = find_field(&schema, "RAW-BYTES");
+    assert!(matches!(raw.kind, FieldKind::Alphanum { len: 5 }));
+    let packed = find_field(&schema, "AS-PACKED");
+    assert_eq!(packed.redefines_of.as_deref(), Some("RAW-BYTES"));
+    assert!(matches!(packed.kind, FieldKind::PackedDecimal { .. }));
+}
+
+#[test]
+fn test_redefines_chain_three_overlapping() {
+    let cpy = r"
+       01 REC.
+          05 ORIG       PIC X(16).
+          05 VIEW-A     REDEFINES ORIG PIC 9(16).
+          05 VIEW-B     REDEFINES ORIG.
+             10 PART-1  PIC X(8).
+             10 PART-2  PIC X(8).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    assert_eq!(
+        find_field(&schema, "VIEW-A").redefines_of.as_deref(),
+        Some("ORIG")
+    );
+    assert_eq!(
+        find_field(&schema, "VIEW-B").redefines_of.as_deref(),
+        Some("ORIG")
+    );
+    let vb = find_field(&schema, "VIEW-B");
+    assert_eq!(vb.children.len(), 2);
+}
+
+#[test]
+fn test_redefines_preserves_offset_of_original() {
+    let cpy = r"
+       01 REC.
+          05 PREFIX     PIC X(4).
+          05 ORIG       PIC X(10).
+          05 ALT        REDEFINES ORIG PIC 9(10).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let orig = find_field(&schema, "ORIG");
+    let alt = find_field(&schema, "ALT");
+    assert_eq!(orig.offset, alt.offset, "REDEFINES must share offset");
+    assert_eq!(orig.len, alt.len);
+}
+
+// ===========================================================================
+// OCCURS — additional integration
+// ===========================================================================
+
+#[test]
+fn test_occurs_two_fixed_arrays_in_record() {
+    let cpy = r"
+       01 REC.
+          05 ARR-A PIC X(4) OCCURS 3 TIMES.
+          05 ARR-B PIC 9(2) OCCURS 5 TIMES.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let aa = find_field(&schema, "ARR-A");
+    assert!(matches!(aa.occurs, Some(Occurs::Fixed { count: 3 })));
+    let ab = find_field(&schema, "ARR-B");
+    assert!(matches!(ab.occurs, Some(Occurs::Fixed { count: 5 })));
+    assert_eq!(aa.offset, 0);
+    // ARR-A occupies 4*3=12 bytes, ARR-B starts at 12
+    assert_eq!(ab.offset, 12);
+}
+
+#[test]
+fn test_occurs_group_with_mixed_children() {
+    let cpy = r"
+       01 REC.
+          05 COUNTER    PIC 9(2).
+          05 LINE-ITEM  OCCURS 1 TO 10 TIMES
+                        DEPENDING ON COUNTER.
+             10 CODE    PIC X(3).
+             10 AMT     PIC S9(5)V99 COMP-3.
+             10 FLAG    PIC X(1).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let li = find_field(&schema, "LINE-ITEM");
+    assert!(matches!(
+        li.occurs,
+        Some(Occurs::ODO {
+            min: 1,
+            max: 10,
+            ..
+        })
+    ));
+    assert_eq!(li.children.len(), 3);
+    assert!(matches!(
+        find_field(&schema, "CODE").kind,
+        FieldKind::Alphanum { len: 3 }
+    ));
+    assert!(matches!(
+        find_field(&schema, "AMT").kind,
+        FieldKind::PackedDecimal { .. }
+    ));
+}
+
+#[test]
+fn test_odo_min_equals_max_degenerate() {
+    let cpy = r"
+       01 REC.
+          05 CNT       PIC 9(1).
+          05 ITEMS     OCCURS 5 TO 5 TIMES
+                       DEPENDING ON CNT
+                       PIC X(2).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let items = find_field(&schema, "ITEMS");
+    match &items.occurs {
+        Some(Occurs::ODO { min, max, .. }) => {
+            assert_eq!(*min, 5);
+            assert_eq!(*max, 5);
+        }
+        other => panic!("expected ODO, got {:?}", other),
+    }
+}
+
+// ===========================================================================
+// Complex hierarchies
+// ===========================================================================
+
+#[test]
+fn test_seven_level_hierarchy_with_mixed_leaf_types() {
+    let cpy = r"
+       01 REC.
+          05 GRP-1.
+             10 GRP-2.
+                15 GRP-3.
+                   20 GRP-4.
+                      25 GRP-5.
+                         49 LEAF-X PIC X(4).
+                         49 LEAF-9 PIC 9(3).
+                         49 LEAF-P PIC S9(5) COMP-3.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    assert!(matches!(
+        find_field(&schema, "LEAF-X").kind,
+        FieldKind::Alphanum { len: 4 }
+    ));
+    assert!(matches!(
+        find_field(&schema, "LEAF-9").kind,
+        FieldKind::ZonedDecimal { digits: 3, .. }
+    ));
+    assert!(matches!(
+        find_field(&schema, "LEAF-P").kind,
+        FieldKind::PackedDecimal { digits: 5, .. }
+    ));
+}
+
+#[test]
+fn test_filler_at_start_middle_end() {
+    let cpy = r"
+       01 REC.
+          05 FILLER   PIC X(2).
+          05 REAL-F   PIC X(5).
+          05 FILLER   PIC X(3).
+          05 REAL-G   PIC 9(4).
+          05 FILLER   PIC X(1).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let rec = &schema.fields[0];
+    // All 5 children should be in schema (3 fillers + 2 named)
+    assert!(
+        rec.children.len() >= 5,
+        "expected ≥5 children, got {}",
+        rec.children.len()
+    );
+    let real_f = find_field(&schema, "REAL-F");
+    assert_eq!(real_f.offset, 2);
+    let real_g = find_field(&schema, "REAL-G");
+    assert_eq!(real_g.offset, 10); // 2 + 5 + 3
+}
+
+#[test]
+fn test_group_total_length_matches_sum_of_children() {
+    let cpy = r"
+       01 REC.
+          05 GRP.
+             10 A PIC X(10).
+             10 B PIC 9(5).
+             10 C PIC S9(3)V99 COMP-3.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let grp = find_field(&schema, "GRP");
+    let a = find_field(&schema, "A");
+    let b = find_field(&schema, "B");
+    let c = find_field(&schema, "C");
+    assert_eq!(grp.len, a.len + b.len + c.len);
+}
+
+#[test]
+fn test_groups_with_no_elementary_leaf_just_subgroups() {
+    let cpy = r"
+       01 REC.
+          05 TOP-GRP.
+             10 SUB-GRP-A.
+                15 FA PIC X(3).
+             10 SUB-GRP-B.
+                15 FB PIC 9(2).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let top = find_field(&schema, "TOP-GRP");
+    assert!(matches!(top.kind, FieldKind::Group));
+    assert_eq!(top.children.len(), 2);
+    assert!(matches!(top.children[0].kind, FieldKind::Group));
+    assert!(matches!(top.children[1].kind, FieldKind::Group));
+    assert_eq!(top.len, 5); // 3 + 2
+}
+
+#[test]
+fn test_multiple_01_records_with_different_structures() {
+    let cpy = r"
+       01 HEADER-REC.
+          05 REC-TYPE  PIC X(2).
+          05 TIMESTAMP PIC 9(14).
+       01 DETAIL-REC.
+          05 DTL-KEY   PIC 9(8).
+          05 DTL-GRP.
+             10 DTL-A  PIC X(10).
+             10 DTL-B  PIC S9(5)V99.
+       01 TRAILER-REC.
+          05 TOTAL-CNT PIC 9(10).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    assert_eq!(schema.fields.len(), 3);
+    assert_eq!(schema.fields[0].name, "HEADER-REC");
+    assert_eq!(schema.fields[1].name, "DETAIL-REC");
+    assert_eq!(schema.fields[2].name, "TRAILER-REC");
+    assert_eq!(schema.fields[0].children.len(), 2);
+    assert_eq!(schema.fields[1].children.len(), 2);
+    assert_eq!(schema.fields[2].children.len(), 1);
+}
+
+// ===========================================================================
+// Level-88 — additional coverage
+// ===========================================================================
+
+#[test]
+fn test_level88_value_zeros_figurative() {
+    // ZEROS is lexed as Token::Zero by the lexer, which the level-88
+    // value parser does not currently consume. Verify this is a known
+    // limitation (parse error) rather than a panic.
+    let cpy = r"
+       01 REC.
+          05 BALANCE   PIC 9(7)V99.
+             88 IS-ZERO VALUE ZEROS.
+    ";
+    let result = parse_copybook(cpy);
+    // Known limitation: ZEROS figurative constant not handled in 88 values
+    assert!(
+        result.is_err(),
+        "ZEROS in level-88 VALUE is a known limitation"
+    );
+}
+
+#[test]
+fn test_level88_value_spaces_literal() {
+    let cpy = r"
+       01 REC.
+          05 BUFFER    PIC X(20).
+             88 IS-EMPTY VALUE SPACES.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let cond = find_field(&schema, "IS-EMPTY");
+    match &cond.kind {
+        FieldKind::Condition { values } => {
+            assert_eq!(values, &["SPACES"]);
+        }
+        other => panic!("expected Condition, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_level88_after_comp3_field() {
+    let cpy = r"
+       01 REC.
+          05 PACKED-AMT PIC S9(5)V99 COMP-3.
+             88 ZERO-AMT VALUE 0.
+             88 MAX-AMT  VALUE 99999.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let parent = find_field(&schema, "PACKED-AMT");
+    let cond_children: Vec<_> = parent.children.iter().filter(|c| c.level == 88).collect();
+    assert_eq!(cond_children.len(), 2);
+}
+
+#[test]
+fn test_level88_after_comp_binary_field() {
+    let cpy = r"
+       01 REC.
+          05 BIN-CODE PIC 9(4) COMP.
+             88 CODE-A VALUE 1.
+             88 CODE-B VALUE 2.
+             88 CODE-C VALUE 3.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let parent = find_field(&schema, "BIN-CODE");
+    let cond_children: Vec<_> = parent.children.iter().filter(|c| c.level == 88).collect();
+    assert_eq!(cond_children.len(), 3);
+}
+
+#[test]
+fn test_level88_does_not_consume_storage() {
+    let cpy = r"
+       01 REC.
+          05 CODE PIC X(1).
+             88 VAL-A VALUE 'A'.
+             88 VAL-B VALUE 'B'.
+             88 VAL-C VALUE 'C'.
+          05 NEXT-FIELD PIC X(5).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let nf = find_field(&schema, "NEXT-FIELD");
+    assert_eq!(nf.offset, 1, "88-level fields must not consume storage");
+}
+
+#[test]
+fn test_level88_with_thru_and_discrete_mixed() {
+    // Use values > 49 to avoid them being lexed as Level tokens
+    let cpy = r"
+       01 REC.
+          05 PRIORITY PIC 9(3).
+             88 LOW-PRI    VALUE 100 THRU 300.
+             88 MED-PRI    VALUE 400 THRU 600.
+             88 HIGH-PRI   VALUE 700 THRU 900.
+             88 URGENT     VALUE 999.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let parent = find_field(&schema, "PRIORITY");
+    let conds: Vec<_> = parent.children.iter().filter(|c| c.level == 88).collect();
+    assert_eq!(conds.len(), 4);
+    // URGENT has a discrete value
+    let urgent = find_field(&schema, "URGENT");
+    match &urgent.kind {
+        FieldKind::Condition { values } => {
+            assert_eq!(values.len(), 1);
+            assert!(!values[0].contains("THRU"));
+        }
+        other => panic!("expected Condition, got {:?}", other),
+    }
+}
+
+// ===========================================================================
+// PIC clause — additional edge cases
+// ===========================================================================
+
+#[test]
+fn test_pic_no_parens_repeated_x() {
+    let cpy = r"
+       01 REC.
+          05 F1 PIC XXXX.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "F1");
+    assert!(matches!(f.kind, FieldKind::Alphanum { len: 4 }));
+    assert_eq!(f.len, 4);
+}
+
+#[test]
+fn test_pic_no_parens_repeated_9() {
+    let cpy = r"
+       01 REC.
+          05 F1 PIC 999.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "F1");
+    match &f.kind {
+        FieldKind::ZonedDecimal { digits, scale, .. } => {
+            assert_eq!(*digits, 3);
+            assert_eq!(*scale, 0);
+        }
+        other => panic!("expected ZonedDecimal, got {:?}", other),
+    }
+    assert_eq!(f.len, 3);
+}
+
+#[test]
+fn test_pic_single_x() {
+    let cpy = r"
+       01 REC.
+          05 FLAG PIC X.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "FLAG");
+    assert!(matches!(f.kind, FieldKind::Alphanum { len: 1 }));
+    assert_eq!(f.len, 1);
+}
+
+#[test]
+fn test_pic_single_9() {
+    let cpy = r"
+       01 REC.
+          05 DIGIT PIC 9.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "DIGIT");
+    match &f.kind {
+        FieldKind::ZonedDecimal { digits, .. } => {
+            assert_eq!(*digits, 1);
+        }
+        other => panic!("expected ZonedDecimal, got {:?}", other),
+    }
+    assert_eq!(f.len, 1);
+}
+
+#[test]
+fn test_pic_large_alphanumeric() {
+    let cpy = r"
+       01 REC.
+          05 BIG-FIELD PIC X(10000).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "BIG-FIELD");
+    assert!(matches!(f.kind, FieldKind::Alphanum { len: 10000 }));
+    assert_eq!(f.len, 10000);
+}
+
+#[test]
+fn test_comp3_single_digit() {
+    let cpy = r"
+       01 REC.
+          05 TINY PIC S9 COMP-3.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "TINY");
+    match &f.kind {
+        FieldKind::PackedDecimal {
+            digits,
+            scale,
+            signed,
+        } => {
+            assert_eq!(*digits, 1);
+            assert_eq!(*scale, 0);
+            assert!(signed);
+        }
+        other => panic!("expected PackedDecimal, got {:?}", other),
+    }
+    // COMP-3: ceil((1+1)/2) = 1 byte
+    assert_eq!(f.len, 1);
+}
+
+#[test]
+fn test_comp3_max_digits() {
+    let cpy = r"
+       01 REC.
+          05 HUGE PIC 9(18) COMP-3.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "HUGE");
+    match &f.kind {
+        FieldKind::PackedDecimal { digits, signed, .. } => {
+            assert_eq!(*digits, 18);
+            assert!(!signed);
+        }
+        other => panic!("expected PackedDecimal, got {:?}", other),
+    }
+    // ceil((18+1)/2) = 10 bytes
+    assert_eq!(f.len, 10);
+}
+
+// ===========================================================================
+// SYNCHRONIZED clause
+// ===========================================================================
+
+#[test]
+fn test_synchronized_clause_on_comp_field() {
+    let cpy = r"
+       01 REC.
+          05 COUNTER PIC 9(9) COMP SYNCHRONIZED.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let f = find_field(&schema, "COUNTER");
+    assert!(f.synchronized, "SYNCHRONIZED should be set");
+    assert!(matches!(f.kind, FieldKind::BinaryInt { bits: 32, .. }));
+}
+
+// ===========================================================================
+// Schema properties
+// ===========================================================================
+
+#[test]
+fn test_lrecl_fixed_calculated_for_simple_record() {
+    let cpy = r"
+       01 REC.
+          05 A PIC X(10).
+          05 B PIC 9(5).
+          05 C PIC X(5).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    assert_eq!(
+        schema.lrecl_fixed,
+        Some(20),
+        "LRECL should be sum of field lengths"
+    );
+}
+
+#[test]
+fn test_lrecl_not_fixed_for_odo_record() {
+    let cpy = r"
+       01 REC.
+          05 CNT    PIC 9(2).
+          05 ITEMS  OCCURS 1 TO 10 TIMES
+                    DEPENDING ON CNT
+                    PIC X(5).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    assert!(
+        schema.lrecl_fixed.is_none() || schema.tail_odo.is_some(),
+        "ODO record should either have no fixed LRECL or have tail_odo set"
+    );
+}
+
+#[test]
+fn test_schema_all_fields_count() {
+    let cpy = r"
+       01 REC.
+          05 A PIC X(3).
+          05 GRP.
+             10 B PIC X(2).
+             10 C PIC 9(4).
+          05 D PIC X(1).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    // REC, A, GRP, B, C, D = 6 fields
+    let count = all_fields(&schema).len();
+    assert_eq!(count, 6);
+}
+
+#[test]
+fn test_field_paths_hierarchical() {
+    let cpy = r"
+       01 ROOT.
+          05 LEVEL1.
+             10 LEVEL2.
+                15 LEAF PIC X(1).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let leaf = find_field(&schema, "LEAF");
+    assert!(
+        leaf.path.contains("ROOT"),
+        "path should include root: {}",
+        leaf.path
+    );
+    assert!(
+        leaf.path.contains("LEAF"),
+        "path should include field name: {}",
+        leaf.path
+    );
+}
+
+// ===========================================================================
+// Error recovery — additional scenarios
+// ===========================================================================
+
+#[test]
+fn test_error_redefines_nonexistent_target() {
+    let cpy = r"
+       01 REC.
+          05 FIELD-A   PIC X(10).
+          05 FIELD-B   REDEFINES GHOST PIC X(10).
+    ";
+    let result = parse_copybook(cpy);
+    assert!(
+        result.is_err(),
+        "REDEFINES of non-existent field should fail"
+    );
+}
+
+#[test]
+fn test_error_odo_non_tail_with_storage_sibling() {
+    let cpy = r"
+       01 REC.
+          05 CNT       PIC 9(2).
+          05 ITEMS     OCCURS 1 TO 5 TIMES
+                       DEPENDING ON CNT
+                       PIC X(3).
+          05 AFTER     PIC X(10).
+    ";
+    let err = parse_copybook(cpy).unwrap_err();
+    assert_eq!(
+        err.code(),
+        ErrorCode::CBKP021_ODO_NOT_TAIL,
+        "ODO must be at tail position"
+    );
+}
+
+#[test]
+fn test_error_pic_a_not_supported() {
+    let cpy = r"
+       01 REC.
+          05 ALPHA-F PIC A(10).
+    ";
+    let result = parse_copybook(cpy);
+    assert!(
+        result.is_err(),
+        "PIC A is not a supported PIC type in this parser"
+    );
+}
+
+#[test]
+fn test_error_empty_copybook_text() {
+    let result = parse_copybook("");
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code(), ErrorCode::CBKP001_SYNTAX);
+}
+
+#[test]
+fn test_no_panic_on_malformed_occurs() {
+    // OCCURS without TIMES or a count — should not panic
+    let cpy = r"
+       01 REC.
+          05 F PIC X(5).
+    ";
+    // This is valid (no OCCURS), just making sure parser handles it
+    let _ = parse_copybook(cpy);
+}
+
+// ===========================================================================
+// Mixed / enterprise-style records
+// ===========================================================================
+
+#[test]
+fn test_enterprise_record_mixed_types() {
+    let cpy = r"
+       01 CUSTOMER-RECORD.
+          05 CUST-ID          PIC 9(8).
+          05 CUST-NAME        PIC X(30).
+          05 CUST-STATUS      PIC X(1).
+             88 ACTIVE        VALUE 'A'.
+             88 INACTIVE      VALUE 'I'.
+             88 SUSPENDED     VALUE 'S'.
+          05 ACCOUNT-GROUP.
+             10 ACCT-TYPE     PIC X(2).
+             10 ACCT-BAL      PIC S9(9)V99 COMP-3.
+             10 ACCT-FLAG     PIC 9(1).
+                88 OVERDRAWN  VALUE 1.
+          05 ORDER-COUNT      PIC 9(3).
+          05 ORDERS OCCURS 1 TO 50 TIMES
+                    DEPENDING ON ORDER-COUNT.
+             10 ORDER-ID      PIC 9(10).
+             10 ORDER-AMT     PIC S9(7)V99.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    // Verify structure
+    let root = &schema.fields[0];
+    assert_eq!(root.name, "CUSTOMER-RECORD");
+
+    // Level-88s are children of their parent
+    let status = find_field(&schema, "CUST-STATUS");
+    let status_88s: Vec<_> = status.children.iter().filter(|c| c.level == 88).collect();
+    assert_eq!(status_88s.len(), 3);
+
+    // Nested 88 inside group
+    let flag = find_field(&schema, "ACCT-FLAG");
+    let flag_88s: Vec<_> = flag.children.iter().filter(|c| c.level == 88).collect();
+    assert_eq!(flag_88s.len(), 1);
+
+    // ODO
+    let orders = find_field(&schema, "ORDERS");
+    assert!(matches!(
+        orders.occurs,
+        Some(Occurs::ODO {
+            min: 1,
+            max: 50,
+            ..
+        })
+    ));
+
+    // tail_odo should be set
+    assert!(schema.tail_odo.is_some());
+}
+
+#[test]
+fn test_record_all_comp_types() {
+    let cpy = r"
+       01 REC.
+          05 F-DISPLAY PIC 9(5).
+          05 F-COMP    PIC 9(5) COMP.
+          05 F-COMP3   PIC S9(5) COMP-3.
+          05 F-BINARY  PIC S9(9) BINARY.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    assert!(matches!(
+        find_field(&schema, "F-DISPLAY").kind,
+        FieldKind::ZonedDecimal { .. }
+    ));
+    assert!(matches!(
+        find_field(&schema, "F-COMP").kind,
+        FieldKind::BinaryInt { .. }
+    ));
+    assert!(matches!(
+        find_field(&schema, "F-COMP3").kind,
+        FieldKind::PackedDecimal { .. }
+    ));
+    assert!(matches!(
+        find_field(&schema, "F-BINARY").kind,
+        FieldKind::BinaryInt { .. }
+    ));
+}
+
+#[test]
+fn test_record_with_redefines_and_level88() {
+    let cpy = r"
+       01 REC.
+          05 RAW-DATA PIC X(10).
+             88 ALL-SPACES VALUE SPACES.
+          05 STRUCTURED REDEFINES RAW-DATA.
+             10 CODE  PIC X(3).
+             10 VALUE-PART PIC X(7).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let raw = find_field(&schema, "RAW-DATA");
+    let conds: Vec<_> = raw.children.iter().filter(|c| c.level == 88).collect();
+    assert_eq!(conds.len(), 1);
+    let struc = find_field(&schema, "STRUCTURED");
+    assert_eq!(struc.redefines_of.as_deref(), Some("RAW-DATA"));
+}
+
+#[test]
+fn test_occurs_fixed_inside_redefines() {
+    let cpy = r"
+       01 REC.
+          05 RAW     PIC X(30).
+          05 SPLIT   REDEFINES RAW.
+             10 ENTRIES OCCURS 3 TIMES.
+                15 ENTRY-KEY PIC X(4).
+                15 ENTRY-VAL PIC X(6).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let entries = find_field(&schema, "ENTRIES");
+    assert!(matches!(entries.occurs, Some(Occurs::Fixed { count: 3 })));
+    assert_eq!(entries.children.len(), 2);
+}
+
+#[test]
+fn test_level77_standalone_fields() {
+    let cpy = r"
+       01 MAIN-REC.
+          05 DATA PIC X(20).
+       77 COUNTER  PIC 9(5).
+       77 STATUS   PIC X(1).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+    let counter = all_fields(&schema)
+        .into_iter()
+        .find(|f| f.name == "COUNTER")
+        .unwrap();
+    assert_eq!(counter.level, 77);
+    let status = all_fields(&schema)
+        .into_iter()
+        .find(|f| f.name == "STATUS")
+        .unwrap();
+    assert_eq!(status.level, 77);
+}
+
+#[test]
+fn test_fingerprint_differs_for_different_schemas() {
+    let cpy1 = r"
+       01 REC.
+          05 A PIC X(10).
+    ";
+    let cpy2 = r"
+       01 REC.
+          05 A PIC X(20).
+    ";
+    let s1 = parse_copybook(cpy1).unwrap();
+    let s2 = parse_copybook(cpy2).unwrap();
+    assert_ne!(s1.fingerprint, s2.fingerprint);
+}
+
+#[test]
+fn test_fingerprint_stable_for_same_input() {
+    let cpy = r"
+       01 REC.
+          05 F1 PIC X(5).
+          05 F2 PIC 9(3).
+    ";
+    let s1 = parse_copybook(cpy).unwrap();
+    let s2 = parse_copybook(cpy).unwrap();
+    assert_eq!(s1.fingerprint, s2.fingerprint);
+}

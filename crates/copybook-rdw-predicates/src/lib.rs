@@ -7,6 +7,7 @@
 /// RDW header size in bytes.
 pub const RDW_HEADER_LEN: usize = 4;
 
+/// Returns `true` if the first two RDW header bytes are ASCII digits, indicating likely ASCII-transfer corruption.
 #[inline]
 #[must_use]
 pub const fn rdw_is_suspect_ascii_corruption(rdw_header: [u8; RDW_HEADER_LEN]) -> bool {
@@ -16,6 +17,7 @@ pub const fn rdw_is_suspect_ascii_corruption(rdw_header: [u8; RDW_HEADER_LEN]) -
     is_ascii_digit(b0) && is_ascii_digit(b1)
 }
 
+/// Slice-based variant of [`rdw_is_suspect_ascii_corruption`] that checks at least 4 bytes.
 #[inline]
 #[must_use]
 pub fn rdw_is_suspect_ascii_corruption_slice(rdw_bytes: &[u8]) -> bool {

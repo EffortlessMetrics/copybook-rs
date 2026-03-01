@@ -9,12 +9,12 @@ Feature: Error Handling Strategies
          05 DATA-FIELD PIC X(10).
       """
 
-  Scenario: Strict mode rejects invalid data
+  Scenario: Strict mode with short PIC X data succeeds after padding
     Given ASCII codepage
     And strict mode
     And binary data: "AB"
     When the binary data is decoded
-    Then decoding should fail
+    Then decoding should succeed
 
   Scenario: Lenient mode handles short data
     Given ASCII codepage

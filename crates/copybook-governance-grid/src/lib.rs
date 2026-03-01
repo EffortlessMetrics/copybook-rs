@@ -5,10 +5,12 @@
 //! This crate provides a stable interoperability surface that maps documented COBOL
 //! support-matrix entries to runtime feature flags.
 
+/// Re-exported feature flag types from governance contracts.
 pub mod feature_flags {
     pub use copybook_governance_contracts::feature_flags::*;
 }
 
+/// Re-exported support matrix types from governance contracts.
 pub mod support_matrix {
     pub use copybook_governance_contracts::support_matrix::*;
 }

@@ -18,8 +18,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use copybook_codec::{Codepage, EncodeOptions, JsonNumberMode, RecordFormat, encode_record};
-use copybook_core::schema::{Field, FieldKind, Schema};
 use copybook_core::ErrorCode;
+use copybook_core::schema::{Field, FieldKind, Schema};
 use serde_json::json;
 
 fn encode_opts() -> EncodeOptions {
@@ -103,10 +103,7 @@ fn reserved_cbks603_rename_not_contiguous() {
 #[test]
 fn reserved_cbks608_rename_qualified_name_not_found() {
     let code = ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND;
-    assert_eq!(
-        format!("{code}"),
-        "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND"
-    );
+    assert_eq!(format!("{code}"), "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND");
     // No production code path emits this error.
 }
 

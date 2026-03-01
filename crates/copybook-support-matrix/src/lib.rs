@@ -3,51 +3,71 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Identifier for a COBOL feature tracked in the support matrix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum FeatureId {
+    /// Level-88 condition name VALUE clauses.
     #[serde(rename = "level-88")]
     Level88Conditions,
 
+    /// Level-66 RENAMES non-storage renaming.
     #[serde(rename = "level-66-renames")]
     Level66Renames,
 
+    /// Variable-length OCCURS DEPENDING ON arrays.
     #[serde(rename = "occurs-depending")]
     OccursDepending,
 
+    /// Edited numeric PICTURE clauses (e.g. `PIC Z,ZZZ.99`).
     #[serde(rename = "edited-pic")]
     EditedPic,
 
+    /// COMP-1 / COMP-2 IEEE 754 floating-point types.
     #[serde(rename = "comp-1-comp-2")]
     Comp1Comp2,
 
+    /// SIGN LEADING / TRAILING SEPARATE directives.
     #[serde(rename = "sign-separate")]
     SignSeparate,
 
+    /// Nested OCCURS DEPENDING ON (ODO inside ODO).
     #[serde(rename = "nested-odo")]
     NestedOdo,
 }
 
+/// Current implementation status of a COBOL feature.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum SupportStatus {
+    /// Fully implemented and tested.
     Supported,
+    /// Partially implemented with known limitations.
     Partial,
+    /// Planned for a future release.
     Planned,
+    /// Not planned for implementation.
     NotPlanned,
 }
 
+/// Metadata entry for a single COBOL feature in the support matrix.
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureSupport {
+    /// Unique identifier for this feature.
     pub id: FeatureId,
+    /// Human-readable feature name.
     pub name: &'static str,
+    /// Brief description of the feature.
     pub description: &'static str,
+    /// Current implementation status.
     pub status: SupportStatus,
+    /// Path to the relevant documentation section, if any.
     pub doc_ref: Option<&'static str>,
 }
 
+/// Returns the complete list of tracked COBOL features and their support status.
 #[inline]
 #[must_use]
 pub fn all_features() -> &'static [FeatureSupport] {
@@ -112,12 +132,14 @@ pub fn all_features() -> &'static [FeatureSupport] {
     ]
 }
 
+/// Looks up a feature by its [`FeatureId`] enum variant.
 #[inline]
 #[must_use]
 pub fn find_feature_by_id(id: FeatureId) -> Option<&'static FeatureSupport> {
     all_features().iter().find(|f| f.id == id)
 }
 
+/// Looks up a feature by its kebab-case string identifier (e.g. `"level-88"`).
 #[inline]
 #[must_use]
 pub fn find_feature(id: &str) -> Option<&'static FeatureSupport> {

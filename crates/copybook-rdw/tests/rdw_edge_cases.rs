@@ -3,7 +3,7 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use copybook_error::ErrorCode;
-use copybook_rdw::{RDWRecordReader, RDWRecordWriter, RdwHeader, RDW_HEADER_LEN};
+use copybook_rdw::{RDW_HEADER_LEN, RDWRecordReader, RDWRecordWriter, RdwHeader};
 use std::io::Cursor;
 
 // ====================================================================

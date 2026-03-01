@@ -226,10 +226,12 @@ pub enum ComplianceProfile {
 /// Compliance validation trait for different regulatory frameworks
 #[async_trait::async_trait]
 pub trait ComplianceValidator: Send + Sync {
+    /// Validate a processing operation against this compliance framework.
     async fn validate_operation(
         &self,
         context: &AuditContext,
     ) -> AuditResult<ComplianceValidationResult>;
+    /// Generate compliance recommendations based on the audit context.
     async fn generate_recommendations(
         &self,
         context: &AuditContext,
@@ -243,6 +245,7 @@ pub struct SoxValidator {
 }
 
 impl SoxValidator {
+    /// Creates a new SOX compliance validator with the given configuration.
     pub fn new(config: SoxConfig) -> Self {
         Self { config }
     }
@@ -373,6 +376,7 @@ pub struct HipaaValidator {
 }
 
 impl HipaaValidator {
+    /// Creates a new HIPAA compliance validator with the given configuration.
     pub fn new(config: HipaaConfig) -> Self {
         Self { config }
     }
@@ -500,6 +504,7 @@ pub struct GdprValidator {
 }
 
 impl GdprValidator {
+    /// Creates a new GDPR compliance validator with the given configuration.
     pub fn new(config: GdprConfig) -> Self {
         Self { config }
     }
@@ -616,6 +621,7 @@ pub struct PciDssValidator {
 }
 
 impl PciDssValidator {
+    /// Creates a new PCI DSS compliance validator with the given configuration.
     pub fn new(config: PciDssConfig) -> Self {
         Self { config }
     }
@@ -869,12 +875,18 @@ impl ComplianceValidator for PciDssValidator {
 
 // Configuration structures
 
+/// Configuration for all compliance framework validators.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceConfig {
+    /// Number of days between scheduled compliance reviews.
     pub review_interval_days: Option<u32>,
+    /// SOX-specific compliance settings.
     pub sox: SoxConfig,
+    /// HIPAA-specific compliance settings.
     pub hipaa: HipaaConfig,
+    /// GDPR-specific compliance settings.
     pub gdpr: GdprConfig,
+    /// PCI DSS-specific compliance settings.
     pub pci_dss: PciDssConfig,
 }
 
@@ -890,10 +902,14 @@ impl Default for ComplianceConfig {
     }
 }
 
+/// Configuration for SOX (Sarbanes-Oxley) compliance validation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SoxConfig {
+    /// Whether to validate financial data integrity controls.
     pub financial_data_validation: bool,
+    /// Whether executive certification is required for financial data.
     pub executive_certification_required: bool,
+    /// Whether to enforce quarterly compliance reporting.
     pub quarterly_reporting: bool,
 }
 
@@ -907,10 +923,14 @@ impl Default for SoxConfig {
     }
 }
 
+/// Configuration for HIPAA compliance validation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HipaaConfig {
+    /// Whether PHI encryption at rest is required.
     pub phi_encryption_required: bool,
+    /// Whether automated breach notification is enabled.
     pub breach_notification_automation: bool,
+    /// Whether minimum-necessary access enforcement is enabled.
     pub minimum_necessary_enforcement: bool,
 }
 
@@ -924,9 +944,12 @@ impl Default for HipaaConfig {
     }
 }
 
+/// Configuration for GDPR compliance validation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GdprConfig {
+    /// Whether legal basis documentation is validated.
     pub legal_basis_validation: bool,
+    /// Whether automated data subject rights handling is enabled.
     pub data_subject_rights_automation: bool,
 }
 
@@ -939,9 +962,12 @@ impl Default for GdprConfig {
     }
 }
 
+/// Configuration for PCI DSS compliance validation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PciDssConfig {
+    /// Whether cardholder data protection rules are validated.
     pub cardholder_data_validation: bool,
+    /// Whether multi-factor authentication is required.
     pub mfa_required: bool,
 }
 
@@ -956,16 +982,23 @@ impl Default for PciDssConfig {
 
 // Result structures
 
+/// Aggregated result from compliance validation across all profiles.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceResult {
+    /// Overall compliance status.
     pub status: ComplianceStatus,
+    /// List of compliance violations found.
     pub violations: Vec<ComplianceViolation>,
+    /// List of compliance warnings found.
     pub warnings: Vec<ComplianceWarning>,
+    /// Profiles that were validated.
     pub validated_profiles: Vec<ComplianceProfile>,
+    /// ISO 8601 timestamp of when validation was performed.
     pub validation_timestamp: String,
 }
 
 impl ComplianceResult {
+    /// Returns `true` if the result indicates a compliant or compliant-with-warnings status.
     pub fn is_compliant(&self) -> bool {
         matches!(
             self.status,
@@ -973,6 +1006,7 @@ impl ComplianceResult {
         )
     }
 
+    /// Returns `true` if any violation has critical severity.
     pub fn has_critical_violations(&self) -> bool {
         self.violations
             .iter()
@@ -980,71 +1014,115 @@ impl ComplianceResult {
     }
 }
 
+/// Overall compliance status after validation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ComplianceStatus {
+    /// All checks passed with no violations or warnings.
     Compliant,
+    /// No violations but advisory warnings exist.
     CompliantWithWarnings,
+    /// One or more compliance violations were found.
     NonCompliant,
 }
 
+/// A specific compliance violation with remediation guidance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceViolation {
+    /// Unique identifier for this violation.
     pub violation_id: String,
+    /// Regulatory reference (e.g., "SOX Section 302").
     pub regulation: String,
+    /// Severity level of the violation.
     pub severity: ComplianceSeverity,
+    /// Short title describing the violation.
     pub title: String,
+    /// Detailed description of the violation.
     pub description: String,
+    /// Recommended remediation steps.
     pub remediation: String,
+    /// Optional URL to the relevant regulation or standard.
     pub reference_url: Option<String>,
 }
 
+/// Severity level for a compliance violation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ComplianceSeverity {
+    /// Low-impact informational finding.
     Low,
+    /// Moderate risk requiring attention.
     Medium,
+    /// High-risk violation requiring prompt remediation.
     High,
+    /// Critical violation requiring immediate action.
     Critical,
 }
 
+/// An advisory compliance warning that does not block processing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceWarning {
+    /// Unique identifier for this warning.
     pub warning_id: String,
+    /// Short title describing the warning.
     pub title: String,
+    /// Detailed description of the warning.
     pub description: String,
+    /// Recommended action to address the warning.
     pub recommendation: String,
 }
 
+/// Raw validation output from a single compliance validator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceValidationResult {
+    /// Violations discovered during validation.
     pub violations: Vec<ComplianceViolation>,
+    /// Warnings discovered during validation.
     pub warnings: Vec<ComplianceWarning>,
 }
 
+/// Full compliance report including validation results and recommendations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceReport {
+    /// Unique identifier for this report.
     pub report_id: String,
+    /// Identifier of the audited operation.
     pub operation_id: String,
+    /// Aggregated compliance validation result.
     pub compliance_result: ComplianceResult,
+    /// Actionable recommendations for improving compliance.
     pub recommendations: Vec<ComplianceRecommendation>,
+    /// ISO 8601 date of the next scheduled review.
     pub next_review_date: String,
+    /// ISO 8601 timestamp when this report was created.
     pub created_at: String,
 }
 
+/// A compliance recommendation with implementation guidance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceRecommendation {
+    /// Unique identifier for this recommendation.
     pub recommendation_id: String,
+    /// Priority level for implementation.
     pub priority: RecommendationPriority,
+    /// Short title describing the recommendation.
     pub title: String,
+    /// Detailed description of the recommendation.
     pub description: String,
+    /// Estimated effort to implement (e.g., "2-3 weeks").
     pub implementation_effort: String,
+    /// Expected compliance benefit from implementation.
     pub compliance_benefit: String,
 }
 
+/// Priority level for a compliance recommendation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RecommendationPriority {
+    /// Low priority — address when convenient.
     Low,
+    /// Medium priority — plan for near-term resolution.
     Medium,
+    /// High priority — address promptly.
     High,
+    /// Critical priority — requires immediate action.
     Critical,
 }
 

@@ -109,27 +109,39 @@ impl BaselineManager {
 /// Performance baseline data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceBaseline {
+    /// Unique identifier for this baseline snapshot.
     pub baseline_id: String,
+    /// Throughput metrics captured in this baseline.
     pub throughput: ThroughputMetrics,
+    /// Resource utilization metrics captured in this baseline.
     pub resources: ResourceMetrics,
+    /// ISO 8601 timestamp when this baseline was created.
     pub created_at: String,
 }
 
 /// Throughput performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThroughputMetrics {
-    pub display_throughput: u64, // bytes/sec for DISPLAY fields
-    pub comp3_throughput: u64,   // bytes/sec for COMP-3 fields
-    pub record_rate: u64,        // records/sec
-    pub peak_memory_mb: u64,     // peak memory usage
+    /// Throughput in bytes per second for DISPLAY fields.
+    pub display_throughput: u64,
+    /// Throughput in bytes per second for COMP-3 fields.
+    pub comp3_throughput: u64,
+    /// Record processing rate in records per second.
+    pub record_rate: u64,
+    /// Peak memory usage in megabytes.
+    pub peak_memory_mb: u64,
 }
 
 /// System resource utilization metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceMetrics {
+    /// CPU utilization as a percentage (0.0–100.0).
     pub cpu_usage_percent: f64,
+    /// Memory usage in megabytes.
     pub memory_usage_mb: u64,
+    /// Total number of I/O operations performed.
     pub io_operations: u64,
+    /// Total network bytes transferred.
     pub network_bytes: u64,
 }
 

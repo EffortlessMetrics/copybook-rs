@@ -8,8 +8,8 @@
 
 use copybook_sequence_ring::{SequenceRing, SequencedRecord};
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 // ---------------------------------------------------------------------------
@@ -133,7 +133,10 @@ fn concurrent_producers_single_consumer_in_sequence() {
     // Consumer must receive 1..=total in order
     for expected in 1..=total {
         let val = ring.recv_ordered().unwrap().unwrap();
-        assert_eq!(val, expected, "Concurrent ordering broken at seq {expected}");
+        assert_eq!(
+            val, expected,
+            "Concurrent ordering broken at seq {expected}"
+        );
     }
 }
 

@@ -7,10 +7,12 @@
 //! - Static governance bindings between support rows and feature flags (`copybook-governance-grid`).
 //! - Runtime evaluation of those bindings (`copybook-governance-runtime`).
 
+/// Re-exported feature flag types from the governance grid.
 pub mod feature_flags {
     pub use copybook_governance_grid::feature_flags::*;
 }
 
+/// Re-exported support matrix types from the governance grid.
 pub mod support_matrix {
     pub use copybook_governance_grid::support_matrix::*;
 }

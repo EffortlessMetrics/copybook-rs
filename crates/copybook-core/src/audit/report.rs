@@ -12,57 +12,84 @@ use super::{AuditEvent, AuditEventType, AuditResult, ComplianceResult};
 /// Comprehensive audit report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditReport {
+    /// Unique identifier for this audit report.
     pub report_id: String,
+    /// Category of audit covered by this report.
     pub report_type: ReportType,
+    /// Identifier of the operation being audited.
     pub operation_id: String,
+    /// ISO 8601 timestamp when this report was created.
     pub created_at: String,
+    /// Aggregated summary of audit findings.
     pub summary: AuditSummary,
 }
 
 /// Audit report types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReportType {
+    /// Full audit covering compliance, performance, and security.
     Comprehensive,
+    /// Compliance-focused audit report.
     Compliance,
+    /// Performance-focused audit report.
     Performance,
+    /// Security-focused audit report.
     Security,
 }
 
 /// Audit summary information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditSummary {
+    /// Total number of audit events in the report.
     pub total_events: u64,
+    /// Aggregated compliance status label.
     pub compliance_status: String,
+    /// Aggregated performance status label.
     pub performance_status: String,
+    /// Aggregated security status label.
     pub security_status: String,
 }
 
 /// Compliance-specific audit report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceReport {
+    /// Unique identifier for this compliance report.
     pub report_id: String,
+    /// Identifier of the operation being audited.
     pub operation_id: String,
+    /// Result of the compliance validation.
     pub compliance_result: ComplianceResult,
+    /// Remediation recommendations for any violations found.
     pub recommendations: Vec<super::compliance::ComplianceRecommendation>,
+    /// ISO 8601 date when the next review should occur.
     pub next_review_date: String,
+    /// ISO 8601 timestamp when this report was created.
     pub created_at: String,
 }
 
 /// Performance audit report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceReport {
+    /// Unique identifier for this performance report.
     pub report_id: String,
+    /// Summary of how current metrics compare to the baseline.
     pub baseline_comparison: String,
+    /// Throughput metrics measured during the audit.
     pub metrics: super::performance::ThroughputMetrics,
+    /// ISO 8601 timestamp when this report was created.
     pub created_at: String,
 }
 
 /// Security audit report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityReport {
+    /// Unique identifier for this security report.
     pub report_id: String,
+    /// Total number of security events recorded.
     pub security_events: u64,
+    /// Overall threat level assessment (e.g., "Low", "High").
     pub threat_level: String,
+    /// ISO 8601 timestamp when this report was created.
     pub created_at: String,
 }
 
@@ -70,6 +97,7 @@ pub struct SecurityReport {
 pub struct ReportGenerator;
 
 impl ReportGenerator {
+    /// Creates a new `ReportGenerator`.
     pub fn new() -> Self {
         Self
     }
@@ -429,10 +457,15 @@ impl Default for ReportGenerator {
 /// Report output formats
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReportFormat {
+    /// JSON output format.
     Json,
+    /// PDF output format (planned for v1.0).
     Pdf,
+    /// HTML output format with embedded CSS.
     Html,
+    /// CSV output format with key-value rows.
     Csv,
+    /// XML output format.
     Xml,
 }
 

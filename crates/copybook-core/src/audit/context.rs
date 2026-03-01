@@ -341,18 +341,26 @@ impl Default for ProcessingConfig {
 /// Processing mode enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ProcessingMode {
+    /// Process records in fixed-size batches.
     Batch,
+    /// Process records as a continuous stream.
     Streaming,
+    /// Process records interactively with user input.
     Interactive,
+    /// Process records on a timed schedule.
     Scheduled,
 }
 
 /// Retry configuration for processing operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetryConfig {
+    /// Maximum number of retry attempts before giving up.
     pub max_retries: u32,
+    /// Initial delay in milliseconds before the first retry.
     pub initial_delay_ms: u64,
+    /// Maximum delay in milliseconds between retries.
     pub max_delay_ms: u64,
+    /// Multiplier applied to the delay after each retry attempt.
     pub backoff_multiplier: f64,
 }
 
@@ -401,19 +409,28 @@ impl Default for SecurityContext {
 /// Data security classification levels
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SecurityClassification {
+    /// Data intended for public access with no restrictions.
     Public,
+    /// Data restricted to internal organizational use.
     Internal,
+    /// Sensitive data requiring access controls.
     Confidential,
+    /// Data related to material financial transactions (SOX scope).
     MaterialTransaction,
+    /// Protected Health Information subject to HIPAA regulations.
     PHI, // Protected Health Information
 }
 
 /// Effective security level derived from classification and compliance
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SecurityLevel {
+    /// Minimal security controls required.
     Low,
+    /// Standard security controls required.
     Medium,
+    /// Enhanced security controls and monitoring required.
     High,
+    /// Maximum security controls with real-time monitoring.
     Critical,
 }
 
@@ -421,10 +438,15 @@ pub enum SecurityLevel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct AccessControlRequirements {
+    /// Whether authentication is required for access.
     pub authentication_required: bool,
+    /// Whether authorization checks are required after authentication.
     pub authorization_required: bool,
+    /// Whether multi-factor authentication is enforced.
     pub multi_factor_authentication: bool,
+    /// Whether role-based access control is enabled.
     pub role_based_access: bool,
+    /// Whether segregation of duties is enforced.
     pub segregation_of_duties: bool,
 }
 
@@ -443,8 +465,11 @@ impl Default for AccessControlRequirements {
 /// Encryption requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionRequirements {
+    /// Required encryption standard for data at rest.
     pub at_rest: EncryptionStandard,
+    /// Required encryption standard for data in transit.
     pub in_transit: EncryptionStandard,
+    /// Key management policy requirements.
     pub key_management: KeyManagementRequirements,
     /// Whether data is actually encrypted at rest
     pub at_rest_encrypted: bool,
@@ -467,18 +492,26 @@ impl Default for EncryptionRequirements {
 /// Encryption standards
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EncryptionStandard {
+    /// No encryption applied.
     None,
+    /// AES encryption with 128-bit key.
     AES128,
+    /// AES encryption with 256-bit key.
     AES256,
+    /// TLS version 1.2 transport encryption.
     TLS12,
+    /// TLS version 1.3 transport encryption.
     TLS13,
 }
 
 /// Key management requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyManagementRequirements {
+    /// Number of days before cryptographic keys must be rotated.
     pub key_rotation_days: Option<u32>,
+    /// Whether a hardware security module (HSM) is required.
     pub hardware_security_module: bool,
+    /// Whether key escrow is enabled for recovery purposes.
     pub key_escrow: bool,
 }
 
@@ -495,9 +528,13 @@ impl Default for KeyManagementRequirements {
 /// Network security context
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NetworkSecurityContext {
+    /// Source IP address of the request, if available.
     pub source_ip: Option<String>,
+    /// List of allowed network CIDR ranges.
     pub allowed_networks: Vec<String>,
+    /// Whether a VPN connection is required.
     pub vpn_required: bool,
+    /// Active firewall rule identifiers.
     pub firewall_rules: Vec<String>,
 }
 
@@ -505,10 +542,15 @@ pub struct NetworkSecurityContext {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct AuditRequirements {
+    /// Whether comprehensive logging of all operations is enabled.
     pub comprehensive_logging: bool,
+    /// Whether integrity protection for audit records is enabled.
     pub integrity_protection: bool,
+    /// Whether real-time monitoring of audit events is enabled.
     pub real_time_monitoring: bool,
+    /// Number of days audit records must be retained.
     pub retention_days: u32,
+    /// Whether tamper detection mechanisms are enabled.
     pub tamper_detection: bool,
     /// Whether key management is properly implemented
     pub key_management: bool,

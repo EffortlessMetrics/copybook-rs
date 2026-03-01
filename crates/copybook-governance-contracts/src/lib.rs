@@ -5,10 +5,12 @@
 //! This crate keeps the cross-cutting governance contract imports small and stable
 //! for downstream crates.
 
+/// Re-exported feature flag contract types.
 pub mod feature_flags {
     pub use copybook_contracts::feature_flags::*;
 }
 
+/// Re-exported support matrix contract types.
 pub mod support_matrix {
     pub use copybook_support_matrix::*;
 }

@@ -13,109 +13,138 @@ use logos::Logos;
 #[derive(Logos, Debug, Clone, PartialEq)]
 #[logos(skip r"[ \t\f]+")]
 pub enum Token {
-    // Level numbers (01-49) - highest priority
+    /// COBOL level number (01–49).
     #[regex(r"0[1-9]|[1-4][0-9]", priority = 5, callback = |lex| lex.slice().parse::<u8>().ok())]
     Level(u8),
 
-    // Special level numbers (66, 77, 88) - highest priority
+    /// Level-66 (RENAMES).
     #[token("66", priority = 6)]
     Level66,
+    /// Level-77 (standalone working-storage).
     #[token("77", priority = 6)]
     Level77,
+    /// Level-88 (condition name).
     #[token("88", priority = 6)]
     Level88,
 
     // Keywords
+    /// `PIC` or `PICTURE` keyword.
     #[token("PIC", ignore(case))]
     #[token("PICTURE", ignore(case))]
     Pic,
 
+    /// `USAGE` keyword.
     #[token("USAGE", ignore(case))]
     Usage,
 
+    /// `DISPLAY` usage keyword.
     #[token("DISPLAY", ignore(case))]
     Display,
 
+    /// `COMP` / `COMPUTATIONAL` keyword (binary native).
     #[token("COMP", ignore(case))]
     #[token("COMPUTATIONAL", ignore(case))]
     Comp,
 
+    /// `COMP-3` / `COMPUTATIONAL-3` keyword (packed decimal).
     #[token("COMP-3", ignore(case))]
     #[token("COMPUTATIONAL-3", ignore(case))]
     Comp3,
 
+    /// `COMP-1` / `COMPUTATIONAL-1` keyword (single-precision float).
     #[token("COMP-1", ignore(case))]
     #[token("COMPUTATIONAL-1", ignore(case))]
     Comp1,
 
+    /// `COMP-2` / `COMPUTATIONAL-2` keyword (double-precision float).
     #[token("COMP-2", ignore(case))]
     #[token("COMPUTATIONAL-2", ignore(case))]
     Comp2,
 
+    /// `BINARY` usage keyword.
     #[token("BINARY", ignore(case))]
     Binary,
 
+    /// `REDEFINES` keyword.
     #[token("REDEFINES", ignore(case))]
     Redefines,
 
+    /// `RENAMES` keyword (level-66).
     #[token("RENAMES", ignore(case))]
     Renames,
 
+    /// `OCCURS` keyword.
     #[token("OCCURS", ignore(case))]
     Occurs,
 
+    /// `DEPENDING` keyword (part of OCCURS DEPENDING ON).
     #[token("DEPENDING", ignore(case))]
     Depending,
 
+    /// `ON` keyword.
     #[token("ON", ignore(case))]
     On,
 
+    /// `TO` keyword.
     #[token("TO", ignore(case))]
     To,
 
+    /// `TIMES` keyword.
     #[token("TIMES", ignore(case))]
     Times,
 
+    /// `SYNCHRONIZED` / `SYNC` keyword.
     #[token("SYNCHRONIZED", ignore(case))]
     #[token("SYNC", ignore(case))]
     Synchronized,
 
+    /// `VALUE` keyword.
     #[token("VALUE", ignore(case))]
     Value,
 
+    /// `THRU` keyword (range delimiter).
     #[token("THRU", ignore(case))]
     Thru,
 
+    /// `THROUGH` keyword (range delimiter, synonym of THRU).
     #[token("THROUGH", ignore(case))]
     Through,
 
+    /// `SIGN` keyword.
     #[token("SIGN", ignore(case))]
     Sign,
 
+    /// `LEADING` keyword (sign position).
     #[token("LEADING", ignore(case))]
     Leading,
 
+    /// `IS` keyword.
     #[token("IS", ignore(case))]
     Is,
 
+    /// `TRAILING` keyword (sign position).
     #[token("TRAILING", ignore(case))]
     Trailing,
 
+    /// `SEPARATE` keyword (sign storage).
     #[token("SEPARATE", ignore(case))]
     Separate,
 
+    /// `BLANK` keyword.
     #[token("BLANK", ignore(case))]
     Blank,
 
+    /// `WHEN` keyword.
     #[token("WHEN", ignore(case))]
     When,
 
+    /// `ZERO` / `ZEROS` / `ZEROES` keyword.
     #[token("ZERO", ignore(case))]
     #[token("ZEROS", ignore(case))]
     #[token("ZEROES", ignore(case))]
     Zero,
 
-    // PIC clauses - basic patterns (higher priority than identifiers)
+    /// Standard PIC clause pattern (e.g. `9(5)V9(2)`).
     #[regex(r"S?X+", priority = 3, callback = |lex| lex.slice().to_string())]
     #[regex(r"S?X\([0-9]+\)", priority = 3, callback = |lex| lex.slice().to_string())]
     #[regex(r"S?9+", priority = 3, callback = |lex| lex.slice().to_string())]
@@ -126,42 +155,42 @@ pub enum Token {
     #[regex(r"S?9\([0-9]+\)V9\([0-9]+\)", priority = 3, callback = |lex| lex.slice().to_string())]
     PicClause(String),
 
-    // Edited PIC patterns (to be rejected) - higher priority than identifiers
-    // Zero insertion patterns (e.g., "0009") - higher priority than level numbers
+    /// Edited PIC pattern (e.g. `ZZZ9`, `$ZZ,ZZZ.99`).
     #[regex(r"0{2,}[0-9]+", priority = 5, callback = |lex| lex.slice().to_string())]
     #[regex(r"[0Z9]+", priority = 3, callback = |lex| lex.slice().to_string())]
     #[regex(r"[Z9]*[/,\$\+\-\*]+[Z9]*", priority = 3, callback = |lex| lex.slice().to_string())]
     EditedPic(String),
 
-    // Numbers - higher priority than PIC clauses but lower than special levels
+    /// Unsigned integer literal.
     #[regex(r"[0-9]+", priority = 4, callback = |lex| lex.slice().parse::<u32>().ok())]
     Number(u32),
 
-    // Identifiers and names - lowest priority
+    /// COBOL identifier or data name.
     #[regex(r"[A-Za-z][A-Za-z0-9\-]*", priority = 1, callback = |lex| lex.slice().to_string())]
     Identifier(String),
 
-    // String literals
+    /// Quoted string literal (single or double quotes).
     #[regex(r#""[^"]*""#, callback = |lex| lex.slice()[1..lex.slice().len()-1].to_string())]
     #[regex(r"'[^']*'", callback = |lex| lex.slice()[1..lex.slice().len()-1].to_string())]
     StringLiteral(String),
 
-    // Punctuation
+    /// Period (`.`) statement terminator.
     #[token(".")]
     Period,
 
-    // Comma must have higher priority than EditedPic so 88 VALUE lists with commas parse (see Issue #86).
+    /// Comma separator.
     #[token(",", priority = 4)]
     Comma,
 
+    /// Left parenthesis.
     #[token("(")]
     LeftParen,
 
+    /// Right parenthesis.
     #[token(")")]
     RightParen,
 
-    // Comments – priority must exceed EditedPic (3/5) so `*>` is never
-    // consumed as an asterisk-fill pattern before the comment is recognised.
+    /// COBOL-2002 inline comment (`*>`).
     #[regex(
         r"\*>[^\r\n]*",
         priority = 6,
@@ -170,12 +199,12 @@ pub enum Token {
     )]
     InlineComment(String),
 
-    // Newlines (important for line tracking)
+    /// Line break (LF or CRLF).
     #[token("\n")]
     #[token("\r\n")]
     Newline,
 
-    // End of input
+    /// Sentinel marking end of input.
     Eof,
 }
 

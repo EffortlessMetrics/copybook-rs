@@ -89,9 +89,8 @@ fn decode_simulated_parallel_workers_all_identical() {
     let opts = default_decode_opts();
 
     // Establish reference output
-    let reference =
-        serde_json::to_vec(&decode_record(&schema, &data, &opts).expect("decode"))
-            .expect("serialize");
+    let reference = serde_json::to_vec(&decode_record(&schema, &data, &opts).expect("decode"))
+        .expect("serialize");
 
     for worker_count in [2, 4, 8] {
         let handles: Vec<_> = (0..worker_count)

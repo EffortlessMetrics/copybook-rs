@@ -5,11 +5,11 @@
 //! identical output to `decode_record` and that scratch buffers are properly
 //! reused across calls.
 
+use copybook_codec::memory::ScratchBuffers;
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
     ZonedEncodingFormat, decode_record, decode_record_with_scratch,
 };
-use copybook_codec::memory::ScratchBuffers;
 use copybook_core::{Field, FieldKind, Schema};
 
 /// Build a minimal schema with a single DISPLAY field for testing.
@@ -93,8 +93,7 @@ fn scratch_decode_matches_plain_decode_alphanumeric() {
 
     let plain = decode_record(&schema, data, &options).unwrap();
     let mut scratch = ScratchBuffers::new();
-    let with_scratch =
-        decode_record_with_scratch(&schema, data, &options, &mut scratch).unwrap();
+    let with_scratch = decode_record_with_scratch(&schema, data, &options, &mut scratch).unwrap();
 
     assert_eq!(
         plain, with_scratch,
@@ -110,8 +109,7 @@ fn scratch_decode_matches_plain_decode_numeric() {
 
     let plain = decode_record(&schema, data, &options).unwrap();
     let mut scratch = ScratchBuffers::new();
-    let with_scratch =
-        decode_record_with_scratch(&schema, data, &options, &mut scratch).unwrap();
+    let with_scratch = decode_record_with_scratch(&schema, data, &options, &mut scratch).unwrap();
 
     assert_eq!(
         plain, with_scratch,
@@ -135,13 +133,8 @@ fn scratch_decode_matches_across_multiple_records() {
 
     for data in records {
         let plain = decode_record(&schema, data.as_slice(), &options).unwrap();
-        let with_scratch = decode_record_with_scratch(
-            &schema,
-            data.as_slice(),
-            &options,
-            &mut scratch,
-        )
-        .unwrap();
+        let with_scratch =
+            decode_record_with_scratch(&schema, data.as_slice(), &options, &mut scratch).unwrap();
         assert_eq!(plain, with_scratch);
         scratch.clear();
     }
@@ -169,12 +162,7 @@ fn scratch_reused_across_decode_calls_no_growth() {
     // Steady-state: 100 more calls with same-sized records
     for i in 0..100_u32 {
         let data = format!("REC{i:07}");
-        let _ = decode_record_with_scratch(
-            &schema,
-            data.as_bytes(),
-            &options,
-            &mut scratch,
-        );
+        let _ = decode_record_with_scratch(&schema, data.as_bytes(), &options, &mut scratch);
         scratch.clear();
     }
 

@@ -26,6 +26,7 @@ pub use copybook_determinism::{BLAKE3_HEX_LEN, DEFAULT_MAX_DIFFS};
 /// Determinism command façade for CLI surface.
 #[derive(Args, Debug, Clone)]
 pub struct DeterminismCommand {
+    /// The determinism check mode (decode, encode, or round-trip).
     #[command(subcommand)]
     pub mode: DeterminismMode,
 }
@@ -90,6 +91,7 @@ pub enum OutputFormat {
 /// Decode command arguments.
 #[derive(Args, Debug, Clone)]
 pub struct DecodeDeterminismArgs {
+    /// Shared determinism arguments.
     #[command(flatten)]
     pub common: CommonDeterminismArgs,
 
@@ -101,6 +103,7 @@ pub struct DecodeDeterminismArgs {
 /// Encode command arguments.
 #[derive(Args, Debug, Clone)]
 pub struct EncodeDeterminismArgs {
+    /// Shared determinism arguments.
     #[command(flatten)]
     pub common: CommonDeterminismArgs,
 
@@ -112,6 +115,7 @@ pub struct EncodeDeterminismArgs {
 /// Round-trip command arguments.
 #[derive(Args, Debug, Clone)]
 pub struct RoundTripDeterminismArgs {
+    /// Shared determinism arguments.
     #[command(flatten)]
     pub common: CommonDeterminismArgs,
 
@@ -123,7 +127,9 @@ pub struct RoundTripDeterminismArgs {
 /// Result of running a determinism command execution.
 #[derive(Debug, Clone)]
 pub struct DeterminismRun {
+    /// The determinism verdict (pass or fail).
     pub verdict: DeterminismVerdict,
+    /// Formatted output text for display.
     pub output: String,
 }
 

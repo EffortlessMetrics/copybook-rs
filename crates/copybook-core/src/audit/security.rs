@@ -16,6 +16,7 @@ use super::{AuditResult, generate_audit_id};
 pub struct SecurityAuditor;
 
 impl SecurityAuditor {
+    /// Creates a new `SecurityAuditor`.
     #[must_use]
     pub fn new() -> Self {
         Self
@@ -136,12 +137,19 @@ pub struct EncryptionConfig {
 /// Access control events for audit trail
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccessEvent {
+    /// Identifier of the user who initiated the access.
     pub user_id: String,
+    /// Type of resource being accessed (e.g., "database", "file").
     pub resource_type: String,
+    /// Identifier of the specific resource being accessed.
     pub resource_id: String,
+    /// Kind of access performed (e.g., "read", "write").
     pub access_type: String,
+    /// Source IP address of the request, if available.
     pub source_ip: Option<String>,
+    /// User-Agent string from the request, if available.
     pub user_agent: Option<String>,
+    /// Outcome of the access attempt.
     pub result: AccessResult,
     /// Optional RFC3339 timestamp for time-based anomaly detection
     pub timestamp: Option<String>,
@@ -150,23 +158,31 @@ pub struct AccessEvent {
 /// Access attempt results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AccessResult {
+    /// Access was granted successfully.
     Success,
+    /// Access was explicitly denied by policy.
     Denied,
+    /// Access failed due to an error or invalid credentials.
     Failed,
 }
 
 /// Security validation results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityValidation {
+    /// Whether the validated event is compliant with security policy.
     pub is_compliant: bool,
+    /// List of security violations detected during validation.
     pub violations: Vec<SecurityViolation>,
 }
 
 /// Security violations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityViolation {
+    /// Unique identifier for this violation instance.
     pub violation_id: String,
+    /// Severity level (e.g., "low", "medium", "high", "critical").
     pub severity: String,
+    /// Human-readable description of the violation.
     pub description: String,
 }
 
@@ -174,6 +190,7 @@ pub struct SecurityViolation {
 pub struct AccessAuditor;
 
 impl AccessAuditor {
+    /// Creates a new `AccessAuditor`.
     #[must_use]
     pub fn new() -> Self {
         Self
@@ -318,6 +335,7 @@ fn severity_to_num(severity: &str) -> u8 {
 pub struct SecurityMonitor;
 
 impl SecurityMonitor {
+    /// Creates a new `SecurityMonitor`.
     #[must_use]
     pub fn new() -> Self {
         Self

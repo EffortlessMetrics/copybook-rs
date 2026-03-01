@@ -1123,8 +1123,10 @@ name = "copybook-proptest"
 version = "0.4.3"
 dependencies = [
  "anyhow",
+ "copybook-charset",
  "copybook-codec",
  "copybook-codec-memory",
+ "copybook-codepage",
  "copybook-contracts",
  "copybook-core",
  "copybook-corruption",

@@ -37,6 +37,7 @@ static INVOCATION_ID: OnceLock<String> = OnceLock::new();
 /// Bump when log schema fields change.
 pub const LOG_SCHEMA: u8 = 1;
 
+/// Diagnostic sub-codes for structured CLI warnings and policy notices.
 pub mod subcode {
     /// Policy compatibility warning: `--preferred-zoned-encoding` without preservation.
     ///

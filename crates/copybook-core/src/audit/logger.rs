@@ -439,16 +439,25 @@ impl Default for RetentionPolicy {
 /// External endpoints for audit event forwarding
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExternalEndpoint {
+    /// HTTP endpoint for webhook-style audit event delivery
     Http {
+        /// Target URL for HTTP POST requests
         url: String,
+        /// Custom HTTP headers to include with each request
         headers: std::collections::HashMap<String, String>,
     },
+    /// Syslog endpoint for RFC5424-compatible log forwarding
     Syslog {
+        /// Syslog server hostname or IP address
         host: String,
+        /// Syslog server port number
         port: u16,
     },
+    /// Kafka endpoint for streaming audit event ingestion
     Kafka {
+        /// List of Kafka broker addresses
         brokers: Vec<String>,
+        /// Kafka topic name for audit events
         topic: String,
     },
 }

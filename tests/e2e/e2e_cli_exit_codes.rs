@@ -442,11 +442,7 @@ fn parse_help_exits_zero() {
         .output()
         .expect("failed to run copybook parse --help");
 
-    assert_eq!(
-        output.status.code(),
-        Some(0),
-        "parse --help must exit 0"
-    );
+    assert_eq!(output.status.code(), Some(0), "parse --help must exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("copybook") || stdout.contains("parse") || stdout.contains("Usage"),

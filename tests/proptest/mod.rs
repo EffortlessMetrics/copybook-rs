@@ -28,6 +28,7 @@ pub mod prop_governance;
 pub mod prop_overflow;
 pub mod prop_overflow_safety;
 pub mod prop_schema_projection;
+pub mod prop_no_panic;
 pub mod prop_sign_separate;
 pub mod rdw;
 pub mod record_io;

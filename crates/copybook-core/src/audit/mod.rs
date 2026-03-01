@@ -83,44 +83,66 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// Enterprise audit system error types
 #[derive(Debug, thiserror::Error)]
 pub enum AuditError {
+    /// Regulatory compliance rule violation.
     #[error("Compliance violation: {message}")]
     ComplianceViolation {
+        /// Stable error code identifying the violation.
         code: String,
+        /// Human-readable description of the violation.
         message: String,
+        /// Optional key-value context about the violation.
         context: Option<HashMap<String, String>>,
     },
 
+    /// Security validation check failure.
     #[error("Security validation failed: {message}")]
     SecurityValidationFailed {
+        /// Human-readable description of the failure.
         message: String,
+        /// Severity classification.
         severity: SecuritySeverity,
     },
 
+    /// Throughput regression beyond the allowed baseline deviation.
     #[error("Performance regression detected: {message}")]
     PerformanceRegression {
+        /// Human-readable description of the regression.
         message: String,
+        /// Fractional deviation from baseline (e.g. 0.15 = 15%).
         baseline_deviation: f64,
     },
 
+    /// Tamper-detection failure in the audit hash chain.
     #[error("Audit trail integrity failure: {message}")]
     AuditTrailIntegrity {
+        /// Human-readable description.
         message: String,
+        /// Expected integrity hash value.
         expected_hash: String,
+        /// Actual computed hash value.
         actual_hash: String,
     },
 
+    /// Invalid or missing audit configuration parameter.
     #[error("Configuration error: {message}")]
-    Configuration { message: String },
+    Configuration {
+        /// Human-readable description.
+        message: String,
+    },
 
+    /// Underlying I/O error in the audit subsystem.
     #[error("I/O error in audit system: {source}")]
     Io {
         #[from]
+        /// The wrapped I/O error.
         source: std::io::Error,
     },
 
+    /// JSON serialization / deserialization failure.
     #[error("Serialization error: {source}")]
     Serialization {
         #[from]
+        /// The wrapped serde error.
         source: serde_json::Error,
     },
 }
@@ -128,9 +150,13 @@ pub enum AuditError {
 /// Security severity levels for audit events
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SecuritySeverity {
+    /// Informational or low-impact event.
     Low,
+    /// Moderate risk that may need attention.
     Medium,
+    /// High risk requiring prompt action.
     High,
+    /// Critical risk requiring immediate response.
     Critical,
 }
 

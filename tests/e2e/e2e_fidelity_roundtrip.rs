@@ -42,6 +42,7 @@ fn sha256_hex(data: &[u8]) -> String {
 }
 
 /// Assert a JSON field is numerically close to `expected`.
+#[expect(clippy::panic, reason = "test helper — panics are the assertion mechanism")]
 fn assert_numeric_value(json: &serde_json::Value, field: &str, expected: f64) {
     let val = &json[field];
     assert!(!val.is_null(), "{field} not found in JSON");
@@ -214,7 +215,10 @@ fn codepage_cp037_text_roundtrip() {
 
     let encoded = encode_record(&schema, &json, &eopts).expect("encode");
     let decoded = decode_record(&schema, &encoded, &dopts).expect("decode");
-    assert_eq!(decoded["TXT"].as_str().expect("string").trim_end(), original);
+    assert_eq!(
+        decoded["TXT"].as_str().expect("string").trim_end(),
+        original
+    );
 
     // Binary stability after one round-trip
     let re_encoded = encode_record(&schema, &decoded, &eopts).expect("re-encode");
@@ -568,14 +572,14 @@ fn record_redefines_roundtrip() {
 
     // Decode determinism: same binary always produces identical JSON
     let json2 = decode_record(&schema, &data, &dopts).expect("decode-2");
-    assert_eq!(
-        json1, json2,
-        "REDEFINES decode must be deterministic"
-    );
+    assert_eq!(json1, json2, "REDEFINES decode must be deterministic");
 
     // Verify field values decoded correctly
     let trailer = json1["TRAILER"].as_str().expect("TRAILER should be string");
-    assert_eq!(trailer, "XYZ", "TRAILER should decode correctly after REDEFINES");
+    assert_eq!(
+        trailer, "XYZ",
+        "TRAILER should decode correctly after REDEFINES"
+    );
 
     let field_a = json1["FIELD-A"].as_str().expect("FIELD-A should be string");
     assert_eq!(field_a, "DATA1234", "FIELD-A should decode correctly");
@@ -643,7 +647,10 @@ fn record_large_roundtrip() {
 
     // JSON stability
     let decoded2 = decode_record(&schema, &re_encoded, &dopts).expect("decode-2");
-    assert_eq!(decoded, decoded2, "large record JSON round-trip must be identical");
+    assert_eq!(
+        decoded, decoded2,
+        "large record JSON round-trip must be identical"
+    );
 }
 
 // =========================================================================
@@ -664,8 +671,8 @@ fn determinism_decode_100_runs_sha256() {
     data.extend_from_slice(&[0xF0, 0xF0, 0xF0, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4]); // "00001234"
     // "DETERMINISM TEST    " in CP037
     data.extend_from_slice(&[
-        0xC4, 0xC5, 0xE3, 0xC5, 0xD9, 0xD4, 0xC9, 0xD5, 0xC9, 0xE2, 0xD4, 0x40, 0xE3, 0xC5,
-        0xE2, 0xE3, 0x40, 0x40, 0x40, 0x40,
+        0xC4, 0xC5, 0xE3, 0xC5, 0xD9, 0xD4, 0xC9, 0xD5, 0xC9, 0xE2, 0xD4, 0x40, 0xE3, 0xC5, 0xE2,
+        0xE3, 0x40, 0x40, 0x40, 0x40,
     ]);
     data.extend_from_slice(&[0x00, 0x98, 0x76, 0x54, 0x3C]); // +98765.43 COMP-3
     data.push(0xC1); // "A"

@@ -28,6 +28,7 @@ mod prop_governance;
 mod prop_overflow;
 mod prop_overflow_safety;
 mod prop_schema_projection;
+mod prop_no_panic;
 mod prop_sign_separate;
 mod rdw;
 mod record_io;

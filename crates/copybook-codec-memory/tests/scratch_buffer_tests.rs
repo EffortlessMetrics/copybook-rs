@@ -112,8 +112,8 @@ fn independent_scratch_buffers_do_not_interfere() {
 
     a.byte_buffer.extend_from_slice(b"alpha");
     b.byte_buffer.extend_from_slice(b"bravo");
-    a.string_buffer.push_str("A");
-    b.string_buffer.push_str("B");
+    a.string_buffer.push('A');
+    b.string_buffer.push('B');
 
     assert_eq!(&a.byte_buffer, b"alpha");
     assert_eq!(&b.byte_buffer, b"bravo");
@@ -312,7 +312,10 @@ fn digit_buffer_stack_inline_up_to_32_bytes() {
         scratch.digit_buffer.push(i);
     }
     assert_eq!(scratch.digit_buffer.len(), 32);
-    assert!(!scratch.digit_buffer.spilled(), "should still be inline at 32");
+    assert!(
+        !scratch.digit_buffer.spilled(),
+        "should still be inline at 32"
+    );
 
     scratch.digit_buffer.push(32);
     assert!(scratch.digit_buffer.spilled(), "should spill to heap at 33");

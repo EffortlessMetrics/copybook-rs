@@ -15,6 +15,7 @@ pub struct LineageTracker {
 }
 
 impl LineageTracker {
+    /// Creates a new lineage tracker with unknown source and target systems.
     pub fn new() -> Self {
         Self {
             source_system: "unknown".to_string(),
@@ -22,12 +23,14 @@ impl LineageTracker {
         }
     }
 
+    /// Sets the source system identifier for this tracker.
     #[must_use]
     pub fn with_source_system(mut self, system_id: impl Into<String>) -> Self {
         self.source_system = system_id.into();
         self
     }
 
+    /// Sets the target system identifier for this tracker.
     #[must_use]
     pub fn with_target_system(mut self, system_id: impl Into<String>) -> Self {
         self.target_system = system_id.into();
@@ -142,30 +145,45 @@ impl Default for LineageTracker {
 /// Field-level lineage information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldLineage {
+    /// Fully qualified path of the field within the schema.
     pub field_path: String,
+    /// Identifier of the system that owns this field.
     pub system_id: String,
+    /// Version of the schema that defines this field.
     pub schema_version: String,
+    /// Data type of the field (e.g., `"string"`, `"decimal"`).
     pub data_type: String,
 }
 
 /// Data transformation types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TransformationType {
+    /// One-to-one field mapping without data modification.
     DirectMapping,
+    /// Conversion between different data types.
     TypeConversion,
+    /// Combining multiple source values into a single target value.
     Aggregation,
+    /// Deriving a target value through computation.
     Calculation,
+    /// Resolving a value via reference table or external lookup.
     Lookup,
+    /// Conditional inclusion or exclusion of records.
     Filter,
 }
 
 /// Lineage record for tracking data transformations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineageRecord {
+    /// Lineage information for the source field.
     pub source_field: FieldLineage,
+    /// Lineage information for the target field.
     pub target_field: FieldLineage,
+    /// Type of transformation applied from source to target.
     pub transformation: TransformationType,
+    /// Data quality score ranging from 0.0 (worst) to 1.0 (best).
     pub quality_score: f64,
+    /// RFC 3339 timestamp of when the transformation was processed.
     pub processed_at: String,
 }
 
@@ -173,6 +191,7 @@ pub struct LineageRecord {
 pub struct ImpactAnalyzer;
 
 impl ImpactAnalyzer {
+    /// Creates a new impact analyzer.
     pub fn new() -> Self {
         Self
     }
@@ -333,17 +352,24 @@ impl Default for ImpactAnalyzer {
 /// Impact assessment results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImpactAssessment {
+    /// List of system identifiers affected by the change.
     pub affected_systems: Vec<String>,
+    /// Overall risk level determined by the number of affected systems.
     pub risk_level: RiskLevel,
+    /// Human-readable description of the estimated impact.
     pub estimated_impact: String,
 }
 
 /// Risk levels for impact assessment
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RiskLevel {
+    /// Minimal risk; affects 0–2 downstream systems.
     Low,
+    /// Moderate risk; affects 3–5 downstream systems.
     Medium,
+    /// Significant risk; affects 6–10 downstream systems.
     High,
+    /// Severe risk; affects more than 10 downstream systems.
     Critical,
 }
 

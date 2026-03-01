@@ -188,10 +188,15 @@ pub enum AuditEventType {
 /// Audit event severity levels
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AuditSeverity {
+    /// Informational event with no action required
     Info,
+    /// Low-severity event requiring awareness
     Low,
+    /// Medium-severity event requiring investigation
     Medium,
+    /// High-severity event requiring prompt attention
     High,
+    /// Critical event requiring immediate response
     Critical,
 }
 
@@ -242,101 +247,179 @@ impl AuditSeverity {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum AuditPayload {
+    /// Copybook parsing operation payload
     CopybookParse {
+        /// File path of the parsed copybook
         copybook_path: String,
+        /// SHA-based fingerprint of the parsed schema
         schema_fingerprint: String,
+        /// Outcome of the parse operation
         parse_result: ParseResult,
+        /// Wall-clock parsing duration in milliseconds
         parsing_duration_ms: u64,
+        /// Total number of fields parsed
         field_count: usize,
+        /// Number of Level-88 condition fields parsed
         level_88_count: usize,
+        /// Number of errors encountered during parsing
         error_count: usize,
+        /// Non-fatal warning messages emitted during parsing
         warnings: Vec<String>,
     },
 
+    /// Data validation operation payload
     DataValidation {
+        /// Path of the input file being validated
         input_file: String,
+        /// Outcome of the validation operation
         validation_result: ValidationResult,
+        /// Wall-clock validation duration in milliseconds
         validation_duration_ms: u64,
+        /// Total number of records validated
         records_validated: u64,
+        /// Number of validation errors found
         errors_found: u64,
+        /// Detailed list of validation errors
         error_details: Vec<ValidationError>,
+        /// Names of the validation rules applied
         validation_rules: Vec<String>,
     },
 
+    /// Data transformation (decode/encode) operation payload
     DataTransformation {
+        /// Type of transformation operation performed
         operation: TransformationOperation,
+        /// Path of the input file
         input_file: String,
+        /// Path of the output file
         output_file: String,
+        /// Outcome of the transformation operation
         transformation_result: TransformationResult,
+        /// Wall-clock processing duration in milliseconds
         processing_duration_ms: u64,
+        /// Total number of records processed
         records_processed: u64,
+        /// Total number of bytes processed
         bytes_processed: u64,
+        /// Measured throughput in bytes per second
         throughput_bytes_per_sec: u64,
+        /// Peak memory usage in megabytes
         memory_usage_mb: u64,
     },
 
+    /// Performance measurement event payload
     PerformanceMeasurement {
+        /// Category of the performance measurement
         measurement_type: PerformanceMeasurementType,
+        /// Identifier of the baseline used for comparison
         baseline_id: Option<String>,
+        /// Collected performance metrics
         metrics: PerformanceMetrics,
+        /// Result of comparing metrics against the baseline
         comparison_result: Option<ComparisonResult>,
+        /// Whether a performance regression was detected
         regression_detected: bool,
     },
 
+    /// Compliance check operation payload
     ComplianceCheck {
+        /// Name of the compliance framework evaluated
         compliance_framework: String,
+        /// Outcome of the compliance validation
         validation_result: ComplianceValidationResult,
+        /// Detailed list of compliance violations found
         violations: Vec<ComplianceViolationDetail>,
+        /// Whether remediation actions are required
         remediation_required: bool,
+        /// Scheduled date for the next compliance review
         next_review_date: Option<String>,
     },
 
+    /// Security-relevant event payload
     SecurityEvent {
+        /// Classification of the security event
         security_event_type: SecurityEventType,
+        /// Severity level of the security event
         severity: String,
+        /// Resources affected by the security event
         affected_resources: Vec<String>,
+        /// Indicators of the detected threat
         threat_indicators: Vec<String>,
+        /// Recommended remediation actions
         remediation_actions: Vec<String>,
+        /// Associated incident tracking identifier
         incident_id: Option<String>,
     },
 
+    /// Data lineage tracking payload
     LineageTracking {
+        /// Originating system of the data
         source_system: String,
+        /// Destination system for the data
         target_system: String,
+        /// Field-level source-to-target mappings
         field_mappings: Vec<FieldMapping>,
+        /// Transformation rules applied during lineage
         transformation_rules: Vec<TransformationRule>,
+        /// Data quality score (0.0 to 1.0)
         quality_score: f64,
+        /// Summary of downstream impact assessment
         impact_assessment: Option<ImpactAssessmentSummary>,
     },
 
+    /// Error and exception event payload
     ErrorEvent {
+        /// Structured error code identifier
         error_code: String,
+        /// Human-readable error description
         error_message: String,
+        /// Category grouping for the error
         error_category: String,
+        /// Optional stack trace for debugging
         stack_trace: Option<String>,
+        /// Additional key-value context for the error
         context_information: HashMap<String, String>,
+        /// Suggested recovery actions
         recovery_actions: Vec<String>,
+        /// Assessed user impact level
         user_impact: UserImpactLevel,
     },
 
+    /// Access control event payload
     AccessEvent {
+        /// Type of access attempted
         access_type: AccessType,
+        /// Kind of resource being accessed
         resource_type: String,
+        /// Identifier of the accessed resource
         resource_id: String,
+        /// Outcome of the access attempt
         access_result: AccessResult,
+        /// Identifier of the user performing the access
         user_id: String,
+        /// IP address of the access origin
         source_ip: Option<String>,
+        /// User agent string of the client
         user_agent: Option<String>,
+        /// Session identifier for the access
         session_id: Option<String>,
     },
 
+    /// Configuration change event payload
     ConfigurationChange {
+        /// Component whose configuration changed
         component: String,
+        /// Type of configuration change performed
         change_type: ConfigurationChangeType,
+        /// Previous configuration value before the change
         old_configuration: Option<String>,
+        /// New configuration value after the change
         new_configuration: String,
+        /// Reason or justification for the change
         change_reason: String,
+        /// Identifier of the approver, if applicable
         approved_by: Option<String>,
+        /// Whether the change can be rolled back
         rollback_available: bool,
     },
 }
@@ -405,149 +488,241 @@ impl AuditPayload {
 
 // Supporting data structures for audit payloads
 
+/// Outcome of a copybook parse operation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ParseResult {
+    /// Parse completed successfully with no issues
     Success,
+    /// Parse completed with non-fatal warnings
     SuccessWithWarnings,
+    /// Parse failed with errors
     Failed,
 }
 
+/// Outcome of a data validation operation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ValidationResult {
+    /// Data is fully valid
     Valid,
+    /// Data is valid but has non-fatal warnings
     ValidWithWarnings,
+    /// Data is invalid
     Invalid,
 }
 
+/// Details of a single validation error
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationError {
+    /// Structured error code identifier
     pub error_code: String,
+    /// Dot-separated path to the field with the error
     pub field_path: Option<String>,
+    /// Zero-based index of the record containing the error
     pub record_index: Option<u64>,
+    /// Byte offset within the record where the error occurred
     pub byte_offset: Option<u64>,
+    /// Human-readable error description
     pub message: String,
 }
 
+/// Type of data transformation operation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TransformationOperation {
+    /// Binary-to-JSON decode operation
     Decode,
+    /// JSON-to-binary encode operation
     Encode,
+    /// Data validation operation
     Validate,
+    /// Format conversion operation
     Convert,
 }
 
+/// Outcome of a data transformation operation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TransformationResult {
+    /// Transformation completed successfully
     Success,
+    /// Transformation completed with some records failing
     PartialSuccess,
+    /// Transformation failed entirely
     Failed,
 }
 
+/// Category of performance measurement
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PerformanceMeasurementType {
+    /// Throughput measurement in bytes per second
     Throughput,
+    /// Latency measurement in milliseconds
     Latency,
+    /// CPU and memory resource utilization measurement
     ResourceUtilization,
+    /// Baseline establishment measurement
     Baseline,
 }
 
+/// Collected performance metrics for a measurement event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
+    /// Measured throughput in bytes per second
     pub throughput_bytes_per_sec: u64,
+    /// Measured latency in milliseconds
     pub latency_ms: u64,
+    /// CPU usage as a percentage (0.0 to 100.0)
     pub cpu_usage_percent: f64,
+    /// Memory usage in megabytes
     pub memory_usage_mb: u64,
+    /// Total number of I/O operations performed
     pub io_operations: u64,
 }
 
+/// Result of comparing metrics against a performance baseline
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ComparisonResult {
+    /// Metrics exceed the baseline (improvement)
     BetterThanBaseline,
+    /// Metrics are within acceptable baseline tolerance
     WithinBaseline,
+    /// Metrics are below the baseline (minor regression)
     BelowBaseline,
+    /// Metrics show a significant regression beyond tolerance
     SignificantRegression,
 }
 
+/// Outcome of a compliance validation check
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ComplianceValidationResult {
+    /// Fully compliant with the framework requirements
     Compliant,
+    /// Non-compliant with one or more requirements
     NonCompliant,
+    /// Requires manual review to determine compliance
     RequiresReview,
 }
 
+/// Details of a single compliance violation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceViolationDetail {
+    /// Unique identifier for the violation
     pub violation_id: String,
+    /// Regulation or standard that was violated
     pub regulation: String,
+    /// Severity level of the violation
     pub severity: String,
+    /// Human-readable description of the violation
     pub description: String,
+    /// Recommended remediation steps
     pub remediation: String,
 }
 
+/// Classification of a security event
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SecurityEventType {
+    /// Access attempt without valid credentials
     UnauthorizedAccess,
+    /// Failed authentication attempt
     AuthenticationFailure,
+    /// Denied authorization for a requested operation
     AuthorizationFailure,
+    /// Detected or confirmed data breach
     DataBreach,
+    /// Data or system integrity violation detected
     IntegrityViolation,
+    /// Unauthorized configuration modification detected
     ConfigurationTampering,
+    /// Activity matching suspicious behavior patterns
     SuspiciousActivity,
 }
 
+/// Mapping between source and target fields in data lineage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldMapping {
+    /// Name of the source field
     pub source_field: String,
+    /// Name of the target field
     pub target_field: String,
+    /// Description of the transformation applied
     pub transformation: String,
+    /// Confidence score for the mapping (0.0 to 1.0)
     pub confidence_score: f64,
 }
 
+/// Rule applied during a data transformation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransformationRule {
+    /// Unique identifier for the rule
     pub rule_id: String,
+    /// Category or type of the rule
     pub rule_type: String,
+    /// Human-readable description of the rule
     pub description: String,
+    /// Key-value parameters for the rule
     pub parameters: HashMap<String, String>,
 }
 
+/// Summary of a downstream impact assessment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImpactAssessmentSummary {
+    /// Number of downstream systems affected
     pub affected_systems: u32,
+    /// Overall risk level of the impact
     pub risk_level: String,
+    /// Description of the estimated impact
     pub estimated_impact: String,
 }
 
+/// Level of impact on end users
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum UserImpactLevel {
+    /// No user impact
     None,
+    /// Minor user impact with workaround available
     Low,
+    /// Moderate user impact affecting some workflows
     Medium,
+    /// Severe user impact blocking critical workflows
     High,
 }
 
+/// Type of resource access attempted
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AccessType {
+    /// Read access to a resource
     Read,
+    /// Write or modify access to a resource
     Write,
+    /// Execute or invoke access to a resource
     Execute,
+    /// Delete access to a resource
     Delete,
+    /// Administrative access to a resource
     Admin,
 }
 
+/// Outcome of a resource access attempt
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AccessResult {
+    /// Access was granted successfully
     Success,
+    /// Access was denied by policy
     Denied,
+    /// Access failed due to an error
     Failed,
 }
 
+/// Type of configuration change performed
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ConfigurationChangeType {
+    /// New configuration created
     Create,
+    /// Existing configuration updated
     Update,
+    /// Configuration deleted
     Delete,
+    /// Configuration imported from external source
     Import,
+    /// Configuration exported to external destination
     Export,
 }
 

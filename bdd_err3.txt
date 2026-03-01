@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running bdd_smoke.rs (target\debug\deps\bdd_smoke-4e0bc0c03358b1cd.exe)

@@ -1,0 +1,3612 @@
+Feature: COMP Binary Integer Decode, Encode, and Round-Trip
+  Scenario: Decode COMP halfword positive value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field CNT should be 42
+  Scenario: Decode COMP halfword negative value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\xFF\xD6"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field CNT should be -42
+  Scenario: Decode COMP halfword zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field CNT should be 0
+  Scenario: Decode COMP halfword max positive (32767)
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x7F\xFF"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP halfword min negative (-32768)
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x80\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP fullword positive value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x01\xE2\x40"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field TOTAL should be 123456
+  Scenario: Decode COMP fullword negative value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\xFF\xFE\x1D\xC0"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field TOTAL should be -123456
+  Scenario: Decode COMP fullword zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field TOTAL should be 0
+  Scenario: Decode COMP fullword max positive
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x7F\xFF\xFF\xFF"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP doubleword positive value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00\x00\x01\xE2\x40"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field BIG-VAL should be 123456
+  Scenario: Decode COMP doubleword negative value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\xFF\xFF\xFF\xFF\xFF\xFE\x1D\xC0"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field BIG-VAL should be -123456
+  Scenario: Decode COMP doubleword zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field BIG-VAL should be 0
+  Scenario: Encode positive halfword to COMP
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 2 bytes
+  Scenario: Encode negative fullword to COMP
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 4 bytes
+  Scenario: COMP halfword round-trip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: COMP fullword round-trip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x01\xE2\x40"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: COMP doubleword round-trip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00\x00\x01\xE2\x40"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: Parse COMP halfword has 2-byte length
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "CNT" should have type "binary"
+   ✔  And the field "CNT" should be 2 bytes long
+  Scenario: Parse COMP fullword has 4-byte length
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "TOTAL" should have type "binary"
+   ✔  And the field "TOTAL" should be 4 bytes long
+  Scenario: Parse COMP doubleword has 8-byte length
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "BIG-VAL" should have type "binary"
+   ✔  And the field "BIG-VAL" should be 8 bytes long
+  Scenario: Decode record with multiple COMP fields
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "HALF-FLD"
+   ✔  And the decoded output should contain "FULL-FLD"
+   ✔  And the decoded output should contain "DBL-FLD"
+Feature: CLI Exit Codes
+  Scenario: Success returns exit code 0
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+  Scenario: Parse error returns non-zero exit code
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 1
+  Scenario: Exit code 0 means success
+   ✔  Then exit code 0 means success
+  Scenario: Valid decode has exit code 0
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLO"
+   ✔  When the binary data is decoded
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+  Scenario: Valid encode has exit code 0
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And JSON data: "{\"FIELD-A\":\"HELLO\"}"
+   ✔  When the JSON data is encoded
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+  Scenario: Successful round-trip has exit code 0
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the data is round-tripped
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+  Scenario: Successful parse has exit code 0
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+  Scenario: Valid copybook with numeric fields exits 0
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345"
+   ✔  When the binary data is decoded
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+  Scenario: Valid COMP-3 decode exits 0
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the binary data is decoded
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+  Scenario: Valid binary integer decode exits 0
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the binary data is decoded
+   ✔  When the exit code is computed from the error
+   ✔  Then the exit code should be 0
+Feature: Codec Edge Cases
+  Scenario: Decoding empty record (zero-length binary)
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: ""
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Decoding record shorter than schema expects
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "SHORT"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Decoding record longer than schema with extra trailing data
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "HELLOEXTRA_TRAILING_BYTES"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field FIELD-A should be "HELLO"
+  Scenario: COMP-3 packed decimal with invalid nibbles
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\xFF\xFF\xFF\xFF\xFF"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: COMP-3 with positive sign nibble C
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x12\x3C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP-3 with negative sign nibble D
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x12\x3D"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP-3 with unsigned sign nibble F
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x12\x3F"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: DISPLAY numeric with leading spaces
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "  123"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: DISPLAY numeric with trailing spaces
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "123  "
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: PIC X field with all-spaces content
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "          "
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: PIC X field with binary zeros
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: PIC 9 field containing alphabetic characters
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "ABCDE"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: PIC 9 field containing mixed alpha-numeric
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "12A45"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Signed zoned decimal with positive overpunch
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234{"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Signed zoned decimal with negative overpunch
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234}"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP binary field with zero value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP binary field with max positive halfword
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x7F\xFF"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP binary field with min negative halfword
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x80\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP binary fullword with zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP binary fullword with max positive value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x7F\xFF\xFF\xFF"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP binary fullword with min negative value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x80\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+Feature: Codepage Handling
+  Scenario: CP037 encode produces non-ASCII bytes
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should not be all ASCII
+  Scenario: CP037 decode produces valid JSON text
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: CP037 round-trip is lossless for alphanumeric data
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: CP037 and CP500 encode same text to different bytes
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And JSON data: "{\"TEXT-FIELD\":\"HELLO\"}"
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be saved as baseline
+  Scenario: CP273 encode produces valid output
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP273"
+   ✔  And JSON data: "{\"TEXT-FIELD\":\"ABC\"}"
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+  Scenario: CP500 round-trip preserves numeric fields
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP500"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: CP1047 round-trip preserves alphanumeric fields
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP1047"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: CP1140 round-trip preserves data
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP1140"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: COMP-3 decode is consistent across CP037 and ASCII
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And binary data: "\x00\x12\x34\x5C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Binary integer decode is codepage independent
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP500"
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: ASCII codepage preserves plain ASCII text
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: ASCII encode produces printable bytes
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 5 bytes
+  Scenario: CP037 encode mixed alphanumeric and numeric fields
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: CP037 numeric field encodes correctly
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: ASCII mixed record round-trip
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+Feature: COMP-3 Packed Decimal Decode, Encode, and Round-Trip
+  Scenario: Decode positive COMP-3 value 12345
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field AMT should be 1234
+  Scenario: Decode positive COMP-3 value 99999
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x09\x99\x9C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMT"
+  Scenario: Decode positive COMP-3 single digit
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x7C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field AMT should be 7
+  Scenario: Decode negative COMP-3 value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x01\x23\x4D"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMT"
+  Scenario: Decode negative COMP-3 large value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x09\x87\x65\x4D"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP-3 zero with positive sign
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x0C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field AMT should be 0
+  Scenario: Decode COMP-3 zero with negative sign
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x0D"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP-3 with 2 decimal places
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x01\x23\x45\x6C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "PRICE"
+  Scenario: Decode COMP-3 with 4 decimal places
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x01\x23\x45\x6C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "RATE"
+  Scenario: Encode positive number to COMP-3
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 3 bytes
+  Scenario: Encode negative number to COMP-3
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 3 bytes
+  Scenario: Encode zero to COMP-3
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 3 bytes
+  Scenario: COMP-3 round-trip positive value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: COMP-3 round-trip negative value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x05\x67\x8D"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: COMP-3 round-trip with decimal scale
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x01\x23\x45\x6C"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: Decode COMP-3 with 18 digits
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00\x00\x00\x00\x12\x34\x5C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "BIG-NUM"
+  Scenario: Decode unsigned COMP-3 with F sign nibble
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x12\x3F"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Parse COMP-3 field as packed decimal type
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "PKD" should have type "packed"
+   ✔  And the field "PKD" should be 4 bytes long
+  Scenario: Parse COMP-3 with scale has correct byte length
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "PKD" should have type "packed"
+   ✔  And the field "PKD" should be 4 bytes long
+  Scenario: Decode record with multiple COMP-3 fields
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMT-A"
+   ✔  And the decoded output should contain "AMT-B"
+   ✔  And the decoded output should contain "AMT-C"
+Feature: COMP Binary, COMP-1 Float, and COMP-2 Double
+  Scenario: COMP halfword positive decode
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x64"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field CNT should be 100
+  Scenario: COMP fullword negative decode
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\xFF\xFF\xFC\x18"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field TOTAL should be -1000
+  Scenario: COMP doubleword zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field BIG should be 0
+  Scenario: COMP-1 float decode positive
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x42\x28\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "RATE"
+  Scenario: COMP-1 float decode zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP-2 double decode positive
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x40\x45\x00\x00\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "PRECISE"
+  Scenario: COMP-2 double decode zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x00\x00\x00\x00\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: COMP halfword encode roundtrip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x64"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: COMP fullword encode roundtrip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x00\x03\xE8"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: Schema COMP halfword is 2 bytes
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "CNT" should have type "binary"
+   ✔  And the field "CNT" should be 2 bytes long
+  Scenario: Schema COMP fullword is 4 bytes
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "TOTAL" should have type "binary"
+   ✔  And the field "TOTAL" should be 4 bytes long
+  Scenario: Schema COMP doubleword is 8 bytes
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "BIG" should have type "binary"
+   ✔  And the field "BIG" should be 8 bytes long
+  Scenario: Schema COMP-1 float is 4 bytes
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "RATE" should have type "float_single"
+   ✔  And the field "RATE" should be 4 bytes long
+  Scenario: Schema COMP-2 double is 8 bytes
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "PRECISE" should have type "float_double"
+   ✔  And the field "PRECISE" should be 8 bytes long
+Feature: Copybook Parsing
+  Scenario: Parse a simple copybook with a single field
+   ✔  Given a simple copybook with a single field
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:12:5
+  Scenario: Parse a copybook with numeric fields
+   ✔  Given a copybook with numeric fields
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:20:5
+  Scenario: Parse a copybook with OCCURS clause
+   ✔  Given a copybook with OCCURS clause
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:29:5
+  Scenario: Parse a copybook with ODO (OCCURS DEPENDING ON)
+   ✔  Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:36:5
+  Scenario: Parse a copybook with REDEFINES clause
+   ✔  Given a copybook with REDEFINES clause
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:44:5
+  Scenario: Parse a copybook with Level-88 condition values
+   ✔  Given a copybook with Level-88 condition values
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:52:5
+  Scenario: Parse copybook in strict mode
+   ✔  Given strict parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+  Scenario: Parse copybook in tolerant mode
+   ✔  Given tolerant parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+  Scenario: Parse copybook with inline comments
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:85:5
+  Scenario: Verify field offsets are calculated correctly
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "FIELD-1" should have offset 0
+   ✔  And the field "FIELD-1" should have length 5
+   ✔  And the field "FIELD-2" should have offset 5
+   ✔  And the field "FIELD-2" should have length 5
+   ✔  And the field "FIELD-3" should have offset 10
+   ✔  And the field "FIELD-3" should have length 10
+  Scenario: Parse copybook with nested group structures
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:116:5
+  Scenario: Parse level-88 VALUE list commas without treating them as edited picture tokens
+   ✔  Given a copybook with an inline VALUE-list for Level-88
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\copybook_parsing.feature:124:5
+Feature: Data Verification
+  Scenario: Verify valid fixed-format alphanumeric record
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "JOHN DOE  00042"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+   ✔  And the verify report should contain 0 errors
+  Scenario: Verify valid fixed-format numeric-only record
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "001234599"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify truncated record fails
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "SHORT"
+   ✔  When the data is verified
+   ✔  Then verification should fail
+  Scenario: Verify data longer than LRECL succeeds for single record
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "ABCDEF"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify valid RDW data
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And RDW record format
+   ✔  And binary data: "\x00\x06\x00\x00HELLO!"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify invalid RDW header (truncated body)
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And RDW record format
+   ✔  And binary data: "\x00\x0A\x00\x00AB"
+   ✔  When the data is verified
+   ✔  Then verification should fail
+  Scenario: Verify COMP-3 field with valid packed data
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+   ✔  And the verify report should contain 0 errors
+  Scenario: Verify COMP-3 with invalid nibbles fails in strict mode
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And strict mode
+   ✔  And binary data: "\xFF\xFF\xFF"
+   ✔  When the data is verified
+   ✔  Then verification should fail
+  Scenario: Verify numeric field with non-numeric characters
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And strict mode
+   ✔  And binary data: "ABCDE"
+   ✔  When the data is verified
+   ✔  Then verification should fail
+  Scenario: Verify numeric field with valid digits
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "00042"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify empty file with zero records
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: ""
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+   ✔  And the verify report should contain 0 errors
+  Scenario: Verify multi-record file
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "AAAAABBBBBCCCCC"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify with emit_meta enabled produces metadata
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And emit_meta is enabled
+   ✔  And binary data: "TESTDATA"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+   ✔  And the verify report should contain 0 errors
+  Scenario: Verify with emit_meta disabled
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And emit_meta is disabled
+   ✔  And binary data: "TESTDATA"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify JSON report format is valid
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "HELLO"
+   ✔  When the data is verified with JSON report
+   ✔  Then verification should succeed
+   ✔  And the verify report should be valid JSON
+  Scenario: Verify COMP binary integer data
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify nested group structure
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "CUSTOMER12300042"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+   ✔  And the verify report should contain 0 errors
+  Scenario: Verify all-spaces alphanumeric record
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "          "
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify record with mixed field types
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data for all fields
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+   ✔  And the verify report should contain 0 errors
+Feature: Decode Numeric COBOL Types
+  Scenario: Decode unsigned display numeric PIC 9(5)
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMOUNT"
+  Scenario: Decode unsigned display numeric with leading zeros
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "00042"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode unsigned display numeric all zeros
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "00000"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode signed display numeric positive overpunch
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "1234{"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "BALANCE"
+  Scenario: Decode signed display numeric negative overpunch
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "1234}"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP-3 packed decimal positive value
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMOUNT"
+  Scenario: Decode COMP-3 packed decimal negative value
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x01\x23\x4D"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP-3 packed decimal zero
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x00\x0C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP-3 with decimal scale
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x01\x23\x45\x6C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "PRICE"
+  Scenario: Decode COMP binary halfword (2 bytes)
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "COUNT-FIELD"
+  Scenario: Decode COMP binary fullword (4 bytes)
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x01\xE2\x40"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "TOTAL"
+  Scenario: Decode COMP binary negative value
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\xFF\xD6"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode COMP binary zero
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode zoned decimal with implied decimal point
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "RATE"
+  Scenario: Decode packed decimal with implied decimal point
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x12\x34\x5C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode SIGN SEPARATE LEADING positive
+   ✔  Given a copybook with SIGN SEPARATE LEADING
+   ✔  And ASCII codepage
+   ✔  And binary data: "+12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMOUNT"
+  Scenario: Decode SIGN SEPARATE LEADING negative
+   ✔  Given a copybook with SIGN SEPARATE LEADING
+   ✔  And ASCII codepage
+   ✔  And binary data: "-12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode SIGN SEPARATE TRAILING positive
+   ✔  Given a copybook with SIGN SEPARATE TRAILING
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345+"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode SIGN SEPARATE TRAILING negative
+   ✔  Given a copybook with SIGN SEPARATE TRAILING
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345-"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode record with multiple numeric types
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "DISPLAY-NUM"
+   ✔  And the decoded output should contain "SIGNED-ZONED"
+   ✔  And the decoded output should contain "PACKED-AMT"
+   ✔  And the decoded output should contain "BINARY-CNT"
+  Scenario: Parse PIC 9(n) as zoned decimal type
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "DISPLAY-FIELD" should have type "zoned"
+  Scenario: Parse PIC S9(n) COMP-3 as packed decimal type
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "PACKED-FIELD" should have type "packed"
+  Scenario: Parse PIC S9(n) COMP as binary type
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "BINARY-FIELD" should have type "binary"
+Feature: Determinism Validation
+  Scenario: Decode determinism with identical output
+   ✔  Given a simple copybook with a single field
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When decode determinism is checked
+   ✔  Then the decode should be deterministic
+   ✔  And the round 1 hash should equal to round 2 hash
+   ✔  And there should be no byte differences
+  Scenario: Encode determinism with identical output
+   ✔  Given a simple copybook with a single field
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When encode determinism is checked
+   ✔  Then the encode should be deterministic
+   ✔  And the round 1 hash should equal to round 2 hash
+   ✔  And there should be no byte differences
+  Scenario: Round-trip determinism with identical output
+   ✔  Given a simple copybook with a single field
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When round-trip determinism is checked
+   ✔  Then the round-trip should be deterministic
+   ✔  And the round 1 hash should equal to round 2 hash
+   ✔  And there should be no byte differences
+  Scenario: Decode determinism with multiple fields
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDE12345"
+   ✔  When decode determinism is checked
+   ✔  Then the decode should be deterministic
+   ✔  And the round 1 hash should equal to round 2 hash
+  Scenario: Encode determinism with multiple fields
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When encode determinism is checked
+   ✔  Then the encode should be deterministic
+   ✔  And the round 1 hash should equal to round 2 hash
+  Scenario: Determinism result generates JSON output for CI integration
+   ✔  Given a simple copybook with a single field
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When decode determinism is checked
+   ✔  Then the JSON should contain "mode"
+   ✔  And the JSON should contain "round1_hash"
+   ✔  And the JSON should contain "round2_hash"
+   ✔  And the JSON should contain "is_deterministic"
+  Scenario: Human-readable determinism output shows verdict
+   ✔  Given a simple copybook with a single field
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When decode determinism is checked
+   ✔  Then the human-readable output should show "DETERMINISTIC"
+   ✔  And the output should contain "Round 1 hash"
+   ✔  And the output should contain "Round 2 hash"
+  Scenario: Determinism hashes use canonical BLAKE3 hex shape
+   ✔  Given a simple copybook with a single field
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When decode determinism is checked
+   ✔  Then the round 1 hash should be canonical blake3 hex
+   ✔  And the round 2 hash should be canonical blake3 hex
+Feature: Dialect Lever Behavior
+  Scenario: Normative dialect preserves declared min_count
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have ODO with min 3 and max 10
+  Scenario: Normative dialect rejects count below declared minimum
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "001AAAAA"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Normative dialect accepts count at declared minimum
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "003AAAAABBBBBCCCCC"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Normative dialect accepts count at declared maximum
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "003AAAABBBBCCCC"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Zero-tolerant dialect ignores min_count and allows zero
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "000"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Zero-tolerant dialect allows count below declared min
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "002AAAABBBB"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Zero-tolerant dialect still enforces max_count
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "005AAAABBBBCCCCDDDDEEEE"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Zero-tolerant dialect schema shows min_count as 0
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have ODO with min 0 and max 20
+  Scenario: One-tolerant dialect clamps min_count to at least 1
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have ODO with min 1 and max 20
+  Scenario: One-tolerant dialect rejects zero count
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "000"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: One-tolerant dialect accepts count of 1
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "001AAAA"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Dialect does not affect fixed OCCURS parsing
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have OCCURS count 5
+  Scenario: Dialect does not affect simple alphanumeric field
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "NAME-FIELD" should have type "alphanumeric"
+Feature: Dialect Lever for ODO (OCCURS DEPENDING ON) Behavior
+  Scenario: Parse copybook in Normative dialect (default)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "COUNT-FIELD" should have type "numeric"
+   ✔  And the field "DYNAMIC-ARRAY" should have type "occurs"
+  Scenario: Parse copybook in Zero-Tolerant dialect
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "COUNT-FIELD" should have type "numeric"
+   ✔  And the field "DYNAMIC-ARRAY" should have type "occurs"
+  Scenario: Parse copybook in One-Tolerant dialect
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "COUNT-FIELD" should have type "numeric"
+   ✔  And the field "DYNAMIC-ARRAY" should have type "occurs"
+  Scenario: Decode ODO with Normative min_count enforcement (valid count)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  And binary data: "003ABCDEABCDEABCDE"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "ABCDE"
+  Scenario: Decode ODO with Normative dialect below min_count is lenient
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  And binary data: "003ABCDEABCDEABCDE"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Decode ODO with Zero-Tolerant min_count ignored (zero count)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  And binary data: "000"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode ODO with Zero-Tolerant min_count ignored (below declared min)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  And binary data: "002ABCDEABCDE"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode ODO with One-Tolerant min_count clamped (zero count rejected)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  And binary data: "000"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Decode ODO with One-Tolerant min_count clamped (valid count)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  And binary data: "001ELEMENT001"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "ELEMENT001"
+  Scenario: Parse copybook with ODO structure in different dialects
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "DETAILS" should have type "occurs"
+  Scenario: CLI --dialect flag overrides environment variable
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "DYNAMIC-ARRAY" should have type "occurs"
+  Scenario: Dialect from environment variable (COPYBOOK_DIALECT)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field DYNAMIC-ARRAY should have ODO with min 0 and max 100
+  Scenario: ODO LRECL varies by dialect (zero-tolerant has lower min record size)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have ODO with min 0 and max 10
+  Scenario: ODO LRECL varies by dialect (normative preserves min record size)
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have ODO with min 5 and max 10
+  Scenario: Error handling for invalid dialect modes
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And invalid dialect mode
+   ✔  When the copybook is parsed
+   ✔  Then an error should occur
+   ✔  And the error message should contain "dialect"
+  Scenario: Integration with existing copybook parsing scenarios
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And One-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "STATIC-FIELD" should have type "alphanumeric"
+   ✔  And the field "COUNT-FIELD" should have type "numeric"
+   ✔  And the field "DYNAMIC-ARRAY" should have type "occurs"
+  Scenario: Round-trip with ODO in different dialects
+   ✔> Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  And binary data: "002ELEM1ELEM2"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+Feature: Edited PIC Decode, Encode, Round-Trip, and Schema
+  Scenario: Decode Z-suppressed field PIC ZZZ9 with leading spaces
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: " 456"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode Z-suppressed field PIC ZZZ9 all-zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "   0"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode currency field PIC $ZZ,ZZZ.99
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "$ 2,500.75"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode currency field PIC $ZZ,ZZZ.99 small value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "$     0.01"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode leading-plus sign-edited field +ZZZ9 positive
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "+ 500"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode leading-minus sign-edited field -ZZZ9 negative
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "-  75"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode leading-minus sign-edited field -ZZZ9 positive (space)
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "  100"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode check-protect field PIC ***9
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "**99"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode check-protect PIC ***9.99 with decimal
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "**50.25"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: BLANK WHEN ZERO all-blank for zero value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "    "
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: BLANK WHEN ZERO non-zero value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "  77"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Encode to Z-suppressed PIC ZZZ9
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 4 bytes
+  Scenario: Encode to currency format PIC $999
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 4 bytes
+  Scenario: Roundtrip Z-suppression PIC ZZZ9
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: " 789"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip currency PIC $999
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "$456"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Schema recognises EditedNumeric kind for PIC ZZZ9
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "AMT" should have type "edited"
+  Scenario: Schema recognises EditedNumeric kind for PIC $ZZ9.99
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "AMT" should have type "edited"
+   ✔  And the field "AMT" should be 7 bytes long
+  Scenario: Schema recognises EditedNumeric kind for PIC +ZZZ9
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "AMT" should have type "edited"
+   ✔  And the field "AMT" should be 5 bytes long
+Feature: Edited PIC BDD Coverage
+  Scenario: Decode zero-suppressed field PIC ZZZ9
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: " 123"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode zero-suppressed field with all leading spaces
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "   0"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode zero-suppressed field with decimal PIC ZZZ9.99
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "  12.34"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode currency-edited field PIC $ZZ,ZZZ.99
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "$ 1,234.56"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode currency-edited field with small value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "$     5.00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode check-protect field PIC ***9.99
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "**12.34"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode check-protect field with zero value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "***0.00"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode leading-plus sign-edited field positive value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "+ 123"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode leading-minus sign-edited field negative value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "-  42"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode leading-minus sign-edited field positive value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "  123"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode BLANK WHEN ZERO field with zero value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "    "
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Decode BLANK WHEN ZERO field with non-zero value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "  42"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Round-trip edited PIC with zero suppression
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: " 123"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Round-trip edited PIC with currency and comma
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "$123"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Round-trip edited PIC with check-protect
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "*123"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Round-trip edited PIC with leading sign
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with edited PIC:
+   ✔  And binary data: "+123"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+Feature: Encode Round-Trip and Edge Cases
+  Scenario: Round-trip simple alphanumeric field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "JOHN DOE  "
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Round-trip zoned decimal field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Round-trip nested group structure
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDE12300000000"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Round-trip OCCURS array
+   ✔  Given a copybook with OCCURS clause
+   ✔  And ASCII codepage
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Encode numeric value that overflows field capacity
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+  Scenario: Encode string that exceeds field length
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+  Scenario: Decode with field projection selects subset of fields
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And field selection: "FIELD-A,FIELD-C"
+   ✔  When field projection is applied
+   ✔  Then the projection should succeed
+   ✔  And the field "FIELD-A" should be included in projection
+   ✔  And the field "FIELD-C" should be included in projection
+   ✔  And the field "FIELD-B" should not be included in projection
+  Scenario: Projection with nonexistent field produces error
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And field selection: "NONEXISTENT-FIELD"
+   ✔  When field projection is applied
+   ✔  Then the projection should fail
+   ✔  And an error should occur
+  Scenario: Round-trip with EBCDIC codepage
+   ✔  Given a simple copybook with a single field
+   ✔  And EBCDIC codepage
+   ✔  And binary data: "\xC1\xC2\xC3\xC4\xC5\xC6\xC7\xC8\xC9\xD1"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Encode zero-value numeric field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 5 bytes
+Feature: Enterprise Audit System
+  Scenario: SOX compliance audit trail
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a financial SOX compliance copybook
+   ✔  When the copybook is processed with audit
+   ✔  Then the audit event type should be "CopybookParse"
+   ✔  And the audit event severity should be "Info"
+   ✔  And the audit context should have compliance profile "SOX"
+   ✔  And the audit event user should be "bdd_test_user"
+   ✔  And the audit event timestamp should be non-empty
+   ✔  And the audit event integrity hash should be non-empty
+   ✔  And the audit output should be in valid JSON format
+  Scenario: HIPAA data processing
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a healthcare HIPAA compliance copybook
+   ✔  When the copybook is processed with audit
+   ✔  Then the audit event type should be "CopybookParse"
+   ✔  And the audit context should have compliance profile "HIPAA"
+   ✔  And the audit context should have security classification "PHI"
+   ✔  And the audit context metadata should contain "data_classification"
+  Scenario: GDPR audit report
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a GDPR personal data copybook
+   ✔  When the copybook is processed with audit
+   ✔  Then the audit event type should be "CopybookParse"
+   ✔  And the audit context should have compliance profile "GDPR"
+   ✔  And the audit context metadata should contain "legal_basis"
+   ✔  And the audit context metadata should contain "processing_purpose"
+  Scenario: PCI DSS compliance
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a PCI DSS payment card copybook
+   ✔  When the copybook is processed with audit
+   ✔  Then the audit event type should be "CopybookParse"
+   ✔  And the audit context should have compliance profile "PciDss"
+   ✔  And the audit context metadata should contain "cardholder_data"
+  Scenario: Decode operation audit
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a simple audit copybook
+   ✔  When a decode audit event is created
+   ✔  Then the audit event type should be "DataTransformation"
+   ✔  And the audit payload should contain "Decode"
+   ✔  And the audit payload should contain "records_processed"
+  Scenario: Encode operation audit
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a simple audit copybook
+   ✔  When an encode audit event is created
+   ✔  Then the audit event type should be "DataTransformation"
+   ✔  And the audit payload should contain "Encode"
+  Scenario: Field projection audit
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a simple audit copybook
+   ✔  When a projection audit event is created
+   ✔  Then the audit event type should be "DataValidation"
+   ✔  And the audit payload should contain "validation_rules"
+  Scenario: Dialect configuration change audit
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a simple audit copybook
+   ✔  When a configuration change audit event is created
+   ✔  Then the audit event type should be "ConfigurationChange"
+   ✔  And the audit payload should contain "old_configuration"
+   ✔  And the audit payload should contain "change_reason"
+  Scenario: Security classification
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given security classification "Confidential"
+   ✔  When a security event is created
+   ✔  Then the audit event type should be "SecurityEvent"
+   ✔  And the audit event severity should be "High"
+   ✔  And the audit context should have security classification "Confidential"
+  Scenario: Access event success
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  When an access event is created with result "Success"
+   ✔  Then the audit event type should be "AccessEvent"
+   ✔  And the audit event severity should be "Info"
+   ✔  And the audit payload should contain "Success"
+  Scenario: Access event denied
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  When an access event is created with result "Denied"
+   ✔  Then the audit event type should be "AccessEvent"
+   ✔  And the audit event severity should be "Medium"
+   ✔  And the audit payload should contain "Denied"
+  Scenario: Error audit event
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  When an error audit event is created
+   ✔  Then the audit event type should be "ErrorEvent"
+   ✔  And the audit payload should contain "error_code"
+   ✔  And the audit payload should contain "error_message"
+   ✔  And the audit payload should contain "user_impact"
+  Scenario: Performance measurement
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  When a performance measurement event is created
+   ✔  Then the audit event type should be "PerformanceMeasurement"
+   ✔  And the audit payload should contain "metrics"
+   ✔  And the audit event severity should be "Info"
+  Scenario: Performance regression detected
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given throughput metrics below baseline
+   ✔  When a performance measurement event is created
+   ✔  Then the audit event type should be "PerformanceMeasurement"
+   ✔  And the audit event severity should be "Medium"
+   ✔  And the audit payload should contain "regression_detected"
+  Scenario: Audit events JSON serialization
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a financial SOX compliance copybook
+   ✔  When the copybook is processed with audit
+   ✔  And a security event is created
+   ✔  Then the audit trail should have 2 events
+   ✔  And all audit events should have required fields
+   ✔  And the audit output should be in valid JSON format
+  Scenario: Audit chain integrity
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given a financial SOX compliance copybook
+   ✔  When the copybook is processed with audit
+   ✔  And a security event is created
+   ✔  Then the audit chain should be valid
+  Scenario: Multi-framework compliance
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  Given compliance profile "SOX"
+   ✔  And compliance profile "HIPAA"
+   ✔  And compliance profile "GDPR"
+   ✔  When a compliance check event is created
+   ✔  Then the audit event type should be "ComplianceCheck"
+   ✔  And the audit context should have compliance profile "SOX"
+   ✔  And the audit context should have compliance profile "HIPAA"
+   ✔  And the audit context should have compliance profile "GDPR"
+  Scenario: Child context for nested operations
+   ✔> Given the audit system is enabled
+   ✔> And an audit context is initialized
+   ✔  When a child context is created for "nested_decode"
+   ✔  Then the child context should have parent operation
+   ✔  And the child context operation id should differ from parent
+Feature: Error Handling Strategies
+  Scenario: Strict mode with short PIC X data succeeds after padding
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And strict mode
+   ✔  And binary data: "AB"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Lenient mode handles short data
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And lenient mode
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Max errors limits error accumulation
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And max errors 5
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Max errors unlimited allows all errors
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And max errors unlimited
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Strict mode with valid data succeeds
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And strict mode
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Lenient mode with valid data succeeds
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And lenient mode
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Max errors with encoding
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And max errors 3
+   ✔  And JSON data: "{\"DATA-FIELD\":\"TESTDATA01\"}"
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+  Scenario: Strict mode encoding with valid JSON
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And strict mode
+   ✔  And JSON data: "{\"DATA-FIELD\":\"TESTDATA01\"}"
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+  Scenario: Lenient mode encoding
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And lenient mode
+   ✔  And JSON data: "{\"DATA-FIELD\":\"TESTDATA01\"}"
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+  Scenario: Max errors with round-trip
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And max errors 10
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: Strict mode with numeric field
+   ✔> Given a copybook with content:
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And strict mode
+   ✔  And binary data: "12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Max errors set to 1
+   ✔> Given a copybook with content:
+   ✔  Given ASCII codepage
+   ✔  And max errors 1
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+Feature: Field Projection
+  Scenario: Decode with simple field selection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "000123JOHN DOE                           123 MAIN STREET                        "
+   ✔  And field selection: "CUSTOMER-ID"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:24:5
+  Scenario: Decode with multiple field selection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "000123JOHN DOE                           123 MAIN STREET                        555-1234567890  "
+   ✔  And field selection: "CUSTOMER-ID,CUSTOMER-NAME"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:43:5
+  Scenario: Decode with group selection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "000123JOHN DOE                           00000001020240117"
+   ✔  And field selection: "CUSTOMER-INFO"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:65:5
+  Scenario: Decode with ODO auto-counter inclusion
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "00200000000100000100000000000002000000020000020000000000000"
+   ✔  And field selection: "ORDERS"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:86:5
+  Scenario: Decode with RENAMES alias resolution
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "JOHN              DOE               M123 MAIN STREET                        "
+   ✔  And field selection: "FULL-NAME"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:106:5
+  Scenario: Decode with RENAMES alias and regular fields
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "JOHN              DOE               000123"
+   ✔  And field selection: "FULL-NAME,CUSTOMER-ID"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:127:5
+  Scenario: Error when field not found in projection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "NONEXISTENT-FIELD"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should fail
+   ✔  And the error message should contain "NONEXISTENT-FIELD"
+   ✔  And the error code should be "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+  Scenario: Encode with field projection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  And field selection: "CUSTOMER-ID,CUSTOMER-NAME"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:162:5
+  Scenario: Verify with field projection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "TRANSACTION-ID,TRANSACTION-AMT"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:180:5
+  Scenario: Empty field selection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: ""
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 0 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:197:5
+  Scenario: Select leaf field from deeply nested group
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "DEEP-FIELD"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "DEEP-FIELD" should be included in projection
+   ✔  And the field "OTHER-FIELD" should not be included in projection
+   ✔  And the field "TOP-FIELD" should not be included in projection
+  Scenario: Select two fields from same nested group
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "ACCT-ID,ACCT-NAME"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "ACCT-ID" should be included in projection
+   ✔  And the field "ACCT-NAME" should be included in projection
+   ✔  And the field "ACCT-TYPE" should not be included in projection
+   ✔  And the field "BALANCE" should not be included in projection
+  Scenario: Select group and a child field deduplicates
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "HDR-GROUP,HDR-ID"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "HDR-GROUP" should be included in projection
+   ✔  And the field "HDR-ID" should be included in projection
+   ✔  And the field "HDR-TYPE" should be included in projection
+   ✔  And the field "PAYLOAD" should not be included in projection
+  Scenario: Project single numeric field and decode
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "000042000101234567890123456789"
+   ✔  And field selection: "ITEM-ID"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "ITEM-ID" should be included in projection
+   ✔  And the field "ITEM-QTY" should not be included in projection
+   ✔  And the field "ITEM-DESC" should not be included in projection
+  Scenario: Multiple non-existent fields all fail
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "GHOST-ONE"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should fail
+   ✔  And the error code should be "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+  Scenario: Select single field preserves parent group hierarchy
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "TARGET-FIELD"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "TARGET-FIELD" should be included in projection
+   ✔  And the field "SIBLING-FIELD" should not be included in projection
+  Scenario: ODO auto-includes counter when selecting child
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "ITEMS"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "ITEMS" should be included in projection
+   ✔  And the field "NUM-ITEMS" should be included in projection
+   ✔  And the field "ITEM-CODE" should be included in projection
+   ✔  And the field "ITEM-PRICE" should be included in projection
+  Scenario: Select field with mixed case matches case-insensitively
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "my-field"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "MY-FIELD" should be included in projection
+   ✔  And the field "OTHER" should not be included in projection
+  Scenario: Select three independent leaf fields
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "FIELD-A,FIELD-C,FIELD-E"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "FIELD-A" should be included in projection
+   ✔  And the field "FIELD-C" should be included in projection
+   ✔  And the field "FIELD-E" should be included in projection
+   ✔  And the field "FIELD-B" should not be included in projection
+   ✔  And the field "FIELD-D" should not be included in projection
+  Scenario: Projection of single field from flat record
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "NUM-FIELD"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "NUM-FIELD" should be included in projection
+   ✔  And the field "ALPHA-FIELD" should not be included in projection
+  Scenario: Projected decode produces valid JSON
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "000042ALICE JOHNSON        742 OAK AVENUE                          "
+   ✔  And field selection: "CUST-ID,CUST-NAME"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "CUST-ID" should be included in projection
+   ✔  And the field "CUST-NAME" should be included in projection
+   ✔  And the field "CUST-ADDR" should not be included in projection
+  Scenario: Projected schema has fewer fields than full schema
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "FIELD-A"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ?  And the projected schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\field_projection.feature:399:5
+Feature: Fixed Record Framing
+  Scenario: Encoded fixed output round-trips through the fixed microcrate
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 8 bytes
+   ✔  And the encoded output should round-trip through the fixed microcrate with LRECL 8
+  Scenario: Raw binary input is readable through the fixed microcrate
+   ✔  Given a simple copybook with a single field
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLO     "
+   ✔  Then the binary input should be readable by the fixed microcrate with LRECL 10
+Feature: Governance flag synchronization
+  Scenario: All stable features are enabled by default
+   ✔  Given the default feature flags
+   ✔  Then all stable features should be enabled
+  Scenario: Experimental features are disabled by default
+   ✔  Given the default feature flags
+   ✔  Then experimental features should be disabled
+  Scenario: Enterprise features can be enabled
+   ✔  Given feature flags with Enterprise category enabled
+   ✔  Then enterprise features should be accessible
+  Scenario: Support matrix matches governance flags
+   ✔  Given the default feature flags
+   ✔  Then the support matrix should list all governed features
+  Scenario: Feature flags are serializable
+   ✔  Given feature flags with all categories enabled
+   ✔  When the flags are serialized to JSON
+   ✔  Then the JSON should be valid and round-trip
+  Scenario: Runtime state evaluation matches flags
+   ✔  Given feature flags with Experimental category enabled
+   ✔  When runtime state is evaluated
+   ✔  Then experimental features should report as enabled
+Feature: Level-88 Condition Values
+  Scenario: Level-88 on alphanumeric field
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "CUST-TYPE" should have Level-88 "IS-RETAIL"
+   ✔  And the field "CUST-TYPE" should have Level-88 "IS-WHOLESALE"
+  Scenario: Level-88 on numeric field
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "STATUS-CODE" should have Level-88 "STATUS-OK"
+   ✔  And the field "STATUS-CODE" should have Level-88 "STATUS-ERROR"
+  Scenario: Level-88 with single VALUE literal
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "FLAG-FIELD" should have Level-88 "FLAG-ON"
+   ✔  And the field "FLAG-FIELD" should have Level-88 "FLAG-OFF"
+  Scenario: Level-88 with THRU range
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "GRADE-CODE" should have Level-88 "PASSING-GRADE"
+   ✔  And the field "GRADE-CODE" should have Level-88 "FAILING-GRADE"
+   ✔  And the field "PASSING-GRADE" should have type "condition"
+   ✔  And the field "FAILING-GRADE" should have type "condition"
+  Scenario: Level-88 with multiple VALUES
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "ACTION-CODE" should have Level-88 "VALID-ACTION"
+   ✔  And the field "VALID-ACTION" should have type "condition"
+  Scenario: Level-88 with comma-separated VALUES
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "TYPE-CODE" should have Level-88 "VALID-TYPE"
+  Scenario: Level-88 on COMP-3 field parses conditions
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "AMOUNT" should have Level-88 "ZERO-AMOUNT"
+   ✔  And the field "AMOUNT" should have Level-88 "MAX-AMOUNT"
+   ✔  And the field "ZERO-AMOUNT" should have type "condition"
+   ✔  And the field "MAX-AMOUNT" should have type "condition"
+  Scenario: Level-88 condition has zero storage length
+   ✔  Given a copybook with Level-88 condition values
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "STATUS-ACTIVE" should have type "condition"
+   ✔  And the field "STATUS-ACTIVE" should have level 88
+  Scenario: Level-88 after OCCURS array element
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "ITEM-STATUS" should have Level-88 "ITEM-ACTIVE"
+   ✔  And the field "ITEM-STATUS" should have Level-88 "ITEM-DELETED"
+  Scenario: Schema preserves Level-88 conditions as children
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "IS-RED" should have type "condition"
+   ✔  And the field "IS-BLUE" should have type "condition"
+   ✔  And the field "IS-GREEN" should have type "condition"
+   ✔  And the field "IS-RED" should have level 88
+   ✔  And the field "IS-BLUE" should have level 88
+   ✔  And the field "IS-GREEN" should have level 88
+  Scenario: Multiple fields each with Level-88 conditions
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "FIELD-A" should have Level-88 "A-YES"
+   ✔  And the field "FIELD-A" should have Level-88 "A-NO"
+   ✔  And the field "FIELD-B" should have Level-88 "B-ACTIVE"
+   ✔  And the field "FIELD-B" should have Level-88 "B-CLOSED"
+  Scenario: Level-88 conditions have correct level number
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "CHK-A" should have level 88
+   ✔  And the field "CHK-B" should have level 88
+   ✔  And the field "CHK-C" should have level 88
+  Scenario: Decode record with field that has no Level-88
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "JOHN DOE  "
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And decoded field NAME-FIELD should be "JOHN DOE"
+  Scenario: Level-88 on group child field
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "HDR-TYPE" should have Level-88 "HDR-STANDARD"
+   ✔  And the field "HDR-TYPE" should have Level-88 "HDR-EXTENDED"
+   ✔  And the field "HEADER" should have type "group"
+  Scenario: Level-88 with THROUGH keyword synonym
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "RANGE-FIELD" should have Level-88 "LOW-RANGE"
+   ✔  And the field "RANGE-FIELD" should have Level-88 "HIGH-RANGE"
+  Scenario: Level-88 on signed zoned decimal parses conditions
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "BALANCE" should have Level-88 "IS-ZERO"
+   ✔  And the field "BALANCE" should have Level-88 "IS-POSITIVE"
+   ✔  And the field "IS-ZERO" should have type "condition"
+   ✔  And the field "IS-POSITIVE" should have type "condition"
+Feature: Metadata Emission
+  Scenario: Emit meta enabled includes metadata fields
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given emit_meta is true
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "schema_fingerprint"
+  Scenario: Emit meta disabled excludes metadata fields
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given emit_meta is false
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should not contain "schema_fingerprint"
+  Scenario: Metadata contains record_index
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given emit_meta is true
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "record_index"
+  Scenario: Metadata with multi-field copybook
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And emit_meta is true
+   ✔  And binary data: "HELLO042"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "schema_fingerprint"
+  Scenario: Emit meta with COMP-3 field
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And emit_meta is true
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "schema_fingerprint"
+  Scenario: Default emit_meta is enabled
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given emit_meta is true
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "schema_fingerprint"
+  Scenario: Emit meta does not affect round-trip
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given emit_meta is true
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: Emit meta with valid JSON output
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given emit_meta is true
+   ✔  And binary data: "TESTDATA10"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+Feature: OCCURS Arrays and ODO
+  Scenario: Simple OCCURS fixed array
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have OCCURS count 5
+  Scenario: OCCURS with multiple children
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ENTRIES should have OCCURS count 3
+   ✔  And the field "ENTRY-ID" should have type "zoned"
+   ✔  And the field "ENTRY-NAME" should have type "alphanumeric"
+   ✔  And the field "ENTRY-AMT" should have type "zoned"
+  Scenario: OCCURS DEPENDING ON (ODO) basic
+   ✔  Given a copybook with ODO (OCCURS DEPENDING ON)
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field DYNAMIC-ARRAY should have ODO with counter "COUNT-FIELD"
+  Scenario: ODO with explicit min and max
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEM-LIST should have ODO with min 1 and max 50
+   ✔  And field ITEM-LIST should have ODO with counter "NUM-ITEMS"
+  Scenario: OCCURS fixed array decode to JSON array
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "RED  BLUEEGREN "
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: OCCURS fixed array encode from JSON array
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 9 bytes
+  Scenario: OCCURS array encode and decode
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDWXYZ"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: ODO counter validation - counter within range
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data with COUNT=03 and 3 elements
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Nested group inside OCCURS
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field TRANSACTIONS should have OCCURS count 2
+   ✔  And the field "TXN-HEADER" should have type "group"
+   ✔  And the field "TXN-ID" should have type "zoned"
+   ✔  And the field "TXN-TYPE" should have type "alphanumeric"
+   ✔  And the field "TXN-AMOUNT" should have type "zoned"
+  Scenario: OCCURS at group level
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field LINE-ITEMS should have OCCURS count 4
+   ✔  And the field "LINE-DESC" should have type "alphanumeric"
+  Scenario: ODO with zero-tolerant dialect
+   ✔  Given a copybook with content:
+   ✔  And Zero-Tolerant dialect
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field ITEMS should have ODO with min 0 and max 10
+  Scenario: OCCURS preserves child field offsets
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "PREFIX" should have offset 0
+   ✔  And the field "PREFIX" should have length 2
+  Scenario: OCCURS with single element
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And field SOLO should have OCCURS count 1
+  Scenario: OCCURS decode produces correct element count
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "AAAABBBBCCCC"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And there should be 3 ARRAY elements
+  Scenario: ODO counter field is numeric
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "MY-COUNT" should have type "zoned"
+   ✔  And field MY-ARRAY should have ODO with counter "MY-COUNT"
+Feature: Options Microcrate Contracts
+  Scenario: Decode options builder applies contract fields
+   ✔  Given default decode options
+   ✔  When decode record format is set to "rdw"
+   ✔  And decode json number mode is set to "native"
+   ✔  And decode raw mode is set to "record+rdw"
+   ✔  Then decode options format should be "rdw"
+   ✔  And decode options json number mode should be "native"
+   ✔  And decode options raw mode should be "record+rdw"
+  Scenario: Encode options builder applies override and float format
+   ✔  Given default encode options
+   ✔  When encode zoned override is set to "ascii"
+   ✔  And encode float format is set to "ibm-hex"
+   ✔  Then encode options zoned override should be "ascii"
+   ✔  And encode options float format should be "ibm-hex"
+  Scenario: Zoned detection recognizes nibble signatures
+   ✔  When zoned encoding is detected from byte "0x35"
+   ✔  Then detected zoned encoding should be "ascii"
+   ✔  When zoned encoding is detected from byte "0xF7"
+   ✔  Then detected zoned encoding should be "ebcdic"
+Feature: Parallel Processing
+  Scenario: Single-threaded decode
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 1
+   ✔  And multi-record binary data with 10 records
+   ?  When the data is decoded with 1 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:16:5
+  Scenario: Multi-threaded decode with 2 threads
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 2
+   ✔  And multi-record binary data with 10 records
+   ?  When the data is decoded with 2 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:23:5
+  Scenario: Multi-threaded decode with 4 threads
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 4
+   ✔  And multi-record binary data with 20 records
+   ?  When the data is decoded with 4 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:30:5
+  Scenario: Multi-threaded decode with 8 threads
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 8
+   ✔  And multi-record binary data with 100 records
+   ?  When the data is decoded with 8 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:37:5
+  Scenario: Output determinism across thread counts
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given multi-record binary data with 10 records
+   ?  When the data is decoded with 1 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:43:5
+  Scenario: Single record with multiple threads
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 4
+   ✔  And multi-record binary data with 1 records
+   ?  When the data is decoded with 4 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:51:5
+  Scenario: Empty data with threads
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 2
+   ✔  And binary data: ""
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Thread count of 1 is single-threaded
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 1
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Large record count with threads
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 4
+   ✔  And multi-record binary data with 50 records
+   ?  When the data is decoded with 4 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:71:5
+  Scenario: Thread count does not affect output validity
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given thread count 2
+   ✔  And multi-record binary data with 5 records
+   ?  When the data is decoded with 2 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:78:5
+  Scenario: Determinism with 4 threads
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given multi-record binary data with 20 records
+   ?  When the data is decoded with 1 thread(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parallel_processing.feature:84:5
+  Scenario: Decode with default thread count
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+Feature: Parsing Modes
+  Scenario: Strict parsing of valid copybook
+   ✔  Given strict parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Tolerant parsing of valid copybook
+   ✔  Given tolerant parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Default parsing mode succeeds on valid input
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Strict comments mode
+   ✔  Given strict_comments mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Inline comments disabled
+   ✔  Given inline comments disabled
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Strict parsing rejects invalid syntax
+   ✔  Given strict parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should fail
+  Scenario: Tolerant parsing with OCCURS
+   ✔  Given tolerant parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Strict parsing with Level-88
+   ✔  Given strict parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Strict parsing with REDEFINES
+   ✔  Given strict parsing mode
+   ✔  And a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Default mode handles complex copybook
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+   ?  And the schema should contain 1 top-level field(s)
+      Step skipped: ?\H:\Code\Rust\copybook-rs\tests\bdd\features\parsing_modes.feature:110:5
+Feature: Advanced Field Projection
+  Scenario: Select non-existent field returns CBKS703
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "DOES-NOT-EXIST"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should fail
+   ✔  And the error code should be "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+   ✔  And the error message should contain "DOES-NOT-EXIST"
+  Scenario: Select ODO array auto-includes counter field
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "ORDER-ITEMS"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "ORDER-ITEMS" should be included in projection
+   ✔  And the field "ORDER-COUNT" should be included in projection
+   ✔  And the field "ITEM-ID" should be included in projection
+  Scenario: Select RENAMES alias resolves to storage fields
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "FULL-NAME"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "FIRST-NAME" should be included in projection
+   ✔  And the field "LAST-NAME" should be included in projection
+   ✔  And the field "AGE" should not be included in projection
+  Scenario: Select multiple fields from nested groups
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "ACCT-ID,BALANCE"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "ACCT-ID" should be included in projection
+   ✔  And the field "BALANCE" should be included in projection
+   ✔  And the field "ACCT-NAME" should not be included in projection
+   ✔  And the field "CREDIT-LIMIT" should not be included in projection
+  Scenario: Select all leaf fields produces identity projection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "FIELD-A,FIELD-B,FIELD-C"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "FIELD-A" should be included in projection
+   ✔  And the field "FIELD-B" should be included in projection
+   ✔  And the field "FIELD-C" should be included in projection
+  Scenario: Select group field includes all children
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "HEADER-GROUP"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+   ✔  And the field "HEADER-GROUP" should be included in projection
+   ✔  And the field "HDR-TYPE" should be included in projection
+   ✔  And the field "HDR-LEN" should be included in projection
+   ✔  And the field "DETAIL-FIELD" should not be included in projection
+  Scenario: Select mix of valid and non-existent fields fails
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "REAL-FIELD,GHOST-FIELD"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should fail
+   ✔  And the error code should be "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+Feature: Raw Data Capture
+  Scenario: Raw mode off does not emit __raw_b64
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "off"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should not contain "__raw_b64"
+  Scenario: Raw mode record emits __raw_b64
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "record"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "__raw_b64"
+  Scenario: Raw mode record base64 decodes to original payload
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "record"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the raw_b64 field should decode to the original binary data
+  Scenario: Raw mode field emits field-level raw
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "field"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Raw mode record preserves binary literal bytes
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "record"
+   ✔  And binary data: "\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4A"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the raw_b64 field should decode to the original binary data
+  Scenario: Default raw mode is off
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should not contain "__raw_b64"
+  Scenario: Raw mode record with COMP-3 field
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And raw mode "record"
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "__raw_b64"
+  Scenario: Raw mode off with multiple fields
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And raw mode "off"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should not contain "__raw_b64"
+  Scenario: Raw mode record with JSON validity
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "record"
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Raw mode with empty field
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "record"
+   ✔  And binary data: "          "
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "__raw_b64"
+  Scenario: use_raw enabled for encode
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given use_raw enabled for encode
+   ✔  And raw mode "record"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Raw mode record preserves all data
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "record"
+   ✔  And binary data: "TESTDATA12"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "__raw_b64"
+  Scenario: Raw mode off with round-trip
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "off"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: Raw mode field with numeric data
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And raw mode "field"
+   ✔  And binary data: "12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Multiple records with raw mode record
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And raw mode "record"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Raw mode with EBCDIC codepage
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And raw mode "record"
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "__raw_b64"
+  Scenario: Decode output is valid JSON with all raw modes
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "off"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then the decoded output should be valid JSON
+  Scenario: Raw mode record with round-trip preserves structure
+   ✔> Given a copybook with content:
+   ✔> And ASCII codepage
+   ✔  Given raw mode "record"
+   ✔  And binary data: "TESTRECORD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should contain "__raw_b64"
+Feature: RDW corruption heuristic
+  Scenario: detect an ASCII digit length header
+   ✔  When the rdw ascii-corruption heuristic evaluates header "\x31\x32\x00\x00"
+   ✔  Then the rdw ascii-corruption heuristic should report ASCII corruption
+  Scenario: detect an ascii-corruption RDW header in detector
+   ✔  When the rdw corruption detector evaluates header "\x31\x32\x00\x00"
+   ✔  Then the rdw corruption detector should report corruption
+  Scenario: ignore a non-ASCII length header
+   ✔  When the rdw ascii-corruption heuristic evaluates header "\x00\x05\x00\x00"
+   ✔  Then the rdw ascii-corruption heuristic should not report ASCII corruption
+  Scenario: ignore a clean RDW header in detector
+   ✔  When the rdw corruption detector evaluates header "\x00\x05\x00\x00"
+   ✔  Then the rdw corruption detector should not report corruption
+  Scenario: detect a corrupted EBCDIC control byte
+   ✔  When the ebcdic corruption predicate evaluates bytes "\x00"
+   ✔  Then the ebcdic corruption predicate should detect corruption
+  Scenario: ignore a clean EBCDIC control-free byte sequence
+   ✔  When the ebcdic corruption predicate evaluates bytes "\x41\x42\x43"
+   ✔  Then the ebcdic corruption predicate should not detect corruption
+  Scenario: detect invalid packed-decimal nibbles
+   ✔  When the packed corruption predicate evaluates bytes "\xA2\x34\x5A"
+   ✔  Then the packed corruption predicate should detect corruption
+  Scenario: ignore valid packed-decimal data
+   ✔  When the packed corruption predicate evaluates bytes "\x12\x34\x5C"
+   ✔  Then the packed corruption predicate should not detect corruption
+  Scenario: detect corrupted EBCDIC bytes in detector
+   ✔  When the ebcdic corruption detector evaluates bytes "\x00"
+   ✔  Then the ebcdic corruption detector should report corruption
+  Scenario: ignore clean EBCDIC bytes in detector
+   ✔  When the ebcdic corruption detector evaluates bytes "\x41\x42\x43"
+   ✔  Then the ebcdic corruption detector should not report corruption
+  Scenario: detect packed-decimal corruption in detector
+   ✔  When the packed corruption detector evaluates bytes "\xA2\x34\x5A"
+   ✔  Then the packed corruption detector should report corruption
+  Scenario: ignore valid packed-decimal data in detector
+   ✔  When the packed corruption detector evaluates bytes "\x12\x34\x5C"
+   ✔  Then the packed corruption detector should not report corruption
+Feature: Record Framing
+  Scenario: Fixed-length record decodes correctly
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "JOHN      025"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "JOHN"
+  Scenario: Fixed-length record with exact LRECL
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Fixed-length decode pads short data to LRECL
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "HI"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Fixed-length numeric record decodes zeros
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "00000000"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Fixed-length encode produces exact LRECL
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 8 bytes
+  Scenario: Fixed-length round-trip is lossless
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: RDW encode wraps payload with 4-byte header
+   ✔  Given a copybook with content:
+   ✔  And RDW record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should start with RDW header
+  Scenario: RDW encoded output is readable by RDW reader
+   ✔  Given a copybook with content:
+   ✔  And RDW record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be readable by the RDW reader microcrate
+  Scenario: RDW round-trip through record I/O microcrate
+   ✔  Given a copybook with content:
+   ✔  And RDW record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should round-trip through the record I/O microcrate in RDW mode
+  Scenario: Fixed encode round-trips through fixed microcrate
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 6 bytes
+   ✔  And the encoded output should round-trip through the fixed microcrate with LRECL 6
+  Scenario: Fixed binary input is readable by fixed microcrate
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345678"
+   ✔  Then the binary input should be readable by the fixed microcrate with LRECL 8
+  Scenario: Fixed decode of packed decimal in fixed record
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x12\x34\x5C"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Fixed-length multi-field decode succeeds
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEF1234"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Fixed-length binary integer in fixed record
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x0A"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+  Scenario: Fixed encode of space-padded alphanumeric field
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 10 bytes
+Feature: Record I/O Dispatch Microcrate
+  Scenario: Fixed encode output round-trips through record I/O dispatch
+   ✔  Given a copybook with content:
+   ✔  And fixed record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should round-trip through the record I/O microcrate in fixed mode with LRECL 8
+  Scenario: RDW encode output round-trips through record I/O dispatch
+   ✔  Given a copybook with content:
+   ✔  And RDW record format
+   ✔  And ASCII codepage
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should round-trip through the record I/O microcrate in RDW mode
+Feature: REDEFINES Handling
+  Scenario: Simple REDEFINES elementary to elementary
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "FIELD-NUM" should redefine "FIELD-ALPHA"
+  Scenario: Group REDEFINES
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "DATE-PARTS" should redefine "DATE-STRING"
+   ✔  And the field "DATE-PARTS" should have type "group"
+   ✔  And the field "YEAR-PART" should have type "zoned"
+   ✔  And the field "MONTH-PART" should have type "zoned"
+   ✔  And the field "DAY-PART" should have type "zoned"
+  Scenario: REDEFINES alphanumeric as numeric
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "RAW-DATA" should have type "alphanumeric"
+   ✔  And the field "NUM-VIEW" should have type "zoned"
+   ✔  And the field "NUM-VIEW" should redefine "RAW-DATA"
+  Scenario: REDEFINES alphanumeric as packed decimal
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "RAW-BYTES" should have type "alphanumeric"
+   ✔  And the field "PACKED-VIEW" should have type "packed"
+   ✔  And the field "PACKED-VIEW" should redefine "RAW-BYTES"
+  Scenario: Multiple REDEFINES of same field
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "VIEW-AS-NUM" should redefine "ORIGINAL"
+   ✔  And the field "VIEW-AS-DATE" should redefine "ORIGINAL"
+  Scenario: REDEFINES preserves original field offset
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "TARGET-FIELD" should have offset 5
+   ✔  And the field "ALT-FIELD" should have offset 5
+  Scenario: REDEFINES field has same length as original
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "BASE-FIELD" should have length 20
+   ✔  And the field "REDEF-FIELD" should have length 20
+  Scenario: Decode with REDEFINES shows both views
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Nested group REDEFINES
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "ADDRESS-COMPACT" should redefine "ADDRESS-BLOCK"
+   ✔  And the field "ADDRESS-BLOCK" should have type "group"
+   ✔  And the field "ADDRESS-COMPACT" should have type "group"
+  Scenario: REDEFINES does not advance record offset
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "FIRST-FIELD" should have offset 0
+   ✔  And the field "REDEF-FIRST" should have offset 0
+   ✔  And the field "SECOND-FIELD" should have offset 10
+  Scenario: REDEFINES with group containing packed decimal
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "STRUCTURED" should redefine "RAW-AREA"
+   ✔  And the field "ID-NUM" should have type "zoned"
+   ✔  And the field "AMOUNT" should have type "packed"
+  Scenario: REDEFINES with binary integer
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "BIN-FIELD" should redefine "TEXT-FIELD"
+   ✔  And the field "BIN-FIELD" should have type "binary"
+  Scenario: REDEFINES round-trip decode
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: REDEFINES with different PIC lengths within same storage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "LONG-FIELD" should have length 20
+   ✔  And the field "SHORT-VIEW" should have length 10
+   ✔  And the field "SHORT-VIEW" should redefine "LONG-FIELD"
+  Scenario: REDEFINES preserves field ordering
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "FIELD-A" should be present
+   ✔  And the field "FIELD-A-ALT" should be present
+   ✔  And the field "FIELD-B" should be present
+Feature: Round-Trip Fidelity
+  Scenario: Roundtrip simple PIC X field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip numeric PIC 9 field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "0012345"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip implied decimal field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "0012345"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip COMP-3 packed decimal field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip COMP binary integer field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip multi-field record
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "CUSTOMER0012300NOTES"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip preserves trailing spaces
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "AB        "
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip preserves leading zeros
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "00000001"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip with CP037 codepage
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP037"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: Roundtrip with CP500 codepage
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP500"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: Roundtrip with CP1047 codepage
+   ✔  Given a copybook with content:
+   ✔  And codepage "CP1047"
+   ✔  And binary data for all fields
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+  Scenario: Roundtrip determinism across two runs
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "0001ABCDEF"
+   ✔  When round-trip determinism is checked
+   ✔  Then determinism should pass
+   ✔  And the round 1 hash should equal to round 2 hash
+   ✔  And there should be no byte differences
+  Scenario: Roundtrip nested group structure
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "0001ABCDEF00123"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+  Scenario: Roundtrip zero-value numeric field
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "0000000"
+   ✔  When the data is round-tripped
+   ✔  Then the round-trip should be lossless
+   ✔  And decoding should succeed
+   ✔  And encoding should succeed
+Feature: Safe operations contract
+  Scenario: parse a valid unsigned integer
+   ✔  Given the safe-op input is "2048"
+   ✔  When safe_ops parses the input as usize
+   ✔  Then the parse result should be 2048
+  Scenario: parse an invalid unsigned integer
+   ✔  Given the safe-op input is "not-a-number"
+   ✔  When safe_ops parses the input as usize
+   ✔  Then safe_ops should report a syntax error
+  Scenario: compute checked array bounds
+   ✔  When safe_array_bound is called with base 10, count 3, and item size 4
+   ✔  Then safe_array_bound should return 22
+  Scenario: handle divide-by-zero without panic
+   ✔  When safe_divide is called with numerator 10 and denominator 0
+   ✔  Then safe_ops should report a syntax error
+  Scenario: parse a valid signed integer via safe-text
+   ✔  Given the safe-op input is "-42"
+   ✔  When safe_text parses the input as isize
+   ✔  Then the safe-text isize parse result should be -42
+  Scenario: parse a valid u16 via safe-text
+   ✔  Given the safe-op input is "65535"
+   ✔  When safe_text parses the input as u16
+   ✔  Then the safe-text u16 parse result should be 65535
+  Scenario: read a string character in safe-text
+   ✔  Given the safe-op input is "abc"
+   ✔  When safe_text gets character at index 1
+   ✔  Then the safe-text character should be "b"
+  Scenario: safe-text reports char out-of-range error
+   ✔  Given the safe-op input is "abc"
+   ✔  When safe_text gets character at index 10
+   ✔  Then safe_ops should report a syntax error
+  Scenario: read an in-range index via safe-index
+   ✔  When safe_index gets element at index 1
+   ✔  Then safe_index should return 20
+  Scenario: report error for out-of-range safe-index access
+   ✔  When safe_index gets element at index 99
+   ✔  Then safe_ops should report a syntax error
+Feature: Sign Handling for Zoned Decimal Fields
+  Scenario: Overpunch positive sign decode with trailing {
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234{"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "BAL"
+  Scenario: Overpunch positive sign decode with trailing A
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234A"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Overpunch positive zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "0000{"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field BAL should be 0
+  Scenario: Overpunch negative sign decode with trailing }
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234}"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Overpunch negative sign decode with trailing J
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234J"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Overpunch negative large value
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "12345678}"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Sign separate leading positive
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE LEADING
+   ✔  And binary data: "+12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMT"
+  Scenario: Sign separate leading negative
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE LEADING
+   ✔  And binary data: "-12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Sign separate leading zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE LEADING
+   ✔  And binary data: "+00000"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Sign separate trailing positive
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE TRAILING
+   ✔  And binary data: "12345+"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "AMT"
+  Scenario: Sign separate trailing negative
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE TRAILING
+   ✔  And binary data: "12345-"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Sign separate trailing zero
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE TRAILING
+   ✔  And binary data: "00000+"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Overpunch sign round-trip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234{"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: Sign separate leading round-trip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE LEADING
+   ✔  And binary data: "-12345"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: Sign separate trailing round-trip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE TRAILING
+   ✔  And binary data: "12345-"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: Unsigned numeric decode
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And decoded field QTY should be 12345
+  Scenario: Unsigned numeric round-trip
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "12345"
+   ✔  When the data is round-tripped
+   ✔  Then decoding should succeed
+   ✔  And encoding should succeed
+   ✔  And the round-trip should be lossless
+  Scenario: Overpunch sign with implied decimal
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data: "1234{"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "RATE"
+  Scenario: Sign separate leading with implied decimal
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE LEADING
+   ✔  And binary data: "+12345"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Sign separate trailing with implied decimal
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with SIGN SEPARATE TRAILING
+   ✔  And binary data: "12345+"
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+  Scenario: Encode positive signed zoned decimal
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 5 bytes
+  Scenario: Encode negative signed zoned decimal
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And JSON data:
+   ✔  When the JSON data is encoded
+   ✔  Then encoding should succeed
+   ✔  And the encoded output should be 5 bytes
+  Scenario: Parse signed field byte length includes sign separate
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "AMT" should be 6 bytes long
+  Scenario: Parse signed field without sign separate
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  When the copybook is parsed
+   ✔  Then the schema should be successfully parsed
+   ✔  And the field "AMT" should be 5 bytes long
+  Scenario: Decode record with mixed sign handling
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And binary data for all fields
+   ✔  When the binary data is decoded
+   ✔  Then decoding should succeed
+   ✔  And the decoded output should be valid JSON
+   ✔  And the decoded output should contain "OVERPUNCH-FLD"
+   ✔  And the decoded output should contain "UNSIGNED-FLD"
+   ✔  And the decoded output should contain "PACKED-FLD"
+Feature: Support Command
+  Scenario: Query all features in support matrix
+   ✔  When the support matrix is queried
+   ✔  Then the matrix should include "Level88Conditions" feature
+  Scenario: Check Level-88 conditions feature
+   ✔  When feature "level-88" is checked
+   ✔  Then the feature should have status "Supported"
+  Scenario: Check Level-66 RENAMES feature
+   ✔  When feature "level-66-renames" is checked
+   ✔  Then the feature should have status "Partial"
+  Scenario: Check OCCURS DEPENDING ON feature
+   ✔  When feature "occurs-depending" is checked
+   ✔  Then the feature should have status "Partial"
+  Scenario: Check Edited PIC feature
+   ✔  When feature "edited-pic" is checked
+   ✔  Then the feature should have status "Supported"
+  Scenario: Check SIGN SEPARATE feature
+   ✔  When feature "sign-separate" is checked
+   ✔  Then the feature should have status "Supported"
+  Scenario: Matrix includes multiple features
+   ✔  When the support matrix is queried
+   ✔  Then the matrix should include "Level66Renames" feature
+  Scenario: Unknown feature returns error
+   ✔  When feature "nonexistent-feature" is checked
+   ✔  Then an error should occur
+  Scenario: Feature-governance mapping for signed separate
+   ✔  When the governance mapping is checked for feature "sign-separate"
+   ✔  Then the governance mapping should include feature flag "sign_separate"
+  Scenario: Feature-governance mapping for COMP-1/COMP-2
+   ✔  When the governance mapping is checked for feature "comp-1-comp-2"
+   ✔  Then the governance mapping should include feature flag "comp_1"
+   ✔  And the governance mapping should include feature flag "comp_2"
+  Scenario: Governance summary is complete
+   ✔  When the governance grid summary is checked
+   ✔  Then the governance summary should map 7 support entries
+   ✔  And the matrix should include "EditedPic" feature
+  Scenario: Governance runtime summary reports feature-flag gating state
+   ✔  When the support matrix runtime availability is checked
+   ✔  Then the command output should report 7 runtime enabled and 0 runtime disabled support entries
+  Scenario: Governance runtime summary reflects disabled feature flags
+   ✔  When the support matrix runtime availability is checked with sign-separate disabled
+   ✔  Then the command output should report 6 runtime enabled and 1 runtime disabled support entries
+Feature: Test Projection Minimal
+  Scenario: Test simple projection
+   ✔> Given ASCII codepage
+   ✔  Given a copybook with content:
+   ✔  And field selection: "TEST-FIELD"
+   ✔  When the copybook is parsed
+   ✔  And the schema is projected with selected fields
+   ✔  Then the projection should succeed
+Feature: Verify Command
+  Scenario: Verify valid fixed-length data
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "JOHN DOE  025"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+   ✔  And the verify report should contain 0 errors
+  Scenario: Verify truncated data fails
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "SHORT"
+   ✔  When the data is verified
+   ✔  Then verification should fail
+  Scenario: Verify valid numeric data
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "001234599"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify with JSON report format
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLO"
+   ✔  When the data is verified with JSON report
+   ✔  Then verification should succeed
+   ✔  And the verify report should be valid JSON
+  Scenario: Verify with field projection
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And field selection: "FIELD-A"
+   ✔  And binary data: "HELLOWORLD"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify all-spaces data
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "          "
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify COMP-3 data
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x01\x23\x4C"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify with strict mode
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And strict mode
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify with lenient mode
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And lenient mode
+   ✔  And binary data: "ABCDEFGHIJ"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify empty record
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: ""
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify group-level copybook
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLO123WORLD"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+  Scenario: Verify with Normative dialect
+   ✔  Given a copybook with content:
+   ✔  And Normative dialect
+   ✔  And ASCII codepage
+   ✔  And binary data: "002ITEM1ITEM2"
+   ✔  When the copybook is parsed
+   ✔  Then parsing should succeed
+  Scenario: Verify JSON report contains status
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "HELLO"
+   ✔  When the data is verified with JSON report
+   ✔  Then the verify report should be valid JSON
+  Scenario: Verify binary integer data
+   ✔  Given a copybook with content:
+   ✔  And ASCII codepage
+   ✔  And binary data: "\x00\x2A"
+   ✔  When the data is verified
+   ✔  Then verification should succeed
+[Summary]
+38 features
+507 scenarios (478 passed, 29 skipped)
+3034 steps (3005 passed, 29 skipped)

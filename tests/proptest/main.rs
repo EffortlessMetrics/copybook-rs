@@ -28,6 +28,7 @@ mod prop_determinism;
 mod prop_edited_pic;
 mod prop_edited_pic_extended;
 mod prop_encode_roundtrip;
+mod prop_error_handling;
 mod prop_field_layout;
 mod prop_field_roundtrip;
 mod prop_governance;

@@ -30,6 +30,10 @@ path = "e2e_error_handling.rs"
 name = "e2e_determinism"
 path = "e2e_determinism.rs"
 
+[[test]]
+name = "e2e_error_code_coverage"
+path = "e2e_error_code_coverage.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

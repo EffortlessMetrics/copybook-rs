@@ -94,6 +94,10 @@ path = "e2e_streaming.rs"
 name = "e2e_multi_record_edge"
 path = "e2e_multi_record_edge.rs"
 
+[[test]]
+name = "e2e_cli_output_snapshots"
+path = "e2e_cli_output_snapshots.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

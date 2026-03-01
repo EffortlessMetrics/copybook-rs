@@ -651,3 +651,320 @@ fn scratch_buffer_reuse_across_schemas() {
         assert_eq!(out2, ref2, "Scratch reuse corrupted schema2 output");
     }
 }
+
+// ===========================================================================
+// 21. Parse determinism — same copybook → same schema JSON 100 times
+// ===========================================================================
+
+#[test]
+fn parse_determinism_100_iterations() {
+    let copybook = r"
+       01 CUSTOMER-RECORD.
+          05 CUST-ID      PIC 9(8).
+          05 CUST-NAME    PIC X(30).
+          05 CUST-BALANCE PIC S9(7)V99.
+          05 STATUS       PIC X(1).
+    ";
+
+    let first = parse_copybook(copybook).expect("parse");
+    let reference = serde_json::to_string(&first).unwrap();
+
+    for i in 1..100 {
+        let schema = parse_copybook(copybook).expect("parse");
+        let json = serde_json::to_string(&schema).unwrap();
+        assert_eq!(json, reference, "Parse output diverged on iteration {i}");
+    }
+}
+
+// ===========================================================================
+// 22. Parse determinism with group structure
+// ===========================================================================
+
+#[test]
+fn parse_determinism_nested_groups() {
+    let copybook = r"
+       01 ORDER.
+          05 ORDER-ID   PIC 9(10).
+          05 CUSTOMER.
+             10 NAME    PIC X(20).
+             10 ADDR    PIC X(40).
+          05 TOTAL      PIC 9(7)V99.
+    ";
+
+    let first = serde_json::to_string(&parse_copybook(copybook).expect("parse")).unwrap();
+
+    for i in 1..100 {
+        let json = serde_json::to_string(&parse_copybook(copybook).expect("parse")).unwrap();
+        assert_eq!(json, first, "Nested group parse diverged on iteration {i}");
+    }
+}
+
+// ===========================================================================
+// 23. Decode determinism with signed zoned decimal
+// ===========================================================================
+
+#[test]
+fn decode_signed_zoned_deterministic() {
+    let copybook = r"
+       01 RECORD.
+          05 AMOUNT PIC S9(5)V99.
+    ";
+    let schema = parse_copybook(copybook).expect("parse");
+    // S9(5)V99 display: "0012345" with positive overpunch on last digit
+    // 0xF0 F0 F1 F2 F3 F4 C5 = +01234.55
+    let data: Vec<u8> = vec![0xF0, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xC5];
+    let opts = decode_opts();
+
+    let reference =
+        serde_json::to_string(&decode_record(&schema, &data, &opts).expect("decode")).unwrap();
+
+    for i in 1..100 {
+        let val =
+            serde_json::to_string(&decode_record(&schema, &data, &opts).expect("decode")).unwrap();
+        assert_eq!(val, reference, "Signed zoned decode diverged on iteration {i}");
+    }
+}
+
+// ===========================================================================
+// 24. Encode determinism with multi-field schema 100 times
+// ===========================================================================
+
+#[test]
+fn encode_multi_field_100_times_identical() {
+    let copybook = r"
+       01 RECORD.
+          05 NAME   PIC X(10).
+          05 AGE    PIC 9(3).
+          05 AMOUNT PIC 9(5)V99.
+    ";
+    let schema = parse_copybook(copybook).expect("parse");
+    let json = serde_json::json!({"NAME": "JOHN", "AGE": "25", "AMOUNT": "12345.67"});
+    let opts = encode_opts();
+
+    let reference = encode_record(&schema, &json, &opts).expect("encode");
+
+    for i in 1..100 {
+        let output = encode_record(&schema, &json, &opts).expect("encode");
+        assert_eq!(output, reference, "Multi-field encode diverged on iteration {i}");
+    }
+}
+
+// ===========================================================================
+// 25. Cross-thread decode determinism — 4 threads same output
+// ===========================================================================
+
+#[test]
+fn cross_thread_decode_4_threads_same_output() {
+    let schema = parse_copybook(MULTI_FIELD_COPYBOOK).expect("parse");
+    let data = multi_field_data();
+    let opts = decode_opts();
+
+    let reference =
+        serde_json::to_vec(&decode_record(&schema, &data, &opts).expect("decode")).unwrap();
+    let ref_hash = blake3_hex(&reference);
+
+    let handles: Vec<_> = (0..4)
+        .map(|_| {
+            let schema = schema.clone();
+            let data = data.clone();
+            let opts = opts.clone();
+            std::thread::spawn(move || {
+                let mut results = Vec::with_capacity(25);
+                for _ in 0..25 {
+                    let out = serde_json::to_vec(
+                        &decode_record(&schema, &data, &opts).expect("decode"),
+                    )
+                    .unwrap();
+                    results.push(blake3_hex(&out));
+                }
+                results
+            })
+        })
+        .collect();
+
+    for (tid, handle) in handles.into_iter().enumerate() {
+        let hashes = handle.join().expect("thread join");
+        for (i, hash) in hashes.iter().enumerate() {
+            assert_eq!(
+                hash, &ref_hash,
+                "Thread {tid} iteration {i}: decode hash diverged"
+            );
+        }
+    }
+}
+
+// ===========================================================================
+// 26. Cross-thread encode determinism — 4 threads same output
+// ===========================================================================
+
+#[test]
+fn cross_thread_encode_4_threads_same_output() {
+    let schema = parse_copybook(SIMPLE_COPYBOOK).expect("parse");
+    let json = serde_json::json!({"FIELD-A": "TESTS"});
+    let opts = encode_opts();
+
+    let reference = encode_record(&schema, &json, &opts).expect("encode");
+    let ref_hash = blake3_hex(&reference);
+
+    let handles: Vec<_> = (0..4)
+        .map(|_| {
+            let schema = schema.clone();
+            let json = json.clone();
+            let opts = opts.clone();
+            std::thread::spawn(move || {
+                let mut results = Vec::with_capacity(25);
+                for _ in 0..25 {
+                    let out = encode_record(&schema, &json, &opts).expect("encode");
+                    results.push(blake3_hex(&out));
+                }
+                results
+            })
+        })
+        .collect();
+
+    for (tid, handle) in handles.into_iter().enumerate() {
+        let hashes = handle.join().expect("thread join");
+        for (i, hash) in hashes.iter().enumerate() {
+            assert_eq!(
+                hash, &ref_hash,
+                "Thread {tid} iteration {i}: encode hash diverged"
+            );
+        }
+    }
+}
+
+// ===========================================================================
+// 27. Schema fingerprint stable across 100 parses (diverse schema)
+// ===========================================================================
+
+#[test]
+fn schema_fingerprint_stable_diverse_schema() {
+    let copybook = r"
+       01 TRANSACTION.
+          05 TXN-ID       PIC 9(12).
+          05 TXN-TYPE     PIC X(4).
+          05 TXN-AMOUNT   PIC S9(9)V99 COMP-3.
+          05 TXN-DATE     PIC 9(8).
+          05 ITEMS PIC X(5) OCCURS 3 TIMES.
+    ";
+
+    let first = parse_copybook(copybook).expect("parse");
+    let ref_fp = first.fingerprint.clone();
+
+    for i in 1..100 {
+        let schema = parse_copybook(copybook).expect("parse");
+        assert_eq!(
+            schema.fingerprint, ref_fp,
+            "Fingerprint diverged on iteration {i}"
+        );
+    }
+}
+
+// ===========================================================================
+// 28. Round-trip determinism with COMP-3 field
+// ===========================================================================
+
+#[test]
+fn round_trip_comp3_deterministic() {
+    let copybook = r"
+       01 RECORD.
+          05 LABEL  PIC X(5).
+          05 AMOUNT PIC S9(5)V99 COMP-3.
+    ";
+    let schema = parse_copybook(copybook).expect("parse");
+    // LABEL = "ABCDE" in EBCDIC + COMP-3 +12345.67 → 0x12 0x34 0x56 0x7C
+    let data: Vec<u8> = vec![
+        0xC1, 0xC2, 0xC3, 0xC4, 0xC5, // ABCDE
+        0x12, 0x34, 0x56, 0x7C,         // +1234.567 COMP-3
+    ];
+
+    let result =
+        check_round_trip_determinism(&schema, &data, &decode_opts(), &encode_opts()).expect("rt");
+    assert!(
+        result.is_deterministic,
+        "Round-trip with COMP-3 was not deterministic"
+    );
+}
+
+// ===========================================================================
+// 29. Decode determinism with trailing spaces
+// ===========================================================================
+
+#[test]
+fn decode_trailing_spaces_deterministic() {
+    let copybook = r"
+       01 RECORD.
+          05 FIELD-1 PIC X(20).
+    ";
+    let schema = parse_copybook(copybook).expect("parse");
+    // "HI" followed by 18 EBCDIC spaces (0x40)
+    let mut data = vec![0xC8, 0xC9]; // HI
+    data.extend_from_slice(&vec![0x40; 18]);
+    let opts = decode_opts();
+
+    let reference =
+        serde_json::to_string(&decode_record(&schema, &data, &opts).expect("decode")).unwrap();
+
+    for i in 1..100 {
+        let val =
+            serde_json::to_string(&decode_record(&schema, &data, &opts).expect("decode")).unwrap();
+        assert_eq!(val, reference, "Trailing spaces decode diverged on iteration {i}");
+    }
+}
+
+// ===========================================================================
+// 30. Encode determinism with padding required
+// ===========================================================================
+
+#[test]
+fn encode_with_padding_deterministic() {
+    let copybook = r"
+       01 RECORD.
+          05 FIELD-1 PIC X(20).
+    ";
+    let schema = parse_copybook(copybook).expect("parse");
+    let json = serde_json::json!({"FIELD-1": "AB"});
+    let opts = encode_opts();
+
+    let reference = encode_record(&schema, &json, &opts).expect("encode");
+    assert_eq!(reference.len(), 20, "Padded record should be 20 bytes");
+
+    for i in 1..100 {
+        let output = encode_record(&schema, &json, &opts).expect("encode");
+        assert_eq!(output, reference, "Padded encode diverged on iteration {i}");
+    }
+}
+
+// ===========================================================================
+// 31. Blake3 hash consistency for known input
+// ===========================================================================
+
+#[test]
+fn blake3_hash_known_input_consistent() {
+    let input = b"determinism proof test data 2025";
+    let first_hash = blake3_hex(input);
+
+    for _ in 0..100 {
+        assert_eq!(blake3_hex(input), first_hash, "blake3 hash must be stable");
+    }
+}
+
+// ===========================================================================
+// 32. Compare outputs symmetry: A vs B same as B vs A
+// ===========================================================================
+
+#[test]
+fn compare_outputs_symmetry() {
+    let a = b"identical data";
+    let b = b"identical data";
+    let c = b"different data!";
+
+    let ab = compare_outputs(DeterminismMode::DecodeOnly, a, b);
+    let ba = compare_outputs(DeterminismMode::DecodeOnly, b, a);
+    assert_eq!(ab.is_deterministic, ba.is_deterministic);
+
+    let ac = compare_outputs(DeterminismMode::DecodeOnly, a, c);
+    let ca = compare_outputs(DeterminismMode::DecodeOnly, c, a);
+    assert_eq!(ac.is_deterministic, ca.is_deterministic);
+    assert!(!ac.is_deterministic, "Different data should not be deterministic");
+}

@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-e2e"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "End-to-end integration tests for copybook-rs"
+publish = false
+
+[lints]
+workspace = true
+
+[[test]]
+name = "e2e_decode_encode_roundtrip"
+path = "e2e_decode_encode_roundtrip.rs"
+
+[[test]]
+name = "e2e_field_projection"
+path = "e2e_field_projection.rs"
+
+[[test]]
+name = "e2e_error_handling"
+path = "e2e_error_handling.rs"
+
+[[test]]
+name = "e2e_determinism"
+path = "e2e_determinism.rs"
+
+[[test]]
+name = "e2e_error_code_coverage"
+path = "e2e_error_code_coverage.rs"
+
+[[test]]
+name = "e2e_error_paths"
+path = "e2e_error_paths.rs"
+
+[[test]]
+name = "e2e_dialect_integration"
+path = "e2e_dialect_integration.rs"
+
+[[test]]
+name = "e2e_large_schema"
+path = "e2e_large_schema.rs"
+
+[[test]]
+name = "e2e_determinism_extended"
+path = "e2e_determinism_extended.rs"
+
+[[test]]
+name = "e2e_fidelity_roundtrip"
+path = "e2e_fidelity_roundtrip.rs"
+
+[[test]]
+name = "e2e_cli_exit_codes"
+path = "e2e_cli_exit_codes.rs"
+
+[[test]]
+name = "e2e_error_taxonomy_complete"
+path = "e2e_error_taxonomy_complete.rs"
+
+[[test]]
+name = "e2e_cli_integration"
+path = "e2e_cli_integration.rs"
+
+[[test]]
+name = "e2e_parallel_determinism"
+path = "e2e_parallel_determinism.rs"
+
+[[test]]
+name = "e2e_error_codes"
+path = "e2e_error_codes.rs"
+
+[[test]]
+name = "e2e_decode_encode_comprehensive"
+path = "e2e_decode_encode_comprehensive.rs"
+
+[[test]]
+name = "e2e_projection_dialect"
+path = "e2e_projection_dialect.rs"
+
+[[test]]
+name = "e2e_cli_subcommands"
+path = "e2e_cli_subcommands.rs"
+
+[[test]]
+name = "e2e_streaming"
+path = "e2e_streaming.rs"
+
+[[test]]
+name = "e2e_multi_record_edge"
+path = "e2e_multi_record_edge.rs"
+
+[[test]]
+name = "e2e_cli_error_code_coverage"
+path = "e2e_cli_error_code_coverage.rs"
+
+[[test]]
+name = "e2e_cli_output_snapshots"
+path = "e2e_cli_output_snapshots.rs"
+
+[dependencies]
+copybook-core.workspace = true
+copybook-codec.workspace = true
+copybook-error.workspace = true
+copybook-sequence-ring.workspace = true
+tempfile.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+base64.workspace = true
+assert_cmd.workspace = true
+predicates.workspace = true
+regex.workspace = true

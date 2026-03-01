@@ -30,8 +30,6 @@ jobs:
 
     - name: Setup Rust toolchain
       uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
 
     - name: Cache cargo artifacts
       uses: Swatinem/rust-cache@v2
@@ -48,11 +46,11 @@ jobs:
           --exclude copybook-bench \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
-          --exclude-files 'xtask/*' \
-          --exclude-files 'copybook-cli/tests/*' \
-          --exclude-files 'copybook-core/tests/*' \
-          --exclude-files 'copybook-codec/tests/*' \
-          --exclude-files 'copybook-arrow/tests/*' \
+          --exclude-files 'tools/xtask/*' \
+          --exclude-files 'crates/copybook-cli/tests/*' \
+          --exclude-files 'crates/copybook-core/tests/*' \
+          --exclude-files 'crates/copybook-codec/tests/*' \
+          --exclude-files 'crates/copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage \
           --verbose \
@@ -113,8 +111,6 @@ jobs:
 
     - name: Setup Rust toolchain
       uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
 
     - name: Cache cargo artifacts
       uses: Swatinem/rust-cache@v2
@@ -134,11 +130,11 @@ jobs:
           --exclude copybook-bench \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
-          --exclude-files 'xtask/*' \
-          --exclude-files 'copybook-cli/tests/*' \
-          --exclude-files 'copybook-core/tests/*' \
-          --exclude-files 'copybook-codec/tests/*' \
-          --exclude-files 'copybook-arrow/tests/*' \
+          --exclude-files 'tools/xtask/*' \
+          --exclude-files 'crates/copybook-cli/tests/*' \
+          --exclude-files 'crates/copybook-core/tests/*' \
+          --exclude-files 'crates/copybook-codec/tests/*' \
+          --exclude-files 'crates/copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage-base \
           --timeout 300 \
@@ -151,11 +147,11 @@ jobs:
           --exclude copybook-bench \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
-          --exclude-files 'xtask/*' \
-          --exclude-files 'copybook-cli/tests/*' \
-          --exclude-files 'copybook-core/tests/*' \
-          --exclude-files 'copybook-codec/tests/*' \
-          --exclude-files 'copybook-arrow/tests/*' \
+          --exclude-files 'tools/xtask/*' \
+          --exclude-files 'crates/copybook-cli/tests/*' \
+          --exclude-files 'crates/copybook-core/tests/*' \
+          --exclude-files 'crates/copybook-codec/tests/*' \
+          --exclude-files 'crates/copybook-arrow/tests/*' \
           --out Xml \
           --output-dir ./coverage-pr \
           --timeout 300 \

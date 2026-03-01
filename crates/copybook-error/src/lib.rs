@@ -1,0 +1,971 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//! Error types and taxonomy for copybook-rs
+//!
+//! This module defines a comprehensive error taxonomy with stable error codes
+//! for all failure modes in the copybook processing system.
+
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use thiserror::Error;
+
+/// Result type alias for copybook operations
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// Main error type for copybook operations
+///
+/// Uses thiserror for clean error handling with manual Display implementation
+/// to avoid allocations in hot paths.
+#[derive(Error, Debug, Clone, PartialEq)]
+pub struct Error {
+    /// Stable error code for programmatic handling
+    pub code: ErrorCode,
+
+    /// Human-readable error message
+    pub message: String,
+
+    /// Optional context information
+    pub context: Option<ErrorContext>,
+}
+
+// Manual Display implementation to avoid allocations when context is None
+impl fmt::Display for Error {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.code, self.message)?;
+        if let Some(ref ctx) = self.context {
+            write!(f, " ({ctx})")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error {
+    /// Return the stable error code for this error.
+    #[inline]
+    #[must_use]
+    pub const fn code(&self) -> ErrorCode {
+        self.code
+    }
+
+    /// Return the CBK* family prefix associated with this error.
+    #[inline]
+    #[must_use]
+    pub const fn family_prefix(&self) -> &'static str {
+        self.code.family_prefix()
+    }
+}
+
+/// Stable error codes for programmatic error handling
+///
+/// The copybook-rs error taxonomy uses a structured approach with stable error codes
+/// that enable programmatic error handling across all components. Each code follows
+/// the pattern `CBK[Category][Number]_[Description]` where:
+///
+/// - **CBKP**: Parse errors during copybook analysis
+/// - **CBKS**: Schema validation and ODO processing
+/// - **CBKR**: Record format and RDW processing
+/// - **CBKC**: Character conversion and encoding
+/// - **CBKD**: Data decoding and field validation
+/// - **CBKE**: Encoding and JSON serialization
+/// - **CBKF**: File format and structure validation
+/// - **CBKI**: Iterator and infrastructure state validation (e.g., fixed-format without LRECL -> `CBKI001_INVALID_STATE`)
+///
+/// Implements `Serialize`/`Deserialize` for error code persistence and API responses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[allow(non_camel_case_types)] // These are stable external error codes
+pub enum ErrorCode {
+    // =============================================================================
+    // Parse Errors (CBKP*) - Copybook syntax and COBOL clause processing
+    // =============================================================================
+    /// CBKP001: General copybook syntax error during parsing
+    CBKP001_SYNTAX,
+    /// CBKP011: Unsupported COBOL clause or feature encountered
+    CBKP011_UNSUPPORTED_CLAUSE,
+    /// CBKP021: ODO (OCCURS DEPENDING ON) array not at tail position
+    CBKP021_ODO_NOT_TAIL,
+    /// CBKP022: Nested ODO (OCCURS DEPENDING ON inside another OCCURS/ODO)
+    CBKP022_NESTED_ODO,
+    /// CBKP023: ODO (OCCURS DEPENDING ON) over REDEFINES
+    CBKP023_ODO_REDEFINES,
+    /// CBKP051: Unsupported edited PIC clause pattern
+    CBKP051_UNSUPPORTED_EDITED_PIC,
+    /// CBKP101: Invalid PIC clause syntax or illegal characters
+    CBKP101_INVALID_PIC,
+
+    // =============================================================================
+    // Schema Errors (CBKS*) - Schema validation and ODO processing
+    // =============================================================================
+    /// CBKS121: ODO counter field not found in schema
+    CBKS121_COUNTER_NOT_FOUND,
+    /// CBKS141: Record size exceeds maximum allowable limit
+    CBKS141_RECORD_TOO_LARGE,
+    /// CBKS301: ODO count clipped to maximum allowed value (warning)
+    CBKS301_ODO_CLIPPED,
+    /// CBKS302: ODO count raised to minimum required value (warning)
+    CBKS302_ODO_RAISED,
+    /// CBKS601: RENAMES from field not found in scope
+    CBKS601_RENAME_UNKNOWN_FROM,
+    /// CBKS602: RENAMES thru field not found in scope
+    CBKS602_RENAME_UNKNOWN_THRU,
+    /// CBKS603: RENAMES range is not contiguous (gap between from and thru)
+    CBKS603_RENAME_NOT_CONTIGUOUS,
+    /// CBKS604: RENAMES range is reversed (from comes after thru)
+    CBKS604_RENAME_REVERSED_RANGE,
+    /// CBKS605: RENAMES from field crosses group boundary
+    CBKS605_RENAME_FROM_CROSSES_GROUP,
+    /// CBKS606: RENAMES thru field crosses group boundary
+    CBKS606_RENAME_THRU_CROSSES_GROUP,
+    /// CBKS607: RENAMES range crosses OCCURS boundary
+    CBKS607_RENAME_CROSSES_OCCURS,
+    /// CBKS608: RENAMES qualified name not found
+    CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND,
+    /// CBKS609: RENAMES alias spans REDEFINES field(s) (R4 scenario)
+    CBKS609_RENAME_OVER_REDEFINES,
+    /// CBKS610: RENAMES spans multiple REDEFINES alternatives (R4 scenario)
+    CBKS610_RENAME_MULTIPLE_REDEFINES,
+    /// CBKS611: RENAMES spans partial array elements (R5 scenario)
+    CBKS611_RENAME_PARTIAL_OCCURS,
+    /// CBKS612: RENAMES with ODO arrays not supported (R5 scenario)
+    CBKS612_RENAME_ODO_NOT_SUPPORTED,
+    /// CBKS701: Field projection error - ODO array without accessible counter
+    CBKS701_PROJECTION_INVALID_ODO,
+    /// CBKS702: Field projection error - RENAMES alias spans unselected fields
+    CBKS702_PROJECTION_UNRESOLVED_ALIAS,
+    /// CBKS703: Field projection error - selected field not found in schema
+    CBKS703_PROJECTION_FIELD_NOT_FOUND,
+
+    // =============================================================================
+    // Record Errors (CBKR*) - Record format and RDW processing
+    // =============================================================================
+    /// CBKR211: RDW reserved bytes contain non-zero values
+    CBKR211_RDW_RESERVED_NONZERO,
+
+    // =============================================================================
+    // Character Conversion Errors (CBKC*) - EBCDIC/ASCII conversion
+    // =============================================================================
+    /// CBKC201: JSON serialization write error
+    CBKC201_JSON_WRITE_ERROR,
+    /// CBKC301: Invalid EBCDIC byte encountered during conversion
+    CBKC301_INVALID_EBCDIC_BYTE,
+
+    // =============================================================================
+    // Data Decode Errors (CBKD*) - Field validation and numeric processing
+    // =============================================================================
+    /// CBKD101: Invalid field type for requested operation
+    CBKD101_INVALID_FIELD_TYPE,
+    /// CBKD301: Record data too short for field requirements
+    CBKD301_RECORD_TOO_SHORT,
+    /// CBKD302: Edited PIC field encountered during decode (Phase E1: not implemented)
+    CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
+    /// CBKD401: Invalid packed decimal nibble value
+    CBKD401_COMP3_INVALID_NIBBLE,
+    /// CBKD410: Zoned decimal value exceeded numeric capacity
+    CBKD410_ZONED_OVERFLOW,
+    /// CBKD411: Invalid zoned decimal sign zone
+    CBKD411_ZONED_BAD_SIGN,
+    /// CBKD412: Zoned field contains all spaces (BLANK WHEN ZERO processing)
+    CBKD412_ZONED_BLANK_IS_ZERO,
+    /// CBKD413: Invalid zoned decimal encoding format detected
+    CBKD413_ZONED_INVALID_ENCODING,
+    /// CBKD414: Mixed ASCII/EBCDIC encoding within single zoned field
+    CBKD414_ZONED_MIXED_ENCODING,
+    /// CBKD415: Zoned encoding detection failed or remains ambiguous
+    CBKD415_ZONED_ENCODING_AMBIGUOUS,
+    /// CBKD421: Edited PIC decode failed - invalid format (mismatch between data and pattern)
+    CBKD421_EDITED_PIC_INVALID_FORMAT,
+    /// CBKD422: Edited PIC sign editing mismatch
+    CBKD422_EDITED_PIC_SIGN_MISMATCH,
+    /// CBKD423: Edited PIC blank when zero handling error
+    CBKD423_EDITED_PIC_BLANK_WHEN_ZERO,
+    /// CBKD431: Floating-point field contains NaN (decoded as null)
+    CBKD431_FLOAT_NAN,
+    /// CBKD432: Floating-point field contains infinity (decoded as null)
+    CBKD432_FLOAT_INFINITY,
+
+    // =============================================================================
+    // Infrastructure Errors (CBKI*) - Iterator and internal state validation
+    // =============================================================================
+    /// CBKI001: Iterator or decoder encountered an invalid internal state
+    CBKI001_INVALID_STATE,
+
+    // =============================================================================
+    // Encode Errors (CBKE*) - JSON to binary encoding validation
+    // =============================================================================
+    /// CBKE501: JSON value type doesn't match expected field type
+    CBKE501_JSON_TYPE_MISMATCH,
+    /// CBKE505: Decimal scale mismatch during field encoding
+    CBKE505_SCALE_MISMATCH,
+    /// CBKE510: Numeric value overflow for field capacity
+    CBKE510_NUMERIC_OVERFLOW,
+    /// CBKE515: String length exceeds field size limit
+    CBKE515_STRING_LENGTH_VIOLATION,
+    /// CBKE521: Array length exceeds ODO bounds
+    CBKE521_ARRAY_LEN_OOB,
+    /// CBKE530: SIGN SEPARATE encode error
+    CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+    /// CBKE531: Float encode overflow (f64 value too large for f32 COMP-1 field)
+    CBKE531_FLOAT_ENCODE_OVERFLOW,
+
+    // =============================================================================
+    // File/Format Errors (CBKF*) - File structure and format validation
+    // =============================================================================
+    /// CBKF102: RDW length field references incomplete or oversized payload
+    CBKF102_RECORD_LENGTH_INVALID,
+    /// CBKF104: RDW appears to be corrupted by ASCII conversion
+    CBKF104_RDW_SUSPECT_ASCII,
+    /// CBKF221: RDW length field indicates underflow condition
+    CBKF221_RDW_UNDERFLOW,
+
+    // =============================================================================
+    // Audit Errors (CBKA*) - Performance and compliance audit operations
+    // =============================================================================
+    /// CBKA001: Performance baseline operation error
+    CBKA001_BASELINE_ERROR,
+
+    // =============================================================================
+    // Arrow/Writer Errors (CBKW*) - Arrow and Parquet conversion errors
+    // =============================================================================
+    /// CBKW001: Failed COBOL to Arrow schema conversion
+    CBKW001_SCHEMA_CONVERSION,
+    /// CBKW002: `FieldKind` has no valid Arrow type mapping
+    CBKW002_TYPE_MAPPING,
+    /// CBKW003: Decimal precision exceeds Decimal128 limit (38 digits)
+    CBKW003_DECIMAL_OVERFLOW,
+    /// CBKW004: `RecordBatch` construction failure
+    CBKW004_BATCH_BUILD,
+    /// CBKW005: Parquet file write failure
+    CBKW005_PARQUET_WRITE,
+}
+
+impl fmt::Display for ErrorCode {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let code_str = match self {
+            ErrorCode::CBKP001_SYNTAX => "CBKP001_SYNTAX",
+            ErrorCode::CBKP011_UNSUPPORTED_CLAUSE => "CBKP011_UNSUPPORTED_CLAUSE",
+            ErrorCode::CBKP021_ODO_NOT_TAIL => "CBKP021_ODO_NOT_TAIL",
+            ErrorCode::CBKP022_NESTED_ODO => "CBKP022_NESTED_ODO",
+            ErrorCode::CBKP023_ODO_REDEFINES => "CBKP023_ODO_REDEFINES",
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC => "CBKP051_UNSUPPORTED_EDITED_PIC",
+            ErrorCode::CBKP101_INVALID_PIC => "CBKP101_INVALID_PIC",
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND => "CBKS121_COUNTER_NOT_FOUND",
+            ErrorCode::CBKS141_RECORD_TOO_LARGE => "CBKS141_RECORD_TOO_LARGE",
+            ErrorCode::CBKS301_ODO_CLIPPED => "CBKS301_ODO_CLIPPED",
+            ErrorCode::CBKS302_ODO_RAISED => "CBKS302_ODO_RAISED",
+            ErrorCode::CBKS601_RENAME_UNKNOWN_FROM => "CBKS601_RENAME_UNKNOWN_FROM",
+            ErrorCode::CBKS602_RENAME_UNKNOWN_THRU => "CBKS602_RENAME_UNKNOWN_THRU",
+            ErrorCode::CBKS603_RENAME_NOT_CONTIGUOUS => "CBKS603_RENAME_NOT_CONTIGUOUS",
+            ErrorCode::CBKS604_RENAME_REVERSED_RANGE => "CBKS604_RENAME_REVERSED_RANGE",
+            ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP => "CBKS605_RENAME_FROM_CROSSES_GROUP",
+            ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP => "CBKS606_RENAME_THRU_CROSSES_GROUP",
+            ErrorCode::CBKS607_RENAME_CROSSES_OCCURS => "CBKS607_RENAME_CROSSES_OCCURS",
+            ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND => {
+                "CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND"
+            }
+            ErrorCode::CBKS609_RENAME_OVER_REDEFINES => "CBKS609_RENAME_OVER_REDEFINES",
+            ErrorCode::CBKS610_RENAME_MULTIPLE_REDEFINES => "CBKS610_RENAME_MULTIPLE_REDEFINES",
+            ErrorCode::CBKS611_RENAME_PARTIAL_OCCURS => "CBKS611_RENAME_PARTIAL_OCCURS",
+            ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED => "CBKS612_RENAME_ODO_NOT_SUPPORTED",
+            ErrorCode::CBKS701_PROJECTION_INVALID_ODO => "CBKS701_PROJECTION_INVALID_ODO",
+            ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS => "CBKS702_PROJECTION_UNRESOLVED_ALIAS",
+            ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS703_PROJECTION_FIELD_NOT_FOUND",
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO => "CBKR211_RDW_RESERVED_NONZERO",
+            ErrorCode::CBKC201_JSON_WRITE_ERROR => "CBKC201_JSON_WRITE_ERROR",
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE => "CBKC301_INVALID_EBCDIC_BYTE",
+            ErrorCode::CBKD101_INVALID_FIELD_TYPE => "CBKD101_INVALID_FIELD_TYPE",
+            ErrorCode::CBKD301_RECORD_TOO_SHORT => "CBKD301_RECORD_TOO_SHORT",
+            ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED => "CBKD302_EDITED_PIC_NOT_IMPLEMENTED",
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE => "CBKD401_COMP3_INVALID_NIBBLE",
+            ErrorCode::CBKD410_ZONED_OVERFLOW => "CBKD410_ZONED_OVERFLOW",
+            ErrorCode::CBKD411_ZONED_BAD_SIGN => "CBKD411_ZONED_BAD_SIGN",
+            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO => "CBKD412_ZONED_BLANK_IS_ZERO",
+            ErrorCode::CBKD413_ZONED_INVALID_ENCODING => "CBKD413_ZONED_INVALID_ENCODING",
+            ErrorCode::CBKD414_ZONED_MIXED_ENCODING => "CBKD414_ZONED_MIXED_ENCODING",
+            ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS => "CBKD415_ZONED_ENCODING_AMBIGUOUS",
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT => "CBKD421_EDITED_PIC_INVALID_FORMAT",
+            ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH => "CBKD422_EDITED_PIC_SIGN_MISMATCH",
+            ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO => "CBKD423_EDITED_PIC_BLANK_WHEN_ZERO",
+            ErrorCode::CBKD431_FLOAT_NAN => "CBKD431_FLOAT_NAN",
+            ErrorCode::CBKD432_FLOAT_INFINITY => "CBKD432_FLOAT_INFINITY",
+            ErrorCode::CBKI001_INVALID_STATE => "CBKI001_INVALID_STATE",
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH => "CBKE501_JSON_TYPE_MISMATCH",
+            ErrorCode::CBKE505_SCALE_MISMATCH => "CBKE505_SCALE_MISMATCH",
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW => "CBKE510_NUMERIC_OVERFLOW",
+            ErrorCode::CBKE515_STRING_LENGTH_VIOLATION => "CBKE515_STRING_LENGTH_VIOLATION",
+            ErrorCode::CBKE521_ARRAY_LEN_OOB => "CBKE521_ARRAY_LEN_OOB",
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR => "CBKE530_SIGN_SEPARATE_ENCODE_ERROR",
+            ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW => "CBKE531_FLOAT_ENCODE_OVERFLOW",
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID => "CBKF102_RECORD_LENGTH_INVALID",
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII => "CBKF104_RDW_SUSPECT_ASCII",
+            ErrorCode::CBKF221_RDW_UNDERFLOW => "CBKF221_RDW_UNDERFLOW",
+            ErrorCode::CBKA001_BASELINE_ERROR => "CBKA001_BASELINE_ERROR",
+            ErrorCode::CBKW001_SCHEMA_CONVERSION => "CBKW001_SCHEMA_CONVERSION",
+            ErrorCode::CBKW002_TYPE_MAPPING => "CBKW002_TYPE_MAPPING",
+            ErrorCode::CBKW003_DECIMAL_OVERFLOW => "CBKW003_DECIMAL_OVERFLOW",
+            ErrorCode::CBKW004_BATCH_BUILD => "CBKW004_BATCH_BUILD",
+            ErrorCode::CBKW005_PARQUET_WRITE => "CBKW005_PARQUET_WRITE",
+        };
+        write!(f, "{code_str}")
+    }
+}
+
+impl ErrorCode {
+    /// Return the 4-character family prefix (e.g., `CBKD`) for this error code.
+    #[inline]
+    #[must_use]
+    pub const fn family_prefix(self) -> &'static str {
+        match self {
+            Self::CBKP001_SYNTAX
+            | Self::CBKP011_UNSUPPORTED_CLAUSE
+            | Self::CBKP021_ODO_NOT_TAIL
+            | Self::CBKP022_NESTED_ODO
+            | Self::CBKP023_ODO_REDEFINES
+            | Self::CBKP051_UNSUPPORTED_EDITED_PIC
+            | Self::CBKP101_INVALID_PIC => "CBKP",
+            Self::CBKS121_COUNTER_NOT_FOUND
+            | Self::CBKS141_RECORD_TOO_LARGE
+            | Self::CBKS301_ODO_CLIPPED
+            | Self::CBKS302_ODO_RAISED
+            | Self::CBKS601_RENAME_UNKNOWN_FROM
+            | Self::CBKS602_RENAME_UNKNOWN_THRU
+            | Self::CBKS603_RENAME_NOT_CONTIGUOUS
+            | Self::CBKS604_RENAME_REVERSED_RANGE
+            | Self::CBKS605_RENAME_FROM_CROSSES_GROUP
+            | Self::CBKS606_RENAME_THRU_CROSSES_GROUP
+            | Self::CBKS607_RENAME_CROSSES_OCCURS
+            | Self::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND
+            | Self::CBKS609_RENAME_OVER_REDEFINES
+            | Self::CBKS610_RENAME_MULTIPLE_REDEFINES
+            | Self::CBKS611_RENAME_PARTIAL_OCCURS
+            | Self::CBKS612_RENAME_ODO_NOT_SUPPORTED
+            | Self::CBKS701_PROJECTION_INVALID_ODO
+            | Self::CBKS702_PROJECTION_UNRESOLVED_ALIAS
+            | Self::CBKS703_PROJECTION_FIELD_NOT_FOUND => "CBKS",
+            Self::CBKR211_RDW_RESERVED_NONZERO => "CBKR",
+            Self::CBKC201_JSON_WRITE_ERROR | Self::CBKC301_INVALID_EBCDIC_BYTE => "CBKC",
+            Self::CBKD101_INVALID_FIELD_TYPE
+            | Self::CBKD301_RECORD_TOO_SHORT
+            | Self::CBKD302_EDITED_PIC_NOT_IMPLEMENTED
+            | Self::CBKD401_COMP3_INVALID_NIBBLE
+            | Self::CBKD410_ZONED_OVERFLOW
+            | Self::CBKD411_ZONED_BAD_SIGN
+            | Self::CBKD412_ZONED_BLANK_IS_ZERO
+            | Self::CBKD413_ZONED_INVALID_ENCODING
+            | Self::CBKD414_ZONED_MIXED_ENCODING
+            | Self::CBKD415_ZONED_ENCODING_AMBIGUOUS
+            | Self::CBKD421_EDITED_PIC_INVALID_FORMAT
+            | Self::CBKD422_EDITED_PIC_SIGN_MISMATCH
+            | Self::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO
+            | Self::CBKD431_FLOAT_NAN
+            | Self::CBKD432_FLOAT_INFINITY => "CBKD",
+            Self::CBKI001_INVALID_STATE => "CBKI",
+            Self::CBKE501_JSON_TYPE_MISMATCH
+            | Self::CBKE505_SCALE_MISMATCH
+            | Self::CBKE510_NUMERIC_OVERFLOW
+            | Self::CBKE515_STRING_LENGTH_VIOLATION
+            | Self::CBKE521_ARRAY_LEN_OOB
+            | Self::CBKE530_SIGN_SEPARATE_ENCODE_ERROR
+            | Self::CBKE531_FLOAT_ENCODE_OVERFLOW => "CBKE",
+            Self::CBKF102_RECORD_LENGTH_INVALID
+            | Self::CBKF104_RDW_SUSPECT_ASCII
+            | Self::CBKF221_RDW_UNDERFLOW => "CBKF",
+            Self::CBKA001_BASELINE_ERROR => "CBKA",
+            Self::CBKW001_SCHEMA_CONVERSION
+            | Self::CBKW002_TYPE_MAPPING
+            | Self::CBKW003_DECIMAL_OVERFLOW
+            | Self::CBKW004_BATCH_BUILD
+            | Self::CBKW005_PARQUET_WRITE => "CBKW",
+        }
+    }
+}
+
+/// Context information for detailed error reporting
+///
+/// Provides comprehensive location and contextual information for errors,
+/// enabling precise error reporting and debugging in enterprise environments.
+/// All fields are optional to accommodate different error scenarios.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ErrorContext {
+    /// Record number (1-based) where the error occurred
+    ///
+    /// Used for data processing errors to identify the specific record
+    /// in multi-record files or streams.
+    pub record_index: Option<u64>,
+
+    /// Hierarchical field path where the error occurred
+    ///
+    /// Uses dot notation (e.g., "customer.address.street") to identify
+    /// the exact field location within nested structures.
+    pub field_path: Option<String>,
+
+    /// Byte offset within the record or file where the error occurred
+    ///
+    /// Provides precise location information for debugging binary data issues.
+    pub byte_offset: Option<u64>,
+
+    /// Line number in the copybook source (for parse errors)
+    ///
+    /// Used during copybook parsing to identify problematic COBOL syntax.
+    pub line_number: Option<u32>,
+
+    /// Additional context-specific information
+    ///
+    /// Free-form text providing extra details relevant to the specific error.
+    pub details: Option<String>,
+}
+
+impl fmt::Display for ErrorContext {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut parts = Vec::new();
+
+        if let Some(record) = self.record_index {
+            parts.push(format!("record {record}"));
+        }
+        if let Some(ref path) = self.field_path {
+            parts.push(format!("field {path}"));
+        }
+        if let Some(offset) = self.byte_offset {
+            parts.push(format!("offset {offset}"));
+        }
+        if let Some(line) = self.line_number {
+            parts.push(format!("line {line}"));
+        }
+        if let Some(ref details) = self.details {
+            parts.push(details.clone());
+        }
+
+        write!(f, "{}", parts.join(", "))
+    }
+}
+
+impl Error {
+    /// Create a new error with the specified code and message
+    ///
+    /// This is the primary constructor for copybook-rs errors. The error code
+    /// should be chosen from the stable `ErrorCode` taxonomy to enable
+    /// programmatic error handling.
+    ///
+    /// # Arguments
+    /// * `code` - Stable error code from the copybook-rs taxonomy
+    /// * `message` - Human-readable error description
+    ///
+    /// # Example
+    /// ```rust
+    /// use copybook_error::{Error, ErrorCode};
+    ///
+    /// // Static message
+    /// let error1 = Error::new(
+    ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
+    ///     "Invalid sign zone in zoned decimal field"
+    /// );
+    ///
+    /// // Dynamic message
+    /// let field_name = "AMOUNT";
+    /// let error2 = Error::new(
+    ///     ErrorCode::CBKD411_ZONED_BAD_SIGN,
+    ///     format!("Invalid sign zone in field {}", field_name)
+    /// );
+    /// ```
+    #[inline]
+    pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            context: None,
+        }
+    }
+
+    /// Add context information to the error
+    #[must_use]
+    #[inline]
+    pub fn with_context(mut self, context: ErrorContext) -> Self {
+        self.context = Some(context);
+        self
+    }
+
+    /// Add record context to the error
+    #[must_use]
+    #[inline]
+    pub fn with_record(mut self, record_index: u64) -> Self {
+        let context = self.context.get_or_insert(ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: None,
+        });
+        context.record_index = Some(record_index);
+        self
+    }
+
+    /// Add field path context to the error
+    #[must_use]
+    #[inline]
+    pub fn with_field(mut self, field_path: impl Into<String>) -> Self {
+        let context = self.context.get_or_insert(ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: None,
+        });
+        context.field_path = Some(field_path.into());
+        self
+    }
+
+    /// Add byte offset context to the error
+    #[must_use]
+    #[inline]
+    pub fn with_offset(mut self, byte_offset: u64) -> Self {
+        let context = self.context.get_or_insert(ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: None,
+        });
+        context.byte_offset = Some(byte_offset);
+        self
+    }
+}
+
+/// Convenience macros for creating errors
+#[macro_export]
+macro_rules! error {
+    ($code:expr, $msg:expr) => {
+        $crate::Error::new($code, $msg)
+    };
+    ($code:expr, $fmt:expr, $($arg:tt)*) => {
+        $crate::Error::new($code, format!($fmt, $($arg)*))
+    };
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::unwrap_used)] // Allow unwrap in tests for brevity
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_code_serialization() {
+        let code = ErrorCode::CBKD411_ZONED_BAD_SIGN;
+        let json = serde_json::to_string(&code).unwrap();
+        assert_eq!(json, "\"CBKD411_ZONED_BAD_SIGN\"");
+
+        let deserialized: ErrorCode = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, code);
+    }
+
+    #[test]
+    fn test_error_display_format() {
+        let error = Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            "Invalid sign zone in field",
+        );
+        let display = format!("{error}");
+        assert_eq!(
+            display,
+            "CBKD411_ZONED_BAD_SIGN: Invalid sign zone in field"
+        );
+    }
+
+    #[test]
+    fn test_error_with_context_display() {
+        let error =
+            Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Test error").with_field("AMOUNT");
+        let display = format!("{error}");
+        assert!(display.contains("CBKD411_ZONED_BAD_SIGN: Test error"));
+        assert!(display.contains("field AMOUNT"));
+    }
+
+    #[test]
+    fn test_error_static_message() {
+        let error = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "Static message");
+        assert_eq!(error.message, "Static message");
+        assert_eq!(error.code, ErrorCode::CBKD411_ZONED_BAD_SIGN);
+        assert!(error.context.is_none());
+    }
+
+    #[test]
+    fn test_error_dynamic_message() {
+        let field = "AMOUNT";
+        let error = Error::new(
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            format!("Dynamic message for field {field}"),
+        );
+        assert_eq!(error.message, "Dynamic message for field AMOUNT");
+    }
+
+    #[test]
+    fn test_error_macro_static() {
+        let err = error!(ErrorCode::CBKP001_SYNTAX, "Empty copybook");
+        assert_eq!(err.code, ErrorCode::CBKP001_SYNTAX);
+        assert_eq!(err.message, "Empty copybook");
+    }
+
+    #[test]
+    fn test_error_macro_formatted() {
+        let field = "CUSTOMER_ID";
+        let err = error!(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            "Field {} missing", field
+        );
+        assert_eq!(err.code, ErrorCode::CBKD301_RECORD_TOO_SHORT);
+        assert!(err.message.contains("CUSTOMER_ID"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Error accessor and builder tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_code_accessor() {
+        let err = Error::new(ErrorCode::CBKE510_NUMERIC_OVERFLOW, "overflow");
+        assert_eq!(err.code(), ErrorCode::CBKE510_NUMERIC_OVERFLOW);
+    }
+
+    #[test]
+    fn test_error_family_prefix_via_error() {
+        let err = Error::new(ErrorCode::CBKR211_RDW_RESERVED_NONZERO, "reserved");
+        assert_eq!(err.family_prefix(), "CBKR");
+    }
+
+    #[test]
+    fn test_error_with_record_builder() {
+        let err = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "short").with_record(7);
+        let ctx = err.context.as_ref().unwrap();
+        assert_eq!(ctx.record_index, Some(7));
+        assert!(ctx.field_path.is_none());
+        assert!(ctx.byte_offset.is_none());
+    }
+
+    #[test]
+    fn test_error_with_offset_builder() {
+        let err = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "short").with_offset(128);
+        let ctx = err.context.as_ref().unwrap();
+        assert_eq!(ctx.byte_offset, Some(128));
+        assert!(ctx.record_index.is_none());
+        assert!(ctx.field_path.is_none());
+    }
+
+    #[test]
+    fn test_error_chained_context_builders() {
+        let err = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "bad nibble")
+            .with_record(10)
+            .with_field("CUSTOMER.BALANCE")
+            .with_offset(64);
+        let ctx = err.context.as_ref().unwrap();
+        assert_eq!(ctx.record_index, Some(10));
+        assert_eq!(ctx.field_path.as_deref(), Some("CUSTOMER.BALANCE"));
+        assert_eq!(ctx.byte_offset, Some(64));
+        assert!(ctx.line_number.is_none());
+        assert!(ctx.details.is_none());
+    }
+
+    #[test]
+    fn test_error_with_context_sets_full_context() {
+        let ctx = ErrorContext {
+            record_index: Some(99),
+            field_path: Some("ROOT.CHILD".into()),
+            byte_offset: Some(512),
+            line_number: Some(42),
+            details: Some("extra detail".into()),
+        };
+        let err = Error::new(ErrorCode::CBKP001_SYNTAX, "bad syntax").with_context(ctx);
+        let c = err.context.as_ref().unwrap();
+        assert_eq!(c.record_index, Some(99));
+        assert_eq!(c.field_path.as_deref(), Some("ROOT.CHILD"));
+        assert_eq!(c.byte_offset, Some(512));
+        assert_eq!(c.line_number, Some(42));
+        assert_eq!(c.details.as_deref(), Some("extra detail"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Trait implementation tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_clone_equality() {
+        let err1 = Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "mismatch")
+            .with_field("AMOUNT")
+            .with_record(3);
+        let err2 = err1.clone();
+        assert_eq!(err1, err2);
+        assert_eq!(err1.code, err2.code);
+        assert_eq!(err1.message, err2.message);
+        assert_eq!(err1.context, err2.context);
+    }
+
+    #[test]
+    fn test_error_code_copy_clone_hash() {
+        use std::collections::HashSet;
+        let code = ErrorCode::CBKP001_SYNTAX;
+        let copy = code;
+        assert_eq!(code, copy);
+
+        let mut set = HashSet::new();
+        set.insert(ErrorCode::CBKP001_SYNTAX);
+        set.insert(ErrorCode::CBKD301_RECORD_TOO_SHORT);
+        set.insert(ErrorCode::CBKP001_SYNTAX); // duplicate
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_error_implements_std_error() {
+        let err = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "bad sign");
+        let std_err: &dyn std::error::Error = &err;
+        // source() should be None since Error has no #[source] field
+        assert!(std_err.source().is_none());
+        assert!(!std_err.to_string().is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorContext Display edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_context_display_empty() {
+        let ctx = ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: None,
+        };
+        assert_eq!(format!("{ctx}"), "");
+    }
+
+    #[test]
+    fn test_error_context_display_record_only() {
+        let ctx = ErrorContext {
+            record_index: Some(42),
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: None,
+        };
+        assert_eq!(format!("{ctx}"), "record 42");
+    }
+
+    #[test]
+    fn test_error_context_display_line_number_only() {
+        let ctx = ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: Some(15),
+            details: None,
+        };
+        assert_eq!(format!("{ctx}"), "line 15");
+    }
+
+    #[test]
+    fn test_error_context_display_details_only() {
+        let ctx = ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: Some("expected 8 bytes, got 4".into()),
+        };
+        assert_eq!(format!("{ctx}"), "expected 8 bytes, got 4");
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorCode family_prefix exhaustive coverage
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_all_cbkp_codes_have_cbkp_prefix() {
+        let codes = [
+            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKP011_UNSUPPORTED_CLAUSE,
+            ErrorCode::CBKP021_ODO_NOT_TAIL,
+            ErrorCode::CBKP022_NESTED_ODO,
+            ErrorCode::CBKP023_ODO_REDEFINES,
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
+            ErrorCode::CBKP101_INVALID_PIC,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKP", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_all_cbks_codes_have_cbks_prefix() {
+        let codes = [
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            ErrorCode::CBKS141_RECORD_TOO_LARGE,
+            ErrorCode::CBKS301_ODO_CLIPPED,
+            ErrorCode::CBKS302_ODO_RAISED,
+            ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
+            ErrorCode::CBKS602_RENAME_UNKNOWN_THRU,
+            ErrorCode::CBKS603_RENAME_NOT_CONTIGUOUS,
+            ErrorCode::CBKS604_RENAME_REVERSED_RANGE,
+            ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+            ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP,
+            ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
+            ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND,
+            ErrorCode::CBKS609_RENAME_OVER_REDEFINES,
+            ErrorCode::CBKS610_RENAME_MULTIPLE_REDEFINES,
+            ErrorCode::CBKS611_RENAME_PARTIAL_OCCURS,
+            ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED,
+            ErrorCode::CBKS701_PROJECTION_INVALID_ODO,
+            ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS,
+            ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKS", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_all_cbkd_codes_have_cbkd_prefix() {
+        let codes = [
+            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKD410_ZONED_OVERFLOW,
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO,
+            ErrorCode::CBKD413_ZONED_INVALID_ENCODING,
+            ErrorCode::CBKD414_ZONED_MIXED_ENCODING,
+            ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS,
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+            ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH,
+            ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO,
+            ErrorCode::CBKD431_FLOAT_NAN,
+            ErrorCode::CBKD432_FLOAT_INFINITY,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKD", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_all_cbke_codes_have_cbke_prefix() {
+        let codes = [
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKE505_SCALE_MISMATCH,
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+            ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
+            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+            ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKE", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_remaining_family_prefixes() {
+        assert_eq!(
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO.family_prefix(),
+            "CBKR"
+        );
+        assert_eq!(ErrorCode::CBKC201_JSON_WRITE_ERROR.family_prefix(), "CBKC");
+        assert_eq!(
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE.family_prefix(),
+            "CBKC"
+        );
+        assert_eq!(ErrorCode::CBKI001_INVALID_STATE.family_prefix(), "CBKI");
+        assert_eq!(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID.family_prefix(),
+            "CBKF"
+        );
+        assert_eq!(ErrorCode::CBKF104_RDW_SUSPECT_ASCII.family_prefix(), "CBKF");
+        assert_eq!(ErrorCode::CBKF221_RDW_UNDERFLOW.family_prefix(), "CBKF");
+        assert_eq!(ErrorCode::CBKA001_BASELINE_ERROR.family_prefix(), "CBKA");
+        assert_eq!(ErrorCode::CBKW001_SCHEMA_CONVERSION.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW002_TYPE_MAPPING.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW003_DECIMAL_OVERFLOW.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW004_BATCH_BUILD.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW005_PARQUET_WRITE.family_prefix(), "CBKW");
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorCode Display consistency: all codes display as variant name
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_code_display_starts_with_family_prefix() {
+        let representative_codes = [
+            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+            ErrorCode::CBKC201_JSON_WRITE_ERROR,
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKI001_INVALID_STATE,
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            ErrorCode::CBKA001_BASELINE_ERROR,
+            ErrorCode::CBKW001_SCHEMA_CONVERSION,
+        ];
+        for code in representative_codes {
+            let display = format!("{code}");
+            let prefix = code.family_prefix();
+            assert!(
+                display.starts_with(prefix),
+                "{display} should start with {prefix}"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Serde round-trip for each error code family
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_code_serde_roundtrip_all_families() {
+        let codes = [
+            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+            ErrorCode::CBKC201_JSON_WRITE_ERROR,
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKI001_INVALID_STATE,
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            ErrorCode::CBKA001_BASELINE_ERROR,
+            ErrorCode::CBKW001_SCHEMA_CONVERSION,
+        ];
+        for code in codes {
+            let json = serde_json::to_string(&code).unwrap();
+            let roundtripped: ErrorCode = serde_json::from_str(&json).unwrap();
+            assert_eq!(roundtripped, code, "round-trip failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_error_code_deserialization_from_string() {
+        let json = r#""CBKP101_INVALID_PIC""#;
+        let code: ErrorCode = serde_json::from_str(json).unwrap();
+        assert_eq!(code, ErrorCode::CBKP101_INVALID_PIC);
+    }
+
+    #[test]
+    fn test_error_code_deserialization_invalid_rejects() {
+        let json = r#""NOT_A_REAL_CODE""#;
+        let result: std::result::Result<ErrorCode, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // error! macro with multiple format args
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_macro_multiple_format_args() {
+        let field = "AMOUNT";
+        let expected = 8;
+        let actual = 4;
+        let err = error!(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            "Field {} expected {} bytes, got {}", field, expected, actual
+        );
+        assert_eq!(err.message, "Field AMOUNT expected 8 bytes, got 4");
+    }
+}

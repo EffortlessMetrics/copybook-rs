@@ -46,74 +46,114 @@ jobs:
         cargo test --workspace --release -j 2
 
         # Verify the leaf crate (no workspace deps) packages correctly.
-        # Note: `cargo package` / `cargo publish --dry-run` for downstream crates requires their
-        # workspace dependencies to exist on crates.io, so we validate them just-in-time below.
-        cargo package -p copybook-core
+        cargo package -p copybook-error
 
-    - name: Publish copybook-core
+    - name: Publish all crates in dependency order
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: |
-        echo "Publishing copybook-core..."
-        cargo publish -p copybook-core
-        echo "✅ copybook-core published successfully"
+        set -euo pipefail
 
-    - name: Wait for crates.io index propagation
-      run: |
-        echo "Waiting 90 seconds for crates.io index to propagate..."
-        sleep 90
+        publish_crate() {
+          local crate="$1"
+          local output
+          echo "Publishing ${crate}..."
+          if ! output=$(cargo publish -p "${crate}" 2>&1); then
+            echo "${output}"
+            if echo "${output}" | grep -q "already exists"; then
+              echo "  ${crate} already published, skipping"
+              return 0
+            fi
+            echo "  FAILED to publish ${crate}"
+            return 1
+          fi
+          echo "${output}"
+          echo "  ${crate} published successfully"
+        }
 
-    - name: Dry run publish (copybook-codec)
-      run: |
-        echo "📦 Testing copybook-codec packaging..."
-        cargo publish -p copybook-codec --dry-run
-        echo "✅ copybook-codec dry-run successful"
+        wait_for_index() {
+          local seconds="${1:-60}"
+          echo "Waiting ${seconds}s for crates.io index propagation..."
+          sleep "${seconds}"
+        }
 
-    - name: Publish copybook-codec
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: |
-        echo "Publishing copybook-codec..."
-        cargo publish -p copybook-codec
-        echo "✅ copybook-codec published successfully"
+        # Level 0: No internal dependencies (11 crates)
+        echo "=== Level 0: Foundation crates ==="
+        publish_crate copybook-error
+        publish_crate copybook-determinism
+        publish_crate copybook-dialect
+        publish_crate copybook-codepage
+        publish_crate copybook-contracts
+        publish_crate copybook-support-matrix
+        publish_crate copybook-sequence-ring
+        publish_crate copybook-corruption-predicates
+        publish_crate copybook-rdw-predicates
+        publish_crate copybook-zoned-format
+        publish_crate copybook-lexer
+        wait_for_index 60
 
-    - name: Wait for crates.io index propagation
-      run: |
-        echo "Waiting 90 seconds for crates.io index to propagate..."
-        sleep 90
+        # Level 1: Depends only on Level 0 (8 crates)
+        echo "=== Level 1: Core primitives ==="
+        publish_crate copybook-overflow
+        publish_crate copybook-error-reporter
+        publish_crate copybook-charset
+        publish_crate copybook-governance-contracts
+        publish_crate copybook-codec-memory
+        publish_crate copybook-overpunch
+        publish_crate copybook-safe-index
+        publish_crate copybook-safe-text
+        wait_for_index 60
 
-    - name: Dry run publish (copybook-arrow)
-      run: |
-        echo "📦 Testing copybook-arrow packaging..."
-        cargo publish -p copybook-arrow --dry-run
-        echo "✅ copybook-arrow dry-run successful"
+        # Level 2: Depends on Level 0-1 (3 crates)
+        echo "=== Level 2: Utilities ==="
+        publish_crate copybook-governance-grid
+        publish_crate copybook-options
+        publish_crate copybook-safe-ops
+        wait_for_index 60
 
-    - name: Publish copybook-arrow
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: |
-        echo "Publishing copybook-arrow..."
-        cargo publish -p copybook-arrow
-        echo "✅ copybook-arrow published successfully"
+        # Level 3: Depends on Level 0-2 (2 crates)
+        echo "=== Level 3: Core + governance runtime ==="
+        publish_crate copybook-governance-runtime
+        publish_crate copybook-utils
+        wait_for_index 60
 
-    - name: Wait for crates.io index propagation
-      run: |
-        echo "Waiting 90 seconds for crates.io index to propagate..."
-        sleep 90
+        # Level 4: Depends on Level 0-3 (2 crates)
+        echo "=== Level 4: Record formats + governance ==="
+        publish_crate copybook-core
+        publish_crate copybook-governance
+        wait_for_index 60
 
-    - name: Dry run publish (copybook-cli)
-      run: |
-        echo "📦 Testing copybook-cli packaging..."
-        cargo publish -p copybook-cli --dry-run
-        echo "✅ copybook-cli dry-run successful"
+        # Level 5: Depends on Level 0-4 (4 crates)
+        echo "=== Level 5: Record format and corruption primitives ==="
+        publish_crate copybook-fixed
+        publish_crate copybook-rdw
+        publish_crate copybook-corruption-detectors
+        publish_crate copybook-corruption-rdw
+        wait_for_index 60
 
-    - name: Publish copybook-cli
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: |
-        echo "Publishing copybook-cli..."
-        cargo publish -p copybook-cli
-        echo "✅ copybook-cli published successfully"
+        # Level 6: Depends on Level 0-5 (2 crates)
+        echo "=== Level 6: Record I/O + corruption facade ==="
+        publish_crate copybook-record-io
+        publish_crate copybook-corruption
+        wait_for_index 60
+
+        # Level 7: Depends on Level 0-6 (1 crate)
+        echo "=== Level 7: Codec ==="
+        publish_crate copybook-codec
+        wait_for_index 60
+
+        # Level 8: Depends on Level 0-7 (2 crates)
+        echo "=== Level 8: Arrow + CLI determinism ==="
+        publish_crate copybook-arrow
+        publish_crate copybook-cli-determinism
+        wait_for_index 60
+
+        # Level 9: Depends on Level 0-8 (1 crate)
+        echo "=== Level 9: CLI ==="
+        publish_crate copybook-cli
+
+        echo ""
+        echo "All 36 publishable crates published successfully!"
 
     - name: Create GitHub Release
       uses: actions/github-script@v8
@@ -134,17 +174,46 @@ jobs:
           cargo install copybook-cli@${version}
           \`\`\`
 
-          **Crates:**
-          - [copybook-core ${version}](https://crates.io/crates/copybook-core/${version})
-          - [copybook-codec ${version}](https://crates.io/crates/copybook-codec/${version})
-          - [copybook-arrow ${version}](https://crates.io/crates/copybook-arrow/${version})
-          - [copybook-cli ${version}](https://crates.io/crates/copybook-cli/${version})
+          **Published Crates (36):**
 
-          **Documentation:**
-          - [copybook-core docs](https://docs.rs/copybook-core/${version})
-          - [copybook-codec docs](https://docs.rs/copybook-codec/${version})
-          - [copybook-arrow docs](https://docs.rs/copybook-arrow/${version})
-          - [copybook-cli docs](https://docs.rs/copybook-cli/${version})
+          | Crate | crates.io | docs.rs |
+          |-------|-----------|---------|
+          | copybook-error | [${version}](https://crates.io/crates/copybook-error/${version}) | [docs](https://docs.rs/copybook-error/${version}) |
+          | copybook-determinism | [${version}](https://crates.io/crates/copybook-determinism/${version}) | [docs](https://docs.rs/copybook-determinism/${version}) |
+          | copybook-dialect | [${version}](https://crates.io/crates/copybook-dialect/${version}) | [docs](https://docs.rs/copybook-dialect/${version}) |
+          | copybook-codepage | [${version}](https://crates.io/crates/copybook-codepage/${version}) | [docs](https://docs.rs/copybook-codepage/${version}) |
+          | copybook-contracts | [${version}](https://crates.io/crates/copybook-contracts/${version}) | [docs](https://docs.rs/copybook-contracts/${version}) |
+          | copybook-support-matrix | [${version}](https://crates.io/crates/copybook-support-matrix/${version}) | [docs](https://docs.rs/copybook-support-matrix/${version}) |
+          | copybook-sequence-ring | [${version}](https://crates.io/crates/copybook-sequence-ring/${version}) | [docs](https://docs.rs/copybook-sequence-ring/${version}) |
+          | copybook-corruption-predicates | [${version}](https://crates.io/crates/copybook-corruption-predicates/${version}) | [docs](https://docs.rs/copybook-corruption-predicates/${version}) |
+          | copybook-rdw-predicates | [${version}](https://crates.io/crates/copybook-rdw-predicates/${version}) | [docs](https://docs.rs/copybook-rdw-predicates/${version}) |
+          | copybook-zoned-format | [${version}](https://crates.io/crates/copybook-zoned-format/${version}) | [docs](https://docs.rs/copybook-zoned-format/${version}) |
+          | copybook-lexer | [${version}](https://crates.io/crates/copybook-lexer/${version}) | [docs](https://docs.rs/copybook-lexer/${version}) |
+          | copybook-overflow | [${version}](https://crates.io/crates/copybook-overflow/${version}) | [docs](https://docs.rs/copybook-overflow/${version}) |
+          | copybook-error-reporter | [${version}](https://crates.io/crates/copybook-error-reporter/${version}) | [docs](https://docs.rs/copybook-error-reporter/${version}) |
+          | copybook-charset | [${version}](https://crates.io/crates/copybook-charset/${version}) | [docs](https://docs.rs/copybook-charset/${version}) |
+          | copybook-governance-contracts | [${version}](https://crates.io/crates/copybook-governance-contracts/${version}) | [docs](https://docs.rs/copybook-governance-contracts/${version}) |
+          | copybook-codec-memory | [${version}](https://crates.io/crates/copybook-codec-memory/${version}) | [docs](https://docs.rs/copybook-codec-memory/${version}) |
+          | copybook-overpunch | [${version}](https://crates.io/crates/copybook-overpunch/${version}) | [docs](https://docs.rs/copybook-overpunch/${version}) |
+          | copybook-safe-index | [${version}](https://crates.io/crates/copybook-safe-index/${version}) | [docs](https://docs.rs/copybook-safe-index/${version}) |
+          | copybook-safe-text | [${version}](https://crates.io/crates/copybook-safe-text/${version}) | [docs](https://docs.rs/copybook-safe-text/${version}) |
+          | copybook-governance-grid | [${version}](https://crates.io/crates/copybook-governance-grid/${version}) | [docs](https://docs.rs/copybook-governance-grid/${version}) |
+          | copybook-options | [${version}](https://crates.io/crates/copybook-options/${version}) | [docs](https://docs.rs/copybook-options/${version}) |
+          | copybook-safe-ops | [${version}](https://crates.io/crates/copybook-safe-ops/${version}) | [docs](https://docs.rs/copybook-safe-ops/${version}) |
+          | copybook-governance-runtime | [${version}](https://crates.io/crates/copybook-governance-runtime/${version}) | [docs](https://docs.rs/copybook-governance-runtime/${version}) |
+          | copybook-utils | [${version}](https://crates.io/crates/copybook-utils/${version}) | [docs](https://docs.rs/copybook-utils/${version}) |
+          | copybook-core | [${version}](https://crates.io/crates/copybook-core/${version}) | [docs](https://docs.rs/copybook-core/${version}) |
+          | copybook-governance | [${version}](https://crates.io/crates/copybook-governance/${version}) | [docs](https://docs.rs/copybook-governance/${version}) |
+          | copybook-fixed | [${version}](https://crates.io/crates/copybook-fixed/${version}) | [docs](https://docs.rs/copybook-fixed/${version}) |
+          | copybook-rdw | [${version}](https://crates.io/crates/copybook-rdw/${version}) | [docs](https://docs.rs/copybook-rdw/${version}) |
+          | copybook-corruption-detectors | [${version}](https://crates.io/crates/copybook-corruption-detectors/${version}) | [docs](https://docs.rs/copybook-corruption-detectors/${version}) |
+          | copybook-corruption-rdw | [${version}](https://crates.io/crates/copybook-corruption-rdw/${version}) | [docs](https://docs.rs/copybook-corruption-rdw/${version}) |
+          | copybook-record-io | [${version}](https://crates.io/crates/copybook-record-io/${version}) | [docs](https://docs.rs/copybook-record-io/${version}) |
+          | copybook-corruption | [${version}](https://crates.io/crates/copybook-corruption/${version}) | [docs](https://docs.rs/copybook-corruption/${version}) |
+          | copybook-codec | [${version}](https://crates.io/crates/copybook-codec/${version}) | [docs](https://docs.rs/copybook-codec/${version}) |
+          | copybook-arrow | [${version}](https://crates.io/crates/copybook-arrow/${version}) | [docs](https://docs.rs/copybook-arrow/${version}) |
+          | copybook-cli-determinism | [${version}](https://crates.io/crates/copybook-cli-determinism/${version}) | [docs](https://docs.rs/copybook-cli-determinism/${version}) |
+          | copybook-cli | [${version}](https://crates.io/crates/copybook-cli/${version}) | [docs](https://docs.rs/copybook-cli/${version}) |
 
           See [CHANGELOG.md](https://github.com/EffortlessMetrics/copybook-rs/blob/${tag}/CHANGELOG.md) for details.`,
             draft: false,
@@ -169,7 +238,7 @@ jobs:
         /tmp/copybook-default/bin/copybook --version
         /tmp/copybook-default/bin/copybook --help >/dev/null
 
-        echo "✅ Smoke test passed: copybook-cli@${VERSION} installs and runs"
+        echo "Smoke test passed: copybook-cli@${VERSION} installs and runs"
 
     - name: Install copybook-cli (arrow feature compile check)
       run: |
@@ -180,7 +249,7 @@ jobs:
         cargo install copybook-cli@${VERSION} --locked --features arrow --root /tmp/copybook-arrow
         /tmp/copybook-arrow/bin/copybook --version
 
-        echo "✅ Arrow feature resolves from crates.io"
+        echo "Arrow feature resolves from crates.io"
 
     - name: Validate docs.rs builds
       run: |
@@ -198,7 +267,7 @@ jobs:
           echo "Docs will be available at: ${url}"
         done
 
-        echo "✅ Documentation links generated. docs.rs builds asynchronously."
+        echo "Documentation links generated. docs.rs builds asynchronously."
 
   notify-success:
     runs-on: ubuntu-latest
@@ -210,18 +279,18 @@ jobs:
         VERSION="${{ github.ref_name || github.event.inputs.tag }}"
         VERSION=${VERSION#v}
 
-        echo "🚀 Successfully published copybook-rs ${VERSION}!"
+        echo "Successfully published copybook-rs ${VERSION}!"
         echo ""
-        echo "📦 Installation:"
+        echo "Installation:"
         echo "   cargo install copybook-cli@${VERSION}"
         echo ""
-        echo "📚 Documentation:"
+        echo "Documentation:"
         echo "   https://docs.rs/copybook-core/${VERSION}"
         echo "   https://docs.rs/copybook-codec/${VERSION}"
         echo "   https://docs.rs/copybook-arrow/${VERSION}"
         echo "   https://docs.rs/copybook-cli/${VERSION}"
         echo ""
-        echo "🔗 Crates.io:"
+        echo "Crates.io:"
         echo "   https://crates.io/crates/copybook-core"
         echo "   https://crates.io/crates/copybook-codec"
         echo "   https://crates.io/crates/copybook-arrow"

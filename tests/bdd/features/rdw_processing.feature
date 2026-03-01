@@ -13,12 +13,12 @@ Feature: RDW (Record Descriptor Word) Processing
     Then decoding should succeed
     And the decoded output should be valid JSON
     And the decoded output should contain "TEST-FIELD"
-    And decoded TEST-FIELD should be "HELLO WRLD"
+    And decoded field TEST-FIELD should be "HELLO WRLD"
 
   Scenario: Decode variable-length record with RDW header
     Given a copybook with content:
       """
-      01 VARIABLE-RECORD PIC X(20).
+      01 VARIABLE-RECORD PIC X(8).
       """
     And RDW record format
     And ASCII codepage
@@ -26,7 +26,7 @@ Feature: RDW (Record Descriptor Word) Processing
     When the binary data is decoded
     Then decoding should succeed
     And the decoded output should be valid JSON
-    And decoded VARIABLE-RECORD should be "ORIGINAL"
+    And decoded field VARIABLE-RECORD should be "ORIGINAL"
 
   Scenario: Encode with RDW header generation
     Given a copybook with content:
@@ -49,7 +49,7 @@ Feature: RDW (Record Descriptor Word) Processing
   Scenario: Round-trip with RDW processing
     Given a copybook with content:
       """
-      01 ROUNDTRIP-RECORD PIC X(15).
+      01 ROUNDTRIP-RECORD PIC X(14).
       """
     And RDW record format
     And ASCII codepage
@@ -58,7 +58,7 @@ Feature: RDW (Record Descriptor Word) Processing
     Then the round-trip should be lossless
     And decoding should succeed
     And encoding should succeed
-    And decoded ROUNDTRIP-RECORD should be "ROUNDTRIP-TEST"
+    And decoded field ROUNDTRIP-RECORD should be "ROUNDTRIP-TEST"
 
   Scenario: RDW header validation with non-zero reserved bytes (lenient mode)
     Given a copybook with content:
@@ -72,7 +72,7 @@ Feature: RDW (Record Descriptor Word) Processing
     When the binary data is decoded
     Then decoding should succeed
     And the decoded output should be valid JSON
-    And decoded VALIDATION-RECORD should be "HELLO"
+    And decoded field VALIDATION-RECORD should be "HELLO"
 
   Scenario: RDW header validation with non-zero reserved bytes (strict mode)
     Given a copybook with content:

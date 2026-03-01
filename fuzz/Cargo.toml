@@ -22,13 +22,28 @@ workspace = true
 
 [dependencies]
 libfuzzer-sys = "0.4.10"
-copybook-core = { path = "../copybook-core" }
-copybook-codec = { path = "../copybook-codec" }
-copybook-fixed = { path = "../copybook-fixed" }
-copybook-rdw = { path = "../copybook-rdw" }
-copybook-record-io = { path = "../copybook-record-io" }
-copybook-determinism = { path = "../copybook-determinism" }
-copybook-options = { path = "../copybook-options" }
+copybook-core = { path = "../crates/copybook-core" }
+copybook-codec = { path = "../crates/copybook-codec" }
+copybook-cli-determinism = { path = "../crates/copybook-cli-determinism" }
+copybook-lexer = { path = "../crates/copybook-lexer" }
+copybook-fixed = { path = "../crates/copybook-fixed" }
+copybook-corruption = { path = "../crates/copybook-corruption" }
+copybook-corruption-detectors = { path = "../crates/copybook-corruption-detectors" }
+copybook-corruption-predicates = { path = "../crates/copybook-corruption-predicates" }
+copybook-rdw = { path = "../crates/copybook-rdw" }
+copybook-corruption-rdw = { path = "../crates/copybook-corruption-rdw" }
+copybook-record-io = { path = "../crates/copybook-record-io" }
+copybook-determinism = { path = "../crates/copybook-determinism" }
+copybook-rdw-predicates = { path = "../crates/copybook-rdw-predicates" }
+copybook-options = { path = "../crates/copybook-options" }
+copybook-safe-ops = { path = "../crates/copybook-safe-ops" }
+copybook-safe-index = { path = "../crates/copybook-safe-index" }
+copybook-safe-text = { path = "../crates/copybook-safe-text" }
+copybook-zoned-format = { path = "../crates/copybook-zoned-format" }
+copybook-overpunch = { path = "../crates/copybook-overpunch" }
+copybook-charset = { path = "../crates/copybook-charset" }
+copybook-codepage = { path = "../crates/copybook-codepage" }
+copybook-governance-runtime = { path = "../crates/copybook-governance-runtime" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 
@@ -44,8 +59,16 @@ name = "copybook_parse"
 path = "fuzz_targets/copybook_parse.rs"
 
 [[bin]]
+name = "lexer"
+path = "fuzz_targets/lexer.rs"
+
+[[bin]]
 name = "binary_decode"
 path = "fuzz_targets/binary_decode.rs"
+
+[[bin]]
+name = "corruption"
+path = "fuzz_targets/corruption.rs"
 
 [[bin]]
 name = "json_encode"
@@ -76,9 +99,99 @@ name = "determinism_compare"
 path = "fuzz_targets/determinism_compare.rs"
 
 [[bin]]
+name = "cli_determinism_render"
+path = "fuzz_targets/cli_determinism_render.rs"
+
+[[bin]]
 name = "options_contract"
 path = "fuzz_targets/options_contract.rs"
 
 [[bin]]
 name = "record_io_dispatch"
 path = "fuzz_targets/record_io_dispatch.rs"
+
+[[bin]]
+name = "safe_ops"
+path = "fuzz_targets/safe_ops.rs"
+
+[[bin]]
+name = "safe_text"
+path = "fuzz_targets/safe_text.rs"
+
+[[bin]]
+name = "safe_index"
+path = "fuzz_targets/safe_index.rs"
+
+[[bin]]
+name = "zoned_format"
+path = "fuzz_targets/zoned_format.rs"
+
+[[bin]]
+name = "fuzz_codec_decode"
+path = "fuzz_targets/fuzz_codec_decode.rs"
+
+[[bin]]
+name = "fuzz_codec_encode"
+path = "fuzz_targets/fuzz_codec_encode.rs"
+
+[[bin]]
+name = "fuzz_edited_pic"
+path = "fuzz_targets/fuzz_edited_pic.rs"
+
+[[bin]]
+name = "fuzz_overpunch_decode"
+path = "fuzz_targets/fuzz_overpunch_decode.rs"
+
+[[bin]]
+name = "fuzz_charset_convert"
+path = "fuzz_targets/fuzz_charset_convert.rs"
+
+[[bin]]
+name = "fuzz_corruption_detect"
+path = "fuzz_targets/fuzz_corruption_detect.rs"
+
+[[bin]]
+name = "fuzz_governance_eval"
+path = "fuzz_targets/fuzz_governance_eval.rs"
+
+[[bin]]
+name = "fuzz_parser_structured"
+path = "fuzz_targets/fuzz_parser_structured.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rdw_framing"
+path = "fuzz_targets/fuzz_rdw_framing.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_charset"
+path = "fuzz_targets/fuzz_charset.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_lexer"
+path = "fuzz_targets/fuzz_lexer.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_schema_roundtrip"
+path = "fuzz_targets/fuzz_schema_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_overpunch"
+path = "fuzz_targets/fuzz_overpunch.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_codepage_conversion"
+path = "fuzz_targets/fuzz_codepage_conversion.rs"
+test = false
+doc = false

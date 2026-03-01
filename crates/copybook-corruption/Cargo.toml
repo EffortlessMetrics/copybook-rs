@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-corruption"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Transfer-corruption detection microcrate for codec heuristics."
+documentation = "https://docs.rs/copybook-corruption"
+readme = "README.md"
+keywords = ["cobol", "codec", "corruption", "ebcdic", "rdw"]
+categories = ["encoding", "parsing", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[dependencies]
+copybook-core.workspace = true
+copybook-corruption-rdw.workspace = true
+copybook-corruption-detectors.workspace = true
+
+[dev-dependencies]
+copybook-corruption-detectors.workspace = true
+
+[lints]
+workspace = true

@@ -15,21 +15,47 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **MSRV**: Rust 1.92 enforced at workspace level and validated in CI (see .github/workflows/ci.yml).
 
-See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
+See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [tools/copybook-bench/BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
 
 ## Workspace Structure
 
-4 published crates:
-- **copybook-core**: COBOL parsing (lexer, parser, AST, layout) with Level-88 condition value support
-- **copybook-codec**: Data encoding/decoding, character conversion with structural validation and determinism validation
-- **copybook-arrow**: Apache Arrow and Parquet format conversion (experimental)
-- **copybook-cli**: CLI with subcommands (parse, inspect, decode, encode, verify, determinism)
+All crates are organized under `crates/` (25 publishable) and `tools/` (3 dev-only):
 
-2 dev-only crates (publish = false):
-- **copybook-gen**: Test fixture generation with golden fixture framework
-- **copybook-bench**: Performance benchmarks with regression detection
-
-Additional workspace members (not published): xtask, tests/bdd, tests/proptest
+```
+crates/                          # 25 publishable crates
+  copybook-arrow/                #   Apache Arrow and Parquet format conversion (experimental)
+  copybook-charset/              #   Character set conversion utilities for EBCDIC/ASCII
+  copybook-cli/                  #   CLI with subcommands (parse, inspect, decode, encode, verify, determinism)
+  copybook-codec/                #   Data encoding/decoding, character conversion
+  copybook-codec-memory/         #   Reusable memory utilities for codec streaming
+  copybook-codepage/             #   Codepage and unmappable-character policy types
+  copybook-contracts/            #   Shared contracts for feature-flag governance
+  copybook-core/                 #   COBOL parsing (lexer, parser, AST, layout) with Level-88 support
+  copybook-determinism/          #   Determinism primitives for stable hash/diff comparison
+  copybook-dialect/              #   Dialect contract for ODO min_count semantics
+  copybook-error/                #   Error types and taxonomy
+  copybook-error-reporter/       #   Structured error reporting policies and summaries
+  copybook-fixed/                #   Fixed-length (LRECL) record framing reader/writer
+  copybook-governance/           #   Governance contracts and interoperability map
+  copybook-governance-contracts/ #   Contracts facade for feature flags and support matrix
+  copybook-governance-grid/      #   Governance grid mapping for runtime feature flags
+  copybook-governance-runtime/   #   Runtime governance state evaluation
+  copybook-options/              #   Configuration option contracts
+  copybook-overflow/             #   Overflow-safe integer narrowing and bounds arithmetic
+  copybook-overpunch/            #   Zoned decimal overpunch encode/decode primitives
+  copybook-rdw/                  #   RDW framing microcrate with header primitives
+  copybook-record-io/            #   Record-format dispatch bridging fixed and RDW framing
+  copybook-sequence-ring/        #   Deterministic sequence reordering for parallel pipelines
+  copybook-support-matrix/       #   COBOL feature support matrix contract and status registry
+  copybook-utils/                #   Panic-safe utility functions and extension traits
+tools/                           # 3 dev-only crates (publish = false)
+  copybook-bench/                #   Performance benchmarks with regression detection
+  copybook-gen/                  #   Test fixture generation with golden fixture framework
+  xtask/                         #   Build automation tasks
+tests/                           # Test-only workspace members
+  bdd/
+  proptest/
+```
 
 ## Development Commands
 
@@ -266,8 +292,8 @@ Structured error taxonomy with stable codes:
 **Baseline Established**: 2025-09-30 (Commit 1fa63633)
 - Measurement Environment: WSL2 on AMD Ryzen 9 9950X3D (32 threads, 196 GiB RAM)
 - Sample Count: 5 independent runs with statistical analysis
-- See `copybook-bench/HARDWARE_SPECS.md` for complete hardware specifications
-- See `copybook-bench/BASELINE_METHODOLOGY.md` for measurement procedures
+- See `tools/copybook-bench/HARDWARE_SPECS.md` for complete hardware specifications
+- See `tools/copybook-bench/BASELINE_METHODOLOGY.md` for measurement procedures
 
 **Benchmarking**:
 ```bash
@@ -367,7 +393,7 @@ Golden fixtures maintain strict performance requirements aligned with establishe
 - **Variance**: ~5% (DISPLAY), ~8% (COMP-3) across benchmark runs
 - **Regression Detection**: Automated baseline comparison with <2% tolerance
 
-Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for complete performance analysis.
+Baseline established 2025-09-30 (commit 1fa63633) on WSL2/AMD Ryzen 9 9950X3D. See [tools/copybook-bench/BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for complete performance analysis.
 
 ## Field Projection (`--select`)
 

@@ -11,7 +11,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'scripts/bench*.sh'
-      - 'copybook-bench/**'
+      - 'tools/copybook-bench/**'
       - '.github/workflows/perf-container.yml'
 
 concurrency:

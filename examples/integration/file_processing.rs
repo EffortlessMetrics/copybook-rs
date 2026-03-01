@@ -4,7 +4,8 @@
 
 use copybook_codec::{decode_file_to_jsonl, Codepage, DecodeOptions, JsonNumberMode, RecordFormat};
 use copybook_core::parse_copybook;
-use std::fs;
+use std::fs::{self, File};
+use std::io::BufWriter;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,22 +46,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔄 Processing file: {} → {}", input_file, output_file);
 
     // Decode the entire file to JSONL format
-    match decode_file_to_jsonl(&schema, input_file, output_file, &options) {
+    let input_reader = File::open(input_file)?;
+    let output_writer = BufWriter::new(File::create(output_file)?);
+    match decode_file_to_jsonl(&schema, input_reader, output_writer, &options) {
         Ok(summary) => {
             println!("✅ File processing complete!");
             println!("   Records processed: {}", summary.records_processed);
-            println!("   Records successful: {}", summary.records_successful);
-            println!("   Errors encountered: {}", summary.errors.len());
-            println!("   Processing time: {:?}", summary.elapsed);
+            println!("   Records with errors: {}", summary.records_with_errors);
+            println!("   Processing time: {} ms", summary.processing_time_ms);
 
-            if !summary.errors.is_empty() {
-                println!("⚠️  Errors:");
-                for (i, error) in summary.errors.iter().take(5).enumerate() {
-                    println!("   {}. {}", i + 1, error);
-                }
-                if summary.errors.len() > 5 {
-                    println!("   ... and {} more errors", summary.errors.len() - 5);
-                }
+            if summary.records_with_errors > 0 {
+                println!(
+                    "⚠️  {} records had errors during processing",
+                    summary.records_with_errors
+                );
             }
         }
         Err(e) => {

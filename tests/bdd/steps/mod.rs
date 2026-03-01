@@ -12,6 +12,7 @@ pub(crate) mod fixed;
 pub(crate) mod golden_fixtures;
 pub(crate) mod parsing;
 pub(crate) mod rdw;
+pub(crate) mod rdw_heuristics;
 pub(crate) mod sign_separate_renames;
 
 // New feature step modules
@@ -26,6 +27,12 @@ pub(crate) mod parallel;
 pub(crate) mod parsing_modes;
 pub(crate) mod raw_capture;
 pub(crate) mod record_io;
+pub(crate) mod safe_ops;
 pub(crate) mod support;
 pub(crate) mod verify;
 pub(crate) mod zoned_encoding;
+
+// Expanded BDD coverage modules
+pub(crate) mod codepage_handling;
+pub(crate) mod error_taxonomy;
+pub(crate) mod governance_sync;

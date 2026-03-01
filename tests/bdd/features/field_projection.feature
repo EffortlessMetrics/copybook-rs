@@ -1,3 +1,4 @@
+@field-projection @projection
 Feature: Field Projection
 
   As a developer working with large COBOL data structures
@@ -194,3 +195,209 @@ Feature: Field Projection
     And the schema is projected with selected fields
     Then the projection should succeed
     And the projected schema should contain 0 top-level field(s)
+
+  # ========================================================================
+  # Extended field projection scenarios
+  # ========================================================================
+
+  Scenario: Select leaf field from deeply nested group
+    Given a copybook with content:
+      """
+      01 DEEP-RECORD.
+         05 LEVEL-ONE.
+            10 LEVEL-TWO.
+               15 DEEP-FIELD PIC X(10).
+            10 OTHER-FIELD PIC X(5).
+         05 TOP-FIELD PIC 9(4).
+      """
+    And field selection: "DEEP-FIELD"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "DEEP-FIELD" should be included in projection
+    And the field "OTHER-FIELD" should not be included in projection
+    And the field "TOP-FIELD" should not be included in projection
+
+  Scenario: Select two fields from same nested group
+    Given a copybook with content:
+      """
+      01 ACCOUNT-RECORD.
+         05 DETAILS.
+            10 ACCT-ID    PIC 9(8).
+            10 ACCT-NAME  PIC X(30).
+            10 ACCT-TYPE  PIC X(2).
+         05 BALANCE PIC 9(9)V99.
+      """
+    And field selection: "ACCT-ID,ACCT-NAME"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "ACCT-ID" should be included in projection
+    And the field "ACCT-NAME" should be included in projection
+    And the field "ACCT-TYPE" should not be included in projection
+    And the field "BALANCE" should not be included in projection
+
+  Scenario: Select group and a child field deduplicates
+    Given a copybook with content:
+      """
+      01 DEDUP-RECORD.
+         05 HDR-GROUP.
+            10 HDR-ID   PIC 9(4).
+            10 HDR-TYPE  PIC X(2).
+         05 PAYLOAD PIC X(50).
+      """
+    And field selection: "HDR-GROUP,HDR-ID"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "HDR-GROUP" should be included in projection
+    And the field "HDR-ID" should be included in projection
+    And the field "HDR-TYPE" should be included in projection
+    And the field "PAYLOAD" should not be included in projection
+
+  Scenario: Project single numeric field and decode
+    Given a copybook with content:
+      """
+      01 NUMERIC-PROJ-RECORD.
+         05 ITEM-ID    PIC 9(6).
+         05 ITEM-QTY   PIC 9(5).
+         05 ITEM-DESC  PIC X(20).
+      """
+    And binary data: "000042000101234567890123456789"
+    And field selection: "ITEM-ID"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "ITEM-ID" should be included in projection
+    And the field "ITEM-QTY" should not be included in projection
+    And the field "ITEM-DESC" should not be included in projection
+
+  Scenario: Multiple non-existent fields all fail
+    Given a copybook with content:
+      """
+      01 SIMPLE-RECORD.
+         05 FIELD-A PIC X(5).
+      """
+    And field selection: "GHOST-ONE"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should fail
+    And the error code should be "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+
+  Scenario: Select single field preserves parent group hierarchy
+    Given a copybook with content:
+      """
+      01 HIERARCHY-RECORD.
+         05 OUTER-GROUP.
+            10 INNER-GROUP.
+               15 TARGET-FIELD PIC X(8).
+            10 SIBLING-FIELD PIC X(4).
+      """
+    And field selection: "TARGET-FIELD"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "TARGET-FIELD" should be included in projection
+    And the field "SIBLING-FIELD" should not be included in projection
+
+  Scenario: ODO auto-includes counter when selecting child
+    Given a copybook with content:
+      """
+      01 CHILD-ODO-RECORD.
+         05 NUM-ITEMS PIC 9(2).
+         05 ITEMS OCCURS 1 TO 20 TIMES DEPENDING ON NUM-ITEMS.
+            10 ITEM-CODE PIC X(4).
+            10 ITEM-PRICE PIC 9(5)V99.
+      """
+    And field selection: "ITEMS"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "ITEMS" should be included in projection
+    And the field "NUM-ITEMS" should be included in projection
+    And the field "ITEM-CODE" should be included in projection
+    And the field "ITEM-PRICE" should be included in projection
+
+  Scenario: Select field with mixed case matches case-insensitively
+    Given a copybook with content:
+      """
+      01 CASE-RECORD.
+         05 MY-FIELD PIC X(10).
+         05 OTHER    PIC X(5).
+      """
+    And field selection: "my-field"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "MY-FIELD" should be included in projection
+    And the field "OTHER" should not be included in projection
+
+  Scenario: Select three independent leaf fields
+    Given a copybook with content:
+      """
+      01 MULTI-RECORD.
+         05 FIELD-A PIC X(5).
+         05 FIELD-B PIC 9(3).
+         05 FIELD-C PIC X(10).
+         05 FIELD-D PIC 9(8).
+         05 FIELD-E PIC X(20).
+      """
+    And field selection: "FIELD-A,FIELD-C,FIELD-E"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "FIELD-A" should be included in projection
+    And the field "FIELD-C" should be included in projection
+    And the field "FIELD-E" should be included in projection
+    And the field "FIELD-B" should not be included in projection
+    And the field "FIELD-D" should not be included in projection
+
+  Scenario: Projection of single field from flat record
+    Given a copybook with content:
+      """
+      01 FLAT-RECORD.
+         05 ALPHA-FIELD PIC X(15).
+         05 NUM-FIELD   PIC 9(7).
+      """
+    And field selection: "NUM-FIELD"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "NUM-FIELD" should be included in projection
+    And the field "ALPHA-FIELD" should not be included in projection
+
+  Scenario: Projected decode produces valid JSON
+    Given a copybook with content:
+      """
+      01 JSON-PROJ-RECORD.
+         05 CUST-ID     PIC 9(6).
+         05 CUST-NAME   PIC X(20).
+         05 CUST-ADDR   PIC X(40).
+      """
+    And binary data: "000042ALICE JOHNSON        742 OAK AVENUE                          "
+    And field selection: "CUST-ID,CUST-NAME"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "CUST-ID" should be included in projection
+    And the field "CUST-NAME" should be included in projection
+    And the field "CUST-ADDR" should not be included in projection
+
+  Scenario: Projected schema has fewer fields than full schema
+    Given a copybook with content:
+      """
+      01 LRECL-PROJ-RECORD.
+         05 FIELD-A PIC X(10).
+         05 FIELD-B PIC 9(5).
+         05 FIELD-C PIC X(30).
+         05 FIELD-D PIC 9(8).
+      """
+    And field selection: "FIELD-A"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the projected schema should contain 1 top-level field(s)
+    And the field "FIELD-A" should be included in projection
+    And the field "FIELD-B" should not be included in projection
+    And the field "FIELD-C" should not be included in projection
+    And the field "FIELD-D" should not be included in projection

@@ -1,3 +1,4 @@
+@copybook-parsing
 Feature: Copybook Parsing
 
   As a developer working with COBOL copybooks
@@ -115,3 +116,11 @@ Feature: Copybook Parsing
     And the schema should contain 1 top-level field(s)
     And the field "GROUP-1" should have type "group"
     And the field "GROUP-2" should have type "group"
+
+  Scenario: Parse level-88 VALUE list commas without treating them as edited picture tokens
+    Given a copybook with an inline VALUE-list for Level-88
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the schema should contain 1 top-level field(s)
+    And the lexer should produce 2 comma token(s)
+    And the lexer should not treat VALUE-list separators as edited-picture tokens

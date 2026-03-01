@@ -29,10 +29,11 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'copybook-core/**'
-      - 'copybook-codec/**'
-      - 'copybook-cli/**'
-      - 'copybook-arrow/**'
+      - 'crates/copybook-core/**'
+      - 'crates/copybook-codec/**'
+      - 'crates/copybook-error/**'
+      - 'crates/copybook-overpunch/**'
+      - 'crates/copybook-overflow/**'
       - 'mutants.toml'
       - '.github/workflows/ci-mutants.yml'
 
@@ -98,22 +99,14 @@ jobs:
         include:
           - crate: copybook-core
             threshold: 75
-            timeout: 300
           - crate: copybook-codec
             threshold: 75
-            timeout: 300
-          - crate: copybook-cli
-            threshold: 65
-            timeout: 200
-          - crate: copybook-bench
-            threshold: 60
-            timeout: 150
-          - crate: copybook-gen
-            threshold: 60
-            timeout: 150
-          - crate: copybook-arrow
-            threshold: 60
-            timeout: 180
+          - crate: copybook-error
+            threshold: 70
+          - crate: copybook-overpunch
+            threshold: 80
+          - crate: copybook-overflow
+            threshold: 80
 
     steps:
       - name: Checkout code
@@ -153,7 +146,6 @@ jobs:
       - name: Run mutation testing
         id: mutants
         env:
-          MUTANTS_TIMEOUT: ${{ matrix.timeout }}
           MUTANTS_THRESHOLD: ${{ matrix.threshold }}
         run: |
           set +e
@@ -161,11 +153,9 @@ jobs:
           # Run cargo-mutants with configuration file
           cargo mutants \
             --package ${{ matrix.crate }} \
-            --timeout $MUTANTS_TIMEOUT \
-            --test-tool nextest \
             --in-place \
             --json \
-            --file mutants.toml \
+            --config mutants.toml \
             -vV 2>&1 | tee mutants-${{ matrix.crate }}-output.log
 
           MUTANTS_EXIT=$?

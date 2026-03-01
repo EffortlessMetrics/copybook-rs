@@ -3,6 +3,7 @@ use cucumber::{given, then, when};
 
 use crate::helpers::does_path_match_counter;
 use crate::world::CopybookWorld;
+use copybook_core::lexer::{Lexer, Token};
 
 // ========================================================================
 // Copybook Parsing Steps
@@ -39,7 +40,7 @@ async fn given_copybook_with_occurs(world: &mut CopybookWorld) {
     );
 }
 
-#[given(expr = "a copybook with ODO (OCCURS DEPENDING ON)")]
+#[given(regex = r"^a copybook with ODO \(OCCURS DEPENDING ON\)$")]
 async fn given_copybook_with_odo(world: &mut CopybookWorld) {
     world.copybook_text = Some(
         "01 ODO-RECORD.\n\
@@ -136,17 +137,21 @@ async fn when_copybook_is_parsed(world: &mut CopybookWorld) {
 
 #[then(expr = "the schema should be successfully parsed")]
 async fn then_schema_successfully_parsed(world: &mut CopybookWorld) {
+    if let Some(ref e) = world.error {
+        panic!("Schema parsing failed with error: {e}");
+    }
     assert!(
         world.schema.is_some(),
         "Schema should be parsed successfully"
     );
-    assert!(world.error.is_none(), "No error should occur");
 }
 
 #[then(expr = "parsing should succeed")]
 async fn then_parsing_should_succeed(world: &mut CopybookWorld) {
+    if let Some(ref e) = world.error {
+        panic!("Parsing failed with error: {e}");
+    }
     assert!(world.schema.is_some(), "Parsing should succeed");
-    assert!(world.error.is_none(), "No error should occur");
 }
 
 #[then(expr = "parsing should fail")]
@@ -258,6 +263,7 @@ async fn then_field_has_occurs_count(
     field_name: String,
     expected_count: u32,
 ) {
+    let field_name = field_name.trim_matches('"').to_string();
     let field = world
         .find_field_by_name_ci(&field_name)
         .expect(&format!("Field '{}' not found", field_name));
@@ -281,6 +287,7 @@ async fn then_field_has_odo_with_counter(
     field_name: String,
     counter: String,
 ) {
+    let field_name = field_name.trim_matches('"').to_string();
     let field = world
         .find_field_by_name_ci(&field_name)
         .expect(&format!("Field '{}' not found", field_name));
@@ -312,8 +319,15 @@ async fn then_field_has_odo_range(
 
     match &field.occurs {
         Some(copybook_core::Occurs::ODO { min, max, .. }) => {
+            // Use dialect-adjusted min from schema.tail_odo when available
+            let effective_min = world
+                .schema()
+                .tail_odo
+                .as_ref()
+                .filter(|t| t.array_path.eq_ignore_ascii_case(&field_name))
+                .map_or(*min, |t| t.min_count);
             assert_eq!(
-                *min, expected_min,
+                effective_min, expected_min,
                 "Field '{}' ODO min should be {}",
                 field_name, expected_min
             );
@@ -469,11 +483,13 @@ async fn then_field_has_length(world: &mut CopybookWorld, field_name: String, ex
 
 #[then(expr = "schema should be successfully parsed")]
 async fn then_schema_parsed_bare(world: &mut CopybookWorld) {
+    if let Some(ref e) = world.error {
+        panic!("Schema parsing failed with error: {e}");
+    }
     assert!(
         world.schema.is_some(),
         "Schema should be parsed successfully"
     );
-    assert!(world.error.is_none(), "No error should occur");
 }
 
 #[then(expr = "field {string} should have type {string}")]
@@ -537,5 +553,44 @@ async fn then_field_present_bare(world: &mut CopybookWorld, field_name: String) 
         world.find_field_by_name_ci(&field_name).is_some(),
         "Field '{}' should be present",
         field_name
+    );
+}
+
+#[given(expr = "a copybook with an inline VALUE-list for Level-88")]
+async fn given_copybook_with_level88_inline_values(world: &mut CopybookWorld) {
+    world.copybook_text = Some(
+        "01 STATUS-RECORD.\n\
+         05 STATUS-CODE PIC X(1).\n\
+             88 STATUS-ACTIVE VALUE \"A\", \"B\", \"C\"."
+            .to_string(),
+    );
+}
+
+#[then(expr = "the lexer should produce {int} comma token(s)")]
+async fn then_lexer_should_produce_comma_tokens(world: &mut CopybookWorld, expected: usize) {
+    let copybook_text = world.copybook_text.as_ref().expect("Copybook text not set");
+    let mut lexer = Lexer::new(copybook_text);
+    let comma_count = lexer
+        .tokenize()
+        .iter()
+        .filter(|token_pos| matches!(token_pos.token, Token::Comma))
+        .count();
+
+    assert_eq!(comma_count, expected);
+}
+
+#[then(expr = "the lexer should not treat VALUE-list separators as edited-picture tokens")]
+async fn then_lexer_should_not_treat_value_list_commas_as_edited_pic(world: &mut CopybookWorld) {
+    let copybook_text = world.copybook_text.as_ref().expect("Copybook text not set");
+    let mut lexer = Lexer::new(copybook_text);
+    let edited_pic_count = lexer
+        .tokenize()
+        .iter()
+        .filter(|token_pos| matches!(token_pos.token, Token::EditedPic(_)))
+        .count();
+
+    assert_eq!(
+        edited_pic_count, 0,
+        "Expected VALUE-list separators to stay as comma tokens, not edited picture"
     );
 }

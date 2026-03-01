@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-cli-determinism"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Determinism command execution and output rendering for the copybook CLI."
+keywords = ["cobol", "copybook", "determinism", "cli"]
+categories = ["encoding", "command-line-utilities"]
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+copybook-determinism = { workspace = true }
+copybook-core = { workspace = true }
+copybook-codec = { workspace = true }
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

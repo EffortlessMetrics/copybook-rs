@@ -30,7 +30,43 @@ use cucumber::World as _;
 
 use crate::world::CopybookWorld;
 
-const SMOKE_TAGS: [&str; 4] = ["raw", "metadata", "verify", "projection_smoke"];
+const SMOKE_TAGS: [&str; 35] = [
+    "raw",
+    "metadata",
+    "verify",
+    "projection_smoke",
+    "exit-codes",
+    "copybook-parsing",
+    "determinism",
+    "enterprise-audit",
+    "error-strategies",
+    "field-projection",
+    "options",
+    "parallel",
+    "parsing-modes",
+    "rdw-corruption",
+    "safe-ops",
+    "support",
+    "codec-edge-cases",
+    "edited-pic",
+    "projection-advanced",
+    "governance",
+    "decode_numeric",
+    "encode_roundtrip",
+    "dialect",
+    "codepage-handling",
+    "record-framing",
+    "comp3-packed",
+    "sign-handling",
+    "binary-integer",
+    "level-88",
+    "redefines",
+    "occurs-arrays",
+    "comp-binary",
+    "projection",
+    "data-verification",
+    "roundtrip",
+];
 
 #[tokio::main]
 async fn main() {

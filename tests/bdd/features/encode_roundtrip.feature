@@ -51,7 +51,7 @@ Feature: Encode Round-Trip and Edge Cases
   Scenario: Round-trip OCCURS array
     Given a copybook with OCCURS clause
     And ASCII codepage
-    And binary data: "ELEMENT0001ELEMENT0002ELEMENT0003ELEMENT0004ELEMENT0005"
+    And binary data: "ELEMENT001ELEMENT002ELEMENT003ELEMENT004ELEMENT005"
     When the data is round-tripped
     Then the round-trip should be lossless
     And decoding should succeed

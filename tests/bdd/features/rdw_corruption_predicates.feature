@@ -1,3 +1,4 @@
+@rdw-corruption
 Feature: RDW corruption heuristic
   Scenario: detect an ASCII digit length header
     When the rdw ascii-corruption heuristic evaluates header "\x31\x32\x00\x00"

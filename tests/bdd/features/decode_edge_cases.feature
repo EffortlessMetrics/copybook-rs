@@ -32,7 +32,7 @@ Feature: Decode Edge Cases
     When the binary data is decoded
     Then decoding should succeed
     And the decoded output should be valid JSON
-    And decoded FILLED-FIELD should be "HELLO"
+    And decoded field FILLED-FIELD should be "HELLO"
 
   # --- Truncated records ---
 

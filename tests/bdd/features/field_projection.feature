@@ -1,3 +1,4 @@
+@field-projection
 Feature: Field Projection
 
   As a developer working with large COBOL data structures

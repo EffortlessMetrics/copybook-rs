@@ -1,3 +1,4 @@
+@copybook-parsing
 Feature: Copybook Parsing
 
   As a developer working with COBOL copybooks

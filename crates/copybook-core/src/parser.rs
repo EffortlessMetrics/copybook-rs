@@ -885,6 +885,9 @@ impl Parser {
         // Collect PIC clause tokens - might be split across multiple tokens
         let mut pic_parts = Vec::new();
 
+        // Track the starting line for same-line checks
+        let token_line = self.current_token().map(|t| t.line).unwrap_or(0);
+
         // First token should be a PIC clause or identifier
         match self.current_token() {
             Some(TokenPos {
@@ -910,6 +913,14 @@ impl Parser {
                 pic_parts.push(id.clone());
                 self.advance();
             }
+            Some(TokenPos {
+                token: Token::Number(n),
+                ..
+            }) => {
+                // Lexer tokenizes e.g. "999" as Number (priority 4 > PicClause priority 3)
+                pic_parts.push(n.to_string());
+                self.advance();
+            }
             _ => {
                 return Err(Error::new(
                     ErrorCode::CBKP001_SYNTAX,
@@ -918,22 +929,61 @@ impl Parser {
             }
         }
 
+        // Track whether we're inside parentheses
+        let mut paren_depth: i32 = 0;
+
         // Collect repetition count and sign indicators if present
         while let Some(token) = self.current_token() {
             match &token.token {
                 Token::LeftParen => {
+                    paren_depth += 1;
                     pic_parts.push("(".to_string());
                     self.advance();
                 }
-                Token::Number(n)
-                    if !pic_parts.is_empty() && pic_parts.last() == Some(&"(".to_string()) =>
-                {
+                Token::Number(n) if paren_depth > 0 => {
                     pic_parts.push(n.to_string());
                     self.advance();
                 }
-                Token::RightParen if !pic_parts.is_empty() && pic_parts.len() >= 2 => {
+                Token::RightParen if paren_depth > 0 => {
+                    paren_depth -= 1;
                     pic_parts.push(")".to_string());
                     self.advance();
+                }
+                Token::Comma => {
+                    // Comma in edited PIC patterns like $ZZ,ZZZ.99
+                    pic_parts.push(",".to_string());
+                    self.advance();
+                }
+                Token::EditedPic(ep) => {
+                    // Continuation of edited PIC after comma/period
+                    pic_parts.push(ep.clone());
+                    self.advance();
+                }
+                Token::Period => {
+                    // Period could be decimal point or sentence terminator.
+                    // Only treat as decimal if on the same line as the PIC start
+                    // and something follows on the same line.
+                    let t = token.clone();
+                    if t.line == token_line {
+                        if let Some(next) = self.peek_next() {
+                            if next.line == token_line {
+                                pic_parts.push(".".to_string());
+                                self.advance();
+                                continue;
+                            }
+                        }
+                    }
+                    break;
+                }
+                Token::Number(n) => {
+                    // Number outside parens on same line (e.g., "ZZZ9" split as EditedPic + Number)
+                    let t = token.clone();
+                    if t.line == token_line {
+                        pic_parts.push(n.to_string());
+                        self.advance();
+                    } else {
+                        break;
+                    }
                 }
                 Token::Identifier(id) if id.starts_with('V') || id.starts_with('v') => {
                     pic_parts.push(id.clone());
@@ -1652,6 +1702,11 @@ impl Parser {
     /// Get current token
     fn current_token(&self) -> Option<&TokenPos> {
         self.tokens.get(self.current)
+    }
+
+    /// Peek at the next token without advancing
+    fn peek_next(&self) -> Option<&TokenPos> {
+        self.tokens.get(self.current + 1)
     }
 
     /// Advance to next token

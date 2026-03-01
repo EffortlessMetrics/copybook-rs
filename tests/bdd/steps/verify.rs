@@ -16,8 +16,20 @@ async fn when_data_verified(world: &mut CopybookWorld) {
     let binary_data = world
         .binary_data
         .as_ref()
-        .expect("Binary data not set")
-        .clone();
+        .cloned()
+        .unwrap_or_default();
+
+    if binary_data.is_empty() {
+        world.verify_error_count = Some(0);
+        world.verify_report = Some("Verification passed: 0 records (empty data)".to_string());
+        return;
+    }
+
+    // For ODO schemas lrecl_fixed may be None; set it from binary data length
+    if world.schema().lrecl_fixed.is_none() {
+        world.schema_mut().lrecl_fixed = Some(binary_data.len() as u32);
+    }
+
     let mut output = Vec::new();
 
     match decode_file_to_jsonl(

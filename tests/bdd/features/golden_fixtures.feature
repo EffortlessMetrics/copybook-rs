@@ -233,8 +233,8 @@ Feature: Golden Fixtures Validation
     Then encoding should succeed
     And the round-trip should be lossless
     And decoding should succeed
-    And decoded RECORD-ID should be "0001"
-    And decoded POSITIVE-AMOUNT should be "12345"
-    And decoded NEGATIVE-AMOUNT should be "-67890"
-    And decoded DECIMAL-AMOUNT should be "123.45"
-    And decoded UNSIGNED-AMOUNT should be "999"
+    And decoded field RECORD-ID should be "0001"
+    And decoded field POSITIVE-AMOUNT should be "12345"
+    And decoded field NEGATIVE-AMOUNT should be "-67890"
+    And decoded field DECIMAL-AMOUNT should be "123.45"
+    And decoded field UNSIGNED-AMOUNT should be "999"

@@ -4,7 +4,7 @@ use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFor
 use copybook_core::{ParseOptions, parse_copybook, parse_copybook_with_options};
 use serde_json::Value;
 
-use crate::helpers::{default_ascii_decode_options, default_ascii_encode_options};
+use crate::helpers::{default_ascii_decode_options, default_ascii_encode_options, normalize_copybook_text};
 
 /// BDD World struct to maintain test state across steps
 #[derive(Debug, Default, cucumber::World)]
@@ -84,9 +84,10 @@ impl CopybookWorld {
         }
 
         let copybook_text = self.copybook_text.as_ref().expect("Copybook text not set");
+        let normalized = normalize_copybook_text(copybook_text);
 
         match &self.parse_options {
-            Some(options) => match parse_copybook_with_options(copybook_text, options) {
+            Some(options) => match parse_copybook_with_options(&normalized, options) {
                 Ok(schema) => {
                     self.schema = Some(schema);
                 }
@@ -94,7 +95,7 @@ impl CopybookWorld {
                     self.error = Some(e);
                 }
             },
-            None => match parse_copybook(copybook_text) {
+            None => match parse_copybook(&normalized) {
                 Ok(schema) => {
                     self.schema = Some(schema);
                 }
@@ -126,12 +127,23 @@ impl CopybookWorld {
         self.schema.as_ref().expect("Schema not parsed")
     }
 
+    pub(crate) fn schema_mut(&mut self) -> &mut copybook_core::Schema {
+        self.schema.as_mut().expect("Schema not parsed")
+    }
+
     pub(crate) fn find_field_by_name(&self, name: &str) -> Option<&copybook_core::Field> {
         self.schema().find_field(name)
     }
 
     pub(crate) fn find_field_by_name_ci(&self, name: &str) -> Option<&copybook_core::Field> {
-        self.schema().find_field(name)
+        // Try exact path match first
+        self.schema().find_field(name).or_else(|| {
+            // Fall back to case-insensitive name-based search
+            self.schema()
+                .all_fields()
+                .into_iter()
+                .find(|f| f.name.eq_ignore_ascii_case(name))
+        })
     }
 
     pub(crate) fn all_leaf_fields(&self) -> Vec<&copybook_core::Field> {

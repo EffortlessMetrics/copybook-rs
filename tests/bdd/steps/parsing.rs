@@ -137,17 +137,21 @@ async fn when_copybook_is_parsed(world: &mut CopybookWorld) {
 
 #[then(expr = "the schema should be successfully parsed")]
 async fn then_schema_successfully_parsed(world: &mut CopybookWorld) {
+    if let Some(ref e) = world.error {
+        panic!("Schema parsing failed with error: {e}");
+    }
     assert!(
         world.schema.is_some(),
         "Schema should be parsed successfully"
     );
-    assert!(world.error.is_none(), "No error should occur");
 }
 
 #[then(expr = "parsing should succeed")]
 async fn then_parsing_should_succeed(world: &mut CopybookWorld) {
+    if let Some(ref e) = world.error {
+        panic!("Parsing failed with error: {e}");
+    }
     assert!(world.schema.is_some(), "Parsing should succeed");
-    assert!(world.error.is_none(), "No error should occur");
 }
 
 #[then(expr = "parsing should fail")]
@@ -274,6 +278,15 @@ async fn then_field_has_occurs_count(
         "Expected field '{}' to have OCCURS count {}, got {}",
         field_name, expected_count, actual_count
     );
+}
+
+#[then(expr = "field {string} should have OCCURS count {int}")]
+async fn then_field_has_occurs_count_str(
+    world: &mut CopybookWorld,
+    field_name: String,
+    expected_count: u32,
+) {
+    then_field_has_occurs_count(world, field_name, expected_count).await;
 }
 
 #[then(expr = "field {word} should have ODO with counter {string}")]
@@ -470,11 +483,13 @@ async fn then_field_has_length(world: &mut CopybookWorld, field_name: String, ex
 
 #[then(expr = "schema should be successfully parsed")]
 async fn then_schema_parsed_bare(world: &mut CopybookWorld) {
+    if let Some(ref e) = world.error {
+        panic!("Schema parsing failed with error: {e}");
+    }
     assert!(
         world.schema.is_some(),
         "Schema should be parsed successfully"
     );
-    assert!(world.error.is_none(), "No error should occur");
 }
 
 #[then(expr = "field {string} should have type {string}")]

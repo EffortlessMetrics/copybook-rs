@@ -36,7 +36,7 @@ Feature: Encode and Decode Operations
   Scenario: Decode numeric fields from binary
     Given a copybook with numeric fields
     And ASCII codepage
-    And binary data: "00000000000000000000"
+    And binary data: "000000000000000000"
     When the binary data is decoded
     Then decoding should succeed
     And the decoded output should be valid JSON
@@ -55,7 +55,7 @@ Feature: Encode and Decode Operations
   Scenario: Decode array fields from binary
     Given a copybook with OCCURS clause
     And ASCII codepage
-    And binary data: "ELEMENT0001ELEMENT0002ELEMENT0003ELEMENT0004ELEMENT0005"
+    And binary data: "ELEMENT001ELEMENT002ELEMENT003ELEMENT004ELEMENT005"
     When the binary data is decoded
     Then decoding should succeed
     And the decoded output should be valid JSON
@@ -66,7 +66,7 @@ Feature: Encode and Decode Operations
     And ASCII codepage
     And JSON data:
       """
-      {"schema":"copybook.v1","record_index":0,"codepage":"ASCII","fields":{"ARRAY-FIELD":[{"ELEMENT":"ELEMENT0001"},{"ELEMENT":"ELEMENT0002"},{"ELEMENT":"ELEMENT0003"},{"ELEMENT":"ELEMENT0004"},{"ELEMENT":"ELEMENT0005"}]},"ARRAY-FIELD":[{"ELEMENT":"ELEMENT0001"},{"ELEMENT":"ELEMENT0002"},{"ELEMENT":"ELEMENT0003"},{"ELEMENT":"ELEMENT0004"},{"ELEMENT":"ELEMENT0005"}]}
+      {"schema":"copybook.v1","record_index":0,"codepage":"ASCII","fields":{"ARRAY-FIELD":[{"ELEMENT":"ELEMENT001"},{"ELEMENT":"ELEMENT002"},{"ELEMENT":"ELEMENT003"},{"ELEMENT":"ELEMENT004"},{"ELEMENT":"ELEMENT005"}]},"ARRAY-FIELD":[{"ELEMENT":"ELEMENT001"},{"ELEMENT":"ELEMENT002"},{"ELEMENT":"ELEMENT003"},{"ELEMENT":"ELEMENT004"},{"ELEMENT":"ELEMENT005"}]}
       """
     When the JSON data is encoded
     Then encoding should succeed
@@ -131,7 +131,7 @@ Feature: Encode and Decode Operations
               10 SUB-FIELD-3 PIC X(10).
       """
     And ASCII codepage
-    And binary data: "ABCDE12345FGHIJKLMNOP"
+    And binary data: "ABCDE12345FGHIJKLMNO"
     When the binary data is decoded
     Then decoding should succeed
     And the decoded output should be valid JSON
@@ -152,7 +152,7 @@ Feature: Encode and Decode Operations
     And ASCII codepage
     And JSON data:
       """
-      {"schema":"copybook.v1","record_index":0,"codepage":"ASCII","fields":{"GROUP-1":{"SUB-FIELD-1":"ABCDE","SUB-FIELD-2":"12345"},"GROUP-2":{"SUB-FIELD-3":"FGHIJKLMNOP"}},"GROUP-1":{"SUB-FIELD-1":"ABCDE","SUB-FIELD-2":"12345"},"GROUP-2":{"SUB-FIELD-3":"FGHIJKLMNOP"}}
+      {"schema":"copybook.v1","record_index":0,"codepage":"ASCII","fields":{"GROUP-1":{"SUB-FIELD-1":"ABCDE","SUB-FIELD-2":"12345"},"GROUP-2":{"SUB-FIELD-3":"FGHIJKLMNO"}},"GROUP-1":{"SUB-FIELD-1":"ABCDE","SUB-FIELD-2":"12345"},"GROUP-2":{"SUB-FIELD-3":"FGHIJKLMNO"}}
       """
     When the JSON data is encoded
     Then encoding should succeed
@@ -169,7 +169,7 @@ Feature: Encode and Decode Operations
               10 SUB-FIELD-3 PIC X(10).
       """
     And ASCII codepage
-    And binary data: "ABCDE12345FGHIJKLMNOP"
+    And binary data: "ABCDE12345FGHIJKLMNO"
     When the data is round-tripped
     Then the round-trip should be lossless
     And decoding should succeed

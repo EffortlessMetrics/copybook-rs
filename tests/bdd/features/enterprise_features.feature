@@ -285,7 +285,7 @@ Feature: Enterprise COBOL Features
     And ASCII codepage
     And binary data with COUNT=3 and 3 elements
     When binary data is decoded
-    Then decoded COUNT should be "003"
+    Then decoded field COUNT should be "003"
     And there should be 3 ARRAY elements
 
   Scenario: Encode ODO array data
@@ -374,7 +374,7 @@ Feature: Enterprise COBOL Features
     And ASCII codepage
     And binary data with zero value
     When binary data is decoded
-    Then decoded AMOUNT should be blank
+    Then decoded field AMOUNT should be blank
 
   Scenario: Handle BLANK WHEN ZERO on encode
     Given a copybook with BLANK WHEN ZERO:

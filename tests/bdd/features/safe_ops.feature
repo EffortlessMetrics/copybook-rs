@@ -1,3 +1,4 @@
+@safe-ops
 Feature: Safe operations contract
   Scenario: parse a valid unsigned integer
     Given the safe-op input is "2048"

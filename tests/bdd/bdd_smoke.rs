@@ -30,7 +30,7 @@ use cucumber::World as _;
 
 use crate::world::CopybookWorld;
 
-const SMOKE_TAGS: [&str; 25] = [
+const SMOKE_TAGS: [&str; 28] = [
     "raw",
     "metadata",
     "verify",
@@ -56,6 +56,9 @@ const SMOKE_TAGS: [&str; 25] = [
     "dialect",
     "codepage-handling",
     "record-framing",
+    "comp3-packed",
+    "sign-handling",
+    "binary-integer",
 ];
 
 #[tokio::main]

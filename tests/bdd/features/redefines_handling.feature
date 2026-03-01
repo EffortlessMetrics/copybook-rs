@@ -212,3 +212,82 @@ Feature: REDEFINES Handling
     And the field "FIELD-A" should be present
     And the field "FIELD-A-ALT" should be present
     And the field "FIELD-B" should be present
+
+  # --- Additional REDEFINES scenarios ---
+
+  Scenario: REDEFINES elementary to group with two children
+    Given a copybook with content:
+      """
+      01 SPLIT-REDEF.
+          05 FULL-NAME PIC X(25).
+          05 NAME-PARTS REDEFINES FULL-NAME.
+              10 FIRST-N PIC X(15).
+              10 LAST-N PIC X(10).
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "FULL-NAME" should have type "alphanumeric"
+    And the field "NAME-PARTS" should have type "group"
+    And the field "NAME-PARTS" should redefine "FULL-NAME"
+    And the field "FIRST-N" should have type "alphanumeric"
+    And the field "LAST-N" should have type "alphanumeric"
+
+  Scenario: REDEFINES between two groups
+    Given a copybook with content:
+      """
+      01 REC.
+          05 FORMAT-A.
+              10 FA-CODE PIC X(3).
+              10 FA-DATA PIC X(7).
+          05 FORMAT-B REDEFINES FORMAT-A.
+              10 FB-ID PIC 9(4).
+              10 FB-NAME PIC X(6).
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "FORMAT-A" should have type "group"
+    And the field "FORMAT-B" should have type "group"
+    And the field "FORMAT-B" should redefine "FORMAT-A"
+
+  Scenario: REDEFINES with numeric field and decimal
+    Given a copybook with content:
+      """
+      01 REC.
+          05 RAW-AMOUNT PIC X(7).
+          05 DECIMAL-VIEW REDEFINES RAW-AMOUNT PIC 9(5)V99.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "RAW-AMOUNT" should have type "alphanumeric"
+    And the field "DECIMAL-VIEW" should have type "zoned"
+    And the field "DECIMAL-VIEW" should redefine "RAW-AMOUNT"
+
+  Scenario: Decode with REDEFINES group showing date parts
+    Given a copybook with content:
+      """
+      01 REC.
+          05 DATE-STR PIC X(8).
+          05 DATE-COMP REDEFINES DATE-STR.
+              10 YR PIC 9(4).
+              10 MO PIC 9(2).
+              10 DY PIC 9(2).
+      """
+    And ASCII codepage
+    And binary data: "20250115"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+
+  Scenario: REDEFINES decode with alphanumeric data
+    Given a copybook with content:
+      """
+      01 REC.
+          05 DATA-A PIC X(6).
+          05 DATA-B REDEFINES DATA-A PIC X(6).
+      """
+    And ASCII codepage
+    And binary data: "FOOBAR"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+    And the decoded output should contain "DATA-A"

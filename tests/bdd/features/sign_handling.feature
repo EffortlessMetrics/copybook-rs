@@ -321,3 +321,101 @@ Feature: Sign Handling for Zoned Decimal Fields
     And the decoded output should contain "OVERPUNCH-FLD"
     And the decoded output should contain "UNSIGNED-FLD"
     And the decoded output should contain "PACKED-FLD"
+
+  # --- Additional sign handling scenarios ---
+
+  Scenario: Overpunch positive sign decode with trailing B
+    Given a copybook with content:
+      """
+      01 REC.
+          05 BAL PIC S9(5).
+      """
+    And binary data: "1234B"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+    And the decoded output should contain "BAL"
+
+  Scenario: Overpunch positive sign decode with trailing C
+    Given a copybook with content:
+      """
+      01 REC.
+          05 BAL PIC S9(5).
+      """
+    And binary data: "1234C"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+    And the decoded output should contain "BAL"
+
+  Scenario: Overpunch negative sign decode with trailing K
+    Given a copybook with content:
+      """
+      01 REC.
+          05 BAL PIC S9(5).
+      """
+    And binary data: "1234K"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+
+  Scenario: Overpunch negative sign decode with trailing R
+    Given a copybook with content:
+      """
+      01 REC.
+          05 BAL PIC S9(5).
+      """
+    And binary data: "1234R"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+
+  Scenario: Unsigned numeric with implied decimal decode
+    Given a copybook with content:
+      """
+      01 REC.
+          05 RATE PIC 9(3)V99.
+      """
+    And binary data: "12345"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+    And the decoded output should contain "RATE"
+
+  Scenario: Parse signed field byte length with sign separate trailing
+    Given a copybook with content:
+      """
+      01 REC.
+          05 AMT PIC S9(5) SIGN IS SEPARATE TRAILING.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "AMT" should be 6 bytes long
+
+  Scenario: Encode sign separate leading positive value
+    Given a copybook with SIGN SEPARATE LEADING
+      """
+      01 REC.
+          05 AMT PIC S9(5) SIGN IS SEPARATE LEADING.
+      """
+    And JSON data:
+      """
+      {"AMT": 500}
+      """
+    When the JSON data is encoded
+    Then encoding should succeed
+    And the encoded output should be 6 bytes
+
+  Scenario: Encode sign separate trailing negative value
+    Given a copybook with SIGN SEPARATE TRAILING
+      """
+      01 REC.
+          05 AMT PIC S9(5) SIGN IS SEPARATE TRAILING.
+      """
+    And JSON data:
+      """
+      {"AMT": -300}
+      """
+    When the JSON data is encoded
+    Then encoding should succeed
+    And the encoded output should be 6 bytes

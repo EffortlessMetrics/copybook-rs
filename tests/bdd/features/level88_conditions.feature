@@ -226,3 +226,101 @@ Feature: Level-88 Condition Values
     And the field "BALANCE" should have Level-88 "IS-POSITIVE"
     And the field "IS-ZERO" should have type "condition"
     And the field "IS-POSITIVE" should have type "condition"
+
+  # --- Additional Level-88 scenarios ---
+
+  Scenario: Level-88 on PIC X(3) three-character field
+    Given a copybook with content:
+      """
+      01 CURRENCY-RECORD.
+          05 CURR-CODE PIC X(3).
+              88 IS-USD VALUE 'USD'.
+              88 IS-EUR VALUE 'EUR'.
+              88 IS-GBP VALUE 'GBP'.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "CURR-CODE" should have Level-88 "IS-USD"
+    And the field "CURR-CODE" should have Level-88 "IS-EUR"
+    And the field "CURR-CODE" should have Level-88 "IS-GBP"
+    And the field "IS-USD" should have type "condition"
+    And the field "IS-EUR" should have type "condition"
+    And the field "IS-GBP" should have type "condition"
+
+  Scenario: Level-88 on unsigned numeric field
+    Given a copybook with content:
+      """
+      01 UNSIGNED-RECORD.
+          05 PRIORITY PIC 9(1).
+              88 LOW-PRIORITY VALUE '1'.
+              88 MED-PRIORITY VALUE '2'.
+              88 HIGH-PRIORITY VALUE '3'.
+              88 URGENT VALUE '9'.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "PRIORITY" should have Level-88 "LOW-PRIORITY"
+    And the field "PRIORITY" should have Level-88 "MED-PRIORITY"
+    And the field "PRIORITY" should have Level-88 "HIGH-PRIORITY"
+    And the field "PRIORITY" should have Level-88 "URGENT"
+    And the field "LOW-PRIORITY" should have level 88
+    And the field "MED-PRIORITY" should have level 88
+    And the field "HIGH-PRIORITY" should have level 88
+    And the field "URGENT" should have level 88
+
+  Scenario: Level-88 deeply nested in group hierarchy
+    Given a copybook with content:
+      """
+      01 DEEP-RECORD.
+          05 OUTER-GROUP.
+              10 INNER-GROUP.
+                  15 DEEP-FLAG PIC X(1).
+                      88 DEEP-YES VALUE 'Y'.
+                      88 DEEP-NO VALUE 'N'.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "OUTER-GROUP" should have type "group"
+    And the field "INNER-GROUP" should have type "group"
+    And the field "DEEP-FLAG" should have Level-88 "DEEP-YES"
+    And the field "DEEP-FLAG" should have Level-88 "DEEP-NO"
+    And the field "DEEP-YES" should have type "condition"
+    And the field "DEEP-NO" should have type "condition"
+
+  Scenario: Level-88 on PIC X(2) two-character codes
+    Given a copybook with content:
+      """
+      01 CODE-RECORD.
+          05 STATE-CODE PIC X(2).
+              88 STATE-NY VALUE 'NY'.
+              88 STATE-CA VALUE 'CA'.
+              88 STATE-TX VALUE 'TX'.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "STATE-CODE" should have Level-88 "STATE-NY"
+    And the field "STATE-CODE" should have Level-88 "STATE-CA"
+    And the field "STATE-CODE" should have Level-88 "STATE-TX"
+
+  Scenario: Three fields each with multiple Level-88 conditions
+    Given a copybook with content:
+      """
+      01 MULTI-RECORD.
+          05 STATUS PIC X(1).
+              88 STAT-OPEN VALUE 'O'.
+              88 STAT-CLOSED VALUE 'C'.
+          05 REGION PIC X(1).
+              88 REG-NORTH VALUE 'N'.
+              88 REG-SOUTH VALUE 'S'.
+          05 DEPT PIC X(1).
+              88 DEPT-HR VALUE 'H'.
+              88 DEPT-IT VALUE 'I'.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "STATUS" should have Level-88 "STAT-OPEN"
+    And the field "STATUS" should have Level-88 "STAT-CLOSED"
+    And the field "REGION" should have Level-88 "REG-NORTH"
+    And the field "REGION" should have Level-88 "REG-SOUTH"
+    And the field "DEPT" should have Level-88 "DEPT-HR"
+    And the field "DEPT" should have Level-88 "DEPT-IT"

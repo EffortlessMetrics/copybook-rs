@@ -272,3 +272,75 @@ Feature: COMP-3 Packed Decimal Decode, Encode, and Round-Trip
     And the decoded output should contain "AMT-A"
     And the decoded output should contain "AMT-B"
     And the decoded output should contain "AMT-C"
+
+  # --- Additional COMP-3 edge cases ---
+
+  Scenario: Parse COMP-3 PIC S9(9) has correct byte length
+    Given a copybook with content:
+      """
+      01 REC.
+          05 BIG PIC S9(9) COMP-3.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "BIG" should have type "packed"
+    And the field "BIG" should be 5 bytes long
+
+  Scenario: Parse COMP-3 PIC S9(1) has 1 byte length
+    Given a copybook with content:
+      """
+      01 REC.
+          05 TINY PIC S9(1) COMP-3.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "TINY" should have type "packed"
+    And the field "TINY" should be 1 bytes long
+
+  Scenario: COMP-3 with single decimal place
+    Given a copybook with content:
+      """
+      01 REC.
+          05 TAX PIC S9(5)V9 COMP-3.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "TAX" should have type "packed"
+    And the field "TAX" should be 4 bytes long
+
+  Scenario: Encode decimal value to COMP-3
+    Given a copybook with content:
+      """
+      01 REC.
+          05 RATE PIC S9(5)V99 COMP-3.
+      """
+    And JSON data:
+      """
+      {"RATE": 123.45}
+      """
+    When the JSON data is encoded
+    Then encoding should succeed
+    And the encoded output should be 4 bytes
+
+  Scenario: COMP-3 round-trip zero value
+    Given a copybook with content:
+      """
+      01 REC.
+          05 ZERO-PKD PIC S9(5) COMP-3.
+      """
+    And binary data: "\x00\x00\x0C"
+    When the data is round-tripped
+    Then decoding should succeed
+    And encoding should succeed
+    And the round-trip should be lossless
+
+  Scenario: Parse COMP-3 PIC S9(15) has correct byte length
+    Given a copybook with content:
+      """
+      01 REC.
+          05 HUGE PIC S9(15) COMP-3.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "HUGE" should have type "packed"
+    And the field "HUGE" should be 8 bytes long

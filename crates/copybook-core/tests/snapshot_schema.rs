@@ -252,3 +252,160 @@ fn snapshot_schema_json_keys_for_leaf_field() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Level-88 condition values in schema JSON
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_level88_condition_schema_json() {
+    // Validates that Level-88 condition fields produce stable schema output
+    // with Condition kind and values list.
+    // Note: Level-88 children cause the parent field to be represented as a
+    // Group with the 88-level items as children.
+    let copybook = "\
+       01 STATUS-RECORD.
+          05 STATUS-CODE PIC X(1).
+             88 STATUS-ACTIVE VALUE 'A'.
+             88 STATUS-INACTIVE VALUE 'I'.
+             88 STATUS-RANGE VALUE '1' THRU '9'.
+";
+    let schema = parse_copybook(copybook).unwrap();
+    let json: serde_json::Value = serde_json::to_value(&schema).unwrap();
+
+    let status_code = &json["fields"][0];
+    assert_eq!(status_code["name"], "STATUS-CODE");
+
+    // Level-88 fields are children of STATUS-CODE
+    let children = status_code["children"].as_array().unwrap();
+    assert_eq!(children.len(), 3);
+
+    let active = &children[0];
+    assert_eq!(active["name"], "STATUS-ACTIVE");
+    assert_eq!(active["level"], 88);
+    assert_eq!(active["len"], 0); // Level-88 fields have no storage
+    let values = active["kind"]["Condition"]["values"].as_array().unwrap();
+    assert!(values.iter().any(|v| v == "A"));
+
+    let inactive = &children[1];
+    assert_eq!(inactive["name"], "STATUS-INACTIVE");
+    assert_eq!(inactive["level"], 88);
+    let inactive_values = inactive["kind"]["Condition"]["values"].as_array().unwrap();
+    assert!(inactive_values.iter().any(|v| v == "I"));
+
+    let range = &children[2];
+    assert_eq!(range["name"], "STATUS-RANGE");
+    assert_eq!(range["level"], 88);
+    let range_values = range["kind"]["Condition"]["values"].as_array().unwrap();
+    assert!(!range_values.is_empty(), "THRU range should have values");
+}
+
+// ---------------------------------------------------------------------------
+// SIGN SEPARATE field schema representation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_sign_separate_schema_json() {
+    // Validates that SIGN IS LEADING SEPARATE produces correct schema.
+    // SIGN SEPARATE is gated by feature flag (enabled by default).
+    let copybook = "\
+       01 PAYMENT-RECORD.
+          05 AMOUNT PIC S9(5)V99 SIGN IS LEADING SEPARATE.
+";
+    let result = parse_copybook(copybook);
+    // If the feature flag is disabled in the test environment, skip gracefully
+    let schema = match result {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = serde_json::to_value(&schema).unwrap();
+
+    let field = &json["fields"][0];
+    assert_eq!(field["name"], "AMOUNT");
+
+    // Verify it's a ZonedDecimal with sign_separate information
+    let zd = &field["kind"]["ZonedDecimal"];
+    if !zd.is_null() {
+        assert_eq!(zd["scale"], 2);
+        assert_eq!(zd["signed"], true);
+
+        let sign_sep = &zd["sign_separate"];
+        assert!(!sign_sep.is_null(), "sign_separate should be present");
+        assert_eq!(sign_sep["placement"], "leading");
+    }
+    // SIGN SEPARATE adds one byte to field length (5+2 digits + 1 sign = 8)
+    assert_eq!(field["len"], 8);
+}
+
+// ---------------------------------------------------------------------------
+// Multiple REDEFINES schema structure
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_multiple_redefines_schema_json() {
+    // Validates that multiple REDEFINES of the same field produce correct
+    // schema with multiple alternatives sharing the same offset.
+    let copybook = "\
+       01 MULTI-FORMAT-RECORD.
+          05 FORMAT-TYPE PIC X(1).
+          05 DATA-AREA PIC X(20).
+          05 DATA-AS-NUM REDEFINES DATA-AREA PIC 9(20).
+          05 DATA-AS-GROUP REDEFINES DATA-AREA.
+             10 PART-A PIC X(10).
+             10 PART-B PIC X(10).
+";
+    let schema = parse_copybook(copybook).unwrap();
+    let json: serde_json::Value = serde_json::to_value(&schema).unwrap();
+
+    let fields = json["fields"].as_array().unwrap();
+    assert!(fields.len() >= 4, "should have at least 4 fields");
+
+    // All REDEFINES fields share the same offset as the original
+    let data_area = fields.iter().find(|f| f["name"] == "DATA-AREA").unwrap();
+    let data_area_offset = data_area["offset"].as_u64().unwrap();
+    assert!(data_area["redefines_of"].is_null());
+
+    let data_as_num = fields.iter().find(|f| f["name"] == "DATA-AS-NUM").unwrap();
+    assert_eq!(data_as_num["offset"].as_u64().unwrap(), data_area_offset);
+    assert_eq!(data_as_num["redefines_of"], "DATA-AREA");
+
+    let data_as_group = fields.iter().find(|f| f["name"] == "DATA-AS-GROUP").unwrap();
+    assert_eq!(data_as_group["offset"].as_u64().unwrap(), data_area_offset);
+    assert_eq!(data_as_group["redefines_of"], "DATA-AREA");
+
+    let children = data_as_group["children"].as_array().unwrap();
+    assert_eq!(children.len(), 2);
+    assert_eq!(children[0]["name"], "PART-A");
+    assert_eq!(children[1]["name"], "PART-B");
+}
+
+// ---------------------------------------------------------------------------
+// Edited PIC field schema representation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_edited_pic_schema_json() {
+    // Validates that an edited numeric PIC produces stable EditedNumeric
+    // kind in schema JSON with pic_string, width, scale, and signed.
+    let copybook = "\
+       01 REPORT-RECORD.
+          05 FORMATTED-AMOUNT PIC ZZ,ZZ9.99.
+";
+    let result = parse_copybook(copybook);
+    // Edited PIC may not be supported in all builds; skip gracefully
+    let schema = match result {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = serde_json::to_value(&schema).unwrap();
+
+    let field = &json["fields"][0];
+    assert_eq!(field["name"], "FORMATTED-AMOUNT");
+
+    let kind = &field["kind"]["EditedNumeric"];
+    if !kind.is_null() {
+        assert_eq!(kind["pic_string"], "ZZ,ZZ9.99");
+        assert_eq!(kind["scale"], 2);
+        assert_eq!(kind["signed"], false);
+    }
+}

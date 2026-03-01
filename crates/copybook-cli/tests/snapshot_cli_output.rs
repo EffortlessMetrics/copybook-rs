@@ -245,3 +245,126 @@ fn snapshot_version_output_format() -> TestResult<()> {
 
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// support: table output format
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_support_command_table_output() -> TestResult<()> {
+    // Validates that `copybook support` produces human-readable table output
+    let output = cargo_bin_cmd!("copybook").arg("support").output()?;
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout)?;
+
+    // Table output should contain header-like content and feature identifiers
+    assert!(
+        !stdout.is_empty(),
+        "support command should produce non-empty output"
+    );
+    // Should contain at least one known feature category
+    assert!(
+        stdout.contains("DISPLAY") || stdout.contains("COMP") || stdout.contains("PIC"),
+        "support table should mention COBOL data types, got: {stdout}"
+    );
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// support: JSON output format
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_support_command_json_output() -> TestResult<()> {
+    // Validates that `copybook support --format json` produces valid JSON
+    let output = cargo_bin_cmd!("copybook")
+        .args(["support", "--format", "json"])
+        .output()?;
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout)?;
+
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("support JSON should be valid: {e}\nGot: {stdout}"));
+    assert!(
+        parsed.is_object() || parsed.is_array(),
+        "support JSON should be an object or array"
+    );
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// decode --help: mentions --emit-meta flag
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_decode_help_shows_emit_meta() -> TestResult<()> {
+    // Validates that decode subcommand help includes --emit-meta flag
+    let output = cargo_bin_cmd!("copybook")
+        .args(["decode", "--help"])
+        .output()?;
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout)?;
+
+    assert!(
+        stdout.contains("--emit-meta"),
+        "decode help should mention --emit-meta flag, got: {stdout}"
+    );
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// decode --help: mentions --select flag
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_decode_help_shows_select() -> TestResult<()> {
+    // Validates that decode subcommand help includes --select flag
+    let output = cargo_bin_cmd!("copybook")
+        .args(["decode", "--help"])
+        .output()?;
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout)?;
+
+    assert!(
+        stdout.contains("--select"),
+        "decode help should mention --select flag, got: {stdout}"
+    );
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// parse --dialect: flag is accepted without error
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_parse_dialect_flag_accepted() -> TestResult<()> {
+    // Validates that --dialect flag is accepted by the parse command.
+    // Uses a minimal valid copybook so parsing succeeds.
+    let temp = assert_fs::TempDir::new()?;
+    let cpy_file = temp.child("dialect_test.cpy");
+    cpy_file.write_str(
+        "\
+       01 DIALECT-RECORD.
+          05 COUNTER PIC 9(3).
+          05 ITEMS OCCURS 1 TO 10 DEPENDING ON COUNTER
+             PIC X(5).
+",
+    )?;
+
+    for dialect_value in &["n", "0", "1"] {
+        let output = cargo_bin_cmd!("copybook")
+            .args(["parse", path_to_str(cpy_file.path())?, "--dialect", dialect_value])
+            .output()?;
+        assert!(
+            output.status.success(),
+            "parse --dialect {dialect_value} should succeed, stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    Ok(())
+}

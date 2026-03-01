@@ -223,6 +223,115 @@ fn snapshot_family_prefix_mapping() {
 }
 
 // ---------------------------------------------------------------------------
+// CBKS7xx projection error code display
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_projection_error_code_display() {
+    // Validates that CBKS7xx projection family codes render as their variant name
+    assert_eq!(
+        format!("{}", ErrorCode::CBKS701_PROJECTION_INVALID_ODO),
+        "CBKS701_PROJECTION_INVALID_ODO"
+    );
+    assert_eq!(
+        format!("{}", ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS),
+        "CBKS702_PROJECTION_UNRESOLVED_ALIAS"
+    );
+    assert_eq!(
+        format!("{}", ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND),
+        "CBKS703_PROJECTION_FIELD_NOT_FOUND"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CBKD4xx edited PIC error code display
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_edited_pic_error_code_display() {
+    // Validates that CBKD4xx edited PIC family codes render as their variant name
+    assert_eq!(
+        format!("{}", ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT),
+        "CBKD421_EDITED_PIC_INVALID_FORMAT"
+    );
+    assert_eq!(
+        format!("{}", ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH),
+        "CBKD422_EDITED_PIC_SIGN_MISMATCH"
+    );
+    assert_eq!(
+        format!("{}", ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO),
+        "CBKD423_EDITED_PIC_BLANK_WHEN_ZERO"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CBKE5xx encoding error code display (overflow and string length)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_encoding_overflow_error_code_display() {
+    // Validates that CBKE510 and CBKE515 render as their variant name
+    assert_eq!(
+        format!("{}", ErrorCode::CBKE510_NUMERIC_OVERFLOW),
+        "CBKE510_NUMERIC_OVERFLOW"
+    );
+    assert_eq!(
+        format!("{}", ErrorCode::CBKE515_STRING_LENGTH_VIOLATION),
+        "CBKE515_STRING_LENGTH_VIOLATION"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Error Display format stability for new error families
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_projection_error_display_with_field() {
+    // Validates display format for projection errors includes field context
+    let error = Error::new(
+        ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND,
+        "Field 'NO-SUCH-FIELD' does not exist in schema",
+    )
+    .with_field("NO-SUCH-FIELD");
+
+    assert_eq!(
+        format!("{error}"),
+        "CBKS703_PROJECTION_FIELD_NOT_FOUND: Field 'NO-SUCH-FIELD' does not exist in schema (field NO-SUCH-FIELD)"
+    );
+}
+
+#[test]
+fn snapshot_edited_pic_error_display_with_context() {
+    // Validates display format for edited PIC errors
+    let error = Error::new(
+        ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+        "Data does not match edited PIC pattern ZZZ9",
+    )
+    .with_field("AMOUNT")
+    .with_record(5);
+
+    let display = format!("{error}");
+    assert!(display.starts_with("CBKD421_EDITED_PIC_INVALID_FORMAT:"));
+    assert!(display.contains("field AMOUNT"));
+    assert!(display.contains("record 5"));
+}
+
+#[test]
+fn snapshot_encoding_error_display_with_context() {
+    // Validates display format for encoding overflow errors
+    let error = Error::new(
+        ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+        "Value 99999999 exceeds PIC 9(5) capacity",
+    )
+    .with_field("COUNTER");
+
+    assert_eq!(
+        format!("{error}"),
+        "CBKE510_NUMERIC_OVERFLOW: Value 99999999 exceeds PIC 9(5) capacity (field COUNTER)"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // ErrorCode serde round-trip: serialization format is stable
 // ---------------------------------------------------------------------------
 
@@ -236,4 +345,24 @@ fn snapshot_error_code_json_serialization() {
     let code2 = ErrorCode::CBKE521_ARRAY_LEN_OOB;
     let json2 = serde_json::to_string(&code2).unwrap();
     assert_eq!(json2, r#""CBKE521_ARRAY_LEN_OOB""#);
+}
+
+#[test]
+fn snapshot_projection_error_code_json_serialization() {
+    // Projection error codes serialize as quoted variant names
+    let code = ErrorCode::CBKS701_PROJECTION_INVALID_ODO;
+    let json = serde_json::to_string(&code).unwrap();
+    assert_eq!(json, r#""CBKS701_PROJECTION_INVALID_ODO""#);
+
+    let code2 = ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND;
+    let json2 = serde_json::to_string(&code2).unwrap();
+    assert_eq!(json2, r#""CBKS703_PROJECTION_FIELD_NOT_FOUND""#);
+}
+
+#[test]
+fn snapshot_edited_pic_error_code_json_serialization() {
+    // Edited PIC error codes serialize as quoted variant names
+    let code = ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT;
+    let json = serde_json::to_string(&code).unwrap();
+    assert_eq!(json, r#""CBKD421_EDITED_PIC_INVALID_FORMAT""#);
 }

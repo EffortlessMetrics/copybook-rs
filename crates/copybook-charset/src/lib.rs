@@ -1,8 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Character set conversion utilities
+//! Character set conversion utilities for EBCDIC ↔ UTF-8.
 //!
-//! This crate provides EBCDIC to UTF-8 conversion using static lookup tables
-//! for performance.
+//! Provides bidirectional conversion between five IBM EBCDIC codepages and
+//! Unicode/UTF-8 using compile-time lookup tables for maximum throughput.
+//!
+//! ## Supported Codepages
+//!
+//! | Codepage | Region |
+//! |----------|--------|
+//! | CP 037 | US / Canada |
+//! | CP 273 | Germany / Austria |
+//! | CP 500 | International Latin-1 |
+//! | CP 1047 | Latin-1 / Open Systems |
+//! | CP 1140 | US / Canada with € |
+//!
+//! ## Key Functions
+//!
+//! - [`ebcdic_to_utf8`] — Decode an EBCDIC byte slice to a Rust `String`.
+//! - [`utf8_to_ebcdic`] — Encode a UTF-8 string into an EBCDIC byte vector.
+//!
+//! Both functions accept an [`UnmappablePolicy`] that controls behaviour when a
+//! character has no mapping in the target encoding (replace with a substitute
+//! character or return an error).
 
 pub use copybook_codepage::{Codepage, UnmappablePolicy, get_zoned_sign_table, space_byte};
 use copybook_error::{Error, ErrorCode, Result};

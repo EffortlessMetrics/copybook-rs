@@ -29,7 +29,10 @@ use std::convert::TryFrom;
 #[allow(dead_code)]
 const DEFAULT_PROPTEST_CASE_COUNT: u32 = 512;
 
-/// Zero sign policy for overpunch encoding
+/// Policy for the sign zone nibble when the numeric value is exactly zero.
+///
+/// COBOL compilers differ on whether zero is positive (`0xC0`) or unsigned
+/// (`0xF0`). This enum lets callers choose the convention.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZeroSignPolicy {
     /// Use positive sign for zero (C for EBCDIC, '{' for ASCII)
@@ -114,8 +117,9 @@ static ASCII_OVERPUNCH_DECODE: [Option<(u8, bool)>; 256] = {
     table
 };
 
-/// EBCDIC overpunch encoding: (digit, `is_negative`) -> zone nibble
-/// Returns the zone nibble (high 4 bits) for the given digit and sign
+/// Encode a sign and digit into an EBCDIC overpunch zone byte.
+///
+/// Returns the zone nibble (high 4 bits) for the given digit and sign.
 #[must_use]
 #[inline]
 pub fn encode_ebcdic_overpunch_zone(digit: u8, is_negative: bool, policy: ZeroSignPolicy) -> u8 {
@@ -132,8 +136,9 @@ pub fn encode_ebcdic_overpunch_zone(digit: u8, is_negative: bool, policy: ZeroSi
     }
 }
 
-/// EBCDIC overpunch decoding: zone nibble -> (`is_signed`, `is_negative`)
-/// Returns None for invalid zone nibbles
+/// Decode an EBCDIC overpunch zone byte into its sign and digit.
+///
+/// Returns `None` for invalid zone nibbles.
 #[must_use]
 #[inline]
 pub const fn decode_ebcdic_overpunch_zone(zone: u8) -> Option<(bool, bool)> {
@@ -230,7 +235,7 @@ pub fn decode_overpunch_byte(byte: u8, codepage: Codepage) -> Result<(u8, bool)>
     }
 }
 
-/// Check if a byte is a valid overpunch character for the given codepage
+/// Returns `true` if `byte` is a recognised EBCDIC overpunch zone byte.
 #[must_use]
 #[inline]
 pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
@@ -243,7 +248,7 @@ pub fn is_valid_overpunch(byte: u8, codepage: Codepage) -> bool {
     }
 }
 
-/// Get all valid overpunch bytes for testing purposes
+/// Returns every EBCDIC byte value that is a valid overpunch zone.
 #[must_use]
 #[inline]
 pub fn get_all_valid_overpunch_bytes(codepage: Codepage) -> Vec<u8> {

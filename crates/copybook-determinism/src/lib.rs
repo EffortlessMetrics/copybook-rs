@@ -8,6 +8,15 @@
 //!
 //! Use [`compare_outputs`] to check whether two codec runs produced identical bytes,
 //! and [`blake3_hex`] for stable content hashing.
+//!
+//! # Typical Workflow
+//!
+//! ```rust,ignore
+//! use copybook_determinism::{compare_outputs, DeterminismMode};
+//!
+//! let result = compare_outputs(DeterminismMode::DecodeOnly, &output_a, &output_b);
+//! assert!(result.is_deterministic);
+//! ```
 
 use serde::{Deserialize, Serialize};
 

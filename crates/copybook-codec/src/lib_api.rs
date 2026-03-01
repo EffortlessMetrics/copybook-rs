@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Core library API implementation for task 9.1
-#![allow(clippy::missing_inline_in_public_items)]
+//! Core decode / encode API for COBOL binary data.
 //!
-//! This module provides the main library functions required by R11:
-//! - `parse_copybook` (already exists in copybook-core)
-//! - `decode_record`
-//! - `encode_record`
-//! - `decode_file_to_jsonl`
-//! - `encode_jsonl_to_file`
-//! - `RecordIterator` (for programmatic access)
+//! | Function | Direction | Scope |
+//! |----------|-----------|-------|
+//! | [`decode_record`] | Binary → JSON | Single record |
+//! | [`encode_record`] | JSON → Binary | Single record |
+//! | [`decode_file_to_jsonl`] | Binary → JSONL | Whole file |
+//! | [`encode_jsonl_to_file`] | JSONL → Binary | Whole file |
+#![allow(clippy::missing_inline_in_public_items)]
 
 use crate::JSON_SCHEMA_VERSION;
 use crate::options::{DecodeOptions, EncodeOptions, RecordFormat, ZonedEncodingFormat};
@@ -2381,6 +2380,8 @@ fn encode_binary_int_field(
 }
 
 /// Decode a file to JSONL format
+///
+/// Reads records from `input` using the configured [`RecordFormat`]
 ///
 /// # Errors
 /// Returns an error if the input cannot be read, decoded, or written.

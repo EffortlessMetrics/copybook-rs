@@ -128,19 +128,31 @@
 
 #[cfg(feature = "audit")]
 pub mod audit;
+/// Dialect contract for ODO `min_count` semantics (Normative, ZeroTolerant, OneTolerant).
 pub mod dialect;
+/// Re-export of all error types from [`copybook_error`].
 pub mod error {
     pub use copybook_error::*;
 }
+/// Structured error reporting with severity levels and summary statistics.
 pub mod error_reporter;
+/// Compile-time and runtime feature flag governance.
 pub mod feature_flags;
+/// Layout resolution: byte offsets, REDEFINES, and OCCURS DEPENDING ON.
 pub mod layout;
+/// Lexical analysis of COBOL copybook source text.
 pub mod lexer;
+/// Recursive-descent parser producing the [`Schema`] AST from tokens.
 pub mod parser;
+/// PICTURE clause analysis and field-size computation.
 pub mod pic;
+/// Field projection for selective decode/encode (`--select`).
 pub mod projection;
+/// Core schema types: [`Schema`], [`Field`], [`FieldKind`], and related structures.
 pub mod schema;
+/// COBOL feature support matrix and status registry.
 pub mod support_matrix;
+/// Shared utility functions and extension traits.
 pub mod utils;
 
 pub use copybook_utils::{OptionExt, SliceExt, VecExt, safe_ops};

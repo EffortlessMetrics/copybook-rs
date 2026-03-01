@@ -14,16 +14,25 @@
 //! This crate provides the encoding/decoding logic for COBOL record layouts,
 //! including character set conversion, numeric codecs, and record framing.
 
+/// Character set conversion between EBCDIC codepages and UTF-8.
 pub mod charset;
+/// Determinism validation for decode, encode, and round-trip operations.
 pub mod determinism;
+/// Edited PIC (numeric editing) decode and encode support.
 pub mod edited_pic;
 mod fidelity;
+/// Streaming record iterator for file-level decoding.
 pub mod iterator;
+/// Core library API: record decode/encode and file-level processing.
 pub mod lib_api;
+/// Re-export of [`copybook_codec_memory`] for scratch buffers and streaming.
 pub use copybook_codec_memory as memory;
 pub mod numeric;
+/// Configuration types: codepage, record format, JSON modes, raw capture.
 pub mod options;
+/// Record-level binary decode/encode logic.
 pub mod record;
+/// Zoned decimal overpunch character handling.
 pub mod zoned_overpunch;
 
 mod odo_redefines;

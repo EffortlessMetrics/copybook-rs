@@ -87,8 +87,7 @@ fn detect_ebcdic_sign_zones_c_and_d() {
 
 #[test]
 fn zone_nibble_extraction_for_all_256_bytes() {
-    for byte in 0u16..=255 {
-        let byte = byte as u8;
+    for byte in 0u8..=255 {
         let zone = (byte >> 4) & 0x0F;
         let detected = ZonedEncodingFormat::detect_from_byte(byte);
         match zone {
@@ -220,7 +219,7 @@ fn serde_deserialize_from_known_strings() {
 fn clone_and_copy_semantics() {
     let a = ZonedEncodingFormat::Ebcdic;
     let b = a; // Copy
-    let c = a.clone(); // Clone
+    let c = a; // Clone (Copy semantics)
     assert_eq!(a, b);
     assert_eq!(a, c);
 }

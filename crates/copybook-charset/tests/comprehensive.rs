@@ -51,7 +51,7 @@ fn ebcdic_to_utf8_digits_are_f0_f9_all_codepages() {
     for cp in ALL_EBCDIC {
         let encoded = utf8_to_ebcdic("0123456789", cp).unwrap();
         for (i, &b) in encoded.iter().enumerate() {
-            assert_eq!(b, 0xF0 + i as u8, "{cp:?}: digit {i}");
+            assert_eq!(b, 0xF0 + u8::try_from(i).unwrap(), "{cp:?}: digit {i}");
         }
     }
 }
@@ -343,7 +343,7 @@ fn single_char_letter_a_all_codepages() {
 fn single_char_ascii_passthrough() {
     let encoded = utf8_to_ebcdic("X", Codepage::ASCII).unwrap();
     assert_eq!(encoded, vec![b'X']);
-    let decoded = ebcdic_to_utf8(&[b'X'], Codepage::ASCII, UnmappablePolicy::Error).unwrap();
+    let decoded = ebcdic_to_utf8(b"X", Codepage::ASCII, UnmappablePolicy::Error).unwrap();
     assert_eq!(decoded, "X");
 }
 

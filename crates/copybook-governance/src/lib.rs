@@ -142,9 +142,9 @@ mod tests {
 
     #[test]
     fn test_facade_feature_lifecycle_accessible() {
-        let _lc = FeatureLifecycle::Experimental;
-        let _lc2 = FeatureLifecycle::Stable;
-        let _lc3 = FeatureLifecycle::Deprecated;
+        let _ = FeatureLifecycle::Experimental;
+        let _ = FeatureLifecycle::Stable;
+        let _ = FeatureLifecycle::Deprecated;
     }
 
     #[test]

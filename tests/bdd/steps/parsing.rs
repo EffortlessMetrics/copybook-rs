@@ -319,8 +319,15 @@ async fn then_field_has_odo_range(
 
     match &field.occurs {
         Some(copybook_core::Occurs::ODO { min, max, .. }) => {
+            // Use dialect-adjusted min from schema.tail_odo when available
+            let effective_min = world
+                .schema()
+                .tail_odo
+                .as_ref()
+                .filter(|t| t.array_path.eq_ignore_ascii_case(&field_name))
+                .map_or(*min, |t| t.min_count);
             assert_eq!(
-                *min, expected_min,
+                effective_min, expected_min,
                 "Field '{}' ODO min should be {}",
                 field_name, expected_min
             );

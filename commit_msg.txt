@@ -1,8 +1,0 @@
-fix(bdd): enable audit feature by default for enterprise audit scenarios
-
-The audit step definitions in tests/bdd/steps/audit.rs are gated behind
-#[cfg(feature = "audit")] in steps/mod.rs. Without the audit feature
-enabled by default, these steps were not compiled, causing all 18
-enterprise_audit.feature scenarios to fail with 'step not matched'.
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>

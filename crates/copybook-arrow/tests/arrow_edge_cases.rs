@@ -1427,3 +1427,334 @@ fn streaming_multi_field_records() {
     assert_eq!(num_col.value(0), 100);
     assert_eq!(num_col.value(1), 200);
 }
+
+// ===================================================================
+// 21. Zoned decimal (DISPLAY) actual data decode
+// ===================================================================
+
+#[test]
+fn zoned_decimal_display_positive_decode() {
+    // PIC S9(5)V99 DISPLAY: 7 digit zoned decimal, 7 bytes, scale=2
+    let schema = Schema::from_fields(vec![make_field(
+        "AMOUNT",
+        FieldKind::ZonedDecimal {
+            digits: 7,
+            scale: 2,
+            signed: true,
+            sign_separate: None,
+        },
+        0,
+        7,
+    )]);
+    let opts = ArrowOptions::default(); // CP037
+    let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
+    let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
+
+    // +12345.67 in CP037 zoned: F1 F2 F3 F4 F5 F6 C7
+    let record: [u8; 7] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xC7];
+    builder.append_record(&record).unwrap();
+    let batch = builder.flush().unwrap().unwrap();
+
+    let col = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<Decimal128Array>()
+        .unwrap();
+    assert_eq!(col.value(0), 1_234_567); // unscaled value
+}
+
+#[test]
+fn zoned_decimal_display_negative_decode() {
+    // PIC S9(3)V99 DISPLAY: 5 digits, scale=2
+    let schema = Schema::from_fields(vec![make_field(
+        "BAL",
+        FieldKind::ZonedDecimal {
+            digits: 5,
+            scale: 2,
+            signed: true,
+            sign_separate: None,
+        },
+        0,
+        5,
+    )]);
+    let opts = ArrowOptions::default(); // CP037
+    let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
+    let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
+
+    // -123.45 in CP037 zoned: F1 F2 F3 F4 D5 (D = negative sign)
+    let record: [u8; 5] = [0xF1, 0xF2, 0xF3, 0xF4, 0xD5];
+    builder.append_record(&record).unwrap();
+    let batch = builder.flush().unwrap().unwrap();
+
+    let col = batch
+        .column(0)
+        .as_any()
+        .downcast_ref::<Decimal128Array>()
+        .unwrap();
+    assert_eq!(col.value(0), -12345); // unscaled negative
+}
+
+#[test]
+fn zoned_decimal_display_multiple_records() {
+    // 3-digit unsigned: PIC 9(3)
+    let schema = make_schema_with_lrecl(
+        vec![make_field(
+            "CODE",
+            FieldKind::ZonedDecimal {
+                digits: 3,
+                scale: 0,
+                signed: false,
+                sign_separate: None,
+            },
+            0,
+            3,
+        )],
+        3,
+    );
+    let data: Vec<u8> = vec![
+        0xF0, 0xF0, 0xF1, // 001
+        0xF1, 0xF2, 0xF3, // 123
+        0xF9, 0xF9, 0xF9, // 999
+    ];
+    let reader = Cursor::new(data);
+    let batches = stream_to_batches(reader, &schema, &ArrowOptions::default()).unwrap();
+    assert_eq!(batches.len(), 1);
+    assert_eq!(batches[0].num_rows(), 3);
+
+    let col = batches[0]
+        .column(0)
+        .as_any()
+        .downcast_ref::<Decimal128Array>()
+        .unwrap();
+    assert_eq!(col.value(0), 1);
+    assert_eq!(col.value(1), 123);
+    assert_eq!(col.value(2), 999);
+}
+
+// ===================================================================
+// 22. Record batch schema matches copybook field names
+// ===================================================================
+
+#[test]
+fn record_batch_schema_matches_copybook_field_names() {
+    let schema = Schema::from_fields(vec![
+        make_field("CUSTOMER-ID", FieldKind::Alphanum { len: 10 }, 0, 10),
+        make_field(
+            "BALANCE",
+            FieldKind::PackedDecimal {
+                digits: 9,
+                scale: 2,
+                signed: true,
+            },
+            10,
+            5,
+        ),
+        make_field(
+            "ACCT-TYPE",
+            FieldKind::BinaryInt {
+                bits: 16,
+                signed: false,
+            },
+            15,
+            2,
+        ),
+    ]);
+    let opts = ArrowOptions::default();
+    let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
+
+    // Verify Arrow schema field names match COBOL field names
+    assert_eq!(arrow_schema.field(0).name(), "CUSTOMER-ID");
+    assert_eq!(arrow_schema.field(1).name(), "BALANCE");
+    assert_eq!(arrow_schema.field(2).name(), "ACCT-TYPE");
+
+    // Verify types
+    assert_eq!(*arrow_schema.field(0).data_type(), DataType::Utf8);
+    assert_eq!(
+        *arrow_schema.field(1).data_type(),
+        DataType::Decimal128(9, 2)
+    );
+    assert_eq!(*arrow_schema.field(2).data_type(), DataType::UInt16);
+}
+
+#[test]
+fn roundtrip_column_names_match_field_names() {
+    let schema = Schema::from_fields(vec![
+        make_field("FIRST-NAME", FieldKind::Alphanum { len: 8 }, 0, 8),
+        make_field("LAST-NAME", FieldKind::Alphanum { len: 8 }, 8, 8),
+        make_field(
+            "SALARY",
+            FieldKind::PackedDecimal {
+                digits: 7,
+                scale: 2,
+                signed: true,
+            },
+            16,
+            4,
+        ),
+    ]);
+    let opts = ascii_opts();
+    let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
+    let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
+
+    let mut record = Vec::new();
+    record.extend_from_slice(b"JOHN    ");
+    record.extend_from_slice(b"DOE     ");
+    record.extend_from_slice(&[0x05, 0x00, 0x00, 0x0C]); // packed +50000.00
+
+    builder.append_record(&record).unwrap();
+    let batch = builder.flush().unwrap().unwrap();
+
+    // Verify column names in the RecordBatch match the COBOL field names
+    let batch_schema = batch.schema();
+    let field_names: Vec<&str> = batch_schema
+        .fields()
+        .iter()
+        .map(|f| f.name().as_str())
+        .collect();
+    assert_eq!(field_names, vec!["FIRST-NAME", "LAST-NAME", "SALARY"]);
+}
+
+// ===================================================================
+// 23. FILLER fields in batch builder decode
+// ===================================================================
+
+#[test]
+fn filler_skipped_in_batch_builder_decode() {
+    // Schema: DATA(5) + FILLER(3) + CODE(2) = 10 bytes
+    // But Arrow schema should only have DATA and CODE
+    let schema = Schema::from_fields(vec![
+        make_field("DATA", FieldKind::Alphanum { len: 5 }, 0, 5),
+        make_field("_filler_00000005", FieldKind::Alphanum { len: 3 }, 5, 3),
+        make_field("CODE", FieldKind::Alphanum { len: 2 }, 8, 2),
+    ]);
+    let opts = ascii_opts();
+    let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
+
+    // Arrow schema should only have 2 fields (FILLER skipped)
+    assert_eq!(arrow_schema.fields().len(), 2);
+    assert_eq!(arrow_schema.field(0).name(), "DATA");
+    assert_eq!(arrow_schema.field(1).name(), "CODE");
+}
+
+// ===================================================================
+// 24. Schema field type mapping comprehensive check
+// ===================================================================
+
+#[test]
+fn schema_type_mapping_pic_x_to_utf8() {
+    let schema = Schema::from_fields(vec![make_field(
+        "TEXT",
+        FieldKind::Alphanum { len: 100 },
+        0,
+        100,
+    )]);
+    let arrow = cobol_schema_to_arrow(&schema, &ArrowOptions::default()).unwrap();
+    assert_eq!(*arrow.field(0).data_type(), DataType::Utf8);
+}
+
+#[test]
+fn schema_type_mapping_pic_9_to_decimal128() {
+    // PIC 9(9)V99 (zoned decimal) -> Decimal128(9, 2)
+    let schema = Schema::from_fields(vec![make_field(
+        "NUM",
+        FieldKind::ZonedDecimal {
+            digits: 9,
+            scale: 2,
+            signed: false,
+            sign_separate: None,
+        },
+        0,
+        9,
+    )]);
+    let arrow = cobol_schema_to_arrow(&schema, &ArrowOptions::default()).unwrap();
+    assert_eq!(*arrow.field(0).data_type(), DataType::Decimal128(9, 2));
+}
+
+#[test]
+fn schema_type_mapping_comp3_to_decimal128() {
+    // COMP-3 PIC S9(7)V99 -> Decimal128(7, 2)
+    let schema = Schema::from_fields(vec![make_field(
+        "PKD",
+        FieldKind::PackedDecimal {
+            digits: 7,
+            scale: 2,
+            signed: true,
+        },
+        0,
+        4,
+    )]);
+    let arrow = cobol_schema_to_arrow(&schema, &ArrowOptions::default()).unwrap();
+    assert_eq!(*arrow.field(0).data_type(), DataType::Decimal128(7, 2));
+}
+
+#[test]
+fn schema_type_mapping_binary_int_to_int64() {
+    // COMP PIC S9(18) -> Int64
+    let schema = Schema::from_fields(vec![make_field(
+        "BIG",
+        FieldKind::BinaryInt {
+            bits: 64,
+            signed: true,
+        },
+        0,
+        8,
+    )]);
+    let arrow = cobol_schema_to_arrow(&schema, &ArrowOptions::default()).unwrap();
+    assert_eq!(*arrow.field(0).data_type(), DataType::Int64);
+}
+
+// ===================================================================
+// 25. Multiple records to single RecordBatch verification
+// ===================================================================
+
+#[test]
+fn multiple_records_to_single_batch_with_values() {
+    let schema = make_schema_with_lrecl(
+        vec![
+            make_field("ID", FieldKind::Alphanum { len: 3 }, 0, 3),
+            make_field(
+                "VAL",
+                FieldKind::PackedDecimal {
+                    digits: 5,
+                    scale: 2,
+                    signed: true,
+                },
+                3,
+                3,
+            ),
+        ],
+        6,
+    );
+
+    let mut data = Vec::new();
+    // Record 1: ID="A01", VAL=+123.45
+    data.extend_from_slice(b"A01");
+    data.extend_from_slice(&[0x12, 0x34, 0x5C]);
+    // Record 2: ID="B02", VAL=+000.00
+    data.extend_from_slice(b"B02");
+    data.extend_from_slice(&[0x00, 0x00, 0x0C]);
+    // Record 3: ID="C03", VAL=-500.00
+    data.extend_from_slice(b"C03");
+    data.extend_from_slice(&[0x50, 0x00, 0x0D]);
+
+    let reader = Cursor::new(data);
+    let opts = ascii_opts();
+    let batches = stream_to_batches(reader, &schema, &opts).unwrap();
+    assert_eq!(batches.len(), 1);
+    assert_eq!(batches[0].num_rows(), 3);
+    assert_eq!(batches[0].num_columns(), 2);
+
+    let id_col = batches[0].column(0).as_string::<i32>();
+    assert_eq!(id_col.value(0), "A01");
+    assert_eq!(id_col.value(1), "B02");
+    assert_eq!(id_col.value(2), "C03");
+
+    let val_col = batches[0]
+        .column(1)
+        .as_any()
+        .downcast_ref::<Decimal128Array>()
+        .unwrap();
+    assert_eq!(val_col.value(0), 12345);
+    assert_eq!(val_col.value(1), 0);
+    assert_eq!(val_col.value(2), -50000);
+}

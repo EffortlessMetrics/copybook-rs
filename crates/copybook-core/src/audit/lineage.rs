@@ -433,7 +433,7 @@ mod tests {
 
         assert_eq!(record.source_field.field_path, "customer.id");
         assert_eq!(record.target_field.field_path, "user.id");
-        assert_eq!(record.quality_score, 0.95);
+        assert!((record.quality_score - 0.95).abs() < f64::EPSILON);
         assert!(!record.processed_at.is_empty());
     }
 
@@ -449,6 +449,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::similar_names)]
     fn test_validate_lineage_chain_valid() {
         let tracker = LineageTracker::new();
 
@@ -479,6 +480,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::similar_names)]
     fn test_validate_lineage_chain_gap() {
         let tracker = LineageTracker::new();
 
@@ -509,6 +511,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::similar_names)]
     fn test_validate_lineage_chain_system_mismatch() {
         let tracker = LineageTracker::new();
 

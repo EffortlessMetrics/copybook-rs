@@ -879,4 +879,330 @@ mod tests {
         assert_eq!(summary.total_records, 0);
         assert_eq!(summary.corruption_warnings, 0);
     }
+
+    // -----------------------------------------------------------------------
+    // Severity classification tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_severity_parse_errors_are_fatal() {
+        let parse_codes = [
+            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKP011_UNSUPPORTED_CLAUSE,
+            ErrorCode::CBKP021_ODO_NOT_TAIL,
+            ErrorCode::CBKP022_NESTED_ODO,
+            ErrorCode::CBKP023_ODO_REDEFINES,
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
+            ErrorCode::CBKP101_INVALID_PIC,
+        ];
+        for code in parse_codes {
+            let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+            let err = Error::new(code, "parse error");
+            let result = reporter.report_error(err);
+            assert!(
+                result.is_err(),
+                "CBKP code {code} should be fatal even in lenient mode"
+            );
+        }
+    }
+
+    #[test]
+    fn test_severity_schema_errors_are_fatal() {
+        let schema_codes = [
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            ErrorCode::CBKS141_RECORD_TOO_LARGE,
+            ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
+            ErrorCode::CBKS701_PROJECTION_INVALID_ODO,
+            ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND,
+        ];
+        for code in schema_codes {
+            let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+            let err = Error::new(code, "schema error");
+            let result = reporter.report_error(err);
+            assert!(result.is_err(), "CBKS code {code} should be fatal");
+        }
+    }
+
+    #[test]
+    fn test_severity_data_errors_are_error_level() {
+        let data_codes = [
+            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKD410_ZONED_OVERFLOW,
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+            ErrorCode::CBKD431_FLOAT_NAN,
+            ErrorCode::CBKD432_FLOAT_INFINITY,
+        ];
+        for code in data_codes {
+            let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+            let err = Error::new(code, "data error");
+            let result = reporter.report_error(err);
+            assert!(
+                result.is_ok(),
+                "CBKD code {code} should continue in lenient mode"
+            );
+            assert!(reporter.has_errors());
+        }
+    }
+
+    #[test]
+    fn test_severity_warning_codes_are_warnings() {
+        let warning_codes = [
+            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO,
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE,
+            ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO,
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+        ];
+        for code in warning_codes {
+            let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+            let err = Error::new(code, "warning");
+            let result = reporter.report_error(err);
+            assert!(result.is_ok(), "code {code} should continue");
+            assert!(
+                !reporter.has_errors(),
+                "code {code} should be warning not error"
+            );
+            assert!(reporter.has_warnings(), "code {code} should be a warning");
+        }
+    }
+
+    #[test]
+    fn test_severity_odo_clipped_warning_in_lenient_fatal_in_strict() {
+        for code in [
+            ErrorCode::CBKS301_ODO_CLIPPED,
+            ErrorCode::CBKS302_ODO_RAISED,
+        ] {
+            // Lenient: warning
+            let mut lenient = ErrorReporter::new(ErrorMode::Lenient, None);
+            assert!(lenient.report_error(Error::new(code, "odo")).is_ok());
+            assert!(lenient.has_warnings());
+            assert!(!lenient.has_errors());
+
+            // Strict: fatal
+            let mut strict = ErrorReporter::new(ErrorMode::Strict, None);
+            assert!(strict.report_error(Error::new(code, "odo")).is_err());
+        }
+    }
+
+    #[test]
+    fn test_severity_encode_errors_are_error_level_in_lenient() {
+        let encode_codes = [
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+            ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
+        ];
+        for code in encode_codes {
+            let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+            let result = reporter.report_error(Error::new(code, "encode"));
+            assert!(result.is_ok(), "{code} should continue in lenient");
+            assert!(reporter.has_errors());
+        }
+    }
+
+    #[test]
+    fn test_severity_infrastructure_error_is_fatal() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        let err = Error::new(ErrorCode::CBKI001_INVALID_STATE, "bad state");
+        assert!(reporter.report_error(err).is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Record tracking tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_records_with_errors_tracking() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+
+        // Report errors on different records
+        let _ = reporter.report_error(
+            Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "bad").with_record(5),
+        );
+        let _ = reporter
+            .report_error(Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "bad").with_record(10));
+
+        assert_eq!(reporter.summary().records_with_errors, 10);
+    }
+
+    #[test]
+    fn test_records_with_errors_not_incremented_for_warnings() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        reporter.report_warning(
+            Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "blank").with_record(5),
+        );
+        assert_eq!(reporter.summary().records_with_errors, 0);
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorReport metadata tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_corruption_warning_adds_metadata() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        reporter.report_warning(Error::new(
+            ErrorCode::CBKF104_RDW_SUSPECT_ASCII,
+            "ASCII transfer",
+        ));
+        assert_eq!(reporter.summary().corruption_warnings, 1);
+    }
+
+    #[test]
+    fn test_non_corruption_warning_no_corruption_count() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        reporter.report_warning(Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "blanks"));
+        assert_eq!(reporter.summary().corruption_warnings, 0);
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorMode and ErrorSeverity tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_mode_equality() {
+        assert_eq!(ErrorMode::Strict, ErrorMode::Strict);
+        assert_eq!(ErrorMode::Lenient, ErrorMode::Lenient);
+        assert_ne!(ErrorMode::Strict, ErrorMode::Lenient);
+    }
+
+    #[test]
+    fn test_error_severity_equality_and_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(ErrorSeverity::Info);
+        set.insert(ErrorSeverity::Warning);
+        set.insert(ErrorSeverity::Error);
+        set.insert(ErrorSeverity::Fatal);
+        set.insert(ErrorSeverity::Info); // duplicate
+        assert_eq!(set.len(), 4);
+    }
+
+    // -----------------------------------------------------------------------
+    // Report generation tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_generate_report_includes_corruption_section() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        reporter.report_warning(Error::new(ErrorCode::CBKF104_RDW_SUSPECT_ASCII, "ASCII"));
+        reporter.report_warning(Error::new(ErrorCode::CBKC301_INVALID_EBCDIC_BYTE, "EBCDIC"));
+
+        let report = reporter.generate_report();
+        assert!(report.contains("Transfer corruption warnings: 2"));
+    }
+
+    #[test]
+    fn test_generate_report_no_corruption_section_when_zero() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        reporter.report_warning(Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "blank"));
+
+        let report = reporter.generate_report();
+        assert!(!report.contains("Transfer corruption warnings"));
+    }
+
+    #[test]
+    fn test_error_summary_has_errors_with_fatal_only() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        // Parse errors are Fatal severity
+        let _ = reporter.report_error(Error::new(ErrorCode::CBKP001_SYNTAX, "syntax"));
+        assert!(reporter.summary().has_errors());
+        assert_eq!(reporter.summary().error_count(), 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorCode JSON serialization tests (through reporter context)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_code_json_roundtrip_in_summary() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, None);
+        let _ = reporter.report_error(Error::new(
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            "nibble",
+        ));
+
+        // Serialize error code from summary
+        for (code, count) in &reporter.summary().error_codes {
+            let json = serde_json::to_string(code).unwrap();
+            let rt: ErrorCode = serde_json::from_str(&json).unwrap();
+            assert_eq!(*code, rt);
+            assert_eq!(*count, 1);
+        }
+    }
+
+    #[test]
+    fn test_error_code_json_serialization_format() {
+        // Verify codes serialize as quoted variant names (stable API contract)
+        let test_cases = [
+            (ErrorCode::CBKP001_SYNTAX, r#""CBKP001_SYNTAX""#),
+            (
+                ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+                r#""CBKS121_COUNTER_NOT_FOUND""#,
+            ),
+            (
+                ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+                r#""CBKD401_COMP3_INVALID_NIBBLE""#,
+            ),
+            (
+                ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+                r#""CBKE501_JSON_TYPE_MISMATCH""#,
+            ),
+            (
+                ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+                r#""CBKR211_RDW_RESERVED_NONZERO""#,
+            ),
+            (
+                ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+                r#""CBKF102_RECORD_LENGTH_INVALID""#,
+            ),
+        ];
+        for (code, expected_json) in test_cases {
+            let json = serde_json::to_string(&code).unwrap();
+            assert_eq!(json, expected_json, "serialization mismatch for {code}");
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Max errors edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_max_errors_zero_stops_immediately() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, Some(0));
+        let err = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "first");
+        // max_errors=0 means 0 < 0 is false, so first error should fail
+        assert!(reporter.report_error(err).is_err());
+    }
+
+    #[test]
+    fn test_strict_mode_stops_on_every_data_error() {
+        let data_codes = [
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            ErrorCode::CBKD410_ZONED_OVERFLOW,
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+        ];
+        for code in data_codes {
+            let mut reporter = ErrorReporter::new(ErrorMode::Strict, None);
+            let result = reporter.report_error(Error::new(code, "data error"));
+            assert!(result.is_err(), "strict mode should stop on {code}");
+        }
+    }
+
+    #[test]
+    fn test_warning_does_not_count_as_error() {
+        let mut reporter = ErrorReporter::new(ErrorMode::Lenient, Some(1));
+        // Report many warnings - they shouldn't count against max_errors
+        for _ in 0..10 {
+            reporter.report_warning(Error::new(ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO, "blank"));
+        }
+        assert_eq!(reporter.error_count(), 0);
+        assert_eq!(reporter.warning_count(), 10);
+        // Next real error should still succeed (first error under limit)
+        let err = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "first real error");
+        assert!(reporter.report_error(err).is_ok());
+    }
 }

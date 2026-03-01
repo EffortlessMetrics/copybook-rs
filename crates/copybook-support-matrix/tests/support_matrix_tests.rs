@@ -92,8 +92,7 @@ fn supported_features_are_correctly_classified() {
         assert_eq!(
             f.status,
             SupportStatus::Supported,
-            "{:?} should be Supported",
-            id
+            "{id:?} should be Supported"
         );
     }
 }
@@ -107,12 +106,7 @@ fn partial_features_are_correctly_classified() {
     ];
     for id in partial_ids {
         let f = find_feature_by_id(id).unwrap();
-        assert_eq!(
-            f.status,
-            SupportStatus::Partial,
-            "{:?} should be Partial",
-            id
-        );
+        assert_eq!(f.status, SupportStatus::Partial, "{id:?} should be Partial");
     }
 }
 

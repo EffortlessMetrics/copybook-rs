@@ -614,4 +614,358 @@ mod tests {
         assert_eq!(err.code, ErrorCode::CBKD301_RECORD_TOO_SHORT);
         assert!(err.message.contains("CUSTOMER_ID"));
     }
+
+    // -----------------------------------------------------------------------
+    // Error accessor and builder tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_code_accessor() {
+        let err = Error::new(ErrorCode::CBKE510_NUMERIC_OVERFLOW, "overflow");
+        assert_eq!(err.code(), ErrorCode::CBKE510_NUMERIC_OVERFLOW);
+    }
+
+    #[test]
+    fn test_error_family_prefix_via_error() {
+        let err = Error::new(ErrorCode::CBKR211_RDW_RESERVED_NONZERO, "reserved");
+        assert_eq!(err.family_prefix(), "CBKR");
+    }
+
+    #[test]
+    fn test_error_with_record_builder() {
+        let err = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "short").with_record(7);
+        let ctx = err.context.as_ref().unwrap();
+        assert_eq!(ctx.record_index, Some(7));
+        assert!(ctx.field_path.is_none());
+        assert!(ctx.byte_offset.is_none());
+    }
+
+    #[test]
+    fn test_error_with_offset_builder() {
+        let err = Error::new(ErrorCode::CBKD301_RECORD_TOO_SHORT, "short").with_offset(128);
+        let ctx = err.context.as_ref().unwrap();
+        assert_eq!(ctx.byte_offset, Some(128));
+        assert!(ctx.record_index.is_none());
+        assert!(ctx.field_path.is_none());
+    }
+
+    #[test]
+    fn test_error_chained_context_builders() {
+        let err = Error::new(ErrorCode::CBKD401_COMP3_INVALID_NIBBLE, "bad nibble")
+            .with_record(10)
+            .with_field("CUSTOMER.BALANCE")
+            .with_offset(64);
+        let ctx = err.context.as_ref().unwrap();
+        assert_eq!(ctx.record_index, Some(10));
+        assert_eq!(ctx.field_path.as_deref(), Some("CUSTOMER.BALANCE"));
+        assert_eq!(ctx.byte_offset, Some(64));
+        assert!(ctx.line_number.is_none());
+        assert!(ctx.details.is_none());
+    }
+
+    #[test]
+    fn test_error_with_context_sets_full_context() {
+        let ctx = ErrorContext {
+            record_index: Some(99),
+            field_path: Some("ROOT.CHILD".into()),
+            byte_offset: Some(512),
+            line_number: Some(42),
+            details: Some("extra detail".into()),
+        };
+        let err = Error::new(ErrorCode::CBKP001_SYNTAX, "bad syntax").with_context(ctx);
+        let c = err.context.as_ref().unwrap();
+        assert_eq!(c.record_index, Some(99));
+        assert_eq!(c.field_path.as_deref(), Some("ROOT.CHILD"));
+        assert_eq!(c.byte_offset, Some(512));
+        assert_eq!(c.line_number, Some(42));
+        assert_eq!(c.details.as_deref(), Some("extra detail"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Trait implementation tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_clone_equality() {
+        let err1 = Error::new(ErrorCode::CBKE501_JSON_TYPE_MISMATCH, "mismatch")
+            .with_field("AMOUNT")
+            .with_record(3);
+        let err2 = err1.clone();
+        assert_eq!(err1, err2);
+        assert_eq!(err1.code, err2.code);
+        assert_eq!(err1.message, err2.message);
+        assert_eq!(err1.context, err2.context);
+    }
+
+    #[test]
+    fn test_error_code_copy_clone_hash() {
+        use std::collections::HashSet;
+        let code = ErrorCode::CBKP001_SYNTAX;
+        let copy = code;
+        assert_eq!(code, copy);
+
+        let mut set = HashSet::new();
+        set.insert(ErrorCode::CBKP001_SYNTAX);
+        set.insert(ErrorCode::CBKD301_RECORD_TOO_SHORT);
+        set.insert(ErrorCode::CBKP001_SYNTAX); // duplicate
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_error_implements_std_error() {
+        let err = Error::new(ErrorCode::CBKD411_ZONED_BAD_SIGN, "bad sign");
+        let std_err: &dyn std::error::Error = &err;
+        // source() should be None since Error has no #[source] field
+        assert!(std_err.source().is_none());
+        assert!(!std_err.to_string().is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorContext Display edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_context_display_empty() {
+        let ctx = ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: None,
+        };
+        assert_eq!(format!("{ctx}"), "");
+    }
+
+    #[test]
+    fn test_error_context_display_record_only() {
+        let ctx = ErrorContext {
+            record_index: Some(42),
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: None,
+        };
+        assert_eq!(format!("{ctx}"), "record 42");
+    }
+
+    #[test]
+    fn test_error_context_display_line_number_only() {
+        let ctx = ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: Some(15),
+            details: None,
+        };
+        assert_eq!(format!("{ctx}"), "line 15");
+    }
+
+    #[test]
+    fn test_error_context_display_details_only() {
+        let ctx = ErrorContext {
+            record_index: None,
+            field_path: None,
+            byte_offset: None,
+            line_number: None,
+            details: Some("expected 8 bytes, got 4".into()),
+        };
+        assert_eq!(format!("{ctx}"), "expected 8 bytes, got 4");
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorCode family_prefix exhaustive coverage
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_all_cbkp_codes_have_cbkp_prefix() {
+        let codes = [
+            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKP011_UNSUPPORTED_CLAUSE,
+            ErrorCode::CBKP021_ODO_NOT_TAIL,
+            ErrorCode::CBKP022_NESTED_ODO,
+            ErrorCode::CBKP023_ODO_REDEFINES,
+            ErrorCode::CBKP051_UNSUPPORTED_EDITED_PIC,
+            ErrorCode::CBKP101_INVALID_PIC,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKP", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_all_cbks_codes_have_cbks_prefix() {
+        let codes = [
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            ErrorCode::CBKS141_RECORD_TOO_LARGE,
+            ErrorCode::CBKS301_ODO_CLIPPED,
+            ErrorCode::CBKS302_ODO_RAISED,
+            ErrorCode::CBKS601_RENAME_UNKNOWN_FROM,
+            ErrorCode::CBKS602_RENAME_UNKNOWN_THRU,
+            ErrorCode::CBKS603_RENAME_NOT_CONTIGUOUS,
+            ErrorCode::CBKS604_RENAME_REVERSED_RANGE,
+            ErrorCode::CBKS605_RENAME_FROM_CROSSES_GROUP,
+            ErrorCode::CBKS606_RENAME_THRU_CROSSES_GROUP,
+            ErrorCode::CBKS607_RENAME_CROSSES_OCCURS,
+            ErrorCode::CBKS608_RENAME_QUALIFIED_NAME_NOT_FOUND,
+            ErrorCode::CBKS609_RENAME_OVER_REDEFINES,
+            ErrorCode::CBKS610_RENAME_MULTIPLE_REDEFINES,
+            ErrorCode::CBKS611_RENAME_PARTIAL_OCCURS,
+            ErrorCode::CBKS612_RENAME_ODO_NOT_SUPPORTED,
+            ErrorCode::CBKS701_PROJECTION_INVALID_ODO,
+            ErrorCode::CBKS702_PROJECTION_UNRESOLVED_ALIAS,
+            ErrorCode::CBKS703_PROJECTION_FIELD_NOT_FOUND,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKS", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_all_cbkd_codes_have_cbkd_prefix() {
+        let codes = [
+            ErrorCode::CBKD101_INVALID_FIELD_TYPE,
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            ErrorCode::CBKD302_EDITED_PIC_NOT_IMPLEMENTED,
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKD410_ZONED_OVERFLOW,
+            ErrorCode::CBKD411_ZONED_BAD_SIGN,
+            ErrorCode::CBKD412_ZONED_BLANK_IS_ZERO,
+            ErrorCode::CBKD413_ZONED_INVALID_ENCODING,
+            ErrorCode::CBKD414_ZONED_MIXED_ENCODING,
+            ErrorCode::CBKD415_ZONED_ENCODING_AMBIGUOUS,
+            ErrorCode::CBKD421_EDITED_PIC_INVALID_FORMAT,
+            ErrorCode::CBKD422_EDITED_PIC_SIGN_MISMATCH,
+            ErrorCode::CBKD423_EDITED_PIC_BLANK_WHEN_ZERO,
+            ErrorCode::CBKD431_FLOAT_NAN,
+            ErrorCode::CBKD432_FLOAT_INFINITY,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKD", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_all_cbke_codes_have_cbke_prefix() {
+        let codes = [
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKE505_SCALE_MISMATCH,
+            ErrorCode::CBKE510_NUMERIC_OVERFLOW,
+            ErrorCode::CBKE515_STRING_LENGTH_VIOLATION,
+            ErrorCode::CBKE521_ARRAY_LEN_OOB,
+            ErrorCode::CBKE530_SIGN_SEPARATE_ENCODE_ERROR,
+            ErrorCode::CBKE531_FLOAT_ENCODE_OVERFLOW,
+        ];
+        for code in codes {
+            assert_eq!(code.family_prefix(), "CBKE", "failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_remaining_family_prefixes() {
+        assert_eq!(
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO.family_prefix(),
+            "CBKR"
+        );
+        assert_eq!(ErrorCode::CBKC201_JSON_WRITE_ERROR.family_prefix(), "CBKC");
+        assert_eq!(
+            ErrorCode::CBKC301_INVALID_EBCDIC_BYTE.family_prefix(),
+            "CBKC"
+        );
+        assert_eq!(ErrorCode::CBKI001_INVALID_STATE.family_prefix(), "CBKI");
+        assert_eq!(
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID.family_prefix(),
+            "CBKF"
+        );
+        assert_eq!(ErrorCode::CBKF104_RDW_SUSPECT_ASCII.family_prefix(), "CBKF");
+        assert_eq!(ErrorCode::CBKF221_RDW_UNDERFLOW.family_prefix(), "CBKF");
+        assert_eq!(ErrorCode::CBKA001_BASELINE_ERROR.family_prefix(), "CBKA");
+        assert_eq!(ErrorCode::CBKW001_SCHEMA_CONVERSION.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW002_TYPE_MAPPING.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW003_DECIMAL_OVERFLOW.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW004_BATCH_BUILD.family_prefix(), "CBKW");
+        assert_eq!(ErrorCode::CBKW005_PARQUET_WRITE.family_prefix(), "CBKW");
+    }
+
+    // -----------------------------------------------------------------------
+    // ErrorCode Display consistency: all codes display as variant name
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_code_display_starts_with_family_prefix() {
+        let representative_codes = [
+            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+            ErrorCode::CBKC201_JSON_WRITE_ERROR,
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKI001_INVALID_STATE,
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            ErrorCode::CBKA001_BASELINE_ERROR,
+            ErrorCode::CBKW001_SCHEMA_CONVERSION,
+        ];
+        for code in representative_codes {
+            let display = format!("{code}");
+            let prefix = code.family_prefix();
+            assert!(
+                display.starts_with(prefix),
+                "{display} should start with {prefix}"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Serde round-trip for each error code family
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_code_serde_roundtrip_all_families() {
+        let codes = [
+            ErrorCode::CBKP001_SYNTAX,
+            ErrorCode::CBKS121_COUNTER_NOT_FOUND,
+            ErrorCode::CBKR211_RDW_RESERVED_NONZERO,
+            ErrorCode::CBKC201_JSON_WRITE_ERROR,
+            ErrorCode::CBKD401_COMP3_INVALID_NIBBLE,
+            ErrorCode::CBKI001_INVALID_STATE,
+            ErrorCode::CBKE501_JSON_TYPE_MISMATCH,
+            ErrorCode::CBKF102_RECORD_LENGTH_INVALID,
+            ErrorCode::CBKA001_BASELINE_ERROR,
+            ErrorCode::CBKW001_SCHEMA_CONVERSION,
+        ];
+        for code in codes {
+            let json = serde_json::to_string(&code).unwrap();
+            let roundtripped: ErrorCode = serde_json::from_str(&json).unwrap();
+            assert_eq!(roundtripped, code, "round-trip failed for {code}");
+        }
+    }
+
+    #[test]
+    fn test_error_code_deserialization_from_string() {
+        let json = r#""CBKP101_INVALID_PIC""#;
+        let code: ErrorCode = serde_json::from_str(json).unwrap();
+        assert_eq!(code, ErrorCode::CBKP101_INVALID_PIC);
+    }
+
+    #[test]
+    fn test_error_code_deserialization_invalid_rejects() {
+        let json = r#""NOT_A_REAL_CODE""#;
+        let result: std::result::Result<ErrorCode, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // error! macro with multiple format args
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_error_macro_multiple_format_args() {
+        let field = "AMOUNT";
+        let expected = 8;
+        let actual = 4;
+        let err = error!(
+            ErrorCode::CBKD301_RECORD_TOO_SHORT,
+            "Field {} expected {} bytes, got {}", field, expected, actual
+        );
+        assert_eq!(err.message, "Field AMOUNT expected 8 bytes, got 4");
+    }
 }

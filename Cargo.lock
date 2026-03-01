@@ -1019,6 +1019,7 @@ name = "copybook-error-reporter"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
+ "serde_json",
  "tracing",
 ]
 

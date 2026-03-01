@@ -553,10 +553,19 @@ mod hotspot_integration_safety {
                     !schema.fields.is_empty(),
                     "Integration should produce fields"
                 );
-                assert!(
-                    schema.lrecl_fixed.unwrap_or(0) > 0,
-                    "Integration should calculate length"
-                );
+
+                // ODO schemas have variable length, so lrecl_fixed is None
+                if schema.tail_odo.is_some() {
+                    assert!(
+                        schema.lrecl_fixed.is_none(),
+                        "ODO schema should not have fixed LRECL"
+                    );
+                } else {
+                    assert!(
+                        schema.lrecl_fixed.unwrap_or(0) > 0,
+                        "Non-ODO schema should calculate length"
+                    );
+                }
 
                 // Validate ODO integration
                 if let Some(odo_field) = schema.tail_odo.as_ref() {

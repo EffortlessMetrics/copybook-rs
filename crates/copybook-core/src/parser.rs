@@ -886,7 +886,7 @@ impl Parser {
         let mut pic_parts = Vec::new();
 
         // Track the starting line for same-line checks
-        let token_line = self.current_token().map(|t| t.line).unwrap_or(0);
+        let token_line = self.current_token().map_or(0, |t| t.line);
 
         // First token should be a PIC clause or identifier
         match self.current_token() {
@@ -961,16 +961,28 @@ impl Parser {
                 }
                 Token::Period => {
                     // Period could be decimal point or sentence terminator.
-                    // Only treat as decimal if on the same line as the PIC start
-                    // and something follows on the same line.
+                    // Only treat as decimal point if:
+                    // 1. On the same line as the PIC start
+                    // 2. The last part is NOT a closing paren (e.g., `PIC X(20).` → terminator)
+                    // 3. Something follows on the same line that looks like more PIC
                     let t = token.clone();
-                    if t.line == token_line {
-                        if let Some(next) = self.peek_next() {
-                            if next.line == token_line {
-                                pic_parts.push(".".to_string());
-                                self.advance();
-                                continue;
-                            }
+                    let last_is_rparen =
+                        pic_parts.last().is_some_and(|s| s == ")" || s.ends_with(')'));
+                    if !last_is_rparen
+                        && t.line == token_line
+                        && let Some(next) = self.peek_next()
+                    {
+                        let is_pic_continuation = matches!(
+                            next.token,
+                            Token::Number(_)
+                                | Token::PicClause(_)
+                                | Token::EditedPic(_)
+                                | Token::Identifier(_)
+                        );
+                        if next.line == token_line && is_pic_continuation {
+                            pic_parts.push(".".to_string());
+                            self.advance();
+                            continue;
                         }
                     }
                     break;

@@ -52,5 +52,5 @@ tokio.workspace = true
 base64.workspace = true
 
 [features]
-default = []
+default = ["audit"]
 audit = ["copybook-core/audit", "copybook-codec/audit"]

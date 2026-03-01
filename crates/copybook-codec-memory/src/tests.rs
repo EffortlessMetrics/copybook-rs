@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 use super::*;
 use anyhow::{Context, Result, anyhow};
+use std::fmt::Write;
 use std::time::Duration;
 
 type TestResult = Result<()>;
@@ -353,11 +354,11 @@ fn test_scratch_buffers_multiple_reuse_cycles() {
 
     for cycle in 0..100 {
         // Simulate per-record work
-        scratch.digit_buffer.push((cycle % 10) as u8);
+        scratch.digit_buffer.push(u8::try_from(cycle % 10).unwrap());
         scratch
             .byte_buffer
             .extend_from_slice(format!("record-{cycle}").as_bytes());
-        scratch.string_buffer.push_str(&format!("output-{cycle}"));
+        write!(scratch.string_buffer, "output-{cycle}").unwrap();
 
         assert!(!scratch.byte_buffer.is_empty());
         assert!(!scratch.string_buffer.is_empty());
@@ -503,7 +504,7 @@ fn test_streaming_processor_pressure_boundary() {
 
     // Exactly 80% — threshold is > 80%, so at 80% there is no pressure
     let eighty_pct = limit * 80 / 100; // 838_860
-    processor.update_memory_usage(eighty_pct as isize);
+    processor.update_memory_usage(eighty_pct.cast_signed());
     assert!(!processor.is_memory_pressure());
 
     // One byte over 80%

@@ -45,9 +45,9 @@ mod tests {
     #[test]
     fn test_reexported_feature_lifecycle() {
         // Ensure FeatureLifecycle is accessible through facade
-        let _lc = FeatureLifecycle::Experimental;
-        let _lc2 = FeatureLifecycle::Stable;
-        let _lc3 = FeatureLifecycle::Deprecated;
+        let _ = FeatureLifecycle::Experimental;
+        let _ = FeatureLifecycle::Stable;
+        let _ = FeatureLifecycle::Deprecated;
     }
 
     #[test]
@@ -91,10 +91,10 @@ mod tests {
 
     #[test]
     fn test_support_status_variants_accessible() {
-        let _s = SupportStatus::Supported;
-        let _p = SupportStatus::Partial;
-        let _pl = SupportStatus::Planned;
-        let _np = SupportStatus::NotPlanned;
+        let _ = SupportStatus::Supported;
+        let _ = SupportStatus::Partial;
+        let _ = SupportStatus::Planned;
+        let _ = SupportStatus::NotPlanned;
     }
 
     #[test]

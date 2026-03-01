@@ -61,7 +61,11 @@ fn test_odo_group_with_children() {
     let schema = parse_copybook(cpy).unwrap();
     let li = find_field(&schema, "LINE-ITEM");
     match &li.occurs {
-        Some(Occurs::ODO { min, max, counter_path }) => {
+        Some(Occurs::ODO {
+            min,
+            max,
+            counter_path,
+        }) => {
             assert_eq!(*min, 1);
             assert_eq!(*max, 20);
             assert_eq!(counter_path, "NUM-LINES");
@@ -632,9 +636,7 @@ fn test_pic_single_9_with_parens() {
     let schema = parse_copybook(cpy).unwrap();
     let f = find_field(&schema, "DIGIT");
     match &f.kind {
-        FieldKind::ZonedDecimal {
-            digits, signed, ..
-        } => {
+        FieldKind::ZonedDecimal { digits, signed, .. } => {
             assert_eq!(*digits, 1);
             assert!(!signed);
         }
@@ -815,8 +817,7 @@ fn test_inline_comment_preserves_field_data() {
 
 #[test]
 fn test_traditional_comment_lines_ignored() {
-    let cpy =
-        "      * This is a comment line\n       01 REC.\n          05 F1 PIC X(5).\n";
+    let cpy = "      * This is a comment line\n       01 REC.\n          05 F1 PIC X(5).\n";
     let schema = parse_copybook(cpy).unwrap();
     let f = find_field(&schema, "F1");
     assert!(matches!(f.kind, FieldKind::Alphanum { len: 5 }));
@@ -903,7 +904,11 @@ fn test_enterprise_customer_record() {
 
     let accts = find_field(&schema, "ACCOUNTS");
     match &accts.occurs {
-        Some(Occurs::ODO { min, max, counter_path }) => {
+        Some(Occurs::ODO {
+            min,
+            max,
+            counter_path,
+        }) => {
             assert_eq!(*min, 1);
             assert_eq!(*max, 10);
             assert_eq!(counter_path, "ACCT-COUNT");

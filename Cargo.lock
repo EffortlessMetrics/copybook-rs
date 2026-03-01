@@ -991,6 +991,7 @@ name = "copybook-dialect"
 version = "0.4.3"
 dependencies = [
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1066,6 +1067,7 @@ name = "copybook-governance-grid"
 version = "0.4.3"
 dependencies = [
  "copybook-governance-contracts",
+ "serde_plain",
 ]
 
 [[package]]

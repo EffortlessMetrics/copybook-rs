@@ -67,7 +67,10 @@ fn test_comp1_negative_zero_roundtrip() {
 
     let mut buf = [0u8; 4];
     encode_float_single(-0.0_f32, &mut buf).unwrap();
-    assert_eq!(buf, neg_zero_bytes, "encoding -0.0 should produce 0x80000000");
+    assert_eq!(
+        buf, neg_zero_bytes,
+        "encoding -0.0 should produce 0x80000000"
+    );
 }
 
 #[test]
@@ -340,7 +343,10 @@ fn test_redefines_decode_includes_all_views() {
     let value = decode_record(&schema, data, &opts).unwrap();
 
     // The original field should be present
-    assert!(value.get("FIELD-A").is_some(), "original field should be decoded");
+    assert!(
+        value.get("FIELD-A").is_some(),
+        "original field should be decoded"
+    );
     assert_eq!(value["FIELD-A"], "HELLOWORLD");
     // Both views of the same data are emitted
     if let Some(fb) = value.get("FIELD-B") {
@@ -497,7 +503,10 @@ fn test_odo_record_too_short_for_count() {
     let data = b"3ABCD";
     let opts = ascii_decode_opts();
     let result = decode_record(&schema, data, &opts);
-    assert!(result.is_err(), "should fail when record is too short for ODO count");
+    assert!(
+        result.is_err(),
+        "should fail when record is too short for ODO count"
+    );
 }
 
 #[test]
@@ -509,7 +518,10 @@ fn test_odo_not_at_tail_rejected() {
           05 TAIL-FIELD PIC X(5).
     ";
     let result = parse_copybook(copybook);
-    assert!(result.is_err(), "ODO not at tail position should be rejected");
+    assert!(
+        result.is_err(),
+        "ODO not at tail position should be rejected"
+    );
 }
 
 // ===========================================================================
@@ -555,7 +567,10 @@ fn test_binary_int_16bit_unsigned_boundaries() {
 #[test]
 fn test_binary_int_16bit_unsigned_negative_fails() {
     let result = encode_binary_int(-1, 16, false);
-    assert!(result.is_err(), "negative value should fail for unsigned 16-bit");
+    assert!(
+        result.is_err(),
+        "negative value should fail for unsigned 16-bit"
+    );
 }
 
 #[test]
@@ -662,7 +677,10 @@ fn test_alpha_field_right_padded_with_spaces() {
     let encoded = encode_record(&schema, &json!({"NAME": "HI"}), &opts).unwrap();
     assert_eq!(encoded.len(), 10);
     assert_eq!(&encoded[..2], b"HI");
-    assert!(encoded[2..].iter().all(|&b| b == b' '), "should be space-padded");
+    assert!(
+        encoded[2..].iter().all(|&b| b == b' '),
+        "should be space-padded"
+    );
 }
 
 #[test]
@@ -735,7 +753,10 @@ fn test_alpha_field_empty_string() {
     let opts = ascii_encode_opts();
     let encoded = encode_record(&schema, &json!({"NAME": ""}), &opts).unwrap();
     assert_eq!(encoded.len(), 5);
-    assert!(encoded.iter().all(|&b| b == b' '), "empty string should produce all spaces");
+    assert!(
+        encoded.iter().all(|&b| b == b' '),
+        "empty string should produce all spaces"
+    );
 }
 
 #[test]

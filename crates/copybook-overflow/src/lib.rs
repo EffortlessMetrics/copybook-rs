@@ -238,8 +238,115 @@ mod tests {
     fn safe_array_bound_error_message_contains_context() {
         let err = safe_array_bound(0, usize::MAX, 2, "my-context").unwrap_err();
         assert!(
-            format!("{}", err.message).contains("my-context"),
+            err.message.contains("my-context"),
             "Error message should contain context"
+        );
+    }
+
+    // --- Additional coverage ---
+
+    #[test]
+    fn safe_array_bound_large_non_overflowing() {
+        // 1000 * 1000 + 500 = 1_000_500
+        assert_eq!(
+            safe_array_bound(500, 1000, 1000, "large").unwrap(),
+            1_000_500
+        );
+    }
+
+    #[test]
+    fn safe_array_bound_max_base_zero_product() {
+        assert_eq!(
+            safe_array_bound(usize::MAX, 0, 100, "max-base").unwrap(),
+            usize::MAX
+        );
+    }
+
+    #[test]
+    fn safe_array_bound_mul_overflow_message() {
+        let err = safe_array_bound(0, usize::MAX, 2, "ctx").unwrap_err();
+        assert!(err.message.contains("Array size overflow"));
+        assert!(err.message.contains("would overflow"));
+    }
+
+    #[test]
+    fn safe_array_bound_add_overflow_message() {
+        let err = safe_array_bound(usize::MAX, 1, 1, "ctx").unwrap_err();
+        assert!(err.message.contains("Array offset overflow"));
+        assert!(err.message.contains("would overflow"));
+    }
+
+    #[test]
+    fn safe_u64_to_u32_midrange() {
+        assert_eq!(safe_u64_to_u32(1_000_000, "mid").unwrap(), 1_000_000);
+    }
+
+    #[test]
+    fn safe_u64_to_u32_error_message_contains_context() {
+        let err = safe_u64_to_u32(u64::from(u32::MAX) + 1, "my-ctx").unwrap_err();
+        assert!(err.message.contains("my-ctx"));
+        assert!(err.message.contains("exceeds u32::MAX"));
+    }
+
+    #[test]
+    fn safe_u64_to_u16_midrange() {
+        assert_eq!(safe_u64_to_u16(30_000, "mid").unwrap(), 30_000);
+    }
+
+    #[test]
+    fn safe_u64_to_u16_error_message_contains_context() {
+        let err = safe_u64_to_u16(70_000, "my-ctx").unwrap_err();
+        assert!(err.message.contains("my-ctx"));
+        assert!(err.message.contains("exceeds u16::MAX"));
+    }
+
+    #[test]
+    fn safe_u64_to_u16_at_u32_max() {
+        let err = safe_u64_to_u16(u64::from(u32::MAX), "u32-max").unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKS141_RECORD_TOO_LARGE);
+    }
+
+    #[test]
+    fn safe_usize_to_u32_midrange() {
+        assert_eq!(safe_usize_to_u32(50_000, "mid").unwrap(), 50_000);
+    }
+
+    #[test]
+    fn safe_usize_to_u32_error_message_contains_context() {
+        #[cfg(target_pointer_width = "64")]
+        {
+            let err = safe_usize_to_u32(u32::MAX as usize + 1, "my-ctx").unwrap_err();
+            assert!(err.message.contains("my-ctx"));
+            assert!(err.message.contains("exceeds u32::MAX"));
+        }
+    }
+
+    #[test]
+    fn safe_u64_to_u32_one() {
+        assert_eq!(safe_u64_to_u32(1, "one").unwrap(), 1);
+    }
+
+    #[test]
+    fn safe_u64_to_u16_one() {
+        assert_eq!(safe_u64_to_u16(1, "one").unwrap(), 1);
+    }
+
+    #[test]
+    fn safe_usize_to_u32_one() {
+        assert_eq!(safe_usize_to_u32(1, "one").unwrap(), 1);
+    }
+
+    #[test]
+    fn safe_array_bound_single_element() {
+        assert_eq!(safe_array_bound(0, 1, 1, "single").unwrap(), 1);
+    }
+
+    #[test]
+    fn safe_array_bound_base_at_max_minus_product() {
+        // Exactly at limit: usize::MAX - 10 + 10 = usize::MAX
+        assert_eq!(
+            safe_array_bound(usize::MAX - 10, 1, 10, "exact").unwrap(),
+            usize::MAX
         );
     }
 }

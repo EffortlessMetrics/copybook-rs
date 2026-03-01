@@ -13,7 +13,9 @@ async fn then_error_message_contains(world: &mut CopybookWorld, expected: String
     let error = world.error.as_ref().expect("Error should be set");
     let message = format!("{}", error);
     assert!(
-        message.to_ascii_lowercase().contains(&expected.to_ascii_lowercase()),
+        message
+            .to_ascii_lowercase()
+            .contains(&expected.to_ascii_lowercase()),
         "Expected error message to contain '{}', got: {}",
         expected,
         message

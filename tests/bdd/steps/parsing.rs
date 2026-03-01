@@ -263,6 +263,7 @@ async fn then_field_has_occurs_count(
     field_name: String,
     expected_count: u32,
 ) {
+    let field_name = field_name.trim_matches('"').to_string();
     let field = world
         .find_field_by_name_ci(&field_name)
         .expect(&format!("Field '{}' not found", field_name));
@@ -280,21 +281,13 @@ async fn then_field_has_occurs_count(
     );
 }
 
-#[then(expr = "field {string} should have OCCURS count {int}")]
-async fn then_field_has_occurs_count_str(
-    world: &mut CopybookWorld,
-    field_name: String,
-    expected_count: u32,
-) {
-    then_field_has_occurs_count(world, field_name, expected_count).await;
-}
-
 #[then(expr = "field {word} should have ODO with counter {string}")]
 async fn then_field_has_odo_with_counter(
     world: &mut CopybookWorld,
     field_name: String,
     counter: String,
 ) {
+    let field_name = field_name.trim_matches('"').to_string();
     let field = world
         .find_field_by_name_ci(&field_name)
         .expect(&format!("Field '{}' not found", field_name));
@@ -311,15 +304,6 @@ async fn then_field_has_odo_with_counter(
         Some(_) => panic!("Field '{}' is not an ODO field", field_name),
         None => panic!("Field '{}' has no OCCURS clause", field_name),
     }
-}
-
-#[then(expr = "field {string} should have ODO with counter {string}")]
-async fn then_field_has_odo_with_counter_str(
-    world: &mut CopybookWorld,
-    field_name: String,
-    counter: String,
-) {
-    then_field_has_odo_with_counter(world, field_name, counter).await;
 }
 
 #[then(expr = "field {word} should have ODO with min {int} and max {int}")]

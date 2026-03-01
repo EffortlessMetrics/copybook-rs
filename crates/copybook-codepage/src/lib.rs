@@ -421,12 +421,8 @@ mod tests {
     #[test]
     fn test_get_zoned_sign_table_ebcdic_unsigned_nibbles() {
         let table = get_zoned_sign_table(Codepage::CP037);
-        for i in 0..=0xB {
-            assert_eq!(
-                table[i],
-                (false, false),
-                "Expected unsigned at nibble 0x{i:X}"
-            );
+        for (i, &entry) in table.iter().enumerate().take(0xB + 1) {
+            assert_eq!(entry, (false, false), "Expected unsigned at nibble 0x{i:X}");
         }
         assert_eq!(table[0xE], (false, false));
     }
@@ -460,5 +456,171 @@ mod tests {
         let json = serde_json::to_string(&policy).unwrap();
         let deserialized: UnmappablePolicy = serde_json::from_str(&json).unwrap();
         assert_eq!(policy, deserialized);
+    }
+
+    // --- Additional coverage ---
+
+    #[test]
+    fn test_codepage_clone_preserves_value() {
+        let cp = Codepage::CP500;
+        let cloned = cp;
+        assert_eq!(cp, cloned);
+    }
+
+    #[test]
+    fn test_codepage_eq_different_variants() {
+        assert_ne!(Codepage::ASCII, Codepage::CP037);
+        assert_ne!(Codepage::CP037, Codepage::CP273);
+        assert_ne!(Codepage::CP273, Codepage::CP500);
+        assert_ne!(Codepage::CP500, Codepage::CP1047);
+        assert_ne!(Codepage::CP1047, Codepage::CP1140);
+    }
+
+    #[test]
+    fn test_codepage_debug_format() {
+        let debug = format!("{:?}", Codepage::CP037);
+        assert_eq!(debug, "CP037");
+        let debug = format!("{:?}", Codepage::ASCII);
+        assert_eq!(debug, "ASCII");
+    }
+
+    #[test]
+    fn test_codepage_serde_all_variants_roundtrip() {
+        let variants = [
+            Codepage::ASCII,
+            Codepage::CP037,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+            Codepage::CP1140,
+        ];
+        for cp in variants {
+            let json = serde_json::to_string(&cp).unwrap();
+            let deserialized: Codepage = serde_json::from_str(&json).unwrap();
+            assert_eq!(cp, deserialized, "Roundtrip failed for {cp}");
+        }
+    }
+
+    #[test]
+    fn test_codepage_from_str_cp037_explicit() {
+        // cp037 should match explicitly, not just as default
+        assert_eq!(
+            <Codepage as std::str::FromStr>::from_str("cp037").unwrap(),
+            Codepage::CP037
+        );
+    }
+
+    #[test]
+    fn test_codepage_display_roundtrip_via_from_str() {
+        let variants = [
+            Codepage::ASCII,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+            Codepage::CP1140,
+        ];
+        for cp in variants {
+            let displayed = cp.to_string();
+            let parsed: Codepage = displayed.parse().unwrap();
+            assert_eq!(cp, parsed, "Display/FromStr roundtrip failed for {cp}");
+        }
+    }
+
+    #[test]
+    fn test_unmappable_policy_clone_preserves_value() {
+        let policy = UnmappablePolicy::Skip;
+        let cloned = policy;
+        assert_eq!(policy, cloned);
+    }
+
+    #[test]
+    fn test_unmappable_policy_debug_format() {
+        assert_eq!(format!("{:?}", UnmappablePolicy::Error), "Error");
+        assert_eq!(format!("{:?}", UnmappablePolicy::Replace), "Replace");
+        assert_eq!(format!("{:?}", UnmappablePolicy::Skip), "Skip");
+    }
+
+    #[test]
+    fn test_unmappable_policy_serde_all_variants_roundtrip() {
+        let variants = [
+            UnmappablePolicy::Error,
+            UnmappablePolicy::Replace,
+            UnmappablePolicy::Skip,
+        ];
+        for policy in variants {
+            let json = serde_json::to_string(&policy).unwrap();
+            let deserialized: UnmappablePolicy = serde_json::from_str(&json).unwrap();
+            assert_eq!(policy, deserialized, "Roundtrip failed for {policy}");
+        }
+    }
+
+    #[test]
+    fn test_unmappable_policy_eq_different_variants() {
+        assert_ne!(UnmappablePolicy::Error, UnmappablePolicy::Replace);
+        assert_ne!(UnmappablePolicy::Replace, UnmappablePolicy::Skip);
+        assert_ne!(UnmappablePolicy::Skip, UnmappablePolicy::Error);
+    }
+
+    #[test]
+    fn test_unmappable_policy_from_str_empty_defaults_to_error() {
+        assert_eq!(
+            <UnmappablePolicy as std::str::FromStr>::from_str("").unwrap(),
+            UnmappablePolicy::Error
+        );
+    }
+
+    #[test]
+    fn test_space_byte_consistency_with_is_ebcdic() {
+        let variants = [
+            Codepage::ASCII,
+            Codepage::CP037,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+            Codepage::CP1140,
+        ];
+        for cp in variants {
+            if cp.is_ebcdic() {
+                assert_eq!(space_byte(cp), 0x40, "EBCDIC {cp} should have space 0x40");
+            } else {
+                assert_eq!(space_byte(cp), 0x20, "ASCII should have space 0x20");
+            }
+        }
+    }
+
+    #[test]
+    fn test_codepage_is_ascii_and_is_ebcdic_mutually_exclusive() {
+        let variants = [
+            Codepage::ASCII,
+            Codepage::CP037,
+            Codepage::CP273,
+            Codepage::CP500,
+            Codepage::CP1047,
+            Codepage::CP1140,
+        ];
+        for cp in variants {
+            assert_ne!(
+                cp.is_ascii(),
+                cp.is_ebcdic(),
+                "is_ascii and is_ebcdic must be mutually exclusive for {cp}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_zoned_sign_table_ebcdic_positive_nibble_f() {
+        let table = get_zoned_sign_table(Codepage::CP037);
+        // 0xF_ is unsigned/positive default
+        let (is_signed, is_negative) = table[0xF];
+        assert!(is_signed);
+        assert!(!is_negative);
+    }
+
+    #[test]
+    fn test_get_zoned_sign_table_ebcdic_negative_nibble_d() {
+        let table = get_zoned_sign_table(Codepage::CP037);
+        let (is_signed, is_negative) = table[0xD];
+        assert!(is_signed);
+        assert!(is_negative);
     }
 }

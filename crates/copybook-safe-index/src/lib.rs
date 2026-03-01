@@ -114,7 +114,7 @@ mod tests {
     fn safe_divide_error_message_contains_context() {
         let err = safe_divide(1, 0, "my-context").unwrap_err();
         assert!(
-            format!("{}", err.message).contains("my-context"),
+            err.message.contains("my-context"),
             "Error message should contain context"
         );
     }

@@ -153,3 +153,21 @@ path = "fuzz_targets/fuzz_corruption_detect.rs"
 [[bin]]
 name = "fuzz_governance_eval"
 path = "fuzz_targets/fuzz_governance_eval.rs"
+
+[[bin]]
+name = "fuzz_parser_structured"
+path = "fuzz_targets/fuzz_parser_structured.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_rdw_framing"
+path = "fuzz_targets/fuzz_rdw_framing.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_charset"
+path = "fuzz_targets/fuzz_charset.rs"
+test = false
+doc = false

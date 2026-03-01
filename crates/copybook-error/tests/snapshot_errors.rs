@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Snapshot tests for error display formatting.
 //!
-//! These tests verify that the Display implementation for Error, ErrorCode,
-//! and ErrorContext produces stable, expected output. Any change to error
+//! These tests verify that the Display implementation for Error, `ErrorCode`,
+//! and `ErrorContext` produces stable, expected output. Any change to error
 //! formatting will cause these tests to fail, signaling a potentially
 //! breaking change in user-visible diagnostics.
 

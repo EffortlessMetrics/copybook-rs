@@ -4,7 +4,9 @@ use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFor
 use copybook_core::{ParseOptions, parse_copybook, parse_copybook_with_options};
 use serde_json::Value;
 
-use crate::helpers::{default_ascii_decode_options, default_ascii_encode_options, normalize_copybook_text};
+use crate::helpers::{
+    default_ascii_decode_options, default_ascii_encode_options, normalize_copybook_text,
+};
 
 /// BDD World struct to maintain test state across steps
 #[derive(Debug, Default, cucumber::World)]

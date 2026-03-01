@@ -23,6 +23,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 serde.workspace = true
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [features]
 default = []
 

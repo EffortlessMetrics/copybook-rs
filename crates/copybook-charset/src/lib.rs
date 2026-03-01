@@ -893,17 +893,15 @@ mod tests {
     /// character, verify EBCDIC → UTF-8 → EBCDIC produces the original byte.
     fn full_byte_roundtrip(cp: Codepage) {
         for byte in 0x00u8..=0xFF {
-            let decoded = match ebcdic_to_utf8(&[byte], cp, UnmappablePolicy::Skip) {
-                Ok(s) => s,
-                Err(_) => continue,
+            let Ok(decoded) = ebcdic_to_utf8(&[byte], cp, UnmappablePolicy::Skip) else {
+                continue;
             };
             if decoded.is_empty() {
                 // Skipped control char – that's fine
                 continue;
             }
-            let re_encoded = match utf8_to_ebcdic(&decoded, cp) {
-                Ok(v) => v,
-                Err(_) => continue,
+            let Ok(re_encoded) = utf8_to_ebcdic(&decoded, cp) else {
+                continue;
             };
             assert_eq!(
                 re_encoded,

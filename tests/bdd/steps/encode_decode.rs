@@ -288,7 +288,7 @@ async fn when_binary_data_decoded(world: &mut CopybookWorld) {
     }
     world.ensure_decode_options();
 
-    let binary_data = world
+    let mut binary_data = world
         .binary_data
         .as_ref()
         .expect("Binary data not set")
@@ -296,7 +296,16 @@ async fn when_binary_data_decoded(world: &mut CopybookWorld) {
 
     // For ODO schemas lrecl_fixed may be None; set it from binary data length
     if world.schema().lrecl_fixed.is_none() {
-        world.schema_mut().lrecl_fixed = Some(u32::try_from(binary_data.len()).expect("record too large"));
+        world.schema_mut().lrecl_fixed =
+            Some(u32::try_from(binary_data.len()).expect("record too large"));
+    }
+
+    // Pad binary data to lrecl_fixed if shorter (BDD test data may be slightly short)
+    if let Some(lrecl) = world.schema().lrecl_fixed {
+        let lrecl = lrecl as usize;
+        if binary_data.len() < lrecl {
+            binary_data.resize(lrecl, b' ');
+        }
     }
 
     let mut output = Vec::new();
@@ -363,7 +372,8 @@ async fn when_data_roundtripped(world: &mut CopybookWorld) {
 
     // For ODO schemas lrecl_fixed may be None; set it from binary data length
     if world.schema().lrecl_fixed.is_none() {
-        world.schema_mut().lrecl_fixed = Some(u32::try_from(binary_data.len()).expect("record too large"));
+        world.schema_mut().lrecl_fixed =
+            Some(u32::try_from(binary_data.len()).expect("record too large"));
     }
 
     let mut decoded = Vec::new();
@@ -539,7 +549,8 @@ async fn then_roundtrip_lossless(world: &mut CopybookWorld) {
             .map(|o| o.format == RecordFormat::RDW)
             .unwrap_or(false);
         if !is_rdw && world.schema().lrecl_fixed.is_none() {
-            world.schema_mut().lrecl_fixed = Some(u32::try_from(encoded.len()).expect("record too large"));
+            world.schema_mut().lrecl_fixed =
+                Some(u32::try_from(encoded.len()).expect("record too large"));
         }
 
         let mut decoded = Vec::new();
@@ -567,7 +578,10 @@ async fn then_encoding_succeeds(world: &mut CopybookWorld) {
     if let Some(ref e) = world.error {
         panic!("Encoding failed with error: {e}");
     }
-    assert!(world.encoded_output.is_some(), "Encoding should produce output");
+    assert!(
+        world.encoded_output.is_some(),
+        "Encoding should produce output"
+    );
 }
 
 #[then(expr = "decoding should succeed")]
@@ -575,7 +589,10 @@ async fn then_decoding_should_succeed(world: &mut CopybookWorld) {
     if let Some(ref e) = world.error {
         panic!("Decoding failed with error: {e}");
     }
-    assert!(world.decoded_output.is_some(), "Decoding should produce output");
+    assert!(
+        world.decoded_output.is_some(),
+        "Decoding should produce output"
+    );
 }
 
 #[then(expr = "the encoded output should be {int} bytes")]

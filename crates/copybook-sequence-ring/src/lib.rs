@@ -397,7 +397,7 @@ mod tests {
     fn sequenced_record_debug_format() {
         let record = SequencedRecord::new(7, "hello");
         let debug = format!("{record:?}");
-        assert!(debug.contains("7"));
+        assert!(debug.contains('7'));
         assert!(debug.contains("hello"));
     }
 
@@ -445,7 +445,7 @@ mod tests {
 
     #[test]
     fn recv_ordered_returns_none_on_channel_close() {
-        let mut ring = SequenceRing::<&str>::new(10, 5);
+        let ring = SequenceRing::<&str>::new(10, 5);
         // Drop all senders so channel is disconnected
         drop(ring.sender());
         // The ring holds its own sender; need to consume it
@@ -610,5 +610,170 @@ mod tests {
         assert_eq!(cloned.channel_capacity, 8);
         let debug = format!("{stats:?}");
         assert!(debug.contains("next_sequence_id"));
+    }
+
+    // --- Additional coverage ---
+
+    #[test]
+    fn single_element_send_recv() {
+        let mut ring = SequenceRing::new(1, 1);
+        let sender = ring.sender();
+        sender.send(SequencedRecord::new(1, 42)).unwrap();
+        assert_eq!(ring.recv_ordered().unwrap(), Some(42));
+    }
+
+    #[test]
+    fn capacity_power_of_two_boundary_2() {
+        let mut ring = SequenceRing::new(2, 2);
+        let sender = ring.sender();
+        sender.send(SequencedRecord::new(2, "b")).unwrap();
+        sender.send(SequencedRecord::new(1, "a")).unwrap();
+        assert_eq!(ring.recv_ordered().unwrap(), Some("a"));
+        assert_eq!(ring.recv_ordered().unwrap(), Some("b"));
+    }
+
+    #[test]
+    fn capacity_power_of_two_boundary_4() {
+        let mut ring = SequenceRing::new(4, 4);
+        let sender = ring.sender();
+        for i in (1..=4).rev() {
+            sender.send(SequencedRecord::new(i, i)).unwrap();
+        }
+        for expected in 1..=4u64 {
+            assert_eq!(ring.recv_ordered().unwrap(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn sequence_ids_larger_than_capacity() {
+        let mut ring = SequenceRing::new(4, 4);
+        let sender = ring.sender();
+        // Sequence IDs far beyond capacity
+        sender.send(SequencedRecord::new(1, "a")).unwrap();
+        sender.send(SequencedRecord::new(2, "b")).unwrap();
+        sender.send(SequencedRecord::new(3, "c")).unwrap();
+        sender.send(SequencedRecord::new(4, "d")).unwrap();
+        for expected in ["a", "b", "c", "d"] {
+            assert_eq!(ring.recv_ordered().unwrap(), Some(expected));
+        }
+        // Continue with IDs well past the capacity
+        sender.send(SequencedRecord::new(5, "e")).unwrap();
+        sender.send(SequencedRecord::new(6, "f")).unwrap();
+        assert_eq!(ring.recv_ordered().unwrap(), Some("e"));
+        assert_eq!(ring.recv_ordered().unwrap(), Some("f"));
+        assert_eq!(ring.stats().next_sequence_id, 7);
+    }
+
+    #[test]
+    fn concurrent_senders_from_threads() {
+        use std::thread;
+
+        let mut ring = SequenceRing::new(100, 50);
+        let sender1 = ring.sender();
+        let sender2 = ring.sender();
+
+        let h1 = thread::spawn(move || {
+            for i in (1..=10).step_by(2) {
+                sender1.send(SequencedRecord::new(i, i)).unwrap();
+            }
+        });
+        let h2 = thread::spawn(move || {
+            for i in (2..=10).step_by(2) {
+                sender2.send(SequencedRecord::new(i, i)).unwrap();
+            }
+        });
+
+        h1.join().unwrap();
+        h2.join().unwrap();
+
+        for expected in 1..=10u64 {
+            assert_eq!(ring.recv_ordered().unwrap(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn empty_ring_try_recv_is_empty() {
+        let mut ring = SequenceRing::<i32>::new(8, 4);
+        assert!(matches!(ring.try_recv_ordered(), Err(TryRecvError::Empty)));
+        assert_eq!(ring.stats().next_sequence_id, 1);
+        assert_eq!(ring.stats().reorder_buffer_size, 0);
+    }
+
+    #[test]
+    fn channel_close_drains_buffered_records() {
+        let mut ring = SequenceRing::new(10, 10);
+        let sender = ring.sender();
+        // Send records 3, 2, 1 then close
+        sender.send(SequencedRecord::new(3, "c")).unwrap();
+        sender.send(SequencedRecord::new(2, "b")).unwrap();
+        sender.send(SequencedRecord::new(1, "a")).unwrap();
+        drop(sender);
+        // Internal sender still alive, so recv_ordered works normally
+        assert_eq!(ring.recv_ordered().unwrap(), Some("a"));
+        assert_eq!(ring.recv_ordered().unwrap(), Some("b"));
+        assert_eq!(ring.recv_ordered().unwrap(), Some("c"));
+    }
+
+    #[test]
+    fn try_recv_disconnected_after_drain() {
+        let mut ring = SequenceRing::new(10, 5);
+        let sender = ring.sender();
+        sender.send(SequencedRecord::new(1, "only")).unwrap();
+        drop(sender);
+        // First call returns the record
+        assert_eq!(ring.try_recv_ordered().unwrap(), Some("only"));
+        // After draining, channel still has internal sender so it's Empty not Disconnected
+    }
+
+    #[test]
+    fn interleaved_try_recv_and_send() {
+        let mut ring = SequenceRing::new(10, 5);
+        let sender = ring.sender();
+
+        sender.send(SequencedRecord::new(1, "a")).unwrap();
+        assert_eq!(ring.try_recv_ordered().unwrap(), Some("a"));
+
+        sender.send(SequencedRecord::new(3, "c")).unwrap();
+        assert!(matches!(ring.try_recv_ordered(), Err(TryRecvError::Empty)));
+
+        sender.send(SequencedRecord::new(2, "b")).unwrap();
+        assert_eq!(ring.try_recv_ordered().unwrap(), Some("b"));
+        assert_eq!(ring.try_recv_ordered().unwrap(), Some("c"));
+    }
+
+    #[test]
+    fn sequenced_record_with_complex_data() {
+        let record = SequencedRecord::new(99, vec![vec![1, 2], vec![3, 4]]);
+        assert_eq!(record.sequence_id, 99);
+        assert_eq!(record.data.len(), 2);
+        assert_eq!(record.data[0], vec![1, 2]);
+    }
+
+    #[test]
+    fn stats_after_partial_drain() {
+        let mut ring = SequenceRing::new(10, 10);
+        let sender = ring.sender();
+        sender.send(SequencedRecord::new(1, 1)).unwrap();
+        sender.send(SequencedRecord::new(2, 2)).unwrap();
+        sender.send(SequencedRecord::new(3, 3)).unwrap();
+
+        assert_eq!(ring.recv_ordered().unwrap(), Some(1));
+        let stats = ring.stats();
+        assert_eq!(stats.next_sequence_id, 2);
+    }
+
+    #[test]
+    fn large_window_reorder() {
+        let mut ring = SequenceRing::new(64, 64);
+        let sender = ring.sender();
+
+        // Send 32 records in completely reverse order
+        for i in (1..=32).rev() {
+            sender.send(SequencedRecord::new(i, i)).unwrap();
+        }
+
+        for expected in 1..=32u64 {
+            assert_eq!(ring.recv_ordered().unwrap(), Some(expected));
+        }
     }
 }

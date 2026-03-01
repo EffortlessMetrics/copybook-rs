@@ -1219,4 +1219,148 @@ mod tests {
         let err = reader.read_record().unwrap_err();
         assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
     }
+
+    // --- Additional coverage ---
+
+    #[test]
+    fn rdw_header_zero_length_zero_reserved() {
+        let header = RdwHeader::from_payload_len(0, 0).unwrap();
+        assert_eq!(header.length(), 0);
+        assert_eq!(header.reserved(), 0);
+        assert_eq!(header.bytes(), [0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn rdw_header_max_payload_len() {
+        let header = RdwHeader::from_payload_len(RDW_MAX_PAYLOAD_LEN, 0).unwrap();
+        assert_eq!(header.length(), u16::MAX);
+    }
+
+    #[test]
+    fn rdw_header_max_payload_len_plus_one_fails() {
+        let err = RdwHeader::from_payload_len(RDW_MAX_PAYLOAD_LEN + 1, 0).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+    }
+
+    #[test]
+    fn rdw_header_length_one() {
+        let header = RdwHeader::from_payload_len(1, 0).unwrap();
+        assert_eq!(header.length(), 1);
+        assert_eq!(header.bytes(), [0, 1, 0, 0]);
+    }
+
+    #[test]
+    fn rdw_header_looks_ascii_corrupt_false_for_binary() {
+        let header = RdwHeader::from_bytes([0x00, 0x0A, 0x00, 0x00]);
+        assert!(!header.looks_ascii_corrupt());
+    }
+
+    #[test]
+    fn rdw_header_looks_ascii_corrupt_true_for_digits() {
+        let header = RdwHeader::from_bytes([b'0', b'5', 0x00, 0x00]);
+        assert!(header.looks_ascii_corrupt());
+    }
+
+    #[test]
+    fn rdw_payload_len_to_u16_zero() {
+        assert_eq!(rdw_payload_len_to_u16(0).unwrap(), 0);
+    }
+
+    #[test]
+    fn rdw_payload_len_to_u16_max() {
+        assert_eq!(
+            rdw_payload_len_to_u16(usize::from(u16::MAX)).unwrap(),
+            u16::MAX
+        );
+    }
+
+    #[test]
+    fn rdw_payload_len_to_u16_too_large() {
+        let err = rdw_payload_len_to_u16(usize::from(u16::MAX) + 1).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+        assert!(err.message.contains("RDW payload too large"));
+    }
+
+    #[test]
+    fn rdw_slice_body_zero_length_returns_empty() {
+        let mut cur = Cursor::new(vec![0xAA, 0xBB]);
+        let body = rdw_slice_body(&mut cur, 0).unwrap();
+        assert!(body.is_empty());
+    }
+
+    #[test]
+    fn rdw_validate_and_finish_identity() {
+        let data = b"test_data";
+        let result = rdw_validate_and_finish(data);
+        assert_eq!(result, data);
+    }
+
+    #[test]
+    fn rdw_record_clone() {
+        let record = RDWRecord::try_new(b"clone_me".to_vec()).unwrap();
+        let cloned = record.clone();
+        assert_eq!(cloned.payload, record.payload);
+        assert_eq!(cloned.header, record.header);
+    }
+
+    #[test]
+    fn rdw_record_debug_format() {
+        let record = RDWRecord::try_new(b"dbg".to_vec()).unwrap();
+        let debug = format!("{record:?}");
+        assert!(debug.contains("RDWRecord"));
+    }
+
+    #[test]
+    fn rdw_record_empty_payload() {
+        let record = RDWRecord::try_new(Vec::new()).unwrap();
+        assert_eq!(record.length(), 0);
+        assert!(record.payload.is_empty());
+        assert_eq!(record.as_bytes().len(), RDW_HEADER_LEN);
+    }
+
+    #[test]
+    fn rdw_reader_three_byte_header_lenient_is_eof() {
+        let data = vec![0x00, 0x05, 0x00];
+        let mut reader = RDWRecordReader::new(Cursor::new(data), false);
+        assert!(reader.read_record().unwrap().is_none());
+    }
+
+    #[test]
+    fn rdw_reader_three_byte_header_strict_is_underflow() {
+        let data = vec![0x00, 0x05, 0x00];
+        let mut reader = RDWRecordReader::new(Cursor::new(data), true);
+        let err = reader.read_record().unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF221_RDW_UNDERFLOW);
+    }
+
+    #[test]
+    fn rdw_writer_flush_succeeds() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        writer.flush().unwrap();
+        assert_eq!(writer.record_count(), 0);
+    }
+
+    #[test]
+    fn rdw_writer_multiple_records_count() {
+        let mut output = Vec::new();
+        let mut writer = RDWRecordWriter::new(&mut output);
+        for i in 0..5 {
+            writer.write_record_from_payload(&[i], None).unwrap();
+        }
+        assert_eq!(writer.record_count(), 5);
+    }
+
+    #[test]
+    fn rdw_try_peek_len_two_bytes_returns_some() {
+        let mut cur = Cursor::new(vec![0x00, 0x05]);
+        assert!(rdw_try_peek_len(&mut cur).unwrap().is_some());
+    }
+
+    #[test]
+    fn rdw_read_len_incomplete_is_error() {
+        let mut cur = Cursor::new(vec![0x00]);
+        let err = rdw_read_len(&mut cur).unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKF102_RECORD_LENGTH_INVALID);
+    }
 }

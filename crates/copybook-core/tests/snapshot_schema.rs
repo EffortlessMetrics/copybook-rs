@@ -369,7 +369,10 @@ fn snapshot_multiple_redefines_schema_json() {
     assert_eq!(data_as_num["offset"].as_u64().unwrap(), data_area_offset);
     assert_eq!(data_as_num["redefines_of"], "DATA-AREA");
 
-    let data_as_group = fields.iter().find(|f| f["name"] == "DATA-AS-GROUP").unwrap();
+    let data_as_group = fields
+        .iter()
+        .find(|f| f["name"] == "DATA-AS-GROUP")
+        .unwrap();
     assert_eq!(data_as_group["offset"].as_u64().unwrap(), data_area_offset);
     assert_eq!(data_as_group["redefines_of"], "DATA-AREA");
 
@@ -377,6 +380,55 @@ fn snapshot_multiple_redefines_schema_json() {
     assert_eq!(children.len(), 2);
     assert_eq!(children[0]["name"], "PART-A");
     assert_eq!(children[1]["name"], "PART-B");
+}
+
+// ---------------------------------------------------------------------------
+// COMP-3 (packed decimal) field schema representation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_comp3_fields_schema_json() {
+    // Validates that COMP-3 fields produce stable PackedDecimal kind in schema
+    // with digits, scale, and signed attributes.
+    let copybook = "\
+       01 FINANCIAL-RECORD.
+          05 AMOUNT-SIGNED     PIC S9(7)V99 COMP-3.
+          05 AMOUNT-UNSIGNED   PIC 9(5) COMP-3.
+          05 LARGE-AMOUNT      PIC S9(15)V9(4) COMP-3.
+";
+
+    let schema = parse_copybook(copybook).unwrap();
+    let json: serde_json::Value = serde_json::to_value(&schema).unwrap();
+
+    let fields = json["fields"].as_array().unwrap();
+    assert_eq!(fields.len(), 3);
+
+    // AMOUNT-SIGNED: S9(7)V99 COMP-3 → 9 digits, scale 2, signed, 5 bytes
+    let signed = &fields[0];
+    assert_eq!(signed["name"], "AMOUNT-SIGNED");
+    assert_eq!(signed["kind"]["PackedDecimal"]["digits"], 9);
+    assert_eq!(signed["kind"]["PackedDecimal"]["scale"], 2);
+    assert_eq!(signed["kind"]["PackedDecimal"]["signed"], true);
+    assert_eq!(signed["len"], 5);
+    assert_eq!(signed["offset"], 0);
+
+    // AMOUNT-UNSIGNED: 9(5) COMP-3 → 5 digits, scale 0, unsigned, 3 bytes
+    let unsigned = &fields[1];
+    assert_eq!(unsigned["name"], "AMOUNT-UNSIGNED");
+    assert_eq!(unsigned["kind"]["PackedDecimal"]["digits"], 5);
+    assert_eq!(unsigned["kind"]["PackedDecimal"]["scale"], 0);
+    assert_eq!(unsigned["kind"]["PackedDecimal"]["signed"], false);
+    assert_eq!(unsigned["len"], 3);
+    assert_eq!(unsigned["offset"], 5);
+
+    // LARGE-AMOUNT: S9(15)V9(4) COMP-3 → 19 digits, scale 4, signed, 10 bytes
+    let large = &fields[2];
+    assert_eq!(large["name"], "LARGE-AMOUNT");
+    assert_eq!(large["kind"]["PackedDecimal"]["digits"], 19);
+    assert_eq!(large["kind"]["PackedDecimal"]["scale"], 4);
+    assert_eq!(large["kind"]["PackedDecimal"]["signed"], true);
+    assert_eq!(large["len"], 10);
+    assert_eq!(large["offset"], 8);
 }
 
 // ---------------------------------------------------------------------------

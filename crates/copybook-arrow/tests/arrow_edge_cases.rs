@@ -254,8 +254,7 @@ fn odo_on_packed_decimal_wraps_in_list() {
 
 #[test]
 fn fixed_occurs_on_group_wraps_struct_in_list() {
-    let mut child =
-        Field::with_kind(5, "CHILD".to_string(), FieldKind::Alphanum { len: 5 });
+    let mut child = Field::with_kind(5, "CHILD".to_string(), FieldKind::Alphanum { len: 5 });
     child.path = "GRP.CHILD".to_string();
     child.offset = 0;
     child.len = 5;
@@ -291,11 +290,7 @@ fn fixed_occurs_on_group_wraps_struct_in_list() {
 #[test]
 fn deeply_nested_group_flattened() {
     // 3 levels deep: L1 > L2 > L3 > LEAF
-    let mut leaf = Field::with_kind(
-        5,
-        "LEAF".to_string(),
-        FieldKind::Alphanum { len: 10 },
-    );
+    let mut leaf = Field::with_kind(5, "LEAF".to_string(), FieldKind::Alphanum { len: 10 });
     leaf.path = "L1.L2.L3.LEAF".to_string();
     leaf.offset = 0;
     leaf.len = 10;
@@ -323,11 +318,7 @@ fn deeply_nested_group_flattened() {
 
 #[test]
 fn deeply_nested_group_as_struct() {
-    let mut leaf = Field::with_kind(
-        5,
-        "LEAF".to_string(),
-        FieldKind::Alphanum { len: 10 },
-    );
+    let mut leaf = Field::with_kind(5, "LEAF".to_string(), FieldKind::Alphanum { len: 10 });
     leaf.path = "L1.L2.LEAF".to_string();
     leaf.offset = 0;
     leaf.len = 10;
@@ -469,12 +460,7 @@ fn unsupported_binary_int_128bit_returns_error() {
 
 #[test]
 fn stream_without_lrecl_returns_error() {
-    let schema = Schema::from_fields(vec![make_field(
-        "X",
-        FieldKind::Alphanum { len: 5 },
-        0,
-        5,
-    )]);
+    let schema = Schema::from_fields(vec![make_field("X", FieldKind::Alphanum { len: 5 }, 0, 5)]);
     let reader = Cursor::new(Vec::<u8>::new());
     let err = stream_to_batches(reader, &schema, &ArrowOptions::default()).unwrap_err();
     match &err {
@@ -790,9 +776,7 @@ fn float32_nan_becomes_null() {
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
     let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
 
-    builder
-        .append_record(&f32::NAN.to_be_bytes())
-        .unwrap();
+    builder.append_record(&f32::NAN.to_be_bytes()).unwrap();
     let batch = builder.flush().unwrap().unwrap();
     assert_eq!(batch.column(0).null_count(), 1);
 }
@@ -807,9 +791,7 @@ fn float64_infinity_becomes_null() {
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
     let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
 
-    builder
-        .append_record(&f64::INFINITY.to_be_bytes())
-        .unwrap();
+    builder.append_record(&f64::INFINITY.to_be_bytes()).unwrap();
     let batch = builder.flush().unwrap().unwrap();
     assert_eq!(batch.column(0).null_count(), 1);
 }
@@ -1019,12 +1001,7 @@ fn streaming_packed_decimal_multiple_records() {
 
 #[test]
 fn flush_empty_builder_returns_none() {
-    let schema = Schema::from_fields(vec![make_field(
-        "X",
-        FieldKind::Alphanum { len: 5 },
-        0,
-        5,
-    )]);
+    let schema = Schema::from_fields(vec![make_field("X", FieldKind::Alphanum { len: 5 }, 0, 5)]);
     let opts = ArrowOptions::default();
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
     let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
@@ -1033,12 +1010,7 @@ fn flush_empty_builder_returns_none() {
 
 #[test]
 fn flush_after_auto_flush_with_no_additional_records() {
-    let schema = Schema::from_fields(vec![make_field(
-        "X",
-        FieldKind::Alphanum { len: 2 },
-        0,
-        2,
-    )]);
+    let schema = Schema::from_fields(vec![make_field("X", FieldKind::Alphanum { len: 2 }, 0, 2)]);
     let opts = ArrowOptions {
         batch_size: 1,
         codepage: copybook_codec::Codepage::ASCII,
@@ -1123,12 +1095,7 @@ fn multi_column_mixed_types_decode() {
 
 #[test]
 fn ipc_empty_batch_list_writes_valid_file() {
-    let schema = Schema::from_fields(vec![make_field(
-        "V",
-        FieldKind::Alphanum { len: 3 },
-        0,
-        3,
-    )]);
+    let schema = Schema::from_fields(vec![make_field("V", FieldKind::Alphanum { len: 3 }, 0, 3)]);
     let opts = ascii_opts();
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
 
@@ -1141,12 +1108,7 @@ fn ipc_empty_batch_list_writes_valid_file() {
 
 #[test]
 fn parquet_multiple_batches_writes_valid_file() {
-    let schema = Schema::from_fields(vec![make_field(
-        "V",
-        FieldKind::Alphanum { len: 3 },
-        0,
-        3,
-    )]);
+    let schema = Schema::from_fields(vec![make_field("V", FieldKind::Alphanum { len: 3 }, 0, 3)]);
     let opts = ArrowOptions {
         codepage: copybook_codec::Codepage::ASCII,
         compression: Compression::None,
@@ -1180,19 +1142,15 @@ fn parquet_multiple_batches_writes_valid_file() {
 
 #[test]
 fn parquet_snappy_compression_writes_valid_file() {
-    let schema = Schema::from_fields(vec![make_field(
-        "V",
-        FieldKind::Alphanum { len: 4 },
-        0,
-        4,
-    )]);
+    let schema = Schema::from_fields(vec![make_field("V", FieldKind::Alphanum { len: 4 }, 0, 4)]);
     let opts = ArrowOptions {
         codepage: copybook_codec::Codepage::ASCII,
         compression: Compression::Snappy,
         ..ArrowOptions::default()
     };
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
-    let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema.clone()), &schema, &opts).unwrap();
+    let mut builder =
+        RecordBatchBuilder::new(Arc::new(arrow_schema.clone()), &schema, &opts).unwrap();
     builder.append_record(b"TEST").unwrap();
     let batch = builder.flush().unwrap().unwrap();
 
@@ -1204,12 +1162,7 @@ fn parquet_snappy_compression_writes_valid_file() {
 
 #[test]
 fn parquet_with_metadata_embedding() {
-    let schema = Schema::from_fields(vec![make_field(
-        "V",
-        FieldKind::Alphanum { len: 2 },
-        0,
-        2,
-    )]);
+    let schema = Schema::from_fields(vec![make_field("V", FieldKind::Alphanum { len: 2 }, 0, 2)]);
     let opts = ArrowOptions {
         codepage: copybook_codec::Codepage::ASCII,
         embed_copybook: true,
@@ -1217,7 +1170,8 @@ fn parquet_with_metadata_embedding() {
         ..ArrowOptions::default()
     };
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
-    let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema.clone()), &schema, &opts).unwrap();
+    let mut builder =
+        RecordBatchBuilder::new(Arc::new(arrow_schema.clone()), &schema, &opts).unwrap();
     builder.append_record(b"OK").unwrap();
     let batch = builder.flush().unwrap().unwrap();
 
@@ -1386,11 +1340,7 @@ fn group_with_mixed_storage_and_nonstorage_children() {
     let mut group = Field::new(1, "GRP".to_string());
     group.path = "GRP".to_string();
 
-    let mut data = Field::with_kind(
-        5,
-        "DATA".to_string(),
-        FieldKind::Alphanum { len: 10 },
-    );
+    let mut data = Field::with_kind(5, "DATA".to_string(), FieldKind::Alphanum { len: 10 });
     data.path = "GRP.DATA".to_string();
     data.offset = 0;
     data.len = 10;

@@ -357,7 +357,12 @@ fn snapshot_parse_dialect_flag_accepted() -> TestResult<()> {
 
     for dialect_value in &["n", "0", "1"] {
         let output = cargo_bin_cmd!("copybook")
-            .args(["parse", path_to_str(cpy_file.path())?, "--dialect", dialect_value])
+            .args([
+                "parse",
+                path_to_str(cpy_file.path())?,
+                "--dialect",
+                dialect_value,
+            ])
             .output()?;
         assert!(
             output.status.success(),

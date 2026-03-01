@@ -34,6 +34,22 @@ path = "e2e_determinism.rs"
 name = "e2e_error_code_coverage"
 path = "e2e_error_code_coverage.rs"
 
+[[test]]
+name = "e2e_error_paths"
+path = "e2e_error_paths.rs"
+
+[[test]]
+name = "e2e_dialect_integration"
+path = "e2e_dialect_integration.rs"
+
+[[test]]
+name = "e2e_large_schema"
+path = "e2e_large_schema.rs"
+
+[[test]]
+name = "e2e_determinism_extended"
+path = "e2e_determinism_extended.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

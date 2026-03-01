@@ -966,8 +966,9 @@ impl Parser {
                     // 2. The last part is NOT a closing paren (e.g., `PIC X(20).` → terminator)
                     // 3. Something follows on the same line that looks like more PIC
                     let t = token.clone();
-                    let last_is_rparen =
-                        pic_parts.last().is_some_and(|s| s == ")" || s.ends_with(')'));
+                    let last_is_rparen = pic_parts
+                        .last()
+                        .is_some_and(|s| s == ")" || s.ends_with(')'));
                     if !last_is_rparen
                         && t.line == token_line
                         && let Some(next) = self.peek_next()

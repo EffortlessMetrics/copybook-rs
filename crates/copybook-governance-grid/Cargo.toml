@@ -18,5 +18,8 @@ include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 [dependencies]
 copybook-governance-contracts.workspace = true
 
+[dev-dependencies]
+serde_plain.workspace = true
+
 [lints]
 workspace = true

@@ -215,4 +215,118 @@ mod tests {
             assert_eq!(parsed, dialect);
         }
     }
+
+    // --- Additional coverage ---
+
+    #[test]
+    fn test_dialect_debug_format() {
+        assert!(format!("{:?}", Dialect::Normative).contains("Normative"));
+        assert!(format!("{:?}", Dialect::ZeroTolerant).contains("ZeroTolerant"));
+        assert!(format!("{:?}", Dialect::OneTolerant).contains("OneTolerant"));
+    }
+
+    #[test]
+    fn test_dialect_clone_preserves_value() {
+        let d = Dialect::ZeroTolerant;
+        let cloned = d;
+        assert_eq!(d, cloned);
+    }
+
+    #[test]
+    fn test_dialect_eq_different_variants() {
+        assert_ne!(Dialect::Normative, Dialect::ZeroTolerant);
+        assert_ne!(Dialect::ZeroTolerant, Dialect::OneTolerant);
+        assert_ne!(Dialect::OneTolerant, Dialect::Normative);
+    }
+
+    #[test]
+    fn test_dialect_hash_consistency() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(Dialect::Normative);
+        set.insert(Dialect::ZeroTolerant);
+        set.insert(Dialect::OneTolerant);
+        assert_eq!(set.len(), 3);
+        // Inserting duplicate should not increase size
+        set.insert(Dialect::Normative);
+        assert_eq!(set.len(), 3);
+    }
+
+    #[test]
+    fn test_dialect_serde_roundtrip_all_variants() {
+        let variants = [
+            Dialect::Normative,
+            Dialect::ZeroTolerant,
+            Dialect::OneTolerant,
+        ];
+        for dialect in variants {
+            let json = serde_json::to_string(&dialect).unwrap();
+            let deserialized: Dialect = serde_json::from_str(&json).unwrap();
+            assert_eq!(
+                dialect, deserialized,
+                "Serde roundtrip failed for {dialect}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_dialect_from_str_with_whitespace() {
+        // FromStr trims input
+        assert_eq!(Dialect::from_str(" n ").unwrap(), Dialect::Normative);
+        assert_eq!(Dialect::from_str(" 0 ").unwrap(), Dialect::ZeroTolerant);
+        assert_eq!(Dialect::from_str(" 1 ").unwrap(), Dialect::OneTolerant);
+    }
+
+    #[test]
+    fn test_dialect_from_str_error_message_content() {
+        let err = Dialect::from_str("invalid").unwrap_err();
+        assert!(err.contains("Invalid dialect"));
+        assert!(err.contains("'invalid'"));
+        assert!(err.contains("normative"));
+        assert!(err.contains("zero-tolerant"));
+        assert!(err.contains("one-tolerant"));
+    }
+
+    #[test]
+    fn test_dialect_from_str_numeric_invalid() {
+        assert!(Dialect::from_str("2").is_err());
+        assert!(Dialect::from_str("3").is_err());
+        assert!(Dialect::from_str("-1").is_err());
+    }
+
+    #[test]
+    fn test_effective_min_count_normative_u32_max() {
+        assert_eq!(effective_min_count(Dialect::Normative, u32::MAX), u32::MAX);
+    }
+
+    #[test]
+    fn test_effective_min_count_zero_tolerant_u32_max() {
+        assert_eq!(effective_min_count(Dialect::ZeroTolerant, u32::MAX), 0);
+    }
+
+    #[test]
+    fn test_effective_min_count_one_tolerant_u32_max() {
+        assert_eq!(
+            effective_min_count(Dialect::OneTolerant, u32::MAX),
+            u32::MAX
+        );
+    }
+
+    #[test]
+    fn test_effective_min_count_one_tolerant_zero_clamps_to_one() {
+        // Key behavior: OneTolerant forces 0 → 1
+        assert_eq!(effective_min_count(Dialect::OneTolerant, 0), 1);
+    }
+
+    #[test]
+    fn test_effective_min_count_normative_zero_stays_zero() {
+        // Key behavior: Normative preserves 0 as-is
+        assert_eq!(effective_min_count(Dialect::Normative, 0), 0);
+    }
+
+    #[test]
+    fn test_effective_min_count_zero_tolerant_one_becomes_zero() {
+        // Key behavior: ZeroTolerant always returns 0
+        assert_eq!(effective_min_count(Dialect::ZeroTolerant, 1), 0);
+    }
 }

@@ -66,10 +66,15 @@ path = "e2e_error_taxonomy_complete.rs"
 name = "e2e_cli_integration"
 path = "e2e_cli_integration.rs"
 
+[[test]]
+name = "e2e_parallel_determinism"
+path = "e2e_parallel_determinism.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true
 copybook-error.workspace = true
+copybook-sequence-ring.workspace = true
 tempfile.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

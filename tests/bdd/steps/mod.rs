@@ -33,5 +33,6 @@ pub(crate) mod verify;
 pub(crate) mod zoned_encoding;
 
 // Expanded BDD coverage modules
+pub(crate) mod codepage_handling;
 pub(crate) mod error_taxonomy;
 pub(crate) mod governance_sync;

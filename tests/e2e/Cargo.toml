@@ -70,6 +70,10 @@ path = "e2e_cli_integration.rs"
 name = "e2e_parallel_determinism"
 path = "e2e_parallel_determinism.rs"
 
+[[test]]
+name = "e2e_error_codes"
+path = "e2e_error_codes.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

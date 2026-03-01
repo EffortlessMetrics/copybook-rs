@@ -1057,6 +1057,7 @@ version = "0.4.3"
 dependencies = [
  "copybook-governance-grid",
  "copybook-governance-runtime",
+ "serde_json",
 ]
 
 [[package]]

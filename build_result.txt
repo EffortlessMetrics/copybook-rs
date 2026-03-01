@@ -1,0 +1,13 @@
+    Checking copybook-lexer v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-lexer)
+    Checking copybook-governance-grid v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-governance-grid)
+    Checking copybook-governance-runtime v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-governance-runtime)
+    Checking copybook-core v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-core)
+    Checking copybook-rdw v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-rdw)
+    Checking copybook-corruption-rdw v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-corruption-rdw)
+    Checking copybook-fixed v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-fixed)
+    Checking copybook-corruption-detectors v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-corruption-detectors)
+    Checking copybook-corruption v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-corruption)
+    Checking copybook-record-io v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-record-io)
+    Checking copybook-codec v0.4.3 (H:\Code\Rust\copybook-rs\crates\copybook-codec)
+    Checking copybook-proptest v0.4.3 (H:\Code\Rust\copybook-rs\tests\proptest)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.84s

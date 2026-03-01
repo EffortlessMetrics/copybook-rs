@@ -197,3 +197,146 @@ Feature: Error Handling and Edge Cases
       """
     When the copybook is parsed
     Then an error should occur
+
+  # ========================================================================
+  # Extended error taxonomy coverage
+  # ========================================================================
+
+  Scenario: Parse error on empty copybook text
+    Given a copybook with content:
+      """
+      """
+    When the copybook is parsed
+    Then an error should occur
+
+  Scenario: Parse error on only whitespace
+    Given a copybook with content:
+      """
+         
+      """
+    When the copybook is parsed
+    Then an error should occur
+
+  Scenario: Schema error on ODO with missing counter field
+    Given a copybook with content:
+      """
+      01 BAD-ODO-RECORD.
+          05 ITEMS OCCURS 1 TO 10 TIMES DEPENDING ON MISSING-COUNTER.
+              10 ELEMENT PIC X(5).
+      """
+    When the copybook is parsed
+    Then an error should occur
+    And the error message should contain "MISSING-COUNTER"
+
+  Scenario: Decode error on truncated packed decimal
+    Given a copybook with content:
+      """
+      01 COMP3-RECORD.
+          05 AMOUNT PIC S9(7)V99 COMP-3.
+      """
+    And ASCII codepage
+    And binary data: "\x12"
+    When the binary data is decoded
+    Then an error should occur
+
+  Scenario: Decode error on all-FF packed decimal bytes
+    Given a copybook with content:
+      """
+      01 PACKED-RECORD.
+          05 BAD-AMT PIC S9(5) COMP-3.
+      """
+    And ASCII codepage
+    And binary data: "\xFF\xFF\xFF"
+    When the binary data is decoded
+    Then an error should occur
+
+  Scenario: Decode error on zero-length binary data for numeric field
+    Given a copybook with content:
+      """
+      01 NUM-RECORD.
+          05 BIG-NUM PIC 9(10).
+      """
+    And ASCII codepage
+    And binary data: ""
+    When the binary data is decoded
+    Then an error should occur
+
+  Scenario: Encode error on non-numeric string in numeric field
+    Given a copybook with content:
+      """
+      01 NUM-RECORD.
+          05 AMOUNT PIC 9(5).
+      """
+    And ASCII codepage
+    And JSON data:
+      """
+      {"AMOUNT":"ABCDE"}
+      """
+    When the JSON data is encoded
+    Then an error should occur
+
+  Scenario: Encode error on numeric overflow in small field
+    Given a copybook with content:
+      """
+      01 SMALL-RECORD.
+          05 TINY PIC 9(2).
+      """
+    And ASCII codepage
+    And JSON data:
+      """
+      {"schema":"copybook.v1","record_index":0,"codepage":"ASCII","fields":{"TINY":"12345"},"TINY":"12345"}
+      """
+    When the JSON data is encoded
+    Then an error should occur
+
+  Scenario: Encode error on negative value in unsigned field
+    Given a copybook with content:
+      """
+      01 UNSIGNED-RECORD.
+          05 POS-NUM PIC 9(5).
+      """
+    And ASCII codepage
+    And JSON data:
+      """
+      {"schema":"copybook.v1","record_index":0,"codepage":"ASCII","fields":{"POS-NUM":"-123"},"POS-NUM":"-123"}
+      """
+    When the JSON data is encoded
+    Then an error should occur
+
+  Scenario: Parse error on ODO not at tail position
+    Given a copybook with content:
+      """
+      01 BAD-TAIL-RECORD.
+          05 COUNT-FIELD PIC 9(3).
+          05 DYNAMIC-ARRAY OCCURS 1 TO 10 TIMES DEPENDING ON COUNT-FIELD.
+              10 ELEMENT PIC X(5).
+          05 AFTER-ODO PIC X(10).
+      """
+    When the copybook is parsed
+    Then an error should occur
+
+  Scenario: Encode error on JSON array where scalar expected
+    Given a copybook with content:
+      """
+      01 SCALAR-RECORD.
+          05 SIMPLE-FIELD PIC X(10).
+      """
+    And ASCII codepage
+    And JSON data:
+      """
+      {"SIMPLE-FIELD":["a","b","c"]}
+      """
+    When the JSON data is encoded
+    Then an error should occur
+
+  Scenario: Decode error on binary shorter than schema LRECL
+    Given a copybook with content:
+      """
+      01 WIDE-RECORD.
+          05 FIELD-A PIC X(50).
+          05 FIELD-B PIC X(50).
+      """
+    And ASCII codepage
+    And binary data: "SHORT"
+    When the binary data is decoded
+    Then an error should occur

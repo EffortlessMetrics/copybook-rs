@@ -21,5 +21,8 @@ include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 copybook-governance-grid.workspace = true
 copybook-governance-runtime.workspace = true
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [lints]
 workspace = true

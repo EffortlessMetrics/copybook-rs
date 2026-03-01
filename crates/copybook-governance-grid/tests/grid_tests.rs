@@ -1,17 +1,17 @@
 //! Integration tests for copybook-governance-grid.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use copybook_governance_grid::{
-    Feature, FeatureId, feature_flags_for_support_id, governance_bindings, summarize_governance,
+    Feature, FeatureFlags, FeatureId, feature_flags_for_support_id, governance_bindings,
+    summarize_governance,
 };
 
-// ---------------------------------------------------------------------------
-// Grid cell creation and lookup
-// ---------------------------------------------------------------------------
+// ── Binding registry ────────────────────────────────────────────────────────
 
 #[test]
 fn governance_bindings_returns_seven_entries() {
-    let bindings = governance_bindings();
-    assert_eq!(bindings.len(), 7);
+    assert_eq!(governance_bindings().len(), 7);
 }
 
 #[test]
@@ -40,6 +40,19 @@ fn no_duplicate_support_ids_in_bindings() {
 }
 
 #[test]
+fn bindings_slice_is_stable_across_calls() {
+    let a = governance_bindings();
+    let b = governance_bindings();
+    assert_eq!(a.len(), b.len());
+    for (x, y) in a.iter().zip(b.iter()) {
+        assert_eq!(x.support_id, y.support_id);
+        assert_eq!(x.feature_flags.len(), y.feature_flags.len());
+    }
+}
+
+// ── Flag linkage per support ID ─────────────────────────────────────────────
+
+#[test]
 fn feature_flags_for_sign_separate() {
     let flags = feature_flags_for_support_id(FeatureId::SignSeparate).unwrap();
     assert_eq!(flags.len(), 1);
@@ -60,10 +73,6 @@ fn feature_flags_for_level66_renames() {
     assert_eq!(flags.len(), 1);
     assert!(flags.contains(&Feature::RenamesR4R6));
 }
-
-// ---------------------------------------------------------------------------
-// Features with no runtime flags (parser-level governance)
-// ---------------------------------------------------------------------------
 
 #[test]
 fn level88_has_no_feature_flags() {
@@ -89,9 +98,7 @@ fn nested_odo_has_no_feature_flags() {
     assert!(flags.is_empty());
 }
 
-// ---------------------------------------------------------------------------
-// Feature-to-grid mapping completeness
-// ---------------------------------------------------------------------------
+// ── Completeness: bindings vs support matrix ────────────────────────────────
 
 #[test]
 fn all_support_ids_have_bindings() {
@@ -125,9 +132,62 @@ fn governance_bindings_cover_all_support_matrix_entries() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Grid completeness / summary checks
-// ---------------------------------------------------------------------------
+#[test]
+fn grid_binding_flags_are_valid_feature_variants() {
+    let all = copybook_governance_grid::feature_flags::all_features();
+    for binding in governance_bindings() {
+        for flag in binding.feature_flags {
+            assert!(
+                all.contains(flag),
+                "binding {:?} references unknown Feature variant {:?}",
+                binding.support_id,
+                flag
+            );
+        }
+    }
+}
+
+#[test]
+fn governed_features_have_at_least_one_flag() {
+    let governed = [
+        FeatureId::SignSeparate,
+        FeatureId::Comp1Comp2,
+        FeatureId::Level66Renames,
+    ];
+    for id in governed {
+        let flags = feature_flags_for_support_id(id).unwrap();
+        assert!(
+            !flags.is_empty(),
+            "{id:?} should have at least one feature flag"
+        );
+    }
+}
+
+#[test]
+fn ungoverned_features_have_zero_flags() {
+    let ungoverned = [
+        FeatureId::Level88Conditions,
+        FeatureId::OccursDepending,
+        FeatureId::EditedPic,
+        FeatureId::NestedOdo,
+    ];
+    for id in ungoverned {
+        let flags = feature_flags_for_support_id(id).unwrap();
+        assert!(flags.is_empty(), "{id:?} should have zero feature flags");
+    }
+}
+
+#[test]
+fn total_linked_flags_equals_sum_of_binding_flag_counts() {
+    let expected: usize = governance_bindings()
+        .iter()
+        .map(|b| b.feature_flags.len())
+        .sum();
+    let summary = summarize_governance();
+    assert_eq!(summary.total_linked_feature_flags, expected);
+}
+
+// ── GovernanceSummary ───────────────────────────────────────────────────────
 
 #[test]
 fn summarize_governance_totals() {
@@ -156,16 +216,47 @@ fn all_features_known_reflects_completeness() {
 }
 
 #[test]
-fn grid_binding_flags_are_valid_feature_variants() {
+fn summarize_governance_is_deterministic() {
+    let a = summarize_governance();
+    let b = summarize_governance();
+    assert_eq!(a.total_support_features, b.total_support_features);
+    assert_eq!(a.mapped_support_features, b.mapped_support_features);
+    assert_eq!(a.total_linked_feature_flags, b.total_linked_feature_flags);
+}
+
+// ── Re-exported types ───────────────────────────────────────────────────────
+
+#[test]
+fn re_exported_feature_type_is_usable() {
+    let f = Feature::SignSeparate;
+    assert_eq!(f.to_string(), "sign_separate");
+}
+
+#[test]
+fn re_exported_feature_id_is_usable() {
+    let id = FeatureId::EditedPic;
+    let s = serde_plain::to_string(&id).unwrap();
+    assert_eq!(s, "edited-pic");
+}
+
+#[test]
+fn re_exported_feature_flags_builder_works() {
+    let flags = FeatureFlags::builder()
+        .enable(Feature::RenamesR4R6)
+        .disable(Feature::LruCache)
+        .build();
+    assert!(flags.is_enabled(Feature::RenamesR4R6));
+    assert!(!flags.is_enabled(Feature::LruCache));
+}
+
+#[test]
+fn re_exported_support_matrix_all_features_accessible() {
+    let features = copybook_governance_grid::support_matrix::all_features();
+    assert_eq!(features.len(), 7);
+}
+
+#[test]
+fn re_exported_feature_flags_module_accessible() {
     let all = copybook_governance_grid::feature_flags::all_features();
-    for binding in governance_bindings() {
-        for flag in binding.feature_flags {
-            assert!(
-                all.contains(flag),
-                "binding {:?} references unknown Feature variant {:?}",
-                binding.support_id,
-                flag
-            );
-        }
-    }
+    assert_eq!(all.len(), 22);
 }

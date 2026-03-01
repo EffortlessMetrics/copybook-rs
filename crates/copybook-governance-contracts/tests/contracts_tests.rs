@@ -1,13 +1,13 @@
 //! Integration tests for copybook-governance-contracts façade.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use copybook_governance_contracts::{
     Feature, FeatureCategory, FeatureFlags, FeatureFlagsHandle, FeatureId, FeatureLifecycle,
     SupportStatus, all_features, find_feature, find_feature_by_id,
 };
 
-// ---------------------------------------------------------------------------
-// Feature flag creation and querying
-// ---------------------------------------------------------------------------
+// ── Builder & defaults ──────────────────────────────────────────────────────
 
 #[test]
 fn builder_produces_expected_defaults() {
@@ -41,6 +41,24 @@ fn builder_disable_overrides_default_on() {
 }
 
 #[test]
+fn builder_enable_then_disable_same_feature() {
+    let flags = FeatureFlags::builder()
+        .enable(Feature::Profiling)
+        .disable(Feature::Profiling)
+        .build();
+    assert!(!flags.is_enabled(Feature::Profiling));
+}
+
+#[test]
+fn builder_disable_then_enable_same_feature() {
+    let flags = FeatureFlags::builder()
+        .disable(Feature::LruCache)
+        .enable(Feature::LruCache)
+        .build();
+    assert!(flags.is_enabled(Feature::LruCache));
+}
+
+#[test]
 fn builder_enable_category_activates_all_members() {
     let flags = FeatureFlags::builder()
         .enable_category(FeatureCategory::Enterprise)
@@ -64,6 +82,18 @@ fn builder_disable_category_deactivates_all_members() {
 }
 
 #[test]
+fn builder_enable_category_then_disable_single_member() {
+    let flags = FeatureFlags::builder()
+        .enable_category(FeatureCategory::Debug)
+        .disable(Feature::VerboseLogging)
+        .build();
+    assert!(!flags.is_enabled(Feature::VerboseLogging));
+    assert!(flags.is_enabled(Feature::DiagnosticOutput));
+    assert!(flags.is_enabled(Feature::Profiling));
+    assert!(flags.is_enabled(Feature::MemoryTracking));
+}
+
+#[test]
 fn toggle_flips_state() {
     let mut flags = FeatureFlags::default();
     let before = flags.is_enabled(Feature::LruCache);
@@ -81,9 +111,33 @@ fn enabled_features_iterator_matches_count() {
     assert_eq!(count, 4);
 }
 
-// ---------------------------------------------------------------------------
-// Contract / support-matrix validation
-// ---------------------------------------------------------------------------
+#[test]
+fn enabled_in_category_returns_only_that_category() {
+    let flags = FeatureFlags::builder()
+        .enable_category(FeatureCategory::Enterprise)
+        .build();
+    let enterprise = flags.enabled_in_category(FeatureCategory::Enterprise);
+    assert_eq!(enterprise.len(), 6);
+    for f in &enterprise {
+        assert_eq!(f.category(), FeatureCategory::Enterprise);
+    }
+}
+
+#[test]
+fn features_in_category_counts_match() {
+    let exp = FeatureFlags::features_in_category(FeatureCategory::Experimental);
+    assert_eq!(exp.len(), 4);
+    let ent = FeatureFlags::features_in_category(FeatureCategory::Enterprise);
+    assert_eq!(ent.len(), 6);
+    let perf = FeatureFlags::features_in_category(FeatureCategory::Performance);
+    assert_eq!(perf.len(), 4);
+    let dbg = FeatureFlags::features_in_category(FeatureCategory::Debug);
+    assert_eq!(dbg.len(), 4);
+    let test = FeatureFlags::features_in_category(FeatureCategory::Testing);
+    assert_eq!(test.len(), 4);
+}
+
+// ── Support matrix queries ──────────────────────────────────────────────────
 
 #[test]
 fn all_features_returns_seven_entries() {
@@ -122,9 +176,26 @@ fn find_feature_unknown_returns_none() {
     assert!(find_feature("").is_none());
 }
 
-// ---------------------------------------------------------------------------
-// Support status transitions / variant coverage
-// ---------------------------------------------------------------------------
+#[test]
+fn all_features_have_nonempty_name_and_description() {
+    for f in all_features() {
+        assert!(!f.name.is_empty(), "{:?} has empty name", f.id);
+        assert!(
+            !f.description.is_empty(),
+            "{:?} has empty description",
+            f.id
+        );
+    }
+}
+
+#[test]
+fn all_features_have_doc_ref() {
+    for f in all_features() {
+        assert!(f.doc_ref.is_some(), "{:?} should have a doc_ref", f.id);
+    }
+}
+
+// ── Support status coverage ─────────────────────────────────────────────────
 
 #[test]
 fn supported_features_have_correct_status() {
@@ -163,17 +234,23 @@ fn partial_features_have_correct_status() {
 
 #[test]
 fn all_support_status_variants_constructible() {
-    let _s = SupportStatus::Supported;
-    let _p = SupportStatus::Partial;
-    let _pl = SupportStatus::Planned;
-    let _np = SupportStatus::NotPlanned;
+    let statuses = [
+        SupportStatus::Supported,
+        SupportStatus::Partial,
+        SupportStatus::Planned,
+        SupportStatus::NotPlanned,
+    ];
+    assert_eq!(statuses.len(), 4);
 }
 
 #[test]
 fn feature_lifecycle_variants_constructible() {
-    let _e = FeatureLifecycle::Experimental;
-    let _s = FeatureLifecycle::Stable;
-    let _d = FeatureLifecycle::Deprecated;
+    let lifecycles = [
+        FeatureLifecycle::Experimental,
+        FeatureLifecycle::Stable,
+        FeatureLifecycle::Deprecated,
+    ];
+    assert_eq!(lifecycles.len(), 3);
 }
 
 #[test]
@@ -188,9 +265,7 @@ fn feature_category_round_trip_via_facade() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// FeatureFlagsHandle thread-safe operations
-// ---------------------------------------------------------------------------
+// ── FeatureFlagsHandle ──────────────────────────────────────────────────────
 
 #[test]
 fn handle_enable_disable_toggle() {
@@ -214,9 +289,52 @@ fn handle_snapshot_is_independent() {
 }
 
 #[test]
+fn handle_clone_is_independent() {
+    let handle = FeatureFlagsHandle::new();
+    handle.enable(Feature::Profiling);
+    let cloned = handle.clone();
+    handle.disable(Feature::Profiling);
+    assert!(cloned.is_enabled(Feature::Profiling));
+    assert!(!handle.is_enabled(Feature::Profiling));
+}
+
+#[test]
+fn handle_multiple_toggles_return_to_original() {
+    let handle = FeatureFlagsHandle::new();
+    let original = handle.is_enabled(Feature::LruCache);
+    handle.toggle(Feature::LruCache);
+    handle.toggle(Feature::LruCache);
+    assert_eq!(handle.is_enabled(Feature::LruCache), original);
+}
+
+// ── Cross-module coherence ──────────────────────────────────────────────────
+
+#[test]
 fn cross_module_id_equality() {
     let from_matrix = find_feature_by_id(FeatureId::Level88Conditions).unwrap();
     let from_string = find_feature("level-88").unwrap();
     assert_eq!(from_matrix.id, from_string.id);
     assert_eq!(from_matrix.name, from_string.name);
+}
+
+#[test]
+fn feature_flags_module_path_works() {
+    use copybook_governance_contracts::feature_flags;
+    let features = feature_flags::all_features();
+    assert_eq!(features.len(), 22);
+}
+
+#[test]
+fn support_matrix_module_path_works() {
+    use copybook_governance_contracts::support_matrix;
+    let features = support_matrix::all_features();
+    assert_eq!(features.len(), 7);
+}
+
+#[test]
+fn no_duplicate_feature_ids_in_support_matrix() {
+    let ids: Vec<FeatureId> = all_features().iter().map(|f| f.id).collect();
+    for (i, id) in ids.iter().enumerate() {
+        assert!(!ids[i + 1..].contains(id), "duplicate feature id: {id:?}");
+    }
 }

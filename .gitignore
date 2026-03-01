@@ -75,3 +75,7 @@ pr_*.md
 test_memory_api
 debug_schema
 test_zoned_encoding_integration
+build_result.txt
+clippy_err.txt
+test_output.txt
+test_counts.txt

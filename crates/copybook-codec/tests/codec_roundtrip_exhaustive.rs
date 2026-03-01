@@ -188,8 +188,8 @@ fn roundtrip_comp1_float() {
     let decoded = copybook_codec::decode_record(&schema, data, &d_opts).unwrap();
     let rate = decoded["RATE"].as_f64().unwrap();
     assert!(
-        (rate - 3.14).abs() < 1e-2,
-        "decoded COMP-1 should be near 3.14"
+        (rate - std::f64::consts::PI).abs() < 1e-2,
+        "decoded COMP-1 should be near PI"
     );
 
     let e_opts = EncodeOptions::new()

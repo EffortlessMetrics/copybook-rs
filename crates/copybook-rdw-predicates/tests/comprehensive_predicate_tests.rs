@@ -84,12 +84,12 @@ fn slice_empty_not_suspect() {
 
 #[test]
 fn slice_1_byte_not_suspect() {
-    assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'5']));
+    assert!(!rdw_is_suspect_ascii_corruption_slice(b"5"));
 }
 
 #[test]
 fn slice_2_bytes_not_suspect() {
-    assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1', b'2']));
+    assert!(!rdw_is_suspect_ascii_corruption_slice(b"12"));
 }
 
 #[test]

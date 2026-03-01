@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Comprehensive integration tests for copybook-fixed.
-#![allow(clippy::expect_used, clippy::unwrap_used)]
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::drop_non_drop)]
 
 use copybook_error::ErrorCode;
 use copybook_fixed::{FixedRecordReader, FixedRecordWriter};

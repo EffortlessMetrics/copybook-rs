@@ -27,6 +27,8 @@ blake3.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 serde_json.workspace = true
+copybook-core = { workspace = true }
+copybook-codec = { workspace = true }
 
 [lints]
 workspace = true

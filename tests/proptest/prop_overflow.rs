@@ -86,7 +86,6 @@ proptest! {
     fn prop_u64_within_u32_range_always_ok(value in 0u64..=u64::from(u32::MAX)) {
         let result = safe_u64_to_u32(value, "in-range");
         prop_assert!(result.is_ok());
-        #[allow(clippy::cast_possible_truncation)]
         prop_assert_eq!(result.unwrap(), value as u32);
     }
 
@@ -95,7 +94,6 @@ proptest! {
     fn prop_u64_within_u16_range_always_ok(value in 0u64..=u64::from(u16::MAX)) {
         let result = safe_u64_to_u16(value, "in-range");
         prop_assert!(result.is_ok());
-        #[allow(clippy::cast_possible_truncation)]
         prop_assert_eq!(result.unwrap(), value as u16);
     }
 }

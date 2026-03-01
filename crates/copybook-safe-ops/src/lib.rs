@@ -127,7 +127,6 @@ mod tests {
         ));
     }
 
-    #[allow(clippy::cast_possible_truncation, clippy::cast_lossless)]
     proptest! {
         #[test]
         fn safe_parse_usize_round_trip(value in 0u64..1_000_000u64) {
@@ -170,7 +169,6 @@ mod tests {
         }
     }
 
-    #[allow(clippy::cast_possible_truncation, clippy::cast_lossless)]
     proptest! {
         #[test]
         fn safe_u64_to_u32_round_trip(value in 0u64..=u32::MAX as u64) {

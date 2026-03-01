@@ -728,7 +728,7 @@ fn batch_builder_float32_ieee() {
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
     let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
 
-    let val = 3.14_f32;
+    let val = std::f32::consts::PI;
     builder.append_record(&val.to_be_bytes()).unwrap();
 
     let batch = builder.flush().unwrap().unwrap();
@@ -737,7 +737,7 @@ fn batch_builder_float32_ieee() {
         .as_any()
         .downcast_ref::<Float32Array>()
         .unwrap();
-    assert!((col.value(0) - 3.14).abs() < 0.001);
+    assert!((col.value(0) - std::f32::consts::PI).abs() < 0.001);
 }
 
 #[test]
@@ -750,7 +750,7 @@ fn batch_builder_float64_ieee() {
     let arrow_schema = cobol_schema_to_arrow(&schema, &opts).unwrap();
     let mut builder = RecordBatchBuilder::new(Arc::new(arrow_schema), &schema, &opts).unwrap();
 
-    let val = 2.71828_f64;
+    let val = std::f64::consts::E;
     builder.append_record(&val.to_be_bytes()).unwrap();
 
     let batch = builder.flush().unwrap().unwrap();
@@ -759,7 +759,7 @@ fn batch_builder_float64_ieee() {
         .as_any()
         .downcast_ref::<Float64Array>()
         .unwrap();
-    assert!((col.value(0) - 2.71828).abs() < 0.0001);
+    assert!((col.value(0) - std::f64::consts::E).abs() < 0.0001);
 }
 
 // ===================================================================

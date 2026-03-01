@@ -50,9 +50,22 @@ path = "e2e_large_schema.rs"
 name = "e2e_determinism_extended"
 path = "e2e_determinism_extended.rs"
 
+[[test]]
+name = "e2e_fidelity_roundtrip"
+path = "e2e_fidelity_roundtrip.rs"
+
+[[test]]
+name = "e2e_cli_exit_codes"
+path = "e2e_cli_exit_codes.rs"
+
+[[test]]
+name = "e2e_error_taxonomy_complete"
+path = "e2e_error_taxonomy_complete.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true
 copybook-error.workspace = true
+tempfile.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

@@ -17,12 +17,12 @@ fn empty_input_returns_none() {
 
 #[test]
 fn one_byte_returns_none() {
-    assert!(detect_rdw_ascii_corruption(&[b'5']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"5").is_none());
 }
 
 #[test]
 fn two_bytes_returns_none() {
-    assert!(detect_rdw_ascii_corruption(&[b'1', b'2']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"12").is_none());
 }
 
 #[test]
@@ -188,7 +188,7 @@ fn all_heuristics_produce_same_error_code() {
 #[test]
 fn heuristic1_takes_priority_over_heuristic3() {
     // Both length bytes are ASCII digits AND reserved bytes are printable
-    let err = detect_rdw_ascii_corruption(&[b'1', b'2', b'A', b'B']).unwrap();
+    let err = detect_rdw_ascii_corruption(b"12AB").unwrap();
     // Heuristic 1 fires first, so message should reference "ASCII digits"
     assert!(err.message.contains("ASCII digits"));
 }

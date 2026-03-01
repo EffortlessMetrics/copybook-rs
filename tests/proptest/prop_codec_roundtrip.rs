@@ -176,7 +176,7 @@ proptest! {
         let schema = parse_copybook(&copybook).expect("parse");
 
         // Build valid packed decimal: digits + sign nibble (0x0C = positive)
-        let expected_bytes = (num_digits + 1 + 1) / 2; // (digits + sign_nibble) / 2 rounded up
+        let expected_bytes = (num_digits + 1).div_ceil(2);
         let mut packed = vec![0u8; expected_bytes];
         for (i, &d) in digits.iter().enumerate() {
             let byte_idx = i / 2;
@@ -188,11 +188,7 @@ proptest! {
         }
         // Sign nibble: 0x0C (positive) in the last nibble
         let last_byte_idx = expected_bytes - 1;
-        if num_digits % 2 == 0 {
-            packed[last_byte_idx] |= 0x0C;
-        } else {
-            packed[last_byte_idx] |= 0x0C;
-        }
+        packed[last_byte_idx] |= 0x0C;
 
         let decode_opts = DecodeOptions::new()
             .with_format(RecordFormat::Fixed)
@@ -364,12 +360,8 @@ proptest! {
 
         // Build test data
         let mut data = Vec::with_capacity(total_len);
-        for _ in 0..(num_alpha * alpha_len) {
-            data.push(b'A');
-        }
-        for _ in 0..(num_numeric * numeric_digits) {
-            data.push(b'1');
-        }
+        data.extend(std::iter::repeat_n(b'A', num_alpha * alpha_len));
+        data.extend(std::iter::repeat_n(b'1', num_numeric * numeric_digits));
 
         let opts = DecodeOptions::new()
             .with_format(RecordFormat::Fixed)

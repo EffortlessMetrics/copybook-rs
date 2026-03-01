@@ -160,9 +160,11 @@ pub enum Token {
     #[token(")")]
     RightParen,
 
-    // Comments
+    // Comments – priority must exceed EditedPic (3/5) so `*>` is never
+    // consumed as an asterisk-fill pattern before the comment is recognised.
     #[regex(
         r"\*>[^\r\n]*",
+        priority = 6,
         callback = |lex| lex.slice()[2..].trim().to_string(),
         allow_greedy = true
     )]

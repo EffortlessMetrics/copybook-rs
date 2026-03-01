@@ -313,6 +313,15 @@ async fn then_field_has_odo_with_counter(
     }
 }
 
+#[then(expr = "field {string} should have ODO with counter {string}")]
+async fn then_field_has_odo_with_counter_str(
+    world: &mut CopybookWorld,
+    field_name: String,
+    counter: String,
+) {
+    then_field_has_odo_with_counter(world, field_name, counter).await;
+}
+
 #[then(expr = "field {word} should have ODO with min {int} and max {int}")]
 async fn then_field_has_odo_range(
     world: &mut CopybookWorld,

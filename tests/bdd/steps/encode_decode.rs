@@ -296,7 +296,7 @@ async fn when_binary_data_decoded(world: &mut CopybookWorld) {
 
     // For ODO schemas lrecl_fixed may be None; set it from binary data length
     if world.schema().lrecl_fixed.is_none() {
-        world.schema_mut().lrecl_fixed = Some(binary_data.len() as u32);
+        world.schema_mut().lrecl_fixed = Some(u32::try_from(binary_data.len()).expect("record too large"));
     }
 
     let mut output = Vec::new();
@@ -363,7 +363,7 @@ async fn when_data_roundtripped(world: &mut CopybookWorld) {
 
     // For ODO schemas lrecl_fixed may be None; set it from binary data length
     if world.schema().lrecl_fixed.is_none() {
-        world.schema_mut().lrecl_fixed = Some(binary_data.len() as u32);
+        world.schema_mut().lrecl_fixed = Some(u32::try_from(binary_data.len()).expect("record too large"));
     }
 
     let mut decoded = Vec::new();
@@ -520,11 +520,45 @@ async fn then_roundtrip_lossless(world: &mut CopybookWorld) {
             "Round-trip should be lossless: original data differs from encoded data"
         );
     } else {
-        // JSON-first: just verify encode succeeded
-        assert!(
-            world.encoded_output.is_some(),
-            "Round-trip should produce encoded output"
-        );
+        // JSON-first: encode succeeded, now decode the encoded output back
+        let encoded = world
+            .encoded_output
+            .as_ref()
+            .expect("Round-trip should produce encoded output")
+            .clone();
+
+        if !world.ensure_schema_and_return() {
+            return;
+        }
+        world.ensure_decode_options();
+
+        // Set LRECL from encoded data length for fixed-format records only
+        let is_rdw = world
+            .decode_options
+            .as_ref()
+            .map(|o| o.format == RecordFormat::RDW)
+            .unwrap_or(false);
+        if !is_rdw && world.schema().lrecl_fixed.is_none() {
+            world.schema_mut().lrecl_fixed = Some(u32::try_from(encoded.len()).expect("record too large"));
+        }
+
+        let mut decoded = Vec::new();
+        match decode_file_to_jsonl(
+            world.schema(),
+            Cursor::new(&encoded),
+            &mut decoded,
+            world
+                .decode_options
+                .as_ref()
+                .expect("Decode options not set"),
+        ) {
+            Ok(_summary) => {
+                world.decoded_output = Some(String::from_utf8(decoded).unwrap());
+            }
+            Err(e) => {
+                world.error = Some(e);
+            }
+        }
     }
 }
 

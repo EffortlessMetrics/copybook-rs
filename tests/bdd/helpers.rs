@@ -190,7 +190,7 @@ pub(crate) fn json_value_for_field<'a>(record: &'a Value, field_name: &str) -> O
 /// Left-trim each line so the lexer never detects "fixed format".
 pub(crate) fn normalize_copybook_text(text: &str) -> String {
     text.lines()
-        .map(|l| l.trim_start())
+        .map(str::trim_start)
         .collect::<Vec<_>>()
         .join("\n")
 }

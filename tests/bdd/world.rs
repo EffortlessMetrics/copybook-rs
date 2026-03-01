@@ -86,23 +86,18 @@ impl CopybookWorld {
         let copybook_text = self.copybook_text.as_ref().expect("Copybook text not set");
         let normalized = normalize_copybook_text(copybook_text);
 
-        match &self.parse_options {
-            Some(options) => match parse_copybook_with_options(&normalized, options) {
-                Ok(schema) => {
-                    self.schema = Some(schema);
-                }
-                Err(e) => {
-                    self.error = Some(e);
-                }
-            },
-            None => match parse_copybook(&normalized) {
-                Ok(schema) => {
-                    self.schema = Some(schema);
-                }
-                Err(e) => {
-                    self.error = Some(e);
-                }
-            },
+        let parse_result = match &self.parse_options {
+            Some(options) => parse_copybook_with_options(&normalized, options),
+            None => parse_copybook(&normalized),
+        };
+
+        match parse_result {
+            Ok(schema) => {
+                self.schema = Some(schema);
+            }
+            Err(e) => {
+                self.error = Some(e);
+            }
         }
     }
 

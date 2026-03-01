@@ -15,8 +15,7 @@ async fn when_data_verified(world: &mut CopybookWorld) {
     // Verify by attempting to decode - if it succeeds, data is valid
     let binary_data = world
         .binary_data
-        .as_ref()
-        .cloned()
+        .clone()
         .unwrap_or_default();
 
     if binary_data.is_empty() {
@@ -27,7 +26,7 @@ async fn when_data_verified(world: &mut CopybookWorld) {
 
     // For ODO schemas lrecl_fixed may be None; set it from binary data length
     if world.schema().lrecl_fixed.is_none() {
-        world.schema_mut().lrecl_fixed = Some(binary_data.len() as u32);
+        world.schema_mut().lrecl_fixed = Some(u32::try_from(binary_data.len()).expect("record too large"));
     }
 
     let mut output = Vec::new();

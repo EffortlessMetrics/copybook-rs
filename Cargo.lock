@@ -1007,6 +1007,7 @@ dependencies = [
  "copybook-error",
  "copybook-sequence-ring",
  "predicates",
+ "regex",
  "serde_json",
  "sha2",
  "tempfile",

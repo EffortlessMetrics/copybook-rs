@@ -22,7 +22,9 @@ use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat, decode_record,
     encode_record,
 };
-use copybook_core::{parse_copybook, parse_copybook_with_options, Dialect, ErrorCode, ParseOptions};
+use copybook_core::{
+    Dialect, ErrorCode, ParseOptions, parse_copybook, parse_copybook_with_options,
+};
 use serde_json::json;
 
 // ---------------------------------------------------------------------------
@@ -116,7 +118,9 @@ fn decode_fixed_occurs_comp3() {
     ];
 
     let json = decode_record(&schema, data, &ebcdic_opts()).unwrap();
-    let arr = json["PACKED-VALS"].as_array().expect("PACKED-VALS should be array");
+    let arr = json["PACKED-VALS"]
+        .as_array()
+        .expect("PACKED-VALS should be array");
     assert_eq!(arr.len(), 3);
     assert_eq!(arr[0], "12345");
     assert_eq!(arr[1], "67890");
@@ -161,12 +165,16 @@ fn decode_nested_occurs() {
     let outer = json["OUTER"].as_array().expect("OUTER should be array");
     assert_eq!(outer.len(), 2);
 
-    let inner0 = outer[0]["INNER"].as_array().expect("INNER[0] should be array");
+    let inner0 = outer[0]["INNER"]
+        .as_array()
+        .expect("INNER[0] should be array");
     assert_eq!(inner0.len(), 2);
     assert_eq!(inner0[0], "AAA");
     assert_eq!(inner0[1], "BBB");
 
-    let inner1 = outer[1]["INNER"].as_array().expect("INNER[1] should be array");
+    let inner1 = outer[1]["INNER"]
+        .as_array()
+        .expect("INNER[1] should be array");
     assert_eq!(inner1.len(), 2);
     assert_eq!(inner1[0], "CCC");
     assert_eq!(inner1[1], "DDD");
@@ -388,7 +396,11 @@ fn decode_odo_counter_zero_zero_tolerant() {
     let decode_opts = ascii_opts().with_strict_mode(false);
     let json = decode_record(&schema, &data, &decode_opts).unwrap();
     let arr = json["ITEMS"].as_array().unwrap();
-    assert_eq!(arr.len(), 1, "Counter 0 clamped to field min=1 in lenient mode");
+    assert_eq!(
+        arr.len(),
+        1,
+        "Counter 0 clamped to field min=1 in lenient mode"
+    );
 }
 
 // ===========================================================================
@@ -614,11 +626,11 @@ fn error_odo_counter_exceeds_max() {
     data.extend_from_slice(b"AAAABBBBCCCC");
 
     let result = decode_record(&schema, &data, &strict_ascii());
-    assert!(result.is_err(), "Should error when counter exceeds max_count");
-    assert_eq!(
-        result.unwrap_err().code,
-        ErrorCode::CBKS301_ODO_CLIPPED,
+    assert!(
+        result.is_err(),
+        "Should error when counter exceeds max_count"
     );
+    assert_eq!(result.unwrap_err().code, ErrorCode::CBKS301_ODO_CLIPPED,);
 }
 
 // ===========================================================================
@@ -637,11 +649,11 @@ fn error_odo_counter_below_min_strict() {
     data.extend_from_slice(b"AAAABBBBCCCCDDDDEEEE");
 
     let result = decode_record(&schema, &data, &strict_ascii());
-    assert!(result.is_err(), "Should error when counter < min in strict mode");
-    assert_eq!(
-        result.unwrap_err().code,
-        ErrorCode::CBKS301_ODO_CLIPPED,
+    assert!(
+        result.is_err(),
+        "Should error when counter < min in strict mode"
     );
+    assert_eq!(result.unwrap_err().code, ErrorCode::CBKS301_ODO_CLIPPED,);
 }
 
 // ===========================================================================
@@ -666,7 +678,10 @@ fn error_odo_encode_array_exceeds_max() {
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII);
     let result = encode_record(&schema, &input, &enc_opts);
-    assert!(result.is_err(), "Should reject when array length exceeds ODO max");
+    assert!(
+        result.is_err(),
+        "Should reject when array length exceeds ODO max"
+    );
 }
 
 // ===========================================================================
@@ -684,7 +699,10 @@ fn error_record_too_short_for_occurs() {
     let data = b"SHORT_DATA";
 
     let result = decode_record(&schema, data, &ascii_opts());
-    assert!(result.is_err(), "Should error when record too short for OCCURS");
+    assert!(
+        result.is_err(),
+        "Should error when record too short for OCCURS"
+    );
 }
 
 // ===========================================================================

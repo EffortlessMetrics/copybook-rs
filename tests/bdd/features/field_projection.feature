@@ -1,4 +1,4 @@
-@field-projection
+@field-projection @projection
 Feature: Field Projection
 
   As a developer working with large COBOL data structures
@@ -365,3 +365,39 @@ Feature: Field Projection
     Then the projection should succeed
     And the field "NUM-FIELD" should be included in projection
     And the field "ALPHA-FIELD" should not be included in projection
+
+  Scenario: Projected decode produces valid JSON
+    Given a copybook with content:
+      """
+      01 JSON-PROJ-RECORD.
+         05 CUST-ID     PIC 9(6).
+         05 CUST-NAME   PIC X(20).
+         05 CUST-ADDR   PIC X(40).
+      """
+    And binary data: "000042ALICE JOHNSON        742 OAK AVENUE                          "
+    And field selection: "CUST-ID,CUST-NAME"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the field "CUST-ID" should be included in projection
+    And the field "CUST-NAME" should be included in projection
+    And the field "CUST-ADDR" should not be included in projection
+
+  Scenario: Projected schema has fewer fields than full schema
+    Given a copybook with content:
+      """
+      01 LRECL-PROJ-RECORD.
+         05 FIELD-A PIC X(10).
+         05 FIELD-B PIC 9(5).
+         05 FIELD-C PIC X(30).
+         05 FIELD-D PIC 9(8).
+      """
+    And field selection: "FIELD-A"
+    When the copybook is parsed
+    And the schema is projected with selected fields
+    Then the projection should succeed
+    And the projected schema should contain 1 top-level field(s)
+    And the field "FIELD-A" should be included in projection
+    And the field "FIELD-B" should not be included in projection
+    And the field "FIELD-C" should not be included in projection
+    And the field "FIELD-D" should not be included in projection

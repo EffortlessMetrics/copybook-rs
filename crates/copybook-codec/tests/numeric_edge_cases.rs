@@ -782,3 +782,301 @@ fn test_comp2_max_finite_roundtrip() {
     assert!(val.is_finite() && val > 0.0);
     assert!((val - f64::MAX).abs() < 1e292);
 }
+
+// =============================================================================
+// 19. DISPLAY PIC 9(1) — single digit
+// =============================================================================
+
+#[test]
+fn test_display_pic_9_1_single_digit() {
+    let copybook = "01 VAL PIC 9(1).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    for digit in 0u8..=9 {
+        let data = [0xF0 + digit]; // EBCDIC digit
+        let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+        assert_eq!(
+            result["VAL"],
+            serde_json::json!(digit.to_string()),
+            "single digit {digit}"
+        );
+    }
+}
+
+#[test]
+fn test_display_pic_9_1_roundtrip() {
+    let copybook = "01 VAL PIC 9(1).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let json = serde_json::json!({ "VAL": "5" });
+    let encoded = encode_record(&schema, &json, &encode_opts()).expect("encode");
+    assert_eq!(encoded, vec![0xF5]);
+
+    let decoded = decode_record(&schema, &encoded, &decode_opts()).expect("decode");
+    assert_eq!(decoded["VAL"], serde_json::json!("5"));
+}
+
+// =============================================================================
+// 20. DISPLAY PIC 9(18) — maximum digits
+// =============================================================================
+
+#[test]
+fn test_display_pic_9_18_max_digits() {
+    let copybook = "01 VAL PIC 9(18).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // All nines: 18 × 0xF9
+    let data: Vec<u8> = vec![0xF9; 18];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("999999999999999999"));
+}
+
+#[test]
+fn test_display_pic_9_18_roundtrip() {
+    let copybook = "01 VAL PIC 9(18).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let json = serde_json::json!({ "VAL": "123456789012345678" });
+    let encoded = encode_record(&schema, &json, &encode_opts()).expect("encode");
+    assert_eq!(encoded.len(), 18);
+
+    let decoded = decode_record(&schema, &encoded, &decode_opts()).expect("decode");
+    assert_eq!(decoded["VAL"], serde_json::json!("123456789012345678"));
+}
+
+// =============================================================================
+// 21. DISPLAY PIC 9V9 — implied decimal
+// =============================================================================
+
+#[test]
+fn test_display_pic_9v9_implied_decimal() {
+    let copybook = "01 VAL PIC 9V9.";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // Value 1.5 → digits 0xF1 0xF5
+    let data: [u8; 2] = [0xF1, 0xF5];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("1.5"));
+}
+
+#[test]
+fn test_display_pic_9v9_roundtrip() {
+    let copybook = "01 VAL PIC 9V9.";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let json = serde_json::json!({ "VAL": "3.7" });
+    let encoded = encode_record(&schema, &json, &encode_opts()).expect("encode");
+    let decoded = decode_record(&schema, &encoded, &decode_opts()).expect("decode");
+    assert_eq!(decoded["VAL"], serde_json::json!("3.7"));
+}
+
+// =============================================================================
+// 22. DISPLAY PIC S9(4) — signed leading overpunch positive
+// =============================================================================
+
+#[test]
+fn test_display_s9_4_overpunch_positive() {
+    let copybook = "01 VAL PIC S9(4).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // 1234 positive: first 3 digits normal, last byte positive overpunch
+    // 0xF1 0xF2 0xF3 0xC4 (digit 4 with 0xC zone = positive)
+    let data: [u8; 4] = [0xF1, 0xF2, 0xF3, 0xC4];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("1234"));
+}
+
+// =============================================================================
+// 23. DISPLAY PIC S9(4) — signed negative overpunch
+// =============================================================================
+
+#[test]
+fn test_display_s9_4_overpunch_negative() {
+    let copybook = "01 VAL PIC S9(4).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // -1234: last byte negative overpunch 0xD4
+    let data: [u8; 4] = [0xF1, 0xF2, 0xF3, 0xD4];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("-1234"));
+}
+
+// =============================================================================
+// 24. DISPLAY PIC 9(4)V99 — unsigned with decimal scale
+// =============================================================================
+
+#[test]
+fn test_display_pic_9_4_v99_decimal_scale() {
+    let copybook = "01 AMT PIC 9(4)V99.";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // 1234.56 → digits 0xF1 0xF2 0xF3 0xF4 0xF5 0xF6
+    let data: [u8; 6] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["AMT"], serde_json::json!("1234.56"));
+}
+
+#[test]
+fn test_display_pic_9_4_v99_roundtrip() {
+    let copybook = "01 AMT PIC 9(4)V99.";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let json = serde_json::json!({ "AMT": "5678.90" });
+    let encoded = encode_record(&schema, &json, &encode_opts()).expect("encode");
+    let decoded = decode_record(&schema, &encoded, &decode_opts()).expect("decode");
+    assert_eq!(decoded["AMT"], serde_json::json!("5678.90"));
+}
+
+// =============================================================================
+// 25. Numeric with all zeros
+// =============================================================================
+
+#[test]
+fn test_display_all_zeros() {
+    let copybook = "01 VAL PIC 9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let data: [u8; 5] = [0xF0; 5];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("0"));
+}
+
+#[test]
+fn test_display_signed_all_zeros() {
+    let copybook = "01 VAL PIC S9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // All zero digits with positive overpunch on last: 0xC0
+    let data: [u8; 5] = [0xF0, 0xF0, 0xF0, 0xF0, 0xC0];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("0"));
+}
+
+// =============================================================================
+// 26. Numeric with all nines
+// =============================================================================
+
+#[test]
+fn test_display_all_nines() {
+    let copybook = "01 VAL PIC 9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let data: [u8; 5] = [0xF9; 5];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("99999"));
+}
+
+#[test]
+fn test_display_signed_all_nines_negative() {
+    let copybook = "01 VAL PIC S9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // -99999: 0xF9 0xF9 0xF9 0xF9 0xD9 (last byte negative overpunch)
+    let data: [u8; 5] = [0xF9, 0xF9, 0xF9, 0xF9, 0xD9];
+    let result = decode_record(&schema, &data, &decode_opts()).expect("decode");
+    assert_eq!(result["VAL"], serde_json::json!("-99999"));
+}
+
+// =============================================================================
+// 27. Numeric with leading spaces — rejected even in lenient mode
+// =============================================================================
+
+#[test]
+fn test_display_leading_spaces_rejected() {
+    let copybook = "01 VAL PIC 9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // EBCDIC spaces (0x40) are not valid digits, rejected in all modes
+    let data: [u8; 5] = [0x40, 0x40, 0x40, 0xF4, 0xF2];
+    let result_strict = decode_record(&schema, &data, &decode_opts());
+    assert!(
+        result_strict.is_err(),
+        "Leading spaces should be rejected in DISPLAY numeric fields"
+    );
+}
+
+// =============================================================================
+// 28. Numeric non-numeric chars (error mode)
+// =============================================================================
+
+#[test]
+fn test_display_non_numeric_strict_error() {
+    let copybook = "01 VAL PIC 9(3).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // 0xC1 is EBCDIC 'A', not a digit — strict mode should error
+    let data: [u8; 3] = [0xC1, 0xF2, 0xF3];
+    let result = decode_record(&schema, &data, &decode_opts());
+    assert!(
+        result.is_err(),
+        "strict mode should reject non-numeric bytes"
+    );
+}
+
+// =============================================================================
+// 29. JSON number vs string modes — Lossless
+// =============================================================================
+
+#[test]
+fn test_json_lossless_mode_returns_string() {
+    let copybook = "01 VAL PIC 9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let data: [u8; 5] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5];
+    let opts = DecodeOptions {
+        json_number_mode: JsonNumberMode::Lossless,
+        ..decode_opts()
+    };
+    let result = decode_record(&schema, &data, &opts).expect("decode");
+    // Lossless mode emits string values
+    assert!(
+        result["VAL"].is_string(),
+        "Lossless mode should emit string"
+    );
+    assert_eq!(result["VAL"], serde_json::json!("12345"));
+}
+
+// =============================================================================
+// 30. JSON number mode — decode_record always returns strings for DISPLAY
+// =============================================================================
+
+#[test]
+fn test_json_native_mode_display_returns_string() {
+    // decode_record always returns Value::String for ZonedDecimal fields;
+    // JsonNumberMode::Native applies only in the streaming JSON builder.
+    let copybook = "01 VAL PIC 9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let data: [u8; 5] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5];
+    let result = decode_record(&schema, &data, &decode_opts_native()).expect("decode");
+    // decode_record emits strings for zoned decimals regardless of json_number_mode
+    assert!(result["VAL"].is_string());
+    assert_eq!(result["VAL"], serde_json::json!("12345"));
+}
+
+#[test]
+fn test_json_native_mode_decimal_display_returns_string() {
+    let copybook = "01 AMT PIC 9(3)V99.";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    let data: [u8; 5] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5];
+    let result = decode_record(&schema, &data, &decode_opts_native()).expect("decode");
+    assert!(result["AMT"].is_string());
+    assert_eq!(result["AMT"], serde_json::json!("123.45"));
+}
+
+#[test]
+fn test_json_lossless_preserves_leading_zeros() {
+    let copybook = "01 VAL PIC 9(5).";
+    let schema = parse_copybook(copybook).expect("parse");
+
+    // 00042 in EBCDIC
+    let data: [u8; 5] = [0xF0, 0xF0, 0xF0, 0xF4, 0xF2];
+    let opts = DecodeOptions {
+        json_number_mode: JsonNumberMode::Lossless,
+        ..decode_opts()
+    };
+    let result = decode_record(&schema, &data, &opts).expect("decode");
+    // Lossless mode should return the numeric string value
+    assert!(result["VAL"].is_string());
+}

@@ -958,8 +958,7 @@ fn test_redefines_with_field_after_cluster() {
     data[trailer.offset as usize..trailer.offset as usize + 5].copy_from_slice(b"TRAIL");
     schema.lrecl_fixed = Some(u32::try_from(lrecl).unwrap());
 
-    let env =
-        copybook_codec::decode_record(&schema, &data, &ascii_decode_opts()).unwrap();
+    let env = copybook_codec::decode_record(&schema, &data, &ascii_decode_opts()).unwrap();
     let f = fields_of(&env);
 
     assert_eq!(f["HEADER"], "HEAD");

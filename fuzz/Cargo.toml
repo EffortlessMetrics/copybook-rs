@@ -185,6 +185,12 @@ test = false
 doc = false
 
 [[bin]]
+name = "fuzz_overpunch"
+path = "fuzz_targets/fuzz_overpunch.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "fuzz_codepage_conversion"
 path = "fuzz_targets/fuzz_codepage_conversion.rs"
 test = false

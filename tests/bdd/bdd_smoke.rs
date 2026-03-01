@@ -30,7 +30,7 @@ use cucumber::World as _;
 
 use crate::world::CopybookWorld;
 
-const SMOKE_TAGS: [&str; 32] = [
+const SMOKE_TAGS: [&str; 33] = [
     "raw",
     "metadata",
     "verify",
@@ -63,6 +63,7 @@ const SMOKE_TAGS: [&str; 32] = [
     "redefines",
     "occurs-arrays",
     "comp-binary",
+    "projection",
 ];
 
 #[tokio::main]

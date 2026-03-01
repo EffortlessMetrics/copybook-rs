@@ -1141,6 +1141,7 @@ dependencies = [
  "copybook-governance-runtime",
  "copybook-lexer",
  "copybook-overflow",
+ "copybook-overpunch",
  "copybook-rdw",
  "copybook-rdw-predicates",
  "copybook-record-io",

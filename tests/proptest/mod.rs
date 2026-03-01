@@ -28,6 +28,7 @@ pub mod prop_determinism;
 pub mod prop_edited_pic;
 pub mod prop_edited_pic_extended;
 pub mod prop_field_layout;
+pub mod prop_field_roundtrip;
 pub mod prop_governance;
 pub mod prop_no_panic;
 pub mod prop_overflow;

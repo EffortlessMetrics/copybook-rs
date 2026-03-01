@@ -78,6 +78,10 @@ path = "e2e_error_codes.rs"
 name = "e2e_decode_encode_comprehensive"
 path = "e2e_decode_encode_comprehensive.rs"
 
+[[test]]
+name = "e2e_projection_dialect"
+path = "e2e_projection_dialect.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

@@ -516,9 +516,20 @@ fn process_fixed_form_line(line: &str, line_num: usize) -> ProcessedLine<'_> {
         };
     }
 
-    let is_continuation = line.len() > 6 && line.chars().nth(6) == Some('-');
-    let content = if line.len() > 7 {
+    let is_continuation =
+        line.len() > 6 && line.is_char_boundary(6) && line.chars().nth(6) == Some('-');
+    let content = if line.len() > 7 && line.is_char_boundary(7) {
         let end_col = if line.len() > 72 { 72 } else { line.len() };
+        let end_col = if line.is_char_boundary(end_col) {
+            end_col
+        } else {
+            // Find the nearest valid char boundary at or before end_col
+            let mut b = end_col;
+            while b > 7 && !line.is_char_boundary(b) {
+                b -= 1;
+            }
+            b
+        };
         &line[7..end_col]
     } else {
         ""

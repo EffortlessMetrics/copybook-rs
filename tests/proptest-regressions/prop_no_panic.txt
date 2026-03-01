@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc a56718fe69a3abef4b7d10ed25410af2f58c9b53ddc5dc680e9cb13caa83369d # shrinks to text = "𐀀𐀀"
+cc 262e81d4ef2b8440e4f61c2dd14d26ce308d57a3df9bacc996eabbf310ee826d # shrinks to text = "AA𐀀𐀀 ࠀ\u{b}𐀀Aa 𐀀    ࠀAa\u{b}aA ¡0ࠀࠀaA¡A𐀀𐀀𐀀 0𐀀0A0\00𐀀"

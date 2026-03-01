@@ -178,7 +178,10 @@ fn parse_output_contains_record_path() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     // The schema JSON uses "path" field for fully qualified names
-    assert!(stdout.contains("\"path\""), "Should contain path field in schema JSON");
+    assert!(
+        stdout.contains("\"path\""),
+        "Should contain path field in schema JSON"
+    );
 }
 
 // =========================================================================
@@ -222,10 +225,16 @@ fn inspect_group_copybook_shows_hierarchy() {
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(output.status.success(), "inspect failed: stderr={stderr}, stdout={stdout}");
+    assert!(
+        output.status.success(),
+        "inspect failed: stderr={stderr}, stdout={stdout}"
+    );
     // Inspect uses fully qualified paths like CUSTOMER.CUST-INFO.FIRST-NAME
     assert!(stdout.contains("CUST-ID"), "Missing CUST-ID in: {stdout}");
-    assert!(stdout.contains("FIRST-NAME"), "Missing FIRST-NAME in: {stdout}");
+    assert!(
+        stdout.contains("FIRST-NAME"),
+        "Missing FIRST-NAME in: {stdout}"
+    );
 }
 
 // =========================================================================
@@ -247,7 +256,10 @@ fn decode_single_record_contains_field_values() {
         .success();
     let content = std::fs::read_to_string(&out).unwrap();
     assert!(content.contains("ALICE"), "Missing decoded NAME value");
-    assert!(content.contains("25") || content.contains("025"), "Missing decoded AGE value");
+    assert!(
+        content.contains("25") || content.contains("025"),
+        "Missing decoded AGE value"
+    );
 }
 
 #[test]
@@ -265,8 +277,15 @@ fn decode_two_records_produces_two_jsonl_lines() {
         .success();
     let content = std::fs::read_to_string(&out).unwrap();
     let lines: Vec<&str> = content.lines().collect();
-    assert!(lines.len() >= 2, "Expected at least 2 JSONL lines, got {}", lines.len());
-    assert!(lines[0].contains("ALICE"), "First line should contain ALICE");
+    assert!(
+        lines.len() >= 2,
+        "Expected at least 2 JSONL lines, got {}",
+        lines.len()
+    );
+    assert!(
+        lines[0].contains("ALICE"),
+        "First line should contain ALICE"
+    );
     assert!(lines[1].contains("BOB"), "Second line should contain BOB");
 }
 
@@ -304,7 +323,10 @@ fn decode_numeric_record_contains_expected_values() {
         .assert()
         .success();
     let content = std::fs::read_to_string(&out).unwrap();
-    assert!(content.contains("ITEM") || content.contains("item"), "Missing LABEL value");
+    assert!(
+        content.contains("ITEM") || content.contains("item"),
+        "Missing LABEL value"
+    );
 }
 
 #[test]
@@ -336,7 +358,10 @@ fn decode_jsonl_field_names_match_copybook() {
         })
         .collect();
     let keys_str = all_keys.join(",");
-    assert!(keys_str.contains("NAME"), "Missing NAME key, got: {keys_str}");
+    assert!(
+        keys_str.contains("NAME"),
+        "Missing NAME key, got: {keys_str}"
+    );
     assert!(keys_str.contains("AGE"), "Missing AGE key, got: {keys_str}");
 }
 
@@ -346,10 +371,7 @@ fn decode_jsonl_field_names_match_copybook() {
 
 #[test]
 fn error_on_missing_file_shows_error() {
-    cmd()
-        .args(["parse", "nonexistent.cpy"])
-        .assert()
-        .failure();
+    cmd().args(["parse", "nonexistent.cpy"]).assert().failure();
 }
 
 #[test]
@@ -367,8 +389,11 @@ fn error_on_invalid_copybook_shows_message() {
     let combined = format!("{stderr}{stdout}");
     // Accept either an error message, error code, or empty schema
     assert!(
-        !output.status.success() || combined.contains("error") || combined.contains("Error")
-            || combined.contains("CBK") || combined.contains("fields"),
+        !output.status.success()
+            || combined.contains("error")
+            || combined.contains("Error")
+            || combined.contains("CBK")
+            || combined.contains("fields"),
         "Invalid copybook should produce diagnostic output, got: stdout={stdout}, stderr={stderr}"
     );
 }
@@ -392,8 +417,11 @@ fn decode_with_wrong_lrecl_shows_error() {
     let combined = format!("{stderr}{stdout}");
     // Should indicate a truncation or record-length issue
     assert!(
-        !output.status.success() || combined.contains("truncat") || combined.contains("CBK")
-            || combined.contains("error") || combined.contains("Error")
+        !output.status.success()
+            || combined.contains("truncat")
+            || combined.contains("CBK")
+            || combined.contains("error")
+            || combined.contains("Error")
             || combined.contains("record"),
         "Truncated data should produce diagnostic, got: {combined}"
     );
@@ -469,8 +497,13 @@ fn version_output_contains_semver_pattern() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     // Should contain a version like X.Y.Z
-    let has_version = regex::Regex::new(r"\d+\.\d+\.\d+").unwrap().is_match(&stdout);
-    assert!(has_version, "Version output should contain semver: {stdout}");
+    let has_version = regex::Regex::new(r"\d+\.\d+\.\d+")
+        .unwrap()
+        .is_match(&stdout);
+    assert!(
+        has_version,
+        "Version output should contain semver: {stdout}"
+    );
 }
 
 // =========================================================================
@@ -488,7 +521,10 @@ fn parse_output_deterministic_across_runs() {
     for _ in 0..5 {
         let next = cmd().args(["parse"]).arg(&path).output().unwrap();
         assert!(next.status.success());
-        assert_eq!(first.stdout, next.stdout, "parse output should be deterministic");
+        assert_eq!(
+            first.stdout, next.stdout,
+            "parse output should be deterministic"
+        );
     }
 }
 
@@ -503,7 +539,10 @@ fn inspect_output_deterministic_across_runs() {
     for _ in 0..5 {
         let next = cmd().args(["inspect"]).arg(&path).output().unwrap();
         assert!(next.status.success());
-        assert_eq!(first.stdout, next.stdout, "inspect output should be deterministic");
+        assert_eq!(
+            first.stdout, next.stdout,
+            "inspect output should be deterministic"
+        );
     }
 }
 

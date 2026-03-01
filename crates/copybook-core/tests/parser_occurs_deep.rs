@@ -171,7 +171,11 @@ fn test_odo_group_level() {
     let entry = find_field(&schema, "ENTRY");
     assert!(matches!(
         entry.occurs,
-        Some(Occurs::ODO { min: 1, max: 10, .. })
+        Some(Occurs::ODO {
+            min: 1,
+            max: 10,
+            ..
+        })
     ));
     assert!(entry.is_group());
     assert_eq!(entry.len, 12);
@@ -192,7 +196,11 @@ fn test_odo_with_fixed_prefix() {
     let items = find_field(&schema, "LINE-ITEMS");
     assert!(matches!(
         items.occurs,
-        Some(Occurs::ODO { min: 0, max: 99, .. })
+        Some(Occurs::ODO {
+            min: 0,
+            max: 99,
+            ..
+        })
     ));
     assert_eq!(items.offset, 23);
 }
@@ -206,7 +214,10 @@ fn test_odo_counter_path_resolved() {
                DEPENDING ON CTR.
     ";
     let schema = parse(cpy);
-    if let Some(Occurs::ODO { ref counter_path, .. }) = find_field(&schema, "DATA").occurs {
+    if let Some(Occurs::ODO {
+        ref counter_path, ..
+    }) = find_field(&schema, "DATA").occurs
+    {
         assert!(
             counter_path.contains("CTR"),
             "counter_path should reference CTR, got: {counter_path}"
@@ -451,7 +462,11 @@ fn test_occurs_with_comp3_children() {
     let amt_val = find_field(&schema, "AMT-VAL");
     assert!(matches!(
         amt_val.kind,
-        FieldKind::PackedDecimal { digits: 11, scale: 2, signed: true }
+        FieldKind::PackedDecimal {
+            digits: 11,
+            scale: 2,
+            signed: true
+        }
     ));
     // S9(9)V99 COMP-3 = (11+1)/2 = 6 bytes
     assert_eq!(amt_val.len, 6);
@@ -476,7 +491,11 @@ fn test_odo_with_indexed_by() {
     let items = find_field(&schema, "ITEMS");
     assert!(matches!(
         items.occurs,
-        Some(Occurs::ODO { min: 1, max: 50, .. })
+        Some(Occurs::ODO {
+            min: 1,
+            max: 50,
+            ..
+        })
     ));
     assert!(items.is_group());
     assert_eq!(items.len, 9);

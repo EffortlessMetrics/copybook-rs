@@ -721,7 +721,10 @@ fn decode_signed_zoned_deterministic() {
     for i in 1..100 {
         let val =
             serde_json::to_string(&decode_record(&schema, &data, &opts).expect("decode")).unwrap();
-        assert_eq!(val, reference, "Signed zoned decode diverged on iteration {i}");
+        assert_eq!(
+            val, reference,
+            "Signed zoned decode diverged on iteration {i}"
+        );
     }
 }
 
@@ -745,7 +748,10 @@ fn encode_multi_field_100_times_identical() {
 
     for i in 1..100 {
         let output = encode_record(&schema, &json, &opts).expect("encode");
-        assert_eq!(output, reference, "Multi-field encode diverged on iteration {i}");
+        assert_eq!(
+            output, reference,
+            "Multi-field encode diverged on iteration {i}"
+        );
     }
 }
 
@@ -771,10 +777,9 @@ fn cross_thread_decode_4_threads_same_output() {
             std::thread::spawn(move || {
                 let mut results = Vec::with_capacity(25);
                 for _ in 0..25 {
-                    let out = serde_json::to_vec(
-                        &decode_record(&schema, &data, &opts).expect("decode"),
-                    )
-                    .unwrap();
+                    let out =
+                        serde_json::to_vec(&decode_record(&schema, &data, &opts).expect("decode"))
+                            .unwrap();
                     results.push(blake3_hex(&out));
                 }
                 results
@@ -875,7 +880,7 @@ fn round_trip_comp3_deterministic() {
     // LABEL = "ABCDE" in EBCDIC + COMP-3 +12345.67 → 0x12 0x34 0x56 0x7C
     let data: Vec<u8> = vec![
         0xC1, 0xC2, 0xC3, 0xC4, 0xC5, // ABCDE
-        0x12, 0x34, 0x56, 0x7C,         // +1234.567 COMP-3
+        0x12, 0x34, 0x56, 0x7C, // +1234.567 COMP-3
     ];
 
     let result =
@@ -908,7 +913,10 @@ fn decode_trailing_spaces_deterministic() {
     for i in 1..100 {
         let val =
             serde_json::to_string(&decode_record(&schema, &data, &opts).expect("decode")).unwrap();
-        assert_eq!(val, reference, "Trailing spaces decode diverged on iteration {i}");
+        assert_eq!(
+            val, reference,
+            "Trailing spaces decode diverged on iteration {i}"
+        );
     }
 }
 
@@ -966,5 +974,8 @@ fn compare_outputs_symmetry() {
     let ac = compare_outputs(DeterminismMode::DecodeOnly, a, c);
     let ca = compare_outputs(DeterminismMode::DecodeOnly, c, a);
     assert_eq!(ac.is_deterministic, ca.is_deterministic);
-    assert!(!ac.is_deterministic, "Different data should not be deterministic");
+    assert!(
+        !ac.is_deterministic,
+        "Different data should not be deterministic"
+    );
 }

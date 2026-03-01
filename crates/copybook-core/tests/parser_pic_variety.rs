@@ -54,7 +54,12 @@ fn test_pic_9_basic() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 6, scale: 0, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 6,
+            scale: 0,
+            signed: false,
+            ..
+        }
     ));
     assert_eq!(f.len, 6);
 }
@@ -66,7 +71,12 @@ fn test_pic_9_single_digit() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 1, scale: 0, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 1,
+            scale: 0,
+            signed: false,
+            ..
+        }
     ));
     assert_eq!(f.len, 1);
 }
@@ -75,8 +85,14 @@ fn test_pic_9_single_digit() {
 fn test_pic_x_repeated() {
     let cpy = "       01  REC.\n           05  F1 PIC X(5).\n           05  F2 PIC X(15).\n";
     let schema = parse(cpy);
-    assert!(matches!(find_field(&schema, "F1").kind, FieldKind::Alphanum { len: 5 }));
-    assert!(matches!(find_field(&schema, "F2").kind, FieldKind::Alphanum { len: 15 }));
+    assert!(matches!(
+        find_field(&schema, "F1").kind,
+        FieldKind::Alphanum { len: 5 }
+    ));
+    assert!(matches!(
+        find_field(&schema, "F2").kind,
+        FieldKind::Alphanum { len: 15 }
+    ));
     assert_eq!(schema.lrecl_fixed, Some(20));
 }
 
@@ -87,7 +103,12 @@ fn test_pic_s9_signed_zoned() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 5, scale: 0, signed: true, .. }
+        FieldKind::ZonedDecimal {
+            digits: 5,
+            scale: 0,
+            signed: true,
+            ..
+        }
     ));
     // Zoned signed occupies same bytes as digits (sign in zone nibble)
     assert_eq!(f.len, 5);
@@ -100,7 +121,12 @@ fn test_pic_9v9_implied_decimal() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 7, scale: 2, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 7,
+            scale: 2,
+            signed: false,
+            ..
+        }
     ));
     assert_eq!(f.len, 7);
 }
@@ -112,7 +138,12 @@ fn test_pic_9v99() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 5, scale: 2, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 5,
+            scale: 2,
+            signed: false,
+            ..
+        }
     ));
     assert_eq!(f.len, 5);
 }
@@ -124,7 +155,12 @@ fn test_pic_s9v9_signed_decimal() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 9, scale: 2, signed: true, .. }
+        FieldKind::ZonedDecimal {
+            digits: 9,
+            scale: 2,
+            signed: true,
+            ..
+        }
     ));
     assert_eq!(f.len, 9);
 }
@@ -136,7 +172,12 @@ fn test_pic_s9v9_explicit_scale() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 7, scale: 3, signed: true, .. }
+        FieldKind::ZonedDecimal {
+            digits: 7,
+            scale: 3,
+            signed: true,
+            ..
+        }
     ));
     assert_eq!(f.len, 7);
 }
@@ -152,7 +193,11 @@ fn test_comp3_s9_5_v99() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::PackedDecimal { digits: 7, scale: 2, signed: true }
+        FieldKind::PackedDecimal {
+            digits: 7,
+            scale: 2,
+            signed: true
+        }
     ));
     // COMP-3: (7 + 1) / 2 = 4 bytes
     assert_eq!(f.len, 4);
@@ -165,7 +210,11 @@ fn test_comp3_9_3() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::PackedDecimal { digits: 3, scale: 0, signed: false }
+        FieldKind::PackedDecimal {
+            digits: 3,
+            scale: 0,
+            signed: false
+        }
     ));
     // COMP-3 unsigned: (3 + 1) / 2 = 2 bytes
     assert_eq!(f.len, 2);
@@ -178,7 +227,11 @@ fn test_comp3_s9_9_v99() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::PackedDecimal { digits: 11, scale: 2, signed: true }
+        FieldKind::PackedDecimal {
+            digits: 11,
+            scale: 2,
+            signed: true
+        }
     ));
     // (11 + 1) / 2 = 6 bytes
     assert_eq!(f.len, 6);
@@ -191,7 +244,11 @@ fn test_comp3_s9_13_v99() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::PackedDecimal { digits: 15, scale: 2, signed: true }
+        FieldKind::PackedDecimal {
+            digits: 15,
+            scale: 2,
+            signed: true
+        }
     ));
     // (15 + 1) / 2 = 8 bytes
     assert_eq!(f.len, 8);
@@ -204,7 +261,11 @@ fn test_comp3_single_digit() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::PackedDecimal { digits: 1, scale: 0, signed: false }
+        FieldKind::PackedDecimal {
+            digits: 1,
+            scale: 0,
+            signed: false
+        }
     ));
     // (1 + 1) / 2 = 1 byte
     assert_eq!(f.len, 1);
@@ -219,7 +280,13 @@ fn test_comp_s9_4() {
     let cpy = "       01  REC.\n           05  F1 PIC S9(4) COMP.\n";
     let schema = parse(cpy);
     let f = find_field(&schema, "F1");
-    assert!(matches!(f.kind, FieldKind::BinaryInt { bits: 16, signed: true }));
+    assert!(matches!(
+        f.kind,
+        FieldKind::BinaryInt {
+            bits: 16,
+            signed: true
+        }
+    ));
     assert_eq!(f.len, 2);
 }
 
@@ -228,7 +295,13 @@ fn test_comp_s9_9() {
     let cpy = "       01  REC.\n           05  F1 PIC S9(9) COMP.\n";
     let schema = parse(cpy);
     let f = find_field(&schema, "F1");
-    assert!(matches!(f.kind, FieldKind::BinaryInt { bits: 32, signed: true }));
+    assert!(matches!(
+        f.kind,
+        FieldKind::BinaryInt {
+            bits: 32,
+            signed: true
+        }
+    ));
     assert_eq!(f.len, 4);
 }
 
@@ -237,7 +310,13 @@ fn test_comp_s9_18() {
     let cpy = "       01  REC.\n           05  F1 PIC S9(18) COMP.\n";
     let schema = parse(cpy);
     let f = find_field(&schema, "F1");
-    assert!(matches!(f.kind, FieldKind::BinaryInt { bits: 64, signed: true }));
+    assert!(matches!(
+        f.kind,
+        FieldKind::BinaryInt {
+            bits: 64,
+            signed: true
+        }
+    ));
     assert_eq!(f.len, 8);
 }
 
@@ -246,7 +325,13 @@ fn test_comp_unsigned_9_4() {
     let cpy = "       01  REC.\n           05  F1 PIC 9(4) COMP.\n";
     let schema = parse(cpy);
     let f = find_field(&schema, "F1");
-    assert!(matches!(f.kind, FieldKind::BinaryInt { bits: 16, signed: false }));
+    assert!(matches!(
+        f.kind,
+        FieldKind::BinaryInt {
+            bits: 16,
+            signed: false
+        }
+    ));
     assert_eq!(f.len, 2);
 }
 
@@ -288,7 +373,12 @@ fn test_pic_9_18_large_zoned() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 18, scale: 0, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 18,
+            scale: 0,
+            signed: false,
+            ..
+        }
     ));
     assert_eq!(f.len, 18);
 }
@@ -309,7 +399,11 @@ fn test_pic_s9_18_comp3_max_packed() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::PackedDecimal { digits: 18, scale: 0, signed: true }
+        FieldKind::PackedDecimal {
+            digits: 18,
+            scale: 0,
+            signed: true
+        }
     ));
     // (18 + 1) / 2 = 10 bytes (rounded up)
     assert_eq!(f.len, 10);
@@ -333,30 +427,60 @@ fn test_mixed_pic_types_in_one_record() {
     ";
     let schema = parse(cpy);
 
-    assert!(matches!(find_field(&schema, "F-ALPHA").kind, FieldKind::Alphanum { len: 10 }));
+    assert!(matches!(
+        find_field(&schema, "F-ALPHA").kind,
+        FieldKind::Alphanum { len: 10 }
+    ));
     assert!(matches!(
         find_field(&schema, "F-ZONED").kind,
-        FieldKind::ZonedDecimal { digits: 6, scale: 0, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 6,
+            scale: 0,
+            signed: false,
+            ..
+        }
     ));
     assert!(matches!(
         find_field(&schema, "F-SIGNED").kind,
-        FieldKind::ZonedDecimal { digits: 5, scale: 0, signed: true, .. }
+        FieldKind::ZonedDecimal {
+            digits: 5,
+            scale: 0,
+            signed: true,
+            ..
+        }
     ));
     assert!(matches!(
         find_field(&schema, "F-DEC").kind,
-        FieldKind::ZonedDecimal { digits: 7, scale: 2, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 7,
+            scale: 2,
+            signed: false,
+            ..
+        }
     ));
     assert!(matches!(
         find_field(&schema, "F-SDEC").kind,
-        FieldKind::ZonedDecimal { digits: 9, scale: 2, signed: true, .. }
+        FieldKind::ZonedDecimal {
+            digits: 9,
+            scale: 2,
+            signed: true,
+            ..
+        }
     ));
     assert!(matches!(
         find_field(&schema, "F-COMP3").kind,
-        FieldKind::PackedDecimal { digits: 7, scale: 2, signed: true }
+        FieldKind::PackedDecimal {
+            digits: 7,
+            scale: 2,
+            signed: true
+        }
     ));
     assert!(matches!(
         find_field(&schema, "F-COMP").kind,
-        FieldKind::BinaryInt { bits: 16, signed: true }
+        FieldKind::BinaryInt {
+            bits: 16,
+            signed: true
+        }
     ));
 
     // LRECL = 10 + 6 + 5 + 7 + 9 + 4 + 2 = 43
@@ -374,10 +498,10 @@ fn test_offsets_of_mixed_types() {
     ";
     let schema = parse(cpy);
     assert_eq!(find_field(&schema, "A").offset, 0);
-    assert_eq!(find_field(&schema, "B").offset, 10);  // after X(10)
-    assert_eq!(find_field(&schema, "C").offset, 14);  // 10 + 4 bytes COMP-3
-    assert_eq!(find_field(&schema, "D").offset, 18);  // 14 + 4 bytes COMP
-    assert_eq!(schema.lrecl_fixed, Some(21));          // 18 + 3
+    assert_eq!(find_field(&schema, "B").offset, 10); // after X(10)
+    assert_eq!(find_field(&schema, "C").offset, 14); // 10 + 4 bytes COMP-3
+    assert_eq!(find_field(&schema, "D").offset, 18); // 14 + 4 bytes COMP
+    assert_eq!(schema.lrecl_fixed, Some(21)); // 18 + 3
 }
 
 // ===========================================================================
@@ -413,7 +537,10 @@ fn test_level_88_multiple_values() {
     ";
     let schema = parse(cpy);
     let all = schema.all_fields();
-    let cond = all.iter().find(|f| f.name == "VALID-TYPES").expect("condition not found");
+    let cond = all
+        .iter()
+        .find(|f| f.name == "VALID-TYPES")
+        .expect("condition not found");
     assert!(matches!(&cond.kind, FieldKind::Condition { values } if values.len() == 3));
     // Level-88 doesn't add storage — LRECL is TYPE-CODE + PADDING
     assert_eq!(schema.lrecl_fixed, Some(5));
@@ -448,7 +575,12 @@ fn test_blank_when_zero_with_decimal() {
     assert!(rate.blank_when_zero);
     assert!(matches!(
         rate.kind,
-        FieldKind::ZonedDecimal { digits: 5, scale: 2, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 5,
+            scale: 2,
+            signed: false,
+            ..
+        }
     ));
     assert_eq!(rate.len, 5);
 }
@@ -473,7 +605,12 @@ fn test_pic_999_shorthand() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 3, scale: 0, signed: false, .. }
+        FieldKind::ZonedDecimal {
+            digits: 3,
+            scale: 0,
+            signed: false,
+            ..
+        }
     ));
     assert_eq!(f.len, 3);
 }
@@ -485,7 +622,12 @@ fn test_pic_s999v99_shorthand() {
     let f = find_field(&schema, "F1");
     assert!(matches!(
         f.kind,
-        FieldKind::ZonedDecimal { digits: 5, scale: 2, signed: true, .. }
+        FieldKind::ZonedDecimal {
+            digits: 5,
+            scale: 2,
+            signed: true,
+            ..
+        }
     ));
     assert_eq!(f.len, 5);
 }

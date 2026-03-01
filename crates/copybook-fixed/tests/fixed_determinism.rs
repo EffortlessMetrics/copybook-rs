@@ -89,7 +89,10 @@ fn write_short_record_padding_deterministic() {
     let first = write_records(&[short_data.as_slice()], lrecl);
     assert_eq!(first.len(), 10, "Padded output should be LRECL bytes");
     assert_eq!(&first[..3], b"ABC");
-    assert!(first[3..].iter().all(|&b| b == 0), "Padding should be null bytes");
+    assert!(
+        first[3..].iter().all(|&b| b == 0),
+        "Padding should be null bytes"
+    );
 
     for i in 0..50 {
         let result = write_records(&[short_data.as_slice()], lrecl);
@@ -104,7 +107,10 @@ fn write_empty_record_padding_deterministic() {
 
     let first = write_records(&[empty], lrecl);
     assert_eq!(first.len(), 8);
-    assert!(first.iter().all(|&b| b == 0), "All-padding record should be null bytes");
+    assert!(
+        first.iter().all(|&b| b == 0),
+        "All-padding record should be null bytes"
+    );
 
     for _ in 0..50 {
         let result = write_records(&[empty], lrecl);
@@ -155,7 +161,10 @@ fn multi_record_content_deterministic() {
 
     for i in 0..50 {
         let result = read_all_records(&data, lrecl);
-        assert_eq!(result, first, "Multi-record content diverged on iteration {i}");
+        assert_eq!(
+            result, first,
+            "Multi-record content diverged on iteration {i}"
+        );
     }
 }
 
@@ -169,7 +178,10 @@ fn multi_record_write_deterministic() {
 
     for i in 0..50 {
         let result = write_records(&records, lrecl);
-        assert_eq!(result, first, "Multi-record write diverged on iteration {i}");
+        assert_eq!(
+            result, first,
+            "Multi-record write diverged on iteration {i}"
+        );
     }
 }
 
@@ -231,9 +243,7 @@ fn all_byte_values_preserved_through_read() {
 #[test]
 fn binary_data_preserved_through_write_read() {
     // EBCDIC-like bytes that might be confused with control chars
-    let binary_record: Vec<u8> = vec![
-        0x00, 0x01, 0x0A, 0x0D, 0x40, 0xC1, 0xF0, 0xFF, 0x7F, 0x80,
-    ];
+    let binary_record: Vec<u8> = vec![0x00, 0x01, 0x0A, 0x0D, 0x40, 0xC1, 0xF0, 0xFF, 0x7F, 0x80];
     let lrecl = 10u32;
 
     let written = write_records(&[binary_record.as_slice()], lrecl);

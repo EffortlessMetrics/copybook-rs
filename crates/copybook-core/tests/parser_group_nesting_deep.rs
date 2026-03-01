@@ -98,7 +98,10 @@ fn test_deep_nesting_7_levels() {
 
     // All intermediate levels are groups
     for name in &["L1", "L2", "L3", "L4", "L5"] {
-        assert!(find_field(&schema, name).is_group(), "{name} should be group");
+        assert!(
+            find_field(&schema, name).is_group(),
+            "{name} should be group"
+        );
     }
 
     // Leaf is at the bottom
@@ -126,7 +129,9 @@ fn test_deep_nesting_11_levels() {
     assert_eq!(schema.lrecl_fixed, Some(10));
 
     // Verify all group levels exist
-    for name in &["L05", "L10", "L15", "L20", "L25", "L30", "L35", "L40", "L45"] {
+    for name in &[
+        "L05", "L10", "L15", "L20", "L25", "L30", "L35", "L40", "L45",
+    ] {
         let f = find_field(&schema, name);
         assert!(f.is_group(), "{name} should be a group");
         assert_eq!(f.len, 10, "{name} should span the leaf");
@@ -209,7 +214,11 @@ fn test_group_with_multiple_filler_children() {
     assert_eq!(grp.len, 30);
     assert_eq!(grp.children.len(), 3);
     for child in &grp.children {
-        assert!(child.name.starts_with("_filler_"), "expected _filler_ prefix, got: {}", child.name);
+        assert!(
+            child.name.starts_with("_filler_"),
+            "expected _filler_ prefix, got: {}",
+            child.name
+        );
     }
     assert_eq!(schema.lrecl_fixed, Some(30));
 }

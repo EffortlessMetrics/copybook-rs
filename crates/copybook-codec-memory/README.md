@@ -2,13 +2,33 @@
 
 Core memory management utilities for `copybook-codec`, extracted as a dedicated crate.
 
-`SequenceRing` and related sequence-ordering types are re-exported from
-`copybook-sequence-ring`.
+## Overview
+
+Provides performance-critical memory patterns for high-throughput COBOL data processing:
+reusable scratch buffers to eliminate hot-path allocations, a deterministic worker pool for
+parallel record processing, and a streaming processor that enforces bounded memory usage
+(<256 MiB) for multi-GB files.
+
+## Usage
+
+```rust
+use copybook_codec_memory::ScratchBuffers;
+
+// Reuse buffers across records to avoid allocation
+let mut scratch = ScratchBuffers::new();
+scratch.digit_buffer.push(5);
+scratch.byte_buffer.extend_from_slice(b"data");
+scratch.string_buffer.push_str("text");
+scratch.clear(); // clears without deallocating
+```
 
 ## Public API
 
-- `copybook_codec_memory::ScratchBuffers`
-- `copybook_codec_memory::SequenceRing`
-- `copybook_codec_memory::SequencedRecord`
-- `copybook_codec_memory::WorkerPool`
-- `copybook_codec_memory::StreamingProcessor`
+- `ScratchBuffers` — Reusable byte/digit/string buffers for hot-path processing
+- `WorkerPool` — Parallel record processing with deterministic output ordering
+- `StreamingProcessor` — Memory-bounded streaming with pressure tracking
+- `SequenceRing` / `SequencedRecord` — Re-exported from `copybook-sequence-ring`
+
+## License
+
+AGPL-3.0-or-later

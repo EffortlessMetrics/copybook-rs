@@ -128,6 +128,9 @@ proptest! {
         abs_value in 0u64..=999_999_999u64,
         negative in any::<bool>(),
     ) {
+        // Clamp scale so there is at least 1 integer digit
+        #[allow(clippy::cast_possible_wrap)]
+        let scale = scale.min((digits as i16) - 1).max(0);
         #[allow(clippy::cast_possible_truncation)]
         let max_val = 10u64.pow(u32::from(digits));
         let abs_value = abs_value % max_val;
@@ -178,9 +181,12 @@ proptest! {
         // Build valid packed decimal: digits + sign nibble (0x0C = positive)
         let expected_bytes = (num_digits + 1).div_ceil(2);
         let mut packed = vec![0u8; expected_bytes];
+        // Even digit counts need a leading padding nibble (0)
+        let nibble_offset = if num_digits % 2 == 0 { 1 } else { 0 };
         for (i, &d) in digits.iter().enumerate() {
-            let byte_idx = i / 2;
-            if i % 2 == 0 {
+            let ni = i + nibble_offset;
+            let byte_idx = ni / 2;
+            if ni % 2 == 0 {
                 packed[byte_idx] |= d << 4;
             } else {
                 packed[byte_idx] |= d;
@@ -259,10 +265,11 @@ proptest! {
     /// COMP (BINARY) field round-trips through full codec pipeline.
     #[test]
     fn prop_comp_fullstack_roundtrip(value in -32768i64..=32767) {
-        let copybook = "01 FLD PIC S9(4) BINARY.";
+        let copybook = "       01 REC.\n           05 FLD PIC S9(4) BINARY.";
         let schema = parse_copybook(copybook).expect("parse");
 
-        let json_in = serde_json::json!({ "FLD": value });
+        // Encoder expects string-typed numeric values
+        let json_in = serde_json::json!({ "REC": {"FLD": value.to_string()} });
 
         let encode_opts = EncodeOptions::new()
             .with_format(RecordFormat::Fixed)
@@ -274,7 +281,11 @@ proptest! {
             .with_codepage(Codepage::CP037);
         let json_out = decode_record(&schema, &binary, &decode_opts).expect("decode");
 
-        let out_val = json_out.get("FLD").and_then(Value::as_i64).expect("field exists");
+        let fld = json_out.get("FLD").expect("field exists");
+        let out_val = fld
+            .as_i64()
+            .or_else(|| fld.as_str().and_then(|s| s.parse::<i64>().ok()))
+            .expect("numeric value");
         prop_assert_eq!(out_val, value);
     }
 }

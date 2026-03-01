@@ -452,7 +452,7 @@ fn detect_format(input: &str) -> CobolFormat {
 
         total_content_lines += 1;
 
-        if line.len() >= 8 {
+        if line.len() >= 8 && line.is_char_boundary(6) && line.is_char_boundary(7) {
             let first_six = &line[0..6];
             let col_7 = line.chars().nth(6).unwrap_or(' ');
             let col_8_onwards = &line[7..];

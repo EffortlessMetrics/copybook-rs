@@ -171,3 +171,21 @@ name = "fuzz_charset"
 path = "fuzz_targets/fuzz_charset.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_lexer"
+path = "fuzz_targets/fuzz_lexer.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_schema_roundtrip"
+path = "fuzz_targets/fuzz_schema_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_codepage_conversion"
+path = "fuzz_targets/fuzz_codepage_conversion.rs"
+test = false
+doc = false

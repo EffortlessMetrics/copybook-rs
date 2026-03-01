@@ -62,6 +62,10 @@ path = "e2e_cli_exit_codes.rs"
 name = "e2e_error_taxonomy_complete"
 path = "e2e_error_taxonomy_complete.rs"
 
+[[test]]
+name = "e2e_cli_integration"
+path = "e2e_cli_integration.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

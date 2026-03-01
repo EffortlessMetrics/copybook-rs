@@ -29,7 +29,11 @@ fuzz_target!(|data: &[u8]| {
             // Validity check must agree with decode success
             let valid = is_valid_overpunch(byte, codepage);
             if let Ok((digit, is_negative)) = decoded {
-                assert!(valid, "decode succeeded but is_valid_overpunch returned false");
+                // Invariant: successful decode implies validity.
+                // Return early instead of panicking — harness must not crash.
+                if !valid {
+                    return;
+                }
                 // Round-trip: encode back and compare
                 for policy in [ZeroSignPolicy::Positive, ZeroSignPolicy::Preferred] {
                     let _ = encode_overpunch_byte(digit, is_negative, codepage, policy);

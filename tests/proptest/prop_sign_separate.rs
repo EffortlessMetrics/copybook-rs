@@ -21,6 +21,9 @@ use super::config::DEFAULT_CASES;
 /// Strategy: generate a (value, digits, scale) triple that is encodable.
 fn value_digits_scale() -> impl Strategy<Value = (String, u16, i16)> {
     (1u16..=9, 0i16..=4).prop_flat_map(|(digits, scale)| {
+        // Clamp scale so there is at least 1 integer digit
+        #[allow(clippy::cast_possible_wrap)]
+        let scale = scale.min((digits as i16) - 1).max(0);
         let max_val = 10i64.saturating_pow(u32::from(digits)) - 1;
         (0..=max_val, any::<bool>(), Just(digits), Just(scale)).prop_map(
             move |(abs, negative, digits, scale)| {

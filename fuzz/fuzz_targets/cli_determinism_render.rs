@@ -19,12 +19,15 @@ fn hex_from_bytes(data: &[u8]) -> String {
     out
 }
 
-fn flip_first_hex_digit(mut value: String) -> String {
+fn flip_first_hex_digit(value: String) -> String {
     let mut bytes = value.into_bytes();
     if let Some(first) = bytes.first_mut() {
         *first = if *first == b'0' { b'f' } else { b'0' };
     }
-    String::from_utf8(bytes).expect("hex string remains ascii")
+    match String::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+    }
 }
 
 fn mode_from_byte(byte: u8) -> DeterminismMode {

@@ -93,7 +93,7 @@ jobs:
 
       - name: Upload regression artifacts
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: proptest-regressions-${{ matrix.target.name }}-${{ github.sha }}
           path: artifacts/proptest-regressions/

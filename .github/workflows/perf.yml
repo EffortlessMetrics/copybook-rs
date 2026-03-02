@@ -100,21 +100,21 @@ jobs:
           sed -i "s/<GIT_SHORT_SHA>/${SHA}/g" docs/telemetry-launch-checklist.md
 
       - name: Upload stamped telemetry checklist (optional)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: telemetry-launch-checklist
           path: docs/telemetry-launch-checklist.md
           retention-days: 30
 
       - name: Upload perf receipts (90 days)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: perf-json-${{ github.sha }}
           path: scripts/bench/perf.json
           retention-days: 90
 
       - name: Upload enterprise perf receipts (90 days)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: enterprise-perf-json-${{ github.sha }}
           path: target/criterion/enterprise_*/new/estimates.json
@@ -122,7 +122,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload criterion outputs (30 days)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: criterion-data-${{ github.sha }}
           path: target/criterion/**

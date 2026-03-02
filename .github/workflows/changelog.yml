@@ -47,7 +47,7 @@ jobs:
 
       - name: Upload changelog artifact (incremental)
         if: github.event_name == 'push' || !inputs.full_regenerate
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: changelog-incremental
           path: CHANGELOG_new.md
@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload changelog artifact (full)
         if: github.event_name == 'workflow_dispatch' && inputs.full_regenerate
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: changelog-full
           path: CHANGELOG_full.md

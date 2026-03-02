@@ -1053,8 +1053,17 @@ version = "0.4.3"
 dependencies = [
  "copybook-core",
  "copybook-error",
+ "copybook-rdw-header",
  "proptest",
  "tracing",
+]
+
+[[package]]
+name = "copybook-rdw-header"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "proptest",
 ]
 
 [[package]]

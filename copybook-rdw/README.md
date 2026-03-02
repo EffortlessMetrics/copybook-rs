@@ -5,6 +5,9 @@ RDW (Record Descriptor Word) header primitives for copybook-rs.
 This crate has one responsibility: parse/build RDW headers and provide
 buffered helpers plus reader/writer types for RDW framing.
 
+Low-level header helpers are implemented in `copybook-rdw-header` and
+re-exported here for API compatibility.
+
 ## Public API
 
 - `RdwHeader`

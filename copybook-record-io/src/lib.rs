@@ -7,10 +7,120 @@
 
 use copybook_error::{Error, ErrorCode, Result};
 use copybook_options::RecordFormat;
-use std::io::{Read, Write};
+use std::io::{BufReader, Read, Write};
 
 pub use copybook_fixed::{FixedRecordReader, FixedRecordWriter};
-pub use copybook_rdw::{RDWRecord, RDWRecordReader, RDWRecordWriter};
+pub use copybook_rdw::{RDWRecord, RDWRecordReader, RDWRecordWriter, RdwHeader};
+
+const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record length (LRECL). \
+                                           Set schema.lrecl_fixed or use RDW format.";
+
+/// Streaming raw-record reader for fixed and RDW formats.
+///
+/// This adapter owns the framing concerns only and deliberately does not decode
+/// record payloads.
+pub struct RawRecordReader<R: Read> {
+    reader: BufReader<R>,
+    format: RecordFormat,
+    lrecl: Option<u32>,
+    record_index: u64,
+    eof_reached: bool,
+    buffer: Vec<u8>,
+}
+
+impl<R: Read> RawRecordReader<R> {
+    #[inline]
+    #[must_use]
+    pub fn new(reader: R, format: RecordFormat, lrecl: Option<u32>) -> Self {
+        Self {
+            reader: BufReader::new(reader),
+            format,
+            lrecl,
+            record_index: 0,
+            eof_reached: false,
+            buffer: Vec::new(),
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn current_record_index(&self) -> u64 {
+        self.record_index
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_eof(&self) -> bool {
+        self.eof_reached
+    }
+
+    /// Read the next framed record payload.
+    ///
+    /// # Errors
+    /// Returns an error when framing is invalid or I/O fails.
+    #[inline]
+    #[must_use = "Handle the Result or propagate the error"]
+    pub fn read_raw_record(&mut self) -> Result<Option<Vec<u8>>> {
+        if self.eof_reached {
+            return Ok(None);
+        }
+
+        self.buffer.clear();
+
+        match self.format {
+            RecordFormat::Fixed => {
+                let lrecl = self.lrecl.ok_or_else(|| {
+                    Error::new(ErrorCode::CBKI001_INVALID_STATE, FIXED_FORMAT_LRECL_MISSING)
+                })? as usize;
+                self.buffer.resize(lrecl, 0);
+
+                match self.reader.read_exact(&mut self.buffer) {
+                    Ok(()) => {
+                        self.record_index += 1;
+                        Ok(Some(self.buffer.clone()))
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        self.eof_reached = true;
+                        Ok(None)
+                    }
+                    Err(e) => Err(Error::new(
+                        ErrorCode::CBKD301_RECORD_TOO_SHORT,
+                        format!("Failed to read fixed record: {e}"),
+                    )),
+                }
+            }
+            RecordFormat::RDW => {
+                let mut rdw_header = [0u8; 4];
+                match self.reader.read_exact(&mut rdw_header) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        self.eof_reached = true;
+                        return Ok(None);
+                    }
+                    Err(e) => {
+                        return Err(Error::new(
+                            ErrorCode::CBKF221_RDW_UNDERFLOW,
+                            format!("Failed to read RDW header: {e}"),
+                        ));
+                    }
+                }
+
+                let length = usize::from(RdwHeader::from_bytes(rdw_header).length());
+                self.buffer.resize(length, 0);
+                match self.reader.read_exact(&mut self.buffer) {
+                    Ok(()) => {
+                        self.record_index += 1;
+                        Ok(Some(self.buffer.clone()))
+                    }
+                    Err(e) => Err(Error::new(
+                        ErrorCode::CBKF221_RDW_UNDERFLOW,
+                        format!("Failed to read RDW payload: {e}"),
+                    )),
+                }
+            }
+        }
+    }
+}
 
 /// Read one record from input using the selected record format.
 ///
@@ -75,6 +185,39 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
     use std::io::Cursor;
+
+    #[test]
+    fn raw_record_reader_fixed_reads_records_and_eof() {
+        let mut reader = RawRecordReader::new(
+            Cursor::new(b"ABCDEFGH".to_vec()),
+            RecordFormat::Fixed,
+            Some(8),
+        );
+        assert_eq!(reader.current_record_index(), 0);
+        assert!(!reader.is_eof());
+        let record = reader.read_raw_record().unwrap().unwrap();
+        assert_eq!(record, b"ABCDEFGH");
+        assert_eq!(reader.current_record_index(), 1);
+        assert!(reader.read_raw_record().unwrap().is_none());
+        assert!(reader.is_eof());
+    }
+
+    #[test]
+    fn raw_record_reader_fixed_requires_lrecl() {
+        let mut reader =
+            RawRecordReader::new(Cursor::new(Vec::<u8>::new()), RecordFormat::Fixed, None);
+        let err = reader.read_raw_record().unwrap_err();
+        assert_eq!(err.code, ErrorCode::CBKI001_INVALID_STATE);
+    }
+
+    #[test]
+    fn raw_record_reader_rdw_reads_payload() {
+        let bytes = vec![0x00, 0x04, 0x00, 0x00, b'T', b'E', b'S', b'T'];
+        let mut reader = RawRecordReader::new(Cursor::new(bytes), RecordFormat::RDW, None);
+        let record = reader.read_raw_record().unwrap().unwrap();
+        assert_eq!(record, b"TEST");
+        assert_eq!(reader.current_record_index(), 1);
+    }
 
     #[test]
     fn read_fixed_record_delegates_to_fixed_microcrate() {

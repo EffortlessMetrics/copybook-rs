@@ -114,6 +114,18 @@ path = "e2e_cli_subcommands_comprehensive.rs"
 name = "e2e_error_handling_deep"
 path = "e2e_error_handling_deep.rs"
 
+[[test]]
+name = "e2e_cli_help_output"
+path = "e2e_cli_help_output.rs"
+
+[[test]]
+name = "e2e_dialect_behavior"
+path = "e2e_dialect_behavior.rs"
+
+[[test]]
+name = "e2e_cli_field_projection"
+path = "e2e_cli_field_projection.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

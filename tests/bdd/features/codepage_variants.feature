@@ -128,3 +128,88 @@ Feature: Codepage Variants
     And binary data for all fields
     When the data is round-tripped
     Then the round-trip should be lossless
+
+  Scenario: Decode signed zoned decimal with CP037
+    Given a copybook with content:
+      """
+      01 SIGNED-CP.
+         05 BAL PIC S9(5).
+      """
+    And codepage "CP037"
+    And binary data for all fields
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+
+  Scenario: Decode signed zoned decimal with CP500
+    Given a copybook with content:
+      """
+      01 SIGNED-CP.
+         05 BAL PIC S9(5).
+      """
+    And codepage "CP500"
+    And binary data for all fields
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+
+  Scenario: Encode signed zoned with CP1047
+    Given a copybook with content:
+      """
+      01 ENCODE-CP.
+         05 BAL PIC S9(5).
+      """
+    And codepage "CP1047"
+    And JSON data: "{\"BAL\":12345}"
+    When the JSON data is encoded
+    Then encoding should succeed
+
+  Scenario: Encode COMP-3 with CP273
+    Given a copybook with content:
+      """
+      01 COMP3-CP.
+         05 AMT PIC S9(5) COMP-3.
+      """
+    And codepage "CP273"
+    And JSON data: "{\"AMT\":1234}"
+    When the JSON data is encoded
+    Then encoding should succeed
+
+  Scenario: Round-trip COMP-3 with CP273
+    Given a copybook with content:
+      """
+      01 RT-CP.
+         05 AMT PIC S9(5) COMP-3.
+      """
+    And codepage "CP273"
+    And binary data: "\x01\x23\x4C"
+    When the data is round-tripped
+    Then the round-trip should be lossless
+
+  Scenario: Multi-type record with CP1140
+    Given a copybook with content:
+      """
+      01 MULTI-CP.
+         05 NAME PIC X(10).
+         05 NUM PIC 9(5).
+         05 PKD PIC S9(5) COMP-3.
+      """
+    And codepage "CP1140"
+    And binary data for all fields
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+    And the decoded output should contain "NAME"
+    And the decoded output should contain "NUM"
+    And the decoded output should contain "PKD"
+
+  Scenario: Round-trip alphanumeric with CP273
+    Given a copybook with content:
+      """
+      01 ALPHA-CP.
+         05 TEXT-FIELD PIC X(10).
+      """
+    And codepage "CP273"
+    And binary data for all fields
+    When the data is round-tripped
+    Then the round-trip should be lossless

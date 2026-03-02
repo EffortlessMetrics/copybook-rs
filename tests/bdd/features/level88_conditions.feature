@@ -324,3 +324,50 @@ Feature: Level-88 Condition Values
     And the field "REGION" should have Level-88 "REG-SOUTH"
     And the field "DEPT" should have Level-88 "DEPT-HR"
     And the field "DEPT" should have Level-88 "DEPT-IT"
+
+  Scenario: Level-88 with REDEFINES and conditions on original
+    Given a copybook with content:
+      """
+      01 REDEF-COND-RECORD.
+          05 ACCT-TYPE PIC X(1).
+              88 SAVINGS VALUE 'S'.
+              88 CHECKING VALUE 'C'.
+              88 LOAN VALUE 'L'.
+          05 ACCT-NUM REDEFINES ACCT-TYPE PIC 9(1).
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "ACCT-TYPE" should have Level-88 "SAVINGS"
+    And the field "ACCT-TYPE" should have Level-88 "CHECKING"
+    And the field "ACCT-TYPE" should have Level-88 "LOAN"
+    And the field "ACCT-NUM" should redefine "ACCT-TYPE"
+
+  Scenario: Level-88 on PIC 9(5) numeric with THRU range
+    Given a copybook with content:
+      """
+      01 NUMERIC-COND.
+          05 SCORE PIC 9(5).
+              88 SCORE-LOW VALUE '00001' THRU '05000'.
+              88 SCORE-HIGH VALUE '05001' THRU '99999'.
+      """
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the field "SCORE" should have Level-88 "SCORE-LOW"
+    And the field "SCORE" should have Level-88 "SCORE-HIGH"
+    And the field "SCORE-LOW" should have type "condition"
+    And the field "SCORE-HIGH" should have type "condition"
+
+  Scenario: Level-88 decode record preserves conditions in schema
+    Given a copybook with content:
+      """
+      01 DECODE-COND.
+          05 FLAG PIC X(1).
+              88 FLAG-YES VALUE 'Y'.
+              88 FLAG-NO VALUE 'N'.
+      """
+    And ASCII codepage
+    And binary data: "Y"
+    When the binary data is decoded
+    Then decoding should succeed
+    And the decoded output should be valid JSON
+    And the decoded output should contain "FLAG"

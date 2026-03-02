@@ -25,6 +25,7 @@ copybook-error.workspace = true
 copybook-options.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

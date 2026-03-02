@@ -7,7 +7,9 @@
 
 use copybook_error::{Error, ErrorCode, Result};
 use copybook_options::RecordFormat;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
+use std::path::Path;
+use tempfile::NamedTempFile;
 
 pub use copybook_fixed::{FixedRecordReader, FixedRecordWriter};
 pub use copybook_rdw::{RDWRecord, RDWRecordReader, RDWRecordWriter};
@@ -68,6 +70,44 @@ pub fn write_record(output: &mut impl Write, data: &[u8], format: RecordFormat) 
     }
 }
 
+/// Atomically write data to a file using temporary file + rename.
+///
+/// This ensures the target path is either fully written or left untouched.
+///
+/// # Errors
+/// Returns an error if creating/writing/flushing/persisting the temporary file fails.
+pub fn atomic_write<P: AsRef<Path>, F>(path: P, write_fn: F) -> io::Result<()>
+where
+    F: FnOnce(&mut dyn Write) -> io::Result<()>,
+{
+    let path = path.as_ref();
+    let temp_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut temp_file = NamedTempFile::new_in(temp_dir)?;
+
+    write_fn(&mut temp_file)?;
+    temp_file.flush()?;
+    temp_file.as_file().sync_all()?;
+    temp_file.persist(path)?;
+
+    Ok(())
+}
+
+/// Read UTF-8 text from `path`, or from stdin when `path` is `"-"`.
+///
+/// # Errors
+/// Returns an error if file/stdin reading fails.
+pub fn read_text_file_or_stdin<P: AsRef<Path>>(path: P) -> io::Result<String> {
+    let path = path.as_ref();
+
+    if path == Path::new("-") {
+        let mut buffer = String::new();
+        io::stdin().read_to_string(&mut buffer)?;
+        Ok(buffer)
+    } else {
+        std::fs::read_to_string(path)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
@@ -75,6 +115,7 @@ mod tests {
     use proptest::collection::vec;
     use proptest::prelude::*;
     use std::io::Cursor;
+    use tempfile::tempdir;
 
     #[test]
     fn read_fixed_record_delegates_to_fixed_microcrate() {
@@ -121,6 +162,37 @@ mod tests {
         let oversized = vec![0u8; usize::from(u16::MAX) + 1];
         let err = write_record(&mut output, &oversized, RecordFormat::RDW).unwrap_err();
         assert_eq!(err.code, ErrorCode::CBKE501_JSON_TYPE_MISMATCH);
+    }
+
+    #[test]
+    fn atomic_write_writes_file() {
+        let temp_dir = tempdir().unwrap();
+        let target_path = temp_dir.path().join("atomic.txt");
+
+        atomic_write(&target_path, |writer| writer.write_all(b"hello")).unwrap();
+
+        assert_eq!(std::fs::read_to_string(target_path).unwrap(), "hello");
+    }
+
+    #[test]
+    fn atomic_write_failure_does_not_create_target() {
+        let temp_dir = tempdir().unwrap();
+        let target_path = temp_dir.path().join("atomic.txt");
+
+        let result = atomic_write(&target_path, |_writer| Err(io::Error::other("boom")));
+
+        assert!(result.is_err());
+        assert!(!target_path.exists());
+    }
+
+    #[test]
+    fn read_text_file_or_stdin_reads_file() {
+        let temp_dir = tempdir().unwrap();
+        let target_path = temp_dir.path().join("input.txt");
+        std::fs::write(&target_path, "abc").unwrap();
+
+        let got = read_text_file_or_stdin(&target_path).unwrap();
+        assert_eq!(got, "abc");
     }
 
     proptest! {

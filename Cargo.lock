@@ -811,6 +811,7 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-governance",
+ "copybook-record-io",
  "md5",
  "metrics",
  "metrics-exporter-prometheus",
@@ -1066,6 +1067,7 @@ dependencies = [
  "copybook-options",
  "copybook-rdw",
  "proptest",
+ "tempfile",
 ]
 
 [[package]]

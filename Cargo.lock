@@ -810,6 +810,7 @@ dependencies = [
  "copybook-arrow",
  "copybook-codec",
  "copybook-core",
+ "copybook-feature-flags-config",
  "copybook-governance",
  "md5",
  "metrics",
@@ -946,6 +947,15 @@ version = "0.4.3"
 dependencies = [
  "copybook-error",
  "tracing",
+]
+
+[[package]]
+name = "copybook-feature-flags-config"
+version = "0.4.3"
+dependencies = [
+ "copybook-governance-contracts",
+ "serde_json",
+ "toml",
 ]
 
 [[package]]

@@ -20,7 +20,6 @@ use std::io::{self, ErrorKind, Write};
 use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
-use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::Level;
@@ -1054,126 +1053,29 @@ fn bump_error_if_pre_run(err: &AnyhowError, records_processed: Option<f64>) {
 /// Initialize feature flags from CLI options and environment variables
 #[allow(clippy::too_many_lines)]
 fn initialize_feature_flags(opts: &FeatureFlagOpts) -> anyhow::Result<FeatureFlags> {
-    use std::fs;
-    use std::io::Read;
+    use copybook_feature_flags_config::{
+        FeatureFlagOverrides, FeatureFlagsConfigError, apply_config_file, apply_overrides,
+    };
 
-    // Start with defaults from environment
-    let mut flags = FeatureFlags::from_env();
+    let mut flags = copybook_feature_flags_config::from_env();
 
-    // Load from config file if specified
     if let Some(config_path) = &opts.feature_flags_config {
-        let mut content = String::new();
-        let mut file = fs::File::open(config_path)
-            .map_err(|e| anyhow!("Failed to open feature flags config: {e}"))?;
-        file.read_to_string(&mut content)
-            .map_err(|e| anyhow!("Failed to read feature flags config: {e}"))?;
-
-        // Try JSON format first
-        if let Ok(json_config) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(feature_flags) = json_config.get("feature_flags") {
-                if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
-                    for feature_name in enabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.enable(feature);
-                        }
-                    }
-                }
-                if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
-                    for feature_name in disabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.disable(feature);
-                        }
-                    }
-                }
+        apply_config_file(&mut flags, config_path).map_err(|err| match err {
+            FeatureFlagsConfigError::Io(source) => {
+                anyhow!("Failed to open feature flags config: {source}")
             }
-        } else if let Ok(toml_str) = content.parse::<toml::Value>() {
-            // Try TOML format
-            if let Some(feature_flags) = toml_str.get("feature_flags") {
-                if let Some(enabled) = feature_flags.get("enabled").and_then(|v| v.as_array()) {
-                    for feature_name in enabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.enable(feature);
-                        }
-                    }
-                }
-                if let Some(disabled) = feature_flags.get("disabled").and_then(|v| v.as_array()) {
-                    for feature_name in disabled {
-                        if let Some(name) = feature_name.as_str()
-                            && let Ok(feature) = Feature::from_str(name)
-                        {
-                            flags.disable(feature);
-                        }
-                    }
-                }
-            }
-        } else {
-            return Err(anyhow!(
-                "Failed to parse feature flags config: expected JSON or TOML format"
-            ));
-        }
+            _ => anyhow!(err.to_string()),
+        })?;
     }
 
-    // Process --enable-category flags
-    for category_name in &opts.enable_category {
-        let category = match category_name.to_lowercase().as_str() {
-            "experimental" => FeatureCategory::Experimental,
-            "enterprise" => FeatureCategory::Enterprise,
-            "performance" => FeatureCategory::Performance,
-            "debug" => FeatureCategory::Debug,
-            "testing" => FeatureCategory::Testing,
-            _ => {
-                return Err(anyhow!(
-                    "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
-                ));
-            }
-        };
-        for feature in FeatureFlags::features_in_category(category) {
-            flags.enable(feature);
-        }
-    }
+    let overrides = FeatureFlagOverrides {
+        enable_category: opts.enable_category.clone(),
+        disable_category: opts.disable_category.clone(),
+        enable_features: opts.enable_features.clone(),
+        disable_features: opts.disable_features.clone(),
+    };
 
-    // Process --disable-category flags
-    for category_name in &opts.disable_category {
-        let category = match category_name.to_lowercase().as_str() {
-            "experimental" => FeatureCategory::Experimental,
-            "enterprise" => FeatureCategory::Enterprise,
-            "performance" => FeatureCategory::Performance,
-            "debug" => FeatureCategory::Debug,
-            "testing" => FeatureCategory::Testing,
-            _ => {
-                return Err(anyhow!(
-                    "Invalid feature category '{category_name}'. Valid categories: experimental, enterprise, performance, debug, testing"
-                ));
-            }
-        };
-        for feature in FeatureFlags::features_in_category(category) {
-            flags.disable(feature);
-        }
-    }
-
-    // Process --enable-features flags
-    for feature_name in &opts.enable_features {
-        if let Ok(feature) = Feature::from_str(feature_name) {
-            flags.enable(feature);
-        } else {
-            return Err(anyhow!("Invalid feature flag '{feature_name}'"));
-        }
-    }
-
-    // Process --disable-features flags (takes precedence)
-    for feature_name in &opts.disable_features {
-        if let Ok(feature) = Feature::from_str(feature_name) {
-            flags.disable(feature);
-        } else {
-            return Err(anyhow!("Invalid feature flag '{feature_name}'"));
-        }
-    }
+    apply_overrides(&mut flags, &overrides).map_err(|err| anyhow!(err.to_string()))?;
 
     Ok(flags)
 }

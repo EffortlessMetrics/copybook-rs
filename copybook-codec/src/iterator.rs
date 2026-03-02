@@ -211,14 +211,11 @@
 //! # }
 //! ```
 
-use crate::options::{DecodeOptions, RecordFormat};
+use crate::options::DecodeOptions;
 use copybook_core::{Error, ErrorCode, Result, Schema};
-use copybook_rdw::RdwHeader;
+use copybook_record_io::RawRecordReader;
 use serde_json::Value;
-use std::io::{BufReader, Read};
-
-const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record length (LRECL). \
-     Set `schema.lrecl_fixed` or use `RecordFormat::Variable`.";
+use std::io::Read;
 
 /// Iterator over records in a data file, yielding decoded JSON values
 ///
@@ -257,18 +254,14 @@ const FIXED_FORMAT_LRECL_MISSING: &str = "Fixed format requires a fixed record l
 /// # }
 /// ```
 pub struct RecordIterator<R: Read> {
-    /// The buffered reader
-    reader: BufReader<R>,
+    /// Raw record framing reader
+    reader: RawRecordReader<R>,
     /// The schema for decoding records
     schema: Schema,
     /// Decoding options
     options: DecodeOptions,
-    /// Current record index (1-based)
-    record_index: u64,
     /// Whether the iterator has reached EOF
     eof_reached: bool,
-    /// Buffer for reading record data
-    buffer: Vec<u8>,
 }
 
 impl<R: Read> RecordIterator<R> {
@@ -286,12 +279,10 @@ impl<R: Read> RecordIterator<R> {
     #[must_use = "Handle the Result or propagate the error"]
     pub fn new(reader: R, schema: &Schema, options: &DecodeOptions) -> Result<Self> {
         Ok(Self {
-            reader: BufReader::new(reader),
+            reader: RawRecordReader::new(reader, options.format, schema.lrecl_fixed),
             schema: schema.clone(),
             options: options.clone(),
-            record_index: 0,
             eof_reached: false,
-            buffer: Vec::new(),
         })
     }
 
@@ -302,14 +293,14 @@ impl<R: Read> RecordIterator<R> {
     #[inline]
     #[must_use]
     pub fn current_record_index(&self) -> u64 {
-        self.record_index
+        self.reader.current_record_index()
     }
 
     /// Check if the iterator has reached the end of the file
     #[inline]
     #[must_use]
     pub fn is_eof(&self) -> bool {
-        self.eof_reached
+        self.reader.is_eof()
     }
 
     /// Get a reference to the schema being used
@@ -382,70 +373,11 @@ impl<R: Read> RecordIterator<R> {
             return Ok(None);
         }
 
-        self.buffer.clear();
-
-        let record_data = match self.options.format {
-            RecordFormat::Fixed => {
-                let lrecl = self.schema.lrecl_fixed.ok_or_else(|| {
-                    Error::new(ErrorCode::CBKI001_INVALID_STATE, FIXED_FORMAT_LRECL_MISSING)
-                })? as usize;
-                self.buffer.resize(lrecl, 0);
-
-                match self.reader.read_exact(&mut self.buffer) {
-                    Ok(()) => {
-                        self.record_index += 1;
-                        Some(self.buffer.clone())
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        self.eof_reached = true;
-                        return Ok(None);
-                    }
-                    Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKD301_RECORD_TOO_SHORT,
-                            format!("Failed to read fixed record: {e}"),
-                        ));
-                    }
-                }
-            }
-            RecordFormat::RDW => {
-                // Read RDW header
-                let mut rdw_header = [0u8; 4];
-                match self.reader.read_exact(&mut rdw_header) {
-                    Ok(()) => {}
-                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                        self.eof_reached = true;
-                        return Ok(None);
-                    }
-                    Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW header: {e}"),
-                        ));
-                    }
-                }
-
-                // Parse length (payload bytes only)
-                let length = usize::from(RdwHeader::from_bytes(rdw_header).length());
-
-                // Read payload
-                self.buffer.resize(length, 0);
-                match self.reader.read_exact(&mut self.buffer) {
-                    Ok(()) => {
-                        self.record_index += 1;
-                        Some(self.buffer.clone())
-                    }
-                    Err(e) => {
-                        return Err(Error::new(
-                            ErrorCode::CBKF221_RDW_UNDERFLOW,
-                            format!("Failed to read RDW payload: {e}"),
-                        ));
-                    }
-                }
-            }
-        };
-
-        Ok(record_data)
+        let record = self.reader.read_raw_record()?;
+        if record.is_none() {
+            self.eof_reached = true;
+        }
+        Ok(record)
     }
 
     /// Decode the next record to JSON
@@ -683,7 +615,7 @@ pub fn iter_records<R: Read>(
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
     use super::*;
-    use crate::Codepage;
+    use crate::{Codepage, RecordFormat};
     use copybook_core::parse_copybook;
     use std::io::Cursor;
 
@@ -822,7 +754,10 @@ mod tests {
         assert!(first.is_err());
         if let Err(e) = first {
             assert_eq!(e.code, ErrorCode::CBKI001_INVALID_STATE);
-            assert_eq!(e.message, FIXED_FORMAT_LRECL_MISSING);
+            assert!(
+                e.message
+                    .contains("Fixed format requires a fixed record length")
+            );
         }
     }
 

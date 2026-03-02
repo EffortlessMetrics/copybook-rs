@@ -18,6 +18,12 @@ pub mod charset;
 pub mod determinism;
 pub mod edited_pic;
 mod fidelity;
+
+pub mod corruption {
+    pub use copybook_corruption::{
+        detect_ebcdic_corruption, detect_packed_corruption, detect_rdw_ascii_corruption,
+    };
+}
 pub mod iterator;
 pub mod lib_api;
 pub use copybook_codec_memory as memory;

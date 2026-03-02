@@ -8,6 +8,7 @@ members = [
     "copybook-fixed",
     "copybook-rdw",
     "copybook-record-io",
+    "copybook-record-iterator",
     "copybook-overpunch",
     "copybook-determinism",
     "copybook-codepage",
@@ -58,6 +59,7 @@ copybook-overflow = { version = "=0.4.3", path = "copybook-overflow" }
 copybook-fixed = { version = "=0.4.3", path = "copybook-fixed" }
 copybook-rdw = { version = "=0.4.3", path = "copybook-rdw" }
 copybook-record-io = { version = "=0.4.3", path = "copybook-record-io" }
+copybook-record-iterator = { version = "=0.4.3", path = "copybook-record-iterator" }
 copybook-overpunch = { version = "=0.4.3", path = "copybook-overpunch" }
 copybook-determinism = { version = "=0.4.3", path = "copybook-determinism" }
 copybook-codepage = { version = "=0.4.3", path = "copybook-codepage" }

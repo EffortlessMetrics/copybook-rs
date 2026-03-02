@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-record-iterator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Streaming raw-record iterator primitives for fixed and RDW data streams."
+documentation = "https://docs.rs/copybook-record-iterator"
+readme = "README.md"
+keywords = ["cobol", "copybook", "iterator", "rdw", "streaming"]
+categories = ["encoding", "parsing", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-core.workspace = true
+copybook-options.workspace = true
+copybook-rdw.workspace = true
+
+[lints]
+workspace = true

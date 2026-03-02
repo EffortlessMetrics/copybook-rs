@@ -29,6 +29,7 @@ copybook-overpunch.workspace = true
 copybook-fixed.workspace = true
 copybook-rdw.workspace = true
 copybook-record-io.workspace = true
+copybook-record-iterator.workspace = true
 copybook-determinism.workspace = true
 copybook-error.workspace = true
 serde.workspace = true

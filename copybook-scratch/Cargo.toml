@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-scratch"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Reusable scratch buffers for zero-allocation codec hot paths."
+documentation = "https://docs.rs/copybook-scratch"
+readme = "README.md"
+keywords = ["cobol", "copybook", "codec", "memory", "scratch"]
+categories = ["encoding", "data-structures"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+smallvec.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true

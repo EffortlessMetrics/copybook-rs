@@ -565,3 +565,262 @@ fn test_empty_group_zero_length() {
     assert_eq!(data.offset, 1);
     assert_eq!(schema.lrecl_fixed, Some(11));
 }
+
+// ===========================================================================
+// 9. REDEFINES nested inside a group
+// ===========================================================================
+
+#[test]
+fn test_redefines_nested_in_group_shares_offset() {
+    let cpy = r"
+       01 REC.
+          05 GRP.
+             10 ORIG  PIC X(8).
+             10 REDEF REDEFINES ORIG PIC 9(8).
+             10 NEXT  PIC X(2).
+          05 TAIL PIC X(5).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    let orig = find_field(&schema, "ORIG");
+    let redef = find_field(&schema, "REDEF");
+    assert_eq!(orig.offset, redef.offset, "nested REDEFINES shares offset");
+    assert_eq!(orig.len, redef.len);
+
+    let next = find_field(&schema, "NEXT");
+    assert_eq!(next.offset, 8, "NEXT after original 8-byte field");
+
+    let grp = find_field(&schema, "GRP");
+    assert_eq!(grp.len, 10, "group = 8 (overlaid) + 2");
+
+    let tail = find_field(&schema, "TAIL");
+    assert_eq!(tail.offset, 10);
+    assert_eq!(schema.lrecl_fixed, Some(15));
+}
+
+// ===========================================================================
+// 10. Multiple FILLER fields have unique offsets
+// ===========================================================================
+
+#[test]
+fn test_multiple_fillers_sequential_offsets() {
+    let opts = ParseOptions {
+        emit_filler: true,
+        ..ParseOptions::default()
+    };
+    let cpy = r"
+       01 REC.
+          05 F1     PIC X(4).
+          05 FILLER PIC X(3).
+          05 F2     PIC X(5).
+          05 FILLER PIC X(2).
+          05 F3     PIC X(6).
+    ";
+    let schema = parse_copybook_with_options(cpy, &opts).unwrap();
+    let f1 = find_field(&schema, "F1");
+    let f2 = find_field(&schema, "F2");
+    let f3 = find_field(&schema, "F3");
+
+    assert_eq!(f1.offset, 0);
+    assert_eq!(f2.offset, 7, "4 + 3 FILLER");
+    assert_eq!(f3.offset, 14, "7 + 5 + 2 FILLER");
+    assert_eq!(schema.lrecl_fixed, Some(20));
+}
+
+// ===========================================================================
+// 11. OCCURS DEPENDING ON group with children
+// ===========================================================================
+
+#[test]
+fn test_odo_group_with_children_layout() {
+    let cpy = r"
+       01 REC.
+          05 HDR   PIC X(4).
+          05 CNT   PIC 9(2).
+          05 ROWS  OCCURS 1 TO 5 TIMES
+                   DEPENDING ON CNT.
+             10 KEY PIC X(3).
+             10 VAL PIC X(7).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    let hdr = find_field(&schema, "HDR");
+    assert_eq!(hdr.offset, 0);
+    let cnt = find_field(&schema, "CNT");
+    assert_eq!(cnt.offset, 4);
+    let rows = find_field(&schema, "ROWS");
+    assert_eq!(rows.offset, 6);
+    assert_eq!(rows.len, 10, "base element = 3 + 7");
+
+    let tail = schema.tail_odo.as_ref().expect("tail_odo should be set");
+    assert_eq!(tail.min_count, 1);
+    assert_eq!(tail.max_count, 5);
+}
+
+// ===========================================================================
+// 12. Large flat layout offset accumulation
+// ===========================================================================
+
+#[test]
+fn test_large_flat_record_offsets() {
+    let cpy = r"
+       01 REC.
+          05 F01 PIC X(100).
+          05 F02 PIC X(200).
+          05 F03 PIC X(300).
+          05 F04 PIC X(400).
+          05 F05 PIC X(500).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    assert_eq!(find_field(&schema, "F01").offset, 0);
+    assert_eq!(find_field(&schema, "F02").offset, 100);
+    assert_eq!(find_field(&schema, "F03").offset, 300);
+    assert_eq!(find_field(&schema, "F04").offset, 600);
+    assert_eq!(find_field(&schema, "F05").offset, 1000);
+    assert_eq!(schema.lrecl_fixed, Some(1500));
+}
+
+// ===========================================================================
+// 13. REDEFINES with OCCURS overlay
+// ===========================================================================
+
+#[test]
+fn test_redefines_over_occurs_field() {
+    let cpy = r"
+       01 REC.
+          05 ARRAY-FIELD PIC X(5) OCCURS 4 TIMES.
+          05 FLAT-VIEW   REDEFINES ARRAY-FIELD PIC X(20).
+          05 TRAILER     PIC X(2).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    let arr = find_field(&schema, "ARRAY-FIELD");
+    let flat = find_field(&schema, "FLAT-VIEW");
+    assert_eq!(arr.offset, flat.offset, "REDEFINES shares offset");
+    assert_eq!(flat.len, 20);
+
+    let trailer = find_field(&schema, "TRAILER");
+    assert_eq!(trailer.offset, 20, "TRAILER after 4*5=20 bytes");
+    assert_eq!(schema.lrecl_fixed, Some(22));
+}
+
+// ===========================================================================
+// 14. Nested groups offset propagation
+// ===========================================================================
+
+#[test]
+fn test_deeply_nested_groups_offset_propagation() {
+    let cpy = r"
+       01 REC.
+          05 L1.
+             10 L2.
+                15 L3.
+                   20 L4.
+                      25 LEAF PIC X(8).
+                   20 AFTER-L4 PIC X(2).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    let leaf = find_field(&schema, "LEAF");
+    assert_eq!(leaf.offset, 0, "LEAF at start of deeply nested chain");
+
+    let after = find_field(&schema, "AFTER-L4");
+    assert_eq!(after.offset, 8);
+
+    let l4 = find_field(&schema, "L4");
+    assert_eq!(l4.len, 8, "L4 group contains only LEAF (8 bytes)");
+
+    let l3 = find_field(&schema, "L3");
+    assert_eq!(l3.len, 10, "L3 = L4(8) + AFTER-L4(2)");
+
+    assert_eq!(schema.lrecl_fixed, Some(10));
+}
+
+// ===========================================================================
+// 15. COMP-3 at various offsets
+// ===========================================================================
+
+#[test]
+fn test_comp3_fields_mixed_with_alphanumeric_offsets() {
+    let cpy = r"
+       01 REC.
+          05 NAME   PIC X(20).
+          05 AMT1   PIC S9(5)V99 COMP-3.
+          05 AMT2   PIC S9(7)V99 COMP-3.
+          05 SUFFIX PIC X(3).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    let name = find_field(&schema, "NAME");
+    assert_eq!(name.offset, 0);
+    assert_eq!(name.len, 20);
+
+    let amt1 = find_field(&schema, "AMT1");
+    assert_eq!(amt1.offset, 20);
+    assert_eq!(amt1.len, 4); // ceil((7+1)/2) = 4
+
+    let amt2 = find_field(&schema, "AMT2");
+    assert_eq!(amt2.offset, 24);
+    assert_eq!(amt2.len, 5); // ceil((9+1)/2) = 5
+
+    let suffix = find_field(&schema, "SUFFIX");
+    assert_eq!(suffix.offset, 29);
+    assert_eq!(schema.lrecl_fixed, Some(32));
+}
+
+// ===========================================================================
+// 16. OCCURS nested inside OCCURS (fixed)
+// ===========================================================================
+
+#[test]
+fn test_nested_fixed_occurs_layout() {
+    let cpy = r"
+       01 REC.
+          05 ROWS OCCURS 3 TIMES.
+             10 COLS PIC X(2) OCCURS 4 TIMES.
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    let rows = find_field(&schema, "ROWS");
+    let cols = find_field(&schema, "COLS");
+    assert_eq!(cols.len, 2, "base element of inner OCCURS");
+    assert_eq!(rows.len, 8, "row base = 2 * 4 = 8");
+    assert_eq!(schema.lrecl_fixed, Some(24), "3 * 8 = 24");
+}
+
+// ===========================================================================
+// 17. Single-field record LRECL
+// ===========================================================================
+
+#[test]
+fn test_single_comp_field_lrecl() {
+    let cpy = "01 REC.\n   05 VAL PIC 9(9) COMP.";
+    let schema = parse_copybook(cpy).unwrap();
+    assert_eq!(find_field(&schema, "VAL").len, 4);
+    assert_eq!(schema.lrecl_fixed, Some(4));
+}
+
+// ===========================================================================
+// 18. REDEFINES with larger replacement
+// ===========================================================================
+
+#[test]
+fn test_redefines_larger_replacement_layout() {
+    let cpy = r"
+       01 REC.
+          05 SMALL PIC X(5).
+          05 BIG   REDEFINES SMALL PIC X(10).
+          05 AFTER PIC X(3).
+    ";
+    let schema = parse_copybook(cpy).unwrap();
+
+    let small = find_field(&schema, "SMALL");
+    let big = find_field(&schema, "BIG");
+    assert_eq!(small.offset, big.offset);
+    assert_eq!(small.len, 5);
+    assert_eq!(big.len, 10);
+
+    let after = find_field(&schema, "AFTER");
+    assert_eq!(after.offset, 10, "AFTER placed after the largest variant");
+}

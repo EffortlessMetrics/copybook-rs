@@ -106,6 +106,14 @@ path = "e2e_cli_output_snapshots.rs"
 name = "e2e_roundtrip_fidelity_comprehensive"
 path = "e2e_roundtrip_fidelity_comprehensive.rs"
 
+[[test]]
+name = "e2e_cli_subcommands_comprehensive"
+path = "e2e_cli_subcommands_comprehensive.rs"
+
+[[test]]
+name = "e2e_error_handling_deep"
+path = "e2e_error_handling_deep.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

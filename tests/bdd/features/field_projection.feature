@@ -21,7 +21,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "CUSTOMER-ID" should be included in projection
     And the field "CUSTOMER-NAME" should not be included in projection
     And the field "CUSTOMER-ADDRESS" should not be included in projection
@@ -40,7 +40,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "CUSTOMER-ID" should be included in projection
     And the field "CUSTOMER-NAME" should be included in projection
     And the field "CUSTOMER-ADDRESS" should not be included in projection
@@ -62,7 +62,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "CUSTOMER-INFO" should be included in projection
     And the field "CUSTOMER-ID" should be included in projection
     And the field "CUSTOMER-NAME" should be included in projection
@@ -83,7 +83,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "ORDERS" should be included in projection
     And the field "ORDER-COUNT" should be included in projection
     And the field "ORDER-ID" should be included in projection
@@ -103,7 +103,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "FIRST-NAME" should be included in projection
     And the field "LAST-NAME" should be included in projection
     And the field "MIDDLE-INITIAL" should not be included in projection
@@ -124,7 +124,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "FIRST-NAME" should be included in projection
     And the field "LAST-NAME" should be included in projection
     And the field "CUSTOMER-ID" should be included in projection
@@ -159,7 +159,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "CUSTOMER-ID" should be included in projection
     And the field "CUSTOMER-NAME" should be included in projection
     And the field "CUSTOMER-ADDRESS" should not be included in projection
@@ -177,7 +177,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "TRANSACTION-ID" should be included in projection
     And the field "TRANSACTION-AMT" should be included in projection
     And the field "TRANSACTION-DATE" should not be included in projection
@@ -194,7 +194,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 0 top-level field(s)
+    And the projected schema should contain 0 top-level fields
 
   # ========================================================================
   # Extended field projection scenarios
@@ -396,7 +396,7 @@ Feature: Field Projection
     When the copybook is parsed
     And the schema is projected with selected fields
     Then the projection should succeed
-    And the projected schema should contain 1 top-level field(s)
+    And the projected schema should contain 1 top-level fields
     And the field "FIELD-A" should be included in projection
     And the field "FIELD-B" should not be included in projection
     And the field "FIELD-C" should not be included in projection

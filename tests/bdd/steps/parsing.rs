@@ -56,7 +56,9 @@ async fn given_copybook_with_redefines(world: &mut CopybookWorld) {
     world.copybook_text = Some(
         "01 REDEFINES-RECORD.\n\
          05 ORIGINAL-FIELD PIC X(20).\n\
-         05 ALTERNATIVE-FIELD PIC X(20)."
+         05 ALTERNATIVE-FIELD REDEFINES ORIGINAL-FIELD.\n\
+             10 PART-1 PIC X(10).\n\
+             10 PART-2 PIC X(10)."
             .to_string(),
     );
 }

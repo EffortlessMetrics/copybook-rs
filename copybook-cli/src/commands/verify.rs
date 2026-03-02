@@ -4,7 +4,6 @@
 //! The verify command validates data file structure against copybook schema without output generation
 
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
-use crate::exit_codes::ExitCode;
 use crate::utils::{
     ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
     read_file_or_stdin,
@@ -16,6 +15,7 @@ use copybook_codec::{
     UnmappablePolicy,
 };
 use copybook_core::parse_copybook_with_options;
+use copybook_exit_codes::ExitCode;
 use std::fmt::Write as _;
 use std::fs::{File, metadata};
 use std::io::{BufReader, Read, Seek, SeekFrom};

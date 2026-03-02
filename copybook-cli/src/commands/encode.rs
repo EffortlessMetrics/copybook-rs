@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Encode command implementation
 
-use crate::exit_codes::ExitCode;
 use crate::utils::{
     ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
     determine_exit_code, read_file_or_stdin,
@@ -10,6 +9,7 @@ use crate::{write_stderr_all, write_stdout_all};
 use anyhow::{anyhow, bail};
 use copybook_codec::{Codepage, EncodeOptions, FloatFormat, RecordFormat};
 use copybook_core::parse_copybook_with_options;
+use copybook_exit_codes::ExitCode;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;

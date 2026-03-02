@@ -810,6 +810,7 @@ dependencies = [
  "copybook-arrow",
  "copybook-codec",
  "copybook-core",
+ "copybook-exit-codes",
  "copybook-governance",
  "md5",
  "metrics",
@@ -946,6 +947,14 @@ version = "0.4.3"
 dependencies = [
  "copybook-error",
  "tracing",
+]
+
+[[package]]
+name = "copybook-exit-codes"
+version = "0.4.3"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

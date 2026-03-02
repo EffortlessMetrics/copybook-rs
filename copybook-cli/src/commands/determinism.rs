@@ -4,7 +4,6 @@
 //! Provides CLI commands for verifying determinism of encode/decode operations
 //! using BLAKE3-based hashing and byte-level diff reporting.
 
-use crate::exit_codes::ExitCode;
 use crate::utils::read_file_or_stdin;
 use anyhow::Context;
 use clap::{Args, Subcommand, ValueEnum};
@@ -16,6 +15,7 @@ use copybook_codec::{
     },
 };
 use copybook_core::{Schema, parse_copybook};
+use copybook_exit_codes::ExitCode;
 use std::path::{Path, PathBuf};
 
 /// Determinism validation for encode/decode operations

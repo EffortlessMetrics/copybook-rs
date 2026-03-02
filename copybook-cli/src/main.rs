@@ -5,7 +5,6 @@
 //! This binary provides a user-friendly CLI for parsing copybooks and
 //! converting mainframe data files.
 
-use crate::exit_codes::ExitCode;
 use anyhow::{Error as AnyhowError, anyhow};
 use clap::error::ErrorKind as ClapErrorKind;
 use clap::{Args, ColorChoice, Parser, Subcommand, ValueEnum};
@@ -13,6 +12,7 @@ use copybook_codec::{
     Codepage, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };
 use copybook_core::{Error as CoreError, Feature, FeatureCategory, FeatureFlags};
+use copybook_exit_codes::ExitCode;
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::error::Error as StdError;
@@ -1563,7 +1563,6 @@ mod commands {
     pub mod verify_report;
 }
 
-mod exit_codes;
 mod utils;
 
 #[cfg(test)]

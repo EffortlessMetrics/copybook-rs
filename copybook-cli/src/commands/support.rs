@@ -5,7 +5,7 @@
 //! - The canonical support matrix (`copybook-support-matrix`).
 //! - Runtime governance linkage to feature flags (`copybook-governance-grid`).
 
-use crate::exit_codes::ExitCode;
+use copybook_exit_codes::ExitCode;
 use copybook_governance as governance;
 use governance::FeatureFlags;
 

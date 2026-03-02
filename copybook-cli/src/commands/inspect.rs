@@ -2,8 +2,8 @@
 //! Inspect command implementation
 
 use crate::exit_codes::ExitCode;
-use crate::utils::read_file_or_stdin;
 use crate::write_stdout_all;
+use copybook_cli_io::read_file_or_stdin;
 use copybook_codec::Codepage;
 use copybook_core::{ParseOptions, parse_copybook_with_options};
 use std::fmt::Write as _;

@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-cli-io"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Single-purpose CLI file I/O helpers for copybook-rs"
+documentation = "https://docs.rs/copybook-cli-io"
+readme = "README.md"
+keywords = ["cli", "io", "atomic-write", "copybook"]
+categories = ["command-line-utilities", "filesystem"]
+
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+tempfile.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

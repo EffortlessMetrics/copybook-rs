@@ -808,6 +808,7 @@ dependencies = [
  "chrono",
  "clap",
  "copybook-arrow",
+ "copybook-cli-io",
  "copybook-codec",
  "copybook-core",
  "copybook-governance",
@@ -827,6 +828,14 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "copybook-cli-io"
+version = "0.4.3"
+dependencies = [
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

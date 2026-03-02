@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-feature-flags-config"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Feature flag configuration loader and override applier for copybook-rs."
+documentation = "https://docs.rs/copybook-feature-flags-config"
+readme = "README.md"
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+keywords = ["cobol", "copybook", "feature-flags", "config"]
+categories = ["config"]
+
+[dependencies]
+copybook-governance-contracts.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

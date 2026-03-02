@@ -847,6 +847,7 @@ dependencies = [
  "copybook-overpunch",
  "copybook-rdw",
  "copybook-record-io",
+ "copybook-record-iterator",
  "hex",
  "indexmap",
  "metrics",
@@ -1066,6 +1067,15 @@ dependencies = [
  "copybook-options",
  "copybook-rdw",
  "proptest",
+]
+
+[[package]]
+name = "copybook-record-iterator"
+version = "0.4.3"
+dependencies = [
+ "copybook-core",
+ "copybook-options",
+ "copybook-rdw",
 ]
 
 [[package]]

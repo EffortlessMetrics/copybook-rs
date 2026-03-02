@@ -4,10 +4,11 @@
 use crate::exit_codes::ExitCode;
 use crate::subcode;
 use crate::utils::{
-    ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
-    determine_exit_code, read_file_or_stdin,
+    ParseOptionsConfig, apply_field_projection, build_parse_options, determine_exit_code,
+    read_file_or_stdin,
 };
 use crate::{ExitDiagnostics, Stage, emit_exit_diagnostics_stage, write_stdout_all};
+use copybook_cli_io::atomic_write;
 use copybook_codec::{
     Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
 };

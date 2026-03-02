@@ -5,9 +5,9 @@
 //! using BLAKE3-based hashing and byte-level diff reporting.
 
 use crate::exit_codes::ExitCode;
-use crate::utils::read_file_or_stdin;
 use anyhow::Context;
 use clap::{Args, Subcommand, ValueEnum};
+use copybook_cli_io::read_file_or_stdin;
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RecordFormat,
     determinism::{

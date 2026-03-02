@@ -38,6 +38,7 @@ serde.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
 copybook-core = { workspace = true }
+copybook-cli-io = { workspace = true }
 copybook-codec = { workspace = true }
 copybook-governance = { workspace = true }
 copybook-arrow = { workspace = true, optional = true }

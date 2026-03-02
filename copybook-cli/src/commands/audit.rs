@@ -47,10 +47,10 @@
 )]
 
 use crate::exit_codes::ExitCode;
-use crate::utils::atomic_write;
 use crate::{write_stderr_line, write_stdout_line};
 use chrono::{self, DateTime, Duration as ChronoDuration};
 use clap::{Parser, Subcommand};
+use copybook_cli_io::atomic_write;
 use copybook_codec::{Codepage, DecodeOptions, RecordFormat, decode_file_to_jsonl};
 use copybook_core::audit::{
     AccessAuditor, AccessEvent, AccessResult, AuditContext, AuditEvent, AuditEventType,

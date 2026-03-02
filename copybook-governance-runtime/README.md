@@ -1,10 +1,7 @@
 # copybook-governance-runtime
 
-Focused microcrate for runtime governance state:
+Compatibility microcrate for runtime governance APIs:
 
-- Resolves support-matrix entries against active feature flags
-- Produces interoperable governance state rows and summaries
-- Reuses canonical governance-grid + contracts crates
-
-This crate keeps runtime evaluation logic SRP-scoped, while `copybook-governance`
-continues as the compatibility façade for consumers.
+- Re-exports runtime governance evaluation APIs for existing consumers
+- Delegates implementation to `copybook-governance-eval`
+- Preserves a stable dependency path used by `copybook-governance`

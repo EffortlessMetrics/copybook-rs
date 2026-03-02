@@ -5,12 +5,10 @@
 
 use super::verify_report::{VerifyCliEcho, VerifyError, VerifyReport, VerifySample};
 use crate::exit_codes::ExitCode;
-use crate::utils::{
-    ParseOptionsConfig, apply_field_projection, atomic_write, build_parse_options,
-    read_file_or_stdin,
-};
+use crate::utils::{ParseOptionsConfig, apply_field_projection, build_parse_options};
 use crate::write_stdout_all;
 use anyhow::bail;
+use copybook_cli_io::{atomic_write, read_file_or_stdin};
 use copybook_codec::{
     Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, RecordIterator,
     UnmappablePolicy,

@@ -16,7 +16,7 @@ categories = ["config", "development-tools"]
 
 [dependencies]
 serde.workspace = true
-serde_plain.workspace = true
+copybook-support-id.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

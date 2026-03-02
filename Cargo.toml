@@ -28,6 +28,7 @@ members = [
     "copybook-arrow",
     "copybook-contracts",
     "copybook-support-matrix",
+    "copybook-support-id",
     "xtask",
     "tests/bdd",
     "tests/proptest",
@@ -76,6 +77,7 @@ copybook-governance-contracts = { version = "=0.4.3", path = "copybook-governanc
 copybook-bench = { version = "=0.4.3", path = "copybook-bench" }
 copybook-contracts = { version = "=0.4.3", path = "copybook-contracts" }
 copybook-support-matrix = { version = "=0.4.3", path = "copybook-support-matrix" }
+copybook-support-id = { version = "=0.4.3", path = "copybook-support-id" }
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }

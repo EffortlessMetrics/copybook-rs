@@ -23,6 +23,7 @@ members = [
     "copybook-governance",
     "copybook-governance-grid",
     "copybook-governance-runtime",
+    "copybook-governance-eval",
     "copybook-governance-contracts",
     "copybook-bench",
     "copybook-arrow",
@@ -72,6 +73,7 @@ copybook-arrow = { version = "=0.4.3", path = "copybook-arrow" }
 copybook-governance = { version = "=0.4.3", path = "copybook-governance" }
 copybook-governance-grid = { version = "=0.4.3", path = "copybook-governance-grid" }
 copybook-governance-runtime = { version = "=0.4.3", path = "copybook-governance-runtime" }
+copybook-governance-eval = { version = "=0.4.3", path = "copybook-governance-eval" }
 copybook-governance-contracts = { version = "=0.4.3", path = "copybook-governance-contracts" }
 copybook-bench = { version = "=0.4.3", path = "copybook-bench" }
 copybook-contracts = { version = "=0.4.3", path = "copybook-contracts" }

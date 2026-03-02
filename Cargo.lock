@@ -989,6 +989,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-governance-eval"
+version = "0.4.3"
+dependencies = [
+ "copybook-governance-grid",
+ "serde",
+]
+
+[[package]]
 name = "copybook-governance-grid"
 version = "0.4.3"
 dependencies = [
@@ -999,8 +1007,7 @@ dependencies = [
 name = "copybook-governance-runtime"
 version = "0.4.3"
 dependencies = [
- "copybook-governance-grid",
- "serde",
+ "copybook-governance-eval",
 ]
 
 [[package]]

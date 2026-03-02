@@ -64,8 +64,8 @@ mod panic_elimination_cli_command_tests {
         write_file(&copybook_path, test_copybook_content)?;
 
         // Test parse command with valid input
-        let output = Command::new("cargo")
-            .args(["run", "--bin", "copybook", "--", "parse"])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["parse"])
             .arg(&copybook_path)
             .output();
 
@@ -96,8 +96,8 @@ mod panic_elimination_cli_command_tests {
         let nonexistent_path = std::env::temp_dir().join("nonexistent_file.cpy");
 
         // Test inspect command with nonexistent file
-        let output = Command::new("cargo")
-            .args(["run", "--bin", "copybook", "--", "inspect"])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["inspect"])
             .arg(&nonexistent_path)
             .output();
 
@@ -139,12 +139,8 @@ mod panic_elimination_cli_command_tests {
         write_file(&data_path, &test_data)?;
 
         // Test decode command with invalid codepage
-        let output = Command::new("cargo")
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
             .args([
-                "run",
-                "--bin",
-                "copybook",
-                "--",
                 "decode",
                 "--format",
                 "fixed",
@@ -198,18 +194,8 @@ mod panic_elimination_cli_command_tests {
         write_file(&json_path, invalid_json_data)?;
 
         // Test encode command with malformed JSON
-        let output = Command::new("cargo")
-            .args([
-                "run",
-                "--bin",
-                "copybook",
-                "--",
-                "encode",
-                "--format",
-                "fixed",
-                "--codepage",
-                "cp037",
-            ])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["encode", "--format", "fixed", "--codepage", "cp037"])
             .arg(&copybook_path)
             .arg(&json_path)
             .arg(&output_path)
@@ -255,18 +241,8 @@ mod panic_elimination_cli_command_tests {
         write_file(&data_path, &test_data)?;
 
         // Test verify command with mismatched data
-        let output = Command::new("cargo")
-            .args([
-                "run",
-                "--bin",
-                "copybook",
-                "--",
-                "verify",
-                "--format",
-                "fixed",
-                "--codepage",
-                "cp037",
-            ])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["verify", "--format", "fixed", "--codepage", "cp037"])
             .arg(&copybook_path)
             .arg(&data_path)
             .output();
@@ -330,8 +306,8 @@ mod panic_elimination_cli_audit_tests {
         write_file(&copybook_path, test_copybook_content)?;
 
         // Test parse command that should generate audit events
-        let output = Command::new("cargo")
-            .args(["run", "--bin", "copybook", "--", "parse"])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["parse"])
             .arg(&copybook_path)
             .output();
 
@@ -395,8 +371,8 @@ mod panic_elimination_cli_audit_tests {
         write_file(&copybook_path, complex_copybook_content)?;
 
         // Test inspect command on complex structure
-        let output = Command::new("cargo")
-            .args(["run", "--bin", "copybook", "--", "inspect"])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["inspect"])
             .arg(&copybook_path)
             .output();
 
@@ -449,8 +425,8 @@ mod panic_elimination_cli_audit_tests {
         write_file(&copybook_path, context_copybook_content)?;
 
         // Test parse command with context preservation
-        let output = Command::new("cargo")
-            .args(["run", "--bin", "copybook", "--", "parse"])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["parse"])
             .arg(&copybook_path)
             .output();
 
@@ -506,8 +482,8 @@ mod panic_elimination_cli_audit_tests {
         write_file(&copybook_path, malformed_copybook_content)?;
 
         // Test parse command on malformed copybook
-        let output = Command::new("cargo")
-            .args(["run", "--bin", "copybook", "--", "parse"])
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["parse"])
             .arg(&copybook_path)
             .output();
 
@@ -568,8 +544,8 @@ mod panic_elimination_cli_utils_tests {
 
         for invalid_path in invalid_paths {
             // Test parse command with invalid path
-            let output = Command::new("cargo")
-                .args(["run", "--bin", "copybook", "--", "parse"])
+            let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+                .args(["parse"])
                 .arg(invalid_path)
                 .output();
 
@@ -589,7 +565,8 @@ mod panic_elimination_cli_utils_tests {
                         assert!(
                             stderr_output.contains("file")
                                 || stderr_output.contains("path")
-                                || stderr_output.contains("not found"),
+                                || stderr_output.contains("not found")
+                                || stderr_output.contains("value is required"),
                             "Path validation should provide meaningful error for '{}': {}",
                             invalid_path,
                             stderr_output
@@ -622,12 +599,8 @@ mod panic_elimination_cli_utils_tests {
         let data_path = temp_dir.join("test_data.bin");
         write_file(&data_path, b"1234567890")?;
 
-        let output = Command::new("cargo")
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
             .args([
-                "run",
-                "--bin",
-                "copybook",
-                "--",
                 "decode",
                 "--format",
                 "fixed",
@@ -688,12 +661,8 @@ mod panic_elimination_cli_utils_tests {
         ];
 
         for (flag, invalid_value) in invalid_configs {
-            let output = Command::new("cargo")
+            let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
                 .args([
-                    "run",
-                    "--bin",
-                    "copybook",
-                    "--",
                     "decode",
                     "--format",
                     "fixed",
@@ -778,24 +747,14 @@ mod panic_elimination_cli_integration_tests {
         write_file(&json_path, pipeline_json_data)?;
 
         // Step 1: Parse copybook
-        let parse_output = Command::new("cargo")
-            .args(["run", "--bin", "copybook", "--", "parse"])
+        let parse_output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["parse"])
             .arg(&copybook_path)
             .output();
 
         // Step 2: Encode JSON to binary
-        let encode_output = Command::new("cargo")
-            .args([
-                "run",
-                "--bin",
-                "copybook",
-                "--",
-                "encode",
-                "--format",
-                "fixed",
-                "--codepage",
-                "cp037",
-            ])
+        let encode_output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+            .args(["encode", "--format", "fixed", "--codepage", "cp037"])
             .arg(&copybook_path)
             .arg(&json_path)
             .arg(&binary_path)
@@ -804,18 +763,8 @@ mod panic_elimination_cli_integration_tests {
         // Step 3: Verify binary data
         let verify_output = if binary_path.exists() {
             Some(
-                Command::new("cargo")
-                    .args([
-                        "run",
-                        "--bin",
-                        "copybook",
-                        "--",
-                        "verify",
-                        "--format",
-                        "fixed",
-                        "--codepage",
-                        "cp037",
-                    ])
+                Command::new(env!("CARGO_BIN_EXE_copybook"))
+                    .args(["verify", "--format", "fixed", "--codepage", "cp037"])
                     .arg(&copybook_path)
                     .arg(&binary_path)
                     .output(),
@@ -908,8 +857,8 @@ mod panic_elimination_cli_integration_tests {
             write_file(&copybook_path, copybook_content)?;
 
             // Test parse command error propagation
-            let output = Command::new("cargo")
-                .args(["run", "--bin", "copybook", "--", "parse"])
+            let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
+                .args(["parse"])
                 .arg(&copybook_path)
                 .output();
 
@@ -968,12 +917,8 @@ mod panic_elimination_cli_integration_tests {
         write_file(&large_data_path, &large_data)?;
 
         // Test decode command with large data
-        let output = Command::new("cargo")
+        let output = Command::new(env!("CARGO_BIN_EXE_copybook"))
             .args([
-                "run",
-                "--bin",
-                "copybook",
-                "--",
                 "decode",
                 "--format",
                 "fixed",

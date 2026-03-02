@@ -90,12 +90,20 @@ fn all_error_codes() -> Vec<ErrorCode> {
 /// Validate that a string matches `CBK[A-Z][0-9]{3}_[A-Z0-9_]+`
 fn matches_cbk_pattern(s: &str) -> bool {
     let bytes = s.as_bytes();
-    if bytes.len() < 9 { return false; }
-    bytes[0] == b'C' && bytes[1] == b'B' && bytes[2] == b'K'
+    if bytes.len() < 9 {
+        return false;
+    }
+    bytes[0] == b'C'
+        && bytes[1] == b'B'
+        && bytes[2] == b'K'
         && bytes[3].is_ascii_uppercase()
-        && bytes[4].is_ascii_digit() && bytes[5].is_ascii_digit() && bytes[6].is_ascii_digit()
+        && bytes[4].is_ascii_digit()
+        && bytes[5].is_ascii_digit()
+        && bytes[6].is_ascii_digit()
         && bytes[7] == b'_'
-        && bytes[8..].iter().all(|&b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+        && bytes[8..]
+            .iter()
+            .all(|&b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
 }
 
 // ====================================================================
@@ -153,7 +161,9 @@ fn display_string_prefix_equals_family_prefix() {
 
 #[test]
 fn family_prefix_maps_to_known_category() {
-    let known = ["CBKP", "CBKS", "CBKR", "CBKC", "CBKD", "CBKI", "CBKE", "CBKF", "CBKA", "CBKW"];
+    let known = [
+        "CBKP", "CBKS", "CBKR", "CBKC", "CBKD", "CBKI", "CBKE", "CBKF", "CBKA", "CBKW",
+    ];
     for code in all_error_codes() {
         let prefix = code.family_prefix();
         assert!(
@@ -174,11 +184,26 @@ fn family_category_member_counts() {
         *counts.entry(code.family_prefix()).or_default() += 1;
     }
     // At least the minimum expected counts per family
-    assert!(*counts.get("CBKP").unwrap_or(&0) >= 7, "CBKP should have ≥7 codes");
-    assert!(*counts.get("CBKS").unwrap_or(&0) >= 19, "CBKS should have ≥19 codes");
-    assert!(*counts.get("CBKD").unwrap_or(&0) >= 15, "CBKD should have ≥15 codes");
-    assert!(*counts.get("CBKE").unwrap_or(&0) >= 7, "CBKE should have ≥7 codes");
-    assert!(*counts.get("CBKW").unwrap_or(&0) >= 5, "CBKW should have ≥5 codes");
+    assert!(
+        *counts.get("CBKP").unwrap_or(&0) >= 7,
+        "CBKP should have ≥7 codes"
+    );
+    assert!(
+        *counts.get("CBKS").unwrap_or(&0) >= 19,
+        "CBKS should have ≥19 codes"
+    );
+    assert!(
+        *counts.get("CBKD").unwrap_or(&0) >= 15,
+        "CBKD should have ≥15 codes"
+    );
+    assert!(
+        *counts.get("CBKE").unwrap_or(&0) >= 7,
+        "CBKE should have ≥7 codes"
+    );
+    assert!(
+        *counts.get("CBKW").unwrap_or(&0) >= 5,
+        "CBKW should have ≥5 codes"
+    );
 }
 
 // ====================================================================
@@ -234,8 +259,14 @@ fn error_display_format_includes_code_and_message() {
         let err = Error::new(code, msg.clone());
         let display = format!("{err}");
         let code_str = format!("{code}");
-        assert!(display.starts_with(&code_str), "display should start with code: {display}");
-        assert!(display.contains(&msg), "display should contain message: {display}");
+        assert!(
+            display.starts_with(&code_str),
+            "display should start with code: {display}"
+        );
+        assert!(
+            display.contains(&msg),
+            "display should contain message: {display}"
+        );
     }
 }
 

@@ -17,7 +17,10 @@ use std::panic::catch_unwind;
 #[test]
 fn option_ext_some_with_unit_type() {
     let opt: Option<()> = Some(());
-    assert!(opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx").is_ok());
+    assert!(
+        opt.ok_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx")
+            .is_ok()
+    );
 }
 
 #[test]
@@ -75,7 +78,9 @@ fn option_ext_none_error_code_propagated_to_all_families() {
 #[test]
 fn vec_pop_with_boxed_values() {
     let mut v: Vec<Box<dyn std::fmt::Debug + Send>> = vec![Box::new(1), Box::new("hello")];
-    let val = v.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx").unwrap();
+    let val = v
+        .pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx")
+        .unwrap();
     let dbg = format!("{val:?}");
     assert!(dbg.contains("hello"));
 }
@@ -84,7 +89,8 @@ fn vec_pop_with_boxed_values() {
 fn vec_last_with_single_element_returns_that_element() {
     let v = vec![42];
     assert_eq!(
-        *v.last_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx").unwrap(),
+        *v.last_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx")
+            .unwrap(),
         42
     );
 }
@@ -92,14 +98,17 @@ fn vec_last_with_single_element_returns_that_element() {
 #[test]
 fn vec_last_mut_modifies_only_last() {
     let mut v = vec![1, 2, 3, 4, 5];
-    *v.last_mut_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx").unwrap() = 999;
+    *v.last_mut_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx")
+        .unwrap() = 999;
     assert_eq!(v, vec![1, 2, 3, 4, 999]);
 }
 
 #[test]
 fn vec_pop_error_message_is_preserved() {
     let mut v: Vec<i32> = vec![];
-    let err = v.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "custom: stack empty").unwrap_err();
+    let err = v
+        .pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "custom: stack empty")
+        .unwrap_err();
     assert_eq!(err.message, "custom: stack empty");
 }
 
@@ -111,7 +120,9 @@ fn vec_pop_error_message_is_preserved() {
 fn slice_get_boundary_last_valid_index() {
     let data = [10, 20, 30, 40, 50];
     assert_eq!(
-        *data.get_or_cbkp_error(4, ErrorCode::CBKP001_SYNTAX, "ctx").unwrap(),
+        *data
+            .get_or_cbkp_error(4, ErrorCode::CBKP001_SYNTAX, "ctx")
+            .unwrap(),
         50
     );
 }
@@ -119,13 +130,18 @@ fn slice_get_boundary_last_valid_index() {
 #[test]
 fn slice_get_boundary_first_invalid_index() {
     let data = [10, 20, 30];
-    assert!(data.get_or_cbkp_error(3, ErrorCode::CBKP001_SYNTAX, "ctx").is_err());
+    assert!(
+        data.get_or_cbkp_error(3, ErrorCode::CBKP001_SYNTAX, "ctx")
+            .is_err()
+    );
 }
 
 #[test]
 fn slice_get_mut_boundary_first_element() {
     let mut data = [100u8, 200];
-    *data.get_mut_or_cbkp_error(0, ErrorCode::CBKP001_SYNTAX, "ctx").unwrap() = 0;
+    *data
+        .get_mut_or_cbkp_error(0, ErrorCode::CBKP001_SYNTAX, "ctx")
+        .unwrap() = 0;
     assert_eq!(data, [0, 200]);
 }
 
@@ -134,7 +150,9 @@ fn slice_get_on_vec_via_deref() {
     let v = vec![1, 2, 3];
     let slice: &[i32] = &v;
     assert_eq!(
-        *slice.get_or_cbkp_error(1, ErrorCode::CBKP001_SYNTAX, "ctx").unwrap(),
+        *slice
+            .get_or_cbkp_error(1, ErrorCode::CBKP001_SYNTAX, "ctx")
+            .unwrap(),
         2
     );
 }
@@ -142,7 +160,10 @@ fn slice_get_on_vec_via_deref() {
 #[test]
 fn slice_get_with_zero_length_slice_and_zero_index() {
     let data: &[u8] = &[];
-    assert!(data.get_or_cbkp_error(0, ErrorCode::CBKP001_SYNTAX, "ctx").is_err());
+    assert!(
+        data.get_or_cbkp_error(0, ErrorCode::CBKP001_SYNTAX, "ctx")
+            .is_err()
+    );
 }
 
 // ====================================================================
@@ -234,9 +255,13 @@ fn no_panic_safe_ops_parse_usize_empty_string() {
 #[test]
 fn no_panic_safe_ops_safe_array_bound_overflow() {
     let result = catch_unwind(|| {
-        let _ = copybook_utils::safe_ops::safe_array_bound(usize::MAX, usize::MAX, usize::MAX, "ctx");
+        let _ =
+            copybook_utils::safe_ops::safe_array_bound(usize::MAX, usize::MAX, usize::MAX, "ctx");
     });
-    assert!(result.is_ok(), "safe_array_bound must not panic on overflow");
+    assert!(
+        result.is_ok(),
+        "safe_array_bound must not panic on overflow"
+    );
 }
 
 // ====================================================================
@@ -247,7 +272,9 @@ fn no_panic_safe_ops_safe_array_bound_overflow() {
 fn slice_ext_works_on_boxed_slice() {
     let data: Box<[i32]> = vec![10, 20, 30].into_boxed_slice();
     assert_eq!(
-        *data.get_or_cbkp_error(2, ErrorCode::CBKP001_SYNTAX, "ctx").unwrap(),
+        *data
+            .get_or_cbkp_error(2, ErrorCode::CBKP001_SYNTAX, "ctx")
+            .unwrap(),
         30
     );
 }
@@ -255,8 +282,12 @@ fn slice_ext_works_on_boxed_slice() {
 #[test]
 fn vec_ext_works_with_option_values() {
     let mut v: Vec<Option<i32>> = vec![Some(1), None, Some(3)];
-    let popped = v.pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx").unwrap();
+    let popped = v
+        .pop_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx")
+        .unwrap();
     assert_eq!(popped, Some(3));
-    let last = v.last_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx").unwrap();
+    let last = v
+        .last_or_cbkp_error(ErrorCode::CBKP001_SYNTAX, "ctx")
+        .unwrap();
     assert_eq!(*last, None);
 }

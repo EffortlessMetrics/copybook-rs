@@ -195,3 +195,21 @@ name = "fuzz_codepage_conversion"
 path = "fuzz_targets/fuzz_codepage_conversion.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_encode"
+path = "fuzz_targets/fuzz_encode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_decode_encode_roundtrip"
+path = "fuzz_targets/fuzz_decode_encode_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_projection"
+path = "fuzz_targets/fuzz_projection.rs"
+test = false
+doc = false

@@ -17,9 +17,7 @@ use copybook_options::{
 
 #[test]
 fn decode_builder_idempotent_on_repeated_calls() {
-    let opts = DecodeOptions::new()
-        .with_threads(4)
-        .with_threads(8);
+    let opts = DecodeOptions::new().with_threads(4).with_threads(8);
     assert_eq!(opts.threads, 8, "last call wins");
 }
 
@@ -95,7 +93,10 @@ fn encode_builder_full_chain_compiles_and_produces_correct_values() {
     assert_eq!(opts.on_encode_unmappable, UnmappablePolicy::Replace);
     assert_eq!(opts.json_number_mode, JsonNumberMode::Native);
     assert_eq!(opts.preferred_zoned_encoding, ZonedEncodingFormat::Ascii);
-    assert_eq!(opts.zoned_encoding_override, Some(ZonedEncodingFormat::Ebcdic));
+    assert_eq!(
+        opts.zoned_encoding_override,
+        Some(ZonedEncodingFormat::Ebcdic)
+    );
     assert_eq!(opts.float_format, FloatFormat::IbmHex);
 }
 
@@ -153,7 +154,10 @@ fn record_format_is_fixed_and_is_variable_are_mutually_exclusive() {
 
 #[test]
 fn record_format_description_is_unique_per_variant() {
-    assert_ne!(RecordFormat::Fixed.description(), RecordFormat::RDW.description());
+    assert_ne!(
+        RecordFormat::Fixed.description(),
+        RecordFormat::RDW.description()
+    );
 }
 
 // ====================================================================
@@ -195,7 +199,12 @@ fn json_number_mode_display_distinct() {
 
 #[test]
 fn raw_mode_display_all_distinct() {
-    let variants = [RawMode::Off, RawMode::Record, RawMode::Field, RawMode::RecordRDW];
+    let variants = [
+        RawMode::Off,
+        RawMode::Record,
+        RawMode::Field,
+        RawMode::RecordRDW,
+    ];
     let displays: Vec<String> = variants.iter().map(ToString::to_string).collect();
     let unique: std::collections::HashSet<&String> = displays.iter().collect();
     assert_eq!(unique.len(), variants.len());
@@ -214,7 +223,13 @@ fn float_format_display_distinct() {
 
 #[test]
 fn codepage_serde_roundtrip_all_variants() {
-    for cp in [Codepage::CP037, Codepage::CP273, Codepage::CP500, Codepage::CP1047, Codepage::CP1140] {
+    for cp in [
+        Codepage::CP037,
+        Codepage::CP273,
+        Codepage::CP500,
+        Codepage::CP1047,
+        Codepage::CP1140,
+    ] {
         let json = serde_json::to_string(&cp).unwrap();
         let back: Codepage = serde_json::from_str(&json).unwrap();
         assert_eq!(back, cp);
@@ -326,7 +341,10 @@ fn zoned_encoding_detect_boundary_0x2f_returns_none() {
 #[test]
 fn zoned_encoding_detect_boundary_0x3a_returns_ascii() {
     // 0x3A has high nibble 0x3 → detected as ASCII zone (matches zone nibble)
-    assert_eq!(ZonedEncodingFormat::detect_from_byte(0x3A), Some(ZonedEncodingFormat::Ascii));
+    assert_eq!(
+        ZonedEncodingFormat::detect_from_byte(0x3A),
+        Some(ZonedEncodingFormat::Ascii)
+    );
 }
 
 #[test]

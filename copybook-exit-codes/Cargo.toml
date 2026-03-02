@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-exit-codes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Canonical copybook CLI exit code taxonomy and serialization."
+documentation = "https://docs.rs/copybook-exit-codes"
+readme = "README.md"
+keywords = ["copybook", "cli", "exit-code", "taxonomy"]
+categories = ["command-line-utilities", "encoding"]
+
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

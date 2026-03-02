@@ -46,7 +46,6 @@
     clippy::unwrap_or_default
 )]
 
-use crate::exit_codes::ExitCode;
 use crate::utils::atomic_write;
 use crate::{write_stderr_line, write_stdout_line};
 use chrono::{self, DateTime, Duration as ChronoDuration};
@@ -69,6 +68,7 @@ use copybook_core::{
         },
     },
 };
+use copybook_exit_codes::ExitCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};

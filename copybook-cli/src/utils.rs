@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Utility functions for CLI operations
 
-use crate::exit_codes::ExitCode;
 use copybook_core::{ParseOptions, Schema};
+use copybook_exit_codes::ExitCode;
 use std::io::{self, Read, Write};
 use std::path::Path;
 #[cfg(test)]

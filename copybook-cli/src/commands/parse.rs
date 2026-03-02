@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Parse command implementation
 
-use crate::exit_codes::ExitCode;
 use crate::utils::{atomic_write, read_file_or_stdin};
 use crate::write_stdout_all;
 use copybook_core::{ParseOptions, parse_copybook_with_options};
+use copybook_exit_codes::ExitCode;
 use std::path::PathBuf;
 use tracing::info;
 

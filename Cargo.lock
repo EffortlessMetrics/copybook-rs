@@ -1069,6 +1069,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "copybook-safe-ops"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
+ "copybook-overflow",
+]
+
+[[package]]
 name = "copybook-sequence-ring"
 version = "0.4.3"
 dependencies = [
@@ -1090,7 +1098,7 @@ name = "copybook-utils"
 version = "0.4.3"
 dependencies = [
  "copybook-error",
- "copybook-overflow",
+ "copybook-safe-ops",
 ]
 
 [[package]]

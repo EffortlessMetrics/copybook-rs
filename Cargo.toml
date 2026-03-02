@@ -4,6 +4,7 @@ members = [
     "copybook-error",
     "copybook-error-reporter",
     "copybook-utils",
+    "copybook-safe-ops",
     "copybook-overflow",
     "copybook-fixed",
     "copybook-rdw",
@@ -54,6 +55,7 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 copybook-error = { version = "=0.4.3", path = "copybook-error" }
 copybook-error-reporter = { version = "=0.4.3", path = "copybook-error-reporter" }
 copybook-utils = { version = "=0.4.3", path = "copybook-utils" }
+copybook-safe-ops = { version = "=0.4.3", path = "copybook-safe-ops" }
 copybook-overflow = { version = "=0.4.3", path = "copybook-overflow" }
 copybook-fixed = { version = "=0.4.3", path = "copybook-fixed" }
 copybook-rdw = { version = "=0.4.3", path = "copybook-rdw" }

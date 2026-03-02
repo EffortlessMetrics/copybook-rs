@@ -15,6 +15,7 @@
 //! including character set conversion, numeric codecs, and record framing.
 
 pub mod charset;
+pub mod corruption;
 pub mod determinism;
 pub mod edited_pic;
 mod fidelity;

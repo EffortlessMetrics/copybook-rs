@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-corruption"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Transfer-corruption detection heuristics for COBOL record streams."
+documentation = "https://docs.rs/copybook-corruption"
+readme = "README.md"
+keywords = ["cobol", "copybook", "corruption", "rdw", "validation"]
+categories = ["encoding", "parsing"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+copybook-core.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+
+[lints]
+workspace = true

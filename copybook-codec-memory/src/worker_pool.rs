@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::thread;
 use tracing::{debug, warn};
 
-use super::ScratchBuffers;
+use copybook_scratch::ScratchBuffers;
 
 /// Worker pool for parallel record processing with bounded memory
 ///

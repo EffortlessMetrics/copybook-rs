@@ -98,14 +98,13 @@
 //! println!("Processed {} records", stats.records_processed);
 //! ```
 
-mod scratch;
 mod streaming;
 mod worker_pool;
 
 #[cfg(test)]
 mod tests;
 
+pub use copybook_scratch::{DigitBuffer, ScratchBuffers};
 pub use copybook_sequence_ring::{SequenceRing, SequenceRingStats, SequencedRecord};
-pub use scratch::{DigitBuffer, ScratchBuffers};
 pub use streaming::{StreamingProcessor, StreamingProcessorStats};
 pub use worker_pool::{WorkerPool, WorkerPoolStats};

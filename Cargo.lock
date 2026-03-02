@@ -865,9 +865,9 @@ name = "copybook-codec-memory"
 version = "0.4.3"
 dependencies = [
  "anyhow",
+ "copybook-scratch",
  "copybook-sequence-ring",
  "crossbeam-channel",
- "smallvec",
  "tracing",
 ]
 
@@ -1066,6 +1066,13 @@ dependencies = [
  "copybook-options",
  "copybook-rdw",
  "proptest",
+]
+
+[[package]]
+name = "copybook-scratch"
+version = "0.4.3"
+dependencies = [
+ "smallvec",
 ]
 
 [[package]]

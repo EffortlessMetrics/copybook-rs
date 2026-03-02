@@ -8,7 +8,7 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "RDW framing microcrate with header primitives, reader/writer, and buffered helpers"
+description = "RDW framing microcrate with reader/writer built on RDW primitives"
 documentation = "https://docs.rs/copybook-rdw"
 readme = "README.md"
 keywords = ["cobol", "rdw", "record", "framing"]
@@ -23,6 +23,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 copybook-core.workspace = true
 copybook-error.workspace = true
+copybook-rdw-primitives.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

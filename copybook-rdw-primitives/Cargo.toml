@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-rdw-primitives"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "RDW header and buffered parsing primitives"
+documentation = "https://docs.rs/copybook-rdw-primitives"
+readme = "README.md"
+keywords = ["cobol", "rdw", "record", "framing"]
+categories = ["encoding", "parsing", "data-structures"]
+
+[dependencies]
+copybook-error.workspace = true
+
+[lints]
+workspace = true

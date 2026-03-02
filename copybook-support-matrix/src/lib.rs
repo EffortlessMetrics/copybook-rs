@@ -1,33 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL feature support matrix registry.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[non_exhaustive]
-pub enum FeatureId {
-    #[serde(rename = "level-88")]
-    Level88Conditions,
-
-    #[serde(rename = "level-66-renames")]
-    Level66Renames,
-
-    #[serde(rename = "occurs-depending")]
-    OccursDepending,
-
-    #[serde(rename = "edited-pic")]
-    EditedPic,
-
-    #[serde(rename = "comp-1-comp-2")]
-    Comp1Comp2,
-
-    #[serde(rename = "sign-separate")]
-    SignSeparate,
-
-    #[serde(rename = "nested-odo")]
-    NestedOdo,
-}
+pub use copybook_support_id::FeatureId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -121,14 +97,12 @@ pub fn find_feature_by_id(id: FeatureId) -> Option<&'static FeatureSupport> {
 #[inline]
 #[must_use]
 pub fn find_feature(id: &str) -> Option<&'static FeatureSupport> {
-    all_features()
-        .iter()
-        .find(|f| serde_plain::to_string(&f.id).ok().as_deref() == Some(id))
+    let id = id.parse().ok()?;
+    find_feature_by_id(id)
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -161,7 +135,6 @@ mod tests {
     #[test]
     fn test_feature_id_serde_roundtrip() {
         let id = FeatureId::Level88Conditions;
-        let serialized = serde_plain::to_string(&id).expect("serialization should succeed");
-        assert_eq!(serialized, "level-88");
+        assert_eq!(id.as_str(), "level-88");
     }
 }

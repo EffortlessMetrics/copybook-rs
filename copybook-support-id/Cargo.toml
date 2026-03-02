@@ -1,0 +1,20 @@
+[package]
+name = "copybook-support-id"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Canonical support-matrix feature identifiers for copybook-rs"
+keywords.workspace = true
+categories.workspace = true
+documentation = "https://docs.rs/copybook-support-id"
+
+[dependencies]
+serde.workspace = true
+serde_plain.workspace = true
+
+[lints]
+workspace = true

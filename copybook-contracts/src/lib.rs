@@ -3,7 +3,7 @@
 
 pub mod feature_flags;
 
-pub use feature_flags::{
+pub use copybook_feature_flags::{
     Feature, FeatureCategory, FeatureFlags, FeatureFlagsBuilder, FeatureFlagsHandle,
-    FeatureLifecycle,
+    FeatureLifecycle, all_features,
 };

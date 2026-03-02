@@ -1,5 +1,5 @@
 [package]
-name = "copybook-contracts"
+name = "copybook-feature-flags"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,15 +7,16 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Shared contracts for copybook-rs feature-flag governance and runtime control."
-documentation = "https://docs.rs/copybook-contracts"
+description = "Feature flag contracts and runtime controls for copybook-rs governance."
+documentation = "https://docs.rs/copybook-feature-flags"
 readme = "README.md"
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 keywords = ["cobol", "copybook", "feature-flags", "governance"]
 categories = ["config", "development-tools"]
 
 [dependencies]
-copybook-feature-flags.workspace = true
+serde.workspace = true
+serde_plain.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

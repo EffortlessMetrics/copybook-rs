@@ -883,9 +883,8 @@ dependencies = [
 name = "copybook-contracts"
 version = "0.4.3"
 dependencies = [
- "serde",
+ "copybook-feature-flags",
  "serde_json",
- "serde_plain",
 ]
 
 [[package]]
@@ -946,6 +945,15 @@ version = "0.4.3"
 dependencies = [
  "copybook-error",
  "tracing",
+]
+
+[[package]]
+name = "copybook-feature-flags"
+version = "0.4.3"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_plain",
 ]
 
 [[package]]

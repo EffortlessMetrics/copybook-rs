@@ -27,6 +27,7 @@ members = [
     "copybook-bench",
     "copybook-arrow",
     "copybook-contracts",
+    "copybook-feature-flags",
     "copybook-support-matrix",
     "xtask",
     "tests/bdd",
@@ -75,6 +76,7 @@ copybook-governance-runtime = { version = "=0.4.3", path = "copybook-governance-
 copybook-governance-contracts = { version = "=0.4.3", path = "copybook-governance-contracts" }
 copybook-bench = { version = "=0.4.3", path = "copybook-bench" }
 copybook-contracts = { version = "=0.4.3", path = "copybook-contracts" }
+copybook-feature-flags = { version = "=0.4.3", path = "copybook-feature-flags" }
 copybook-support-matrix = { version = "=0.4.3", path = "copybook-support-matrix" }
 
 # Core dependencies

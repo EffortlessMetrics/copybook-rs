@@ -1125,6 +1125,7 @@ fn parquet_roundtrip_packed_decimal_values_preserved() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn parquet_roundtrip_multi_type_data() {
     let schema = Schema::from_fields(vec![
         make_field("NAME", FieldKind::Alphanum { len: 6 }, 0, 6),

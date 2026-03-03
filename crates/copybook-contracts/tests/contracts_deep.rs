@@ -5,8 +5,7 @@
 
 use copybook_contracts::feature_flags::all_features;
 use copybook_contracts::{
-    Feature, FeatureCategory, FeatureFlags, FeatureFlagsBuilder, FeatureFlagsHandle,
-    FeatureLifecycle,
+    Feature, FeatureCategory, FeatureFlags, FeatureFlagsHandle, FeatureLifecycle,
 };
 use std::str::FromStr;
 

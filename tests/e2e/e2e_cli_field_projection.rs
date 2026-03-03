@@ -7,7 +7,6 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 

@@ -7,7 +7,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use copybook_core::{FieldKind, Occurs, ParseOptions, parse_copybook, parse_copybook_with_options};
+use copybook_core::{Occurs, ParseOptions, parse_copybook, parse_copybook_with_options};
 
 // ---------------------------------------------------------------------------
 // Helpers

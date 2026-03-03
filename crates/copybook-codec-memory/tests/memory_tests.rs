@@ -553,7 +553,7 @@ fn worker_pool_preserves_order_with_varying_work() {
         10,
         |input: u64, _scratch: &mut ScratchBuffers| -> u64 {
             // Varying workload to test reordering
-            if input % 2 == 0 {
+            if input.is_multiple_of(2) {
                 std::thread::sleep(std::time::Duration::from_micros(10));
             }
             input * input

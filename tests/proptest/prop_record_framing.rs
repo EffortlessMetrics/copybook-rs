@@ -180,11 +180,11 @@ proptest! {
         let mut reader = RDWRecordReader::new(Cursor::new(&encoded), false);
         for (i, expected) in payloads.iter().enumerate() {
             let record = reader.read_record().unwrap()
-                .unwrap_or_else(|| panic!("Expected record {i}"));
+                .unwrap_or_else(|| panic!("Expected record {}", i));
             prop_assert_eq!(
                 record.payload.as_slice(),
                 expected.as_slice(),
-                "Record {i} payload mismatch"
+                "Record {} payload mismatch", i
             );
         }
         prop_assert!(reader.read_record().unwrap().is_none());
@@ -316,12 +316,7 @@ proptest! {
 
         let mut reader = RDWRecordReader::new(Cursor::new(truncated), false);
         // Must not panic, may error
-        loop {
-            match reader.read_record() {
-                Ok(Some(_)) => continue,
-                Ok(None) | Err(_) => break,
-            }
-        }
+        while let Ok(Some(_)) = reader.read_record() {}
     }
 
     /// Fixed reader with truncated data returns error, never panics.

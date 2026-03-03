@@ -1245,7 +1245,7 @@ fn mixed_types_10_records_values_verified() {
         data.extend_from_slice(&ascii_pad(&format!("REC{i:03}"), 6));
         data.extend_from_slice(&(i * 100).to_be_bytes());
         // Packed: 10000+i -> e.g. 10005 -> 0x10 0x00 0x5C
-        let packed_hi = ((1_u8) << 4) | 0;
+        let packed_hi = (1_u8) << 4;
         let packed_mid = 0x00_u8;
         let packed_lo = (u8::try_from(i).unwrap_or(0) << 4) | 0x0C;
         data.push(packed_hi);
@@ -1326,6 +1326,7 @@ fn flush_empty_builder_returns_none() {
 // ===================================================================
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn float32_decode_to_arrow() {
     let schema = make_schema_with_lrecl(vec![make_field("RATE", FieldKind::FloatSingle, 0, 4)], 4);
     let opts = ascii_opts();
@@ -1344,6 +1345,7 @@ fn float32_decode_to_arrow() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn float64_decode_to_arrow() {
     let schema =
         make_schema_with_lrecl(vec![make_field("PRECISE", FieldKind::FloatDouble, 0, 8)], 8);

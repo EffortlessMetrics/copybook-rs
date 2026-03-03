@@ -385,8 +385,8 @@ fn recovery_corruption_at_end_no_recovery() {
 fn recovery_large_stream_with_gap() {
     let mut headers: Vec<[u8; 4]> = vec![[0x00, 0x50, 0x00, 0x00]; 100];
     // Corrupt records 40-49.
-    for i in 40..50 {
-        headers[i] = [b'5', b'5', 0x00, 0x00];
+    for header in &mut headers[40..50] {
+        *header = [b'5', b'5', 0x00, 0x00];
     }
     assert_eq!(find_recovery_point(&headers), Some(50));
 }

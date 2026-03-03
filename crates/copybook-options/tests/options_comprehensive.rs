@@ -300,6 +300,9 @@ fn decode_options_clone_independence() {
     // Original unchanged
     assert_eq!(opts.threads, 4);
     assert!(opts.emit_meta);
+    // Cloned is actually modified
+    assert_eq!(cloned.threads, 99);
+    assert!(!cloned.emit_meta);
 }
 
 #[test]
@@ -310,6 +313,9 @@ fn encode_options_clone_independence() {
     cloned.use_raw = false;
     assert_eq!(opts.threads, 8);
     assert!(opts.use_raw);
+    // Cloned is actually modified
+    assert_eq!(cloned.threads, 1);
+    assert!(!cloned.use_raw);
 }
 
 // ====================================================================

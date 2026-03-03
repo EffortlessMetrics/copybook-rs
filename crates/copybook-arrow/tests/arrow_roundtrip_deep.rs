@@ -402,6 +402,7 @@ fn comp2_maps_to_float64_schema() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn comp1_float32_data_roundtrip() {
     let schema = Schema::from_fields(vec![make_field("RATE", FieldKind::FloatSingle, 0, 4)]);
     let opts = ArrowOptions {
@@ -424,6 +425,7 @@ fn comp1_float32_data_roundtrip() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn comp2_float64_data_roundtrip() {
     let schema = Schema::from_fields(vec![make_field("RATE", FieldKind::FloatDouble, 0, 8)]);
     let opts = ArrowOptions {

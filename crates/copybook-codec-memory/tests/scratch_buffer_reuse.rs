@@ -352,7 +352,7 @@ fn worker_pool_deterministic_100_items() {
         25,
         |input: u64, _scratch: &mut ScratchBuffers| -> u64 {
             // Simulate varying work
-            if input % 5 == 0 {
+            if input.is_multiple_of(5) {
                 std::thread::sleep(std::time::Duration::from_micros(5));
             }
             input * 3 + 1
@@ -587,8 +587,7 @@ fn worker_pool_scratch_intensive_processing() {
                 .extend_from_slice(format!("REC-{input:05}").as_bytes());
             write!(scratch.string_buffer, "\"value_{input}\"").unwrap();
 
-            let result = scratch.string_buffer.clone();
-            result
+            scratch.string_buffer.clone()
         },
     );
 

@@ -366,7 +366,7 @@ fn test_comp3_even_digit_6_layout() {
 fn test_comp3_byte_count_formula() {
     // Verify byte count = ceil((digits+1)/2) for all 1-18
     for digits in 1u16..=18 {
-        let expected_bytes = ((digits + 1) as usize + 1) / 2;
+        let expected_bytes = ((digits + 1) as usize).div_ceil(2);
         let enc = encode_packed_decimal("0", digits, 0, true).unwrap();
         assert_eq!(
             enc.len(),

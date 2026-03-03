@@ -263,7 +263,7 @@ fn decode_field_all_spaces() {
 
     let mut data = Vec::new();
     data.extend_from_slice(&ebcdic_digits("0001"));
-    data.extend_from_slice(&vec![0x40; 10]); // 10 EBCDIC spaces
+    data.extend_from_slice(&[0x40; 10]); // 10 EBCDIC spaces
 
     let json = decode_record(&schema, &data, &decode_opts(Codepage::CP037)).expect("decode");
     assert_eq!(json["TEXT-FIELD"], "          ", "10 ASCII spaces expected");

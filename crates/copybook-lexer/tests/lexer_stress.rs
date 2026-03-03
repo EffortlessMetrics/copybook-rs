@@ -94,7 +94,7 @@ fn stress_many_max_length_field_names() {
 #[test]
 fn stress_very_long_pic_clause() {
     let input = "05 BIG-FIELD PIC X(99999).";
-    let toks = payload(&input);
+    let toks = payload(input);
     assert_eq!(toks[2], Token::Pic);
     assert_eq!(toks[3], Token::PicClause("X(99999)".to_string()));
 }
@@ -102,7 +102,7 @@ fn stress_very_long_pic_clause() {
 #[test]
 fn stress_pic_clause_with_huge_repeat() {
     let input = "05 HUGE-NUM PIC 9(999999).";
-    let toks = payload(&input);
+    let toks = payload(input);
     assert!(
         toks.iter()
             .any(|t| matches!(t, Token::PicClause(s) if s == "9(999999)"))
@@ -264,8 +264,7 @@ fn stress_rapidly_alternating_tokens() {
             1 => input.push_str(&format!("FIELD-{i} ")),
             2 => input.push_str("PIC "),
             3 => input.push_str("X(10) "),
-            4 => input.push_str(".\n"),
-            _ => unreachable!(),
+            _ => input.push_str(".\n"),
         }
     }
     let toks = payload(&input);
@@ -275,7 +274,7 @@ fn stress_rapidly_alternating_tokens() {
 #[test]
 fn stress_keywords_back_to_back() {
     let input = "OCCURS DEPENDING ON TO TIMES VALUE THRU THROUGH SIGN LEADING TRAILING SEPARATE BLANK WHEN ZERO REDEFINES RENAMES USAGE DISPLAY COMP COMP-1 COMP-2 COMP-3 BINARY SYNCHRONIZED";
-    let toks = payload(&input);
+    let toks = payload(input);
     // All should be recognised as keywords, not identifiers
     for tok in &toks {
         assert!(
@@ -308,7 +307,7 @@ fn stress_maximum_token_count() {
 #[test]
 fn stress_unicode_in_comments() {
     let input = "* 日本語コメント\n* Ñoño café\n* Привет мир\n* 🎉🚀💻\n05 FIELD PIC X(5).";
-    let toks = payload(&input);
+    let toks = payload(input);
     // Should still parse the field definition
     assert!(toks.iter().any(|t| matches!(t, Token::Level(5))));
 }
@@ -394,7 +393,7 @@ fn stress_empty_lines_with_whitespace() {
 #[test]
 fn stress_crlf_line_endings() {
     let input = "01 RECORD.\r\n  05 FIELD-A PIC X(10).\r\n  05 FIELD-B PIC 9(5).\r\n";
-    let toks = payload(&input);
+    let toks = payload(input);
     let level_count = toks.iter().filter(|t| matches!(t, Token::Level(_))).count();
     assert_eq!(level_count, 3);
 }
@@ -403,7 +402,7 @@ fn stress_crlf_line_endings() {
 fn stress_mixed_line_endings() {
     let input =
         "01 RECORD.\n  05 FIELD-A PIC X(10).\r\n  05 FIELD-B PIC 9(5).\n  05 FIELD-C PIC X.\r\n";
-    let toks = payload(&input);
+    let toks = payload(input);
     let level_count = toks.iter().filter(|t| matches!(t, Token::Level(_))).count();
     assert_eq!(level_count, 4);
 }
@@ -424,7 +423,7 @@ fn stress_crlf_many_lines() {
 #[test]
 fn stress_tabs_instead_of_spaces() {
     let input = "01\tRECORD.\n\t05\tFIELD\tPIC\tX(10).";
-    let toks = payload(&input);
+    let toks = payload(input);
     assert!(toks.iter().any(|t| matches!(t, Token::Level(1))));
     assert!(toks.iter().any(|t| matches!(t, Token::Level(5))));
 }
@@ -432,14 +431,14 @@ fn stress_tabs_instead_of_spaces() {
 #[test]
 fn stress_tabs_mixed_with_spaces() {
     let input = "  \t01  \t RECORD.\n \t  05 \t FIELD \t PIC \t X(5) \t .";
-    let toks = payload(&input);
+    let toks = payload(input);
     assert!(toks.iter().any(|t| matches!(t, Token::Pic)));
 }
 
 #[test]
 fn stress_only_tabs() {
     let input = "\t\t\t\t\t";
-    let toks = payload(&input);
+    let toks = payload(input);
     assert!(toks.is_empty());
 }
 
@@ -473,7 +472,7 @@ fn stress_all_lexer_options_large_input() {
 
     for opts in option_combos {
         let toks = tokens_with(&input, opts);
-        assert!(toks.last().map_or(false, |t| *t == Token::Eof));
+        assert!(toks.last().is_some_and(|t| *t == Token::Eof));
     }
 }
 
@@ -491,13 +490,13 @@ fn stress_very_long_single_line() {
 fn stress_deeply_nested_parens() {
     // Parentheses aren't nested in COBOL PIC, but the lexer should handle it
     let input = "05 F PIC X(((((10))))).";
-    let _toks = payload(&input); // Must not panic
+    let _toks = payload(input); // Must not panic
 }
 
 #[test]
 fn stress_many_periods() {
     let input = "01 R. 05 A PIC X. 05 B PIC 9. 05 C PIC X. 05 D PIC 9. 05 E PIC X.";
-    let toks = payload(&input);
+    let toks = payload(input);
     let period_count = toks.iter().filter(|t| matches!(t, Token::Period)).count();
     assert_eq!(period_count, 6);
 }
@@ -506,7 +505,7 @@ fn stress_many_periods() {
 fn stress_repeated_keywords() {
     // Unusual but should not crash
     let input = "PIC PIC PIC PIC PIC PIC PIC PIC PIC PIC";
-    let toks = payload(&input);
+    let toks = payload(input);
     let pic_count = toks.iter().filter(|t| matches!(t, Token::Pic)).count();
     assert_eq!(pic_count, 10);
 }
@@ -514,7 +513,7 @@ fn stress_repeated_keywords() {
 #[test]
 fn stress_alternating_case_keywords() {
     let input = "pic PIC Pic pIc PICTURE picture Picture";
-    let toks = payload(&input);
+    let toks = payload(input);
     let pic_count = toks.iter().filter(|t| matches!(t, Token::Pic)).count();
     assert_eq!(pic_count, 7);
 }
@@ -630,14 +629,14 @@ fn stress_fixed_format_comment_lines() {
 #[test]
 fn stress_large_numeric_literals() {
     let input = "05 F OCCURS 999999 TIMES.";
-    let toks = payload(&input);
+    let toks = payload(input);
     assert!(toks.iter().any(|t| matches!(t, Token::Number(999_999))));
 }
 
 #[test]
 fn stress_zero_numeric_literal() {
     let input = "05 F OCCURS 0 TIMES.";
-    let toks = payload(&input);
+    let toks = payload(input);
     assert!(toks.iter().any(|t| matches!(t, Token::Number(0))));
 }
 
@@ -812,7 +811,7 @@ fn stress_realistic_enterprise_copybook() {
     10 TRANS-AMOUNT           PIC S9(9)V99.
     10 TRANS-TYPE             PIC X(3).
 "#;
-    let toks = payload(&input);
+    let toks = payload(input);
     // Sanity check: a realistic copybook should produce a healthy number
     // of tokens without panicking. Exact counts depend on format detection
     // (leading spaces may trigger fixed-format heuristic).

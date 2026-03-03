@@ -231,6 +231,7 @@ fn write_exact_length_no_padding() {
     writer.write_record(b"HELLO").unwrap();
     writer.flush().unwrap();
     assert_eq!(writer.record_count(), 1);
+    #[allow(clippy::drop_non_drop)] // drop releases mutable borrow on output
     drop(writer);
     assert_eq!(output, b"HELLO");
 }

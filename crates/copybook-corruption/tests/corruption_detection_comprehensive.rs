@@ -132,8 +132,8 @@ fn multiple_invalid_bytes_scattered() {
 #[test]
 fn contiguous_block_of_invalid_bytes() {
     let mut record = vec![0xC1u8; 80];
-    for i in 20..30 {
-        record[i] = 0x05;
+    for byte in &mut record[20..30] {
+        *byte = 0x05;
     }
     let errors = detect_ebcdic_corruption(&record, "BLOCK-BAD");
     assert_eq!(errors.len(), 10);
@@ -311,7 +311,7 @@ fn multi_type_rdw_and_packed_corruption() {
 #[test]
 fn multi_type_all_three_corruptions_present() {
     let errors = scan_full_record(
-        &[b'1', b'0', b'A', b'B'],
+        b"10AB",
         &[(&[0x00, 0x7F, 0x80], "TEXT")],
         &[(&[0xAA, 0x17], "PKD")],
     );

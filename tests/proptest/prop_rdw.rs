@@ -165,12 +165,7 @@ proptest! {
     ) {
         let mut reader = RDWRecordReader::new(Cursor::new(data), false);
         // Read until EOF or error; must never panic.
-        loop {
-            match reader.read_record() {
-                Ok(Some(_)) => continue,
-                Ok(None) | Err(_) => break,
-            }
-        }
+        while let Ok(Some(_)) = reader.read_record() {}
     }
 
     /// Payload length above u16::MAX always fails RDWRecord::try_new.

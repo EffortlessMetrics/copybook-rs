@@ -341,16 +341,19 @@ fn format_summary_shows_positive_delta_with_plus() {
 // ====================================================================
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn display_slo_is_positive() {
     assert!(DISPLAY_SLO_MIBPS > 0.0);
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn comp3_slo_is_positive() {
     assert!(COMP3_SLO_MIBPS > 0.0);
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn display_slo_greater_than_comp3() {
     assert!(DISPLAY_SLO_MIBPS > COMP3_SLO_MIBPS);
 }

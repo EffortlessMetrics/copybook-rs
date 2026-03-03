@@ -510,7 +510,7 @@ fn odo_same_counter_same_array_length() {
     // Item 3: "CCCC"
     data.extend_from_slice(&[0xC3, 0xC3, 0xC3, 0xC3]);
     // Pad remaining 7 items (28 bytes) with spaces for the max record
-    data.extend_from_slice(&vec![0x40; 28]);
+    data.extend_from_slice(&[0x40; 28]);
 
     let opts = decode_opts();
 
@@ -904,7 +904,7 @@ fn decode_trailing_spaces_deterministic() {
     let schema = parse_copybook(copybook).expect("parse");
     // "HI" followed by 18 EBCDIC spaces (0x40)
     let mut data = vec![0xC8, 0xC9]; // HI
-    data.extend_from_slice(&vec![0x40; 18]);
+    data.extend_from_slice(&[0x40; 18]);
     let opts = decode_opts();
 
     let reference =

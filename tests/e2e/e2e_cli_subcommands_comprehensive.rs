@@ -43,6 +43,7 @@ const COMP3_CPY: &str = "\
            05  PKD    PIC S9(5) COMP-3.
 ";
 
+#[allow(dead_code)]
 /// Copybook with ODO (Occurs Depending On).
 const ODO_CPY: &str = "\
        01  REC.
@@ -90,6 +91,7 @@ fn comp3_ebcdic() -> Vec<u8> {
     ]
 }
 
+#[allow(dead_code)]
 /// EBCDIC CP037 record for ODO_CPY with CNT=02 and 2 items:
 /// CNT="02", ITEM1="AAAA", ITEM2="BBBB"
 fn odo_ebcdic() -> Vec<u8> {

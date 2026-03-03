@@ -215,7 +215,7 @@ proptest! {
     #[test]
     fn prop_ebcdic_confidence_bounded(data in prop::collection::vec(any::<u8>(), 0..256)) {
         let score = ebcdic_confidence(&data);
-        prop_assert!(score >= 0.0 && score <= 1.0,
+        prop_assert!((0.0..=1.0).contains(&score),
             "Confidence {} out of bounds for data len {}", score, data.len());
     }
 

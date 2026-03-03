@@ -287,12 +287,7 @@ fn encode_jsonl_100_records() {
 fn encode_jsonl_skips_blank_lines() {
     let schema = parse_copybook(SIMPLE_SCHEMA).unwrap();
     let opts = ascii_encode_opts();
-    let jsonl = format!(
-        r#"{{"TEST-FIELD": "00001"}}
-
-{{"TEST-FIELD": "00002"}}
-"#
-    );
+    let jsonl = "{\"TEST-FIELD\": \"00001\"}\n\n{\"TEST-FIELD\": \"00002\"}\n".to_string();
     let mut output = Vec::new();
     let summary =
         encode_jsonl_to_file(&schema, Cursor::new(jsonl.as_bytes()), &mut output, &opts).unwrap();
@@ -390,11 +385,8 @@ fn decode_file_partial_record_at_eof() {
         Ok(summary) => assert!(summary.records_processed >= 1),
         Err(_) => {
             // Error on partial record is acceptable; verify first record decoded
-            let text = String::from_utf8(output).unwrap();
-            assert!(
-                !text.is_empty() || true,
-                "Partial record error is acceptable"
-            );
+            let _text = String::from_utf8(output).unwrap();
+            // Partial record error is acceptable
         }
     }
 }

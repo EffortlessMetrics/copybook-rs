@@ -5,7 +5,7 @@
 
 use copybook_governance::{
     Feature, FeatureCategory, FeatureFlags, FeatureFlagsBuilder, FeatureFlagsHandle, FeatureId,
-    FeatureLifecycle, FeatureSupport, GovernanceSummary, GovernedFeatureBinding, SupportStatus,
+    FeatureLifecycle, GovernanceSummary, GovernedFeatureBinding, SupportStatus,
     feature_flags_for_support_id, governance_bindings, governance_state_for_support_id,
     governance_states, is_support_runtime_available, runtime_summary, summarize_governance,
     support_states,
@@ -335,7 +335,7 @@ fn feature_governance_state_serializable() {
 fn feature_governance_summary_serializable() {
     let flags = FeatureFlags::default();
     let summary = runtime_summary(&flags);
-    let json = serde_json::to_value(&summary).unwrap();
+    let json = serde_json::to_value(summary).unwrap();
     assert!(json["total_support_features"].is_number());
     assert!(json["mapped_support_features"].is_number());
     assert!(json["runtime_enabled_features"].is_number());

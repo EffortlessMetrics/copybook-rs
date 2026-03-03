@@ -835,9 +835,10 @@ fn edge_single_byte_fields() {
            05 CHAR-F PIC X(1).
            05 DIGIT-F PIC 9(1).
     ";
-    let mut data = Vec::new();
-    data.push(0xC1); // 'A' in CP037
-    data.push(0xF7); // '7' in CP037
+    let data = vec![
+        0xC1, // 'A' in CP037
+        0xF7, // '7' in CP037
+    ];
 
     let schema = parse_copybook(cpy).expect("parse");
     let json = decode_record(&schema, &data, &decode_opts(Codepage::CP037)).expect("decode");

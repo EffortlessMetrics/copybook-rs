@@ -375,7 +375,7 @@ fn slice_ext_works_with_struct_type() {
     struct Field {
         name: String,
     }
-    let fields = vec![Field { name: "A".into() }, Field { name: "B".into() }];
+    let fields = [Field { name: "A".into() }, Field { name: "B".into() }];
     let got = fields
         .get_or_cbkp_error(1, ErrorCode::CBKP001_SYNTAX, "ctx")
         .unwrap();

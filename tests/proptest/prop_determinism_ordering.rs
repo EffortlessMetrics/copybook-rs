@@ -76,7 +76,7 @@ proptest! {
         // Receive should be in original order
         for (i, &expected) in values.iter().enumerate() {
             let received = ring.recv_ordered().unwrap().unwrap();
-            prop_assert_eq!(received, expected, "Mismatch at position {i}");
+            prop_assert_eq!(received, expected, "Mismatch at position {}", i);
         }
     }
 }
@@ -122,7 +122,7 @@ proptest! {
 
         prop_assert_eq!(serial.len(), shuffled_values.len());
         for (i, (a, b)) in serial.iter().zip(shuffled_values.iter()).enumerate() {
-            prop_assert_eq!(a, b, "Record {i} differs after reordering");
+            prop_assert_eq!(a, b, "Record {} differs after reordering", i);
         }
     }
 }
@@ -344,7 +344,7 @@ proptest! {
 
         for (i, expected) in strings.iter().enumerate() {
             let received = ring.recv_ordered().unwrap().unwrap();
-            prop_assert_eq!(&received, expected, "Content mismatch at position {i}");
+            prop_assert_eq!(&received, expected, "Content mismatch at position {}", i);
         }
     }
 }
@@ -395,7 +395,7 @@ proptest! {
 
         prop_assert_eq!(forward.len(), reordered.len());
         for (i, (a, b)) in forward.iter().zip(reordered.iter()).enumerate() {
-            prop_assert_eq!(a, b, "Roundtrip record {i} differs");
+            prop_assert_eq!(a, b, "Roundtrip record {} differs", i);
         }
     }
 }

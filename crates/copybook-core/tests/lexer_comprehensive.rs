@@ -504,7 +504,7 @@ fn test_line_position_tracking() {
         .find(|t| matches!(t.token, Token::Level(5)))
         .unwrap();
     assert!(
-        first_level.line < second_level.line || first_level.line == second_level.line,
+        first_level.line <= second_level.line,
         "Position should be tracked"
     );
 }

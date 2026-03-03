@@ -93,8 +93,7 @@ proptest! {
             (32, true) => value.clamp(i64::from(i32::MIN), i64::from(i32::MAX)),
             (32, false) => value.clamp(0, i64::from(u32::MAX)),
             (64, true) => value,
-            (64, false) => value.clamp(0, i64::MAX),
-            _ => unreachable!(),
+            _ => value.clamp(0, i64::MAX),
         };
         let buf = encode_binary_int(clamped, width, signed).expect("encode");
         let expected_len = usize::from(width) / 8;
@@ -235,8 +234,7 @@ proptest! {
         let clamped = match width {
             16 => value.clamp(i64::from(i16::MIN), i64::from(i16::MAX)),
             32 => value.clamp(i64::from(i32::MIN), i64::from(i32::MAX)),
-            64 => value,
-            _ => unreachable!(),
+            _ => value,
         };
         let buf1 = encode_binary_int(clamped, width, true).expect("encode 1");
         let buf2 = encode_binary_int(clamped, width, true).expect("encode 2");

@@ -271,10 +271,10 @@ proptest! {
         let roundtrip = |_label: &str| -> String {
             let mut all_bytes = Vec::new();
             for rec in &records {
-                if let Ok(json) = decode_record(&schema, rec, &decode_opts()) {
-                    if let Ok(encoded) = encode_record(&schema, &json, &encode_opts()) {
-                        all_bytes.extend_from_slice(&encoded);
-                    }
+                if let Ok(json) = decode_record(&schema, rec, &decode_opts())
+                    && let Ok(encoded) = encode_record(&schema, &json, &encode_opts())
+                {
+                    all_bytes.extend_from_slice(&encoded);
                 }
             }
             blake3_hex(&all_bytes)

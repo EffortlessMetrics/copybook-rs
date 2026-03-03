@@ -228,7 +228,7 @@ fn ebcdic_empty_field_path() {
 fn packed_single_byte_with_all_valid_signs() {
     // Valid sign nibbles: A, B, C, D, E, F
     for sign in 0x0A..=0x0F {
-        let byte = 0x00 | sign; // digit 0 + sign
+        let byte = sign; // digit 0 + sign nibble
         assert!(
             detect_packed_corruption(&[byte], "SIGN").is_empty(),
             "sign 0x{sign:X} should be valid"

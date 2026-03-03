@@ -20,21 +20,21 @@ fn invalid_header_0_bytes_returns_none() {
 #[test]
 fn invalid_header_1_byte_returns_none() {
     assert!(detect_rdw_ascii_corruption(&[0x00]).is_none());
-    assert!(detect_rdw_ascii_corruption(&[b'5']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"5").is_none());
     assert!(detect_rdw_ascii_corruption(&[0xFF]).is_none());
 }
 
 #[test]
 fn invalid_header_2_bytes_returns_none() {
     assert!(detect_rdw_ascii_corruption(&[0x00, 0x50]).is_none());
-    assert!(detect_rdw_ascii_corruption(&[b'1', b'2']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"12").is_none());
     assert!(detect_rdw_ascii_corruption(&[0xFF, 0xFF]).is_none());
 }
 
 #[test]
 fn invalid_header_3_bytes_returns_none() {
     assert!(detect_rdw_ascii_corruption(&[0x00, 0x50, 0x00]).is_none());
-    assert!(detect_rdw_ascii_corruption(&[b'1', b'2', b'3']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"123").is_none());
     assert!(detect_rdw_ascii_corruption(&[0xFF, 0xFF, 0xFF]).is_none());
 }
 
@@ -306,8 +306,8 @@ fn sequence_alternating_corruption() {
 fn sequence_burst_then_recovery() {
     let mut headers: Vec<[u8; 4]> = vec![[0x00, 0x50, 0x00, 0x00]; 20];
     // Corrupt records 5..10
-    for i in 5..10 {
-        headers[i] = [b'5', b'5', 0x00, 0x00];
+    for header in &mut headers[5..10] {
+        *header = [b'5', b'5', 0x00, 0x00];
     }
     let (clean, corrupt) = classify_rdw_sequence(&headers);
     assert_eq!(clean.len(), 15);

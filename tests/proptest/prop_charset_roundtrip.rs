@@ -286,7 +286,7 @@ proptest! {
         len in 1usize..=64,
         codepage in ebcdic_codepage_strategy(),
     ) {
-        let text: String = std::iter::repeat(ch).take(len).collect();
+        let text: String = std::iter::repeat_n(ch, len).collect();
         let ebcdic = utf8_to_ebcdic(&text, codepage).expect("encode");
         prop_assert_eq!(ebcdic.len(), len);
 

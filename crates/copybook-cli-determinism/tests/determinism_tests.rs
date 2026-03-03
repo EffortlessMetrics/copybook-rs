@@ -577,7 +577,7 @@ fn decode_determinism_missing_data_file_returns_error() {
 fn decode_determinism_missing_schema_returns_error() {
     let tmp = tempdir().expect("tempdir");
     let bin = tmp.path().join("input.bin");
-    fs::write(&bin, &SIMPLE_DATA_CP037).expect("write");
+    fs::write(&bin, SIMPLE_DATA_CP037).expect("write");
     let cmd = DeterminismCommand {
         mode: DeterminismModeCommand::Decode(DecodeDeterminismArgs {
             common: make_common(PathBuf::from("no_such_schema.cpy")),

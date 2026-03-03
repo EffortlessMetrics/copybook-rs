@@ -64,11 +64,11 @@ fn slice_below_minimum_length_returns_false() {
     // 0 bytes
     assert!(!rdw_is_suspect_ascii_corruption_slice(&[]));
     // 1 byte
-    assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1']));
+    assert!(!rdw_is_suspect_ascii_corruption_slice(b"1"));
     // 2 bytes
-    assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1', b'2']));
+    assert!(!rdw_is_suspect_ascii_corruption_slice(b"12"));
     // 3 bytes – still below RDW_HEADER_LEN
-    assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1', b'2', b'3']));
+    assert!(!rdw_is_suspect_ascii_corruption_slice(b"123"));
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn edge_empty_slice() {
 
 #[test]
 fn edge_single_byte_slice() {
-    assert!(!rdw_is_suspect_ascii_corruption_slice(&[b'1']));
+    assert!(!rdw_is_suspect_ascii_corruption_slice(b"1"));
 }
 
 #[test]

@@ -55,7 +55,7 @@ fn record_format_serde_roundtrip() {
 fn record_format_clone_and_copy() {
     let a = RecordFormat::Fixed;
     let b = a;
-    let c = a.clone();
+    let c = a;
     assert_eq!(a, b);
     assert_eq!(a, c);
 }

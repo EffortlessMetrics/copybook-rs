@@ -117,6 +117,7 @@ fn odo_min0_record(count: u8) -> Vec<u8> {
 }
 
 /// Simple EBCDIC record for `SIMPLE_CPY` (13 bytes).
+#[allow(dead_code)]
 fn simple_record() -> Vec<u8> {
     vec![
         0xC1, 0xD3, 0xC9, 0xC3, 0xC5, 0x40, 0x40, 0x40, 0x40, 0x40, // ALICE
@@ -139,6 +140,7 @@ fn setup_odo_min0(count: u8) -> tempfile::TempDir {
     dir
 }
 
+#[allow(dead_code)]
 fn setup_simple() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("create temp dir");
     std::fs::write(dir.path().join("schema.cpy"), SIMPLE_CPY).unwrap();

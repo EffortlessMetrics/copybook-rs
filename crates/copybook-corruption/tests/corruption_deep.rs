@@ -176,7 +176,7 @@ fn multi_pattern_rdw_plus_ebcdic_corruption() {
 
 #[test]
 fn multi_pattern_all_three_detectors_fire_simultaneously() {
-    let rdw = detect_rdw_ascii_corruption(&[b'8', b'0', b'A', b'B']);
+    let rdw = detect_rdw_ascii_corruption(b"80AB");
     let ebcdic = detect_ebcdic_corruption(&[0x01, 0x02, 0x03], "TEXT");
     let packed = detect_packed_corruption(&[0xAA, 0xBB, 0x17], "COMP3");
 
@@ -246,7 +246,7 @@ fn combined_clean_record_zero_errors() {
 #[test]
 fn combined_fully_corrupted_record() {
     let errors = scan_record(
-        &[b'8', b'0', b'C', b'D'],
+        b"80CD",
         &[(&[0x00, 0x01], "NAME"), (&[0x7F, 0x80], "ADDR")],
         &[(&[0xAA, 0x17], "BAL")],
     );
@@ -539,10 +539,10 @@ fn streaming_ebcdic_scan(data: &[u8], chunk_size: usize, field: &str) -> Vec<cop
         let mut errors = detect_ebcdic_corruption(chunk, &label);
         // Adjust offsets to be relative to the full data.
         for err in &mut errors {
-            if let Some(ctx) = err.context.as_mut() {
-                if let Some(offset) = ctx.byte_offset.as_mut() {
-                    *offset += (chunk_idx * chunk_size) as u64;
-                }
+            if let Some(ctx) = err.context.as_mut()
+                && let Some(offset) = ctx.byte_offset.as_mut()
+            {
+                *offset += (chunk_idx * chunk_size) as u64;
             }
         }
         all_errors.extend(errors);

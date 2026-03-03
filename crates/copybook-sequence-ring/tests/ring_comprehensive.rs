@@ -284,7 +284,7 @@ fn concurrent_4_threads_deterministic_output() {
     for _ in 0..total {
         let val = ring.recv_ordered().unwrap().unwrap();
         // Extract the sequence id from the string (format: "tX-Y")
-        let id: u64 = val.split('-').last().unwrap().parse().unwrap();
+        let id: u64 = val.split('-').next_back().unwrap().parse().unwrap();
         assert!(id > prev_id, "non-monotonic: {id} after {prev_id}");
         prev_id = id;
     }

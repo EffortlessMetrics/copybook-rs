@@ -295,8 +295,9 @@ impl Parser {
 
         // Pop remaining fields from stack
         while let Some(mut field) = stack.pop() {
-            // If this field has children, make it a group
-            if !field.children.is_empty() {
+            // If this field has storage-bearing children, make it a group
+            // (Level-88 conditions are non-storage and should not promote parent to Group)
+            if field.children.iter().any(|child| child.level != 88) {
                 field.kind = FieldKind::Group;
             }
 

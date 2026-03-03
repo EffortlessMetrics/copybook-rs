@@ -96,7 +96,7 @@ fn h1_second_byte_not_digit_no_h1() {
 #[test]
 fn h1_takes_priority_over_h3() {
     // Both length bytes are ASCII digits AND reserved bytes are printable
-    let err = detect_rdw_ascii_corruption(&[b'5', b'6', b'A', b'B']).unwrap();
+    let err = detect_rdw_ascii_corruption(b"56AB").unwrap();
     assert!(
         err.message.contains("ASCII digits"),
         "heuristic 1 should fire first"
@@ -194,12 +194,12 @@ fn truncated_empty() {
 
 #[test]
 fn truncated_1_byte() {
-    assert!(detect_rdw_ascii_corruption(&[b'5']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"5").is_none());
 }
 
 #[test]
 fn truncated_2_bytes() {
-    assert!(detect_rdw_ascii_corruption(&[b'5', b'6']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"56").is_none());
 }
 
 #[test]
@@ -210,7 +210,7 @@ fn truncated_3_bytes() {
 #[test]
 fn truncated_3_bytes_all_ascii() {
     // Even with all ASCII digits, 3 bytes is too short
-    assert!(detect_rdw_ascii_corruption(&[b'1', b'2', b'3']).is_none());
+    assert!(detect_rdw_ascii_corruption(b"123").is_none());
 }
 
 // ===========================================================================

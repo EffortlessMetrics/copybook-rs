@@ -131,12 +131,7 @@ proptest! {
     fn prop_err_arbitrary_bytes_to_rdw_reader_no_panic(data in vec(any::<u8>(), 0..1024)) {
         let result = catch_unwind(move || {
             let mut reader = RDWRecordReader::new(Cursor::new(data), true);
-            loop {
-                match reader.read_record() {
-                    Ok(Some(_)) => continue,
-                    Ok(None) | Err(_) => break,
-                }
-            }
+            while let Ok(Some(_)) = reader.read_record() {}
         });
         prop_assert!(result.is_ok(), "RDWRecordReader panicked on arbitrary bytes");
     }
@@ -409,12 +404,7 @@ proptest! {
                 all_bytes.extend_from_slice(chunk);
             }
             let mut reader = RDWRecordReader::new(Cursor::new(all_bytes), false);
-            loop {
-                match reader.read_record() {
-                    Ok(Some(_)) => continue,
-                    Ok(None) | Err(_) => break,
-                }
-            }
+            while let Ok(Some(_)) = reader.read_record() {}
         });
         prop_assert!(
             result.is_ok(),
@@ -479,12 +469,7 @@ proptest! {
         let data: Vec<u8> = header[..partial_len.min(4)].to_vec();
         let result = catch_unwind(move || {
             let mut reader = RDWRecordReader::new(Cursor::new(data), true);
-            loop {
-                match reader.read_record() {
-                    Ok(Some(_)) => continue,
-                    Ok(None) | Err(_) => break,
-                }
-            }
+            while let Ok(Some(_)) = reader.read_record() {}
         });
         prop_assert!(result.is_ok(), "RDW reader panicked on truncated header");
     }

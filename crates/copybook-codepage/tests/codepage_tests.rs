@@ -466,12 +466,8 @@ fn zoned_sign_table_ebcdic_negative_nibble_d() {
 #[test]
 fn zoned_sign_table_ebcdic_unsigned_nibbles_0_through_b_and_e() {
     let table = get_zoned_sign_table(Codepage::CP037);
-    for i in 0x0..=0xB {
-        assert_eq!(
-            table[i],
-            (false, false),
-            "nibble 0x{i:X} should be unsigned"
-        );
+    for (i, &entry) in table[..=0xB].iter().enumerate() {
+        assert_eq!(entry, (false, false), "nibble 0x{i:X} should be unsigned");
     }
     assert_eq!(table[0xE], (false, false), "nibble 0xE should be unsigned");
 }

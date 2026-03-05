@@ -811,6 +811,7 @@ dependencies = [
  "copybook-codec",
  "copybook-core",
  "copybook-governance",
+ "copybook-sensitive",
  "md5",
  "metrics",
  "metrics-exporter-prometheus",
@@ -1067,6 +1068,10 @@ dependencies = [
  "copybook-rdw",
  "proptest",
 ]
+
+[[package]]
+name = "copybook-sensitive"
+version = "0.4.3"
 
 [[package]]
 name = "copybook-sequence-ring"

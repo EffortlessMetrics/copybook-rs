@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-sensitive"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Sensitive-field keyword detection microcrate for audit flows"
+documentation = "https://docs.rs/copybook-sensitive"
+readme = "README.md"
+keywords = ["audit", "security", "pii", "copybook"]
+categories = ["parsing"]
+
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+
+[lints]
+workspace = true

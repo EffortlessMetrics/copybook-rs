@@ -69,6 +69,7 @@ use copybook_core::{
         },
     },
 };
+use copybook_sensitive::is_sensitive_field_name;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -1102,28 +1103,6 @@ fn security_classification(
         Some(DataClassification::PHI) => copybook_core::audit::context::SecurityClassification::PHI,
         None => copybook_core::audit::context::SecurityClassification::Internal,
     }
-}
-
-fn is_sensitive_field_name(name: &str) -> bool {
-    let candidate = name.to_ascii_uppercase();
-    candidate.contains("SSN")
-        || candidate.contains("SOCIAL")
-        || candidate.contains("PASSWORD")
-        || candidate.contains("CREDIT")
-        || candidate.contains("CARD")
-        || candidate.contains("ACCOUNT")
-        || candidate.contains("DOB")
-        || candidate.contains("BIRTH")
-        || candidate.contains("SALARY")
-        || candidate.contains("BALANCE")
-        || candidate.contains("ROUTING")
-        || candidate.contains("TAX-ID")
-        || candidate.contains("MEDICAL")
-        || candidate.contains("PATIENT")
-        || candidate.contains("DIAGNOSIS")
-        || candidate.contains("PIN")
-        || candidate.contains("ENCRYPT")
-        || candidate.contains("SECRET")
 }
 
 fn collect_sensitive_fields(schema: &Schema) -> Vec<String> {

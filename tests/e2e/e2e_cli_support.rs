@@ -35,7 +35,10 @@ fn support_table_default() {
 
 #[test]
 fn support_json_format() {
-    let assert = cmd().args(["support", "--format", "json"]).assert().success();
+    let assert = cmd()
+        .args(["support", "--format", "json"])
+        .assert()
+        .success();
     let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
     // Should be valid JSON
     let parsed: serde_json::Value = serde_json::from_str(&stdout)

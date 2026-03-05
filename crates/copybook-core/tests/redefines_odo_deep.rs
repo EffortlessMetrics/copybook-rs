@@ -436,8 +436,11 @@ fn odo_simple_tail_counter_and_bounds() {
     assert_eq!(tail.min_count, 1);
     assert_eq!(tail.max_count, 50);
 
-    // No fixed LRECL for ODO
-    assert!(schema.lrecl_fixed.is_none(), "ODO means no fixed LRECL");
+    // ODO schemas now compute lrecl_fixed from max_count allocation
+    assert!(
+        schema.lrecl_fixed.is_some(),
+        "ODO schema should have max-count LRECL"
+    );
 }
 
 // ===========================================================================
@@ -654,8 +657,8 @@ fn odo_affects_lrecl_no_fixed() {
     ";
     let schema = parse_copybook(cpy).unwrap();
 
-    // ODO → no fixed LRECL
-    assert!(schema.lrecl_fixed.is_none());
+    // ODO → lrecl_fixed set to max-count allocation
+    assert!(schema.lrecl_fixed.is_some());
 
     // tail_odo should give us bounds info
     let tail = schema.tail_odo.as_ref().unwrap();

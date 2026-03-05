@@ -118,7 +118,8 @@ fn exit_code_cbke_is_3() -> TestResult<()> {
 #[test]
 #[serial]
 fn exit_code_cbki_is_5() -> TestResult<()> {
-    // Iterator/CLI invalid state: force --format fixed on an ODO layout → CBKI (5)
+    // ODO + fixed now works (lrecl_fixed computed from max_count).
+    // Empty input → 0 records → success.
     let copybook = NamedTempFile::new()?;
     write_file(
         copybook.path(),
@@ -128,7 +129,9 @@ fn exit_code_cbki_is_5() -> TestResult<()> {
     let input = NamedTempFile::new()?;
     write_file(input.path(), b"")?;
 
-    let output = NamedTempFile::new()?;
+    // Use TempDir for output to avoid Windows NamedTempFile locking
+    let outdir = TempDir::new()?;
+    let output_path = outdir.path().join("out.jsonl");
 
     let args = vec![
         OsString::from("decode"),
@@ -137,14 +140,14 @@ fn exit_code_cbki_is_5() -> TestResult<()> {
         OsString::from("--codepage"),
         OsString::from("ascii"),
         OsString::from("--output"),
-        output.path().as_os_str().to_owned(),
+        output_path.as_os_str().to_owned(),
         copybook.path().as_os_str().to_owned(),
         input.path().as_os_str().to_owned(),
     ];
 
     let code = run_and_status(&args)?;
 
-    assert_eq!(code, 5, "CBKI errors should map to exit code 5");
+    assert_eq!(code, 0, "ODO+fixed decode with empty input should succeed");
     Ok(())
 }
 

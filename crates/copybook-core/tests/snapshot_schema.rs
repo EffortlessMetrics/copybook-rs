@@ -88,8 +88,8 @@ fn snapshot_odo_copybook_schema_json() {
     let schema = parse_copybook(copybook).unwrap();
     let json: serde_json::Value = serde_json::to_value(&schema).unwrap();
 
-    // ODO schemas have no fixed LRECL
-    assert!(json["lrecl_fixed"].is_null());
+    // ODO schemas now compute lrecl_fixed from max_count allocation
+    assert!(!json["lrecl_fixed"].is_null());
 
     // tail_odo metadata is populated
     let tail_odo = &json["tail_odo"];

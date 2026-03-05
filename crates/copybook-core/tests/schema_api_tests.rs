@@ -168,10 +168,10 @@ fn test_lrecl_none_for_odo_schema() {
                          PIC X(5).
     "#;
     let schema = parse_copybook(cb).expect("parse");
-    // Variable-length records should NOT have a fixed LRECL
+    // ODO schemas now compute lrecl_fixed from max_count allocation
     assert!(
-        schema.lrecl_fixed.is_none(),
-        "ODO schema should have no fixed LRECL"
+        schema.lrecl_fixed.is_some(),
+        "ODO schema should have max-count LRECL"
     );
     assert!(schema.tail_odo.is_some(), "tail_odo should be populated");
 }

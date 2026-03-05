@@ -295,8 +295,8 @@ fn snapshot_odo_variable_array() {
              10 ENTRY-VAL PIC X(8).",
     );
 
-    // ODO means no fixed LRECL
-    assert!(json["lrecl_fixed"].is_null());
+    // ODO schemas now compute lrecl_fixed from max_count allocation
+    assert!(!json["lrecl_fixed"].is_null());
 
     // tail_odo metadata
     let odo = &json["tail_odo"];

@@ -219,10 +219,10 @@ fn snapshot_inspect_odo_layout() {
     let schema = parse_copybook(copybook).unwrap();
     let layout = render_layout(&schema.fields, 0);
 
-    // ODO schemas have no fixed LRECL
+    // ODO schemas now compute lrecl_fixed from max_count allocation
     assert!(
-        schema.lrecl_fixed.is_none(),
-        "ODO should have no fixed LRECL"
+        schema.lrecl_fixed.is_some(),
+        "ODO should have max-count LRECL"
     );
 
     // Tail ODO info

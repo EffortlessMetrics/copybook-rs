@@ -351,7 +351,6 @@ fn select_nonexistent_field_produces_error() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn select_odo_array_auto_includes_counter() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
@@ -551,7 +550,6 @@ fn select_with_multiple_records() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn select_with_dialect_flag() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
@@ -658,7 +656,6 @@ fn select_last_field_only() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn select_odo_counter_without_array() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
@@ -700,7 +697,6 @@ fn select_odo_counter_without_array() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn select_counter_and_array_explicitly() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
@@ -746,7 +742,6 @@ fn select_counter_and_array_explicitly() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn select_non_odo_field_from_odo_schema() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");

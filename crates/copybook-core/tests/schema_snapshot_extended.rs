@@ -379,8 +379,8 @@ fn snapshot_occurs_and_odo_combined() {
     assert_eq!(flds[3]["occurs"]["ODO"]["max"], 20);
     assert_eq!(flds[3]["occurs"]["ODO"]["counter_path"], "LINE-COUNT");
 
-    // No fixed LRECL due to ODO
-    assert!(json["lrecl_fixed"].is_null());
+    // ODO schemas now compute lrecl_fixed from max_count allocation
+    assert!(!json["lrecl_fixed"].is_null());
 
     // Tail ODO metadata
     let odo = &json["tail_odo"];
@@ -623,7 +623,7 @@ fn snapshot_lrecl_null_for_odo() {
                        PIC X(5).",
     )
     .unwrap();
-    assert!(schema.lrecl_fixed.is_none());
+    assert!(schema.lrecl_fixed.is_some());
 }
 
 #[test]

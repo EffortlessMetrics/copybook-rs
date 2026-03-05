@@ -691,7 +691,7 @@ fn test_lrecl_odo_is_none() {
           05 ARR OCCURS 1 TO 10 TIMES DEPENDING ON CNT PIC X(5).
     ",
     );
-    assert!(s.lrecl_fixed.is_none());
+    assert!(s.lrecl_fixed.is_some());
 }
 
 #[test]

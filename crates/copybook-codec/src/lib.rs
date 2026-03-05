@@ -27,6 +27,7 @@ pub mod iterator;
 pub mod lib_api;
 /// Re-export of [`copybook_codec_memory`] for scratch buffers and streaming.
 pub use copybook_codec_memory as memory;
+/// Numeric field decoding and encoding (zoned decimal, packed decimal, binary).
 pub mod numeric;
 /// Configuration types: codepage, record format, JSON modes, raw capture.
 pub mod options;

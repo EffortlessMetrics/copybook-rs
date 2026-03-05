@@ -30,13 +30,19 @@ use std::collections::HashSet;
 /// - `CBKS702_PROJECTION_UNRESOLVED_ALIAS`: RENAMES alias spans unselected fields
 /// - `CBKS703_PROJECTION_FIELD_NOT_FOUND`: Selected field doesn't exist in schema
 ///
-/// # Example
-/// ```text
-/// use copybook_core::{parse_copybook, projection::project_schema};
+/// # Examples
 ///
-/// let copybook = "01 CUSTOMER.\n   05 ID PIC 9(6).\n   05 NAME PIC X(30).";
-/// let schema = parse_copybook(copybook)?;
-/// let projected = project_schema(&schema, &["ID".to_string()])?;
+/// ```
+/// use copybook_core::{parse_copybook, project_schema};
+///
+/// let schema = parse_copybook(
+///     "01 CUSTOMER.\n   05 ID PIC 9(6).\n   05 NAME PIC X(30)."
+/// ).unwrap();
+/// let projected = project_schema(&schema, &["ID".to_string()]).unwrap();
+/// // Projected schema includes ID and parent group CUSTOMER
+/// assert_eq!(projected.fields[0].name, "CUSTOMER");
+/// assert_eq!(projected.fields[0].children.len(), 1);
+/// assert_eq!(projected.fields[0].children[0].name, "ID");
 /// ```
 pub fn project_schema(schema: &Schema, selections: &[String]) -> Result<Schema> {
     if selections.is_empty() {

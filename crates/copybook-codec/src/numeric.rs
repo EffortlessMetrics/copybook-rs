@@ -3008,6 +3008,19 @@ pub fn encode_binary_int(value: i64, bits: u16, signed: bool) -> Result<Vec<u8>>
 /// # Errors
 /// * `CBKE501_JSON_TYPE_MISMATCH` - if the encoded text exceeds `field_len` bytes
 ///
+/// # Examples
+///
+/// ```
+/// use copybook_codec::numeric::encode_alphanumeric;
+/// use copybook_codec::Codepage;
+///
+/// // Encode a 5-character string into a 10-byte ASCII field (right-padded with spaces)
+/// let result = encode_alphanumeric("HELLO", 10, Codepage::ASCII).unwrap();
+/// assert_eq!(result.len(), 10);
+/// assert_eq!(&result[..5], b"HELLO");
+/// assert_eq!(&result[5..], b"     "); // padded with spaces
+/// ```
+///
 /// # See Also
 /// * [`crate::charset::utf8_to_ebcdic`] - Underlying character conversion
 #[inline]
@@ -3052,6 +3065,17 @@ pub fn encode_alphanumeric(text: &str, field_len: usize, codepage: Codepage) -> 
 ///
 /// # Returns
 /// `true` if the field should be encoded as all spaces; `false` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_codec::numeric::should_encode_as_blank_when_zero;
+///
+/// assert!(should_encode_as_blank_when_zero("0", true));
+/// assert!(should_encode_as_blank_when_zero("0.00", true));
+/// assert!(!should_encode_as_blank_when_zero("42", true));
+/// assert!(!should_encode_as_blank_when_zero("0", false)); // BWZ disabled
+/// ```
 ///
 /// # See Also
 /// * [`encode_zoned_decimal_with_bwz`] - Uses this function to apply the BWZ policy

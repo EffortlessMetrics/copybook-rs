@@ -140,7 +140,17 @@ jobs:
         env:
           ${{ matrix.feature_flag.env }}: ${{ matrix.state == 'enabled' && '1' || '0' }}
         run: |
-          cargo clippy --workspace --all-targets -- -D warnings
+          # Pedantic for production targets, relaxed for tests (mirrors scripts/ci/quick.sh)
+          cargo clippy --workspace --lib --bins --examples -- -D warnings -W clippy::pedantic
+          cargo clippy --workspace --tests -- -D warnings \
+            -A clippy::unwrap_used \
+            -A clippy::expect_used \
+            -A clippy::panic \
+            -A clippy::dbg_macro \
+            -A clippy::print_stdout \
+            -A clippy::print_stderr \
+            -A clippy::missing_inline_in_public_items \
+            -A clippy::duplicated_attributes
 
   test-features-module:
     if: needs.changes.outputs.rust == 'true'

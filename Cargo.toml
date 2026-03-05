@@ -15,6 +15,7 @@ members = [
     "copybook-options",
     "copybook-core",
     "copybook-dialect",
+    "copybook-corruption",
     "copybook-codec",
     "copybook-codec-memory",
     "copybook-sequence-ring",
@@ -65,6 +66,7 @@ copybook-charset = { version = "=0.4.3", path = "copybook-charset" }
 copybook-options = { version = "=0.4.3", path = "copybook-options" }
 copybook-core = { version = "=0.4.3", path = "copybook-core" }
 copybook-dialect = { version = "=0.4.3", path = "copybook-dialect" }
+copybook-corruption = { version = "=0.4.3", path = "copybook-corruption" }
 copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
 copybook-codec-memory = { version = "=0.4.3", path = "copybook-codec-memory" }
 copybook-sequence-ring = { version = "=0.4.3", path = "copybook-sequence-ring" }

@@ -15,6 +15,12 @@ pub struct Counts {
     pub skipped: u64,
 }
 
+/// Parse nextest `JUnit` XML and return test counts.
+///
+/// # Errors
+///
+/// Returns an error if the `JUnit` XML file is missing or malformed.
+#[inline]
 pub fn counts() -> Result<Counts> {
     let junit_path = Path::new("target/nextest/junit.xml");
     if !junit_path.exists() {

@@ -2,7 +2,7 @@
 use anyhow::{Result, bail};
 use copybook_core::support_matrix;
 use std::{fs, path::Path};
-use xtask::{perf, counts, Counts};
+use xtask::{Counts, counts, perf};
 
 mod pr_insights;
 

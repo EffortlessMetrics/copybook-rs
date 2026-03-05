@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::fmt::Write as _;
 use std::{fs, path::Path};
 use xtask::perf;
 
@@ -9,9 +10,9 @@ pub fn generate_summary() -> Result<()> {
     // Test Status
     if let Ok(c) = xtask::counts() {
         markdown.push_str("### 🧪 Test Status\n");
-        markdown.push_str(&format!("- **Passed**: {}\n", c.passed));
-        markdown.push_str(&format!("- **Failed**: {}\n", c.failed));
-        markdown.push_str(&format!("- **Skipped**: {}\n\n", c.skipped));
+        let _ = writeln!(markdown, "- **Passed**: {}", c.passed);
+        let _ = writeln!(markdown, "- **Failed**: {}", c.failed);
+        let _ = writeln!(markdown, "- **Skipped**: {}\n", c.skipped);
     } else {
         markdown.push_str("### 🧪 Test Status\n");
         markdown.push_str("⚠️ Could not load test results (missing junit.xml).\n\n");

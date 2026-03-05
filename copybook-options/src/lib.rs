@@ -4,6 +4,7 @@
 
 // Re-export from copybook-charset for public API
 pub use copybook_charset::{Codepage, UnmappablePolicy};
+pub use copybook_record_format::RecordFormat;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -192,38 +193,6 @@ pub struct EncodeOptions {
     /// Floating-point representation for COMP-1/COMP-2 fields.
     #[serde(default)]
     pub float_format: FloatFormat,
-}
-
-/// Record format specification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
-pub enum RecordFormat {
-    /// Fixed-length records
-    Fixed,
-    /// Variable-length records with RDW
-    RDW,
-}
-
-impl RecordFormat {
-    /// Check if this is a fixed-length record format
-    #[must_use]
-    pub const fn is_fixed(self) -> bool {
-        matches!(self, Self::Fixed)
-    }
-
-    /// Check if this is a variable-length record format
-    #[must_use]
-    pub const fn is_variable(self) -> bool {
-        matches!(self, Self::RDW)
-    }
-
-    /// Get a human-readable description of the format
-    #[must_use]
-    pub const fn description(self) -> &'static str {
-        match self {
-            Self::Fixed => "Fixed-length records",
-            Self::RDW => "Variable-length records with Record Descriptor Word",
-        }
-    }
 }
 
 /// JSON number representation mode
@@ -572,16 +541,6 @@ impl EncodeOptions {
         self
     }
 }
-impl fmt::Display for RecordFormat {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Fixed => write!(f, "fixed"),
-            Self::RDW => write!(f, "rdw"),
-        }
-    }
-}
-
 impl fmt::Display for JsonNumberMode {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

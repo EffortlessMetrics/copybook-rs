@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [package]
-name = "copybook-options"
+name = "copybook-record-format"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,11 +8,11 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Configuration option contracts shared across copybook codec workflows"
-documentation = "https://docs.rs/copybook-options"
+description = "Microcrate for fixed vs RDW record format contracts"
+documentation = "https://docs.rs/copybook-record-format"
 readme = "README.md"
-keywords = ["cobol", "copybook", "options", "codec", "configuration"]
-categories = ["encoding", "config", "data-structures"]
+keywords = ["cobol", "copybook", "record", "rdw", "fixed"]
+categories = ["encoding", "data-structures"]
 
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
 
@@ -21,14 +21,8 @@ all-features = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-copybook-charset = { workspace = true, features = ["clap"] }
-copybook-record-format.workspace = true
 serde.workspace = true
 clap.workspace = true
-
-[dev-dependencies]
-serde_json.workspace = true
-proptest.workspace = true
 
 [lints]
 workspace = true

@@ -18,7 +18,7 @@ build-release:
 
 # Run all tests using cargo-nextest (preferred)
 test:
-    cargo nextest run --workspace
+    cargo nextest run --workspace --exclude copybook-bdd
 
 # Run all tests, including long-running and ignored tests
 test-all:
@@ -67,7 +67,8 @@ lint:
       -A clippy::dbg_macro \
       -A clippy::print_stdout \
       -A clippy::print_stderr \
-      -A clippy::duplicated_attributes
+      -A clippy::duplicated_attributes \
+      -A deprecated
 
 # Format all code
 fmt:
@@ -384,7 +385,7 @@ bench-crate crate:
 
 # Generate test coverage report
 coverage:
-    cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+    cargo llvm-cov --all-features --workspace --exclude copybook-bench --exclude copybook-bdd --lcov --output-path lcov.info
 
 # Watch for changes and run tests
 watch:

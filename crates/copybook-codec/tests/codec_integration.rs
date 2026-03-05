@@ -264,6 +264,43 @@ fn encode_with_coerce_numbers() {
 }
 
 #[test]
+fn encode_coerce_numbers_comp3() {
+    let schema = parse_copybook("01 FLD PIC S9(5) COMP-3.").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": 12345});
+    let opts = ascii_encode_opts().with_coerce_numbers(true);
+    let result = encode_record(&schema, &json, &opts);
+    assert!(
+        result.is_ok(),
+        "Coerce numbers should allow numeric JSON input for COMP-3: {result:?}"
+    );
+}
+
+#[test]
+fn encode_coerce_numbers_binary() {
+    let schema = parse_copybook("01 FLD PIC S9(4) COMP.").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": 42});
+    let opts = ascii_encode_opts().with_coerce_numbers(true);
+    let result = encode_record(&schema, &json, &opts);
+    assert!(
+        result.is_ok(),
+        "Coerce numbers should allow numeric JSON input for BINARY: {result:?}"
+    );
+}
+
+#[test]
+fn encode_without_coerce_numbers_rejects_number() {
+    let schema = parse_copybook("01 FLD PIC 9(5).").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": 42});
+    let opts = ascii_encode_opts().with_coerce_numbers(false);
+    let result = encode_record(&schema, &json, &opts);
+    // Without coerce_numbers, Value::Number is silently skipped (field stays zero-filled)
+    assert!(result.is_ok());
+    let encoded = result.unwrap();
+    // Field should be zero-filled since Value::Number was not coerced
+    assert_eq!(&encoded[..5], b"\x00\x00\x00\x00\x00");
+}
+
+#[test]
 fn decode_codepage_ascii() {
     let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
     let data = b"HELLO";

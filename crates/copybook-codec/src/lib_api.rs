@@ -2018,6 +2018,7 @@ fn encode_single_field(
             json_obj,
             buffer,
             current_offset,
+            options,
             DecimalSpec {
                 digits: *digits,
                 scale: *scale,
@@ -2030,6 +2031,7 @@ fn encode_single_field(
             json_obj,
             buffer,
             current_offset,
+            options,
             BinarySpec {
                 bits: *bits,
                 signed: *signed,
@@ -2046,13 +2048,16 @@ fn encode_single_field(
             pic_string, scale, ..
         } => {
             // Phase E3.1: Encode edited PIC fields
-            if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+            if let Some(text) = json_obj
+                .get(&field.name)
+                .and_then(|v| coerce_to_str(v, options.coerce_numbers))
+            {
                 // Tokenize the PIC pattern
                 let pattern = crate::edited_pic::tokenize_edited_pic(pic_string)?;
 
                 // Encode the edited numeric value
                 let encoded = crate::edited_pic::encode_edited_numeric(
-                    text,
+                    &text,
                     &pattern,
                     *scale,
                     field.blank_when_zero,
@@ -2274,6 +2279,19 @@ fn parse_zoned_encoding_format_str(value: &str) -> Option<ZonedEncodingFormat> {
     }
 }
 
+/// Extract a string representation from a JSON value for encoding numeric fields.
+///
+/// When `coerce_numbers` is true, `Value::Number` inputs are converted to their
+/// string representation (e.g., `42` → `"42"`, `123.45` → `"123.45"`).
+/// When false, only `Value::String` inputs are accepted.
+fn coerce_to_str(value: &Value, coerce: bool) -> Option<String> {
+    match value {
+        Value::String(s) => Some(s.clone()),
+        Value::Number(n) if coerce => Some(n.to_string()),
+        _ => None,
+    }
+}
+
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn encode_zoned_decimal_field(
@@ -2288,7 +2306,10 @@ fn encode_zoned_decimal_field(
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+    if let Some(text) = json_obj
+        .get(&field.name)
+        .and_then(|v| coerce_to_str(v, options.coerce_numbers))
+    {
         let preserved_format = encoding_metadata
             .and_then(|meta| resolve_preserved_zoned_format(meta, field_path, &field.name));
         let resolved_format = options
@@ -2309,7 +2330,7 @@ fn encode_zoned_decimal_field(
         };
 
         let encoded = crate::numeric::encode_zoned_decimal_with_format_and_policy(
-            text,
+            &text,
             spec.digits,
             spec.scale,
             spec.signed,
@@ -2333,13 +2354,17 @@ fn encode_packed_decimal_field(
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
+    options: &EncodeOptions,
     spec: DecimalSpec,
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(text) = json_obj.get(&field.name).and_then(|value| value.as_str()) {
+    if let Some(text) = json_obj
+        .get(&field.name)
+        .and_then(|v| coerce_to_str(v, options.coerce_numbers))
+    {
         let encoded =
-            crate::numeric::encode_packed_decimal(text, spec.digits, spec.scale, spec.signed)?;
+            crate::numeric::encode_packed_decimal(&text, spec.digits, spec.scale, spec.signed)?;
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
             buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
         }
@@ -2361,15 +2386,21 @@ fn encode_binary_int_field(
     json_obj: &serde_json::Map<String, Value>,
     buffer: &mut [u8],
     current_offset: usize,
+    options: &EncodeOptions,
     spec: BinarySpec,
 ) -> Result<usize> {
     let field_len = field.len as usize;
 
-    if let Some(num) = json_obj
-        .get(&field.name)
-        .and_then(|value| value.as_str())
-        .and_then(|text| text.parse::<i64>().ok())
-    {
+    if let Some(num) = json_obj.get(&field.name).and_then(|v| {
+        if let Some(n) = v.as_i64() {
+            // Direct numeric path (always available for Value::Number with i64 range)
+            Some(n)
+        } else if let Some(s) = coerce_to_str(v, options.coerce_numbers) {
+            s.parse::<i64>().ok()
+        } else {
+            None
+        }
+    }) {
         let encoded = crate::numeric::encode_binary_int(num, spec.bits, spec.signed)?;
         if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
             buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);

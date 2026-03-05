@@ -154,6 +154,10 @@ path = "e2e_cli_feature_flags.rs"
 name = "e2e_verify_comprehensive"
 path = "e2e_verify_comprehensive.rs"
 
+[[test]]
+name = "e2e_encode_codepage"
+path = "e2e_encode_codepage.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

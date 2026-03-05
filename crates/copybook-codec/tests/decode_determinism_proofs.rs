@@ -84,8 +84,8 @@ fn decode_determinism_pic_9v99() {
 
 #[test]
 fn decode_determinism_comp3_positive() {
-    // +12345 in COMP-3: 0x01 0x23 0x45 0x0C
-    let data: &[u8] = &[0x01, 0x23, 0x45, 0x0C];
+    // +12345 in COMP-3: 0x12 0x34 0x5C
+    let data: &[u8] = &[0x12, 0x34, 0x5C];
     assert_decode_deterministic(
         "01 REC.\n   05 FLD PIC S9(5) COMP-3.",
         data,
@@ -95,8 +95,8 @@ fn decode_determinism_comp3_positive() {
 
 #[test]
 fn decode_determinism_comp3_negative() {
-    // -98765 in COMP-3: 0x09 0x87 0x65 0x0D
-    let data: &[u8] = &[0x09, 0x87, 0x65, 0x0D];
+    // -98765 in COMP-3: 0x98 0x76 0x5D
+    let data: &[u8] = &[0x98, 0x76, 0x5D];
     assert_decode_deterministic(
         "01 REC.\n   05 FLD PIC S9(5) COMP-3.",
         data,
@@ -109,7 +109,7 @@ fn decode_determinism_comp3_zero() {
     // +0 in COMP-3 PIC S9(5): 0x00 0x00 0x0C
     let data: &[u8] = &[0x00, 0x00, 0x0C];
     assert_decode_deterministic(
-        "01 REC.\n   05 FLD PIC S9(3) COMP-3.",
+        "01 REC.\n   05 FLD PIC S9(5) COMP-3.",
         data,
         &ebcdic_decode_opts(),
     );
@@ -117,8 +117,8 @@ fn decode_determinism_comp3_zero() {
 
 #[test]
 fn decode_determinism_comp3_with_scale() {
-    // +12345.67 stored as 1234567 in COMP-3: 0x01 0x23 0x45 0x67 0x0C
-    let data: &[u8] = &[0x01, 0x23, 0x45, 0x67, 0x0C];
+    // +12345.67 stored as 1234567 in COMP-3: 0x12 0x34 0x56 0x7C
+    let data: &[u8] = &[0x12, 0x34, 0x56, 0x7C];
     assert_decode_deterministic(
         "01 REC.\n   05 FLD PIC S9(5)V99 COMP-3.",
         data,

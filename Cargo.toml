@@ -178,6 +178,9 @@ unreachable = "warn"
 todo = "warn"
 unimplemented = "warn"
 
+# Debug cruft prevention (no dbg! in shipped code; tests are allowed via CI)
+dbg_macro = "warn"
+
 # Performance lints
 missing_inline_in_public_items = "warn"
 cast_lossless = "allow"

@@ -49,4 +49,8 @@ bash scripts/ci/governance-bdd-smoke.sh
 echo "==> Running doc tests"
 RUSTDOCFLAGS="--deny warnings" "$CARGO_BIN" test --doc --workspace --exclude copybook-bench
 
+# Doc link validation (catch broken intra-doc links)
+echo "==> Checking doc links"
+RUSTDOCFLAGS="-D warnings" "$CARGO_BIN" doc --workspace --no-deps
+
 echo "✅ Quick gates passed"

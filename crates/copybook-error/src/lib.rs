@@ -16,6 +16,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 ///
 /// Uses thiserror for clean error handling with manual Display implementation
 /// to avoid allocations in hot paths.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_error::{Error, ErrorCode};
+///
+/// let err = Error::new(ErrorCode::CBKP001_SYNTAX, "unexpected token");
+/// assert_eq!(err.code(), ErrorCode::CBKP001_SYNTAX);
+/// assert_eq!(err.family_prefix(), "CBKP");
+/// assert_eq!(err.to_string(), "CBKP001_SYNTAX: unexpected token");
+/// ```
 #[derive(Error, Debug, Clone, PartialEq)]
 pub struct Error {
     /// Stable error code for programmatic handling

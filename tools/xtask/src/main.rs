@@ -2,7 +2,9 @@
 use anyhow::{Result, bail};
 use copybook_core::support_matrix;
 use std::{fs, path::Path};
-use xtask::perf;
+use xtask::{perf, counts, Counts};
+
+mod pr_insights;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -20,9 +22,10 @@ fn main() -> Result<()> {
         ["perf", "--out-dir", out_dir] => perf::run(false, Some(out_dir)),
         ["perf", "--enforce", "--out-dir", out_dir] => perf::run(true, Some(out_dir)),
         ["perf", "--summarize-last" | "--summarize"] => perf_summarize_last(),
+        ["pr-insights"] => pr_insights::generate_summary(),
         _ => {
             eprintln!(
-                "Usage: cargo run -p xtask -- [docs|perf] <subcommand>\n\
+                "Usage: cargo run -p xtask -- [docs|perf|pr-insights] <subcommand>\n\
                  \n\
                  docs sync-tests                 Sync test status from junit.xml\n\
                  docs verify-tests               Verify test status is in sync\n\
@@ -30,47 +33,12 @@ fn main() -> Result<()> {
                  perf                            Run perf benchmark runner\n\
                  perf --enforce                  Run perf with SLO enforcement\n\
                  perf --out-dir <path>           Run perf with custom output directory\n\
-                 perf --summarize-last           Summarize latest perf.json with SLO comparison"
+                 perf --summarize-last           Summarize latest perf.json with SLO comparison\n\
+                 pr-insights                     Generate PR insights report (nextest + perf)"
             );
             Ok(())
         }
     }
-}
-
-#[derive(Default)]
-struct Counts {
-    passed: u64,
-    failed: u64,
-    skipped: u64,
-}
-
-fn counts() -> Result<Counts> {
-    let junit_path = Path::new("target/nextest/junit.xml");
-    if !junit_path.exists() {
-        bail!("No junit.xml found (run nextest with junit output)");
-    }
-
-    let xml_content = fs::read_to_string(junit_path)?;
-    let doc = roxmltree::Document::parse(&xml_content)?;
-
-    let mut c = Counts::default();
-    for node in doc.descendants().filter(|n| n.has_tag_name("testsuite")) {
-        let tests = attr(node, "tests");
-        let failures = attr(node, "failures") + attr(node, "errors");
-        let skipped = attr(node, "skipped");
-
-        c.failed += failures;
-        c.skipped += skipped;
-        c.passed += tests.saturating_sub(failures + skipped);
-    }
-
-    Ok(c)
-}
-
-fn attr(node: roxmltree::Node<'_, '_>, key: &str) -> u64 {
-    node.attribute(key)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0)
 }
 
 fn block(c: &Counts) -> String {

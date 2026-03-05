@@ -1,13 +1,13 @@
 use anyhow::Result;
 use std::{fs, path::Path};
-use crate::perf;
+use xtask::perf;
 
 pub fn generate_summary() -> Result<()> {
     let mut markdown = String::new();
     markdown.push_str("## 🚀 DevEx Automated PR Insights\n\n");
 
     // Test Status
-    if let Ok(c) = crate::counts() {
+    if let Ok(c) = xtask::counts() {
         markdown.push_str("### 🧪 Test Status\n");
         markdown.push_str(&format!("- **Passed**: {}\n", c.passed));
         markdown.push_str(&format!("- **Failed**: {}\n", c.failed));

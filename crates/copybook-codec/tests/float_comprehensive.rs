@@ -600,7 +600,8 @@ fn mixed_record_comp1_and_comp2() {
     assert_eq!(encoded.len(), 21);
 
     let decoded = decode_record(&schema, &encoded, &native_decode()).unwrap();
-    assert_eq!(decoded["ID"], serde_json::json!("0042"));
+    // Native mode: PIC 9(4) decodes to native JSON number
+    assert_eq!(decoded["ID"], serde_json::json!(42));
 
     let f32_val = decoded["RATE-F32"].as_f64().unwrap();
     assert!((f32_val - 1.5).abs() < 1e-5);

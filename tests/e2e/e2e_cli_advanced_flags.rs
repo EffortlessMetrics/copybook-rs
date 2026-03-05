@@ -111,16 +111,13 @@ fn decode_json_number_native_accepted_and_produces_output() {
 
     let content = std::fs::read_to_string(&out).unwrap();
     let v: Value = serde_json::from_str(content.trim()).unwrap();
-    // Verify fields are present and correctly decoded
+    // Native mode returns JSON numbers (not strings)
     assert!(
-        v["fields"]["QTY"].is_string(),
-        "QTY present in output, got: {}",
+        v["fields"]["QTY"].is_number(),
+        "QTY should be a JSON number in native mode, got: {}",
         v["fields"]["QTY"]
     );
-    assert_eq!(
-        v["fields"]["QTY"].as_str().unwrap().trim_start_matches('0'),
-        "42"
-    );
+    assert_eq!(v["fields"]["QTY"], serde_json::json!(42));
 }
 
 #[test]

@@ -548,10 +548,8 @@ fn test_json_number_modes() {
     assert_eq!(json_record["PACKED-FIELD"], "123.4");
     assert_eq!(json_record["BINARY-FIELD"], "99999");
 
-    // Test Native mode: decode_file_to_jsonl uses the scratch-buffer path which
-    // always emits string values regardless of json_number_mode. The JsonNumberMode
-    // distinction applies in the JsonRecordBuilder fast path (json.rs), not here.
-    // Verify the values are still correctly decoded.
+    // Test Native mode: decode_file_to_jsonl now correctly respects json_number_mode,
+    // rendering numeric fields as native JSON numbers when possible.
     let native_options = DecodeOptions::new()
         .with_format(RecordFormat::Fixed)
         .with_codepage(Codepage::ASCII)
@@ -570,10 +568,10 @@ fn test_json_number_modes() {
     let output_str = String::from_utf8(output).unwrap();
     let json_record: Value = serde_json::from_str(output_str.trim()).unwrap();
 
-    // decode_file_to_jsonl scratch path always renders as strings
-    assert_eq!(json_record["ZONED-FIELD"], "12345.67");
-    assert_eq!(json_record["PACKED-FIELD"], "123.4");
-    assert_eq!(json_record["BINARY-FIELD"], "99999");
+    // Native mode now produces JSON numbers
+    assert_eq!(json_record["ZONED-FIELD"], serde_json::json!(12345.67));
+    assert_eq!(json_record["PACKED-FIELD"], serde_json::json!(123.4));
+    assert_eq!(json_record["BINARY-FIELD"], serde_json::json!(99999));
 }
 
 #[test]

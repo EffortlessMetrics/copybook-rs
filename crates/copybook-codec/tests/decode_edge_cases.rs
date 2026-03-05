@@ -662,9 +662,9 @@ fn decode_json_native_comp3_returns_string() {
     let schema = parse_copybook("01 REC. 05 FLD PIC S9(5)V99 COMP-3.").unwrap();
     let data: [u8; 4] = [0x12, 0x34, 0x56, 0x7C]; // 12345.67
     let result = decode_record(&schema, &data, &native_ebcdic()).unwrap();
-    // Non-float numeric types return strings even in native mode at record level
-    assert!(result["FLD"].is_string());
-    assert_eq!(result["FLD"], "12345.67");
+    // Native mode now correctly returns JSON numbers
+    assert!(result["FLD"].is_number());
+    assert_eq!(result["FLD"], serde_json::json!(12345.67));
 }
 
 #[test]
@@ -681,9 +681,9 @@ fn decode_json_native_integer_still_string() {
     let schema = parse_copybook("01 REC. 05 FLD PIC S9(4) COMP.").unwrap();
     let data: [u8; 2] = [0x04, 0xD2]; // 1234
     let result = decode_record(&schema, &data, &native_ebcdic()).unwrap();
-    // COMP integer types return strings even in native mode
-    assert!(result["FLD"].is_string());
-    assert_eq!(result["FLD"], "1234");
+    // Native mode now correctly returns JSON numbers for COMP integer types
+    assert!(result["FLD"].is_number());
+    assert_eq!(result["FLD"], serde_json::json!(1234));
 }
 
 #[test]
@@ -708,9 +708,9 @@ fn decode_json_same_value_both_modes() {
     let lossless = decode_record(&schema, &data, &lossless_ebcdic()).unwrap();
     let native = decode_record(&schema, &data, &native_ebcdic()).unwrap();
 
-    // Both modes return strings for COMP integer types
+    // Lossless returns string, native returns number — both represent 42
     let lossless_val: i64 = lossless["FLD"].as_str().unwrap().parse().unwrap();
-    let native_val: i64 = native["FLD"].as_str().unwrap().parse().unwrap();
+    let native_val: i64 = native["FLD"].as_i64().unwrap();
     assert_eq!(lossless_val, native_val);
     assert_eq!(native_val, 42);
 }
@@ -721,8 +721,9 @@ fn decode_json_native_display_numeric_returns_string() {
     // EBCDIC "00042"
     let data: [u8; 5] = [0xF0, 0xF0, 0xF0, 0xF4, 0xF2];
     let result = decode_record(&schema, &data, &native_ebcdic()).unwrap();
-    // Display numerics return strings even in native mode
-    assert!(result["FLD"].is_string());
+    // Native mode now correctly returns JSON numbers for display numerics
+    assert!(result["FLD"].is_number());
+    assert_eq!(result["FLD"], serde_json::json!(42));
 }
 
 #[test]

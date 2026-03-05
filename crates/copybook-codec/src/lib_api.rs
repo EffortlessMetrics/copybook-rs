@@ -1242,6 +1242,37 @@ fn collect_zoned_encoding_info(
     }
 }
 
+/// Convert a numeric string to a JSON value respecting [`JsonNumberMode`].
+///
+/// In `Lossless` mode the decimal string is returned as-is (`Value::String`).
+/// In `Native` mode the string is parsed to the narrowest JSON number type
+/// (i64 → u64 → f64), falling back to string if parsing fails.
+fn numeric_string_to_value(s: String, options: &DecodeOptions) -> Value {
+    use crate::options::JsonNumberMode;
+    match options.json_number_mode {
+        JsonNumberMode::Lossless => Value::String(s),
+        JsonNumberMode::Native => {
+            // Try integer first (no decimal point and no exponent)
+            if !s.contains('.') && !s.contains('e') && !s.contains('E') {
+                if let Ok(n) = s.parse::<i64>() {
+                    return Value::Number(serde_json::Number::from(n));
+                }
+                if let Ok(n) = s.parse::<u64>() {
+                    return Value::Number(serde_json::Number::from(n));
+                }
+            }
+            // Fall back to f64
+            if let Ok(f) = s.parse::<f64>()
+                && let Some(n) = serde_json::Number::from_f64(f)
+            {
+                return Value::Number(n);
+            }
+            // Unparseable → keep as string
+            Value::String(s)
+        }
+    }
+}
+
 /// Decode a scalar field value from raw data (standard path)
 #[allow(clippy::too_many_lines)]
 fn decode_scalar_field_value_standard(
@@ -1280,7 +1311,7 @@ fn decode_scalar_field_value_standard(
                 } else {
                     decimal.to_string()
                 };
-                Ok(Value::String(formatted))
+                Ok(numeric_string_to_value(formatted, options))
             } else if options.preserve_zoned_encoding {
                 // Use encoding-aware decoding for round-trip preservation
                 let (decimal, _encoding_info) = crate::numeric::decode_zoned_decimal_with_encoding(
@@ -1301,7 +1332,7 @@ fn decode_scalar_field_value_standard(
 
                 // Encoding info is collected by collect_zoned_encoding_info() at the caller level
                 // and emitted as _encoding_metadata in the JSON envelope
-                Ok(Value::String(formatted))
+                Ok(numeric_string_to_value(formatted, options))
             } else {
                 // Use standard decoding
                 let decimal = crate::numeric::decode_zoned_decimal(
@@ -1317,7 +1348,7 @@ fn decode_scalar_field_value_standard(
                 } else {
                     decimal.to_string()
                 };
-                Ok(Value::String(formatted))
+                Ok(numeric_string_to_value(formatted, options))
             }
         }
         FieldKind::BinaryInt { bits, signed } => {
@@ -1327,7 +1358,7 @@ fn decode_scalar_field_value_standard(
             let scratch = scratch_buffers.get_or_insert_with(crate::memory::ScratchBuffers::new);
             let formatted =
                 crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
-            Ok(Value::String(formatted))
+            Ok(numeric_string_to_value(formatted, options))
         }
         FieldKind::PackedDecimal {
             digits,
@@ -1336,7 +1367,7 @@ fn decode_scalar_field_value_standard(
         } => {
             let decimal =
                 crate::numeric::decode_packed_decimal(field_data, *digits, *scale, *signed)?;
-            Ok(Value::String(decimal.to_string()))
+            Ok(numeric_string_to_value(decimal.to_string(), options))
         }
         FieldKind::Group => {
             // Group fields should not be processed as scalars
@@ -1424,8 +1455,11 @@ fn decode_scalar_field_value_standard(
                 field.blank_when_zero,
             )?;
 
-            // Return as string (consistent with other numeric types)
-            Ok(Value::String(numeric_value.to_decimal_string()))
+            // Return respecting json_number_mode
+            Ok(numeric_string_to_value(
+                numeric_value.to_decimal_string(),
+                options,
+            ))
         }
         FieldKind::FloatSingle => {
             let value =
@@ -1487,7 +1521,7 @@ fn decode_scalar_field_value_with_scratch(
                     sign_sep,
                     options.codepage,
                 )?;
-                Ok(Value::String(decimal.to_string()))
+                Ok(numeric_string_to_value(decimal.to_string(), options))
             } else {
                 let decimal_str = crate::numeric::decode_zoned_decimal_to_string_with_scratch(
                     field_data,
@@ -1498,14 +1532,14 @@ fn decode_scalar_field_value_with_scratch(
                     field.blank_when_zero,
                     scratch,
                 )?;
-                Ok(Value::String(decimal_str))
+                Ok(numeric_string_to_value(decimal_str, options))
             }
         }
         FieldKind::BinaryInt { bits, signed } => {
             let int_value = crate::numeric::decode_binary_int(field_data, *bits, *signed)?;
             let formatted =
                 crate::numeric::format_binary_int_to_string_with_scratch(int_value, scratch);
-            Ok(Value::String(formatted))
+            Ok(numeric_string_to_value(formatted, options))
         }
         FieldKind::PackedDecimal {
             digits,
@@ -1515,7 +1549,7 @@ fn decode_scalar_field_value_with_scratch(
             let decimal_str = crate::numeric::decode_packed_decimal_to_string_with_scratch(
                 field_data, *digits, *scale, *signed, scratch,
             )?;
-            Ok(Value::String(decimal_str))
+            Ok(numeric_string_to_value(decimal_str, options))
         }
         FieldKind::Group => Err(Error::new(
             ErrorCode::CBKD101_INVALID_FIELD_TYPE,
@@ -1583,8 +1617,11 @@ fn decode_scalar_field_value_with_scratch(
                 field.blank_when_zero,
             )?;
 
-            // Return as string (consistent with other numeric types)
-            Ok(Value::String(numeric_value.to_decimal_string()))
+            // Return respecting json_number_mode (scratch path)
+            Ok(numeric_string_to_value(
+                numeric_value.to_decimal_string(),
+                options,
+            ))
         }
         FieldKind::FloatSingle => {
             let value =

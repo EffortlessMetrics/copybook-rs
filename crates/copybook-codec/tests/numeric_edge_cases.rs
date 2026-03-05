@@ -1042,16 +1042,14 @@ fn test_json_lossless_mode_returns_string() {
 
 #[test]
 fn test_json_native_mode_display_returns_string() {
-    // decode_record always returns Value::String for ZonedDecimal fields;
-    // JsonNumberMode::Native applies only in the streaming JSON builder.
+    // Native mode now correctly returns JSON numbers for ZonedDecimal fields.
     let copybook = "01 VAL PIC 9(5).";
     let schema = parse_copybook(copybook).expect("parse");
 
     let data: [u8; 5] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5];
     let result = decode_record(&schema, &data, &decode_opts_native()).expect("decode");
-    // decode_record emits strings for zoned decimals regardless of json_number_mode
-    assert!(result["VAL"].is_string());
-    assert_eq!(result["VAL"], serde_json::json!("12345"));
+    assert!(result["VAL"].is_number());
+    assert_eq!(result["VAL"], serde_json::json!(12345));
 }
 
 #[test]
@@ -1061,8 +1059,9 @@ fn test_json_native_mode_decimal_display_returns_string() {
 
     let data: [u8; 5] = [0xF1, 0xF2, 0xF3, 0xF4, 0xF5];
     let result = decode_record(&schema, &data, &decode_opts_native()).expect("decode");
-    assert!(result["AMT"].is_string());
-    assert_eq!(result["AMT"], serde_json::json!("123.45"));
+    assert!(result["AMT"].is_number());
+    let val = result["AMT"].as_f64().unwrap();
+    assert!((val - 123.45).abs() < f64::EPSILON);
 }
 
 #[test]

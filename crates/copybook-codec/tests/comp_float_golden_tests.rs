@@ -398,7 +398,8 @@ fn test_golden_comp_fields_in_record_roundtrip() {
     assert_eq!(encoded.len(), 21);
 
     let decoded = decode_record(&schema, &encoded, &decode_opts_ieee()).expect("should decode");
-    assert_eq!(decoded["ID"], serde_json::json!("0001"));
+    // Native mode: PIC 9(4) decodes to native JSON number
+    assert_eq!(decoded["ID"], serde_json::json!(1));
 
     let f32_val = decoded["RATE-F32"].as_f64().expect("f32 number");
     assert!((f32_val - 1.5_f64).abs() < 1e-5);

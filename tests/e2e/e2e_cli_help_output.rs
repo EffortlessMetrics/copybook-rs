@@ -6,32 +6,12 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::process::{Command, Output};
+use assert_cmd::Command;
+use std::process::Output;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Build a `Command` pointing at the compiled `copybook` binary.
-fn copybook_cmd() -> Command {
-    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = manifest_dir
-        .parent()
-        .expect("parent of tests/e2e")
-        .parent()
-        .expect("workspace root");
-    let bin_name = if cfg!(windows) {
-        "copybook.exe"
-    } else {
-        "copybook"
-    };
-    let bin_path = workspace_root.join("target").join("debug").join(bin_name);
-    assert!(
-        bin_path.exists(),
-        "copybook binary not found at {bin_path:?}. Run `cargo build --bin copybook` first."
-    );
-    Command::new(bin_path)
-}
 
 fn stdout_str(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
@@ -51,7 +31,7 @@ fn assert_no_panic(stderr: &str) {
 
 /// Run `copybook <args>` and return the output, asserting success.
 fn run_help(args: &[&str]) -> Output {
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(args)
         .output()
         .unwrap_or_else(|e| panic!("failed to run copybook {args:?}: {e}"));
@@ -353,7 +333,7 @@ fn version_output_contains_program_name() {
 
 #[test]
 fn short_help_flag_works() {
-    let output = copybook_cmd().arg("-h").output().expect("run -h");
+    let output = Command::cargo_bin("copybook").unwrap().arg("-h").output().expect("run -h");
     assert_eq!(output.status.code(), Some(0), "exit code must be 0");
     let text = help_text(&output);
     assert!(
@@ -368,7 +348,7 @@ fn short_help_flag_works() {
 
 #[test]
 fn short_version_flag_works() {
-    let output = copybook_cmd().arg("-V").output().expect("run -V");
+    let output = Command::cargo_bin("copybook").unwrap().arg("-V").output().expect("run -V");
     assert_eq!(output.status.code(), Some(0), "exit code must be 0");
     let text = help_text(&output);
     let has_version = regex::Regex::new(r"\d+\.\d+\.\d+").unwrap().is_match(&text);

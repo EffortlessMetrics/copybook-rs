@@ -7,32 +7,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::io::Write;
-use std::process::Command;
-
-/// Build a `Command` pointing at the compiled `copybook` binary.
-///
-/// Locates the binary in the target directory. The binary must be built
-/// before running these tests (e.g., via `cargo build --bin copybook`).
-fn copybook_cmd() -> Command {
-    // Walk up from CARGO_MANIFEST_DIR to find workspace target dir.
-    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = manifest_dir
-        .parent()
-        .expect("parent of tests/e2e")
-        .parent()
-        .expect("workspace root");
-    let bin_name = if cfg!(windows) {
-        "copybook.exe"
-    } else {
-        "copybook"
-    };
-    let bin_path = workspace_root.join("target").join("debug").join(bin_name);
-    assert!(
-        bin_path.exists(),
-        "copybook binary not found at {bin_path:?}. Run `cargo build --bin copybook` first."
-    );
-    Command::new(bin_path)
-}
+use assert_cmd::Command;
 
 /// Assert that stderr does not contain panic markers.
 fn assert_no_panic(stderr: &str) {
@@ -82,7 +57,7 @@ fn write_temp_file(name: &str, contents: &[u8]) -> tempfile::TempDir {
 
 #[test]
 fn help_flag_exits_zero() {
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .arg("--help")
         .output()
         .expect("failed to run copybook --help");
@@ -102,7 +77,7 @@ fn help_flag_exits_zero() {
 
 #[test]
 fn version_flag_exits_zero() {
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .arg("--version")
         .output()
         .expect("failed to run copybook --version");
@@ -122,7 +97,7 @@ fn version_flag_exits_zero() {
 
 #[test]
 fn unknown_subcommand_exits_nonzero() {
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .arg("unknown-subcommand")
         .output()
         .expect("failed to run copybook unknown-subcommand");
@@ -145,7 +120,7 @@ fn parse_valid_copybook_exits_zero() {
     let dir = write_temp_file("valid.cpy", VALID_COPYBOOK.as_bytes());
     let cpy_path = dir.path().join("valid.cpy");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse"])
         .arg(&cpy_path)
         .output()
@@ -172,7 +147,7 @@ fn parse_valid_copybook_exits_zero() {
 
 #[test]
 fn parse_nonexistent_file_exits_nonzero() {
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "this_file_absolutely_does_not_exist_12345.cpy"])
         .output()
         .expect("failed to run copybook parse");
@@ -195,7 +170,7 @@ fn parse_invalid_syntax_exits_nonzero() {
     let dir = write_temp_file("invalid.cpy", INVALID_COPYBOOK.as_bytes());
     let cpy_path = dir.path().join("invalid.cpy");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse"])
         .arg(&cpy_path)
         .output()
@@ -229,7 +204,7 @@ fn decode_valid_data_exits_zero() {
 
     let output_path = dir.path().join("output.jsonl");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["decode"])
         .arg(&cpy_path)
         .arg(&data_path)
@@ -267,7 +242,7 @@ fn decode_truncated_data_exits_nonzero() {
 
     let output_path = dir.path().join("output.jsonl");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["decode"])
         .arg(&cpy_path)
         .arg(&data_path)
@@ -298,7 +273,7 @@ fn verify_valid_data_exits_zero() {
     let data_path = dir.path().join("data.bin");
     std::fs::write(&data_path, valid_record_bytes()).expect("write data file");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["verify"])
         .arg(&cpy_path)
         .arg(&data_path)
@@ -340,7 +315,7 @@ fn verify_invalid_data_exits_nonzero() {
     let data_path = dir.path().join("bad_num.bin");
     std::fs::write(&data_path, [0xC1; 8]).expect("write bad data file");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["verify"])
         .arg(&cpy_path)
         .arg(&data_path)
@@ -381,7 +356,7 @@ fn verify_data_with_errors_exits_3() {
     let data_path = dir.path().join("bad_num.bin");
     std::fs::write(&data_path, [0xC1; 8]).expect("write bad data file");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["verify"])
         .arg(&cpy_path)
         .arg(&data_path)
@@ -412,7 +387,7 @@ fn decode_nonexistent_input_exits_nonzero() {
     let cpy_path = dir.path().join("schema.cpy");
     let output_path = dir.path().join("output.jsonl");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["decode"])
         .arg(&cpy_path)
         .arg("no_such_file_99999.bin")
@@ -437,7 +412,7 @@ fn decode_nonexistent_input_exits_nonzero() {
 
 #[test]
 fn parse_help_exits_zero() {
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "--help"])
         .output()
         .expect("failed to run copybook parse --help");
@@ -458,7 +433,7 @@ fn parse_help_exits_zero() {
 #[test]
 fn decode_missing_required_args_exits_nonzero() {
     // decode without required positional args
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["decode"])
         .output()
         .expect("failed to run copybook decode");
@@ -486,7 +461,7 @@ fn encode_valid_data_exits_zero() {
     std::fs::write(&data_path, valid_record_bytes()).expect("write data file");
     let jsonl_path = dir.path().join("decoded.jsonl");
 
-    let decode_out = copybook_cmd()
+    let decode_out = Command::cargo_bin("copybook").unwrap()
         .args(["decode"])
         .arg(&cpy_path)
         .arg(&data_path)
@@ -504,7 +479,7 @@ fn encode_valid_data_exits_zero() {
 
     // Now encode the JSONL back to binary
     let encoded_path = dir.path().join("encoded.bin");
-    let encode_out = copybook_cmd()
+    let encode_out = Command::cargo_bin("copybook").unwrap()
         .args(["encode"])
         .arg(&cpy_path)
         .arg(&jsonl_path)
@@ -532,7 +507,7 @@ fn inspect_valid_copybook_exits_zero() {
     let dir = write_temp_file("schema.cpy", VALID_COPYBOOK.as_bytes());
     let cpy_path = dir.path().join("schema.cpy");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["inspect"])
         .arg(&cpy_path)
         .output()
@@ -566,7 +541,7 @@ fn all_exit_codes_are_in_expected_range() {
     ];
 
     for (label, args) in &scenarios {
-        let output = copybook_cmd()
+        let output = Command::cargo_bin("copybook").unwrap()
             .args(args.iter())
             .output()
             .unwrap_or_else(|e| panic!("failed to run scenario '{label}': {e}"));
@@ -589,7 +564,7 @@ fn error_paths_do_not_produce_backtraces() {
     let dir = write_temp_file("bad.cpy", INVALID_COPYBOOK.as_bytes());
     let cpy_path = dir.path().join("bad.cpy");
 
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse"])
         .arg(&cpy_path)
         .output()

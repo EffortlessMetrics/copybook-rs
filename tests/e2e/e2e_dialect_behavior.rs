@@ -10,31 +10,12 @@
 
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use assert_cmd::Command;
+use std::process::Output;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-fn copybook_cmd() -> Command {
-    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = manifest_dir
-        .parent()
-        .expect("parent of tests/e2e")
-        .parent()
-        .expect("workspace root");
-    let bin_name = if cfg!(windows) {
-        "copybook.exe"
-    } else {
-        "copybook"
-    };
-    let bin_path = workspace_root.join("target").join("debug").join(bin_name);
-    assert!(
-        bin_path.exists(),
-        "copybook binary not found at {bin_path:?}. Run `cargo build --bin copybook` first."
-    );
-    Command::new(bin_path)
-}
 
 fn stdout_str(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
@@ -155,7 +136,7 @@ fn setup_simple() -> tempfile::TempDir {
 #[test]
 fn parse_with_dialect_normative() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "--dialect", "n"])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -176,7 +157,7 @@ fn parse_with_dialect_normative() {
 #[test]
 fn parse_with_dialect_zero_tolerant() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "--dialect", "0"])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -197,7 +178,7 @@ fn parse_with_dialect_zero_tolerant() {
 #[test]
 fn parse_with_dialect_one_tolerant() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "--dialect", "1"])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -218,7 +199,7 @@ fn parse_with_dialect_one_tolerant() {
 #[test]
 fn invalid_dialect_value_produces_error() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "--dialect", "xyz"])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -236,7 +217,7 @@ fn invalid_dialect_value_produces_error() {
 fn decode_dialect_normative_valid_count() {
     let dir = setup_odo_min2(3); // count=3, min=2, within bounds
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args([
             "decode",
             "--format",
@@ -270,7 +251,7 @@ fn decode_dialect_normative_valid_count() {
 fn decode_dialect_zero_tolerant_allows_zero_count() {
     let dir = setup_odo_min2(0); // count=0, min=2 but zero-tolerant ignores min
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args([
             "decode",
             "--format",
@@ -305,7 +286,7 @@ fn decode_dialect_zero_tolerant_allows_zero_count() {
 fn decode_dialect_one_tolerant_with_min0_schema() {
     let dir = setup_odo_min0(1); // count=1, min_count=0 but one-tolerant clamps to 1
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args([
             "decode",
             "--format",
@@ -337,7 +318,7 @@ fn decode_dialect_one_tolerant_with_min0_schema() {
 #[test]
 fn env_var_copybook_dialect_is_respected() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .env("COPYBOOK_DIALECT", "0")
         .args(["parse"])
         .arg(temp_path(&dir, "schema.cpy"))
@@ -360,7 +341,7 @@ fn env_var_copybook_dialect_is_respected() {
 fn cli_dialect_flag_overrides_env_var() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
     // Set env to "0" but CLI to "1" – should use "1"
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .env("COPYBOOK_DIALECT", "0")
         .args(["parse", "--dialect", "1"])
         .arg(temp_path(&dir, "schema.cpy"))
@@ -382,7 +363,7 @@ fn cli_dialect_flag_overrides_env_var() {
 #[test]
 fn default_dialect_is_normative() {
     let dir = write_temp_file("schema.cpy", SIMPLE_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .env_remove("COPYBOOK_DIALECT")
         .args(["parse"])
         .arg(temp_path(&dir, "schema.cpy"))
@@ -404,7 +385,7 @@ fn default_dialect_is_normative() {
 #[test]
 fn inspect_with_dialect_zero() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["inspect", "--dialect", "0"])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -425,7 +406,7 @@ fn inspect_with_dialect_zero() {
 #[test]
 fn inspect_with_dialect_one() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["inspect", "--dialect", "1"])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -447,7 +428,7 @@ fn inspect_with_dialect_one() {
 #[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn verify_with_dialect_zero() {
     let dir = setup_odo_min2(3);
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args([
             "verify",
             "--format",
@@ -477,7 +458,7 @@ fn verify_with_dialect_zero() {
 #[test]
 fn dialect_value_two_is_invalid() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "--dialect", "2"])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -493,7 +474,7 @@ fn dialect_value_two_is_invalid() {
 #[test]
 fn empty_dialect_value_is_invalid() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args(["parse", "--dialect", ""])
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -517,7 +498,7 @@ fn encode_with_dialect_flag() {
     let dir = setup_odo_min2(3);
     let out_path = temp_path(&dir, "out.jsonl");
     // Decode first
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args([
             "decode",
             "--format",
@@ -542,7 +523,7 @@ fn encode_with_dialect_flag() {
 
     // Now encode with dialect
     let enc_out = temp_path(&dir, "encoded.bin");
-    let enc_output = copybook_cmd()
+    let enc_output = Command::cargo_bin("copybook").unwrap()
         .args([
             "encode",
             "--format",
@@ -574,7 +555,7 @@ fn encode_with_dialect_flag() {
 fn decode_normative_count_below_min_is_handled() {
     let dir = setup_odo_min2(1); // count=1, min=2 in normative → should clip/error
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .args([
             "decode",
             "--format",
@@ -602,7 +583,7 @@ fn decode_normative_count_below_min_is_handled() {
 #[test]
 fn env_var_invalid_dialect_produces_error() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
-    let output = copybook_cmd()
+    let output = Command::cargo_bin("copybook").unwrap()
         .env("COPYBOOK_DIALECT", "invalid")
         .args(["parse"])
         .arg(temp_path(&dir, "schema.cpy"))
@@ -620,7 +601,7 @@ fn env_var_invalid_dialect_produces_error() {
 fn all_three_dialects_on_inspect() {
     let dir = write_temp_file("schema.cpy", ODO_MIN2_CPY.as_bytes());
     for dialect in &["n", "0", "1"] {
-        let output = copybook_cmd()
+        let output = Command::cargo_bin("copybook").unwrap()
             .args(["inspect", "--dialect", dialect])
             .arg(temp_path(&dir, "schema.cpy"))
             .output()

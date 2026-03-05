@@ -9,7 +9,7 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **Status**: **Engineering Preview** (v0.4.3) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
-**Quality**: 10,000+ tests passing (9 ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (40+ error codes), 85+ workspace-inherited dependencies
+**Quality**: 10,000+ tests passing (9 ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (40+ error codes), 95+ workspace-inherited dependencies
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
@@ -19,18 +19,23 @@ See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [tools/cop
 
 ## Workspace Structure
 
-All crates are organized under `crates/` (25 publishable) and `tools/` (3 dev-only):
+All crates are organized under `crates/` (36 publishable) and `tools/` (3 dev-only):
 
 ```
-crates/                          # 25 publishable crates
+crates/                          # 36 publishable crates
   copybook-arrow/                #   Apache Arrow and Parquet format conversion (experimental)
   copybook-charset/              #   Character set conversion utilities for EBCDIC/ASCII
   copybook-cli/                  #   CLI with subcommands (parse, inspect, decode, encode, verify, determinism)
+  copybook-cli-determinism/      #   Determinism verification for CLI round-trip validation
   copybook-codec/                #   Data encoding/decoding, character conversion
   copybook-codec-memory/         #   Reusable memory utilities for codec streaming
   copybook-codepage/             #   Codepage and unmappable-character policy types
   copybook-contracts/            #   Shared contracts for feature-flag governance
   copybook-core/                 #   COBOL parsing (lexer, parser, AST, layout) with Level-88 support
+  copybook-corruption/           #   Data corruption detection framework
+  copybook-corruption-detectors/ #   Corruption detection implementations
+  copybook-corruption-predicates/#   Corruption detection predicate traits
+  copybook-corruption-rdw/       #   RDW-specific corruption detection
   copybook-determinism/          #   Determinism primitives for stable hash/diff comparison
   copybook-dialect/              #   Dialect contract for ODO min_count semantics
   copybook-error/                #   Error types and taxonomy
@@ -40,14 +45,20 @@ crates/                          # 25 publishable crates
   copybook-governance-contracts/ #   Contracts facade for feature flags and support matrix
   copybook-governance-grid/      #   Governance grid mapping for runtime feature flags
   copybook-governance-runtime/   #   Runtime governance state evaluation
+  copybook-lexer/                #   COBOL copybook lexical analysis
   copybook-options/              #   Configuration option contracts
   copybook-overflow/             #   Overflow-safe integer narrowing and bounds arithmetic
   copybook-overpunch/            #   Zoned decimal overpunch encode/decode primitives
   copybook-rdw/                  #   RDW framing microcrate with header primitives
+  copybook-rdw-predicates/       #   RDW validation predicate traits
   copybook-record-io/            #   Record-format dispatch bridging fixed and RDW framing
+  copybook-safe-index/           #   Panic-free slice indexing utilities
+  copybook-safe-ops/             #   Panic-free arithmetic and conversion operations
+  copybook-safe-text/            #   Panic-free text manipulation utilities
   copybook-sequence-ring/        #   Deterministic sequence reordering for parallel pipelines
   copybook-support-matrix/       #   COBOL feature support matrix contract and status registry
   copybook-utils/                #   Panic-safe utility functions and extension traits
+  copybook-zoned-format/         #   Zoned decimal format conversion utilities
 tools/                           # 3 dev-only crates (publish = false)
   copybook-bench/                #   Performance benchmarks with regression detection
   copybook-gen/                  #   Test fixture generation with golden fixture framework

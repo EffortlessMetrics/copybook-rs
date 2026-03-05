@@ -29,9 +29,11 @@ validate_receipt_structure() {
   done
   
   # Check environment sub-fields
+  # Use has() instead of -e to avoid false-negatives on boolean false values
+  # (jq -e treats both null and false as exit code 1)
   local env_fields=("os" "kernel" "cpu_model" "cpu_cores" "wsl2_detected")
   for field in "${env_fields[@]}"; do
-    if ! jq -e ".environment.${field}" "$receipt_file" >/dev/null; then
+    if ! jq -e ".environment | has(\"${field}\")" "$receipt_file" >/dev/null; then
       echo "❌ Missing required environment field: ${field}" >&2
       return 1
     fi

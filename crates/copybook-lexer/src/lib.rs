@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 #![allow(clippy::must_use_candidate)]
 
 //! COBOL lexer microcrate.

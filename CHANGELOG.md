@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **audit**: Add additional Clippy lint enforcement to audit module
 - **feature-flags**: Promote COMP-1/COMP-2 and SIGN SEPARATE features to stable
 - **test**: Add e2e tests for `support` CLI subcommand (8 tests covering table/JSON/filter/governance)
+- **test**: Add e2e tests for `inspect` CLI flags (8 tests: codepage, strict, strict-comments, stdin)
+- **test**: Add e2e tests for `--strict-comments` and `--emit-filler` flags (6 tests)
+- **test**: Add e2e tests for `--emit-meta`, `--emit-raw`, `--on-decode-unmappable` flags (7 tests)
 - **lint**: Add `clippy::dbg_macro` to workspace-wide lint config
 
 ### Changed
@@ -31,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ci**: Consistent nextest exclusions in justfile (`copybook-bdd`, `copybook-bench`)
 - **lint**: Enforce `deny(clippy::unwrap_used, clippy::expect_used)` across all 36 publishable crates
 - **lint**: Remove dead code in `ReportSectionFile` (audit.rs)
+- **lint**: Replace `allow(dead_code)` with `cfg(test)` in copybook-overpunch
+- **docs**: Resolve 14 broken intra-doc links in numeric module
+- **docs**: Add missing SPDX license headers to 7 source files
+- **docs**: Add doc comment for `numeric` module in copybook-codec
 
 ### Miscellaneous Tasks
 
@@ -38,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **docs**: Update CLAUDE.md workspace structure (36 crates, 95+ deps)
 - **docs**: Update README test count (10,000+ passed, 15 ignored)
 - **docs**: ROADMAP timeline fix (Phase 1 complete March 2026)
+- **docs**: Update CHANGELOG unreleased with wave 1-4 changes
+- **docs**: Update CONTRIBUTING.md prerequisites (just, cargo-nextest, cargo-deny) and test count
+- **deps**: Remove unnecessary duplicate skip entries in deny.toml
 
 ## [0.4.3] — 2026-02-11
 

@@ -20,7 +20,7 @@ use std::str::FromStr;
 /// |---------|------------------------|-------------|
 /// | `Normative` | `min_count` is enforced | Counter must be ≥ `min_count` (strict) |
 /// | `ZeroTolerant` | `min_count` is ignored | Counter can be `0..max_count` (relaxed) |
-/// | `OneTolerant` | `min_count` clamped to 1 | Counter must be ≥ `max(1, min_count)` |
+/// | `OneTolerant` | `min_count` clamped to 1 | Counter must be ≥ max(1, `min_count`) |
 ///
 /// # Examples
 ///
@@ -57,7 +57,7 @@ pub enum Dialect {
 
     /// One-tolerant dialect - `min_count` is clamped to 1
     ///
-    /// Counter must be ≥ `max(1, min_count)`. This allows zero-length arrays
+    /// Counter must be ≥ max(1, `min_count`). This allows zero-length arrays
     /// when `min_count` is 0, but enforces at least one element otherwise.
     OneTolerant,
 }

@@ -7,8 +7,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::path::PathBuf;
 use assert_cmd::Command;
+use std::path::PathBuf;
 use std::process::Output;
 
 // ---------------------------------------------------------------------------
@@ -180,7 +180,8 @@ fn setup_simple_two_records() -> tempfile::TempDir {
 fn select_single_field() {
     let dir = setup_multi_field();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -225,7 +226,8 @@ fn select_single_field() {
 fn select_comma_separated_fields() {
     let dir = setup_multi_field();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -267,7 +269,8 @@ fn select_comma_separated_fields() {
 fn select_multiple_flags() {
     let dir = setup_multi_field();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -311,7 +314,8 @@ fn select_multiple_flags() {
 fn select_nonexistent_field_produces_error() {
     let dir = setup_multi_field();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -351,7 +355,8 @@ fn select_nonexistent_field_produces_error() {
 fn select_odo_array_auto_includes_counter() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -395,7 +400,8 @@ fn select_all_fields_same_as_no_select() {
     let out_with_select = temp_path(&dir, "with_select.jsonl");
 
     // Decode without --select
-    let o1 = Command::cargo_bin("copybook").unwrap()
+    let o1 = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode", "--format", "fixed", "--codepage", "cp037"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -406,7 +412,8 @@ fn select_all_fields_same_as_no_select() {
     assert_eq!(o1.status.code(), Some(0));
 
     // Decode with --select all fields
-    let o2 = Command::cargo_bin("copybook").unwrap()
+    let o2 = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -446,7 +453,8 @@ fn select_all_fields_same_as_no_select() {
 fn select_group_field() {
     let dir = setup_group();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -503,7 +511,8 @@ fn select_group_field() {
 fn select_with_multiple_records() {
     let dir = setup_simple_two_records();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -546,7 +555,8 @@ fn select_with_multiple_records() {
 fn select_with_dialect_flag() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -580,7 +590,8 @@ fn select_with_dialect_flag() {
 #[test]
 fn verify_with_select_flag() {
     let dir = setup_multi_field();
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "verify",
             "--format",
@@ -611,7 +622,8 @@ fn verify_with_select_flag() {
 fn select_last_field_only() {
     let dir = setup_multi_field();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -650,7 +662,8 @@ fn select_last_field_only() {
 fn select_odo_counter_without_array() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -691,7 +704,8 @@ fn select_odo_counter_without_array() {
 fn select_counter_and_array_explicitly() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -736,7 +750,8 @@ fn select_counter_and_array_explicitly() {
 fn select_non_odo_field_from_odo_schema() {
     let dir = setup_odo();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -773,7 +788,8 @@ fn select_non_odo_field_from_odo_schema() {
 fn select_multiple_nonexistent_fields_error() {
     let dir = setup_multi_field();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -805,7 +821,8 @@ fn select_multiple_nonexistent_fields_error() {
 fn select_mix_valid_and_nonexistent_produces_error() {
     let dir = setup_multi_field();
     let out_path = temp_path(&dir, "out.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "decode",
             "--format",
@@ -839,7 +856,8 @@ fn encode_with_select_flag() {
     let decode_out = temp_path(&dir, "decoded.jsonl");
 
     // First decode to get JSONL
-    let o1 = Command::cargo_bin("copybook").unwrap()
+    let o1 = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode", "--format", "fixed", "--codepage", "cp037"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -851,7 +869,8 @@ fn encode_with_select_flag() {
 
     // Now encode with --select
     let encode_out = temp_path(&dir, "encoded.bin");
-    let o2 = Command::cargo_bin("copybook").unwrap()
+    let o2 = Command::cargo_bin("copybook")
+        .unwrap()
         .args([
             "encode",
             "--format",

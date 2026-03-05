@@ -31,7 +31,8 @@ fn assert_no_panic(stderr: &str) {
 
 /// Run `copybook <args>` and return the output, asserting success.
 fn run_help(args: &[&str]) -> Output {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(args)
         .output()
         .unwrap_or_else(|e| panic!("failed to run copybook {args:?}: {e}"));
@@ -333,7 +334,11 @@ fn version_output_contains_program_name() {
 
 #[test]
 fn short_help_flag_works() {
-    let output = Command::cargo_bin("copybook").unwrap().arg("-h").output().expect("run -h");
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .arg("-h")
+        .output()
+        .expect("run -h");
     assert_eq!(output.status.code(), Some(0), "exit code must be 0");
     let text = help_text(&output);
     assert!(
@@ -348,7 +353,11 @@ fn short_help_flag_works() {
 
 #[test]
 fn short_version_flag_works() {
-    let output = Command::cargo_bin("copybook").unwrap().arg("-V").output().expect("run -V");
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .arg("-V")
+        .output()
+        .expect("run -V");
     assert_eq!(output.status.code(), Some(0), "exit code must be 0");
     let text = help_text(&output);
     let has_version = regex::Regex::new(r"\d+\.\d+\.\d+").unwrap().is_match(&text);

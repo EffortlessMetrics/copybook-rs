@@ -16,9 +16,9 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use assert_cmd::Command;
 use std::io::Write;
 use std::path::PathBuf;
-use assert_cmd::Command;
 use std::process::Output;
 
 // ---------------------------------------------------------------------------
@@ -83,7 +83,8 @@ fn setup_encode(cpy_text: &str, jsonl: &str) -> tempfile::TempDir {
 fn cli_cbkp001_syntax_garbage_parse() {
     let dir = write_temp_file("bad.cpy", b"@#$%^&*() NOT COBOL AT ALL");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "bad.cpy"))
         .output()
@@ -103,7 +104,8 @@ fn cli_cbkp001_syntax_garbage_parse() {
 fn cli_cbkp001_syntax_empty_inspect() {
     let dir = write_temp_file("empty.cpy", b"");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("inspect")
         .arg(temp_path(&dir, "empty.cpy"))
         .output()
@@ -126,7 +128,8 @@ fn cli_cbkp001_syntax_invalid_pic_char() {
         b"       01  REC.\n           05  FLD   PIC Q(5).\n",
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "bad_pic.cpy"))
         .output()
@@ -152,7 +155,8 @@ fn cli_cbkp021_odo_not_tail() {
            05  TRAILER  PIC X(10).\n";
     let dir = write_temp_file("odo_tail.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "odo_tail.cpy"))
         .output()
@@ -179,7 +183,8 @@ fn cli_cbkp022_nested_odo() {
                          PIC X(5).\n";
     let dir = write_temp_file("nested_odo.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "nested_odo.cpy"))
         .output()
@@ -205,7 +210,8 @@ fn cli_cbkp023_odo_redefines() {
                         DEPENDING ON CTR PIC X(1).\n";
     let dir = write_temp_file("odo_redef.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "odo_redef.cpy"))
         .output()
@@ -233,7 +239,8 @@ fn cli_cbks121_counter_not_found() {
                     PIC X(5).\n";
     let dir = write_temp_file("odo_no_ctr.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "odo_no_ctr.cpy"))
         .output()
@@ -257,7 +264,8 @@ fn cli_cbks601_rename_unknown_from() {
            66  MY-ALIAS RENAMES NONEXISTENT.\n";
     let dir = write_temp_file("ren601.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "ren601.cpy"))
         .output()
@@ -282,7 +290,8 @@ fn cli_cbks602_rename_unknown_thru() {
            66  MY-ALIAS RENAMES A THRU NONEXISTENT.\n";
     let dir = write_temp_file("ren602.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "ren602.cpy"))
         .output()
@@ -307,7 +316,8 @@ fn cli_cbks604_rename_reversed_range() {
            66  MY-ALIAS RENAMES B THRU A.\n";
     let dir = write_temp_file("ren604.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "ren604.cpy"))
         .output()
@@ -333,7 +343,8 @@ fn cli_cbks607_rename_crosses_occurs() {
            66  MY-ALIAS RENAMES A THRU C.\n";
     let dir = write_temp_file("ren607.cpy", cpy);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "ren607.cpy"))
         .output()
@@ -357,7 +368,8 @@ fn cli_cbks703_projection_not_found_decode() {
         &[0x40; 10],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -391,7 +403,8 @@ fn cli_cbks703_projection_not_found_encode() {
         "{\"REC\":{\"NAME\":\"ALICE\"}}\n",
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "input.jsonl"))
@@ -425,7 +438,8 @@ fn cli_cbks703_projection_not_found_verify() {
         &[0x40; 10],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -462,7 +476,8 @@ fn cli_cbkd401_comp3_invalid_nibble_decode() {
         &[0xFF, 0xFF, 0xFF],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -489,7 +504,8 @@ fn cli_cbkd401_comp3_invalid_nibble_verify() {
         &[0xFF, 0xFF, 0xFF],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -516,7 +532,8 @@ fn cli_cbkd411_zoned_bad_sign_decode() {
         &[0xF1, 0xF2, 0xF3, 0xF4, 0x05],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -544,7 +561,8 @@ fn cli_cbkd411_zoned_spaces_in_numeric() {
         &[0x40, 0x40, 0x40],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -574,7 +592,8 @@ fn cli_cbkd411_zoned_bad_sign_verify() {
         ],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -601,7 +620,8 @@ fn cli_cbkd411_sign_separate_invalid() {
         &[0x00, 0xF1, 0xF2, 0xF3],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -630,7 +650,8 @@ fn cli_cbkd421_edited_pic_invalid_decode() {
         &[0xC1, 0xC2, 0xC3, 0xC4],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -657,7 +678,8 @@ fn cli_cbkd421_edited_pic_invalid_verify() {
         &[0xC1, 0xC2, 0xC3, 0xC4],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -687,7 +709,8 @@ fn cli_cbke_numeric_overflow_encode() {
         "{\"REC\":{\"NUM\":\"99999\"}}\n",
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "input.jsonl"))
@@ -718,7 +741,8 @@ fn cli_cbke_string_too_long_encode() {
         "{\"REC\":{\"NAME\":\"THIS STRING IS WAY TOO LONG FOR FIVE BYTES\"}}\n",
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "input.jsonl"))
@@ -745,7 +769,8 @@ fn cli_cbke_type_mismatch_encode() {
         "{\"REC\":{\"NAME\":null,\"NUM\":\"12345\"}}\n",
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "input.jsonl"))
@@ -774,7 +799,8 @@ fn cli_cbkf102_rdw_record_length_invalid() {
         &[0x00, 0x02, 0x00, 0x00], // length=2 < 4 → underflow
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -804,7 +830,8 @@ fn cli_cbkf104_rdw_suspect_ascii() {
         ],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -832,7 +859,8 @@ fn cli_cbkf221_rdw_underflow_fixed() {
         &[0xC1, 0xD3, 0xC9, 0xC3, 0xC5],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -860,7 +888,8 @@ fn cli_cbkf221_rdw_underflow_fixed() {
 fn cli_parse_error_propagates_to_inspect() {
     let dir = write_temp_file("garbage.cpy", b"NOT VALID COBOL SYNTAX");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("inspect")
         .arg(temp_path(&dir, "garbage.cpy"))
         .output()
@@ -880,7 +909,8 @@ fn cli_parse_error_propagates_to_inspect() {
 fn cli_parse_error_propagates_to_decode() {
     let dir = setup_decode("GARBAGE NOT COBOL", &[0x00; 10]);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -904,7 +934,8 @@ fn cli_parse_error_propagates_to_decode() {
 fn cli_parse_error_propagates_to_encode() {
     let dir = setup_encode("GARBAGE NOT COBOL", "{\"REC\":{\"A\":\"X\"}}\n");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "input.jsonl"))
@@ -928,7 +959,8 @@ fn cli_parse_error_propagates_to_encode() {
 fn cli_parse_error_propagates_to_verify() {
     let dir = setup_decode("GARBAGE NOT COBOL", &[0x00; 10]);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -954,7 +986,8 @@ fn cli_parse_error_propagates_to_verify() {
 fn cli_exit_code_parse_error() {
     let dir = write_temp_file("bad.cpy", b"INVALID");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "bad.cpy"))
         .output()
@@ -973,7 +1006,8 @@ fn cli_exit_code_decode_error() {
         &[0xFF, 0xFF, 0xFF],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -996,7 +1030,8 @@ fn cli_exit_code_rdw_error() {
         &[0x31, 0x32, 0x00, 0x00, 0x41, 0x42],
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))

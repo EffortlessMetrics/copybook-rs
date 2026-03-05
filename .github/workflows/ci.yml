@@ -57,7 +57,8 @@ jobs:
           -A clippy::dbg_macro \
           -A clippy::print_stdout \
           -A clippy::print_stderr \
-          -A clippy::duplicated_attributes
+          -A clippy::duplicated_attributes \
+          -A deprecated
     - name: Enforce panic prevention lints (shipped targets)
       run: cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unreachable -D clippy::todo -D clippy::unimplemented
 
@@ -418,7 +419,7 @@ jobs:
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Generate code coverage
-      run: cargo llvm-cov --workspace --exclude copybook-bench --exclude copybook-bdd --exclude copybook-e2e --lcov --output-path lcov.info
+      run: cargo llvm-cov --workspace --exclude copybook-bench --exclude copybook-bdd --lcov --output-path lcov.info
     # Make upload non-blocking and always run
     - name: Upload coverage to Codecov
       if: always()

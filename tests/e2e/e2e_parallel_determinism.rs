@@ -6,8 +6,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use sha2::{Digest, Sha256};
 use assert_cmd::Command;
+use sha2::{Digest, Sha256};
 use std::process::Output;
 
 // ---------------------------------------------------------------------------
@@ -97,7 +97,8 @@ fn setup_multi_record_dir() -> tempfile::TempDir {
 fn run_decode(dir: &tempfile::TempDir, threads: usize) -> Vec<u8> {
     let out_path = dir.path().join(format!("output_{threads}t.jsonl"));
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("decode")
         .arg(dir.path().join("schema.cpy"))
         .arg(dir.path().join("data.bin"))
@@ -123,7 +124,8 @@ fn run_decode(dir: &tempfile::TempDir, threads: usize) -> Vec<u8> {
 fn run_decode_to(dir: &tempfile::TempDir, out_name: &str, threads: usize) -> Vec<u8> {
     let out_path = dir.path().join(out_name);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("decode")
         .arg(dir.path().join("schema.cpy"))
         .arg(dir.path().join("data.bin"))
@@ -294,7 +296,8 @@ fn test_schema_fingerprint_stable_across_runs() {
 fn test_determinism_subcommand_decode_exit_zero() {
     let dir = setup_multi_record_dir();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "decode"])
         .arg(dir.path().join("schema.cpy"))
         .arg(dir.path().join("data.bin"))
@@ -327,7 +330,8 @@ fn test_determinism_subcommand_encode_exit_zero() {
 
     // First decode to get JSONL for encode input
     let jsonl_path = dir.path().join("for_encode.jsonl");
-    let decode_output = Command::cargo_bin("copybook").unwrap()
+    let decode_output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("decode")
         .arg(dir.path().join("schema.cpy"))
         .arg(dir.path().join("data.bin"))
@@ -343,7 +347,8 @@ fn test_determinism_subcommand_encode_exit_zero() {
         stderr_str(&decode_output)
     );
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "encode"])
         .arg(dir.path().join("schema.cpy"))
         .arg(&jsonl_path)
@@ -370,7 +375,8 @@ fn test_encode_deterministic_across_thread_counts() {
 
     // Decode once to get JSONL
     let jsonl_path = dir.path().join("source.jsonl");
-    let decode_output = Command::cargo_bin("copybook").unwrap()
+    let decode_output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("decode")
         .arg(dir.path().join("schema.cpy"))
         .arg(dir.path().join("data.bin"))
@@ -389,7 +395,8 @@ fn test_encode_deterministic_across_thread_counts() {
     // Encode with 1 thread as baseline
     let encode_with = |threads: usize| -> Vec<u8> {
         let out = dir.path().join(format!("encoded_{threads}t.bin"));
-        let output = Command::cargo_bin("copybook").unwrap()
+        let output = Command::cargo_bin("copybook")
+            .unwrap()
             .arg("encode")
             .arg(dir.path().join("schema.cpy"))
             .arg(&jsonl_path)

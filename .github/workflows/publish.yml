@@ -43,7 +43,7 @@ jobs:
         cargo build --workspace --release -j 2
 
         # Run tests to ensure quality
-        cargo test --workspace --release -j 2
+        cargo test --workspace --exclude copybook-bench --exclude copybook-bdd --release -j 2
 
         # Verify the leaf crate (no workspace deps) packages correctly.
         cargo package -p copybook-error

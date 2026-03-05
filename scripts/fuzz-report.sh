@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Fuzzing Report Generator
 # Generates a comprehensive fuzzing report from fuzzer output
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'

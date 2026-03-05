@@ -142,6 +142,10 @@ path = "e2e_cli_strict_comments.rs"
 name = "e2e_cli_decode_flags"
 path = "e2e_cli_decode_flags.rs"
 
+[[test]]
+name = "e2e_cli_advanced_flags"
+path = "e2e_cli_advanced_flags.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

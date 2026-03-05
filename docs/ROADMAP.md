@@ -2,7 +2,7 @@
 # copybook-rs Roadmap
 
 **Status:** ⚠️ Engineering Preview (v0.4.3)
-**Last Updated**: 2026-02-07
+**Last Updated**: 2026-07-23
 **Production Readiness**: 35% (see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md))
 **Target Release**: v1.0.0 (Q2-Q3 2026)
 
@@ -30,7 +30,7 @@ Criteria → Risks/Mitigations.
 | PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
 | PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
 
-**Test Status**: 10,000+ passing (cargo test --workspace)
+**Test Status**: 2,800+ passing (cargo test --workspace)
 **CI Mode**: Full CI pipeline active (CI Quick PR gate + CI Full matrix)
 
 ---
@@ -202,14 +202,14 @@ See [`docs/TESTING_COMMANDS.md`](docs/TESTING_COMMANDS.md) for:
 | **E3.2-E3.6** Edited PIC encode | ✅ Complete | - | None |
 | **D0-D4** Dialect lever | ✅ Complete | - | None (all shipped) |
 | **RENAMES codec** (#110) | ✅ Complete | - | None (R1-R3 implemented) |
-| **Determinism CI** (#112 Phase 3) | ✅ Ready | 0.5 PD | CI-off mode |
-| **Quality gates** (#97-100) | ⏳ Blocked | 6-8 weeks | CI-off mode |
+| **Determinism CI** (#112 Phase 3) | ✅ Complete | - | None (smoke test active in CI) |
+| **Quality gates** (#97-100) | ✅ Complete | - | None (issues closed 2026-03-05) |
 | **Benchmark container** (#113) | ✅ Complete | - | None |
-| **Production Automation** | 🔴 High | 6-8 weeks | CI-off mode |
+| **Production Automation** | 🟡 Medium | 4-6 weeks | PR comments (#195) |
 | **Enterprise Features** | 🔴 High | 8-12 weeks | Incomplete |
 | **Feature Gaps** | 🟡 Medium | 4-6 weeks | Partial |
-| **Quality Assurance** | 🟡 Medium | 2-3 weeks | 8 leaks + 1 timing test |
-| **Documentation** | 🟢 Low | 1-2 weeks | 22 functions need docs |
+| **Quality Assurance** | 🟢 Low | 1-2 weeks | Variance tracking |
+| **Documentation** | 🟢 Low | 1-2 weeks | Iterator examples, deployment guides |
 
 **Issues closed (2025-12-31)**: #113, #51, #110 ✅
 
@@ -412,13 +412,11 @@ refresh, bench-report CLI
 
 ## Critical Gaps Blocking v1.0.0 Release
 
-### 1. Production Automation (HIGH PRIORITY) — Est. 6-8 weeks
+### 1. Production Automation (MEDIUM PRIORITY) — Est. 4-6 weeks
 
-- **CI-off mode for PRs** — Full matrix testing only on push to main
-- **PR comments & artifact uploads** — Performance results not posted automatically
+- **PR comment automation** (#195) — Performance results not posted automatically
 - **Performance regression gates** — SLO gates are neutral/advisory only
-- **Quality gates (#97-100)** — Blocked by CI-off mode
-- **Determinism Phase 3** — Smoke test ready, awaiting CI re-enable
+- **Artifact upload paths** — Need validation for release workflows
 
 ### 2. Enterprise Features (HIGH PRIORITY) — Est. 8-12 weeks
 
@@ -435,16 +433,14 @@ refresh, bench-report CLI
 - **Nested ODO support** — Rejected by design
 - **RENAMES advanced scenarios (R4-R6)** — Partial implementation
 
-### 4. Quality Assurance (MEDIUM PRIORITY) — Est. 2-3 weeks
+### 4. Quality Assurance (LOW PRIORITY) — Est. 1-2 weeks
 
-- **8 leak detectors flagged** in CI
-- **1 timing-sensitive test failure**
 - **Performance variance** between WSL2 and native Linux
 
 ### 5. Documentation (LOW PRIORITY) — Est. 1-2 weeks
 
-- **22 numeric functions** need documentation
-- **Memory module API docs** incomplete
+- ~~**22 numeric functions** need documentation~~ ✅ All 47 public functions documented
+- ~~**Memory module API docs** incomplete~~ ✅ Module fully documented
 - **Iterator module examples** needed
 - **Enterprise deployment guides** missing
 - **Performance number discrepancies** need cleanup
@@ -453,12 +449,12 @@ refresh, bench-report CLI
 
 ## Next Planning Steps — Path to v1.0.0
 
-### Phase 1: Unblock CI (6-8 weeks) — Now to ~Feb 2026
+### Phase 1: ~~Unblock CI~~ ✅ Complete — CI fully active
 
-1. Re-enable full CI for PRs (remove CI-off mode)
-2. Resolve 8 leak detectors
-3. Fix 1 timing-sensitive test failure
-4. Implement PR comments and artifact uploads
+1. ~~Re-enable full CI for PRs~~ ✅ CI Quick + CI Full matrix active
+2. ~~Quality gates (#97-100)~~ ✅ Closed 2026-03-05
+3. ~~Determinism Phase 3~~ ✅ Smoke test active in CI
+4. Implement PR comments and artifact uploads (#195)
 5. Make performance regression gates blocking (after baseline stabilization)
 
 ### Phase 2: Complete Enterprise Features (8-12 weeks) — Feb 2026 to ~May 2026
@@ -641,11 +637,10 @@ steady; builds clean with/without metrics.
 The following items were identified during comprehensive codebase exploration
 and are tracked for future sprints:
 
-### Documentation (Medium Priority) — Est. 1-2 weeks
+### Documentation (Low Priority) — Est. 1 week
 
-* [ ] Document 22 numeric functions in `copybook-codec/src/numeric.rs`
-* [ ] Add API documentation for memory module (`ScratchBuffers`,
-  `SequenceRing`, `WorkerPool`)
+* [x] ~~Document 22 numeric functions in `copybook-codec/src/numeric.rs`~~ ✅ All 47 public functions documented
+* [x] ~~Add API documentation for memory module~~ ✅ Module fully documented
 * [ ] Add usage examples to iterator module public functions
 * [ ] Complete enterprise deployment guides
 * [ ] Clean up performance number discrepancies
@@ -661,8 +656,6 @@ and are tracked for future sprints:
   — Fixed 2025-12-31 with 3 new tests in `error_code_tests.rs`
 * [ ] Add unit tests for memory/iterator infrastructure
 * [ ] Improve audit feature test coverage (currently ~10%)
-* [ ] Resolve 8 leak detectors flagged in CI
-* [ ] Fix 1 timing-sensitive test failure
 
 ### Code Quality (Completed in v0.4.0+)
 
@@ -681,9 +674,9 @@ and are tracked for future sprints:
 
 ### CI Mode (Current)
 
-* **CI-off operating mode**: Local gates + small PRs + explicit receipts in PR bodies
-* **Dispatch-only workflows**: Mutants, fuzz, SBOM are dispatch-only until CI is re-enabled
-* **Manual validation**: Run workflows once when CI returns to validate artifact upload paths and runtime budgets
+* **Full CI active**: CI Quick (PR gate) + CI Full (matrix on main + schedule)
+* **12+ workflows**: ci-quick, ci, determinism-smoke, perf-bench, feature-flags, api-freeze, coverage, security, mutants, fuzz, SBOM, dependabot
+* **Dispatch-only workflows**: Mutants (weekly + manual), fuzz (manual), SBOM (manual)
 
 ### Distribution
 

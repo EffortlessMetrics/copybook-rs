@@ -143,8 +143,13 @@ name = "e2e_cli_decode_flags"
 path = "e2e_cli_decode_flags.rs"
 
 [[test]]
+[[test]]
 name = "e2e_cli_advanced_flags"
 path = "e2e_cli_advanced_flags.rs"
+
+[[test]]
+name = "e2e_cli_feature_flags"
+path = "e2e_cli_feature_flags.rs"
 
 [dependencies]
 copybook-core.workspace = true

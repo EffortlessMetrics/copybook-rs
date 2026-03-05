@@ -67,6 +67,7 @@ lint:
       -A clippy::dbg_macro \
       -A clippy::print_stdout \
       -A clippy::print_stderr \
+      -A clippy::missing_inline_in_public_items \
       -A clippy::duplicated_attributes \
       -A deprecated
 

@@ -137,7 +137,8 @@ fn encode_determinism_pic_9_all_zeros() {
 #[test]
 fn encode_determinism_comp3_positive() {
     let cpy = "01 REC.\n   05 FLD PIC S9(5) COMP-3.";
-    let data: &[u8] = &[0x01, 0x23, 0x45, 0x0C];
+    // +12345 in COMP-3: 3 bytes (6 nibbles: 1,2,3,4,5,C)
+    let data: &[u8] = &[0x12, 0x34, 0x5C];
     let schema = parse_copybook(cpy).unwrap();
     let json = decode_record(&schema, data, &ebcdic_decode_opts()).unwrap();
     assert_encode_deterministic(cpy, &json, &ebcdic_encode_opts());
@@ -146,7 +147,8 @@ fn encode_determinism_comp3_positive() {
 #[test]
 fn encode_determinism_comp3_negative() {
     let cpy = "01 REC.\n   05 FLD PIC S9(5) COMP-3.";
-    let data: &[u8] = &[0x09, 0x87, 0x65, 0x0D];
+    // -98765 in COMP-3: 3 bytes (6 nibbles: 9,8,7,6,5,D)
+    let data: &[u8] = &[0x98, 0x76, 0x5D];
     let schema = parse_copybook(cpy).unwrap();
     let json = decode_record(&schema, data, &ebcdic_decode_opts()).unwrap();
     assert_encode_deterministic(cpy, &json, &ebcdic_encode_opts());
@@ -155,7 +157,8 @@ fn encode_determinism_comp3_negative() {
 #[test]
 fn encode_determinism_comp3_with_scale() {
     let cpy = "01 REC.\n   05 FLD PIC S9(5)V99 COMP-3.";
-    let data: &[u8] = &[0x01, 0x23, 0x45, 0x67, 0x0C];
+    // +12345.67 in COMP-3: 4 bytes (8 nibbles: 1,2,3,4,5,6,7,C)
+    let data: &[u8] = &[0x12, 0x34, 0x56, 0x7C];
     let schema = parse_copybook(cpy).unwrap();
     let json = decode_record(&schema, data, &ebcdic_decode_opts()).unwrap();
     assert_encode_deterministic(cpy, &json, &ebcdic_encode_opts());
@@ -240,10 +243,10 @@ fn roundtrip_pic_9() {
 
 #[test]
 fn roundtrip_comp3_ebcdic() {
-    // +12345 in COMP-3
+    // +12345 in COMP-3: 3 bytes (6 nibbles: 1,2,3,4,5,C)
     assert_roundtrip(
         "01 REC.\n   05 FLD PIC S9(5) COMP-3.",
-        &[0x01, 0x23, 0x45, 0x0C],
+        &[0x12, 0x34, 0x5C],
         &ebcdic_decode_opts(),
         &ebcdic_encode_opts(),
     );
@@ -283,9 +286,12 @@ fn encode_determinism_redefines() {
        01 REC.
           05 DATA-TEXT PIC X(10).
           05 DATA-NUM  REDEFINES DATA-TEXT PIC 9(10).";
-    let data = b"0000012345";
-    let schema = parse_copybook(cpy).unwrap();
-    let json = decode_record(&schema, data, &ascii_decode_opts()).unwrap();
+    // Construct unambiguous JSON: only the primary view is non-null.
+    // Encoding with both views would correctly produce CBKE501.
+    let json: serde_json::Value = serde_json::json!({
+        "DATA-TEXT": "0000012345",
+        "DATA-NUM": null
+    });
     assert_encode_deterministic(cpy, &json, &ascii_encode_opts());
 }
 

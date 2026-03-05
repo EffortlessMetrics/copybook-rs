@@ -9,7 +9,7 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **Status**: **Engineering Preview** (v0.4.3) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
-**Quality**: 10,000+ tests passing (15 ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (50+ error codes), 69 workspace-inherited dependencies
+**Quality**: 10,000+ tests passing (15 ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (60+ error codes), 69 workspace-inherited dependencies
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
@@ -261,12 +261,17 @@ When `use_raw` is enabled for encode, RDW output preserves header bytes and reco
 - `GoldenTest`/`GoldenTestSuite`: Structural validation fixtures with SHA-256 verification
 
 ### Error Handling
-Structured error taxonomy with stable codes:
+Structured error taxonomy with stable codes (10 families, 61 codes):
 - `CBKP*`: Parse errors (syntax, unsupported features)
 - `CBKS*`: Schema validation (ODO counters, record limits, projection errors)
 - `CBKD*`: Data errors (invalid decimals, truncated records, edited PIC decode errors)
 - `CBKE*`: Encoding errors (type mismatches, bounds, edited PIC encode errors)
 - `CBKR*`: Record format errors (RDW processing, fixed-length records)
+- `CBKC*`: Character set errors (unmappable characters)
+- `CBKF*`: File/format errors (I/O, framing)
+- `CBKI*`: Infrastructure errors (internal/operational)
+- `CBKA*`: Audit errors (audit trail)
+- `CBKW*`: Arrow/Writer errors (Apache Arrow integration)
 
 **Projection Error Codes** (CBKS7xx):
 - `CBKS701_PROJECTION_INVALID_ODO`: Selected field with ODO but counter not accessible

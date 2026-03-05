@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# PR Benchmark Comment — Issue #195
+#
+# Runs benchmarks on PRs that touch performance-sensitive code and posts
+# a comment with the results. Avoids duplicate comments by using a marker.
+#
+# Triggers:
+#   - PRs labeled "bench" (manual opt-in)
+#   - workflow_dispatch (manual trigger with PR number input)
+name: PR Bench Comment
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to comment on"
+        required: true
+        type: number
+
+concurrency:
+  group: pr-bench-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  bench-comment:
+    name: Benchmark + Comment
+    # Only run when 'bench' label is added or manual dispatch
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'bench')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.92.0 # MSRV
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run benchmarks
+        run: bash scripts/ci/bench.sh
+        continue-on-error: true
+
+      - name: Post PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
+          bash scripts/ci/bench-pr-comment.sh target/perf.json "$PR_NUMBER"

@@ -2347,6 +2347,23 @@ fn encode_zoned_decimal_field(
         .get(&field.name)
         .and_then(|v| coerce_to_str(v, options.coerce_numbers))
     {
+        // Check BWZ policy: when field has BLANK WHEN ZERO and bwz_encode is enabled,
+        // zero values are encoded as spaces instead of numeric zeros.
+        if field.blank_when_zero && options.bwz_encode {
+            let encoded = crate::numeric::encode_zoned_decimal_with_bwz(
+                &text,
+                spec.digits,
+                spec.scale,
+                spec.signed,
+                options.codepage,
+                options.bwz_encode,
+            )?;
+            if current_offset + field_len <= buffer.len() && encoded.len() == field_len {
+                buffer[current_offset..current_offset + field_len].copy_from_slice(&encoded);
+            }
+            return Ok(current_offset + field_len);
+        }
+
         let preserved_format = encoding_metadata
             .and_then(|meta| resolve_preserved_zoned_format(meta, field_path, &field.name));
         let resolved_format = options

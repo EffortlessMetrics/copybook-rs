@@ -301,6 +301,45 @@ fn encode_without_coerce_numbers_rejects_number() {
 }
 
 #[test]
+fn encode_bwz_zero_value_produces_spaces() {
+    let schema = parse_copybook("01 FLD PIC 9(5) BLANK WHEN ZERO.").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": "0"});
+    let opts = ascii_encode_opts().with_bwz_encode(true);
+    let encoded = encode_record(&schema, &json, &opts).unwrap();
+    assert_eq!(
+        &encoded[..5],
+        b"     ",
+        "BWZ zero value should produce spaces"
+    );
+}
+
+#[test]
+fn encode_bwz_nonzero_value_normal() {
+    let schema = parse_copybook("01 FLD PIC 9(5) BLANK WHEN ZERO.").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": "123"});
+    let opts = ascii_encode_opts().with_bwz_encode(true);
+    let encoded = encode_record(&schema, &json, &opts).unwrap();
+    assert_eq!(
+        &encoded[..5],
+        b"00123",
+        "BWZ non-zero value should encode normally"
+    );
+}
+
+#[test]
+fn encode_bwz_disabled_zero_value_normal() {
+    let schema = parse_copybook("01 FLD PIC 9(5) BLANK WHEN ZERO.").unwrap();
+    let json: serde_json::Value = serde_json::json!({"FLD": "0"});
+    let opts = ascii_encode_opts().with_bwz_encode(false);
+    let encoded = encode_record(&schema, &json, &opts).unwrap();
+    assert_eq!(
+        &encoded[..5],
+        b"00000",
+        "BWZ disabled should encode zero normally"
+    );
+}
+
+#[test]
 fn decode_codepage_ascii() {
     let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
     let data = b"HELLO";

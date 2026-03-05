@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **audit**: Implement `Display` for `AuditEventType` and `AuditSeverity` enums
 - **audit**: Add additional Clippy lint enforcement to audit module
 - **feature-flags**: Promote COMP-1/COMP-2 and SIGN SEPARATE features to stable
+- **test**: Add e2e tests for `support` CLI subcommand (8 tests covering table/JSON/filter/governance)
+- **lint**: Add `clippy::dbg_macro` to workspace-wide lint config
 
 ### Changed
 
@@ -23,10 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release prep: resolve clippy/rustdoc gate failures across core, codec, arrow examples, and test suites
 - Release prep: stabilize enterprise throughput assertions in `enterprise_mainframe_production_scenarios` for CI-consistent performance checks
+- **ci**: Add `workflow_dispatch` trigger to CI Quick and Feature Flags CI workflows
+- **ci**: Harden `security.sh` SHA validation logic (explicit null checks)
+- **ci**: Align justfile lint recipe with CI Quick (`missing_inline_in_public_items`)
+- **ci**: Consistent nextest exclusions in justfile (`copybook-bdd`, `copybook-bench`)
+- **lint**: Enforce `deny(clippy::unwrap_used, clippy::expect_used)` across all 36 publishable crates
+- **lint**: Remove dead code in `ReportSectionFile` (audit.rs)
 
 ### Miscellaneous Tasks
 
 - Update GitHub Actions to use latest action versions
+- **docs**: Update CLAUDE.md workspace structure (36 crates, 95+ deps)
+- **docs**: Update README test count (10,000+ passed, 15 ignored)
+- **docs**: ROADMAP timeline fix (Phase 1 complete March 2026)
 
 ## [0.4.3] — 2026-02-11
 

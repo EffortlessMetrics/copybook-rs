@@ -79,3 +79,10 @@ build_result.txt
 clippy_err.txt
 test_output.txt
 test_counts.txt
+
+# local agent artifacts
+.github/commands/gemini*.toml
+.github/workflows/gemini-*.yml
+.github/workflows/gemini-*.yaml
+GEMINI.md
+**/GEMINI.md

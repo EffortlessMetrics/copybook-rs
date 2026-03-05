@@ -265,6 +265,17 @@ pub mod audit {
 
 /// Parse a COBOL copybook into a structured schema
 ///
+/// # Examples
+///
+/// ```
+/// use copybook_core::parse_copybook;
+///
+/// let schema = parse_copybook("01 REC.\n   05 FLD PIC X(10).").unwrap();
+/// assert_eq!(schema.fields.len(), 1);
+/// assert_eq!(schema.fields[0].name, "REC");
+/// assert_eq!(schema.lrecl_fixed, Some(10));
+/// ```
+///
 /// # Errors
 /// Returns an error if the copybook contains syntax errors or unsupported features.
 #[inline]
@@ -274,6 +285,22 @@ pub fn parse_copybook(text: &str) -> Result<Schema> {
 }
 
 /// Parse a COBOL copybook with specific options
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::{parse_copybook_with_options, ParseOptions, Dialect};
+///
+/// let options = ParseOptions {
+///     dialect: Dialect::ZeroTolerant,
+///     ..ParseOptions::default()
+/// };
+/// let schema = parse_copybook_with_options(
+///     "01 REC.\n   05 CNT PIC 9.\n   05 ARR OCCURS 0 TO 5 DEPENDING ON CNT PIC X(3).",
+///     &options,
+/// ).unwrap();
+/// assert_eq!(schema.lrecl_fixed, Some(16)); // 1 + 5*3
+/// ```
 ///
 /// # Errors
 /// Returns an error if the copybook contains syntax errors or unsupported features.

@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 #![allow(clippy::must_use_candidate)]
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! COBOL lexer microcrate.
 //!

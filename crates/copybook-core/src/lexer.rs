@@ -1,5 +1,5 @@
 #![allow(clippy::must_use_candidate)]
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! COBOL copybook lexer shim.
 //!
 //! The tokenizer implementation now lives in `copybook-lexer`. This module

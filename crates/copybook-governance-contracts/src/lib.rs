@@ -1,5 +1,5 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Contract façade for governance interoperability.
 //!
 //! This crate keeps the cross-cutting governance contract imports small and stable

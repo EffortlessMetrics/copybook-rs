@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Governance grid linking COBOL support-matrix entries to feature flags.
 //!
 //! The grid is intentionally explicit so changes in parser capability, runtime feature flags,

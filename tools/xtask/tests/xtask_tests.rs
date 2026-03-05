@@ -321,8 +321,8 @@ fn format_summary_contains_slo_thresholds() {
     };
     let status = evaluate_slo(&snap);
     let summary = format_slo_summary(&snap, &status);
-    assert!(summary.contains(&format!("{}", DISPLAY_SLO_MIBPS)));
-    assert!(summary.contains(&format!("{}", COMP3_SLO_MIBPS)));
+    assert!(summary.contains(&format!("{DISPLAY_SLO_MIBPS}")));
+    assert!(summary.contains(&format!("{COMP3_SLO_MIBPS}")));
 }
 
 #[test]

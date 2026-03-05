@@ -22,7 +22,7 @@ Rust toolkit for COBOL copybook parsing and fixed-record data conversion that pr
 
 - **Deterministic**: Byte-identical results across runs and worker configurations
 - **Memory-safe**: Zero `unsafe` code in public APIs; clippy pedantic enforcement
-- **Comprehensive testing**: 1550+ tests passing with BDD, property testing, fuzzing, mutation testing, and feature flagging
+- **Comprehensive testing**: 10,000+ tests passing with BDD, property testing, fuzzing, mutation testing, and feature flagging
 - **Performance-validated**: 205 MiB/s (DISPLAY), 58 MiB/s (COMP-3) baseline established with CI receipts in `scripts/bench/perf.json`
 
 See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
@@ -117,7 +117,7 @@ copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, an
 ### Design Priorities
 
 - **Correctness first**: Detailed error taxonomy, deterministic encoders/decoders, and zero `unsafe` blocks in public APIs
-- **Transparent evidence**: CI reports 1550+ tests passing (68 skipped/ignored); canonical receipts live in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
+- **Transparent evidence**: CI reports 10,000+ tests passing (25 ignored); canonical receipts live in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 - **Schema insight**: CLI and library APIs expose rich metadata for copybook inspection and validation workflows
 - **Round-trip fidelity**: Binary↔JSON conversions preserve layout information to keep downstream audits reproducible
 - **Sustainable maintenance**: Clean room Rust implementation with clippy pedantic and edition 2024 compliance
@@ -163,26 +163,23 @@ Exit code 0 indicates success; exit code 1 indicates unhandled failures. See [ER
 
 ## Architecture
 
-The project is organized as a Cargo workspace with the following crates:
+The project is organized as a Cargo workspace with 36 crates under `crates/`, 3 dev-only tools, and 3 test suites. Key crates:
 
 - **copybook-core**: Core parsing and schema types for COBOL copybooks (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Encoding/decoding codecs for COBOL data types and character conversion
-- **copybook-options**: Shared encode/decode option contracts and configuration primitives
-- **copybook-arrow**: Conversion from COBOL layouts/records to Apache Arrow and Parquet
-- **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, support)
-- **copybook-gen**: Test fixture and synthetic data generation utilities
-- **copybook-bench**: Performance benchmarks and testing harness
+- **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, determinism)
+- **copybook-arrow**: Conversion from COBOL layouts/records to Apache Arrow and Parquet (experimental)
+- **copybook-error**: Structured error types with stable taxonomy (CBKP/CBKS/CBKD/CBKE/CBKR)
 - **copybook-codec-memory**: Shared scratch/streaming/worker-pool memory primitives for codec hot paths
 - **copybook-fixed**: Fixed-length (LRECL) record framing reader/writer primitives
 - **copybook-rdw**: RDW (record descriptor word) framing primitives
-- **copybook-record-io**: Fixed-vs-RDW legacy record dispatch facade over framing microcrates
-- **copybook-sequence-ring**: Deterministic sequence reordering primitive used by parallel worker pipelines
-- **copybook-contracts**: Canonical feature-flag contracts
-- **copybook-support-matrix**: Canonical COBOL support matrix contract data
-- **copybook-governance-contracts**: Unified façade combining contracts + support matrix
-- **copybook-governance-grid**: Static mapping from support rows to runtime flags
-- **copybook-governance-runtime**: Runtime governance-state evaluation from active feature flags
+- **copybook-record-io**: Fixed-vs-RDW record dispatch facade
+- **copybook-determinism**: Determinism primitives for stable hash/diff comparison
+- **copybook-dialect**: Dialect contract for ODO `min_count` semantics (Normative, ZeroTolerant, OneTolerant)
+- **copybook-charset**: Character set conversion utilities for EBCDIC/ASCII
+- **copybook-overpunch**: Zoned decimal overpunch encode/decode primitives
 - **copybook-governance**: Backward-compatible governance façade re-exporting the layered governance stack
+- **copybook-sequence-ring**: Deterministic sequence reordering primitive for parallel pipelines
 
 ## Library API Usage
 
@@ -273,8 +270,8 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo test --workspace` reports 1550+ tests passing (68 skipped/ignored) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
-- **CI Mode**: Currently operating in CI-off mode with local gates and small PRs. See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state.
+- **Tests**: `cargo test --workspace` reports 10,000+ tests passing (25 ignored) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
+- **CI Mode**: Full CI pipeline active (CI Quick PR gate + CI Full matrix). See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state.
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [HARDWARE_SPECS.md](tools/copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
 - **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.3; see `docs/backlog/benchmark_tooling.md` for follow-ups

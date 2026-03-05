@@ -7,9 +7,9 @@
 
 ## Executive Summary
 
-**copybook-rs** is a Rust toolkit for COBOL copybook parsing and fixed-record data conversion. The project demonstrates excellent code quality with **0 production `panic!()` on main**, 1825+ passing tests, and receipt-based performance governance.
+**copybook-rs** is a Rust toolkit for COBOL copybook parsing and fixed-record data conversion. The project demonstrates excellent code quality with **0 production `panic!()` on main**, 10,000+ passing tests, and receipt-based performance governance.
 
-The project is operating in **CI-off mode** with local gates and small PRs, following a clear trajectory toward v1.0.0.
+The project has a **full CI pipeline active** (CI Quick as PR gate, CI Full matrix on main), following a clear trajectory toward v1.0.0.
 
 ---
 
@@ -25,10 +25,11 @@ The project is operating in **CI-off mode** with local gates and small PRs, foll
 
 ### CI/CD Status
 
-**Current Mode**: CI-off (dispatch-only workflows)
+**Current Mode**: CI-on (35 workflows active)
 
 **Operating Rules**:
-- Local gates required for all PRs
+- CI Quick (fmt → clippy → build → nextest → BDD smoke → doctests) gates all PRs
+- CI Full runs matrix tests (MSRV/stable/beta × OS) on main and PRs
 - Small, focused PRs preferred
 - Explicit receipts in PR bodies for performance claims
 - Expensive workflows (mutants, fuzz, SBOM) are dispatch-only
@@ -66,7 +67,7 @@ The project is operating in **CI-off mode** with local gates and small PRs, foll
 |--------|--------|
 | **Production `panic!()` calls** | 0 on main |
 | **Test-only `panic!()` calls** | Acceptable (in `#[cfg(test)]` modules) |
-| **Passing Tests** | 1825+ |
+| **Passing Tests** | 10,000+ |
 | **Unsafe Blocks (public APIs)** | 0 |
 | **Clippy Pedantic Compliance** | Enforced |
 

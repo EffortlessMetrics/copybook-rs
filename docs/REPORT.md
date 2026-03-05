@@ -53,8 +53,8 @@ responsibilities:
 
 <!-- TEST_STATUS:BEGIN -->
 
-- **Tests**: `cargo test --workspace` reports 1550+ tests passing (68
-  skipped/ignored) on the release gate
+- **Tests**: `cargo test --workspace` reports 10,000+ tests passing (25
+  ignored) on the release gate
 
 <!-- TEST_STATUS:END -->
 
@@ -155,11 +155,14 @@ Comprehensive support for mainframe data formats:
 
 ### Unsupported COBOL Features
 
-- COMP-1/COMP-2 floating-point types (fully supported, promoted to stable in v0.4.3)
-- Edited PIC clauses (E1-E3.7 fully supported)
-- SIGN LEADING/TRAILING SEPARATE (fully supported, promoted to stable in v0.4.3)
-- Nested OCCURS DEPENDING ON arrays
+- Nested OCCURS DEPENDING ON arrays (O5/O6 — rejected by design; see Issue #164)
 - 66-level (RENAMES) items – R1-R3 supported; R4-R6 and nested interactions remain policy-limited (`renames_r4_r6`)
+
+### Recently Promoted to Stable (v0.4.3)
+
+- COMP-1/COMP-2 floating-point types (fully supported, enabled by default)
+- SIGN LEADING/TRAILING SEPARATE (fully supported, enabled by default)
+- Edited PIC clauses (E1-E3 fully supported)
 
 **Note**: Level-88 condition values are fully supported with comprehensive
 parse, codec, and structural validation. See
@@ -271,7 +274,7 @@ remaining limitations are addressed.
 
 #### Technical Signals
 
-- ✅ **Test Health**: `cargo test --workspace` reports 1825+ tests passing (10
+- ✅ **Test Health**: `cargo test --workspace` reports 10,000+ tests passing (25
   ignored)
 - ✅ **Memory Safety**: Zero `unsafe` in public APIs; pedantic linting enforced
 - ⚠️ **Performance Variance**: Receipts are environment-specific; validate on

@@ -46,7 +46,7 @@ jobs:
         cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture
     - name: Upload proptest regressions (copybook-core)
       if: failure()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: proptest-regressions-core-${{ matrix.os }}-${{ matrix.rust }}
         path: crates/copybook-core/tests/proptest-regressions/
@@ -86,7 +86,7 @@ jobs:
         cargo test -p copybook-proptest --lib --features ${{ matrix.features }} -- --test-threads=2 --nocapture
     - name: Upload proptest regressions (copybook-codec)
       if: failure()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: proptest-regressions-codec-${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.features }}
         path: crates/copybook-codec/tests/proptest-regressions/
@@ -115,7 +115,7 @@ jobs:
         cargo test -p copybook-proptest --lib -- --test-threads=2 --nocapture
     - name: Upload proptest regressions (integration)
       if: failure()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: proptest-regressions-integration-${{ matrix.rust }}
         path: tests/proptest-regressions/

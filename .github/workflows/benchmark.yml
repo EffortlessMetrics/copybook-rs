@@ -175,7 +175,7 @@ jobs:
         EOF
 
     - name: Upload benchmark artifacts
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: benchmark-results-${{ github.sha }}
@@ -302,7 +302,7 @@ jobs:
 
     - name: Upload baseline for main branch
       if: github.ref == 'refs/heads/main' && steps.process.outputs.status == 'success'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: baseline-main-${{ github.sha }}
         path: target/baselines/performance.json

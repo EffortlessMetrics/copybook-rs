@@ -1,0 +1,25 @@
+{
+	"name": "copybook-rs",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"rust-analyzer.check.command": "clippy",
+				"rust-analyzer.cargo.features": "all"
+			},
+			"extensions": [
+				"rust-lang.rust-analyzer",
+				"tamasfe.even-better-toml",
+				"serayuzgur.crates",
+				"usernamehw.errorlens"
+			]
+		}
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/github-cli:1": {}
+	},
+	"postCreateCommand": "cargo install just cargo-nextest cargo-deny cargo-mutants cargo-release && rustup component add clippy rustfmt",
+	"remoteUser": "vscode"
+}

@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-use copybook_codec::{Codepage, DecodeOptions, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy};
+use copybook_codec::{
+    Codepage, DecodeOptions, FloatFormat, JsonNumberMode, RawMode, RecordFormat, UnmappablePolicy,
+    ZonedEncodingFormat,
+};
 use copybook_core::parse_copybook;
 
 fn main() {
@@ -34,6 +37,9 @@ fn main() {
         max_errors: None,
         on_decode_unmappable: UnmappablePolicy::Error,
         threads: 1,
+        preserve_zoned_encoding: false,
+        preferred_zoned_encoding: ZonedEncodingFormat::Auto,
+        float_format: FloatFormat::IeeeBigEndian,
     };
 
     // Test data: counter=3, original area, 3 array items

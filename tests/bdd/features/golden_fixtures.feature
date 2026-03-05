@@ -16,7 +16,7 @@ Feature: Golden Fixtures Validation
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "CUSTOMER-ID" should have type "zoned"
     And the field "CUSTOMER-NAME" should have type "alphanumeric"
     And the field "ACCOUNT-BALANCE" should have type "packed"
@@ -55,7 +55,7 @@ Feature: Golden Fixtures Validation
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And there should be 3 leaf fields
     And the schema should have fingerprint
     And the field "FIELD-1" should have offset 0
@@ -69,7 +69,7 @@ Feature: Golden Fixtures Validation
     Given a simple copybook with a single field
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And there should be 1 leaf fields
     And the schema should have fingerprint
     And the field "TEST-FIELD" should have type "alphanumeric"
@@ -92,7 +92,7 @@ Feature: Golden Fixtures Validation
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And there should be 6 leaf fields
     And the schema should have fingerprint
     And the field "RECORD-TYPE" should have type "alphanumeric"
@@ -144,7 +144,7 @@ Feature: Golden Fixtures Validation
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And there should be 2 leaf fields
     And the schema should have fingerprint
 
@@ -158,7 +158,7 @@ Feature: Golden Fixtures Validation
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And there should be 2 leaf fields
     And the schema should have fingerprint
 
@@ -175,7 +175,7 @@ Feature: Golden Fixtures Validation
     And field selection is ["CUSTOMER-ID", "CUSTOMER-NAME"]
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And there should be 2 leaf fields
     And the schema should have fingerprint
 
@@ -207,7 +207,7 @@ Feature: Golden Fixtures Validation
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And there should be 3 leaf fields
     And the field "EDITED-NUMBER" should have type "edited"
     And the field "EDITED-DATE" should have type "edited"
@@ -233,8 +233,8 @@ Feature: Golden Fixtures Validation
     Then encoding should succeed
     And the round-trip should be lossless
     And decoding should succeed
-    And decoded RECORD-ID should be "0001"
-    And decoded POSITIVE-AMOUNT should be "12345"
-    And decoded NEGATIVE-AMOUNT should be "-67890"
-    And decoded DECIMAL-AMOUNT should be "123.45"
-    And decoded UNSIGNED-AMOUNT should be "999"
+    And decoded field RECORD-ID should be "0001"
+    And decoded field POSITIVE-AMOUNT should be "12345"
+    And decoded field NEGATIVE-AMOUNT should be "-67890"
+    And decoded field DECIMAL-AMOUNT should be "123.45"
+    And decoded field UNSIGNED-AMOUNT should be "999"

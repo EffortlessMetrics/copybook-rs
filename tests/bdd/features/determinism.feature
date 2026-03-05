@@ -1,3 +1,4 @@
+@determinism
 Feature: Determinism Validation
 
   As a developer working with COBOL data

@@ -49,7 +49,7 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: proptest-regressions-core-${{ matrix.os }}-${{ matrix.rust }}
-        path: copybook-core/tests/proptest-regressions/
+        path: crates/copybook-core/tests/proptest-regressions/
         retention-days: 7
 
   proptest-codec:
@@ -89,7 +89,7 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: proptest-regressions-codec-${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.features }}
-        path: copybook-codec/tests/proptest-regressions/
+        path: crates/copybook-codec/tests/proptest-regressions/
         retention-days: 7
 
   proptest-integration:

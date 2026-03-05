@@ -45,6 +45,8 @@ cargo fuzz run <target> <crash_file>
 | `determinism_compare` | Fuzz determinism hash/diff comparison primitives |
 | `options_contract` | Fuzz options microcrate serde and builder contracts |
 | `record_io_dispatch` | Fuzz fixed-vs-RDW record dispatch microcrate facade |
+| `safe_index` | Fuzz panic-safe indexing and division helpers |
+| `safe_text` | Fuzz panic-safe text parsing and string helpers |
 
 ## Directory Structure
 
@@ -63,6 +65,8 @@ fuzz/
 │   ├── fixed_record.rs
 │   ├── determinism_compare.rs
 │   ├── options_contract.rs
+│   ├── safe_index.rs
+│   ├── safe_text.rs
 │   └── record_io_dispatch.rs
 └── corpus/                 # Initial corpus for each target
     ├── copybook_parse/
@@ -75,6 +79,7 @@ fuzz/
     ├── fixed_record/
     ├── determinism_compare/
     ├── options_contract/
+    ├── safe_index/
     └── record_io_dispatch/
 ```
 

@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Core COBOL copybook parser, schema, and validation primitives."
+documentation = "https://docs.rs/copybook-core"
+readme = "README.md"
+keywords = ["cobol", "copybook", "mainframe", "ebcdic", "parser"]
+categories = ["parsing", "data-structures", "encoding"]
+
+# Keep tarballs slim; whitelist essential files
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-error.workspace = true
+copybook-error-reporter.workspace = true
+copybook-overflow.workspace = true
+copybook-utils.workspace = true
+copybook-dialect.workspace = true
+copybook-lexer.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_plain.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+logos.workspace = true
+sha2.workspace = true
+copybook-governance-contracts.workspace = true
+
+# Audit system dependencies (only when audit feature is enabled)
+async-trait = { workspace = true, optional = true }
+chrono = { version = "0.4.43", features = ["serde"], optional = true }
+hex = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
+
+[features]
+default = []
+# EXPERIMENTAL: Enable audit system (disabled by default for performance)
+# WARNING: The audit module is experimental and subject to breaking changes.
+# APIs may change without notice between minor versions. Use at your own risk.
+audit = ["dep:async-trait", "dep:chrono", "dep:hex", "dep:rand"]
+# Enables comprehensive parser fixtures in tests (opt-in, not for docs.rs).
+comprehensive-tests = []
+
+[lints]
+workspace = true

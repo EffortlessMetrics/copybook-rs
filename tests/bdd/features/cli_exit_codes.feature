@@ -108,3 +108,115 @@ Feature: CLI Exit Codes
     When the binary data is decoded
     When the exit code is computed from the error
     Then the exit code should be 0
+
+  Scenario: Valid REDEFINES decode exits 0
+    Given a copybook with content:
+      """
+      01 REDEF-EXIT.
+         05 ORIG PIC X(10).
+         05 ALT REDEFINES ORIG PIC X(10).
+      """
+    And ASCII codepage
+    And binary data: "ABCDEFGHIJ"
+    When the binary data is decoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid signed zoned decimal decode exits 0
+    Given a copybook with content:
+      """
+      01 SIGNED-EXIT.
+         05 BAL PIC S9(5).
+      """
+    And ASCII codepage
+    And binary data: "1234{"
+    When the binary data is decoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid group record decode exits 0
+    Given a copybook with content:
+      """
+      01 GRP-EXIT.
+         05 HEADER.
+             10 H-CODE PIC X(3).
+             10 H-NAME PIC X(7).
+      """
+    And ASCII codepage
+    And binary data: "ABCHELLOOO"
+    When the binary data is decoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid SIGN SEPARATE LEADING decode exits 0
+    Given a copybook with SIGN SEPARATE LEADING
+      """
+      01 SEP-EXIT.
+         05 AMT PIC S9(5) SIGN IS SEPARATE LEADING.
+      """
+    And ASCII codepage
+    And binary data: "+12345"
+    When the binary data is decoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid multi-field encode exits 0
+    Given a copybook with content:
+      """
+      01 MULTI-EXIT.
+         05 FLD-A PIC X(5).
+         05 FLD-B PIC 9(3).
+      """
+    And ASCII codepage
+    And JSON data: "{\"FLD-A\":\"HELLO\",\"FLD-B\":\"123\"}"
+    When the JSON data is encoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid decimal field decode exits 0
+    Given a copybook with content:
+      """
+      01 DEC-EXIT.
+         05 RATE PIC 9(3)V99.
+      """
+    And ASCII codepage
+    And binary data: "12345"
+    When the binary data is decoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid COMP-1 float decode exits 0
+    Given a copybook with content:
+      """
+      01 FLT-EXIT.
+         05 FLT-FIELD COMP-1.
+      """
+    And ASCII codepage
+    And binary data: "\x42\x28\x00\x00"
+    When the binary data is decoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid COMP-2 double decode exits 0
+    Given a copybook with content:
+      """
+      01 DBL-EXIT.
+         05 DBL-FIELD COMP-2.
+      """
+    And ASCII codepage
+    And binary data: "\x40\x45\x00\x00\x00\x00\x00\x00"
+    When the binary data is decoded
+    When the exit code is computed from the error
+    Then the exit code should be 0
+
+  Scenario: Valid round-trip with signed field exits 0
+    Given a copybook with content:
+      """
+      01 RT-SIGN-EXIT.
+         05 AMT PIC S9(5).
+      """
+    And ASCII codepage
+    And binary data: "1234{"
+    When the data is round-tripped
+    When the exit code is computed from the error
+    Then the exit code should be 0

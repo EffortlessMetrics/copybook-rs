@@ -1,3 +1,4 @@
+@copybook-parsing
 Feature: Copybook Parsing
 
   As a developer working with COBOL copybooks
@@ -8,7 +9,7 @@ Feature: Copybook Parsing
     Given a simple copybook with a single field
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "TEST-RECORD" should have type "group"
     And the schema should have fingerprint
 
@@ -16,7 +17,7 @@ Feature: Copybook Parsing
     Given a copybook with numeric fields
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "PACKED-DECIMAL" should have type "packed"
     And the field "BINARY-INTEGER" should have type "binary"
     And the field "ZONED-DECIMAL" should have type "zoned"
@@ -25,14 +26,14 @@ Feature: Copybook Parsing
     Given a copybook with OCCURS clause
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "ARRAY-FIELD" should have type "occurs"
 
   Scenario: Parse a copybook with ODO (OCCURS DEPENDING ON)
     Given a copybook with ODO (OCCURS DEPENDING ON)
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "COUNT-FIELD" should have type "numeric"
     And the field "DYNAMIC-ARRAY" should have type "occurs"
 
@@ -40,7 +41,7 @@ Feature: Copybook Parsing
     Given a copybook with REDEFINES clause
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "ORIGINAL-FIELD" should have type "alphanumeric"
     And the field "ALTERNATIVE-FIELD" should have type "group"
 
@@ -48,7 +49,7 @@ Feature: Copybook Parsing
     Given a copybook with Level-88 condition values
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "STATUS-ACTIVE" should have type "condition"
     And the field "STATUS-INACTIVE" should have type "condition"
     And the field "STATUS-PENDING" should have type "condition"
@@ -81,7 +82,7 @@ Feature: Copybook Parsing
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
 
   Scenario: Verify field offsets are calculated correctly
     Given a copybook with content:
@@ -112,6 +113,14 @@ Feature: Copybook Parsing
       """
     When the copybook is parsed
     Then the schema should be successfully parsed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields
     And the field "GROUP-1" should have type "group"
     And the field "GROUP-2" should have type "group"
+
+  Scenario: Parse level-88 VALUE list commas without treating them as edited picture tokens
+    Given a copybook with an inline VALUE-list for Level-88
+    When the copybook is parsed
+    Then the schema should be successfully parsed
+    And the schema should contain 1 top-level fields
+    And the lexer should produce 2 comma tokens
+    And the lexer should not treat VALUE-list separators as edited-picture tokens

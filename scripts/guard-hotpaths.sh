@@ -4,7 +4,7 @@ set -euo pipefail
 
 fail=0
 
-if matches=$(rg -n 'Value::String\([^)]*to_string\(' copybook-codec/src/lib_api.rs || true); then
+if matches=$(rg -n 'Value::String\([^)]*to_string\(' crates/copybook-codec/src/lib_api.rs || true); then
   if [[ -n "${matches}" ]]; then
     printf '%s\n' "${matches}"
     echo "❌ Value::String(..to_string(..)) in lib_api.rs" >&2
@@ -28,7 +28,7 @@ while IFS=: read -r file line _; do
     echo "❌ to_string() adjacent to decimal decode in $file" >&2
     fail=1
   fi
-done < <(rg -n --with-filename 'decode_(packed|zoned)_decimal_' copybook-codec/src/lib_api.rs || true)
+done < <(rg -n --with-filename 'decode_(packed|zoned)_decimal_' crates/copybook-codec/src/lib_api.rs || true)
 
 if (( fail == 0 )); then
   echo "✅ Hot-path allocation guard clean"

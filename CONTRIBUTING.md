@@ -140,7 +140,7 @@ Use [feature_request.yml](.github/ISSUE_TEMPLATE/feature_request.yml) template. 
 
 ## Architecture Overview
 
-copybook-rs is a Cargo workspace with 4 published crates and 2 dev-only crates:
+copybook-rs is a Cargo workspace with 25 publishable crates under `crates/` and 3 dev-only crates under `tools/`. Key crates include:
 
 - **copybook-core**: COBOL copybook parsing (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Data encoding/decoding, character conversion, record framing
@@ -166,11 +166,11 @@ See [RELEASE_RUNBOOK.md](docs/RELEASE_RUNBOOK.md) for detailed procedures.
 **CI Floors**: DISPLAY ≥80 MiB/s, COMP-3 ≥40 MiB/s
 **Baseline** (2025-09-30): DISPLAY 205 MiB/s, COMP-3 58 MiB/s, Memory <256 MiB
 
-See [BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for details.
+See [BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for details.
 
 ## Project Status & Resources
 
-**Status**: Engineering Preview (v0.4.3-dev on main; v0.4.2 latest tag)
+**Status**: Engineering Preview (v0.4.3)
 
 **Key Documentation**:
 - [ROADMAP.md](docs/ROADMAP.md) - Project status and adoption guidance

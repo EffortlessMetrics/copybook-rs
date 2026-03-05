@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-safe-ops"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Panic-safe conversion and numeric helper operations"
+documentation = "https://docs.rs/copybook-safe-ops"
+readme = "README.md"
+keywords = ["cobol", "copybook", "utils", "safety"]
+categories = ["parsing", "encoding", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-error.workspace = true
+copybook-overflow.workspace = true
+copybook-safe-index.workspace = true
+copybook-safe-text.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

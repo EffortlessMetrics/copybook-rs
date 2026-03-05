@@ -32,13 +32,13 @@ on:
     - cron: '0 2 * * *'
   pull_request:
     paths:
-      - 'copybook-core/**'
-      - 'copybook-codec/**'
-      - 'copybook-fixed/**'
-      - 'copybook-rdw/**'
-      - 'copybook-determinism/**'
-      - 'copybook-options/**'
-      - 'copybook-record-io/**'
+      - 'crates/copybook-core/**'
+      - 'crates/copybook-codec/**'
+      - 'crates/copybook-fixed/**'
+      - 'crates/copybook-rdw/**'
+      - 'crates/copybook-determinism/**'
+      - 'crates/copybook-options/**'
+      - 'crates/copybook-record-io/**'
       - 'fuzz/**'
       - '.github/workflows/fuzz-integration.yml'
 

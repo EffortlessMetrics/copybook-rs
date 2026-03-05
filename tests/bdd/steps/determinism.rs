@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+use copybook_cli_determinism::render_human_result;
 use copybook_codec::determinism::{
     check_decode_determinism, check_encode_determinism, check_round_trip_determinism,
 };
@@ -199,15 +200,21 @@ async fn then_json_contains(world: &mut CopybookWorld, expected: String) {
 #[then(regex = r#"^the human-readable output should show "(.+)"$"#)]
 async fn then_human_readable_shows(world: &mut CopybookWorld, expected: String) {
     let result = determinism_result_or_panic(world);
+    let output = render_human_result(result, 100);
+    assert!(
+        output.contains(&expected),
+        "Expected human-readable output to show '{}', got '{}'",
+        expected,
+        output
+    );
     let verdict = if result.is_deterministic {
         "DETERMINISTIC"
     } else {
         "NON-DETERMINISTIC"
     };
     assert!(
-        verdict.contains(&expected),
-        "Expected human-readable to show '{}', got '{}'",
-        expected,
+        output.contains(verdict),
+        "Expected verdict '{}' to be present",
         verdict
     );
 }
@@ -215,10 +222,8 @@ async fn then_human_readable_shows(world: &mut CopybookWorld, expected: String) 
 #[then(regex = r#"^the output should contain "(.+)"$"#)]
 async fn then_output_contains(world: &mut CopybookWorld, expected: String) {
     let result = determinism_result_or_panic(world);
-    let output = format!(
-        "Round 1 hash: {}\nRound 2 hash: {}\nDeterministic: {}",
-        result.round1_hash, result.round2_hash, result.is_deterministic
-    );
+    let output = render_human_result(result, 100);
+    let output = format!("{}\nDeterministic: {}", output, result.is_deterministic);
     assert!(
         output.contains(&expected),
         "Expected output to contain '{}', got: {}",

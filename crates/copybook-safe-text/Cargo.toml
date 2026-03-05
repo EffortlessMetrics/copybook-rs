@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-safe-text"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Panic-safe text parsing and string helper functions"
+documentation = "https://docs.rs/copybook-safe-text"
+readme = "README.md"
+keywords = ["cobol", "copybook", "utils", "safety", "parsing"]
+categories = ["parsing", "encoding", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-error.workspace = true
+
+[dev-dependencies]
+copybook-safe-ops.workspace = true
+
+[lints]
+workspace = true

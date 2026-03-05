@@ -3,7 +3,7 @@
 # Lists public Result fns missing #[inline]/#[must_use]/# Errors
 set -euo pipefail
 
-scan_dirs=("copybook-codec/src" "copybook-core/src")
+scan_dirs=("crates/copybook-codec/src" "crates/copybook-core/src")
 miss=0
 
 for dir in "${scan_dirs[@]}"; do

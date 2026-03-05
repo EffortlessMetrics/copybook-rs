@@ -54,8 +54,52 @@ pub(crate) fn build_binary_for_all_leaf_fields(world: &mut CopybookWorld) -> Vec
             .unwrap_or(0)
     }) as usize;
 
-    // Create binary data filled with ASCII spaces
-    vec![b' '; record_len.max(1)]
+    let is_ebcdic = world
+        .decode_options
+        .as_ref()
+        .map(|o| !matches!(o.codepage, Codepage::ASCII))
+        .unwrap_or(false);
+    let space_byte: u8 = if is_ebcdic { 0x40 } else { b' ' };
+    let zero_byte: u8 = if is_ebcdic { 0xF0 } else { b'0' };
+
+    let mut buf = vec![space_byte; record_len.max(1)];
+
+    // Fill numeric leaf fields with zero digits for valid round-trip
+    for field in schema.all_fields() {
+        if !field.children.is_empty() {
+            continue;
+        }
+        let start = field.offset as usize;
+        let end = (start + field.len as usize).min(buf.len());
+        match &field.kind {
+            copybook_core::FieldKind::ZonedDecimal { signed, .. } => {
+                for b in &mut buf[start..end] {
+                    *b = zero_byte;
+                }
+                // Last byte of signed zoned decimal needs sign nibble
+                if *signed && end > start {
+                    buf[end - 1] = if is_ebcdic { 0xC0 } else { b'0' };
+                }
+            }
+            copybook_core::FieldKind::PackedDecimal { .. } => {
+                for b in &mut buf[start..end] {
+                    *b = 0x00;
+                }
+                // Last nibble is sign: 0x0C = positive
+                if end > start {
+                    buf[end - 1] = 0x0C;
+                }
+            }
+            copybook_core::FieldKind::BinaryInt { .. } => {
+                for b in &mut buf[start..end] {
+                    *b = 0x00;
+                }
+            }
+            _ => {} // Alphanum stays as spaces
+        }
+    }
+
+    buf
 }
 
 pub(crate) fn encode_from_payload(
@@ -141,6 +185,14 @@ pub(crate) fn json_value_for_field<'a>(record: &'a Value, field_name: &str) -> O
     obj.get(field_name)
         .or_else(|| obj.get(&field_name.to_ascii_uppercase()))
         .or_else(|| obj.get(&field_name.to_ascii_lowercase()))
+}
+
+/// Left-trim each line so the lexer never detects "fixed format".
+pub(crate) fn normalize_copybook_text(text: &str) -> String {
+    text.lines()
+        .map(str::trim_start)
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 pub(crate) fn field_value_as_string(value: &Value) -> Option<String> {

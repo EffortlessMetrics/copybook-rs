@@ -22,11 +22,11 @@ jobs:
         run: cargo install --locked cargo-cyclonedx --version 0.5.7
 
       - name: Generate SBOM (CycloneDX JSON)
-        run: cargo cyclonedx --manifest-path copybook-cli/Cargo.toml --format json
+        run: cargo cyclonedx --manifest-path crates/copybook-cli/Cargo.toml --format json
 
       - name: Rename and verify SBOM
         run: |
-          mv copybook-cli/copybook-cli.cdx.json sbom.cdx.json
+          mv crates/copybook-cli/copybook-cli.cdx.json sbom.cdx.json
           echo "SBOM generated:"
           head -50 sbom.cdx.json
           echo "..."

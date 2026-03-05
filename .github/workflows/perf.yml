@@ -10,8 +10,8 @@ on:
       - 'v*'   # run on version tags (e.g., v0.3.1, v1.0.0)
   pull_request:
     paths:
-      - "copybook-bench/**"
-      - "copybook-codec/**"
+      - "tools/copybook-bench/**"
+      - "crates/copybook-codec/**"
       - "scripts/bench.sh"
       - "scripts/bench.bat"
       - "scripts/guard-hotpaths.sh"
@@ -58,7 +58,17 @@ jobs:
       - name: Hygiene and build
         run: |
           cargo fmt --all --check
-          cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic
+          # Pedantic for production targets, relaxed for tests (mirrors scripts/ci/quick.sh)
+          cargo clippy --workspace --lib --bins --examples --all-features -- -D warnings -W clippy::pedantic
+          cargo clippy --workspace --tests --all-features -- -D warnings \
+            -A clippy::unwrap_used \
+            -A clippy::expect_used \
+            -A clippy::panic \
+            -A clippy::dbg_macro \
+            -A clippy::print_stdout \
+            -A clippy::print_stderr \
+            -A clippy::missing_inline_in_public_items \
+            -A clippy::duplicated_attributes
           cargo build --workspace --release
           cargo nextest run --workspace
 

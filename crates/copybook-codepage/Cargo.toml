@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-codepage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Codepage and unmappable-character policy types for copybook-rs."
+documentation = "https://docs.rs/copybook-codepage"
+readme = "README.md"
+keywords = ["cobol", "codepage", "ebcdic", "encoding", "ascii"]
+categories = ["encoding", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+clap = { workspace = true, optional = true }
+serde.workspace = true
+
+[features]
+default = []
+clap = ["dep:clap"]
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

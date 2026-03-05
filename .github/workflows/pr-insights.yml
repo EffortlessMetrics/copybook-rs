@@ -1,0 +1,49 @@
+name: PR Insights
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  insights:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@nextest
+      
+      - name: Run Tests (Generate junit.xml)
+        run: cargo nextest run --workspace --profile ci
+        continue-on-error: true
+
+      - name: Generate PR Insights
+        run: cargo run -p xtask -- pr-insights
+
+      - name: Find Comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: DevEx Automated PR Insights
+
+      - name: Read Comment Body
+        id: comment_body
+        run: |
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat pr_comment.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create or Update Comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.comment_body.outputs.body }}
+          edit-mode: replace

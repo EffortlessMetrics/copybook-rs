@@ -1,3 +1,4 @@
+@enterprise-audit
 Feature: Enterprise Audit System
 
   As an enterprise data processing organization

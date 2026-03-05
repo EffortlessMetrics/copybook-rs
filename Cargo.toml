@@ -1,36 +1,48 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [workspace]
 members = [
-    "copybook-error",
-    "copybook-error-reporter",
-    "copybook-utils",
-    "copybook-overflow",
-    "copybook-fixed",
-    "copybook-rdw",
-    "copybook-record-io",
-    "copybook-overpunch",
-    "copybook-determinism",
-    "copybook-codepage",
-    "copybook-charset",
-    "copybook-options",
-    "copybook-core",
-    "copybook-dialect",
-    "copybook-codec",
-    "copybook-codec-memory",
-    "copybook-sequence-ring",
-    "copybook-cli",
-    "copybook-gen",
-    "copybook-governance",
-    "copybook-governance-grid",
-    "copybook-governance-runtime",
-    "copybook-governance-contracts",
-    "copybook-bench",
-    "copybook-arrow",
-    "copybook-contracts",
-    "copybook-support-matrix",
-    "xtask",
+    "crates/copybook-error",
+    "crates/copybook-error-reporter",
+    "crates/copybook-utils",
+    "crates/copybook-zoned-format",
+    "crates/copybook-overflow",
+    "crates/copybook-fixed",
+    "crates/copybook-rdw",
+    "crates/copybook-record-io",
+    "crates/copybook-overpunch",
+    "crates/copybook-determinism",
+    "crates/copybook-codepage",
+    "crates/copybook-charset",
+    "crates/copybook-lexer",
+    "crates/copybook-options",
+    "crates/copybook-core",
+    "crates/copybook-corruption",
+    "crates/copybook-corruption-detectors",
+    "crates/copybook-corruption-rdw",
+    "crates/copybook-corruption-predicates",
+    "crates/copybook-dialect",
+    "crates/copybook-codec",
+    "crates/copybook-codec-memory",
+    "crates/copybook-sequence-ring",
+    "crates/copybook-safe-ops",
+    "crates/copybook-rdw-predicates",
+    "crates/copybook-safe-index",
+    "crates/copybook-safe-text",
+    "crates/copybook-cli",
+    "crates/copybook-cli-determinism",
+    "crates/copybook-governance",
+    "crates/copybook-governance-grid",
+    "crates/copybook-governance-runtime",
+    "crates/copybook-governance-contracts",
+    "crates/copybook-arrow",
+    "crates/copybook-contracts",
+    "crates/copybook-support-matrix",
+    "tools/copybook-gen",
+    "tools/copybook-bench",
+    "tools/xtask",
     "tests/bdd",
     "tests/proptest",
+    "tests/e2e",
 ]
 exclude = [
     "examples/kafka_pipeline",
@@ -51,31 +63,42 @@ categories = ["parsing", "encoding", "command-line-utilities"]
 
 [workspace.dependencies]
 # Internal workspace crates (pin exact versions for publish)
-copybook-error = { version = "=0.4.3", path = "copybook-error" }
-copybook-error-reporter = { version = "=0.4.3", path = "copybook-error-reporter" }
-copybook-utils = { version = "=0.4.3", path = "copybook-utils" }
-copybook-overflow = { version = "=0.4.3", path = "copybook-overflow" }
-copybook-fixed = { version = "=0.4.3", path = "copybook-fixed" }
-copybook-rdw = { version = "=0.4.3", path = "copybook-rdw" }
-copybook-record-io = { version = "=0.4.3", path = "copybook-record-io" }
-copybook-overpunch = { version = "=0.4.3", path = "copybook-overpunch" }
-copybook-determinism = { version = "=0.4.3", path = "copybook-determinism" }
-copybook-codepage = { version = "=0.4.3", path = "copybook-codepage" }
-copybook-charset = { version = "=0.4.3", path = "copybook-charset" }
-copybook-options = { version = "=0.4.3", path = "copybook-options" }
-copybook-core = { version = "=0.4.3", path = "copybook-core" }
-copybook-dialect = { version = "=0.4.3", path = "copybook-dialect" }
-copybook-codec = { version = "=0.4.3", path = "copybook-codec" }
-copybook-codec-memory = { version = "=0.4.3", path = "copybook-codec-memory" }
-copybook-sequence-ring = { version = "=0.4.3", path = "copybook-sequence-ring" }
-copybook-arrow = { version = "=0.4.3", path = "copybook-arrow" }
-copybook-governance = { version = "=0.4.3", path = "copybook-governance" }
-copybook-governance-grid = { version = "=0.4.3", path = "copybook-governance-grid" }
-copybook-governance-runtime = { version = "=0.4.3", path = "copybook-governance-runtime" }
-copybook-governance-contracts = { version = "=0.4.3", path = "copybook-governance-contracts" }
-copybook-bench = { version = "=0.4.3", path = "copybook-bench" }
-copybook-contracts = { version = "=0.4.3", path = "copybook-contracts" }
-copybook-support-matrix = { version = "=0.4.3", path = "copybook-support-matrix" }
+copybook-error = { version = "=0.4.3", path = "crates/copybook-error" }
+copybook-error-reporter = { version = "=0.4.3", path = "crates/copybook-error-reporter" }
+copybook-utils = { version = "=0.4.3", path = "crates/copybook-utils" }
+copybook-overflow = { version = "=0.4.3", path = "crates/copybook-overflow" }
+copybook-zoned-format = { version = "=0.4.3", path = "crates/copybook-zoned-format" }
+copybook-fixed = { version = "=0.4.3", path = "crates/copybook-fixed" }
+copybook-rdw = { version = "=0.4.3", path = "crates/copybook-rdw" }
+copybook-record-io = { version = "=0.4.3", path = "crates/copybook-record-io" }
+copybook-overpunch = { version = "=0.4.3", path = "crates/copybook-overpunch" }
+copybook-determinism = { version = "=0.4.3", path = "crates/copybook-determinism" }
+copybook-safe-ops = { version = "=0.4.3", path = "crates/copybook-safe-ops" }
+copybook-safe-text = { version = "=0.4.3", path = "crates/copybook-safe-text" }
+copybook-safe-index = { version = "=0.4.3", path = "crates/copybook-safe-index" }
+copybook-rdw-predicates = { version = "=0.4.3", path = "crates/copybook-rdw-predicates" }
+copybook-codepage = { version = "=0.4.3", path = "crates/copybook-codepage" }
+copybook-charset = { version = "=0.4.3", path = "crates/copybook-charset" }
+copybook-options = { version = "=0.4.3", path = "crates/copybook-options" }
+copybook-lexer = { version = "=0.4.3", path = "crates/copybook-lexer" }
+copybook-core = { version = "=0.4.3", path = "crates/copybook-core" }
+copybook-corruption = { version = "=0.4.3", path = "crates/copybook-corruption" }
+copybook-corruption-detectors = { version = "=0.4.3", path = "crates/copybook-corruption-detectors" }
+copybook-corruption-rdw = { version = "=0.4.3", path = "crates/copybook-corruption-rdw" }
+copybook-corruption-predicates = { version = "=0.4.3", path = "crates/copybook-corruption-predicates" }
+copybook-dialect = { version = "=0.4.3", path = "crates/copybook-dialect" }
+copybook-codec = { version = "=0.4.3", path = "crates/copybook-codec" }
+copybook-codec-memory = { version = "=0.4.3", path = "crates/copybook-codec-memory" }
+copybook-cli-determinism = { version = "=0.4.3", path = "crates/copybook-cli-determinism" }
+copybook-sequence-ring = { version = "=0.4.3", path = "crates/copybook-sequence-ring" }
+copybook-arrow = { version = "=0.4.3", path = "crates/copybook-arrow" }
+copybook-governance = { version = "=0.4.3", path = "crates/copybook-governance" }
+copybook-governance-grid = { version = "=0.4.3", path = "crates/copybook-governance-grid" }
+copybook-governance-runtime = { version = "=0.4.3", path = "crates/copybook-governance-runtime" }
+copybook-governance-contracts = { version = "=0.4.3", path = "crates/copybook-governance-contracts" }
+copybook-bench = { version = "=0.4.3", path = "tools/copybook-bench" }
+copybook-contracts = { version = "=0.4.3", path = "crates/copybook-contracts" }
+copybook-support-matrix = { version = "=0.4.3", path = "crates/copybook-support-matrix" }
 
 # Core dependencies
 serde = { version = "1.0.228", features = ["derive"] }
@@ -91,9 +114,9 @@ crossbeam-channel = "0.5.15"
 indexmap = { version = "2.13.0", features = ["serde"] }
 
 # CLI dependencies
-clap = { version = "4.5.59", features = ["derive"] }
+clap = { version = "4.5.60", features = ["derive"] }
 tokio = { version = "1.49.0", features = ["full"] }
-tempfile = "3.25.0"
+tempfile = "3.26.0"
 
 # Telemetry dependencies
 metrics = "0.24.3"
@@ -121,7 +144,7 @@ cucumber = "0.22.1"
 futures = "0.3.32"
 
 # Task automation dependencies
-anyhow = "1.0.101"
+anyhow = "1.0.102"
 
 # Random number generation dependencies
 rand = "0.10.0"
@@ -129,7 +152,7 @@ rand_core = "0.10.0"
 
 # Enterprise audit dependencies
 async-trait = "0.1.89"
-chrono = { version = "0.4.43", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 
 # TOML parsing
 toml = "0.9.8"

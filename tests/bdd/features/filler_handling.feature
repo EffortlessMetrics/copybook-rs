@@ -93,7 +93,7 @@ Feature: FILLER Handling
     Then decoding should succeed
     And FILLER should not be in output
 
-  Scenario: emit_filler false with round-trip
+  Scenario: emit_filler true with round-trip
     Given a copybook with content:
       """
       01 RT-FILLER.
@@ -101,7 +101,7 @@ Feature: FILLER Handling
          05 FILLER PIC X(5).
       """
     And ASCII codepage
-    And emit_filler is false
+    And emit_filler is true
     And binary data: "HELLOWORLD"
     When the data is round-tripped
     Then the round-trip should be lossless

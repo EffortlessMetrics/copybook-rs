@@ -107,4 +107,4 @@ Feature: Parsing Modes
       """
     When the copybook is parsed
     Then parsing should succeed
-    And the schema should contain 1 top-level field(s)
+    And the schema should contain 1 top-level fields

@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-governance-grid"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Governance grid mapping between support matrix entries and runtime feature flags."
+documentation = "https://docs.rs/copybook-governance-grid"
+keywords = ["cobol", "copybook", "feature-flags", "support-matrix", "interoperability"]
+categories = ["development-tools", "data-management"]
+readme = "README.md"
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+copybook-governance-contracts.workspace = true
+
+[dev-dependencies]
+serde_plain.workspace = true
+
+[lints]
+workspace = true

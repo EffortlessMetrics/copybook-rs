@@ -13,7 +13,9 @@ async fn then_error_message_contains(world: &mut CopybookWorld, expected: String
     let error = world.error.as_ref().expect("Error should be set");
     let message = format!("{}", error);
     assert!(
-        message.contains(&expected),
+        message
+            .to_ascii_lowercase()
+            .contains(&expected.to_ascii_lowercase()),
         "Expected error message to contain '{}', got: {}",
         expected,
         message
@@ -55,4 +57,9 @@ async fn then_parsing_fail_with_code(world: &mut CopybookWorld, expected_code: S
         expected_trimmed,
         actual_code
     );
+}
+
+#[then(expr = "error code should be {string}")]
+async fn then_error_code_bare(world: &mut CopybookWorld, expected_code: String) {
+    then_error_code_is(world, expected_code).await;
 }

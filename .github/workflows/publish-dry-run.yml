@@ -38,39 +38,77 @@ jobs:
         git rev-parse HEAD
         git describe --tags --always
 
-    - name: Dry run publish (copybook-core)
+    - name: Dry run publish (leaf crates)
       run: |
-        echo "📦 Testing copybook-core packaging..."
-        cargo publish -p copybook-core --dry-run
-        echo "✅ copybook-core dry-run successful"
+        echo "=== Dry-run publish for leaf crates (no workspace deps) ==="
 
-    - name: Package manifest check (copybook-codec)
-      run: |
-        echo "📦 Checking copybook-codec package contents..."
-        cargo package -p copybook-codec --list
-        echo "✅ copybook-codec package file list generated"
+        # Level 0: No internal dependencies
+        for crate in \
+          copybook-error \
+          copybook-determinism \
+          copybook-dialect \
+          copybook-codepage \
+          copybook-contracts \
+          copybook-support-matrix \
+          copybook-sequence-ring; do
+          echo "Testing ${crate}..."
+          cargo publish -p "${crate}" --dry-run
+          echo "  ${crate} dry-run successful"
+        done
 
-    - name: Package manifest check (copybook-arrow)
+    - name: Package manifest check (all publishable crates)
       run: |
-        echo "📦 Checking copybook-arrow package contents..."
-        cargo package -p copybook-arrow --list
-        echo "✅ copybook-arrow package file list generated"
+        echo "=== Package manifest check for all 25 publishable crates ==="
 
-    - name: Package manifest check (copybook-cli)
-      run: |
-        echo "📦 Checking copybook-cli package contents..."
-        cargo package -p copybook-cli --list
-        echo "✅ copybook-cli package file list generated"
+        # All publishable crates in dependency order
+        for crate in \
+          copybook-error \
+          copybook-determinism \
+          copybook-dialect \
+          copybook-codepage \
+          copybook-contracts \
+          copybook-support-matrix \
+          copybook-sequence-ring \
+          copybook-overflow \
+          copybook-error-reporter \
+          copybook-charset \
+          copybook-governance-contracts \
+          copybook-codec-memory \
+          copybook-overpunch \
+          copybook-utils \
+          copybook-governance-grid \
+          copybook-options \
+          copybook-governance-runtime \
+          copybook-core \
+          copybook-governance \
+          copybook-fixed \
+          copybook-rdw \
+          copybook-record-io \
+          copybook-codec \
+          copybook-arrow \
+          copybook-cli; do
+          echo "Checking ${crate}..."
+          cargo package -p "${crate}" --list > /dev/null
+          echo "  ${crate} package file list OK"
+        done
 
     - name: Summary
       if: success()
       run: |
-        echo "🎉 Publish preflight checks passed!"
+        echo "Publish preflight checks passed!"
         echo ""
-        echo "Validated:"
-        echo "  1. copybook-core: cargo publish --dry-run"
-        echo "  2. copybook-codec: cargo package --list"
-        echo "  3. copybook-arrow: cargo package --list"
-        echo "  4. copybook-cli: cargo package --list"
+        echo "Validated 25 publishable crates:"
+        echo "  Level 0 (7): copybook-error, copybook-determinism, copybook-dialect,"
+        echo "               copybook-codepage, copybook-contracts, copybook-support-matrix,"
+        echo "               copybook-sequence-ring"
+        echo "  Level 1 (6): copybook-overflow, copybook-error-reporter, copybook-charset,"
+        echo "               copybook-governance-contracts, copybook-codec-memory, copybook-overpunch"
+        echo "  Level 2 (3): copybook-utils, copybook-governance-grid, copybook-options"
+        echo "  Level 3 (2): copybook-governance-runtime, copybook-core"
+        echo "  Level 4 (3): copybook-governance, copybook-fixed, copybook-rdw"
+        echo "  Level 5 (1): copybook-record-io"
+        echo "  Level 6 (1): copybook-codec"
+        echo "  Level 7 (2): copybook-arrow, copybook-cli"
         echo ""
-        echo "Downstream publish dry-runs are run just-in-time in .github/workflows/publish.yml after upstream crates exist on crates.io."
+        echo "Downstream publish dry-runs are run just-in-time in .github/workflows/publish.yml"
+        echo "after upstream crates exist on crates.io."

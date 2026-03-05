@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-corruption-rdw"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Single-purpose RDW ASCII-heuristic corruption detection."
+documentation = "https://docs.rs/copybook-corruption-rdw"
+readme = "README.md"
+keywords = ["copybook", "corruption", "rdw", "ebcdic", "heuristic"]
+categories = ["encoding", "parsing", "data-structures"]
+
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+copybook-core.workspace = true
+copybook-rdw-predicates.workspace = true
+copybook-corruption-predicates.workspace = true
+
+[dev-dependencies]
+copybook-corruption.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true

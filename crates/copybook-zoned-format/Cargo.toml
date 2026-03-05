@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-zoned-format"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Zoned decimal format detection and representation microcrate"
+documentation = "https://docs.rs/copybook-zoned-format"
+readme = "README.md"
+keywords = ["cobol", "copybook", "zoned-decimal", "encoding", "options"]
+categories = ["data-structures", "encoding"]
+
+include = ["src/**", "Cargo.toml", "README.md"]
+
+[package.metadata.docs.rs]
+all-features = false
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+clap.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

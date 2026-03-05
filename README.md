@@ -5,6 +5,8 @@
 [![codecov](https://codecov.io/gh/EffortlessMetrics/copybook-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/EffortlessMetrics/copybook-rs)
 [![Security Audit](https://github.com/EffortlessMetrics/copybook-rs/workflows/Weekly%20Security%20Scan/badge.svg)](https://github.com/EffortlessMetrics/copybook-rs/actions/workflows/security-scan.yml)
 [![Dependency Review](https://img.shields.io/badge/dependencies-Dependabot-blue.svg)](https://github.com/EffortlessMetrics/copybook-rs/blob/main/.github/dependabot.yml)
+[![MSRV](https://img.shields.io/badge/MSRV-1.92-blue.svg)](https://www.rust-lang.org)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
 Rust toolkit for COBOL copybook parsing and fixed-record data conversion that prioritizes correctness, safety, and transparent validation evidence. We focus on sharing what the tooling supports today, how the test suite exercises it, how to benchmark on your own hardware, and where the roadmap is headed next.
 
@@ -32,7 +34,6 @@ See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance and known limitations.
 | [User Guide](docs/USER_GUIDE.md) | Getting started, tutorials, examples |
 | [CLI Reference](docs/CLI_REFERENCE.md) | Command-line interface documentation |
 | [Library API](docs/reference/LIBRARY_API.md) | Rust library API reference |
-| [Testing Integration](docs/TESTING_INTEGRATION_SUMMARY.md) | Comprehensive testing methodologies (BDD, property testing, fuzzing, mutation testing) |
 | [BDD Testing](docs/BDD_TESTING.md) | Behavior Driven Development tests and documentation |
 | [Error Codes](docs/reference/ERROR_CODES.md) | CBKP/CBKS/CBKD/CBKE/CBKR taxonomy |
 | [COBOL Support](docs/reference/COBOL_SUPPORT_MATRIX.md) | Feature coverage matrix |
@@ -111,7 +112,7 @@ copybook decode customer.cpy customer-data.bin \
 
 ## Overview
 
-copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis.
+copybook-rs delivers deterministic COBOL copybook parsing, schema inspection, and record encoding/decoding in Rust. The project focus is on predictable behaviour, detailed error reporting, and memory safety. Performance is validated internally with CI receipts published in PR artifacts and `scripts/bench/perf.json` (policy: accuracy-first). See [BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [docs/REPORT.md](docs/REPORT.md) for comprehensive analysis.
 
 ### Design Priorities
 
@@ -238,7 +239,7 @@ For detailed test evidence and feature coverage, see [COBOL_SUPPORT_MATRIX.md](d
 - **Variance**: ~5% (DISPLAY), ~8% (COMP-3) across benchmark runs
 - **Environment**: WSL2 on AMD Ryzen 9 9950X3D (32 threads, 196 GiB RAM)
 
-See [BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md) for governance policy.
+See [BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures and [PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md) for governance policy.
 
 ```bash
 # Run benchmarks and generate receipts
@@ -275,7 +276,7 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 - **Tests**: `cargo test --workspace` reports 1550+ tests passing (68 skipped/ignored) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
 - **CI Mode**: Currently operating in CI-off mode with local gates and small PRs. See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state.
 <!-- TEST_STATUS:END -->
-- **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [copybook-bench/BASELINE_METHODOLOGY.md](copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [copybook-bench/HARDWARE_SPECS.md](copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
+- **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [HARDWARE_SPECS.md](tools/copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).
 - **Automation gaps**: Perf receipts are produced and uploaded in CI, but PR comment automation and enforced perf gating remain advisory-only in v0.4.3; see `docs/backlog/benchmark_tooling.md` for follow-ups
 - **Documentation**: Public messaging intentionally highlights correctness and open issues; performance receipts in `scripts/bench/perf.json` (see [docs/PERFORMANCE_GOVERNANCE.md](docs/PERFORMANCE_GOVERNANCE.md))
 
@@ -313,7 +314,7 @@ This section defines what users can expect to remain stable across releases, pro
 ### What is Stable
 
 **Public APIs (v1.0+)**
-- Library APIs in [`copybook-codec/src/lib_api.rs`](copybook-codec/src/lib_api.rs): `parse_copybook`, `decode_record`, `encode_record`, `decode_file_to_jsonl`, `encode_jsonl_to_file`, `RecordIterator`
+- Library APIs in [`crates/copybook-codec/src/lib_api.rs`](crates/copybook-codec/src/lib_api.rs): `parse_copybook`, `decode_record`, `encode_record`, `decode_file_to_jsonl`, `encode_jsonl_to_file`, `RecordIterator`
 - CLI command interfaces: `parse`, `inspect`, `decode`, `encode`, `verify`, `support`
 - Error taxonomy (CBKP*, CBKS*, CBKD*, CBKE*, CBKR* codes) - stable across minor versions
 - Exit codes: 0 (success), 1 (unhandled), 2-5 (structured error codes)

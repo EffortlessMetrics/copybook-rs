@@ -126,6 +126,10 @@ path = "e2e_dialect_behavior.rs"
 name = "e2e_cli_field_projection"
 path = "e2e_cli_field_projection.rs"
 
+[[test]]
+name = "e2e_cli_support"
+path = "e2e_cli_support.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

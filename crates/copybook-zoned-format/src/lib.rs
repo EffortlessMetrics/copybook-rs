@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Zoned-decimal encoding detection helpers used by codec options and framing logic.
 #![allow(clippy::missing_inline_in_public_items)]

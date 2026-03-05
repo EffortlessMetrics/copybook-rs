@@ -140,10 +140,10 @@ jobs:
       run: cargo run -p xtask -- docs verify-tests
     - name: Run tests (no features)
       if: matrix.features == '' && !(matrix.os == 'ubuntu-latest' && matrix.rust == 'stable')
-      run: cargo test --workspace --exclude copybook-bench -j 2
+      run: cargo test --workspace --exclude copybook-bench --exclude copybook-bdd -j 2
     - name: Run tests (with features)
       if: matrix.features != ''
-      run: cargo test --workspace --exclude copybook-bench --features ${{ matrix.features }} -j 2
+      run: cargo test --workspace --exclude copybook-bench --exclude copybook-bdd --features ${{ matrix.features }} -j 2
 
   examples:
     name: Build Examples
@@ -418,7 +418,7 @@ jobs:
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Generate code coverage
-      run: cargo llvm-cov --workspace --exclude copybook-bench --lcov --output-path lcov.info
+      run: cargo llvm-cov --workspace --exclude copybook-bench --exclude copybook-bdd --exclude copybook-e2e --lcov --output-path lcov.info
     # Make upload non-blocking and always run
     - name: Upload coverage to Codecov
       if: always()

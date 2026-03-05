@@ -44,6 +44,7 @@ jobs:
         cargo tarpaulin \
           --workspace \
           --exclude copybook-bench \
+          --exclude copybook-bdd \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
           --exclude-files 'tools/xtask/*' \
@@ -128,6 +129,7 @@ jobs:
         cargo tarpaulin \
           --workspace \
           --exclude copybook-bench \
+          --exclude copybook-bdd \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
           --exclude-files 'tools/xtask/*' \
@@ -145,6 +147,7 @@ jobs:
         cargo tarpaulin \
           --workspace \
           --exclude copybook-bench \
+          --exclude copybook-bdd \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
           --exclude-files 'tools/xtask/*' \

@@ -466,8 +466,8 @@ fn test_record_comp_native_json_number_mode() {
     let schema = parse_copybook(cpy).expect("parse");
     let data: Vec<u8> = 42_i16.to_be_bytes().to_vec();
     let json = decode_record(&schema, &data, &native_decode_opts()).unwrap();
-    // COMP fields return string "42" in both modes (codec behaviour)
-    assert_eq!(json["F1"].as_str().unwrap().trim(), "42");
+    // Native mode now produces JSON numbers
+    assert_eq!(json["F1"], 42);
 }
 
 #[test]

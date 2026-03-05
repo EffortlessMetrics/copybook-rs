@@ -300,9 +300,9 @@ fn test_native_mode_returns_number() {
     let schema = parse_copybook(cpy).expect("parse");
     let data = b"00042";
     let json = decode_record(&schema, data, &native_decode_opts()).unwrap();
-    // Display fields return string representation even in native mode
-    assert!(json["F1"].is_string());
-    assert_eq!(json["F1"], "00042");
+    // Native mode now correctly returns JSON numbers
+    assert!(json["F1"].is_number());
+    assert_eq!(json["F1"], serde_json::json!(42));
 }
 
 #[test]
@@ -311,9 +311,10 @@ fn test_native_mode_decimal() {
     let schema = parse_copybook(cpy).expect("parse");
     let data = b"12345"; // 123.45
     let json = decode_record(&schema, data, &native_decode_opts()).unwrap();
-    // Display fields with implied decimal — verify value is present
-    let val_str = json["F1"].as_str().unwrap();
-    assert_eq!(val_str, "123.45");
+    // Native mode returns JSON number for decimals
+    assert!(json["F1"].is_number());
+    let val = json["F1"].as_f64().unwrap();
+    assert!((val - 123.45).abs() < f64::EPSILON);
 }
 
 #[test]

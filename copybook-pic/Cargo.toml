@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[package]
+name = "copybook-pic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "PIC clause parsing and edited-picture metadata for COBOL copybooks."
+documentation = "https://docs.rs/copybook-pic"
+readme = "README.md"
+keywords = ["cobol", "copybook", "pic", "parser", "mainframe"]
+categories = ["parsing", "encoding"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE"]
+
+[dependencies]
+copybook-error.workspace = true
+
+[lints]
+workspace = true

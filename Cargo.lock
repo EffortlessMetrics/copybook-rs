@@ -900,6 +900,7 @@ dependencies = [
  "copybook-error-reporter",
  "copybook-governance-contracts",
  "copybook-overflow",
+ "copybook-pic",
  "copybook-utils",
  "hex",
  "logos",
@@ -1028,6 +1029,13 @@ dependencies = [
  "copybook-codepage",
  "copybook-error",
  "proptest",
+]
+
+[[package]]
+name = "copybook-pic"
+version = "0.4.3"
+dependencies = [
+ "copybook-error",
 ]
 
 [[package]]

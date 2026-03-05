@@ -3,10 +3,6 @@ name: CI Quick
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - '.github/ISSUE_TEMPLATE/**'
   push:
     branches: [main]
 
@@ -35,6 +31,8 @@ jobs:
             rust:
               - 'crates/**'
               - 'copybook-*/**'
+              - 'tools/**'
+              - 'tests/**'
               - 'Cargo.*'
               - 'rust-toolchain*'
               - 'scripts/ci/**'

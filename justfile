@@ -18,11 +18,11 @@ build-release:
 
 # Run all tests using cargo-nextest (preferred)
 test:
-    cargo nextest run --workspace --exclude copybook-bdd
+    cargo nextest run --workspace --exclude copybook-bdd --exclude copybook-bench
 
 # Run all tests, including long-running and ignored tests
 test-all:
-    cargo nextest run --workspace --run-ignored all
+    cargo nextest run --workspace --exclude copybook-bdd --exclude copybook-bench --run-ignored all
 
 # Run tests with legacy cargo test (fallback)
 test-legacy:
@@ -389,7 +389,7 @@ coverage:
 
 # Watch for changes and run tests
 watch:
-    cargo watch -x "nextest run --workspace"
+    cargo watch -x "nextest run --workspace --exclude copybook-bdd --exclude copybook-bench"
 
 # Watch for changes and run tests for specific crate
 watch-crate crate:

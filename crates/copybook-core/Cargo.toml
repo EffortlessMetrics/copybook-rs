@@ -47,7 +47,7 @@ rand = { workspace = true, optional = true }
 anyhow.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
-tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
 
 [features]
 default = []

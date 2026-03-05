@@ -30,8 +30,8 @@ Criteria → Risks/Mitigations.
 | PR #162, #163 | **RENAMES R2/R3** | Group resolver + alias API |
 | PR #158, #160 | **Determinism Phases 1-2** | Codec harness + CLI validation |
 
-**Test Status**: 1550+ passing (cargo test --workspace)
-**CI Mode**: Currently operating in CI-off mode with local gates
+**Test Status**: 10,000+ passing (cargo test --workspace)
+**CI Mode**: Full CI pipeline active (CI Quick PR gate + CI Full matrix)
 
 ---
 
@@ -470,14 +470,14 @@ refresh, bench-report CLI
 
 ### Phase 3: Feature Completion (4-6 weeks) — May 2026 to ~Jun 2026
 
-1. Implement SIGN SEPARATE clause decode semantics
+1. ~~Implement SIGN SEPARATE clause decode semantics~~ ✅ Promoted to stable in v0.4.3
 2. Complete RENAMES advanced scenarios (R4-R6)
-3. Implement COMP-1/COMP-2 floating-point support (if required)
+3. ~~Implement COMP-1/COMP-2 floating-point support~~ ✅ Promoted to stable in v0.4.3
 
 ### Phase 4: Documentation & Polish (1-2 weeks) — Jun 2026
 
-1. Document 22 numeric functions
-2. Add API documentation for memory module
+1. ~~Document 22 numeric functions~~ ✅ All 47 public functions documented
+2. ~~Add API documentation for memory module~~ ✅ Module fully documented
 3. Add usage examples to iterator module
 4. Complete enterprise deployment guides
 5. Clean up performance number references

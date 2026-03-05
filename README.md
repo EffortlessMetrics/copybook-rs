@@ -270,7 +270,7 @@ See [SECURITY.md](SECURITY.md) for security scanning infrastructure and vulnerab
 
 ### Current Reliability Snapshot
 <!-- TEST_STATUS:BEGIN -->
-- **Tests**: `cargo test --workspace` reports 10,000+ tests passing (9 ignored) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
+- **Tests**: `cargo test --workspace` reports 10,000+ tests passing (15 ignored) with comprehensive coverage across COBOL parsing, data encoding, and CLI integration
 - **CI Mode**: Full CI pipeline active (CI Quick PR gate + CI Full matrix). See [`docs/internal/state-and-path.md`](docs/internal/state-and-path.md) for current state.
 <!-- TEST_STATUS:END -->
 - **Benchmarks**: Performance validated with CI receipts and baseline tracking. See [BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for measurement procedures, [HARDWARE_SPECS.md](tools/copybook-bench/HARDWARE_SPECS.md) for reference hardware specifications, and `scripts/bench/perf.json` artifact for current measurements (policy: accuracy-first).

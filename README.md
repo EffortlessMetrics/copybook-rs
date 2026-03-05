@@ -163,26 +163,23 @@ Exit code 0 indicates success; exit code 1 indicates unhandled failures. See [ER
 
 ## Architecture
 
-The project is organized as a Cargo workspace with the following crates:
+The project is organized as a Cargo workspace with 36 crates under `crates/`, 3 dev-only tools, and 3 test suites. Key crates:
 
 - **copybook-core**: Core parsing and schema types for COBOL copybooks (lexer, parser, AST, layout resolution)
 - **copybook-codec**: Encoding/decoding codecs for COBOL data types and character conversion
-- **copybook-options**: Shared encode/decode option contracts and configuration primitives
-- **copybook-arrow**: Conversion from COBOL layouts/records to Apache Arrow and Parquet
-- **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, support)
-- **copybook-gen**: Test fixture and synthetic data generation utilities
-- **copybook-bench**: Performance benchmarks and testing harness
+- **copybook-cli**: Command-line interface with subcommands (parse, inspect, decode, encode, verify, determinism)
+- **copybook-arrow**: Conversion from COBOL layouts/records to Apache Arrow and Parquet (experimental)
+- **copybook-error**: Structured error types with stable taxonomy (CBKP/CBKS/CBKD/CBKE/CBKR)
 - **copybook-codec-memory**: Shared scratch/streaming/worker-pool memory primitives for codec hot paths
 - **copybook-fixed**: Fixed-length (LRECL) record framing reader/writer primitives
 - **copybook-rdw**: RDW (record descriptor word) framing primitives
-- **copybook-record-io**: Fixed-vs-RDW legacy record dispatch facade over framing microcrates
-- **copybook-sequence-ring**: Deterministic sequence reordering primitive used by parallel worker pipelines
-- **copybook-contracts**: Canonical feature-flag contracts
-- **copybook-support-matrix**: Canonical COBOL support matrix contract data
-- **copybook-governance-contracts**: Unified façade combining contracts + support matrix
-- **copybook-governance-grid**: Static mapping from support rows to runtime flags
-- **copybook-governance-runtime**: Runtime governance-state evaluation from active feature flags
+- **copybook-record-io**: Fixed-vs-RDW record dispatch facade
+- **copybook-determinism**: Determinism primitives for stable hash/diff comparison
+- **copybook-dialect**: Dialect contract for ODO `min_count` semantics (Normative, ZeroTolerant, OneTolerant)
+- **copybook-charset**: Character set conversion utilities for EBCDIC/ASCII
+- **copybook-overpunch**: Zoned decimal overpunch encode/decode primitives
 - **copybook-governance**: Backward-compatible governance façade re-exporting the layered governance stack
+- **copybook-sequence-ring**: Deterministic sequence reordering primitive for parallel pipelines
 
 ## Library API Usage
 

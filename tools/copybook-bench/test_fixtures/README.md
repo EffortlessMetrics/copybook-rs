@@ -8,11 +8,15 @@ Comprehensive test fixtures for Issue #49 "Performance regression monitoring and
 This directory contains synthetic test data and fixtures for validating the performance regression monitoring system across all 5 Acceptance Criteria (ACs). All fixtures support deterministic testing with known expected values aligned to enterprise copybook-rs performance targets.
 
 **Enterprise Performance Targets:**
-- **DISPLAY performance**: ≥80 MB/s (floor), ~4.1 GiB/s (aspirational), **2.33 GiB/s (current baseline)**
-- **COMP-3 performance**: ≥40 MB/s (floor), ~560 MiB/s (aspirational), **172 MiB/s (current baseline)**
+- **DISPLAY performance**: ≥80 MB/s (CI floor), **205 MiB/s (canonical baseline, commit 1fa63633)**
+- **COMP-3 performance**: ≥40 MB/s (CI floor), **58 MiB/s (canonical baseline, commit 1fa63633)**
 - **Regression thresholds**: >5% WARNING, >10% FAILURE
 - **Variance requirement**: <5% across 5 runs (AC2)
 - **Memory target**: <256 MiB steady-state
+
+> **Note**: Some fixture JSON files below contain legacy aspirational numbers
+> (e.g. 2.33 GiB/s, 4.1 GiB/s) that predate the empirical baseline established
+> on 2025-09-30. The canonical performance receipt is `scripts/bench/perf.json`.
 
 ## Directory Structure
 
@@ -392,12 +396,12 @@ For questions about fixtures or to report fixture-related issues:
 1. Review test scaffolding in `copybook-bench/tests/`
 2. Consult API contracts in `docs/reference/benchmark-api-contracts.md`
 3. Check traceability matrix for AC→test→fixture mapping
-4. Verify fixture values match documented baseline (DISPLAY: 2.33 GiB/s, COMP-3: 172 MiB/s)
+4. Verify fixture values against canonical baseline in `scripts/bench/perf.json` (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s)
 
 ---
 
 **Generated**: 2025-01-15 for Issue #49 Performance Regression Monitoring
-**Baseline**: DISPLAY: 2.33 GiB/s, COMP-3: 172 MiB/s (from CLAUDE.md)
+**Canonical Baseline**: DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s (commit 1fa63633, `scripts/bench/perf.json`)
 **Test Count**: 62 tests across 5 test files
 **Fixture Count**: 35+ files across 5 ACs
 ## License

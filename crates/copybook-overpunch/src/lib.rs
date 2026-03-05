@@ -25,8 +25,7 @@ use copybook_codepage::Codepage;
 use copybook_error::{Error, ErrorCode, Result};
 use std::convert::TryFrom;
 
-// Visible in tests; harmless in non-test builds. Keep pedantic quiet.
-#[allow(dead_code)]
+#[cfg(test)]
 const DEFAULT_PROPTEST_CASE_COUNT: u32 = 512;
 
 /// Policy for the sign zone nibble when the numeric value is exactly zero.

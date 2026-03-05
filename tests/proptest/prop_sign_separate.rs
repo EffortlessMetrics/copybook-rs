@@ -13,6 +13,7 @@ use copybook_codec::Codepage;
 use copybook_codec::numeric::{
     decode_zoned_decimal_sign_separate, encode_zoned_decimal_sign_separate,
 };
+use copybook_contracts::{Feature, FeatureFlags};
 use copybook_core::{SignPlacement, SignSeparateInfo};
 use proptest::prelude::*;
 
@@ -194,6 +195,9 @@ proptest! {
 }
 
 /// Property: Full-stack parse + decode roundtrip for SIGN SEPARATE copybooks.
+///
+/// When the `SIGN_SEPARATE` feature flag is disabled, parsing is expected to
+/// fail. The test asserts correct error behaviour in that case.
 proptest! {
     #![proptest_config(ProptestConfig {
         cases: DEFAULT_CASES,
@@ -209,17 +213,25 @@ proptest! {
             "       05  AMT PIC S9({digits}) SIGN IS SEPARATE {placement}."
         );
 
-        let schema = copybook_core::parse_copybook(&copybook)
-            .expect("parse should succeed");
+        let flags = FeatureFlags::from_env();
+        let result = copybook_core::parse_copybook(&copybook);
 
-        let field = &schema.fields[0];
+        if flags.is_enabled(Feature::SignSeparate) {
+            let schema = result.expect("parse should succeed when SIGN_SEPARATE enabled");
+            let field = &schema.fields[0];
 
-        // SIGN SEPARATE adds 1 byte to the field length
-        prop_assert_eq!(
-            field.len,
-            u32::from(digits) + 1,
-            "SIGN SEPARATE field len should be digits ({}) + 1",
-            digits,
-        );
+            // SIGN SEPARATE adds 1 byte to the field length
+            prop_assert_eq!(
+                field.len,
+                u32::from(digits) + 1,
+                "SIGN SEPARATE field len should be digits ({}) + 1",
+                digits,
+            );
+        } else {
+            prop_assert!(
+                result.is_err(),
+                "parse should fail when SIGN_SEPARATE feature flag is disabled",
+            );
+        }
     }
 }

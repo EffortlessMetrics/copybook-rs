@@ -19,24 +19,24 @@
 //! The module is organized into three main categories:
 //!
 //! ### Decoding Functions
-//! - [`decode_zoned_decimal`] - Decode zoned decimal fields
-//! - [`decode_zoned_decimal_sign_separate`] - Decode SIGN SEPARATE zoned decimals
-//! - [`decode_zoned_decimal_with_encoding`] - Decode with encoding detection
-//! - [`decode_packed_decimal`] - Decode COMP-3 packed decimals
-//! - [`decode_binary_int`] - Decode binary integer fields
+//! - [`decode_zoned_decimal`](crate::numeric::decode_zoned_decimal) - Decode zoned decimal fields
+//! - [`decode_zoned_decimal_sign_separate`](crate::numeric::decode_zoned_decimal_sign_separate) - Decode SIGN SEPARATE zoned decimals
+//! - [`decode_zoned_decimal_with_encoding`](crate::numeric::decode_zoned_decimal_with_encoding) - Decode with encoding detection
+//! - [`decode_packed_decimal`](crate::numeric::decode_packed_decimal) - Decode COMP-3 packed decimals
+//! - [`decode_binary_int`](crate::numeric::decode_binary_int) - Decode binary integer fields
 //!
 //! ### Encoding Functions
-//! - [`encode_zoned_decimal`] - Encode zoned decimal fields
-//! - [`encode_zoned_decimal_with_format`] - Encode with explicit encoding format
-//! - [`encode_zoned_decimal_with_format_and_policy`] - Encode with format and policy
-//! - [`encode_zoned_decimal_with_bwz`] - Encode with BLANK WHEN ZERO support
-//! - [`encode_packed_decimal`] - Encode COMP-3 packed decimals
-//! - [`encode_binary_int`] - Encode binary integer fields
+//! - [`encode_zoned_decimal`](crate::numeric::encode_zoned_decimal) - Encode zoned decimal fields
+//! - [`encode_zoned_decimal_with_format`](crate::numeric::encode_zoned_decimal_with_format) - Encode with explicit encoding format
+//! - [`encode_zoned_decimal_with_format_and_policy`](crate::numeric::encode_zoned_decimal_with_format_and_policy) - Encode with format and policy
+//! - [`encode_zoned_decimal_with_bwz`](crate::numeric::encode_zoned_decimal_with_bwz) - Encode with BLANK WHEN ZERO support
+//! - [`encode_packed_decimal`](crate::numeric::encode_packed_decimal) - Encode COMP-3 packed decimals
+//! - [`encode_binary_int`](crate::numeric::encode_binary_int) - Encode binary integer fields
 //!
 //! ### Utility Functions
-//! - [`get_binary_width_from_digits`] - Map digit count to binary width
-//! - [`validate_explicit_binary_width`] - Validate explicit BINARY(n) widths
-//! - [`should_encode_as_blank_when_zero`] - Check BLANK WHEN ZERO policy
+//! - [`get_binary_width_from_digits`](crate::numeric::get_binary_width_from_digits) - Map digit count to binary width
+//! - [`validate_explicit_binary_width`](crate::numeric::validate_explicit_binary_width) - Validate explicit BINARY(n) widths
+//! - [`should_encode_as_blank_when_zero`](crate::numeric::should_encode_as_blank_when_zero) - Check BLANK WHEN ZERO policy
 //!
 //! ## Performance Considerations
 //!

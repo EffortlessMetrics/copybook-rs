@@ -7,9 +7,9 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use assert_cmd::Command;
 use std::io::Write;
 use std::path::PathBuf;
-use assert_cmd::Command;
 use std::process::Output;
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,8 @@ fn setup_two_records() -> tempfile::TempDir {
 fn parse_valid_copybook_produces_json_schema() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -135,7 +136,8 @@ fn parse_valid_copybook_to_output_file() {
     let dir = setup_simple();
     let out_path = temp_path(&dir, "schema.json");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["parse"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg("-o")
@@ -156,7 +158,8 @@ fn parse_valid_copybook_to_output_file() {
 
 #[test]
 fn parse_nonexistent_file_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["parse", "does_not_exist_12345.cpy"])
         .output()
         .expect("run parse");
@@ -169,7 +172,8 @@ fn parse_nonexistent_file_exits_nonzero() {
 fn parse_invalid_syntax_exits_nonzero() {
     let dir = write_temp_file("bad.cpy", b"THIS IS NOT VALID COBOL !!!");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "bad.cpy"))
         .output()
@@ -186,7 +190,8 @@ fn parse_invalid_syntax_exits_nonzero() {
 
 #[test]
 fn parse_missing_args_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .output()
         .expect("run parse without args");
@@ -197,7 +202,8 @@ fn parse_missing_args_exits_nonzero() {
 
 #[test]
 fn parse_help_exits_zero_with_usage() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["parse", "--help"])
         .output()
         .expect("run parse --help");
@@ -218,7 +224,8 @@ fn parse_help_exits_zero_with_usage() {
 fn inspect_valid_copybook_shows_layout() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("inspect")
         .arg(temp_path(&dir, "schema.cpy"))
         .output()
@@ -246,7 +253,8 @@ fn inspect_valid_copybook_shows_layout() {
 fn inspect_invalid_file_exits_nonzero() {
     let dir = write_temp_file("bad.cpy", b"NOT COBOL");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("inspect")
         .arg(temp_path(&dir, "bad.cpy"))
         .output()
@@ -258,7 +266,8 @@ fn inspect_invalid_file_exits_nonzero() {
 
 #[test]
 fn inspect_missing_args_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("inspect")
         .output()
         .expect("run inspect without args");
@@ -269,7 +278,8 @@ fn inspect_missing_args_exits_nonzero() {
 
 #[test]
 fn inspect_help_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["inspect", "--help"])
         .output()
         .expect("run inspect --help");
@@ -291,7 +301,8 @@ fn decode_single_record_to_jsonl() {
     let dir = setup_simple();
     let out = temp_path(&dir, "output.jsonl");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -327,7 +338,8 @@ fn decode_multiple_records() {
     let dir = setup_two_records();
     let out = temp_path(&dir, "output.jsonl");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -352,7 +364,8 @@ fn decode_multiple_records() {
 fn decode_to_stdout() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -375,7 +388,8 @@ fn decode_with_lossless_number_mode() {
     let dir = setup_simple();
     let out = temp_path(&dir, "output.jsonl");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -409,7 +423,8 @@ fn decode_truncated_data_exits_nonzero() {
     std::fs::write(dir.path().join("data.bin"), [0xF0; 5]).unwrap();
     let out = temp_path(&dir, "output.jsonl");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -428,7 +443,8 @@ fn decode_nonexistent_input_exits_nonzero() {
     let dir = setup_simple();
     let out = temp_path(&dir, "output.jsonl");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg("nonexistent_file_99999.bin")
@@ -444,7 +460,8 @@ fn decode_nonexistent_input_exits_nonzero() {
 
 #[test]
 fn decode_missing_required_args_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("decode")
         .output()
         .expect("run decode without args");
@@ -458,7 +475,8 @@ fn decode_missing_format_flag_exits_nonzero() {
     let dir = setup_simple();
     let out = temp_path(&dir, "output.jsonl");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -474,7 +492,8 @@ fn decode_missing_format_flag_exits_nonzero() {
 
 #[test]
 fn decode_help_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode", "--help"])
         .output()
         .expect("run decode --help");
@@ -494,7 +513,8 @@ fn decode_help_exits_zero() {
 /// Helper: decode a record to produce valid JSONL, return the JSONL file path.
 fn decode_to_jsonl(dir: &tempfile::TempDir) -> PathBuf {
     let jsonl_path = dir.path().join("decoded.jsonl");
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(dir.path().join("schema.cpy"))
         .arg(dir.path().join("data.bin"))
@@ -518,7 +538,8 @@ fn encode_valid_jsonl_to_binary() {
     let jsonl_path = decode_to_jsonl(&dir);
     let encoded_path = temp_path(&dir, "encoded.bin");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&jsonl_path)
@@ -551,7 +572,8 @@ fn encode_round_trip_binary_fidelity() {
     let jsonl_path = decode_to_jsonl(&dir);
     let encoded_path = temp_path(&dir, "encoded.bin");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&jsonl_path)
@@ -583,7 +605,8 @@ fn encode_invalid_jsonl_exits_nonzero() {
     std::fs::write(&bad_jsonl, "THIS IS NOT JSON\n").unwrap();
     let encoded_path = temp_path(&dir, "encoded.bin");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&bad_jsonl)
@@ -602,7 +625,8 @@ fn encode_nonexistent_input_exits_nonzero() {
     let dir = setup_simple();
     let encoded_path = temp_path(&dir, "encoded.bin");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg("nonexistent_99999.jsonl")
@@ -618,7 +642,8 @@ fn encode_nonexistent_input_exits_nonzero() {
 
 #[test]
 fn encode_missing_required_args_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("encode")
         .output()
         .expect("run encode without args");
@@ -629,7 +654,8 @@ fn encode_missing_required_args_exits_nonzero() {
 
 #[test]
 fn encode_help_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode", "--help"])
         .output()
         .expect("run encode --help");
@@ -647,7 +673,8 @@ fn encode_to_stdout() {
     let dir = setup_simple();
     let jsonl_path = decode_to_jsonl(&dir);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&jsonl_path)
@@ -676,7 +703,8 @@ fn encode_to_stdout() {
 fn verify_valid_data_exits_zero() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -705,7 +733,8 @@ fn verify_truncated_data_reports_zero_records() {
     // 5 bytes is not a complete record (13 needed); verify processes 0 records.
     std::fs::write(dir.path().join("data.bin"), [0xF0; 5]).unwrap();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -726,7 +755,8 @@ fn verify_truncated_data_reports_zero_records() {
 fn verify_nonexistent_data_exits_nonzero() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg("nonexistent_99999.bin")
@@ -740,7 +770,8 @@ fn verify_nonexistent_data_exits_nonzero() {
 
 #[test]
 fn verify_missing_required_args_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("verify")
         .output()
         .expect("run verify without args");
@@ -751,7 +782,8 @@ fn verify_missing_required_args_exits_nonzero() {
 
 #[test]
 fn verify_help_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify", "--help"])
         .output()
         .expect("run verify --help");
@@ -769,7 +801,8 @@ fn verify_with_report_flag() {
     let dir = setup_simple();
     let report_path = temp_path(&dir, "report.json");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -804,7 +837,8 @@ fn verify_with_report_flag() {
 fn determinism_decode_exits_zero_for_valid_data() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -835,7 +869,8 @@ fn determinism_encode_exits_zero_for_valid_data() {
     let dir = setup_simple();
     let jsonl_path = decode_to_jsonl(&dir);
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&jsonl_path)
@@ -856,7 +891,8 @@ fn determinism_encode_exits_zero_for_valid_data() {
 fn determinism_round_trip_exits_zero_for_valid_data() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "round-trip"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -877,7 +913,8 @@ fn determinism_round_trip_exits_zero_for_valid_data() {
 fn determinism_json_output_format() {
     let dir = setup_simple();
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -906,7 +943,8 @@ fn determinism_json_output_format() {
 
 #[test]
 fn determinism_missing_args_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "decode"])
         .output()
         .expect("run determinism decode without args");
@@ -917,7 +955,8 @@ fn determinism_missing_args_exits_nonzero() {
 
 #[test]
 fn determinism_help_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "--help"])
         .output()
         .expect("run determinism --help");
@@ -932,7 +971,8 @@ fn determinism_help_exits_zero() {
 
 #[test]
 fn determinism_decode_help_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["determinism", "decode", "--help"])
         .output()
         .expect("run determinism decode --help");
@@ -946,7 +986,11 @@ fn determinism_decode_help_exits_zero() {
 
 #[test]
 fn global_help_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap().arg("--help").output().expect("run --help");
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
+        .arg("--help")
+        .output()
+        .expect("run --help");
 
     assert_eq!(output.status.code(), Some(0));
     let so = stdout_str(&output);
@@ -966,7 +1010,8 @@ fn global_help_exits_zero() {
 
 #[test]
 fn version_flag_exits_zero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("--version")
         .output()
         .expect("run --version");
@@ -981,7 +1026,8 @@ fn version_flag_exits_zero() {
 
 #[test]
 fn unknown_subcommand_exits_nonzero() {
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("not-a-real-command")
         .output()
         .expect("run unknown subcommand");
@@ -994,7 +1040,8 @@ fn unknown_subcommand_exits_nonzero() {
 fn error_paths_never_produce_backtraces() {
     let dir = write_temp_file("bad.cpy", b"NOT COBOL");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .arg("parse")
         .arg(temp_path(&dir, "bad.cpy"))
         .output()
@@ -1018,7 +1065,8 @@ fn exit_codes_are_in_expected_range() {
     ];
 
     for (label, args) in scenarios {
-        let output = Command::cargo_bin("copybook").unwrap()
+        let output = Command::cargo_bin("copybook")
+            .unwrap()
             .args(args.iter())
             .output()
             .unwrap_or_else(|e| panic!("failed to run scenario '{label}': {e}"));
@@ -1041,7 +1089,8 @@ fn full_pipeline_decode_encode_verify() {
 
     // Step 1: Decode binary → JSONL
     let jsonl_path = temp_path(&dir, "decoded.jsonl");
-    let decode_out = Command::cargo_bin("copybook").unwrap()
+    let decode_out = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))
@@ -1059,7 +1108,8 @@ fn full_pipeline_decode_encode_verify() {
 
     // Step 2: Encode JSONL → binary
     let encoded_path = temp_path(&dir, "encoded.bin");
-    let encode_out = Command::cargo_bin("copybook").unwrap()
+    let encode_out = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["encode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&jsonl_path)
@@ -1076,7 +1126,8 @@ fn full_pipeline_decode_encode_verify() {
     );
 
     // Step 3: Verify re-encoded binary
-    let verify_out = Command::cargo_bin("copybook").unwrap()
+    let verify_out = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["verify"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&encoded_path)
@@ -1108,7 +1159,8 @@ fn parse_with_dialect_flag() {
     let dir = setup_simple();
 
     for dialect in &["n", "0", "1"] {
-        let output = Command::cargo_bin("copybook").unwrap()
+        let output = Command::cargo_bin("copybook")
+            .unwrap()
             .args(["parse"])
             .arg(temp_path(&dir, "schema.cpy"))
             .args(["--dialect", dialect])
@@ -1129,7 +1181,8 @@ fn decode_with_emit_meta() {
     let dir = setup_simple();
     let out = temp_path(&dir, "output.jsonl");
 
-    let output = Command::cargo_bin("copybook").unwrap()
+    let output = Command::cargo_bin("copybook")
+        .unwrap()
         .args(["decode"])
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(temp_path(&dir, "data.bin"))

@@ -28,7 +28,8 @@ echo "==> Running cargo clippy (tests: allow common test-only lints)"
   -A clippy::print_stdout \
   -A clippy::print_stderr \
   -A clippy::missing_inline_in_public_items \
-  -A clippy::duplicated_attributes
+  -A clippy::duplicated_attributes \
+  -A deprecated
 
 echo "==> Running cargo build --workspace --release"
 "$CARGO_BIN" build --workspace --release

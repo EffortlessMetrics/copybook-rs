@@ -2,6 +2,7 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 //! Codec integration tests: full pipeline parse → decode → encode → compare.
 
+use base64::Engine;
 use copybook_codec::{
     Codepage, DecodeOptions, EncodeOptions, JsonNumberMode, RawMode, RecordFormat,
     decode_file_to_jsonl, decode_record, encode_jsonl_to_file, encode_record,
@@ -225,6 +226,46 @@ fn decode_raw_mode_off() {
     assert!(
         json.get("__raw_b64").is_none(),
         "Raw mode Off should not emit __raw_b64"
+    );
+}
+
+#[test]
+fn decode_raw_mode_field() {
+    let schema = parse_copybook("01 REC.\n  05 FLD1 PIC X(3).\n  05 FLD2 PIC 9(2).").unwrap();
+    let data = b"ABC12";
+    let opts = ascii_decode_opts().with_emit_raw(RawMode::Field);
+    let json = decode_record(&schema, data, &opts).unwrap();
+
+    // Field-level raw capture: each field should have {FIELD}_raw_b64
+    assert!(
+        json.get("FLD1_raw_b64").is_some(),
+        "RawMode::Field should emit FLD1_raw_b64, got keys: {:?}",
+        json.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
+    assert!(
+        json.get("FLD2_raw_b64").is_some(),
+        "RawMode::Field should emit FLD2_raw_b64"
+    );
+    // Verify the raw bytes decode correctly
+    let raw1 = json["FLD1_raw_b64"].as_str().unwrap();
+    let decoded1 = base64::engine::general_purpose::STANDARD
+        .decode(raw1)
+        .unwrap();
+    assert_eq!(&decoded1, b"ABC");
+}
+
+#[test]
+fn decode_raw_mode_field_no_record_level_raw() {
+    // Field mode should still produce record-level __raw_b64 (existing behavior)
+    // but also field-level entries
+    let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
+    let data = b"HELLO";
+    let opts = ascii_decode_opts().with_emit_raw(RawMode::Field);
+    let json = decode_record(&schema, data, &opts).unwrap();
+
+    assert!(
+        json.get("FLD_raw_b64").is_some(),
+        "RawMode::Field should emit field-level raw"
     );
 }
 

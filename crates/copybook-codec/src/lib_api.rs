@@ -717,6 +717,14 @@ fn process_scalar_field_standard(
     }
 
     json_obj.insert(field.name.clone(), value);
+
+    // Emit field-level raw bytes when RawMode::Field is active
+    if matches!(options.emit_raw, crate::options::RawMode::Field) {
+        let raw_key = format!("{}_raw_b64", field.name);
+        let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
+        json_obj.insert(raw_key, Value::String(raw_b64));
+    }
+
     Ok(())
 }
 
@@ -813,6 +821,14 @@ fn process_scalar_field_with_scratch(
     }
 
     json_obj.insert(field.name.clone(), value);
+
+    // Emit field-level raw bytes when RawMode::Field is active
+    if matches!(options.emit_raw, crate::options::RawMode::Field) {
+        let raw_key = format!("{}_raw_b64", field.name);
+        let raw_b64 = base64::engine::general_purpose::STANDARD.encode(field_data);
+        json_obj.insert(raw_key, Value::String(raw_b64));
+    }
+
     Ok(())
 }
 

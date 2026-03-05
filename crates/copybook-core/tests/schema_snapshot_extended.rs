@@ -118,8 +118,8 @@ fn snapshot_banking_schema_field_count() {
 #[test]
 fn snapshot_banking_schema_lrecl() {
     let schema = parse_copybook(BANKING_COPYBOOK).unwrap();
-    // 12 + 2 + (20+25) + 6 + 8 + 2 = 75 (STATUS-FLAG with level-88 children)
-    assert_eq!(schema.lrecl_fixed, Some(75));
+    // 12 + 2 + (20+25) + 6 + 8 + 2 + 1 = 76
+    assert_eq!(schema.lrecl_fixed, Some(76));
 }
 
 #[test]
@@ -195,8 +195,8 @@ const INSURANCE_COPYBOOK: &str = "\
 #[test]
 fn snapshot_insurance_schema_lrecl() {
     let schema = parse_copybook(INSURANCE_COPYBOOK).unwrap();
-    // 15 + 12 + 2 + 6 + 5 + 8 + 8 + 6 = 62 (STATUS with level-88 children)
-    assert_eq!(schema.lrecl_fixed, Some(62));
+    // 15 + 12 + 2 + 6 + 5 + 8 + 8 + 6 + 1 = 63
+    assert_eq!(schema.lrecl_fixed, Some(63));
 }
 
 #[test]
@@ -342,8 +342,8 @@ fn snapshot_all_field_types_lrecl() {
              88 VALID          VALUE 'V'.";
 
     let schema = parse_copybook(copybook).unwrap();
-    // 10 + 5 + 9 + 6 + 2 + 8 + (5+3) + 4*3 = 60 (STATUS-CODE with level-88 children)
-    assert_eq!(schema.lrecl_fixed, Some(60));
+    // 10 + 5 + 9 + 6 + 2 + 8 + (5+3) + 4*3 + 1 = 61
+    assert_eq!(schema.lrecl_fixed, Some(61));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

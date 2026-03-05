@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Local Fuzzing Script
 # Runs fuzzers locally with configurable options
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'

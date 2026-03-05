@@ -27,6 +27,8 @@ serde.workspace = true
 [features]
 default = []
 clap = ["dep:clap"]
+# No-op: allows ci-mutants.yml to pass --features comprehensive-tests uniformly
+comprehensive-tests = []
 
 [dev-dependencies]
 serde_json.workspace = true

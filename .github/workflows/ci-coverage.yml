@@ -45,6 +45,8 @@ jobs:
           --workspace \
           --exclude copybook-bench \
           --exclude copybook-bdd \
+          --exclude copybook-e2e \
+          --exclude copybook-proptest \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
           --exclude-files 'tools/xtask/*' \
@@ -130,6 +132,8 @@ jobs:
           --workspace \
           --exclude copybook-bench \
           --exclude copybook-bdd \
+          --exclude copybook-e2e \
+          --exclude copybook-proptest \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
           --exclude-files 'tools/xtask/*' \
@@ -148,6 +152,8 @@ jobs:
           --workspace \
           --exclude copybook-bench \
           --exclude copybook-bdd \
+          --exclude copybook-e2e \
+          --exclude copybook-proptest \
           --exclude-files 'examples/*' \
           --exclude-files 'tests/*' \
           --exclude-files 'tools/xtask/*' \

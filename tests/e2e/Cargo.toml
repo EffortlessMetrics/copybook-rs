@@ -158,6 +158,10 @@ path = "e2e_verify_comprehensive.rs"
 name = "e2e_encode_codepage"
 path = "e2e_encode_codepage.rs"
 
+[[test]]
+name = "e2e_determinism_cli"
+path = "e2e_determinism_cli.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

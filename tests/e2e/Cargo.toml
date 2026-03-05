@@ -134,6 +134,10 @@ path = "e2e_cli_support.rs"
 name = "e2e_cli_inspect"
 path = "e2e_cli_inspect.rs"
 
+[[test]]
+name = "e2e_cli_strict_comments"
+path = "e2e_cli_strict_comments.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

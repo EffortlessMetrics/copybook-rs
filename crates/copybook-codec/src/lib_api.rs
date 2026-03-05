@@ -365,6 +365,22 @@ impl fmt::Display for RunSummary {
 /// * `data` - The binary record data
 /// * `options` - Decoding options
 ///
+/// # Examples
+///
+/// ```
+/// use copybook_core::parse_copybook;
+/// use copybook_codec::{decode_record, DecodeOptions};
+/// use copybook_codec::options::{Codepage, RecordFormat};
+///
+/// let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
+/// let data = b"HELLO";
+/// let options = DecodeOptions::new()
+///     .with_codepage(Codepage::ASCII)
+///     .with_format(RecordFormat::Fixed);
+/// let json = decode_record(&schema, data, &options).unwrap();
+/// assert_eq!(json["fields"]["FLD"], "HELLO");
+/// ```
+///
 /// # Errors
 /// Returns an error if the data cannot be decoded according to the schema.
 #[inline]
@@ -384,6 +400,27 @@ pub fn decode_record(schema: &Schema, data: &[u8], options: &DecodeOptions) -> R
 /// * `data` - The binary record data
 /// * `options` - Decoding options
 /// * `scratch` - Reusable scratch buffers for optimization
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::parse_copybook;
+/// use copybook_codec::{decode_record_with_scratch, DecodeOptions};
+/// use copybook_codec::memory::ScratchBuffers;
+/// use copybook_codec::options::{Codepage, RecordFormat};
+///
+/// let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
+/// let options = DecodeOptions::new()
+///     .with_codepage(Codepage::ASCII)
+///     .with_format(RecordFormat::Fixed);
+/// let mut scratch = ScratchBuffers::new();
+///
+/// // Decode multiple records reusing the same scratch buffers
+/// for record_data in [b"AAAAA", b"BBBBB", b"CCCCC"] {
+///     let json = decode_record_with_scratch(&schema, record_data, &options, &mut scratch).unwrap();
+///     assert!(json["fields"]["FLD"].is_string());
+/// }
+/// ```
 ///
 /// # Errors
 /// Returns an error if the data cannot be decoded according to the schema.
@@ -1686,6 +1723,23 @@ fn condition_value(values: &[String], prefix: &str) -> Value {
 /// * `json` - The JSON data to encode
 /// * `options` - Encoding options
 ///
+/// # Examples
+///
+/// ```
+/// use copybook_core::parse_copybook;
+/// use copybook_codec::{encode_record, EncodeOptions};
+/// use copybook_codec::options::{Codepage, RecordFormat};
+/// use serde_json::json;
+///
+/// let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
+/// let json = json!({"fields": {"FLD": "HELLO"}});
+/// let options = EncodeOptions::new()
+///     .with_codepage(Codepage::ASCII)
+///     .with_format(RecordFormat::Fixed);
+/// let binary = encode_record(&schema, &json, &options).unwrap();
+/// assert_eq!(&binary[..5], b"HELLO");
+/// ```
+///
 /// # Errors
 /// Returns an error if the JSON data cannot be encoded according to the schema.
 #[inline]
@@ -2484,6 +2538,23 @@ fn encode_binary_int_field(
 ///
 /// Reads records from `input` using the configured [`RecordFormat`]
 ///
+/// # Examples
+///
+/// ```
+/// use copybook_core::parse_copybook;
+/// use copybook_codec::{decode_file_to_jsonl, DecodeOptions};
+/// use copybook_codec::options::{Codepage, RecordFormat};
+///
+/// let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
+/// let input: &[u8] = b"HELLOWORLD";  // Two 5-byte records
+/// let mut output = Vec::new();
+/// let options = DecodeOptions::new()
+///     .with_codepage(Codepage::ASCII)
+///     .with_format(RecordFormat::Fixed);
+/// let summary = decode_file_to_jsonl(&schema, input, &mut output, &options).unwrap();
+/// assert_eq!(summary.records_processed, 2);
+/// ```
+///
 /// # Errors
 /// Returns an error if the input cannot be read, decoded, or written.
 #[inline]
@@ -2698,6 +2769,27 @@ pub fn increment_warning_counter() {
 /// * `input` - Input stream to read JSONL from
 /// * `output` - Output stream to write binary to
 /// * `options` - Encoding options
+///
+/// # Examples
+///
+/// ```
+/// use copybook_core::parse_copybook;
+/// use copybook_codec::{encode_jsonl_to_file, EncodeOptions};
+/// use copybook_codec::options::{Codepage, RecordFormat};
+///
+/// let schema = parse_copybook("01 FLD PIC X(5).").unwrap();
+/// let jsonl = br#"{"fields":{"FLD":"HELLO"}}
+/// {"fields":{"FLD":"WORLD"}}
+/// "#;
+/// let mut output = Vec::new();
+/// let options = EncodeOptions::new()
+///     .with_codepage(Codepage::ASCII)
+///     .with_format(RecordFormat::Fixed);
+/// let summary = encode_jsonl_to_file(&schema, &jsonl[..], &mut output, &options).unwrap();
+/// assert_eq!(summary.records_processed, 2);
+/// assert_eq!(&output[..5], b"HELLO");
+/// assert_eq!(&output[5..10], b"WORLD");
+/// ```
 ///
 /// # Errors
 /// Returns an error if the JSONL cannot be encoded or written.

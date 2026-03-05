@@ -5,16 +5,24 @@
 //! Converts COBOL binary data directly to Apache Arrow columnar format,
 //! preserving COBOL type precision (Decimal128 for COMP-3/Zoned, proper int widths, etc.)
 
+/// Columnar `RecordBatch` construction from decoded COBOL records.
 pub mod batch_builder;
+/// Per-column accumulator trait and typed column builders.
 pub mod builders;
+/// Direct binary → Arrow decoding (bypasses JSON intermediate).
 pub mod decode_direct;
+/// Arrow IPC (Feather) file writer.
 pub mod ipc;
+/// Arrow/Parquet output configuration (compression, edited-PIC handling).
 pub mod options;
+/// Apache Parquet file writer with configurable compression.
 pub mod parquet_writer;
+/// COBOL schema → Arrow schema conversion (type mapping).
 pub mod schema_convert;
+/// Streaming record-by-record Arrow output for large files.
 pub mod streaming;
 
-// Legacy API (deprecated)
+/// Legacy JSONL-to-Arrow API (deprecated; prefer `decode_direct`).
 #[allow(deprecated)]
 pub mod legacy;
 

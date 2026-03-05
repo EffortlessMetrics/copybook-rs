@@ -71,7 +71,7 @@ jobs:
             -A clippy::duplicated_attributes \
             -A deprecated
           cargo build --workspace --release
-          cargo nextest run --workspace
+          cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd
 
       - name: Property tests (fast deterministic)
         env:

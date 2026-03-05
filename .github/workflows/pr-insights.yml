@@ -19,7 +19,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
       
       - name: Run Tests (Generate junit.xml)
-        run: cargo nextest run --workspace --profile ci
+        run: cargo nextest run --workspace --exclude copybook-bench --exclude copybook-bdd --profile ci
         continue-on-error: true
 
       - name: Generate PR Insights

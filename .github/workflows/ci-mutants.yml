@@ -34,6 +34,13 @@ on:
       - 'crates/copybook-error/**'
       - 'crates/copybook-overpunch/**'
       - 'crates/copybook-overflow/**'
+      - 'crates/copybook-lexer/**'
+      - 'crates/copybook-rdw/**'
+      - 'crates/copybook-fixed/**'
+      - 'crates/copybook-charset/**'
+      - 'crates/copybook-codepage/**'
+      - 'crates/copybook-dialect/**'
+      - 'crates/copybook-record-io/**'
       - 'mutants.toml'
       - '.github/workflows/ci-mutants.yml'
 
@@ -107,6 +114,20 @@ jobs:
             threshold: 80
           - crate: copybook-overflow
             threshold: 80
+          - crate: copybook-lexer
+            threshold: 70
+          - crate: copybook-rdw
+            threshold: 75
+          - crate: copybook-fixed
+            threshold: 75
+          - crate: copybook-charset
+            threshold: 70
+          - crate: copybook-codepage
+            threshold: 70
+          - crate: copybook-dialect
+            threshold: 75
+          - crate: copybook-record-io
+            threshold: 70
 
     steps:
       - name: Checkout code

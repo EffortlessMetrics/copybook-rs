@@ -28,6 +28,8 @@ serde_json.workspace = true
 
 [features]
 default = []
+# No-op: allows ci-mutants.yml to pass --features comprehensive-tests uniformly
+comprehensive-tests = []
 
 [lints]
 workspace = true

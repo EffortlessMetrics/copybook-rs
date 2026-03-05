@@ -28,6 +28,8 @@ tracing.workspace = true
 [features]
 default = []
 clap = ["copybook-codepage/clap"]
+# No-op: allows ci-mutants.yml to pass --features comprehensive-tests uniformly
+comprehensive-tests = []
 
 [lints]
 workspace = true

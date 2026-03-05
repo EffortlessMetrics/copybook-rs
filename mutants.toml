@@ -25,13 +25,20 @@ cap_lints = true
 features = ["comprehensive-tests"]
 
 # --- Source file targeting ---
-# Focus mutation testing on the most critical crates
+# Focus mutation testing on production-critical crates
 examine_globs = [
     "crates/copybook-core/src/**/*.rs",
     "crates/copybook-codec/src/**/*.rs",
     "crates/copybook-error/src/**/*.rs",
     "crates/copybook-overpunch/src/**/*.rs",
     "crates/copybook-overflow/src/**/*.rs",
+    "crates/copybook-lexer/src/**/*.rs",
+    "crates/copybook-rdw/src/**/*.rs",
+    "crates/copybook-fixed/src/**/*.rs",
+    "crates/copybook-charset/src/**/*.rs",
+    "crates/copybook-codepage/src/**/*.rs",
+    "crates/copybook-dialect/src/**/*.rs",
+    "crates/copybook-record-io/src/**/*.rs",
 ]
 
 # Exclude non-production code even within targeted crates

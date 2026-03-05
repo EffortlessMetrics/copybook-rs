@@ -39,7 +39,7 @@ echo "==> Running cargo nextest (portable, leave 2 cores free)"
 if command -v nproc >/dev/null 2>&1; then JOBS=$(nproc); else JOBS=$( (sysctl -n hw.ncpu 2>/dev/null || echo 2) ); fi
 JOBS=$(( JOBS>2 ? JOBS-2 : 1 ))
 # Run tests with bounded parallelism (panic=abort requires nightly -Zpanic_abort_tests)
-"$CARGO_BIN" nextest run --workspace --exclude copybook-bench -j "$JOBS" --failure-output=immediate
+"$CARGO_BIN" nextest run --workspace --exclude copybook-bench --exclude copybook-bdd -j "$JOBS" --failure-output=immediate
 
 echo "==> Running governance microcrate + BDD smoke gate"
 bash scripts/ci/governance-bdd-smoke.sh

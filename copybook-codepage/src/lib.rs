@@ -97,12 +97,12 @@ impl FromStr for Codepage {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
             "ascii" => Self::ASCII,
-            "cp037" => Self::CP037,
             "cp273" => Self::CP273,
             "cp500" => Self::CP500,
             "cp1047" => Self::CP1047,
             "cp1140" => Self::CP1140,
-            _ => Self::CP037, // Default to CP037 for backward compatibility
+            // Default to CP037 for backward compatibility (includes "cp037")
+            _ => Self::CP037,
         })
     }
 }
@@ -139,10 +139,10 @@ impl FromStr for UnmappablePolicy {
     #[inline]
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
-            "error" => Self::Error,
             "replace" => Self::Replace,
             "skip" => Self::Skip,
-            _ => Self::Error, // Default to Error for backward compatibility
+            // Default to Error for backward compatibility (includes "error")
+            _ => Self::Error,
         })
     }
 }

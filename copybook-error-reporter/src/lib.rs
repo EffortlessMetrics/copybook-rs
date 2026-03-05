@@ -214,6 +214,7 @@ impl ErrorReporter {
 
     /// Check if any warnings have been reported
     #[inline]
+    #[must_use]
     pub fn has_warnings(&self) -> bool {
         self.summary
             .error_counts
@@ -224,6 +225,7 @@ impl ErrorReporter {
 
     /// Get total error count (excluding warnings)
     #[inline]
+    #[must_use]
     pub fn error_count(&self) -> u64 {
         self.summary
             .error_counts
@@ -238,6 +240,7 @@ impl ErrorReporter {
 
     /// Get total warning count
     #[inline]
+    #[must_use]
     pub fn warning_count(&self) -> u64 {
         *self
             .summary
@@ -248,6 +251,7 @@ impl ErrorReporter {
 
     /// Generate a detailed error report for display
     #[inline]
+    #[must_use]
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
 
@@ -267,7 +271,7 @@ impl ErrorReporter {
             report.push_str("\nError counts by severity:\n");
             for (severity, count) in &self.summary.error_counts {
                 if *count > 0 {
-                    let _ = writeln!(report, "  {:?}: {}", severity, count);
+                    let _ = writeln!(report, "  {severity:?}: {count}");
                 }
             }
         }
@@ -276,7 +280,7 @@ impl ErrorReporter {
             report.push_str("\nError counts by code:\n");
             for (code, count) in &self.summary.error_codes {
                 if *count > 0 {
-                    let _ = writeln!(report, "  {}: {}", code, count);
+                    let _ = writeln!(report, "  {code}: {count}");
                 }
             }
         }
@@ -299,6 +303,7 @@ impl ErrorReporter {
     }
 
     /// Determine error severity based on error code
+    #[allow(clippy::match_same_arms)] // Arms grouped by error category for readability
     fn determine_severity(&self, error: &Error) -> ErrorSeverity {
         match error.code {
             // Parse errors are typically fatal
@@ -464,6 +469,7 @@ impl ErrorReporter {
     }
 
     /// Check if error indicates transfer corruption
+    #[allow(clippy::unused_self)] // Method needs self for future extension
     fn is_corruption_warning(&self, error: &Error) -> bool {
         matches!(
             error.code,
@@ -487,6 +493,7 @@ impl fmt::Display for ErrorSeverity {
 impl ErrorSummary {
     /// Check if processing had any errors
     #[inline]
+    #[must_use]
     pub fn has_errors(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0) > &0
             || self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0) > &0
@@ -494,12 +501,14 @@ impl ErrorSummary {
 
     /// Check if processing had any warnings
     #[inline]
+    #[must_use]
     pub fn has_warnings(&self) -> bool {
         self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0) > &0
     }
 
     /// Get total error count (excluding warnings)
     #[inline]
+    #[must_use]
     pub fn error_count(&self) -> u64 {
         self.error_counts.get(&ErrorSeverity::Error).unwrap_or(&0)
             + self.error_counts.get(&ErrorSeverity::Fatal).unwrap_or(&0)
@@ -507,6 +516,7 @@ impl ErrorSummary {
 
     /// Get total warning count
     #[inline]
+    #[must_use]
     pub fn warning_count(&self) -> u64 {
         *self.error_counts.get(&ErrorSeverity::Warning).unwrap_or(&0)
     }

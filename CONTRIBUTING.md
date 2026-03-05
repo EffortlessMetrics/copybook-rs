@@ -10,6 +10,9 @@ Thank you for your interest in contributing to copybook-rs. This guide will help
 - **Rust 1.92+** (MSRV enforced at workspace level)
 - **Git** for version control
 - **Cargo** (comes with Rust)
+- **[just](https://github.com/casey/just)** task runner (for `just ci-quick`, `just pr`)
+- **[cargo-nextest](https://nexte.st/)** — `cargo install cargo-nextest`
+- **[cargo-deny](https://github.com/EmbarkStudios/cargo-deny)** — `cargo install cargo-deny`
 
 ### Setting Up Your Development Environment
 
@@ -30,7 +33,7 @@ cargo test --workspace
 ```bash
 # Build and test
 cargo build --workspace --release
-cargo test --workspace                                      # 1550+ tests
+cargo test --workspace                                      # 10,000+ tests
 cargo nextest run --workspace                              # Preferred
 
 # Code quality
@@ -42,8 +45,11 @@ cargo bench --package copybook-bench
 PERF=1 cargo bench -p copybook-bench
 cargo test --test golden_fixtures_comprehensive
 
-# Quick CI validation
+# Quick CI validation (matches CI Quick gate)
 just ci-quick
+
+# Full PR gate parity (CI Quick + security checks)
+just pr
 ```
 
 See [CLAUDE.md](CLAUDE.md) for complete command reference.

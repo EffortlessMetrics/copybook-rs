@@ -418,7 +418,7 @@ jobs:
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
     - name: Generate code coverage
-      run: cargo llvm-cov --workspace --exclude copybook-bench --exclude copybook-bdd --exclude copybook-e2e --lcov --output-path lcov.info
+      run: cargo llvm-cov --workspace --exclude copybook-bench --exclude copybook-bdd --lcov --output-path lcov.info
     # Make upload non-blocking and always run
     - name: Upload coverage to Codecov
       if: always()

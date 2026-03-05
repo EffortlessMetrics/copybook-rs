@@ -117,7 +117,10 @@ fn decode_json_number_native_accepted_and_produces_output() {
         "QTY present in output, got: {}",
         v["fields"]["QTY"]
     );
-    assert_eq!(v["fields"]["QTY"].as_str().unwrap().trim_start_matches('0'), "42");
+    assert_eq!(
+        v["fields"]["QTY"].as_str().unwrap().trim_start_matches('0'),
+        "42"
+    );
 }
 
 #[test]
@@ -262,8 +265,7 @@ fn encode_bwz_encode_non_zero_unchanged() {
     let encoded = std::fs::read(&out).unwrap();
     // Non-zero values should still encode normally
     assert_eq!(
-        encoded,
-        b"00042",
+        encoded, b"00042",
         "Non-zero should encode normally, got: {encoded:?}",
     );
 }
@@ -397,8 +399,7 @@ fn encode_zoned_encoding_override_ascii() {
     let encoded = std::fs::read(&out).unwrap();
     // ASCII zoned digits: 1=0x31, 2=0x32, 3=0x33
     assert_eq!(
-        encoded,
-        b"123",
+        encoded, b"123",
         "ASCII zoned override should produce ASCII digits, got: {encoded:02X?}",
     );
 }
@@ -436,8 +437,7 @@ fn encode_coerce_numbers_flag_accepted() {
 
     let encoded = std::fs::read(&out).unwrap();
     assert_eq!(
-        encoded,
-        b"123",
+        encoded, b"123",
         "coerce-numbers flag should be accepted, got: {encoded:02X?}",
     );
 }

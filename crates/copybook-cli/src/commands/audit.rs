@@ -687,9 +687,6 @@ struct HealthEventRecord {
 #[derive(Deserialize)]
 struct ReportSectionFile {
     #[serde(default)]
-    #[allow(dead_code)]
-    audit_report: Option<Value>,
-    #[serde(default)]
     compliance_validation: Option<Value>,
     #[serde(default)]
     lineage_analysis: Option<Value>,
@@ -697,9 +694,6 @@ struct ReportSectionFile {
     performance_audit: Option<Value>,
     #[serde(default)]
     security_audit: Option<Value>,
-    #[serde(default)]
-    #[allow(dead_code)]
-    audit_health: Option<Value>,
 }
 
 fn parse_health_events(path: &Path) -> AuditResult<(Vec<HealthEventRecord>, Vec<String>)> {

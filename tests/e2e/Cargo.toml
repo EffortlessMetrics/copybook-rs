@@ -150,6 +150,10 @@ path = "e2e_cli_advanced_flags.rs"
 name = "e2e_cli_feature_flags"
 path = "e2e_cli_feature_flags.rs"
 
+[[test]]
+name = "e2e_verify_comprehensive"
+path = "e2e_verify_comprehensive.rs"
+
 [dependencies]
 copybook-core.workspace = true
 copybook-codec.workspace = true

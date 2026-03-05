@@ -300,11 +300,14 @@ async fn when_binary_data_decoded(world: &mut CopybookWorld) {
             Some(u32::try_from(binary_data.len()).expect("record too large"));
     }
 
-    // Pad binary data to lrecl_fixed if shorter (BDD test data may be slightly short)
+    // Adjust binary data to match lrecl_fixed: pad if short, truncate if long
+    // BDD test data may not match exact LRECL (e.g. ODO with count > max_count)
     if let Some(lrecl) = world.schema().lrecl_fixed {
         let lrecl = lrecl as usize;
         if binary_data.len() < lrecl {
             binary_data.resize(lrecl, b' ');
+        } else if binary_data.len() > lrecl && !binary_data.len().is_multiple_of(lrecl) {
+            binary_data.truncate(lrecl);
         }
     }
 
@@ -364,7 +367,7 @@ async fn when_data_roundtripped(world: &mut CopybookWorld) {
     world.ensure_decode_options();
     world.ensure_encode_options();
 
-    let binary_data = world
+    let mut binary_data = world
         .binary_data
         .as_ref()
         .expect("Binary data not set")
@@ -374,6 +377,17 @@ async fn when_data_roundtripped(world: &mut CopybookWorld) {
     if world.schema().lrecl_fixed.is_none() {
         world.schema_mut().lrecl_fixed =
             Some(u32::try_from(binary_data.len()).expect("record too large"));
+    }
+
+    // Adjust binary data to match lrecl_fixed: pad if short, truncate if long
+    // BDD test data may not match exact LRECL (e.g. ODO with count > max_count)
+    if let Some(lrecl) = world.schema().lrecl_fixed {
+        let lrecl = lrecl as usize;
+        if binary_data.len() < lrecl {
+            binary_data.resize(lrecl, b' ');
+        } else if binary_data.len() > lrecl && !binary_data.len().is_multiple_of(lrecl) {
+            binary_data.truncate(lrecl);
+        }
     }
 
     let mut decoded = Vec::new();

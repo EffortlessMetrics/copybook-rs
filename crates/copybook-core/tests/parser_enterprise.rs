@@ -410,10 +410,10 @@ fn insurance_parses_without_error() {
 #[test]
 fn insurance_has_odo() {
     let schema = parse_copybook(INSURANCE_CLAIM).unwrap();
-    // CLAIM-LINES is ODO → no fixed LRECL
+    // CLAIM-LINES is ODO → lrecl_fixed is set to max-count LRECL
     assert!(
-        schema.lrecl_fixed.is_none(),
-        "insurance record should have variable LRECL due to ODO"
+        schema.lrecl_fixed.is_some(),
+        "ODO schema should have max-count LRECL"
     );
     assert!(
         schema.tail_odo.is_some(),

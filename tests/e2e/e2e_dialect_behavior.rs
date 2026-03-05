@@ -217,7 +217,6 @@ fn invalid_dialect_value_produces_error() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn decode_dialect_normative_valid_count() {
     let dir = setup_odo_min2(3); // count=3, min=2, within bounds
     let out_path = temp_path(&dir, "out.jsonl");
@@ -252,7 +251,6 @@ fn decode_dialect_normative_valid_count() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn decode_dialect_zero_tolerant_allows_zero_count() {
     let dir = setup_odo_min2(0); // count=0, min=2 but zero-tolerant ignores min
     let out_path = temp_path(&dir, "out.jsonl");
@@ -288,7 +286,6 @@ fn decode_dialect_zero_tolerant_allows_zero_count() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn decode_dialect_one_tolerant_with_min0_schema() {
     let dir = setup_odo_min0(1); // count=1, min_count=0 but one-tolerant clamps to 1
     let out_path = temp_path(&dir, "out.jsonl");
@@ -437,7 +434,6 @@ fn inspect_with_dialect_one() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn verify_with_dialect_zero() {
     let dir = setup_odo_min2(3);
     let output = Command::cargo_bin("copybook")
@@ -507,7 +503,6 @@ fn empty_dialect_value_is_invalid() {
 // =========================================================================
 
 #[test]
-#[ignore = "ODO schemas have lrecl_fixed=None; --format fixed requires LRECL (pre-existing limitation)"]
 fn encode_with_dialect_flag() {
     // Just verify the flag is accepted (encode needs input data, so test parse acceptance)
     let dir = setup_odo_min2(3);
@@ -549,10 +544,11 @@ fn encode_with_dialect_flag() {
             "cp037",
             "--dialect",
             "0",
+            "--output",
         ])
+        .arg(&enc_out)
         .arg(temp_path(&dir, "schema.cpy"))
         .arg(&out_path)
-        .arg(&enc_out)
         .output()
         .expect("run encode");
     assert_eq!(

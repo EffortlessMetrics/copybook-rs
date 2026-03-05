@@ -120,8 +120,8 @@ fn test_valid_odo_configuration() {
     assert_eq!(tail_odo.max_count, 5);
     assert_eq!(tail_odo.array_path, "ITEMS");
 
-    // Should not have fixed LRECL due to ODO
-    assert!(schema.lrecl_fixed.is_none());
+    // ODO schemas now compute lrecl_fixed from max_count allocation
+    assert!(schema.lrecl_fixed.is_some());
 }
 
 #[test]

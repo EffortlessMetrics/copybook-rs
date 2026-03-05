@@ -392,8 +392,8 @@ fn test_lrecl_odo_uses_max_count() {
     ";
     let schema = parse_copybook(cpy).unwrap();
 
-    // Variable-length: lrecl_fixed is None
-    assert!(schema.lrecl_fixed.is_none(), "ODO → no fixed LRECL");
+    // ODO schemas have lrecl_fixed based on max_count: HEADER(4) + CNT(2) + 20*10 = 206
+    assert_eq!(schema.lrecl_fixed, Some(206), "ODO → max-count LRECL");
 
     // Tail ODO should be detected
     let tail = schema
@@ -712,10 +712,9 @@ fn test_odo_tail_detected() {
     assert_eq!(tail.min_count, 0);
     assert_eq!(tail.max_count, 50);
 
-    assert!(
-        schema.lrecl_fixed.is_none(),
-        "variable-length → no fixed LRECL"
-    );
+    // ODO schemas have lrecl_fixed based on max_count:
+    // FIXED-PART(10) + ITEM-COUNT(3) + 50*20 = 1013
+    assert_eq!(schema.lrecl_fixed, Some(1013), "ODO → max-count LRECL");
 }
 
 #[test]
@@ -729,7 +728,8 @@ fn test_odo_lrecl_none_for_variable_length() {
     ";
     let schema = parse_copybook(cpy).unwrap();
 
-    assert!(schema.lrecl_fixed.is_none());
+    // ODO schemas have lrecl_fixed based on max_count: N(2) + 99*5 = 497
+    assert_eq!(schema.lrecl_fixed, Some(497));
     assert!(schema.tail_odo.is_some());
 }
 

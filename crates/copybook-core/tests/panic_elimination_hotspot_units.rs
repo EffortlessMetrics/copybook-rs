@@ -554,11 +554,11 @@ mod hotspot_integration_safety {
                     "Integration should produce fields"
                 );
 
-                // ODO schemas have variable length, so lrecl_fixed is None
+                // All schemas should have lrecl_fixed computed
                 if schema.tail_odo.is_some() {
                     assert!(
-                        schema.lrecl_fixed.is_none(),
-                        "ODO schema should not have fixed LRECL"
+                        schema.lrecl_fixed.is_some(),
+                        "ODO schema should have max-count LRECL"
                     );
                 } else {
                     assert!(

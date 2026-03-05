@@ -598,29 +598,25 @@ fn validate_odo_constraints(context: &LayoutContext) -> Result<()> {
     Ok(())
 }
 
-/// Calculate fixed record length if applicable
+/// Calculate fixed record length if applicable.
+///
+/// ODO arrays are allocated at `max_count` during layout, so `current_offset`
+/// already reflects the maximum possible record size. This allows `--format fixed`
+/// to work with ODO schemas using the max-count LRECL.
 fn calculate_fixed_record_length(schema: &mut Schema, context: &LayoutContext) -> Result<()> {
-    // Check if all fields are fixed (no ODO arrays)
-    let has_odo = context
-        .odo_arrays
-        .iter()
-        .any(|odo| odo.max_count > odo.min_count);
+    // Calculate total size including REDEFINES clusters
+    let mut total_size = context.current_offset;
 
-    if !has_odo {
-        // Calculate total size including REDEFINES clusters
-        let mut total_size = context.current_offset;
-
-        // Add the size of REDEFINES clusters (they don't advance current_offset)
-        for (cluster_start, cluster_size) in context.redefines_clusters.values() {
-            let cluster_end = cluster_start + cluster_size;
-            total_size = total_size.max(cluster_end);
-        }
-
-        schema.lrecl_fixed = Some(copybook_overflow::safe_u64_to_u32(
-            total_size,
-            "fixed record length calculation",
-        )?);
+    // Add the size of REDEFINES clusters (they don't advance current_offset)
+    for (cluster_start, cluster_size) in context.redefines_clusters.values() {
+        let cluster_end = cluster_start + cluster_size;
+        total_size = total_size.max(cluster_end);
     }
+
+    schema.lrecl_fixed = Some(copybook_overflow::safe_u64_to_u32(
+        total_size,
+        "fixed record length calculation",
+    )?);
 
     Ok(())
 }
@@ -1124,8 +1120,9 @@ mod tests {
         assert_eq!(tail_odo.counter_path, "COUNTER");
         assert_eq!(tail_odo.max_count, 5);
 
-        // Should not have fixed LRECL due to ODO
-        assert!(schema.lrecl_fixed.is_none());
+        // ODO schemas now have lrecl_fixed based on max_count allocation
+        // counter(3) + max_count(5) * element(10) = 53
+        assert_eq!(schema.lrecl_fixed, Some(53));
     }
 
     #[test]

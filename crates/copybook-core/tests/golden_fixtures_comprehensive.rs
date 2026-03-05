@@ -373,9 +373,10 @@ mod ac1_infrastructure_enhancement {
             !schema.fields.is_empty(),
             "Schema should contain parsed fields"
         );
+        // ODO schemas now have lrecl_fixed based on max_count allocation
         assert!(
-            schema.lrecl_fixed.is_none(),
-            "Variable-length schema should not have fixed LRECL"
+            schema.lrecl_fixed.is_some(),
+            "ODO schema should have lrecl_fixed based on max_count allocation"
         );
 
         // Validate structural elements are present

@@ -166,9 +166,9 @@ fn test_odo_schema_with_default_dialect() {
     assert_eq!(tail_odo.min_count, 0); // Normative preserves declared min_count
     assert_eq!(tail_odo.max_count, 5);
 
-    // With Normative dialect and min_count=0, max_count=5, record is variable
-    // (effective_min_count = 0, so max > min)
-    assert!(schema.lrecl_fixed.is_none());
+    // ODO schemas now have lrecl_fixed based on max_count allocation
+    // counter(3) + max_count(5) * element(10) = 53
+    assert_eq!(schema.lrecl_fixed, Some(53));
 }
 
 #[test]
@@ -285,9 +285,9 @@ fn test_odo_schema_one_tolerant_variable_record() {
     let tail_odo = schema.tail_odo.as_ref().unwrap();
     assert_eq!(tail_odo.min_count, 1); // OneTolerant clamps 0 -> 1
 
-    // With OneTolerant dialect and effective_min_count=1, max_count=5
-    // so max (5) > min (1), record is variable
-    assert!(schema.lrecl_fixed.is_none());
+    // ODO schemas now have lrecl_fixed based on max_count allocation
+    // counter(3) + max_count(5) * element(10) = 53
+    assert_eq!(schema.lrecl_fixed, Some(53));
 }
 
 #[test]
@@ -493,11 +493,9 @@ fn test_default_behavior_unchanged() {
 
     resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
-    // With default Normative dialect:
-    // - min_count=0, max_count=5
-    // - effective_min_count = 0
-    // - max (5) > min (0), so record is variable
-    assert!(schema.lrecl_fixed.is_none());
+    // ODO schemas now have lrecl_fixed based on max_count allocation
+    // counter(3) + max_count(5) * element(10) = 53
+    assert_eq!(schema.lrecl_fixed, Some(53));
 
     // Tail ODO should preserve declared min_count with Normative dialect
     let tail_odo = schema.tail_odo.as_ref().unwrap();
@@ -556,8 +554,9 @@ fn test_multiple_odo_arrays_same_dialect() {
 
     resolve_layout(&mut schema, Dialect::Normative).unwrap();
 
-    // Both ODO arrays should cause variable record length
-    assert!(schema.lrecl_fixed.is_none());
+    // ODO schemas now have lrecl_fixed based on max_count allocation
+    // COUNTER1(3) + ARRAY1(10×3) + COUNTER2(3) + ARRAY2(10×5) = 86
+    assert_eq!(schema.lrecl_fixed, Some(86));
 
     // Tail ODO should be the one with highest offset (ARRAY2)
     let tail_odo = schema.tail_odo.as_ref().unwrap();

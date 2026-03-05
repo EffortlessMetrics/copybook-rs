@@ -1,5 +1,5 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Governance feature mapping contracts for copybook-rs.
 //!
 //! This crate provides a stable interoperability surface that maps documented COBOL

@@ -1,5 +1,5 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
-
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Governance contracts and runtime interoperability for copybook-rs feature controls.
 //!
 //! This crate is the canonical compatibility façade for:

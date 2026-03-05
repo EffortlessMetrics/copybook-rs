@@ -212,6 +212,7 @@ See [`docs/TESTING_COMMANDS.md`](docs/TESTING_COMMANDS.md) for:
 | **Documentation** | 🟢 Low | 1-2 weeks | Iterator examples, deployment guides |
 
 **Issues closed (2025-12-31)**: #113, #51, #110 ✅
+**Issues closed (2026-03-05)**: #97, #98, #99, #100 ✅
 
 ---
 
@@ -449,13 +450,15 @@ refresh, bench-report CLI
 
 ## Next Planning Steps — Path to v1.0.0
 
-### Phase 1: ~~Unblock CI~~ ✅ Complete — CI fully active
+### Phase 1: ~~Unblock CI~~ ✅ Complete (March 2026)
 
 1. ~~Re-enable full CI for PRs~~ ✅ CI Quick + CI Full matrix active
 2. ~~Quality gates (#97-100)~~ ✅ Closed 2026-03-05
 3. ~~Determinism Phase 3~~ ✅ Smoke test active in CI
-4. Implement PR comments and artifact uploads (#195)
-5. Make performance regression gates blocking (after baseline stabilization)
+4. ✅ Safety lints: `deny(clippy::unwrap_used, clippy::expect_used)` enforced across all 36 publishable crates
+5. ✅ CI Quick: workflow_dispatch trigger added for manual re-runs
+6. Implement PR comments and artifact uploads (#195)
+7. Make performance regression gates blocking (after baseline stabilization)
 
 ### Phase 2: Complete Enterprise Features (8-12 weeks) — Feb 2026 to ~May 2026
 
@@ -490,8 +493,8 @@ refresh, bench-report CLI
 
 | Phase | Duration | Start | End |
 |-------|----------|-------|-----|
-| Phase 1: Unblock CI | 6-8 weeks | Now | ~Feb 2026 |
-| Phase 2: Enterprise Features | 8-12 weeks | Feb 2026 | ~May 2026 |
+| Phase 1: Unblock CI | 6-8 weeks | Dec 2025 | ✅ Mar 2026 |
+| Phase 2: Enterprise Features | 8-12 weeks | Mar 2026 | ~May 2026 |
 | Phase 3: Feature Completion | 4-6 weeks | May 2026 | ~Jun 2026 |
 | Phase 4: Documentation | 1-2 weeks | Jun 2026 | ~Jun 2026 |
 | Phase 5: API Freeze | 4 weeks | Jun 2026 | ~Jul 2026 |

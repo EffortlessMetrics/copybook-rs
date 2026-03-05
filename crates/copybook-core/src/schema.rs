@@ -354,6 +354,23 @@ impl Schema {
     }
 
     /// Find a field by path
+    ///
+    /// Looks up a field by its fully-qualified dotted path (e.g., `"REC.ID"`).
+    /// Searches recursively through all nested groups.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use copybook_core::parse_copybook;
+    ///
+    /// let schema = parse_copybook("01 REC.\n   05 ID PIC 9(5).\n   05 NAME PIC X(20).").unwrap();
+    ///
+    /// let field = schema.find_field("REC.ID").unwrap();
+    /// assert_eq!(field.name, "ID");
+    /// assert_eq!(field.len, 5);
+    ///
+    /// assert!(schema.find_field("NONEXISTENT").is_none());
+    /// ```
     #[must_use]
     pub fn find_field(&self, path: &str) -> Option<&Field> {
         Self::find_field_recursive(&self.fields, path)
@@ -464,6 +481,22 @@ impl Schema {
     }
 
     /// Find all fields that redefine the field at the given path
+    ///
+    /// Returns a list of fields whose `redefines_of` points to `target_path`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use copybook_core::parse_copybook;
+    ///
+    /// let schema = parse_copybook(
+    ///     "01 REC.\n   05 AMT-NUM PIC 9(5)V99.\n   05 AMT-TXT REDEFINES AMT-NUM PIC X(7)."
+    /// ).unwrap();
+    ///
+    /// let redefs = schema.find_redefining_fields("AMT-NUM");
+    /// assert_eq!(redefs.len(), 1);
+    /// assert_eq!(redefs[0].name, "AMT-TXT");
+    /// ```
     #[must_use]
     pub fn find_redefining_fields<'a>(&'a self, target_path: &str) -> Vec<&'a Field> {
         fn collect<'a>(fields: &'a [Field], target_path: &str, acc: &mut Vec<&'a Field>) {
@@ -483,6 +516,23 @@ impl Schema {
     }
 
     /// Get all fields in a flat list (pre-order traversal)
+    ///
+    /// Returns every field in the schema, including nested children,
+    /// as a flat vector in pre-order (depth-first) traversal order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use copybook_core::parse_copybook;
+    ///
+    /// let schema = parse_copybook("01 REC.\n   05 ID PIC 9(5).\n   05 NAME PIC X(20).").unwrap();
+    ///
+    /// let all = schema.all_fields();
+    /// assert_eq!(all.len(), 3); // REC group + 2 leaf fields
+    /// assert_eq!(all[0].name, "REC");
+    /// assert_eq!(all[1].name, "ID");
+    /// assert_eq!(all[2].name, "NAME");
+    /// ```
     #[must_use]
     pub fn all_fields(&self) -> Vec<&Field> {
         let mut result = Vec::new();

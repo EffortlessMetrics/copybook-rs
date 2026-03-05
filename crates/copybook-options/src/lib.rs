@@ -215,6 +215,30 @@ impl Default for DecodeOptions {
 
 impl DecodeOptions {
     /// Create new decode options with default values
+    ///
+    /// Returns options configured for:
+    /// - Fixed record format
+    /// - CP037 EBCDIC codepage
+    /// - Lossless JSON number mode
+    /// - Single-threaded processing
+    ///
+    /// Use the builder methods to customize:
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use copybook_options::{DecodeOptions, Codepage, JsonNumberMode, RecordFormat, RawMode};
+    ///
+    /// let opts = DecodeOptions::new()
+    ///     .with_codepage(Codepage::CP037)
+    ///     .with_format(RecordFormat::Fixed)
+    ///     .with_json_number_mode(JsonNumberMode::Lossless)
+    ///     .with_emit_meta(true)
+    ///     .with_threads(4);
+    ///
+    /// assert_eq!(opts.threads, 4);
+    /// assert!(opts.emit_meta);
+    /// ```
     #[must_use]
     #[inline]
     pub fn new() -> Self {
@@ -262,6 +286,12 @@ impl DecodeOptions {
     }
 
     /// Set the raw data capture mode
+    ///
+    /// Controls whether and how raw binary data is included in decode output:
+    /// - `RawMode::Off` — no raw data (default)
+    /// - `RawMode::Record` — record payload in `__raw_b64`
+    /// - `RawMode::RecordRDW` — RDW header + payload in `__raw_b64`
+    /// - `RawMode::Field` — per-field raw values in `<FIELD>__raw_b64`
     #[must_use]
     #[inline]
     pub fn with_emit_raw(mut self, emit_raw: RawMode) -> Self {
@@ -360,6 +390,31 @@ impl Default for EncodeOptions {
 
 impl EncodeOptions {
     /// Create new encode options with default values
+    ///
+    /// Returns options configured for:
+    /// - Fixed record format
+    /// - CP037 EBCDIC codepage
+    /// - Single-threaded processing
+    /// - BLANK WHEN ZERO disabled
+    ///
+    /// Use the builder methods to customize:
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use copybook_options::{EncodeOptions, Codepage, RecordFormat};
+    ///
+    /// let opts = EncodeOptions::new()
+    ///     .with_codepage(Codepage::CP037)
+    ///     .with_format(RecordFormat::Fixed)
+    ///     .with_bwz_encode(true)
+    ///     .with_coerce_numbers(true)
+    ///     .with_threads(4);
+    ///
+    /// assert_eq!(opts.threads, 4);
+    /// assert!(opts.bwz_encode);
+    /// assert!(opts.coerce_numbers);
+    /// ```
     #[must_use]
     #[inline]
     pub fn new() -> Self {

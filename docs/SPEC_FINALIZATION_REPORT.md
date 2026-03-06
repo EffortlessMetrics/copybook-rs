@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Specification Finalization Report: Issue #53
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Executive Summary
 
 The specifications for Issue #53 "Golden Fixtures Enhancement for Structural Validation" have been **successfully finalized** and are **ready for implementation**. This comprehensive suite of specifications provides a complete technical foundation for enhancing copybook-rs with enterprise-grade structural validation capabilities while maintaining zero-compromise production performance.

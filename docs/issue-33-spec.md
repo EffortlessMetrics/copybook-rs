@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #33: Eliminate .unwrap() Panics in copybook-rs
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Context
 
 copybook-rs currently contains 243 `.unwrap()` and `.expect()` calls across production source files, representing a critical production safety concern for enterprise mainframe data processing deployments. These panic-prone patterns violate enterprise reliability standards and create potential system failure points in high-volume COBOL data processing pipelines.

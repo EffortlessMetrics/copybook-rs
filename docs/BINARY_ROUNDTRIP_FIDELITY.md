@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Binary Round-Trip Fidelity in copybook-rs
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Overview
 
 Binary round-trip fidelity is a critical capability in copybook-rs that ensures **byte-perfect data preservation** during decode/encode cycles. This document explains the concepts, importance, and implementation of this feature for enterprise mainframe data processing.

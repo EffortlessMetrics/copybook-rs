@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Performance JSON Schema Specification
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Overview
 
 The `perf.json` schema provides a simplified, machine-readable format for copybook-rs benchmark reporting. This schema supports enterprise performance monitoring, CI/CD integration, and regulatory audit requirements while maintaining compatibility with existing Criterion.rs benchmark infrastructure.

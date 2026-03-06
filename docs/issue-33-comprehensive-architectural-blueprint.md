@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue #33: Comprehensive Architectural Blueprint - Eliminate .unwrap() Panics in copybook-rs
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Executive Summary
 
 This architectural blueprint provides a complete implementation strategy for eliminating all 243 `.unwrap()` and `.expect()` panic vectors from copybook-rs production sources while maintaining enterprise-grade performance (4.1+ GiB/s DISPLAY, 560+ MiB/s COMP-3) and zero breaking API changes. The solution implements a systematic 3-phase approach with comprehensive CI enforcement and enterprise audit system integration.

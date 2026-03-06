@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Risk Assessment: Binary Round-Trip Encoding Enhancement
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Executive Summary
 
 This risk assessment evaluates the potential impacts of implementing zoned decimal encoding format detection and preservation in copybook-rs. The enhancement introduces moderate implementation complexity while maintaining enterprise-grade performance and reliability standards.

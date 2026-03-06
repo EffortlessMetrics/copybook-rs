@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # CI/CD Integration Strategy Specification
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Overview
 
 The copybook-rs benchmark reporting system integrates seamlessly with GitHub Actions workflows to provide automated performance validation, regression detection, and enterprise audit compliance. This specification defines the CI/CD integration strategy for machine-readable benchmark reporting infrastructure supporting mainframe data processing workloads.

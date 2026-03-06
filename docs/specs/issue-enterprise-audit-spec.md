@@ -1,6 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Issue: Enterprise Audit System Implementation
 
+> **Note**: Performance numbers in this document reflect earlier planning phases.
+> Current baseline (v0.4.3): 205 MiB/s DISPLAY, 58 MiB/s COMP-3 (commit 1fa63633).
+> See [PERFORMANCE_GOVERNANCE.md](../PERFORMANCE_GOVERNANCE.md) for current policy.
+
 ## Context
 
 copybook-rs is production-ready for enterprise mainframe data processing but lacks comprehensive audit capabilities required for regulated industries. Enterprise customers in financial services, healthcare, and manufacturing require complete audit trails, regulatory compliance validation, and security monitoring for COBOL data processing operations.

@@ -80,6 +80,8 @@ jobs:
         run: |
           cargo test -p copybook-codec \
             prop_zoned_digit_buffer_contains_only_digits \
+            -- --nocapture
+          cargo test -p copybook-codec \
             zoned_overpunch \
             -- --nocapture
 

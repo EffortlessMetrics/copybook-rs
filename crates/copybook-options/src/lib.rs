@@ -21,6 +21,16 @@ use std::fmt;
 ///
 /// Copybooks define field usage but not the compiler's concrete floating-point
 /// representation. This option makes the decode/encode interpretation explicit.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_options::FloatFormat;
+///
+/// let fmt = FloatFormat::default();
+/// assert_eq!(fmt, FloatFormat::IeeeBigEndian);
+/// assert_eq!(format!("{fmt}"), "ieee-be");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum, Default)]
 pub enum FloatFormat {
     /// IEEE-754 big-endian binary format.

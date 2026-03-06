@@ -29,7 +29,7 @@ jq --arg cpu "$CPU" \
   --arg os "$OS" \
   --arg ts "$DATE" \
   --argjson wsl2 "$WSL2_DETECTED" \
-  '.summary |= (. // {}) | .summary += {host_cpu:$cpu, host_cores:$cores, host_kernel:$kern, host_os:$os, wsl2_detected:$WSL2_DETECTED, ts:$ts}' \
+  '.summary |= (. // {}) | .summary += {host_cpu:$cpu, host_cores:$cores, host_kernel:$kern, host_os:$os, wsl2_detected:$wsl2, ts:$ts}' \
   "$PERF" > "${PERF}.tmp"
 mv "${PERF}.tmp" "$PERF"
 

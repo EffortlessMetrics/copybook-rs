@@ -9,13 +9,14 @@ copybook-rs is a Rust workspace for enterprise mainframe data processing. Provid
 
 **Status**: **Engineering Preview** (v0.4.3) - See [ROADMAP.md](docs/ROADMAP.md) for adoption guidance
 **Performance**: Baseline established (DISPLAY: 205 MiB/s, COMP-3: 58 MiB/s; 2025-09-30, commit 1fa63633)
-**Quality**: 10,250+ tests passing (15 ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (49 error codes), 92 workspace-inherited dependencies
+**Quality**: 10,250+ tests passing (15 ignored), zero unsafe code, clippy pedantic compliance, comprehensive error taxonomy (61 error codes, 10 families), 69 workspace-inherited dependencies
 
 **Adoption Guidance**: Suitable for teams that validate copybooks against supported features (see Known Limitations & Roadmap below). Production deployment requires pilot validation on representative workloads.
 
 **MSRV**: Rust 1.92 enforced at workspace level and validated in CI (see .github/workflows/ci.yml).
 
 See [REPORT.md](docs/REPORT.md) for detailed readiness assessment and [tools/copybook-bench/BASELINE_METHODOLOGY.md](tools/copybook-bench/BASELINE_METHODOLOGY.md) for performance baseline details.
+See [START_HERE.md](docs/START_HERE.md) for the stable user-facing documentation entry point.
 
 ## Workspace Structure
 
@@ -347,6 +348,9 @@ Provides reproducible benchmark environment with:
 - Automated perf.json receipt generation
 - Performance summary with SLO comparison
 - See [Operator Runbook](docs/perf/OPERATOR_RUNBOOK.md) for detailed usage
+
+**PR Bench Comments** (Issue #195):
+PR benchmark comment automation is available via `.github/workflows/pr-bench-comment.yml`. PRs labeled `bench` automatically receive benchmark results as PR comments.
 
 ## Golden Fixtures System
 
@@ -680,7 +684,7 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
 
 ## Known Limitations & Roadmap
 
-**Current Status**: Engineering Preview (v0.4.0) - ROADMAP.md is the canonical status source.
+**Current Status**: Engineering Preview (v0.4.3) - ROADMAP.md is the canonical status source.
 
 ### Unsupported COBOL Features
 
@@ -708,7 +712,7 @@ cargo run --bin copybook -- parse schema.cpy --output schema.json
 - `bench-report` CLI tool available in copybook-bench for baseline management (Issue #52)
 - Benchmark automation includes: baseline promote/show, compare, validate, summary commands
 - Performance tracking infrastructure active; regression detection advisory-only (Issues #74, #75)
-- See [docs/ROADMAP.md](docs/ROADMAP.md) for v0.5.0 dialect features and v1.0.0 stability plans
+- See [docs/ROADMAP.md](docs/ROADMAP.md) for v1.0.0 stability plans and development timeline
 
 ### Adoption Recommendations
 - Validate representative copybooks against supported feature set before production deployment

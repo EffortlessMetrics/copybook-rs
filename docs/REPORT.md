@@ -5,6 +5,7 @@
 
 **Status**: ⚠️ **Engineering Preview (v0.4.3)** - See
 [ROADMAP.md](ROADMAP.md) for adoption guidance
+**Last Updated**: 2026-03-05
 
 **Readiness**: Cautious Adoption Recommended - See
 [Readiness Assessment](#readiness-assessment) below
@@ -26,8 +27,8 @@ advisory targets in v0.4.3 (Engineering Preview).
 
 ## Overview
 
-The `copybook-rs` workspace combines four published Rust crates (core, codec,
-arrow, and CLI) and two dev-only crates (generator and benchmarks) to provide
+The `copybook-rs` workspace combines 36 publishable Rust crates and 3 dev-only
+tools (generator, benchmarks, and xtask) to provide
 deterministic COBOL→JSON processing. The
 focus is on transparent validation rather than performance bravado: adopters
 must review known COBOL feature gaps and performance limitations before
@@ -132,9 +133,9 @@ Comprehensive support for mainframe data formats:
 
 **Documentation Gaps** (Medium Priority):
 
-- 22 numeric functions in `copybook-codec/src/numeric.rs` missing documentation
-- Memory module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`) needs API
-  documentation
+- ~~22 numeric functions in `copybook-codec/src/numeric.rs` missing documentation~~ ✅ All 47 public functions documented
+- ~~Memory module (`ScratchBuffers`, `SequenceRing`, `WorkerPool`) needs API
+  documentation~~ ✅ Module fully documented
 - Iterator module public functions need usage examples
 
 **Test Coverage Gaps** (Tracked for Future Work):
@@ -186,9 +187,9 @@ parse, codec, and structural validation. See
 - **Zero production `panic!()` on main** (test-only panics remain acceptable)
 - **Zero unsafe code** in public API paths (compiler-enforced via
   `#![deny(clippy::unwrap_used, clippy::expect_used)]`)
-- **40+ structured error codes** with stable taxonomy (CBKD, CBKE, CBKF, CBKI,
-  CBKS families)
-- **85+ workspace-inherited dependencies** for consistent versioning
+- **61 structured error codes** with stable taxonomy (CBKP, CBKS, CBKD, CBKE,
+  CBKR, CBKC, CBKF, CBKI, CBKA, CBKW — 10 families)
+- **69 workspace-inherited dependencies** for consistent versioning
 - **CLI code consolidation**: Shared utilities for parse options, field
   projection, and selector parsing
 
@@ -199,7 +200,7 @@ parse, codec, and structural validation. See
 - Test suite comprehensive and passing
 - Documentation comprehensive and up-to-date
 - **Production panics at 0 on main**
-- **CI Mode**: Currently operating in CI-off mode with local gates and small PRs. See [`docs/internal/state-and-path.md`](internal/state-and-path.md) for current state and implementation path.
+- **CI Mode**: Full CI pipeline active (CI Quick PR gate + CI Full matrix). See [`docs/internal/state-and-path.md`](internal/state-and-path.md) for current state.
 
 ## Documentation References
 
@@ -307,8 +308,8 @@ remaining limitations are addressed.
 3. **Documentation Resources**:
    - Reference `scripts/bench/perf.json` and `docs/PERFORMANCE_GOVERNANCE.md`
      when communicating status to stakeholders
-   - Review [ROADMAP.md](ROADMAP.md) for v0.5.0 dialect features and v1.0.0
-     stability timeline
+   - Review [ROADMAP.md](ROADMAP.md) for v1.0.0 stability timeline and
+     development phases
    - Consult [ERROR_CODES.md](reference/ERROR_CODES.md) for comprehensive error
      taxonomy
 

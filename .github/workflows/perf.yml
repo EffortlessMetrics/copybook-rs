@@ -363,8 +363,6 @@ jobs:
           COMBINED_OVERHEAD: ${{ steps.enterprise_overhead.outputs.combined_overhead }}
         with:
           script: |
-            const { context, github } = require('@actions/github');
-            
             const baselineFound = process.env.BASELINE_FOUND === 'true';
             const status = process.env.STATUS || 'pass';
             const warnings = process.env.WARNINGS || '';

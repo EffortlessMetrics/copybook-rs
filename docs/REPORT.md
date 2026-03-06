@@ -302,7 +302,7 @@ remaining limitations are addressed.
 
 2. **Performance Expectations**:
    - Budget time for manual performance validation
-   - Automation scripts from Issue #52 are still outstanding
+   - Automation scripts from Issue #52 are implemented (`bench-report` CLI tool in `copybook-bench`)
    - Native Linux deployment may show 5-15% improvement over WSL2 measurements
 
 3. **Documentation Resources**:

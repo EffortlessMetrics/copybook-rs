@@ -292,14 +292,14 @@ Becomes: `05 LONG-FIELD-NAME PIC X(100).`
 
 ### 7.5 SIGN Clause Handling
 
-**Rule**: SIGN LEADING/TRAILING [SEPARATE] MUST be rejected as unsupported clause.
+**Rule**: SIGN LEADING/TRAILING [SEPARATE] is fully supported (promoted in v0.4.3).
 
 **Implementation**:
-- Detect SIGN clauses during parsing
-- Emit CBKP011_UNSUPPORTED_CLAUSE
-- Suggest using standard signed numeric format
+- Parse SIGN clauses and record sign position (leading/trailing) and encoding (embedded/separate)
+- Decode and encode sign bytes according to the clause specification
+- See [COBOL_SUPPORT_MATRIX.md](reference/COBOL_SUPPORT_MATRIX.md) for detailed support status
 
-**Rationale**: SIGN SEPARATE clauses require specialized encoding logic not yet implemented.
+**History**: Previously rejected as unsupported; full support was added in v0.4.3.
 
 ## 8. Additional Normative Decisions
 

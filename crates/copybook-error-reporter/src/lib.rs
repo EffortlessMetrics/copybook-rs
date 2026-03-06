@@ -12,6 +12,16 @@ use std::fmt::Write as _;
 use tracing::{debug, error, warn};
 
 /// Error handling mode configuration
+///
+/// # Examples
+///
+/// ```
+/// use copybook_error_reporter::ErrorMode;
+///
+/// let mode = ErrorMode::Strict;
+/// assert_eq!(mode, ErrorMode::Strict);
+/// assert_ne!(mode, ErrorMode::Lenient);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorMode {
     /// Stop processing on first error
@@ -21,6 +31,16 @@ pub enum ErrorMode {
 }
 
 /// Error severity levels
+///
+/// # Examples
+///
+/// ```
+/// use copybook_error_reporter::ErrorSeverity;
+///
+/// assert!(ErrorSeverity::Fatal > ErrorSeverity::Error);
+/// assert!(ErrorSeverity::Error > ErrorSeverity::Warning);
+/// assert!(ErrorSeverity::Warning > ErrorSeverity::Info);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorSeverity {
     /// Informational messages

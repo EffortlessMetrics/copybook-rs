@@ -21,6 +21,19 @@ mod zone_constants {
 /// This enum controls how zoned decimal fields are encoded and decoded,
 /// enabling preservation of the original encoding format during round-trip
 /// operations for enterprise data consistency.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_zoned_format::ZonedEncodingFormat;
+///
+/// let fmt = ZonedEncodingFormat::default();
+/// assert!(fmt.is_auto());
+/// assert_eq!(fmt.description(), "Automatic detection based on zone nibbles");
+///
+/// let detected = ZonedEncodingFormat::detect_from_byte(0xF5);
+/// assert_eq!(detected, Some(ZonedEncodingFormat::Ebcdic));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum, Default)]
 pub enum ZonedEncodingFormat {
     /// ASCII digit zones (0x30-0x39).

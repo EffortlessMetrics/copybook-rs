@@ -12,6 +12,16 @@ use std::fmt;
 use logos::Logos;
 
 /// COBOL copybook tokens
+///
+/// # Examples
+///
+/// ```
+/// use copybook_lexer::Token;
+/// use logos::Logos;
+///
+/// let mut lex = Token::lexer("01 FIELD PIC X(10).");
+/// assert_eq!(lex.next(), Some(Ok(Token::Level(1))));
+/// ```
 #[derive(Logos, Debug, Clone, PartialEq)]
 #[logos(skip r"[ \t\f]+")]
 pub enum Token {
@@ -273,6 +283,16 @@ pub struct TokenPos {
 }
 
 /// COBOL format detection
+///
+/// # Examples
+///
+/// ```
+/// use copybook_lexer::CobolFormat;
+///
+/// let fmt = CobolFormat::Fixed;
+/// assert_eq!(fmt, CobolFormat::Fixed);
+/// assert_ne!(fmt, CobolFormat::Free);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CobolFormat {
     /// Traditional fixed-format (columns 1–6 sequence, 7 indicator, 8–72 code).

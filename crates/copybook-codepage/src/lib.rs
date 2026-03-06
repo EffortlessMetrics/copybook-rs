@@ -11,6 +11,17 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 /// Character encoding specification
+///
+/// # Examples
+///
+/// ```
+/// use copybook_codepage::Codepage;
+///
+/// let cp = Codepage::CP037;
+/// assert!(cp.is_ebcdic());
+/// assert_eq!(cp.code_page_number(), Some(37));
+/// assert_eq!(cp.description(), "EBCDIC Code Page 037 (US/Canada)");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(ValueEnum))]
 pub enum Codepage {
@@ -109,6 +120,15 @@ impl FromStr for Codepage {
 }
 
 /// Policy for handling unmappable characters during decode
+///
+/// # Examples
+///
+/// ```
+/// use copybook_codepage::UnmappablePolicy;
+///
+/// let policy = UnmappablePolicy::Replace;
+/// assert_eq!(format!("{policy}"), "replace");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(ValueEnum))]
 pub enum UnmappablePolicy {

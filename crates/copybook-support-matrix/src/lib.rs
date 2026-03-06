@@ -5,6 +5,17 @@
 use serde::{Deserialize, Serialize};
 
 /// Identifier for a COBOL feature tracked in the support matrix.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_support_matrix::{FeatureId, find_feature_by_id};
+///
+/// let id = FeatureId::Level88Conditions;
+/// if let Some(feature) = find_feature_by_id(id) {
+///     assert_eq!(feature.name, "LEVEL 88 condition names");
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
@@ -39,6 +50,18 @@ pub enum FeatureId {
 }
 
 /// Current implementation status of a COBOL feature.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_support_matrix::{SupportStatus, FeatureId, find_feature_by_id};
+///
+/// if let Some(feature) = find_feature_by_id(FeatureId::EditedPic) {
+///     if let SupportStatus::Supported = feature.status {
+///         // Feature is fully supported
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]

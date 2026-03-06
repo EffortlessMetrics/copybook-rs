@@ -24,6 +24,19 @@ pub const RDW_MAX_PAYLOAD_LEN: usize = u16::MAX as usize;
 const RDW_READER_BUF_CAPACITY: usize = (u16::MAX as usize) + RDW_HEADER_LEN;
 
 /// Parsed RDW header (`length + reserved`).
+///
+/// A 4-byte Record Descriptor Word containing a 2-byte big-endian payload
+/// length and 2 reserved bytes.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_rdw::RdwHeader;
+///
+/// let header = RdwHeader::from_bytes([0x00, 0x50, 0x00, 0x00]);
+/// assert_eq!(header.length(), 80);
+/// assert_eq!(header.reserved(), 0);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RdwHeader {
     bytes: [u8; RDW_HEADER_LEN],
@@ -222,6 +235,18 @@ pub struct RDWRecord {
 
 impl RDWRecord {
     /// Create a new RDW record from payload (fallible constructor).
+    ///
+    /// Constructs an [`RDWRecord`] with a computed header (payload length + zero reserved bytes).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use copybook_rdw::RDWRecord;
+    ///
+    /// let record = RDWRecord::try_new(vec![0xC8; 80]).unwrap();
+    /// assert_eq!(record.length(), 80);
+    /// assert_eq!(record.payload.len(), 80);
+    /// ```
     ///
     /// # Errors
     /// Returns an error when payload length exceeds `u16::MAX`.

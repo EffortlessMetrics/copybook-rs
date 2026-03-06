@@ -315,6 +315,20 @@ fn get_ebcdic_table(codepage: Codepage) -> Option<&'static [u32; 256]> {
 
 /// Convert EBCDIC bytes to UTF-8 string
 ///
+/// Decodes a byte slice from the specified EBCDIC codepage into a Rust `String`.
+/// The [`UnmappablePolicy`] controls behaviour when a byte has no valid Unicode mapping.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_charset::{ebcdic_to_utf8, Codepage, UnmappablePolicy};
+///
+/// // EBCDIC CP037 encoding of "HELLO"
+/// let ebcdic = &[0xC8, 0xC5, 0xD3, 0xD3, 0xD6];
+/// let text = ebcdic_to_utf8(ebcdic, Codepage::CP037, UnmappablePolicy::Error).unwrap();
+/// assert_eq!(text, "HELLO");
+/// ```
+///
 /// # Errors
 /// Returns an error if the EBCDIC data contains invalid bytes that cannot be converted.
 #[inline]
@@ -400,6 +414,17 @@ pub fn ebcdic_to_utf8(data: &[u8], codepage: Codepage, policy: UnmappablePolicy)
 }
 
 /// Convert UTF-8 string to EBCDIC bytes
+///
+/// Encodes a UTF-8 string into EBCDIC bytes for the specified codepage.
+///
+/// # Examples
+///
+/// ```
+/// use copybook_charset::{utf8_to_ebcdic, Codepage};
+///
+/// let ebcdic = utf8_to_ebcdic("HELLO", Codepage::CP037).unwrap();
+/// assert_eq!(ebcdic, vec![0xC8, 0xC5, 0xD3, 0xD3, 0xD6]);
+/// ```
 ///
 /// # Errors
 /// Returns an error if the UTF-8 text contains characters that cannot be mapped to the target codepage.

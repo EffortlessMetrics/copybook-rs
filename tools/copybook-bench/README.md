@@ -28,6 +28,17 @@ cargo test -p copybook-bench --test regression_detection
 cargo test -p copybook-bench --test ci_integration
 ```
 
+## Performance baseline
+
+Baseline established 2025-09-30 (commit 1fa63633):
+
+| Workload | Baseline | CI Floor |
+|----------|----------|----------|
+| DISPLAY-heavy | 205 MiB/s | 80 MiB/s |
+| COMP-3-heavy | 58 MiB/s | 40 MiB/s |
+
+CI enforces throughput floors; baseline comparisons remain advisory. See `BASELINE_METHODOLOGY.md` for measurement procedures.
+
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

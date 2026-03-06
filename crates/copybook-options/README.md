@@ -29,6 +29,15 @@ let options = DecodeOptions::new()
 - `FloatFormat` — `IeeeBigEndian` or `IbmHex`
 - `Codepage` / `UnmappablePolicy` / `ZonedEncodingFormat` — Re-exported charset types
 
+## RawMode variants
+
+| Variant | Description |
+|---------|-------------|
+| `Off` | No raw payload captured (default) |
+| `Record` | Capture record payload bytes in `__raw_b64` |
+| `RecordRDW` | Capture RDW header + payload bytes in `__raw_b64` |
+| `Field` | Capture per-field raw values in `<FIELD_NAME>__raw_b64` |
+
 ## License
 
 AGPL-3.0-or-later

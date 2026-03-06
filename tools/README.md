@@ -1,36 +1,37 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # Tools Directory
 
-Development and debugging tools for copybook-rs COBOL data processing.
+Development-only crates for copybook-rs (`publish = false`).
 
-## Debug Executables
-Binary tools for debugging and development:
-- **debug_invalid_level** - Debug tool for invalid COBOL level analysis
-- **debug_pic** - PIC clause parsing debug utility
-- **debug_tokens** - Token stream analysis for lexer debugging
-- **test_actual_invalid** - Test runner for invalid data scenarios
-- **test_zoned_encoding_integration** - Zoned decimal encoding integration tests
+## Crates
 
-## Shell Scripts
-Maintenance and automation scripts:
-- **clean_merge_conflicts.sh** - Automated merge conflict resolution
-- **fix_comp3_tests.sh** - COMP-3 test suite repair utility
+### copybook-bench
 
-## Source Files
-- **debug_test.rs** - Debug test implementation source
+Performance benchmarks with regression detection and baseline management.
 
-## Usage
-
-Debug tools are typically run during development:
 ```bash
-# Run debug tool
-./tools/debug_pic
-
-# Execute maintenance script
-./tools/clean_merge_conflicts.sh
+cargo bench -p copybook-bench
+cargo run --bin bench-report -p copybook-bench -- baseline show
+cargo run --bin bench-report -p copybook-bench -- compare scripts/bench/perf.json
 ```
 
-These tools are built as part of the development workflow and are not included in release distributions.
+### copybook-gen
+
+Test fixture generation with golden fixture framework for structural validation.
+
+```bash
+cargo test -p copybook-gen
+cargo run --package copybook-gen -- generate-golden-fixtures --enterprise --output fixtures/enterprise/
+```
+
+### xtask
+
+Build automation tasks for workspace-level operations.
+
+```bash
+cargo xtask <task>
+```
+
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).

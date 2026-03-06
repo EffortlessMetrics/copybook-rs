@@ -23,6 +23,7 @@ CLI for working with COBOL copybooks and mainframe record data.
 | `encode` | Convert JSONL to copybook binary |
 | `verify` | Validate data against schema only |
 | `support` | Show or check supported features |
+| `determinism` | Verify decode/encode/round-trip determinism |
 
 ## Quick start
 
@@ -42,6 +43,35 @@ copybook verify fixtures/copybooks/simple.cpy demo.bin \
 copybook support
 copybook support --json
 copybook support --check level-88
+```
+
+### Field projection
+
+```bash
+# Decode only selected fields
+copybook decode schema.cpy data.bin --output selected.jsonl \
+  --format fixed --codepage cp037 --select "CUSTOMER-ID,BALANCE"
+```
+
+### Dialect lever
+
+```bash
+# IBM Enterprise COBOL (zero-tolerant ODO)
+copybook decode schema.cpy data.bin --output data.jsonl \
+  --format fixed --codepage cp037 --dialect 0
+
+# Micro Focus COBOL (one-tolerant ODO)
+copybook parse schema.cpy --dialect 1
+```
+
+### Determinism validation
+
+```bash
+# Verify round-trip determinism
+copybook determinism round-trip --format fixed --codepage cp037 schema.cpy data.bin
+
+# JSON output for CI integration
+copybook determinism decode --output json --format fixed --codepage cp037 schema.cpy data.bin
 ```
 
 ## Installation

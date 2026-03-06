@@ -38,6 +38,14 @@ let payloads = generate_data_with_strategy(&schema, &config, DataStrategy::Norma
 println!("generated payloads: {}", payloads.len());
 ```
 
+## Supported fixture types
+
+- **ODO**: Variable-length arrays with `OCCURS DEPENDING ON` (O1-O4 scenarios)
+- **Level-88**: Condition values with structural validation
+- **REDEFINES**: Multiple storage views and complex interactions
+- **Enterprise**: Production mainframe patterns from banking, insurance, retail, manufacturing
+- **Invalid/Corrupted**: Targeted error-path fixtures for parser and codec validation
+
 ## License
 
 Licensed under **AGPL-3.0-or-later**. See [LICENSE](../LICENSE).
